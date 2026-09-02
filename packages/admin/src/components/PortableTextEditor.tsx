@@ -11,7 +11,16 @@
  * - Floating menu on empty lines
  */
 
-import { Button, Dialog, Input, Popover, Select, Switch } from "@cloudflare/kumo";
+import {
+	Button,
+	Dialog,
+	Input,
+	Popover,
+	Select,
+	Switch,
+	Tooltip,
+	TooltipProvider,
+} from "@cloudflare/kumo";
 import { Popover as PopoverPrimitive } from "@cloudflare/kumo/primitives/popover";
 import {
 	DndContext,
@@ -32,22 +41,29 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import type { Element } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { msg, plural } from "@lingui/core/macro";
+import { useLingui as useLinguiContext } from "@lingui/react";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	TextB,
 	TextItalic,
 	TextUnderline,
 	TextStrikethrough,
+	TextSubscript,
+	TextSuperscript,
 	Code,
 	TextHOne,
 	TextHTwo,
 	TextHThree,
+	TextHFour,
+	TextHFive,
+	TextHSix,
 	List,
 	ListNumbers,
 	Quotes,
 	Link as LinkIcon,
 	Image as ImageIcon,
+	Images,
 	ArrowUUpLeft,
 	ArrowUUpRight,
 	TextAlignLeft,
@@ -78,12 +94,15 @@ import { Extension, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
 import { Table } from "@tiptap/extension-table";
 import { TableCell } from "@tiptap/extension-table-cell";
 import { TableHeader } from "@tiptap/extension-table-header";
 import { TableRow } from "@tiptap/extension-table-row";
 import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { AllSelection, TextSelection } from "@tiptap/pm/state";
 import { CellSelection } from "@tiptap/pm/tables";
 import { useEditor, EditorContent, useEditorState, type Editor } from "@tiptap/react";
@@ -94,15 +113,26 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import { canonicalMediaProviderId } from "../lib/media-utils.js";
+import {
+	UnsupportedPortableTextMarksError,
+	assertPortableTextMarksSupported,
+	assertProseMirrorMarksSupported,
+	findUnsupportedPortableTextMarks,
+} from "../lib/portable-text-marks.js";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
 import { BlockKitMediaPickerField } from "./BlockKitMediaPickerField";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
+import { CodeMarkExtension } from "./editor/CodeMarkExtension";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import { mediaItemToGalleryImage } from "./editor/GalleryDetailPanel";
+import { GalleryExtension, type GalleryImage } from "./editor/GalleryNode";
 import { HeadingDropdownMenu } from "./editor/HeadingDropdownMenu";
 import { HtmlBlockExtension } from "./editor/HtmlBlockNode";
 import { ImageExtension } from "./editor/ImageNode";
 import { MarkdownLinkExtension } from "./editor/MarkdownLinkExtension";
+import { EmDashOrderedList } from "./editor/ordered-list";
 import {
 	type PluginBlockDef,
 	PluginBlockExtension,
@@ -142,6 +172,8 @@ interface PortableTextTextBlock {
 	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 	listItem?: "bullet" | "number";
 	level?: number;
+	listId?: string;
+	listStart?: number;
 	children: PortableTextSpan[];
 	markDefs?: PortableTextMarkDef[];
 	textAlign?: "left" | "center" | "right" | "justify";
@@ -150,7 +182,7 @@ interface PortableTextTextBlock {
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string; meta?: Record<string, unknown> };
+	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
@@ -189,9 +221,200 @@ function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+/**
+ * Normalize an untrusted gallery `images` value into well-formed entries.
+ * Mirrors `sanitizeGalleryImages` in core's content/converters (duplicated
+ * like the converters themselves — see note above).
+ */
+function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[] {
+	if (!Array.isArray(value)) return [];
+	const images: GalleryImage[] = [];
+	for (const entry of value as unknown[]) {
+		if (typeof entry !== "object" || entry === null || Array.isArray(entry)) continue;
+		const record = entry as Record<string, unknown>;
+		const asset = record.asset;
+		if (typeof asset !== "object" || asset === null) continue;
+		const assetRecord = asset as Record<string, unknown>;
+		const image: GalleryImage = {
+			_type: "image",
+			_key: attrStr(record._key) ?? (withKeys ? generateKey() : ""),
+			asset: {
+				_type: "reference",
+				_ref: typeof assetRecord._ref === "string" ? assetRecord._ref : "",
+				...(attrStr(assetRecord.url) ? { url: attrStr(assetRecord.url) } : {}),
+				...(attrStr(assetRecord.provider) ? { provider: attrStr(assetRecord.provider) } : {}),
+			},
+		};
+		if (attrStr(record.alt)) image.alt = attrStr(record.alt);
+		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
+		if (typeof record.width === "number") image.width = record.width;
+		if (typeof record.height === "number") image.height = record.height;
+		if (typeof record.focalX === "number") image.focalX = record.focalX;
+		if (typeof record.focalY === "number") image.focalY = record.focalY;
+		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
+		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
+		images.push(image);
+	}
+	return images;
+}
+
 // Helpers for safely extracting typed values from ProseMirror attrs (Record<string, any>)
 const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 const attrNum = (v: unknown): number | undefined => (typeof v === "number" && v ? v : undefined);
+
+const MAX_ORDERED_LIST_START = 2_147_483_647;
+
+type OrderedListMetadata = { listId: string; listStart: number };
+type PortableTextProseMirrorNode = {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: PortableTextProseMirrorNode[];
+	marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
+	text?: string;
+};
+
+function normalizeListId(value: unknown): string | undefined {
+	if (typeof value !== "string") return undefined;
+	const normalized = value.trim();
+	return normalized.length > 0 && normalized.length <= 128 ? normalized : undefined;
+}
+
+function normalizeListStart(value: unknown): number | undefined {
+	return typeof value === "number" &&
+		Number.isInteger(value) &&
+		value >= 1 &&
+		value <= MAX_ORDERED_LIST_START
+		? value
+		: undefined;
+}
+
+function deriveLegacyListId(seed: string): string {
+	const readable = `legacy:${seed}`;
+	if (readable.length <= 128) return readable;
+	let hash = 2_166_136_261;
+	for (let i = 0; i < seed.length; i++) {
+		hash ^= seed.charCodeAt(i);
+		hash = Math.imul(hash, 16_777_619);
+	}
+	return `legacy:${seed.slice(0, 96)}:${(hash >>> 0).toString(36)}:${seed.length.toString(36)}`;
+}
+
+function readOrderedListMetadata(
+	attrs: Record<string, unknown> | undefined,
+	fallbackId: string,
+): OrderedListMetadata {
+	return {
+		listId: normalizeListId(attrs?.listId) ?? deriveLegacyListId(fallbackId),
+		listStart: normalizeListStart(attrs?.listStart) ?? normalizeListStart(attrs?.start) ?? 1,
+	};
+}
+
+function clonePortableTextProseMirrorNode(
+	node: PortableTextProseMirrorNode,
+): PortableTextProseMirrorNode {
+	return {
+		...node,
+		attrs: node.attrs ? { ...node.attrs } : undefined,
+		content: node.content?.map(clonePortableTextProseMirrorNode),
+		marks: node.marks?.map((mark) => ({
+			...mark,
+			attrs: mark.attrs ? { ...mark.attrs } : undefined,
+		})),
+	};
+}
+
+function normalizeOrderedListJson(doc: { type: "doc"; content: PortableTextProseMirrorNode[] }): {
+	type: "doc";
+	content: PortableTextProseMirrorNode[];
+} {
+	type Descriptor = {
+		node: PortableTextProseMirrorNode;
+		path: string;
+		depth: number;
+		context: string;
+	};
+	const normalized = {
+		...doc,
+		content: doc.content.map(clonePortableTextProseMirrorNode),
+	};
+	const lists: Descriptor[] = [];
+	const visit = (
+		node: PortableTextProseMirrorNode,
+		path: string,
+		depth: number,
+		context: string,
+	) => {
+		if (node.type === "orderedList") lists.push({ node, path, depth, context });
+		for (const [index, child] of (node.content ?? []).entries()) {
+			const childPath = `${path}:${index}`;
+			visit(
+				child,
+				childPath,
+				depth + 1,
+				child.type === "listItem" ? `listItem:${childPath}` : context,
+			);
+		}
+	};
+	for (const [index, node] of normalized.content.entries()) {
+		visit(node, `root:${index}`, 0, "root");
+	}
+
+	const canonicalBySourceScope = new Map<string, string>();
+	const assignedIds = new Set<string>();
+	const descriptors = lists.map((list) => {
+		const sourceId =
+			normalizeListId(list.node.attrs?.listId) ??
+			deriveLegacyListId(`pm-json:${list.path}:${list.depth}:${list.context}`);
+		const scope = JSON.stringify([list.depth, list.context]);
+		const sourceScope = JSON.stringify([sourceId, scope]);
+		let listId = canonicalBySourceScope.get(sourceScope);
+		if (!listId) {
+			if (!assignedIds.has(sourceId)) {
+				listId = sourceId;
+			} else {
+				let attempt = 0;
+				do {
+					const suffix = `:${attempt.toString(36)}`;
+					const base = deriveLegacyListId(`repair:${sourceId}:${scope}`);
+					listId = `${base.slice(0, 128 - suffix.length)}${suffix}`;
+					attempt++;
+				} while (assignedIds.has(listId));
+			}
+			canonicalBySourceScope.set(sourceScope, listId);
+			assignedIds.add(listId);
+		}
+		return {
+			...list,
+			listId,
+			scopeKey: JSON.stringify([listId, list.depth, list.context]),
+		};
+	});
+
+	const bases = new Map<string, number>();
+	for (const list of descriptors) {
+		const listStart = normalizeListStart(list.node.attrs?.listStart);
+		if (listStart !== undefined && !bases.has(list.scopeKey)) {
+			bases.set(list.scopeKey, listStart);
+		}
+	}
+	for (const list of descriptors) {
+		if (!bases.has(list.scopeKey)) {
+			bases.set(list.scopeKey, normalizeListStart(list.node.attrs?.start) ?? 1);
+		}
+	}
+
+	const counts = new Map<string, number>();
+	for (const list of descriptors) {
+		const listStart = bases.get(list.scopeKey)!;
+		const count = counts.get(list.scopeKey) ?? 0;
+		const start = normalizeListStart(listStart + count) ?? 1;
+		const directItemCount =
+			list.node.content?.filter((node) => node.type === "listItem").length ?? 0;
+		counts.set(list.scopeKey, count + directItemCount);
+		list.node.attrs = { ...list.node.attrs, listId: list.listId, listStart, start };
+	}
+	return normalized;
+}
 
 // ProseMirror to Portable Text converter
 function prosemirrorToPortableText(doc: {
@@ -207,11 +430,12 @@ function prosemirrorToPortableText(doc: {
 	if (!doc || doc.type !== "doc" || !doc.content) {
 		return [];
 	}
+	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
 
-	for (const node of doc.content) {
-		const converted = convertPMNode(node);
+	for (let i = 0; i < doc.content.length; i++) {
+		const converted = convertPMNode(doc.content[i]!, `root:${i}`);
 		if (converted) {
 			if (Array.isArray(converted)) {
 				blocks.push(...converted);
@@ -224,13 +448,16 @@ function prosemirrorToPortableText(doc: {
 	return blocks;
 }
 
-function convertPMNode(node: {
-	type: string;
-	attrs?: Record<string, unknown>;
-	content?: unknown[];
-	marks?: unknown[];
-	text?: string;
-}): PortableTextBlock | PortableTextBlock[] | null {
+function convertPMNode(
+	node: {
+		type: string;
+		attrs?: Record<string, unknown>;
+		content?: unknown[];
+		marks?: unknown[];
+		text?: string;
+	},
+	path: string,
+): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
 			const { children, markDefs } = convertInlineContent(node.content || []);
@@ -269,10 +496,10 @@ function convertPMNode(node: {
 		}
 
 		case "bulletList":
-			return convertList(node.content || [], "bullet");
+			return convertList(node.content || [], "bullet", 1, node.attrs, path);
 
 		case "orderedList":
-			return convertList(node.content || [], "number");
+			return convertList(node.content || [], "number", 1, node.attrs, path);
 
 		case "blockquote": {
 			const blocks: PortableTextTextBlock[] = [];
@@ -358,6 +585,16 @@ function convertPMNode(node: {
 				style: "lineBreak",
 			};
 
+		case "gallery": {
+			const columns = node.attrs?.columns;
+			return {
+				_type: "gallery",
+				_key: generateKey(),
+				images: sanitizeGalleryImages(node.attrs?.images, true),
+				...(typeof columns === "number" ? { columns } : {}),
+			};
+		}
+
 		case "table": {
 			const tableKey = generateKey();
 			const tableContent = (node.content || []) as Array<{
@@ -380,11 +617,20 @@ function convertPMNode(node: {
 
 						const contentSpans: PortableTextSpan[] = [];
 						const cellMarkDefs: PortableTextMarkDef[] = [];
+						let paragraphCount = 0;
 						for (const paragraph of cellContent) {
 							if (paragraph.type === "paragraph") {
-								const { children, markDefs } = convertInlineContent(paragraph.content || []);
+								if (paragraphCount > 0) {
+									contentSpans.push({
+										_type: "span",
+										_key: generateKey(),
+										text: "\n",
+									});
+								}
+								const { children, markDefs } = convertInlineContent(paragraph.content || [], true);
 								contentSpans.push(...children);
 								cellMarkDefs.push(...markDefs);
+								paragraphCount++;
 							}
 						}
 
@@ -439,17 +685,23 @@ function convertList(
 	items: unknown[],
 	listItem: "bullet" | "number",
 	level = 1,
+	attrs?: Record<string, unknown>,
+	path = `list:${level}`,
 ): PortableTextTextBlock[] {
 	const blocks: PortableTextTextBlock[] = [];
 	const typedItems = items as Array<{ type: string; content?: unknown[] }>;
+	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
 
-	for (const item of typedItems) {
+	for (let itemIndex = 0; itemIndex < typedItems.length; itemIndex++) {
+		const item = typedItems[itemIndex]!;
 		if (item.type === "listItem") {
 			const listItemContent = (item.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
-			for (const child of listItemContent) {
+			for (let childIndex = 0; childIndex < listItemContent.length; childIndex++) {
+				const child = listItemContent[childIndex]!;
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInlineContent(child.content || []);
 					if (children.length > 0) {
@@ -459,14 +711,31 @@ function convertList(
 							style: "normal",
 							listItem,
 							level,
+							...metadata,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
 				} else if (child.type === "bulletList") {
-					blocks.push(...convertList(child.content || [], "bullet", level + 1));
+					blocks.push(
+						...convertList(
+							child.content || [],
+							"bullet",
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				} else if (child.type === "orderedList") {
-					blocks.push(...convertList(child.content || [], "number", level + 1));
+					blocks.push(
+						...convertList(
+							child.content || [],
+							"number",
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				}
 			}
 		}
@@ -475,7 +744,10 @@ function convertList(
 	return blocks;
 }
 
-function convertInlineContent(nodes: unknown[]): {
+function convertInlineContent(
+	nodes: unknown[],
+	preserveHardBreakBoundary = false,
+): {
 	children: PortableTextSpan[];
 	markDefs: PortableTextMarkDef[];
 } {
@@ -506,7 +778,7 @@ function convertInlineContent(nodes: unknown[]): {
 				marks: marks.length > 0 ? marks : undefined,
 			});
 		} else if (node.type === "hardBreak") {
-			if (children.length > 0) {
+			if (children.length > 0 && !preserveHardBreakBoundary) {
 				const last = children.at(-1);
 				if (last) last.text += "\n";
 			} else {
@@ -547,6 +819,10 @@ function convertMark(
 		case "strike":
 		case "strikethrough":
 			return "strike-through";
+		case "subscript":
+			return "subscript";
+		case "superscript":
+			return "superscript";
 		case "code":
 			return "code";
 		case "link": {
@@ -566,7 +842,7 @@ function convertMark(
 			return key;
 		}
 		default:
-			return mark.type;
+			throw new UnsupportedPortableTextMarksError([mark.type]);
 	}
 }
 
@@ -594,6 +870,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 			content: [{ type: "paragraph" }],
 		};
 	}
+	assertPortableTextMarksSupported(blocks);
 
 	const content: unknown[] = [];
 	let i = 0;
@@ -604,6 +881,8 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		if (isTextBlock(block) && block.listItem) {
 			const listBlocks: PortableTextTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 
 			// A list "run" is a level=1 anchor block plus everything that nests
 			// under it (level > 1) or repeats it at the same root level/type.
@@ -612,7 +891,13 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				const current = blocks[i]!;
 				if (!isTextBlock(current) || !current.listItem) break;
 				const level = current.level || 1;
-				if (level > 1 || current.listItem === listType) {
+				const currentId =
+					current.listItem === "number" ? normalizeListId(current.listId) : undefined;
+				const sameRootIdentity =
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (current.listItem === listType && sameRootIdentity)) {
 					listBlocks.push(current);
 					i++;
 				} else {
@@ -620,7 +905,7 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 				}
 			}
 
-			content.push(convertPTList(listBlocks, listType));
+			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else {
 			const converted = convertPTBlock(block);
 			if (converted) {
@@ -630,10 +915,38 @@ function portableTextToProsemirror(blocks: PortableTextBlock[]): {
 		}
 	}
 
-	return {
+	return normalizeOrderedListJson({
 		type: "doc",
-		content: content.length > 0 ? content : [{ type: "paragraph" }],
+		content: (content.length > 0
+			? content
+			: [{ type: "paragraph" }]) as PortableTextProseMirrorNode[],
+	});
+}
+
+function getListMetadata(
+	item: PortableTextTextBlock,
+	fallbackSeed: string,
+): { listId: string; listStart?: number } {
+	const listId = normalizeListId(item.listId) ?? deriveLegacyListId(fallbackSeed);
+	const listStart = normalizeListStart(item.listStart);
+	return {
+		listId,
+		...(listStart === undefined ? {} : { listStart }),
 	};
+}
+
+function belongsToNestedGroup(
+	item: PortableTextTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
 }
 
 function convertPTBlock(block: PortableTextBlock): unknown {
@@ -702,6 +1015,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					title: imageBlock.caption || "",
 					caption: imageBlock.caption || "",
 					mediaId: imageBlock.asset._ref,
+					provider: canonicalMediaProviderId(imageBlock.asset.provider),
 					width: imageBlock.width,
 					height: imageBlock.height,
 					blurhash,
@@ -716,15 +1030,44 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "code": {
 			if (!isCodeBlock(block)) return null;
 			const codeBlock = block;
+			const language =
+				typeof codeBlock.language === "string" && codeBlock.language.length > 0
+					? codeBlock.language
+					: null;
 			return {
 				type: "codeBlock",
-				attrs: { language: codeBlock.language || null },
+				attrs: { language },
 				content: codeBlock.code ? [{ type: "text", text: codeBlock.code }] : undefined,
 			};
 		}
 
 		case "break":
 			return { type: "horizontalRule" };
+
+		case "gallery": {
+			const galleryBlock = block as { _type: "gallery"; _key: string; [key: string]: unknown };
+			// A gallery without an images array is malformed — keep the visible
+			// placeholder rather than silently rendering an empty grid.
+			if (!Array.isArray(galleryBlock.images)) {
+				return {
+					type: "paragraph",
+					content: [
+						{
+							type: "text",
+							text: `[Unknown block type: ${block._type}]`,
+							marks: [{ type: "code" }],
+						},
+					],
+				};
+			}
+			return {
+				type: "gallery",
+				attrs: {
+					images: sanitizeGalleryImages(galleryBlock.images),
+					columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
+				},
+			};
+		}
 
 		case "htmlBlock": {
 			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
@@ -827,7 +1170,11 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 	}
 }
 
-function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "number"): unknown {
+function convertPTList(
+	items: PortableTextTextBlock[],
+	listType: "bullet" | "number",
+	context: string,
+): unknown {
 	// Group items into root-level items (level === 1) and their nested
 	// descendants (level > 1). For each root item, all subsequent items with
 	// level > 1 belong to its nested subtree — recurse on them with level
@@ -846,17 +1193,24 @@ function convertPTList(items: PortableTextTextBlock[], listType: "bullet" | "num
 				nestedItems.push(items[i]!);
 				i++;
 			}
-			rootItems.push(convertPTListItem(item, nestedItems, listType));
+			rootItems.push(
+				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
+			);
 		} else {
 			// Orphan nested item with no preceding level=1 anchor — treat as root
 			// so we don't drop content.
-			rootItems.push(convertPTListItem(item, [], listType));
+			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
 			i++;
 		}
 	}
 
+	const firstItem = items[0]!;
+	const metadata =
+		listType === "number" ? getListMetadata(firstItem, `${context}:${firstItem._key}`) : undefined;
+
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
 		content: rootItems,
 	};
 }
@@ -865,6 +1219,7 @@ function convertPTListItem(
 	item: PortableTextTextBlock,
 	nestedItems: PortableTextTextBlock[],
 	parentListType: "bullet" | "number",
+	context: string,
 ): unknown {
 	const content: unknown[] = [];
 
@@ -893,6 +1248,8 @@ function convertPTListItem(
 		let j = 0;
 		while (j < nestedItems.length) {
 			const anchorType: "bullet" | "number" = nestedItems[j]!.listItem || parentListType;
+			const anchorId =
+				anchorType === "number" ? normalizeListId(nestedItems[j]!.listId) : undefined;
 			const nestedGroup: PortableTextTextBlock[] = [];
 
 			do {
@@ -900,8 +1257,7 @@ function convertPTListItem(
 				j++;
 			} while (
 				j < nestedItems.length &&
-				((nestedItems[j]!.level || 2) > minLevel ||
-					(nestedItems[j]!.listItem || parentListType) === anchorType)
+				belongsToNestedGroup(nestedItems[j]!, minLevel, parentListType, anchorType, anchorId)
 			);
 
 			if (nestedGroup.length > 0) {
@@ -909,7 +1265,9 @@ function convertPTListItem(
 					...ni,
 					level: (ni.level || 2) - 1,
 				}));
-				content.push(convertPTList(adjustedGroup, anchorType));
+				content.push(
+					convertPTList(adjustedGroup, anchorType, `${context}:nested:${j - nestedGroup.length}`),
+				);
 			}
 		}
 	}
@@ -970,6 +1328,12 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 			case "strike-through":
 				pmMarks.push({ type: "strike" });
 				break;
+			case "subscript":
+				pmMarks.push({ type: "subscript" });
+				break;
+			case "superscript":
+				pmMarks.push({ type: "superscript" });
+				break;
 			case "code":
 				pmMarks.push({ type: "code" });
 				break;
@@ -983,6 +1347,10 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PortableTextMarkD
 							target: markDef.blank ? "_blank" : null,
 						},
 					});
+				} else {
+					throw new UnsupportedPortableTextMarksError([
+						typeof markDef?._type === "string" ? markDef._type : mark,
+					]);
 				}
 				break;
 			}
@@ -1017,6 +1385,12 @@ interface SlashCommandItem {
 	category?: MessageDescriptor | string;
 }
 
+function insertHtmlBlock(editor: Editor, range?: Range) {
+	const chain = editor.chain().focus();
+	if (range) chain.deleteRange(range);
+	chain.insertContent({ type: "htmlBlock", attrs: { html: "" } }).run();
+}
+
 /**
  * Default slash commands for built-in block types
  */
@@ -1049,6 +1423,36 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		aliases: ["h3"],
 		command: ({ editor, range }) => {
 			editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run();
+		},
+	},
+	{
+		id: "heading4",
+		title: msg`Heading 4`,
+		description: msg`Smaller section heading`,
+		icon: TextHFour,
+		aliases: ["h4"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 4 }).run();
+		},
+	},
+	{
+		id: "heading5",
+		title: msg`Heading 5`,
+		description: msg`Minor section heading`,
+		icon: TextHFive,
+		aliases: ["h5"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 5 }).run();
+		},
+	},
+	{
+		id: "heading6",
+		title: msg`Heading 6`,
+		description: msg`Smallest section heading`,
+		icon: TextHSix,
+		aliases: ["h6"],
+		command: ({ editor, range }) => {
+			editor.chain().focus().deleteRange(range).setNode("heading", { level: 6 }).run();
 		},
 	},
 	{
@@ -1097,14 +1501,7 @@ const defaultSlashCommands: SlashCommandItem[] = [
 		description: msg`Insert raw HTML`,
 		icon: BracketsAngle,
 		aliases: ["html", "raw", "markup"],
-		command: ({ editor, range }) => {
-			editor
-				.chain()
-				.focus()
-				.deleteRange(range)
-				.insertContent({ type: "htmlBlock", attrs: { html: "" } })
-				.run();
-		},
+		command: ({ editor, range }) => insertHtmlBlock(editor, range),
 	},
 	{
 		id: "divider",
@@ -1485,6 +1882,7 @@ function PluginBlockModal({
 
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
+		e.stopPropagation();
 		if (block?.fields && block.fields.length > 0) {
 			onInsert(formValues);
 		} else {
@@ -2124,20 +2522,20 @@ function EditorFooter({ editor }: { editor: Editor }) {
 		},
 	});
 
+	// Subscribes to locale changes so the plural messages below re-render.
+	useLinguiContext();
 	const readingTime = calculateReadingTime(text);
 
 	return (
 		<div className="border-t px-4 py-2 flex items-center gap-4 text-xs text-kumo-subtle">
-			<span>
-				{words} {words === 1 ? "word" : "words"}
-			</span>
-			<span>
-				{characters} {characters === 1 ? "character" : "characters"}
-			</span>
-			<span>{readingTime} min read</span>
+			<span>{plural(words, { one: "# word", other: "# words" })}</span>
+			<span>{plural(characters, { one: "# character", other: "# characters" })}</span>
+			<span>{plural(readingTime, { one: "# min read", other: "# min read" })}</span>
 		</div>
 	);
 }
+
+export { EditorFooter as _EditorFooter };
 
 /** Focus mode state for the editor */
 export type FocusMode = "normal" | "spotlight";
@@ -2243,6 +2641,11 @@ export function PortableTextEditor({
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
 
+	// Multi-select media picker state (for gallery insertion)
+	const [galleryPickerOpen, setGalleryPickerOpen] = React.useState(false);
+	const [conversionErrorMarks, setConversionErrorMarks] = React.useState<string[]>([]);
+	const [sectionInsertErrorMarks, setSectionInsertErrorMarks] = React.useState<string[]>([]);
+
 	// Plugin block insertion/editing state
 	const [pluginBlockModal, setPluginBlockModal] = React.useState<PluginBlockDef | null>(null);
 	const [pluginBlockInitialValues, setPluginBlockInitialValues] = React.useState<
@@ -2254,6 +2657,10 @@ export function PortableTextEditor({
 	// Section picker state (for inserting sections)
 	const [sectionPickerOpen, setSectionPickerOpen] = React.useState(false);
 	const pendingBlockInsertPosRef = React.useRef<number | null>(null);
+	const openToolbarImagePicker = React.useCallback(() => {
+		pendingBlockInsertPosRef.current = null;
+		setMediaPickerOpen(true);
+	}, []);
 
 	// Slash commands state
 	const [slashMenuState, setSlashMenuStateRaw] = React.useState<SlashMenuState>({
@@ -2313,6 +2720,21 @@ export function PortableTextEditor({
 			command: ({ editor, range }) => {
 				editor.chain().focus().deleteRange(range).run();
 				setMediaPickerOpen(true);
+			},
+		});
+
+		// Add gallery command
+		cmds.push({
+			id: "gallery",
+			title: msg`Gallery`,
+			description: msg`Insert an image gallery`,
+			icon: Images,
+			aliases: ["gal", "photos", "grid"],
+			category: msg`Media`,
+			deferInsertion: true,
+			command: ({ editor, range }) => {
+				editor.chain().focus().deleteRange(range).run();
+				setGalleryPickerOpen(true);
 			},
 		});
 
@@ -2377,8 +2799,19 @@ export function PortableTextEditor({
 	};
 
 	// Convert initial value to ProseMirror format
+	const initialUnsupportedMarks = React.useMemo(
+		() => findUnsupportedPortableTextMarks(value || []),
+		[],
+	);
+	const unsupportedMarks = React.useMemo(
+		() => [...new Set([...initialUnsupportedMarks, ...conversionErrorMarks])].toSorted(),
+		[conversionErrorMarks, initialUnsupportedMarks],
+	);
 	const initialContent = React.useMemo(
-		() => portableTextToProsemirror(value || []),
+		() =>
+			initialUnsupportedMarks.length > 0
+				? { type: "doc" as const, content: [{ type: "paragraph" }] }
+				: portableTextToProsemirror(value || []),
 		[], // Only compute once on mount
 	);
 
@@ -2391,7 +2824,7 @@ export function PortableTextEditor({
 		() => [
 			StarterKit.configure({
 				heading: {
-					levels: [1, 2, 3],
+					levels: [1, 2, 3, 4, 5, 6],
 				},
 				dropcursor: {
 					color: "#3b82f6",
@@ -2399,22 +2832,31 @@ export function PortableTextEditor({
 				},
 				// Replaced with CodeBlockExtension below (adds language picker node view).
 				codeBlock: false,
+				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
+				code: false,
+				orderedList: false,
 				// StarterKit v3 includes Link and Underline
 				link: {
 					openOnClick: false,
 					enableClickSelection: true,
 					HTMLAttributes: {
-						class: "text-kumo-brand underline",
+						class: "text-kumo-link underline",
 					},
 				},
 				underline: {},
 			}),
+			EmDashOrderedList,
+			CodeMarkExtension,
 			CodeBlockExtension,
 			HtmlBlockExtension,
+			GalleryExtension,
 			ImageExtension,
 			MarkdownLinkExtension,
 			PluginBlockExtension,
+			Subscript,
+			Superscript,
 			Table.configure({
+				allowTableNodeSelection: true,
 				resizable: true,
 			}),
 			TableRow,
@@ -2459,7 +2901,7 @@ export function PortableTextEditor({
 	const editor = useEditor({
 		extensions,
 		content: initialContent as Parameters<typeof useEditor>[0]["content"],
-		editable,
+		editable: editable && unsupportedMarks.length === 0,
 		immediatelyRender: true,
 		editorProps,
 		onUpdate: ({ editor: updatedEditor }) => {
@@ -2468,8 +2910,16 @@ export function PortableTextEditor({
 				const doc = updatedEditor.getJSON();
 				// TipTap's getJSON() returns JSONContent which is structurally compatible
 				const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
-				const portableText = prosemirrorToPortableText(pmDoc);
-				cb(portableText);
+				try {
+					const portableText = prosemirrorToPortableText(pmDoc);
+					cb(portableText);
+				} catch (error) {
+					if (error instanceof UnsupportedPortableTextMarksError) {
+						setConversionErrorMarks(error.marks);
+						return;
+					}
+					throw error;
+				}
 			}
 		},
 	});
@@ -2648,14 +3098,14 @@ export function PortableTextEditor({
 	// reference before TipTap destroys the instance (e.g. when keying by item.id
 	// to switch translations).
 	React.useEffect(() => {
-		if (editor && onEditorReady) {
+		if (editor && onEditorReady && unsupportedMarks.length === 0) {
 			onEditorReady(editor);
 			return () => {
 				onEditorReady(null);
 			};
 		}
 		return undefined;
-	}, [editor, onEditorReady]);
+	}, [editor, onEditorReady, unsupportedMarks.length]);
 
 	React.useEffect(() => {
 		const viewport = window.visualViewport;
@@ -2719,17 +3169,24 @@ export function PortableTextEditor({
 
 	React.useEffect(() => {
 		if (!editor) return;
-		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
-		if (!storage) return;
-		storage.onOpenBlockSidebar = (panel: BlockSidebarPanel) => {
-			onBlockSidebarOpenRef.current?.(panel);
-		};
-		storage.onCloseBlockSidebar = () => {
-			onBlockSidebarCloseRef.current?.();
-		};
+		const editorStorage = editor.storage as unknown as Record<string, Record<string, unknown>>;
+		// Both node types share the same sidebar plumbing
+		const storages = [editorStorage.image, editorStorage.gallery].filter(
+			(storage): storage is Record<string, unknown> => storage !== undefined,
+		);
+		for (const storage of storages) {
+			storage.onOpenBlockSidebar = (panel: BlockSidebarPanel) => {
+				onBlockSidebarOpenRef.current?.(panel);
+			};
+			storage.onCloseBlockSidebar = () => {
+				onBlockSidebarCloseRef.current?.();
+			};
+		}
 		return () => {
-			storage.onOpenBlockSidebar = null;
-			storage.onCloseBlockSidebar = null;
+			for (const storage of storages) {
+				storage.onOpenBlockSidebar = null;
+				storage.onCloseBlockSidebar = null;
+			}
 		};
 	}, [editor]);
 
@@ -2743,7 +3200,7 @@ export function PortableTextEditor({
 					src: item.url,
 					alt: item.alt || item.filename,
 					mediaId: item.id,
-					provider: item.provider || "local",
+					provider: canonicalMediaProviderId(item.provider),
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,
@@ -2759,6 +3216,25 @@ export function PortableTextEditor({
 			}
 			pendingBlockInsertPosRef.current = null;
 			setMediaPickerOpen(false);
+		},
+		[editor],
+	);
+
+	// Handle gallery insertion from the multi-select media picker
+	const handleGallerySelect = React.useCallback(
+		(items: MediaItem[]) => {
+			if (editor && items.length > 0) {
+				const attrs = { images: items.map(mediaItemToGalleryImage), columns: 3 };
+				const insertPos = pendingBlockInsertPosRef.current;
+				const chain = editor.chain().focus();
+				if (insertPos === null) {
+					chain.setGallery(attrs).run();
+				} else {
+					chain.insertContentAt(insertPos, { type: "gallery", attrs }).run();
+				}
+			}
+			pendingBlockInsertPosRef.current = null;
+			setGalleryPickerOpen(false);
 		},
 		[editor],
 	);
@@ -2836,7 +3312,17 @@ export function PortableTextEditor({
 			const ptContent = Array.isArray(section.content)
 				? (section.content as PortableTextBlock[])
 				: [];
-			const { content: prosemirrorContent } = portableTextToProsemirror(ptContent);
+			let prosemirrorContent: unknown[];
+			try {
+				({ content: prosemirrorContent } = portableTextToProsemirror(ptContent));
+			} catch (error) {
+				if (error instanceof UnsupportedPortableTextMarksError) {
+					setSectionInsertErrorMarks(error.marks);
+					return;
+				}
+				throw error;
+			}
+			setSectionInsertErrorMarks([]);
 
 			const insertPos = pendingBlockInsertPosRef.current;
 			const chain = editor.chain().focus();
@@ -2850,6 +3336,28 @@ export function PortableTextEditor({
 		[editor],
 	);
 
+	if (unsupportedMarks.length > 0) {
+		const markList = unsupportedMarks.join(", ");
+		return (
+			<div
+				role="alert"
+				className={cn(
+					className,
+					"rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start",
+				)}
+				aria-labelledby={ariaLabelledby}
+			>
+				<p className="font-medium text-kumo-error">{t`This content cannot be edited safely`}</p>
+				<p className="mt-1 text-sm text-kumo-subtle">
+					<Trans>
+						This field contains unsupported Portable Text marks: <code dir="auto">{markList}</code>.
+						Remove them through the API before editing or saving this content.
+					</Trans>
+				</p>
+			</div>
+		);
+	}
+
 	if (!editor) {
 		return (
 			<div className={cn("border rounded-lg", className)}>
@@ -2859,7 +3367,33 @@ export function PortableTextEditor({
 	}
 
 	return (
-		<div ref={floatingRootRef} className="relative" data-emdash-editor-floating-root>
+		<div ref={floatingRootRef} className="relative min-w-0" data-emdash-editor-floating-root>
+			{sectionInsertErrorMarks.length > 0 && (
+				<div
+					role="alert"
+					className="mb-3 flex items-start justify-between gap-4 rounded-lg border border-kumo-error bg-kumo-error/10 p-4 text-start"
+				>
+					<div className="min-w-0">
+						<p className="font-medium text-kumo-error">{t`Could not insert section`}</p>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							<Trans>
+								This section contains unsupported Portable Text marks:{" "}
+								<code dir="auto">{sectionInsertErrorMarks.join(", ")}</code>. Update the section
+								before inserting it.
+							</Trans>
+						</p>
+					</div>
+					<Button
+						type="button"
+						variant="ghost"
+						shape="square"
+						onClick={() => setSectionInsertErrorMarks([])}
+						aria-label={t`Dismiss section error`}
+					>
+						<X className="h-4 w-4" aria-hidden="true" />
+					</Button>
+				</div>
+			)}
 			<EditorBubbleMenu
 				editor={editor}
 				appendTo={appendBubbleMenu}
@@ -2873,7 +3407,8 @@ export function PortableTextEditor({
 			<div
 				className={cn(
 					"border rounded-lg overflow-clip",
-					minimal && "border-0 rounded-none -mx-4",
+					!minimal && "bg-kumo-base",
+					minimal && "border-0 rounded-none",
 					focusMode === "spotlight" && "spotlight-mode",
 					className,
 				)}
@@ -2887,6 +3422,7 @@ export function PortableTextEditor({
 						focusMode={focusMode}
 						onFocusModeChange={setFocusMode}
 						onInsertBlock={handleTouchInsertBlock}
+						onInsertImage={openToolbarImagePicker}
 					/>
 				)}
 				<div className="relative overflow-visible">
@@ -2915,6 +3451,20 @@ export function PortableTextEditor({
 					onSelect={handleImageSelect}
 					mimeTypeFilter="image/"
 					title={t`Select Image`}
+				/>
+
+				{/* Multi-select media picker for gallery insertion */}
+				<MediaPickerModal
+					open={galleryPickerOpen}
+					onOpenChange={(open) => {
+						setGalleryPickerOpen(open);
+						if (!open) pendingBlockInsertPosRef.current = null;
+					}}
+					multiple
+					onSelect={() => {}}
+					onSelectMany={handleGallerySelect}
+					mimeTypeFilter="image/"
+					title={t`Select Gallery Images`}
 				/>
 
 				{/* Plugin block insertion/editing modal */}
@@ -2968,6 +3518,8 @@ function EditorBubbleMenu({
 			italic: activeEditor.isActive("italic"),
 			underline: activeEditor.isActive("underline"),
 			strike: activeEditor.isActive("strike"),
+			subscript: activeEditor.isActive("subscript"),
+			superscript: activeEditor.isActive("superscript"),
 			code: activeEditor.isActive("code"),
 			link: activeEditor.isActive("link"),
 		}),
@@ -3025,6 +3577,7 @@ function EditorBubbleMenu({
 					apply: ({ availableWidth, elements }) => {
 						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
 					},
 				}),
 			}}
@@ -3108,6 +3661,20 @@ function EditorBubbleMenu({
 						<TextStrikethrough className="h-4 w-4" />
 					</BubbleButton>
 					<BubbleButton
+						onClick={() => editor.chain().focus().toggleSubscript().run()}
+						active={activeMarks.subscript}
+						title={t`Subscript`}
+					>
+						<TextSubscript className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
+						onClick={() => editor.chain().focus().toggleSuperscript().run()}
+						active={activeMarks.superscript}
+						title={t`Superscript`}
+					>
+						<TextSuperscript className="h-4 w-4" />
+					</BubbleButton>
+					<BubbleButton
 						onClick={() => editor.chain().focus().toggleCode().run()}
 						active={activeMarks.code}
 						title={t`Code`}
@@ -3163,6 +3730,7 @@ function TableBubbleMenu({
 					apply: ({ availableWidth, elements }) => {
 						elements.floating.style.maxWidth = `${Math.max(0, availableWidth)}px`;
 						elements.floating.style.overflowX = "auto";
+						elements.floating.style.borderRadius = "var(--radius-lg)";
 					},
 				}),
 			}}
@@ -3263,6 +3831,48 @@ function BubbleButton({
 	);
 }
 
+type TextAlignment = "left" | "center" | "right" | "justify";
+
+function getSelectionTextAlignment(editor: Editor): TextAlignment | null {
+	const ownerWindow = editor.view.dom.ownerDocument.defaultView;
+	const defaultAlignment: TextAlignment =
+		ownerWindow?.getComputedStyle(editor.view.dom).direction === "rtl" ? "right" : "left";
+	const alignments = new Set<TextAlignment>();
+
+	const collectAlignment = (node: ProseMirrorNode) => {
+		if (node.type.name !== "paragraph" && node.type.name !== "heading") return;
+		const textAlign = node.attrs.textAlign;
+		alignments.add(
+			textAlign === "left" ||
+				textAlign === "center" ||
+				textAlign === "right" ||
+				textAlign === "justify"
+				? textAlign
+				: defaultAlignment,
+		);
+	};
+
+	for (const { $from, $to } of editor.state.selection.ranges) {
+		if ($from.pos === $to.pos) {
+			for (let depth = $from.depth; depth >= 0; depth -= 1) {
+				const node = $from.node(depth);
+				if (node.type.name === "paragraph" || node.type.name === "heading") {
+					collectAlignment(node);
+					break;
+				}
+			}
+			continue;
+		}
+
+		editor.state.doc.nodesBetween($from.pos, $to.pos, (node) => {
+			collectAlignment(node);
+			return node.type.name !== "paragraph" && node.type.name !== "heading";
+		});
+	}
+
+	return alignments.size === 1 ? (alignments.values().next().value ?? null) : null;
+}
+
 /**
  * Editor Toolbar
  *
@@ -3275,12 +3885,14 @@ function EditorToolbar({
 	focusMode,
 	onFocusModeChange,
 	onInsertBlock,
+	onInsertImage,
 }: {
 	toolbarRef: React.RefObject<HTMLDivElement | null>;
 	editor: Editor;
 	focusMode: FocusMode;
 	onFocusModeChange: (mode: FocusMode) => void;
 	onInsertBlock: () => void;
+	onInsertImage: () => void;
 }) {
 	const { t } = useLingui();
 	const [showLinkPopover, setShowLinkPopover] = React.useState(false);
@@ -3290,23 +3902,29 @@ function EditorToolbar({
 	// Subscribe to editor state changes for reactive button states
 	const editorState = useEditorState({
 		editor,
-		selector: (ctx) => ({
-			isBold: ctx.editor.isActive("bold"),
-			isItalic: ctx.editor.isActive("italic"),
-			isUnderline: ctx.editor.isActive("underline"),
-			isStrike: ctx.editor.isActive("strike"),
-			isCode: ctx.editor.isActive("code"),
-			isBulletList: ctx.editor.isActive("bulletList"),
-			isOrderedList: ctx.editor.isActive("orderedList"),
-			isBlockquote: ctx.editor.isActive("blockquote"),
-			isCodeBlock: ctx.editor.isActive("codeBlock"),
-			isAlignLeft: ctx.editor.isActive({ textAlign: "left" }),
-			isAlignCenter: ctx.editor.isActive({ textAlign: "center" }),
-			isAlignRight: ctx.editor.isActive({ textAlign: "right" }),
-			isLink: ctx.editor.isActive("link"),
-			canUndo: ctx.editor.can().undo(),
-			canRedo: ctx.editor.can().redo(),
-		}),
+		selector: (ctx) => {
+			const textAlignment = getSelectionTextAlignment(ctx.editor);
+			const isOrderedList = ctx.editor.isActive("orderedList");
+			return {
+				isBold: ctx.editor.isActive("bold"),
+				isItalic: ctx.editor.isActive("italic"),
+				isUnderline: ctx.editor.isActive("underline"),
+				isStrike: ctx.editor.isActive("strike"),
+				isCode: ctx.editor.isActive("code"),
+				isBulletList: ctx.editor.isActive("bulletList"),
+				isOrderedList,
+				canContinueOrderedList: isOrderedList && ctx.editor.can().continueOrderedList(),
+				canRestartOrderedList: isOrderedList && ctx.editor.can().restartOrderedList(),
+				isBlockquote: ctx.editor.isActive("blockquote"),
+				isCodeBlock: ctx.editor.isActive("codeBlock"),
+				isAlignLeft: textAlignment === "left",
+				isAlignCenter: textAlignment === "center",
+				isAlignRight: textAlignment === "right",
+				isLink: ctx.editor.isActive("link"),
+				canUndo: ctx.editor.can().undo(),
+				canRedo: ctx.editor.can().redo(),
+			};
+		},
 	});
 
 	// Populate link URL when opening popover
@@ -3390,7 +4008,7 @@ function EditorToolbar({
 		}
 	}, []);
 
-	return (
+	const toolbar = (
 		<div
 			ref={toolbarRef}
 			role="toolbar"
@@ -3401,18 +4019,24 @@ function EditorToolbar({
 		>
 			{/* Text formatting */}
 			<ToolbarGroup>
-				<Button
-					type="button"
-					variant="ghost"
-					shape="square"
-					className="hidden h-8 w-8 flex-none pointer-coarse:flex"
-					onMouseDown={(event) => event.preventDefault()}
-					onClick={onInsertBlock}
-					aria-label={t`Insert block after current block`}
-					data-touch-block-insert
-				>
-					<Plus className="h-4 w-4" aria-hidden="true" />
-				</Button>
+				<Tooltip
+					content={t`Insert block after current block`}
+					side="bottom"
+					render={
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							className="hidden h-8 w-8 flex-none hover:bg-kumo-interact/50 pointer-coarse:flex"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={onInsertBlock}
+							aria-label={t`Insert block after current block`}
+							data-touch-block-insert
+						>
+							<Plus className="h-4 w-4" aria-hidden="true" />
+						</Button>
+					}
+				/>
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBold().run()}
 					active={editorState.isBold}
@@ -3454,7 +4078,7 @@ function EditorToolbar({
 
 			{/* Headings */}
 			<ToolbarGroup>
-				<HeadingDropdownMenu editor={editor} levels={[1, 2, 3]} />
+				<HeadingDropdownMenu editor={editor} />
 			</ToolbarGroup>
 
 			<ToolbarSeparator />
@@ -3475,6 +4099,24 @@ function EditorToolbar({
 				>
 					<ListNumbers className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
+				{editorState.isOrderedList && (
+					<>
+						<ToolbarButton
+							onClick={() => editor.chain().focus().continueOrderedList().run()}
+							disabled={!editorState.canContinueOrderedList}
+							title={t`Continue numbering`}
+						>
+							<ArrowUUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+						</ToolbarButton>
+						<ToolbarButton
+							onClick={() => editor.chain().focus().restartOrderedList().run()}
+							disabled={!editorState.canRestartOrderedList}
+							title={t`Restart numbering`}
+						>
+							<ArrowUUpLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+						</ToolbarButton>
+					</>
+				)}
 				<ToolbarButton
 					onClick={() => editor.chain().focus().toggleBlockquote().run()}
 					active={editorState.isBlockquote}
@@ -3488,6 +4130,12 @@ function EditorToolbar({
 					title={t`Code Block`}
 				>
 					<CodeBlock className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton onClick={onInsertImage} title={t`Insert Image`}>
+					<ImageIcon className="h-4 w-4" aria-hidden="true" />
+				</ToolbarButton>
+				<ToolbarButton onClick={() => insertHtmlBlock(editor)} title={t`Insert HTML`}>
+					<BracketsAngle className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
 
@@ -3529,22 +4177,28 @@ function EditorToolbar({
 						if (!open) setLinkUrl("");
 					}}
 				>
-					<Popover.Trigger
+					<Tooltip
+						content={t`Insert Link`}
+						side="bottom"
 						render={
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								className={cn(
-									"h-8 w-8 flex-none",
-									editorState.isLink && "bg-kumo-tint text-kumo-default",
-								)}
-								onMouseDown={(event) => event.preventDefault()}
-								aria-label={t`Insert Link`}
-								aria-pressed={editorState.isLink}
-							>
-								<LinkIcon className="h-4 w-4" aria-hidden="true" />
-							</Button>
+							<Popover.Trigger
+								render={
+									<Button
+										type="button"
+										variant="ghost"
+										shape="square"
+										className={cn(
+											"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+											editorState.isLink && "bg-kumo-interact/50 text-kumo-default",
+										)}
+										onMouseDown={(event) => event.preventDefault()}
+										aria-label={t`Insert Link`}
+										aria-pressed={editorState.isLink}
+									>
+										<LinkIcon className="h-4 w-4" aria-hidden="true" />
+									</Button>
+								}
+							/>
 						}
 					/>
 					<Popover.Content side="bottom" align="start" className="w-auto p-3">
@@ -3631,6 +4285,8 @@ function EditorToolbar({
 			</ToolbarGroup>
 		</div>
 	);
+
+	return <TooltipProvider>{toolbar}</TooltipProvider>;
 }
 
 function ToolbarGroup({ children }: { children: React.ReactNode }) {
@@ -3651,20 +4307,29 @@ interface ToolbarButtonProps {
 
 function ToolbarButton({ onClick, active, disabled, title, children }: ToolbarButtonProps) {
 	return (
-		<Button
-			type="button"
-			variant="ghost"
-			shape="square"
-			className={cn("h-8 w-8 flex-none", active && "bg-kumo-tint text-kumo-default")}
-			onMouseDown={(e) => e.preventDefault()}
-			onClick={onClick}
-			disabled={disabled}
-			aria-label={title}
-			aria-pressed={active}
-			tabIndex={0}
-		>
-			{children}
-		</Button>
+		<Tooltip
+			content={title}
+			side="bottom"
+			render={
+				<Button
+					type="button"
+					variant="ghost"
+					shape="square"
+					className={cn(
+						"h-8 w-8 flex-none hover:bg-kumo-interact/50",
+						active && "bg-kumo-interact/50 text-kumo-default",
+					)}
+					onMouseDown={(e) => e.preventDefault()}
+					onClick={onClick}
+					disabled={disabled}
+					aria-label={title}
+					aria-pressed={active}
+					tabIndex={0}
+				>
+					{children}
+				</Button>
+			}
+		/>
 	);
 }
 

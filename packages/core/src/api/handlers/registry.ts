@@ -1,56 +1,49 @@
 /**
- * Registry plugin install handler.
- *
- * Installs a plugin published to the experimental decentralized plugin
- * registry described in RFC 0001. The install flow:
- *
- *   1. Resolve `(handle, slug)` to a publisher DID via the configured
- *      aggregator's `resolvePackage` XRPC.
- *   2. Look up the requested release (or the policy-filtered latest one)
- *      via `getLatestRelease` / `listReleases`.
- *   3. Reject the install if the aggregator surfaces a `security:yanked`
- *      hard-enforcement label or the release is below the configured
- *      minimum release age.
- *   4. Fetch the bundle artifact, walking aggregator mirrors first and
- *      falling back to the publisher-declared URL.
- *   5. Verify the artifact's multibase checksum against the signed
- *      release record's `artifacts.package.checksum`.
- *   6. Extract `manifest.json` + `backend.js` + optional `admin.js` from
- *      the gzipped tar bundle.
- *   7. Store the extracted files in site-local R2 under the
- *      `registry/<plugin-id>/<version>/` prefix.
- *   8. Write a `plugin_states` row with `source = "registry"` and the
- *      `(publisher_did, slug)` pair so updates can be resolved later.
- *   9. Sync the runtime so the plugin becomes active immediately.
- *
- * Known gaps (tracked separately):
- *
- *   - The aggregator-supplied records are not yet cryptographically
- *     verified against the publisher's MST signature. The signed bytes
- *     and CIDs are passed through verbatim per the lexicon, but full
- *     PDS-direct verification with proof traversal is follow-up work.
- *     The artifact checksum is verified end-to-end against the value
- *     in the (aggregator-relayed) release record, which is the actual
- *     trust boundary for the bytes that end up in the sandbox.
- *   - `acceptLabelers` is forwarded as-is to the aggregator; this
- *     handler does not independently re-fetch and verify labels from
- *     each labeller's DID. Aggregator label envelope tampering is
- *     mitigated by the artifact checksum but not detected.
+ * Registry installs use aggregator results only for discovery and moderation
+ * metadata. The handler reads profile and release records from the publisher's
+ * PDS, verifies their repository proofs, then validates the bundle checksum,
+ * manifest, policy, and consent before storing or activating executable code.
+ * Applicable labels can block installation but cannot supply any verified
+ * record, checksum, permission, or executable byte.
  */
 
 import { ClientResponseError, ClientValidationError } from "@atcute/client";
 import type { Did } from "@atcute/lexicons";
+import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
+import type { CanonicalDeclaredAccess } from "@emdash-cms/plugin-types";
 import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
+import { NSID } from "@emdash-cms/registry-lexicons";
+import {
+	fetchReleaseArtifact,
+	type ReleaseArtifactReference,
+} from "@emdash-cms/registry-verification/artifact";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import { extractBundle } from "../../plugins/marketplace.js";
-import type { PluginBundle } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import {
+	removeAllPluginIndexes,
+	syncDeclaredStorageIndexes,
+} from "../../plugins/storage-indexes.js";
 import { declaredAccessToCapabilities } from "../../plugins/types.js";
 import type { DeclaredAccess } from "../../plugins/types.js";
+import { fetchRegistryArtifactUrl } from "../../registry/artifact-fetch.js";
+import {
+	validateRegistryArtifact,
+	type RegistryArtifactVerificationCode,
+} from "../../registry/artifact-verification.js";
+import {
+	readAuthoritativePackageRelease,
+	verifyAuthoritativePackageRelease,
+	type AuthoritativeRecordErrorCode,
+	type AuthoritativeRecordReader,
+	type AuthoritativeRecordReadOptions,
+	type VerifiedAuthoritativeReleaseReport,
+	type VerifiedAuthoritativeRecords,
+} from "../../registry/authoritative-records.js";
 import {
 	canonicalCapabilitiesForDriftCheck,
 	coerceRegistryConfig,
@@ -59,8 +52,9 @@ import {
 	validateAggregatorUrl,
 } from "../../registry/config.js";
 import { makeRegistryPluginId } from "../../registry/plugin-id.js";
+import { hasCurrentRecordLabel } from "../../registry/record-labels.js";
 import type { RegistryConfigInput } from "../../registry/types.js";
-import { resolveAndValidateExternalUrl, SsrfError } from "../../security/ssrf.js";
+import { resolveAndValidateExternalUrlTarget } from "../../security/ssrf.js";
 import { EmDashStorageError } from "../../storage/types.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
@@ -72,7 +66,7 @@ import {
 	storeBundleInR2,
 } from "./marketplace.js";
 
-const RELEASE_EXTENSION_NSID = "com.emdashcms.experimental.package.releaseExtension";
+export { assertSafeArtifactUrl } from "../../registry/artifact-fetch.js";
 
 /**
  * Whether two `declaredAccess` blocks grant exactly the same enforced access --
@@ -90,6 +84,10 @@ export function enforcedAccessEqual(a: DeclaredAccess, b: DeclaredAccess): boole
 		JSON.stringify(aa.capabilities.toSorted()) === JSON.stringify(bb.capabilities.toSorted()) &&
 		JSON.stringify(aa.allowedHosts.toSorted()) === JSON.stringify(bb.allowedHosts.toSorted())
 	);
+}
+
+function verifiedAccessEqual(a: CanonicalDeclaredAccess, b: DeclaredAccess): boolean {
+	return JSON.stringify(a) === JSON.stringify(canonicalizeDeclaredAccess(b));
 }
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -121,6 +119,9 @@ export interface RegistryInstallInput {
 	 * surface a consent UI before posting (e.g. CI scripts) opt out.
 	 */
 	acknowledgedDeclaredAccess?: unknown;
+	acknowledgedMcpTools?: unknown;
+	acknowledgedProfileCid?: string;
+	acknowledgedReleaseCid?: string;
 }
 
 export interface RegistryInstallResult {
@@ -134,84 +135,120 @@ export interface RegistryInstallResult {
 	version: string;
 	/** Capabilities surfaced from the bundle's manifest. */
 	capabilities: string[];
+	declaredAccess: DeclaredAccess;
+	mcpTools: RegistryMcpConsentTool[];
+	verification: RegistryRecordVerificationSummary;
+}
+
+export interface RegistryMcpConsentTool {
+	name: string;
+	description: string;
+	route: string;
+	permission: string;
+	destructive: boolean;
+}
+
+export interface RegistryRecordVerificationSummary {
+	profileCid: string;
+	releaseCid: string;
+	provenance: "verified" | "absent-optional";
+	policy: {
+		requireProvenance: boolean;
+		confirmation: "escalation-only" | "always";
+		approvers: string[];
+	};
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-/** Matches a bare 64-character lowercase/uppercase hex SHA-256 digest. */
-const SHA256_HEX_PATTERN = /^[a-f0-9]{64}$/i;
-
-/** Compute the SHA-256 of `bytes` as a lowercase hex string. */
-async function sha256Hex(bytes: Uint8Array): Promise<string> {
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Uint8Array is a valid BufferSource at runtime
-	const buf = await crypto.subtle.digest("SHA-256", bytes as unknown as BufferSource);
-	const arr = new Uint8Array(buf);
-	return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+export function registryArtifactError(
+	code: RegistryArtifactVerificationCode,
+	message: string,
+	operation: "install" | "update",
+): ApiResult<never> {
+	let apiCode: string;
+	switch (code) {
+		case "BUNDLE_ID_MISMATCH":
+			apiCode = operation === "install" ? "MANIFEST_ID_MISMATCH" : "BUNDLE_IDENTITY_MISMATCH";
+			break;
+		case "BUNDLE_VERSION_MISMATCH":
+			apiCode = operation === "install" ? "MANIFEST_VERSION_MISMATCH" : code;
+			break;
+		case "CHECKSUM_MISMATCH":
+		case "INVALID_MULTIHASH":
+		case "UNSUPPORTED_MULTIHASH":
+			apiCode = "CHECKSUM_MISMATCH";
+			break;
+		case "FETCH_FAILED":
+		case "HOST_REJECTED":
+		case "REDIRECT_LIMIT_EXCEEDED":
+		case "REDIRECT_LOCATION_MISSING":
+		case "RESOURCE_STATUS_ERROR":
+		case "RESOURCE_TIMEOUT":
+			apiCode = operation === "install" ? "INSTALL_FAILED" : "UPDATE_FAILED";
+			break;
+		default:
+			apiCode = "INVALID_BUNDLE";
+	}
+	return {
+		success: false,
+		error: {
+			code: apiCode,
+			message,
+			details: { verificationCode: code },
+		},
+	};
 }
 
-/** multihash code for sha2-256 (single-byte varint). */
-const MULTIHASH_SHA256_CODE = 0x12;
-/** sha2-256 digest length in bytes (single-byte varint). */
-const MULTIHASH_SHA256_LENGTH = 0x20;
-
-/**
- * Compute the multibase-multihash sha2-256 checksum of `bytes`, in the
- * same `b<base32>` shape the registry CLI publishes
- * (`packages/plugin-cli/src/multihash.ts`). Returns a 56-character
- * string starting with `b`.
- *
- * The trust contract is: if both sides produce the same string for
- * the same bytes, the bytes are unchanged. We don't decode the
- * publisher-supplied checksum -- we just re-encode our own and compare,
- * which is equivalent and avoids needing a base32 decoder.
- */
-async function sha256MultibaseMultihash(bytes: Uint8Array): Promise<string> {
-	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Uint8Array is a valid BufferSource at runtime
-	const digestBuf = await crypto.subtle.digest("SHA-256", bytes as unknown as BufferSource);
-	const digest = new Uint8Array(digestBuf);
-	const multihash = new Uint8Array(2 + digest.length);
-	multihash[0] = MULTIHASH_SHA256_CODE;
-	multihash[1] = MULTIHASH_SHA256_LENGTH;
-	multihash.set(digest, 2);
-	const { toBase32 } = await import("@atcute/multibase");
-	return `b${toBase32(multihash)}`;
+function registryRecordError(
+	code: AuthoritativeRecordErrorCode,
+	message: string,
+): ApiResult<never> {
+	return {
+		success: false,
+		error: {
+			code: "RECORD_VERIFICATION_FAILED",
+			message,
+			details: { verificationCode: code },
+		},
+	};
 }
 
-/**
- * Verify that a checksum string from a release record's
- * `artifact.checksum` field corresponds to the SHA-256 of the given
- * bytes.
- *
- * Accepts two formats:
- *
- *   - Bare lowercase/uppercase hex SHA-256 (64 chars). Convenience for
- *     publishers / tools that emit hex rather than multibase.
- *   - Multibase-multihash with the `b` (base32) prefix and sha2-256.
- *     This is the format RFC 0001 mandates and the registry CLI emits
- *     (see `packages/plugin-cli/src/multihash.ts`).
- *
- * Hash functions other than sha2-256 are out of scope for this
- * initial release; the install fails closed.
- */
-export async function verifyChecksum(bytes: Uint8Array, checksum: string): Promise<boolean> {
-	if (SHA256_HEX_PATTERN.test(checksum)) {
-		const actual = await sha256Hex(bytes);
-		return checksum.toLowerCase() === actual;
+function recordConsentError(
+	input: { profileCid?: string; releaseCid?: string },
+	records: VerifiedAuthoritativeRecords,
+): ApiResult<never> | null {
+	if (!input.profileCid || !input.releaseCid) {
+		return {
+			success: false,
+			error: {
+				code: "RECORD_CONSENT_REQUIRED",
+				message: "Verify the signed package records before confirming this action.",
+			},
+		};
 	}
-
-	// Multibase-base32 multihash with sha2-256. We re-encode our own
-	// digest in the same shape and compare strings -- equivalent to
-	// decoding and comparing bytes, but doesn't need a base32 decoder.
-	// 56 chars = 'b' + base32(34 bytes) = 'b' + 55 chars.
-	if (checksum.length === 56 && checksum.startsWith("b")) {
-		const actual = await sha256MultibaseMultihash(bytes);
-		// Case-insensitive: multibase 'b' is lowercase by convention but
-		// some emitters use uppercase. RFC 4648 base32 alphabets are
-		// case-insensitive.
-		return actual.toLowerCase() === checksum.toLowerCase();
+	if (input.profileCid !== records.profile.cid || input.releaseCid !== records.release.cid) {
+		return {
+			success: false,
+			error: {
+				code: "RECORD_VERIFICATION_DRIFT",
+				message: "The signed package records changed after review. Verify them again.",
+			},
+		};
 	}
+	return null;
+}
 
-	return false;
+function recordVerificationSummary(
+	records: VerifiedAuthoritativeRecords,
+	report: VerifiedAuthoritativeReleaseReport,
+): RegistryRecordVerificationSummary {
+	return {
+		profileCid: records.profile.cid,
+		releaseCid: records.release.cid,
+		provenance: report.provenance.status,
+		policy: report.value.policy,
+	};
 }
 
 /**
@@ -236,29 +273,20 @@ const MAX_REDIRECTS = 5;
 
 /**
  * Wall-clock cap on any single artifact fetch attempt (per URL).
- * Defends against slow-loris mirrors that accept the connection but
+ * Defends against slow-loris artifact sources that accept the connection but
  * never finish sending headers or body.
  */
 const ARTIFACT_FETCH_TIMEOUT_MS = 15_000;
 
 /**
  * Total wall-clock budget for the artifact-download phase across all
- * mirrors and the declared URL. Even with the per-URL timeout, a
- * malicious mirror list could otherwise tie up the install request for
+ * advertised caches, the publisher PDS, and the declared URL. Even with the
+ * per-URL timeout, unavailable sources could otherwise tie up the install request for
  * minutes; this caps total time at a budget interactive admins can
  * tolerate. Tuned so a fast happy path takes <1s of budget per
  * attempt and a worst case still completes in under a minute.
  */
 const ARTIFACT_TOTAL_BUDGET_MS = 45_000;
-
-/**
- * Cap on the number of mirror URLs we try before falling back to the
- * publisher-declared URL. Matches the aggregator lexicon's
- * `mirrors` array length cap (16) but enforced here independently so
- * a misbehaving aggregator can't slow-loris us through hundreds of
- * URLs.
- */
-const MAX_MIRRORS = 16;
 
 /**
  * Per-request timeout applied to every aggregator XRPC call
@@ -276,6 +304,16 @@ const AGGREGATOR_REQUEST_TIMEOUT_MS = 15_000;
  * still bounds the whole phase.
  */
 const AGGREGATOR_TOTAL_BUDGET_MS = 30_000;
+
+class RegistryArtifactFetchError extends Error {
+	constructor(
+		readonly code: RegistryArtifactVerificationCode,
+		message: string,
+	) {
+		super(message);
+		this.name = "RegistryArtifactFetchError";
+	}
+}
 
 /** Build a fetch function that enforces a per-request and per-budget timeout. */
 function timedFetch(totalDeadline: number): typeof fetch {
@@ -299,249 +337,45 @@ function timedFetch(totalDeadline: number): typeof fetch {
 	};
 }
 
-/**
- * Localhost-equivalent hostnames the artifact fetcher rejects in
- * production. The full literal-IP / DNS-rebinding blocklist lives in
- * `#security/ssrf.js` and is invoked via `resolveAndValidateExternalUrl`
- * below; this small set exists only because the artifact handler has
- * a dev-mode escape hatch that lets `http://localhost` through.
- */
-const FORBIDDEN_HOSTNAMES = new Set([
-	"localhost",
-	"localhost.localdomain",
-	"ip6-localhost",
-	"ip6-loopback",
-]);
-
-/** Trailing dot on a hostname, stripped before URL host comparisons. */
-const TRAILING_DOT = /\.$/;
-
-/** Hostnames that resolve to the local machine; rejected outright in production. */
-function isLocalhostHostname(hostname: string): boolean {
-	// WHATWG URL preserves brackets on IPv6 hostnames; strip them before
-	// comparison so `[::1]` is recognised as localhost.
-	const stripped = hostname.toLowerCase().replace(TRAILING_DOT, "");
-	const h = stripped.startsWith("[") && stripped.endsWith("]") ? stripped.slice(1, -1) : stripped;
-	if (FORBIDDEN_HOSTNAMES.has(h)) return true;
-	if (h === "localhost") return true;
-	if (h.endsWith(".localhost")) return true;
-	if (h === "127.0.0.1" || h === "::1") return true;
-	if (h.startsWith("::ffff:127.") || h.startsWith("::ffff:7f00:")) return true;
-	return false;
-}
-
-/**
- * Validate that `urlString` is a safe outbound target for artifact
- * downloads. Rejects non-HTTPS (except localhost in dev), embedded
- * credentials, any host that's a loopback / private / link-local
- * literal address, and any hostname whose resolved A or AAAA records
- * point at one of those addresses (closes the DNS-rebinding gap).
- *
- * Wraps `resolveAndValidateExternalUrl` from the import-pipeline SSRF
- * module so both code paths share one DoH cache, one resolver, one
- * blocklist, and one set of regression tests. Layers an
- * artifact-specific protocol/dev-localhost policy on top.
- *
- * `import.meta.env.DEV` is a Vite/Astro compile-time constant, so
- * production bundles cannot enable the dev escape hatch at runtime.
- */
-export async function assertSafeArtifactUrl(urlString: string): Promise<URL> {
-	let url: URL;
-	try {
-		url = new URL(urlString);
-	} catch {
-		throw new Error(`Invalid artifact URL: ${urlString}`);
-	}
-	if (url.protocol !== "https:" && url.protocol !== "http:") {
-		throw new Error(`Artifact URL protocol not allowed: ${url.protocol}`);
-	}
-	if (url.username || url.password) {
-		throw new Error("Artifact URL must not contain embedded credentials");
-	}
-
-	const rawHostname = url.hostname.toLowerCase().replace(TRAILING_DOT, "");
-	// Strip brackets so the IPv4/IPv6 checks see the canonical form.
-	const hostname =
-		rawHostname.startsWith("[") && rawHostname.endsWith("]")
-			? rawHostname.slice(1, -1)
-			: rawHostname;
-	const localhost = isLocalhostHostname(hostname);
-
-	// In production: reject HTTP entirely and reject localhost over any
-	// protocol -- a publisher pointing at `https://localhost` is still
-	// trying to bounce the server through its own loopback interface.
-	if (!import.meta.env.DEV) {
-		if (url.protocol === "http:") {
-			throw new Error("Artifact URL must use https");
-		}
-		if (localhost) {
-			throw new Error(`Artifact URL points to localhost: ${hostname}`);
-		}
-	} else if (url.protocol === "http:" && !localhost) {
-		// Dev mode: http allowed only for localhost.
-		throw new Error("Artifact URL must use https (http allowed only for localhost in dev)");
-	}
-
-	if (localhost) {
-		// Dev-only path; nothing to resolve.
-		return url;
-	}
-
-	// Delegate IP-literal + DNS-rebinding validation to the import
-	// pipeline's SSRF helper. Adapts the SsrfError to the existing
-	// artifact-URL error vocabulary so callers keep their current
-	// catch shape.
-	try {
-		return await resolveAndValidateExternalUrl(url.href);
-	} catch (err) {
-		if (err instanceof SsrfError) {
-			throw new Error(`Artifact URL rejected: ${err.message}`, { cause: err });
-		}
-		throw err;
-	}
-}
-
-/**
- * Fetch one URL with manual redirect handling so every hop is
- * URL-validated, a hard byte cap so a malicious response body cannot
- * exhaust memory before the checksum check rejects it, and a wall-clock
- * timeout that covers connect, headers, and body together. The timeout
- * is the minimum of the per-URL cap and the remaining total budget so
- * a late-arriving mirror still respects the install's global budget.
- */
-async function fetchWithLimits(initialUrl: string, totalDeadline: number): Promise<Uint8Array> {
-	const now = Date.now();
-	const remaining = Math.max(0, totalDeadline - now);
-	if (remaining === 0) {
-		throw new Error("Artifact download budget exhausted");
-	}
-	const perUrlTimeout = Math.min(ARTIFACT_FETCH_TIMEOUT_MS, remaining);
-	const controller = new AbortController();
-	const timer = setTimeout(() => controller.abort(), perUrlTimeout);
-	try {
-		let current = await assertSafeArtifactUrl(initialUrl);
-		let response: Response;
-		for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-			response = await fetch(current.href, { redirect: "manual", signal: controller.signal });
-			if (response.status < 300 || response.status >= 400) break;
-			const location = response.headers.get("location");
-			if (!location) break;
-			if (hop === MAX_REDIRECTS) {
-				throw new Error(`Too many redirects fetching artifact (>${MAX_REDIRECTS})`);
-			}
-			const next = new URL(location, current);
-			current = await assertSafeArtifactUrl(next.href);
-		}
-		// eslint-disable-next-line @typescript-eslint/no-non-null-assertion -- response is assigned in the first loop iteration
-		const finalResponse = response!;
-		if (!finalResponse.ok) {
-			throw new Error(`HTTP ${finalResponse.status}`);
-		}
-
-		// Check Content-Length up front when present. Untrusted servers can
-		// lie or omit it; the streaming cap below is the real defense.
-		const lengthHeader = finalResponse.headers.get("content-length");
-		if (lengthHeader) {
-			const declared = Number(lengthHeader);
-			if (Number.isFinite(declared) && declared > MAX_ARTIFACT_BYTES) {
-				throw new Error(
-					`Artifact too large (declared ${declared} bytes, limit ${MAX_ARTIFACT_BYTES})`,
-				);
-			}
-		}
-
-		const body = finalResponse.body;
-		if (!body) {
-			// Workers can't return a null body for a normal GET; defensive fallback.
-			const buf = new Uint8Array(await finalResponse.arrayBuffer());
-			if (buf.byteLength > MAX_ARTIFACT_BYTES) {
-				throw new Error(`Artifact too large (limit ${MAX_ARTIFACT_BYTES} bytes)`);
-			}
-			return buf;
-		}
-
-		const reader = body.getReader();
-		const chunks: Uint8Array[] = [];
-		let total = 0;
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			if (!value) continue;
-			total += value.byteLength;
-			if (total > MAX_ARTIFACT_BYTES) {
-				try {
-					await reader.cancel();
-				} catch {
-					// nothing to do
-				}
-				throw new Error(`Artifact too large (limit ${MAX_ARTIFACT_BYTES} bytes)`);
-			}
-			chunks.push(value);
-		}
-
-		const out = new Uint8Array(total);
-		let offset = 0;
-		for (const chunk of chunks) {
-			out.set(chunk, offset);
-			offset += chunk.byteLength;
-		}
-		return out;
-	} finally {
-		clearTimeout(timer);
-	}
-}
-
-/**
- * Strip query string and fragment from a URL for use in
- * client-visible error messages. Registry artifacts are often hosted
- * on storage backends that include presigned tokens in the query
- * string; surfacing the raw URL on a failed install leaks those
- * tokens into the admin's HTTP response and any log drain that
- * captures the error chain. Origin + pathname is enough to identify
- * the host and resource without exposing credentials.
- *
- * Falls back to a generic placeholder when the URL is malformed.
- */
-function redactUrlForError(raw: string): string {
-	try {
-		const u = new URL(raw);
-		return `${u.origin}${u.pathname}`;
-	} catch {
-		return "<malformed url>";
-	}
-}
-
-/** Walk artifact source URLs in priority order and return the first that fetches successfully. */
-async function fetchArtifact(mirrors: string[], declaredUrl: string): Promise<Uint8Array> {
-	// Clamp mirrors regardless of what the lexicon type says -- a buggy
-	// or malicious aggregator could return more than the spec'd limit
-	// and slow-loris each one. The declared URL is always tried last.
-	const clampedMirrors = mirrors.slice(0, MAX_MIRRORS);
-	const urls = [...clampedMirrors, declaredUrl];
-	// Client-visible errors carry redacted URLs (origin + path only).
-	// The full URL with any query-string token is logged server-side
-	// so operators can still debug delivery failures.
-	const clientErrors: string[] = [];
-
-	const totalDeadline = Date.now() + ARTIFACT_TOTAL_BUDGET_MS;
-
-	for (const url of urls) {
-		if (Date.now() >= totalDeadline) {
-			clientErrors.push("(total artifact download budget exhausted)");
-			break;
-		}
-		try {
-			return await fetchWithLimits(url, totalDeadline);
-		} catch (err) {
-			const message = err instanceof Error ? err.message : String(err);
-			console.warn(`[registry-install] Artifact fetch failed from ${url}:`, message);
-			clientErrors.push(`${redactUrlForError(url)}: ${message}`);
-		}
-	}
-
-	throw new Error(
-		`Failed to download artifact from any source. Tried:\n  ${clientErrors.join("\n  ")}`,
+async function fetchArtifact(
+	artifactCaches: readonly unknown[],
+	artifact: ReleaseArtifactReference,
+	record: {
+		did: string;
+		collection: string;
+		rkey: string;
+		cid: string;
+	},
+	auth?: unknown,
+): Promise<Uint8Array> {
+	const result = await fetchReleaseArtifact(
+		{
+			artifact,
+			record,
+			artifactCaches,
+			...(auth === undefined ? {} : { auth }),
+		},
+		{
+			fetch: async (url, init) => {
+				if (!init.signal) throw new Error("Registry artifact fetch requires an abort signal");
+				return fetchRegistryArtifactUrl(url.href, {
+					signal: init.signal,
+					maxResponseBytes: MAX_ARTIFACT_BYTES,
+				});
+			},
+			resolveHostname: async (hostname) =>
+				(await resolveAndValidateExternalUrlTarget(`https://${hostname}`)).addresses,
+			allowHttpLocalhost: import.meta.env.DEV,
+			headerTimeoutMs: ARTIFACT_FETCH_TIMEOUT_MS,
+			totalTimeoutMs: ARTIFACT_TOTAL_BUDGET_MS,
+			maxBytes: MAX_ARTIFACT_BYTES,
+			maxRedirects: MAX_REDIRECTS,
+		},
 	);
+	if (!result.success) {
+		throw new RegistryArtifactFetchError(result.error.code, result.error.message);
+	}
+	return result.value.bytes;
 }
 
 /**
@@ -598,7 +432,13 @@ export async function handleRegistryInstall(
 	sandboxRunner: SandboxRunner | null,
 	registryConfigInput: RegistryConfigInput | undefined,
 	input: RegistryInstallInput,
-	opts?: { configuredPluginIds?: Set<string>; hostEnv?: HostEnv },
+	opts?: {
+		configuredPluginIds?: Set<string>;
+		hostEnv?: HostEnv;
+		authoritativeRecords?: AuthoritativeRecordReadOptions;
+		readAuthoritativeRecords?: AuthoritativeRecordReader;
+		verifyOnly?: boolean;
+	},
 ): Promise<ApiResult<RegistryInstallResult>> {
 	// Accept either the bare-string shorthand or the full
 	// `RegistryConfig` object (see `RegistryConfigInput`).
@@ -653,7 +493,8 @@ export async function handleRegistryInstall(
 
 	// Lazy-load the discovery client. Avoids pulling @atcute/client into
 	// every code path that imports core/api/handlers.
-	const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+	const { DiscoveryClient, registryLabelerPolicy } =
+		await import("@emdash-cms/registry-client/discovery");
 
 	// Every aggregator XRPC call passes through `timedFetch`, which
 	// enforces a per-request timeout and shares a single total-budget
@@ -663,6 +504,7 @@ export async function handleRegistryInstall(
 	const discovery = new DiscoveryClient({
 		aggregatorUrl: registryConfig.aggregatorUrl,
 		acceptLabelers: registryConfig.acceptLabelers,
+		labelerPolicy: registryLabelerPolicy(registryConfig.acceptLabelers),
 		fetch: timedFetch(aggregatorDeadline),
 	});
 
@@ -747,19 +589,9 @@ export async function handleRegistryInstall(
 			};
 		}
 
-		// Identity cross-check on every field the aggregator denormalises
-		// onto the package and release views. A buggy or compromised
-		// aggregator could otherwise return a release view for a
-		// different `(did, slug, version)` than we asked for; the
-		// handler would then fetch + checksum-verify + install bytes
-		// under the requested package's pluginId but for a different
-		// publisher's record. Checksum verification only proves the bytes
-		// match the *returned* record, not that the record belongs to
-		// the package we requested.
-		// `releaseView.release` is validated against the release lexicon by
-		// DiscoveryClient (or `null` if it didn't conform). A `null` here makes
-		// the identity checks below fail closed, which is the desired outcome.
-		const signedRelease = releaseView.release;
+		// The aggregator selects the package/version and supplies mirrors and
+		// moderation metadata. Its copies of the signed records are not
+		// verification inputs.
 		if (packageView.did !== publisherDid || packageView.slug !== slug) {
 			return {
 				success: false,
@@ -772,9 +604,7 @@ export async function handleRegistryInstall(
 		if (
 			releaseView.did !== publisherDid ||
 			releaseView.package !== slug ||
-			signedRelease?.package !== slug ||
-			(requestedVersion !== undefined && releaseView.version !== requestedVersion) ||
-			signedRelease?.version !== releaseView.version
+			(requestedVersion !== undefined && releaseView.version !== requestedVersion)
 		) {
 			return {
 				success: false,
@@ -787,34 +617,74 @@ export async function handleRegistryInstall(
 		}
 
 		const version = releaseView.version;
-
-		// Step 3: takedown label check (hard-enforced via aggregator's
-		// `atproto-accept-labelers` filtering, but we belt-and-suspenders
-		// the package-level labels too).
-		const yanked = (packageView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
-		);
-		const releaseYanked = (releaseView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
-		);
-		if (yanked || releaseYanked) {
+		if (evaluateRegistryReleaseWithdrawal(releaseView, discovery.labelerPolicy).withdrawn) {
 			return {
 				success: false,
 				error: {
 					code: "RELEASE_YANKED",
-					message: "This release has been withdrawn (security:yanked label).",
+					message: "This release has been withdrawn",
 				},
 			};
 		}
 
-		// Step 3b: environment compatibility. The signed release record may
-		// carry a `requires` block (`env:emdash`, `env:astro`, ...). Refuse
+		const authoritative = await (opts?.readAuthoritativeRecords ?? readAuthoritativePackageRelease)(
+			publisherDid,
+			slug,
+			version,
+			opts?.authoritativeRecords,
+		);
+		if (!authoritative.success) {
+			return registryRecordError(authoritative.error.code, authoritative.error.message);
+		}
+		const records = authoritative.value;
+		const { profile, release } = records.inspection.value;
+		if (
+			packageView.uri !== records.profile.uri ||
+			packageView.cid !== records.profile.cid ||
+			releaseView.uri !== records.release.uri ||
+			releaseView.cid !== records.release.cid
+		) {
+			return {
+				success: false,
+				error: {
+					code: "AGGREGATOR_RECORD_MISMATCH",
+					message: "Aggregator metadata does not match the publisher's signed records.",
+				},
+			};
+		}
+		if (!opts?.verifyOnly) {
+			const consentError = recordConsentError(
+				{
+					profileCid: input.acknowledgedProfileCid,
+					releaseCid: input.acknowledgedReleaseCid,
+				},
+				records,
+			);
+			if (consentError) return consentError;
+		}
+
+		const packageYanked =
+			hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", records.profile) ||
+			hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", records.profile);
+		if (packageYanked) {
+			return {
+				success: false,
+				error: {
+					code: "RELEASE_YANKED",
+					message: "This release has been withdrawn",
+				},
+			};
+		}
+
+		// Environment compatibility remains an install-safety gate. Listing
+		// approval says only that displayed metadata passed moderation. A release
+		// may carry a `requires` block (`env:emdash`, `env:astro`, ...). Refuse
 		// the install if the running host doesn't satisfy a constraint, so a
 		// stale browser tab or non-UI caller can't bypass the admin's
 		// disabled Install button. `requires` is lexicon-`unknown`; the
 		// helper guards its shape.
 		if (opts?.hostEnv) {
-			const envError = assertEnvCompatible(releaseView.release?.requires, opts.hostEnv);
+			const envError = assertEnvCompatible(release.requires, opts.hostEnv);
 			if (envError) return { success: false, error: envError };
 		}
 
@@ -824,13 +694,11 @@ export async function handleRegistryInstall(
 		// must still hit the holdback. The `minimumReleaseAgeExclude`
 		// allowlist short-circuits the check for trusted publisher DIDs.
 		//
-		// Caveat: `releaseView.indexedAt` is aggregator-supplied envelope
-		// data, not a signed timestamp. A compromised aggregator can
-		// claim an arbitrary indexed-at date and bypass the holdback;
-		// closing this gap requires fetching the release record's
-		// signed createdAt from the publisher's PDS (deferred to the
-		// follow-up that adds full MST verification). If the timestamp
-		// is missing or malformed, we fail closed and reject the install.
+		// `releaseView.indexedAt` is aggregator operational data, not part
+		// of the signed release. The release schema has no publication
+		// timestamp, so minimum age remains a local discovery holdback
+		// rather than a cryptographic property. A missing or malformed
+		// timestamp fails closed.
 		// `registryConfig` is the user-supplied integration option, not
 		// the normalized manifest shape, so the duration parse runs once
 		// per install. Catch a malformed value here -- normally caught at
@@ -935,82 +803,69 @@ export async function handleRegistryInstall(
 			};
 		}
 
-		// Step 4: fetch the artifact bytes.
-		// `releaseView.release` is lexicon-validated by DiscoveryClient (or
-		// `null`); a missing url/checksum (incl. the `null` case) fails closed
-		// below. Mirrors come from the envelope (aggregator operational data,
-		// not part of the signed record).
-		const release = releaseView.release;
-		const declaredUrl = release?.artifacts?.package?.url;
-		const declaredChecksum = release?.artifacts?.package?.checksum;
+		// Step 6: fetch bytes through an aggregator cache, the publisher PDS,
+		// or the URL in the authoritative signed release. Every source remains untrusted.
+		const packageArtifact = release.artifacts.package;
+		const declaredChecksum = release.artifacts.package.checksum;
 
-		if (!declaredUrl || !declaredChecksum) {
+		if (!packageArtifact || !declaredChecksum) {
 			return {
 				success: false,
 				error: {
 					code: "INVALID_RELEASE",
-					message: "Release record is missing artifact url or checksum",
+					message: "Release record is missing its package artifact or checksum",
 				},
 			};
 		}
 
-		const mirrors = releaseView.mirrors ?? [];
-		const artifactBytes = await fetchArtifact(mirrors, declaredUrl);
-
-		// Step 5: verify the bytes against the signed record's checksum.
-		const checksumOk = await verifyChecksum(artifactBytes, declaredChecksum);
-		if (!checksumOk) {
-			return {
-				success: false,
-				error: {
-					code: "CHECKSUM_MISMATCH",
-					message:
-						"Artifact bytes do not match the release record's checksum, or the checksum encoding is unsupported.",
-				},
-			};
-		}
-
-		// Step 6: extract the bundle.
-		let bundle: PluginBundle;
+		let artifactBytes: Uint8Array;
 		try {
-			bundle = await extractBundle(artifactBytes);
-		} catch (err) {
-			return {
-				success: false,
-				error: {
-					code: "INVALID_BUNDLE",
-					message: err instanceof Error ? err.message : "Failed to extract plugin bundle",
+			artifactBytes = await fetchArtifact(
+				releaseView.artifactCaches ?? [],
+				packageArtifact,
+				{
+					did: publisherDid,
+					collection: NSID.packageRelease,
+					rkey: `${slug}:${version}`,
+					cid: releaseView.cid,
 				},
-			};
+				release.auth,
+			);
+		} catch (error) {
+			if (error instanceof RegistryArtifactFetchError) {
+				return registryArtifactError(error.code, error.message, "install");
+			}
+			throw error;
 		}
 
-		// Manifest sanity: declared version must match the release's version.
-		if (bundle.manifest.version !== version) {
-			return {
-				success: false,
-				error: {
-					code: "MANIFEST_VERSION_MISMATCH",
-					message: `Bundle manifest version (${bundle.manifest.version}) does not match release version (${version})`,
-				},
-			};
+		// Steps 6-7: verify the signed checksum, archive, manifest, and
+		// expected package identity with the runtime-neutral verifier used
+		// by the release service.
+		const artifactReport = await validateRegistryArtifact(
+			artifactBytes,
+			declaredChecksum,
+			slug,
+			version,
+		);
+		if (!artifactReport.success) {
+			return registryArtifactError(
+				artifactReport.error.code,
+				artifactReport.error.message,
+				"install",
+			);
 		}
-
-		// Manifest identity: the bundle's `manifest.id` is the publisher's
-		// natural plugin id (their slug). It MUST equal the slug the
-		// install was requested for; otherwise a malicious registry bundle
-		// could declare `manifest.id: "audit-log"` and confuse the sandbox
-		// bridge, which uses `manifest.id` as the trust key for
-		// per-plugin storage, cron schedules, and bridge-scoped
-		// operations.
-		if (bundle.manifest.id !== slug) {
-			return {
-				success: false,
-				error: {
-					code: "MANIFEST_ID_MISMATCH",
-					message: `Bundle manifest id (${bundle.manifest.id}) does not match registry slug (${slug})`,
-				},
-			};
+		const { bundle, artifactDigest, artifactDigests } = artifactReport.value;
+		const recordReport = await verifyAuthoritativePackageRelease(records, artifactDigest, {
+			...opts?.authoritativeRecords,
+			artifactDigests,
+		});
+		if (!recordReport.success) {
+			return registryRecordError(
+				recordReport.code,
+				recordReport.reasons[0]?.message ?? "The release provenance is invalid.",
+			);
 		}
+		const verification = recordVerificationSummary(records, recordReport);
 
 		// Rewrite the manifest's id to the derived opaque pluginId before
 		// it reaches R2 storage or the sandbox loader. The sandbox uses
@@ -1028,13 +883,8 @@ export async function handleRegistryInstall(
 		// outside what the user reviewed. The capability-set consent gate below
 		// is blind to constraint content (host scope), so compare the full
 		// enforced access of record vs bundle here and refuse on any difference.
-		const recordExt =
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- extensions is the lexicon's open `unknown` map; narrow to read our own extension
-			(release?.extensions as Record<string, { declaredAccess?: DeclaredAccess }> | undefined)?.[
-				RELEASE_EXTENSION_NSID
-			];
 		if (
-			!enforcedAccessEqual(recordExt?.declaredAccess ?? {}, bundle.manifest.declaredAccess ?? {})
+			!verifiedAccessEqual(recordReport.value.declaredAccess, bundle.manifest.declaredAccess ?? {})
 		) {
 			return {
 				success: false,
@@ -1048,13 +898,9 @@ export async function handleRegistryInstall(
 
 		// Capability consent gate: the admin MUST acknowledge the
 		// capabilities the bundle's manifest actually declares before we
-		// install it. The bundle manifest is the only source of truth
-		// the runtime sandbox enforces -- the release record's
-		// `declaredAccess` extension is an aggregator-supplied
-		// assertion that the publisher may or may not have included,
-		// and trusting it would let a malicious publisher (or a
-		// compromised aggregator) ship a bundle whose manifest
-		// requests `content:*` etc. behind an empty consent dialog.
+		// install it. The bundle manifest is the runtime enforcement
+		// currency; the exact-equality check above binds it to the
+		// independently verified signed release.
 		//
 		// Two outcomes after normalization (filter to strings, dedupe,
 		// sort):
@@ -1071,7 +917,7 @@ export async function handleRegistryInstall(
 		// the runtime starts enforcing `declaredAccess` natively, this
 		// comparison switches to that shape.
 		const actualCapabilities = canonicalCapabilitiesForDriftCheck(bundle.manifest.capabilities);
-		if (actualCapabilities.length > 0) {
+		if (!opts?.verifyOnly && actualCapabilities.length > 0) {
 			if (input.acknowledgedDeclaredAccess === undefined) {
 				return {
 					success: false,
@@ -1097,6 +943,34 @@ export async function handleRegistryInstall(
 				};
 			}
 		}
+
+		const actualMcpTools = (bundle.manifest.mcp?.tools ?? []).map(
+			({ inputSchema: _, outputSchema: __, ...tool }) => tool,
+		);
+		if (!opts?.verifyOnly && actualMcpTools.length > 0) {
+			if (JSON.stringify(input.acknowledgedMcpTools) !== JSON.stringify(actualMcpTools)) {
+				return {
+					success: false,
+					error: {
+						code: "MCP_TOOL_CONSENT_REQUIRED",
+						message: "Plugin MCP tools require explicit consent",
+						details: { mcpTools: actualMcpTools, verification },
+					},
+				};
+			}
+		}
+
+		const result: RegistryInstallResult = {
+			pluginId,
+			publisherDid,
+			slug,
+			version,
+			capabilities: bundle.manifest.capabilities,
+			declaredAccess: recordReport.value.releaseExtension.declaredAccess,
+			mcpTools: actualMcpTools,
+			verification,
+		};
+		if (opts?.verifyOnly) return { success: true, data: result };
 
 		// Step 7: store in R2 under the registry prefix.
 		await storeBundleInR2(storage, pluginId, version, bundle, "registry");
@@ -1130,13 +1004,11 @@ export async function handleRegistryInstall(
 		// Cleanup is best-effort; if it also fails, the row failure
 		// still surfaces to the caller and the orphan R2 bundle costs
 		// only the storage of a single checksum-verified zip.
-		// `packageView.profile` is lexicon-validated by DiscoveryClient (or null).
-		const profile = packageView.profile;
 		try {
 			await stateRepo.upsert(pluginId, version, "active", {
 				source: "registry",
-				displayName: profile?.name ?? slug,
-				description: profile?.description ?? undefined,
+				displayName: profile.name ?? slug,
+				description: profile.description ?? undefined,
 				registryPublisherDid: publisherDid,
 				registrySlug: slug,
 			});
@@ -1164,15 +1036,11 @@ export async function handleRegistryInstall(
 			throw stateErr;
 		}
 
+		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
+
 		return {
 			success: true,
-			data: {
-				pluginId,
-				publisherDid,
-				slug,
-				version,
-				capabilities: bundle.manifest.capabilities,
-			},
+			data: result,
 		};
 	} catch (err) {
 		if (err instanceof ClientValidationError) {
@@ -1185,6 +1053,15 @@ export async function handleRegistryInstall(
 			};
 		}
 		if (err instanceof ClientResponseError) {
+			if (err.error === "ListingUnavailable") {
+				return {
+					success: false,
+					error: {
+						code: "LISTING_UNAVAILABLE",
+						message: "This plugin is unavailable under the active registry policy",
+					},
+				};
+			}
 			return {
 				success: false,
 				error: {
@@ -1271,6 +1148,12 @@ export async function handleRegistryUninstall(
 			await deleteBundleFromR2(storage, pluginId, version, "registry");
 		}
 
+		try {
+			await removeAllPluginIndexes(db, pluginId);
+		} catch {
+			// Nothing to drop, or tracking table predates the feature
+		}
+
 		await stateRepo.delete(pluginId);
 
 		return { success: true, data: { pluginId, dataDeleted } };
@@ -1295,6 +1178,7 @@ export interface RegistryUpdateResult {
 	capabilityChanges: { added: string[]; removed: string[] };
 	/** Set only when `newlyPublic` is non-empty, mirroring marketplace. */
 	routeVisibilityChanges?: { newlyPublic: string[] };
+	verification: RegistryRecordVerificationSummary;
 }
 
 /**
@@ -1318,7 +1202,12 @@ export async function handleRegistryUpdate(
 		version?: string;
 		confirmCapabilityChanges?: boolean;
 		confirmRouteVisibilityChanges?: boolean;
+		confirmMcpTools?: boolean;
+		acknowledgedProfileCid?: string;
+		acknowledgedReleaseCid?: string;
 		hostEnv?: HostEnv;
+		authoritativeRecords?: AuthoritativeRecordReadOptions;
+		readAuthoritativeRecords?: AuthoritativeRecordReader;
 	},
 ): Promise<ApiResult<RegistryUpdateResult>> {
 	const registryConfig = coerceRegistryConfig(registryConfigInput);
@@ -1378,11 +1267,13 @@ export async function handleRegistryUpdate(
 		const publisherDid = existing.registryPublisherDid as Did;
 		const slug = existing.registrySlug;
 
-		const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+		const { DiscoveryClient, registryLabelerPolicy } =
+			await import("@emdash-cms/registry-client/discovery");
 		const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
 		const discovery = new DiscoveryClient({
 			aggregatorUrl: registryConfig.aggregatorUrl,
 			acceptLabelers: registryConfig.acceptLabelers,
+			labelerPolicy: registryLabelerPolicy(registryConfig.acceptLabelers),
 			fetch: timedFetch(aggregatorDeadline),
 		});
 
@@ -1427,16 +1318,12 @@ export async function handleRegistryUpdate(
 			};
 		}
 
-		// Identity cross-check. A buggy/compromised aggregator must not
-		// trick us into installing a record signed for a different
-		// (did, slug, version) under this plugin's pluginId.
-		const signedRelease = releaseView.release;
+		// The aggregator selects the target version and supplies mirrors and
+		// moderation metadata. Its release-record copy is not trusted.
 		if (
 			releaseView.did !== publisherDid ||
 			releaseView.package !== slug ||
-			signedRelease?.package !== slug ||
-			(opts?.version !== undefined && releaseView.version !== opts.version) ||
-			signedRelease?.version !== releaseView.version
+			(opts?.version !== undefined && releaseView.version !== opts.version)
 		) {
 			return {
 				success: false,
@@ -1447,8 +1334,24 @@ export async function handleRegistryUpdate(
 				},
 			};
 		}
+		const packageView = await discovery.getPackage({ did: publisherDid, slug });
+		if (!packageView || packageView.did !== publisherDid || packageView.slug !== slug) {
+			return {
+				success: false,
+				error: {
+					code: "AGGREGATOR_IDENTITY_MISMATCH",
+					message: "Aggregator returned a package view that does not match the installed plugin.",
+				},
+			};
+		}
 
 		const newVersion = releaseView.version;
+		if (evaluateRegistryReleaseWithdrawal(releaseView, discovery.labelerPolicy).withdrawn) {
+			return {
+				success: false,
+				error: { code: "YANKED", message: "Release has been withdrawn" },
+			};
+		}
 		if (newVersion === oldVersion) {
 			return {
 				success: false,
@@ -1458,78 +1361,119 @@ export async function handleRegistryUpdate(
 				},
 			};
 		}
-
-		// Yanked label check (mirrors install).
-		const releaseYanked = (releaseView.labels ?? []).some(
-			(l: { val?: string }) => l.val === "security:yanked",
+		const authoritative = await (opts?.readAuthoritativeRecords ?? readAuthoritativePackageRelease)(
+			publisherDid,
+			slug,
+			newVersion,
+			opts?.authoritativeRecords,
 		);
-		if (releaseYanked) {
+		if (!authoritative.success) {
+			return registryRecordError(authoritative.error.code, authoritative.error.message);
+		}
+		const records = authoritative.value;
+		const { profile, release } = records.inspection.value;
+		if (
+			packageView.uri !== records.profile.uri ||
+			packageView.cid !== records.profile.cid ||
+			releaseView.uri !== records.release.uri ||
+			releaseView.cid !== records.release.cid
+		) {
 			return {
 				success: false,
-				error: { code: "YANKED", message: "Release has been yanked by a trusted labeller" },
+				error: {
+					code: "AGGREGATOR_RECORD_MISMATCH",
+					message: "Aggregator metadata does not match the publisher's signed records.",
+				},
 			};
 		}
-
-		// Environment compatibility gate. An ungated update could otherwise
+		const packageYanked =
+			hasCurrentRecordLabel(packageView.labels ?? [], "security:yanked", records.profile) ||
+			hasCurrentRecordLabel(packageView.labels ?? [], "security-yanked", records.profile);
+		if (packageYanked) {
+			return {
+				success: false,
+				error: { code: "YANKED", message: "Package has been withdrawn" },
+			};
+		}
+		if (
+			opts?.confirmCapabilityChanges ||
+			opts?.confirmRouteVisibilityChanges ||
+			opts?.confirmMcpTools
+		) {
+			const consentError = recordConsentError(
+				{
+					profileCid: opts.acknowledgedProfileCid,
+					releaseCid: opts.acknowledgedReleaseCid,
+				},
+				records,
+			);
+			if (consentError) return consentError;
+		}
+		// Environment compatibility remains independent from listing approval.
+		// An ungated update could otherwise
 		// land a version whose `requires` the host doesn't satisfy. Same
 		// guard as install; `requires` is lexicon-`unknown`.
 		if (opts?.hostEnv) {
-			const envError = assertEnvCompatible(signedRelease.requires, opts.hostEnv);
+			const envError = assertEnvCompatible(release.requires, opts.hostEnv);
 			if (envError) return { success: false, error: envError };
 		}
 
-		const declaredUrl = signedRelease.artifacts?.package?.url;
-		const declaredChecksum = signedRelease.artifacts?.package?.checksum;
-		if (!declaredUrl || !declaredChecksum) {
+		const packageArtifact = release.artifacts.package;
+		const declaredChecksum = packageArtifact?.checksum;
+		if (!packageArtifact || !declaredChecksum) {
 			return {
 				success: false,
 				error: {
 					code: "INVALID_RELEASE",
-					message: "Release record is missing artifact url or checksum",
+					message: "Release record is missing its package artifact or checksum",
 				},
 			};
 		}
 
-		// SSRF check on declared URL + each mirror.
-		await assertSafeArtifactUrl(declaredUrl);
-		const rawMirrors = releaseView.mirrors ?? [];
-		const mirrors = rawMirrors.slice(0, MAX_MIRRORS);
-		for (const mirror of mirrors) {
-			await assertSafeArtifactUrl(mirror);
-		}
-
-		// `fetchArtifact` derives its own per-call deadline internally.
-		const artifactBytes = await fetchArtifact(mirrors, declaredUrl);
-		if (!(await verifyChecksum(artifactBytes, declaredChecksum))) {
-			return {
-				success: false,
-				error: {
-					code: "CHECKSUM_MISMATCH",
-					message: "Artifact bytes do not match the release's published checksum",
+		let artifactBytes: Uint8Array;
+		try {
+			artifactBytes = await fetchArtifact(
+				releaseView.artifactCaches ?? [],
+				packageArtifact,
+				{
+					did: publisherDid,
+					collection: NSID.packageRelease,
+					rkey: `${slug}:${newVersion}`,
+					cid: releaseView.cid,
 				},
-			};
+				release.auth,
+			);
+		} catch (error) {
+			if (error instanceof RegistryArtifactFetchError) {
+				return registryArtifactError(error.code, error.message, "update");
+			}
+			throw error;
 		}
-
-		const bundle: PluginBundle = await extractBundle(artifactBytes);
-
-		if (bundle.manifest.version !== newVersion) {
-			return {
-				success: false,
-				error: {
-					code: "BUNDLE_VERSION_MISMATCH",
-					message: `Bundle manifest version (${bundle.manifest.version}) does not match release version (${newVersion})`,
-				},
-			};
+		const artifactReport = await validateRegistryArtifact(
+			artifactBytes,
+			declaredChecksum,
+			slug,
+			newVersion,
+		);
+		if (!artifactReport.success) {
+			return registryArtifactError(
+				artifactReport.error.code,
+				artifactReport.error.message,
+				"update",
+			);
 		}
-		if (bundle.manifest.id !== slug) {
-			return {
-				success: false,
-				error: {
-					code: "BUNDLE_IDENTITY_MISMATCH",
-					message: `Bundle manifest id (${bundle.manifest.id}) does not match registry slug (${slug})`,
-				},
-			};
+		const { bundle, artifactDigest, artifactDigests } = artifactReport.value;
+		const recordReport = await verifyAuthoritativePackageRelease(records, artifactDigest, {
+			...opts?.authoritativeRecords,
+			artifactDigests,
+		});
+		if (!recordReport.success) {
+			return registryRecordError(
+				recordReport.code,
+				recordReport.reasons[0]?.message ?? "The release provenance is invalid.",
+			);
 		}
+		const verification = recordVerificationSummary(records, recordReport);
 
 		// Rewrite manifest.id to the opaque pluginId so the sandbox loader
 		// and R2 layout stay in sync across install and update.
@@ -1540,13 +1484,8 @@ export async function handleRegistryUpdate(
 		// that changes only the host scope (e.g. api.good.com -> evil.com) keeps
 		// the capability set identical, sails through the escalation diff below,
 		// and installs a bundle enforcing a scope the record never showed.
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- extensions is the lexicon's open `unknown` map; narrow to read our own extension
-		const updateRecordExtensions = signedRelease?.extensions as
-			| Record<string, { declaredAccess?: DeclaredAccess }>
-			| undefined;
-		const recordExt = updateRecordExtensions?.[RELEASE_EXTENSION_NSID];
 		if (
-			!enforcedAccessEqual(recordExt?.declaredAccess ?? {}, bundle.manifest.declaredAccess ?? {})
+			!verifiedAccessEqual(recordReport.value.declaredAccess, bundle.manifest.declaredAccess ?? {})
 		) {
 			return {
 				success: false,
@@ -1572,7 +1511,7 @@ export async function handleRegistryUpdate(
 				error: {
 					code: "CAPABILITY_ESCALATION",
 					message: "Plugin update requires new capabilities",
-					details: { capabilityChanges },
+					details: { capabilityChanges, verification },
 				},
 			};
 		}
@@ -1585,7 +1524,27 @@ export async function handleRegistryUpdate(
 				error: {
 					code: "ROUTE_VISIBILITY_ESCALATION",
 					message: "Plugin update exposes new public (unauthenticated) routes",
-					details: { routeVisibilityChanges, capabilityChanges },
+					details: { routeVisibilityChanges, capabilityChanges, verification },
+				},
+			};
+		}
+
+		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		if (JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools) && !opts?.confirmMcpTools) {
+			return {
+				success: false,
+				error: {
+					code: "MCP_TOOL_CONSENT_REQUIRED",
+					message: "Plugin update changes its MCP tools",
+					details: {
+						mcpTools: newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool),
+						verification,
+					},
 				},
 			};
 		}
@@ -1594,18 +1553,19 @@ export async function handleRegistryUpdate(
 		// so a retry of the same update is idempotent.
 		await storeBundleInR2(storage, pluginId, newVersion, bundle, "registry");
 
-		// Update state. Preserve publisher/slug; refresh displayName /
-		// description from the install handler's seeded values (we don't
-		// re-fetch the profile here — that's a separate `getPackage` round
-		// trip and the install-time values are still authoritative for
-		// the same package identity).
+		// Refresh display metadata from the same signed profile used for
+		// release-policy verification.
 		await stateRepo.upsert(pluginId, newVersion, "active", {
 			source: "registry",
 			registryPublisherDid: publisherDid,
 			registrySlug: slug,
-			displayName: existing.displayName ?? slug,
-			description: existing.description ?? undefined,
+			displayName: profile.name ?? slug,
+			description: profile.description ?? undefined,
+			mcpToolsEnabled: false,
+			mcpToolsConsent: null,
 		});
+
+		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
 		// Best-effort cleanup of the old bundle. Failures here don't roll
 		// back the upgrade (the new bundle is already stored and committed
@@ -1620,6 +1580,7 @@ export async function handleRegistryUpdate(
 				newVersion,
 				capabilityChanges,
 				routeVisibilityChanges: hasNewPublicRoutes ? routeVisibilityChanges : undefined,
+				verification,
 			},
 		};
 	} catch (err) {
@@ -1633,6 +1594,15 @@ export async function handleRegistryUpdate(
 			};
 		}
 		if (err instanceof ClientResponseError) {
+			if (err.error === "ListingUnavailable") {
+				return {
+					success: false,
+					error: {
+						code: "LISTING_UNAVAILABLE",
+						message: "This plugin is unavailable under the active registry policy",
+					},
+				};
+			}
 			return {
 				success: false,
 				error: {
@@ -1706,11 +1676,13 @@ export async function handleRegistryUpdateCheck(
 			return { success: true, data: { items: [] } };
 		}
 
-		const { DiscoveryClient } = await import("@emdash-cms/registry-client/discovery");
+		const { DiscoveryClient, registryLabelerPolicy } =
+			await import("@emdash-cms/registry-client/discovery");
 		const aggregatorDeadline = Date.now() + AGGREGATOR_TOTAL_BUDGET_MS;
 		const discovery = new DiscoveryClient({
 			aggregatorUrl: registryConfig.aggregatorUrl,
 			acceptLabelers: registryConfig.acceptLabelers,
+			labelerPolicy: registryLabelerPolicy(registryConfig.acceptLabelers),
 			fetch: timedFetch(aggregatorDeadline),
 		});
 
@@ -1723,6 +1695,9 @@ export async function handleRegistryUpdateCheck(
 					did: plugin.registryPublisherDid as Did,
 					package: plugin.registrySlug,
 				});
+				if (evaluateRegistryReleaseWithdrawal(releaseView, discovery.labelerPolicy).withdrawn) {
+					continue;
+				}
 				const latest = releaseView.version;
 				if (!latest) continue;
 				const installed = plugin.version;

@@ -47,9 +47,9 @@ export function Header() {
 	return (
 		// h-[58px] is mirrored by ADMIN_HEADER_HEIGHT_PX in ContentEditor.tsx
 		// (the settings sheet offsets its body by it) — change both together.
-		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-between border-b bg-kumo-elevated px-4">
-			{/* Sidebar toggle — collapses to icon mode on desktop, opens drawer on mobile */}
-			<Sidebar.Trigger className="cursor-pointer rtl:rotate-180" />
+		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-end border-b bg-kumo-elevated px-4">
+			{/* The desktop trigger lives in the sidebar footer; mobile keeps it here so the closed sheet can reopen. */}
+			<Sidebar.Trigger className="me-auto cursor-pointer md:hidden rtl:rotate-180" />
 
 			{/* Right side actions */}
 			<div className="flex items-center gap-2">

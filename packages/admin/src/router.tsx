@@ -4,11 +4,17 @@
  * Defines all admin routes and their components.
  */
 
-import { Button, Loader, Toast } from "@cloudflare/kumo";
+import { Button, Loader, Toast, useKumoToastManager } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import type { QueryClient } from "@tanstack/react-query";
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+	keepPreviousData,
+	useQuery,
+	useInfiniteQuery,
+	useMutation,
+	useQueryClient,
+} from "@tanstack/react-query";
 import {
 	createRouter,
 	createRootRouteWithContext,
@@ -21,6 +27,7 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor } from "./components/ContentEditor";
 import {
@@ -42,6 +49,7 @@ import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
+import { PluginSettings } from "./components/PluginSettings";
 import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
@@ -54,6 +62,7 @@ import { ApiTokenSettings } from "./components/settings/ApiTokenSettings";
 import { BackupSettings } from "./components/settings/BackupSettings";
 import { EmailSettings } from "./components/settings/EmailSettings";
 import { GeneralSettings } from "./components/settings/GeneralSettings";
+import { MediaUsageSettings } from "./components/settings/MediaUsageSettings";
 import { SecuritySettings } from "./components/settings/SecuritySettings";
 import { SeoSettings } from "./components/settings/SeoSettings";
 import { SocialSettings } from "./components/settings/SocialSettings";
@@ -77,6 +86,7 @@ import {
 	deleteContent,
 	fetchTranslations,
 	fetchMediaList,
+	updateMedia,
 	uploadMedia,
 	fetchCollections,
 	fetchCollection,
@@ -87,6 +97,7 @@ import {
 	updateField,
 	deleteField,
 	reorderFields,
+	reorderCollections,
 	fetchOrphanedTables,
 	registerOrphanedTable,
 	fetchUsers,
@@ -104,12 +115,21 @@ import {
 	unpublishContent,
 	discardDraft,
 	fetchRevision,
+	fetchMediaFolder,
+	fetchMediaFolders,
+	createMediaFolder,
+	renameMediaFolder,
+	deleteMediaFolder,
+	ApiResponseError,
+	isTerminalRequestError,
+	useCurrentUser,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
 	type BylineCreditInput,
 	type ContentSeoInput,
 	type ContentItem,
+	type MediaUploadOptions,
 	type Revision,
 } from "./lib/api";
 import {
@@ -136,6 +156,7 @@ interface RouterContext {
 interface ContentUpdateChanges {
 	data?: Record<string, unknown>;
 	slug?: string;
+	publishedAt?: string | null;
 	authorId?: string | null;
 	bylines?: BylineCreditInput[];
 	skipRevision?: boolean;
@@ -167,10 +188,9 @@ function patchAutosaveQueries(
 			data?: Record<string, unknown>;
 			slug?: string;
 		};
-		locale?: string;
 	},
 ) {
-	const { collection, id, savedItem, payload, locale } = params;
+	const { collection, id, savedItem, payload } = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -195,10 +215,11 @@ function patchAutosaveQueries(
 		});
 	}
 
-	queryClient.setQueryData<ContentItem>(
-		locale ? ["content", collection, id, { locale }] : ["content", collection, id],
-		savedItem,
-	);
+	// Match by (collection, id) prefix rather than an exact locale-scoped key: the
+	// editor reads `{ locale: activeLocale }`, undefined when i18n is off, while the
+	// saved item carries the DB default "en". An exact key would write to an entry
+	// nobody observes, leaving the editor on stale revision pointers.
+	queryClient.setQueriesData<ContentItem>({ queryKey: ["content", collection, id] }, savedItem);
 }
 
 // Create a base root route without Shell for setup
@@ -276,7 +297,7 @@ function RootComponent() {
 	});
 
 	if (isLoading) {
-		return <LoadingScreen />;
+		return <ConfigurationLoadingScreen />;
 	}
 
 	if (error || !manifest) {
@@ -331,6 +352,7 @@ function ContentListPage() {
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
 	});
+	const { data: currentUser } = useCurrentUser();
 
 	const i18n = manifest?.i18n;
 
@@ -339,20 +361,37 @@ function ContentListPage() {
 
 	// Controlled sort state — passed to the list, and included in the query
 	// key so changing direction invalidates the current cursor chain.
-	const [sort, setSort] = React.useState<ContentListSort>({
-		field: "updatedAt",
+	// Default sorts by the collection's dateField, else last-updated.
+	// `sortOverride` is the user's explicit choice (null until they click a
+	// column), keeping the default reactive as the manifest loads and per-collection.
+	const [sortOverride, setSortOverride] = React.useState<ContentListSort | null>(null);
+	const sort: ContentListSort = sortOverride ?? {
+		field: manifest?.collections[collection]?.dateField ?? "updatedAt",
 		direction: "desc",
-	});
+	};
+	React.useEffect(() => setSortOverride(null), [collection]);
 
 	// Server-side search term (debounced inside ContentList). Part of the query
 	// key so a new term restarts the cursor chain from a filtered first page.
 	const [searchTerm, setSearchTerm] = React.useState("");
 
-	// Filter state (#1288). All are part of the query key so changing any of
+	// Filter state. All are part of the query key so changing any of
 	// them restarts the cursor chain from a filtered first page.
 	const [statusFilter, setStatusFilter] = React.useState<ContentStatusFilter>("all");
 	const [authorFilter, setAuthorFilter] = React.useState("");
 	const [dateFilter, setDateFilter] = React.useState<ContentDateFilter>(EMPTY_DATE_FILTER);
+	const [bylineFilter, setBylineFilter] = React.useState<BylineFilterState>(EMPTY_BYLINE_FILTER);
+
+	// Only the parts that change the result set belong in the query key —
+	// `includeInferred` alone, with nothing selected, filters nothing.
+	const bylineApiParams = React.useMemo(() => {
+		if (!bylineFilter.none && bylineFilter.bylineIds.length === 0) return undefined;
+		return {
+			bylines: bylineFilter.none ? undefined : bylineFilter.bylineIds,
+			bylinesNone: bylineFilter.none,
+			includeInferredBylines: bylineFilter.includeInferred,
+		};
+	}, [bylineFilter]);
 
 	// The date inputs yield calendar dates; widen them to UTC day boundaries so
 	// the inclusive `dateTo` covers the whole day (timestamps are stored in UTC).
@@ -387,6 +426,7 @@ function ContentListPage() {
 					status: statusFilter,
 					author: authorFilter,
 					date: dateApiParams,
+					byline: bylineApiParams,
 				},
 			],
 			queryFn: ({ pageParam }) =>
@@ -400,6 +440,7 @@ function ContentListPage() {
 					status: statusFilter === "all" ? undefined : statusFilter,
 					authorId: authorFilter || undefined,
 					...dateApiParams,
+					...bylineApiParams,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -572,6 +613,19 @@ function ContentListPage() {
 		return <ErrorScreen error={error.message} />;
 	}
 
+	const listColumns = (collectionConfig.listColumns ?? []).flatMap((slug) => {
+		const field = collectionConfig.fields[slug];
+		if (!field) return [];
+		return [
+			{
+				slug,
+				label: field.label ?? slug,
+				kind: field.kind,
+				options: Array.isArray(field.options) ? field.options : undefined,
+			},
+		];
+	});
+
 	const handleLocaleChange = (locale: string) => {
 		// Update URL search params without full navigation
 		void navigate({
@@ -586,6 +640,7 @@ function ContentListPage() {
 			collection={collection}
 			collectionLabel={collectionConfig.label}
 			items={items}
+			listColumns={listColumns}
 			trashedItems={trashedData?.items || []}
 			isLoading={isLoading || isFetchingNextPage}
 			isTrashedLoading={isTrashedLoading}
@@ -600,8 +655,10 @@ function ContentListPage() {
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}
+			titleField={collectionConfig.titleField}
+			dateField={collectionConfig.dateField}
 			sort={sort}
-			onSortChange={setSort}
+			onSortChange={setSortOverride}
 			total={total}
 			onSearchChange={setSearchTerm}
 			statusFilter={statusFilter}
@@ -611,9 +668,13 @@ function ContentListPage() {
 			onAuthorFilterChange={setAuthorFilter}
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
+			bylineFilter={bylineFilter}
+			onBylineFilterChange={setBylineFilter}
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			pluginStates={manifest.plugins}
+			userRole={currentUser?.role ?? 0}
 		/>
 	);
 }
@@ -634,6 +695,8 @@ function ContentNewPage() {
 	const { locale } = useSearch({ from: "/_admin/content/$collection/new" });
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
+	const { t } = useLingui();
+	const toastManager = useKumoToastManager();
 	const [selectedBylines, setSelectedBylines] = React.useState<BylineCreditInput[]>([]);
 
 	const { data: manifest } = useQuery({
@@ -661,6 +724,13 @@ function ContentNewPage() {
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
 				search: { locale: result.locale },
+			});
+		},
+		onError: (error) => {
+			toastManager.add({
+				title: t`Failed to save`,
+				description: error instanceof Error ? error.message : t`An error occurred`,
+				variant: "error",
 			});
 		},
 	});
@@ -762,7 +832,8 @@ const contentEditRoute = createRoute({
 	}),
 });
 
-// Editor role level from @emdash-cms/auth
+// Role levels from @emdash-cms/auth
+const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
 function ContentEditPage() {
@@ -873,6 +944,8 @@ function ContentEditPage() {
 	const itemLocale = rawItem?.locale ?? undefined;
 	const autosaveCompletionSequenceRef = React.useRef(0);
 	const [autosaveCompletion, setAutosaveCompletion] = React.useState({ entryId: "", token: 0 });
+	const autosaveRejectionSequenceRef = React.useRef(0);
+	const [autosaveRejection, setAutosaveRejection] = React.useState({ entryId: "", token: 0 });
 	const [editorSavePendingCounts, setEditorSavePendingCounts] = React.useState<
 		ReadonlyMap<string, number>
 	>(new Map());
@@ -888,6 +961,10 @@ function ContentEditPage() {
 	const recordAutosaveCompletion = React.useCallback((entryId: string) => {
 		autosaveCompletionSequenceRef.current += 1;
 		setAutosaveCompletion({ entryId, token: autosaveCompletionSequenceRef.current });
+	}, []);
+	const recordAutosaveRejection = React.useCallback((entryId: string) => {
+		autosaveRejectionSequenceRef.current += 1;
+		setAutosaveRejection({ entryId, token: autosaveRejectionSequenceRef.current });
 	}, []);
 	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", itemLocale ?? null],
@@ -966,6 +1043,14 @@ function ContentEditPage() {
 			}
 		},
 	});
+	const publishedAtMutation = useMutation({
+		mutationFn: (publishedAt: string) =>
+			updateContent(collection, id, { publishedAt }, { locale: rawItem?.locale ?? activeLocale }),
+		onSuccess: () => {
+			handleContentUpdateSuccess(id);
+		},
+		onError: handleContentUpdateError,
+	});
 
 	// Autosave mutation - skips revision creation
 	const autosaveMutation = useMutation({
@@ -986,12 +1071,12 @@ function ContentEditPage() {
 					data: variables.changes.data,
 					slug: variables.changes.slug,
 				},
-				locale: variables.targetLocale,
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
 		},
-		onError: (err) => {
+		onError: (err, variables) => {
+			if (isTerminalRequestError(err)) recordAutosaveRejection(variables.targetId);
 			toastManager.add({
 				title: t`Autosave failed`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
@@ -1193,6 +1278,12 @@ function ContentEditPage() {
 		},
 		[activeLocale, id, rawItem?.locale, rawItem?._rev, updateMutation.mutate],
 	);
+	const handlePublishedAtChange = React.useCallback(
+		(publishedAt: string) => {
+			publishedAtMutation.mutate(publishedAt);
+		},
+		[publishedAtMutation.mutate],
+	);
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
@@ -1258,7 +1349,7 @@ function ContentEditPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			fields={collectionConfig.fields}
-			isSaving={updateMutation.isPending}
+			isSaving={updateMutation.isPending || publishedAtMutation.isPending}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}
@@ -1267,12 +1358,15 @@ function ContentEditPage() {
 				autosaveMutation.isPending && autosaveMutation.variables?.targetId === id
 			}
 			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
+			autosaveRejectionToken={autosaveRejection.entryId === id ? autosaveRejection.token : 0}
 			onPublish={handlePublish}
 			onUnpublish={handleUnpublish}
 			onDiscardDraft={handleDiscardDraft}
 			onSchedule={handleSchedule}
 			onUnschedule={handleUnschedule}
 			isScheduling={scheduleMutation.isPending}
+			onPublishedAtChange={handlePublishedAtChange}
+			isUpdatingPublishedAt={publishedAtMutation.isPending}
 			onDelete={handleDelete}
 			isDeleting={deleteMutation.isPending}
 			supportsDrafts={collectionConfig.supports.includes("drafts")}
@@ -1301,40 +1395,253 @@ const mediaRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/media",
 	component: MediaPage,
+	validateSearch: (search: Record<string, unknown>) => ({
+		folder:
+			typeof search.folder === "string" && search.folder.length > 0 && search.folder.length <= 64
+				? search.folder
+				: undefined,
+	}),
 });
 
 function MediaPage() {
+	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const navigate = useNavigate();
+	const { folder } = useSearch({ from: "/_admin/media" });
+	const toastManager = Toast.useToastManager();
+	const { data: currentUser } = useCurrentUser();
 
-	// Filename search + MIME type filter for the local library (server-side).
 	const [search, setSearch] = React.useState("");
 	const [mimeFilter, setMimeFilter] = React.useState<string | string[] | undefined>(undefined);
+	const [page, setPage] = React.useState(1);
+	const [perPage, setPerPage] = React.useState(35);
+	const [retainedTotalCount, setRetainedTotalCount] = React.useState(0);
+	const [activeProvider, setActiveProvider] = React.useState("local");
 	const mimeKey = Array.isArray(mimeFilter) ? mimeFilter.join(",") : (mimeFilter ?? "");
-
-	const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
-		useInfiniteQuery({
-			queryKey: ["media", { search, mime: mimeKey }],
-			queryFn: ({ pageParam }) =>
-				fetchMediaList({
-					cursor: pageParam,
-					limit: 100,
-					search: search || undefined,
-					mimeType: mimeFilter,
-				}),
-			initialPageParam: undefined as string | undefined,
-			getNextPageParam: (lastPage) => lastPage.nextCursor,
+	const currentFolderQuery = useQuery({
+		queryKey: ["media-folder", folder],
+		queryFn: () => fetchMediaFolder(folder!),
+		enabled: folder !== undefined,
+		retry: (failureCount, queryError) =>
+			!(queryError instanceof ApiResponseError && queryError.code === "NOT_FOUND") &&
+			failureCount < 2,
+	});
+	const missingFolder =
+		currentFolderQuery.error instanceof ApiResponseError &&
+		currentFolderQuery.error.code === "NOT_FOUND";
+	const recoveredFolderRef = React.useRef<string | null>(null);
+	React.useEffect(() => {
+		if (!folder || !missingFolder || recoveredFolderRef.current === folder) return;
+		recoveredFolderRef.current = folder;
+		void navigate({ to: "/media", search: { folder: undefined }, replace: true });
+		toastManager.add({
+			title: t`Folder no longer exists`,
+			type: "warning",
+			timeout: 4000,
 		});
+	}, [folder, missingFolder, navigate, t, toastManager]);
+	React.useEffect(() => {
+		if (folder !== recoveredFolderRef.current) recoveredFolderRef.current = null;
+	}, [folder]);
+	const previousFolderRef = React.useRef(folder);
+	const folderChanged = previousFolderRef.current !== folder;
+	const requestedPage = folderChanged ? 1 : page;
+	const folderListEnabled =
+		activeProvider === "local" &&
+		requestedPage === 1 &&
+		mimeFilter === undefined &&
+		(folder === undefined || search !== "");
+	const folderListQuery = useInfiniteQuery({
+		queryKey: ["media-folders", "page", { search }],
+		queryFn: ({ pageParam }) =>
+			fetchMediaFolders({
+				limit: 100,
+				cursor: pageParam,
+				search: search || undefined,
+			}),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.nextCursor,
+		enabled: folderListEnabled,
+	});
+	const folders = React.useMemo(
+		() => folderListQuery.data?.pages.flatMap((folderPage) => folderPage.items) ?? [],
+		[folderListQuery.data?.pages],
+	);
+
+	const { data, isLoading, isFetching, error } = useQuery({
+		queryKey: [
+			"media",
+			{ search, mime: mimeKey, folder: folder ?? "main", page: requestedPage, perPage },
+		],
+		queryFn: () =>
+			fetchMediaList({
+				page: requestedPage,
+				limit: perPage,
+				search: search || undefined,
+				mimeType: mimeFilter,
+				folderId: search ? undefined : (folder ?? null),
+			}),
+		placeholderData: keepPreviousData,
+	});
+
+	React.useEffect(() => {
+		if (data?.totalCount !== undefined) setRetainedTotalCount(data.totalCount);
+	}, [data?.totalCount]);
+	React.useEffect(() => {
+		if (previousFolderRef.current === folder) return;
+		previousFolderRef.current = folder;
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, [folder]);
+
+	const totalCount = data?.totalCount ?? retainedTotalCount;
+	const lastPage = Math.max(1, Math.ceil((data?.totalCount ?? 0) / perPage));
+	const isRecoveringPage = data?.totalCount !== undefined && requestedPage > lastPage;
+	React.useEffect(() => {
+		if (isRecoveringPage) setPage(lastPage);
+	}, [isRecoveringPage, lastPage]);
+
+	const pageCount = Math.max(1, Math.ceil(totalCount / perPage));
+	const handlePageChange = React.useCallback(
+		(nextPage: number) => {
+			if (isFetching || !Number.isSafeInteger(nextPage) || nextPage < 1 || nextPage > pageCount) {
+				return;
+			}
+			setPage(nextPage);
+		},
+		[isFetching, pageCount],
+	);
+	const handlePageSizeChange = React.useCallback(
+		(nextPerPage: number) => {
+			if (isFetching) return;
+			setPerPage(nextPerPage);
+			setPage(1);
+			setRetainedTotalCount(0);
+		},
+		[isFetching],
+	);
+	const handleSearchChange = React.useCallback((nextSearch: string) => {
+		setSearch(nextSearch);
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, []);
+	const handleMimeFilterChange = React.useCallback(
+		(nextMimeFilter: string | string[] | undefined) => {
+			setMimeFilter(nextMimeFilter);
+			setPage(1);
+			setRetainedTotalCount(0);
+		},
+		[],
+	);
+
+	const paginationPending = isLoading || isFetching || isRecoveringPage;
 
 	const uploadMutation = useMutation({
-		mutationFn: (file: File) => uploadMedia(file),
+		mutationFn: ({ file, options }: { file: File; options?: MediaUploadOptions }) =>
+			uploadMedia(file, options),
 		onSuccess: () => {
+			setPage(1);
+			setRetainedTotalCount(0);
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 		},
 	});
+	const resetMediaPage = React.useCallback(() => {
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, []);
+	const handleOpenFolder = React.useCallback(
+		(nextFolder: { id: string }) => {
+			resetMediaPage();
+			void navigate({ to: "/media", search: { folder: nextFolder.id }, resetScroll: false });
+		},
+		[navigate, resetMediaPage],
+	);
+	const handleBackToMain = React.useCallback(() => {
+		resetMediaPage();
+		void navigate({ to: "/media", search: { folder: undefined }, resetScroll: false });
+	}, [navigate, resetMediaPage]);
+	const handleCreateFolder = React.useCallback(
+		async (name: string) => {
+			const created = await createMediaFolder(name);
+			resetMediaPage();
+			await queryClient.invalidateQueries({ queryKey: ["media-folders"] });
+			return created;
+		},
+		[queryClient, resetMediaPage],
+	);
+	const handleRenameFolder = React.useCallback(
+		async (targetFolder: { id: string }, name: string) => {
+			const renamed = await renameMediaFolder(targetFolder.id, name);
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["media-folders"] }),
+				queryClient.invalidateQueries({ queryKey: ["media-folder", targetFolder.id] }),
+			]);
+			return renamed;
+		},
+		[queryClient],
+	);
+	const handleDeleteFolder = React.useCallback(
+		async (targetFolder: { id: string }) => {
+			await deleteMediaFolder(targetFolder.id);
+			const deletingCurrentFolder = folder === targetFolder.id;
+			if (deletingCurrentFolder) {
+				resetMediaPage();
+				await navigate({
+					to: "/media",
+					search: { folder: undefined },
+					replace: true,
+					resetScroll: false,
+				});
+			}
+			queryClient.removeQueries({ queryKey: ["media-folder", targetFolder.id], exact: true });
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: ["media-folders"] }),
+				queryClient.invalidateQueries({ queryKey: ["media"] }),
+			]);
+			if (!deletingCurrentFolder) resetMediaPage();
+		},
+		[folder, navigate, queryClient, resetMediaPage],
+	);
+	const handleMoveMedia = React.useCallback(
+		async (item: { id: string }, destination: { id: string }) => {
+			try {
+				await updateMedia(item.id, { folderId: destination.id });
+				await queryClient.invalidateQueries({ queryKey: ["media"] });
+			} catch (moveError) {
+				const recovery: Promise<unknown>[] = [
+					queryClient.invalidateQueries({ queryKey: ["media"] }),
+				];
+				if (moveError instanceof ApiResponseError && moveError.code === "NOT_FOUND") {
+					recovery.push(
+						queryClient.invalidateQueries({ queryKey: ["media-folders"] }),
+						queryClient.invalidateQueries({ queryKey: ["media-folder"] }),
+					);
+				}
+				if (
+					moveError instanceof ApiResponseError &&
+					(moveError.status === 401 || moveError.status === 403)
+				) {
+					recovery.push(queryClient.resetQueries({ queryKey: ["currentUser"], exact: true }));
+				}
+				await Promise.allSettled(recovery);
+				throw moveError;
+			}
+		},
+		[queryClient],
+	);
+	const canMoveMedia = React.useCallback(
+		(item: { authorId: string | null }) =>
+			Boolean(
+				currentUser &&
+				(currentUser.role >= ROLE_EDITOR ||
+					(currentUser.role >= ROLE_AUTHOR && item.authorId === currentUser.id)),
+			),
+		[currentUser],
+	);
 
-	const items = React.useMemo(() => {
-		return data?.pages.flatMap((page) => page.items) || [];
-	}, [data]);
+	if (currentFolderQuery.error && !missingFolder) {
+		return <ErrorScreen error={currentFolderQuery.error.message} />;
+	}
 
 	if (error) {
 		return <ErrorScreen error={error.message} />;
@@ -1342,13 +1649,40 @@ function MediaPage() {
 
 	return (
 		<MediaLibrary
-			items={items}
-			isLoading={isLoading || isFetchingNextPage}
-			hasMore={!!hasNextPage}
-			onLoadMore={() => void fetchNextPage()}
-			onUpload={(file) => uploadMutation.mutate(file)}
-			onLocalSearchChange={setSearch}
-			onLocalMimeFilterChange={setMimeFilter}
+			items={isRecoveringPage ? [] : (data?.items ?? [])}
+			isLoading={paginationPending}
+			pagination={{
+				page: isRecoveringPage ? lastPage : requestedPage,
+				perPage,
+				totalCount,
+				isPending: paginationPending,
+				onPageChange: handlePageChange,
+				onPageSizeChange: handlePageSizeChange,
+			}}
+			onUpload={async (file, options) => {
+				await uploadMutation.mutateAsync({ file, options });
+			}}
+			onLocalSearchChange={handleSearchChange}
+			onLocalMimeFilterChange={handleMimeFilterChange}
+			folders={folders}
+			foldersLoading={folderListQuery.isLoading}
+			foldersError={folderListQuery.error}
+			hasMoreFolders={folderListQuery.hasNextPage}
+			isLoadingMoreFolders={folderListQuery.isFetchingNextPage}
+			onLoadMoreFolders={() => void folderListQuery.fetchNextPage()}
+			onActiveProviderChange={setActiveProvider}
+			folderId={folder}
+			currentFolder={currentFolderQuery.data ?? null}
+			currentFolderLoading={currentFolderQuery.isLoading}
+			canManageFolders={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+			onOpenFolder={handleOpenFolder}
+			onBackToMain={handleBackToMain}
+			onRetryFolders={() => void folderListQuery.refetch()}
+			onCreateFolder={handleCreateFolder}
+			onRenameFolder={handleRenameFolder}
+			onDeleteFolder={handleDeleteFolder}
+			canMoveMedia={canMoveMedia}
+			onMoveMedia={handleMoveMedia}
 		/>
 	);
 }
@@ -1487,8 +1821,8 @@ function CommentsPage() {
 		return (
 			<div className="flex items-center justify-center min-h-[50vh]">
 				<div className="text-center">
-					<h1 className="text-2xl font-bold">{t`Access Denied`}</h1>
-					<p className="mt-2 text-kumo-subtle">{t`You need Editor permissions to moderate comments.`}</p>
+					<h1 className="text-2xl font-semibold leading-tight">{t`Access Denied`}</h1>
+					<p className="mt-2 text-sm text-kumo-subtle">{t`You need Editor permissions to moderate comments.`}</p>
 				</div>
 			</div>
 		);
@@ -1530,6 +1864,12 @@ const settingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings",
 	component: Settings,
+});
+
+const mediaUsageSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/settings/media-usage",
+	component: MediaUsageSettings,
 });
 
 // Security settings route
@@ -1859,6 +2199,16 @@ function ContentTypesListPage() {
 		},
 	});
 
+	const reorderMutation = useMutation({
+		mutationFn: (slugs: string[]) => reorderCollections(slugs),
+		// The manifest drives the sidebar order, so it has to be refetched
+		// alongside the collection list for the move to show up in the nav.
+		onSettled: () => {
+			void queryClient.invalidateQueries({ queryKey: ["schema", "collections"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
+		},
+	});
+
 	const error = collectionsError || orphansError;
 	if (error) {
 		return <ErrorScreen error={error.message} />;
@@ -1871,6 +2221,7 @@ function ContentTypesListPage() {
 			isLoading={collectionsLoading || orphansLoading}
 			onDelete={(slug) => deleteMutation.mutate(slug)}
 			onRegisterOrphan={(slug) => registerOrphanMutation.mutate(slug)}
+			onReorder={(slugs) => reorderMutation.mutate(slugs)}
 		/>
 	);
 }
@@ -2030,6 +2381,20 @@ function ContentTypesEditPage() {
 	);
 }
 
+// Auto-generated plugin settings route (from admin.settingsSchema).
+// Lives under /plugins-manager so it can never shadow a plugin's own
+// admin pages (which own the /plugins/$pluginId/* namespace).
+const pluginSettingsRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/plugins-manager/$pluginId/settings",
+	component: PluginSettingsPage,
+});
+
+function PluginSettingsPage() {
+	const { pluginId } = useParams({ from: "/_admin/plugins-manager/$pluginId/settings" });
+	return <PluginSettings pluginId={pluginId} />;
+}
+
 // Plugin page route
 const pluginRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
@@ -2074,6 +2439,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	menuListRoute,
 	menuEditorRoute,
 	pluginManagerRoute,
+	pluginSettingsRoute,
 	marketplaceDetailRoute,
 	marketplaceBrowseRoute,
 	themeMarketplaceBrowseRoute,
@@ -2088,6 +2454,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	bylineSchemaRoute,
 	widgetsRoute,
 	settingsRoute,
+	mediaUsageSettingsRoute,
 	generalSettingsRoute,
 	socialSettingsRoute,
 	seoSettingsRoute,
@@ -2128,6 +2495,22 @@ declare module "@tanstack/react-router" {
 
 // Shared components
 
+export function ConfigurationLoadingScreen() {
+	const { t } = useLingui();
+	return (
+		<div className="emdash-configuration-loader">
+			<div className="loader-inner">
+				<div
+					className="spinner emdash-configuration-spinner"
+					role="status"
+					aria-label={t`Loading`}
+				/>
+				<p className="emdash-configuration-label">{t`Loading configuration...`}</p>
+			</div>
+		</div>
+	);
+}
+
 function LoadingScreen() {
 	const { t } = useLingui();
 	return (
@@ -2145,8 +2528,8 @@ function ErrorScreen({ error }: { error: string }) {
 	return (
 		<div className="flex items-center justify-center min-h-screen">
 			<div className="text-center">
-				<h1 className="text-xl font-bold text-kumo-danger">{t`Error`}</h1>
-				<p className="mt-2 text-kumo-subtle">{error}</p>
+				<h1 className="text-2xl font-semibold leading-tight text-kumo-danger">{t`Error`}</h1>
+				<p className="mt-2 text-sm text-kumo-subtle">{error}</p>
 				<Button onClick={() => window.location.reload()} className="mt-4">
 					{t`Retry`}
 				</Button>
@@ -2160,11 +2543,11 @@ function NotFoundPage({ message }: { message?: string }) {
 	return (
 		<div className="flex items-center justify-center min-h-[50vh]">
 			<div className="text-center">
-				<h1 className="text-2xl font-bold">{t`Page Not Found`}</h1>
-				<p className="mt-2 text-kumo-subtle">
+				<h1 className="text-2xl font-semibold leading-tight">{t`Page Not Found`}</h1>
+				<p className="mt-2 text-sm text-kumo-subtle">
 					{message ?? t`The page you're looking for doesn't exist.`}
 				</p>
-				<Link to="/" className="mt-4 inline-block text-kumo-brand">
+				<Link to="/" className="mt-4 inline-block text-kumo-link">
 					{t`Go to Dashboard`}
 				</Link>
 			</div>

@@ -37,15 +37,44 @@ import {
 	contentUpdateBody,
 	trashedContentListResponseSchema,
 } from "../schemas/content.js";
-import { mediaUsageRepairBody, mediaUsageRepairResponseSchema } from "../schemas/media-usage.js";
+import {
+	mediaUsageDetailsQuery,
+	mediaUsageDetailsResponseSchema,
+	mediaUsageProgressSchema,
+	mediaUsageProgressAdvanceResponseSchema,
+	mediaUsageCollectionDeletionListQuery,
+	mediaUsageCollectionDeletionListResponseSchema,
+	mediaUsageCollectionDeletionRetryBody,
+	mediaUsageCollectionDeletionRetryResponseSchema,
+	mediaUsageActivationStatusSchema,
+	mediaUsageActivationAdvanceBody,
+	mediaUsageActivationAdvanceResponseSchema,
+	mediaUsageActivationConflictSchema,
+	mediaUsageRepairBody,
+	mediaUsageRepairResponseSchema,
+	mediaUsageWorkListQuery,
+	mediaUsageWorkListResponseSchema,
+	mediaUsageWorkRetryBody,
+	mediaUsageWorkRetryConflictSchema,
+	mediaUsageWorkRetryResponseSchema,
+} from "../schemas/media-usage.js";
 import {
 	DEFAULT_MAX_UPLOAD_SIZE,
 	mediaConfirmBody,
 	mediaConfirmResponseSchema,
 	mediaExistingResponseSchema,
+	mediaFolderBody,
+	mediaFolderIdSchema,
+	mediaFolderListQuery,
+	mediaFolderListResponseSchema,
+	mediaFolderResponseSchema,
+	mediaGetQuery,
 	mediaListQuery,
+	mediaListReadResponseSchema,
 	mediaListResponseSchema,
+	mediaReadResponseSchema,
 	mediaResponseSchema,
+	mediaStreamUploadResponseSchema,
 	mediaUpdateBody,
 	mediaUploadUrlBody,
 	mediaUploadUrlResponseSchema,
@@ -79,6 +108,7 @@ import {
 	createCollectionBody,
 	createFieldBody,
 	fieldListResponseSchema,
+	collectionReorderBody,
 	fieldReorderBody,
 	fieldResponseSchema,
 	orphanedTableListResponseSchema,
@@ -103,10 +133,16 @@ import {
 import { settingsUpdateBody, siteSettingsSchema } from "../schemas/settings.js";
 import {
 	createTermBody,
+	reorderTermsBody,
+	taxonomyDefTranslationsSchema,
 	taxonomyListResponseSchema,
+	taxonomyResponseSchema,
 	termGetResponseSchema,
+	termListQuery,
 	termListResponseSchema,
+	termReorderResponseSchema,
 	termResponseSchema,
+	updateTaxonomyDefBody,
 	updateTermBody,
 } from "../schemas/taxonomies.js";
 import {
@@ -153,6 +189,7 @@ function standardErrors(
 		404: "Not Found",
 		409: "Conflict",
 		413: "Payload Too Large",
+		422: "Unprocessable Entity",
 		500: "Internal Server Error",
 	};
 	for (const code of codes) {
@@ -219,7 +256,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 500),
+				...standardErrors(400, 422, 500),
 			},
 		},
 	},
@@ -277,7 +314,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 404, 409, 500),
+				...standardErrors(400, 404, 409, 422, 500),
 			},
 		},
 		delete: {
@@ -661,15 +698,111 @@ function buildMediaPaths(maxUploadSize: number) {
 			get: {
 				operationId: "listMedia",
 				summary: "List media items",
+				description:
+					"Lists media items. Set `includeUsage=1` to attach coverage-aware advisory usage counts; a count may be null when the caller cannot read draft-derived usage.",
 				tags: ["Media"],
 				requestParams: { query: mediaListQuery },
 				responses: {
 					"200": {
 						description: "Media list",
-						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaListResponseSchema) } },
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaListReadResponseSchema) },
+						},
 					},
 					...authErrors,
-					...standardErrors(500),
+					...standardErrors(400, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/folders": {
+			get: {
+				operationId: "listMediaFolders",
+				summary: "List media folders",
+				tags: ["Media"],
+				requestParams: { query: mediaFolderListQuery },
+				responses: {
+					"200": {
+						description: "Media folder list",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderListResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+				},
+			},
+			post: {
+				operationId: "createMediaFolder",
+				summary: "Create a media folder",
+				tags: ["Media"],
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaFolderBody } } },
+				responses: {
+					"201": {
+						description: "Created media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 409, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/folders/{id}": {
+			get: {
+				operationId: "getMediaFolder",
+				summary: "Get a media folder",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				responses: {
+					"200": {
+						description: "Media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+			put: {
+				operationId: "updateMediaFolder",
+				summary: "Update a media folder",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaFolderBody } } },
+				responses: {
+					"200": {
+						description: "Updated media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 409, 500),
+				},
+			},
+			delete: {
+				operationId: "deleteMediaFolder",
+				summary: "Delete a media folder",
+				description: "Deletes the folder and returns its media to the Main library.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				responses: {
+					"200": {
+						description: "Deleted media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
 				},
 			},
 		},
@@ -677,17 +810,20 @@ function buildMediaPaths(maxUploadSize: number) {
 			get: {
 				operationId: "getMedia",
 				summary: "Get a media item",
+				description:
+					"Gets a media item. Set `includeUsage=1` to attach a coverage-aware advisory usage count; the count may be null when the caller cannot read draft-derived usage.",
 				tags: ["Media"],
 				requestParams: {
 					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+					query: mediaGetQuery,
 				},
 				responses: {
 					"200": {
 						description: "Media item",
-						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaResponseSchema) } },
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaReadResponseSchema) } },
 					},
 					...authErrors,
-					...standardErrors(404, 500),
+					...standardErrors(400, 404, 500),
 				},
 			},
 			put: {
@@ -724,6 +860,29 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/media/{id}/usage": {
+			get: {
+				operationId: "getMediaUsage",
+				summary: "Get media usage details",
+				description:
+					"Returns paginated content entry groups whose current indexed sources reference a local media item. Results include aggregate coverage and are advisory during concurrent writes. Requires media read and draft-content read permission; token-authenticated callers also require admin scope.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+					query: mediaUsageDetailsQuery,
+				},
+				responses: {
+					"200": {
+						description: "Entry-grouped media usage details",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageDetailsResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+		},
 		"/_emdash/api/admin/media-usage/repair": {
 			post: {
 				operationId: "repairMediaUsage",
@@ -747,12 +906,194 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/admin/media-usage/progress": {
+			get: {
+				operationId: "getMediaUsageProgress",
+				summary: "Get media usage indexing progress",
+				description:
+					"Returns aggregate indexing readiness for current content collections after controlled activation is active. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Aggregate media usage indexing progress",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageProgressSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(409),
+					...standardErrors(500),
+				},
+			},
+			post: {
+				operationId: "advanceMediaUsageProgress",
+				summary: "Advance media usage indexing",
+				description:
+					"Runs one bounded Media Usage maintenance step and returns the stored activation and indexing state. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Media Usage progress after one maintenance step",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageProgressAdvanceResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(409),
+					...standardErrors(500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/work": {
+			get: {
+				operationId: "listMediaUsageWork",
+				summary: "List durable media usage work",
+				description:
+					"Returns one bounded cursor page of durable entry-indexing work for a current collection. Requires `schema:manage`; bearer tokens also require the `admin` scope. The response omits lease tokens, work versions, indexed content, media references, raw errors, and an exact backlog count.",
+				tags: ["Media"],
+				requestParams: { query: mediaUsageWorkListQuery },
+				responses: {
+					"200": {
+						description: "Bounded media usage work page",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageWorkListResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/activation": {
+			get: {
+				operationId: "getMediaUsageActivation",
+				summary: "Get media usage activation status",
+				description:
+					"Returns the redacted status of controlled Media Usage capture activation. This operation is read-only and does not start or resume activation. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Media usage activation status",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageActivationStatusSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(409, 500),
+				},
+			},
+			post: {
+				operationId: "advanceMediaUsageActivation",
+				summary: "Advance media usage activation",
+				description:
+					"Starts, resumes, or retries exactly one bounded activation batch after the operator confirms that all writers are drained. Continue setup through the Media Usage progress endpoint. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageActivationAdvanceBody } },
+				},
+				responses: {
+					"200": {
+						description: "Current media usage activation progress",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageActivationAdvanceResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+					"409": {
+						description: "Activation is busy, changed ownership, or is incompatible",
+						content: { [JSON_CONTENT]: { schema: mediaUsageActivationConflictSchema } },
+					},
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/work/retry": {
+			post: {
+				operationId: "retryMediaUsageWork",
+				summary: "Retry one durable media usage job",
+				description:
+					"Idempotently reopens or creates one entry-indexing job for a current immutable collection identity. Requires `schema:manage`; bearer tokens also require the `admin` scope. A live worker lease or a concurrent work change returns a stable conflict without exposing ownership tokens.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryBody } },
+				},
+				responses: {
+					"200": {
+						description: "Current pending work state",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageWorkRetryResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+					"409": {
+						description: "The job has a live lease or changed concurrently",
+						content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryConflictSchema } },
+					},
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/collection-deletions": {
+			get: {
+				operationId: "listMediaUsageCollectionDeletions",
+				summary: "List durable collection deletions",
+				description:
+					"Returns a bounded, redacted cursor page of collection deletion work. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				requestParams: { query: mediaUsageCollectionDeletionListQuery },
+				responses: {
+					"200": {
+						description: "Bounded collection deletion page",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageCollectionDeletionListResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/collection-deletions/retry": {
+			post: {
+				operationId: "retryMediaUsageCollectionDeletion",
+				summary: "Retry one collection deletion",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageCollectionDeletionRetryBody } },
+				},
+				responses: {
+					"200": {
+						description: "Pending collection deletion state",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageCollectionDeletionRetryResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+					"409": {
+						description: "The deletion has a live lease or changed concurrently",
+						content: { [JSON_CONTENT]: { schema: mediaUsageWorkRetryConflictSchema } },
+					},
+				},
+			},
+		},
 		"/_emdash/api/media/upload-url": {
 			post: {
 				operationId: "getMediaUploadUrl",
-				summary: "Get a signed URL for direct upload",
+				summary: "Get a media upload target",
 				description:
-					"Returns a signed URL for direct-to-storage upload. Creates a pending media record.",
+					"Returns either a signed direct-to-storage URL or a same-origin streaming target. Creates a pending media record.",
 				tags: ["Media"],
 				requestBody: { content: { [JSON_CONTENT]: { schema: mediaUploadUrlBody(maxUploadSize) } } },
 				responses: {
@@ -789,7 +1130,37 @@ function buildMediaPaths(maxUploadSize: number) {
 						},
 					},
 					...authErrors,
-					...standardErrors(400, 404, 500),
+					...standardErrors(400, 404, 409, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/{id}/upload": {
+			put: {
+				operationId: "uploadPendingMedia",
+				summary: "Upload a pending media file through EmDash",
+				description:
+					"Streams a file to storage when the configured adapter cannot provide a signed upload URL. The Content-Type and byte count must match the pending media item.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				requestBody: {
+					required: true,
+					content: {
+						"*/*": {
+							schema: z.string().meta({ format: "binary" }),
+						},
+					},
+				},
+				responses: {
+					"200": {
+						description: "File uploaded and ready for confirmation",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaStreamUploadResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 413, 500),
 				},
 			},
 		},
@@ -989,6 +1360,28 @@ const schemaPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+			},
+		},
+	},
+	"/_emdash/api/schema/collections/reorder": {
+		post: {
+			operationId: "reorderCollections",
+			summary: "Reorder collections in the admin sidebar",
+			description:
+				"Sets the sidebar order. Collections omitted from the list lose their explicit position and fall back to alphabetical order after the ordered ones.",
+			tags: ["Schema"],
+			requestBody: { content: { [JSON_CONTENT]: { schema: collectionReorderBody } } },
+			responses: {
+				"200": {
+					description: "Reordered",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(z.object({ success: z.literal(true) })),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
 			},
 		},
 	},
@@ -1250,6 +1643,120 @@ const taxonomyPaths = {
 			},
 		},
 	},
+	"/_emdash/api/taxonomies/{name}": {
+		get: {
+			operationId: "getTaxonomy",
+			summary: "Get a taxonomy definition",
+			description:
+				"Definitions are per-locale; `locale` picks one, and without it the lowest-locale match is returned.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale filter" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Taxonomy definition",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(taxonomyResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		put: {
+			operationId: "updateTaxonomy",
+			summary: "Update a taxonomy definition",
+			description:
+				"Writes the single definition `name` + `locale` resolves to. `name` and `locale` cannot be changed — terms are keyed on `name`, and each locale is its own definition row.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z.string().optional().meta({ description: "Locale of the definition to update" }),
+				}),
+			},
+			requestBody: { content: { [JSON_CONTENT]: { schema: updateTaxonomyDefBody } } },
+			responses: {
+				"200": {
+					description: "Updated taxonomy definition",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(taxonomyResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		delete: {
+			operationId: "deleteTaxonomy",
+			summary: "Delete a taxonomy, its terms, and their content assignments",
+			description:
+				"Destructive and unscoped: every locale's definition goes, along with every term under the name and the assignments those terms hold. There is no locale parameter and no guard on a taxonomy that is still in use.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+			},
+			responses: {
+				"200": {
+					description: "Deleted",
+					content: { [JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) } },
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+	},
+	"/_emdash/api/taxonomies/{name}/translations": {
+		get: {
+			operationId: "listTaxonomyTranslations",
+			summary: "List every locale variant of a taxonomy definition",
+			description:
+				"Create a translation with `POST /_emdash/api/taxonomies` and `translationOf` set to a definition id from this list.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: z.object({
+					locale: z
+						.string()
+						.optional()
+						.meta({ description: "Locale of the definition to resolve the group from" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Translations sharing a translation_group",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(taxonomyDefTranslationsSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+	},
+	"/_emdash/api/taxonomies/{name}/reorder": {
+		post: {
+			operationId: "reorderTerms",
+			summary: "Set the manual order of one sibling group of terms",
+			description:
+				"`ids` names the terms to move, in the desired order, and may be a subset of the group — the listed terms are permuted within the positions they already occupy. A position belongs to a term across every locale, so there is no `locale` parameter. Ordering never reparents — use the term update endpoint to change a parent.",
+			tags: ["Taxonomies"],
+			requestParams: {
+				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+			},
+			requestBody: { content: { [JSON_CONTENT]: { schema: reorderTermsBody } } },
+			responses: {
+				"200": {
+					description: "The group in its new order",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(termReorderResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+	},
 	"/_emdash/api/taxonomies/{name}/terms": {
 		get: {
 			operationId: "listTerms",
@@ -1258,6 +1765,7 @@ const taxonomyPaths = {
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
+				query: termListQuery,
 			},
 			responses: {
 				"200": {
@@ -2351,7 +2859,7 @@ export function generateOpenApiDocument(
 			title: "EmDash CMS API",
 			version: "0.1.0",
 			description:
-				"REST API for the EmDash CMS. All endpoints require authentication and return responses wrapped in a `{ data }` envelope.",
+				"REST API for the EmDash CMS. All endpoints require authentication and return responses wrapped in a `{ success, data }` envelope.",
 		},
 		servers: [
 			{
@@ -2417,6 +2925,10 @@ export function generateOpenApiDocument(
 			},
 		],
 		components: {
+			schemas: {
+				// Preserve the previously published component while media reads use richer schemas.
+				MediaListResponse: mediaListResponseSchema,
+			},
 			securitySchemes: {
 				session: {
 					type: "apiKey",

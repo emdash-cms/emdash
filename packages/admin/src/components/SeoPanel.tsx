@@ -18,6 +18,10 @@ export interface SeoPanelProps {
 	contentKey: string;
 	seo?: ContentSeo;
 	onChange: (seo: ContentSeoInput) => void;
+	/** Title `getSeoMeta` uses when this panel has none, shown as placeholder text. */
+	defaultTitle?: string | null;
+	/** Description `getSeoMeta` uses when this panel has none, shown as placeholder text. */
+	defaultDescription?: string | null;
 }
 
 const SEO_TEXT_DEBOUNCE_MS = 500;
@@ -51,7 +55,13 @@ function serializeDraft(draft: SeoDraft): string {
 	return JSON.stringify(draft);
 }
 
-export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
+export function SeoPanel({
+	contentKey,
+	seo,
+	onChange,
+	defaultTitle,
+	defaultDescription,
+}: SeoPanelProps) {
 	const { t } = useLingui();
 	const titleId = React.useId();
 	const descriptionId = React.useId();
@@ -172,6 +182,7 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 					aria-label={t`SEO Title`}
 					className="w-full"
 					value={draft.title}
+					placeholder={defaultTitle ?? undefined}
 					onChange={(e) => {
 						updateDraft({ title: e.target.value });
 					}}
@@ -190,17 +201,19 @@ export function SeoPanel({ contentKey, seo, onChange }: SeoPanelProps) {
 				<InputArea
 					id={descriptionId}
 					aria-label={t`Meta Description`}
+					aria-describedby={`${descriptionId}-count`}
 					className="w-full"
-					description={
-						draft.description ? t`${draft.description.length}/160 characters` : undefined
-					}
 					value={draft.description}
+					placeholder={defaultDescription ?? undefined}
 					onChange={(e) => {
 						updateDraft({ description: e.target.value });
 					}}
 					rows={3}
 					dir="auto"
 				/>
+				<p id={`${descriptionId}-count`} className="text-sm leading-snug text-kumo-subtle">
+					{t`${draft.description.length}/160 characters`}
+				</p>
 			</div>
 
 			<div className="space-y-2">

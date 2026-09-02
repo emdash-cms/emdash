@@ -1,6 +1,5 @@
 import { Button, Input, InputArea, Loader, Select, Switch } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { IdentificationCard } from "@phosphor-icons/react";
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
@@ -373,13 +372,13 @@ export function BylinesPage() {
 	return (
 		<div className="space-y-4">
 			<div className="flex items-center justify-between gap-3">
-				<h1 className="text-2xl font-semibold">{t`Bylines`}</h1>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Bylines`}</h1>
 				<div className="flex items-center gap-2">
 					{canManageBylineSchema && (
 						<RouterLinkButton
 							to={BYLINE_SCHEMA_NAV_ITEM.to}
 							variant="secondary"
-							icon={<IdentificationCard />}
+							icon={<BYLINE_SCHEMA_NAV_ITEM.icon />}
 						>
 							{t`Byline schema`}
 						</RouterLinkButton>

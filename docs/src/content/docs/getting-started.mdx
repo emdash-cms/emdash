@@ -11,7 +11,7 @@ This guide walks you through creating your first EmDash site, from installation 
 
 ## Prerequisites
 
-- **Node.js** v22.12.0 or higher (odd-numbered versions are not supported)
+- **Node.js** v22.16.0 or higher (odd-numbered versions are not supported)
 - **npm**, **pnpm**, or **yarn**
 - A code editor (VS Code recommended)
 
@@ -144,11 +144,13 @@ The following configuration registers EmDash as an Astro integration with a loca
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
+import react from "@astrojs/react";
 import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
 export default defineConfig({
 	integrations: [
+		react(), // Required — the admin UI is a React app
 		emdash({
 			database: sqlite({ url: "file:./data.db" }),
 			storage: local({

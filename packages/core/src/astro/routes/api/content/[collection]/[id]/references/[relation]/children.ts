@@ -21,15 +21,14 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { collection, id, relation } = params;
 
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 
 	if (!collection || !id || !relation) {
 		return apiError("VALIDATION_ERROR", "Collection, id, and relation required", 400);
 	}
-
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
 
 	const query = parseQuery(new URL(request.url), cursorPaginationQuery);
 	if (isParseError(query)) return query;
@@ -57,15 +56,14 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		return apiError("VALIDATION_ERROR", "Collection, id, and relation required", 400);
 	}
 
+	const dbErr = requireDb(emdash?.db);
+	if (dbErr) return dbErr;
 	// Gate on the base edit capability BEFORE the existence lookup. Resolving the
 	// entry first would let a user with no edit permission distinguish real ids
 	// (403) from missing ids (404) — an existence oracle. Mirrors the taxonomy
 	// edge POST, which checks `content:edit_own` before fetching the entry.
 	const denied = requirePerm(user, "content:edit_own");
 	if (denied) return denied;
-
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
 
 	// Resolve the parent entry to gate on its author (ownership-aware write).
 	const parent = await new ContentRepository(emdash.db).findByIdOrSlug(collection, id);

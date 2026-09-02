@@ -393,7 +393,37 @@ export async function ingestPackageProfile(
 	const slug = record.slug ?? job.rkey;
 	const sigMeta = JSON.stringify({ cid: verified.cid });
 	const nowIso = now.toISOString();
-	await db
+	const retainRevision = db
+		.prepare(
+			`INSERT INTO package_profile_revisions
+			   (did, slug, cid, type, name, description, license, authors, security,
+			    keywords, sections, last_updated, record_blob, signature_metadata,
+			    observed_at, last_verified_at)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			 ON CONFLICT(did, slug, cid) DO UPDATE SET
+			   record_blob = excluded.record_blob,
+			   signature_metadata = excluded.signature_metadata,
+			   last_verified_at = excluded.last_verified_at`,
+		)
+		.bind(
+			job.did,
+			slug,
+			verified.cid,
+			record.type,
+			record.name ?? null,
+			record.description ?? null,
+			record.license,
+			JSON.stringify(record.authors),
+			JSON.stringify(record.security),
+			record.keywords ? JSON.stringify(record.keywords) : null,
+			record.sections ? JSON.stringify(record.sections) : null,
+			record.lastUpdated ?? null,
+			verified.carBytes,
+			sigMeta,
+			nowIso,
+			nowIso,
+		);
+	const updateCurrentPackage = db
 		.prepare(
 			`INSERT INTO packages
 			   (did, slug, type, name, description, license, authors, security, keywords, sections,
@@ -435,8 +465,23 @@ export async function ingestPackageProfile(
 			sigMeta,
 			nowIso,
 			nowIso, // indexed_at on first insert; preserved on conflict (see SQL comment)
+		);
+	const moveCurrentPointer = db
+		.prepare(
+			`INSERT INTO package_profile_heads
+			   (did, slug, current_cid, deleted_at, updated_at)
+			 VALUES (?, ?, ?, NULL, ?)
+			 ON CONFLICT(did, slug) DO UPDATE SET
+			   current_cid = excluded.current_cid,
+			   deleted_at = NULL,
+			   updated_at = excluded.updated_at`,
 		)
-		.run();
+		.bind(job.did, slug, verified.cid, nowIso);
+
+	// The revision must exist before the current pointer moves. D1 batches are
+	// transactional, so a failure leaves both the old pointer and old mutable
+	// compatibility row intact.
+	await db.batch([retainRevision, updateCurrentPackage, moveCurrentPointer]);
 }
 
 export async function ingestPackageRelease(
@@ -516,7 +561,12 @@ export async function ingestPackageRelease(
 	// so out-of-order Jetstream delivery (release before profile) recovers
 	// once the profile arrives.
 	const parent = await db
-		.prepare(`SELECT 1 FROM packages WHERE did = ? AND slug = ?`)
+		.prepare(
+			`SELECT 1
+			 FROM packages p
+			 JOIN package_profile_heads h ON h.did = p.did AND h.slug = p.slug
+			 WHERE p.did = ? AND p.slug = ? AND h.deleted_at IS NULL`,
+		)
 		.bind(job.did, record.package)
 		.first();
 	if (!parent) {
@@ -724,6 +774,38 @@ function refreshPackageLatestStmt(db: D1Database, did: string, pkg: string): D1P
 	return db.prepare(REFRESH_PACKAGE_LATEST_SQL).bind(did, pkg);
 }
 
+const REFRESH_PUBLIC_PACKAGE_LATEST_SQL = `
+	UPDATE public_packages SET
+		latest_version = (
+			SELECT version FROM public_releases
+			WHERE generation = public_packages.generation
+			  AND did = public_packages.did
+			  AND package = public_packages.slug
+			ORDER BY version_sort DESC, version DESC, rkey DESC LIMIT 1
+		),
+		capabilities = (
+			SELECT json_group_array(key) FROM (
+				SELECT key FROM json_each(
+					(SELECT json_extract(emdash_extension, '$.declaredAccess')
+					 FROM public_releases
+					 WHERE generation = public_packages.generation
+					   AND did = public_packages.did
+					   AND package = public_packages.slug
+					 ORDER BY version_sort DESC, version DESC, rkey DESC LIMIT 1)
+				) ORDER BY key
+			)
+		)
+	WHERE did = ? AND slug = ?
+`;
+
+function refreshPublicPackageLatestStmt(
+	db: D1Database,
+	did: string,
+	pkg: string,
+): D1PreparedStatement {
+	return db.prepare(REFRESH_PUBLIC_PACKAGE_LATEST_SQL).bind(did, pkg);
+}
+
 export async function ingestPublisherProfile(
 	db: D1Database,
 	job: RecordsJob,
@@ -847,21 +929,33 @@ export async function ingestPublisherVerification(
 export async function applyDelete(db: D1Database, job: RecordsJob, now: Date): Promise<void> {
 	switch (job.collection) {
 		case NSID.packageProfile:
-			// Hard-delete the profile. The releases FK is ON DELETE CASCADE
-			// (see `0001_init.sql`), so all of this publisher's releases for
-			// this slug are removed in the same statement. CASCADE is the
-			// right semantic when the publisher's intent is "the whole
-			// package goes away" — and crucially, it lets out-of-order
-			// Jetstream delivery work: a profile-delete arriving before its
-			// release-deletes doesn't fail with FK violation. Audit history
-			// for those releases lives only in `release_duplicate_attempts`
-			// (for prior immutability violations) and `dead_letters` (for
-			// prior verification failures); the canonical release rows are
-			// gone with the profile.
-			await db
-				.prepare(`DELETE FROM packages WHERE did = ? AND slug = ?`)
-				.bind(job.did, job.rkey)
-				.run();
+			// Keep verified revision and release history, but make the source
+			// deletion authoritative over every projection immediately.
+			await db.batch([
+				db
+					.prepare(
+						`INSERT INTO package_profile_heads
+						   (did, slug, current_cid, deleted_at, updated_at)
+						 VALUES (?, ?, NULL, ?, ?)
+						 ON CONFLICT(did, slug) DO UPDATE SET
+						   deleted_at = excluded.deleted_at,
+						   updated_at = excluded.updated_at`,
+					)
+					.bind(job.did, job.rkey, now.toISOString(), now.toISOString()),
+				db
+					.prepare(
+						`UPDATE releases SET tombstoned_at = ?
+						 WHERE did = ? AND package = ? AND tombstoned_at IS NULL`,
+					)
+					.bind(now.toISOString(), job.did, job.rkey),
+				refreshPackageLatestStmt(db, job.did, job.rkey),
+				db
+					.prepare(`DELETE FROM public_releases WHERE did = ? AND package = ?`)
+					.bind(job.did, job.rkey),
+				db
+					.prepare(`DELETE FROM public_packages WHERE did = ? AND slug = ?`)
+					.bind(job.did, job.rkey),
+			]);
 			return;
 		case NSID.packageRelease: {
 			// Releases are version-immutable but a publisher CAN delete them
@@ -893,6 +987,25 @@ export async function applyDelete(db: D1Database, job: RecordsJob, now: Date): P
 					)
 					.bind(now.toISOString(), job.did, parsed.pkg, parsed.version),
 				refreshPackageLatestStmt(db, job.did, parsed.pkg),
+				db
+					.prepare(
+						`DELETE FROM public_releases
+						 WHERE did = ? AND package = ? AND version = ?`,
+					)
+					.bind(job.did, parsed.pkg, parsed.version),
+				refreshPublicPackageLatestStmt(db, job.did, parsed.pkg),
+				db
+					.prepare(
+						`DELETE FROM public_packages
+						 WHERE did = ? AND slug = ?
+						   AND NOT EXISTS (
+						     SELECT 1 FROM public_releases
+						     WHERE generation = public_packages.generation
+						       AND did = public_packages.did
+						       AND package = public_packages.slug
+						   )`,
+					)
+					.bind(job.did, parsed.pkg),
 			]);
 			return;
 		}

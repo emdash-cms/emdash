@@ -29,6 +29,8 @@ export interface PluginInfo {
 	hasAdminPages: boolean;
 	hasDashboardWidgets: boolean;
 	hasHooks: boolean;
+	/** True when the plugin declares `admin.settingsSchema` (auto-generated settings form) */
+	hasSettings: boolean;
 	installedAt?: string;
 	activatedAt?: string;
 	deactivatedAt?: string;
@@ -36,6 +38,14 @@ export interface PluginInfo {
 	description?: string;
 	/** URL to the plugin icon on the marketplace */
 	iconUrl?: string;
+	mcpToolsEnabled: boolean;
+	mcpTools: Array<{
+		name: string;
+		description: string;
+		route: string;
+		permission: string;
+		destructive: boolean;
+	}>;
 }
 
 export interface PluginListResponse {
@@ -78,12 +88,28 @@ function buildPluginInfo(
 		hasAdminPages: (plugin.admin.pages?.length ?? 0) > 0,
 		hasDashboardWidgets: (plugin.admin.widgets?.length ?? 0) > 0,
 		hasHooks: Object.keys(plugin.hooks ?? {}).length > 0,
+		hasSettings: Object.keys(plugin.admin.settingsSchema ?? {}).length > 0,
 		installedAt: state?.installedAt?.toISOString(),
 		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
 		description: state?.description ?? undefined,
 		iconUrl:
 			isMarketplace && marketplaceUrl ? marketplaceIconUrl(marketplaceUrl, plugin.id) : undefined,
+		mcpToolsEnabled: state?.mcpToolsEnabled ?? false,
+		mcpTools: Object.entries(plugin.mcp?.tools ?? {}).flatMap(([name, tool]) => {
+			const permission = plugin.routes[tool.route]?.permission;
+			return permission
+				? [
+						{
+							name,
+							description: tool.description,
+							route: tool.route,
+							permission,
+							destructive: tool.destructive ?? false,
+						},
+					]
+				: [];
+		}),
 	};
 }
 
@@ -110,10 +136,13 @@ function buildSandboxedPluginInfo(
 		hasAdminPages: (entry.adminPages?.length ?? 0) > 0,
 		hasDashboardWidgets: (entry.adminWidgets?.length ?? 0) > 0,
 		hasHooks: false,
+		hasSettings: Object.keys(entry.settingsSchema ?? {}).length > 0,
 		installedAt: state?.installedAt?.toISOString(),
 		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
 		description: state?.description ?? undefined,
+		mcpToolsEnabled: state?.mcpToolsEnabled ?? false,
+		mcpTools: entry.mcp?.tools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool) ?? [],
 	};
 }
 
@@ -125,6 +154,12 @@ export async function handlePluginList(
 	configuredPlugins: ResolvedPlugin[],
 	sandboxedPluginEntries: SandboxedPluginEntry[],
 	marketplaceUrl?: string,
+	/**
+	 * Settings-schema lookup for runtime-installed (marketplace/registry)
+	 * plugins, which aren't in either build-time list. Typically
+	 * `EmDashRuntime.getRuntimePluginSettingsSchema`.
+	 */
+	runtimeSettingsSchemaLookup?: (pluginId: string) => Record<string, unknown> | null,
 ): Promise<ApiResult<PluginListResponse>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -166,6 +201,7 @@ export async function handlePluginList(
 				hasAdminPages: false,
 				hasDashboardWidgets: false,
 				hasHooks: false,
+				hasSettings: Object.keys(runtimeSettingsSchemaLookup?.(state.pluginId) ?? {}).length > 0,
 				installedAt: state.installedAt?.toISOString(),
 				activatedAt: state.activatedAt?.toISOString() ?? undefined,
 				deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
@@ -174,6 +210,8 @@ export async function handlePluginList(
 					state.source === "marketplace" && marketplaceUrl
 						? marketplaceIconUrl(marketplaceUrl, state.pluginId)
 						: undefined,
+				mcpToolsEnabled: state.mcpToolsEnabled,
+				mcpTools: [],
 			});
 		}
 
@@ -266,10 +304,13 @@ function buildStateOnlyPluginInfo(
 		hasAdminPages: false,
 		hasDashboardWidgets: false,
 		hasHooks: false,
+		hasSettings: false,
 		installedAt: state.installedAt?.toISOString(),
 		activatedAt: state.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state.deactivatedAt?.toISOString() ?? undefined,
 		description: state.description ?? undefined,
+		mcpToolsEnabled: state.mcpToolsEnabled,
+		mcpTools: [],
 	};
 }
 

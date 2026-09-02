@@ -15,6 +15,7 @@
   "dependencies": {
     "@astrojs/cloudflare": "catalog:",
     "@astrojs/react": "catalog:",
+    "@cloudflare/ai-search-snippet": "^0.0.40",
     "@emdash-cms/cloudflare": "workspace:*",
     "@emdash-cms/plugin-forms": "workspace:*",
     "@emdash-cms/plugin-webhook-notifier": "workspace:*",

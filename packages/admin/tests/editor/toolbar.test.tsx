@@ -1,4 +1,5 @@
 import type { Editor } from "@tiptap/core";
+import { CellSelection } from "@tiptap/pm/tables";
 import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
 
@@ -6,6 +7,7 @@ import {
 	PortableTextEditor,
 	type PortableTextEditorProps,
 } from "../../src/components/PortableTextEditor";
+import type { MediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
 // ---------------------------------------------------------------------------
@@ -13,7 +15,54 @@ import { render } from "../utils/render.tsx";
 // ---------------------------------------------------------------------------
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
-	MediaPickerModal: () => null,
+	MediaPickerModal: ({
+		open,
+		onOpenChange,
+		onSelect,
+	}: {
+		open: boolean;
+		onOpenChange: (open: boolean) => void;
+		onSelect: (item: MediaItem) => void;
+	}) =>
+		open ? (
+			<div role="dialog" aria-label="Test image picker">
+				<button
+					type="button"
+					onClick={() =>
+						onSelect({
+							id: "image-1",
+							filename: "diagram.png",
+							mimeType: "image/png",
+							url: "/diagram.png",
+							size: 1024,
+							alt: "Architecture diagram",
+							createdAt: "2026-08-16T00:00:00.000Z",
+						})
+					}
+				>
+					Choose test image
+				</button>
+				<button
+					type="button"
+					onClick={() =>
+						onSelect({
+							id: "",
+							filename: "remote.jpg",
+							mimeType: "image/jpeg",
+							url: "https://media.example/remote.jpg",
+							provider: "external-url",
+							size: 0,
+							createdAt: "2026-08-16T00:00:00.000Z",
+						})
+					}
+				>
+					Choose external image
+				</button>
+				<button type="button" onClick={() => onOpenChange(false)}>
+					Cancel image picker
+				</button>
+			</div>
+		) : null,
 }));
 
 vi.mock("../../src/components/SectionPickerModal", () => ({
@@ -49,6 +98,14 @@ vi.mock("../../src/components/editor/ImageNode", async () => {
 		},
 		renderHTML({ HTMLAttributes }) {
 			return ["img", HTMLAttributes];
+		},
+		addCommands() {
+			return {
+				setImage:
+					(options: Record<string, unknown>) =>
+					({ commands }) =>
+						commands.insertContent({ type: this.name, attrs: options }),
+			};
 		},
 	});
 	return { ImageExtension };
@@ -136,9 +193,47 @@ function getToolbarButton(screen: Awaited<ReturnType<typeof render>>, name: stri
 	return screen.getByRole("toolbar", { name: "Text formatting" }).getByRole("button", { name });
 }
 
+function expectVisibleActiveState(element: HTMLElement) {
+	expect(element.classList.contains("bg-kumo-interact/50")).toBe(true);
+	expect(element.classList.contains("hover:bg-kumo-interact/50")).toBe(true);
+}
+
+function expectNoVisibleActiveState(element: HTMLElement) {
+	expect(element.classList.contains("bg-kumo-interact/50")).toBe(false);
+}
+
+function getTextPosition(editor: Editor, text: string): number {
+	let position: number | undefined;
+	editor.state.doc.descendants((node, pos) => {
+		if (position !== undefined) return false;
+		if (node.isTextblock && node.textContent.includes(text)) {
+			position = pos + 1;
+			return false;
+		}
+		return true;
+	});
+	if (position === undefined) throw new Error(`Could not find text: ${text}`);
+	return position;
+}
+
+function expectAlignmentState(
+	screen: Awaited<ReturnType<typeof render>>,
+	active: "left" | "center" | "right" | null,
+) {
+	const buttons = {
+		left: getToolbarButton(screen, "Align Left").element(),
+		center: getToolbarButton(screen, "Align Center").element(),
+		right: getToolbarButton(screen, "Align Right").element(),
+	};
+
+	for (const [alignment, button] of Object.entries(buttons)) {
+		expect(button.getAttribute("aria-pressed")).toBe(String(alignment === active));
+	}
+}
+
 async function getHeadingMenuItem(
 	screen: Awaited<ReturnType<typeof render>>,
-	name: "Heading 1" | "Heading 2" | "Heading 3",
+	name: "Heading 1" | "Heading 2" | "Heading 3" | "Heading 4" | "Heading 5" | "Heading 6",
 ) {
 	const trigger = getToolbarButton(screen, "Headings");
 	trigger.element().click();
@@ -185,6 +280,9 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 1" })).toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 2" })).toBeVisible();
 		await expect.element(screen.getByRole("menuitem", { name: "Heading 3" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 4" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 5" })).toBeVisible();
+		await expect.element(screen.getByRole("menuitem", { name: "Heading 6" })).toBeVisible();
 		expect(
 			screen
 				.getByRole("menuitem", { name: "Heading 1" })
@@ -196,7 +294,16 @@ describe("Toolbar Presence and Structure", () => {
 			document.querySelectorAll<HTMLElement>('[role="menuitem"]'),
 			(item) => item.textContent?.trim(),
 		);
-		expect(headingLabels).not.toContain("Heading 4");
+		expect(headingLabels).toEqual(
+			expect.arrayContaining([
+				"Heading 1",
+				"Heading 2",
+				"Heading 3",
+				"Heading 4",
+				"Heading 5",
+				"Heading 6",
+			]),
+		);
 	});
 
 	it("has all list buttons", async () => {
@@ -218,13 +325,13 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Align Right" })).toBeVisible();
 	});
 
-	it("keeps insertion-only actions in the block menu", async () => {
+	it("exposes core block insertions and keeps extended actions in the block menu", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
 		await expect.element(screen.getByRole("button", { name: "Insert Link" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Insert Image" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Insert HTML" })).toBeVisible();
 		expect(toolbar.querySelector('[aria-label="Insert Table"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert Image"]')).toBeNull();
-		expect(toolbar.querySelector('[aria-label="Insert HTML"]')).toBeNull();
 		expect(toolbar.querySelector('[aria-label="Insert Horizontal Rule"]')).toBeNull();
 	});
 
@@ -279,6 +386,32 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Spotlight Mode" })).toBeVisible();
 	});
 
+	it("gives every fixed-toolbar control visible pointer-hover feedback", async () => {
+		const { screen } = await renderEditor();
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const buttons = [...toolbar.querySelectorAll<HTMLButtonElement>("button")];
+
+		expect(buttons.length).toBeGreaterThan(0);
+		for (const button of buttons) {
+			expect(button.classList.contains("hover:bg-kumo-interact/50")).toBe(true);
+		}
+	});
+
+	it("shows Kumo tooltips on pointer hover and keyboard focus", async () => {
+		const { screen } = await renderEditor();
+		const bold = getToolbarButton(screen, "Bold");
+
+		await userEvent.hover(bold.element());
+		await expect.element(screen.getByText("Bold")).toBeVisible();
+
+		await userEvent.hover(document.body);
+		await vi.waitFor(() => expect(screen.getByText("Bold").query()).toBeNull());
+
+		const headings = getToolbarButton(screen, "Headings");
+		headings.element().focus();
+		await expect.element(screen.getByText("Headings")).toBeVisible();
+	});
+
 	it("hides toolbar when minimal={true}", async () => {
 		const { screen } = await renderEditor({ minimal: true });
 		const toolbar = screen.container.querySelector('[role="toolbar"]');
@@ -287,10 +420,102 @@ describe("Toolbar Presence and Structure", () => {
 });
 
 // =============================================================================
+// Block insertion
+// =============================================================================
+
+describe("Block insertion", () => {
+	it("leaves content unchanged until an image is selected from the toolbar picker", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus("end");
+		const before = editor.getJSON();
+
+		getToolbarButton(screen, "Insert Image").element().click();
+		await screen.getByRole("button", { name: "Cancel image picker" }).click();
+		expect(editor.getJSON()).toEqual(before);
+
+		getToolbarButton(screen, "Insert Image").element().click();
+		await screen.getByRole("button", { name: "Choose test image" }).click();
+		await vi.waitFor(() => {
+			const image = editor.getJSON().content?.find((node) => node.type === "image");
+			expect(image?.attrs).toMatchObject({
+				src: "/diagram.png",
+				alt: "Architecture diagram",
+				mediaId: "image-1",
+				provider: "local",
+			});
+		});
+	});
+
+	it("stores a canonical provider when inserting an external URL", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus("end");
+
+		getToolbarButton(screen, "Insert Image").element().click();
+		await screen.getByRole("button", { name: "Choose external image" }).click();
+
+		await vi.waitFor(() => {
+			const image = editor.getJSON().content?.find((node) => node.type === "image");
+			expect(image?.attrs).toMatchObject({
+				src: "https://media.example/remote.jpg",
+				mediaId: "",
+				provider: "external",
+			});
+		});
+	});
+
+	it("inserts an empty HTML block from the toolbar", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus("end");
+
+		getToolbarButton(screen, "Insert HTML").element().click();
+
+		await vi.waitFor(() => {
+			const htmlBlock = editor.getJSON().content?.find((node) => node.type === "htmlBlock");
+			expect(htmlBlock?.attrs?.html).toBe("");
+		});
+	});
+});
+
+// =============================================================================
 // 2. Formatting Button Toggle States
 // =============================================================================
 
 describe("Formatting Button Toggle States", () => {
+	it("shows existing bold formatting and clears the state for mixed or plain selections", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [
+						{ _type: "span", _key: "s1", text: "Bold", marks: ["strong"] },
+						{ _type: "span", _key: "s2", text: " plain" },
+					],
+				},
+			],
+		});
+		const bold = getToolbarButton(screen, "Bold").element();
+
+		editor.chain().focus().setTextSelection({ from: 1, to: 5 }).run();
+		await vi.waitFor(() => {
+			expect(bold.getAttribute("aria-pressed")).toBe("true");
+			expectVisibleActiveState(bold);
+		});
+
+		editor.chain().focus().setTextSelection({ from: 1, to: 11 }).run();
+		await vi.waitFor(() => {
+			expect(bold.getAttribute("aria-pressed")).toBe("false");
+			expectNoVisibleActiveState(bold);
+		});
+
+		editor.chain().focus().setTextSelection({ from: 5, to: 11 }).run();
+		await vi.waitFor(() => {
+			expect(bold.getAttribute("aria-pressed")).toBe("false");
+			expectNoVisibleActiveState(bold);
+		});
+	});
+
 	it("Bold: click toggles aria-pressed to true", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
@@ -369,6 +594,7 @@ describe("Formatting Button Toggle States", () => {
 		await vi.waitFor(() => {
 			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
 			expect(editor.isActive("heading", { level: 1 })).toBe(true);
+			expectVisibleActiveState(trigger.element());
 		});
 	});
 
@@ -398,6 +624,19 @@ describe("Formatting Button Toggle States", () => {
 		});
 	});
 
+	it("Heading 6: click changes to h6", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus();
+
+		const { trigger, item } = await getHeadingMenuItem(screen, "Heading 6");
+		item.element().click();
+
+		await vi.waitFor(() => {
+			expect(trigger.element().hasAttribute("aria-pressed")).toBe(false);
+			expect(editor.isActive("heading", { level: 6 })).toBe(true);
+		});
+	});
+
 	it("Bullet List: click toggles aria-pressed to true", async () => {
 		const { screen, editor } = await renderEditor();
 		editor.commands.focus();
@@ -420,6 +659,63 @@ describe("Formatting Button Toggle States", () => {
 		await vi.waitFor(() => {
 			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
 		});
+	});
+
+	it("continues or restarts the selected numbered-list segment in RTL", async () => {
+		const previousDir = document.documentElement.dir;
+		document.documentElement.dir = "rtl";
+		try {
+			const { screen, editor } = await renderEditor({
+				value: [
+					{
+						_type: "block",
+						_key: "one",
+						style: "normal",
+						listItem: "number",
+						level: 1,
+						listId: "first",
+						listStart: 1,
+						children: [{ _type: "span", _key: "s1", text: "One" }],
+					},
+					{
+						_type: "block",
+						_key: "between",
+						style: "normal",
+						children: [{ _type: "span", _key: "s2", text: "Between" }],
+					},
+					{
+						_type: "block",
+						_key: "independent",
+						style: "normal",
+						listItem: "number",
+						level: 1,
+						listId: "second",
+						listStart: 1,
+						children: [{ _type: "span", _key: "s3", text: "Independent" }],
+					},
+				],
+			});
+			editor.commands.setTextSelection(getTextPosition(editor, "Independent"));
+
+			const continueButton = getToolbarButton(screen, "Continue numbering");
+			const restartButton = getToolbarButton(screen, "Restart numbering");
+			await expect.element(continueButton).toBeVisible();
+			await expect.element(restartButton).toBeVisible();
+			expect(continueButton.element().hasAttribute("disabled")).toBe(false);
+			expect(restartButton.element().hasAttribute("disabled")).toBe(false);
+
+			continueButton.element().click();
+			await vi.waitFor(() => {
+				const starts: number[] = [];
+				editor.state.doc.descendants((node) => {
+					if (node.type.name === "orderedList") starts.push(node.attrs.start);
+				});
+				expect(starts).toEqual([1, 2]);
+				expect(continueButton.element().hasAttribute("disabled")).toBe(true);
+			});
+		} finally {
+			document.documentElement.dir = previousDir;
+		}
 	});
 
 	it("Quote: click toggles aria-pressed to true", async () => {
@@ -471,6 +767,235 @@ describe("Formatting Button Toggle States", () => {
 // =============================================================================
 
 describe("Text Alignment", () => {
+	it("tracks default and explicit alignment whenever the cursor changes paragraphs", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [{ _type: "span", _key: "s1", text: "Default left" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					textAlign: "center",
+					children: [{ _type: "span", _key: "s2", text: "Centered" }],
+				},
+				{
+					_type: "block",
+					_key: "3",
+					style: "normal",
+					textAlign: "right",
+					children: [{ _type: "span", _key: "s3", text: "Right aligned" }],
+				},
+			],
+		});
+
+		for (const [text, alignment] of [
+			["Default left", "left"],
+			["Centered", "center"],
+			["Right aligned", "right"],
+			["Default left", "left"],
+		] as const) {
+			editor.chain().focus().setTextSelection(getTextPosition(editor, text)).run();
+			await vi.waitFor(() => expectAlignmentState(screen, alignment));
+		}
+	});
+
+	it("treats unannotated headings, list paragraphs, and newly split empty blocks as left aligned", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "h2",
+					children: [{ _type: "span", _key: "s1", text: "A heading" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					listItem: "bullet",
+					level: 1,
+					children: [{ _type: "span", _key: "s2", text: "A list item" }],
+				},
+			],
+		});
+
+		for (const text of ["A heading", "A list item"]) {
+			editor.chain().focus().setTextSelection(getTextPosition(editor, text)).run();
+			await vi.waitFor(() => expectAlignmentState(screen, "left"));
+		}
+
+		const listPosition = getTextPosition(editor, "A list item") + "A list item".length;
+		editor.chain().focus().setTextSelection(listPosition).splitBlock().run();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+	});
+
+	it("reports a shared alignment for uniform multi-block selections and none for mixed selections", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [{ _type: "span", _key: "s1", text: "Left one" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					children: [{ _type: "span", _key: "s2", text: "Left two" }],
+				},
+				{
+					_type: "block",
+					_key: "3",
+					style: "normal",
+					textAlign: "center",
+					children: [{ _type: "span", _key: "s3", text: "Center three" }],
+				},
+			],
+		});
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({
+				from: getTextPosition(editor, "Left one"),
+				to: getTextPosition(editor, "Left two") + "Left two".length,
+			})
+			.run();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({
+				from: getTextPosition(editor, "Left two"),
+				to: getTextPosition(editor, "Center three") + "Center three".length,
+			})
+			.run();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+	});
+
+	it("updates an entire mixed selection and follows alignment undo and redo history", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [{ _type: "span", _key: "s1", text: "Default block" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					textAlign: "center",
+					children: [{ _type: "span", _key: "s2", text: "Centered block" }],
+				},
+			],
+		});
+		editor
+			.chain()
+			.focus()
+			.setTextSelection({
+				from: getTextPosition(editor, "Default block"),
+				to: getTextPosition(editor, "Centered block") + "Centered block".length,
+			})
+			.run();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+
+		getToolbarButton(screen, "Align Right").element().click();
+		await vi.waitFor(() => expectAlignmentState(screen, "right"));
+
+		editor.commands.undo();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+
+		editor.commands.redo();
+		await vi.waitFor(() => expectAlignmentState(screen, "right"));
+
+		getToolbarButton(screen, "Align Left").element().click();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+	});
+
+	it("shows no alignment for a selection containing no alignable text block", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.chain().focus().setTextSelection(1).toggleCodeBlock().run();
+
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+	});
+
+	it("resolves uniform and mixed table cell selections from their selected ranges", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.chain().focus().insertTable({ rows: 2, cols: 2, withHeaderRow: false }).run();
+
+		const cellPositions: number[] = [];
+		editor.state.doc.descendants((node, pos) => {
+			if (node.type.name === "tableCell") cellPositions.push(pos);
+		});
+		expect(cellPositions).toHaveLength(4);
+
+		editor
+			.chain()
+			.focus()
+			.setTextSelection(cellPositions[0]! + 2)
+			.setTextAlign("center")
+			.run();
+		editor.view.dispatch(
+			editor.state.tr.setSelection(
+				CellSelection.create(editor.state.doc, cellPositions[0]!, cellPositions[1]!),
+			),
+		);
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+
+		editor.view.dispatch(
+			editor.state.tr.setSelection(
+				CellSelection.create(editor.state.doc, cellPositions[2]!, cellPositions[3]!),
+			),
+		);
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+	});
+
+	it("uses the writing direction for unannotated text without masking explicit or unsupported alignment", async () => {
+		const { screen, editor } = await renderEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "1",
+					style: "normal",
+					children: [{ _type: "span", _key: "s1", text: "مرحبا بالعالم" }],
+				},
+				{
+					_type: "block",
+					_key: "2",
+					style: "normal",
+					textAlign: "left",
+					children: [{ _type: "span", _key: "s2", text: "Explicit left" }],
+				},
+				{
+					_type: "block",
+					_key: "3",
+					style: "normal",
+					textAlign: "justify",
+					children: [{ _type: "span", _key: "s3", text: "Justified" }],
+				},
+			],
+		});
+		expect(getComputedStyle(editor.view.dom).direction).toBe("rtl");
+
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "مرحبا بالعالم")).run();
+		await vi.waitFor(() => expectAlignmentState(screen, "right"));
+
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "Explicit left")).run();
+		await vi.waitFor(() => expectAlignmentState(screen, "left"));
+
+		editor.chain().focus().setTextSelection(getTextPosition(editor, "Justified")).run();
+		await vi.waitFor(() => expectAlignmentState(screen, null));
+	});
+
 	it("Align Center becomes pressed, Align Left becomes unpressed", async () => {
 		const { screen } = await renderEditor();
 		await focusAndSelectAll(screen);
@@ -677,6 +1202,9 @@ describe("Link Insertion", () => {
 
 		await vi.waitFor(() => {
 			expect(editor.isActive("link")).toBe(true);
+			const link = getToolbarButton(screen, "Insert Link").element();
+			expect(link.getAttribute("aria-pressed")).toBe("true");
+			expectVisibleActiveState(link);
 		});
 	});
 

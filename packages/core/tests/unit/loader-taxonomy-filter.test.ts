@@ -4,8 +4,9 @@ import { it, expect, beforeEach, afterEach } from "vitest";
 import { handleContentCreate } from "../../src/api/index.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader } from "../../src/loader.js";
+import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
+import { SchemaRegistry } from "../../src/schema/registry.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -23,6 +24,12 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		ctx = await setupForDialectWithCollections(dialectName);
 		db = ctx.db;
 		termSeq = 0;
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["post"]) })
+			.where("name", "in", ["category", "tag"])
+			.execute();
+		resetTaxonomyNamesCache();
 	});
 
 	afterEach(async () => {
@@ -92,7 +99,7 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		return id;
 	}
 
-	it("filters by a single taxonomy term", async () => {
+	it("filters by a taxonomy attached to the queried collection", async () => {
 		const news = await term("category", "news");
 		const a = await createPost("In News");
 		await createPost("Untagged");
@@ -102,6 +109,71 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 
 		expect(result.entries).toHaveLength(1);
 		expect(result.entries[0]!.data.title).toBe("In News");
+	});
+
+	it("treats a taxonomy name attached to another collection as an ordinary field", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createField("page", {
+			slug: "category",
+			label: "Category",
+			type: "string",
+		});
+		const matching = await handleContentCreate(db, "page", {
+			data: { title: "News Page", category: "news" },
+			status: "published",
+		});
+		if (!matching.success) throw new Error("Failed to create page");
+		const other = await handleContentCreate(db, "page", {
+			data: { title: "Other Page", category: "other" },
+			status: "published",
+		});
+		if (!other.success) throw new Error("Failed to create page");
+
+		const loader = emdashLoader();
+		const result = await runWithContext({ editMode: false, db }, () =>
+			loader.loadCollection!({
+				filter: { type: "page", where: { category: "news" } },
+			}),
+		);
+
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries[0]!.data.title).toBe("News Page");
+	});
+
+	it("surfaces an unexpected definition-query failure without poisoning the cache", async () => {
+		const news = await term("category", "news");
+		const post = await createPost("In News");
+		await tag(post.id, news);
+
+		let failNextQuery = true;
+		const flakyDb = db.withPlugin({
+			transformQuery(args) {
+				if (failNextQuery) {
+					failNextQuery = false;
+					throw new Error("temporary database outage");
+				}
+				return args.node;
+			},
+			async transformResult(args) {
+				return args.result;
+			},
+		});
+		const loader = emdashLoader();
+		const loadWithFlakyDb = () =>
+			runWithContext({ editMode: false, db: flakyDb }, () =>
+				loader.loadCollection!({
+					filter: { type: "post", where: { category: "news" } },
+				}),
+			);
+
+		const failed = await loadWithFlakyDb();
+		expect(failed).toMatchObject({
+			error: { message: "Failed to load collection: temporary database outage" },
+		});
+		const recovered = await loadWithFlakyDb();
+
+		expect(recovered.entries).toHaveLength(1);
+		expect(recovered.entries[0]!.data.title).toBe("In News");
 	});
 
 	it("ANDs across two taxonomies — only entries tagged in BOTH match (#1479)", async () => {

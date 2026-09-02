@@ -1,6 +1,13 @@
-import { sql, type ExpressionBuilder, type Kysely, type SqlBool } from "kysely";
+import {
+	sql,
+	type ExpressionBuilder,
+	type Kysely,
+	type SelectQueryBuilder,
+	type SqlBool,
+} from "kysely";
 import { ulid } from "ulidx";
 
+import { normalizeFocalPoint, type FocalPointUpdate } from "../../media/focal-point.js";
 import type { Database, MediaRow } from "../types.js";
 import type { FindManyResult } from "./types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
@@ -48,6 +55,8 @@ export interface MediaItem {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focalX: number | null;
+	focalY: number | null;
 	alt: string | null;
 	caption: string | null;
 	storageKey: string;
@@ -57,6 +66,7 @@ export interface MediaItem {
 	dominantColor: string | null;
 	createdAt: string;
 	authorId: string | null;
+	folderId?: string | null;
 }
 
 export interface CreateMediaInput {
@@ -83,7 +93,29 @@ export interface FindManyMediaOptions {
 	status?: MediaStatus | "all"; // Filter by status, defaults to "ready"
 	/** Case-insensitive substring matched against the filename (covers filename and extension). */
 	q?: string;
+	/** Omit for all media, pass null for the Main library, or pass a folder ID. */
+	folderId?: string | null;
 }
+
+export interface UpdateMediaInput extends FocalPointUpdate {
+	alt?: string;
+	caption?: string;
+	width?: number;
+	height?: number;
+	folderId?: string | null;
+}
+
+export interface FindMediaPageOptions extends Omit<FindManyMediaOptions, "cursor"> {
+	page: number;
+}
+
+export interface MediaPageResult {
+	items: MediaItem[];
+	totalCount: number;
+}
+
+const UPLOAD_ATTEMPT_CLEANUP_AGE_MS = 60 * 60 * 1000;
+const UPLOAD_ATTEMPT_CLEANUP_BATCH_SIZE = 100;
 
 /**
  * Media repository for database operations
@@ -105,6 +137,8 @@ export class MediaRepository {
 			size: input.size ?? null,
 			width: input.width ?? null,
 			height: input.height ?? null,
+			focal_x: null,
+			focal_y: null,
 			alt: input.alt ?? null,
 			caption: input.caption ?? null,
 			storage_key: input.storageKey,
@@ -114,6 +148,7 @@ export class MediaRepository {
 			status: input.status ?? "ready",
 			created_at: now,
 			author_id: input.authorId ?? null,
+			folder_id: null,
 		};
 
 		await this.db.insertInto("media").values(row).execute();
@@ -138,6 +173,129 @@ export class MediaRepository {
 		});
 	}
 
+	async createUploadAttempt(mediaId: string, storageKey: string): Promise<void> {
+		const now = new Date().toISOString();
+		await this.db
+			.insertInto("_emdash_media_upload_attempts")
+			.values({
+				media_id: mediaId,
+				storage_key: storageKey,
+				status: "active",
+				created_at: now,
+				updated_at: now,
+			})
+			.execute();
+	}
+
+	async hasUploadAttempt(storageKey: string): Promise<boolean> {
+		const row = await this.db
+			.selectFrom("_emdash_media_upload_attempts")
+			.select("storage_key")
+			.where("storage_key", "=", storageKey)
+			.executeTakeFirst();
+		return row !== undefined;
+	}
+
+	async claimUploadAttemptForCleanup(storageKey: string): Promise<boolean> {
+		const result = await this.db
+			.updateTable("_emdash_media_upload_attempts")
+			.set({ status: "cleanup", updated_at: new Date().toISOString() })
+			.where("storage_key", "=", storageKey)
+			.where((eb) =>
+				eb.not(
+					eb.exists(
+						eb
+							.selectFrom("media")
+							.select("media.id")
+							.whereRef("media.storage_key", "=", "_emdash_media_upload_attempts.storage_key"),
+					),
+				),
+			)
+			.executeTakeFirst();
+
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
+	async deleteUploadAttempt(storageKey: string): Promise<void> {
+		await this.db
+			.deleteFrom("_emdash_media_upload_attempts")
+			.where("storage_key", "=", storageKey)
+			.execute();
+	}
+
+	async deleteCompletedUploadAttempts(): Promise<number> {
+		const result = await this.db
+			.deleteFrom("_emdash_media_upload_attempts")
+			.where((eb) =>
+				eb.exists(
+					eb
+						.selectFrom("media")
+						.select("media.id")
+						.whereRef("media.id", "=", "_emdash_media_upload_attempts.media_id")
+						.whereRef("media.storage_key", "=", "_emdash_media_upload_attempts.storage_key")
+						.where("media.status", "=", "ready"),
+				),
+			)
+			.executeTakeFirst();
+		return Number(result.numDeletedRows ?? 0);
+	}
+
+	async findUploadAttemptsForCleanup(
+		maxAgeMs: number = UPLOAD_ATTEMPT_CLEANUP_AGE_MS,
+		limit: number = UPLOAD_ATTEMPT_CLEANUP_BATCH_SIZE,
+	): Promise<string[]> {
+		const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
+		const rows = await this.db
+			.selectFrom("_emdash_media_upload_attempts")
+			.select("storage_key")
+			.where((eb) => eb.or([eb("status", "=", "cleanup"), eb("created_at", "<", cutoff)]))
+			.where((eb) =>
+				eb.not(
+					eb.exists(
+						eb
+							.selectFrom("media")
+							.select("media.id")
+							.whereRef("media.storage_key", "=", "_emdash_media_upload_attempts.storage_key"),
+					),
+				),
+			)
+			.orderBy("created_at", "asc")
+			.limit(limit)
+			.execute();
+
+		return rows.map((row) => row.storage_key);
+	}
+
+	async publishPendingStorageKey(
+		id: string,
+		expectedStorageKey: string,
+		storageKey: string,
+		contentHash?: string,
+	): Promise<boolean> {
+		const result = await this.db
+			.updateTable("media")
+			.set({
+				storage_key: storageKey,
+				...(contentHash !== undefined ? { content_hash: contentHash } : {}),
+			})
+			.where("id", "=", id)
+			.where("status", "=", "pending")
+			.where("storage_key", "=", expectedStorageKey)
+			.where((eb) =>
+				eb.exists(
+					eb
+						.selectFrom("_emdash_media_upload_attempts")
+						.select("storage_key")
+						.where("media_id", "=", id)
+						.where("storage_key", "=", storageKey)
+						.where("status", "=", "active"),
+				),
+			)
+			.executeTakeFirst();
+
+		return Number(result.numUpdatedRows ?? 0) > 0;
+	}
+
 	/**
 	 * Confirm upload (mark as ready)
 	 */
@@ -149,13 +307,10 @@ export class MediaRepository {
 			size?: number;
 			blurhash?: string;
 			dominantColor?: string;
+			contentHash?: string | null;
 		},
+		expectedStorageKey?: string,
 	): Promise<MediaItem | null> {
-		const existing = await this.findById(id);
-		if (!existing) {
-			return null;
-		}
-
 		const updates: Partial<MediaRow> = {
 			status: "ready",
 		};
@@ -164,24 +319,33 @@ export class MediaRepository {
 		if (metadata?.size !== undefined) updates.size = metadata.size;
 		if (metadata?.blurhash !== undefined) updates.blurhash = metadata.blurhash;
 		if (metadata?.dominantColor !== undefined) updates.dominant_color = metadata.dominantColor;
+		if (metadata?.contentHash !== undefined) updates.content_hash = metadata.contentHash;
 
-		await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
+		let query = this.db
+			.updateTable("media")
+			.set(updates)
+			.where("id", "=", id)
+			.where("status", "=", "pending");
+		if (expectedStorageKey !== undefined) {
+			query = query.where("storage_key", "=", expectedStorageKey);
+		}
 
-		return this.findById(id);
+		const row = await query.returningAll().executeTakeFirst();
+
+		return row ? this.rowToItem(row) : null;
 	}
 
 	/**
 	 * Mark upload as failed
 	 */
-	async markFailed(id: string): Promise<MediaItem | null> {
-		const existing = await this.findById(id);
-		if (!existing) {
-			return null;
+	async markFailed(id: string, expectedStorageKey?: string): Promise<MediaItem | null> {
+		let query = this.db.updateTable("media").set({ status: "failed" }).where("id", "=", id);
+		if (expectedStorageKey !== undefined) {
+			query = query.where("status", "=", "pending").where("storage_key", "=", expectedStorageKey);
 		}
 
-		await this.db.updateTable("media").set({ status: "failed" }).where("id", "=", id).execute();
-
-		return this.findById(id);
+		const row = await query.returningAll().executeTakeFirst();
+		return row ? this.rowToItem(row) : null;
 	}
 
 	/**
@@ -235,8 +399,7 @@ export class MediaRepository {
 	async findMany(options: FindManyMediaOptions = {}): Promise<FindManyResult<MediaItem>> {
 		const limit = Math.min(options.limit || 50, 100);
 
-		let query = this.db
-			.selectFrom("media")
+		let query = this.applyListFilters(this.db.selectFrom("media"), options)
 			.selectAll()
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc")
@@ -255,28 +418,6 @@ export class MediaRepository {
 			);
 		}
 
-		const mimeFilters = normalizeMimeFilter(options.mimeType);
-		if (mimeFilters.length > 0) {
-			query = query.where((eb) => mimeMatchExpr(eb, mimeFilters));
-		}
-
-		// Case-insensitive filename substring search (also matches extensions).
-		// LIKE wildcards in the term are escaped so they're treated literally.
-		const term = options.q?.trim();
-		if (term) {
-			const pattern = `%${escapeLike(term)}%`;
-			query = query.where(
-				sql<string>`lower(filename)`,
-				"like",
-				sql<string>`lower(${pattern}) escape '\\'`,
-			);
-		}
-
-		// Default to only showing ready items
-		if (options.status !== "all") {
-			query = query.where("status", "=", options.status ?? "ready");
-		}
-
 		const rows = await query.execute();
 
 		const hasMore = rows.length > limit;
@@ -291,13 +432,31 @@ export class MediaRepository {
 		return { items, nextCursor };
 	}
 
+	async findPage(options: FindMediaPageOptions): Promise<MediaPageResult> {
+		const limit = Math.min(options.limit || 50, 100);
+		const offset = (options.page - 1) * limit;
+		const filtered = this.applyListFilters(this.db.selectFrom("media"), options);
+		const rows = await filtered
+			.selectAll()
+			.orderBy("created_at", "desc")
+			.orderBy("id", "desc")
+			.limit(limit)
+			.offset(offset)
+			.execute();
+		const count = await filtered
+			.select((eb) => eb.fn.count<number>("id").as("count"))
+			.executeTakeFirst();
+
+		return {
+			items: rows.map((row) => this.rowToItem(row)),
+			totalCount: Number(count?.count ?? 0),
+		};
+	}
+
 	/**
 	 * Update media metadata
 	 */
-	async update(
-		id: string,
-		input: Partial<Pick<CreateMediaInput, "alt" | "caption" | "width" | "height">>,
-	): Promise<MediaItem | null> {
+	async update(id: string, input: UpdateMediaInput): Promise<MediaItem | null> {
 		const existing = await this.findById(id);
 		if (!existing) {
 			return null;
@@ -308,6 +467,11 @@ export class MediaRepository {
 		if (input.caption !== undefined) updates.caption = input.caption;
 		if (input.width !== undefined) updates.width = input.width;
 		if (input.height !== undefined) updates.height = input.height;
+		if (input.folderId !== undefined) updates.folder_id = input.folderId;
+		if (input.focalX !== undefined && input.focalY !== undefined) {
+			updates.focal_x = input.focalX;
+			updates.focal_y = input.focalY;
+		}
 
 		if (Object.keys(updates).length > 0) {
 			await this.db.updateTable("media").set(updates).where("id", "=", id).execute();
@@ -319,10 +483,18 @@ export class MediaRepository {
 	/**
 	 * Delete media item
 	 */
-	async delete(id: string): Promise<boolean> {
-		const result = await this.db.deleteFrom("media").where("id", "=", id).executeTakeFirst();
+	async deleteWithStorageKey(id: string): Promise<string | null> {
+		const deleted = await this.db
+			.deleteFrom("media")
+			.where("id", "=", id)
+			.returning("storage_key")
+			.executeTakeFirst();
+		if (deleted) return deleted.storage_key;
+		return null;
+	}
 
-		return (result.numDeletedRows ?? 0) > 0;
+	async delete(id: string): Promise<boolean> {
+		return (await this.deleteWithStorageKey(id)) !== null;
 	}
 
 	/**
@@ -340,6 +512,38 @@ export class MediaRepository {
 		return Number(result?.count || 0);
 	}
 
+	private applyListFilters<O>(
+		query: SelectQueryBuilder<Database, "media", O>,
+		options: Omit<FindManyMediaOptions, "cursor" | "limit">,
+	): SelectQueryBuilder<Database, "media", O> {
+		const mimeFilters = normalizeMimeFilter(options.mimeType);
+		if (mimeFilters.length > 0) {
+			query = query.where((eb) => mimeMatchExpr(eb, mimeFilters));
+		}
+
+		const term = options.q?.trim();
+		if (term) {
+			const pattern = `%${escapeLike(term)}%`;
+			query = query.where(
+				sql<string>`lower(filename)`,
+				"like",
+				sql<string>`lower(${pattern}) escape '\\'`,
+			);
+		}
+
+		if (options.status !== "all") {
+			query = query.where("status", "=", options.status ?? "ready");
+		}
+
+		if (options.folderId === null) {
+			query = query.where("folder_id", "is", null);
+		} else if (options.folderId !== undefined) {
+			query = query.where("folder_id", "=", options.folderId);
+		}
+
+		return query;
+	}
+
 	/**
 	 * Delete pending uploads older than the given age.
 	 * Pending uploads that were never confirmed indicate abandoned upload flows.
@@ -350,21 +554,11 @@ export class MediaRepository {
 	async cleanupPendingUploads(maxAgeMs: number = 60 * 60 * 1000): Promise<string[]> {
 		const cutoff = new Date(Date.now() - maxAgeMs).toISOString();
 
-		// Select the storage keys first -- SQLite doesn't support RETURNING
-		// on DELETE in all drivers, and Kysely's RETURNING isn't universal.
 		const rows = await this.db
-			.selectFrom("media")
-			.select("storage_key")
-			.where("status", "=", "pending")
-			.where("created_at", "<", cutoff)
-			.execute();
-
-		if (rows.length === 0) return [];
-
-		await this.db
 			.deleteFrom("media")
 			.where("status", "=", "pending")
 			.where("created_at", "<", cutoff)
+			.returning("storage_key")
 			.execute();
 
 		return rows.map((r) => r.storage_key);
@@ -374,6 +568,7 @@ export class MediaRepository {
 	 * Convert database row to MediaItem
 	 */
 	private rowToItem(row: MediaRow): MediaItem {
+		const focalPoint = normalizeFocalPoint(row.focal_x, row.focal_y);
 		return {
 			id: row.id,
 			filename: row.filename,
@@ -381,6 +576,8 @@ export class MediaRepository {
 			size: row.size,
 			width: row.width,
 			height: row.height,
+			focalX: focalPoint?.focalX ?? null,
+			focalY: focalPoint?.focalY ?? null,
 			alt: row.alt,
 			caption: row.caption,
 			storageKey: row.storage_key,
@@ -391,6 +588,7 @@ export class MediaRepository {
 			status: row.status as MediaStatus,
 			createdAt: row.created_at,
 			authorId: row.author_id,
+			folderId: row.folder_id,
 		};
 	}
 }

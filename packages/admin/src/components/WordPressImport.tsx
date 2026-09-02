@@ -10,7 +10,7 @@ import {
 } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	Upload,
 	Check,
@@ -60,6 +60,24 @@ import {
 } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
+import { MediaImportSummary } from "./MediaImportSummary.js";
+
+export function WordPressExporterMessage() {
+	return (
+		<Trans>
+			For the best import experience, install the{" "}
+			<span className="font-medium">EmDash Exporter</span> plugin on your WordPress site.
+		</Trans>
+	);
+}
+
+export function WordPressExportStep() {
+	return (
+		<Trans>
+			2. Go to <strong>Tools → Export</strong>
+		</Trans>
+	);
+}
 
 // ============================================================================
 // Constants
@@ -688,8 +706,8 @@ export function WordPressImport() {
 	return (
 		<div className="space-y-6">
 			<div>
-				<h1 className="text-2xl font-bold">{t`Import from WordPress`}</h1>
-				<p className="text-kumo-subtle mt-1">
+				<h1 className="text-2xl font-semibold leading-tight">{t`Import from WordPress`}</h1>
+				<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 					{t`Import posts, pages, and custom post types from WordPress.`}
 				</p>
 			</div>
@@ -1031,7 +1049,7 @@ function ChooseStep({
 			<div className="rounded-lg border border-kumo-brand/40 bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
 					<div className="p-3 rounded-full bg-kumo-brand/10">
-						<Sparkle className="h-6 w-6 text-kumo-brand" />
+						<Sparkle className="h-6 w-6 text-kumo-link" />
 					</div>
 					<div className="flex-1">
 						<h3 className="text-lg font-medium">{t`Paste your migration key`}</h3>
@@ -1076,7 +1094,7 @@ function ChooseStep({
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
 					<div className="p-3 rounded-full bg-kumo-brand/10">
-						<Globe className="h-6 w-6 text-kumo-brand" />
+						<Globe className="h-6 w-6 text-kumo-link" />
 					</div>
 					<div className="flex-1">
 						<h3 className="text-lg font-medium">{t`Enter your WordPress site URL`}</h3>
@@ -1202,11 +1220,9 @@ function FeatureComparison() {
 			</div>
 			<div className="border-t p-3 bg-kumo-info-tint">
 				<div className="flex items-start gap-2 text-sm">
-					<Sparkle className="h-4 w-4 text-kumo-brand flex-shrink-0 mt-0.5" />
+					<Sparkle className="h-4 w-4 text-kumo-link flex-shrink-0 mt-0.5" />
 					<p className="text-kumo-default">
-						{t`For the best import experience, install the`}{" "}
-						<span className="font-medium">{t`EmDash Exporter`}</span>{" "}
-						{t`plugin on your WordPress site.`}
+						<WordPressExporterMessage />
 					</p>
 				</div>
 			</div>
@@ -1274,7 +1290,7 @@ function ProbeResultStep({
 					<ol className="mt-3 space-y-2 text-sm text-kumo-subtle">
 						<li>{t`1. Log into your WordPress admin dashboard`}</li>
 						<li>
-							{t`2. Go to`} <strong>{t`Tools → Export`}</strong>
+							<WordPressExportStep />
 						</li>
 						<li>{t`3. Select "All content"`}</li>
 						<li>{t`4. Click "Download Export File"`}</li>
@@ -1318,19 +1334,19 @@ function ProbeResultStep({
 					<div className="grid grid-cols-3 gap-4 text-center">
 						{bestMatch.preview.posts !== undefined && (
 							<div>
-								<p className="text-2xl font-bold">{bestMatch.preview.posts}</p>
+								<p className="text-2xl font-semibold tabular-nums">{bestMatch.preview.posts}</p>
 								<p className="text-xs text-kumo-subtle">{t`Posts`}</p>
 							</div>
 						)}
 						{bestMatch.preview.pages !== undefined && (
 							<div>
-								<p className="text-2xl font-bold">{bestMatch.preview.pages}</p>
+								<p className="text-2xl font-semibold tabular-nums">{bestMatch.preview.pages}</p>
 								<p className="text-xs text-kumo-subtle">{t`Pages`}</p>
 							</div>
 						)}
 						{bestMatch.preview.media !== undefined && (
 							<div>
-								<p className="text-2xl font-bold">{bestMatch.preview.media}</p>
+								<p className="text-2xl font-semibold tabular-nums">{bestMatch.preview.media}</p>
 								<p className="text-xs text-kumo-subtle">{t`Media`}</p>
 							</div>
 						)}
@@ -1515,7 +1531,7 @@ function PluginAuthStep({
 
 			<div className="rounded-lg border-s-4 border-s-kumo-brand border border-kumo-line bg-kumo-base p-4">
 				<div className="flex gap-3">
-					<ArrowSquareOut className="h-5 w-5 text-kumo-brand flex-shrink-0" />
+					<ArrowSquareOut className="h-5 w-5 text-kumo-link flex-shrink-0" />
 					<div className="text-sm">
 						<p className="font-medium">{t`How to create an Application Password`}</p>
 						<ol className="mt-2 space-y-1 text-kumo-subtle">
@@ -1529,7 +1545,7 @@ function PluginAuthStep({
 							href={`${siteUrl}/wp-admin/profile.php#application-passwords-section`}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="mt-2 inline-flex items-center gap-1 text-kumo-brand hover:underline"
+							className="mt-2 inline-flex items-center gap-1 text-kumo-link hover:underline"
 						>
 							{t`Open WordPress Profile`}
 							<ArrowSquareOut className="h-3 w-3" aria-hidden="true" />
@@ -1869,7 +1885,7 @@ function ReviewStep({
 			{selectedCount > 0 && (
 				<div className="rounded-lg border-s-4 border-s-kumo-brand border border-kumo-line bg-kumo-base p-4">
 					<div className="flex gap-3">
-						<Database className="h-5 w-5 text-kumo-brand flex-shrink-0" />
+						<Database className="h-5 w-5 text-kumo-link flex-shrink-0" />
 						<div className="space-y-2">
 							<p className="font-medium">{t`What will happen when you import`}</p>
 							<ul className="text-sm text-kumo-subtle space-y-1">
@@ -2010,7 +2026,7 @@ function PostTypeRow({
 											<Check className="inline h-3 w-3" /> {t`Exists`}
 										</span>
 									) : status?.status === "missing" ? (
-										<span className="text-kumo-brand">
+										<span className="text-kumo-link">
 											<Plus className="inline h-3 w-3" /> {t`Will create`}
 										</span>
 									) : status?.status === "type_mismatch" ? (
@@ -2054,7 +2070,7 @@ function MediaStep({
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
 					<div className="p-3 rounded-full bg-kumo-brand/10">
-						<Image className="h-6 w-6 text-kumo-brand" />
+						<Image className="h-6 w-6 text-kumo-link" />
 					</div>
 					<div className="flex-1">
 						<h3 className="text-lg font-medium">{t`Import Media Files`}</h3>
@@ -2086,7 +2102,7 @@ function MediaStep({
 
 				<div className="mt-4 p-4 rounded-lg border-s-4 border-s-kumo-brand border border-kumo-line bg-kumo-base">
 					<div className="flex gap-3">
-						<DownloadSimple className="h-5 w-5 text-kumo-brand flex-shrink-0" />
+						<DownloadSimple className="h-5 w-5 text-kumo-link flex-shrink-0" />
 						<div className="text-sm">
 							<p className="font-medium">{t`What happens when you import:`}</p>
 							<ul className="mt-1 space-y-1 text-kumo-subtle">
@@ -2362,15 +2378,15 @@ function CompleteStep({
 						<h3 className="font-medium">{t`Media Import`}</h3>
 					</div>
 					<div className="p-4 space-y-2 text-sm">
-						<p>
-							<strong>{mediaResult.imported.length}</strong> {t`files imported`}
-						</p>
-						{rewriteResult && rewriteResult.updated > 0 && (
-							<p>
-								<strong>{rewriteResult.urlsRewritten}</strong> {t`image URLs updated in`}{" "}
-								<strong>{rewriteResult.updated}</strong> {t`content items`}
-							</p>
-						)}
+						<MediaImportSummary
+							importedFiles={mediaResult.imported.length}
+							rewrittenUrls={
+								rewriteResult && rewriteResult.updated > 0 ? rewriteResult.urlsRewritten : undefined
+							}
+							updatedContentItems={
+								rewriteResult && rewriteResult.updated > 0 ? rewriteResult.updated : undefined
+							}
+						/>
 					</div>
 				</div>
 			)}
@@ -2448,7 +2464,7 @@ function AuthorMappingStep({
 			<div className="rounded-lg border bg-kumo-base p-6">
 				<div className="flex items-start gap-4">
 					<div className="p-3 rounded-full bg-kumo-brand/10">
-						<User className="h-6 w-6 text-kumo-brand" />
+						<User className="h-6 w-6 text-kumo-link" />
 					</div>
 					<div>
 						<h3 className="text-lg font-medium">{t`Map Authors`}</h3>

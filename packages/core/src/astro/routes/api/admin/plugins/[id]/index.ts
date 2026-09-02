@@ -34,6 +34,12 @@ export const GET: APIRoute = async ({ params, locals }) => {
 		id,
 		emdash.config.marketplace,
 	);
+	if (result.success) {
+		const tools = await emdash.getPluginMcpTools(id);
+		result.data.item.mcpTools = tools.map(
+			({ inputSchema: _, outputSchema: __, pluginId: ___, ...tool }) => tool,
+		);
+	}
 
 	return unwrapResult(result);
 };

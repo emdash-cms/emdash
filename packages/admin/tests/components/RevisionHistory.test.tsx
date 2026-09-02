@@ -76,6 +76,17 @@ describe("RevisionHistory", () => {
 		await expect.element(noRevisionsText).not.toBeInTheDocument();
 	});
 
+	it("reserves a separate trailing area for an external header control", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<RevisionHistory collection="posts" entryId="entry-1" reserveHeaderEnd />
+			</QueryWrapper>,
+		);
+
+		const trigger = screen.getByRole("button", { name: REVISIONS_BUTTON_REGEX }).element();
+		expect(trigger.style.width).toBe("calc(100% - 1.5rem)");
+	});
+
 	// ---- Query only fires when expanded ----
 
 	it("does not fetch revisions until expanded", async () => {

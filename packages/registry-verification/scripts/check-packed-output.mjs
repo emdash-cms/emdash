@@ -39,6 +39,9 @@ try {
 		join(extracted, "package", "dist", "fetch-entry.js"),
 		"utf8",
 	);
+	if (publishedOutput.includes("createRequire(import.meta.url)")) {
+		throw new Error("Packed verifier output cannot be safely rebundled");
+	}
 	if (
 		publishedBundleOutput.includes("createRequire") ||
 		publishedBundleOutput.includes("@sigstore") ||

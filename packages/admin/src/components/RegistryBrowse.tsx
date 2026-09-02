@@ -11,19 +11,21 @@
  * component when `manifest.registry` is configured.
  */
 
-import { Badge, Input } from "@cloudflare/kumo";
+import { Badge, Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { MagnifyingGlass, PuzzlePiece, ShieldCheck } from "@phosphor-icons/react";
+import { MagnifyingGlass } from "@phosphor-icons/react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
 	searchRegistryPackages,
+	registryQueryPolicyKey,
 	type RegistryClientConfig,
 	type RegistryPackageView,
 } from "../lib/api/registry.js";
-import { PublisherHandle, usePublisherHandle } from "./PublisherHandle.js";
+import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
+import { PublisherIdentity } from "./PublisherHandle.js";
 
 export interface RegistryBrowseProps {
 	/** Resolved manifest.registry block. Required -- caller checks. */
@@ -48,27 +50,47 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 		return () => clearTimeout(timer);
 	}, [searchQuery]);
 
-	const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } =
-		useInfiniteQuery({
-			queryKey: ["registry", "search", config.aggregatorUrl, debouncedQuery],
-			queryFn: ({ pageParam }) =>
-				searchRegistryPackages(config, {
-					q: debouncedQuery || undefined,
-					cursor: pageParam,
-					limit: 20,
-				}),
-			initialPageParam: undefined as string | undefined,
-			getNextPageParam: (lastPage) => lastPage.cursor,
-		});
+	const {
+		data: cachedData,
+		isLoading,
+		isFetchedAfterMount,
+		error,
+		fetchNextPage,
+		hasNextPage,
+		isFetchingNextPage,
+	} = useInfiniteQuery({
+		queryKey: [
+			"registry",
+			"search",
+			config.aggregatorUrl,
+			registryQueryPolicyKey(config),
+			debouncedQuery,
+		],
+		queryFn: ({ pageParam }) =>
+			searchRegistryPackages(config, {
+				q: debouncedQuery || undefined,
+				cursor: pageParam,
+				limit: 20,
+			}),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastPage) => lastPage.cursor,
+		refetchOnMount: "always",
+		refetchOnWindowFocus: "always",
+		refetchInterval: 30_000,
+	});
 
+	const data = isFetchedAfterMount && !error ? cachedData : undefined;
 	const packages = data?.pages.flatMap((p) => p.packages);
+	const isSafetyRefreshPending = isLoading || !isFetchedAfterMount;
 
 	return (
 		<div className="space-y-6">
 			{/* Header */}
 			<div>
-				<h1 className="text-3xl font-bold">{t`Plugin Registry`}</h1>
-				<p className="mt-1 text-kumo-subtle">{t`Browse and install plugins published to the decentralized registry.`}</p>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Plugin Registry`}</h1>
+				<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+					{t`Browse and install plugins published to the decentralized registry.`}
+				</p>
 			</div>
 
 			{/* Search */}
@@ -97,7 +119,7 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 			) : null}
 
 			{/* Loading skeleton */}
-			{isLoading ? (
+			{isSafetyRefreshPending ? (
 				<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
 					{Array.from({ length: 6 }).map((_, i) => (
 						<div
@@ -134,14 +156,14 @@ export function RegistryBrowse({ config, installedRegistryUris = new Set() }: Re
 			{/* Load more */}
 			{hasNextPage ? (
 				<div className="flex justify-center">
-					<button
+					<Button
 						type="button"
-						className="rounded-md border border-kumo-border bg-kumo-surface px-4 py-2 text-sm hover:bg-kumo-subtle disabled:opacity-50"
+						variant="secondary"
 						onClick={() => fetchNextPage()}
 						disabled={isFetchingNextPage}
 					>
 						{isFetchingNextPage ? t`Loading...` : t`Load more`}
-					</button>
+					</Button>
 				</div>
 			) : null}
 		</div>
@@ -155,39 +177,26 @@ interface RegistryPackageCardProps {
 
 function RegistryPackageCard({ pkg, installed }: RegistryPackageCardProps) {
 	const { t } = useLingui();
-	const handleResult = usePublisherHandle(pkg.did, pkg.handle);
-	// Always link by handle when we have one (cleaner URL), DID
-	// otherwise. The detail page accepts either.
-	const linkSegment = handleResult.handle ?? pkg.did;
 	// `profile` is lexicon-validated at the DiscoveryClient boundary, so the
 	// shape is trustworthy (or `null`). These are plain text content
 	// (React-escaped) — no URL/href, so no scheme allow-list is needed here.
 	const name = pkg.profile?.name;
 	const description = pkg.profile?.description;
 	const license = pkg.profile?.license;
-	const verified = (pkg.labels ?? []).some((l: { val?: string }) => l.val === "verified");
 
 	return (
 		<Link
 			to="/plugins/marketplace/$pluginId"
-			params={{ pluginId: `${linkSegment}/${pkg.slug}` }}
+			params={{ pluginId: `${pkg.did}/${pkg.slug}` }}
 			className="block rounded-md border border-kumo-border bg-kumo-surface p-4 transition-colors hover:bg-kumo-subtle focus:outline-none focus-visible:ring-2 focus-visible:ring-kumo-brand"
 		>
 			<div className="flex items-start gap-3">
 				<div className="mt-1 rounded-md bg-kumo-subtle p-2 text-kumo-subtle">
-					<PuzzlePiece className="h-5 w-5" />
+					<ADMIN_NAV_ICONS.plugins className="h-5 w-5" />
 				</div>
 				<div className="min-w-0 flex-1">
-					<div className="flex items-center gap-2">
-						<h2 className="truncate font-semibold">{name ?? pkg.slug}</h2>
-						{verified ? (
-							<ShieldCheck
-								className="h-4 w-4 shrink-0 text-kumo-brand"
-								aria-label={t`Verified publisher`}
-							/>
-						) : null}
-					</div>
-					<PublisherHandle did={pkg.did} aggregatorHandle={pkg.handle} variant="card" />
+					<h2 className="truncate font-semibold">{name ?? pkg.slug}</h2>
+					<PublisherIdentity did={pkg.did} profile={pkg.profile} variant="card" />
 
 					{description ? (
 						<p className="mt-2 line-clamp-2 text-sm text-kumo-default">{description}</p>

@@ -38,6 +38,9 @@
  * per-hook return contracts so misuse fails at compile time.
  */
 
+import type { Permission } from "@emdash-cms/auth";
+import type { ZodType } from "zod";
+
 import type {
 	CommentAfterCreateEvent,
 	CommentAfterCreateHandler,
@@ -83,6 +86,7 @@ import type {
 	PluginContext,
 	UninstallEvent,
 	UninstallHandler,
+	UserInfo,
 } from "./plugins/types.js";
 
 /**
@@ -175,6 +179,13 @@ export interface SandboxedRouteContext {
 	input: unknown;
 	request: SandboxedRequest;
 	requestMeta?: unknown;
+	/**
+	 * Authenticated caller, if the route is private. Resolved and
+	 * authorized by the host before dispatch — trust it over any user id
+	 * in the request body. `undefined` for public routes and for machine
+	 * tokens with no bound user.
+	 */
+	user?: UserInfo;
 }
 
 /**
@@ -200,8 +211,23 @@ export type RouteEntry =
 	| {
 			handler: RouteHandler;
 			public?: boolean;
+			/**
+			 * Cache-Control value for successful GET responses. Only honored on
+			 * routes that are also `public: true` — authenticated responses
+			 * always keep `private, no-store`.
+			 */
+			cacheControl?: string;
 			input?: unknown;
+			permission?: Permission;
 	  };
+
+export interface SandboxedMcpTool {
+	description: string;
+	route: string;
+	input: ZodType;
+	output?: ZodType;
+	destructive?: boolean;
+}
 
 /**
  * The shape of a sandboxed plugin's default export.
@@ -217,6 +243,7 @@ export interface SandboxedPlugin {
 		[K in keyof HookHandlers]?: HookEntry<K>;
 	};
 	routes?: Record<string, RouteEntry>;
+	mcp?: { tools: Record<string, SandboxedMcpTool> };
 }
 
 /**

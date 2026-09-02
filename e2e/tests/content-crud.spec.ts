@@ -90,6 +90,56 @@ test.describe("Content CRUD", () => {
 	});
 
 	test.describe("Edit Content", () => {
+		test("vertically aligns standard section drag handles with their headings", async ({
+			admin,
+		}) => {
+			await admin.goToContent("posts");
+			await admin.waitForLoading();
+			await admin.page.getByRole("link", { name: "First Post", exact: true }).click();
+			await admin.waitForLoading();
+
+			const dragHandle = admin.page.getByRole("button", {
+				name: "Drag to reorder Publish",
+			});
+			const section = dragHandle.locator("xpath=ancestor::section");
+			const heading = section.getByRole("heading", { name: "Publish" });
+			const [handleBox, headingBox] = await Promise.all([
+				dragHandle.boundingBox(),
+				heading.boundingBox(),
+			]);
+
+			expect(handleBox).not.toBeNull();
+			expect(headingBox).not.toBeNull();
+			expect(
+				Math.abs(handleBox!.y + handleBox!.height / 2 - (headingBox!.y + headingBox!.height / 2)),
+			).toBeLessThanOrEqual(1);
+		});
+
+		test("vertically aligns disclosure section drag handles with their headers", async ({
+			admin,
+		}) => {
+			await admin.goToContent("posts");
+			await admin.waitForLoading();
+			await admin.page.getByRole("link", { name: "First Post", exact: true }).click();
+			await admin.waitForLoading();
+
+			const dragHandle = admin.page.getByRole("button", {
+				name: "Drag to reorder Revisions",
+			});
+			const section = dragHandle.locator("xpath=ancestor::section");
+			const disclosureTrigger = section.getByRole("button", { name: /^Revisions/ });
+			const [handleBox, triggerBox] = await Promise.all([
+				dragHandle.boundingBox(),
+				disclosureTrigger.boundingBox(),
+			]);
+
+			expect(handleBox).not.toBeNull();
+			expect(triggerBox).not.toBeNull();
+			expect(
+				Math.abs(handleBox!.y + handleBox!.height / 2 - (triggerBox!.y + triggerBox!.height / 2)),
+			).toBeLessThanOrEqual(1);
+		});
+
 		test("loads existing content for editing", async ({ admin }) => {
 			// Go to content list
 			await admin.goToContent("posts");
@@ -156,16 +206,19 @@ test.describe("Content CRUD", () => {
 			});
 
 			// Publish the draft
-			const publishButton = admin.page.getByRole("button", { name: "Publish", exact: true });
+			const publishButton = admin.page.getByRole("button", {
+				name: "Publish",
+				exact: true,
+			});
 			await expect(publishButton).toBeVisible();
 			await publishButton.click();
 			await admin.waitForLoading();
 
-			// Once live with no pending changes, the action flips to "Unpublish",
+			// Once live with no pending changes, the action flips to "Unpublish Post",
 			// confirming the status actually changed.
-			await expect(admin.page.getByRole("button", { name: "Unpublish" })).toBeVisible({
-				timeout: 10000,
-			});
+			await expect(
+				admin.page.getByRole("button", { name: "Unpublish Post", exact: true }),
+			).toBeVisible({ timeout: 10000 });
 		});
 	});
 });

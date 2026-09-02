@@ -22,7 +22,7 @@
 			"binding": "LOADER",
 		},
 	],
-	// Drives scheduled publishing, plugin cron, and maintenance (see src/worker.ts)
+	// General maintenance cron trigger
 	"triggers": {
 		"crons": ["* * * * *"],
 	},

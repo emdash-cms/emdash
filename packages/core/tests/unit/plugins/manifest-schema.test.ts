@@ -72,6 +72,22 @@ describe("pluginManifestSchema — route entries", () => {
 		expect(result.success).toBe(true);
 	});
 
+	it("should accept route objects with cacheControl", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "catalog", public: true, cacheControl: "public, max-age=60" }],
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("should reject route objects with empty cacheControl", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "catalog", public: true, cacheControl: "" }],
+		});
+		expect(result.success).toBe(false);
+	});
+
 	it("should accept route names with slashes and hyphens", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
@@ -101,6 +117,52 @@ describe("pluginManifestSchema — route entries", () => {
 			...makeManifest({}),
 			routes: [{ name: "../escape", public: true }],
 		});
+		expect(result.success).toBe(false);
+	});
+});
+
+describe("pluginManifestSchema — MCP tools", () => {
+	it("keeps MCP declarations optional for backwards compatibility", () => {
+		expect(pluginManifestSchema.safeParse(makeManifest({})).success).toBe(true);
+	});
+
+	it("accepts a plugin-scoped MCP tool declaration", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mcp: {
+				tools: [
+					{
+						name: "createEvent",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						destructive: false,
+						inputSchema: { type: "object", properties: { title: { type: "string" } } },
+						outputSchema: { type: "object", properties: { id: { type: "string" } } },
+					},
+				],
+			},
+		});
+
+		expect(result.success).toBe(true);
+	});
+
+	it("rejects unsafe local tool names", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			mcp: {
+				tools: [
+					{
+						name: "calendar.create",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						inputSchema: { type: "object" },
+					},
+				],
+			},
+		});
+
 		expect(result.success).toBe(false);
 	});
 });

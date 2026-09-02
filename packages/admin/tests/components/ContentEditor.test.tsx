@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -85,6 +86,7 @@ vi.mock("../../src/components/RevisionHistory", () => ({
 
 vi.mock("../../src/components/TaxonomySidebar", () => ({
 	TaxonomySidebar: () => <div data-testid="taxonomy-sidebar">Taxonomy</div>,
+	useHasApplicableTaxonomies: () => true,
 }));
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
@@ -149,6 +151,31 @@ function renderEditor(props: Partial<ContentEditorProps> = {}) {
 	return render(<ContentEditor {...defaultProps} />);
 }
 
+type SavedBylineCredit = NonNullable<ContentItem["bylines"]>[number];
+
+function savedCredit(
+	byline: BylineSummary,
+	source?: SavedBylineCredit["source"],
+	roleLabel: string | null = null,
+	sortOrder = 0,
+): SavedBylineCredit {
+	return { byline, sortOrder, roleLabel, ...(source ? { source } : {}) };
+}
+
+function renderBylineContent(
+	bylines: SavedBylineCredit[],
+	props: Partial<ContentEditorProps> = {},
+) {
+	return renderEditor({
+		isNew: false,
+		item: makeItem({ data: { title: "Hello", body: "" }, bylines }),
+		currentUser: { id: "u-1", role: 50 },
+		availableBylines: [],
+		availableBylinesLoaded: true,
+		...props,
+	});
+}
+
 function installMatchMedia(initialMatches: boolean) {
 	let matches = initialMatches;
 	const listeners = new Set<(event: MediaQueryListEvent) => void>();
@@ -201,6 +228,15 @@ function installMatchMedia(initialMatches: boolean) {
 			const event = { matches, media: mediaQuery.media } as MediaQueryListEvent;
 			for (const listener of listeners) listener(event);
 		},
+		async setMatchesSequentially(nextMatches: boolean) {
+			matches = nextMatches;
+			const event = { matches, media: mediaQuery.media } as MediaQueryListEvent;
+			const callbacks = [...listeners];
+			for (const listener of callbacks) {
+				listener(event);
+				await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+			}
+		},
 		restore() {
 			spy.mockRestore();
 		},
@@ -223,6 +259,100 @@ describe("ContentEditor", () => {
 		});
 
 		expect(portableTextProps.current?.placeholder).toBe("Start writing, or type '/' for commands");
+	});
+
+	it("blocks manual save and autosave while a Portable Text field has unsupported marks", async () => {
+		vi.useFakeTimers();
+		try {
+			const onSave = vi.fn();
+			const onAutosave = vi.fn();
+			const item = makeItem({
+				data: {
+					title: "My Post",
+					content: [
+						{
+							_type: "block",
+							_key: "b1",
+							style: "normal",
+							children: [{ _type: "span", _key: "s1", text: "Unsafe", marks: ["accent"] }],
+						},
+					],
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title" },
+					content: { kind: "portableText", label: "Content" },
+				},
+				onSave,
+				onAutosave,
+			});
+
+			await screen.getByLabelText("Title").fill("Changed title");
+			const saveButton = screen.getByRole("button", { name: "Save" }).first();
+
+			await expect.element(saveButton).toBeDisabled();
+			await vi.advanceTimersByTimeAsync(2500);
+			expect(onAutosave).not.toHaveBeenCalled();
+			saveButton.element().click();
+			expect(onSave).not.toHaveBeenCalled();
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
+	it("uses one label and spacing rhythm across editor field types", async () => {
+		const screen = await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: {
+				title: { kind: "string", label: "Title" },
+				featured_image: { kind: "image", label: "Featured Image" },
+				content: { kind: "portableText", label: "Content" },
+				attachment: { kind: "file", label: "Attachment" },
+			},
+		});
+		const contentLabelText = document.getElementById("field-content-label");
+		expect(contentLabelText).not.toBeNull();
+		const contentLabel = contentLabelText!.parentElement!;
+		const featuredLabel = screen.getByText("Featured Image", { exact: true }).element();
+		const attachmentLabel = screen.getByText("Attachment", { exact: true }).element();
+		const fieldStack = contentLabel.parentElement?.parentElement;
+
+		expect(contentLabelText).toHaveTextContent("Content");
+		expect(contentLabel.tagName).toBe("LABEL");
+		expect(contentLabel).toHaveClass("text-base", "font-medium");
+		expect(contentLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(featuredLabel).toHaveClass("text-base", "font-medium");
+		expect(featuredLabel).not.toHaveClass("text-sm");
+		expect(featuredLabel.parentElement).toHaveClass("flex", "items-center", "gap-1.5");
+		expect(featuredLabel.parentElement?.parentElement).toHaveClass("grid", "gap-2");
+		expect(attachmentLabel.parentElement).toHaveClass("grid", "gap-2");
+		expect(fieldStack).toHaveClass("space-y-6");
+	});
+
+	it("shows featured image guidance in the shared instant help tooltip", async () => {
+		const screen = await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: {
+				featured_image: { kind: "image", label: "Featured Image" },
+			},
+		});
+		const helpTrigger = screen.getByRole("button", {
+			name: "More information about Featured Image",
+		});
+
+		await userEvent.hover(helpTrigger.element());
+		await expect
+			.element(
+				screen.getByText(
+					"Used as the main visual for this post on listing pages and at the top of the post",
+				),
+			)
+			.toBeVisible();
 	});
 
 	describe("block panel + mobile sheet sync", () => {
@@ -398,7 +528,7 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({
 				fields: { order: { kind: "number", label: "Order" } },
 			});
-			const input = screen.getByLabelText("Order");
+			const input = screen.getByLabelText("Order", { exact: true });
 			await expect.element(input).toHaveAttribute("type", "number");
 		});
 
@@ -657,6 +787,61 @@ describe("ContentEditor", () => {
 			await expect.element(link2).toHaveAttribute("href", "/_emdash/api/media/file/file-fallback");
 		});
 
+		it("renders a legacy external file URL when src is absent", async () => {
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "external-file",
+						provider: "external",
+						url: "https://files.example.com/report.pdf",
+						filename: "report.pdf",
+						mimeType: "application/pdf",
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+
+			await expect
+				.element(screen.getByRole("link", { name: "report.pdf" }))
+				.toHaveAttribute("href", "https://files.example.com/report.pdf");
+		});
+
+		it("does not trust external URLs on local file snapshots", async () => {
+			const item = makeItem({
+				data: {
+					title: "Test",
+					body: "",
+					attachment: {
+						id: "local-file",
+						provider: "local",
+						url: "https://attacker.example/file.pdf",
+						filename: "report.pdf",
+					},
+				},
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					attachment: { kind: "file", label: "Attachment" },
+				},
+			});
+
+			await expect
+				.element(screen.getByRole("link", { name: "report.pdf" }))
+				.toHaveAttribute("href", "/_emdash/api/media/file/local-file");
+		});
+
 		it("does not render data: or javascript: URLs from external providers as links", async () => {
 			// A hostile external provider plugin could return src: "javascript:..." or
 			// "data:..."; the file field must not surface either as a clickable <a href>.
@@ -874,7 +1059,7 @@ describe("ContentEditor", () => {
 			const screen = await renderEditor({ isNew: false, item });
 			const saveBtn = screen.getByRole("button", { name: "Saved" }).first();
 			await expect.element(saveBtn).toBeDisabled();
-			expect(screen.getByRole("status").element().textContent).toBe("Saved");
+			expect(saveBtn.getByRole("status").element().textContent).toBe("Saved");
 		});
 
 		// Strict per-locale hydration (migration 040) can return
@@ -897,6 +1082,71 @@ describe("ContentEditor", () => {
 			expect(onSave).toHaveBeenCalledTimes(1);
 			const payload = onSave.mock.calls[0]?.[0] as Record<string, unknown>;
 			expect(payload).not.toHaveProperty("bylines");
+		});
+
+		it("shows an owner-inferred byline as an automatic credit", async () => {
+			const screen = await renderBylineContent([
+				savedCredit(makeByline({ id: "inferred", displayName: "Owner Profile" }), "inferred"),
+			]);
+
+			await expect.element(screen.getByText("Automatic", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("From the post owner")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Role label")).not.toBeInTheDocument();
+		});
+
+		it("does not reveal an inferred credit from a malformed mixed response", async () => {
+			const explicit = makeByline({
+				id: "explicit",
+				slug: "mina-patel",
+				displayName: "Mina Patel",
+			});
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
+			const screen = await renderBylineContent(
+				[savedCredit(explicit, "explicit"), savedCredit(inferred, "inferred", null, 1)],
+				{ availableBylines: [explicit] },
+			);
+
+			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+			await screen.getByRole("menuitem", { name: "Remove from post" }).click();
+
+			await expect.element(screen.getByText("No byline is shown on this post.")).toBeVisible();
+			await expect.element(screen.getByText("Owner Profile")).not.toBeInTheDocument();
+			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
+		});
+
+		it("never saves an inferred byline as an explicit credit", async () => {
+			const onSave = vi.fn();
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
+			const explicit = makeByline({
+				id: "explicit",
+				slug: "mina-patel",
+				displayName: "Mina Patel",
+			});
+			const screen = await renderBylineContent([savedCredit(inferred, "inferred")], {
+				availableBylines: [explicit],
+				onSave,
+			});
+
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
+			await screen.getByRole("button", { name: "Add Mina Patel" }).click();
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					bylines: [{ bylineId: "explicit", roleLabel: null }],
+				}),
+			);
+		});
+
+		it("keeps a credit without a source editable for backwards compatibility", async () => {
+			const legacy = makeByline({ id: "legacy", displayName: "Legacy Credit" });
+			const screen = await renderBylineContent([savedCredit(legacy)]);
+
+			await expect.element(screen.getByText("Legacy Credit")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "More actions for Legacy Credit" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
 		});
 
 		it("suppresses the locale empty-state CTA until the picker query resolves", async () => {
@@ -990,6 +1240,55 @@ describe("ContentEditor", () => {
 				vi.useRealTimers();
 			}
 		});
+
+		it("does not resend a rejected autosave payload until the content changes", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const item = makeItem();
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					autosaveCompletionToken: 0,
+					autosaveRejectionToken: 0,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				const titleInput = screen.getByLabelText("Title");
+				await titleInput.fill("Too long");
+
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} />,
+				);
+
+				await vi.advanceTimersByTimeAsync(10_000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+				await expect.element(screen.getByLabelText("Title")).toHaveValue("Too long");
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).first())
+					.toBeEnabled();
+
+				await titleInput.fill("Short");
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(2);
+				expect(onAutosave).toHaveBeenLastCalledWith(
+					expect.objectContaining({ data: expect.objectContaining({ title: "Short" }) }),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
 	});
 
 	describe("delete", () => {
@@ -1034,11 +1333,108 @@ describe("ContentEditor", () => {
 	});
 
 	describe("publish actions", () => {
+		describe("settings panel resizing", () => {
+			it("resizes through its bounded keyboard separator without collapsing", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const panel = screen.getByRole("complementary", { name: "Settings" }).element();
+				const separator = screen.getByRole("separator", { name: "Settings" }).element();
+
+				expect(panel.getBoundingClientRect().width).toBeCloseTo(368);
+				expect(separator).toHaveAttribute("aria-valuemin", "320");
+				expect(separator).toHaveAttribute("aria-valuemax", "480");
+				expect(separator).toHaveAttribute("aria-valuenow", "368");
+				expect(separator).toHaveAttribute("aria-controls", panel.id);
+
+				separator.focus();
+				await userEvent.keyboard("{End}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(480));
+				expect(separator).toHaveAttribute("aria-valuenow", "480");
+
+				await userEvent.keyboard("{ArrowLeft}");
+				expect(panel.getBoundingClientRect().width).toBeCloseTo(480);
+
+				await userEvent.keyboard("{Home}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(320));
+				expect(separator).toHaveAttribute("aria-valuenow", "320");
+				await userEvent.keyboard("{ArrowLeft}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(330));
+			});
+
+			it.each([
+				{ locale: "en", dir: "ltr", growKey: "ArrowLeft", shrinkKey: "ArrowRight" },
+				{ locale: "ar", dir: "rtl", growKey: "ArrowRight", shrinkKey: "ArrowLeft" },
+			])("uses the physical growth key for $dir", async (testCase) => {
+				const previousLocale = i18n.locale;
+				const previousDir = document.documentElement.dir;
+				i18n.load(testCase.locale, {});
+				i18n.activate(testCase.locale);
+				document.documentElement.dir = testCase.dir;
+
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					const panel = screen.getByRole("complementary", { name: "Settings" }).element();
+					const separator = screen.getByRole("separator", { name: "Settings" }).element();
+					const before = panel.getBoundingClientRect();
+
+					separator.focus();
+					await userEvent.keyboard(`{${testCase.growKey}}`);
+					await vi.waitFor(() =>
+						expect(panel.getBoundingClientRect().width).toBeCloseTo(before.width + 10),
+					);
+					await userEvent.keyboard(`{${testCase.shrinkKey}}`);
+					await vi.waitFor(() =>
+						expect(panel.getBoundingClientRect().width).toBeCloseTo(before.width),
+					);
+				} finally {
+					document.documentElement.dir = previousDir;
+					i18n.activate(previousLocale);
+				}
+			});
+
+			it("hides resizing across a mobile round trip without losing the desktop width", async () => {
+				const media = installMatchMedia(false);
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					const separator = screen.getByRole("separator", { name: "Settings" });
+					separator.element().focus();
+					await userEvent.keyboard("{ArrowLeft}");
+					await expect.element(separator).toHaveAttribute("aria-valuenow", "378");
+
+					await media.setMatchesSequentially(true);
+					await expect
+						.element(screen.getByRole("separator", { name: "Settings" }))
+						.not.toBeInTheDocument();
+					await screen.getByRole("button", { name: "Settings" }).click();
+					await expect
+						.element(screen.getByRole("navigation", { name: "Settings" }))
+						.toBeInTheDocument();
+					await screen.getByRole("button", { name: "Close settings" }).click();
+
+					await media.setMatchesSequentially(false);
+					await expect
+						.element(screen.getByRole("separator", { name: "Settings" }))
+						.toHaveAttribute("aria-valuenow", "378");
+				} finally {
+					media.restore();
+				}
+			});
+		});
+
+		it("uses the elevated surface for the full-bleed canvas and settings panel", async () => {
+			await renderEditor({ isNew: false, item: makeItem() });
+			const form = document.querySelector("form");
+			const provider = document.querySelector<HTMLElement>('[style*="--sidebar-width"]');
+
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(form).not.toHaveClass("bg-kumo-base");
+			expect(provider?.style.getPropertyValue("--sidebar-bg")).toBe("var(--color-kumo-elevated)");
+		});
+
 		it("shows Publish button for draft items", async () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish" });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1046,7 +1442,7 @@ describe("ContentEditor", () => {
 			const item = makeItem({ status: "draft" });
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
-			const publishBtn = screen.getByRole("button", { name: "Publish" });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
@@ -1066,9 +1462,23 @@ describe("ContentEditor", () => {
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
-				const publishButtons = screen.getByRole("button", { name: "Publish" }).all();
+				const publishButtons = screen.getByRole("button", { name: "Publish", exact: true }).all();
 				expect(publishButtons).toHaveLength(1);
 				await expect.element(publishButtons[0]!).toBeVisible();
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the editor header in the document flow below lg", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+				const header = heading.parentElement?.parentElement;
+
+				expect(header).not.toHaveClass("sticky", "top-0", "z-20");
+				expect(header).toHaveClass("bg-kumo-elevated/95", "py-3", "backdrop-blur");
 			} finally {
 				media.restore();
 			}
@@ -1088,6 +1498,86 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.not.toBeInTheDocument();
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the settings sheet open when a sortable handle restores focus after drop", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				handle.focus();
+				handle.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
+
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the settings sheet open when the byline chooser replaces its trigger", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const byline = makeByline({ id: "credited", displayName: "Mina Patel" });
+				const screen = await renderBylineContent([savedCredit(byline)]);
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				await screen.getByRole("button", { name: "Add another byline" }).click();
+
+				await expect.element(screen.getByLabelText("Search bylines")).toBeInTheDocument();
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the settings sheet open when keyboard sorting is cancelled", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				handle.focus();
+				await userEvent.keyboard(" ");
+
+				await vi.waitFor(() => expect(handle.dataset.sorting).toBe("true"));
+				await userEvent.keyboard("{Escape}");
+
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+					expect(handle.dataset.sorting).toBe("false");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("lets Escape close the settings sheet when sorting is idle", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				const handle = screen.getByRole("button", { name: "Drag to reorder Publish" }).element();
+				handle.focus();
+				await userEvent.keyboard("{Escape}");
+
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("collapsed");
+				});
 			} finally {
 				media.restore();
 			}
@@ -1170,7 +1660,9 @@ describe("ContentEditor", () => {
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect.element(screen.getByRole("link", { name: "Live View" })).toBeVisible();
-				const unpublishButtons = screen.getByRole("button", { name: "Unpublish" }).all();
+				const unpublishButtons = screen
+					.getByRole("button", { name: "Unpublish Post", exact: true })
+					.all();
 				expect(unpublishButtons).toHaveLength(1);
 				await expect.element(unpublishButtons[0]!).toBeVisible();
 			} finally {
@@ -1194,7 +1686,9 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("button", { name: "Settings" }))
 					.not.toBeInTheDocument();
-				await expect.element(screen.getByRole("button", { name: "Publish" })).toBeVisible();
+				await expect
+					.element(screen.getByRole("button", { name: "Publish", exact: true }))
+					.toBeVisible();
 			} finally {
 				media.restore();
 			}
@@ -1213,7 +1707,10 @@ describe("ContentEditor", () => {
 				onUnpublish,
 				supportsDrafts: true,
 			});
-			const unpublishBtn = screen.getByRole("button", { name: "Unpublish" });
+			const unpublishBtn = screen.getByRole("button", {
+				name: "Unpublish Post",
+				exact: true,
+			});
 			await expect.element(unpublishBtn).toBeInTheDocument();
 		});
 
@@ -1230,13 +1727,100 @@ describe("ContentEditor", () => {
 				onUnpublish,
 				supportsDrafts: true,
 			});
-			const unpublishBtn = screen.getByRole("button", { name: "Unpublish" });
+			const unpublishBtn = screen.getByRole("button", {
+				name: "Unpublish Post",
+				exact: true,
+			});
 			await unpublishBtn.click();
 			expect(onUnpublish).toHaveBeenCalled();
 		});
 	});
 
 	describe("distraction-free mode", () => {
+		it("keeps the normal editor width and field chrome", async () => {
+			const screen = await renderEditor({
+				fields: {
+					title: { kind: "string", label: "Title", required: true },
+					featured_image: { kind: "image", label: "Featured image" },
+					content: { kind: "portableText", label: "Content" },
+				},
+			});
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+
+			const titleInput = screen.getByLabelText("Title").element();
+			const imagePicker = screen.getByRole("button", { name: "Select image" }).element();
+			const portableTextEditor = screen.getByTestId("portable-text-editor").element();
+			const editorCanvas = portableTextEditor.closest(".mx-auto");
+
+			expect(editorCanvas).toHaveClass("max-w-3xl");
+			expect(editorCanvas).not.toHaveClass("max-w-4xl");
+			expect(titleInput).not.toHaveClass("px-0", "text-lg");
+			expect(imagePicker).toHaveClass("bg-kumo-control");
+			expect(portableTextProps.current?.minimal).not.toBe(true);
+			expect(portableTextProps.current?.className).toContain("bg-kumo-control");
+			expect(portableTextProps.current?.className).toContain("focus-within:ring-kumo-focus/50");
+			expect(portableTextProps.current?.className).toContain("focus-within:ring-[1.5px]");
+		});
+
+		it("matches the settings action order and size", async () => {
+			const item = makeItem({
+				status: "published",
+				liveRevisionId: "rev-1",
+				draftRevisionId: "rev-1",
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				supportsDrafts: true,
+				supportsPreview: true,
+			});
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+
+			const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+			const actionContainer = heading.parentElement?.parentElement?.lastElementChild;
+			const actions = [...(actionContainer?.querySelectorAll("button, a") ?? [])];
+			const actionNames = actions.map(
+				(action) => action.getAttribute("aria-label") ?? action.textContent?.trim(),
+			);
+
+			expect(actionNames).toEqual([
+				"Saved",
+				"Live View",
+				"Preview",
+				"Unpublish Post",
+				"Exit distraction-free mode",
+			]);
+			for (const action of actions.slice(0, -1)) expect(action).toHaveClass("h-6.5");
+			expect(actions.at(-1)).toHaveClass("size-9");
+			expect(heading.parentElement?.querySelector("button")).toBeNull();
+		});
+
+		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
+			const screen = await renderEditor({ isNew: true });
+			const form = document.querySelector("form");
+
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(form).not.toHaveClass("bg-kumo-base");
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+
+			const heading = screen.getByRole("heading", { name: "New Post" }).element();
+			const header = heading.parentElement?.parentElement;
+			expect(form).toHaveClass("bg-kumo-elevated");
+			expect(header).toHaveClass("bg-kumo-elevated/95");
+			expect(header).toHaveClass(
+				"start-0",
+				"end-0",
+				"mx-auto",
+				"w-[calc(100%-4rem)]",
+				"max-w-3xl",
+				"py-4",
+			);
+			expect(header).not.toHaveClass("start-8", "end-8", "w-full", "p-4");
+		});
+
 		it("toggle adds fixed class for distraction-free mode", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });
@@ -1331,7 +1915,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish" });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await expect.element(publishBtn).toBeInTheDocument();
 		});
 
@@ -1340,7 +1924,7 @@ describe("ContentEditor", () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish });
 
-			const publishBtn = screen.getByRole("button", { name: "Publish" });
+			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
 			await publishBtn.click();
 			expect(onPublish).toHaveBeenCalled();
 		});
@@ -1367,15 +1951,31 @@ describe("ContentEditor", () => {
 	});
 
 	describe("heading", () => {
-		it("shows 'New Post' heading for new items", async () => {
-			const screen = await renderEditor({ isNew: true, collectionLabel: "Post" });
-			await expect.element(screen.getByText("New Post")).toBeInTheDocument();
+		it("preserves configured collection label casing", async () => {
+			const item = makeItem();
+			const screen = await renderEditor({ isNew: false, item, collectionLabel: "API Docs" });
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Edit API Docs", exact: true }))
+				.toBeInTheDocument();
 		});
 
-		it("shows 'Edit Post' heading for existing items", async () => {
+		it("shows a quiet heading for new items", async () => {
+			const screen = await renderEditor({ isNew: true, collectionLabel: "Post" });
+			const heading = screen.getByRole("heading", { name: "New Post" });
+
+			await expect.element(heading).toBeInTheDocument();
+			await expect.element(heading).toHaveClass("text-lg", "font-semibold", "truncate");
+			expect(heading.element().parentElement).toHaveClass("min-w-0", "items-center", "gap-3");
+		});
+
+		it("shows a quiet heading for existing items", async () => {
 			const item = makeItem();
 			const screen = await renderEditor({ isNew: false, item, collectionLabel: "Post" });
-			await expect.element(screen.getByText("Edit Post")).toBeInTheDocument();
+			const heading = screen.getByRole("heading", { name: "Edit Post" });
+
+			await expect.element(heading).toBeInTheDocument();
+			await expect.element(heading).toHaveClass("text-lg", "font-semibold", "truncate");
 		});
 	});
 
@@ -1561,6 +2161,17 @@ describe("ContentEditor", () => {
 	// searches the server and resolves credited bylines from the saved entry.
 	// ---------------------------------------------------------------------------
 	describe("byline picker search (#1217)", () => {
+		it("keeps search behind one choose action for an automatic credit", async () => {
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
+			const screen = await renderBylineContent([savedCredit(inferred, "inferred")], {
+				availableBylines: [makeByline()],
+			});
+
+			await expect.element(screen.getByLabelText("Search bylines")).not.toBeInTheDocument();
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
+			await expect.element(screen.getByLabelText("Search bylines")).toBeInTheDocument();
+		});
+
 		it("searches the server and adds a byline from outside the initial list", async () => {
 			vi.mocked(fetchBylines).mockResolvedValue({
 				items: [makeByline({ id: "b-far", slug: "zoe-far", displayName: "Zoe Far" })],
@@ -1577,6 +2188,7 @@ describe("ContentEditor", () => {
 				availableBylinesLoaded: true,
 			});
 
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
 			const searchInput = screen.getByLabelText("Search bylines");
 			await searchInput.fill("Zoe");
 
@@ -1588,10 +2200,11 @@ describe("ContentEditor", () => {
 				);
 			});
 
-			// Clicking the result credits the byline; it now renders with its
-			// Role label editor and leaves the results list.
-			await screen.getByRole("button", { name: /Zoe Far/ }).click();
-			await expect.element(screen.getByLabelText("Role label")).toBeInTheDocument();
+			// Clicking the result credits the byline and leaves the results list.
+			await screen.getByRole("button", { name: "Add Zoe Far" }).click();
+			await expect
+				.element(screen.getByRole("button", { name: "More actions for Zoe Far" }))
+				.toBeInTheDocument();
 		});
 
 		it("renders a credited byline that is not in the initial picker list", async () => {

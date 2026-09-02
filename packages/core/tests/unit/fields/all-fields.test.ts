@@ -249,8 +249,8 @@ describe("Field Types", () => {
 				height: 1080,
 			};
 			expect(() => field.schema.parse(validImage)).not.toThrow();
-			// Missing the required `src` (and `id`) must be rejected.
-			expect(() => field.schema.parse({ alt: "no src" })).toThrow();
+			// Missing the required `id` must be rejected; local images may omit `src`.
+			expect(() => field.schema.parse({ alt: "no id" })).toThrow();
 			expect(() => field.schema.parse("not-an-object")).toThrow();
 		});
 	});
@@ -272,8 +272,8 @@ describe("Field Types", () => {
 				size: 1024000,
 			};
 			expect(() => field.schema.parse(validFile)).not.toThrow();
-			// Missing the required url/filename/mimeType must be rejected.
-			expect(() => field.schema.parse({ id: "file-123" })).toThrow();
+			expect(() => field.schema.parse({ id: "file-123" })).not.toThrow();
+			expect(() => field.schema.parse({ filename: "missing-id.pdf" })).toThrow();
 			expect(() => field.schema.parse("not-an-object")).toThrow();
 		});
 	});

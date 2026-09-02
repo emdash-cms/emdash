@@ -46,9 +46,15 @@ import {
 	RESOLVED_VIRTUAL_WAIT_UNTIL_ID,
 	VIRTUAL_SCHEDULER_ID,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
+	VIRTUAL_ENV_ID,
+	RESOLVED_VIRTUAL_ENV_ID,
+	VIRTUAL_BUILD_ID,
+	RESOLVED_VIRTUAL_BUILD_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
+	generateEnvModule,
+	generateBuildModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
@@ -176,6 +182,11 @@ export function createVirtualModulesPlugin(
 
 	let viteCommand: "build" | "serve" | undefined;
 
+	// Captured once per plugin instance rather than inside load(): Vite may load
+	// the module more than once (client and server passes, dev reloads), and a
+	// validator that moved between those loads would invalidate at random.
+	const buildTime = Date.now();
+
 	return {
 		name: "emdash-virtual-modules",
 		configResolved(config) {
@@ -227,6 +238,12 @@ export function createVirtualModulesPlugin(
 			if (id === VIRTUAL_SCHEDULER_ID) {
 				return RESOLVED_VIRTUAL_SCHEDULER_ID;
 			}
+			if (id === VIRTUAL_ENV_ID) {
+				return RESOLVED_VIRTUAL_ENV_ID;
+			}
+			if (id === VIRTUAL_BUILD_ID) {
+				return RESOLVED_VIRTUAL_BUILD_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -240,6 +257,8 @@ export function createVirtualModulesPlugin(
 					type: resolvedConfig.database?.type,
 					supportsRequestScope: resolvedConfig.database?.supportsRequestScope ?? false,
 					supportsCoalescing: resolvedConfig.database?.supportsCoalescing ?? false,
+					supportsCollectionDeletionGuard:
+						resolvedConfig.database?.supportsCollectionDeletionGuard ?? false,
 				});
 			}
 			// Generate a module that statically imports the configured storage
@@ -322,6 +341,14 @@ export function createVirtualModulesPlugin(
 				const schedulerCommand = astroCommand === "dev" ? "serve" : "build";
 				return generateSchedulerModule(astroConfig.adapter?.name, schedulerCommand);
 			}
+			// Generate env module — re-exports cloudflare:workers' env under
+			// the Cloudflare adapter, undefined otherwise (#1736).
+			if (id === RESOLVED_VIRTUAL_ENV_ID) {
+				return generateEnvModule(astroConfig.adapter?.name);
+			}
+			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
+				return generateBuildModule(buildTime);
+			}
 		},
 	};
 }
@@ -336,13 +363,7 @@ export function createVirtualModulesPlugin(
 // `?url`), so both forms resolve to dist rather than the source alias.
 const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 
-const NODE_NATIVE_EXTERNALS = [
-	"better-sqlite3",
-	"bindings",
-	"file-uri-to-path",
-	"@libsql/kysely-libsql",
-	"pg",
-];
+const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
 
 /**
  * Detect whether the Cloudflare adapter is being used.
@@ -467,7 +488,6 @@ export function createViteConfig(
 							"emdash > @unpic/placeholder",
 							"emdash > blurhash",
 							"emdash > croner",
-							"emdash > image-size",
 							"emdash > jose",
 							"emdash > jpeg-js",
 							"emdash > kysely",
@@ -520,6 +540,7 @@ export function createViteConfig(
 							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
+							"astro/app/manifest",
 							"astro/virtual-modules/middleware.js",
 							"astro/virtual-modules/live-config",
 							"astro/content/runtime",

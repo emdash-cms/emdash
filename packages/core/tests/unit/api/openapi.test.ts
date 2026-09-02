@@ -31,10 +31,125 @@ describe("OpenAPI document generation", () => {
 		const paths = Object.keys(doc.paths ?? {});
 
 		expect(paths).toContain("/_emdash/api/media");
+		expect(paths).toContain("/_emdash/api/media/folders");
+		expect(paths).toContain("/_emdash/api/media/folders/{id}");
 		expect(paths).toContain("/_emdash/api/media/{id}");
+		expect(paths).toContain("/_emdash/api/media/{id}/usage");
 		expect(paths).toContain("/_emdash/api/media/upload-url");
 		expect(paths).toContain("/_emdash/api/media/{id}/confirm");
+		expect(paths).toContain("/_emdash/api/media/{id}/upload");
 		expect(paths).toContain("/_emdash/api/admin/media-usage/repair");
+		expect(doc.paths?.["/_emdash/api/media/{id}/confirm"]?.post?.responses).toHaveProperty("409");
+	});
+
+	it("documents media folder filters, CRUD operations, and errors", () => {
+		const doc = generateOpenApiDocument();
+		const mediaList = doc.paths?.["/_emdash/api/media"]?.get as {
+			parameters?: Array<{ name?: string; in?: string }>;
+		};
+		const mediaUpdate = doc.paths?.["/_emdash/api/media/{id}"]?.put;
+		const folders = doc.paths?.["/_emdash/api/media/folders"];
+		const folder = doc.paths?.["/_emdash/api/media/folders/{id}"];
+
+		expect(mediaList.parameters).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: "folderId", in: "query" })]),
+		);
+		expect(mediaUpdate?.requestBody).toBeDefined();
+		expect(JSON.stringify(doc.components?.schemas?.MediaUpdateBody)).toContain("folderId");
+		expect(folders?.get?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(folders?.get?.parameters).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: "q", in: "query" })]),
+		);
+		expect(folder?.get?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"404": expect.any(Object),
+			}),
+		);
+		expect(folders?.post?.responses).toEqual(
+			expect.objectContaining({
+				"201": expect.any(Object),
+				"400": expect.any(Object),
+				"409": expect.any(Object),
+			}),
+		);
+		expect(folder?.put?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"404": expect.any(Object),
+				"409": expect.any(Object),
+			}),
+		);
+		expect(folder?.delete?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"404": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(folders?.get?.responses?.["200"])).toContain("MediaFolderListResponse");
+	});
+
+	it("documents media usage summary opt-in parameters and read responses", () => {
+		const doc = generateOpenApiDocument();
+		const list = doc.paths?.["/_emdash/api/media"]?.get as {
+			parameters?: Array<{ name?: string; in?: string }>;
+			responses?: Record<string, unknown>;
+		};
+		const get = doc.paths?.["/_emdash/api/media/{id}"]?.get as {
+			parameters?: Array<{ name?: string; in?: string }>;
+			responses?: Record<string, unknown>;
+		};
+
+		expect(list.parameters).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: "includeUsage", in: "query" })]),
+		);
+		expect(get.parameters).toEqual(
+			expect.arrayContaining([expect.objectContaining({ name: "includeUsage", in: "query" })]),
+		);
+		expect(JSON.stringify(list.responses?.["200"])).toContain("MediaListReadResponse");
+		expect(JSON.stringify(get.responses?.["200"])).toContain("MediaReadResponse");
+	});
+
+	it("documents the media usage details operation", () => {
+		const doc = generateOpenApiDocument();
+		const get = doc.paths?.["/_emdash/api/media/{id}/usage"]?.get as {
+			operationId?: string;
+			tags?: string[];
+			parameters?: Array<{ name?: string; in?: string }>;
+			responses?: Record<string, unknown>;
+		};
+
+		expect(get.operationId).toBe("getMediaUsage");
+		expect(get.tags).toEqual(["Media"]);
+		expect(get.parameters).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ name: "id", in: "path" }),
+				expect.objectContaining({ name: "limit", in: "query" }),
+				expect.objectContaining({ name: "cursor", in: "query" }),
+			]),
+		);
+		expect(get.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"404": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(get.responses?.["200"])).toContain("MediaUsageDetailsResponse");
 	});
 
 	it("documents the media usage repair operation", () => {
@@ -64,6 +179,82 @@ describe("OpenAPI document generation", () => {
 				"500": expect.any(Object),
 			}),
 		);
+	});
+
+	it("documents the media usage activation status operation", () => {
+		const doc = generateOpenApiDocument();
+		const path = doc.paths?.["/_emdash/api/admin/media-usage/activation"];
+		const get = path?.get as {
+			operationId?: string;
+			responses?: Record<string, unknown>;
+		};
+		const post = path?.post as {
+			operationId?: string;
+			description?: string;
+			requestBody?: unknown;
+			responses?: Record<string, unknown>;
+		};
+
+		expect(get.operationId).toBe("getMediaUsageActivation");
+		expect(get.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"409": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(get.responses?.["200"])).toContain("MediaUsageActivationStatus");
+		expect(post.operationId).toBe("advanceMediaUsageActivation");
+		expect(post.description).toContain("progress endpoint");
+		expect(post.description).not.toContain("automatic maintenance");
+		expect(post.requestBody).toBeDefined();
+		expect(post.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"400": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"409": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+	});
+
+	it("documents aggregate media usage indexing progress", () => {
+		const doc = generateOpenApiDocument();
+		const path = doc.paths?.["/_emdash/api/admin/media-usage/progress"];
+		const get = path?.get as
+			| { operationId?: string; responses?: Record<string, unknown> }
+			| undefined;
+		const post = path?.post as
+			| { operationId?: string; requestBody?: unknown; responses?: Record<string, unknown> }
+			| undefined;
+
+		expect(get?.operationId).toBe("getMediaUsageProgress");
+		expect(get?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"409": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(get?.responses?.["200"])).toContain("MediaUsageProgress");
+		expect(post?.operationId).toBe("advanceMediaUsageProgress");
+		expect(post?.requestBody).toBeUndefined();
+		expect(post?.responses).toEqual(
+			expect.objectContaining({
+				"200": expect.any(Object),
+				"401": expect.any(Object),
+				"403": expect.any(Object),
+				"409": expect.any(Object),
+				"500": expect.any(Object),
+			}),
+		);
+		expect(JSON.stringify(post?.responses?.["200"])).toContain("MediaUsageProgressAdvanceResponse");
 	});
 
 	it("includes schema paths", () => {
@@ -197,6 +388,18 @@ describe("OpenAPI document generation", () => {
 		);
 	});
 
+	it("documents the 422 a rejected save returns on content create and update", () => {
+		const doc = generateOpenApiDocument();
+		const createResponses = doc.paths?.["/_emdash/api/content/{collection}"]?.post?.responses as
+			| Record<string, { description?: string }>
+			| undefined;
+		const updateResponses = doc.paths?.["/_emdash/api/content/{collection}/{id}"]?.put
+			?.responses as Record<string, { description?: string }> | undefined;
+
+		expect(createResponses?.["422"]?.description).toBe("Unprocessable Entity");
+		expect(updateResponses?.["422"]?.description).toBe("Unprocessable Entity");
+	});
+
 	it("generates unique operation IDs for all operations", () => {
 		const doc = generateOpenApiDocument();
 		const operationIds: string[] = [];
@@ -224,9 +427,12 @@ describe("OpenAPI document generation", () => {
 		// Media operations
 		expect(operationIds).toContain("listMedia");
 		expect(operationIds).toContain("getMedia");
+		expect(operationIds).toContain("getMediaUsage");
 		expect(operationIds).toContain("deleteMedia");
 		expect(operationIds).toContain("getMediaUploadUrl");
 		expect(operationIds).toContain("repairMediaUsage");
+		expect(operationIds).toContain("listMediaUsageWork");
+		expect(operationIds).toContain("retryMediaUsageWork");
 
 		// Schema operations
 		expect(operationIds).toContain("listCollections");
@@ -295,6 +501,14 @@ describe("OpenAPI document generation", () => {
 		// Media schemas
 		expect(schemas).toHaveProperty("MediaItem");
 		expect(schemas).toHaveProperty("MediaListResponse");
+		expect(schemas).toHaveProperty("MediaReadResponse");
+		expect(schemas).toHaveProperty("MediaListReadResponse");
+		expect(schemas).toHaveProperty("MediaUsageCoverage");
+		expect(schemas).toHaveProperty("MediaUsageSummary");
+		expect(schemas).toHaveProperty("MediaUsageOccurrenceDetail");
+		expect(schemas).toHaveProperty("MediaUsageSourceDetail");
+		expect(schemas).toHaveProperty("MediaUsageEntryDetail");
+		expect(schemas).toHaveProperty("MediaUsageDetailsResponse");
 		expect(schemas).toHaveProperty("MediaUsageRepairBody");
 		expect(schemas).toHaveProperty("MediaUsageRepairResponse");
 

@@ -1,0 +1,2598 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta name="color-scheme" content="light dark" />
+		<title>EmDash bot — public workbench</title>
+		<style>
+			:root {
+				font-family:
+					Inter,
+					ui-sans-serif,
+					system-ui,
+					-apple-system,
+					BlinkMacSystemFont,
+					"Segoe UI",
+					sans-serif;
+				color: light-dark(#17181c, #f4f5f8);
+				background: light-dark(#f3f4f7, #090a0d);
+				font-synthesis: none;
+			}
+
+			* {
+				box-sizing: border-box;
+			}
+
+			body {
+				margin: 0;
+				min-width: 320px;
+				min-height: 100vh;
+				background-image: radial-gradient(
+					light-dark(rgba(30, 32, 38, 0.055), rgba(235, 237, 244, 0.05)) 0.7px,
+					transparent 0.7px
+				);
+				background-size: 18px 18px;
+			}
+
+			button,
+			a {
+				font: inherit;
+			}
+
+			button {
+				color: inherit;
+			}
+
+			a:focus-visible,
+			button:focus-visible,
+			select:focus-visible,
+			summary:focus-visible {
+				outline: 2px solid light-dark(#7642da, #b092ff);
+				outline-offset: 2px;
+			}
+
+			.topbar {
+				display: flex;
+				align-items: center;
+				gap: 18px;
+				min-height: 58px;
+				padding: 0 max(22px, calc((100vw - 1180px) / 2));
+				background: light-dark(rgba(255, 255, 255, 0.9), rgba(15, 16, 20, 0.94));
+				border-bottom: 1px solid light-dark(#e1e3e8, #25272d);
+				backdrop-filter: blur(14px);
+			}
+
+			.brand {
+				display: flex;
+				align-items: center;
+				gap: 8px;
+				min-width: max-content;
+				color: light-dark(#0b0152, #fff);
+				text-decoration: none;
+			}
+
+			.brand-logo {
+				display: block;
+				width: 28px;
+				height: 28px;
+			}
+
+			.brand-name {
+				font-weight: 650;
+				letter-spacing: -0.025em;
+			}
+
+			.brand-bot {
+				color: light-dark(#777b87, #8d919d);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-weight: 400;
+				font-size: 11px;
+				letter-spacing: 0.04em;
+			}
+
+			.nav {
+				display: flex;
+				align-self: stretch;
+				margin-left: 12px;
+			}
+
+			.nav span {
+				position: relative;
+				display: flex;
+				align-items: center;
+				padding: 0 10px;
+				font-size: 13px;
+			}
+
+			.nav span::after {
+				content: "";
+				position: absolute;
+				inset-inline: 10px;
+				bottom: 0;
+				height: 2px;
+				background: light-dark(#17181c, #f4f5f8);
+			}
+
+			.top-actions {
+				display: flex;
+				align-items: center;
+				gap: 18px;
+				margin-inline-start: auto;
+			}
+
+			.live,
+			.github-link {
+				display: inline-flex;
+				align-items: center;
+				gap: 7px;
+				font-size: 12px;
+				color: light-dark(#555965, #a8acb7);
+			}
+
+			.github-link {
+				color: light-dark(#363942, #d4d6dc);
+				text-decoration: none;
+			}
+
+			.live-dot {
+				width: 7px;
+				height: 7px;
+				border-radius: 999px;
+				background: light-dark(#16845b, #50d49b);
+				box-shadow: 0 0 0 4px light-dark(rgba(22, 132, 91, 0.1), rgba(80, 212, 155, 0.1));
+			}
+
+			main {
+				max-width: 1180px;
+				margin: 0 auto;
+				padding: 34px 28px 72px;
+			}
+
+			.intro {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 28px;
+				margin-bottom: 22px;
+			}
+
+			.eyebrow {
+				margin: 0 0 8px;
+				color: light-dark(#777b87, #8d919d);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 11px;
+				letter-spacing: 0.08em;
+				text-transform: uppercase;
+			}
+
+			.subtitle {
+				max-width: 560px;
+				margin: 0;
+				color: light-dark(#656974, #9ea2ad);
+				font-size: 13px;
+				line-height: 1.55;
+			}
+
+			.sr-only {
+				position: absolute;
+				width: 1px;
+				height: 1px;
+				padding: 0;
+				margin: -1px;
+				overflow: hidden;
+				clip: rect(0, 0, 0, 0);
+				white-space: nowrap;
+				border: 0;
+			}
+
+			.counts {
+				display: flex;
+				align-items: center;
+				gap: 6px;
+				padding-bottom: 3px;
+				white-space: nowrap;
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 11px;
+				color: light-dark(#686c77, #999da8);
+			}
+
+			.counts strong {
+				font-size: 17px;
+				font-weight: 500;
+				color: light-dark(#202228, #eeeff2);
+			}
+
+			.count-divider {
+				width: 1px;
+				height: 26px;
+				margin: 0 10px;
+				background: light-dark(#d5d8df, #30333a);
+			}
+
+			.surface {
+				background: light-dark(rgba(255, 255, 255, 0.93), rgba(17, 18, 23, 0.95));
+				border: 1px solid light-dark(#dfe1e7, #292b33);
+				border-radius: 15px;
+				box-shadow: 0 18px 50px light-dark(rgba(26, 30, 41, 0.06), rgba(0, 0, 0, 0.22));
+			}
+
+			.workflow-shell {
+				padding: 23px 25px 18px;
+				margin-bottom: 22px;
+			}
+
+			.machine-stack {
+				display: grid;
+				gap: 23px;
+			}
+
+			.machine-block + .machine-block {
+				padding-top: 22px;
+				border-top: 1px solid light-dark(#e5e6eb, #292b33);
+			}
+
+			.machine-heading {
+				display: flex;
+				align-items: start;
+				justify-content: space-between;
+				gap: 18px;
+				margin-bottom: 15px;
+			}
+
+			.machine-heading h3 {
+				margin: 0;
+				font-size: 12px;
+				font-weight: 600;
+			}
+
+			.machine-heading p {
+				margin: 4px 0 0;
+				color: light-dark(#767a85, #9296a1);
+				font-size: 10px;
+			}
+
+			.machine-badge {
+				display: inline-flex;
+				align-items: center;
+				min-height: 24px;
+				padding: 4px 8px;
+				border: 1px solid light-dark(#ded9eb, #3b304d);
+				border-radius: 999px;
+				background: light-dark(#f4f0fb, #211c2b);
+				color: light-dark(#6840ae, #c1a6ee);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+				white-space: nowrap;
+			}
+
+			.machine-badge.attention,
+			.machine-badge.cancelled,
+			.machine-badge.failed,
+			.machine-badge.timed_out {
+				border-color: light-dark(#efd2a8, #60471f);
+				background: light-dark(#fff1dc, #392b18);
+				color: light-dark(#95580b, #f2bd72);
+			}
+
+			.machine-badge.succeeded {
+				border-color: light-dark(#b9dfd0, #275544);
+				background: light-dark(#eaf8f2, #173429);
+				color: light-dark(#14704e, #74d8ad);
+			}
+
+			.section-head {
+				display: flex;
+				align-items: start;
+				justify-content: space-between;
+				gap: 20px;
+				margin-bottom: 23px;
+			}
+
+			.section-head h2,
+			.panel-head h2 {
+				margin: 0;
+				font-size: 14px;
+				font-weight: 600;
+				letter-spacing: -0.015em;
+			}
+
+			.section-head p {
+				margin: 5px 0 0;
+				color: light-dark(#767a85, #9296a1);
+				font-size: 11px;
+			}
+
+			.route-key {
+				display: flex;
+				align-items: center;
+				gap: 14px;
+				color: light-dark(#717580, #999da8);
+				font-size: 10px;
+			}
+
+			.route-key span {
+				display: inline-flex;
+				align-items: center;
+				gap: 6px;
+			}
+
+			.route-line {
+				width: 18px;
+				height: 2px;
+				background: light-dark(#d0d3db, #3b3e47);
+			}
+
+			.route-line.selected {
+				background: light-dark(#8b5aee, #a983ff);
+			}
+
+			.route-line.skipped {
+				background: repeating-linear-gradient(
+					90deg,
+					light-dark(#aeb2bc, #656a75) 0 4px,
+					transparent 4px 7px
+				);
+			}
+
+			.workflow {
+				position: relative;
+				display: grid;
+				grid-template-columns: repeat(var(--phase-count, 8), minmax(0, 1fr));
+				padding-top: 5px;
+			}
+
+			.workflow::before {
+				content: "";
+				position: absolute;
+				inset-inline: 5.9%;
+				top: 20px;
+				height: 2px;
+				background: light-dark(#e1e3e8, #30323a);
+			}
+
+			.workflow-progress {
+				position: absolute;
+				inset-inline-start: 5.9%;
+				top: 20px;
+				height: 2px;
+				width: 0;
+				background: light-dark(#8b5aee, #a983ff);
+				transition: width 280ms ease;
+			}
+
+			.phase {
+				position: relative;
+				z-index: 1;
+				display: flex;
+				flex-direction: column;
+				align-items: center;
+				min-width: 0;
+				text-align: center;
+			}
+
+			.phase-marker {
+				display: grid;
+				place-items: center;
+				width: 31px;
+				height: 31px;
+				border: 2px solid light-dark(#dde0e6, #363944);
+				border-radius: 999px;
+				background: light-dark(#fff, #17191f);
+				color: light-dark(#9a9ea8, #747985);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 10px;
+			}
+
+			.phase.passed .phase-marker {
+				border-color: light-dark(#8b5aee, #a983ff);
+				background: light-dark(#f4efff, #2b2140);
+				color: light-dark(#6d38d7, #c6adff);
+			}
+
+			.phase.current .phase-marker {
+				border-color: light-dark(#6f3bd4, #b092ff);
+				background: light-dark(#7642da, #a983ff);
+				color: light-dark(#fff, #17121f);
+				box-shadow: 0 0 0 5px light-dark(rgba(118, 66, 218, 0.11), rgba(169, 131, 255, 0.13));
+				transform: translateY(-1px);
+			}
+
+			.phase.skipped .phase-marker {
+				border-style: dashed;
+				background: light-dark(#f7f7f9, #121318);
+				color: light-dark(#b0b3bb, #5f646e);
+			}
+
+			.phase.skipped .phase-label {
+				color: light-dark(#a2a6af, #676c76);
+				text-decoration: line-through;
+				text-decoration-thickness: 1px;
+			}
+
+			.phase.skipped .phase-state {
+				color: light-dark(#9a9ea8, #747985);
+				opacity: 1;
+			}
+
+			.phase.current.attention .phase-marker,
+			.phase.current.cancelled .phase-marker,
+			.phase.current.failed .phase-marker,
+			.phase.current.timed_out .phase-marker {
+				border-color: light-dark(#c77a18, #e3a44f);
+				background: light-dark(#fff1dc, #392b18);
+				color: light-dark(#95580b, #f2bd72);
+				box-shadow: 0 0 0 5px light-dark(rgba(191, 120, 29, 0.1), rgba(227, 164, 79, 0.1));
+			}
+
+			.phase-label {
+				margin-top: 10px;
+				color: light-dark(#767a85, #8f939e);
+				font-size: 10px;
+				line-height: 1.25;
+			}
+
+			.phase.passed .phase-label,
+			.phase.current .phase-label {
+				color: light-dark(#2e3037, #e6e7eb);
+			}
+
+			.phase-state {
+				min-height: 15px;
+				margin-top: 4px;
+				color: light-dark(#7a47dc, #b597ff);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+				opacity: 0;
+			}
+
+			.phase.current .phase-state {
+				opacity: 1;
+			}
+
+			.detours {
+				display: flex;
+				align-items: center;
+				justify-content: center;
+				gap: 7px;
+				margin-top: 13px;
+				padding-top: 13px;
+				border-top: 1px dashed light-dark(#dfe1e7, #30323a);
+			}
+
+			.detour-label,
+			.panel-meta,
+			.detail-kicker,
+			.fact-label {
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+				letter-spacing: 0.07em;
+				text-transform: uppercase;
+			}
+
+			.detour-label {
+				margin-inline-end: 4px;
+			}
+
+			.detour {
+				padding: 4px 8px;
+				border-radius: 999px;
+				background: light-dark(#f0f1f4, #202228);
+				color: light-dark(#696d78, #a8acb6);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+			}
+
+			.detour.current {
+				background: light-dark(#fff1dc, #392b18);
+				color: light-dark(#95580b, #f2bd72);
+				box-shadow: inset 0 0 0 1px light-dark(#efd2a8, #60471f);
+			}
+
+			.workspace {
+				display: grid;
+				grid-template-columns: minmax(300px, 0.88fr) minmax(0, 1.45fr);
+				gap: 22px;
+			}
+
+			.list-panel,
+			.detail-panel {
+				min-width: 0;
+				overflow: hidden;
+			}
+
+			.panel-head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				min-height: 59px;
+				padding: 16px 18px;
+				border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
+			}
+
+			.issues {
+				display: flex;
+				flex-direction: column;
+			}
+
+			.issue {
+				position: relative;
+				display: grid;
+				grid-template-columns: 9px minmax(0, 1fr);
+				gap: 12px;
+				width: 100%;
+				padding: 15px 18px;
+				border: 0;
+				border-bottom: 1px solid light-dark(#eceef2, #24262d);
+				background: transparent;
+				text-align: start;
+				cursor: pointer;
+			}
+
+			.issue:last-child {
+				border-bottom: 0;
+			}
+
+			.issue:hover {
+				background: light-dark(#f7f5fb, #1b1921);
+			}
+
+			.issue[aria-pressed="true"] {
+				background: light-dark(#f4f0fb, #211c2b);
+			}
+
+			.issue[aria-pressed="true"]::after {
+				content: "";
+				position: absolute;
+				inset-block: 12px;
+				inset-inline-start: 0;
+				width: 3px;
+				border-radius: 0 999px 999px 0;
+				background: light-dark(#7642da, #a983ff);
+			}
+
+			.status-dot {
+				width: 8px;
+				height: 8px;
+				margin-top: 5px;
+				border-radius: 999px;
+				background: light-dark(#8b5aee, #a983ff);
+				box-shadow: 0 0 0 3px light-dark(rgba(139, 90, 238, 0.09), rgba(169, 131, 255, 0.1));
+			}
+
+			.issue.waiting .status-dot {
+				background: light-dark(#bf781d, #e3a44f);
+				box-shadow: 0 0 0 3px light-dark(rgba(191, 120, 29, 0.1), rgba(227, 164, 79, 0.1));
+			}
+
+			.issue.attention .status-dot {
+				background: light-dark(#c24747, #ee7676);
+				box-shadow: 0 0 0 3px light-dark(rgba(194, 71, 71, 0.1), rgba(238, 118, 118, 0.1));
+			}
+
+			.issue-title {
+				display: block;
+				font-size: 12px;
+				line-height: 1.45;
+			}
+
+			.issue-number {
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 10px;
+			}
+
+			.issue-foot {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 8px;
+				margin-top: 8px;
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+				color: light-dark(#777b86, #9195a0);
+			}
+
+			.state-label {
+				padding: 3px 6px;
+				border-radius: 5px;
+				background: light-dark(#ece7f8, #2c233c);
+				color: light-dark(#6840ae, #c1a6ee);
+			}
+
+			.detail-head-left {
+				min-width: 0;
+			}
+
+			.detail-kicker {
+				margin-bottom: 4px;
+			}
+
+			.detail-title {
+				margin: 0;
+				font-size: 14px;
+				font-weight: 600;
+				line-height: 1.35;
+			}
+
+			.detail-link {
+				color: light-dark(#646874, #a4a8b2);
+				text-decoration: none;
+				font-size: 10px;
+				white-space: nowrap;
+			}
+
+			.facts {
+				display: grid;
+				grid-template-columns: repeat(4, minmax(0, 1fr));
+				border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
+				background: light-dark(#fafafd, #14151a);
+			}
+
+			.fact {
+				min-width: 0;
+				padding: 12px 15px;
+				border-inline-end: 1px solid light-dark(#e5e6eb, #292b33);
+			}
+
+			.fact:last-child {
+				border-inline-end: 0;
+			}
+
+			.fact-label {
+				display: block;
+				margin-bottom: 4px;
+			}
+
+			.fact-value {
+				display: block;
+				overflow: hidden;
+				color: light-dark(#292b32, #dfe1e6);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 10px;
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+
+			.work-plan {
+				padding: 15px 17px 16px;
+				border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
+			}
+
+			.work-plan-head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 12px;
+				margin-bottom: 8px;
+				font-size: 10px;
+				font-weight: 600;
+			}
+
+			.work-plan-summary {
+				margin: 0 0 10px;
+				color: light-dark(#666a75, #a0a4ae);
+				font-size: 10px;
+				line-height: 1.45;
+			}
+
+			.work-plan-steps {
+				display: grid;
+				gap: 6px;
+			}
+
+			.work-plan-step {
+				display: grid;
+				grid-template-columns: 15px minmax(0, 1fr) auto;
+				gap: 7px;
+				align-items: start;
+				font-size: 10px;
+				line-height: 1.35;
+			}
+
+			.work-plan-mark {
+				color: light-dark(#8c909a, #7f848e);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+			}
+
+			.work-plan-step.completed .work-plan-mark {
+				color: light-dark(#16845b, #50d49b);
+			}
+
+			.work-plan-step.in_progress {
+				font-weight: 600;
+				color: light-dark(#5f2fc1, #bea4ff);
+			}
+
+			.work-plan-step.blocked .work-plan-mark {
+				color: light-dark(#b2670d, #e3a44f);
+			}
+
+			.work-plan-step.skipped .work-plan-title {
+				color: light-dark(#969aa4, #747984);
+				text-decoration: line-through;
+			}
+
+			.work-plan-status {
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+			}
+
+			.trace-section {
+				padding: 15px 17px 17px;
+				border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
+				background: light-dark(#fbfbfd, #121318);
+			}
+
+			.trace-head,
+			.trace-controls {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				gap: 10px;
+			}
+
+			.trace-head {
+				margin-bottom: 10px;
+				font-size: 10px;
+				font-weight: 600;
+			}
+
+			.trace-controls {
+				justify-content: flex-start;
+				margin-bottom: 10px;
+			}
+
+			.trace-select,
+			.trace-load {
+				min-width: 0;
+				border: 1px solid light-dark(#d9dbe2, #32353d);
+				border-radius: 6px;
+				background: light-dark(#fff, #1a1b21);
+				color: inherit;
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+			}
+
+			.trace-select {
+				max-width: 100%;
+				padding: 6px 24px 6px 8px;
+			}
+
+			.trace-load {
+				padding: 6px 9px;
+				cursor: pointer;
+			}
+
+			.trace-load:hover {
+				background: light-dark(#f4f0fb, #211c2b);
+			}
+
+			.trace-list {
+				display: grid;
+				gap: 7px;
+			}
+
+			.trace-event {
+				border: 1px solid light-dark(#e1e3e8, #292c33);
+				border-inline-start: 3px solid light-dark(#a2a6af, #6f747e);
+				border-radius: 7px;
+				background: light-dark(#fff, #17181d);
+			}
+
+			.trace-event.active {
+				border-inline-start-color: light-dark(#7642da, #a983ff);
+			}
+
+			.trace-event.success {
+				border-inline-start-color: light-dark(#16845b, #50d49b);
+			}
+
+			.trace-event.failed {
+				border-inline-start-color: light-dark(#c24747, #ee7676);
+			}
+
+			.trace-summary {
+				display: grid;
+				grid-template-columns: 48px minmax(0, 1fr) auto 12px;
+				gap: 9px;
+				align-items: start;
+				padding: 9px 10px;
+				cursor: pointer;
+				list-style: none;
+			}
+
+			.trace-summary::-webkit-details-marker {
+				display: none;
+			}
+
+			.trace-summary::after {
+				content: "+";
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 11px;
+			}
+
+			.trace-event[open] .trace-summary::after {
+				content: "–";
+			}
+
+			.trace-time,
+			.trace-kind,
+			.trace-duration,
+			.trace-block-label {
+				color: light-dark(#858995, #858a95);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 8px;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+
+			.trace-title {
+				display: flex;
+				align-items: baseline;
+				gap: 7px;
+				font-size: 10px;
+				font-weight: 600;
+			}
+
+			.trace-detail,
+			.trace-preview {
+				margin-top: 3px;
+				color: light-dark(#686c77, #9da1ac);
+				font-size: 9px;
+				font-weight: 400;
+				line-height: 1.4;
+			}
+
+			.trace-preview {
+				display: -webkit-box;
+				overflow: hidden;
+				-webkit-box-orient: vertical;
+				-webkit-line-clamp: 2;
+			}
+
+			.trace-body {
+				display: grid;
+				gap: 10px;
+				padding: 0 10px 10px 67px;
+			}
+
+			.trace-block-label {
+				display: block;
+				margin-bottom: 5px;
+			}
+
+			.trace-body pre {
+				max-height: 360px;
+				margin: 0;
+				overflow: auto;
+				padding: 9px 10px;
+				border-radius: 6px;
+				background: light-dark(#f3f4f7, #0c0d10);
+				color: light-dark(#30323a, #dfe1e6);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+				line-height: 1.5;
+				white-space: pre-wrap;
+				word-break: break-word;
+			}
+
+			.trace-empty {
+				padding: 18px 10px;
+				text-align: center;
+				color: light-dark(#777b86, #9195a0);
+				font-size: 10px;
+			}
+
+			.log-head {
+				display: flex;
+				align-items: center;
+				justify-content: space-between;
+				padding: 14px 17px 9px;
+				font-size: 10px;
+				font-weight: 600;
+			}
+
+			.log-safe {
+				color: light-dark(#7b7f89, #8f949e);
+				font-size: 9px;
+				font-weight: 400;
+			}
+
+			.log {
+				padding: 3px 17px 18px;
+			}
+
+			.log-row {
+				position: relative;
+				display: grid;
+				grid-template-columns: 50px 14px minmax(0, 1fr);
+				gap: 8px;
+				min-height: 39px;
+				font-size: 10px;
+			}
+
+			.log-row:not(:last-child)::after {
+				content: "";
+				position: absolute;
+				inset-inline-start: 65px;
+				top: 17px;
+				bottom: -3px;
+				width: 1px;
+				background: light-dark(#dfe1e7, #30323a);
+			}
+
+			.log-time {
+				padding-top: 2px;
+				color: light-dark(#8c909a, #7f848e);
+				font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+				font-size: 9px;
+			}
+
+			.log-mark {
+				position: relative;
+				z-index: 1;
+				width: 8px;
+				height: 8px;
+				margin-top: 3px;
+				border-radius: 999px;
+				background: light-dark(#a2a6af, #6f747e);
+				box-shadow: 0 0 0 4px light-dark(#fff, #111217);
+			}
+
+			.log-row.active .log-mark {
+				background: light-dark(#7642da, #a983ff);
+			}
+
+			.log-row.success .log-mark {
+				background: light-dark(#16845b, #50d49b);
+			}
+
+			.log-row.failed .log-mark {
+				background: light-dark(#c24747, #ee7676);
+			}
+
+			.log-message {
+				padding-bottom: 12px;
+				line-height: 1.42;
+				color: light-dark(#535762, #adb1bb);
+			}
+
+			.log-message strong {
+				display: block;
+				margin-bottom: 1px;
+				font-weight: 600;
+				color: light-dark(#24262c, #f0f1f4);
+			}
+
+			.empty,
+			.error {
+				padding: 34px 20px;
+				text-align: center;
+				color: light-dark(#777b86, #9195a0);
+				font-size: 12px;
+				line-height: 1.55;
+			}
+
+			.error strong {
+				display: block;
+				margin-bottom: 5px;
+				color: light-dark(#a23636, #f08a8a);
+			}
+
+			.mobile-flow {
+				display: none;
+			}
+
+			@media (max-width: 760px) {
+				.nav {
+					display: none;
+				}
+
+				main {
+					padding: 34px 20px 52px;
+				}
+
+				.intro {
+					align-items: start;
+					flex-direction: column;
+				}
+
+				.workspace {
+					grid-template-columns: 1fr;
+				}
+
+				.workflow {
+					display: none;
+				}
+
+				.mobile-flow {
+					display: flex;
+					align-items: center;
+					gap: 7px;
+					flex-wrap: wrap;
+					row-gap: 10px;
+					padding-bottom: 4px;
+				}
+
+				.mobile-step {
+					display: inline-flex;
+					align-items: center;
+					gap: 7px;
+					min-width: max-content;
+					color: light-dark(#858995, #838893);
+					font-size: 10px;
+				}
+
+				.mobile-step::before {
+					content: "";
+					width: 8px;
+					height: 8px;
+					border-radius: 999px;
+					background: light-dark(#dadde4, #3b3e46);
+				}
+
+				.mobile-step.passed::before,
+				.mobile-step.current::before {
+					background: light-dark(#8b5aee, #a983ff);
+				}
+
+				.mobile-step.current {
+					color: light-dark(#3a3d45, #eceef1);
+					font-weight: 600;
+				}
+
+				.mobile-step.skipped {
+					opacity: 0.48;
+					text-decoration: line-through;
+				}
+
+				.detours {
+					justify-content: flex-start;
+					flex-wrap: wrap;
+				}
+			}
+
+			@media (max-width: 480px) {
+				.topbar {
+					padding: 0 16px;
+				}
+
+				.live span:last-child,
+				.github-label {
+					display: none;
+				}
+
+				main {
+					padding: 28px 14px 42px;
+				}
+
+				.counts {
+					white-space: normal;
+					flex-wrap: wrap;
+				}
+
+				.workflow-shell {
+					padding: 18px;
+				}
+
+				.section-head {
+					flex-direction: column;
+				}
+
+				.route-key {
+					display: none;
+				}
+
+				.facts {
+					grid-template-columns: 1fr;
+				}
+
+				.fact {
+					border-inline-end: 0;
+					border-bottom: 1px solid light-dark(#e5e6eb, #292b33);
+				}
+
+				.fact:last-child {
+					border-bottom: 0;
+				}
+
+				.trace-summary {
+					grid-template-columns: 43px minmax(0, 1fr) auto 12px;
+					padding: 9px 8px;
+				}
+
+				.trace-body {
+					padding: 0 8px 9px;
+				}
+
+				.trace-controls {
+					align-items: stretch;
+					flex-direction: column;
+				}
+
+				.trace-select,
+				.trace-load {
+					width: 100%;
+				}
+			}
+
+			@media (prefers-reduced-motion: reduce) {
+				.workflow-progress {
+					transition: none;
+				}
+			}
+
+			:root {
+				--canvas: light-dark(#efede7, #101210);
+				--paper: light-dark(#fbfaf6, #191b19);
+				--paper-muted: light-dark(#f5f3ed, #141614);
+				--ink: light-dark(#202321, #eeece5);
+				--muted: light-dark(#676b66, #a4a69f);
+				--faint: light-dark(#898c86, #777b75);
+				--line: light-dark(#d1cec5, #343733);
+				--line-strong: light-dark(#96968f, #686b65);
+				--accent: light-dark(#9c4d32, #d08366);
+				--accent-soft: light-dark(#efe0d8, #35241f);
+				--success: light-dark(#376b59, #72a28f);
+				--warning: light-dark(#83602b, #b69460);
+				--danger: light-dark(#944741, #c77b74);
+				font-family: Arial, ui-sans-serif, system-ui, sans-serif;
+				color: var(--ink);
+				background: var(--canvas);
+			}
+
+			body {
+				background: var(--canvas);
+				background-image: none;
+			}
+
+			a:focus-visible,
+			button:focus-visible,
+			select:focus-visible,
+			summary:focus-visible {
+				outline-color: var(--accent);
+			}
+
+			.topbar {
+				position: sticky;
+				top: 0;
+				z-index: 20;
+				min-height: 64px;
+				padding: 0 max(30px, calc((100vw - 1400px) / 2));
+				color: #f3f1ea;
+				background: light-dark(#1c1f1d, #0b0d0c);
+				border-bottom: 0;
+				box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+				backdrop-filter: none;
+			}
+
+			.brand {
+				gap: 10px;
+				color: #f3f1ea;
+			}
+
+			.brand-logo {
+				width: 25px;
+				height: 25px;
+				filter: grayscale(1) brightness(2.7);
+			}
+
+			.brand-name {
+				font-size: 15px;
+				font-weight: 700;
+				letter-spacing: -0.02em;
+			}
+
+			.brand-bot {
+				color: #aaa9a3;
+				font-size: 10px;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+			}
+
+			.nav {
+				display: none;
+			}
+
+			.live,
+			.github-link {
+				color: #c4c3bd;
+				font-size: 11px;
+				letter-spacing: 0.03em;
+			}
+
+			.github-link:hover {
+				color: #fff;
+			}
+
+			.live-dot {
+				width: 6px;
+				height: 6px;
+				background: #79a493;
+				box-shadow: none;
+			}
+
+			main {
+				max-width: 1400px;
+				padding: 44px 30px 80px;
+			}
+
+			.intro {
+				align-items: end;
+				margin-bottom: 28px;
+			}
+
+			.intro h1 {
+				margin: 0 0 10px;
+				font-size: clamp(30px, 4vw, 48px);
+				font-weight: 650;
+				letter-spacing: -0.055em;
+				line-height: 0.98;
+			}
+
+			.eyebrow {
+				margin-bottom: 14px;
+				color: var(--faint);
+				font-size: 10px;
+				letter-spacing: 0.16em;
+			}
+
+			.subtitle {
+				max-width: 620px;
+				color: var(--muted);
+				font-size: 14px;
+				line-height: 1.5;
+			}
+
+			.counts {
+				gap: 8px;
+				padding: 0 0 3px 26px;
+				border-inline-start: 1px solid var(--line);
+				color: var(--muted);
+				font-size: 10px;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+			}
+
+			.counts strong {
+				font-size: 26px;
+				font-weight: 500;
+				color: var(--ink);
+				letter-spacing: -0.05em;
+			}
+
+			.count-divider {
+				height: 32px;
+				margin: 0 11px;
+				background: var(--line);
+			}
+
+			.surface {
+				background: var(--paper);
+				border-color: var(--line);
+				border-radius: 4px;
+				box-shadow: none;
+			}
+
+			.workflow-shell {
+				padding: 27px 30px 22px;
+				margin-bottom: 18px;
+				border-top: 3px solid var(--ink);
+			}
+
+			.section-head {
+				margin-bottom: 28px;
+			}
+
+			.section-head h2,
+			.panel-head h2 {
+				font-size: 15px;
+				font-weight: 700;
+				letter-spacing: -0.02em;
+			}
+
+			.section-head p,
+			.machine-heading p {
+				color: var(--muted);
+				font-size: 11px;
+			}
+
+			.route-key {
+				color: var(--muted);
+				font-size: 10px;
+			}
+
+			.route-line {
+				background: var(--line-strong);
+			}
+
+			.route-line.selected,
+			.workflow-progress {
+				background: var(--accent);
+			}
+
+			.machine-stack {
+				gap: 26px;
+			}
+
+			.machine-block + .machine-block {
+				padding-top: 26px;
+				border-top-color: var(--line);
+			}
+
+			.machine-heading {
+				margin-bottom: 18px;
+			}
+
+			.machine-heading h3 {
+				font-size: 13px;
+				font-weight: 700;
+			}
+
+			.machine-badge,
+			.detour,
+			.state-label {
+				border-radius: 2px;
+			}
+
+			.machine-badge {
+				min-height: 23px;
+				padding: 4px 7px;
+				border-color: var(--line-strong);
+				background: transparent;
+				color: var(--muted);
+				font-size: 9px;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+
+			.machine-badge.attention,
+			.machine-badge.cancelled,
+			.machine-badge.failed,
+			.machine-badge.timed_out {
+				border-color: var(--warning);
+				background: transparent;
+				color: var(--warning);
+			}
+
+			.machine-badge.succeeded {
+				border-color: var(--success);
+				background: transparent;
+				color: var(--success);
+			}
+
+			.workflow::before {
+				background: var(--line);
+			}
+
+			.phase-marker {
+				width: 29px;
+				height: 29px;
+				border: 1px solid var(--line-strong);
+				border-radius: 3px;
+				background: var(--paper);
+				color: var(--muted);
+				font-size: 9px;
+			}
+
+			.phase.passed .phase-marker {
+				border-color: var(--accent);
+				background: var(--paper);
+				color: var(--accent);
+			}
+
+			.phase.current .phase-marker {
+				border-color: var(--accent);
+				background: var(--accent);
+				color: #fff;
+				box-shadow: none;
+				transform: none;
+			}
+
+			.phase.skipped .phase-marker {
+				background: var(--paper-muted);
+				color: var(--faint);
+			}
+
+			.phase.current.attention .phase-marker,
+			.phase.current.cancelled .phase-marker,
+			.phase.current.failed .phase-marker,
+			.phase.current.timed_out .phase-marker {
+				border-color: var(--warning);
+				background: var(--warning);
+				color: #fff;
+				box-shadow: none;
+			}
+
+			.phase-label {
+				color: var(--muted);
+				font-size: 10px;
+			}
+
+			.phase.passed .phase-label,
+			.phase.current .phase-label {
+				color: var(--ink);
+			}
+
+			.phase-state {
+				color: var(--accent);
+				font-size: 8px;
+				letter-spacing: 0.05em;
+				text-transform: uppercase;
+			}
+
+			.detours {
+				border-top-color: var(--line);
+			}
+
+			.detour-label,
+			.panel-meta,
+			.detail-kicker,
+			.fact-label {
+				color: var(--faint);
+				font-size: 9px;
+				letter-spacing: 0.11em;
+			}
+
+			.detour {
+				padding: 3px 7px;
+				background: transparent;
+				color: var(--muted);
+				box-shadow: inset 0 0 0 1px var(--line);
+			}
+
+			.detour.current {
+				background: var(--accent-soft);
+				color: var(--accent);
+				box-shadow: inset 0 0 0 1px var(--accent);
+			}
+
+			.workspace {
+				grid-template-columns: minmax(310px, 360px) minmax(0, 1fr);
+				gap: 18px;
+			}
+
+			.panel-head {
+				min-height: 68px;
+				padding: 17px 20px;
+				border-bottom-color: var(--line);
+			}
+
+			.issue {
+				grid-template-columns: 8px minmax(0, 1fr);
+				gap: 12px;
+				padding: 17px 19px;
+				border-bottom-color: var(--line);
+			}
+
+			.issue:hover {
+				background: var(--paper-muted);
+			}
+
+			.issue[aria-pressed="true"] {
+				background: var(--accent-soft);
+			}
+
+			.issue[aria-pressed="true"]::after {
+				inset-block: 0;
+				width: 3px;
+				border-radius: 0;
+				background: var(--accent);
+			}
+
+			.status-dot {
+				width: 7px;
+				height: 7px;
+				background: var(--accent);
+				box-shadow: none;
+			}
+
+			.issue.waiting .status-dot {
+				background: var(--warning);
+				box-shadow: none;
+			}
+
+			.issue.attention .status-dot {
+				background: var(--danger);
+				box-shadow: none;
+			}
+
+			.issue-title {
+				font-size: 13px;
+				line-height: 1.45;
+			}
+
+			.issue-number,
+			.issue-foot {
+				color: var(--faint);
+			}
+
+			.state-label {
+				padding: 0;
+				background: transparent;
+				color: var(--muted);
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+			}
+
+			.detail-title {
+				font-size: 16px;
+				line-height: 1.3;
+			}
+
+			.detail-link {
+				color: var(--muted);
+				font-size: 11px;
+			}
+
+			.detail-link:hover {
+				color: var(--accent);
+			}
+
+			.facts {
+				border-bottom-color: var(--line);
+				background: var(--paper-muted);
+			}
+
+			.fact {
+				padding: 14px 17px;
+				border-inline-end-color: var(--line);
+			}
+
+			.fact-value {
+				color: var(--ink);
+				font-size: 11px;
+			}
+
+			.work-plan {
+				padding: 18px 20px 20px;
+				border-bottom-color: var(--line);
+			}
+
+			.work-plan-head {
+				font-size: 12px;
+			}
+
+			.work-plan-summary,
+			.work-plan-step {
+				font-size: 11px;
+				line-height: 1.5;
+			}
+
+			.work-plan-step.in_progress {
+				color: var(--accent);
+			}
+
+			.work-plan-step.completed .work-plan-mark {
+				color: var(--success);
+			}
+
+			.trace-section {
+				padding: 22px 20px 24px;
+				border-bottom-color: var(--line);
+				background: var(--paper);
+			}
+
+			.trace-head {
+				margin-bottom: 14px;
+				font-size: 13px;
+				font-weight: 700;
+			}
+
+			.trace-controls {
+				margin-bottom: 12px;
+			}
+
+			.trace-select,
+			.trace-load {
+				min-height: 34px;
+				border-color: var(--line-strong);
+				border-radius: 2px;
+				background: var(--paper);
+				color: var(--ink);
+				font-size: 10px;
+			}
+
+			.trace-load:hover {
+				background: var(--paper-muted);
+			}
+
+			.trace-list {
+				display: block;
+				max-height: min(70vh, 720px);
+				overflow-y: auto;
+				overscroll-behavior: contain;
+				padding-inline-end: 8px;
+				border-block: 1px solid var(--line);
+				scrollbar-color: var(--line-strong) transparent;
+				scrollbar-gutter: stable;
+			}
+
+			.trace-event {
+				border: 0;
+				border-bottom: 1px solid var(--line);
+				border-inline-start: 3px solid var(--line-strong);
+				border-radius: 0;
+				background: transparent;
+			}
+
+			.trace-event:last-child {
+				border-bottom: 0;
+			}
+
+			.trace-event.active {
+				border-inline-start-color: var(--accent);
+			}
+
+			.trace-event.success {
+				border-inline-start-color: var(--success);
+			}
+
+			.trace-event.failed {
+				border-inline-start-color: var(--danger);
+			}
+
+			.trace-event[open] {
+				background: var(--paper-muted);
+			}
+
+			.trace-summary {
+				grid-template-columns: 68px minmax(0, 1fr) auto 14px;
+				gap: 12px;
+				padding: 13px 14px;
+			}
+
+			.trace-summary:hover {
+				background: var(--paper-muted);
+			}
+
+			.trace-summary::after {
+				content: "›";
+				color: var(--faint);
+				font-size: 16px;
+				line-height: 1;
+			}
+
+			.trace-event[open] .trace-summary::after {
+				content: "⌄";
+			}
+
+			.trace-time,
+			.trace-kind,
+			.trace-duration,
+			.trace-block-label {
+				color: var(--faint);
+				font-size: 9px;
+				letter-spacing: 0.07em;
+			}
+
+			.trace-time {
+				padding-top: 2px;
+			}
+
+			.trace-title {
+				gap: 9px;
+				font-size: 12px;
+				font-weight: 700;
+			}
+
+			.trace-detail,
+			.trace-preview {
+				margin-top: 5px;
+				color: var(--muted);
+				font-size: 11px;
+				line-height: 1.5;
+			}
+
+			.trace-preview {
+				-webkit-line-clamp: 3;
+			}
+
+			.trace-body {
+				gap: 14px;
+				padding: 2px 14px 16px 94px;
+			}
+
+			.trace-body pre {
+				max-height: 340px;
+				padding: 12px 13px;
+				border: 1px solid var(--line);
+				border-radius: 2px;
+				background: var(--canvas);
+				color: var(--ink);
+				font-size: 10px;
+				line-height: 1.6;
+			}
+
+			.trace-empty {
+				color: var(--muted);
+				font-size: 11px;
+			}
+
+			.log-head {
+				padding: 20px 20px 12px;
+				font-size: 12px;
+			}
+
+			.log-safe {
+				color: var(--faint);
+			}
+
+			.log {
+				padding: 4px 20px 22px;
+			}
+
+			.log-row {
+				min-height: 44px;
+				font-size: 11px;
+			}
+
+			.log-row:not(:last-child)::after {
+				background: var(--line);
+			}
+
+			.log-mark {
+				background: var(--line-strong);
+				box-shadow: 0 0 0 4px var(--paper);
+			}
+
+			.log-row.active .log-mark {
+				background: var(--accent);
+			}
+
+			.log-row.success .log-mark {
+				background: var(--success);
+			}
+
+			.log-row.failed .log-mark {
+				background: var(--danger);
+			}
+
+			.log-message {
+				color: var(--muted);
+			}
+
+			.log-message strong {
+				color: var(--ink);
+			}
+
+			@media (max-width: 900px) {
+				.workspace {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			@media (max-width: 760px) {
+				.topbar {
+					padding-inline: 20px;
+				}
+
+				main {
+					padding: 34px 20px 52px;
+				}
+
+				.intro {
+					align-items: start;
+				}
+
+				.counts {
+					padding: 18px 0 0;
+					border-top: 1px solid var(--line);
+					border-inline-start: 0;
+				}
+
+				.mobile-step.passed::before,
+				.mobile-step.current::before {
+					background: var(--accent);
+				}
+			}
+
+			@media (max-width: 480px) {
+				.workflow-shell {
+					padding: 20px 17px;
+				}
+
+				.trace-section {
+					padding-inline: 14px;
+				}
+
+				.trace-head {
+					align-items: start;
+					flex-direction: column;
+					gap: 5px;
+				}
+
+				.trace-list {
+					max-height: 560px;
+					padding-inline-end: 4px;
+				}
+
+				.trace-summary {
+					grid-template-columns: 52px minmax(0, 1fr) auto 12px;
+					gap: 8px;
+					padding: 12px 9px;
+				}
+
+				.trace-body {
+					padding: 2px 9px 13px;
+				}
+			}
+		</style>
+	</head>
+	<body>
+		<header class="topbar">
+			<a class="brand" href="/" aria-label="EmDash home">
+				<svg class="brand-logo" viewBox="0 0 118 118" fill="none" aria-hidden="true">
+					<path
+						d="M0.410156 96.5125V21.2097C0.410156 9.48841 9.91245 -0.013916 21.6338 -0.013916V9.40601L21.3291 9.40991C14.9509 9.57133 9.83008 14.7927 9.83008 21.2097V96.5125C9.83008 102.93 14.9509 108.151 21.3291 108.312L21.6338 108.316H96.9365L97.2412 108.312C103.518 108.153 108.577 103.094 108.736 96.8171L108.74 96.5125V21.2097C108.74 14.6909 103.455 9.40601 96.9365 9.40601V-0.013916C108.658 -0.013916 118.16 9.48838 118.16 21.2097V96.5125C118.16 108.234 108.658 117.736 96.9365 117.736H21.6338C9.91248 117.736 0.410156 108.234 0.410156 96.5125ZM96.9365 -0.013916V9.40601H21.6338V-0.013916H96.9365Z"
+						fill="url(#brand-icon)"
+					/>
+					<path d="M28.6699 53.366H90.4746V63.6668H28.6699V53.366Z" fill="url(#brand-dash)" />
+					<defs>
+						<linearGradient
+							id="brand-icon"
+							x1="-67.1002"
+							y1="194.666"
+							x2="145.514"
+							y2="-65.5554"
+							gradientUnits="userSpaceOnUse"
+						>
+							<stop stop-color="#0F006B" />
+							<stop offset=".0833" stop-color="#281A81" />
+							<stop offset=".1667" stop-color="#5D0C83" />
+							<stop offset=".25" stop-color="#911475" />
+							<stop offset=".3333" stop-color="#CE2F55" />
+							<stop offset=".4167" stop-color="#FF6633" />
+							<stop offset=".5" stop-color="#F6821F" />
+							<stop offset=".5833" stop-color="#FBAD41" />
+							<stop offset=".6667" stop-color="#FFCD89" />
+							<stop offset=".75" stop-color="#FFE9CB" />
+							<stop offset=".8333" stop-color="#FFF7EC" />
+							<stop offset=".9167" stop-color="#FFF8EE" />
+							<stop offset="1" stop-color="white" />
+						</linearGradient>
+						<linearGradient
+							id="brand-dash"
+							x1="144.064"
+							y1="43.1581"
+							x2="44.5609"
+							y2="85.0447"
+							gradientUnits="userSpaceOnUse"
+						>
+							<stop stop-color="white" />
+							<stop offset=".1293" stop-color="#FFF8EE" />
+							<stop offset=".6171" stop-color="#FBAD41" />
+							<stop offset=".848" stop-color="#F6821F" />
+							<stop offset="1" stop-color="#FF6633" />
+						</linearGradient>
+					</defs>
+				</svg>
+				<span class="brand-name">EmDash</span>
+				<span class="brand-bot">bot</span>
+			</a>
+			<div class="top-actions">
+				<span class="live"
+					><span class="live-dot" aria-hidden="true"></span
+					><span id="system-status">Live state</span></span
+				>
+				<a
+					class="github-link"
+					id="repository-link"
+					href="https://github.com/emdash-cms/emdash"
+					target="_blank"
+					rel="noreferrer"
+					aria-label="Open the EmDash repository on GitHub"
+					><span aria-hidden="true">↗</span><span class="github-label">GitHub</span></a
+				>
+			</div>
+		</header>
+
+		<main>
+			<section class="intro">
+				<div>
+					<p class="eyebrow">Public workbench</p>
+					<h1>Live bot operations</h1>
+					<p class="subtitle">
+						Open issues, state transitions, and agent runs, updated as they happen.
+					</p>
+				</div>
+				<div class="counts" id="counts" aria-label="Issue counts"></div>
+			</section>
+
+			<section class="surface workflow-shell" aria-labelledby="workflow-title">
+				<div class="section-head">
+					<div>
+						<h2 id="workflow-title">Operational state</h2>
+						<p>Issue coordination and the selected agent run, shown independently.</p>
+					</div>
+					<div class="route-key" aria-label="Workflow legend">
+						<span><i class="route-line selected" aria-hidden="true"></i> selected route</span>
+						<span><i class="route-line" aria-hidden="true"></i> remaining route</span>
+						<span><i class="route-line skipped" aria-hidden="true"></i> skipped phase</span>
+					</div>
+				</div>
+				<div class="machine-stack">
+					<section class="machine-block" aria-labelledby="issue-machine-title">
+						<div class="machine-heading">
+							<div>
+								<h3 id="issue-machine-title">Issue lifecycle</h3>
+								<p>Long-lived coordination projected to GitHub labels.</p>
+							</div>
+							<span class="machine-badge" id="issue-machine-badge">unmanaged</span>
+						</div>
+						<div class="workflow" id="issue-workflow">
+							<div class="workflow-progress" id="issue-workflow-progress"></div>
+						</div>
+						<div
+							class="mobile-flow"
+							id="issue-mobile-flow"
+							aria-label="Selected issue lifecycle"
+						></div>
+						<div class="detours" id="issue-detours" aria-label="Issue lifecycle side routes"></div>
+					</section>
+
+					<section class="machine-block" aria-labelledby="run-machine-title">
+						<div class="machine-heading">
+							<div>
+								<h3 id="run-machine-title">Agent run</h3>
+								<p id="run-machine-description">No run recorded for this issue.</p>
+							</div>
+							<span class="machine-badge" id="run-machine-badge">idle</span>
+						</div>
+						<div class="workflow" id="run-workflow">
+							<div class="workflow-progress" id="run-workflow-progress"></div>
+						</div>
+						<div
+							class="mobile-flow"
+							id="run-mobile-flow"
+							aria-label="Selected agent run lifecycle"
+						></div>
+					</section>
+				</div>
+			</section>
+
+			<div class="workspace">
+				<section class="surface list-panel" aria-labelledby="current-work-title">
+					<div class="panel-head">
+						<h2 id="current-work-title">Current work</h2>
+						<span class="panel-meta" id="updated-at">loading</span>
+					</div>
+					<div class="issues" id="issues"><div class="empty">Loading managed issues…</div></div>
+				</section>
+
+				<section class="surface detail-panel" id="detail-panel" aria-live="polite">
+					<div class="empty">Select an issue to inspect its route and public activity.</div>
+				</section>
+			</div>
+		</main>
+
+		<script>
+			let payload = null;
+			const requestedIssue = Number.parseInt(
+				new URLSearchParams(window.location.search).get("issue") ?? "",
+				10,
+			);
+			let selectedNumber = Number.isSafeInteger(requestedIssue) ? requestedIssue : null;
+			let traceState = {
+				issueNumber: null,
+				loading: false,
+				error: null,
+				page: null,
+			};
+			let traceRequest = 0;
+			let tracePending = false;
+			const openTraceEvents = new Set();
+
+			function element(tag, className, text) {
+				const node = document.createElement(tag);
+				if (className) node.className = className;
+				if (text !== undefined) node.textContent = text;
+				return node;
+			}
+
+			function stateLabel(state) {
+				return state.replaceAll("_", " ");
+			}
+
+			function routeFor(state) {
+				return payload?.machines.issue.states[state]?.tone ?? "active";
+			}
+
+			function relativeTime(value) {
+				const seconds = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 1000));
+				if (seconds < 60) return "just now";
+				if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+				if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+				return `${Math.floor(seconds / 86400)}d ago`;
+			}
+
+			function durationSince(timestamp, end = Date.now()) {
+				if (!timestamp) return "not running";
+				const seconds = Math.max(0, Math.floor((end - timestamp) / 1000));
+				const hours = Math.floor(seconds / 3600);
+				const minutes = Math.floor((seconds % 3600) / 60);
+				return hours ? `${hours}h ${minutes}m` : `${minutes}m ${seconds % 60}s`;
+			}
+
+			function shortDuration(milliseconds) {
+				if (!Number.isFinite(milliseconds)) return "";
+				if (milliseconds < 1_000) return `${Math.round(milliseconds)}ms`;
+				const seconds = milliseconds / 1_000;
+				if (seconds < 60) return `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
+				return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+			}
+
+			function renderCounts() {
+				const counts = { active: 0, waiting: 0, attention: 0 };
+				for (const issue of payload.issues) counts[routeFor(issue.state)] += 1;
+				const target = document.getElementById("counts");
+				target.replaceChildren();
+				for (const [index, item] of [
+					[counts.active, "active"],
+					[counts.waiting, "waiting"],
+					[counts.attention, "needs attention"],
+				].entries()) {
+					if (index) target.append(element("span", "count-divider"));
+					const strong = element("strong", "", String(item[0]));
+					target.append(strong, document.createTextNode(` ${item[1]}`));
+				}
+			}
+
+			function renderPhaseRow(input) {
+				const workflow = document.getElementById(input.workflowId);
+				workflow.style.setProperty("--phase-count", String(input.phases.length));
+				workflow.querySelectorAll(".phase").forEach((node) => node.remove());
+				const plan = input.plan ?? input.phases.map((phase) => phase.id);
+				const currentPlanIndex = input.currentPhase ? plan.indexOf(input.currentPhase) : -1;
+				const currentPhaseIndex = input.currentPhase
+					? input.phases.findIndex((phase) => phase.id === input.currentPhase)
+					: -1;
+				input.phases.forEach((phase, index) => {
+					const planIndex = plan.indexOf(phase.id);
+					const skipped = input.plan !== null && planIndex === -1;
+					const passed =
+						!skipped &&
+						(input.status === "succeeded" ||
+							(currentPlanIndex >= 0 && planIndex < currentPlanIndex));
+					const current =
+						!skipped && input.status !== "succeeded" && phase.id === input.currentPhase;
+					const phaseNode = element(
+						"div",
+						`phase${passed ? " passed" : ""}${current ? ` current ${input.tone ?? ""}` : ""}${skipped ? " skipped" : ""}`,
+					);
+					phaseNode.append(element("span", "phase-marker", skipped ? "–" : String(index + 1)));
+					phaseNode.append(element("span", "phase-label", phase.label));
+					phaseNode.append(
+						element(
+							"span",
+							"phase-state",
+							skipped ? "skipped" : current ? (input.currentLabel ?? phase.id) : "",
+						),
+					);
+					workflow.append(phaseNode);
+				});
+				const progressIndex =
+					input.status === "succeeded" ? input.phases.length - 1 : currentPhaseIndex;
+				const progress = progressIndex < 0 ? 0 : (progressIndex / (input.phases.length - 1)) * 88.2;
+				document.getElementById(input.progressId).style.width = `${progress}%`;
+
+				const mobile = document.getElementById(input.mobileId);
+				mobile.replaceChildren();
+				input.phases.forEach((phase, index) => {
+					const planIndex = plan.indexOf(phase.id);
+					const skipped = input.plan !== null && planIndex === -1;
+					const passed =
+						!skipped &&
+						(input.status === "succeeded" ||
+							(currentPlanIndex >= 0 && planIndex < currentPlanIndex));
+					const current =
+						!skipped && input.status !== "succeeded" && phase.id === input.currentPhase;
+					mobile.append(
+						element(
+							"span",
+							`mobile-step${passed ? " passed" : ""}${current ? " current" : ""}${skipped ? " skipped" : ""}`,
+							`${phase.label}${index < input.phases.length - 1 ? " →" : ""}`,
+						),
+					);
+				});
+			}
+
+			function renderMachines(issue) {
+				const issueMachine = payload.machines.issue;
+				const issueMeta = issue ? issueMachine.states[issue.state] : issueMachine.states.unmanaged;
+				renderPhaseRow({
+					workflowId: "issue-workflow",
+					progressId: "issue-workflow-progress",
+					mobileId: "issue-mobile-flow",
+					phases: issueMachine.phases,
+					plan: null,
+					currentPhase: issueMeta.phase,
+					currentLabel: issue?.state ?? "unmanaged",
+					status: "running",
+					tone: issueMeta.tone,
+				});
+				const issueBadge = document.getElementById("issue-machine-badge");
+				issueBadge.className = `machine-badge ${issueMeta.tone}`;
+				issueBadge.textContent = stateLabel(issue?.state ?? "unmanaged");
+
+				const detours = document.getElementById("issue-detours");
+				detours.replaceChildren(element("span", "detour-label", "Side routes"));
+				for (const [state, meta] of Object.entries(issueMachine.states)) {
+					if (!meta.detour) continue;
+					detours.append(
+						element("span", `detour${issue?.state === state ? " current" : ""}`, stateLabel(state)),
+					);
+				}
+
+				const run = issue?.run ?? null;
+				const runMachine = payload.machines.run;
+				renderPhaseRow({
+					workflowId: "run-workflow",
+					progressId: "run-workflow-progress",
+					mobileId: "run-mobile-flow",
+					phases: runMachine.phases,
+					plan: run?.plan ?? null,
+					currentPhase: run?.phase ?? null,
+					currentLabel: run?.phase ?? "",
+					status: run?.status ?? "idle",
+					tone: run?.status ?? "",
+				});
+				const runBadge = document.getElementById("run-machine-badge");
+				runBadge.className = `machine-badge ${run?.status ?? ""}`;
+				runBadge.textContent = run ? `${run.mode} · ${run.status}` : "idle";
+				document.getElementById("run-machine-description").textContent = run
+					? `Attempt ${run.attempt} · ${run.plan.length} of ${runMachine.phases.length} phases · ${durationSince(run.startedAt, run.completedAt ?? Date.now())}`
+					: "No run recorded for this issue.";
+			}
+
+			function renderIssues() {
+				const target = document.getElementById("issues");
+				target.replaceChildren();
+				if (!payload.issues.length) {
+					target.append(
+						element("div", "empty", "No open bot-managed issues. The workbench is clear."),
+					);
+					return;
+				}
+				for (const issue of payload.issues) {
+					const button = element("button", `issue ${routeFor(issue.state)}`);
+					button.type = "button";
+					button.setAttribute("aria-pressed", String(issue.number === selectedNumber));
+					button.append(element("span", "status-dot"));
+					const body = element("span");
+					const title = element("span", "issue-title");
+					title.append(
+						element("span", "issue-number", `#${issue.number} `),
+						document.createTextNode(issue.title),
+					);
+					const foot = element("span", "issue-foot");
+					foot.append(
+						element("span", "state-label", stateLabel(issue.state)),
+						element("span", "", relativeTime(issue.updatedAt)),
+					);
+					body.append(title, foot);
+					button.append(body);
+					button.addEventListener("click", () => {
+						selectedNumber = issue.number;
+						window.history.replaceState(null, "", `?issue=${issue.number}`);
+						render();
+						loadTrace(issue.number, { merge: "replace" });
+					});
+					target.append(button);
+				}
+			}
+
+			function transitionActivity(entry) {
+				return {
+					t: entry.t,
+					tone:
+						entry.to === "failed" || entry.to === "blocked"
+							? "failed"
+							: entry.to === "done"
+								? "success"
+								: "active",
+					title: entry.to ? `Moved to ${stateLabel(entry.to)}` : entry.event.replaceAll("_", " "),
+					detail: `${stateLabel(entry.from ?? "unmanaged")} → ${stateLabel(entry.to ?? "unmanaged")} · ${entry.event.replaceAll("_", " ")}`,
+				};
+			}
+
+			function progressActivity(entry) {
+				return {
+					t: entry.t,
+					tone: entry.kind.endsWith("failed")
+						? "failed"
+						: entry.kind.endsWith("passed") ||
+							  entry.kind === "candidate_published" ||
+							  entry.kind === "workspace_ready"
+							? "success"
+							: "active",
+					title: entry.title,
+					detail: entry.detail,
+				};
+			}
+
+			function renderWorkPlan(issue, panel) {
+				if (!issue.workPlan) return;
+				const section = element("section", "work-plan");
+				section.setAttribute("aria-labelledby", "work-plan-title");
+				const head = element("div", "work-plan-head");
+				const title = element("span", "", "Work plan");
+				title.id = "work-plan-title";
+				head.append(
+					title,
+					element(
+						"span",
+						"panel-meta",
+						relativeTime(new Date(issue.workPlan.updatedAt).toISOString()),
+					),
+				);
+				section.append(head, element("p", "work-plan-summary", issue.workPlan.summary));
+				const steps = element("div", "work-plan-steps");
+				const marks = {
+					pending: "○",
+					in_progress: "→",
+					completed: "✓",
+					blocked: "!",
+					skipped: "–",
+				};
+				for (const step of issue.workPlan.steps) {
+					const row = element("div", `work-plan-step ${step.status}`);
+					row.append(
+						element("span", "work-plan-mark", marks[step.status] ?? "○"),
+						element("span", "work-plan-title", step.title),
+						element("span", "work-plan-status", stateLabel(step.status)),
+					);
+					steps.append(row);
+				}
+				section.append(steps);
+				panel.append(section);
+			}
+
+			function tracePreview(event) {
+				const text = event.output ?? event.input ?? "";
+				return text.replaceAll(/\s+/g, " ").trim().slice(0, 220);
+			}
+
+			function appendTraceBlock(body, label, value) {
+				if (!value) return;
+				const block = element("div");
+				block.append(element("span", "trace-block-label", label));
+				const pre = element("pre", "", value);
+				block.append(pre);
+				body.append(block);
+			}
+
+			function renderTraceEvent(event) {
+				const row = element("details", `trace-event ${event.tone}`);
+				row.open = openTraceEvents.has(event.id);
+				row.addEventListener("toggle", () => {
+					if (row.open) openTraceEvents.add(event.id);
+					else openTraceEvents.delete(event.id);
+				});
+				const summary = element("summary", "trace-summary");
+				summary.append(
+					element(
+						"span",
+						"trace-time",
+						new Date(event.at).toLocaleTimeString([], {
+							hour: "2-digit",
+							minute: "2-digit",
+							second: "2-digit",
+						}),
+					),
+				);
+				const copy = element("span");
+				const title = element("span", "trace-title");
+				title.append(
+					element("span", "", event.title),
+					element("span", "trace-kind", stateLabel(event.kind)),
+				);
+				copy.append(title);
+				if (event.detail) copy.append(element("span", "trace-detail", event.detail));
+				const preview = tracePreview(event);
+				if (preview) copy.append(element("span", "trace-preview", preview));
+				summary.append(copy, element("span", "trace-duration", shortDuration(event.durationMs)));
+				row.append(summary);
+				if (event.input || event.output) {
+					const body = element("div", "trace-body");
+					appendTraceBlock(body, "Input", event.input);
+					appendTraceBlock(body, "Output", event.output);
+					row.append(body);
+				}
+				return row;
+			}
+
+			function renderTrace(issue, panel) {
+				const section = element("section", "trace-section");
+				section.setAttribute("aria-labelledby", "run-trace-title");
+				const head = element("div", "trace-head");
+				const title = element("span", "", "Run trace — turn by turn");
+				title.id = "run-trace-title";
+				head.append(title, element("span", "panel-meta", "model turns · tool calls · outputs"));
+				section.append(head);
+
+				if (traceState.issueNumber !== issue.number || traceState.loading) {
+					section.append(element("div", "trace-empty", "Loading the full run trace…"));
+					panel.append(section);
+					return;
+				}
+				if (traceState.error) {
+					section.append(element("div", "trace-empty", traceState.error));
+					panel.append(section);
+					return;
+				}
+				const page = traceState.page;
+				if (!page?.selectedRunId) {
+					section.append(
+						element("div", "trace-empty", "No turn-by-turn trace has been recorded yet."),
+					);
+					panel.append(section);
+					return;
+				}
+
+				const controls = element("div", "trace-controls");
+				const select = element("select", "trace-select");
+				select.setAttribute("aria-label", "Choose a run trace");
+				for (const run of page.runs) {
+					const option = element(
+						"option",
+						"",
+						`${run.mode} · ${relativeTime(run.startedAt)} · ${run.eventCount} events`,
+					);
+					option.value = run.runId;
+					option.selected = run.runId === page.selectedRunId;
+					select.append(option);
+				}
+				select.addEventListener("change", () => {
+					loadTrace(issue.number, { runId: select.value, merge: "replace" });
+				});
+				controls.append(select);
+				if (page.nextBefore) {
+					const older = element("button", "trace-load", "Load earlier");
+					older.type = "button";
+					older.addEventListener("click", () => {
+						loadTrace(issue.number, {
+							runId: page.selectedRunId,
+							before: page.nextBefore,
+							merge: "older",
+						});
+					});
+					controls.append(older);
+				}
+				section.append(controls);
+				const list = element("div", "trace-list");
+				list.setAttribute("role", "region");
+				list.setAttribute("aria-label", "Turn-by-turn run trace");
+				list.tabIndex = 0;
+				if (!page.events.length) {
+					list.append(element("div", "trace-empty", "This run has no recorded trace events."));
+				} else {
+					for (const event of page.events) list.append(renderTraceEvent(event));
+				}
+				section.append(list);
+				panel.append(section);
+			}
+
+			function renderDetail(issue) {
+				const panel = document.getElementById("detail-panel");
+				panel.replaceChildren();
+				if (!issue) {
+					panel.append(
+						element("div", "empty", "Select an issue to inspect its route and public activity."),
+					);
+					return;
+				}
+				const head = element("div", "panel-head");
+				const headLeft = element("div", "detail-head-left");
+				headLeft.append(
+					element(
+						"div",
+						"detail-kicker",
+						`#${issue.number} · ${issue.kind} · ${stateLabel(issue.state)}`,
+					),
+				);
+				const heading = element("h2", "detail-title", issue.title);
+				heading.id = "selected-issue-title";
+				headLeft.append(heading);
+				const link = element("a", "detail-link", "Open issue ↗");
+				link.href = issue.url;
+				link.target = "_blank";
+				link.rel = "noreferrer";
+				head.append(headLeft, link);
+				panel.append(head);
+
+				const facts = element("div", "facts");
+				const issuePhase = payload.machines.issue.states[issue.state].phase;
+				const issuePhaseIndex = payload.machines.issue.phases.findIndex(
+					(phase) => phase.id === issuePhase,
+				);
+				const previewPhaseIndex = payload.machines.issue.phases.findIndex(
+					(phase) => phase.id === "preview",
+				);
+				const candidate = issue.prNumber
+					? `PR #${issue.prNumber}`
+					: issuePhaseIndex >= previewPhaseIndex
+						? `bot/fix-${issue.number}`
+						: "not published";
+				for (const [label, value] of [
+					["Issue state", stateLabel(issue.state)],
+					["Run", issue.run ? `${issue.run.mode} · ${issue.run.status}` : "not recorded"],
+					["Run phase", issue.run ? stateLabel(issue.run.phase) : "—"],
+					["Candidate", candidate],
+				]) {
+					const fact = element("div", "fact");
+					fact.append(element("span", "fact-label", label), element("span", "fact-value", value));
+					facts.append(fact);
+				}
+				panel.append(facts);
+				renderWorkPlan(issue, panel);
+				renderTrace(issue, panel);
+
+				const logHead = element("div", "log-head");
+				logHead.append(
+					element("span", "", "Live activity"),
+					element("span", "log-safe", "◇ public-safe events"),
+				);
+				panel.append(logHead);
+				const log = element("div", "log");
+				const activity = [
+					...issue.transitions.map(transitionActivity),
+					...issue.progress.map(progressActivity),
+				]
+					.toSorted((left, right) => left.t - right.t)
+					.slice(-10);
+				if (!activity.length) {
+					log.append(
+						element("div", "empty", "No public activity has been recorded for this issue yet."),
+					);
+				} else {
+					for (const entry of activity) {
+						const row = element("div", `log-row ${entry.tone}`);
+						row.append(
+							element(
+								"span",
+								"log-time",
+								new Date(entry.t).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+							),
+							element("span", "log-mark"),
+						);
+						const message = element("span", "log-message");
+						message.append(element("strong", "", entry.title));
+						if (entry.detail) message.append(document.createTextNode(entry.detail));
+						row.append(message);
+						log.append(row);
+					}
+				}
+				panel.append(log);
+			}
+
+			function mergeTraceEvents(...groups) {
+				const events = new Map();
+				for (const group of groups) {
+					for (const event of group ?? []) events.set(event.id, event);
+				}
+				return [...events.values()].toSorted((left, right) => left.id - right.id);
+			}
+
+			function sameTraceEvents(left, right) {
+				return (
+					left.length === right.length &&
+					left.every((event, index) => event.id === right[index]?.id)
+				);
+			}
+
+			async function loadTrace(issueNumber, options = {}) {
+				const request = ++traceRequest;
+				tracePending = true;
+				const merge = options.merge ?? "replace";
+				const previous = traceState.issueNumber === issueNumber ? traceState.page : null;
+				if (merge === "replace") {
+					if (
+						traceState.issueNumber !== issueNumber ||
+						(options.runId && options.runId !== previous?.selectedRunId)
+					) {
+						openTraceEvents.clear();
+					}
+					traceState = { issueNumber, loading: true, error: null, page: null };
+					render();
+				}
+				const params = new URLSearchParams({ limit: "100" });
+				const runId = options.runId ?? (merge === "refresh" ? previous?.selectedRunId : null);
+				if (runId) params.set("run", runId);
+				if (options.before) params.set("before", String(options.before));
+				try {
+					const response = await fetch(`/api/issues/${issueNumber}/trace?${params}`, {
+						headers: { accept: "application/json" },
+						cache: "no-store",
+					});
+					if (!response.ok) throw new Error(`trace request failed: ${response.status}`);
+					const result = await response.json();
+					if (request !== traceRequest || selectedNumber !== issueNumber) return;
+					let page = result;
+					if (previous && previous.selectedRunId === result.selectedRunId) {
+						page = {
+							...result,
+							events:
+								merge === "older"
+									? mergeTraceEvents(result.events, previous.events)
+									: merge === "refresh"
+										? mergeTraceEvents(previous.events, result.events)
+										: result.events,
+							nextBefore: merge === "refresh" ? previous.nextBefore : result.nextBefore,
+						};
+					}
+					if (merge === "refresh" && previous && sameTraceEvents(previous.events, page.events)) {
+						return;
+					}
+					traceState = { issueNumber, loading: false, error: null, page };
+				} catch {
+					if (request !== traceRequest || selectedNumber !== issueNumber) return;
+					traceState = {
+						issueNumber,
+						loading: false,
+						error: "The run trace is temporarily unavailable.",
+						page: previous,
+					};
+				} finally {
+					if (request === traceRequest) tracePending = false;
+				}
+				render();
+			}
+
+			function refreshTrace() {
+				if (!selectedNumber || traceState.loading || tracePending) return;
+				loadTrace(selectedNumber, { merge: traceState.page ? "refresh" : "replace" });
+			}
+
+			function render() {
+				const selected =
+					payload?.issues.find((issue) => issue.number === selectedNumber) ??
+					payload?.issues[0] ??
+					null;
+				if (selected && selectedNumber === null) selectedNumber = selected.number;
+				renderCounts();
+				renderMachines(selected);
+				renderIssues();
+				renderDetail(selected);
+			}
+
+			async function load() {
+				try {
+					const response = await fetch("/api/dashboard", {
+						headers: { accept: "application/json" },
+					});
+					if (!response.ok) throw new Error(`dashboard request failed: ${response.status}`);
+					payload = await response.json();
+					document.getElementById("repository-link").href = payload.repositoryUrl;
+					document.getElementById("updated-at").textContent = relativeTime(payload.updatedAt);
+					document.getElementById("system-status").textContent = "Live state";
+					render();
+					const selected =
+						payload.issues.find((issue) => issue.number === selectedNumber) ?? payload.issues[0];
+					if (selected) {
+						loadTrace(selected.number, {
+							merge:
+								traceState.issueNumber === selected.number && traceState.page
+									? "refresh"
+									: "replace",
+						});
+					}
+				} catch {
+					document.getElementById("system-status").textContent = "Data unavailable";
+					document.getElementById("counts").replaceChildren();
+					document.getElementById("issues").innerHTML =
+						'<div class="error"><strong>Could not load current work</strong>The bot itself may still be operating normally. Try this page again shortly.</div>';
+				}
+			}
+
+			load();
+			setInterval(load, 20_000);
+			setInterval(refreshTrace, 5_000);
+		</script>
+	</body>
+</html>

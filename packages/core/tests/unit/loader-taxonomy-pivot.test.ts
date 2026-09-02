@@ -1,17 +1,13 @@
 /**
  * Pivot-driven taxonomy listing (#1834).
  *
- * A taxonomy-filtered listing seeks the matching entries on the denormalized
- * `content_taxonomies` pivot (migration 051) instead of scanning the whole
- * collection. Two invariants:
+ * A taxonomy-filtered listing seeks group assignments on
+ * `content_taxonomies`, then resolves locale-specific content rows. Two
+ * invariants:
  *
- * 1. **Parity** — when the pivot agrees with `ec_*` (the steady state the
- *    backfill + write-path re-stamp guarantee), the seek returns the same rows
- *    the old EXISTS shape did.
- * 2. **Correctness under non-atomic writes** — when the pivot disagrees with
- *    `ec_*` (the transient window on D1, which has no transactions), the joined
- *    `ec_*` row decides membership. A stale pivot can under-fill a page; it can
- *    never leak a deleted or wrong-status/locale row.
+ * 1. **Parity** — the seek returns the same rows as the correlated EXISTS shape.
+ * 2. **Correctness** — locale, status, deletion, and dates come from `ec_*`;
+ *    legacy per-row denormalized pivot values are ignored.
  */
 
 import type { Kysely } from "kysely";
@@ -20,7 +16,11 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { buildTaxonomyPivotQuery, emdashLoader } from "../../src/loader.js";
+import {
+	buildTaxonomyPivotQuery,
+	emdashLoader,
+	resetTaxonomyNamesCache,
+} from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import {
 	describeEachDialect,
@@ -40,6 +40,12 @@ describeEachDialect("Loader taxonomy pivot-drive", (dialectName: DialectName) =>
 	beforeEach(async () => {
 		ctx = await setupForDialectWithCollections(dialectName);
 		db = ctx.db;
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["post"]) })
+			.where("name", "in", ["category", "tag"])
+			.execute();
+		resetTaxonomyNamesCache();
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- schema vs Database type
 		content = new ContentRepository(db as any);
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any -- schema vs Database type
@@ -338,7 +344,7 @@ describeEachDialect("Loader taxonomy pivot-drive", (dialectName: DialectName) =>
 		expect(titles(await load({ category: "news" }))).toEqual(["Toggle"]);
 	});
 
-	it("schedule re-stamps status+scheduled_at onto the pivot", async () => {
+	it("schedule updates taxonomy-filtered status from the content row", async () => {
 		const news = await term("category", "news");
 		const post = await createPost("Later", { status: "draft" });
 		await tax.attachToEntry("post", post.id, news);
@@ -346,13 +352,8 @@ describeEachDialect("Loader taxonomy pivot-drive", (dialectName: DialectName) =>
 		const future = new Date(Date.now() + 86_400_000).toISOString();
 		await content.schedule("post", post.id, future);
 
-		const pivot = await db
-			.selectFrom("content_taxonomies")
-			.select(["status", "scheduled_at"])
-			.where("entry_id", "=", post.id)
-			.executeTakeFirstOrThrow();
-		expect(pivot.status).toBe("scheduled");
-		expect(pivot.scheduled_at).toBe(future);
+		expect(titles(await load({ category: "news" }, { status: "published" }))).toEqual([]);
+		expect(titles(await load({ category: "news" }, { status: "scheduled" }))).toEqual(["Later"]);
 	});
 
 	// --- Pagination ---------------------------------------------------------

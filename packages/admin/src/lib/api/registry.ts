@@ -7,11 +7,10 @@
  *     via `@emdash-cms/registry-client`'s `DiscoveryClient`. The
  *     aggregator is a public, CORS-enabled atproto AppView; no server
  *     proxy is needed.
- *   - **Install**: POST to the EmDash server (which holds the sandbox,
- *     R2, and `_plugin_state` table). The server re-resolves the same
- *     `(handle, slug)` against the aggregator, re-verifies the bundle,
- *     and writes the install. The browser is the consent UI; the server
- *     is the install actor.
+ *   - **Verify / install**: POST to the EmDash server. The server reads
+ *     signed records directly from the publisher PDS, verifies the bundle
+ *     and provenance, returns consent evidence, then repeats those checks
+ *     against acknowledged CIDs when installing.
  *
  * The discovery client is constructed lazily so we only pull
  * `@atcute/client` into the admin bundle when the registry path is
@@ -20,7 +19,9 @@
  */
 
 import type { Did, Handle } from "@atcute/lexicons";
+import type { DeclaredAccess } from "@emdash-cms/plugin-types";
 import type {
+	ListingStatusResult,
 	ValidatedListReleases,
 	ValidatedPackageView,
 	ValidatedReleaseView,
@@ -28,6 +29,11 @@ import type {
 } from "@emdash-cms/registry-client/discovery";
 import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import {
+	registryLabelerPolicy,
+	registryLabelerPolicyKey,
+	type RegistryLabelerPolicy,
+} from "@emdash-cms/registry-client/listing-policy";
 import { i18n } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
@@ -38,6 +44,7 @@ import {
 	throwResponseError,
 	type AdminManifest,
 } from "./client.js";
+import { PluginMcpConsentRequiredError, type PluginMcpConsentTool } from "./marketplace.js";
 
 export type { Did, Handle };
 export type { HostEnv };
@@ -70,6 +77,7 @@ export interface RegistryClientConfig {
 export type RegistryPackageView = ValidatedPackageView;
 export type RegistryReleaseView = ValidatedReleaseView;
 export type RegistrySearchResult = ValidatedSearchPackages;
+export type RegistryPackageStatus = ListingStatusResult<RegistryPackageView>;
 
 export interface RegistrySearchOpts {
 	q?: string;
@@ -82,6 +90,9 @@ export interface RegistryInstallRequest {
 	slug: string;
 	version?: string;
 	acknowledgedDeclaredAccess?: unknown;
+	acknowledgedMcpTools?: PluginMcpConsentTool[];
+	acknowledgedProfileCid?: string;
+	acknowledgedReleaseCid?: string;
 }
 
 export interface RegistryInstallResult {
@@ -90,6 +101,20 @@ export interface RegistryInstallResult {
 	slug: string;
 	version: string;
 	capabilities: string[];
+	declaredAccess: DeclaredAccess;
+	mcpTools: PluginMcpConsentTool[];
+	verification: RegistryRecordVerificationSummary;
+}
+
+export interface RegistryRecordVerificationSummary {
+	profileCid: string;
+	releaseCid: string;
+	provenance: "verified" | "absent-optional";
+	policy: {
+		requireProvenance: boolean;
+		confirmation: "escalation-only" | "always";
+		approvers: string[];
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -100,6 +125,8 @@ interface WrappedDiscoveryClient {
 	searchPackages: (opts: RegistrySearchOpts) => Promise<RegistrySearchResult>;
 	resolvePackage: (handle: string, slug: string) => Promise<RegistryPackageView>;
 	getPackage: (did: string, slug: string) => Promise<RegistryPackageView>;
+	resolvePackageStatus: (handle: string, slug: string) => Promise<RegistryPackageStatus>;
+	getPackageStatus: (did: string, slug: string) => Promise<RegistryPackageStatus>;
 	getLatestRelease: (did: string, slug: string) => Promise<RegistryReleaseView>;
 	listReleases: (
 		did: string,
@@ -109,15 +136,28 @@ interface WrappedDiscoveryClient {
 }
 
 let cachedDiscovery: {
-	config: RegistryClientConfig;
+	aggregatorUrl: string;
+	policyKey: string;
 	client: WrappedDiscoveryClient;
 } | null = null;
 
+export function effectiveRegistryLabelerPolicy(
+	config: RegistryClientConfig,
+): RegistryLabelerPolicy {
+	return registryLabelerPolicy(config.acceptLabelers);
+}
+
+export function registryQueryPolicyKey(config: RegistryClientConfig): string {
+	return registryLabelerPolicyKey(effectiveRegistryLabelerPolicy(config));
+}
+
 async function getDiscoveryClient(config: RegistryClientConfig): Promise<WrappedDiscoveryClient> {
+	const labelerPolicy = effectiveRegistryLabelerPolicy(config);
+	const policyKey = registryLabelerPolicyKey(labelerPolicy);
 	if (
 		cachedDiscovery &&
-		cachedDiscovery.config.aggregatorUrl === config.aggregatorUrl &&
-		cachedDiscovery.config.acceptLabelers === config.acceptLabelers
+		cachedDiscovery.aggregatorUrl === config.aggregatorUrl &&
+		cachedDiscovery.policyKey === policyKey
 	) {
 		return cachedDiscovery.client;
 	}
@@ -127,6 +167,7 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 	const discovery = new DiscoveryClient({
 		aggregatorUrl: config.aggregatorUrl,
 		acceptLabelers: config.acceptLabelers,
+		labelerPolicy,
 	});
 
 	const wrapped: WrappedDiscoveryClient = {
@@ -151,6 +192,20 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 				slug,
 			});
 		},
+		async resolvePackageStatus(handle: string, slug: string) {
+			return discovery.resolvePackageStatus({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did/handle shape validated by aggregator
+				handle: handle as Handle,
+				slug,
+			});
+		},
+		async getPackageStatus(did: string, slug: string) {
+			return discovery.getPackageStatus({
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
+				did: did as Did,
+				slug,
+			});
+		},
 		async getLatestRelease(did: string, slug: string) {
 			return discovery.getLatestRelease({
 				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- did shape validated by aggregator
@@ -169,7 +224,7 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 		},
 	};
 
-	cachedDiscovery = { config, client: wrapped };
+	cachedDiscovery = { aggregatorUrl: config.aggregatorUrl, policyKey, client: wrapped };
 	return wrapped;
 }
 
@@ -383,6 +438,24 @@ export async function getRegistryPackage(
 	return client.getPackage(did, slug);
 }
 
+export async function resolveRegistryPackageStatus(
+	config: RegistryClientConfig,
+	handle: string,
+	slug: string,
+): Promise<RegistryPackageStatus> {
+	const client = await getDiscoveryClient(config);
+	return client.resolvePackageStatus(handle, slug);
+}
+
+export async function getRegistryPackageStatus(
+	config: RegistryClientConfig,
+	did: string,
+	slug: string,
+): Promise<RegistryPackageStatus> {
+	const client = await getDiscoveryClient(config);
+	return client.getPackageStatus(did, slug);
+}
+
 export async function getLatestRegistryRelease(
 	config: RegistryClientConfig,
 	did: string,
@@ -432,6 +505,9 @@ export function hostEnvFromManifest(manifest: AdminManifest | undefined): HostEn
  *   - `{ status: "missing" }` — no handle claimed at all (no
  *     `alsoKnownAs`), or the DID document couldn't be fetched (network
  *     error, unsupported DID method).
+ *
+ * This result is an advisory display signal. Install and update trust the
+ * publisher DID and signed repository proofs rather than the mutable handle.
  */
 let actorResolver: import("@atcute/identity-resolver").LocalActorResolver | null = null;
 async function getActorResolver(): Promise<import("@atcute/identity-resolver").LocalActorResolver> {
@@ -468,10 +544,8 @@ export type DidHandleResolution =
 	| { status: "missing" };
 
 /**
- * localStorage-backed cache for DID→handle resolutions. Handles are
- * stable for hours-to-days in practice, but bound the cache so a
- * compromised handle eventually flips back to "invalid" without a
- * forced refresh. 24h matches the typical atproto handle TTL.
+ * localStorage-backed cache for conclusive DID→handle resolutions. Bound the
+ * cache to 24 hours so the advisory display and mismatch signal are refreshed.
  *
  * Failures (network errors, unsupported DID method) are *not* cached --
  * those should retry on the next render.
@@ -567,6 +641,8 @@ export type ArtifactKind = "icon" | "banner" | "screenshot";
 export interface ArtifactCoords {
 	did: string;
 	slug: string;
+	/** Exact approved release revision whose descriptor the proxy may serve. */
+	cid: string;
 	version?: string;
 	kind: ArtifactKind;
 	/** Required for `kind: "screenshot"`; ignored otherwise. */
@@ -586,6 +662,7 @@ export function artifactProxyUrl(coords: ArtifactCoords): string {
 	const params = new URLSearchParams();
 	params.set("did", coords.did);
 	params.set("slug", coords.slug);
+	params.set("cid", coords.cid);
 	params.set("kind", coords.kind);
 	if (coords.version) params.set("version", coords.version);
 	if (coords.kind === "screenshot" && coords.index !== undefined) {
@@ -621,8 +698,8 @@ export interface MediaArtifacts {
 
 /**
  * Narrow one entry of a release's `artifacts` map to the fields we render.
- * Returns `null` when the value isn't an object carrying a usable `url`
- * (presence gate), keeping only the dimensions for layout.
+ * Returns `null` when the value does not carry a blob or URL source, keeping
+ * only the dimensions for layout.
  *
  * Records are lexicon-validated at the DiscoveryClient boundary, but
  * `artifacts` is an aggregator pass-through, so each entry still needs
@@ -632,7 +709,9 @@ function asMediaArtifact(value: unknown): MediaArtifact | null {
 	if (!value || typeof value !== "object") return null;
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- narrowed to non-null object above; field shapes checked below
 	const v = value as Record<string, unknown>;
-	if (typeof v.url !== "string" || v.url.length === 0) return null;
+	const hasUrl = typeof v.url === "string" && v.url.length > 0;
+	const hasBlob = Boolean(v.blob && typeof v.blob === "object");
+	if (!hasUrl && !hasBlob) return null;
 	const artifact: MediaArtifact = {};
 	if (typeof v.width === "number") artifact.width = v.width;
 	if (typeof v.height === "number") artifact.height = v.height;
@@ -642,7 +721,7 @@ function asMediaArtifact(value: unknown): MediaArtifact | null {
 /**
  * Pull icon, banner, and the screenshot gallery out of a release's `artifacts`
  * map, keeping presence and dimensions only. The lexicon types `screenshots`
- * as an array of artifacts; entries without a usable `url` are dropped, and
+ * as an array of artifacts; entries without a usable source are dropped, and
  * gallery order is preserved so screenshot indices line up with the proxy's.
  */
 export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {
@@ -670,13 +749,24 @@ export function extractMediaArtifacts(artifacts: unknown): MediaArtifacts {
 // ---------------------------------------------------------------------------
 
 const INSTALL_ENDPOINT = `${API_BASE}/admin/plugins/registry/install`;
+const VERIFY_ENDPOINT = `${API_BASE}/admin/plugins/registry/verify`;
+
+export async function verifyRegistryPlugin(
+	body: Pick<RegistryInstallRequest, "did" | "slug" | "version">,
+): Promise<RegistryInstallResult> {
+	const response = await apiFetch(VERIFY_ENDPOINT, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(body),
+	});
+	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to verify plugin`));
+}
 
 /**
  * Install a plugin from the registry.
  *
- * Posts to the EmDash server, which re-resolves the same `(handle,
- * slug)` against the aggregator, re-verifies the bundle's checksum
- * against the signed release record, and writes the install. Surfaces
+ * Posts to the EmDash server, which re-fetches the acknowledged signed
+ * records, bundle, and provenance before writing the install. Surfaces
  * structured error codes (`RELEASE_YANKED`, `CHECKSUM_MISMATCH`,
  * `DECLARED_ACCESS_DRIFT`, etc.) that callers map to localized
  * messages.
@@ -689,6 +779,14 @@ export async function installRegistryPlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(body),
 	});
+	if (!response.ok) {
+		const errorBody: unknown = await response
+			.clone()
+			.json()
+			.catch(() => null);
+		const mcpConsent = parseMcpConsent(errorBody);
+		if (mcpConsent) throw mcpConsent;
+	}
 	return parseApiResponse<RegistryInstallResult>(response, i18n._(msg`Failed to install plugin`));
 }
 
@@ -700,6 +798,9 @@ export interface RegistryUpdateOpts {
 	version?: string;
 	confirmCapabilityChanges?: boolean;
 	confirmRouteVisibilityChanges?: boolean;
+	confirmMcpTools?: boolean;
+	acknowledgedProfileCid?: string;
+	acknowledgedReleaseCid?: string;
 }
 
 export interface RegistryUninstallOpts {
@@ -716,17 +817,30 @@ export class RegistryUpdateEscalationError extends Error {
 	readonly code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION";
 	readonly capabilityChanges: { added: string[]; removed: string[] };
 	readonly routeVisibilityChanges?: { newlyPublic: string[] };
+	readonly verification?: RegistryRecordVerificationSummary;
 	constructor(
 		code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION",
 		message: string,
 		capabilityChanges: { added: string[]; removed: string[] },
 		routeVisibilityChanges?: { newlyPublic: string[] },
+		verification?: RegistryRecordVerificationSummary,
 	) {
 		super(message);
 		this.name = "RegistryUpdateEscalationError";
 		this.code = code;
 		this.capabilityChanges = capabilityChanges;
 		this.routeVisibilityChanges = routeVisibilityChanges;
+		this.verification = verification;
+	}
+}
+
+export class RegistryMcpConsentRequiredError extends PluginMcpConsentRequiredError {
+	constructor(
+		tools: PluginMcpConsentTool[],
+		readonly verification?: RegistryRecordVerificationSummary,
+	) {
+		super(tools);
+		this.name = "RegistryMcpConsentRequiredError";
 	}
 }
 
@@ -760,7 +874,26 @@ export async function updateRegistryPlugin(
 		.catch(() => undefined);
 	const escalation = parseEscalation(body);
 	if (escalation) throw escalation;
+	const mcpConsent = parseMcpConsent(body);
+	if (mcpConsent) throw mcpConsent;
 	await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+}
+
+function parseMcpConsent(body: unknown): RegistryMcpConsentRequiredError | null {
+	if (!body || typeof body !== "object" || !("error" in body)) return null;
+	const error = body.error;
+	if (!error || typeof error !== "object" || !("code" in error)) return null;
+	if (error.code !== "MCP_TOOL_CONSENT_REQUIRED") return null;
+	const details =
+		"details" in error && error.details && typeof error.details === "object"
+			? (error.details as { mcpTools?: PluginMcpConsentTool[] })
+			: {};
+	return details.mcpTools && details.mcpTools.length > 0
+		? new RegistryMcpConsentRequiredError(
+				details.mcpTools,
+				normaliseRegistryVerification("verification" in details ? details.verification : undefined),
+			)
+		: null;
 }
 
 function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
@@ -777,6 +910,9 @@ function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
 	const routeVisibilityChanges = normaliseRouteVisibilityChanges(
 		"routeVisibilityChanges" in details ? details.routeVisibilityChanges : undefined,
 	);
+	const verification = normaliseRegistryVerification(
+		"verification" in details ? details.verification : undefined,
+	);
 	const message =
 		"message" in error && typeof error.message === "string"
 			? error.message
@@ -786,7 +922,44 @@ function parseEscalation(body: unknown): RegistryUpdateEscalationError | null {
 		message,
 		capabilityChanges,
 		routeVisibilityChanges,
+		verification,
 	);
+}
+
+function normaliseRegistryVerification(
+	value: unknown,
+): RegistryRecordVerificationSummary | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const profileCid = Reflect.get(value, "profileCid");
+	const releaseCid = Reflect.get(value, "releaseCid");
+	const provenance = Reflect.get(value, "provenance");
+	const policy = Reflect.get(value, "policy");
+	if (
+		typeof profileCid !== "string" ||
+		typeof releaseCid !== "string" ||
+		(provenance !== "verified" && provenance !== "absent-optional") ||
+		!policy ||
+		typeof policy !== "object"
+	) {
+		return undefined;
+	}
+	const requireProvenance = Reflect.get(policy, "requireProvenance");
+	const confirmation = Reflect.get(policy, "confirmation");
+	const approvers = Reflect.get(policy, "approvers");
+	if (
+		typeof requireProvenance !== "boolean" ||
+		(confirmation !== "always" && confirmation !== "escalation-only") ||
+		!Array.isArray(approvers) ||
+		!approvers.every((approver) => typeof approver === "string")
+	) {
+		return undefined;
+	}
+	return {
+		profileCid,
+		releaseCid,
+		provenance,
+		policy: { requireProvenance, confirmation, approvers },
+	};
 }
 
 function normaliseCapabilityChanges(value: unknown): { added: string[]; removed: string[] } {

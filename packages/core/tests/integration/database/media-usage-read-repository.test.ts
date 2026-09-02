@@ -1,7 +1,8 @@
+import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
-import { InvalidCursorError } from "../../../src/database/repositories/types.js";
+import { encodeCursor, InvalidCursorError } from "../../../src/database/repositories/types.js";
 import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
@@ -185,6 +186,130 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 		});
 	});
 
+	it("quarantines legacy and replaced-collection sources after activation", async () => {
+		await ctx.db
+			.insertInto("_emdash_collections")
+			.values({ id: "collection-posts-old", slug: "posts", label: "Old posts" })
+			.execute();
+		await installCanonicalContentFixture(ctx, "posts", "old-only", "rev-old-only-columns");
+		await repo.replaceSource(
+			contentSource("old-only", "columns", {
+				sourceKey: buildContentMediaUsageSourceKey({
+					collectionId: "collection-posts-old",
+					collectionSlug: "posts",
+					contentId: "old-only",
+					sourceVariant: "columns",
+				}),
+				collectionId: "collection-posts-old",
+				identityVersion: 1,
+				sourceVersion: 1,
+				sourceUpdatedAt: "2026-08-12T00:00:00.000Z",
+			}),
+			[occurrence("hero", "media-shared")],
+		);
+		await ctx.db
+			.deleteFrom("_emdash_collections")
+			.where("id", "=", "collection-posts-old")
+			.execute();
+		await ctx.db
+			.insertInto("_emdash_collections")
+			.values({ id: "collection-posts", slug: "posts", label: "Posts" })
+			.execute();
+		await repo.replaceSource(contentSource("legacy-only", "columns"), [
+			occurrence("hero", "media-shared"),
+		]);
+		const legacyDeletedAt = "2026-01-01T00:00:00.000Z";
+		await repo.replaceSource(
+			contentSource("current", "columns", {
+				contentDeletedAt: legacyDeletedAt,
+			}),
+			[occurrence("legacy", "media-shared")],
+		);
+		await repo.replaceSource(
+			contentSource("current", "draft_overlay", {
+				contentDeletedAt: legacyDeletedAt,
+			}),
+			[],
+		);
+		await repo.replaceSource(
+			contentSource("unversioned", "columns", {
+				sourceKey: buildContentMediaUsageSourceKey({
+					collectionId: "collection-posts",
+					collectionSlug: "posts",
+					contentId: "unversioned",
+					sourceVariant: "columns",
+				}),
+				collectionId: "collection-posts",
+			}),
+			[occurrence("unversioned", "media-shared")],
+		);
+		await installCanonicalContentFixture(ctx, "posts", "current", "rev-current-columns");
+		await repo.replaceSource(
+			contentSource("current", "columns", {
+				sourceKey: buildContentMediaUsageSourceKey({
+					collectionId: "collection-posts",
+					collectionSlug: "posts",
+					contentId: "current",
+					sourceVariant: "columns",
+				}),
+				collectionId: "collection-posts",
+				contentStatus: "draft",
+				identityVersion: 1,
+				sourceVersion: 1,
+				sourceUpdatedAt: "2026-08-12T00:00:00.000Z",
+			}),
+			[occurrence("canonical", "media-shared")],
+		);
+
+		const legacyCounts = await repo.findActiveEntryCountsByMediaIds(["media-shared"]);
+		const legacyPage = await repo.findCurrentEntryUsagePageByMediaId("media-shared");
+
+		expect(legacyCounts.get("media-shared")).toBe(3);
+		expect(legacyPage.items.map(entryIdentity)).toEqual([
+			["posts", "current"],
+			["posts", "legacy-only"],
+			["posts", "old-only"],
+			["posts", "unversioned"],
+		]);
+		expect(legacyPage.items[0]?.contentDeletedAt).toBe(legacyDeletedAt);
+		expect(
+			legacyPage.items[0]?.sources.flatMap((source) =>
+				source.occurrences.map((item) => item.fieldSlug),
+			),
+		).toEqual(["legacy"]);
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_activation")
+			.set({ state: "active" })
+			.where("task_key", "=", "incremental_capture")
+			.execute();
+
+		const counts = await repo.findActiveEntryCountsByMediaIds(["media-shared"]);
+		const page = await repo.findCurrentEntryUsagePageByMediaId("media-shared");
+
+		expect(counts.get("media-shared")).toBe(1);
+		expect(page.items.map(entryIdentity)).toEqual([["posts", "current"]]);
+		expect(page.items[0]?.contentDeletedAt).toBeNull();
+		expect(
+			page.items[0]?.sources.flatMap((source) => source.occurrences.map((item) => item.fieldSlug)),
+		).toEqual(["canonical"]);
+	});
+
+	it("returns trashed entries in details while excluding them from active counts", async () => {
+		await registerCollection(ctx, "posts");
+		const deletedAt = "2026-01-01T00:00:00.000Z";
+		await repo.replaceSource(contentSource("trash", "columns", { contentDeletedAt: deletedAt }), [
+			occurrence("hero", "media-trash"),
+		]);
+
+		const counts = await repo.findActiveEntryCountsByMediaIds(["media-trash"]);
+		const page = await repo.findCurrentEntryUsagePageByMediaId("media-trash");
+
+		expect(counts.get("media-trash")).toBe(0);
+		expect(page.items.map(entryIdentity)).toEqual([["posts", "trash"]]);
+		expect(page.items[0]?.contentDeletedAt).toBe(deletedAt);
+	});
+
 	it("returns zero-filled counts across multiple D1-sized batches", async () => {
 		const mediaIds = Array.from({ length: SQL_BATCH_SIZE + 1 }, (_, index) => `media-${index}`);
 
@@ -217,9 +342,149 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 		});
 
 		expect(scopes).toEqual([
-			{ collectionSlug: "pages", status: null, schemaVersion: null },
-			{ collectionSlug: "posts", status: "complete", schemaVersion: 2 },
+			{
+				collectionSlug: "pages",
+				status: null,
+				schemaVersion: null,
+				reconciliationRequired: false,
+			},
+			{
+				collectionSlug: "posts",
+				status: "complete",
+				schemaVersion: 2,
+				reconciliationRequired: false,
+			},
 		]);
+	});
+
+	it("summarizes current collection indexing progress and terminal work", async () => {
+		await registerCollection(ctx, "pages");
+		await registerCollection(ctx, "posts");
+		await insertCollectionStatus(ctx, "pages", "complete", 0);
+		await insertCollectionStatus(ctx, "posts", "stale", 1);
+
+		const progress = () => repo.findCollectionProgress();
+		await expect(progress()).resolves.toBeNull();
+		await ctx.db
+			.updateTable("_emdash_media_usage_activation")
+			.set({ state: "active" })
+			.where("task_key", "=", "incremental_capture")
+			.execute();
+
+		await expect(progress()).resolves.toEqual({
+			status: "indexing",
+			readyCollections: 1,
+			totalCollections: 2,
+		});
+		await ctx.db
+			.insertInto("_emdash_media_usage_work")
+			.values({
+				collection_id: "collection-posts",
+				collection_slug: "posts",
+				content_id: "remaining-entry",
+				change_epoch: 1,
+				state: "pending",
+				next_attempt_at: "2026-08-16T00:00:00.000Z",
+			})
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "indexing",
+			readyCollections: 1,
+			totalCollections: 2,
+		});
+		await ctx.db
+			.updateTable("_emdash_media_usage_work")
+			.set({ state: "failed", last_error_code: "MEDIA_USAGE_PROCESSING_FAILED" })
+			.where("collection_id", "=", "collection-posts")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "needs_attention",
+			readyCollections: 1,
+			totalCollections: 2,
+		});
+
+		await ctx.db.deleteFrom("_emdash_media_usage_work").execute();
+		await ctx.db.deleteFrom("_emdash_media_usage_reconciliations").execute();
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ status: "complete", reconciliation_required: 0 })
+			.where("collection_id", "=", "collection-posts")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+		});
+
+		await ctx.db
+			.insertInto("_emdash_media_usage_reconciliations")
+			.values({
+				collection_id: "collection-posts",
+				collection_slug: "posts",
+				run_token: "obsolete-failed-run",
+				state: "failed",
+				next_attempt_at: "2026-08-16T00:00:00.000Z",
+				last_error_code: "MEDIA_USAGE_RECONCILIATION_FAILED",
+			})
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+		});
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: null })
+			.where("collection_id", "=", "collection-pages")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "needs_attention",
+			readyCollections: 1,
+			totalCollections: 2,
+		});
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "active" })
+			.where("collection_id", "=", "collection-pages")
+			.execute();
+		await ctx.db
+			.insertInto("_emdash_media_usage_collection_deletions")
+			.values({
+				collection_id: "collection-posts",
+				collection_slug: "posts",
+				force_delete: 0,
+				state: "pending",
+				next_attempt_at: "2026-08-16T00:00:00.000Z",
+			})
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "indexing",
+			readyCollections: 1,
+			totalCollections: 1,
+		});
+		await ctx.db
+			.updateTable("_emdash_media_usage_collection_deletions")
+			.set({ state: "failed" })
+			.where("collection_id", "=", "collection-posts")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "needs_attention",
+			readyCollections: 1,
+			totalCollections: 1,
+		});
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ schema_version: 0 })
+			.where("collection_id", "=", "collection-pages")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "needs_attention",
+			readyCollections: 0,
+			totalCollections: 1,
+		});
 	});
 
 	it("paginates complete entry groups with nested sources and occurrences", async () => {
@@ -287,6 +552,15 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 		).rejects.toBeInstanceOf(InvalidCursorError);
 	});
 
+	it.each([encodeCursor("", "entry-a"), encodeCursor("posts", "")])(
+		"rejects structurally empty entry-group cursor components",
+		async (cursor) => {
+			await expect(
+				repo.findCurrentEntryUsagePageByMediaId("media-shared", { cursor }),
+			).rejects.toBeInstanceOf(InvalidCursorError);
+		},
+	);
+
 	it("defaults non-finite entry-group limits", async () => {
 		await registerCollection(ctx, "posts");
 		await repo.replaceSource(contentSource("entry-a", "columns"), [
@@ -353,6 +627,52 @@ async function registerCollection(ctx: DialectTestContext, slug: string): Promis
 		.insertInto("_emdash_collections")
 		.values({ id: `collection-${slug}`, slug, label: slug, has_seo: 0 })
 		.execute();
+}
+
+async function insertCollectionStatus(
+	ctx: DialectTestContext,
+	slug: string,
+	status: string,
+	reconciliationRequired: number,
+): Promise<void> {
+	await ctx.db
+		.insertInto("_emdash_media_usage_index_status")
+		.values({
+			adapter_id: "content-media",
+			scope_type: "collection",
+			scope_key: slug,
+			status,
+			schema_version: 1,
+			collection_id: `collection-${slug}`,
+			reconciliation_required: reconciliationRequired,
+			capture_state: "active",
+		})
+		.execute();
+}
+
+async function installCanonicalContentFixture(
+	ctx: DialectTestContext,
+	collectionSlug: string,
+	contentId: string,
+	liveRevisionId: string,
+): Promise<void> {
+	const tableName = `ec_${collectionSlug}`;
+	await sql`
+		CREATE TABLE IF NOT EXISTS ${sql.ref(tableName)} (
+			id TEXT PRIMARY KEY,
+			version INTEGER NOT NULL,
+			updated_at TEXT NOT NULL,
+			live_revision_id TEXT,
+			draft_revision_id TEXT
+		)
+	`.execute(ctx.db);
+	await sql`
+		INSERT INTO ${sql.ref(tableName)} (
+			id, version, updated_at, live_revision_id, draft_revision_id
+		) VALUES (
+			${contentId}, 1, '2026-08-12T00:00:00.000Z', ${liveRevisionId}, NULL
+		)
+	`.execute(ctx.db);
 }
 
 function entryIdentity(entry: { collectionSlug: string; contentId: string }): [string, string] {

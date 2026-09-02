@@ -39,6 +39,10 @@ interface ExistingMediaResponse {
 	url: string;
 }
 
+function isUnsupportedSignedUpload(error: unknown): boolean {
+	return error instanceof Error && "code" in error && error.code === "NOT_SUPPORTED";
+}
+
 /**
  * Get a signed upload URL for direct-to-storage upload
  */
@@ -71,6 +75,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 		const body = await parseBody(request, mediaUploadUrlBody(maxSize));
 		if (isParseError(body)) return body;
+		const normalizedContentType = normalizeMime(body.contentType);
 
 		// Validate content type (field-aware widening)
 		const fieldAllowlist = body.fieldId
@@ -85,9 +90,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const repo = new MediaRepository(emdash.db);
 
 		// Check for existing content with same hash (deduplication)
-		if (body.contentHash) {
+		if (body.contentHash && body.size > 0) {
 			const existing = await repo.findByContentHash(body.contentHash);
-			if (existing) {
+			if (existing && existing.mimeType === normalizedContentType && existing.size === body.size) {
 				const response: ExistingMediaResponse = {
 					existing: true,
 					mediaId: existing.id,
@@ -103,49 +108,41 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const ext = path.extname(body.filename) || "";
 		const storageKey = `${id}${ext}`;
 
-		// Create pending media record with content hash
+		let signedUrl: Awaited<ReturnType<typeof emdash.storage.getSignedUploadUrl>> | null;
+		try {
+			signedUrl = await emdash.storage.getSignedUploadUrl({
+				key: storageKey,
+				contentType: body.contentType,
+				size: body.size,
+				expiresIn: 3600,
+			});
+		} catch (error) {
+			if (!isUnsupportedSignedUpload(error)) throw error;
+			signedUrl = null;
+		}
+
 		const mediaItem = await repo.createPending({
 			filename: body.filename,
-			mimeType: normalizeMime(body.contentType),
+			mimeType: normalizedContentType,
 			size: body.size,
 			storageKey,
-			contentHash: body.contentHash,
 			authorId: user?.id,
 		});
 
-		// Get signed upload URL from storage
-		const signedUrl = await emdash.storage.getSignedUploadUrl({
-			key: storageKey,
-			contentType: body.contentType,
-			size: body.size,
-			expiresIn: 3600, // 1 hour
-		});
-
 		const response: UploadUrlResponse = {
-			uploadUrl: signedUrl.url,
-			method: signedUrl.method,
-			headers: signedUrl.headers,
+			uploadUrl: signedUrl?.url ?? `/_emdash/api/media/${mediaItem.id}/upload`,
+			method: signedUrl?.method ?? "PUT",
+			headers: signedUrl?.headers ?? {
+				"Content-Type": normalizedContentType,
+				"X-EmDash-Request": "1",
+			},
 			mediaId: mediaItem.id,
 			storageKey,
-			expiresAt: signedUrl.expiresAt,
+			expiresAt: signedUrl?.expiresAt ?? new Date(Date.now() + 3600 * 1000).toISOString(),
 		};
 
 		return apiSuccess(response);
 	} catch (error) {
-		// Check if storage doesn't support signed URLs (e.g., local storage)
-		if (
-			error instanceof Error &&
-			"code" in error &&
-			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing error to check custom code property after "code" in error guard
-			(error as { code: string }).code === "NOT_SUPPORTED"
-		) {
-			return apiError(
-				"NOT_SUPPORTED",
-				"Storage does not support signed upload URLs. Use direct upload.",
-				501,
-			);
-		}
-
 		return handleError(error, "Failed to generate upload URL", "UPLOAD_URL_ERROR");
 	}
 };

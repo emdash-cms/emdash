@@ -10,12 +10,14 @@ import { z } from "zod";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleMarketplaceInstall } from "#api/index.js";
+import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 
 export const prerender = false;
 
 const installBodySchema = z.object({
 	version: z.string().min(1).optional(),
+	confirmMcpTools: z.boolean().optional(),
 });
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
@@ -29,6 +31,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 		const denied = requirePerm(user, "plugins:manage");
 		if (denied) return denied;
+
+		const activationFence = await checkMediaUsageActivationWriteFence(emdash.db);
+		if (activationFence) return activationFence;
 
 		if (!id) {
 			return apiError("INVALID_REQUEST", "Plugin ID required", 400);
@@ -54,6 +59,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				configuredPluginIds,
 				siteOrigin,
 				sandboxBypassed: emdash.isSandboxBypassed(),
+				confirmMcpTools: body.confirmMcpTools,
 			},
 		);
 

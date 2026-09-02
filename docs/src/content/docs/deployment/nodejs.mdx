@@ -5,12 +5,18 @@ description: Deploy EmDash to any Node.js hosting platform.
 
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash runs on any Node.js 22+ hosting platform. This guide uses SQLite with local or S3-compatible storage; libSQL and PostgreSQL work the same way on Node.js — see [Database Options](/deployment/database/).
+EmDash runs on Node.js 22.16 or later. This guide uses SQLite with local or S3-compatible storage; libSQL and PostgreSQL work the same way on Node.js — see [Database Options](/deployment/database/).
 
 ## Prerequisites
 
-- Node.js v22.12.0 or higher
+- Node.js v22.16.0 or higher
 - A Node.js hosting provider or VPS
+
+<Aside>
+	Node.js 22 prints `ExperimentalWarning: SQLite is an experimental feature` when a site uses the
+	built-in SQLite driver. The warning comes from Node.js and does not prevent the database from
+	opening. Node.js 24 does not print this warning.
+</Aside>
 
 ## Configuration
 
@@ -52,6 +58,16 @@ export default defineConfig({
    ```
 
 The server runs on `http://localhost:4321` by default. Migrations are applied on the first request. If the database is empty and setup hasn't been completed, your seed file (or the built-in default if you don't have one) is also applied on that first request.
+
+## Scheduled tasks
+
+The built-in scheduler runs only while a Node.js process is running. It handles scheduled publishing, plugin tasks, and general maintenance.
+
+Keep at least one Node.js process running continuously in production. Scheduled tasks pause when every process stops or sleeps.
+
+## Plugin sandbox
+
+Marketplace plugins and the plugins listed under `sandboxed: []` need a sandbox runner. On Node.js, the runner is `@emdash-cms/sandbox-workerd`, which runs plugins in a `workerd` child process. [Plugin Sandbox](/deployment/plugin-sandbox/#nodejs) covers the installation, how the `workerd` process runs, and its failure modes.
 
 ## Production Storage
 
@@ -116,6 +132,12 @@ CMD ["node", "./dist/server/entry.mjs"]
 ```
 
 The seed file is read at build time and inlined into the bundle, so it does not need to be copied into the runtime image. Migrations run on the first request after a deploy; the seed applies only when the database has no collections and setup hasn't been completed — existing data is never overwritten.
+
+<Aside>
+	This Dockerfile builds **your own EmDash site** — a project that has `emdash` as a dependency. It is
+	not interchangeable with the `Dockerfile` in the root of the EmDash repository, which builds the whole
+	pnpm monorepo and packages the blog template from source.
+</Aside>
 
 Build the image and run the container:
 

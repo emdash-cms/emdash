@@ -42,6 +42,7 @@ function makeField(overrides: Partial<SchemaField> = {}): SchemaField {
 		required: true,
 		unique: false,
 		searchable: true,
+		indexed: false,
 		sortOrder: 0,
 		createdAt: new Date().toISOString(),
 		...overrides,
@@ -127,6 +128,7 @@ describe("FieldEditor", () => {
 		it("shows searchable checkbox for string type", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} field={stringField} />);
 			await expect.element(screen.getByText("Searchable")).toBeInTheDocument();
+			await expect.element(screen.getByText("Indexed")).toBeInTheDocument();
 		});
 
 		it("shows min/max length validation for string type", async () => {
@@ -162,6 +164,7 @@ describe("FieldEditor", () => {
 			const screen = await render(<FieldEditor {...defaultProps} field={numberField} />);
 			await expect.element(screen.getByLabelText("Min Value")).toBeInTheDocument();
 			await expect.element(screen.getByLabelText("Max Value")).toBeInTheDocument();
+			await expect.element(screen.getByText("Indexed")).toBeInTheDocument();
 		});
 
 		it("does not show searchable for number type", async () => {
@@ -201,6 +204,7 @@ describe("FieldEditor", () => {
 		it("shows searchable checkbox for text type", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} field={textField} />);
 			await expect.element(screen.getByText("Searchable")).toBeInTheDocument();
+			expect(screen.getByText("Indexed").query()).toBeNull();
 		});
 	});
 
@@ -338,6 +342,35 @@ describe("FieldEditor", () => {
 		});
 	});
 
+	describe("indexed flag", () => {
+		const save = async (screen: Awaited<ReturnType<typeof render>>) => {
+			const button = screen.getByRole("button", { name: "Update Field" });
+			await expect.element(button).toBeEnabled();
+			button.element().click();
+		};
+
+		it("clears the flag when the field type cannot be indexed", async () => {
+			const onSave = vi.fn();
+			const field = makeField({ slug: "body", label: "Body", type: "text", indexed: true });
+			const screen = await render(<FieldEditor {...defaultProps} field={field} onSave={onSave} />);
+
+			expect(screen.getByText("Indexed").query()).toBeNull();
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ indexed: false }));
+		});
+
+		it("keeps the flag for a field type that can be indexed", async () => {
+			const onSave = vi.fn();
+			const field = makeField({ slug: "priority", label: "Priority", indexed: true });
+			const screen = await render(<FieldEditor {...defaultProps} field={field} onSave={onSave} />);
+
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ indexed: true }));
+		});
+	});
+
 	describe("config step (file field)", () => {
 		const fileField = makeField({
 			slug: "attachment",
@@ -378,6 +411,63 @@ describe("FieldEditor", () => {
 			});
 			const screen = await render(<FieldEditor {...defaultProps} field={fieldWithMimes} />);
 			await expect.element(screen.getByText("application/pdf")).toBeInTheDocument();
+		});
+	});
+
+	describe("dark mode variant option (image field)", () => {
+		const imageField = makeField({
+			slug: "cover",
+			label: "Cover",
+			type: "image",
+			required: false,
+			unique: false,
+			searchable: false,
+		});
+
+		const save = async (screen: Awaited<ReturnType<typeof render>>) => {
+			const button = screen.getByRole("button", { name: "Update Field" });
+			await expect.element(button).toBeEnabled();
+			button.element().click();
+		};
+
+		it("is absent for file fields", async () => {
+			const fileField = makeField({ ...imageField, slug: "attachment", type: "file" });
+			const screen = await render(<FieldEditor {...defaultProps} field={fileField} />);
+
+			expect(screen.getByRole("switch", { name: "Dark mode variant" }).query()).toBeNull();
+		});
+
+		it("saves the option when switched on", async () => {
+			const onSave = vi.fn();
+			const screen = await render(
+				<FieldEditor {...defaultProps} field={imageField} onSave={onSave} />,
+			);
+
+			const toggle = screen.getByRole("switch", { name: "Dark mode variant" });
+			await expect.element(toggle).not.toBeChecked();
+			toggle.element().click();
+			await expect.element(toggle).toBeChecked();
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({ options: { darkVariant: true } }),
+			);
+		});
+
+		it("removes only the option when switched off and keeps other widget options", async () => {
+			const onSave = vi.fn();
+			const field = makeField({ ...imageField, options: { showPreview: true, darkVariant: true } });
+			const screen = await render(<FieldEditor {...defaultProps} field={field} onSave={onSave} />);
+
+			const toggle = screen.getByRole("switch", { name: "Dark mode variant" });
+			await expect.element(toggle).toBeChecked();
+			toggle.element().click();
+			await expect.element(toggle).not.toBeChecked();
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({ options: { showPreview: true } }),
+			);
 		});
 	});
 

@@ -92,12 +92,53 @@ export interface PluginUpdateInfo {
 /** Install request body */
 export interface InstallPluginOpts {
 	version?: string;
+	confirmMcpTools?: boolean;
+}
+
+export interface PluginMcpConsentTool {
+	name: string;
+	description: string;
+	route: string;
+	permission: string;
+	destructive: boolean;
+}
+
+export class PluginMcpConsentRequiredError extends Error {
+	constructor(readonly tools: PluginMcpConsentTool[]) {
+		super(i18n._(msg`Plugin MCP tools require explicit consent`));
+		this.name = "PluginMcpConsentRequiredError";
+	}
+}
+
+function isPluginMcpConsentTool(value: unknown): value is PluginMcpConsentTool {
+	if (!value || typeof value !== "object") return false;
+	return (
+		typeof Reflect.get(value, "name") === "string" &&
+		typeof Reflect.get(value, "description") === "string" &&
+		typeof Reflect.get(value, "route") === "string" &&
+		typeof Reflect.get(value, "permission") === "string" &&
+		typeof Reflect.get(value, "destructive") === "boolean"
+	);
+}
+
+function getMcpConsentTools(body: unknown): PluginMcpConsentTool[] | null {
+	if (!body || typeof body !== "object") return null;
+	const error = Reflect.get(body, "error");
+	if (!error || typeof error !== "object") return null;
+	if (Reflect.get(error, "code") !== "MCP_TOOL_CONSENT_REQUIRED") return null;
+	const details = Reflect.get(error, "details");
+	if (!details || typeof details !== "object") return null;
+	const tools = Reflect.get(details, "mcpTools");
+	if (!Array.isArray(tools) || tools.length === 0) return null;
+	const valid = tools.filter(isPluginMcpConsentTool);
+	return valid.length > 0 ? valid : null;
 }
 
 /** Update request body */
 export interface UpdatePluginOpts {
 	/** User has confirmed new capabilities */
-	confirmCapabilities?: boolean;
+	confirmCapabilityChanges?: boolean;
+	confirmMcpTools?: boolean;
 }
 
 /** Uninstall request body */
@@ -157,7 +198,15 @@ export async function installMarketplacePlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(opts),
 	});
-	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to install plugin`));
+	if (!response.ok) {
+		const body: unknown = await response
+			.clone()
+			.json()
+			.catch(() => null);
+		const mcpTools = getMcpConsentTools(body);
+		if (mcpTools) throw new PluginMcpConsentRequiredError(mcpTools);
+		await throwResponseError(response, i18n._(msg`Failed to install plugin`));
+	}
 }
 
 /**
@@ -173,7 +222,15 @@ export async function updateMarketplacePlugin(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(opts),
 	});
-	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+	if (!response.ok) {
+		const body: unknown = await response
+			.clone()
+			.json()
+			.catch(() => null);
+		const mcpTools = getMcpConsentTools(body);
+		if (mcpTools) throw new PluginMcpConsentRequiredError(mcpTools);
+		await throwResponseError(response, i18n._(msg`Failed to update plugin`));
+	}
 }
 
 /**

@@ -12,6 +12,16 @@ import type { Database } from "../database/types.js";
 export type PluginStatus = "active" | "inactive";
 export type PluginSource = "config" | "marketplace" | "registry";
 
+const TIMEZONE_SUFFIX = /(?:z|[+-]\d{2}(?::?\d{2})?)$/i;
+const HOUR_OFFSET_SUFFIX = /\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?[+-]\d{2}$/i;
+
+function parseDatabaseTimestamp(value: string): Date {
+	let normalized = value.trim().replace(" ", "T");
+	if (HOUR_OFFSET_SUFFIX.test(normalized)) normalized += ":00";
+	else if (!TIMEZONE_SUFFIX.test(normalized)) normalized += "Z";
+	return new Date(normalized);
+}
+
 function toPluginStatus(value: string): PluginStatus {
 	if (value === "active") return "active";
 	return "inactive";
@@ -49,6 +59,8 @@ export interface PluginState {
 	 * `packages/core/src/registry/plugin-id.ts`.
 	 */
 	registrySlug: string | null;
+	mcpToolsEnabled: boolean;
+	mcpToolsConsent: string | null;
 }
 
 /**
@@ -121,6 +133,8 @@ export class PluginStateRepository {
 			description?: string;
 			registryPublisherDid?: string;
 			registrySlug?: string;
+			mcpToolsEnabled?: boolean;
+			mcpToolsConsent?: string | null;
 		},
 	): Promise<PluginState> {
 		const now = new Date().toISOString();
@@ -128,7 +142,7 @@ export class PluginStateRepository {
 
 		if (existing) {
 			// Update existing state
-			const updates: Record<string, string | null> = {
+			const updates: Record<string, string | number | null> = {
 				status,
 				version,
 			};
@@ -155,6 +169,12 @@ export class PluginStateRepository {
 			if (opts?.registrySlug !== undefined) {
 				updates.registry_slug = opts.registrySlug;
 			}
+			if (opts?.mcpToolsEnabled !== undefined) {
+				updates.mcp_tools_enabled = opts.mcpToolsEnabled ? 1 : 0;
+			}
+			if (opts?.mcpToolsConsent !== undefined) {
+				updates.mcp_tools_consent = opts.mcpToolsConsent;
+			}
 
 			await this.db
 				.updateTable("_plugin_state")
@@ -179,6 +199,8 @@ export class PluginStateRepository {
 					description: opts?.description ?? null,
 					registry_publisher_did: opts?.registryPublisherDid ?? null,
 					registry_slug: opts?.registrySlug ?? null,
+					mcp_tools_enabled: opts?.mcpToolsEnabled ? 1 : 0,
+					mcp_tools_consent: opts?.mcpToolsConsent ?? null,
 				})
 				.execute();
 		}
@@ -234,6 +256,8 @@ interface PluginStateRow {
 	description: string | null;
 	registry_publisher_did: string | null;
 	registry_slug: string | null;
+	mcp_tools_enabled: number;
+	mcp_tools_consent: string | null;
 }
 
 function rowToPluginState(row: PluginStateRow): PluginState {
@@ -241,14 +265,16 @@ function rowToPluginState(row: PluginStateRow): PluginState {
 		pluginId: row.plugin_id,
 		status: toPluginStatus(row.status),
 		version: row.version,
-		installedAt: new Date(row.installed_at),
-		activatedAt: row.activated_at ? new Date(row.activated_at) : null,
-		deactivatedAt: row.deactivated_at ? new Date(row.deactivated_at) : null,
+		installedAt: parseDatabaseTimestamp(row.installed_at),
+		activatedAt: row.activated_at ? parseDatabaseTimestamp(row.activated_at) : null,
+		deactivatedAt: row.deactivated_at ? parseDatabaseTimestamp(row.deactivated_at) : null,
 		source: toPluginSource(row.source),
 		marketplaceVersion: row.marketplace_version ?? null,
 		displayName: row.display_name ?? null,
 		description: row.description ?? null,
 		registryPublisherDid: row.registry_publisher_did ?? null,
 		registrySlug: row.registry_slug ?? null,
+		mcpToolsEnabled: row.mcp_tools_enabled === 1,
+		mcpToolsConsent: row.mcp_tools_consent ?? null,
 	};
 }

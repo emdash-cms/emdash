@@ -1,38 +1,6 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import {
-	SquaresFour,
-	FileText,
-	Image,
-	ChatCircle,
-	Gear,
-	PuzzlePiece,
-	Storefront,
-	Palette,
-	Upload,
-	Database,
-	List,
-	GridFour,
-	Users,
-	Stack,
-	ArrowsLeftRight,
-	ChartBar,
-	ChartLine,
-	ClockCounterClockwise,
-	Medal,
-	Trophy,
-	Crop,
-	BookOpen,
-	Plug,
-	Code,
-	CalendarBlank,
-	Bell,
-	Folder,
-	Star,
-	Tag,
-	LinkSimple,
-	MagnifyingGlass,
-} from "@phosphor-icons/react";
+import { Gear, Palette, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
@@ -40,10 +8,22 @@ import * as React from "react";
 import { fetchCommentCounts } from "../lib/api/comments";
 import { useCurrentUser } from "../lib/api/current-user";
 import { resolvePluginPagePath, usePluginAdmins } from "../lib/plugin-context";
+import {
+	resolveTaxonomyDefinitions,
+	type LocalizedTaxonomyDefinition,
+} from "../lib/taxonomy-definitions.js";
+import {
+	ADMIN_NAV_ICONS,
+	getCollectionNavIcon,
+	getTaxonomyNavIcon,
+	resolveNavIcon,
+	toPhosphorIconName,
+} from "./admin-navigation-icons.js";
 import { BrandIcon } from "./Logo.js";
 
 // Re-export for Shell.tsx and Header.tsx
 export { KumoSidebar as Sidebar, useSidebar };
+export { resolveNavIcon, toPhosphorIconName };
 
 // Role levels (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
@@ -65,6 +45,7 @@ const ROLE_EDITOR = 40;
 export const BYLINE_SCHEMA_NAV_ITEM = {
 	to: "/byline-schema" as const,
 	minRole: ROLE_ADMIN,
+	icon: ADMIN_NAV_ICONS.bylineSchema,
 } as const;
 
 /**
@@ -80,9 +61,24 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
 	return items.filter((item) => !item.minRole || userRole >= item.minRole);
 }
 
+/**
+ * Manifest collections that get an auto-generated sidebar entry, in manifest
+ * order. Pure function — exported so tests can pin the `hidden` contract
+ * without rendering the sidebar.
+ *
+ * A hidden collection is still shipped in the manifest and stays fully
+ * routable at `/content/:collection`; it only loses its nav link, so a plugin
+ * that owns the collection end to end can steer editors to its own admin UI.
+ */
+export function visibleCollectionEntries<T extends { hidden?: boolean }>(
+	collections: Record<string, T>,
+): Array<[string, T]> {
+	return Object.entries(collections).filter(([, config]) => !config.hidden);
+}
+
 export interface SidebarNavProps {
 	manifest: {
-		collections: Record<string, { label: string }>;
+		collections: Record<string, { label: string; hidden?: boolean }>;
 		plugins: Record<
 			string,
 			{
@@ -99,9 +95,13 @@ export interface SidebarNavProps {
 			}
 		>;
 		taxonomies: Array<{
+			id?: string;
 			name: string;
 			label: string;
+			locale?: string;
+			translationGroup?: string | null;
 		}>;
+		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
 		commit?: string;
 		marketplace?: string;
@@ -116,122 +116,25 @@ export interface SidebarNavProps {
 	};
 }
 
+/** Locale-normalized taxonomy rows used by the global Manage navigation. */
+export function getSidebarTaxonomies<T extends LocalizedTaxonomyDefinition>(
+	taxonomies: readonly T[],
+	activeLocale?: string,
+	defaultLocale?: string,
+): T[] {
+	return resolveTaxonomyDefinitions(taxonomies, activeLocale, defaultLocale);
+}
+
 interface NavItem {
 	to: string;
 	label: string;
 	icon: React.ElementType;
 	params?: Record<string, string>;
+	search?: Record<string, string>;
 	/** Minimum role level required to see this item */
 	minRole?: number;
 	/** Optional badge count (e.g., pending comments) */
 	badge?: number;
-}
-
-/**
- * Static map of common plugin admin-page icon names to Phosphor components.
- *
- * Plugins declare `adminPages: [{ path, label, icon }]`, where `icon` is a
- * lower/kebab name. This table covers the names used across the EmDash
- * docs/templates (including lucide-style names like `settings`/`chart` that
- * don't match Phosphor's own naming) plus common nav glyphs. These are
- * statically imported, so the everyday case resolves *synchronously* and the
- * handful of components ship in the main bundle — the full Phosphor set is
- * never pulled in for them. Any name not listed here is resolved lazily
- * (see `resolveNavIcon`), so there is no hard ceiling.
- */
-const NAV_ICON_MAP: Record<string, React.ElementType> = {
-	// Documented in the plugin docs & "creating-plugins" skill
-	settings: Gear,
-	gear: Gear,
-	chart: ChartBar,
-	"chart-line": ChartLine,
-	dashboard: SquaresFour,
-	history: ClockCounterClockwise,
-	image: Image,
-	// Used by template / first-party plugins
-	award: Medal,
-	trophy: Trophy,
-	grid: GridFour,
-	crop: Crop,
-	// Common admin-nav glyphs
-	book: BookOpen,
-	plug: Plug,
-	code: Code,
-	file: FileText,
-	document: FileText,
-	users: Users,
-	database: Database,
-	list: List,
-	calendar: CalendarBlank,
-	bell: Bell,
-	folder: Folder,
-	star: Star,
-	tag: Tag,
-	link: LinkSimple,
-	search: MagnifyingGlass,
-	palette: Palette,
-	upload: Upload,
-};
-
-/** Word separators in icon names: kebab, snake, or whitespace. */
-const ICON_NAME_SEPARATOR = /[-_\s]+/;
-
-/**
- * Convert a kebab/snake/space icon name to Phosphor's PascalCase component
- * name (`chart-bar` → `ChartBar`). Exported for unit testing the pure mapping.
- */
-export function toPhosphorIconName(name: string): string {
-	return name
-		.split(ICON_NAME_SEPARATOR)
-		.filter(Boolean)
-		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-		.join("");
-}
-
-/**
- * Cache of lazily-loaded icon components, keyed by Phosphor component name.
- * `React.lazy` must return a stable identity across renders (a fresh lazy
- * component on every render would remount and re-suspend), so memoize here.
- */
-const lazyIconCache = new Map<string, React.ElementType>();
-
-/**
- * Resolve a plugin page's `icon` name to a component.
- *
- * Resolution order:
- *   1. No icon → `PuzzlePiece` (the common icon-less page never suspends).
- *   2. A name in `NAV_ICON_MAP` → its statically-imported component (sync,
- *      already in the main bundle — no extra chunk for everyday icons).
- *   3. Anything else → the matching `@phosphor-icons/react` component, loaded
- *      lazily from a code-split chunk the first time it's used. This gives
- *      access to the entire Phosphor set without pulling it into the main
- *      bundle, and only loads when a plugin uses an icon outside the map.
- *      Names that don't exist in Phosphor fall back to `PuzzlePiece`.
- *
- * Case 3 returns a `React.lazy` component, so call sites must render the
- * result inside a `<React.Suspense>` boundary (see `NavMenuLink`). Exported
- * so a unit test can assert resolution without mounting the portal-heavy
- * Kumo Sidebar.
- */
-export function resolveNavIcon(name?: string): React.ElementType {
-	if (!name) {
-		return PuzzlePiece;
-	}
-	const mapped = NAV_ICON_MAP[name];
-	if (mapped) {
-		return mapped;
-	}
-	const componentName = toPhosphorIconName(name);
-	let icon = lazyIconCache.get(componentName);
-	if (!icon) {
-		icon = React.lazy(async () => {
-			const mod = (await import("@phosphor-icons/react")) as Record<string, unknown>;
-			const Icon = mod[componentName] as React.ComponentType<{ className?: string }> | undefined;
-			return { default: Icon ?? PuzzlePiece };
-		});
-		lazyIconCache.set(componentName, icon);
-	}
-	return icon;
 }
 
 /**
@@ -262,37 +165,67 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 
 function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className?: string }) {
 	return (
-		<React.Suspense fallback={<PuzzlePiece className={className} aria-hidden="true" />}>
+		<React.Suspense fallback={<ADMIN_NAV_ICONS.plugins className={className} aria-hidden="true" />}>
 			<Icon className={className} aria-hidden="true" />
 		</React.Suspense>
 	);
 }
 
+/**
+ * Resolve the display label for a plugin admin page (sidebar + command
+ * palette). Declared labels are run through the shared Lingui instance:
+ * plugins that load their own catalog — with the English label as msgid —
+ * get localized nav items. The catalog is shared with the admin, so common
+ * labels like "Settings" pick up the admin's own translations even without
+ * a plugin catalog (deliberate: a localized admin shouldn't show stray
+ * English nav items). Labels with no catalog entry anywhere fall back to
+ * the literal string. Pages without a label prettify the plugin id
+ * ("my-shop" → "My Shop").
+ */
+export function resolvePluginPageLabel(
+	label: string | undefined,
+	pluginId: string,
+	translate: (id: string) => string,
+): string {
+	if (label) return translate(label);
+	return pluginId
+		.split("-")
+		.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+		.join(" ");
+}
+
 /** Resolves a nav item's route path by substituting $param placeholders. */
-function resolveItemPath(item: NavItem): string {
+export function resolveItemPath(item: NavItem): string {
 	let path = item.to;
 	if (item.params) {
 		for (const [key, value] of Object.entries(item.params)) {
 			path = path.replace(`$${key}`, value);
 		}
 	}
+	if (item.search && Object.keys(item.search).length > 0) {
+		path += `?${new URLSearchParams(item.search).toString()}`;
+	}
 	return path;
 }
 
 /** Checks if a nav item is active based on the current router path. */
-function isItemActive(itemPath: string, currentPath: string): boolean {
-	return itemPath === "/"
+export function isItemActive(itemPath: string, currentPath: string): boolean {
+	const queryIndex = itemPath.indexOf("?");
+	const path = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
+	return path === "/"
 		? currentPath === "/"
-		: currentPath === itemPath || currentPath.startsWith(`${itemPath}/`);
+		: currentPath === path || currentPath.startsWith(`${path}/`);
 }
 
 /**
  * Admin sidebar navigation using kumo's Sidebar compound component.
  */
 export function SidebarNav({ manifest }: SidebarNavProps) {
-	const { t } = useLingui();
+	const { t, i18n } = useLingui();
 	const location = useLocation();
 	const currentPath = location.pathname;
+	const routeLocale =
+		new URL(location.href, "http://emdash.local").searchParams.get("locale") ?? undefined;
 	const pluginAdmins = usePluginAdmins();
 
 	const { data: user } = useCurrentUser();
@@ -309,44 +242,64 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	// --- Build nav item groups ---
 
-	const contentItems: NavItem[] = [{ to: "/", label: t`Dashboard`, icon: SquaresFour }];
-	for (const [name, config] of Object.entries(manifest.collections)) {
+	const contentItems: NavItem[] = [
+		{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard },
+	];
+	for (const [name, config] of visibleCollectionEntries(manifest.collections)) {
 		contentItems.push({
 			to: "/content/$collection",
 			label: config.label,
-			icon: FileText,
+			icon: getCollectionNavIcon(name),
 			params: { collection: name },
 		});
 	}
-	contentItems.push({ to: "/media", label: t`Media`, icon: Image });
+	contentItems.push({ to: "/media", label: t`Media`, icon: ADMIN_NAV_ICONS.media });
 
 	const manageItems: NavItem[] = [
 		{
 			to: "/comments",
 			label: t`Comments`,
-			icon: ChatCircle,
+			icon: ADMIN_NAV_ICONS.comments,
 			minRole: ROLE_EDITOR,
 			badge: commentCounts?.pending,
 		},
-		{ to: "/menus", label: t`Menus`, icon: List, minRole: ROLE_EDITOR },
-		{ to: "/redirects", label: t`Redirects`, icon: ArrowsLeftRight, minRole: ROLE_ADMIN },
-		{ to: "/widgets", label: t`Widgets`, icon: GridFour, minRole: ROLE_EDITOR },
-		{ to: "/sections", label: t`Sections`, icon: Stack, minRole: ROLE_EDITOR },
-		...manifest.taxonomies.map((tax) => ({
-			to: "/taxonomies/$taxonomy" as const,
-			label: tax.label,
-			icon: FileText,
-			params: { taxonomy: tax.name },
-			minRole: ROLE_EDITOR,
-		})),
-		{ to: "/bylines", label: t`Bylines`, icon: FileText, minRole: ROLE_EDITOR },
+		{ to: "/menus", label: t`Menus`, icon: ADMIN_NAV_ICONS.menus, minRole: ROLE_EDITOR },
+		{
+			to: "/redirects",
+			label: t`Redirects`,
+			icon: ADMIN_NAV_ICONS.redirects,
+			minRole: ROLE_ADMIN,
+		},
+		{ to: "/widgets", label: t`Widgets`, icon: ADMIN_NAV_ICONS.widgets, minRole: ROLE_EDITOR },
+		{ to: "/sections", label: t`Sections`, icon: ADMIN_NAV_ICONS.sections, minRole: ROLE_EDITOR },
+		...getSidebarTaxonomies(manifest.taxonomies, routeLocale, manifest.i18n?.defaultLocale).map(
+			(tax) => ({
+				to: "/taxonomies/$taxonomy" as const,
+				label: tax.label,
+				icon: getTaxonomyNavIcon(tax.name),
+				params: { taxonomy: tax.name },
+				search: routeLocale ? { locale: routeLocale } : undefined,
+				minRole: ROLE_EDITOR,
+			}),
+		),
+		{ to: "/bylines", label: t`Bylines`, icon: ADMIN_NAV_ICONS.bylines, minRole: ROLE_EDITOR },
 	];
 
 	const adminItems: NavItem[] = [
-		{ to: "/content-types", label: t`Content Types`, icon: Database, minRole: ROLE_ADMIN },
-		{ ...BYLINE_SCHEMA_NAV_ITEM, label: t`Byline Schema`, icon: FileText },
+		{
+			to: "/content-types",
+			label: t`Content Types`,
+			icon: ADMIN_NAV_ICONS.contentTypes,
+			minRole: ROLE_ADMIN,
+		},
+		{ ...BYLINE_SCHEMA_NAV_ITEM, label: t`Byline Schema` },
 		{ to: "/users", label: t`Users`, icon: Users, minRole: ROLE_ADMIN },
-		{ to: "/plugins-manager", label: t`Plugins`, icon: PuzzlePiece, minRole: ROLE_ADMIN },
+		{
+			to: "/plugins-manager",
+			label: t`Plugins`,
+			icon: ADMIN_NAV_ICONS.plugins,
+			minRole: ROLE_ADMIN,
+		},
 	];
 
 	if (manifest.registry) {
@@ -375,7 +328,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 	}
 
 	adminItems.push(
-		{ to: "/import/wordpress", label: t`Import`, icon: Upload, minRole: ROLE_ADMIN },
+		{
+			to: "/import/wordpress",
+			label: t`Import`,
+			icon: ADMIN_NAV_ICONS.import,
+			minRole: ROLE_ADMIN,
+		},
 		{ to: "/settings", label: t`Settings`, icon: Gear, minRole: ROLE_ADMIN },
 	);
 
@@ -387,12 +345,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
-				const label =
-					page.label ||
-					pluginId
-						.split("-")
-						.map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-						.join(" ");
+				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
 				pluginItems.push({
 					to: `/plugins/${pluginId}${page.path}`,
 					label,
@@ -417,10 +370,10 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	return (
 		<KumoSidebar className="emdash-sidebar" aria-label={t`Admin navigation`}>
-			<KumoSidebar.Header>
+			<KumoSidebar.Header className="px-[11px] transition-[padding] duration-(--sidebar-animation-duration) motion-reduce:transition-none group-not-data-[state=collapsed]/sidebar:px-3.5">
 				<Link
 					to="/"
-					className="flex w-full min-w-0 items-center gap-2 px-3 py-1 group-data-[state=collapsed]/sidebar:justify-center group-data-[state=collapsed]/sidebar:px-0"
+					className="flex w-[calc(var(--sidebar-width)-1.75rem)] shrink-0 items-center gap-2 overflow-hidden py-1 ps-2.5 group-data-[state=collapsed]/sidebar:-translate-x-[3px] rtl:group-data-[state=collapsed]/sidebar:translate-x-[3px]"
 				>
 					<BrandIcon
 						logoUrl={manifest.admin?.logo}
@@ -428,8 +381,12 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 						className="size-5 shrink-0"
 						aria-hidden="true"
 					/>
-					<span className="font-semibold truncate group-data-[state=collapsed]/sidebar:hidden">
-						{manifest.admin?.siteName || "EmDash"}
+					<span className="grid min-w-0 flex-1 grid-cols-[1fr] transition-[grid-template-columns] duration-(--sidebar-animation-duration) ease-(--sidebar-easing) motion-reduce:transition-none group-data-[state=collapsed]/sidebar:grid-cols-[0fr]">
+						<span className="min-w-0 overflow-hidden">
+							<span className="block w-[calc(var(--sidebar-width)-4.5rem)] truncate font-semibold">
+								{manifest.admin?.siteName || "EmDash"}
+							</span>
+						</span>
 					</span>
 				</Link>
 			</KumoSidebar.Header>
@@ -439,7 +396,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				<KumoSidebar.Group className="mt-2 md:mt-1.5">
 					<KumoSidebar.Menu>
 						<NavMenuLink
-							item={{ to: "/", label: t`Dashboard`, icon: SquaresFour }}
+							item={{ to: "/", label: t`Dashboard`, icon: ADMIN_NAV_ICONS.dashboard }}
 							isActive={isItemActive("/", currentPath)}
 						/>
 					</KumoSidebar.Menu>
@@ -480,11 +437,17 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				)}
 			</KumoSidebar.Content>
 
-			<KumoSidebar.Footer>
-				<p className="px-3 py-2 text-[11px] text-kumo-subtle group-data-[state=collapsed]/sidebar:hidden">
-					{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
-					{manifest.commit && ` (${manifest.commit})`}
-				</p>
+			<KumoSidebar.Footer className="gap-0">
+				<KumoSidebar.Trigger className="rtl:rotate-180" />
+				<div className="min-w-0 flex-1 overflow-hidden">
+					<p
+						data-testid="admin-version"
+						className="w-40 overflow-hidden truncate ps-2 text-[11px] text-kumo-subtle"
+					>
+						{manifest.admin?.siteName || "EmDash CMS"} v{manifest.version || "0.0.0"}
+						{manifest.commit && ` (${manifest.commit})`}
+					</p>
+				</div>
 			</KumoSidebar.Footer>
 		</KumoSidebar>
 	);

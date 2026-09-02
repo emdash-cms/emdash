@@ -20,6 +20,16 @@ import { isDid } from "@atcute/lexicons/syntax";
 import { drainBackfillDeadLetterBatch, processBackfillBatch } from "./backfill-consumer.js";
 import { discoverDids, enqueueBackfillJobs } from "./backfill.js";
 import type { BackfillJob, RecordsJob } from "./env.js";
+import { PROJECTION_COORDINATOR_NAME } from "./label-ingest-do.js";
+import { enforceRequiredLabelSourceHealth } from "./label-source-health.js";
+import {
+	acknowledgeLabelSourceStop,
+	labelSourcePolicy,
+	reconcileLabelSources,
+} from "./label-source-policy.js";
+import { isCurrentSubject, listCurrentSubjects } from "./labeler-reconciliation-service.js";
+import { getListingPolicy } from "./listing-policy.js";
+import { enforceConfiguredProjection } from "./projection-enforcement.js";
 import { drainDeadLetterBatch, processBatch } from "./records-consumer.js";
 import { RECORDS_DO_NAME } from "./records-do.js";
 import { handleXrpc } from "./routes/xrpc/router.js";
@@ -30,6 +40,7 @@ const RECORDS_DLQ_NAME = "emdash-aggregator-records-dlq";
 const BACKFILL_QUEUE_NAME = "emdash-aggregator-backfill";
 const BACKFILL_DLQ_NAME = "emdash-aggregator-backfill-dlq";
 
+export { LabelIngestDO } from "./label-ingest-do.js";
 export { RecordsJetstreamDO } from "./records-do.js";
 
 /**
@@ -57,6 +68,9 @@ export { RecordsJetstreamDO } from "./records-do.js";
 const BOOTSTRAP_PATH = "/_admin/start";
 const BACKFILL_PATH = "/_admin/backfill";
 const STATUS_PATH = "/_admin/status";
+const RECONCILIATION_SUBJECTS_PATH = "/_internal/labeler/subjects";
+const RECONCILIATION_CURRENT_PATH = "/_internal/labeler/current";
+const LABEL_REPLAY_PATH = "/_admin/labels/replay";
 
 /**
  * Cap on the explicit DID list a single POST may submit. Lower than the
@@ -80,13 +94,7 @@ const tokenEncoder = new TextEncoder();
 
 /**
  * Constant-time string equality via workerd's audited
- * `crypto.subtle.timingSafeEqual`. The primitive returns `false` immediately
- * for length-mismatched buffers, so the *prefix*-comparison is constant-time
- * but a length difference is still observable via timing — acceptable here
- * because the protected secret (`ADMIN_TOKEN`) has a fixed configured length
- * known only to the operator, and any realistic length-via-timing attack
- * would require so many requests that other defences (rate-limiting,
- * Cloudflare Bot Management, log review) catch it first.
+ * `crypto.subtle.timingSafeEqual`.
  */
 function timingSafeEqual(a: string, b: string): boolean {
 	const aBuf = tokenEncoder.encode(a);
@@ -136,6 +144,19 @@ function requireAdminAuth(request: Request, env: Env): Response | null {
 	return null;
 }
 
+function requireReconciliationAuth(request: Request, env: Env): Response | null {
+	const expected = env.RECONCILIATION_TOKEN;
+	if (!expected || expected.trim().length === 0) {
+		return new Response("reconciliation endpoint not configured", { status: 503 });
+	}
+	const auth = request.headers.get("authorization");
+	const prefix = "Bearer ";
+	if (!auth?.startsWith(prefix) || !timingSafeEqual(auth.slice(prefix.length), expected)) {
+		return new Response("unauthorized", { status: 401 });
+	}
+	return null;
+}
+
 type BackfillRequest = { mode: "explicit"; dids: string[] } | { mode: "discover" };
 
 function parseBackfillBody(body: unknown): BackfillRequest | { error: string } {
@@ -179,6 +200,27 @@ function parseBackfillBody(body: unknown): BackfillRequest | { error: string } {
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
+		if (url.pathname === RECONCILIATION_SUBJECTS_PATH) {
+			const denied = requireReconciliationAuth(request, env);
+			if (denied) return denied;
+			const limit = Number(url.searchParams.get("limit") ?? 100);
+			const page = await listCurrentSubjects(
+				env.DB,
+				url.searchParams.get("cursor") ?? undefined,
+				limit,
+			);
+			return Response.json(page, { headers: { "cache-control": "private, no-store" } });
+		}
+		if (url.pathname === RECONCILIATION_CURRENT_PATH) {
+			const denied = requireReconciliationAuth(request, env);
+			if (denied) return denied;
+			const uri = url.searchParams.get("uri") ?? "";
+			const cid = url.searchParams.get("cid") ?? "";
+			return Response.json(
+				{ current: await isCurrentSubject(env.DB, uri, cid) },
+				{ headers: { "cache-control": "private, no-store" } },
+			);
+		}
 		if (url.pathname === BOOTSTRAP_PATH) {
 			if (request.method !== "POST") {
 				return new Response("method not allowed", {
@@ -252,6 +294,16 @@ export default {
 			ctx.waitUntil(runBackfill(parsed, env));
 			return new Response(null, { status: 202 });
 		}
+		if (url.pathname === LABEL_REPLAY_PATH) {
+			if (request.method !== "POST") {
+				return new Response("method not allowed", { status: 405, headers: { allow: "POST" } });
+			}
+			const denied = requireAdminAuth(request, env);
+			if (denied) return denied;
+			return Response.json(await replayAllLabels(env), {
+				headers: { "cache-control": "private, no-store" },
+			});
+		}
 		// XRPC read API: aggregator endpoints + cached sync.getRecord
 		// passthrough. Returns null if pathname doesn't start with /xrpc/, so
 		// non-matching paths fall through to the catch-all below.
@@ -302,8 +354,51 @@ export default {
 		const id = env.RECORDS_DO.idFromName(RECORDS_DO_NAME);
 		const stub = env.RECORDS_DO.get(id);
 		ctx.waitUntil(stub.fetch("https://do.internal/liveness"));
+		ctx.waitUntil(
+			runScheduledLabelMaintenance(env).catch((error: unknown) => {
+				console.error("[aggregator] projection enforcement failed", {
+					error: error instanceof Error ? error.message : String(error),
+				});
+			}),
+		);
 	},
 };
+
+async function reconcileAndWakeLabelers(env: Env): Promise<void> {
+	const policy = labelSourcePolicy(await getListingPolicy(env));
+	const result = await reconcileLabelSources(env.DB, policy);
+	const demotedSources = await enforceRequiredLabelSourceHealth(env.DB, new Date());
+	await Promise.all(
+		result.sourcesRequiringStop.map(async (did) => {
+			await env.LABEL_INGEST_DO.getByName(did).stop(did);
+			await acknowledgeLabelSourceStop(env.DB, did);
+		}),
+	);
+	if (result.changed || demotedSources.length > 0) {
+		await env.LABEL_INGEST_DO.getByName(PROJECTION_COORDINATOR_NAME).markProjectionDirty();
+	}
+	await Promise.all(
+		result.activeSources.map((did) => env.LABEL_INGEST_DO.getByName(did).wake(did)),
+	);
+}
+
+async function runScheduledLabelMaintenance(env: Env): Promise<void> {
+	await reconcileAndWakeLabelers(env);
+	await enforceConfiguredProjection(env);
+	await env.LABEL_INGEST_DO.getByName(PROJECTION_COORDINATOR_NAME).markProjectionDirty();
+}
+
+async function replayAllLabels(env: Env): Promise<{ sources: readonly string[] }> {
+	const policy = labelSourcePolicy(await getListingPolicy(env));
+	await reconcileLabelSources(env.DB, policy);
+	const sources = [...policy.acceptedSources];
+	for (const did of sources) {
+		const stub = env.LABEL_INGEST_DO.getByName(did);
+		await stub.replay(did, new Date().toISOString());
+	}
+	await env.LABEL_INGEST_DO.getByName(PROJECTION_COORDINATOR_NAME).markProjectionDirty();
+	return { sources };
+}
 
 type BackfillRequestParsed = { mode: "explicit"; dids: string[] } | { mode: "discover" };
 

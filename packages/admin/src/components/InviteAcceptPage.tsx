@@ -9,10 +9,11 @@ import { useLingui } from "@lingui/react/macro";
 import { useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
+import { useAdminBranding } from "../lib/admin-branding-context";
 import { validateInviteToken, type InviteVerifyResult } from "../lib/api";
 import { useAuthProviderList } from "../lib/auth-provider-context";
 import { PasskeyRegistration } from "./auth/PasskeyRegistration";
-import { LogoLockup } from "./Logo.js";
+import { BrandLogo } from "./Logo.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
 type InviteStep = "verify" | "register" | "error";
@@ -36,7 +37,7 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 			<div className="text-center">
 				<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-kumo-brand/10 mx-auto mb-4">
 					<svg
-						className="w-8 h-8 text-kumo-brand"
+						className="w-8 h-8 text-kumo-link"
 						fill="none"
 						stroke="currentColor"
 						viewBox="0 0 24 24"
@@ -178,6 +179,7 @@ function ErrorStep({ message, code }: ErrorStepProps) {
 
 export function InviteAcceptPage() {
 	const { t } = useLingui();
+	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
 	const { token: urlToken } = useSearch({ strict: false });
 	const [step, setStep] = React.useState<InviteStep>("verify");
 	const [error, setError] = React.useState<string | undefined>();
@@ -233,7 +235,7 @@ export function InviteAcceptPage() {
 		<div className="min-h-screen flex items-center justify-center bg-kumo-base p-4">
 			<div className="w-full max-w-md">
 				<div className="text-center mb-8">
-					<LogoLockup className="h-10 mx-auto mb-2" />
+					<BrandLogo logoUrl={brandLogo} siteName={brandSiteName} className="h-10 mx-auto mb-2" />
 					<h1 className="text-2xl font-semibold text-kumo-default">
 						{step === "register" && t`Accept Invite`}
 						{step === "error" && t`Invite Error`}

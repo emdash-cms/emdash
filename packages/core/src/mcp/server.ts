@@ -10,15 +10,19 @@
  */
 
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
-import { canActOnOwn, hasPermission, Role } from "@emdash-cms/auth";
+import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
 import {
 	bylineCreateBody,
 	bylineUpdateBody,
+	CONTENT_TYPE_RE,
 	contentBylineInputSchema,
 	contentSeoInput,
+	createCollectionBody,
+	updateCollectionBody,
+	updateFieldBody,
 } from "#api/schemas.js";
 
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
@@ -26,10 +30,15 @@ import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
+import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import type { RouteCallerInput } from "../plugins/routes.js";
+import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
+const TAXONOMY_CURSOR_VERSION = 2;
+const MAX_TAXONOMY_CURSOR_LENGTH = 2048;
 
 // ---------------------------------------------------------------------------
 // Shared schemas — kept in sync with `api/schemas/settings.ts` (which the
@@ -106,6 +115,84 @@ const mediaUsageRepairToolSchema = z
 		}
 	});
 
+const schemaUpdateCollectionToolSchema = z.object({
+	slug: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+		.describe("Collection slug to update; the slug itself cannot be changed"),
+	label: updateCollectionBody.shape.label.describe("New plural display name"),
+	labelSingular: updateCollectionBody.shape.labelSingular.describe("New singular display name"),
+	description: updateCollectionBody.shape.description.describe("New collection description"),
+	icon: updateCollectionBody.shape.icon.describe("New admin UI icon name"),
+	supports: updateCollectionBody.shape.supports.describe(
+		"Complete feature list to enable; omit to preserve the current list",
+	),
+	urlPattern: updateCollectionBody.shape.urlPattern.describe(
+		"New public URL pattern; pass null to clear it",
+	),
+	routable: updateCollectionBody.shape.routable.describe(
+		"Whether entries require a slug before they can be published",
+	),
+	hasSeo: updateCollectionBody.shape.hasSeo.describe(
+		"Whether the collection supports SEO metadata",
+	),
+	commentsEnabled: updateCollectionBody.shape.commentsEnabled.describe(
+		"Whether comments are enabled for this collection",
+	),
+	commentsModeration: updateCollectionBody.shape.commentsModeration.describe(
+		"Comment moderation policy",
+	),
+	commentsClosedAfterDays: updateCollectionBody.shape.commentsClosedAfterDays.describe(
+		"Close comments after this many days; 0 keeps them open",
+	),
+	commentsAutoApproveUsers: updateCollectionBody.shape.commentsAutoApproveUsers.describe(
+		"Whether comments from authenticated users are automatically approved",
+	),
+});
+
+const schemaUpdateFieldToolSchema = z.object({
+	collection: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid collection slug")
+		.describe("Collection slug containing the field"),
+	fieldSlug: z
+		.string()
+		.min(1)
+		.max(63)
+		.regex(COLLECTION_SLUG_PATTERN, "Invalid field slug")
+		.describe("Field slug to update; the slug itself cannot be changed"),
+	label: updateFieldBody.shape.label.describe("New display name"),
+	type: updateFieldBody.shape.type.describe(
+		"New field type; only string, text, and slug aliases can be changed in place",
+	),
+	required: updateFieldBody.shape.required.describe(
+		"Whether the field is required; changing this requires a manual content migration",
+	),
+	unique: updateFieldBody.shape.unique.describe(
+		"Whether field values must be unique; changing this requires a manual content migration",
+	),
+	defaultValue: updateFieldBody.shape.defaultValue.describe("Default value for new content"),
+	validation: updateFieldBody.shape.validation.describe(
+		"Validation constraints; pass null to clear existing constraints",
+	),
+	widget: updateFieldBody.shape.widget.describe("Admin editor widget name"),
+	options: updateFieldBody.shape.options.describe("Widget configuration"),
+	sortOrder: updateFieldBody.shape.sortOrder.describe("Field order in the content editor"),
+	searchable: updateFieldBody.shape.searchable.describe(
+		"Whether full-text search indexes the field",
+	),
+	translatable: updateFieldBody.shape.translatable.describe(
+		"Whether values vary by locale; changing to false requires a manual content migration",
+	),
+	indexed: updateFieldBody.shape.indexed.describe(
+		"Create or remove a physical index for structured sorting",
+	),
+});
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -118,6 +205,7 @@ type HandlerResult = {
 
 type SuccessEnvelope = {
 	content: Array<{ type: "text"; text: string }>;
+	structuredContent?: Record<string, unknown>;
 	_meta?: Record<string, unknown>;
 };
 
@@ -126,6 +214,58 @@ type ErrorEnvelope = {
 	isError: true;
 	_meta: { code: string; details?: Record<string, unknown> };
 };
+
+type TaxonomyListCursor = { id: string };
+
+function encodeTaxonomyCursor(term: { id: string }): string {
+	const cursor = encodeBase64(
+		JSON.stringify({
+			v: TAXONOMY_CURSOR_VERSION,
+			id: term.id,
+		}),
+	);
+	if (cursor.length > MAX_TAXONOMY_CURSOR_LENGTH) {
+		throw new InvalidCursorError(cursor);
+	}
+	return cursor;
+}
+
+function decodeTaxonomyCursor(cursor: string): TaxonomyListCursor {
+	if (!cursor || cursor.length > MAX_TAXONOMY_CURSOR_LENGTH) {
+		throw new InvalidCursorError(cursor);
+	}
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(decodeBase64(cursor));
+	} catch {
+		throw new InvalidCursorError(cursor);
+	}
+
+	if (parsed === null || typeof parsed !== "object") {
+		throw new InvalidCursorError(cursor);
+	}
+
+	const candidate = parsed as Record<string, unknown>;
+	if ("v" in candidate) {
+		const { v, id } = candidate;
+		if (
+			v !== TAXONOMY_CURSOR_VERSION ||
+			typeof id !== "string" ||
+			id.length === 0 ||
+			id.includes("\0")
+		) {
+			throw new InvalidCursorError(cursor);
+		}
+		return { id };
+	}
+
+	const legacy = decodeCursor(cursor);
+	if (legacy.orderValue.includes("\0") || legacy.id.length === 0 || legacy.id.includes("\0")) {
+		throw new InvalidCursorError(cursor);
+	}
+	return { id: legacy.id };
+}
 
 /**
  * Return a successful tool response with the data as pretty-printed JSON.
@@ -272,11 +412,12 @@ function jsonResult(data: unknown): SuccessEnvelope {
 // ---------------------------------------------------------------------------
 // Context extraction
 //
-// The route handler passes emdash + userId in authInfo.extra.
+// The route handler passes the runtime and authenticated user in authInfo.extra.
 // ---------------------------------------------------------------------------
 
 interface EmDashExtra {
 	emdash: EmDashHandlers;
+	user: RouteCallerInput;
 	userId: string;
 	/** The authenticated user's RBAC role level. */
 	userRole: RoleLevel;
@@ -480,7 +621,21 @@ function extractContentId(data: unknown): string | undefined {
 // Server factory
 // ---------------------------------------------------------------------------
 
-export function createMcpServer(): McpServer {
+export interface PluginMcpRegistration {
+	pluginId: string;
+	name: string;
+	description: string;
+	route: string;
+	permission: string;
+	destructive: boolean;
+	inputSchema: z.ZodType;
+	outputSchema?: z.ZodType;
+}
+
+export function createMcpServer(
+	pluginTools: PluginMcpRegistration[] = [],
+	request?: Request,
+): McpServer {
 	const server = new McpServer(
 		{ name: "emdash", version: "0.1.0" },
 		{ capabilities: { logging: {} } },
@@ -513,6 +668,79 @@ export function createMcpServer(): McpServer {
 			originalRegisterTool as unknown as (n: string, c: unknown, cb: typeof wrapped) => unknown
 		)(name, config, wrapped);
 	}) as typeof server.registerTool;
+
+	for (const tool of pluginTools) {
+		if (!(tool.permission in Permissions)) continue;
+		server.registerTool(
+			`${tool.pluginId}__${tool.name}`,
+			{
+				description: tool.description,
+				inputSchema: tool.inputSchema,
+				outputSchema: tool.outputSchema,
+				annotations: { destructiveHint: tool.destructive },
+			},
+			async (input, extra) => {
+				const payload = getExtra(extra);
+				const requiredScope = `mcp:tools:${tool.pluginId}`;
+				if (payload.tokenScopes && !hasScope(payload.tokenScopes, requiredScope)) {
+					if (request) {
+						await payload.emdash.handlePluginMcpDenied(
+							tool.pluginId,
+							tool.name,
+							tool.route,
+							payload.userId,
+							request,
+							`Missing scope: ${requiredScope}`,
+						);
+					}
+					throw new EmDashAuthError(
+						`Insufficient scope: requires ${requiredScope}`,
+						"INSUFFICIENT_SCOPE",
+					);
+				}
+				if (!hasPermission({ role: payload.userRole }, tool.permission as Permission)) {
+					if (request) {
+						await payload.emdash.handlePluginMcpDenied(
+							tool.pluginId,
+							tool.name,
+							tool.route,
+							payload.userId,
+							request,
+							`Missing permission: ${tool.permission}`,
+						);
+					}
+					throw new EmDashAuthError(
+						`Insufficient permission: requires ${tool.permission}`,
+						"INSUFFICIENT_PERMISSIONS",
+					);
+				}
+				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const result = await payload.emdash.handlePluginMcpTool(
+					tool.pluginId,
+					tool.name,
+					tool.route,
+					input,
+					payload.userId,
+					request,
+					payload.user,
+				);
+				if (!result.success) return unwrap(result);
+				if (tool.outputSchema) {
+					if (!result.data || typeof result.data !== "object" || Array.isArray(result.data)) {
+						return respondError(
+							"INVALID_PLUGIN_OUTPUT",
+							"Plugin tool output must be an object when outputSchema is declared",
+						);
+					}
+					return {
+						content: [{ type: "text", text: JSON.stringify(result.data, null, 2) }],
+						structuredContent: result.data as Record<string, unknown>,
+					};
+				}
+				return respondData(result.data);
+			},
+		);
+	}
 
 	// =====================================================================
 	// Content tools
@@ -1576,7 +1804,8 @@ export function createMcpServer(): McpServer {
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
 				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'scheduling' (timed publish), 'search' (full-text indexing).",
+				"preview), 'scheduling' (timed publish), 'search' (full-text indexing), " +
+				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
 				slug: z
 					.string()
@@ -1586,10 +1815,12 @@ export function createMcpServer(): McpServer {
 				labelSingular: z.string().optional().describe("Singular display name (e.g. 'Blog Post')"),
 				description: z.string().optional().describe("Description of this collection"),
 				icon: z.string().optional().describe("Icon name for the admin UI"),
-				supports: z
-					.array(z.enum(["drafts", "revisions", "preview", "scheduling", "search"]))
-					.optional()
-					.describe("Features to enable (default: ['drafts', 'revisions'])"),
+				supports: createCollectionBody.shape.supports.describe(
+					"Features to enable (default: ['drafts', 'revisions'])",
+				),
+				routable: createCollectionBody.shape.routable.describe(
+					"Require a slug before publishing (default: true)",
+				),
 			}),
 		},
 		async (args, extra) => {
@@ -1608,6 +1839,7 @@ export function createMcpServer(): McpServer {
 					// SchemaRegistry.createCollection now defaults `supports` to
 					// ['drafts', 'revisions'] when undefined; pass through verbatim.
 					supports: args.supports,
+					routable: args.routable,
 				});
 				ec.invalidateUrlPatternCache();
 				return jsonResult(collection);
@@ -1645,6 +1877,33 @@ export function createMcpServer(): McpServer {
 				return jsonResult({ deleted: args.slug });
 			} catch (error) {
 				return respondHandlerError(error, "SCHEMA_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"schema_update_collection",
+		{
+			title: "Update Collection",
+			description:
+				"Update an existing collection without deleting its table, fields, or content. " +
+				"Only provided settings change; omitted settings keep their current values. " +
+				"The collection slug cannot be changed.",
+			inputSchema: schemaUpdateCollectionToolSchema,
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { slug, ...input } = args;
+			try {
+				const { handleSchemaCollectionUpdate } = await import("../api/handlers/schema.js");
+				const result = await handleSchemaCollectionUpdate(ec.db, slug, input);
+				if (result.success) ec.invalidateUrlPatternCache();
+				return unwrap(result);
+			} catch (error) {
+				return respondHandlerError(error, "SCHEMA_UPDATE_ERROR");
 			}
 		},
 	);
@@ -1717,6 +1976,7 @@ export function createMcpServer(): McpServer {
 					.boolean()
 					.optional()
 					.describe("Include in full-text search index (default false)"),
+				indexed: z.boolean().optional().describe("Create a physical index for structured sorting"),
 				translatable: z
 					.boolean()
 					.optional()
@@ -1743,6 +2003,7 @@ export function createMcpServer(): McpServer {
 					validation: args.validation,
 					options: args.options,
 					searchable: args.searchable,
+					indexed: args.indexed,
 					translatable: args.translatable,
 				});
 				return jsonResult(field);
@@ -1776,6 +2037,31 @@ export function createMcpServer(): McpServer {
 				return jsonResult({ deleted: args.fieldSlug, collection: args.collection });
 			} catch (error) {
 				return respondHandlerError(error, "FIELD_DELETE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"schema_update_field",
+		{
+			title: "Update Field",
+			description:
+				"Update an existing field without deleting its column or stored values. Only " +
+				"provided settings change; omitted settings keep their current values. Changes " +
+				"that require a content or column migration are rejected with migration guidance.",
+			inputSchema: schemaUpdateFieldToolSchema,
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "schema:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const { collection, fieldSlug, ...input } = args;
+			try {
+				const { handleSchemaFieldUpdate } = await import("../api/handlers/schema.js");
+				return unwrap(await handleSchemaFieldUpdate(ec.db, collection, fieldSlug, input));
+			} catch (error) {
+				return respondHandlerError(error, "SCHEMA_FIELD_UPDATE_ERROR");
 			}
 		},
 	);
@@ -1824,9 +2110,8 @@ export function createMcpServer(): McpServer {
 				"caller is responsible for placing the file at `storageKey` (typically " +
 				"using a signed upload URL obtained from the admin UI or a separate API). " +
 				"This tool persists the metadata record so the file is discoverable via " +
-				"media_list / media_get and can be referenced by content. For binary " +
-				"uploads the MCP transport is not appropriate — use the signed-upload " +
-				"flow instead.",
+				"media_list / media_get and can be referenced by content. To upload the " +
+				"file itself, use media_upload (base64 data or a public URL) instead.",
 			inputSchema: z.object({
 				filename: z.string().describe("Original filename (e.g. 'logo.png')"),
 				mimeType: z.string().describe("MIME type (e.g. 'image/png')"),
@@ -1860,6 +2145,70 @@ export function createMcpServer(): McpServer {
 					authorId: userId,
 				}),
 			);
+		},
+	);
+
+	server.registerTool(
+		"media_upload",
+		{
+			title: "Upload Media",
+			description:
+				"Upload a media file from base64-encoded data or an external URL and " +
+				"register it in the media library. Returns the media item with id, " +
+				"storageKey, and url — ready to reference from content fields (e.g. " +
+				"featured_image) via content_create / content_update. Uploads are " +
+				"deduplicated by content hash: re-uploading identical bytes returns " +
+				"the existing item with deduplicated: true. URL fetches must resolve " +
+				"to a public http(s) host (SSRF-guarded). Subject to the global " +
+				"upload MIME allowlist and the configured maximum upload size.",
+			inputSchema: z.object({
+				filename: z.string().min(1).describe("Filename including extension (e.g. 'cover.png')"),
+				base64: z
+					.string()
+					.optional()
+					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
+				url: z
+					.string()
+					.url()
+					.optional()
+					.describe(
+						"Public http(s) URL to fetch the file from. Provide exactly one of base64 / url.",
+					),
+				contentType: z
+					.string()
+					.regex(CONTENT_TYPE_RE, "Invalid content type")
+					.optional()
+					.describe(
+						"MIME type (e.g. 'image/png'). Required with base64; with url it " +
+							"defaults to the response's Content-Type header.",
+					),
+				alt: z.string().optional().describe("Alt text for accessibility"),
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "media:write");
+			requireRole(extra, Role.CONTRIBUTOR);
+			const { emdash, userId } = getExtra(extra);
+			if (!emdash.storage) {
+				return respondError("NO_STORAGE", "Storage not configured");
+			}
+			try {
+				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
+				return unwrap(
+					await handleMediaUpload(emdash.db, emdash.storage, {
+						filename: args.filename,
+						base64: args.base64,
+						url: args.url,
+						contentType: args.contentType,
+						alt: args.alt,
+						authorId: userId,
+						maxUploadSize: emdash.config.maxUploadSize,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "UPLOAD_ERROR");
+			}
 		},
 	);
 
@@ -2085,7 +2434,12 @@ export function createMcpServer(): McpServer {
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
 				limit: z.number().int().min(1).max(100).optional().describe("Max items (default 50)"),
-				cursor: z.string().min(1).max(2048).optional().describe("Pagination cursor"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(MAX_TAXONOMY_CURSOR_LENGTH)
+					.optional()
+					.describe("Pagination cursor"),
 				locale: z.string().optional().describe("Filter by locale (omit for all)"),
 			}),
 			annotations: { readOnlyHint: true },
@@ -2104,46 +2458,47 @@ export function createMcpServer(): McpServer {
 				if (!taxonomy) return respondError("NOT_FOUND", `Taxonomy '${args.taxonomy}' not found`);
 
 				const { TaxonomyRepository } = await import("../database/repositories/taxonomy.js");
-				const { decodeCursor, encodeCursor, InvalidCursorError } =
-					await import("../database/repositories/types.js");
 				const repo = new TaxonomyRepository(ec.db);
 				const limit = Math.min(args.limit ?? 50, 100);
-				const terms = await repo.findByName(args.taxonomy, { locale: args.locale });
-
-				// Manual keyset pagination over the sorted-by-label results.
-				// Using a base64-encoded `(label, id)` cursor matches the
-				// scheme other list endpoints use and tolerates concurrent
-				// deletion of the cursor-term — the cursor is a position,
-				// not a row reference, so a missing row just means we skip
-				// past it rather than erroring.
-				let startIdx = 0;
+				let cursor: TaxonomyListCursor | undefined;
 				if (args.cursor) {
-					let decoded: { orderValue: string; id: string };
 					try {
-						decoded = decodeCursor(args.cursor);
+						cursor = decodeTaxonomyCursor(args.cursor);
 					} catch (error) {
 						if (error instanceof InvalidCursorError) {
 							return respondError("INVALID_CURSOR", error.message);
 						}
 						throw error;
 					}
-					// Find the first term that sorts strictly after the cursor
-					// position. Stable order is `(label asc, id asc)` so a
-					// `(label, id)` tuple comparison is the keyset.
-					startIdx = terms.findIndex(
-						(t) =>
-							t.label > decoded.orderValue || (t.label === decoded.orderValue && t.id > decoded.id),
-					);
-					if (startIdx < 0) startIdx = terms.length;
 				}
 
-				const page = terms.slice(startIdx, startIdx + limit);
-				const hasMore = startIdx + limit < terms.length;
-				const last = page.at(-1);
-				const nextCursor = hasMore && last ? encodeCursor(last.label, last.id) : undefined;
+				let pageCursor: { sortOrder: number; label: string; id: string } | undefined;
+				if (cursor) {
+					const cursorTerm = await repo.findById(cursor.id);
+					if (
+						!cursorTerm ||
+						cursorTerm.name !== args.taxonomy ||
+						(args.locale !== undefined && cursorTerm.locale !== args.locale)
+					) {
+						return respondError("INVALID_CURSOR", "Pagination cursor no longer identifies a term");
+					}
+					pageCursor = {
+						sortOrder: cursorTerm.sortOrder,
+						label: cursorTerm.label,
+						id: cursorTerm.id,
+					};
+				}
+
+				const page = await repo.findPageByName(args.taxonomy, {
+					locale: args.locale,
+					limit,
+					...(pageCursor ? { cursor: pageCursor } : {}),
+				});
+				const last = page.items.at(-1);
+				const nextCursor = page.hasMore && last ? encodeTaxonomyCursor(last) : undefined;
 
 				return jsonResult({
-					items: page.map((t) => ({
+					items: page.items.map((t) => ({
 						id: t.id,
 						name: t.name,
 						slug: t.slug,
@@ -2173,7 +2528,11 @@ export function createMcpServer(): McpServer {
 				"new term beneath a chain of 100+ existing ancestors are rejected.",
 			inputSchema: z.object({
 				taxonomy: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
-				slug: z.string().describe("URL-safe identifier for the term"),
+				slug: z
+					.string()
+					.min(1)
+					.optional()
+					.describe("URL identifier for the term; omit to derive it from the label"),
 				label: z.string().describe("Display name"),
 				parentId: z.string().optional().describe("Parent term ID for hierarchical taxonomies"),
 				description: z.string().optional().describe("Description of the term"),

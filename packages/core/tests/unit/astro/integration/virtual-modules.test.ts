@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,8 +10,10 @@ import type { PluginDescriptor } from "../../../../src/astro/integration/runtime
 import {
 	generateConfigModule,
 	generateDialectModule,
+	generateEnvModule,
 	generateSchedulerModule,
 	generateSeedModule,
+	RESOLVED_VIRTUAL_BUILD_ID,
 	RESOLVED_VIRTUAL_SANDBOXED_PLUGINS_ID,
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
 } from "../../../../src/astro/integration/virtual-modules.js";
@@ -43,6 +45,7 @@ describe("generateDialectModule", () => {
 		const out = generateDialectModule({
 			supportsRequestScope: false,
 			supportsCoalescing: false,
+			supportsCollectionDeletionGuard: false,
 		});
 		expect(out).toContain("export const createDialect = undefined");
 		expect(out).toContain("export const createRequestScopedDb = (_opts) => null");
@@ -54,6 +57,7 @@ describe("generateDialectModule", () => {
 			type: "sqlite",
 			supportsRequestScope: false,
 			supportsCoalescing: false,
+			supportsCollectionDeletionGuard: false,
 		});
 		expect(out).toContain(`import { createDialect as _createDialect } from "some-adapter/dialect"`);
 		expect(out).toContain("export const createRequestScopedDb = (_opts) => null");
@@ -68,12 +72,16 @@ describe("generateDialectModule", () => {
 			type: "sqlite",
 			supportsRequestScope: true,
 			supportsCoalescing: true,
+			supportsCollectionDeletionGuard: true,
 		});
 		expect(out).toContain(`export { createRequestScopedDb } from "@emdash-cms/cloudflare/db/d1"`);
 		expect(out).toContain(
 			`import { createCoalescingDialect as _createCoalescingDialect } from "@emdash-cms/cloudflare/db/d1"`,
 		);
 		expect(out).toContain("export const createCoalescingDialect = _createCoalescingDialect");
+		expect(out).toContain(
+			`export { executeCollectionDeletionGuard } from "@emdash-cms/cloudflare/db/d1"`,
+		);
 		expect(out).not.toContain("= () => null");
 		expect(out).not.toContain("= (_opts) => null");
 	});
@@ -84,6 +92,7 @@ describe("generateDialectModule", () => {
 			type: "postgres",
 			supportsRequestScope: false,
 			supportsCoalescing: false,
+			supportsCollectionDeletionGuard: false,
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
 	});
@@ -119,7 +128,25 @@ describe("generateSchedulerModule", () => {
 	});
 });
 
-describe("createVirtualModulesPlugin", () => {
+describe("generateEnvModule", () => {
+	it("re-exports cloudflare:workers' env under the Cloudflare adapter", () => {
+		const out = generateEnvModule("@astrojs/cloudflare");
+		expect(out).toBe('export { env } from "cloudflare:workers";');
+	});
+
+	it("exports undefined for non-Cloudflare adapters (#1736)", () => {
+		const out = generateEnvModule("@astrojs/node");
+		expect(out).toBe("export const env = undefined;");
+		expect(out).not.toContain("cloudflare:workers");
+	});
+
+	it("exports undefined when no adapter is configured", () => {
+		const out = generateEnvModule(undefined);
+		expect(out).toBe("export const env = undefined;");
+	});
+});
+
+describe("createVirtualModulesPlugin scheduler wiring", () => {
 	// Invoke a Vite plugin hook that may be a function or { handler } object.
 	function callHook<T>(hook: unknown, ...args: unknown[]): T {
 		const fn = typeof hook === "function" ? hook : (hook as { handler: unknown }).handler;
@@ -166,6 +193,17 @@ describe("createVirtualModulesPlugin", () => {
 		expect(out).not.toContain("NodeCronScheduler");
 	});
 
+	it("keeps the build timestamp stable across repeated loads", () => {
+		const plugin = buildPlugin("@astrojs/cloudflare", "build");
+		callHook(plugin.configResolved, { command: "build" });
+
+		const first = callHook<string>(plugin.load, RESOLVED_VIRTUAL_BUILD_ID);
+		const second = callHook<string>(plugin.load, RESOLVED_VIRTUAL_BUILD_ID);
+
+		expect(first).toBe(second);
+		expect(Number(/buildTime = (\d+)/.exec(first)?.[1])).toBeGreaterThan(0);
+	});
+
 	it("watches resolved sandbox plugin entries", () => {
 		const projectRoot = mkdtempSync(join(tmpdir(), "emdash-sandbox-watch-test-"));
 		try {
@@ -210,7 +248,9 @@ describe("createVirtualModulesPlugin", () => {
 
 			expect(source).toContain("export default { hooks: {} };");
 			expect(addWatchFile).toHaveBeenCalledOnce();
-			expect(addWatchFile).toHaveBeenCalledWith(entryPath);
+			// Module resolution canonicalizes macOS' /var -> /private/var symlink.
+			// Compare the physical path so this contract is portable across hosts.
+			expect(addWatchFile).toHaveBeenCalledWith(realpathSync(entryPath));
 		} finally {
 			rmSync(projectRoot, { recursive: true, force: true });
 		}

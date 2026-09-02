@@ -7,14 +7,19 @@
  * DO NOT import Node.js-only modules here (fs, path, module, etc.)
  */
 
+import type { ManifestHookEntry, ManifestRouteEntry } from "@emdash-cms/plugin-types";
+
 import type { AuthDescriptor, AuthProviderDescriptor } from "../../auth/types.js";
+import type { RuntimeMigrationConfig } from "../../database/migrations/policy.js";
 import type { DatabaseDescriptor } from "../../db/adapters.js";
 import type { MediaProviderDescriptor } from "../../media/types.js";
 import type { ObjectCacheDescriptor } from "../../object-cache/types.js";
 import type {
 	FieldWidgetConfig,
+	PluginMcpManifestConfig,
 	PortableTextBlockConfig,
 	ResolvedPlugin,
+	SettingField,
 } from "../../plugins/types.js";
 import type { ExperimentalConfig } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
@@ -103,6 +108,8 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	adminPages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	adminWidgets?: PluginDashboardWidget[];
+	/** Settings schema for the auto-generated admin settings form */
+	settingsSchema?: Record<string, SettingField>;
 	/**
 	 * Portable Text block types this plugin contributes to the editor.
 	 * Declarative (Block Kit) — surfaced in the admin slash menu and consumed
@@ -131,6 +138,19 @@ export interface PluginDescriptor<TOptions = Record<string, unknown>> {
 	 * Sandboxed plugins can only access declared collections.
 	 */
 	storage?: Record<string, StorageCollectionDeclaration>;
+	/** Serialized MCP declarations emitted by the plugin build. */
+	mcp?: PluginMcpManifestConfig;
+	/**
+	 * Route declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ routes }) and drives route auth decisions; omitted routes
+	 * default to non-public.
+	 */
+	routes?: Array<ManifestRouteEntry | string>;
+	/**
+	 * Hook declarations for sandboxed config-declared plugins. Mirrors
+	 * definePlugin({ hooks }).
+	 */
+	hooks?: Array<ManifestHookEntry | string>;
 }
 
 /**
@@ -161,6 +181,8 @@ export interface EmDashConfig {
 	 * ```
 	 */
 	database?: DatabaseDescriptor;
+	/** Core database migration behavior at runtime. Defaults to `auto`. */
+	migrations?: RuntimeMigrationConfig;
 	/**
 	 * Storage configuration (for media)
 	 */
@@ -458,6 +480,21 @@ export interface EmDashConfig {
 	 * time without touching the Astro config.
 	 */
 	trustedProxyHeaders?: string[];
+
+	/**
+	 * User middleware that wraps the complete EmDash request pipeline.
+	 *
+	 * Before `next()` it runs before EmDash initializes its runtime or database,
+	 * so `locals.emdash`, the authenticated user, and request-scoped EmDash state
+	 * are unavailable. This allows cached responses and request gates to return
+	 * without paying initialization cost. When it calls `next()`, the resolved
+	 * response includes EmDash HTML injection and all other response mutations,
+	 * allowing the middleware to finalize caching and response headers safely.
+	 */
+	middleware?: {
+		/** Astro middleware module entrypoint. */
+		outer: string | URL;
+	};
 
 	/**
 	 * Enable playground mode for ephemeral "try EmDash" sites.

@@ -55,6 +55,27 @@ import * as m049 from "./049_taxonomies_name_locale_index.js";
 import * as m050 from "./050_media_usage_index_status.js";
 import * as m051 from "./051_content_taxonomies_denorm.js";
 import * as m052 from "./052_media_usage_read_index.js";
+import * as m053 from "./053_plugin_mcp_tools.js";
+import * as m054 from "./054_media_upload_attempts.js";
+import * as m055 from "./055_content_translation_group_locale_index.js";
+import * as m056 from "./056_taxonomy_term_sort_order.js";
+import * as m057 from "./057_collection_hidden.js";
+import * as m058 from "./058_collection_sort_order.js";
+import * as m059 from "./059_revision_prune_queue.js";
+import * as m060 from "./060_collection_admin_config.js";
+import * as m061 from "./061_media_usage_cleanup.js";
+import * as m062 from "./062_media_usage_cleanup_fence.js";
+import * as m063 from "./063_media_usage_incremental_work.js";
+import * as m064 from "./064_fts_plain_text.js";
+import * as m065 from "./065_media_usage_collection_deletion.js";
+import * as m066 from "./066_media_usage_reconciliation.js";
+import * as m067 from "./067_indexed_content_fields.js";
+import * as m068 from "./068_content_taxonomy_entry_groups.js";
+import * as m069 from "./069_collection_title_date_fields.js";
+import * as m070 from "./070_collection_routable.js";
+import * as m071 from "./071_restore_content_bylines_table.js";
+import * as m072 from "./072_media_folders.js";
+import * as m073 from "./073_media_focal_point.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -108,10 +129,34 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"050_media_usage_index_status": m050,
 	"051_content_taxonomies_denorm": m051,
 	"052_media_usage_read_index": m052,
+	"053_plugin_mcp_tools": m053,
+	"054_media_upload_attempts": m054,
+	"055_content_translation_group_locale_index": m055,
+	"056_taxonomy_term_sort_order": m056,
+	"057_collection_hidden": m057,
+	"058_collection_sort_order": m058,
+	"059_revision_prune_queue": m059,
+	"060_collection_admin_config": m060,
+	"061_media_usage_cleanup": m061,
+	"062_media_usage_cleanup_fence": m062,
+	"063_media_usage_incremental_work": m063,
+	"064_fts_plain_text": m064,
+	"065_media_usage_collection_deletion": m065,
+	"066_media_usage_reconciliation": m066,
+	"067_indexed_content_fields": m067,
+	"068_content_taxonomy_entry_groups": m068,
+	"069_collection_title_date_fields": m069,
+	"070_collection_routable": m070,
+	"071_restore_content_bylines_table": m071,
+	"072_media_folders": m072,
+	"073_media_focal_point": m073,
 });
 
+/** Ordered names from the statically registered migration set. */
+export const MIGRATION_NAMES: readonly string[] = Object.freeze(Object.keys(MIGRATIONS));
+
 /** Total number of registered migrations. Exported for use in tests. */
-export const MIGRATION_COUNT = Object.keys(MIGRATIONS).length;
+export const MIGRATION_COUNT = MIGRATION_NAMES.length;
 
 /**
  * Migration provider that uses statically imported migrations.
@@ -126,6 +171,12 @@ class StaticMigrationProvider implements MigrationProvider {
 export interface MigrationStatus {
 	applied: string[];
 	pending: string[];
+}
+
+export interface ExactMigrationStatus {
+	knownApplied: string[];
+	pending: string[];
+	unknownApplied: string[];
 }
 
 /**
@@ -213,7 +264,7 @@ function escapeRegExp(value: string): string {
  *
  * We match on the table name (not the full error text) because different
  * SQLite drivers phrase the message differently
- * (`UNIQUE constraint failed: _emdash_migrations.name` for better-sqlite3,
+ * (`UNIQUE constraint failed: _emdash_migrations.name` for file-backed SQLite,
  * `D1_ERROR: UNIQUE constraint failed: _emdash_migrations.name: SQLITE_CONSTRAINT`
  * for D1, etc.). The pattern is built from `MIGRATION_TABLE` so a rename
  * cannot silently disable race detection.
@@ -237,7 +288,7 @@ const MIGRATION_RACE_POLL_MS = 100;
  * Pattern used to detect "table does not exist" errors across the dialects
  * EmDash supports. The phrasing differs by driver:
  *
- *   - better-sqlite3: `no such table: _emdash_migrations`
+ *   - SQLite:         `no such table: _emdash_migrations`
  *   - D1:             `D1_ERROR: no such table: _emdash_migrations: SQLITE_ERROR`
  *   - PostgreSQL:     `relation "_emdash_migrations" does not exist`
  *                     (also occasionally `table "_emdash_migrations" does not exist`)
@@ -250,8 +301,8 @@ const MIGRATION_RACE_POLL_MS = 100;
  * built from `MIGRATION_TABLE` so a rename cannot drift.
  */
 const MIGRATION_TABLE_MISSING_PATTERN = new RegExp(
-	`(?:no such table:\\s*${escapeRegExp(MIGRATION_TABLE)}\\b` +
-		`|(?:relation|table)\\s+"?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
+	`(?:no such table:\\s*(?:[a-z][a-z0-9_]*\\.)?${escapeRegExp(MIGRATION_TABLE)}\\b` +
+		`|(?:relation|table)\\s+"?(?:[a-z][a-z0-9_]*\\.)?${escapeRegExp(MIGRATION_TABLE)}"?\\s+does(?:n't| not) exist\\b)`,
 	"i",
 );
 
@@ -321,6 +372,43 @@ function deepErrorMessage(error: unknown): string {
 	} catch {
 		return String(error);
 	}
+}
+
+/**
+ * Read exact migration status without invoking Kysely's migration
+ * introspection. Registered names retain execution order; unknown database
+ * records are sorted so reports remain stable across dialects.
+ */
+export async function getExactMigrationStatus(
+	db: Kysely<Database>,
+	options?: MigrationOptions,
+): Promise<ExactMigrationStatus> {
+	const table = options?.migrationTableSchema
+		? sql`${sql.ref(options.migrationTableSchema)}.${sql.ref(MIGRATION_TABLE)}`
+		: sql.ref(MIGRATION_TABLE);
+
+	let rows: readonly { name: string }[];
+	try {
+		const result = await sql<{ name: string }>`SELECT name FROM ${table}`.execute(db);
+		rows = result.rows;
+	} catch (error) {
+		if (MIGRATION_TABLE_MISSING_PATTERN.test(deepErrorMessage(error))) {
+			return {
+				knownApplied: [],
+				pending: [...MIGRATION_NAMES],
+				unknownApplied: [],
+			};
+		}
+		throw error;
+	}
+
+	const appliedNames = new Set(rows.map((row) => row.name));
+	const knownApplied = MIGRATION_NAMES.filter((name) => appliedNames.has(name));
+	const pending = MIGRATION_NAMES.filter((name) => !appliedNames.has(name));
+	const knownNames = new Set(MIGRATION_NAMES);
+	const unknownApplied = [...appliedNames].filter((name) => !knownNames.has(name)).toSorted();
+
+	return { knownApplied, pending, unknownApplied };
 }
 
 /**

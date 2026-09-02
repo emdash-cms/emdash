@@ -25,8 +25,17 @@ import Suggestion from "@tiptap/suggestion";
 import * as React from "react";
 import { createPortal } from "react-dom";
 
+import {
+	deriveLegacyListId,
+	normalizeProseMirrorOrderedListJson,
+	normalizeListId,
+	normalizeListStart,
+	readOrderedListMetadata,
+} from "../content/converters/numbered-list.js";
 import { computeThumbnailSize } from "../media/thumbnail.js";
+import { CodeMarkExtension } from "./code-mark.js";
 import { InlineCodeBlockExtension } from "./inline-code-block.js";
+import { EmDashOrderedList } from "./ordered-list.js";
 
 // ── Portable Text types ────────────────────────────────────────────
 
@@ -49,6 +58,8 @@ interface PTTextBlock {
 	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
 	listItem?: "bullet" | "number";
 	level?: number;
+	listId?: string;
+	listStart?: number;
 	children: PTSpan[];
 	markDefs?: PTMarkDef[];
 	textAlign?: "left" | "center" | "right" | "justify";
@@ -72,6 +83,48 @@ function isPMNode(value: unknown): value is PMNode {
 
 function k(): string {
 	return Math.random().toString(36).substring(2, 11);
+}
+
+function getUnsupportedFileGuidance(locale: string): string {
+	if (locale.toLowerCase().startsWith("ar")) {
+		return "لا يمكن إفلات الملفات أو لصقها هنا. اكتب /image لاختيار صورة من مكتبة الوسائط.";
+	}
+	return "Files can’t be dropped or pasted here. Type /image to choose an image from the media library.";
+}
+
+function hasTransferredFiles(transfer: DataTransfer | null): boolean {
+	if (!transfer) return false;
+	if (transfer.files.length > 0) return true;
+	for (let index = 0; index < transfer.items.length; index++) {
+		if (transfer.items[index]?.kind === "file") return true;
+	}
+	return false;
+}
+
+function createUnsupportedFileHandlers(showGuidance: () => void) {
+	const keepFileDragInEditor = (_view: unknown, event: DragEvent): boolean => {
+		if (!hasTransferredFiles(event.dataTransfer)) return false;
+		event.preventDefault();
+		return true;
+	};
+	return {
+		handleDOMEvents: {
+			dragenter: keepFileDragInEditor,
+			dragover: keepFileDragInEditor,
+			drop: (_view: unknown, event: DragEvent): boolean => {
+				if (!hasTransferredFiles(event.dataTransfer)) return false;
+				event.preventDefault();
+				showGuidance();
+				return true;
+			},
+			paste: (_view: unknown, event: ClipboardEvent): boolean => {
+				if (!hasTransferredFiles(event.clipboardData)) return false;
+				event.preventDefault();
+				showGuidance();
+				return true;
+			},
+		},
+	};
 }
 
 // ── ProseMirror → Portable Text ────────────────────────────────────
@@ -102,11 +155,15 @@ function attrNum(attrs: Record<string, unknown> | undefined, key: string): numbe
 	return typeof v === "number" ? v : undefined;
 }
 
+function canonicalMediaProviderId(provider: string | undefined): string | undefined {
+	return provider === "external-url" ? "external" : provider;
+}
+
 function pmToPortableText(doc: PMNode): PTBlock[] {
 	if (!doc || doc.type !== "doc" || !doc.content) return [];
 	const blocks: PTBlock[] = [];
-	for (const node of doc.content) {
-		const r = convertPMNode(node);
+	for (let i = 0; i < doc.content.length; i++) {
+		const r = convertPMNode(doc.content[i]!, `root:${i}`);
 		if (r) {
 			if (Array.isArray(r)) blocks.push(...r);
 			else blocks.push(r);
@@ -115,7 +172,7 @@ function pmToPortableText(doc: PMNode): PTBlock[] {
 	return blocks;
 }
 
-function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
+function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 	switch (node.type) {
 		case "paragraph": {
 			const { children, markDefs } = convertInline(node.content || []);
@@ -156,9 +213,9 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 			};
 		}
 		case "bulletList":
-			return convertPMList(node.content || [], "bullet");
+			return convertPMList(node.content || [], "bullet", 1, node.attrs, path);
 		case "orderedList":
-			return convertPMList(node.content || [], "number");
+			return convertPMList(node.content || [], "number", 1, node.attrs, path);
 		case "blockquote": {
 			const blocks: PTTextBlock[] = [];
 			for (const child of node.content || []) {
@@ -244,11 +301,20 @@ function convertPMNode(node: PMNode): PTBlock | PTBlock[] | null {
 	}
 }
 
-function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBlock[] {
+function convertPMList(
+	items: PMNode[],
+	listItem: "bullet" | "number",
+	level: number,
+	attrs: Record<string, unknown> | undefined,
+	path: string,
+): PTTextBlock[] {
 	const blocks: PTTextBlock[] = [];
-	for (const item of items) {
+	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
+	for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
+		const item = items[itemIndex]!;
 		if (item.type === "listItem") {
-			for (const child of item.content || []) {
+			for (let childIndex = 0; childIndex < (item.content?.length ?? 0); childIndex++) {
+				const child = item.content![childIndex]!;
 				if (child.type === "paragraph") {
 					const { children, markDefs } = convertInline(child.content || []);
 					if (children.length > 0) {
@@ -257,11 +323,23 @@ function convertPMList(items: PMNode[], listItem: "bullet" | "number"): PTTextBl
 							_key: k(),
 							style: "normal",
 							listItem,
-							level: 1,
+							level,
+							...metadata,
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
 						});
 					}
+				} else if (child.type === "bulletList" || child.type === "orderedList") {
+					const childListItem = child.type === "bulletList" ? "bullet" : "number";
+					blocks.push(
+						...convertPMList(
+							child.content || [],
+							childListItem,
+							level + 1,
+							child.attrs,
+							`${path}:${itemIndex}:${childIndex}`,
+						),
+					);
 				}
 			}
 		}
@@ -345,7 +423,7 @@ function convertPMMark(
 function portableTextToPM(blocks: PTBlock[]): JSONContent {
 	if (!blocks || blocks.length === 0) return { type: "doc", content: [{ type: "paragraph" }] };
 
-	const content: JSONContent[] = [];
+	const content: PMNode[] = [];
 	let i = 0;
 
 	while (i < blocks.length) {
@@ -357,14 +435,23 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 		if (isPTTextBlock(block) && block.listItem) {
 			const listBlocks: PTTextBlock[] = [];
 			const listType = block.listItem;
+			const runStart = i;
+			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
 			while (i < blocks.length) {
 				const cur = blocks[i];
-				if (cur && isPTTextBlock(cur) && cur.listItem === listType) {
+				if (!cur || !isPTTextBlock(cur) || !cur.listItem) break;
+				const level = cur.level || 1;
+				const currentId = cur.listItem === "number" ? normalizeListId(cur.listId) : undefined;
+				const sameIdentity =
+					listType !== "number" ||
+					level > 1 ||
+					(rootId ? currentId === rootId : currentId === undefined);
+				if (level > 1 || (cur.listItem === listType && sameIdentity)) {
 					listBlocks.push(cur);
 					i++;
 				} else break;
 			}
-			content.push(convertPTList(listBlocks, listType));
+			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
 		} else if (
 			isPTTextBlock(block) &&
 			block.style === "blockquote" &&
@@ -374,7 +461,7 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 			// PT is flat, so a multi-paragraph quote is stored as a run of
 			// blockquote-styled blocks. Mirrors the grouping in
 			// content/converters/portable-text-to-prosemirror.ts; without it
-			// merges revert on reload in the inline editor too (#1884).
+			// merges revert on reload in the inline editor too.
 			const quoteBlocks: PTTextBlock[] = [];
 			while (i < blocks.length) {
 				const cur = blocks[i];
@@ -406,10 +493,13 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 		}
 	}
 
-	return { type: "doc", content: content.length > 0 ? content : [{ type: "paragraph" }] };
+	return normalizeProseMirrorOrderedListJson({
+		type: "doc",
+		content: content.length > 0 ? content : [{ type: "paragraph" }],
+	});
 }
 
-function convertPTBlock(block: PTBlock): JSONContent | null {
+function convertPTBlock(block: PTBlock): PMNode | null {
 	if (isPTTextBlock(block)) {
 		const { style = "normal", children, markDefs = [], textAlign } = block;
 		const pmContent = convertPTSpans(children, markDefs);
@@ -441,9 +531,10 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	}
 	if (block._type === "code") {
 		const cb = block as PTBlock & { code?: string; language?: string };
+		const language = typeof cb.language === "string" && cb.language.length > 0 ? cb.language : null;
 		return {
 			type: "codeBlock",
-			attrs: { language: cb.language || null },
+			attrs: { language },
 			content: cb.code ? [{ type: "text", text: cb.code }] : undefined,
 		};
 	}
@@ -499,7 +590,7 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 				title: ib.caption || "",
 				caption: ib.caption || "",
 				mediaId: asset?._ref,
-				provider: asset?.provider,
+				provider: canonicalMediaProviderId(asset?.provider),
 				width: ib.width,
 				height: ib.height,
 				blurhash,
@@ -529,23 +620,118 @@ function convertPTBlock(block: PTBlock): JSONContent | null {
 	};
 }
 
-function convertPTList(items: PTTextBlock[], listType: "bullet" | "number"): JSONContent {
+function convertPTList(
+	items: PTTextBlock[],
+	listType: "bullet" | "number",
+	context: string,
+): PMNode {
+	const rootItems: PMNode[] = [];
+	let index = 0;
+
+	while (index < items.length) {
+		const item = items[index]!;
+		const level = item.level || 1;
+		if (level === 1) {
+			const nestedItems: PTTextBlock[] = [];
+			index++;
+			while (index < items.length && (items[index]!.level || 1) > 1) {
+				nestedItems.push(items[index]!);
+				index++;
+			}
+			rootItems.push(
+				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
+			);
+		} else {
+			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
+			index++;
+		}
+	}
+
+	const firstItem = items[0]!;
+	const listId =
+		normalizeListId(firstItem.listId) ?? deriveLegacyListId(`${context}:${firstItem._key}`);
+	const listStart = normalizeListStart(firstItem.listStart);
+	const metadata =
+		listType === "number"
+			? {
+					listId,
+					...(listStart === undefined ? {} : { listStart }),
+				}
+			: undefined;
 	return {
 		type: listType === "bullet" ? "bulletList" : "orderedList",
-		content: items.map((item) => ({
-			type: "listItem",
-			content: [
-				{
-					type: "paragraph",
-					content: convertPTSpans(item.children, item.markDefs || []),
-				},
-			],
-		})),
+		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
+		content: rootItems,
 	};
 }
 
-function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): JSONContent[] {
-	const nodes: JSONContent[] = [];
+function belongsToNestedPTGroup(
+	item: PTTextBlock,
+	minLevel: number,
+	parentListType: "bullet" | "number",
+	anchorType: "bullet" | "number",
+	anchorId: string | undefined,
+): boolean {
+	if ((item.level || 2) > minLevel) return true;
+	if ((item.listItem || parentListType) !== anchorType) return false;
+	if (anchorType !== "number") return true;
+	const itemId = normalizeListId(item.listId);
+	return anchorId ? itemId === anchorId : itemId === undefined;
+}
+
+function convertPTListItem(
+	item: PTTextBlock,
+	nestedItems: PTTextBlock[],
+	parentListType: "bullet" | "number",
+	context: string,
+): PMNode {
+	const content: PMNode[] = [
+		{
+			type: "paragraph",
+			content: convertPTSpans(item.children, item.markDefs || []),
+		},
+	];
+
+	if (nestedItems.length > 0) {
+		let minLevel = Infinity;
+		for (const nestedItem of nestedItems) {
+			const level = nestedItem.level || 2;
+			if (level < minLevel) minLevel = level;
+		}
+
+		let index = 0;
+		while (index < nestedItems.length) {
+			const groupStart = index;
+			const anchorType = nestedItems[index]!.listItem || parentListType;
+			const anchorId =
+				anchorType === "number" ? normalizeListId(nestedItems[index]!.listId) : undefined;
+			const nestedGroup: PTTextBlock[] = [];
+			do {
+				nestedGroup.push(nestedItems[index]!);
+				index++;
+			} while (
+				index < nestedItems.length &&
+				belongsToNestedPTGroup(nestedItems[index]!, minLevel, parentListType, anchorType, anchorId)
+			);
+
+			content.push(
+				convertPTList(
+					nestedGroup.map((nestedItem) => ({
+						...nestedItem,
+						level: (nestedItem.level || 2) - 1,
+					})),
+					anchorType,
+					`${context}:nested:${groupStart}`,
+				),
+			);
+		}
+	}
+
+	return { type: "listItem", content };
+}
+
+function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): PMNode[] {
+	const nodes: PMNode[] = [];
 	const mdMap = new Map(markDefs.map((md) => [md._key, md]));
 
 	for (const span of spans) {
@@ -555,7 +741,7 @@ function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): JSONContent[] {
 			const text = parts[i];
 			if (text && text.length > 0) {
 				const marks = convertPTMarks(span.marks || [], mdMap);
-				const node: JSONContent = {
+				const node: PMNode = {
 					type: "text",
 					text,
 				};
@@ -1828,6 +2014,21 @@ export function InlinePortableTextEditor({
 
 	// Media picker state
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
+	const [unsupportedFileGuidance, setUnsupportedFileGuidance] = React.useState<{
+		message: string;
+		version: number;
+	} | null>(null);
+	const showUnsupportedFileGuidance = React.useCallback(() => {
+		const locale = document.documentElement.lang || navigator.language;
+		setUnsupportedFileGuidance((current) => ({
+			message: getUnsupportedFileGuidance(locale),
+			version: (current?.version ?? 0) + 1,
+		}));
+	}, []);
+	const unsupportedFileHandlers = React.useMemo(
+		() => createUnsupportedFileHandlers(showUnsupportedFileGuidance),
+		[showUnsupportedFileGuidance],
+	);
 
 	// Listen for the slash command's media picker event
 	React.useEffect(() => {
@@ -1868,7 +2069,7 @@ export function InlinePortableTextEditor({
 		async (options?: { keepalive?: boolean }) => {
 			// A pagehide flush must not be skipped: an in-flight blur save is
 			// cancelled by the navigation, so the keepalive request is the only
-			// one that can still land (#1582).
+			// one that can still land.
 			if (savingRef.current && !options?.keepalive) return;
 
 			const current = JSON.stringify(getBlocks());
@@ -1913,8 +2114,8 @@ export function InlinePortableTextEditor({
 	// Flush unsaved edits when the page goes away (browser back/forward,
 	// link click, tab close). The blur handler doesn't cover this: unload
 	// doesn't reliably fire React blur, and a plain fetch started during
-	// unload is cancelled by the navigation — edits were silently lost
-	// (#1582). `keepalive` lets the PUT outlive the page.
+	// unload is cancelled by the navigation — edits were silently lost.
+	// `keepalive` lets the PUT outlive the page.
 	// Caveat: keepalive caps the body at 64KB — a very long document
 	// can still be lost on unload. Upgrade path: debounced autosave
 	// while typing (like the admin editor) so unload flushes are rare.
@@ -1942,7 +2143,12 @@ export function InlinePortableTextEditor({
 				dropcursor: { color: "#3b82f6", width: 2 },
 				// Replaced with InlineCodeBlockExtension below (adds language picker).
 				codeBlock: false,
+				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
+				code: false,
+				orderedList: false,
 			}),
+			EmDashOrderedList,
+			CodeMarkExtension,
 			InlineCodeBlockExtension,
 			Image.extend({
 				addAttributes() {
@@ -1988,6 +2194,7 @@ export function InlinePortableTextEditor({
 				class: "prose prose-sm sm:prose-base dark:prose-invert max-w-none emdash-inline-editor",
 				dir: "auto",
 			},
+			...unsupportedFileHandlers,
 		},
 		onUpdate: () => {
 			document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "unsaved" } }));
@@ -2022,6 +2229,7 @@ export function InlinePortableTextEditor({
 					src,
 					alt: item.alt || item.filename || "",
 					mediaId: item.id,
+					provider: canonicalMediaProviderId(item.provider) || "local",
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,
@@ -2040,6 +2248,8 @@ export function InlinePortableTextEditor({
 			if (mediaPickerOpen) return;
 			const related = e.relatedTarget instanceof HTMLElement ? e.relatedTarget : null;
 			if (related && e.currentTarget.contains(related)) return;
+			// The copy fallback briefly moves focus to its textarea before restoring the editor.
+			if (related?.hasAttribute("data-emdash-clipboard-fallback")) return;
 			// Don't save if focus moved to the slash menu (portalled to body)
 			if (related?.closest(".emdash-slash-menu")) return;
 			if (related?.closest(".emdash-media-picker")) return;
@@ -2054,6 +2264,17 @@ export function InlinePortableTextEditor({
 		<div onBlur={handleBlur}>
 			<InlineBubbleMenu editor={editor} />
 			<EditorContent editor={editor} />
+			{unsupportedFileGuidance ? (
+				<div
+					key={unsupportedFileGuidance.version}
+					className="emdash-inline-editor-guidance"
+					role="status"
+					aria-live="polite"
+					dir="auto"
+				>
+					{unsupportedFileGuidance.message}
+				</div>
+			) : null}
 			<InlineSlashMenu
 				state={slashMenuState}
 				onCommand={handleSlashCommand}
@@ -2070,6 +2291,132 @@ export function InlinePortableTextEditor({
 				onSelect={handleMediaSelect}
 			/>
 			<style>{`
+				.emdash-inline-code-block {
+					position: relative;
+					margin-block: 1rem;
+					--emdash-code-background: var(--emdash-inline-code-background, #f7f7f5);
+					--emdash-code-foreground: var(--emdash-inline-code-foreground, #24292f);
+					--emdash-code-muted: var(--emdash-inline-code-muted, #57606a);
+					--emdash-code-keyword: var(--emdash-inline-code-keyword, #b8172a);
+					--emdash-code-string: var(--emdash-inline-code-string, #0a3069);
+					--emdash-code-number: var(--emdash-inline-code-number, #0550ae);
+					--emdash-code-title: var(--emdash-inline-code-title, #7545c7);
+					--emdash-code-border: var(--emdash-inline-code-border, #7d8590);
+					--emdash-code-control-background: var(
+						--emdash-inline-code-control-background,
+						var(--emdash-inline-bg, #ffffff)
+					);
+					--emdash-code-control-foreground: var(
+						--emdash-inline-code-control-foreground,
+						#24292f
+					);
+					--emdash-code-focus: var(--emdash-inline-code-focus, #0550ae);
+				}
+				.emdash-inline-code-block .emdash-code-block {
+					margin: 0;
+					padding: 1rem;
+					padding-block: 30px !important;
+					border: 0 !important;
+					border-radius: 0.5rem;
+					background: var(--emdash-code-background) !important;
+					color: var(--emdash-code-foreground) !important;
+					caret-color: var(--emdash-code-foreground) !important;
+					overflow-x: auto;
+				}
+				.emdash-inline-code-block .emdash-code-block code {
+					background: transparent !important;
+					color: inherit !important;
+					font-size: 13px !important;
+				}
+				.emdash-inline-code-block :is(.hljs-comment, .hljs-quote) {
+					color: var(--emdash-code-muted);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-section, .hljs-link, .hljs-deletion) {
+					color: var(--emdash-code-keyword);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-string, .hljs-attr, .hljs-attribute, .hljs-symbol, .hljs-bullet, .hljs-addition) {
+					color: var(--emdash-code-string);
+				}
+				.emdash-inline-code-block :is(.hljs-number, .hljs-meta) {
+					color: var(--emdash-code-number);
+				}
+				.emdash-inline-code-block
+					:is(.hljs-title, .hljs-name, .hljs-type, .hljs-built_in, .hljs-selector-id, .hljs-selector-class) {
+					color: var(--emdash-code-title);
+				}
+				.emdash-inline-code-block-popover,
+				.emdash-inline-code-block-chip {
+					box-sizing: border-box;
+					border: 1px solid var(--emdash-code-border);
+					background: var(--emdash-code-control-background);
+					color: var(--emdash-code-control-foreground);
+				}
+				.emdash-inline-code-block-controls-wrap {
+					position: absolute;
+					inset-block-start: 0;
+					inset-inline-end: 0.25rem;
+					z-index: 100;
+					max-inline-size: min(calc(100% - 0.25rem), calc(100vw - 1rem));
+					opacity: 0;
+					pointer-events: none;
+					user-select: none;
+					transition: opacity 120ms ease-out;
+				}
+				.emdash-inline-code-block:hover .emdash-inline-code-block-controls-wrap,
+				.emdash-inline-code-block:focus-within .emdash-inline-code-block-controls-wrap,
+				.emdash-inline-code-block-controls-wrap[data-persistent="true"] {
+					opacity: 1;
+					pointer-events: auto;
+				}
+				.emdash-inline-code-block-popover {
+					inline-size: min(14rem, 100%, calc(100vw - 1rem));
+				}
+				.emdash-inline-code-block-language-input {
+					min-inline-size: 0;
+					flex: 1;
+					border: 1px solid var(--emdash-code-border);
+					background: transparent;
+					color: inherit;
+				}
+				.emdash-inline-code-block-controls-wrap button:focus-visible,
+				.emdash-inline-code-block-language-input:focus-visible {
+					outline: 2px solid var(--emdash-code-focus);
+					outline-offset: 2px;
+				}
+				@media (hover: none), (pointer: coarse) {
+					.emdash-inline-code-block-controls-wrap {
+						opacity: 1;
+						pointer-events: auto;
+					}
+				}
+				@media (prefers-reduced-motion: reduce) {
+					.emdash-inline-code-block-controls-wrap {
+						transition: none;
+					}
+				}
+				@media (prefers-color-scheme: dark) {
+					.emdash-inline-code-block {
+						--emdash-code-background: var(--emdash-inline-code-background, #202020);
+						--emdash-code-foreground: var(--emdash-inline-code-foreground, #f0f3f6);
+						--emdash-code-muted: var(--emdash-inline-code-muted, #c9d1d9);
+						--emdash-code-keyword: var(--emdash-inline-code-keyword, #ffc1bb);
+						--emdash-code-string: var(--emdash-inline-code-string, #b9ddff);
+						--emdash-code-number: var(--emdash-inline-code-number, #a8d5ff);
+						--emdash-code-title: var(--emdash-inline-code-title, #e5ccff);
+						--emdash-code-border: var(--emdash-inline-code-border, #6e7681);
+						--emdash-code-control-background: var(
+							--emdash-inline-code-control-background,
+							var(--emdash-inline-bg, #161b22)
+						);
+						--emdash-code-control-foreground: var(
+							--emdash-inline-code-control-foreground,
+							#f0f3f6
+						);
+						--emdash-code-focus: var(--emdash-inline-code-focus, #a8d5ff);
+					}
+				}
 				.emdash-bubble-menu {
 					z-index: 100;
 					display: flex;
@@ -2179,6 +2526,19 @@ export function InlinePortableTextEditor({
 				.emdash-inline-editor:focus {
 					outline: none;
 				}
+				.emdash-inline-editor-guidance {
+					margin-block-start: 0.75rem;
+					padding-block: 0.625rem;
+					padding-inline: 0.875rem;
+					border: 1px solid #bfdbfe;
+					border-radius: 0.5rem;
+					background: #eff6ff;
+					color: #1e3a8a;
+					font-size: 0.875rem;
+					font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+					line-height: 1.4;
+					text-align: start;
+				}
 				.emdash-plugin-block-placeholder {
 					margin: 0.75rem 0;
 					padding: 0.625rem 0.875rem;
@@ -2191,6 +2551,11 @@ export function InlinePortableTextEditor({
 					user-select: none;
 				}
 				@media (prefers-color-scheme: dark) {
+					.emdash-inline-editor-guidance {
+						border-color: #1e40af;
+						background: #172554;
+						color: #dbeafe;
+					}
 					.emdash-plugin-block-placeholder {
 						border-color: #374151;
 						background: #111827;
@@ -2202,6 +2567,7 @@ export function InlinePortableTextEditor({
 	);
 }
 
-// Test-only exports for unit tests of the conversion functions.
+// Test-only exports for unit tests.
 export { pmToPortableText as _pmToPortableText };
 export { portableTextToPM as _portableTextToPM };
+export { createUnsupportedFileHandlers as _createUnsupportedFileHandlers };

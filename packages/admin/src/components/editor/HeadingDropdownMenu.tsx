@@ -1,4 +1,4 @@
-import { Button, DropdownMenu } from "@cloudflare/kumo";
+import { Button, DropdownMenu, Tooltip } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
@@ -138,26 +138,32 @@ export const HeadingDropdownMenu = React.forwardRef<HTMLButtonElement, HeadingDr
 
 		return (
 			<DropdownMenu open={open} onOpenChange={handleOpenChange}>
-				<DropdownMenu.Trigger
+				<Tooltip
+					content={t`Headings`}
+					side="bottom"
 					render={
-						<Button
-							ref={ref}
-							type="button"
-							variant="ghost"
-							className={cn(
-								"h-8 min-w-11 flex-none gap-0.5 px-2",
-								isActive && "bg-kumo-tint text-kumo-default",
-								className,
-							)}
-							disabled={!canToggle}
-							onMouseDown={(event) => event.preventDefault()}
-							aria-label={t`Headings`}
-							aria-haspopup="menu"
-							aria-expanded={open}
-						>
-							<Icon className="h-4 w-4" aria-hidden="true" />
-							<CaretDown className="h-3 w-3" aria-hidden="true" />
-						</Button>
+						<DropdownMenu.Trigger
+							render={
+								<Button
+									ref={ref}
+									type="button"
+									variant="ghost"
+									className={cn(
+										"h-8 min-w-11 flex-none gap-0.5 px-2 hover:bg-kumo-interact/50",
+										isActive && "bg-kumo-interact/50 text-kumo-default",
+										className,
+									)}
+									disabled={!canToggle}
+									onMouseDown={(event) => event.preventDefault()}
+									aria-label={t`Headings`}
+									aria-haspopup="menu"
+									aria-expanded={open}
+								>
+									<Icon className="h-4 w-4" aria-hidden="true" />
+									<CaretDown className="h-3 w-3" aria-hidden="true" />
+								</Button>
+							}
+						/>
 					}
 				/>
 				<DropdownMenu.Content align="start" className="min-w-44">

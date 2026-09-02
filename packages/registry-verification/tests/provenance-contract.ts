@@ -79,6 +79,27 @@ export function provenanceContract(): void {
 			});
 		});
 
+		it("matches one of the caller's bounded artifact digest candidates", async () => {
+			const document = fixtureDocument();
+			const checksum = await computeMultihash(document);
+			if (!checksum.success) throw new Error("Test fixture checksum could not be computed");
+			const result = await new GitHubProvenanceVerifier().verify({
+				document,
+				reference: {
+					builderId,
+					checksum: checksum.value,
+					predicateType,
+					sourceRepository,
+					url: "https://registry.npmjs.org/-/npm/v1/attestations/@sigstore%2fcore@4.0.1",
+				},
+				artifactDigest: new Uint8Array(32),
+				artifactDigests: [artifactDigest],
+				profileRepository: sourceRepository,
+			});
+
+			expect(result).toMatchObject({ success: true, value: { artifactDigest } });
+		});
+
 		it("snapshots mutable inputs before checksum verification yields", async () => {
 			const document = fixtureDocument();
 			const digest = new Uint8Array(artifactDigest);

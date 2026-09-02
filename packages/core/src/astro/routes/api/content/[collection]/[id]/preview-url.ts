@@ -33,14 +33,13 @@ const DURATION_PATTERN = /^(\d+)([smhdw])$/;
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "content:read_drafts");
 	if (denied) return denied;
 	const collection = params.collection!;
 	const id = params.id!;
-
-	if (!emdash?.db) {
-		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
-	}
 
 	// Resolve the preview secret. Env override wins; otherwise a stable
 	// site-specific value is read from (or generated into) the options table.

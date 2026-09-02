@@ -703,9 +703,8 @@ const ArtifactLangSchema = z
 /**
  * A single media-artifact file reference. The `file` path is resolved relative
  * to the manifest at publish time; the CLI reads the bytes, computes the
- * checksum and pixel dimensions, uploads them to the publisher's artifact
- * hosting, and writes a `#artifact` record (url, checksum, contentType, width,
- * height, lang?) into the release. Only the authoring inputs live here — the
+ * checksum and pixel dimensions, uploads them to the publisher's PDS, and
+ * writes an image-artifact record into the release. Only the authoring inputs live here — the
  * derived fields never appear in the manifest.
  */
 export const ArtifactFileSchema = z
@@ -723,8 +722,7 @@ export const ArtifactFileSchema = z
 	.strict()
 	.meta({
 		title: "Artifact file reference",
-		description:
-			"A media file (PNG / JPEG / WebP / GIF / AVIF) bundled into a release as an icon, screenshot, or banner.",
+		description: "A PNG, JPEG, or WebP file published as an icon, screenshot, or banner.",
 	});
 
 /**

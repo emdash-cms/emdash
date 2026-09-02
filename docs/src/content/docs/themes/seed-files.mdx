@@ -121,7 +121,23 @@ Each collection definition creates a content type in the database:
 | `description`   | `string` | No       | Admin UI description                         |
 | `icon`          | `string` | No       | Lucide icon name                             |
 | `supports`      | `array`  | No       | Features: `"drafts"`, `"revisions"`          |
+| `hidden`        | `boolean`| No       | Omit the collection's admin sidebar entry    |
+| `sortOrder`     | `number` | No       | Position in the admin sidebar (ascending)    |
 | `fields`        | `array`  | Yes      | Field definitions                            |
+
+<Aside type="tip" title="Hiding a collection from the sidebar">
+	`hidden: true` only removes the auto-generated sidebar link. The collection keeps working
+	everywhere else — REST API, MCP tools, plugin hooks, and its editor at
+	`/_emdash/admin/content/<slug>`. Use it for collections a plugin owns end to end (autopopulated
+	entries, its own admin page), so editors aren't sent to a raw CRUD list they never need.
+</Aside>
+
+<Aside type="tip" title="Ordering the sidebar">
+	Collections are listed alphabetically by slug in the admin sidebar unless they carry a
+	`sortOrder`. Ordered collections come first, ascending; everything without one keeps the
+	alphabetical order and follows. Editors can also drag rows on the Content Types screen, which
+	writes the same value.
+</Aside>
 
 ### Field Properties
 
@@ -132,6 +148,7 @@ Each collection definition creates a content type in the database:
 | `type`         | `string`  | Yes      | Field type                           |
 | `required`     | `boolean` | No       | Validation: field must have a value  |
 | `unique`       | `boolean` | No       | Validation: value must be unique     |
+| `indexed`      | `boolean` | No       | Enable indexed sorting by this field |
 | `defaultValue` | `any`     | No       | Default value for new entries        |
 | `validation`   | `object`  | No       | Additional validation rules          |
 | `widget`       | `string`  | No       | Admin UI widget override             |
