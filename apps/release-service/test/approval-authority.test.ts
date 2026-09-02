@@ -1,4 +1,4 @@
-import type { ActorResolver } from "@atcute/identity-resolver";
+import type { DirectPdsDidDocumentResolver } from "@emdash-cms/registry-client/direct-pds";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import { reset, runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
@@ -16,7 +16,9 @@ const PUBLISHER_DID = "did:plc:publisher";
 const APPROVER_DID = "did:plc:approver";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const NOW = 1_800_000_000_000;
-const PROFILE_CID = "bafyreib3p6qexampleprofilecid";
+const PROFILE_CID = "bafyreie3bcpcntqlswxk32ibe4v2cvhhvaq7gcx6css2vuzasirgk3xmly";
+const PROFILE_PROOF =
+	"OqJlcm9vdHOB2CpYJQABcRIguIOtOxeeD6PfhhwV1Tbcy0g1a5TRE+tSQA0QlhEj6FRndmVyc2lvbgHQAQFxEiC4g607F54Po9+GHBXVNtzLSDVrlNET61JADRCWESPoVKZjZGlkcWRpZDpwbGM6cHVibGlzaGVyY3Jldm0zbXVqa3M1bG53azI0Y3NpZ1hA4lFxxn7YC9lg4/mEb9l7Lb+uN+8EzZvH6XsUrpCbtNg+kr0+VIQArQba1jZajQL4pc1IeP6Oq1KRWPcVGKZpTGRkYXRh2CpYJQABcRIg5rQ4qhRh79SdMF1zLkkklmnQjgkMGK7mrU2HiQJnRYtkcHJldvZndmVyc2lvbgOXAgFxEiDmtDiqFGHv1J0wXXMuSSSWadCOCQwYruatTYeJAmdFi6JhZYOkYWtYMmNvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZS9nYWxsZXJ5YXAAYXT2YXbYKlglAAFxEiCbCJ4mzguVrq3pAScroVTnqCHzCv4UparTIJIiZW7sXqRha1VyZWxlYXNlL2dhbGxlcnk6MS4wLjBhcBgjYXT2YXbYKlglAAFxEiAVgbNAcHSSrRFFo3roii2+pXMBVGSC2AOYbrJfAzWLwqRha0M3LjBhcBg1YXT2YXbYKlglAAFxEiBhFDeoEsxJobozp3Y26kHUHywaIc1posb8QrJvJtD0DWFs9roEAXESIJsInibOC5WurekBJyuhVOeoIfMK/hSlqtMgkiJlbuxep2JpZHhJYXQ6Ly9kaWQ6cGxjOnB1Ymxpc2hlci9jb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWR0eXBlbWVtZGFzaC1wbHVnaW5lJHR5cGV4KmNvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZWdhdXRob3JzgaFkbmFtZWlQdWJsaXNoZXJnbGljZW5zZWNNSVRoc2VjdXJpdHmBoWVlbWFpbHRzZWN1cml0eUBleGFtcGxlLmNvbWpleHRlbnNpb25zoXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlRXh0ZW5zaW9uo2UkdHlwZXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlRXh0ZW5zaW9uanJlcG9zaXRvcnl4JWh0dHBzOi8vZ2l0aHViLmNvbS9lbWRhc2gtY21zL2dhbGxlcnltcmVsZWFzZVBvbGljeaNlJHR5cGV4QWNvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbiNyZWxlYXNlUG9saWN5aWFwcHJvdmVyc4FwZGlkOnBsYzphcHByb3Zlcmxjb25maXJtYXRpb25mYWx3YXlz";
 
 const EVIDENCE: ApprovalEvidence = {
 	intentId: INTENT_ID,
@@ -110,13 +112,27 @@ async function createAwaitingApprovalIntent() {
 	});
 }
 
-function actorResolver(): ActorResolver {
+function proofResolver(): DirectPdsDidDocumentResolver {
 	return {
-		resolve: async () => ({
-			did: PUBLISHER_DID,
-			handle: "publisher.example.com",
-			pds: "https://pds.example.com",
-		}),
+		resolve: () =>
+			Promise.resolve({
+				id: PUBLISHER_DID,
+				verificationMethod: [
+					{
+						id: `${PUBLISHER_DID}#atproto`,
+						type: "Multikey",
+						controller: PUBLISHER_DID,
+						publicKeyMultibase: "zDnaejExR13CZ7p99ojitvboj6ZaYzxhMDqJwnZd7APbohKkR",
+					},
+				],
+				service: [
+					{
+						id: "#atproto_pds",
+						type: "AtprotoPersonalDataServer",
+						serviceEndpoint: "https://pds.example.com",
+					},
+				],
+			}),
 	};
 }
 
@@ -137,8 +153,15 @@ function profileValue(approvers: string[] = [APPROVER_DID]) {
 	};
 }
 
-function authorityFetch(options: { approvers?: string[]; cid?: string; address?: string } = {}) {
-	return async (input: RequestInfo | URL): Promise<Response> => {
+function authorityFetch(
+	options: {
+		approvers?: string[];
+		cid?: string;
+		address?: string;
+		requireCarAccept?: boolean;
+	} = {},
+) {
+	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
 		if (url.hostname === "cloudflare-dns.com") {
 			return Response.json({
@@ -154,6 +177,18 @@ function authorityFetch(options: { approvers?: string[]; cid?: string; address?:
 				uri: `at://${PUBLISHER_DID}/${NSID.packageProfile}/gallery`,
 				cid: options.cid ?? PROFILE_CID,
 				value: profileValue(options.approvers),
+			});
+		}
+		if (url.hostname === "pds.example.com" && url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+			if (
+				options.requireCarAccept &&
+				new Headers(init?.headers).get("accept") !== "application/vnd.ipld.car"
+			) {
+				return Response.json({ error: "NotAcceptable" }, { status: 406 });
+			}
+			const bytes = Uint8Array.from(atob(PROFILE_PROOF), (character) => character.charCodeAt(0));
+			return new Response(bytes, {
+				headers: { "content-type": "application/vnd.ipld.car" },
 			});
 		}
 		throw new Error(`Unexpected request: ${url.toString()}`);
@@ -172,6 +207,7 @@ describe("approval authority", () => {
 			loadApprovalIntent(env.PUBLISHER_DO, PUBLISHER_DID, INTENT_ID),
 		).resolves.toMatchObject({
 			evidence: EVIDENCE,
+			approverDids: [APPROVER_DID],
 			approvalGeneration: 4,
 			intent: { state: "awaiting_approval" },
 		});
@@ -207,46 +243,55 @@ describe("approval authority", () => {
 		).rejects.toMatchObject({ code: "INTENT_NOT_APPROVABLE" });
 	});
 
-	it("accepts only a currently listed approver at the exact profile CID", async () => {
+	it("accepts only an immutable approver at the exact proof-verified profile CID", async () => {
 		await expect(
-			verifyCurrentApprover(EVIDENCE, APPROVER_DID, {
-				actorResolver: actorResolver(),
+			verifyCurrentApprover(EVIDENCE, [APPROVER_DID], APPROVER_DID, {
+				didDocumentResolver: proofResolver(),
 				fetch: authorityFetch(),
 			}),
 		).resolves.toBeUndefined();
 		await expect(
-			verifyCurrentApprover(EVIDENCE, APPROVER_DID, {
-				actorResolver: actorResolver(),
-				fetch: authorityFetch({ approvers: ["did:plc:other"] }),
+			verifyCurrentApprover(EVIDENCE, ["did:plc:other"], APPROVER_DID, {
+				didDocumentResolver: proofResolver(),
+				fetch: authorityFetch({ approvers: [APPROVER_DID] }),
 			}),
 		).rejects.toMatchObject({ code: "APPROVER_NOT_AUTHORIZED" });
 		await expect(
-			verifyCurrentApprover(EVIDENCE, APPROVER_DID, {
-				actorResolver: actorResolver(),
-				fetch: authorityFetch({ cid: "bafyreib3p6qchangedprofilecid" }),
+			verifyCurrentApprover(EVIDENCE, [APPROVER_DID], APPROVER_DID, {
+				didDocumentResolver: proofResolver(),
+				fetch: authorityFetch({ approvers: ["did:plc:attacker"], cid: PROFILE_CID }),
 			}),
-		).rejects.toMatchObject({ code: "PROFILE_CHANGED" });
+		).resolves.toBeUndefined();
 	});
 
 	it("loads the current signed approver policy for publisher status views", async () => {
 		await expect(
 			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
-				actorResolver: actorResolver(),
+				didDocumentResolver: proofResolver(),
 				fetch: authorityFetch(),
 			}),
 		).resolves.toEqual({ profileCid: PROFILE_CID, approverDids: [APPROVER_DID] });
 		await expect(
 			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
-				actorResolver: actorResolver(),
+				didDocumentResolver: proofResolver(),
 				fetch: authorityFetch({ approvers: [APPROVER_DID, APPROVER_DID] }),
 			}),
-		).rejects.toMatchObject({ code: "PROFILE_FETCH_FAILED" });
+		).resolves.toEqual({ profileCid: EVIDENCE.profileCid, approverDids: [APPROVER_DID] });
+	});
+
+	it("requests the current profile as a repository proof CAR", async () => {
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch: authorityFetch({ requireCarAccept: true }),
+			}),
+		).resolves.toEqual({ profileCid: PROFILE_CID, approverDids: [APPROVER_DID] });
 	});
 
 	it("rejects private PDS resolution before fetching the record", async () => {
 		await expect(
-			verifyCurrentApprover(EVIDENCE, APPROVER_DID, {
-				actorResolver: actorResolver(),
+			verifyCurrentApprover(EVIDENCE, [APPROVER_DID], APPROVER_DID, {
+				didDocumentResolver: proofResolver(),
 				fetch: authorityFetch({ address: "10.0.0.1" }),
 			}),
 		).rejects.toBeInstanceOf(ApprovalAuthorityError);
@@ -268,6 +313,7 @@ describe("approval authority", () => {
 		await expect(
 			verifyCurrentApprover(
 				{ ...EVIDENCE, publisherDid: "did:web:publisher.example.com" },
+				[APPROVER_DID],
 				APPROVER_DID,
 				{ fetch },
 			),

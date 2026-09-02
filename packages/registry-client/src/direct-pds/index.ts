@@ -14,7 +14,7 @@ import {
 import type { AtprotoDid, Did } from "@atcute/lexicons/syntax";
 import { isDid } from "@atcute/lexicons/syntax";
 import { safeParse } from "@atcute/lexicons/validations";
-import { verifyRecord } from "@atcute/repo";
+import { fromStream, verifyRecord } from "@atcute/repo";
 import { NSID, PackageProfile, PackageRelease } from "@emdash-cms/registry-lexicons";
 
 export const DEFAULT_DIRECT_PDS_REQUEST_TIMEOUT_MS = 10_000;
@@ -38,6 +38,7 @@ export type DirectPdsReadErrorCode =
 	| "PROFILE_LEXICON_INVALID"
 	| "RECORD_NOT_FOUND"
 	| "RECORD_PROOF_INVALID"
+	| "REPOSITORY_NOT_FOUND"
 	| "RELEASE_LEXICON_INVALID";
 
 export class DirectPdsReadError extends Error {
@@ -78,6 +79,11 @@ export interface DirectPdsReleaseRecord {
 	cid: string;
 	rkey: string;
 	value: PackageRelease.Main;
+}
+
+export interface DirectPdsPackageRepository {
+	profile: DirectPdsProfileRecord;
+	releases: readonly DirectPdsReleaseRecord[];
 }
 
 interface ResolvedPublisher {
@@ -156,6 +162,106 @@ export class DirectPdsClient {
 		};
 	}
 
+	async getPackageRepository(packageSlug: string): Promise<DirectPdsPackageRepository> {
+		validatePackageSlug(packageSlug);
+		const publisher = await this.#getResolvedPublisher();
+		const url = new URL("/xrpc/com.atproto.sync.getRepo", publisher.pds);
+		url.searchParams.set("did", this.did);
+		const response = await this.#fetch(url, {
+			method: "GET",
+			headers: { Accept: "application/vnd.ipld.car" },
+		});
+		if (response.status === 404) {
+			throw new DirectPdsReadError(
+				"REPOSITORY_NOT_FOUND",
+				"The publisher PDS does not contain the requested repository.",
+				404,
+			);
+		}
+		if (!response.ok) {
+			throw new DirectPdsReadError(
+				"PDS_REQUEST_FAILED",
+				`The publisher PDS returned HTTP ${response.status}.`,
+				response.status,
+			);
+		}
+		const contentType = response.headers.get("content-type")?.split(";", 1)[0]?.trim();
+		if (contentType !== "application/vnd.ipld.car") {
+			throw new DirectPdsReadError(
+				"PDS_RESPONSE_TYPE_INVALID",
+				"The publisher PDS did not return an AT Protocol repository export.",
+			);
+		}
+		const carBytes = new Uint8Array(await response.arrayBuffer());
+		try {
+			const verifiedProfile = await verifyRecord({
+				did: this.did,
+				collection: NSID.packageProfile,
+				rkey: packageSlug,
+				publicKey: publisher.publicKey,
+				carBytes,
+			});
+			const parsedProfile = safeParse(PackageProfile.mainSchema, verifiedProfile.record);
+			if (!parsedProfile.ok) {
+				throw new DirectPdsReadError(
+					"PROFILE_LEXICON_INVALID",
+					"The publisher repository contains a malformed package profile.",
+				);
+			}
+			const releases: DirectPdsReleaseRecord[] = [];
+			const stream = new Response(carBytes).body;
+			if (stream === null) throw new Error("Repository export is empty");
+			for await (const entry of fromStream(stream)) {
+				if (entry.collection !== NSID.packageRelease) continue;
+				const prefix = `${packageSlug}:`;
+				if (!entry.rkey.startsWith(prefix)) continue;
+				const parsedRelease = safeParse(PackageRelease.mainSchema, entry.record);
+				if (
+					!parsedRelease.ok ||
+					parsedRelease.value.package !== packageSlug ||
+					entry.rkey !== `${packageSlug}:${parsedRelease.value.version}`
+				) {
+					throw new DirectPdsReadError(
+						"RELEASE_LEXICON_INVALID",
+						"The publisher repository contains a malformed package release.",
+					);
+				}
+				releases.push({
+					uri: `at://${this.did}/${NSID.packageRelease}/${entry.rkey}`,
+					cid: entry.cid.$link,
+					rkey: entry.rkey,
+					value: parsedRelease.value,
+				});
+			}
+			return {
+				profile: {
+					uri: `at://${this.did}/${NSID.packageProfile}/${packageSlug}`,
+					cid: verifiedProfile.cid,
+					rkey: packageSlug,
+					value: parsedProfile.value,
+				},
+				releases,
+			};
+		} catch (error) {
+			if (error instanceof DirectPdsReadError) throw error;
+			throw new DirectPdsReadError(
+				"RECORD_PROOF_INVALID",
+				"The publisher repository export or commit signature is invalid.",
+			);
+		}
+	}
+
+	async #getResolvedPublisher(): Promise<ResolvedPublisher> {
+		this.#resolvedPublisher ??= this.#resolvePublisher();
+		const pendingPublisher = this.#resolvedPublisher;
+		try {
+			return await pendingPublisher;
+		} catch (error) {
+			if (this.#resolvedPublisher === pendingPublisher) this.#resolvedPublisher = undefined;
+			throw error;
+		}
+	}
+
 	async #resolvePublisher(): Promise<ResolvedPublisher> {
 		let document: DidDocument;
 		try {
@@ -211,15 +317,7 @@ export class DirectPdsClient {
 		collection: string,
 		rkey: string,
 	): Promise<{ cid: string; value: unknown }> {
-		this.#resolvedPublisher ??= this.#resolvePublisher();
-		const pendingPublisher = this.#resolvedPublisher;
-		let publisher: ResolvedPublisher;
-		try {
-			publisher = await pendingPublisher;
-		} catch (error) {
-			if (this.#resolvedPublisher === pendingPublisher) this.#resolvedPublisher = undefined;
-			throw error;
-		}
+		const publisher = await this.#getResolvedPublisher();
 		const url = new URL("/xrpc/com.atproto.sync.getRecord", publisher.pds);
 		url.searchParams.set("did", this.did);
 		url.searchParams.set("collection", collection);

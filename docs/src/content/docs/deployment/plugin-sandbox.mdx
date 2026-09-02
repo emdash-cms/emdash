@@ -1,0 +1,181 @@
+---
+title: Plugin Sandbox
+description: Run sandboxed plugins on Cloudflare Workers or Node.js, with the bindings, resource limits, and failure modes of each sandbox runner.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Sandboxed plugins run in an isolated runtime that a sandbox runner provides. Marketplace and registry installs always run sandboxed, and so do the plugins listed under `sandboxed: []` in the `emdash()` integration. Plugins listed under `plugins: []` run in the server process and do not use the runner.
+
+The runner depends on the deployment platform. On Cloudflare Workers, each plugin runs as a [Dynamic Worker](https://developers.cloudflare.com/dynamic-workers/) created through the Worker Loader binding. On Node.js, the server starts [`workerd`](https://github.com/cloudflare/workerd), the open-source Workers runtime, as a child process and runs each plugin as a service inside it. The `sandboxRunner` option of `emdash()` selects the runner. Without it, the plugins under `sandboxed: []` are never loaded, and a configured `marketplace` fails the build with "Marketplace requires `sandboxRunner` to be configured".
+
+The following table summarizes what each runner needs and enforces.
+
+|                    | Cloudflare Workers                                                                                | Node.js                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------- | --------------------------------------- |
+| `sandboxRunner`    | `sandbox()` from `@emdash-cms/cloudflare`                                                          | `"@emdash-cms/sandbox-workerd/sandbox"` |
+| Requirements       | Workers Paid plan, a `worker_loaders` binding, `PluginBridge` exported from the Worker entry point | The `workerd` package                   |
+| Database access    | The `DB` D1 binding, independent of the configured adapter                                        | The configured database                 |
+| Enforced limits    | CPU time, subrequests, wall time                                                                  | Wall time                               |
+
+## Cloudflare Workers
+
+Dynamic Workers are available on the [Workers Paid plan](https://developers.cloudflare.com/dynamic-workers/pricing/). The runner needs the binding and the entry point export below; the `*-cloudflare` templates ship both.
+
+<Steps>
+
+1. Add the Worker Loader binding to `wrangler.jsonc`. The runner reads it under the name `LOADER`:
+
+   ```jsonc title="wrangler.jsonc"
+   {
+   	"worker_loaders": [
+   		{
+   			"binding": "LOADER",
+   		},
+   	],
+   }
+   ```
+
+2. Export `PluginBridge` from the Worker entry point, and point `main` at that file. `PluginBridge` is the entrypoint through which sandboxed plugins reach content, media, storage, and email; the runner looks it up on the exports of the entry module:
+
+   ```ts title="src/worker.ts"
+   import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
+
+   export { PluginBridge };
+
+   export default {
+   	...handler,
+   	scheduled: createScheduledHandler(),
+   } satisfies ExportedHandler;
+   ```
+
+   ```jsonc title="wrangler.jsonc"
+   {
+   	"main": "./src/worker.ts",
+   }
+   ```
+
+3. Select the runner in the `emdash()` integration:
+
+   ```js title="astro.config.mjs"
+   import { d1, r2, sandbox } from "@emdash-cms/cloudflare";
+
+   emdash({
+   	database: d1({ binding: "DB" }),
+   	storage: r2({ binding: "MEDIA" }),
+   	sandboxRunner: sandbox(),
+   });
+   ```
+
+</Steps>
+
+<Aside>
+	The bridge that sandboxed plugins use for database access talks to the D1 binding named `DB` directly, independent of the configured adapter. Sandboxed plugins are not available on a [Hyperdrive deployment](/deployment/database/).
+</Aside>
+
+## Node.js
+
+<Steps>
+
+1. Install the runner together with `workerd`, which is a peer dependency:
+
+   ```bash
+   npm install @emdash-cms/sandbox-workerd workerd
+   ```
+
+   The `workerd` package installs the binary for the current platform (Linux, macOS, and Windows on x64; Linux and macOS on arm64) through an optional dependency. Install with optional dependencies enabled, on the platform the server runs on. In a multi-stage Docker build, run the install in a stage with the same platform as the runtime stage.
+
+2. Select the runner in the `emdash()` integration:
+
+   ```js title="astro.config.mjs"
+   import { sqlite } from "emdash/db";
+
+   emdash({
+   	database: sqlite({ url: "file:./data/emdash.db" }),
+   	sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
+   });
+   ```
+
+3. For development, install `miniflare` as a dev dependency:
+
+   ```bash
+   npm install -D miniflare
+   ```
+
+   When `NODE_ENV` is `development`, which `astro dev` sets, and `miniflare` is installed, the runner hands the plugins to Miniflare, which manages its own `workerd` process; the crash policy below does not apply. `astro preview` sets `NODE_ENV` to `production` and `node ./dist/server/entry.mjs` leaves it unset; both use `workerd`.
+
+</Steps>
+
+### How the `workerd` process runs
+
+EmDash starts `workerd` while it initializes on the first request to the site, once the sandboxed plugins are loaded, and waits up to 10 seconds for the plugin services to answer. Installing or updating a plugin from the admin restarts it. Everything `workerd` writes to stdout or stderr appears in the server's output with the prefix `[emdash:workerd]`.
+
+Plugin services listen on `127.0.0.1`, and the channel back to the server is a Unix domain socket (a `127.0.0.1` TCP port on Windows). No inbound port needs to be opened.
+
+The child process receives only `PATH`, `HOME`, `TMPDIR`, `TMP`, `TEMP`, `LANG`, and `LC_ALL` from the server's environment, so secrets in the server's environment stay out of the sandbox. To pass more variables, set `EMDASH_WORKERD_PASSTHROUGH_ENV` to a comma-separated list of variable names.
+
+If `workerd` exits unexpectedly, the runner logs `[emdash:workerd] workerd exited with <reason>` and restarts it on the next invocation, with a delay that starts at 1 second and doubles up to 30 seconds. When `workerd` crashes more than five times within 60 seconds, the runner stops restarting it and logs `[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up`. From then on, every sandboxed plugin hook and route fails with `Plugin sandbox unavailable for <plugin>: workerd is not running` until the server restarts. A `SIGTERM` to the server terminates `workerd` with it.
+
+## Resource limits
+
+Each runner applies the same set of limits per plugin invocation. The limits are fixed; the `emdash()` integration has no option for them.
+
+| Limit       | Value  | Cloudflare Workers                                                        | Node.js                |
+| ----------- | ------ | ------------------------------------------------------------------------- | ---------------------- |
+| CPU time    | 50 ms  | Enforced by the Worker Loader; the plugin throws when it hits the limit   | Not enforced           |
+| Subrequests | 10     | Enforced by the Worker Loader; the plugin throws when it hits the limit   | Not enforced           |
+| Memory      | 128 MB | Not enforced per plugin; the platform's isolate memory ceiling applies    | Not enforced           |
+| Wall time   | 30 s   | Enforced by the runner                                                    | Enforced by the runner |
+
+When a hook or route exceeds the wall-time limit, the invocation fails with `Plugin <id> exceeded wall-time limit of 30000ms during hook:<name>` (or `route:<name>`). For a hook, EmDash logs the failure with the prefix `EmDash: Sandboxed plugin <id>` and continues the request without that plugin's result. A plugin route that exceeds the limit fails for its caller.
+
+## When the runner is unavailable
+
+A configured runner can still be unavailable: on Cloudflare Workers when the `worker_loaders` binding or the `PluginBridge` export is missing, on Node.js when `workerd` is not installed or its binary does not run. EmDash then logs the following warning when the runtime starts:
+
+```plain
+EmDash: Plugin sandbox is configured but not available on this platform. Sandboxed plugins will not be loaded. If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.
+```
+
+Plugins under `sandboxed: []` are not loaded, installed marketplace and registry plugins do not run, and a new install from the admin fails with the error code `SANDBOX_NOT_AVAILABLE`. The rest of the site is unaffected.
+
+### Running sandboxed plugins in-process
+
+Set `sandbox: false` in `emdash()` to run the plugins under `sandboxed: []` and installed marketplace plugins in the server process, without isolation or limits. It is a debugging option that tells a bug in a plugin from a bug in the sandbox. The following configuration turns the sandbox off on a Node.js site:
+
+```js title="astro.config.mjs"
+emdash({
+	sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
+	sandbox: false,
+});
+```
+
+On Cloudflare Workers, the runtime refuses to start with `sandbox: false is not supported in Cloudflare Workers`.
+
+## Troubleshooting
+
+Each entry is headed by the message as the server logs it, or by the error code the admin returns.
+
+### "Plugin sandbox is configured but not available on this platform"
+
+On Cloudflare Workers, check both requirements: `wrangler.jsonc` has a `worker_loaders` binding named `LOADER`, and `main` points to a file that exports `PluginBridge`. Deploying the binding needs the Workers Paid plan.
+
+On Node.js, run the binary the runner uses:
+
+```bash
+npx workerd --version
+```
+
+If the command fails, `workerd` is missing from `node_modules` or the installed binary does not run on this platform. Reinstall on the target platform with optional dependencies enabled.
+
+### "workerd failed to start within 10 seconds"
+
+The child process started, but its plugin services did not answer within 10 seconds. The lines prefixed `[emdash:workerd]` before this message carry the output of `workerd` itself, including configuration and startup errors. The runner retries on the next invocation.
+
+### "workerd crashed 5 times in 60 seconds, giving up"
+
+The runner has stopped restarting `workerd`. The `[emdash:workerd] workerd exited with <reason>` lines before this message name the exit code or signal of each crash. Fix the cause, then restart the server.
+
+### `SANDBOX_NOT_AVAILABLE` when installing a plugin
+
+The admin's install request was refused because the runner is missing or unavailable. Configure the runner for the platform, or fix the cause of the startup warning above, and redeploy.

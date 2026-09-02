@@ -36,6 +36,21 @@ A changeset is user-facing documentation that lands verbatim in a package CHANGE
 
 When opening a PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section -- the GitHub UI injects it automatically but the CLI does not, and PRs missing it are auto-closed. Check the AI-generated code disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset/i18n/Discussion items are n/a.
 
+Issues that refer to the interface must include a screenshot that shows the reported state. PRs that change the UI must include screenshots of the rendered result; include before-and-after images when the change is not clear from the result alone. Keep the behavior described in text and give every image useful alt text.
+
+Agents can attach local images with GitHub CLI 2.99.0 or later. The `--attach` flag is repeatable on `gh issue create|edit|comment` and `gh pr create|edit|comment`. For example:
+
+```bash
+gh issue create --body-file /tmp/emdash-issue.md \
+	--attach './interface-error.png#The settings screen showing the validation error'
+
+gh pr create --body-file /tmp/emdash-pr.md \
+	--attach './before.png#Settings screen before the change' \
+	--attach './after.png#Settings screen after the change'
+```
+
+To place an image at a specific point in the body, add `![descriptive alt text](./after.png)` to the body file and pass `--attach ./after.png`; `gh` replaces the local path with the uploaded asset URL. An attachment that is not referenced in the body is appended. CLI `--attach` uploads require repository write access. See [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots).
+
 ## Architecture
 
 EmDash is an Astro-native CMS on Cloudflare (D1 + R2 + Workers) or Node + SQLite.

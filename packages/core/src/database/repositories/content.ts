@@ -42,6 +42,16 @@ const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
 const MAX_FILTER_STRING_LENGTH = 2048;
 
 type NormalizedFilterScalar = string | number;
+export type ContentRevisionPrecondition = Pick<ContentItem, "version" | "updatedAt">;
+
+function assertRevisionPrecondition(
+	item: ContentItem,
+	expected: ContentRevisionPrecondition | undefined,
+): void {
+	if (expected && (item.version !== expected.version || item.updatedAt !== expected.updatedAt)) {
+		throw new ContentMutationConflictError();
+	}
+}
 
 type ResolvedFieldFilter =
 	| { column: string; kind: "null" }
@@ -1777,6 +1787,7 @@ export class ContentRepository {
 		expectedScheduledAt?: string,
 		promoteRevision = true,
 		requireSlug = true,
+		expectedRevision?: ContentRevisionPrecondition,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
@@ -1785,6 +1796,7 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
 		if (
 			requireDue &&
 			expectedScheduledAt !== undefined &&
@@ -1829,6 +1841,7 @@ export class ContentRepository {
 						WHERE id = ${id}
 						AND deleted_at IS NULL
 						AND version = ${existing.version}
+						AND updated_at = ${existing.updatedAt}
 						AND status = ${existing.status}
 						AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
 						AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
@@ -1954,6 +1967,7 @@ export class ContentRepository {
 					WHERE id = ${id}
 					AND deleted_at IS NULL
 					AND version = ${existing.version}
+					AND updated_at = ${existing.updatedAt}
 					AND status = ${existing.status}
 					AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
 					AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
@@ -2031,7 +2045,11 @@ export class ContentRepository {
 	 * Removes live pointer but preserves draft. If no draft exists,
 	 * creates one from the live version so the content isn't lost.
 	 */
-	async unpublish(type: string, id: string): Promise<ContentItem> {
+	async unpublish(
+		type: string,
+		id: string,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -2039,44 +2057,62 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
+		if (existing.status === "draft" && !existing.liveRevisionId) return existing;
 
-		// If no draft exists, create one from the live version
-		if (!existing.draftRevisionId && existing.liveRevisionId) {
-			const revisionRepo = new RevisionRepository(this.db);
-			const liveRevision = await revisionRepo.findById(existing.liveRevisionId);
-			if (liveRevision) {
-				const draft = await revisionRepo.create({
-					collection: type,
-					entryId: id,
-					data: liveRevision.data,
-				});
-
-				await sql`
-					UPDATE ${sql.ref(tableName)}
-					SET draft_revision_id = ${draft.id}
-					WHERE id = ${id}
-				`.execute(this.db);
+		const revisionRepo = new RevisionRepository(this.db);
+		let provisionalRevisionId: string | null = null;
+		try {
+			let draftRevisionId = existing.draftRevisionId;
+			if (!draftRevisionId && existing.liveRevisionId) {
+				const liveRevision = await revisionRepo.findById(existing.liveRevisionId);
+				if (liveRevision) {
+					const draft = await revisionRepo.create({
+						collection: type,
+						entryId: id,
+						data: liveRevision.data,
+					});
+					draftRevisionId = draft.id;
+					provisionalRevisionId = draft.id;
+				}
 			}
+
+			const result = await sql`
+				UPDATE ${sql.ref(tableName)}
+				SET live_revision_id = NULL,
+					draft_revision_id = ${draftRevisionId},
+					status = 'draft',
+					published_at = NULL,
+					updated_at = ${now},
+					version = version + 1
+				WHERE id = ${id}
+				AND deleted_at IS NULL
+				AND version = ${existing.version}
+				AND updated_at = ${existing.updatedAt}
+				AND status = ${existing.status}
+				AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+				AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+				AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
+			`.execute(this.db);
+			if ((result.numAffectedRows ?? 0n) === 0n) throw new ContentMutationConflictError();
+
+			invalidateCollectionCache(type);
+			const updated = await this.findById(type, id);
+			if (!updated) throw new Error("Content not found");
+			return updated;
+		} catch (error) {
+			if (provisionalRevisionId) {
+				try {
+					await revisionRepo.deleteIfUnreferenced(type, id, provisionalRevisionId);
+				} catch (cleanupError) {
+					console.error(
+						`[content] Failed to clean up provisional revision ${provisionalRevisionId}:`,
+						cleanupError,
+					);
+				}
+			}
+			throw error;
 		}
-
-		await sql`
-			UPDATE ${sql.ref(tableName)}
-			SET live_revision_id = NULL,
-				status = 'draft',
-				published_at = NULL,
-				updated_at = ${now}
-			WHERE id = ${id}
-			AND deleted_at IS NULL
-		`.execute(this.db);
-
-		invalidateCollectionCache(type);
-
-		const updated = await this.findById(type, id);
-		if (!updated) {
-			throw new Error("Content not found");
-		}
-
-		return updated;
 	}
 
 	/**
@@ -2143,13 +2179,18 @@ export class ContentRepository {
 	 * Clears draft_revision_id. The content table columns already hold the
 	 * published version, so no data sync is needed.
 	 */
-	async discardDraft(type: string, id: string): Promise<ContentItem> {
+	async discardDraft(
+		type: string,
+		id: string,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 
 		const existing = await this.findById(type, id);
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
 
 		if (!existing.draftRevisionId) {
 			// No draft to discard
@@ -2159,12 +2200,20 @@ export class ContentRepository {
 		// Discarding a draft restores the state from before the draft was
 		// staged — nothing about the live entry changed in between, so
 		// updated_at stays at its pre-draft value (#2143).
-		await sql`
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
-			SET draft_revision_id = NULL
+			SET draft_revision_id = NULL,
+				version = version + 1
 			WHERE id = ${id}
 			AND deleted_at IS NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
+			AND status = ${existing.status}
+			AND ${nullableColumnMatch("live_revision_id", existing.liveRevisionId)}
+			AND ${nullableColumnMatch("draft_revision_id", existing.draftRevisionId)}
+			AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
 		`.execute(this.db);
+		if ((result.numAffectedRows ?? 0n) === 0n) throw new ContentMutationConflictError();
 
 		const updated = await this.findById(type, id);
 		if (!updated) {

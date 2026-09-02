@@ -1,10 +1,13 @@
-import type { ActorResolver } from "@atcute/identity-resolver";
 import { safeParse } from "@atcute/lexicons";
 import { isDid } from "@atcute/lexicons/syntax";
-import { NSID, PackageProfile, PackageProfileExtension } from "@emdash-cms/registry-lexicons";
+import {
+	DirectPdsClient,
+	DirectPdsReadError,
+	type DirectPdsDidDocumentResolver,
+} from "@emdash-cms/registry-client/direct-pds";
+import { NSID, PackageProfileExtension } from "@emdash-cms/registry-lexicons";
 import { fetchVerifiedResource } from "@emdash-cms/registry-verification/fetch";
 
-import { createWorkerActorResolver } from "../oauth/custody.js";
 import type {
 	IntentTransition,
 	PublisherDurableObject,
@@ -39,10 +42,11 @@ export interface LoadedApprovalIntent {
 	appliedDecision: "approve" | "reject" | null;
 	appliedApproverDid: string | null;
 	appliedApprovalDigest: string | null;
+	approverDids: readonly string[];
 }
 
 export interface VerifyCurrentApproverOptions {
-	actorResolver?: ActorResolver;
+	didDocumentResolver?: DirectPdsDidDocumentResolver;
 	fetch?: typeof globalThis.fetch;
 }
 
@@ -116,6 +120,7 @@ export async function loadApprovalIntent(
 		appliedDecision,
 		appliedApproverDid: appliedDecision ? (decisionTransition?.actorIdentity ?? null) : null,
 		appliedApprovalDigest: appliedDecision ? (decisionTransition?.transitionDigest ?? null) : null,
+		approverDids: state.approverDids,
 	};
 }
 
@@ -193,30 +198,6 @@ async function resolvePublicHostname(
 	return [...ipv4, ...ipv6];
 }
 
-function profileRecordUrl(pds: string, publisherDid: string, packageSlug: string): URL {
-	let url: URL;
-	try {
-		url = new URL(pds);
-	} catch {
-		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
-	}
-	if (
-		url.protocol !== "https:" ||
-		url.username !== "" ||
-		url.password !== "" ||
-		url.pathname !== "/" ||
-		url.search !== "" ||
-		url.hash !== ""
-	) {
-		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
-	}
-	url.pathname = "/xrpc/com.atproto.repo.getRecord";
-	url.searchParams.set("repo", publisherDid);
-	url.searchParams.set("collection", NSID.packageProfile);
-	url.searchParams.set("rkey", packageSlug);
-	return url;
-}
-
 function createGuardedIdentityFetch(fetchImplementation: typeof fetch): typeof fetch {
 	return async (input, init) => {
 		const requestedUrl = new URL(input instanceof Request ? input.url : input.toString());
@@ -224,8 +205,13 @@ function createGuardedIdentityFetch(fetchImplementation: typeof fetch): typeof f
 		if (method !== "GET") {
 			throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 		}
+		const headers = init?.headers ?? (input instanceof Request ? input.headers : undefined);
 		const resource = await fetchVerifiedResource(requestedUrl, {
-			fetch: (url, requestInit) => fetchImplementation(url, requestInit),
+			fetch: (url, requestInit) =>
+				fetchImplementation(url, {
+					...requestInit,
+					...(headers === undefined ? {} : { headers }),
+				}),
 			resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
 			headerTimeoutMs: 10_000,
 			totalTimeoutMs: 30_000,
@@ -244,11 +230,15 @@ function createGuardedIdentityFetch(fetchImplementation: typeof fetch): typeof f
 
 export async function verifyCurrentApprover(
 	evidence: ApprovalEvidence,
+	immutableApproverDids: readonly string[],
 	approverDid: string,
 	options: VerifyCurrentApproverOptions = {},
 ): Promise<void> {
 	if (!isDid(evidence.publisherDid) || !isDid(approverDid)) {
 		throw new ApprovalAuthorityError("APPROVAL_EVIDENCE_INVALID");
+	}
+	if (!immutableApproverDids.includes(approverDid)) {
+		throw new ApprovalAuthorityError("APPROVER_NOT_AUTHORIZED");
 	}
 	const policy = await loadCurrentApprovalPolicy(
 		evidence.publisherDid,
@@ -272,52 +262,28 @@ export async function loadCurrentApprovalPolicy(
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
 	const fetchImplementation = options.fetch ?? globalThis.fetch;
-	let actor;
+	let record;
 	try {
-		actor = await (
-			options.actorResolver ??
-			createWorkerActorResolver(createGuardedIdentityFetch(fetchImplementation))
-		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
-	} catch {
-		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
-	}
-	if (actor.did !== publisherDid) {
-		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
-	}
-	const requestedUrl = profileRecordUrl(actor.pds, publisherDid, packageSlug);
-	const resource = await fetchVerifiedResource(requestedUrl, {
-		fetch: (url, init) => fetchImplementation(url, init),
-		resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
-		headerTimeoutMs: 10_000,
-		totalTimeoutMs: 30_000,
-		maxBytes: MAX_PROFILE_RESPONSE_BYTES,
-		maxRedirects: 1,
-	});
-	if (!resource.success || resource.value.url.toString() !== requestedUrl.toString()) {
-		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
-	}
-	let envelope: unknown;
-	try {
-		envelope = JSON.parse(
-			new TextDecoder("utf-8", { fatal: true, ignoreBOM: false }).decode(resource.value.bytes),
-		);
-	} catch {
+		record = await new DirectPdsClient({
+			did: publisherDid,
+			fetch: createGuardedIdentityFetch(fetchImplementation),
+			...(options.didDocumentResolver === undefined
+				? {}
+				: { didDocumentResolver: options.didDocumentResolver }),
+			requestTimeoutMs: 30_000,
+			maxResponseBytes: MAX_PROFILE_RESPONSE_BYTES,
+		}).getPackageProfile(packageSlug);
+	} catch (error) {
+		if (error instanceof DirectPdsReadError || error instanceof TypeError) {
+			throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
+		}
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
 	const expectedUri = `at://${publisherDid}/${NSID.packageProfile}/${packageSlug}`;
-	if (
-		!isRecord(envelope) ||
-		envelope["uri"] !== expectedUri ||
-		typeof envelope["cid"] !== "string" ||
-		!("value" in envelope)
-	) {
+	if (record.uri !== expectedUri || record.value.id !== expectedUri) {
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
-	const profile = safeParse(PackageProfile.mainSchema, envelope["value"]);
-	if (!profile.ok || profile.value.id !== expectedUri) {
-		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
-	}
-	const rawExtension = profile.value.extensions?.[NSID.packageProfileExtension];
+	const rawExtension = record.value.extensions?.[NSID.packageProfileExtension];
 	const extension = safeParse(PackageProfileExtension.mainSchema, rawExtension);
 	if (!extension.ok) throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	const approverDids = extension.value.releasePolicy?.approvers ?? [];
@@ -328,7 +294,7 @@ export async function loadCurrentApprovalPolicy(
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
 	return {
-		profileCid: envelope["cid"],
+		profileCid: record.cid,
 		approverDids: [...approverDids].toSorted(),
 	};
 }

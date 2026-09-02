@@ -21,6 +21,9 @@ import type {
 } from "../../../release-verifier/src/verify.js";
 import type { ApprovalEvidence } from "../approvals/digest.js";
 import type { StoredIntent } from "../publisher-do/publisher-do.js";
+import type { StoredWorkloadPolicy } from "../publisher-do/workload-policy.js";
+import { evaluateWorkloadPolicy } from "../workload/policy.js";
+import { parseStoredWorkloadIdentity } from "../workload/stored-identity.js";
 import type { PublisherVerificationSnapshot } from "./pds.js";
 
 const SLSA_PROVENANCE_V1 = "https://slsa.dev/provenance/v1";
@@ -31,7 +34,17 @@ export type VerificationEvaluationCode =
 	| "BASELINE_INVALID"
 	| "INTENT_INPUT_INVALID"
 	| "RECORD_INVALID"
-	| "VERIFIER_REJECTED";
+	| "VERIFIER_REJECTED"
+	| "WORKLOAD_IDENTITY_INVALID";
+
+export interface VerifiedProvenanceIdentity {
+	sourceRepository: string;
+	builderId: string;
+	repositoryId: string;
+	workflowRef: string;
+	commitSha: string;
+	invocationId: string;
+}
 
 export type VerificationEvaluation =
 	| {
@@ -66,6 +79,10 @@ export type NormalizedVerifierReport =
 					predicateType: string;
 					sourceRepository: string;
 					builderId: string;
+					repositoryId: string;
+					workflowRef: string;
+					commitSha: string;
+					invocationId: string;
 				};
 			};
 	  }
@@ -160,6 +177,10 @@ export function parseNormalizedVerifierReport(value: string): NormalizedVerifier
 		predicateType: stringField(provenance["predicateType"]),
 		sourceRepository: stringField(provenance["sourceRepository"]),
 		builderId: stringField(provenance["builderId"]),
+		repositoryId: stringField(provenance["repositoryId"]),
+		workflowRef: stringField(provenance["workflowRef"]),
+		commitSha: stringField(provenance["commitSha"]),
+		invocationId: stringField(provenance["invocationId"]),
 	};
 	if (
 		normalized.requestedUrl === null ||
@@ -176,6 +197,10 @@ export function parseNormalizedVerifierReport(value: string): NormalizedVerifier
 		normalized.predicateType === null ||
 		normalized.sourceRepository === null ||
 		normalized.builderId === null ||
+		normalized.repositoryId === null ||
+		normalized.workflowRef === null ||
+		normalized.commitSha === null ||
+		normalized.invocationId === null ||
 		!("declaredAccess" in manifest)
 	) {
 		return null;
@@ -206,6 +231,10 @@ export function parseNormalizedVerifierReport(value: string): NormalizedVerifier
 				predicateType: normalized.predicateType,
 				sourceRepository: normalized.sourceRepository,
 				builderId: normalized.builderId,
+				repositoryId: normalized.repositoryId,
+				workflowRef: normalized.workflowRef,
+				commitSha: normalized.commitSha,
+				invocationId: normalized.invocationId,
 			},
 		},
 	};
@@ -319,19 +348,75 @@ function reportBackedVerifier(
 					artifactDigest: new Uint8Array(input.artifactDigest),
 					sourceRepository: report.provenance.sourceRepository,
 					builderId: report.provenance.builderId,
+					repositoryId: report.provenance.repositoryId,
+					workflowRef: report.provenance.workflowRef,
+					commitSha: report.provenance.commitSha,
+					invocationId: report.provenance.invocationId,
 				},
 			};
 		},
 	};
 }
 
+export async function evaluateWorkloadAttestation(
+	intent: Pick<StoredIntent, "packageSlug" | "workloadIdentityDigest" | "workloadIdentityJson">,
+	policy: StoredWorkloadPolicy | null,
+	provenance: VerifiedProvenanceIdentity,
+): Promise<{ ok: true } | { ok: false; reasonCode: string }> {
+	const identity = await parseStoredWorkloadIdentity(
+		intent.workloadIdentityJson,
+		intent.workloadIdentityDigest,
+	);
+	if (!identity) return { ok: false, reasonCode: "WORKLOAD_IDENTITY_INVALID" };
+	if (!policy || policy.packageSlug !== intent.packageSlug) {
+		return { ok: false, reasonCode: "WORKLOAD_POLICY_UNAVAILABLE" };
+	}
+	const policyDecision = evaluateWorkloadPolicy(identity, policy);
+	if (!policyDecision.ok) return { ok: false, reasonCode: policyDecision.code };
+	const workflowMarker = "/.github/workflows/";
+	const markerIndex = identity.workflow.ref.toLowerCase().indexOf(workflowMarker);
+	if (markerIndex < 1) {
+		return { ok: false, reasonCode: "ATTESTED_WORKFLOW_MISMATCH" };
+	}
+	const sourceRepository = `https://github.com/${identity.workflow.ref.slice(0, markerIndex)}`;
+	if (
+		provenance.repositoryId !== identity.repository.id ||
+		provenance.sourceRepository.toLowerCase() !== sourceRepository.toLowerCase()
+	) {
+		return { ok: false, reasonCode: "ATTESTED_REPOSITORY_MISMATCH" };
+	}
+	const expectedBuilderId = `${sourceRepository}${identity.workflow.ref.slice(markerIndex)}`;
+	if (provenance.builderId !== expectedBuilderId) {
+		return { ok: false, reasonCode: "ATTESTED_WORKFLOW_MISMATCH" };
+	}
+	const workflowRef = identity.workflow.ref.slice(identity.workflow.ref.lastIndexOf("@") + 1);
+	if (provenance.workflowRef !== workflowRef) {
+		return { ok: false, reasonCode: "ATTESTED_REF_MISMATCH" };
+	}
+	if (provenance.commitSha !== identity.run.commitSha) {
+		return { ok: false, reasonCode: "ATTESTED_COMMIT_MISMATCH" };
+	}
+	const invocationId = `${sourceRepository}/actions/runs/${identity.run.id}/attempts/${identity.run.attempt}`;
+	if (provenance.invocationId !== invocationId) {
+		return { ok: false, reasonCode: "ATTESTED_INVOCATION_MISMATCH" };
+	}
+	return { ok: true };
+}
+
 export async function evaluateVerifiedRelease(
 	publisherDid: string,
 	intent: StoredIntent,
 	snapshot: PublisherVerificationSnapshot,
+	workloadPolicy: StoredWorkloadPolicy | null,
 	verifierReport: NormalizedVerifierReport,
 ): Promise<VerificationEvaluation> {
 	if (!verifierReport.success) return failed("VERIFIER_REJECTED", verifierReport.error.code);
+	const workload = await evaluateWorkloadAttestation(
+		intent,
+		workloadPolicy,
+		verifierReport.value.provenance,
+	);
+	if (!workload.ok) return failed("WORKLOAD_IDENTITY_INVALID", workload.reasonCode);
 	const payload = parseReleaseIntent(intent.releaseInputJson);
 	const verifierInput = prepareVerifierInput(intent, snapshot);
 	if (!payload || !verifierInput) return failed("INTENT_INPUT_INVALID");

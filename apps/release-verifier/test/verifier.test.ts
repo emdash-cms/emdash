@@ -18,6 +18,12 @@ import {
 
 const encoder = new TextEncoder();
 const ARTIFACT_URL = "https://artifact.example.test/plugin.tgz";
+const VERIFIED_IDENTITY = {
+	repositoryId: "123456789",
+	workflowRef: "refs/heads/main",
+	commitSha: "b".repeat(40),
+	invocationId: "https://github.com/emdash-cms/gallery/actions/runs/100/attempts/1",
+} as const;
 
 function file(name: string, body: string): TarEntry {
 	const bytes = encoder.encode(body);
@@ -141,6 +147,7 @@ describe("isolated release verifier", () => {
 								artifactDigest: input.artifactDigest,
 								sourceRepository: input.profileRepository,
 								builderId: input.reference.builderId,
+								...VERIFIED_IDENTITY,
 							},
 						};
 					},
@@ -172,6 +179,7 @@ describe("isolated release verifier", () => {
 						sourceRepository: "https://github.com/emdash-cms/gallery",
 						builderId:
 							"https://github.com/emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main",
+						...VERIFIED_IDENTITY,
 					},
 				};
 			},
@@ -250,6 +258,7 @@ describe("isolated release verifier", () => {
 						artifactDigest: candidate.artifactDigest,
 						sourceRepository: candidate.profileRepository,
 						builderId: candidate.reference.builderId,
+						...VERIFIED_IDENTITY,
 					},
 				};
 			},
@@ -280,6 +289,37 @@ describe("isolated release verifier", () => {
 			provenanceVerifier: {
 				verify() {
 					throw new Error("unexpected verifier failure");
+				},
+			},
+		});
+
+		expect(result).toEqual({
+			success: false,
+			error: { code: "VERIFIER_INTERNAL_ERROR", message: "Release verification failed" },
+		});
+	});
+
+	it("rejects provenance reports without verified workload identity", async () => {
+		const fixture = await createDelegatedReleaseConformanceFixture();
+		const result = await verifyRelease(fixture.serviceInput, {
+			fetch: async (url) =>
+				new Response(
+					url.toString() === fixture.artifactUrl
+						? fixture.artifactBytes
+						: fixture.provenanceDocument,
+				),
+			resolveHostname: async () => ["203.0.113.5"],
+			provenanceVerifier: {
+				async verify(input) {
+					return {
+						success: true,
+						value: {
+							predicateType: "https://slsa.dev/provenance/v1",
+							artifactDigest: input.artifactDigest,
+							sourceRepository: input.profileRepository,
+							builderId: input.reference.builderId,
+						},
+					};
 				},
 			},
 		});
@@ -329,6 +369,10 @@ describe("isolated release verifier", () => {
 				artifactDigest: input.artifactDigest,
 				sourceRepository: fixture.expected.repository,
 				builderId: fixture.expected.builderId,
+				repositoryId: fixture.expected.repositoryId,
+				workflowRef: fixture.expected.workflowRef,
+				commitSha: fixture.expected.commitSha,
+				invocationId: fixture.expected.invocationId,
 			},
 		}));
 		const result = await verifyRelease(

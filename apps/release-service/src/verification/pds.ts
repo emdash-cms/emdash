@@ -1,6 +1,7 @@
 import type { ActorResolver } from "@atcute/identity-resolver";
 import { isDid } from "@atcute/lexicons/syntax";
 import {
+	DEFAULT_DIRECT_PDS_MAX_RESPONSE_BYTES,
 	DirectPdsClient,
 	DirectPdsReadError,
 	type DirectPdsDidDocumentResolver,
@@ -15,8 +16,7 @@ import { createWorkerActorResolver } from "../oauth/custody.js";
 const DNS_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const MAX_DNS_BYTES = 64 * 1024;
 const MAX_PDS_RESPONSE_BYTES = 512 * 1024;
-const MAX_RELEASE_PAGES = 100;
-const PAGE_LIMIT = 100;
+const MAX_REPO_EXPORT_RESPONSE_BYTES = DEFAULT_DIRECT_PDS_MAX_RESPONSE_BYTES;
 const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.-]{0,127}$/;
 const UPSTREAM_STATUS_HEADER = "x-emdash-upstream-status";
@@ -55,6 +55,10 @@ export class PublisherSnapshotError extends Error {
 		this.name = "PublisherSnapshotError";
 		this.code = code;
 	}
+}
+
+export function samePdsOrigin(left: string, right: string): boolean {
+	return new URL(left).origin === new URL(right).origin;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -158,7 +162,10 @@ async function guardedJson(url: URL, fetchImplementation: typeof fetch): Promise
 	}
 }
 
-function guardedFetch(fetchImplementation: typeof fetch): typeof fetch {
+function guardedFetch(
+	fetchImplementation: typeof fetch,
+	maximumBytes = MAX_PDS_RESPONSE_BYTES,
+): typeof fetch {
 	return async (input, init) => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
 		const method = init?.method ?? (input instanceof Request ? input.method : "GET");
@@ -183,7 +190,7 @@ function guardedFetch(fetchImplementation: typeof fetch): typeof fetch {
 			resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
 			headerTimeoutMs: 10_000,
 			totalTimeoutMs: 30_000,
-			maxBytes: MAX_PDS_RESPONSE_BYTES,
+			maxBytes: maximumBytes,
 			maxRedirects: 1,
 		});
 		if (!resource.success || resource.value.url.toString() !== url.toString()) {
@@ -273,6 +280,24 @@ function parseRecord(value: unknown): AuthoritativeRecord | null {
 	return { uri: value["uri"], cid: value["cid"], value: value["value"] };
 }
 
+export async function resolvePublisherPds(
+	publisherDid: string,
+	options: ReadPublisherSnapshotOptions = {},
+): Promise<string> {
+	if (!isDid(publisherDid)) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	const fetchImplementation = options.fetch ?? globalThis.fetch;
+	let actor;
+	try {
+		actor = await (
+			options.actorResolver ?? createWorkerActorResolver(guardedIdentityFetch(fetchImplementation))
+		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
+	} catch {
+		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	}
+	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	return actor.pds;
+}
+
 function guardedIdentityFetch(fetchImplementation: typeof fetch): typeof fetch {
 	return async (input, init) => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
@@ -283,21 +308,35 @@ function guardedIdentityFetch(fetchImplementation: typeof fetch): typeof fetch {
 	};
 }
 
-async function getProfile(
+async function getPackageRepository(
 	publisherDid: string,
 	packageSlug: string,
 	fetchImplementation: typeof fetch,
 	didDocumentResolver?: DirectPdsDidDocumentResolver,
-): Promise<AuthoritativeRecord> {
+): Promise<{
+	profile: AuthoritativeRecord;
+	releases: readonly AuthoritativeRecord[];
+}> {
 	try {
-		const record = await new DirectPdsClient({
+		const repository = await new DirectPdsClient({
 			did: publisherDid,
-			fetch: guardedFetch(fetchImplementation),
+			fetch: guardedFetch(fetchImplementation, MAX_REPO_EXPORT_RESPONSE_BYTES),
 			...(didDocumentResolver === undefined ? {} : { didDocumentResolver }),
 			requestTimeoutMs: 30_000,
-			maxResponseBytes: MAX_PDS_RESPONSE_BYTES,
-		}).getPackageProfile(packageSlug);
-		return { uri: record.uri, cid: record.cid, value: record.value };
+			maxResponseBytes: MAX_REPO_EXPORT_RESPONSE_BYTES,
+		}).getPackageRepository(packageSlug);
+		return {
+			profile: {
+				uri: repository.profile.uri,
+				cid: repository.profile.cid,
+				value: repository.profile.value,
+			},
+			releases: repository.releases.map((record) => ({
+				uri: record.uri,
+				cid: record.cid,
+				value: record.value,
+			})),
+		};
 	} catch (error) {
 		if (error instanceof DirectPdsReadError) {
 			if (
@@ -306,16 +345,16 @@ async function getProfile(
 				error.code === "DID_SIGNING_KEY_INVALID" ||
 				error.code === "DID_SIGNING_KEY_MISSING" ||
 				error.code === "PDS_ENDPOINT_INVALID" ||
-				error.code === "PDS_ENDPOINT_MISSING"
+				error.code === "PDS_ENDPOINT_MISSING" ||
+				error.code === "REPOSITORY_NOT_FOUND"
 			) {
 				throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
 			}
-			if (
-				error.code === "PROFILE_LEXICON_INVALID" ||
-				error.code === "RECORD_NOT_FOUND" ||
-				error.code === "RECORD_PROOF_INVALID"
-			) {
+			if (error.code === "PROFILE_LEXICON_INVALID" || error.code === "RECORD_NOT_FOUND") {
 				throw new PublisherSnapshotError("PROFILE_INVALID");
+			}
+			if (error.code === "RELEASE_LEXICON_INVALID" || error.code === "RECORD_PROOF_INVALID") {
+				throw new PublisherSnapshotError("RELEASE_LIST_INVALID");
 			}
 		}
 		if (error instanceof TypeError) {
@@ -354,50 +393,6 @@ async function getRelease(
 	return record;
 }
 
-async function listPackageReleases(
-	pds: string,
-	publisherDid: string,
-	packageSlug: string,
-	fetchImplementation: typeof fetch,
-): Promise<readonly AuthoritativeRecord[]> {
-	const records: AuthoritativeRecord[] = [];
-	const cursors = new Set<string>();
-	const collectionUriPrefix = `at://${publisherDid}/${NSID.packageRelease}/`;
-	const packageUriPrefix = `${collectionUriPrefix}${packageSlug}:`;
-	let cursor: string | null = null;
-	for (let page = 0; page < MAX_RELEASE_PAGES; page += 1) {
-		const url = pdsXrpcUrl(pds, "com.atproto.repo.listRecords");
-		url.searchParams.set("repo", publisherDid);
-		url.searchParams.set("collection", NSID.packageRelease);
-		url.searchParams.set("limit", String(PAGE_LIMIT));
-		if (cursor !== null) url.searchParams.set("cursor", cursor);
-		const parsed = await guardedJson(url, fetchImplementation);
-		if (!isRecord(parsed) || !Array.isArray(parsed["records"])) {
-			throw new PublisherSnapshotError("RELEASE_LIST_INVALID");
-		}
-		for (const value of parsed["records"]) {
-			const record = parseRecord(value);
-			if (!record || !record.uri.startsWith(collectionUriPrefix)) {
-				throw new PublisherSnapshotError("RELEASE_LIST_INVALID");
-			}
-			if (!record.uri.startsWith(packageUriPrefix)) continue;
-			records.push(record);
-		}
-		if (parsed["cursor"] === undefined) return records;
-		if (
-			typeof parsed["cursor"] !== "string" ||
-			parsed["cursor"].length < 1 ||
-			parsed["cursor"].length > 4096 ||
-			cursors.has(parsed["cursor"])
-		) {
-			throw new PublisherSnapshotError("RELEASE_LIST_INVALID");
-		}
-		cursor = parsed["cursor"];
-		cursors.add(cursor);
-	}
-	throw new PublisherSnapshotError("RELEASE_LIST_INVALID");
-}
-
 function releaseVersion(record: AuthoritativeRecord, publisherDid: string, packageSlug: string) {
 	const prefix = `at://${publisherDid}/${NSID.packageRelease}/${packageSlug}:`;
 	if (!record.uri.startsWith(prefix)) throw new PublisherSnapshotError("RELEASE_LIST_INVALID");
@@ -422,19 +417,12 @@ export async function readPublisherVerificationSnapshot(
 		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
 	}
 	const fetchImplementation = options.fetch ?? globalThis.fetch;
-	let actor;
-	try {
-		actor = await (
-			options.actorResolver ?? createWorkerActorResolver(guardedIdentityFetch(fetchImplementation))
-		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
-	} catch {
-		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
-	}
-	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
-	const [profile, releases] = await Promise.all([
-		getProfile(publisherDid, packageSlug, fetchImplementation, options.didDocumentResolver),
-		listPackageReleases(actor.pds, publisherDid, packageSlug, fetchImplementation),
-	]);
+	const { profile, releases } = await getPackageRepository(
+		publisherDid,
+		packageSlug,
+		fetchImplementation,
+		options.didDocumentResolver,
+	);
 	const proposedRkey = `${packageSlug}:${version}`;
 	let baseline: AuthoritativeRecord | null = null;
 	let baselineVersion: string | null = null;
@@ -469,16 +457,8 @@ export async function findAuthoritativeRelease(
 		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
 	}
 	const fetchImplementation = options.fetch ?? globalThis.fetch;
-	let actor;
-	try {
-		actor = await (
-			options.actorResolver ?? createWorkerActorResolver(guardedIdentityFetch(fetchImplementation))
-		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
-	} catch {
-		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
-	}
-	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
-	return getRelease(actor.pds, publisherDid, packageSlug, version, fetchImplementation);
+	const pds = await resolvePublisherPds(publisherDid, options);
+	return getRelease(pds, publisherDid, packageSlug, version, fetchImplementation);
 }
 
 export async function findProofVerifiedRelease(

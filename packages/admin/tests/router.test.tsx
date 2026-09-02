@@ -47,6 +47,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		item,
 		onSave,
 		onAutosave,
+		onAuthorChange,
 		onSeoChange,
 		onPublishedAtChange,
 		isSaving,
@@ -59,6 +60,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
+		onAuthorChange?: (authorId: string | null) => void;
 		onSeoChange?: (seo: { title: string }) => void;
 		onPublishedAtChange?: (publishedAt: string) => void;
 		isSaving?: boolean;
@@ -100,6 +102,9 @@ vi.mock("../src/components/ContentEditor", () => ({
 			</button>
 			<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
 				Trigger SEO Sync
+			</button>
+			<button type="button" onClick={() => onAuthorChange?.("user_02")}>
+				Trigger Author Sync
 			</button>
 			<button
 				type="button"
@@ -1267,6 +1272,7 @@ describe("ContentEditPage – autosave cache patching", () => {
 			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
 			.on("GET", "/_emdash/api/content/posts/post_1", {
 				data: {
+					_rev: "revision-token",
 					item: {
 						id: "post_1",
 						type: "posts",
@@ -1367,6 +1373,60 @@ describe("ContentEditPage – autosave cache patching", () => {
 			expect(screen.getByTestId("mock-title").element().textContent).toBe("Autosaved Title");
 			expect(screen.getByTestId("mock-slug").element().textContent).toBe("autosaved-title");
 		});
+	});
+
+	it("echoes the current revision token in editor and auxiliary writes", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		const fetchWithMocks = globalThis.fetch;
+		const putBodies: Record<string, unknown>[] = [];
+		globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				if (typeof init.body !== "string") throw new TypeError("Expected a JSON request body");
+				putBodies.push(JSON.parse(init.body) as Record<string, unknown>);
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			await screen.getByRole("button", { name: "Save", exact: true }).click();
+			await waitFor(() => expect(putBodies).toHaveLength(1));
+
+			await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+			await waitFor(() => expect(putBodies).toHaveLength(2));
+
+			await screen.getByRole("button", { name: "Trigger Author Sync" }).click();
+			await waitFor(() => expect(putBodies).toHaveLength(3));
+
+			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			await waitFor(() => expect(putBodies).toHaveLength(4));
+
+			expect(putBodies).toEqual([
+				{ data: { title: "Test Post" }, _rev: "revision-token" },
+				{
+					data: { title: "Autosaved Title" },
+					slug: "autosaved-title",
+					_rev: "revision-token",
+					skipRevision: true,
+				},
+				{ authorId: "user_02", _rev: "revision-token" },
+				{ seo: { title: "Search title" }, _rev: "revision-token" },
+			]);
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
 	});
 
 	it("sends publish-date changes through the auxiliary update payload", async () => {

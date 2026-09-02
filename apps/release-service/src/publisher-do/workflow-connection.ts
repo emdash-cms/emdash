@@ -15,7 +15,9 @@ const REF_PATTERN = /^refs\/[A-Za-z0-9._/-]{1,507}$/;
 const WORKFLOW_REF_PATTERN =
 	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
 const MAX_ACTIVE_REQUESTS = 10;
+const MAX_ACTIVE_INVITATIONS = 20;
 const MAX_REQUEST_LIFETIME_MS = 60 * 60_000;
+const MAX_INVITATION_LIFETIME_MS = 60 * 60_000;
 const REQUEST_RETENTION_MS = 24 * 60 * 60_000;
 
 export type WorkflowConnectionRequestState = "confirmed" | "expired" | "pending";
@@ -49,6 +51,7 @@ export interface CreateWorkflowConnectionRequestInput {
 	requestId: string;
 	mutationKey: string;
 	connectionKey: string;
+	invitationTokenHash: string | null;
 	packageSlug: string;
 	claim: WorkflowConnectionClaim;
 	expiresAt: number;
@@ -57,7 +60,34 @@ export interface CreateWorkflowConnectionRequestInput {
 
 export type CreateWorkflowConnectionRequestResult =
 	| { ok: true; request: StoredWorkflowConnectionRequest; replayed: boolean }
-	| { ok: false; code: "WORKFLOW_CONNECTION_CONFLICT" | "WORKFLOW_CONNECTION_LIMIT_REACHED" };
+	| {
+			ok: false;
+			code:
+				| "WORKFLOW_CONNECTION_CONFLICT"
+				| "WORKFLOW_CONNECTION_INVITATION_EXPIRED"
+				| "WORKFLOW_CONNECTION_INVITATION_INVALID"
+				| "WORKFLOW_CONNECTION_INVITATION_REQUIRED"
+				| "WORKFLOW_CONNECTION_LIMIT_REACHED";
+	  };
+
+export interface CreateWorkflowConnectionInvitationInput {
+	publisherDid: string;
+	tokenHash: string;
+	packageSlug: string;
+	expiresAt: number;
+	now?: number;
+}
+
+export type CreateWorkflowConnectionInvitationResult =
+	| { ok: true; packageSlug: string; expiresAt: number }
+	| { ok: false; code: "WORKFLOW_CONNECTION_INVITATION_LIMIT_REACHED" };
+
+export type RejectWorkflowConnectionRequestResult =
+	| { ok: true }
+	| {
+			ok: false;
+			code: "WORKFLOW_CONNECTION_EXPIRED" | "WORKFLOW_CONNECTION_NOT_FOUND";
+	  };
 
 export type PrepareWorkflowConnectionConfirmationResult =
 	| { ok: true; request: StoredWorkflowConnectionRequest; replayed: boolean }
@@ -79,6 +109,14 @@ interface WorkflowConnectionRequestRow {
 	expires_at: number;
 	created_at: number;
 	confirmed_at: number | null;
+}
+
+interface WorkflowConnectionInvitationRow {
+	[key: string]: string | number | ArrayBuffer | null;
+	token_hash: string;
+	package_slug: string;
+	expires_at: number;
+	created_at: number;
 }
 
 export class WorkflowConnectionError extends Error {
@@ -217,6 +255,14 @@ export function initializeWorkflowConnectionSchema(storage: DurableObjectStorage
 			ON workflow_connection_requests(connection_key) WHERE state = 'pending';
 		CREATE INDEX IF NOT EXISTS idx_workflow_connection_requests_expiry
 			ON workflow_connection_requests(state, expires_at);
+		CREATE TABLE IF NOT EXISTS workflow_connection_invitations (
+			token_hash TEXT PRIMARY KEY,
+			package_slug TEXT NOT NULL,
+			expires_at INTEGER NOT NULL,
+			created_at INTEGER NOT NULL
+		);
+		CREATE INDEX IF NOT EXISTS idx_workflow_connection_invitations_expiry
+			ON workflow_connection_invitations(expires_at);
 	`);
 }
 
@@ -292,6 +338,49 @@ export class WorkflowConnectionStore {
 		);
 	}
 
+	createInvitation(
+		input: CreateWorkflowConnectionInvitationInput,
+	): CreateWorkflowConnectionInvitationResult {
+		const now = input.now ?? Date.now();
+		if (
+			!DID_PATTERN.test(input.publisherDid) ||
+			!DIGEST_PATTERN.test(input.tokenHash) ||
+			!PACKAGE_SLUG_PATTERN.test(input.packageSlug) ||
+			!Number.isSafeInteger(now) ||
+			!Number.isSafeInteger(input.expiresAt) ||
+			input.expiresAt <= now ||
+			input.expiresAt - now > MAX_INVITATION_LIFETIME_MS
+		) {
+			throw new WorkflowConnectionError();
+		}
+		return this.storage.transactionSync(() => {
+			this.storage.sql.exec(
+				"DELETE FROM workflow_connection_invitations WHERE expires_at <= ?",
+				now,
+			);
+			const active = this.storage.sql
+				.exec<{ count: number }>("SELECT COUNT(*) AS count FROM workflow_connection_invitations")
+				.one().count;
+			if (active >= MAX_ACTIVE_INVITATIONS) {
+				return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_LIMIT_REACHED" } as const;
+			}
+			this.storage.sql.exec(
+				`INSERT INTO workflow_connection_invitations (
+					token_hash, package_slug, expires_at, created_at
+				) VALUES (?, ?, ?, ?)`,
+				input.tokenHash,
+				input.packageSlug,
+				input.expiresAt,
+				now,
+			);
+			return {
+				ok: true,
+				packageSlug: input.packageSlug,
+				expiresAt: input.expiresAt,
+			} as const;
+		});
+	}
+
 	create(
 		input: CreateWorkflowConnectionRequestInput,
 		expectedPolicyVersion: number | null,
@@ -303,6 +392,7 @@ export class WorkflowConnectionStore {
 			!ULID_PATTERN.test(input.requestId) ||
 			!IDEMPOTENCY_KEY_PATTERN.test(input.mutationKey) ||
 			!DIGEST_PATTERN.test(input.connectionKey) ||
+			(input.invitationTokenHash !== null && !DIGEST_PATTERN.test(input.invitationTokenHash)) ||
 			!PACKAGE_SLUG_PATTERN.test(input.packageSlug) ||
 			!claim ||
 			(expectedPolicyVersion !== null &&
@@ -346,6 +436,26 @@ export class WorkflowConnectionStore {
 				)
 				.toArray()[0];
 			if (pending) return { ok: true, request: rowToRequest(pending), replayed: true } as const;
+			if (input.invitationTokenHash === null) {
+				return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_REQUIRED" } as const;
+			}
+			const invitation = this.storage.sql
+				.exec<WorkflowConnectionInvitationRow>(
+					`SELECT token_hash, package_slug, expires_at, created_at
+					 FROM workflow_connection_invitations WHERE token_hash = ?`,
+					input.invitationTokenHash,
+				)
+				.toArray()[0];
+			if (!invitation || invitation.package_slug !== input.packageSlug) {
+				return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_INVALID" } as const;
+			}
+			if (invitation.expires_at <= now) {
+				this.storage.sql.exec(
+					"DELETE FROM workflow_connection_invitations WHERE token_hash = ?",
+					input.invitationTokenHash,
+				);
+				return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_EXPIRED" } as const;
+			}
 			const active = this.storage.sql
 				.exec<{ count: number }>(
 					"SELECT COUNT(*) AS count FROM workflow_connection_requests WHERE state = 'pending'",
@@ -368,7 +478,33 @@ export class WorkflowConnectionStore {
 				input.expiresAt,
 				now,
 			);
+			this.storage.sql.exec(
+				"DELETE FROM workflow_connection_invitations WHERE token_hash = ?",
+				input.invitationTokenHash,
+			);
 			return { ok: true, request: rowToRequest(this.#read(input.requestId)!), replayed: false };
+		});
+	}
+
+	reject(requestId: string, now = Date.now()): RejectWorkflowConnectionRequestResult {
+		if (!ULID_PATTERN.test(requestId) || !Number.isSafeInteger(now)) {
+			throw new WorkflowConnectionError();
+		}
+		return this.storage.transactionSync(() => {
+			this.#expire(now);
+			const request = this.#read(requestId);
+			if (!request) return { ok: false, code: "WORKFLOW_CONNECTION_NOT_FOUND" } as const;
+			if (request.state === "expired") {
+				return { ok: false, code: "WORKFLOW_CONNECTION_EXPIRED" } as const;
+			}
+			if (request.state !== "pending") {
+				return { ok: false, code: "WORKFLOW_CONNECTION_NOT_FOUND" } as const;
+			}
+			this.storage.sql.exec(
+				"DELETE FROM workflow_connection_requests WHERE id = ? AND state = 'pending'",
+				requestId,
+			);
+			return { ok: true } as const;
 		});
 	}
 
@@ -436,6 +572,7 @@ export class WorkflowConnectionStore {
 	expire(now: number): void {
 		if (!Number.isSafeInteger(now)) throw new WorkflowConnectionError();
 		this.#expire(now);
+		this.storage.sql.exec("DELETE FROM workflow_connection_invitations WHERE expires_at <= ?", now);
 	}
 
 	nextExpiry(): number | null {

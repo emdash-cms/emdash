@@ -11,6 +11,8 @@ const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const DIGEST_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const REASON_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 const INTENT_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
+const CID_PATTERN = /^[A-Za-z0-9]{8,256}$/;
 const PERMIT_ID_PATTERN = /^[A-Za-z0-9_-]{22}$/;
 const PERMIT_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const MAX_KEY_VERSION = 2_147_483_647;
@@ -123,6 +125,9 @@ export interface PublicationPermit {
 	token: string;
 	publisherDid: string;
 	intentId: string;
+	packageSlug: string;
+	profileCid: string;
+	baselineCid: string | null;
 	modeEpoch: number;
 	encryptionKeyVersion: number;
 	expiresAt: number;
@@ -135,11 +140,25 @@ export type IssuePublicationPermitResult =
 			code: "ENCRYPTION_KEY_INACTIVE" | "PUBLICATION_PAUSED" | "PUBLISHER_SUSPENDED";
 	  };
 
+export interface IssuePublicationPermitInput {
+	publisherDid: string;
+	intentId: string;
+	packageSlug: string;
+	profileCid: string;
+	baselineCid: string | null;
+	ttlMs: number;
+	encryptionKeyVersion: number;
+	now?: number;
+}
+
 export interface ConsumePublicationPermitInput {
 	id: string;
 	token: string;
 	publisherDid: string;
 	intentId: string;
+	packageSlug: string;
+	profileCid: string;
+	baselineCid: string | null;
 	now?: number;
 }
 
@@ -220,6 +239,9 @@ interface PublicationPermitRow {
 	token_hash: string;
 	publisher_did: string;
 	intent_id: string;
+	package_slug: string | null;
+	profile_cid: string | null;
+	baseline_cid: string | null;
 	mode_epoch: number;
 	encryption_key_version: number;
 	expires_at: number;
@@ -430,6 +452,9 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 				token_hash TEXT NOT NULL,
 				publisher_did TEXT NOT NULL,
 				intent_id TEXT NOT NULL,
+				package_slug TEXT NOT NULL,
+				profile_cid TEXT NOT NULL,
+				baseline_cid TEXT,
 				mode_epoch INTEGER NOT NULL CHECK (mode_epoch >= 1),
 				encryption_key_version INTEGER NOT NULL CHECK (encryption_key_version >= 1),
 				expires_at INTEGER NOT NULL,
@@ -450,6 +475,21 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 				created_at INTEGER NOT NULL
 			);
 		`);
+		const permitColumns = new Set(
+			this.ctx.storage.sql
+				.exec<{ name: string }>("PRAGMA table_info(publication_permits)")
+				.toArray()
+				.map((column) => column.name),
+		);
+		if (!permitColumns.has("package_slug")) {
+			this.ctx.storage.sql.exec("ALTER TABLE publication_permits ADD COLUMN package_slug TEXT");
+		}
+		if (!permitColumns.has("profile_cid")) {
+			this.ctx.storage.sql.exec("ALTER TABLE publication_permits ADD COLUMN profile_cid TEXT");
+		}
+		if (!permitColumns.has("baseline_cid")) {
+			this.ctx.storage.sql.exec("ALTER TABLE publication_permits ADD COLUMN baseline_cid TEXT");
+		}
 	}
 
 	#assertObjectName(): void {
@@ -1090,22 +1130,22 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 	}
 
 	async issuePublicationPermit(
-		publisherDid: string,
-		intentId: string,
-		ttlMs: number,
-		encryptionKeyVersion: number,
-		now = Date.now(),
+		input: IssuePublicationPermitInput,
 	): Promise<IssuePublicationPermitResult> {
 		this.#assertObjectName();
+		const now = input.now ?? Date.now();
 		if (
-			!DID_PATTERN.test(publisherDid) ||
-			!INTENT_ID_PATTERN.test(intentId) ||
-			!Number.isSafeInteger(ttlMs) ||
-			ttlMs < 1 ||
-			ttlMs > MAX_PERMIT_TTL_MS ||
-			!validKeyVersion(encryptionKeyVersion) ||
+			!DID_PATTERN.test(input.publisherDid) ||
+			!INTENT_ID_PATTERN.test(input.intentId) ||
+			!PACKAGE_SLUG_PATTERN.test(input.packageSlug) ||
+			!CID_PATTERN.test(input.profileCid) ||
+			(input.baselineCid !== null && !CID_PATTERN.test(input.baselineCid)) ||
+			!Number.isSafeInteger(input.ttlMs) ||
+			input.ttlMs < 1 ||
+			input.ttlMs > MAX_PERMIT_TTL_MS ||
+			!validKeyVersion(input.encryptionKeyVersion) ||
 			!validTimestamp(now) ||
-			now > Number.MAX_SAFE_INTEGER - ttlMs
+			now > Number.MAX_SAFE_INTEGER - input.ttlMs
 		) {
 			throw new ServiceControlError("CONTROL_INPUT_INVALID");
 		}
@@ -1117,24 +1157,27 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 			if (state.mode === "publication-paused") {
 				return { ok: false, code: "PUBLICATION_PAUSED" } as const;
 			}
-			if (this.#readActiveEncryptionKey().version !== encryptionKeyVersion) {
+			if (this.#readActiveEncryptionKey().version !== input.encryptionKeyVersion) {
 				return { ok: false, code: "ENCRYPTION_KEY_INACTIVE" } as const;
 			}
-			if (this.#readPublisherControl(publisherDid).status === "suspended") {
+			if (this.#readPublisherControl(input.publisherDid).status === "suspended") {
 				return { ok: false, code: "PUBLISHER_SUSPENDED" } as const;
 			}
-			const expiresAt = now + ttlMs;
+			const expiresAt = now + input.ttlMs;
 			this.ctx.storage.sql.exec(
 				`INSERT INTO publication_permits (
-					id, token_hash, publisher_did, intent_id, mode_epoch, encryption_key_version,
-					expires_at, consumed_at, created_at
-				) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+					id, token_hash, publisher_did, intent_id, package_slug, profile_cid,
+					baseline_cid, mode_epoch, encryption_key_version, expires_at, consumed_at, created_at
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
 				id,
 				tokenHash,
-				publisherDid,
-				intentId,
+				input.publisherDid,
+				input.intentId,
+				input.packageSlug,
+				input.profileCid,
+				input.baselineCid,
 				state.epoch,
-				encryptionKeyVersion,
+				input.encryptionKeyVersion,
 				expiresAt,
 				now,
 			);
@@ -1143,7 +1186,7 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 				"system",
 				"release-service",
 				null,
-				`${publisherDid}:${intentId}`,
+				`${input.publisherDid}:${input.packageSlug}:${input.intentId}`,
 				null,
 				now,
 			);
@@ -1152,10 +1195,13 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 				permit: {
 					id,
 					token,
-					publisherDid,
-					intentId,
+					publisherDid: input.publisherDid,
+					intentId: input.intentId,
+					packageSlug: input.packageSlug,
+					profileCid: input.profileCid,
+					baselineCid: input.baselineCid,
 					modeEpoch: state.epoch,
-					encryptionKeyVersion,
+					encryptionKeyVersion: input.encryptionKeyVersion,
 					expiresAt,
 				},
 			} as const;
@@ -1174,6 +1220,9 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 			!PERMIT_TOKEN_PATTERN.test(input.token) ||
 			!DID_PATTERN.test(input.publisherDid) ||
 			!INTENT_ID_PATTERN.test(input.intentId) ||
+			!PACKAGE_SLUG_PATTERN.test(input.packageSlug) ||
+			!CID_PATTERN.test(input.profileCid) ||
+			(input.baselineCid !== null && !CID_PATTERN.test(input.baselineCid)) ||
 			!validTimestamp(now)
 		) {
 			throw new ServiceControlError("CONTROL_INPUT_INVALID");
@@ -1182,7 +1231,8 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 		return this.ctx.storage.transactionSync(() => {
 			const permit = this.ctx.storage.sql
 				.exec<PublicationPermitRow>(
-					`SELECT token_hash, publisher_did, intent_id, mode_epoch,
+					`SELECT token_hash, publisher_did, intent_id, package_slug, profile_cid,
+					        baseline_cid, mode_epoch,
 					        encryption_key_version, expires_at, consumed_at
 					 FROM publication_permits WHERE id = ?`,
 					input.id,
@@ -1192,6 +1242,9 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 			if (
 				permit.publisher_did !== input.publisherDid ||
 				permit.intent_id !== input.intentId ||
+				permit.package_slug !== input.packageSlug ||
+				permit.profile_cid !== input.profileCid ||
+				permit.baseline_cid !== input.baselineCid ||
 				!hashesEqual(permit.token_hash, tokenHash)
 			) {
 				return { ok: false, code: "PERMIT_INVALID" } as const;
@@ -1223,7 +1276,7 @@ export class ServiceControlDurableObject extends DurableObject<Env> {
 				"system",
 				"release-service",
 				null,
-				`${input.publisherDid}:${input.intentId}`,
+				`${input.publisherDid}:${input.packageSlug}:${input.intentId}`,
 				null,
 				now,
 			);

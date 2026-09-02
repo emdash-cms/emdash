@@ -293,10 +293,18 @@ describe("release intent API", () => {
 		).resolves.toEqual({ count: 0 });
 	});
 
-	it("submits asynchronously, replays with a fresh matching token, and never stores the token", async () => {
+	it("rejects a failed-start replay after the workload is disabled and never stores the token", async () => {
 		await putPolicy();
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		const firstToken = await token();
+		let workflowStarts = 0;
+		const dependencies = {
+			...submitDependencies,
+			startWorkflow: async () => {
+				workflowStarts += 1;
+				return { ok: false, code: "WORKFLOW_UNAVAILABLE" } as const;
+			},
+		};
 		const body = {
 			publisherDid: PUBLISHER_DID,
 			packageSlug: "gallery",
@@ -311,11 +319,11 @@ describe("release intent API", () => {
 			}),
 			"request-1",
 			configuration,
-			submitDependencies,
+			dependencies,
 		);
-		expect(first.status).toBe(202);
+		expect(first.status).toBe(503);
 		expect(await first.json()).toMatchObject({
-			data: { intent: { id: INTENT_ID, state: "received" }, replayed: false },
+			error: { code: "WORKFLOW_UNAVAILABLE" },
 		});
 		await env.PUBLISHER_DO.getByName(PUBLISHER_DID).putWorkloadPolicy({
 			publisherDid: PUBLISHER_DID,
@@ -340,18 +348,22 @@ describe("release intent API", () => {
 			}),
 			"request-2",
 			configuration,
-			submitDependencies,
+			dependencies,
 		);
-		expect(replay.status).toBe(200);
+		expect(replay.status).toBe(403);
 		expect(await replay.json()).toMatchObject({
-			data: { intent: { id: INTENT_ID }, replayed: true },
+			error: { code: "WORKLOAD_NOT_ALLOWED" },
 		});
+		expect(workflowStarts).toBe(1);
 
 		const stored = await env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(
 			PUBLISHER_DID,
 			INTENT_ID,
 		);
-		expect(stored).not.toBeNull();
+		expect(stored).toMatchObject({
+			state: "invalid",
+			stateDataJson: '{"reasonCode":"WORKLOAD_POLICY_CHANGED"}',
+		});
 		expect(JSON.stringify(stored)).not.toContain(firstToken);
 		expect(JSON.stringify(stored)).not.toContain(secondToken);
 	});

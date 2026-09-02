@@ -99,6 +99,48 @@ describe("DirectPdsClient", () => {
 		expect(resolve).toHaveBeenCalledOnce();
 	});
 
+	it("verifies and enumerates a complete package repository export", async () => {
+		const harness = await createPublisher();
+
+		await expect(client(harness).getPackageRepository("gallery")).resolves.toMatchObject({
+			profile: {
+				uri: `at://${ALICE_DID}/com.emdashcms.experimental.package.profile/gallery`,
+				cid: expect.stringMatching(/^b/),
+			},
+			releases: [
+				{
+					uri: `at://${ALICE_DID}/com.emdashcms.experimental.package.release/gallery:1.0.0`,
+					cid: expect.stringMatching(/^b/),
+					value: { package: "gallery", version: "1.0.0" },
+				},
+			],
+		});
+		expect(harness.fixture.pds.callsTo("com.atproto.sync.getRepo")).toHaveLength(1);
+		expect(harness.fixture.pds.callsTo("com.atproto.repo.listRecords")).toHaveLength(0);
+	});
+
+	it("reports a missing repository export distinctly from other PDS failures", async () => {
+		const harness = await createPublisher();
+		const fetch: typeof globalThis.fetch = () =>
+			Promise.resolve(Response.json({ error: "RepoNotFound" }, { status: 404 }));
+
+		await expect(client(harness, { fetch }).getPackageRepository("gallery")).rejects.toMatchObject({
+			code: "REPOSITORY_NOT_FOUND",
+			status: 404,
+		});
+	});
+
+	it("preserves record-not-found errors from sync.getRecord", async () => {
+		const harness = await createPublisher();
+		const fetch: typeof globalThis.fetch = () =>
+			Promise.resolve(Response.json({ error: "RecordNotFound" }, { status: 404 }));
+
+		await expect(client(harness, { fetch }).getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "RECORD_NOT_FOUND",
+			status: 404,
+		});
+	});
+
 	it("resolves the publisher DID before fetching its repository proof", async () => {
 		const harness = await createPublisher();
 		const document = harness.fixture.didResolver.resolve(harness.publisher.did);

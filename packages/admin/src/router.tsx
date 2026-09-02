@@ -161,6 +161,8 @@ interface ContentUpdateChanges {
 	bylines?: BylineCreditInput[];
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	/** Echo of the last-read token so the server rejects stale saves (#2121). */
+	_rev?: string;
 }
 
 interface ContentUpdateMutationInput {
@@ -173,7 +175,7 @@ interface ContentUpdateMutationInput {
 interface AutosaveMutationInput {
 	targetId: string;
 	targetLocale?: string;
-	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines">;
+	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "_rev">;
 }
 
 function patchAutosaveQueries(
@@ -1239,16 +1241,20 @@ function ContentEditPage() {
 	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
 	// (twice per autosave cycle) would defeat the memo. mutate/mutateAsync
 	// are referentially stable.
+	// Echo the optimistic-concurrency token from the last read so the server
+	// rejects a save based on a stale entry (#2121) instead of silently
+	// overwriting a newer draft revision. `rawItem` is the unhydrated content
+	// GET response, which carries `_rev`.
 	const handleSave = React.useCallback(
 		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
 			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				source: "editor",
-				changes: payload,
+				changes: { ...payload, _rev: rawItem?._rev },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, rawItem?._rev, updateMutation.mutate],
 	);
 
 	const handleAutosave = React.useCallback(
@@ -1256,10 +1262,10 @@ function ContentEditPage() {
 			autosaveMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
-				changes: payload,
+				changes: { ...payload, _rev: rawItem?._rev },
 			});
 		},
-		[activeLocale, autosaveMutation.mutate, id, rawItem?.locale],
+		[activeLocale, autosaveMutation.mutate, id, rawItem?.locale, rawItem?._rev],
 	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {
@@ -1267,10 +1273,10 @@ function ContentEditPage() {
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				source: "auxiliary",
-				changes: { authorId },
+				changes: { authorId, _rev: rawItem?._rev },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, rawItem?._rev, updateMutation.mutate],
 	);
 	const handlePublishedAtChange = React.useCallback(
 		(publishedAt: string) => {
@@ -1285,10 +1291,10 @@ function ContentEditPage() {
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				source: "auxiliary",
-				changes: { seo },
+				changes: { seo, _rev: rawItem?._rev },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, rawItem?._rev, updateMutation.mutate],
 	);
 
 	const handlePublish = React.useCallback(() => publishMutation.mutate(), [publishMutation.mutate]);

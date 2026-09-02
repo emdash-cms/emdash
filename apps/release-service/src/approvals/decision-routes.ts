@@ -426,7 +426,7 @@ export async function handleGetApproval(
 			publisherDid(request),
 			intentId(params),
 		);
-		await verifyCurrentApprover(loaded.evidence, session.approverDid);
+		await verifyCurrentApprover(loaded.evidence, loaded.approverDids, session.approverDid);
 		const policyDecision = await env.PUBLISHER_DO.getByName(
 			loaded.evidence.publisherDid,
 		).getVerificationStep(loaded.evidence.publisherDid, loaded.intent.id, "policy-decision");
@@ -479,7 +479,7 @@ export async function handleBeginApprovalDecision(
 		if (loaded.intent.state !== "awaiting_approval") {
 			throw new ApprovalAuthorityError("INTENT_NOT_APPROVABLE");
 		}
-		await verifyCurrentApprover(loaded.evidence, session.approverDid);
+		await verifyCurrentApprover(loaded.evidence, loaded.approverDids, session.approverDid);
 		const result = await beginApprovalDecision(
 			env.APPROVER_DO.getByName(session.approverDid),
 			{
@@ -529,7 +529,7 @@ export async function handleCompleteApprovalDecision(
 			throw new ApprovalAuthorityError("INTENT_NOT_APPROVABLE");
 		}
 		if (!alreadyApplied) {
-			await verifyCurrentApprover(loaded.evidence, session.approverDid);
+			await verifyCurrentApprover(loaded.evidence, loaded.approverDids, session.approverDid);
 		}
 		const result = await completeApprovalDecision(
 			env.APPROVER_DO.getByName(session.approverDid),
@@ -563,7 +563,7 @@ export async function handleCompleteApprovalDecision(
 			}
 			return apiSuccess({ receipt: result.receipt, intent: loaded.intent }, requestId);
 		}
-		await verifyCurrentApprover(loaded.evidence, session.approverDid);
+		await verifyCurrentApprover(loaded.evidence, loaded.approverDids, session.approverDid);
 		if (loaded.intent.expiresAt <= Date.now()) {
 			throw new ApprovalAuthorityError("INTENT_NOT_APPROVABLE");
 		}

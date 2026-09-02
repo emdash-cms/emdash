@@ -7,7 +7,9 @@ import { loadConfiguration } from "../src/config.js";
 import { createPublisherApplicationSession } from "../src/publisher-session/session.js";
 import {
 	handleConfirmWorkflowConnection,
+	handleCreateWorkflowConnectionInvitation,
 	handleListWorkflowConnections,
+	handleRejectWorkflowConnection,
 	handleRequestWorkflowConnection,
 } from "../src/workflow-connection/routes.js";
 import { GITHUB_ACTIONS_ISSUER } from "../src/workload/github-oidc.js";
@@ -39,13 +41,15 @@ function cookieValue(header: string): string {
 	return header.split(";", 1)[0] ?? "";
 }
 
-async function publisherHeaders(): Promise<Headers> {
+async function publisherHeaders(
+	mutationKey = "workflow-connection-confirm-0001",
+): Promise<Headers> {
 	const session = await createPublisherApplicationSession(env.PUBLISHER_DO, PUBLISHER_DID, NOW);
 	const csrf = cookieValue(session.setCookieHeaders[1]).split("=", 2)[1] ?? "";
 	return new Headers({
 		cookie: session.setCookieHeaders.map(cookieValue).join("; "),
 		"content-type": "application/json",
-		"idempotency-key": "workflow-connection-confirm-0001",
+		"idempotency-key": mutationKey,
 		origin: TEST_BINDINGS.PUBLIC_ORIGIN,
 		"x-emdash-request": "1",
 		"x-emdash-csrf": csrf,
@@ -69,15 +73,25 @@ async function enablePublishing() {
 	});
 }
 
-async function workloadToken(ref = "refs/tags/v1.2.3"): Promise<string> {
+async function workloadToken(
+	options: {
+		ref?: string;
+		repository?: string;
+		repositoryId?: string;
+		repositoryOwnerId?: string;
+	} = {},
+): Promise<string> {
 	const now = Math.floor(Date.now() / 1000);
+	const ref = options.ref ?? "refs/tags/v1.2.3";
+	const repository = options.repository ?? "example/gallery";
+	const repositoryOwner = repository.split("/", 1)[0]!;
 	return new SignJWT({
 		jti: crypto.randomUUID(),
-		repository: "example/gallery",
-		repository_id: "123456789",
-		repository_owner: "example",
-		repository_owner_id: "987654321",
-		workflow_ref: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+		repository,
+		repository_id: options.repositoryId ?? "123456789",
+		repository_owner: repositoryOwner,
+		repository_owner_id: options.repositoryOwnerId ?? "987654321",
+		workflow_ref: `${repository}/.github/workflows/release.yml@refs/heads/main`,
 		workflow_sha: "b".repeat(40),
 		run_id: "10000000001",
 		run_attempt: "1",
@@ -94,23 +108,59 @@ async function workloadToken(ref = "refs/tags/v1.2.3"): Promise<string> {
 		.setProtectedHeader({ alg: "RS256", kid: KEY_ID, typ: "JWT" })
 		.setIssuer(GITHUB_ACTIONS_ISSUER)
 		.setAudience(TEST_BINDINGS.PUBLIC_ORIGIN)
-		.setSubject(`repo:example/gallery:ref:${ref}`)
+		.setSubject(`repo:${repository}:ref:${ref}`)
 		.setIssuedAt(now)
 		.setNotBefore(now - 1)
 		.setExpirationTime(now + 300)
 		.sign(privateKey);
 }
 
-function workflowRequest(token: string, mutationKey = "workflow-connection-request-0001") {
+function workflowRequest(
+	token: string,
+	options: {
+		invitationToken?: string;
+		mutationKey?: string;
+		packageSlug?: string;
+	} = {},
+) {
 	return new Request(`${TEST_BINDINGS.PUBLIC_ORIGIN}/v1/workflow-connections`, {
 		method: "POST",
 		headers: {
 			authorization: `Bearer ${token}`,
 			"content-type": "application/json",
-			"idempotency-key": mutationKey,
+			"idempotency-key": options.mutationKey ?? "workflow-connection-request-0001",
 		},
-		body: JSON.stringify({ publisherDid: PUBLISHER_DID, packageSlug: "gallery" }),
+		body: JSON.stringify({
+			publisherDid: PUBLISHER_DID,
+			packageSlug: options.packageSlug ?? "gallery",
+			...(options.invitationToken ? { invitationToken: options.invitationToken } : {}),
+		}),
 	});
+}
+
+async function createInvitation(
+	configuration: Awaited<ReturnType<typeof loadConfiguration>>,
+	options: { packageSlug?: string; now?: number; token?: string } = {},
+): Promise<string> {
+	const token = options.token ?? `ewci1_${"I".repeat(43)}`;
+	const response = await handleCreateWorkflowConnectionInvitation(
+		new Request(`${TEST_BINDINGS.PUBLIC_ORIGIN}/v1/publisher/workflow-connection-invitations`, {
+			method: "POST",
+			headers: await publisherHeaders("workflow-connection-invitation-0001"),
+			body: JSON.stringify({ packageSlug: options.packageSlug ?? "gallery" }),
+		}),
+		"request-invitation",
+		configuration,
+		{ now: () => options.now ?? NOW, invitationToken: () => token },
+	);
+	expect(response.status).toBe(201);
+	await expect(response.clone().json()).resolves.toMatchObject({
+		data: {
+			invitationToken: token,
+			packageSlug: options.packageSlug ?? "gallery",
+		},
+	});
+	return token;
 }
 
 describe("GitHub workflow connection routes", () => {
@@ -138,12 +188,159 @@ describe("GitHub workflow connection routes", () => {
 		).resolves.toEqual({ publishers: 0, requests: 0 });
 	});
 
+	it("prevents unrelated GitHub principals from consuming the publisher onboarding queue", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		await publisherHeaders();
+		await enablePublishing();
+		const invitationToken = await createInvitation(configuration);
+
+		for (let index = 0; index < 10; index += 1) {
+			const response = await handleRequestWorkflowConnection(
+				workflowRequest(
+					await workloadToken({
+						repository: `unrelated${index}/spam${index}`,
+						repositoryId: String(200_000_000 + index),
+						repositoryOwnerId: String(300_000_000 + index),
+					}),
+					{
+						mutationKey: `workflow-connection-spam-${index.toString().padStart(4, "0")}`,
+						packageSlug: `spam${index}`,
+					},
+				),
+				`request-spam-${index}`,
+				configuration,
+				{
+					keyResolver,
+					now: () => NOW + index,
+					requestId: () => `01JABCDEFGHJKMNPQRSTVWXY${index.toString(36).toUpperCase()}0`,
+				},
+			);
+			expect(response.status).toBe(403);
+			await expect(response.json()).resolves.toMatchObject({
+				error: { code: "WORKFLOW_CONNECTION_INVITATION_REQUIRED" },
+			});
+		}
+
+		const legitimate = await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken(), { invitationToken }),
+			"request-legitimate",
+			configuration,
+			{ keyResolver, now: () => NOW + 10, requestId: () => REQUEST_ID },
+		);
+		expect(legitimate.status).toBe(202);
+		await expect(legitimate.json()).resolves.toMatchObject({
+			data: { status: "pending", request: { packageSlug: "gallery" } },
+		});
+	});
+
+	it("consumes invitations once and rejects expired invitations", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		await publisherHeaders();
+		await enablePublishing();
+		const invitationToken = await createInvitation(configuration);
+		const [firstAttempt, secondAttempt] = await Promise.all([
+			handleRequestWorkflowConnection(
+				workflowRequest(await workloadToken(), { invitationToken }),
+				"request-accepted",
+				configuration,
+				{ keyResolver, now: () => NOW + 1, requestId: () => REQUEST_ID },
+			),
+			handleRequestWorkflowConnection(
+				workflowRequest(
+					await workloadToken({
+						repository: "unrelated/gallery",
+						repositoryId: "223456789",
+						repositoryOwnerId: "287654321",
+					}),
+					{
+						invitationToken,
+						mutationKey: "workflow-connection-request-0002",
+					},
+				),
+				"request-replay",
+				configuration,
+				{
+					keyResolver,
+					now: () => NOW + 2,
+					requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ1",
+				},
+			),
+		]);
+		expect(
+			[firstAttempt.status, secondAttempt.status].toSorted((left, right) => left - right),
+		).toEqual([202, 403]);
+		const replayedByAnotherPrincipal = firstAttempt.status === 403 ? firstAttempt : secondAttempt;
+		expect(replayedByAnotherPrincipal.status).toBe(403);
+		await expect(replayedByAnotherPrincipal.json()).resolves.toMatchObject({
+			error: { code: "WORKFLOW_CONNECTION_INVITATION_INVALID" },
+		});
+
+		const expiringToken = await createInvitation(configuration, {
+			token: `ewci1_${"E".repeat(43)}`,
+		});
+		const expired = await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken(), {
+				invitationToken: expiringToken,
+				mutationKey: "workflow-connection-request-0003",
+			}),
+			"request-expired",
+			configuration,
+			{
+				keyResolver,
+				now: () => NOW + 30 * 60_000 + 1,
+				requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ2",
+			},
+		);
+		expect(expired.status).toBe(410);
+		await expect(expired.json()).resolves.toMatchObject({
+			error: { code: "WORKFLOW_CONNECTION_INVITATION_EXPIRED" },
+		});
+	});
+
+	it("lets the publisher reject a pending workflow connection", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		await publisherHeaders();
+		await enablePublishing();
+		const invitationToken = await createInvitation(configuration);
+		await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken(), { invitationToken }),
+			"request-accepted",
+			configuration,
+			{ keyResolver, now: () => NOW + 1, requestId: () => REQUEST_ID },
+		);
+
+		const rejected = await handleRejectWorkflowConnection(
+			new Request(
+				`${TEST_BINDINGS.PUBLIC_ORIGIN}/v1/publisher/workflow-connections/${REQUEST_ID}`,
+				{
+					method: "DELETE",
+					headers: await publisherHeaders("workflow-connection-reject-0001"),
+					body: "{}",
+				},
+			),
+			"request-reject",
+			configuration,
+			{ requestId: REQUEST_ID },
+			{ now: () => NOW + 2 },
+		);
+		expect(rejected.status).toBe(200);
+		await expect(rejected.json()).resolves.toMatchObject({ data: { rejected: true } });
+		await expect(
+			env.PUBLISHER_DO.getByName(PUBLISHER_DID).listWorkflowConnectionRequests(
+				PUBLISHER_DID,
+				20,
+				NOW + 3,
+			),
+		).resolves.toEqual([]);
+	});
+
 	it("lets the first permanent workflow request publisher confirmation", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		await publisherHeaders();
 		await enablePublishing();
+		const invitationToken = await createInvitation(configuration);
 		const requested = await handleRequestWorkflowConnection(
-			workflowRequest(await workloadToken()),
+			workflowRequest(await workloadToken(), { invitationToken }),
 			"request-create",
 			configuration,
 			{ keyResolver, now: () => NOW, requestId: () => REQUEST_ID },
@@ -196,7 +393,9 @@ describe("GitHub workflow connection routes", () => {
 		});
 
 		const connected = await handleRequestWorkflowConnection(
-			workflowRequest(await workloadToken("refs/tags/v2.0.0"), "workflow-connection-request-0002"),
+			workflowRequest(await workloadToken({ ref: "refs/tags/v2.0.0" }), {
+				mutationKey: "workflow-connection-request-0002",
+			}),
 			"request-connected",
 			configuration,
 			{ keyResolver, now: () => NOW + 3, requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ1" },

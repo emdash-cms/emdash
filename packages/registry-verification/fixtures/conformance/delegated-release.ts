@@ -53,6 +53,10 @@ export interface DelegatedReleaseConformanceFixture {
 		repository: string;
 		builderId: string;
 		predicateType: string;
+		repositoryId: string;
+		workflowRef: string;
+		commitSha: string;
+		invocationId: string;
 	};
 }
 
@@ -72,6 +76,10 @@ export async function createDelegatedReleaseConformanceFixture(
 	const builderId =
 		"https://github.com/emdash-cms/gallery/.github/workflows/release.yml@refs/heads/main";
 	const predicateType = "https://slsa.dev/provenance/v1";
+	const repositoryId = "123456789";
+	const workflowRef = "refs/heads/main";
+	const commitSha = "b".repeat(40);
+	const invocationId = `${repository}/actions/runs/100/attempts/1`;
 	const artifactUrl = "https://artifact.example.test/gallery.tgz";
 	const provenanceUrl = "https://provenance.example.test/gallery.sigstore.json";
 	const declaredAccess = options.declaredAccess ?? { content: { read: {} } };
@@ -192,6 +200,10 @@ export async function createDelegatedReleaseConformanceFixture(
 					artifactDigest: matchedArtifactDigest,
 					sourceRepository: repository,
 					builderId,
+					repositoryId,
+					workflowRef,
+					commitSha,
+					invocationId,
 				},
 			};
 		},
@@ -221,7 +233,15 @@ export async function createDelegatedReleaseConformanceFixture(
 			provenance: reference,
 			profileRepository: repository,
 		},
-		expected: { repository, builderId, predicateType },
+		expected: {
+			repository,
+			builderId,
+			predicateType,
+			repositoryId,
+			workflowRef,
+			commitSha,
+			invocationId,
+		},
 	};
 }
 
