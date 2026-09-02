@@ -29,11 +29,14 @@ const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const NOW = 1_800_000_000_000;
 const CREATED_URI = `at://${PUBLISHER_DID}/${NSID.packageRelease}/gallery:1.2.3`;
-const CREATED_CID = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
+const CREATED_CID = "bafyreihjpivdl5qdxouzqcstugdxujn55wjoivzhunem3wx6q7r5nz3fbe";
 const PACKAGE_BYTES = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01]);
 const ARTIFACT_CHECKSUM = "bciqhazpl5w2ra742ngjezwxoy4p74p2eyiftnnhycsofanwmdrezity";
 const ARTIFACT_BLOB_CID = "bafkreidqmxv63niqp6ngtesm3lxmoh76h5cmeczwwt4bjhcqg3gbysmuj4";
 const DEFAULT_SIGNING_KEY = "zDnaeq9feE9D74uYD5jynoyyQPbhhWU2vStcmC8W1xQHG3fWe";
+const DEFAULT_PDS_URL = "https://pds.example.com";
+const FORMER_PDS_URL = "https://pds-a.example.com";
+const CURRENT_PDS_URL = "https://pds-b.example.com";
 
 function writeUint24LittleEndian(bytes: Uint8Array, offset: number, value: number): void {
 	bytes[offset] = value & 0xff;
@@ -148,7 +151,7 @@ async function createDpopKey(): Promise<StoredSession["dpopKey"]> {
 	return { kty: "EC", crv: "P-256", alg: "ES256", x: jwk.x, y: jwk.y, d: jwk.d };
 }
 
-async function storeDelegation() {
+async function storeDelegation(pdsUrl = DEFAULT_PDS_URL) {
 	const configuration = await loadConfiguration(TEST_BINDINGS);
 	const custody = createPublisherOAuthStores(
 		env.PUBLISHER_DO,
@@ -166,7 +169,7 @@ async function storeDelegation() {
 		tokenSet: {
 			iss: "https://authorization.example",
 			sub: PUBLISHER_DID,
-			aud: "https://pds.example.com",
+			aud: pdsUrl,
 			scope: configuration.oauth.releaseScope,
 			access_token: "access-token",
 			refresh_token: "refresh-token",
@@ -246,14 +249,22 @@ interface WorkflowNetworkOptions {
 	signingKey?: () => string;
 	onArtifactFetch?: () => Response | void | Promise<Response | void>;
 	onAuthorizationMetadata?: () => void | Promise<void>;
+	onAuthoritativeRead?: () => void;
+	onProofRead?: () => void;
 	onUploadBlob?: (request: Request) => Response | void | Promise<Response | void>;
 	onCreateRecord?: (request: Request) => Response | Promise<Response>;
+	pdsUrl?: () => string;
+	oauthPdsUrl?: string;
+	nominalCreateProof?: boolean;
 }
 
 function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 	const profileProof = options.profileProof ?? PROFILE_PROOF;
+	let nominalCreateVisible = false;
 	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
+		const pdsUrl = options.pdsUrl?.() ?? DEFAULT_PDS_URL;
+		const oauthPdsUrl = options.oauthPdsUrl ?? pdsUrl;
 		if (url.hostname === "cloudflare-dns.com") {
 			return Response.json({
 				Status: 0,
@@ -268,21 +279,26 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 						id: `${PUBLISHER_DID}#atproto`,
 						type: "Multikey",
 						controller: PUBLISHER_DID,
-						publicKeyMultibase: options.signingKey?.() ?? DEFAULT_SIGNING_KEY,
+						publicKeyMultibase:
+							options.signingKey?.() ??
+							(nominalCreateVisible ? publicationProofs.signingKey : DEFAULT_SIGNING_KEY),
 					},
 				],
 				service: [
 					{
 						id: "#atproto_pds",
 						type: "AtprotoPersonalDataServer",
-						serviceEndpoint: "https://pds.example.com",
+						serviceEndpoint: pdsUrl,
 					},
 				],
 			});
 		}
-		if (url.hostname === "pds.example.com" && url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+		if (url.origin === pdsUrl && url.pathname === "/xrpc/com.atproto.sync.getRecord") {
 			if (url.searchParams.get("collection") === NSID.packageRelease) {
-				const proof = options.authoritativeProof?.() ?? null;
+				options.onProofRead?.();
+				const proof =
+					options.authoritativeProof?.() ??
+					(nominalCreateVisible ? proofBytes(publicationProofs.exactProof) : null);
 				return proof
 					? new Response(proof, {
 							headers: { "content-type": "application/vnd.ipld.car" },
@@ -294,12 +310,9 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 				{ headers: { "content-type": "application/vnd.ipld.car" } },
 			);
 		}
-		if (
-			url.hostname === "pds.example.com" &&
-			url.pathname === "/.well-known/oauth-protected-resource"
-		) {
+		if (url.origin === oauthPdsUrl && url.pathname === "/.well-known/oauth-protected-resource") {
 			return Response.json({
-				resource: "https://pds.example.com",
+				resource: oauthPdsUrl,
 				authorization_servers: ["https://authorization.example"],
 			});
 		}
@@ -333,10 +346,7 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 				headers: { "content-type": artifactSource.mimeType },
 			});
 		}
-		if (
-			url.hostname === "pds.example.com" &&
-			url.pathname === "/xrpc/com.atproto.repo.uploadBlob"
-		) {
+		if (url.origin === oauthPdsUrl && url.pathname === "/xrpc/com.atproto.repo.uploadBlob") {
 			const request = input instanceof Request ? input : new Request(url, init);
 			const response = await options.onUploadBlob?.(request);
 			if (response) return response;
@@ -349,27 +359,27 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 				},
 			});
 		}
-		if (url.hostname === "pds.example.com" && url.pathname === "/xrpc/com.atproto.repo.getRecord") {
+		if (url.origin === pdsUrl && url.pathname === "/xrpc/com.atproto.repo.getRecord") {
 			const collection = url.searchParams.get("collection");
 			if (collection === NSID.packageRelease) {
+				options.onAuthoritativeRead?.();
 				expect(url.searchParams.get("rkey")).toBe("gallery:1.2.3");
-				return options.authoritativeProof?.()
+				return options.authoritativeProof?.() || nominalCreateVisible
 					? Response.json({ uri: CREATED_URI, cid: CREATED_CID, value: {} })
 					: Response.json({ error: "RecordNotFound" }, { status: 400 });
 			}
 		}
-		if (
-			url.hostname === "pds.example.com" &&
-			url.pathname === "/xrpc/com.atproto.repo.listRecords"
-		) {
+		if (url.origin === pdsUrl && url.pathname === "/xrpc/com.atproto.repo.listRecords") {
 			return Response.json({ records: options.listedReleases?.() ?? [] });
 		}
-		if (
-			url.hostname === "pds.example.com" &&
-			url.pathname === "/xrpc/com.atproto.repo.createRecord"
-		) {
+		if (url.origin === oauthPdsUrl && url.pathname === "/xrpc/com.atproto.repo.createRecord") {
 			const request = input instanceof Request ? input : new Request(url, init);
-			if (options.onCreateRecord) return options.onCreateRecord(request);
+			if (options.onCreateRecord) {
+				const response = await options.onCreateRecord(request);
+				if (response.ok && options.nominalCreateProof !== false) nominalCreateVisible = true;
+				return response;
+			}
+			nominalCreateVisible = true;
 			return Response.json({
 				uri: CREATED_URI,
 				cid: CREATED_CID,
@@ -382,6 +392,7 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 async function createVerifyingIntent(
 	transitionToVerifying = true,
 	releaseInputJson = JSON.stringify({ release: releaseRecord() }),
+	pdsUrl = DEFAULT_PDS_URL,
 ) {
 	const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
 	await publisher.putWorkloadPolicy({
@@ -412,7 +423,7 @@ async function createVerifyingIntent(
 		expiresAt: NOW + 60_000,
 		now: NOW + 1,
 	});
-	await storeDelegation();
+	await storeDelegation(pdsUrl);
 	if (!transitionToVerifying) return;
 	await publisher.transitionIntent({
 		publisherDid: PUBLISHER_DID,
@@ -496,7 +507,20 @@ describe("ReleaseIntentWorkflow", () => {
 	});
 
 	it("persists every verification stage and publishes a valid non-escalating intent", async () => {
-		vi.stubGlobal("fetch", workflowNetwork());
+		let createAttempts = 0;
+		let proofReads = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+				},
+				onProofRead: () => {
+					proofReads += 1;
+				},
+			}),
+		);
 		await createVerifyingIntent();
 		await using introspector = await introspectWorkflowInstance(
 			env.RELEASE_INTENT_WORKFLOW,
@@ -526,6 +550,146 @@ describe("ReleaseIntentWorkflow", () => {
 			{ name: "policy-decision" },
 			{ name: "final-verification" },
 		]);
+		expect(createAttempts).toBe(1);
+		expect(proofReads).toBe(1);
+	});
+
+	it("requires reauthorization instead of writing after a PDS migration", async () => {
+		let migrated = false;
+		let uploadAttempts = 0;
+		let createAttempts = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				pdsUrl: () => (migrated ? CURRENT_PDS_URL : FORMER_PDS_URL),
+				oauthPdsUrl: FORMER_PDS_URL,
+				onAuthorizationMetadata: () => {
+					migrated = true;
+				},
+				onUploadBlob: () => {
+					uploadAttempts += 1;
+					return Response.json({
+						blob: {
+							$type: "blob",
+							ref: { $link: ARTIFACT_BLOB_CID },
+							mimeType: "application/gzip",
+							size: PACKAGE_BYTES.byteLength,
+						},
+					});
+				},
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: "bafyfakecid" });
+				},
+			}),
+		);
+		await createVerifyingIntent(true, undefined, FORMER_PDS_URL);
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "failed",
+			reasonCode: "OAUTH_DELEGATION_UNAVAILABLE",
+		});
+		expect(uploadAttempts).toBe(0);
+		expect(createAttempts).toBe(0);
+		await expect(
+			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getDelegation(PUBLISHER_DID),
+		).resolves.toMatchObject({ status: "reauthorization_required" });
+	});
+
+	it("rechecks the PDS audience after uploads before creating the release", async () => {
+		let migrated = false;
+		let uploadAttempts = 0;
+		let createAttempts = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				pdsUrl: () => (migrated ? CURRENT_PDS_URL : FORMER_PDS_URL),
+				oauthPdsUrl: FORMER_PDS_URL,
+				onUploadBlob: () => {
+					uploadAttempts += 1;
+					migrated = true;
+					return Response.json({
+						blob: {
+							$type: "blob",
+							ref: { $link: ARTIFACT_BLOB_CID },
+							mimeType: "application/gzip",
+							size: PACKAGE_BYTES.byteLength,
+						},
+					});
+				},
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: "bafyfakecid" });
+				},
+			}),
+		);
+		await createVerifyingIntent(true, undefined, FORMER_PDS_URL);
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "failed",
+			reasonCode: "OAUTH_DELEGATION_UNAVAILABLE",
+		});
+		expect(uploadAttempts).toBe(1);
+		expect(createAttempts).toBe(0);
+		await expect(
+			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getDelegation(PUBLISHER_DID),
+		).resolves.toMatchObject({ status: "reauthorization_required" });
+	});
+
+	it("does not publish a nominal create receipt when the authoritative record is absent", async () => {
+		let createAttempts = 0;
+		let authoritativeReads = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				nominalCreateProof: false,
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+				},
+				onAuthoritativeRead: () => {
+					authoritativeReads += 1;
+				},
+			}),
+		);
+		await createVerifyingIntent();
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "failed",
+			reasonCode: "PDS_RETRY_EXHAUSTED",
+		});
+		expect(createAttempts).toBe(3);
+		expect(authoritativeReads).toBeGreaterThanOrEqual(3);
 	});
 
 	it("publishes private workflow uploads and promotes only verified provenance", async () => {

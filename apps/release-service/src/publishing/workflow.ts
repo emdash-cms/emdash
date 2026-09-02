@@ -35,6 +35,7 @@ import {
 	PublisherSnapshotError,
 	readPublisherVerificationSnapshot,
 	resolvePublicHostname,
+	resolvePublisherPds,
 } from "../verification/pds.js";
 import { verifyReleaseEvidence } from "../verification/staged-input.js";
 import { createReleaseRecord, uploadReleaseBlob } from "./create-only.js";
@@ -369,6 +370,22 @@ async function restorePublicationSession(env: PublicationWorkflowEnv, publisherD
 	}).restoreForPublication();
 }
 
+async function requireCurrentPublicationAudience(
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	restored: Awaited<ReturnType<typeof restorePublicationSession>>,
+): Promise<void> {
+	const token = await restored.session.getTokenInfo(false);
+	const currentPds = await resolvePublisherPds(publisherDid);
+	if (new URL(token.aud).href === currentPds) return;
+	await publisher.requireDelegationReauthorization(
+		publisherDid,
+		restored.delegationVersion,
+		"OAUTH_SESSION_INVALID",
+	);
+	throw new OAuthCustodyError("OAUTH_DELEGATION_UNAVAILABLE");
+}
+
 async function transition(
 	publisher: DurableObjectStub<PublisherDurableObject>,
 	input: Parameters<PublisherDurableObject["transitionIntent"]>[0],
@@ -499,6 +516,7 @@ async function uploadMaterializedArtifacts(
 				) {
 					throw new OAuthCustodyError("OAUTH_DELEGATION_UNAVAILABLE");
 				}
+				await requireCurrentPublicationAudience(publisher, publisherDid, restored);
 				const uploaded = await uploadReleaseBlob(
 					restored.session,
 					staged.bytes,
@@ -992,6 +1010,7 @@ export async function publishVerifiedIntent(
 						originalIntent.requestDigest,
 					);
 					if (!persistedRecord) return failBeforeWrite("MATERIALIZATION_UNAVAILABLE");
+					await requireCurrentPublicationAudience(publisher, publisherDid, restored);
 					const creatingPhase = await publisher.advancePublicationOperationPhase({
 						...completionBase,
 						phase: "creating",
@@ -999,20 +1018,36 @@ export async function publishVerifiedIntent(
 					});
 					if (!creatingPhase.ok) return failBeforeWrite(creatingPhase.code);
 					writeStarted = true;
+					await requireCurrentPublicationAudience(publisher, publisherDid, restored);
 					const created = await createReleaseRecord(restored.session, {
 						publisherDid,
 						rkey: `${originalIntent.packageSlug}:${originalIntent.version}`,
 						record: persistedRecord.record,
 					});
-					const completionDigest = await digest(["published", created.uri, created.cid]);
+					const authoritative = await findProofVerifiedRelease(
+						publisherDid,
+						originalIntent.packageSlug,
+						originalIntent.version,
+					);
+					const proof = reconcileReleaseRecord(
+						publisherDid,
+						originalIntent.packageSlug,
+						originalIntent.version,
+						persistedRecord.record,
+						authoritative,
+					);
+					if (proof.outcome !== "exact" || proof.uri !== created.uri || proof.cid !== created.cid) {
+						throw new Error("PUBLICATION_PROOF_MISMATCH");
+					}
+					const completionDigest = await digest(["published", proof.uri, proof.cid]);
 					const completed = await publisher.completePublicationOperation({
 						...completionBase,
 						completionDigest,
 						outcome: "published",
-						resultUri: created.uri,
-						resultCid: created.cid,
+						resultUri: proof.uri,
+						resultCid: proof.cid,
 					});
-					if (completed.ok) return { state: "published", uri: created.uri, cid: created.cid };
+					if (completed.ok) return { state: "published", uri: proof.uri, cid: proof.cid };
 					const ambiguous = await publisher.completePublicationOperation({
 						...completionBase,
 						completionDigest: await digest(["ambiguous", attempt, expectedEvidenceDigest]),
@@ -1023,7 +1058,7 @@ export async function publishVerifiedIntent(
 					if (ambiguous.ok) return { state: "reconciling" };
 					const latest = await publisher.getIntent(publisherDid, originalIntent.id);
 					return latest?.state === "published"
-						? { state: "published", uri: created.uri, cid: created.cid }
+						? { state: "published", uri: proof.uri, cid: proof.cid }
 						: { state: "reconciling" };
 				} catch (error) {
 					const errorCode = writeStarted
