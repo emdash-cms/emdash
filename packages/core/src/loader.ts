@@ -589,10 +589,17 @@ function parseFoldedBooleanFields(row: Record<string, unknown> | undefined): Set
  * Map revision data (already-parsed JSON object) to entry data.
  * Strips _-prefixed metadata keys (e.g. _slug) used internally by revisions.
  */
-function mapRevisionData(data: Record<string, unknown>): Record<string, unknown> {
+function mapRevisionData(
+	data: Record<string, unknown>,
+	booleanFields: ReadonlySet<string>,
+): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(data)) {
 		if (key.startsWith("_")) continue; // revision metadata
+		if (booleanFields.has(key) && (typeof value === "boolean" || value === 0 || value === 1)) {
+			result[key] = Boolean(value);
+			continue;
+		}
 		result[key] = normalizeLocalMediaValue(value);
 	}
 	return result;
@@ -1614,7 +1621,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						const revEntryData: Record<string, unknown> = {
 							...systemData,
 							slug,
-							...mapRevisionData(parsed),
+							...mapRevisionData(parsed, parseFoldedBooleanFields(row)),
 						};
 						const revSeo = extractSeo(row);
 						if (revSeo) revEntryData.seo = revSeo;

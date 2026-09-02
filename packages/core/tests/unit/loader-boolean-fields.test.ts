@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { handleContentCreate } from "../../src/api/index.js";
+import { ContentRepository } from "../../src/database/repositories/content.js";
 import { emdashLoader } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
@@ -85,5 +86,30 @@ describeEachDialect("Loader boolean field values", (dialect) => {
 
 		expect(result).toBeDefined();
 		expect((result as { data: Record<string, unknown> }).data.enabled).toBe(true);
+	});
+
+	it("returns booleans from revision previews without coercing integer fields", async () => {
+		const feature = await createFeature("Enabled", true, 1);
+		const staged = await new ContentRepository(ctx.db).updateDraftAware("feature", feature.id, {
+			data: { title: "Draft title" },
+		});
+		const revisionId = staged.draftRevisionId;
+		if (!revisionId) throw new Error("Expected a draft revision");
+
+		const loader = emdashLoader();
+		const result = await runWithContext({ db: ctx.db }, () =>
+			loader.loadEntry!({
+				filter: {
+					type: "feature",
+					id: feature.id,
+					revisionId,
+				},
+			}),
+		);
+		const data = (result as { data: Record<string, unknown> }).data;
+
+		expect(data.title).toBe("Draft title");
+		expect(data.enabled).toBe(true);
+		expect(data.priority).toBe(1);
 	});
 });
