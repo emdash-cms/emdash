@@ -1,11 +1,20 @@
 ---
+id: journey-id
 site: editorial-small
 target: node
+status: ready
+requires: []
 ---
 
 # Journey title
 
 The coordinator sends only the `Tester brief` section to the tester. Keep setup details and success checks outside that section.
+
+Set `status` to `needs-profile` until the selected site profile provides every item in `requires`.
+
+## Bootstrap requirements
+
+Describe the starting data, authenticated role, locale, and feature configuration the profile must provide. Keep this section empty only when the named profile already provides the required state.
 
 ## Tester brief
 

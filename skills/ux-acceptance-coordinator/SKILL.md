@@ -9,16 +9,17 @@ Run a goal-driven browser journey with a tester that has no repository context. 
 
 ## Prepare the run
 
-1. Read the selected journey in `acceptance/journeys/` and its site profile in `acceptance/sites/`.
-2. Read `acceptance/tester/SKILL.md`. This file is the tester's portable instruction payload; it is deliberately outside the repository's discoverable `skills/` directory.
-3. Choose the journey's target. Use Node unless the journey or change under test requires the Cloudflare runtime.
-4. Start one disposable site:
+1. Read the selected journey in `acceptance/journeys/`.
+2. Check the journey's `status` and `requires` frontmatter. If its status is `needs-profile`, report the missing bootstrap requirements and stop. Do not substitute a simpler profile or relax the journey.
+3. Read its site profile in `acceptance/sites/` and the portable tester instructions in `acceptance/tester/SKILL.md`.
+4. Choose the journey's target. Use Node unless the journey or change under test requires the Cloudflare runtime.
+5. Start one disposable site:
 
    ```console
    pnpm ux:site:start -- --target node --profile editorial-small
    ```
 
-5. Keep the run ID, start URL, and run-data path from the command output. Never send the run-data file or API token to the tester.
+6. Keep the run ID, start URL, and run-data path from the command output. Never send the run-data file or API token to the tester.
 
 ## Isolate the tester
 
