@@ -32,6 +32,32 @@ describe("PublishingClient", () => {
 	const did = "did:plc:abc123" as Did;
 	const pds = "https://pds.example.com";
 
+	it("uploads bytes to the publisher PDS as a typed blob", async () => {
+		const blob = {
+			$type: "blob" as const,
+			ref: { $link: "bafkreibm6jg3ux5qu5wzvikphw4qjzx6i7htc4w4e4c4pv7a7uynxqevmy" },
+			mimeType: "application/gzip",
+			size: 3,
+		};
+		const { handler, calls } = buildHandler({
+			"/xrpc/com.atproto.repo.uploadBlob": {
+				status: 200,
+				body: { blob },
+			},
+		});
+
+		const client = PublishingClient.fromHandler({ handler, did, pds });
+		const bytes = new Uint8Array([1, 2, 3]);
+		await expect(client.uploadBlob(bytes, "application/gzip")).resolves.toEqual(blob);
+
+		expect(calls).toHaveLength(1);
+		const call = calls[0]!;
+		expect(call.pathname).toBe("/xrpc/com.atproto.repo.uploadBlob");
+		expect(call.init.method).toBe("post");
+		expect(call.init.body).toBe(bytes);
+		expect(new Headers(call.init.headers).get("content-type")).toBe("application/gzip");
+	});
+
 	it("putRecord posts to com.atproto.repo.putRecord with the right body", async () => {
 		const { handler, calls } = buildHandler({
 			"/xrpc/com.atproto.repo.putRecord": {

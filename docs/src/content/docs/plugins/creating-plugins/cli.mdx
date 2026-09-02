@@ -17,7 +17,7 @@ emdash-plugin build                          Build dist/ (plugin.mjs, manifest.j
 emdash-plugin dev                            Watch sources and rebuild on change
 emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
 emdash-plugin validate [path]                Validate emdash-plugin.jsonc against the schema
-emdash-plugin publish --url <url>            Publish a release pointing at a hosted tarball
+emdash-plugin publish                        Build, upload, and publish a release
 emdash-plugin login <handle-or-did>          Sign in with your Atmosphere account
 emdash-plugin logout [--did <did>]           Revoke the active session
 emdash-plugin whoami                         Show stored sessions
@@ -93,16 +93,16 @@ Offline schema check with `tsc`-style `file:line:column` diagnostics, including 
 
 ## `publish`
 
-The CLI does not host artifacts; you do, anywhere public.
+`publish` builds and validates the plugin, uploads the package and listing images to your PDS, then writes the release record.
 
 ```sh
-emdash-plugin login           # if not already logged in
-emdash-plugin bundle          # produces dist/<slug>-<version>.tar.gz
-# upload that tarball to a public URL, then:
-emdash-plugin publish --url https://your-host/my-plugin-1.0.0.tar.gz
+emdash-plugin login alice.example.com
+emdash-plugin publish
 ```
 
-`publish` reads the manifest for profile fields and enforces [publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning). On first publish, pass `--license` and a security contact (or keep them in the manifest). Explicit flags override manifest values, which is useful in CI; `--no-manifest` opts out entirely.
+`publish` reads the manifest for profile fields and enforces [publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning). On first publish, pass `--license` and a security contact, or keep them in the manifest. Explicit flags override manifest values; `--no-manifest` opts out entirely.
+
+Pass `--url <https-url>` to use an externally hosted package bundle. The CLI downloads and validates the URL before publishing. Add `--local <path>` to verify that a local tarball matches the downloaded bytes.
 
 Full walkthrough: [Bundling and publishing](/plugins/creating-plugins/publishing/).
 

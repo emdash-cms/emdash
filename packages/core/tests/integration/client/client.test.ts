@@ -251,6 +251,20 @@ describe("EmDashClient Integration", () => {
 		const ids = list.items.map((m: { id: string }) => m.id);
 		expect(ids).toContain(uploaded.id);
 
+		const folder = await ctx.client.mediaFolderCreate("Client photos");
+		const assigned = await ctx.client.mediaSetFolder(uploaded.id, folder.id);
+		expect(assigned.folderId).toBe(folder.id);
+		const folderList = await ctx.client.mediaFolderList();
+		expect(folderList.items).toContainEqual(folder);
+		const folderMedia = await ctx.client.mediaList({ folderId: folder.id });
+		expect(folderMedia.items.map((item) => item.id)).toContain(uploaded.id);
+		expect(await ctx.client.mediaFolderUpdate(folder.id, "Renamed client photos")).toMatchObject({
+			id: folder.id,
+			name: "Renamed client photos",
+		});
+		await ctx.client.mediaFolderDelete(folder.id);
+		expect((await ctx.client.mediaGet(uploaded.id)).folderId).toBeNull();
+
 		// Delete
 		await ctx.client.mediaDelete(uploaded.id);
 

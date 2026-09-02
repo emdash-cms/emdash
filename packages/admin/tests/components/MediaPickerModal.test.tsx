@@ -28,6 +28,8 @@ vi.mock("../../src/lib/api", async () => {
 					size: 1024,
 					width: 800,
 					height: 600,
+					focalX: 0.2,
+					focalY: 0.8,
 					createdAt: "2024-01-01",
 				},
 				{
@@ -83,6 +85,11 @@ describe("MediaPickerModal", () => {
 			await expect
 				.element(screen.getByRole("option", { name: "landscape.png" }))
 				.toBeInTheDocument();
+			const image = screen
+				.getByRole("option", { name: "photo.jpg" })
+				.element()
+				.querySelector("img");
+			expect(image?.style.objectPosition).toBe("20% 80%");
 		});
 
 		it("shows the modal title", async () => {

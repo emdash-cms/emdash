@@ -17,6 +17,7 @@ const seo = getSeoMeta(post, {
 
 <html>
 	<head>
+		<meta charset="utf-8" />
 		<title>{post.data.title}</title>
 		{seo.canonical && <link rel="canonical" href={seo.canonical} />}
 	</head>

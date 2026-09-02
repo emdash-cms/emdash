@@ -26,7 +26,8 @@ import { json, XRPCError } from "@atcute/xrpc-server";
 import { type AggregatorResolvePackage } from "@emdash-cms/registry-lexicons";
 
 import { boundFetch } from "../../utils.js";
-import { type PackageRow, packageColumns, packageView } from "./views.js";
+import { lookupPackage, throwPackageLookupError } from "./listing-query.js";
+import { packageView } from "./views.js";
 
 /** Cache the resolver per worker isolate. Construction is allocation-only
  * (no I/O), but reusing a single instance avoids per-request setup. */
@@ -66,18 +67,9 @@ export async function resolvePackage(
 	}
 
 	const session = env.DB.withSession("first-primary");
-	const row = await session
-		.prepare(`SELECT ${packageColumns()} FROM packages WHERE did = ? AND slug = ?`)
-		.bind(did, params.slug)
-		.first<PackageRow>();
-	if (!row) {
-		throw new XRPCError({
-			status: 404,
-			error: "NotFound",
-			message: `No package indexed under resolved (${did}, ${params.slug}).`,
-		});
-	}
-	const view = packageView(row);
+	const result = await lookupPackage(session, env, did, params.slug);
+	if (result.state !== "visible") throwPackageLookupError(result);
+	const view = packageView(result.row);
 	// Surface the handle we resolved — the lexicon's view has an optional
 	// `handle` field for exactly this case (best-effort current handle).
 	view.handle = params.handle;

@@ -10,7 +10,7 @@ import {
 } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	Upload,
 	Check,
@@ -60,6 +60,24 @@ import {
 } from "../lib/api";
 import { cn } from "../lib/utils";
 import { CaretNext } from "./ArrowIcons.js";
+import { MediaImportSummary } from "./MediaImportSummary.js";
+
+export function WordPressExporterMessage() {
+	return (
+		<Trans>
+			For the best import experience, install the{" "}
+			<span className="font-medium">EmDash Exporter</span> plugin on your WordPress site.
+		</Trans>
+	);
+}
+
+export function WordPressExportStep() {
+	return (
+		<Trans>
+			2. Go to <strong>Tools → Export</strong>
+		</Trans>
+	);
+}
 
 // ============================================================================
 // Constants
@@ -1204,9 +1222,7 @@ function FeatureComparison() {
 				<div className="flex items-start gap-2 text-sm">
 					<Sparkle className="h-4 w-4 text-kumo-link flex-shrink-0 mt-0.5" />
 					<p className="text-kumo-default">
-						{t`For the best import experience, install the`}{" "}
-						<span className="font-medium">{t`EmDash Exporter`}</span>{" "}
-						{t`plugin on your WordPress site.`}
+						<WordPressExporterMessage />
 					</p>
 				</div>
 			</div>
@@ -1274,7 +1290,7 @@ function ProbeResultStep({
 					<ol className="mt-3 space-y-2 text-sm text-kumo-subtle">
 						<li>{t`1. Log into your WordPress admin dashboard`}</li>
 						<li>
-							{t`2. Go to`} <strong>{t`Tools → Export`}</strong>
+							<WordPressExportStep />
 						</li>
 						<li>{t`3. Select "All content"`}</li>
 						<li>{t`4. Click "Download Export File"`}</li>
@@ -2362,15 +2378,15 @@ function CompleteStep({
 						<h3 className="font-medium">{t`Media Import`}</h3>
 					</div>
 					<div className="p-4 space-y-2 text-sm">
-						<p>
-							<strong>{mediaResult.imported.length}</strong> {t`files imported`}
-						</p>
-						{rewriteResult && rewriteResult.updated > 0 && (
-							<p>
-								<strong>{rewriteResult.urlsRewritten}</strong> {t`image URLs updated in`}{" "}
-								<strong>{rewriteResult.updated}</strong> {t`content items`}
-							</p>
-						)}
+						<MediaImportSummary
+							importedFiles={mediaResult.imported.length}
+							rewrittenUrls={
+								rewriteResult && rewriteResult.updated > 0 ? rewriteResult.urlsRewritten : undefined
+							}
+							updatedContentItems={
+								rewriteResult && rewriteResult.updated > 0 ? rewriteResult.updated : undefined
+							}
+						/>
 					</div>
 				</div>
 			)}

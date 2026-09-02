@@ -16,6 +16,8 @@ const gallery: PortableTextGalleryBlock = {
 			caption: "A local image",
 			width: 800,
 			height: 600,
+			focalX: 0.25,
+			focalY: 0.75,
 		},
 		{
 			_type: "image",
@@ -55,6 +57,8 @@ describe("gallery block round-trip (core converters)", () => {
 			caption: "A local image",
 			width: 800,
 			height: 600,
+			focalX: 0.25,
+			focalY: 0.75,
 		});
 		expect(first._key).toBeDefined();
 		expect(second).toMatchObject({

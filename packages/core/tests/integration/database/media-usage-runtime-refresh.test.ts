@@ -7,6 +7,10 @@ import { RevisionRepository } from "../../../src/database/repositories/revision.
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
+	activateMediaUsageCapture,
+	continueMediaUsageActivation,
+} from "../../../src/media/usage/activation.js";
+import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 } from "../../../src/media/usage/content-refresh.js";
@@ -751,6 +755,38 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		);
 	});
 
+	it("refreshes every i18n sibling while incremental capture is active", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const { enId, frId } = await createLocalizedPostsPair(runtime, "active-shared-image", {
+			enSharedHero: "media-active-old-en",
+			frSharedHero: "media-active-old-fr",
+		});
+		await activateAllCollections(ctx.db);
+
+		const updated = await runtime.handleContentUpdate("localized_posts", enId, {
+			data: { shared_hero: mediaRef("media-active-new") },
+		});
+
+		expect(updated.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId("media-active-new")).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: expect.objectContaining({ contentId: enId, sourceVariant: "columns" }),
+				}),
+				expect.objectContaining({
+					source: expect.objectContaining({ contentId: frId, sourceVariant: "columns" }),
+				}),
+			]),
+		);
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_work")
+				.select("content_id")
+				.where("content_id", "in", [enId, frId])
+				.execute(),
+		).toEqual([]);
+	});
+
 	it("does not refresh i18n siblings for translatable image updates", async () => {
 		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
 		const { enId, frId } = await createLocalizedPostsPair(runtime, "translatable-image", {
@@ -913,6 +949,14 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 		);
 	});
 });
+
+async function activateAllCollections(db: DialectTestContext["db"]): Promise<void> {
+	let result = await activateMediaUsageCapture(db, { writersDrained: true });
+	while (result.outcome === "activating") {
+		result = await continueMediaUsageActivation(db);
+	}
+	if (result.outcome !== "active") throw new Error(`Activation stopped at ${result.outcome}`);
+}
 
 async function createLocalizedPostsPair(
 	runtime: EmDashRuntime,

@@ -1,0 +1,514 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.labeler.defs",
+	"description": "Public assessment and policy views for the experimental EmDash plugin-listing labeler. Effective moderation decisions are standard signed labels served through com.atproto.label queries and subscriptions. EXPERIMENTAL.",
+	"defs": {
+		"assessmentSubject": {
+			"type": "object",
+			"description": "An exact publisher record revision assessed for display in a plugin listing.",
+			"required": ["kind", "uri", "cid"],
+			"properties": {
+				"kind": {
+					"type": "string",
+					"knownValues": ["profile", "release"],
+					"description": "Whether the record supplies package-profile metadata or release metadata and media."
+				},
+				"uri": {
+					"type": "string",
+					"format": "at-uri",
+					"description": "AT URI of the assessed record."
+				},
+				"cid": {
+					"type": "string",
+					"format": "cid",
+					"description": "CID of the exact assessed record revision."
+				}
+			}
+		},
+		"signedLabel": {
+			"type": "object",
+			"description": "A standard AT Protocol label with a required signature. Its payload and stored history are immutable; query and subscription delivery may replace sig with a signature from the current key during key rotation.",
+			"required": ["ver", "src", "uri", "val", "cts", "sig"],
+			"properties": {
+				"ver": {
+					"type": "integer",
+					"description": "AT Protocol label version."
+				},
+				"src": {
+					"type": "string",
+					"format": "did",
+					"description": "DID of the label issuer."
+				},
+				"uri": {
+					"type": "string",
+					"format": "uri",
+					"description": "Resource to which the label applies."
+				},
+				"cid": {
+					"type": "string",
+					"format": "cid",
+					"description": "Optional CID of the exact resource revision to which the label applies."
+				},
+				"val": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128,
+					"description": "Label value."
+				},
+				"neg": {
+					"type": "boolean",
+					"description": "Whether this event negates prior label state."
+				},
+				"cts": {
+					"type": "string",
+					"format": "datetime",
+					"description": "Time at which the label was created."
+				},
+				"exp": {
+					"type": "string",
+					"format": "datetime",
+					"description": "Optional time after which the label no longer applies."
+				},
+				"sig": {
+					"type": "bytes",
+					"description": "Signature over the canonical DAG-CBOR label payload."
+				}
+			}
+		},
+		"coverage": {
+			"type": "object",
+			"description": "Completion state for every class of publisher-controlled content the admin may display or link.",
+			"required": ["text", "links", "media"],
+			"properties": {
+				"text": {
+					"type": "string",
+					"knownValues": ["complete", "not-present", "unavailable"]
+				},
+				"links": {
+					"type": "string",
+					"knownValues": ["complete", "not-present", "unavailable"]
+				},
+				"media": {
+					"type": "string",
+					"knownValues": ["complete", "not-present", "partial", "unavailable"]
+				}
+			}
+		},
+		"publicFinding": {
+			"type": "object",
+			"description": "A bounded, public-safe policy finding. It contains no publisher content or private evidence.",
+			"required": ["category", "reasonCode", "summary"],
+			"properties": {
+				"category": {
+					"type": "string",
+					"knownValues": [
+						"explicit-sexual-content",
+						"hateful-or-dehumanizing-content",
+						"graphic-violence",
+						"phishing-or-credential-solicitation",
+						"material-impersonation",
+						"scam-or-spam",
+						"malicious-or-deceptive-link",
+						"misleading-media-or-claims"
+					]
+				},
+				"reasonCode": {
+					"type": "string",
+					"description": "Stable code defined by the assessment's policy version.",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"summary": {
+					"type": "string",
+					"description": "Labeler-authored public explanation without raw assessed content.",
+					"minLength": 1,
+					"maxLength": 512
+				}
+			}
+		},
+		"modelDescriptor": {
+			"type": "object",
+			"description": "Versioned inference configuration used for one assessment purpose.",
+			"required": ["purpose", "provider", "modelId", "modelVersion", "promptHash"],
+			"properties": {
+				"purpose": {
+					"type": "string",
+					"knownValues": ["text", "image"]
+				},
+				"provider": {
+					"type": "string",
+					"knownValues": ["workers-ai"],
+					"maxLength": 64
+				},
+				"modelId": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 256
+				},
+				"modelVersion": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128
+				},
+				"promptHash": {
+					"type": "string",
+					"description": "Stable digest of the prompt and strict output contract.",
+					"minLength": 1,
+					"maxLength": 128
+				}
+			}
+		},
+		"manualDecision": {
+			"type": "object",
+			"description": "Public portion of an exact-revision operator decision.",
+			"required": ["outcome", "reasonCode", "decidedAt"],
+			"properties": {
+				"outcome": {
+					"type": "string",
+					"knownValues": ["approved", "blocked"]
+				},
+				"reasonCode": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"decidedAt": {
+					"type": "string",
+					"format": "datetime"
+				}
+			}
+		},
+		"publicAssessment": {
+			"type": "object",
+			"description": "Public-safe explanation of one immutable metadata-only assessment run. Its labels field contains signed outcome labels emitted by that run, not a second source of effective moderation state.",
+			"required": [
+				"id",
+				"src",
+				"subject",
+				"state",
+				"coverage",
+				"reasonCodes",
+				"findings",
+				"assessmentSchemaVersion",
+				"policyVersion",
+				"parserVersion",
+				"models",
+				"labels",
+				"createdAt"
+			],
+			"properties": {
+				"id": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 100
+				},
+				"src": {
+					"type": "string",
+					"format": "did",
+					"description": "DID that issues this assessment's signed labels."
+				},
+				"subject": {
+					"type": "ref",
+					"ref": "#assessmentSubject"
+				},
+				"state": {
+					"type": "string",
+					"knownValues": ["pending", "passed", "review", "blocked", "error", "superseded"]
+				},
+				"coverage": {
+					"type": "ref",
+					"ref": "#coverage"
+				},
+				"reasonCodes": {
+					"type": "array",
+					"description": "Stable public reason codes defined by policyVersion.",
+					"maxLength": 32,
+					"items": {
+						"type": "string",
+						"minLength": 1,
+						"maxLength": 64
+					}
+				},
+				"findings": {
+					"type": "array",
+					"maxLength": 32,
+					"items": {
+						"type": "ref",
+						"ref": "#publicFinding"
+					}
+				},
+				"summary": {
+					"type": "string",
+					"description": "Optional labeler-authored public summary without raw assessed content.",
+					"maxLength": 1024
+				},
+				"assessmentSchemaVersion": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"policyVersion": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128
+				},
+				"parserVersion": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128
+				},
+				"models": {
+					"type": "array",
+					"maxLength": 4,
+					"items": {
+						"type": "ref",
+						"ref": "#modelDescriptor"
+					}
+				},
+				"labels": {
+					"type": "array",
+					"description": "Signed outcome labels emitted by this assessment run. Effective moderation state comes from com.atproto.label queries and subscriptions.",
+					"maxLength": 16,
+					"items": {
+						"type": "ref",
+						"ref": "#signedLabel"
+					}
+				},
+				"manualDecision": {
+					"type": "ref",
+					"ref": "#manualDecision"
+				},
+				"createdAt": {
+					"type": "string",
+					"format": "datetime"
+				},
+				"completedAt": {
+					"type": "string",
+					"format": "datetime"
+				},
+				"supersededByAssessmentId": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 100
+				}
+			}
+		},
+		"currentAssessmentView": {
+			"type": "object",
+			"description": "Current assessment and effective standard signed labels for one exact record revision. activeLabels is the moderation authority for this view.",
+			"required": ["src", "subject", "assessment", "activeLabels"],
+			"properties": {
+				"src": {
+					"type": "string",
+					"format": "did"
+				},
+				"subject": {
+					"type": "ref",
+					"ref": "#assessmentSubject"
+				},
+				"assessment": {
+					"type": "ref",
+					"ref": "#publicAssessment"
+				},
+				"activeLabels": {
+					"type": "array",
+					"description": "Effective signed label state for this exact record revision.",
+					"maxLength": 16,
+					"items": {
+						"type": "ref",
+						"ref": "#signedLabel"
+					}
+				}
+			}
+		},
+		"subjectPolicy": {
+			"type": "object",
+			"required": ["kind", "collection"],
+			"properties": {
+				"kind": {
+					"type": "string",
+					"knownValues": ["profile", "release"]
+				},
+				"collection": {
+					"type": "string",
+					"format": "nsid"
+				}
+			}
+		},
+		"reasonCodeDefinition": {
+			"type": "object",
+			"required": ["code", "description"],
+			"properties": {
+				"code": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 64
+				},
+				"description": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 512
+				}
+			}
+		},
+		"labelDefinition": {
+			"type": "object",
+			"description": "Public policy meaning for a standard ATProto label value; this is not a second label format.",
+			"required": ["value", "officialEffect", "subjectKinds", "issuanceModes"],
+			"properties": {
+				"value": {
+					"type": "string",
+					"knownValues": [
+						"listing-passed",
+						"listing-pending",
+						"listing-review",
+						"listing-error",
+						"listing-blocked",
+						"listing-overridden",
+						"!takedown"
+					],
+					"minLength": 1,
+					"maxLength": 128
+				},
+				"officialEffect": {
+					"type": "string",
+					"knownValues": ["eligible", "ineligible", "informational", "redact"]
+				},
+				"subjectKinds": {
+					"type": "array",
+					"minLength": 1,
+					"maxLength": 2,
+					"items": {
+						"type": "string",
+						"knownValues": ["profile", "release"]
+					}
+				},
+				"issuanceModes": {
+					"type": "array",
+					"minLength": 1,
+					"maxLength": 3,
+					"items": {
+						"type": "string",
+						"knownValues": ["automated", "reviewer", "admin"]
+					}
+				}
+			}
+		},
+		"publicApi": {
+			"type": "object",
+			"required": [
+				"baseUrl",
+				"getAssessmentNsid",
+				"getCurrentAssessmentNsid",
+				"listAssessmentsNsid",
+				"getPolicyNsid"
+			],
+			"properties": {
+				"baseUrl": {
+					"type": "string",
+					"format": "uri",
+					"maxLength": 2048
+				},
+				"getAssessmentNsid": {
+					"type": "string",
+					"format": "nsid"
+				},
+				"getCurrentAssessmentNsid": {
+					"type": "string",
+					"format": "nsid"
+				},
+				"listAssessmentsNsid": {
+					"type": "string",
+					"format": "nsid"
+				},
+				"getPolicyNsid": {
+					"type": "string",
+					"format": "nsid"
+				}
+			}
+		},
+		"labelerPolicy": {
+			"type": "object",
+			"description": "Versioned public description of this labeler's metadata-only assessment and standard-label policy.",
+			"required": [
+				"schemaVersion",
+				"policyVersion",
+				"effectiveAt",
+				"labelerDid",
+				"assessmentSchemaVersion",
+				"parserVersion",
+				"supportedSubjects",
+				"reasonCodes",
+				"labels",
+				"models",
+				"publicApi"
+			],
+			"properties": {
+				"schemaVersion": {
+					"type": "integer",
+					"minimum": 1,
+					"maximum": 1
+				},
+				"policyVersion": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128
+				},
+				"effectiveAt": {
+					"type": "string",
+					"format": "datetime"
+				},
+				"labelerDid": {
+					"type": "string",
+					"format": "did"
+				},
+				"assessmentSchemaVersion": {
+					"type": "integer",
+					"minimum": 1
+				},
+				"parserVersion": {
+					"type": "string",
+					"minLength": 1,
+					"maxLength": 128
+				},
+				"supportedSubjects": {
+					"type": "array",
+					"minLength": 1,
+					"maxLength": 2,
+					"items": {
+						"type": "ref",
+						"ref": "#subjectPolicy"
+					}
+				},
+				"reasonCodes": {
+					"type": "array",
+					"maxLength": 64,
+					"items": {
+						"type": "ref",
+						"ref": "#reasonCodeDefinition"
+					}
+				},
+				"labels": {
+					"type": "array",
+					"minLength": 1,
+					"maxLength": 16,
+					"items": {
+						"type": "ref",
+						"ref": "#labelDefinition"
+					}
+				},
+				"models": {
+					"type": "array",
+					"maxLength": 4,
+					"items": {
+						"type": "ref",
+						"ref": "#modelDescriptor"
+					}
+				},
+				"publicApi": {
+					"type": "ref",
+					"ref": "#publicApi"
+				}
+			}
+		}
+	}
+}

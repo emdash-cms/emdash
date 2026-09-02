@@ -196,7 +196,7 @@ export function GeneralSettings() {
 											<img
 												src={formData.logo.url}
 												alt={formData.logo.alt || t`Logo`}
-												className="h-16 max-w-full rounded border border-kumo-line bg-kumo-tint object-contain p-2 sm:ms-auto"
+												className="emdash-media-transparency-grid h-16 max-w-full rounded border border-kumo-line object-contain p-2 sm:ms-auto"
 											/>
 										) : (
 											<div
@@ -256,7 +256,7 @@ export function GeneralSettings() {
 											<img
 												src={formData.favicon.url}
 												alt={t`Favicon`}
-												className="h-8 w-8 rounded border border-kumo-line bg-kumo-tint object-contain p-1 sm:ms-auto"
+												className="emdash-media-transparency-grid h-8 w-8 rounded border border-kumo-line object-contain p-1 sm:ms-auto"
 											/>
 										) : (
 											<div

@@ -54,6 +54,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isSaveFeedbackActive,
 		isUpdatingPublishedAt,
 		autosaveCompletionToken,
+		autosaveRejectionToken,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
@@ -65,6 +66,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isSaveFeedbackActive?: boolean;
 		isUpdatingPublishedAt?: boolean;
 		autosaveCompletionToken?: number;
+		autosaveRejectionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
 			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
@@ -73,6 +75,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 			<div data-testid="manual-save-blocked">{isSaving ? "blocked" : "ready"}</div>
 			<div data-testid="autosave-blocked">{isSaving || isAutosaving ? "blocked" : "ready"}</div>
 			<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
+			<div data-testid="autosave-rejection-token">{autosaveRejectionToken ?? 0}</div>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -110,8 +113,55 @@ vi.mock("../src/components/ContentEditor", () => ({
 }));
 
 vi.mock("../src/components/MediaLibrary", () => ({
-	MediaLibrary: ({ onUpload }: { onUpload?: (file: File) => Promise<unknown> | void }) => {
+	MediaLibrary: ({
+		items,
+		isLoading,
+		onUpload,
+		onLocalSearchChange,
+		folders,
+		hasMoreFolders,
+		onLoadMoreFolders,
+		folderId,
+		currentFolder,
+		canManageFolders,
+		onOpenFolder,
+		onBackToMain,
+		onCreateFolder,
+		onRenameFolder,
+		onDeleteFolder,
+		canMoveMedia,
+		onMoveMedia,
+		pagination,
+	}: {
+		items?: Array<{ id?: string }>;
+		isLoading?: boolean;
+		onUpload?: (file: File) => Promise<unknown> | void;
+		onLocalSearchChange?: (search: string) => void;
+		folders?: Array<{ id: string }>;
+		hasMoreFolders?: boolean;
+		onLoadMoreFolders?: () => void;
+		folderId?: string;
+		currentFolder?: { id: string; name: string } | null;
+		canManageFolders?: boolean;
+		onOpenFolder?: (folder: { id: string; name: string }) => void;
+		onBackToMain?: () => void;
+		onCreateFolder?: (name: string) => Promise<unknown>;
+		onRenameFolder?: (folder: { id: string; name: string }, name: string) => Promise<unknown>;
+		onDeleteFolder?: (folder: { id: string; name: string }) => Promise<void>;
+		canMoveMedia?: (item: { authorId: string | null }) => boolean;
+		onMoveMedia?: (
+			item: { id: string; authorId: string | null },
+			folder: { id: string; name: string },
+		) => Promise<void>;
+		pagination?: {
+			page: number;
+			perPage: number;
+			onPageChange: (page: number) => void;
+			onPageSizeChange: (perPage: number) => void;
+		};
+	}) => {
 		const [uploadStatus, setUploadStatus] = React.useState("idle");
+		const [moveStatus, setMoveStatus] = React.useState("move-ready");
 
 		const upload = async () => {
 			setUploadStatus("uploading");
@@ -122,6 +172,18 @@ vi.mock("../src/components/MediaLibrary", () => ({
 				setUploadStatus("error");
 			}
 		};
+		const moveMedia = async () => {
+			setMoveStatus("moving");
+			try {
+				await onMoveMedia?.(
+					{ id: "media_01", authorId: "user_01" },
+					{ id: "folder-one", name: "Folder One" },
+				);
+				setMoveStatus("moved");
+			} catch {
+				setMoveStatus("move-error");
+			}
+		};
 
 		return (
 			<div>
@@ -129,6 +191,64 @@ vi.mock("../src/components/MediaLibrary", () => ({
 					Upload test file
 				</button>
 				<span>{uploadStatus}</span>
+				<span data-testid="media-item-count">{items?.length ?? 0}</span>
+				<span data-testid="media-first-item">{items?.[0]?.id ?? ""}</span>
+				<span data-testid="media-loading">{isLoading ? "loading" : "ready"}</span>
+				<span data-testid="folder-count">{folders?.length ?? 0}</span>
+				<button type="button" disabled={!hasMoreFolders} onClick={onLoadMoreFolders}>
+					Load more folders
+				</button>
+				<button type="button" onClick={() => folders?.[0] && onOpenFolder?.(folders[0])}>
+					Open mock folder
+				</button>
+				<button type="button" onClick={onBackToMain}>
+					Back to Main
+				</button>
+				{canManageFolders && (
+					<>
+						<button type="button" onClick={() => void onCreateFolder?.("Created")}>
+							Create mock folder
+						</button>
+						<button
+							type="button"
+							onClick={() => currentFolder && void onRenameFolder?.(currentFolder, "Renamed")}
+						>
+							Rename current folder
+						</button>
+						<button
+							type="button"
+							onClick={() => currentFolder && void onDeleteFolder?.(currentFolder)}
+						>
+							Delete current folder
+						</button>
+					</>
+				)}
+				<span data-testid="current-folder-id">{folderId ?? "main"}</span>
+				<span data-testid="can-move-own-media">
+					{canMoveMedia?.({ authorId: "user_01" }) ? "yes" : "no"}
+				</span>
+				<span data-testid="can-move-other-media">
+					{canMoveMedia?.({ authorId: "other-user" }) ? "yes" : "no"}
+				</span>
+				<button type="button" onClick={() => void moveMedia()}>
+					Move mock media
+				</button>
+				<span data-testid="move-status">{moveStatus}</span>
+				{pagination && (
+					<>
+						<span data-testid="media-page">{pagination.page}</span>
+						<span data-testid="media-page-size">{pagination.perPage}</span>
+						<button type="button" onClick={() => pagination.onPageChange(2)}>
+							Open page 2
+						</button>
+						<button type="button" onClick={() => pagination.onPageSizeChange(70)}>
+							Show 70 per page
+						</button>
+						<button type="button" onClick={() => onLocalSearchChange?.("photo")}>
+							Search media
+						</button>
+					</>
+				)}
 			</div>
 		);
 	},
@@ -212,8 +332,38 @@ describe("MediaPage – upload completion", () => {
 			.on("GET", "/_emdash/api/auth/me", {
 				data: { id: "user_01", role: 60 },
 			})
+			.on("GET", "/_emdash/api/media/folders/folder-one", {
+				data: { item: { id: "folder-one", name: "Folder One" } },
+			})
+			.on("GET", "/_emdash/api/media/folders", {
+				data: { items: [{ id: "folder-one", name: "Folder One" }] },
+			})
+			.on("POST", "/_emdash/api/media/folders", {
+				data: { item: { id: "folder-created", name: "Created" } },
+			})
+			.on("PUT", "/_emdash/api/media/folders/folder-one", {
+				data: { item: { id: "folder-one", name: "Renamed" } },
+			})
+			.on("DELETE", "/_emdash/api/media/folders/folder-one", {
+				data: { deleted: true },
+			})
+			.on("PUT", "/_emdash/api/media/media_01", {
+				data: {
+					item: {
+						id: "media_01",
+						filename: "photo.jpg",
+						mimeType: "image/jpeg",
+						url: "/media/photo.jpg",
+						storageKey: "photo.jpg",
+						size: 1,
+						createdAt: "2025-01-01T00:00:00Z",
+						authorId: "user_01",
+						folderId: "folder-one",
+					},
+				},
+			})
 			.on("GET", "/_emdash/api/media", {
-				data: { items: [], nextCursor: undefined },
+				data: { items: [], totalCount: 60 },
 			});
 	});
 
@@ -257,6 +407,528 @@ describe("MediaPage – upload completion", () => {
 		} finally {
 			globalThis.fetch = interceptedFetch;
 		}
+	});
+
+	it("persists a media folder move and refreshes media before resolving", async () => {
+		const requests: Array<{ method: string; path: string }> = [];
+		const mockedFetch = globalThis.fetch;
+		let movePersisted = false;
+		let mediaRefreshStarted = false;
+		let releaseMediaRefresh: () => void = () => undefined;
+		const mediaRefreshGate = new Promise<void>((resolve) => {
+			releaseMediaRefresh = resolve;
+		});
+		globalThis.fetch = async (input, init) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const path = new URL(rawUrl, "http://localhost").pathname;
+			const method = init?.method ?? "GET";
+			requests.push({
+				method,
+				path,
+			});
+			if (movePersisted && method === "GET" && path === "/_emdash/api/media") {
+				mediaRefreshStarted = true;
+				await mediaRefreshGate;
+			}
+			const response = await mockedFetch(input, init);
+			if (method === "PUT" && path === "/_emdash/api/media/media_01") movePersisted = true;
+			return response;
+		};
+
+		try {
+			const { router, TestApp } = buildRouter();
+			await router.navigate({ to: "/media" });
+			const screen = await render(<TestApp />);
+			await expect.element(screen.getByTestId("move-status")).toHaveTextContent("move-ready");
+			const mediaReadsBefore = requests.filter(
+				(request) => request.method === "GET" && request.path === "/_emdash/api/media",
+			).length;
+
+			await screen.getByRole("button", { name: "Move mock media" }).click();
+			await vi.waitFor(() => expect(mediaRefreshStarted).toBe(true));
+			expect(screen.getByTestId("move-status").element()).toHaveTextContent("moving");
+			releaseMediaRefresh();
+			await expect.element(screen.getByTestId("move-status")).toHaveTextContent("moved");
+			expect(
+				requests.some(
+					(request) => request.method === "PUT" && request.path === "/_emdash/api/media/media_01",
+				),
+			).toBe(true);
+			expect(
+				requests.filter(
+					(request) => request.method === "GET" && request.path === "/_emdash/api/media",
+				).length,
+			).toBeGreaterThan(mediaReadsBefore);
+		} finally {
+			releaseMediaRefresh();
+			globalThis.fetch = mockedFetch;
+		}
+	});
+
+	it("waits for stale media and folder recovery after a missing move target", async () => {
+		const mockedFetch = globalThis.fetch;
+		let recovering = false;
+		let releaseRecovery: () => void = () => undefined;
+		const recoveryGate = new Promise<void>((resolve) => {
+			releaseRecovery = resolve;
+		});
+		const recoveryReads = new Set<string>();
+		globalThis.fetch = async (input, init) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const url = new URL(rawUrl, "http://localhost");
+			if (url.pathname === "/_emdash/api/media/media_01" && init?.method === "PUT") {
+				recovering = true;
+				return new Response(
+					JSON.stringify({
+						success: false,
+						error: { code: "NOT_FOUND", message: "Media folder not found" },
+					}),
+					{ status: 404, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			if (
+				recovering &&
+				init?.method !== "PUT" &&
+				(url.pathname === "/_emdash/api/media" ||
+					url.pathname === "/_emdash/api/media/folders" ||
+					url.pathname === "/_emdash/api/media/folders/folder-one")
+			) {
+				recoveryReads.add(url.pathname);
+				await recoveryGate;
+			}
+			return mockedFetch(input, init);
+		};
+
+		try {
+			const { router, TestApp } = buildRouter();
+			await router.navigate({ to: "/media", search: { folder: "folder-one" } });
+			const screen = await render(<TestApp />);
+			await screen.getByRole("button", { name: "Search media" }).click();
+			await screen.getByRole("button", { name: "Move mock media" }).click();
+			await expect.element(screen.getByTestId("move-status")).toHaveTextContent("moving");
+			await vi.waitFor(() => {
+				expect(recoveryReads).toEqual(
+					new Set([
+						"/_emdash/api/media",
+						"/_emdash/api/media/folders",
+						"/_emdash/api/media/folders/folder-one",
+					]),
+				);
+			});
+			expect(screen.getByTestId("move-status").element()).toHaveTextContent("moving");
+			releaseRecovery();
+			await expect.element(screen.getByTestId("move-status")).toHaveTextContent("move-error");
+		} finally {
+			releaseRecovery();
+			globalThis.fetch = mockedFetch;
+		}
+	});
+
+	it("clears cached move eligibility while recovering from authorization failure", async () => {
+		const mockedFetch = globalThis.fetch;
+		let recovering = false;
+		let releaseCurrentUser: () => void = () => undefined;
+		const currentUserGate = new Promise<void>((resolve) => {
+			releaseCurrentUser = resolve;
+		});
+		let currentUserRecoveryStarted = false;
+		globalThis.fetch = async (input, init) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const url = new URL(rawUrl, "http://localhost");
+			if (url.pathname === "/_emdash/api/media/media_01" && init?.method === "PUT") {
+				recovering = true;
+				return new Response(
+					JSON.stringify({
+						success: false,
+						error: { code: "FORBIDDEN", message: "Permission denied" },
+					}),
+					{ status: 403, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			if (recovering && url.pathname === "/_emdash/api/auth/me") {
+				currentUserRecoveryStarted = true;
+				await currentUserGate;
+				return new Response(
+					JSON.stringify({
+						success: false,
+						error: { code: "INVALID_TOKEN", message: "Invalid token" },
+					}),
+					{ status: 401, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			return mockedFetch(input, init);
+		};
+
+		try {
+			const { router, TestApp } = buildRouter();
+			await router.navigate({ to: "/media" });
+			const screen = await render(<TestApp />);
+			await expect.element(screen.getByTestId("can-move-own-media")).toHaveTextContent("yes");
+			await screen.getByRole("button", { name: "Move mock media" }).click();
+			await vi.waitFor(() => expect(currentUserRecoveryStarted).toBe(true));
+			expect(screen.getByTestId("move-status").element()).toHaveTextContent("moving");
+			releaseCurrentUser();
+			await expect.element(screen.getByTestId("move-status")).toHaveTextContent("move-error");
+			await expect.element(screen.getByTestId("can-move-own-media")).toHaveTextContent("no");
+		} finally {
+			releaseCurrentUser();
+			globalThis.fetch = mockedFetch;
+		}
+	});
+
+	it("requests numbered pages and resets page state for page size and search", async () => {
+		const requests: string[] = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			requests.push(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("1");
+		await vi.waitFor(() => {
+			expect(requests.some((url) => url.includes("/_emdash/api/media?page=1&limit=35"))).toBe(true);
+		});
+
+		await screen.getByRole("button", { name: "Open page 2" }).click();
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("2");
+		await vi.waitFor(() => {
+			expect(requests.some((url) => url.includes("/_emdash/api/media?page=2&limit=35"))).toBe(true);
+		});
+
+		await screen.getByRole("button", { name: "Show 70 per page" }).click();
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("1");
+		await expect.element(screen.getByTestId("media-page-size")).toHaveTextContent("70");
+
+		await screen.getByRole("button", { name: "Search media" }).click();
+		await vi.waitFor(() => {
+			expect(
+				requests.some(
+					(url) => url.includes("/_emdash/api/media?page=1&limit=70") && url.includes("q=photo"),
+				),
+			).toBe(true);
+		});
+	});
+
+	it("maps root and direct folder URL state to media filters with global search precedence", async () => {
+		const requests: string[] = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			requests.push(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+
+		await vi.waitFor(() => {
+			expect(
+				requests.some(
+					(url) =>
+						url.includes("/_emdash/api/media?") &&
+						new URL(url, "http://localhost").searchParams.get("folderId") === "unfiled",
+				),
+			).toBe(true);
+		});
+
+		await router.navigate({ to: "/media", search: { folder: "folder-one" } });
+		await vi.waitFor(() => {
+			expect(requests.some((url) => url.includes("/media/folders/folder-one"))).toBe(true);
+			expect(
+				requests.some(
+					(url) => new URL(url, "http://localhost").searchParams.get("folderId") === "folder-one",
+				),
+			).toBe(true);
+		});
+
+		await screen.getByRole("button", { name: "Search media" }).click();
+		await vi.waitFor(() => {
+			expect(
+				requests.some((rawUrl) => {
+					const url = new URL(rawUrl, "http://localhost");
+					return url.searchParams.get("q") === "photo" && !url.searchParams.has("folderId");
+				}),
+			).toBe(true);
+		});
+	});
+
+	it("does not request the previous page when direct folder state changes", async () => {
+		const requests: string[] = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			requests.push(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+		await screen.getByRole("button", { name: "Open page 2" }).click();
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("2");
+
+		requests.length = 0;
+		await router.navigate({ to: "/media", search: { folder: "folder-one" } });
+		await vi.waitFor(() => {
+			expect(
+				requests.some((rawUrl) => {
+					const url = new URL(rawUrl, "http://localhost");
+					return (
+						url.searchParams.get("folderId") === "folder-one" &&
+						url.searchParams.get("page") === "1"
+					);
+				}),
+			).toBe(true);
+		});
+		expect(
+			requests.some((rawUrl) => {
+				const url = new URL(rawUrl, "http://localhost");
+				return (
+					url.searchParams.get("folderId") === "folder-one" && url.searchParams.get("page") === "2"
+				);
+			}),
+		).toBe(false);
+	});
+
+	it("loads bounded folder pages and exposes explicit load-more state", async () => {
+		const mockedFetch = globalThis.fetch;
+		const folderRequests: URL[] = [];
+		globalThis.fetch = (input, init) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const url = new URL(rawUrl, "http://localhost");
+			if (url.pathname === "/_emdash/api/media/folders") {
+				folderRequests.push(url);
+				const cursor = url.searchParams.get("cursor");
+				return Promise.resolve(
+					Response.json({
+						data:
+							cursor === "next-folder"
+								? { items: [{ id: "folder-two", name: "Folder Two" }] }
+								: {
+										items: [{ id: "folder-one", name: "Folder One" }],
+										nextCursor: "next-folder",
+									},
+					}),
+				);
+			}
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByTestId("folder-count")).toHaveTextContent("1");
+		await screen.getByRole("button", { name: "Load more folders" }).click();
+		await expect.element(screen.getByTestId("folder-count")).toHaveTextContent("2");
+		expect(folderRequests).toHaveLength(2);
+		expect(folderRequests[0]?.searchParams.get("limit")).toBe("100");
+		expect(folderRequests[1]?.searchParams.get("cursor")).toBe("next-folder");
+	});
+
+	it("orchestrates create, open, rename, and current-folder delete", async () => {
+		const calls: Array<{ url: string; method: string; body?: string }> = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			calls.push({
+				url: typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+				method: init?.method ?? "GET",
+				body: typeof init?.body === "string" ? init.body : undefined,
+			});
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const navigateSpy = vi.spyOn(router, "navigate");
+		const screen = await render(<TestApp />);
+		await expect.element(screen.getByTestId("folder-count")).toHaveTextContent("1");
+
+		await screen.getByRole("button", { name: "Create mock folder" }).click();
+		await vi.waitFor(() => {
+			const request = calls.find((call) => call.method === "POST" && call.url.endsWith("/folders"));
+			expect(request?.body && JSON.parse(request.body)).toEqual({ name: "Created" });
+		});
+
+		await screen.getByRole("button", { name: "Open mock folder" }).click();
+		await vi.waitFor(() => {
+			expect(router.state.location.search).toEqual({ folder: "folder-one" });
+			expect(screen.getByTestId("current-folder-id").element()).toHaveTextContent("folder-one");
+			expect(navigateSpy).toHaveBeenCalledWith(expect.objectContaining({ resetScroll: false }));
+		});
+
+		await screen.getByRole("button", { name: "Back to Main" }).click();
+		await vi.waitFor(() => {
+			expect(router.state.location.search).toEqual({});
+			expect(navigateSpy).toHaveBeenCalledWith(
+				expect.objectContaining({ search: { folder: undefined }, resetScroll: false }),
+			);
+		});
+		await screen.getByRole("button", { name: "Open mock folder" }).click();
+
+		await screen.getByRole("button", { name: "Rename current folder" }).click();
+		await vi.waitFor(() => {
+			const request = calls.find(
+				(call) => call.method === "PUT" && call.url.endsWith("/folders/folder-one"),
+			);
+			expect(request?.body && JSON.parse(request.body)).toEqual({ name: "Renamed" });
+		});
+
+		await screen.getByRole("button", { name: "Delete current folder" }).click();
+		await vi.waitFor(() => {
+			expect(
+				calls.some((call) => call.method === "DELETE" && call.url.endsWith("/folders/folder-one")),
+			).toBe(true);
+			expect(router.state.location.search).toEqual({});
+			expect(navigateSpy).toHaveBeenCalledWith(
+				expect.objectContaining({ replace: true, resetScroll: false }),
+			);
+		});
+	});
+
+	it("allows authors to move their own media but not another user's media", async () => {
+		mockFetch.on("GET", "/_emdash/api/auth/me", {
+			data: { id: "user_01", role: 30 },
+		});
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+
+		await expect.element(screen.getByTestId("can-move-own-media")).toHaveTextContent("yes");
+		await expect.element(screen.getByTestId("can-move-other-media")).toHaveTextContent("no");
+	});
+
+	it("replaces a missing direct folder URL with Main library once", async () => {
+		mockFetch.on(
+			"GET",
+			"/_emdash/api/media/folders/missing-folder",
+			{ error: { code: "NOT_FOUND", message: "Media folder not found" } },
+			404,
+		);
+		const requests: string[] = [];
+		const mockedFetch = globalThis.fetch;
+		globalThis.fetch = (input, init) => {
+			requests.push(
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url,
+			);
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media", search: { folder: "missing-folder" } });
+		const screen = await render(<TestApp />);
+
+		await vi.waitFor(() => {
+			expect(router.state.location.search).toEqual({});
+			expect(
+				requests.some(
+					(rawUrl) =>
+						new URL(rawUrl, "http://localhost").searchParams.get("folderId") === "unfiled",
+				),
+			).toBe(true);
+		});
+		await expect.element(screen.getByText("Folder no longer exists")).toBeInTheDocument();
+	});
+
+	it("recovers an emptied later page without exposing an invalid page number", async () => {
+		const mockedFetch = globalThis.fetch;
+		let requestedSecondPage = false;
+		globalThis.fetch = (input, init) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const url = new URL(rawUrl, "http://localhost");
+			if (url.pathname === "/_emdash/api/media") {
+				const requestedPage = url.searchParams.get("page");
+				if (requestedPage === "2") {
+					requestedSecondPage = true;
+					return Promise.resolve(
+						new Response(JSON.stringify({ data: { items: [], totalCount: 0 } }), {
+							status: 200,
+							headers: { "Content-Type": "application/json" },
+						}),
+					);
+				}
+				const totalCount = requestedSecondPage ? 0 : 60;
+				return Promise.resolve(
+					new Response(JSON.stringify({ data: { items: [], totalCount } }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					}),
+				);
+			}
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+		await expect.element(screen.getByTestId("media-page")).toHaveTextContent("1");
+
+		await screen.getByRole("button", { name: "Open page 2" }).click();
+
+		await vi.waitFor(() => {
+			expect(requestedSecondPage).toBe(true);
+			expect(screen.getByTestId("media-page").element()).toHaveTextContent("1");
+		});
+	});
+
+	it("keeps the current page rendered while the next page loads", async () => {
+		const mockedFetch = globalThis.fetch;
+		let resolveSecondPage: ((response: Response) => void) | undefined;
+		globalThis.fetch = (input, init) => {
+			const rawUrl =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const url = new URL(rawUrl, "http://localhost");
+			if (url.pathname === "/_emdash/api/media") {
+				if (url.searchParams.get("page") === "2") {
+					return new Promise<Response>((resolve) => {
+						resolveSecondPage = resolve;
+					});
+				}
+				return Promise.resolve(
+					new Response(JSON.stringify({ data: { items: [{ id: "page-1" }], totalCount: 60 } }), {
+						status: 200,
+						headers: { "Content-Type": "application/json" },
+					}),
+				);
+			}
+			return mockedFetch(input, init);
+		};
+
+		const { router, TestApp } = buildRouter();
+		await router.navigate({ to: "/media" });
+		const screen = await render(<TestApp />);
+		await expect.element(screen.getByTestId("media-item-count")).toHaveTextContent("1");
+		await expect.element(screen.getByTestId("media-first-item")).toHaveTextContent("page-1");
+
+		await screen.getByRole("button", { name: "Open page 2" }).click();
+		await vi.waitFor(() => expect(resolveSecondPage).toBeTypeOf("function"));
+
+		await expect.element(screen.getByTestId("media-item-count")).toHaveTextContent("1");
+		await expect.element(screen.getByTestId("media-first-item")).toHaveTextContent("page-1");
+		await expect.element(screen.getByTestId("media-loading")).toHaveTextContent("loading");
+
+		resolveSecondPage?.(
+			new Response(JSON.stringify({ data: { items: [{ id: "page-2" }], totalCount: 60 } }), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			}),
+		);
+		await expect.element(screen.getByTestId("media-loading")).toHaveTextContent("ready");
+		await expect.element(screen.getByTestId("media-first-item")).toHaveTextContent("page-2");
 	});
 });
 
@@ -995,5 +1667,57 @@ describe("ContentEditPage – autosave cache patching", () => {
 		} finally {
 			globalThis.fetch = fetchWithMocks;
 		}
+	});
+
+	it("signals a rejected autosave to the editor", async () => {
+		mockFetch.on(
+			"PUT",
+			"/_emdash/api/content/posts/post_1?locale=en",
+			{ error: { code: "VALIDATION_ERROR", message: "title: Too big" } },
+			400,
+		);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+
+		await waitFor(() => {
+			expect(screen.getByTestId("autosave-rejection-token").element().textContent).toBe("1");
+		});
+		expect(screen.getByTestId("autosave-completion-token").element().textContent).toBe("0");
+		expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+	});
+
+	it("does not signal a rejection for a server error", async () => {
+		mockFetch.on(
+			"PUT",
+			"/_emdash/api/content/posts/post_1?locale=en",
+			{ error: { code: "INTERNAL_ERROR", message: "boom" } },
+			500,
+		);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+
+		await expect.element(screen.getByText("Autosave failed")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getByTestId("autosave-blocked").element().textContent).toBe("ready");
+		});
+		expect(screen.getByTestId("autosave-rejection-token").element().textContent).toBe("0");
 	});
 });

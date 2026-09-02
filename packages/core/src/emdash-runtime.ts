@@ -9,10 +9,11 @@
 
 import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
-import { Kysely, sql, type Dialect } from "kysely";
+import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
+import { ErrorCode } from "./api/errors.js";
 import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
@@ -43,30 +44,20 @@ import type {
 	ContentItem as ContentItemInternal,
 	ContentDateField,
 } from "./database/repositories/types.js";
+import type { ImageValue } from "./fields/types.js";
 import { getI18nConfig } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
-import {
-	MEDIA_USAGE_COLLECTION_DELETION_LIMITS,
-	processDueMediaUsageCollectionDeletions,
-} from "./media/usage/collection-deletion-processor.js";
+import { activateMediaUsageCapture } from "./media/usage/activation.js";
 import {
 	deleteContentMediaUsage,
 	findNonTranslatableSiblingContentIds,
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
-import {
-	MEDIA_USAGE_RECONCILIATION_LIMITS,
-	processDueMediaUsageReconciliation,
-} from "./media/usage/reconciliation-processor.js";
-import {
-	MEDIA_USAGE_WORK_PROCESSING_LIMITS,
-	processDueMediaUsageWork,
-	processMediaUsageWorkAfterWrite,
-} from "./media/usage/work-processor.js";
+import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
 import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
 import type {
@@ -227,6 +218,7 @@ import {
 	type RouteCallerInput,
 	type RouteMeta,
 } from "./plugins/routes.js";
+import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
@@ -435,6 +427,28 @@ export interface EmDashRuntimeParts {
 }
 
 /**
+ * A `ContentSaveRejectedError` carries a message the plugin wrote for the
+ * editor; every other exception stays internal and is replaced by a generic
+ * message so hook internals cannot leak through the API.
+ */
+function beforeSaveFailure(error: unknown) {
+	if (isContentSaveRejection(error)) {
+		return {
+			success: false as const,
+			error: { code: ErrorCode.SAVE_REJECTED, message: error.message },
+		};
+	}
+	console.error("EmDash: content:beforeSave hook failed:", error);
+	return {
+		success: false as const,
+		error: {
+			code: ErrorCode.CONTENT_HOOK_ERROR,
+			message: "A plugin hook failed while saving content",
+		},
+	};
+}
+
+/**
  * Convert a ContentItem to Record<string, unknown> for hook consumption.
  * Hooks receive the full item as a flat record.
  */
@@ -552,62 +566,6 @@ const marketplaceManifestCache = new Map<
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
-
-export const MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS = Object.freeze({
-	entryWork: MEDIA_USAGE_WORK_PROCESSING_LIMITS.ordinaryStatementsPerJob,
-	collectionDeletion: MEDIA_USAGE_COLLECTION_DELETION_LIMITS.maxQueriesPerTick,
-	reconciliation: MEDIA_USAGE_RECONCILIATION_LIMITS.maxQueriesPerTick,
-	maxClassQueries: Math.max(
-		MEDIA_USAGE_WORK_PROCESSING_LIMITS.ordinaryStatementsPerJob,
-		MEDIA_USAGE_COLLECTION_DELETION_LIMITS.maxQueriesPerTick,
-		MEDIA_USAGE_RECONCILIATION_LIMITS.maxQueriesPerTick,
-	),
-	eventCeiling: 40,
-});
-
-export type MediaUsageMaintenanceTaskClass =
-	| "entry_work"
-	| "collection_deletion"
-	| "reconciliation";
-
-export type MediaUsageMaintenanceResult =
-	| { outcome: "inactive" | "admission_closed"; taskClass: null; turn: null }
-	| { outcome: "processed"; taskClass: MediaUsageMaintenanceTaskClass; turn: number };
-
-async function runScheduledMediaUsageLane(
-	db: Kysely<Database>,
-): Promise<MediaUsageMaintenanceResult> {
-	const queriesAlreadySpent = getRequestContext()?.metrics?.dbCount ?? 0;
-	if (
-		queriesAlreadySpent + 1 + MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS.maxClassQueries >
-		MEDIA_USAGE_MAINTENANCE_QUERY_RESERVATIONS.eventCeiling
-	) {
-		return { outcome: "admission_closed", taskClass: null, turn: null };
-	}
-
-	const activation = await db
-		.updateTable("_emdash_media_usage_activation")
-		.set({
-			media_usage_maintenance_turn: sql<number>`(media_usage_maintenance_turn + 1) % 3`,
-		})
-		.where("task_key", "=", "incremental_capture")
-		.where("state", "=", "active")
-		.returning("media_usage_maintenance_turn")
-		.executeTakeFirst();
-	if (!activation) return { outcome: "inactive", taskClass: null, turn: null };
-
-	const turn = activation.media_usage_maintenance_turn;
-	if (turn === 0) {
-		await processDueMediaUsageWork(db);
-		return { outcome: "processed", taskClass: "entry_work", turn };
-	}
-	if (turn === 1) {
-		await processDueMediaUsageCollectionDeletions(db);
-		return { outcome: "processed", taskClass: "collection_deletion", turn };
-	}
-	await processDueMediaUsageReconciliation(db);
-	return { outcome: "processed", taskClass: "reconciliation", turn };
-}
 
 /**
  * EmDashRuntime - singleton per worker
@@ -812,10 +770,6 @@ export class EmDashRuntime {
 		await recordSchedulerHeartbeatSafely(this.db);
 
 		return { published };
-	}
-
-	async runScheduledMediaUsageTasks(): Promise<MediaUsageMaintenanceResult> {
-		return runScheduledMediaUsageLane(this.db);
 	}
 
 	/**
@@ -1448,6 +1402,15 @@ export class EmDashRuntime {
 		// per-isolate lock keyed by the configured db so a reclaimed-and-rerun
 		// create() can't apply the seed a second time concurrently.
 		if (seedGate.collectionCount === 0 && !seedGate.setupDone) {
+			try {
+				const activation = await activateMediaUsageCapture(db, { writersDrained: true });
+				if (activation.outcome !== "active") {
+					throw new Error("Fresh-site media usage activation did not complete");
+				}
+			} catch (error) {
+				await disposeReadDb();
+				throw error;
+			}
 			const seedKey = deps.config.database?.entrypoint ?? "default";
 			const seedHolder = getSeedHolder();
 			try {
@@ -1756,14 +1719,6 @@ export class EmDashRuntime {
 				if (deps.createScheduler) {
 					const scheduler = deps.createScheduler(cronExecutor);
 					cronScheduler = scheduler;
-					const runMediaUsageMaintenance = async () => {
-						const runtime = runtimeRef.current;
-						if (runtime) {
-							await runtime.runScheduledMediaUsageTasks();
-						} else {
-							await runScheduledMediaUsageLane(db);
-						}
-					};
 
 					// Run scheduled publishing and system cleanup alongside each tick.
 					// Pass storage so cleanupPendingUploads can delete orphaned files.
@@ -1797,16 +1752,7 @@ export class EmDashRuntime {
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
 						await recordSchedulerHeartbeatSafely(db);
-						if (!scheduler.setMediaUsageMaintenance) {
-							try {
-								await runMediaUsageMaintenance();
-							} catch (error) {
-								console.error("[media-usage] Scheduled maintenance failed:", error);
-							}
-						}
 					});
-					scheduler.setMediaUsageMaintenance?.(runMediaUsageMaintenance);
-
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.
 					void scheduler.start();
@@ -2969,8 +2915,12 @@ export class EmDashRuntime {
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (this.hooks.hasHooks("content:beforeSave")) {
-			const hookResult = await this.hooks.runContentBeforeSave(body.data, collection, true);
-			processedData = hookResult.content;
+			try {
+				const hookResult = await this.hooks.runContentBeforeSave(body.data, collection, true);
+				processedData = hookResult.content;
+			} catch (error) {
+				return beforeSaveFailure(error);
+			}
 		}
 
 		// Run beforeSave hooks (sandboxed plugins)
@@ -3065,12 +3015,16 @@ export class EmDashRuntime {
 		let processedData = bodyWithoutRev.data;
 		if (bodyWithoutRev.data) {
 			if (this.hooks.hasHooks("content:beforeSave")) {
-				const hookResult = await this.hooks.runContentBeforeSave(
-					bodyWithoutRev.data,
-					collection,
-					false,
-				);
-				processedData = hookResult.content;
+				try {
+					const hookResult = await this.hooks.runContentBeforeSave(
+						bodyWithoutRev.data,
+						collection,
+						false,
+					);
+					processedData = hookResult.content;
+				} catch (error) {
+					return beforeSaveFailure(error);
+				}
 			}
 
 			// Run sandboxed beforeSave hooks
@@ -3456,9 +3410,11 @@ export class EmDashRuntime {
 
 	async handleMediaList(params: {
 		cursor?: string;
+		page?: number;
 		limit?: number;
 		mimeType?: string | readonly string[];
 		q?: string;
+		folderId?: string | null;
 	}) {
 		return handleMediaList(this.db, params);
 	}
@@ -3519,7 +3475,15 @@ export class EmDashRuntime {
 
 	async handleMediaUpdate(
 		id: string,
-		input: { alt?: string; caption?: string; width?: number; height?: number },
+		input: {
+			alt?: string;
+			caption?: string;
+			width?: number;
+			height?: number;
+			folderId?: string | null;
+			focalX?: number | null;
+			focalY?: number | null;
+		},
 	) {
 		const result = await handleMediaUpdate(this.db, id, input);
 		// Resolved media references in site settings (`logo`, `favicon`,
@@ -3690,14 +3654,14 @@ export class EmDashRuntime {
 		for (const contentId of new Set(contentIds)) {
 			try {
 				const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
-				if (work.outcome !== "inactive") return;
+				if (work.outcome !== "inactive") continue;
 				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
 			} catch (error) {
 				console.error(
 					`[media-usage] Failed after content write ${collection}/${contentId}:`,
 					error,
 				);
-				return;
+				continue;
 			}
 		}
 	}
@@ -4056,7 +4020,11 @@ export class EmDashRuntime {
 			if (value == null) continue;
 
 			try {
-				const normalized = await normalizeMediaValue(value, getProvider);
+				// Only image fields carry a dark variant.
+				const normalized =
+					field.type === "image"
+						? await normalizeImageValue(value, getProvider)
+						: await normalizeMediaValue(value, getProvider);
 				if (normalized) {
 					result[field.slug] = normalized;
 				}
@@ -4083,7 +4051,7 @@ export class EmDashRuntime {
 						const subValue = normalizedItem[slug];
 						if (subValue == null) continue;
 						try {
-							const normalized = await normalizeMediaValue(subValue, getProvider);
+							const normalized = await normalizeImageValue(subValue, getProvider);
 							if (normalized) {
 								normalizedItem[slug] = normalized;
 							}
@@ -4125,7 +4093,10 @@ export class EmDashRuntime {
 					result = record;
 				}
 			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook error:`, error);
+				console.error(
+					`EmDash: Sandboxed plugin ${id} beforeSave hook threw; a sandboxed plugin cannot cancel a save, so the save continues:`,
+					error,
+				);
 			}
 		}
 
@@ -4436,4 +4407,38 @@ export class EmDashRuntime {
 		const status = this.pluginStates.get(pluginId);
 		return status === undefined || status === "active";
 	}
+}
+
+/**
+ * Normalize an image field value together with its `darkVariant`. The media
+ * normalizer only keeps the media item's own keys, so the variant is normalized
+ * separately and reattached.
+ */
+async function normalizeImageValue(
+	value: unknown,
+	getProvider: (id: string) => MediaProvider | undefined,
+): Promise<ImageValue | null> {
+	const primary = await normalizePrimaryImageValue(value, getProvider);
+	if (!primary || !isRecord(value) || value.darkVariant == null) return primary;
+	const darkVariant = await normalizeMediaValue(value.darkVariant, getProvider);
+	return darkVariant ? { ...primary, darkVariant } : primary;
+}
+
+/**
+ * Normalize the primary image of an image field value.
+ *
+ * A legacy string URL that the admin upgraded to `{ id: "", src: url }` so it
+ * can carry a dark variant still has to normalize as a string: as an object it
+ * counts as local media, which strips `src` and leaves nothing behind. The
+ * upgrade outlives the variant — an editor can add one and remove it again —
+ * so the shape decides, not the presence of `darkVariant`.
+ */
+async function normalizePrimaryImageValue(
+	value: unknown,
+	getProvider: (id: string) => MediaProvider | undefined,
+): Promise<ImageValue | null> {
+	if (isRecord(value) && !value.id && typeof value.src === "string" && !value.provider) {
+		return normalizeMediaValue(value.src, getProvider);
+	}
+	return normalizeMediaValue(value, getProvider);
 }

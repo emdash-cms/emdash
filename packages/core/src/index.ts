@@ -84,6 +84,9 @@ export {
 	handleMediaCreate,
 	handleMediaUpdate,
 	handleMediaDelete,
+	handleMediaUsageActivationAdvance,
+	handleMediaUsageProgress,
+	handleMediaUsageRepair,
 	handleRevisionList,
 	handleRevisionGet,
 	handleRevisionRestore,
@@ -243,6 +246,8 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	ContentSaveRejectedError,
+	isContentSaveRejection,
 	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
 	NodeCronScheduler,
 	// Sandbox

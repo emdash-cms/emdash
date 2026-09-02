@@ -39,6 +39,26 @@ describe("fetchVerifiedResource", () => {
 		expect(fetch).not.toHaveBeenCalled();
 	});
 
+	it("allows explicit loopback HTTP without allowing private network hosts", async () => {
+		const fetch = vi.fn(async () => bytesResponse("artifact"));
+		const local = await fetchVerifiedResource("http://localhost:4321/artifact", {
+			fetch,
+			resolveHostname: async () => {
+				throw new Error("loopback must not use DNS");
+			},
+			allowHttpLocalhost: true,
+		});
+		expect(local).toMatchObject({ success: true });
+
+		const privateHost = await fetchVerifiedResource("http://192.168.1.10/artifact", {
+			fetch,
+			resolveHostname: async () => ["192.168.1.10"],
+			allowHttpLocalhost: true,
+		});
+		expect(privateHost).toMatchObject({ success: false, error: { code: "INVALID_URL" } });
+		expect(fetch).toHaveBeenCalledOnce();
+	});
+
 	it("follows validated redirects and validates every hostname hop", async () => {
 		const fetch = vi
 			.fn()

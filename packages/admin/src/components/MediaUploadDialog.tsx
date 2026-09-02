@@ -19,13 +19,19 @@ import * as React from "react";
 import { formatFileSize } from "../lib/media-utils.js";
 
 export const LOCAL_MEDIA_UPLOAD_ACCEPT =
-	"image/png,image/jpeg,image/gif,image/webp,video/*,audio/*,application/pdf";
+	"image/png,image/jpeg,image/gif,image/webp,image/avif,video/*,audio/*,application/pdf";
 
 const DEFAULT_CONCURRENCY = 3;
 const MAX_CONCURRENCY = 6;
 const MAX_VISIBLE_ROWS = 100;
 const MAX_PREVIEW_BYTES = 8 * 1024 * 1024;
-const PREVIEW_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/gif", "image/webp"]);
+const PREVIEW_MIME_TYPES = new Set([
+	"image/jpeg",
+	"image/png",
+	"image/gif",
+	"image/webp",
+	"image/avif",
+]);
 
 type UploadStatus = "queued" | "uploading" | "complete" | "failed";
 
@@ -118,7 +124,12 @@ function UploadFileRow({
 		<li className="grid grid-cols-[2.5rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg bg-kumo-base px-3 py-2.5 ring ring-kumo-line">
 			<div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-kumo-tint text-kumo-subtle">
 				{row.previewUrl ? (
-					<img src={row.previewUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
+					<img
+						src={row.previewUrl}
+						alt=""
+						loading="lazy"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
+					/>
 				) : (
 					<FileKindIcon file={row.file} />
 				)}

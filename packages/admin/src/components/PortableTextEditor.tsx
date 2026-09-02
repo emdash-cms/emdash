@@ -113,6 +113,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import { canonicalMediaProviderId } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -181,7 +182,7 @@ interface PortableTextTextBlock {
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string; meta?: Record<string, unknown> };
+	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
@@ -248,6 +249,8 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 		if (attrStr(record.caption)) image.caption = attrStr(record.caption);
 		if (typeof record.width === "number") image.width = record.width;
 		if (typeof record.height === "number") image.height = record.height;
+		if (typeof record.focalX === "number") image.focalX = record.focalX;
+		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (attrStr(record.blurhash)) image.blurhash = attrStr(record.blurhash);
 		if (attrStr(record.dominantColor)) image.dominantColor = attrStr(record.dominantColor);
 		images.push(image);
@@ -614,11 +617,20 @@ function convertPMNode(
 
 						const contentSpans: PortableTextSpan[] = [];
 						const cellMarkDefs: PortableTextMarkDef[] = [];
+						let paragraphCount = 0;
 						for (const paragraph of cellContent) {
 							if (paragraph.type === "paragraph") {
-								const { children, markDefs } = convertInlineContent(paragraph.content || []);
+								if (paragraphCount > 0) {
+									contentSpans.push({
+										_type: "span",
+										_key: generateKey(),
+										text: "\n",
+									});
+								}
+								const { children, markDefs } = convertInlineContent(paragraph.content || [], true);
 								contentSpans.push(...children);
 								cellMarkDefs.push(...markDefs);
+								paragraphCount++;
 							}
 						}
 
@@ -732,7 +744,10 @@ function convertList(
 	return blocks;
 }
 
-function convertInlineContent(nodes: unknown[]): {
+function convertInlineContent(
+	nodes: unknown[],
+	preserveHardBreakBoundary = false,
+): {
 	children: PortableTextSpan[];
 	markDefs: PortableTextMarkDef[];
 } {
@@ -763,7 +778,7 @@ function convertInlineContent(nodes: unknown[]): {
 				marks: marks.length > 0 ? marks : undefined,
 			});
 		} else if (node.type === "hardBreak") {
-			if (children.length > 0) {
+			if (children.length > 0 && !preserveHardBreakBoundary) {
 				const last = children.at(-1);
 				if (last) last.text += "\n";
 			} else {
@@ -1000,6 +1015,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					title: imageBlock.caption || "",
 					caption: imageBlock.caption || "",
 					mediaId: imageBlock.asset._ref,
+					provider: canonicalMediaProviderId(imageBlock.asset.provider),
 					width: imageBlock.width,
 					height: imageBlock.height,
 					blurhash,
@@ -1014,9 +1030,13 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "code": {
 			if (!isCodeBlock(block)) return null;
 			const codeBlock = block;
+			const language =
+				typeof codeBlock.language === "string" && codeBlock.language.length > 0
+					? codeBlock.language
+					: null;
 			return {
 				type: "codeBlock",
-				attrs: { language: codeBlock.language || null },
+				attrs: { language },
 				content: codeBlock.code ? [{ type: "text", text: codeBlock.code }] : undefined,
 			};
 		}
@@ -3180,7 +3200,7 @@ export function PortableTextEditor({
 					src: item.url,
 					alt: item.alt || item.filename,
 					mediaId: item.id,
-					provider: item.provider || "local",
+					provider: canonicalMediaProviderId(item.provider),
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,

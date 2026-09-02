@@ -50,6 +50,7 @@ export interface ContentItem {
 		byline: BylineSummary;
 		sortOrder: number;
 		roleLabel: string | null;
+		source?: "explicit" | "inferred";
 	}>;
 	createdAt: string;
 	updatedAt: string;

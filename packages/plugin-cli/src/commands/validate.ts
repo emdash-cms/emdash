@@ -52,11 +52,12 @@ export const validateCommand = defineCommand({
 			await resolveSections(manifest.sections, dirname(resolved));
 
 			if (args.json) {
-				process.stdout.write(`${JSON.stringify({ ok: true, path: resolved })}\n`);
+				process.stdout.write(`${JSON.stringify({ ok: true, path: resolved, hosting: "blob" })}\n`);
 				return;
 			}
 
 			consola.success(`Manifest is valid: ${pc.dim(resolved)}`);
+			consola.info("Default release hosting: publisher PDS blobs");
 		} catch (error) {
 			if (error instanceof ManifestError) {
 				if (args.json) {

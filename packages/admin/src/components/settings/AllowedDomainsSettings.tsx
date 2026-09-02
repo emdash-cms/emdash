@@ -15,7 +15,7 @@ import {
 	Switch,
 	useKumoToastManager,
 } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import { Pencil, Plus, Trash, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import * as React from "react";
@@ -32,6 +32,15 @@ import { ConfirmDialog } from "../ConfirmDialog.js";
 import { DialogError, getMutationError } from "../DialogError.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 import { useAllowedDomainsRolesConfig } from "./useAllowedDomainsRolesConfig.js";
+
+export function DomainRemovalMessage({ domain }: { domain: string }) {
+	return (
+		<Trans>
+			Users from <strong>{domain}</strong> will no longer be able to sign up without an invite.
+			Existing users are not affected.
+		</Trans>
+	);
+}
 
 export function AllowedDomainsSettings() {
 	const { t } = useLingui();
@@ -370,12 +379,7 @@ export function AllowedDomainsSettings() {
 					deleteMutation.reset();
 				}}
 				title={t`Remove Domain?`}
-				description={
-					<>
-						{t`Users from`} <strong>{deletingDomain}</strong>{" "}
-						{t`will no longer be able to sign up without an invite. Existing users are not affected.`}
-					</>
-				}
+				description={<DomainRemovalMessage domain={deletingDomain ?? ""} />}
 				confirmLabel={t`Remove Domain`}
 				pendingLabel={t`Removing...`}
 				isPending={deleteMutation.isPending}

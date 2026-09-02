@@ -79,6 +79,7 @@
  * Override Tailwind's --font-sans so all font-sans utilities use it.
  */
 @theme {
+	--text-color-emdash-media-folder: light-dark(var(--color-blue-500), var(--color-blue-400));
 	--font-sans: var(
 		--font-emdash,
 		ui-sans-serif,
@@ -101,6 +102,16 @@ body {
 	color: var(--text-color-kumo-default);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+}
+
+.emdash-media-transparency-grid {
+	background-color: var(--color-kumo-base);
+	background-image: repeating-conic-gradient(
+		var(--color-kumo-tint) 0% 25%,
+		var(--color-kumo-base) 0% 50%
+	);
+	background-position: 50%;
+	background-size: 20px 20px;
 }
 
 /*
@@ -150,6 +161,11 @@ body {
 [data-emdash-heading-item][data-highlighted],
 [data-emdash-block-menu-item][data-highlighted] {
 	background-color: var(--color-kumo-interact) !important;
+}
+
+div:has(> [role="listbox"] > .emdash-compact-select-option) {
+	width: var(--anchor-width);
+	min-width: var(--anchor-width);
 }
 
 /* Transitions.dev — Text states swap */
@@ -242,6 +258,89 @@ body {
 	--tw-prose-pre-bg: var(--color-kumo-contrast);
 }
 
+.emdash-code-block {
+	--emdash-code-background: #f7f7f5;
+	--emdash-code-foreground: #24292f;
+	--emdash-code-muted: #57606a;
+	--emdash-code-keyword: #b8172a;
+	--emdash-code-string: #0a3069;
+	--emdash-code-number: #0550ae;
+	--emdash-code-title: #7545c7;
+
+	background: var(--emdash-code-background);
+	color: var(--emdash-code-foreground);
+	caret-color: var(--emdash-code-foreground);
+	padding-block: 1.875rem;
+}
+
+[data-mode="dark"] .emdash-code-block {
+	--emdash-code-background: #202020;
+	--emdash-code-foreground: #f0f3f6;
+	--emdash-code-muted: #c9d1d9;
+	--emdash-code-keyword: #ffc1bb;
+	--emdash-code-string: #b9ddff;
+	--emdash-code-number: #a8d5ff;
+	--emdash-code-title: #e5ccff;
+}
+
+.emdash-code-block code {
+	background: transparent;
+	color: inherit;
+	font-size: 0.8125rem;
+}
+
+.emdash-code-block :is(.hljs-comment, .hljs-quote) {
+	color: var(--emdash-code-muted);
+}
+
+.emdash-code-block
+	:is(.hljs-keyword, .hljs-literal, .hljs-selector-tag, .hljs-section, .hljs-link, .hljs-deletion) {
+	color: var(--emdash-code-keyword);
+}
+
+.emdash-code-block
+	:is(.hljs-string, .hljs-attr, .hljs-attribute, .hljs-symbol, .hljs-bullet, .hljs-addition) {
+	color: var(--emdash-code-string);
+}
+
+.emdash-code-block :is(.hljs-number, .hljs-meta) {
+	color: var(--emdash-code-number);
+}
+
+.emdash-code-block
+	:is(
+		.hljs-title,
+		.hljs-name,
+		.hljs-type,
+		.hljs-built_in,
+		.hljs-selector-id,
+		.hljs-selector-class
+	) {
+	color: var(--emdash-code-title);
+}
+
+.emdash-code-block-controls {
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease-out;
+}
+.emdash-code-block-node:hover .emdash-code-block-controls,
+.emdash-code-block-node:focus-within .emdash-code-block-controls,
+.emdash-code-block-controls[data-persistent="true"] {
+	opacity: 1;
+	pointer-events: auto;
+}
+@media (hover: none), (pointer: coarse) {
+	.emdash-code-block-controls {
+		opacity: 1;
+		pointer-events: auto;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.emdash-code-block-controls {
+		transition: none;
+	}
+}
 /**
  * TipTap placeholder styles
  */

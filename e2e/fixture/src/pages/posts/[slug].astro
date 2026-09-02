@@ -17,8 +17,20 @@ const seo = getSeoMeta(post, {
 
 <html>
 	<head>
+		<meta charset="utf-8" />
 		<title>{post.data.title}</title>
 		{seo.canonical && <link rel="canonical" href={seo.canonical} />}
+		<style>
+			#body :global(pre) {
+				padding-block: 1.25rem;
+				border: 1px solid #d1d5db;
+			}
+			#body :global(pre), #body :global(pre code) {
+				background: #181818;
+				color: #ffffff;
+				font-size: 1rem;
+			}
+		</style>
 	</head>
 	<body>
 		<article>

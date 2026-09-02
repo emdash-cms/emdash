@@ -2,11 +2,14 @@ import { describe, expect, it } from "vitest";
 
 import { artifactProxyUrl, extractMediaArtifacts } from "../../src/lib/api/registry";
 
+const RELEASE_CID = `bafyrei${"a".repeat(52)}`;
+
 describe("artifactProxyUrl", () => {
 	it("builds a coordinate-based proxy URL for an icon", () => {
 		const url = artifactProxyUrl({
 			did: "did:plc:abc123",
 			slug: "myplugin",
+			cid: RELEASE_CID,
 			version: "1.0.0",
 			kind: "icon",
 		});
@@ -14,13 +17,19 @@ describe("artifactProxyUrl", () => {
 		expect(parsed.pathname).toBe("/_emdash/api/admin/plugins/registry/artifact");
 		expect(parsed.searchParams.get("did")).toBe("did:plc:abc123");
 		expect(parsed.searchParams.get("slug")).toBe("myplugin");
+		expect(parsed.searchParams.get("cid")).toBe(RELEASE_CID);
 		expect(parsed.searchParams.get("version")).toBe("1.0.0");
 		expect(parsed.searchParams.get("kind")).toBe("icon");
 		expect(parsed.searchParams.get("index")).toBeNull();
 	});
 
 	it("encodes coordinate values", () => {
-		const url = artifactProxyUrl({ did: "did:plc:a&b", slug: "my plugin", kind: "banner" });
+		const url = artifactProxyUrl({
+			did: "did:plc:a&b",
+			slug: "my plugin",
+			cid: RELEASE_CID,
+			kind: "banner",
+		});
 		expect(url).toContain("did=did%3Aplc%3Aa%26b");
 		expect(url).toContain("slug=my+plugin");
 	});
@@ -29,6 +38,7 @@ describe("artifactProxyUrl", () => {
 		const url = artifactProxyUrl({
 			did: "did:plc:abc",
 			slug: "p",
+			cid: RELEASE_CID,
 			version: "2.0.0",
 			kind: "screenshot",
 			index: 3,
@@ -39,12 +49,23 @@ describe("artifactProxyUrl", () => {
 	});
 
 	it("omits an empty version", () => {
-		const url = artifactProxyUrl({ did: "did:plc:abc", slug: "p", kind: "icon" });
+		const url = artifactProxyUrl({
+			did: "did:plc:abc",
+			slug: "p",
+			cid: RELEASE_CID,
+			kind: "icon",
+		});
 		expect(new URL(url, "https://site.test").searchParams.has("version")).toBe(false);
 	});
 
 	it("omits the index for non-screenshot kinds", () => {
-		const url = artifactProxyUrl({ did: "did:plc:abc", slug: "p", kind: "icon", index: 5 });
+		const url = artifactProxyUrl({
+			did: "did:plc:abc",
+			slug: "p",
+			cid: RELEASE_CID,
+			kind: "icon",
+			index: 5,
+		});
 		expect(new URL(url, "https://site.test").searchParams.has("index")).toBe(false);
 	});
 });
@@ -62,13 +83,25 @@ describe("extractMediaArtifacts", () => {
 		expect(extractMediaArtifacts("nope")).toEqual({ screenshots: [] });
 	});
 
-	it("extracts icon and banner dims without the url", () => {
+	it("extracts icon and banner dimensions without exposing the source", () => {
 		const result = extractMediaArtifacts({ package: { url: "https://x/a.tgz" }, icon, banner });
 		expect(result.icon).toEqual({ width: 256, height: 256 });
 		expect(result.banner).toEqual({ width: 1280, height: 320 });
 		expect(result.icon).not.toHaveProperty("url");
 		expect(result.banner).not.toHaveProperty("url");
 		expect(result.screenshots).toEqual([]);
+	});
+
+	it("keeps blob-backed image artifacts", () => {
+		const blob = {
+			$type: "blob",
+			ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+			mimeType: "image/png",
+			size: 80,
+		};
+		const result = extractMediaArtifacts({ icon: { blob, width: 256, height: 256 } });
+
+		expect(result.icon).toEqual({ width: 256, height: 256 });
 	});
 
 	it("collects the screenshots array in order with their raw index", () => {
@@ -100,7 +133,7 @@ describe("extractMediaArtifacts", () => {
 			icon: { width: 10 },
 			screenshots: [{ url: 123 }, s2, { url: "" }, s3],
 		});
-		// `icon` has no usable url -> dropped entirely.
+		// `icon` has no usable source, so it is dropped entirely.
 		expect(result.icon).toBeUndefined();
 		// Survivors keep their original array indices (1 and 3), so the proxy
 		// resolves the same entry the publisher declared.

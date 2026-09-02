@@ -24,7 +24,18 @@ emdash-plugin init [name]                    Scaffold a new sandboxed plugin
 emdash-plugin build                          Build dist/ artifacts (plugin.mjs, manifest.json, index.mjs)
 emdash-plugin dev                            Watch sources and rebuild on change
 emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
-emdash-plugin publish --url <url>            Publish a release that points at a hosted tarball
+emdash-plugin publish                        Build, upload, and publish a release
+emdash-plugin release setup                  Create the permanent GitHub release workflow
+emdash-plugin release delegate               Print a publisher delegation browser handoff
+emdash-plugin release revoke                 Print an authority revocation browser handoff
+emdash-plugin release workload               Print a workload policy browser handoff
+emdash-plugin release enrol                  Print a passkey enrolment browser handoff
+emdash-plugin release approve <intent-id>    Print a passkey approval browser handoff
+emdash-plugin release reject <intent-id>     Print a passkey rejection browser handoff
+emdash-plugin release dry-run <release.json> Validate delegated release admission with GitHub OIDC
+emdash-plugin release submit <release.json>  Submit a delegated release with GitHub OIDC
+emdash-plugin release status <intent-id>     Read a delegated release intent
+emdash-plugin release cancel <intent-id>     Cancel an unpublished delegated release intent
 emdash-plugin validate [path]                Validate emdash-plugin.jsonc against the v1 schema
 emdash-plugin login <handle-or-did>          Interactive atproto OAuth login
 emdash-plugin logout [--did <did>]           Revoke the active session
@@ -34,7 +45,7 @@ emdash-plugin search <query>                 Free-text search
 emdash-plugin info <handle-or-did> <slug>    Show package details
 ```
 
-The non-interactive output commands (`whoami`, `validate`, `search`, `info`, `login`, `publish`) accept `--json` for machine-readable output. Discovery commands (`search`, `info`) accept `--registry-url <url>` (or `EMDASH_REGISTRY_URL`).
+The non-interactive output commands accept `--json` for machine-readable output. Discovery commands (`search`, `info`) accept `--registry-url <url>` (or `EMDASH_REGISTRY_URL`).
 
 ## Development
 
@@ -74,15 +85,70 @@ The plugin author writes two files:
 
 ## Publishing
 
-Three steps. The CLI does not host artifacts — you do, anywhere public.
+The CLI builds the plugin and uploads the release artifacts to your PDS:
 
 ```sh
-emdash-plugin bundle
-# upload dist/<id>-<version>.tar.gz somewhere public
-emdash-plugin publish --url https://example.com/foo-1.0.0.tar.gz
+emdash-plugin login <handle-or-did>
+emdash-plugin publish
 ```
 
+Pass `--url https://example.com/foo-1.0.0.tar.gz` to use an externally hosted bundle. The CLI downloads that URL to validate the bytes and compute the checksum. Listing images declared under `release.artifacts` are still uploaded to your PDS.
+
 On first publish, pass `--license` and `--security-email` (or `--security-url`) to bootstrap the package profile — or keep them in `emdash-plugin.jsonc` (see below).
+
+## Delegated releases
+
+Run the setup command from a public GitHub repository containing an EmDash plugin:
+
+```sh
+emdash-plugin release setup
+```
+
+The command reads the plugin publisher from `emdash-plugin.jsonc` and creates `.github/workflows/emdash-release.yml`. Review and commit that file. The command does not push or change an existing workflow; pass `--force` to replace one deliberately.
+
+The generated workflow builds the plugin, creates signed GitHub build provenance, and publishes on version tags or a manual run. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
+
+Sign in to the release-service dashboard with the Atmosphere account that owns the plugin and authorize EmDash to create plugin releases. Start the workflow by pushing a version tag such as `v1.2.3`. The first run waits and adds an approval link to the GitHub job summary. Open that link, check the repository, workflow file, branch or tag, and environment, then confirm the workflow. The same run continues after confirmation.
+
+For a release started from a tag, the dashboard can authorize all version tags or only the current tag. Repository and workflow paths remain exact in both cases.
+
+The workflow uploads the bundle and raw Sigstore attestation to private, transient service storage with a fresh GitHub Actions OpenID Connect (OIDC) token for each request. The service verifies the exact bytes, uploads the plugin bundle to the publisher's personal data server (PDS), and publishes a release record containing the PDS blob. The published provenance URL points to the immutable verified attestation.
+
+The lower-level automation commands (`dry-run`, `submit`, `status`, and `cancel`) remain available for custom workflows. They authenticate with the current GitHub Actions OIDC identity and accept a hand-authored URL-source release record.
+
+The following command submits a generated URL-source package release record and waits for publication or an approval request:
+
+```sh
+emdash-plugin release submit release.json \
+  --service-url https://release.example.com \
+  --publisher-did did:web:publisher.example.com
+```
+
+Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. The default idempotency key uses the GitHub run ID, so a re-run reuses the existing intent. Pass `--idempotency-key` when separate runs or jobs must replay the same submission.
+
+Each package or listing-image artifact in a hand-authored source record must use a checksum-bound HTTPS `url` and must not include `blob`. The published release record contains PDS blob references and no artifact source URLs.
+
+Use `--no-wait` to return after the service accepts the intent. The status and cancellation commands require the same publisher and GitHub workload identity:
+
+```sh
+emdash-plugin release status 01JABCDEFGHJKMNPQRSTVWXYZ0
+emdash-plugin release cancel 01JABCDEFGHJKMNPQRSTVWXYZ0
+```
+
+These commands fail outside GitHub Actions because no OIDC request endpoint is available. Use `release setup` for the standard workflow.
+
+Atmosphere authorization and passkeys remain browser operations. The following commands print validated browser links instead of copying OAuth sessions or passkey assertions into the terminal:
+
+```sh
+emdash-plugin release delegate --service-url https://release.example.com
+emdash-plugin release workload --service-url https://release.example.com
+emdash-plugin release enrol --service-url https://release.example.com
+emdash-plugin release approve 01JABCDEFGHJKMNPQRSTVWXYZ0 \
+  --service-url https://release.example.com \
+  --publisher-did did:web:publisher.example.com
+```
+
+Use `release revoke` to open publisher authority revocation and `release reject` to open the rejection ceremony. The service keeps its application-session cookies and passkey ceremony at its own origin.
 
 ## `emdash-plugin.jsonc`
 

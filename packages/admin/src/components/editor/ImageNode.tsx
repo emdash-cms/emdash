@@ -47,7 +47,14 @@ declare module "@tiptap/react" {
 }
 
 // React component for the image node view
-function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }: NodeViewProps) {
+function ImageNodeView({
+	node,
+	updateAttributes,
+	selected,
+	deleteNode,
+	editor,
+	getPos,
+}: NodeViewProps) {
 	const { t } = useLingui();
 	const [isEditingAlt, setIsEditingAlt] = React.useState(false);
 	const [altText, setAltText] = React.useState(node.attrs.alt || "");
@@ -75,12 +82,21 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		setAltText(node.attrs.alt || "");
 	}, [node.attrs.alt]);
 
+	const handlePointerDown = (event: React.PointerEvent) => {
+		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+		const position = getPos();
+		if (typeof position === "number") {
+			editor.commands.setNodeSelection(position);
+		}
+	};
+
 	const getImageAttrs = (): ImageAttributes => ({
 		src: node.attrs.src,
 		alt: node.attrs.alt,
 		title: node.attrs.title,
 		caption: node.attrs.caption,
 		mediaId: node.attrs.mediaId,
+		provider: node.attrs.provider,
 		width: node.attrs.width,
 		height: node.attrs.height,
 		blurhash: node.attrs.blurhash,
@@ -165,10 +181,8 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 	return (
 		<NodeViewWrapper
 			style={alignmentStyle}
-			className={cn(
-				"relative my-4 group",
-				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
-			)}
+			onPointerDown={handlePointerDown}
+			className={cn("relative my-4", selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg")}
 		>
 			<figure className="relative">
 				<img
@@ -185,7 +199,7 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 
 				{/* Selection overlay with actions */}
 				{selected && (
-					<div className="absolute top-2 end-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+					<div className="absolute top-2 end-2 flex gap-1">
 						<Button
 							type="button"
 							variant="secondary"
