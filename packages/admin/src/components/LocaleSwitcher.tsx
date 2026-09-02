@@ -7,6 +7,7 @@
  * Only renders when i18n is configured (manifest.i18n is present).
  */
 
+import { Select } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { GlobeSimple } from "@phosphor-icons/react";
 import React from "react";
@@ -48,31 +49,41 @@ export function LocaleSwitcher({
 	size = "md",
 }: LocaleSwitcherProps) {
 	const { t } = useLingui();
+	const formatLocaleLabel = (locale: string) => {
+		const code = locale.toUpperCase();
+		return locale === defaultLocale ? (
+			<>
+				{code}
+				{t` (default)`}
+			</>
+		) : (
+			code
+		);
+	};
+
 	return (
 		<div className={cn("flex items-center gap-1.5", className)}>
 			<GlobeSimple
 				className={cn("text-kumo-subtle shrink-0", size === "sm" ? "size-3.5" : "size-4")}
 				weight="bold"
 			/>
-			<select
+			<Select<string>
 				value={value}
-				onChange={(e) => onChange(e.target.value)}
+				onValueChange={(nextValue) => {
+					if (typeof nextValue === "string") onChange(nextValue);
+				}}
+				placeholder={showAll ? t`All locales` : undefined}
+				renderValue={formatLocaleLabel}
 				aria-label={t`Locale`}
-				className={cn(
-					"rounded-md border bg-transparent font-medium transition-colors",
-					"focus:ring-kumo-ring focus:outline-none focus:ring-2 focus:ring-offset-1",
-					"hover:bg-kumo-tint/50 cursor-pointer",
-					size === "sm" ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-sm",
-				)}
+				size={size === "sm" ? "sm" : "base"}
 			>
-				{showAll && <option value="">{t`All locales`}</option>}
+				{showAll && <Select.Option value="">{t`All locales`}</Select.Option>}
 				{locales.map((locale) => (
-					<option key={locale} value={locale}>
-						{locale.toUpperCase()}
-						{locale === defaultLocale ? t` (default)` : ""}
-					</option>
+					<Select.Option key={locale} value={locale}>
+						{formatLocaleLabel(locale)}
+					</Select.Option>
 				))}
-			</select>
+			</Select>
 		</div>
 	);
 }

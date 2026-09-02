@@ -56,6 +56,7 @@ interface PageCase {
 	name: string;
 	path: (info: ServerInfo) => string;
 	viewport?: { width: number; height: number };
+	theme?: "light" | "dark";
 	prepare?: (admin: AdminPage) => Promise<void>;
 }
 
@@ -97,6 +98,23 @@ const PAGES: PageCase[] = [
 	{ name: "media", path: () => "/media" },
 	{ name: "media-mobile", path: () => "/media", viewport: { width: 320, height: 800 } },
 	{ name: "menus", path: () => "/menus" },
+	{
+		name: "menus-locale-switcher-open",
+		path: () => "/menus",
+		prepare: openFilter(
+			'[data-kumo-component="Select"][data-kumo-part="trigger"]',
+			'[role="listbox"]:visible',
+		),
+	},
+	{
+		name: "menus-locale-switcher-open-dark",
+		path: () => "/menus",
+		theme: "dark",
+		prepare: openFilter(
+			'[data-kumo-component="Select"][data-kumo-part="trigger"]',
+			'[role="listbox"]:visible',
+		),
+	},
 	{ name: "settings", path: () => "/settings" },
 ];
 
@@ -195,8 +213,16 @@ test.describe("visual regression", () => {
 		for (const pageCase of PAGES) {
 			test(`${pageCase.name} @${locale.name}`, async ({ admin, serverInfo }) => {
 				await setLocale(admin, locale.code);
+				if (pageCase.theme) {
+					await admin.page.addInitScript((theme) => {
+						localStorage.setItem("emdash-theme", theme);
+					}, pageCase.theme);
+				}
 				if (pageCase.viewport) await admin.page.setViewportSize(pageCase.viewport);
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
+				if (pageCase.theme) {
+					await expect(admin.page.locator("html")).toHaveAttribute("data-mode", pageCase.theme);
+				}
 				await stabilize(admin);
 				await pageCase.prepare?.(admin);
 
