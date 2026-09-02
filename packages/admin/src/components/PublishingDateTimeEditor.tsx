@@ -1,6 +1,6 @@
-import { Button, DatePicker, Dialog, Input, Label, Popover, Text } from "@cloudflare/kumo";
+import { Button, DatePicker, Dialog, Input, Label, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { CaretRight, Globe, X } from "@phosphor-icons/react";
+import { Globe, PencilSimple, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import {
@@ -79,7 +79,7 @@ export function PublishingDateTimeFields({
 	return (
 		<div className="space-y-4">
 			{showQuickChoices && (
-				<div className="grid gap-2 sm:grid-cols-2">
+				<div className="grid gap-2">
 					<Button
 						type="button"
 						variant="secondary"
@@ -118,7 +118,7 @@ export function PublishingDateTimeFields({
 					locale={getDayPickerLocale(i18n.locale)}
 					dir={getLocaleDir(i18n.locale)}
 					aria-label={dateAriaLabel}
-					className="mx-auto"
+					className="mx-auto w-fit"
 				/>
 			</div>
 			<Input
@@ -165,6 +165,104 @@ function validationMessage(error: PublishingDateTimeError, t: ReturnType<typeof 
 		case "invalid-time":
 			return t`Choose a valid date and time`;
 	}
+}
+
+interface PublishingDateTimeDialogContentProps {
+	title: string;
+	description: string;
+	date: Date | undefined;
+	time: string;
+	pending: boolean;
+	showQuickChoices?: boolean;
+	restrictToFuture?: boolean;
+	dateAriaLabel: string;
+	errorMessage: string | null;
+	submitLabel: string;
+	submitDisabled: boolean;
+	onDateChange: (date: Date | undefined) => void;
+	onTimeChange: (time: string) => void;
+	onSubmit: () => void;
+}
+
+function PublishingDateTimeDialogContent({
+	title,
+	description,
+	date,
+	time,
+	pending,
+	showQuickChoices,
+	restrictToFuture,
+	dateAriaLabel,
+	errorMessage,
+	submitLabel,
+	submitDisabled,
+	onDateChange,
+	onTimeChange,
+	onSubmit,
+}: PublishingDateTimeDialogContentProps) {
+	const { t } = useLingui();
+	const handleSubmit = (event: React.FormEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+		onSubmit();
+	};
+
+	return (
+		<Dialog className="max-w-[calc(100vw-2rem)] p-4 sm:p-5" size="sm" style={{ width: "20rem" }}>
+			<form onSubmit={handleSubmit} noValidate>
+				<div className="flex items-start justify-between gap-4">
+					<div className="min-w-0 grid gap-1.5">
+						<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
+						<Dialog.Description className="text-base leading-5 text-pretty text-kumo-subtle">
+							{description}
+						</Dialog.Description>
+					</div>
+					<Dialog.Close
+						render={
+							<Button
+								type="button"
+								variant="ghost"
+								shape="square"
+								icon={<X aria-hidden="true" />}
+								aria-label={t`Close`}
+							/>
+						}
+					/>
+				</div>
+
+				<div className="mt-4">
+					<PublishingDateTimeFields
+						date={date}
+						time={time}
+						disabled={pending}
+						showQuickChoices={showQuickChoices}
+						restrictToFuture={restrictToFuture}
+						dateAriaLabel={dateAriaLabel}
+						onDateChange={onDateChange}
+						onTimeChange={onTimeChange}
+					/>
+				</div>
+				<DialogError message={errorMessage} className="mt-3" />
+				<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+					<Dialog.Close render={<Button type="button" variant="secondary" />}>
+						{t`Cancel`}
+					</Dialog.Close>
+					<Button
+						type="submit"
+						variant="primary"
+						loading={pending}
+						onClick={(event) => {
+							event.preventDefault();
+							onSubmit();
+						}}
+						disabled={pending || submitDisabled}
+					>
+						{submitLabel}
+					</Button>
+				</div>
+			</form>
+		</Dialog>
+	);
 }
 
 export function PublishingScheduleDialog({
@@ -246,12 +344,6 @@ export function PublishingScheduleDialog({
 			}
 		}
 	};
-	const handleSubmit = (event: React.FormEvent) => {
-		event.preventDefault();
-		event.stopPropagation();
-		void submit();
-	};
-
 	const title = isEditing
 		? t`Change schedule`
 		: isLive
@@ -266,82 +358,33 @@ export function PublishingScheduleDialog({
 
 	return (
 		<Dialog.Root open={open} onOpenChange={handleOpenChange}>
-			<Dialog className="max-w-[calc(100vw-2rem)] p-4 sm:p-6" size="sm">
-				<form onSubmit={handleSubmit} noValidate>
-					<div className="flex items-start justify-between gap-4">
-						<div className="grid gap-1.5">
-							<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
-							<Dialog.Description className="text-base leading-5 text-pretty text-kumo-subtle">
-								{description}
-							</Dialog.Description>
-						</div>
-						<Dialog.Close
-							aria-label={t`Close`}
-							render={(props) => (
-								<Button
-									{...props}
-									type="button"
-									variant="ghost"
-									shape="square"
-									icon={<X aria-hidden="true" />}
-									aria-label={t`Close`}
-								/>
-							)}
-						/>
-					</div>
-
-					<div className="mt-5">
-						<PublishingDateTimeFields
-							date={date}
-							time={time}
-							disabled={pending}
-							showQuickChoices={!isEditing}
-							restrictToFuture
-							dateAriaLabel={t`Schedule date`}
-							onDateChange={(nextDate) => {
-								setDate(nextDate);
-								clearError();
-							}}
-							onTimeChange={(nextTime) => {
-								setTime(nextTime);
-								clearError();
-							}}
-						/>
-					</div>
-					<DialogError
-						message={validationError ?? getMutationError(mutationError)}
-						className="mt-3"
-					/>
-					<div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-						<Dialog.Close
-							render={(props) => (
-								<Button {...props} type="button" variant="secondary">
-									{t`Cancel`}
-								</Button>
-							)}
-						/>
-						<Button
-							type="submit"
-							variant="primary"
-							loading={pending}
-							onClick={(event) => {
-								event.preventDefault();
-								void submit();
-							}}
-							disabled={
-								pending || (isEditing && publishingFieldsMatchInstant(scheduledAt, date, time))
-							}
-						>
-							{submitLabel}
-						</Button>
-					</div>
-				</form>
-			</Dialog>
+			<PublishingDateTimeDialogContent
+				title={title}
+				description={description}
+				date={date}
+				time={time}
+				pending={pending}
+				showQuickChoices={!isEditing}
+				restrictToFuture
+				dateAriaLabel={t`Schedule date`}
+				errorMessage={validationError ?? getMutationError(mutationError)}
+				submitLabel={submitLabel}
+				submitDisabled={isEditing && publishingFieldsMatchInstant(scheduledAt, date, time)}
+				onDateChange={(nextDate) => {
+					setDate(nextDate);
+					clearError();
+				}}
+				onTimeChange={(nextTime) => {
+					setTime(nextTime);
+					clearError();
+				}}
+				onSubmit={() => void submit()}
+			/>
 		</Dialog.Root>
 	);
 }
 
-export interface PublicationDatePopoverProps {
+export interface PublicationDateDialogProps {
 	entryKey: string;
 	publishedAt: string;
 	formattedValue: string;
@@ -349,13 +392,13 @@ export interface PublicationDatePopoverProps {
 	onPublishedAtChange: (publishedAt: string) => void | Promise<void>;
 }
 
-export function PublicationDatePopover({
+export function PublicationDateDialog({
 	entryKey,
 	publishedAt,
 	formattedValue,
 	isPending,
 	onPublishedAtChange,
-}: PublicationDatePopoverProps) {
+}: PublicationDateDialogProps) {
 	const { t } = useLingui();
 	const initial = React.useMemo(() => publishingInstantToLocalFields(publishedAt), [publishedAt]);
 	const [open, setOpen] = React.useState(false);
@@ -428,90 +471,41 @@ export function PublicationDatePopover({
 			}
 		}
 	};
-	const handleSubmit = (event: React.FormEvent) => {
-		event.preventDefault();
-		event.stopPropagation();
-		void submit();
-	};
-
 	return (
-		<Popover open={open} onOpenChange={handleOpenChange}>
-			<Popover.Trigger
+		<Dialog.Root open={open} onOpenChange={handleOpenChange}>
+			<Dialog.Trigger
 				render={
 					<Button
 						type="button"
 						variant="ghost"
 						className="h-auto min-h-9 w-full min-w-0 justify-end whitespace-normal px-2 py-1 text-end font-normal"
-						aria-label={t`Edit publication date: ${formattedValue}`}
+						aria-label={t`Change publication date: ${formattedValue}`}
 					/>
 				}
 			>
 				<time dateTime={publishedAt}>{formattedValue}</time>
-				<CaretRight className="size-3 shrink-0 rtl:-scale-x-100" aria-hidden="true" />
-			</Popover.Trigger>
-			<Popover.Content align="end" className="w-96 max-w-[calc(100vw-2rem)] p-4">
-				<form onSubmit={handleSubmit} noValidate>
-					<div className="flex items-start justify-between gap-4">
-						<div className="min-w-0 grid gap-1.5">
-							<Popover.Title className="text-base font-semibold">
-								{t`Edit publication date`}
-							</Popover.Title>
-							<Popover.Description className="text-base leading-5 text-pretty text-kumo-subtle">
-								{t`This changes the publication timestamp. It does not schedule an update.`}
-							</Popover.Description>
-						</div>
-						<Popover.Close
-							render={
-								<Button
-									type="button"
-									variant="ghost"
-									shape="square"
-									icon={<X aria-hidden="true" />}
-									aria-label={t`Close publication date editor`}
-								/>
-							}
-						/>
-					</div>
-
-					<div className="mt-4">
-						<PublishingDateTimeFields
-							date={date}
-							time={time}
-							disabled={pending}
-							dateAriaLabel={t`Publication date`}
-							onDateChange={(nextDate) => {
-								setDate(nextDate);
-								clearError();
-							}}
-							onTimeChange={(nextTime) => {
-								setTime(nextTime);
-								clearError();
-							}}
-						/>
-					</div>
-					<DialogError
-						message={validationError ?? getMutationError(mutationError)}
-						className="mt-3"
-					/>
-					<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-						<Popover.Close render={<Button type="button" variant="secondary" />}>
-							{t`Cancel`}
-						</Popover.Close>
-						<Button
-							type="submit"
-							variant="primary"
-							loading={pending}
-							onClick={(event) => {
-								event.preventDefault();
-								void submit();
-							}}
-							disabled={pending || publishingFieldsMatchInstant(publishedAt, date, time)}
-						>
-							{t`Update date`}
-						</Button>
-					</div>
-				</form>
-			</Popover.Content>
-		</Popover>
+				<PencilSimple className="size-3.5 shrink-0" aria-hidden="true" />
+			</Dialog.Trigger>
+			<PublishingDateTimeDialogContent
+				title={t`Change publication date`}
+				description={t`Change the date recorded for the live version. This does not publish or schedule changes.`}
+				date={date}
+				time={time}
+				pending={pending}
+				dateAriaLabel={t`Publication date`}
+				errorMessage={validationError ?? getMutationError(mutationError)}
+				submitLabel={t`Save date`}
+				submitDisabled={publishingFieldsMatchInstant(publishedAt, date, time)}
+				onDateChange={(nextDate) => {
+					setDate(nextDate);
+					clearError();
+				}}
+				onTimeChange={(nextTime) => {
+					setTime(nextTime);
+					clearError();
+				}}
+				onSubmit={() => void submit()}
+			/>
+		</Dialog.Root>
 	);
 }

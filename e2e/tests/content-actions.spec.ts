@@ -177,6 +177,16 @@ test.describe("Schedule content", () => {
 		expect(dialogBox).not.toBeNull();
 		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
 		expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(320);
+		const calendarBox = await dialog.locator(".rdp-root").boundingBox();
+		expect(calendarBox).not.toBeNull();
+		const calendarStart = calendarBox!.x - dialogBox!.x;
+		const calendarEnd = dialogBox!.x + dialogBox!.width - (calendarBox!.x + calendarBox!.width);
+		expect(Math.abs(calendarStart - calendarEnd)).toBeLessThan(2);
+		const tomorrowBox = await dialog.getByRole("button", { name: /Tomorrow at/ }).boundingBox();
+		const mondayBox = await dialog.getByRole("button", { name: /Next Monday at/ }).boundingBox();
+		expect(tomorrowBox).not.toBeNull();
+		expect(mondayBox).not.toBeNull();
+		expect(mondayBox!.y).toBeGreaterThanOrEqual(tomorrowBox!.y + tomorrowBox!.height);
 		expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
 			true,
 		);
@@ -241,6 +251,22 @@ test.describe("Schedule content", () => {
 		let publicHtml = await publicResponse.text();
 		expect(publicHtml).toContain("Schedule Test Post");
 		expect(publicHtml).not.toContain("Scheduled Draft Update");
+
+		const publicationDateTrigger = page.getByRole("button", {
+			name: /Change publication date:/,
+		});
+		await publicationDateTrigger.click();
+		const publicationDateDialog = page.getByRole("dialog", {
+			name: "Change publication date",
+		});
+		await expect(
+			publicationDateDialog.getByText(
+				"Change the date recorded for the live version. This does not publish or schedule changes.",
+				{ exact: true },
+			),
+		).toBeVisible();
+		await publicationDateDialog.getByRole("button", { name: "Cancel", exact: true }).click();
+		await expect(publicationDateTrigger).toBeFocused();
 
 		await page.getByRole("button", { name: "Publish changes", exact: true }).click();
 		await page.getByRole("menuitem", { name: /Schedule changes/ }).click();

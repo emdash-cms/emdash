@@ -68,7 +68,7 @@ import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
-import { PublicationDatePopover } from "./PublishingDateTimeEditor.js";
+import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
@@ -968,7 +968,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 											<dl>
 												<TimestampRow label={t`Publication date`}>
 													{canUpdatePublishedDate && onPublishedAtChange ? (
-														<PublicationDatePopover
+														<PublicationDateDialog
 															entryKey={publicationEntryKey}
 															publishedAt={item.publishedAt}
 															formattedValue={formatPublishingInstant(

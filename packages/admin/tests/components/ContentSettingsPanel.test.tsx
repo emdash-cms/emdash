@@ -758,27 +758,28 @@ describe("ContentSettingsPanel", () => {
 				</div>,
 			);
 
-			const trigger = screen.getByRole("button", { name: /Edit publication date:/ });
+			const trigger = screen.getByRole("button", { name: /Change publication date:/ });
 			await expect.element(trigger).toBeVisible();
 			expect(screen.container.querySelector('input[type="time"]')).toBeNull();
 			await trigger.click();
+			const dialog = screen.getByRole("dialog", { name: "Change publication date" });
 			await expect
 				.element(
-					screen.getByText(
-						"This changes the publication timestamp. It does not schedule an update.",
+					dialog.getByText(
+						"Change the date recorded for the live version. This does not publish or schedule changes.",
 					),
 				)
 				.toBeVisible();
 			await expect.element(screen.getByLabelText("Time")).toHaveValue(initial.time);
-			await expect.element(screen.getByRole("button", { name: "Update date" })).toBeDisabled();
-			await screen.getByRole("button", { name: "Cancel", exact: true }).click();
+			await expect.element(dialog.getByRole("button", { name: "Save date" })).toBeDisabled();
+			fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }).element());
 			expect(onPublishedAtChange).not.toHaveBeenCalled();
 
 			await trigger.click();
 			await screen.getByLabelText("Time").fill("08:45");
 			const resolved = resolvePublishingLocalDateTime(initial.date, "08:45");
 			expect(resolved.success).toBe(true);
-			await screen.getByRole("button", { name: "Update date" }).click();
+			fireEvent.click(dialog.getByRole("button", { name: "Save date" }).element());
 
 			expect(onPublishedAtChange).toHaveBeenCalledWith(
 				resolved.success ? resolved.value : undefined,
@@ -801,10 +802,10 @@ describe("ContentSettingsPanel", () => {
 			/>,
 		);
 
-		await screen.getByRole("button", { name: /Edit publication date:/ }).click();
+		await screen.getByRole("button", { name: /Change publication date:/ }).click();
 		const time = screen.getByLabelText("Time");
 		await time.fill("08:45");
-		await screen.getByRole("button", { name: "Update date" }).click();
+		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
 		await expect.element(time).toHaveValue("08:45");
@@ -829,10 +830,10 @@ describe("ContentSettingsPanel", () => {
 			/>,
 		);
 
-		await screen.getByRole("button", { name: /Edit publication date:/ }).click();
+		await screen.getByRole("button", { name: /Change publication date:/ }).click();
 		await screen.getByLabelText("Time").fill("08:45");
-		await screen.getByRole("button", { name: "Update date" }).click();
-		await expect.element(screen.getByRole("button", { name: "Update date" })).toBeDisabled();
+		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
+		await expect.element(screen.getByRole("button", { name: "Save date" })).toBeDisabled();
 
 		await screen.rerender(
 			<ContentSettingsPanel
@@ -844,7 +845,7 @@ describe("ContentSettingsPanel", () => {
 			/>,
 		);
 		await vi.waitFor(() => {
-			expect(screen.getByText("Edit publication date", { exact: true }).query()).toBeNull();
+			expect(screen.getByText("Change publication date", { exact: true }).query()).toBeNull();
 		});
 		await act(async () => {
 			rejectUpdate(new Error("Stale update failed"));
@@ -852,7 +853,7 @@ describe("ContentSettingsPanel", () => {
 		});
 		expect(screen.getByRole("alert").query()).toBeNull();
 
-		await screen.getByRole("button", { name: /Edit publication date:/ }).click();
+		await screen.getByRole("button", { name: /Change publication date:/ }).click();
 		await expect
 			.element(screen.getByLabelText("Time"))
 			.toHaveValue(publishingInstantToLocalFields(secondPublishedAt).time);
@@ -874,7 +875,7 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		await expect.element(screen.getByText("Publication date", { exact: true })).toBeVisible();
-		expect(screen.getByRole("button", { name: /Edit publication date:/ }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: /Change publication date:/ }).query()).toBeNull();
 		expect(screen.container.querySelector('input[type="time"]')).toBeNull();
 		const timestamps = screen.getByTestId("content-timestamps").element();
 		expect(timestamps.querySelectorAll("time")).toHaveLength(1);

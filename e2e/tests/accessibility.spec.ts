@@ -210,7 +210,7 @@ test.describe("Accessibility Audit", () => {
 
 			await admin.goToEditContent("posts", serverInfo.contentIds.posts[0]!);
 			await admin.waitForLoading();
-			await admin.page.getByRole("button", { name: /Edit publication date:/ }).click();
+			await admin.page.getByRole("button", { name: /Change publication date:/ }).click();
 			expect((await analyze()).violations).toEqual([]);
 			await admin.page.getByRole("button", { name: "Cancel", exact: true }).click();
 
