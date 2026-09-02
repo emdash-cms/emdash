@@ -99,6 +99,26 @@ describe("DirectPdsClient", () => {
 		expect(resolve).toHaveBeenCalledOnce();
 	});
 
+	it("verifies and enumerates a complete package repository export", async () => {
+		const harness = await createPublisher();
+
+		await expect(client(harness).getPackageRepository("gallery")).resolves.toMatchObject({
+			profile: {
+				uri: `at://${ALICE_DID}/com.emdashcms.experimental.package.profile/gallery`,
+				cid: expect.stringMatching(/^b/),
+			},
+			releases: [
+				{
+					uri: `at://${ALICE_DID}/com.emdashcms.experimental.package.release/gallery:1.0.0`,
+					cid: expect.stringMatching(/^b/),
+					value: { package: "gallery", version: "1.0.0" },
+				},
+			],
+		});
+		expect(harness.fixture.pds.callsTo("com.atproto.sync.getRepo")).toHaveLength(1);
+		expect(harness.fixture.pds.callsTo("com.atproto.repo.listRecords")).toHaveLength(0);
+	});
+
 	it("resolves the publisher DID before fetching its repository proof", async () => {
 		const harness = await createPublisher();
 		const document = harness.fixture.didResolver.resolve(harness.publisher.did);

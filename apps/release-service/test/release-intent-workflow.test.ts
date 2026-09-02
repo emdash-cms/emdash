@@ -17,7 +17,6 @@ import {
 	persistWorkloadStagedArtifact,
 	workloadArtifactSourceUrl,
 } from "../src/publishing/workload-staging.js";
-import type { AuthoritativeRecord } from "../src/verification/pds.js";
 import {
 	restartReleaseIntentWorkflow,
 	startReleaseIntentWorkflow,
@@ -71,6 +70,11 @@ const WORKLOAD_IDENTITY: VerifiedWorkloadIdentity = {
 	issuedAt: 1_800_000_000,
 	expiresAt: 1_800_000_300,
 };
+const WORKFLOW_REPOSITORY_SIGNING_KEY = "zDnaehJ198TPtSvvRovBzG7rydLgzEz8duqMfnqDGfN4RheUG";
+const WORKFLOW_REPOSITORY_ABSENT =
+	"OqJlcm9vdHOB2CpYJQABcRIgB9itCKrPZ7cyFm11WUh44VKapmCsl6XynhUU19sBqhlndmVyc2lvbgHdAQFxEiAH2K0Iqs9ntzIWbXVZSHjhUpqmYKyXpfKeFRTX2wGqGaZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211amxwdG8zdWMybmNzaWdYQNXHC6vzE2Pg+cR3/eWY+iuEVqbWhQWhM0KeVJHG4mwjRSQIfCZvdhTM6nBmf7IFXpsi4oSNXfqwEjZOE2qkMURkZGF0YdgqWCUAAXESICPWWGKAvX12s+8YBNB6iLwFl8YMr6smSZpFoaG8aBsnZHByZXb2Z3ZlcnNpb24DkwEBcRIgI9ZYYoC9fXaz7xgE0HqIvAWXxgyvqyZJmkWhobxoGyeiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIg75HAxLI29zFxT2IAMP+6xED3Uxy3mslLTuujJkBV1nphbPbQAwFxEiDvkcDEsjb3MXFPYgAw/7rEQPdTHLeayUtO66MmQFXWeqhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqJlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5";
+const WORKFLOW_REPOSITORY_PRESENT =
+	"OqJlcm9vdHOB2CpYJQABcRIgWgszmOUMvR7oP5UWgDQlhH4/SzqVgHvfnAuyV0d/QFxndmVyc2lvbgHdAQFxEiBaCzOY5Qy9Hug/lRaANCWEfj9LOpWAe9+cC7JXR39AXKZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211amxwdG9lbmsybmNzaWdYQOGuG+Xmqsl70lHcF35wqZb5Bfw7MKmWfs3/UyIdpb8JMq9NaSX/+eLAOeS5A2NcFvSxDZUMd9OA33nZ0C4KRf9kZGF0YdgqWCUAAXESIACaXXvgPQS6nqPkANm3i+c4LtA1ejLBGOPmjUw7BHWAZHByZXb2Z3ZlcnNpb24DwQEBcRIgAJpde+A9BLqeo+QA2beL5zgu0DV6MsEY4+aNTDsEdYCiYWWBpGFrWDhjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2UvZ2FsbGVyeToxLjIuM2FwAGF09mF22CpYJQABcRIgmH2tx7Vra7YsQYhvZLzp7PY930i1mrqsy0iZyPqHIWNhbNgqWCUAAXESICPWWGKAvX12s+8YBNB6iLwFl8YMr6smSZpFoaG8aBsnkwEBcRIgI9ZYYoC9fXaz7xgE0HqIvAWXxgyvqyZJmkWhobxoGyeiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIg75HAxLI29zFxT2IAMP+6xED3Uxy3mslLTuujJkBV1nphbPabAwFxEiCYfa3HtWtrtixBiG9kvOns9j3fSLWauqzLSJnI+ochY6VlJHR5cGV4KmNvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucmVsZWFzZWdwYWNrYWdlZ2dhbGxlcnlndmVyc2lvbmUxLjIuM2lhcnRpZmFjdHOhZ3BhY2thZ2WjY3VybHgfaHR0cHM6Ly9leGFtcGxlLmNvbS9nYWxsZXJ5LnRnemhjaGVja3N1bXg4YmNpcWhhenBsNXcycmE3NDJuZ2plend4b3k0cDc0cDJleWlmdG5uaHljc29mYW53bWRyZXppdHlrY29udGVudFR5cGVwYXBwbGljYXRpb24vZ3ppcGpleHRlbnNpb25zoXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5yZWxlYXNlRXh0ZW5zaW9uomUkdHlwZXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5yZWxlYXNlRXh0ZW5zaW9ubmRlY2xhcmVkQWNjZXNzoNADAXESIO+RwMSyNvcxcU9iADD/usRA91Mct5rJS07royZAVdZ6qGJpZHhVYXQ6Ly9kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbS9jb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWRuYW1lZ0dhbGxlcnlkdHlwZW1lbWRhc2gtcGx1Z2luZSR0eXBleCpjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGVnYXV0aG9yc4GhZG5hbWVxRXhhbXBsZSBQdWJsaXNoZXJnbGljZW5zZWNNSVRoc2VjdXJpdHmBoWVlbWFpbHRzZWN1cml0eUBleGFtcGxlLmNvbWpleHRlbnNpb25zoXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlRXh0ZW5zaW9uomUkdHlwZXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlRXh0ZW5zaW9uanJlcG9zaXRvcnl4Imh0dHBzOi8vZ2l0aHViLmNvbS9leGFtcGxlL2dhbGxlcnk=";
 
 function writeUint24LittleEndian(bytes: Uint8Array, offset: number, value: number): void {
 	bytes[offset] = value & 0xff;
@@ -294,7 +298,7 @@ function proofBytes(value: string): Uint8Array {
 interface WorkflowNetworkOptions {
 	artifactSources?: ReadonlyMap<string, { bytes: Uint8Array; mimeType: string }>;
 	profileProof?: string;
-	listedReleases?: () => readonly AuthoritativeRecord[];
+	repositoryProof?: () => Uint8Array;
 	authoritativeProof?: () => Uint8Array | null;
 	signingKey?: () => string;
 	onArtifactFetch?: () => Response | void | Promise<Response | void>;
@@ -360,6 +364,11 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 				{ headers: { "content-type": "application/vnd.ipld.car" } },
 			);
 		}
+		if (url.origin === pdsUrl && url.pathname === "/xrpc/com.atproto.sync.getRepo") {
+			return new Response(options.repositoryProof?.() ?? proofBytes(profileProof), {
+				headers: { "content-type": "application/vnd.ipld.car" },
+			});
+		}
 		if (url.origin === oauthPdsUrl && url.pathname === "/.well-known/oauth-protected-resource") {
 			return Response.json({
 				resource: oauthPdsUrl,
@@ -418,9 +427,6 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 					? Response.json({ uri: CREATED_URI, cid: CREATED_CID, value: {} })
 					: Response.json({ error: "RecordNotFound" }, { status: 400 });
 			}
-		}
-		if (url.origin === pdsUrl && url.pathname === "/xrpc/com.atproto.repo.listRecords") {
-			return Response.json({ records: options.listedReleases?.() ?? [] });
 		}
 		if (url.origin === oauthPdsUrl && url.pathname === "/xrpc/com.atproto.repo.createRecord") {
 			const request = input instanceof Request ? input : new Request(url, init);
@@ -1078,12 +1084,13 @@ describe("ReleaseIntentWorkflow", () => {
 		vi.stubGlobal(
 			"fetch",
 			workflowNetwork({
-				listedReleases: () => {
+				repositoryProof: () => {
 					snapshotReads += 1;
-					return snapshotReads < 4
-						? []
-						: [{ uri: CREATED_URI, cid: CREATED_CID, value: releaseRecord() }];
+					return proofBytes(
+						snapshotReads < 4 ? WORKFLOW_REPOSITORY_ABSENT : WORKFLOW_REPOSITORY_PRESENT,
+					);
 				},
+				signingKey: () => WORKFLOW_REPOSITORY_SIGNING_KEY,
 				onCreateRecord: () => {
 					createAttempts += 1;
 					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
@@ -1117,11 +1124,11 @@ describe("ReleaseIntentWorkflow", () => {
 		vi.stubGlobal(
 			"fetch",
 			workflowNetwork({
-				listedReleases: () => {
+				repositoryProof: () => {
 					snapshotReads += 1;
-					return snapshotReads < 4
-						? []
-						: [{ uri: "not-an-at-uri", cid: CREATED_CID, value: releaseRecord() }];
+					const proof = proofBytes(PROFILE_PROOF);
+					if (snapshotReads >= 4) proof[proof.length - 1] = (proof.at(-1) ?? 0) ^ 0xff;
+					return proof;
 				},
 			}),
 		);
