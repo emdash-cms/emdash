@@ -214,13 +214,24 @@ describe("verification evaluation", () => {
 		).resolves.toMatchObject({ success: true });
 	});
 
-	it("uses canonical repository casing for the attested source repository", async () => {
+	it("preserves GitHub repository casing for builder and invocation identity", async () => {
+		const mixedCaseIdentity = structuredClone(WORKLOAD_IDENTITY);
+		mixedCaseIdentity.workflow.ref =
+			"Example/Gallery/.github/workflows/release.yml@refs/heads/main";
 		const report = verifierReport();
 		if (!report.success) throw new Error("Expected successful fixture");
 		report.value.provenance.sourceRepository = "https://github.com/Example/Gallery";
+		report.value.provenance.builderId =
+			"https://github.com/Example/Gallery/.github/workflows/release.yml@refs/heads/main";
+		report.value.provenance.invocationId =
+			"https://github.com/Example/Gallery/actions/runs/100/attempts/1";
 
 		await expect(
-			evaluateWorkloadAttestation(await intent(), WORKLOAD_POLICY, report.value.provenance),
+			evaluateWorkloadAttestation(
+				await intent(proposedRelease(), mixedCaseIdentity),
+				WORKLOAD_POLICY,
+				report.value.provenance,
+			),
 		).resolves.toEqual({ ok: true });
 	});
 

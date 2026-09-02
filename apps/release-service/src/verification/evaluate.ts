@@ -373,17 +373,20 @@ export async function evaluateWorkloadAttestation(
 	}
 	const policyDecision = evaluateWorkloadPolicy(identity, policy);
 	if (!policyDecision.ok) return { ok: false, reasonCode: policyDecision.code };
-	const sourceRepository = `https://github.com/${identity.repository.name}`;
+	const workflowMarker = "/.github/workflows/";
+	const markerIndex = identity.workflow.ref.toLowerCase().indexOf(workflowMarker);
+	if (markerIndex < 1) {
+		return { ok: false, reasonCode: "ATTESTED_WORKFLOW_MISMATCH" };
+	}
+	const sourceRepository = `https://github.com/${identity.workflow.ref.slice(0, markerIndex)}`;
 	if (
 		provenance.repositoryId !== identity.repository.id ||
-		provenance.sourceRepository.toLowerCase() !== sourceRepository
+		provenance.sourceRepository.toLowerCase() !== sourceRepository.toLowerCase()
 	) {
 		return { ok: false, reasonCode: "ATTESTED_REPOSITORY_MISMATCH" };
 	}
-	const workflowMarker = "/.github/workflows/";
-	const markerIndex = identity.workflow.ref.toLowerCase().indexOf(workflowMarker);
 	const expectedBuilderId = `${sourceRepository}${identity.workflow.ref.slice(markerIndex)}`;
-	if (markerIndex < 1 || provenance.builderId !== expectedBuilderId) {
+	if (provenance.builderId !== expectedBuilderId) {
 		return { ok: false, reasonCode: "ATTESTED_WORKFLOW_MISMATCH" };
 	}
 	const workflowRef = identity.workflow.ref.slice(identity.workflow.ref.lastIndexOf("@") + 1);
