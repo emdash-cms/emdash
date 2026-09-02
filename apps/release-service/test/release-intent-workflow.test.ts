@@ -22,6 +22,8 @@ import {
 	restartReleaseIntentWorkflow,
 	startReleaseIntentWorkflow,
 } from "../src/workflows/start.js";
+import { digestWorkloadIdentity } from "../src/workload/policy.js";
+import type { VerifiedWorkloadIdentity } from "../src/workload/types.js";
 import { ASSERTION_KEY_2, TEST_BINDINGS } from "./fixtures/oauth.js";
 import publicationProofs from "./fixtures/publication-proofs.json";
 
@@ -122,6 +124,38 @@ const PROVENANCE = {
 	sourceRepository: "https://github.com/example/gallery",
 	builderId: "https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
 } as const;
+const WORKLOAD_IDENTITY: VerifiedWorkloadIdentity = {
+	issuer: "github-actions",
+	subject: "repo:example/gallery:ref:refs/heads/main",
+	tokenId: "token-100",
+	repository: {
+		name: "example/gallery",
+		id: "123456789",
+		owner: "example",
+		ownerId: "987654321",
+		visibility: "public",
+	},
+	workflow: {
+		ref: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+		sha: "a".repeat(40),
+		jobRef: null,
+		jobSha: null,
+	},
+	run: {
+		id: "100",
+		attempt: 1,
+		actor: "release-bot",
+		actorId: "2468",
+		eventName: "push",
+		ref: "refs/heads/main",
+		refType: "branch",
+		commitSha: "b".repeat(40),
+		environment: null,
+		runnerEnvironment: "github-hosted",
+	},
+	issuedAt: 1_800_000_000,
+	expiresAt: 1_800_000_300,
+};
 const CONTROL_ACTOR = {
 	realm: "access",
 	identity: "admin@example.com",
@@ -403,11 +437,11 @@ async function createVerifyingIntent(
 		packageSlug: "gallery",
 		version: "1.2.3",
 		workloadPolicyVersion: 1,
-		workloadIdentityDigest: "A".repeat(43),
+		workloadIdentityDigest: await digestWorkloadIdentity(WORKLOAD_IDENTITY),
 		workloadIdempotencyDigest: "I".repeat(43),
 		idempotencyKey: "github-run-100-attempt-1",
 		requestDigest: "B".repeat(43),
-		workloadIdentityJson: JSON.stringify({ issuer: "github-actions", runId: "100" }),
+		workloadIdentityJson: JSON.stringify(WORKLOAD_IDENTITY),
 		releaseInputJson,
 		expiresAt: NOW + 60_000,
 		now: NOW + 1,
@@ -987,6 +1021,57 @@ describe("ReleaseIntentWorkflow", () => {
 					.one(),
 		);
 		expect(permits).toEqual({ total: 3, distinct_ids: 3, consumed: 3 });
+	});
+
+	it("rechecks the attested workload against the active policy before create", async () => {
+		let policyChanged = false;
+		let createAttempts = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				onAuthorizationMetadata: async () => {
+					if (policyChanged) return;
+					policyChanged = true;
+					const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+					const current = await publisher.getWorkloadPolicy(PUBLISHER_DID, "gallery");
+					if (!current) throw new Error("Expected active workload policy");
+					const updated = await publisher.putWorkloadPolicy({
+						publisherDid: PUBLISHER_DID,
+						packageSlug: "gallery",
+						repository: current.repository,
+						repositoryId: current.repositoryId,
+						repositoryOwnerId: current.repositoryOwnerId,
+						workflowRef: "example/gallery/.github/workflows/restricted.yml@refs/heads/main",
+						allowedRefs: current.allowedRefs,
+						allowedEnvironments: current.allowedEnvironments,
+						active: true,
+						expectedVersion: current.stateVersion,
+					});
+					if (!updated.ok) throw new Error(updated.code);
+				},
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+				},
+			}),
+		);
+		await createVerifyingIntent();
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "failed",
+			reasonCode: "WORKLOAD_WORKFLOW_MISMATCH",
+		});
+		expect(createAttempts).toBe(0);
 	});
 
 	it.each([

@@ -508,10 +508,15 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 			) {
 				result = { success: false, code: "BASELINE_INVALID", reasonCode: "BASELINE_CHANGED" };
 			} else {
+				const workloadPolicy = await publisher.getWorkloadPolicy(
+					params.publisherDid,
+					intent.packageSlug,
+				);
 				const evaluated = await evaluateVerifiedRelease(
 					params.publisherDid,
 					intent,
 					snapshot,
+					workloadPolicy,
 					verifier,
 				);
 				result = evaluated.success

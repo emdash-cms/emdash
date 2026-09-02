@@ -17,6 +17,10 @@ const sourceRepository = "https://github.com/sigstore/sigstore-js";
 const builderId =
 	"https://github.com/sigstore/sigstore-js/.github/workflows/release.yml@refs/heads/main";
 const predicateType = "https://slsa.dev/provenance/v1";
+const repositoryId = "495574555";
+const workflowRef = "refs/heads/main";
+const commitSha = "d406ea60b342ca37cdeecd7afedb992cd189db92";
+const invocationId = "https://github.com/sigstore/sigstore-js/actions/runs/28204693054/attempts/1";
 
 const algorithmVectors = [
 	{
@@ -73,8 +77,12 @@ export function provenanceContract(): void {
 				value: {
 					artifactDigest,
 					builderId,
+					commitSha,
+					invocationId,
 					predicateType,
+					repositoryId,
 					sourceRepository,
+					workflowRef,
 				},
 			});
 		});

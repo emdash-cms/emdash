@@ -46,6 +46,7 @@ export type {
 	ProvenanceVerificationInput,
 	ProvenanceVerifier,
 	ReleaseProvenance,
+	VerifiedGitHubProvenance,
 	VerifiedProvenance,
 } from "./provenance.js";
 export type {

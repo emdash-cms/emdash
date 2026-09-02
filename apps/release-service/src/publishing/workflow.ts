@@ -26,9 +26,11 @@ import type {
 	StoredPublicationMaterialization,
 } from "../publisher-do/publisher-do.js";
 import {
+	evaluateWorkloadAttestation,
 	evaluateVerifiedRelease,
 	normalizeVerifierReport,
 	prepareVerifierInput,
+	type VerifiedProvenanceIdentity,
 } from "../verification/evaluate.js";
 import {
 	findProofVerifiedRelease,
@@ -134,7 +136,11 @@ interface MaterializedSummary {
 }
 
 type FinalVerificationResult =
-	| { ok: true; verificationDigest: string }
+	| {
+			ok: true;
+			verificationDigest: string;
+			provenanceIdentity: VerifiedProvenanceIdentity;
+	  }
 	| { ok: false; reasonCode: string; terminalState: "conflict" | "invalid" };
 
 const PUBLISHER_SNAPSHOT_ERROR_CODES: readonly PublisherSnapshotError["code"][] = [
@@ -651,6 +657,7 @@ export async function publishVerifiedIntent(
 						publisherDid,
 						originalIntent,
 						snapshot,
+						await publisher.getWorkloadPolicy(publisherDid, originalIntent.packageSlug),
 						verifier,
 					);
 					if (!evaluation.success) {
@@ -679,6 +686,14 @@ export async function publishVerifiedIntent(
 						? {
 								ok: true,
 								verificationDigest: evaluation.value.approvalEvidence.verificationDigest,
+								provenanceIdentity: {
+									sourceRepository: evaluation.value.verifier.provenance.sourceRepository,
+									builderId: evaluation.value.verifier.provenance.builderId,
+									repositoryId: evaluation.value.verifier.provenance.repositoryId,
+									workflowRef: evaluation.value.verifier.provenance.workflowRef,
+									commitSha: evaluation.value.verifier.provenance.commitSha,
+									invocationId: evaluation.value.verifier.provenance.invocationId,
+								},
 							}
 						: { ok: false, reasonCode: stored.code, terminalState: "invalid" };
 				},
@@ -992,6 +1007,12 @@ export async function publishVerifiedIntent(
 						originalIntent.requestDigest,
 					);
 					if (!persistedRecord) return failBeforeWrite("MATERIALIZATION_UNAVAILABLE");
+					const workload = await evaluateWorkloadAttestation(
+						originalIntent,
+						await publisher.getWorkloadPolicy(publisherDid, originalIntent.packageSlug),
+						finalVerification.provenanceIdentity,
+					);
+					if (!workload.ok) return failBeforeWrite(workload.reasonCode);
 					const creatingPhase = await publisher.advancePublicationOperationPhase({
 						...completionBase,
 						phase: "creating",
