@@ -81,7 +81,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# 則留言已匯入} other {# 則留言已匯入}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1804
+#: packages/admin/src/router.tsx:1881
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# 則留言已更新} other {# 則留言已更新}}"
 
@@ -638,7 +638,7 @@ msgstr "接受邀請"
 msgid "Access denied"
 msgstr "存取遭拒"
 
-#: packages/admin/src/router.tsx:1824
+#: packages/admin/src/router.tsx:1901
 msgid "Access Denied"
 msgstr "存取遭拒"
 
@@ -1075,19 +1075,19 @@ msgstr "或者，您可以從 WordPress 匯出 (工具 → 匯出)，再上傳�
 #: packages/admin/src/router.tsx:494
 #: packages/admin/src/router.tsx:508
 #: packages/admin/src/router.tsx:732
-#: packages/admin/src/router.tsx:1021
-#: packages/admin/src/router.tsx:1082
-#: packages/admin/src/router.tsx:1100
-#: packages/admin/src/router.tsx:1118
-#: packages/admin/src/router.tsx:1139
-#: packages/admin/src/router.tsx:1160
-#: packages/admin/src/router.tsx:1181
-#: packages/admin/src/router.tsx:1212
-#: packages/admin/src/router.tsx:1232
-#: packages/admin/src/router.tsx:1769
-#: packages/admin/src/router.tsx:1785
-#: packages/admin/src/router.tsx:1810
-#: packages/admin/src/router.tsx:2316
+#: packages/admin/src/router.tsx:1040
+#: packages/admin/src/router.tsx:1120
+#: packages/admin/src/router.tsx:1144
+#: packages/admin/src/router.tsx:1162
+#: packages/admin/src/router.tsx:1183
+#: packages/admin/src/router.tsx:1204
+#: packages/admin/src/router.tsx:1225
+#: packages/admin/src/router.tsx:1256
+#: packages/admin/src/router.tsx:1276
+#: packages/admin/src/router.tsx:1846
+#: packages/admin/src/router.tsx:1862
+#: packages/admin/src/router.tsx:1887
+#: packages/admin/src/router.tsx:2393
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1305,7 +1305,7 @@ msgstr "自動備份"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "自動備份需要儲存後端 (R2、S3 或本機儲存空間)。請在 EmDash 設定中設定儲存空間以啟用自動備份。"
 
-#: packages/admin/src/router.tsx:1081
+#: packages/admin/src/router.tsx:1119
 msgid "Autosave failed"
 msgstr "自動儲存失敗"
 
@@ -1343,7 +1343,7 @@ msgstr "個人頭像"
 msgid "Back"
 msgstr "返回"
 
-#: packages/admin/src/components/ContentEditor.tsx:705
+#: packages/admin/src/components/ContentEditor.tsx:762
 msgid "Back to {collectionLabel} list"
 msgstr "返回 {collectionLabel} 清單"
 
@@ -1651,7 +1651,7 @@ msgstr "置中"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:1806
+#: packages/admin/src/components/ContentEditor.tsx:1863
 #: packages/admin/src/components/FieldEditor.tsx:438
 #: packages/admin/src/components/ImageFieldRenderer.tsx:333
 #: packages/admin/src/components/ImageFieldRenderer.tsx:363
@@ -1686,7 +1686,7 @@ msgstr "變更記錄"
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1132
+#: packages/admin/src/router.tsx:1176
 msgid "Changes discarded"
 msgstr "已捨棄變更"
 
@@ -1861,7 +1861,7 @@ msgstr "關閉圖庫設定"
 msgid "Close panel"
 msgstr "關閉面板"
 
-#: packages/admin/src/components/ContentEditor.tsx:1178
+#: packages/admin/src/components/ContentEditor.tsx:1235
 msgid "Close settings"
 msgstr "關閉設定"
 
@@ -2004,7 +2004,7 @@ msgstr "內容錯誤 ({0})"
 msgid "Content found:"
 msgstr "找到的內容:"
 
-#: packages/admin/src/router.tsx:1154
+#: packages/admin/src/router.tsx:1198
 msgid "Content has been scheduled for publishing"
 msgstr "已排程發佈內容"
 
@@ -2016,7 +2016,7 @@ msgstr "內容已更新為選取的修訂版本。"
 msgid "Content ID:"
 msgstr "內容 ID:"
 
-#: packages/admin/src/router.tsx:1095
+#: packages/admin/src/router.tsx:1139
 msgid "Content is now live"
 msgstr "內容現已上線"
 
@@ -2028,11 +2028,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "讀取內容"
 
-#: packages/admin/src/router.tsx:1113
+#: packages/admin/src/router.tsx:1157
 msgid "Content removed from public view"
 msgstr "已從公開頁面移除內容"
 
-#: packages/admin/src/router.tsx:1175
+#: packages/admin/src/router.tsx:1219
 msgid "Content reverted to draft"
 msgstr "內容已還原為草稿"
 
@@ -2393,7 +2393,7 @@ msgid "Created {0}"
 msgstr "建立於 {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1206
+#: packages/admin/src/router.tsx:1250
 msgid "Created {0} translation"
 msgstr "已建立 {0} 翻譯"
 
@@ -2946,7 +2946,7 @@ msgstr "顯示標籤雲"
 msgid "Displayed below the image as a visible caption."
 msgstr "顯示在圖片下方的可見圖說。"
 
-#: packages/admin/src/components/ContentEditor.tsx:766
+#: packages/admin/src/components/ContentEditor.tsx:823
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "專注模式 (⌘⇧\\)"
 
@@ -3142,7 +3142,7 @@ msgstr "編輯 {0}"
 msgid "Edit {0} field"
 msgstr "編輯 {0} 欄位"
 
-#: packages/admin/src/components/ContentEditor.tsx:712
+#: packages/admin/src/components/ContentEditor.tsx:769
 msgid "Edit {itemLabel}"
 msgstr "編輯 {itemLabel}"
 
@@ -3365,7 +3365,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "輸入 URL (https://…) 或相對路徑 (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1587
+#: packages/admin/src/components/ContentEditor.tsx:1644
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "輸入有效的網址 (例如 https://example.com)"
 
@@ -3373,7 +3373,7 @@ msgstr "輸入有效的網址 (例如 https://example.com)"
 msgid "Enter credentials manually"
 msgstr "手動輸入認證資訊"
 
-#: packages/admin/src/components/ContentEditor.tsx:765
+#: packages/admin/src/components/ContentEditor.tsx:822
 msgid "Enter distraction-free mode"
 msgstr "進入專注模式"
 
@@ -3385,7 +3385,7 @@ msgstr "輸入電子郵件地址"
 msgid "Enter HTML..."
 msgstr "輸入 HTML…"
 
-#: packages/admin/src/components/ContentEditor.tsx:1359
+#: packages/admin/src/components/ContentEditor.tsx:1416
 msgid "Enter markdown content..."
 msgstr "輸入 Markdown 內容..."
 
@@ -3420,7 +3420,7 @@ msgstr "輸入您的 WordPress 網站網址"
 #: packages/admin/src/components/SetupWizard.tsx:539
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2531
+#: packages/admin/src/router.tsx:2608
 msgid "Error"
 msgstr "錯誤"
 
@@ -3461,7 +3461,7 @@ msgstr ""
 msgid "Exists"
 msgstr "已存在"
 
-#: packages/admin/src/components/ContentEditor.tsx:824
+#: packages/admin/src/components/ContentEditor.tsx:881
 msgid "Exit distraction-free mode"
 msgstr "結束專注模式"
 
@@ -3557,14 +3557,14 @@ msgid "Failed to create term"
 msgstr "建立分類項目失敗"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:475
-#: packages/admin/src/router.tsx:1211
+#: packages/admin/src/router.tsx:1255
 msgid "Failed to create translation"
 msgstr "無法建立翻譯"
 
 #: packages/admin/src/router.tsx:464
 #: packages/admin/src/router.tsx:493
 #: packages/admin/src/router.tsx:576
-#: packages/admin/src/router.tsx:1231
+#: packages/admin/src/router.tsx:1275
 msgid "Failed to delete"
 msgstr "無法刪除"
 
@@ -3589,7 +3589,7 @@ msgid "Failed to delete collection"
 msgstr "無法刪除內容集合"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1784
+#: packages/admin/src/router.tsx:1861
 msgid "Failed to delete comment"
 msgstr "刪除留言失敗"
 
@@ -3659,7 +3659,7 @@ msgstr "無法停用搜尋"
 msgid "Failed to disable user"
 msgstr "無法停用使用者"
 
-#: packages/admin/src/router.tsx:1138
+#: packages/admin/src/router.tsx:1182
 msgid "Failed to discard changes"
 msgstr "捨棄變更失敗"
 
@@ -3688,7 +3688,7 @@ msgstr "無法啟用使用者"
 msgid "Failed to execute import"
 msgstr "無法執行匯入"
 
-#: packages/admin/src/lib/api/client.ts:309
+#: packages/admin/src/lib/api/client.ts:318
 msgid "Failed to fetch auth mode"
 msgstr "無法擷取驗證模式"
 
@@ -3713,7 +3713,7 @@ msgstr "無法擷取電子郵件設定"
 msgid "Failed to fetch entry terms"
 msgstr "無法擷取內容項目的分類項目"
 
-#: packages/admin/src/lib/api/client.ts:292
+#: packages/admin/src/lib/api/client.ts:301
 msgid "Failed to fetch manifest"
 msgstr "無法擷取資訊清單"
 
@@ -3758,8 +3758,8 @@ msgstr "無法擷取外掛"
 msgid "Failed to fetch provider media"
 msgstr "無法擷取服務提供者媒體"
 
-#: packages/admin/src/lib/api/content.ts:604
 #: packages/admin/src/lib/api/content.ts:609
+#: packages/admin/src/lib/api/content.ts:614
 msgid "Failed to fetch revision"
 msgstr "無法取得修訂版本"
 
@@ -3786,8 +3786,8 @@ msgstr "擷取分類項目失敗"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:924
-#: packages/admin/src/router.tsx:1715
+#: packages/admin/src/router.tsx:943
+#: packages/admin/src/router.tsx:1792
 msgid "Failed to fetch user"
 msgstr "無法擷取使用者"
 
@@ -3898,7 +3898,7 @@ msgstr "載入使用者失敗: {0}"
 msgid "Failed to load widget"
 msgstr "載入小工具失敗"
 
-#: packages/admin/src/router.tsx:1809
+#: packages/admin/src/router.tsx:1886
 msgid "Failed to perform bulk action"
 msgstr "執行批次操作失敗"
 
@@ -3911,7 +3911,7 @@ msgid "Failed to prepare import"
 msgstr "準備匯入失敗"
 
 #: packages/admin/src/router.tsx:532
-#: packages/admin/src/router.tsx:1099
+#: packages/admin/src/router.tsx:1143
 msgid "Failed to publish"
 msgstr "發佈失敗"
 
@@ -3961,8 +3961,8 @@ msgstr "還原失敗"
 msgid "Failed to restore content"
 msgstr "還原內容失敗"
 
-#: packages/admin/src/lib/api/content.ts:626
 #: packages/admin/src/lib/api/content.ts:631
+#: packages/admin/src/lib/api/content.ts:636
 msgid "Failed to restore revision"
 msgstr "無法還原修訂版本"
 
@@ -3975,8 +3975,8 @@ msgid "Failed to rewrite URLs"
 msgstr "重寫網址失敗"
 
 #: packages/admin/src/router.tsx:731
-#: packages/admin/src/router.tsx:1020
-#: packages/admin/src/router.tsx:2315
+#: packages/admin/src/router.tsx:1039
+#: packages/admin/src/router.tsx:2392
 msgid "Failed to save"
 msgstr "儲存失敗"
 
@@ -3995,7 +3995,7 @@ msgstr "無法儲存欄位"
 msgid "Failed to save settings"
 msgstr "無法儲存設定"
 
-#: packages/admin/src/router.tsx:1159
+#: packages/admin/src/router.tsx:1203
 msgid "Failed to schedule"
 msgstr "無法排程"
 
@@ -4026,11 +4026,11 @@ msgstr "無法設定內容項目的分類項目"
 msgid "Failed to uninstall plugin"
 msgstr "無法解除安裝外掛"
 
-#: packages/admin/src/router.tsx:1117
+#: packages/admin/src/router.tsx:1161
 msgid "Failed to unpublish"
 msgstr "取消發佈失敗"
 
-#: packages/admin/src/router.tsx:1180
+#: packages/admin/src/router.tsx:1224
 msgid "Failed to unschedule"
 msgstr "無法取消排程"
 
@@ -4080,7 +4080,7 @@ msgstr "更新區段失敗"
 msgid "Failed to update settings"
 msgstr "無法更新設定"
 
-#: packages/admin/src/router.tsx:1768
+#: packages/admin/src/router.tsx:1845
 msgid "Failed to update status"
 msgstr "無法更新狀態"
 
@@ -4270,7 +4270,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1438
+#: packages/admin/src/router.tsx:1515
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -4381,7 +4381,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2551
+#: packages/admin/src/router.tsx:2628
 msgid "Go to Dashboard"
 msgstr "前往控制台"
 
@@ -4864,7 +4864,7 @@ msgstr "整數"
 msgid "Invalid invite link"
 msgstr "無效的邀請連結"
 
-#: packages/admin/src/components/ContentEditor.tsx:1656
+#: packages/admin/src/components/ContentEditor.tsx:1713
 msgid "Invalid JSON"
 msgstr "無效的 JSON"
 
@@ -5132,8 +5132,8 @@ msgstr "連結"
 msgid "List view"
 msgstr "清單檢視"
 
-#: packages/admin/src/components/ContentEditor.tsx:746
-#: packages/admin/src/components/ContentEditor.tsx:789
+#: packages/admin/src/components/ContentEditor.tsx:803
+#: packages/admin/src/components/ContentEditor.tsx:846
 #: packages/admin/src/components/ContentSettingsPanel.tsx:262
 msgid "Live View"
 msgstr "即時檢視"
@@ -5162,7 +5162,7 @@ msgstr "載入更多"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2506
+#: packages/admin/src/router.tsx:2583
 msgid "Loading"
 msgstr "正在載入"
 
@@ -5178,8 +5178,8 @@ msgstr "正在載入內容集合…"
 msgid "Loading comments..."
 msgstr "正在載入留言..."
 
-#: packages/admin/src/router.tsx:2508
-#: packages/admin/src/router.tsx:2520
+#: packages/admin/src/router.tsx:2585
+#: packages/admin/src/router.tsx:2597
 msgid "Loading configuration..."
 msgstr "正在載入設定..."
 
@@ -5814,7 +5814,7 @@ msgstr ""
 msgid "Never"
 msgstr "從未"
 
-#: packages/admin/src/router.tsx:1206
+#: packages/admin/src/router.tsx:1250
 msgid "new"
 msgstr "新增"
 
@@ -5831,7 +5831,7 @@ msgstr "新增"
 msgid "New {0}"
 msgstr "新增 {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:712
+#: packages/admin/src/components/ContentEditor.tsx:769
 msgid "New {itemLabel}"
 msgstr "新增 {itemLabel}"
 
@@ -6436,7 +6436,7 @@ msgstr "所有權"
 msgid "Package"
 msgstr "套件"
 
-#: packages/admin/src/router.tsx:2546
+#: packages/admin/src/router.tsx:2623
 msgid "Page Not Found"
 msgstr "找不到頁面"
 
@@ -6635,6 +6635,10 @@ msgstr "外掛"
 #: packages/admin/src/lib/api/plugins.ts:68
 msgid "Plugin \"{pluginId}\" not found"
 msgstr "找不到外掛「{pluginId}」"
+
+#: packages/admin/src/lib/api/client.ts:66
+msgid "Plugin {pluginId} rejected the save: {reason}"
+msgstr ""
 
 #: packages/admin/src/lib/content-list-columns.tsx:236
 msgid "Plugin column unavailable"
@@ -6852,7 +6856,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:862
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:297
-#: packages/admin/src/router.tsx:1095
+#: packages/admin/src/router.tsx:1139
 msgid "Published"
 msgstr "已發佈"
 
@@ -7072,7 +7076,7 @@ msgstr "移除 {0}"
 msgid "Remove {entry}"
 msgstr "移除 {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:1814
+#: packages/admin/src/components/ContentEditor.tsx:1871
 msgid "Remove {label}"
 msgstr "移除 {label}"
 
@@ -7214,7 +7218,7 @@ msgstr "程式碼儲存庫"
 msgid "Request a new link"
 msgstr "索取新連結"
 
-#: packages/admin/src/lib/api/client.ts:280
+#: packages/admin/src/lib/api/client.ts:289
 msgid "Request failed"
 msgstr "要求失敗"
 
@@ -7261,7 +7265,7 @@ msgstr ""
 msgid "Reset to original"
 msgstr "重設為原始設定"
 
-#: packages/admin/src/components/ContentEditor.tsx:1000
+#: packages/admin/src/components/ContentEditor.tsx:1057
 msgid "Resize settings panel"
 msgstr ""
 
@@ -7307,7 +7311,7 @@ msgstr "正在還原..."
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2534
+#: packages/admin/src/router.tsx:2611
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "重試"
@@ -7343,7 +7347,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "可插入任何內容的可重複使用內容區塊"
 
-#: packages/admin/src/router.tsx:1133
+#: packages/admin/src/router.tsx:1177
 msgid "Reverted to published version"
 msgstr "已還原至已發佈版本"
 
@@ -7563,7 +7567,7 @@ msgstr "稍後排程"
 
 #: packages/admin/src/components/ContentList.tsx:853
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1153
+#: packages/admin/src/router.tsx:1197
 msgid "Scheduled"
 msgstr "已排程"
 
@@ -7859,8 +7863,8 @@ msgid "Select"
 msgstr "選取"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:1826
-#: packages/admin/src/components/ContentEditor.tsx:1842
+#: packages/admin/src/components/ContentEditor.tsx:1883
+#: packages/admin/src/components/ContentEditor.tsx:1899
 #: packages/admin/src/components/ImageFieldRenderer.tsx:403
 msgid "Select {label}"
 msgstr "選取 {label}"
@@ -7915,7 +7919,7 @@ msgstr "選取預設社群圖片"
 msgid "Select Favicon"
 msgstr "選取網站圖示"
 
-#: packages/admin/src/components/ContentEditor.tsx:1830
+#: packages/admin/src/components/ContentEditor.tsx:1887
 msgid "Select file"
 msgstr "選取檔案"
 
@@ -8087,8 +8091,8 @@ msgid "Setting up..."
 msgstr "正在設定…"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:880
-#: packages/admin/src/components/ContentEditor.tsx:1164
+#: packages/admin/src/components/ContentEditor.tsx:937
+#: packages/admin/src/components/ContentEditor.tsx:1221
 #: packages/admin/src/components/ContentTypeEditor.tsx:382
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:491
@@ -8408,7 +8412,7 @@ msgstr ""
 msgid "Start Import"
 msgstr "開始匯入"
 
-#: packages/admin/src/components/ContentEditor.tsx:1333
+#: packages/admin/src/components/ContentEditor.tsx:1390
 #: packages/admin/src/components/PortableTextEditor.tsx:2599
 #: packages/admin/src/components/PortableTextEditor.tsx:2600
 msgid "Start writing, or type '/' for commands"
@@ -8621,7 +8625,7 @@ msgstr "選單已刪除。"
 msgid "The name of your site, used in the header and metadata"
 msgstr "您的網站名稱，用於頁首及中繼資料"
 
-#: packages/admin/src/router.tsx:2548
+#: packages/admin/src/router.tsx:2625
 msgid "The page you're looking for doesn't exist."
 msgstr "您要找的頁面不存在。"
 
@@ -8703,7 +8707,7 @@ msgstr ""
 msgid "This field does not accept {sniffedMime} files."
 msgstr "此欄位不接受 {sniffedMime} 檔案。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1845
+#: packages/admin/src/components/ContentEditor.tsx:1902
 #: packages/admin/src/components/ImageFieldRenderer.tsx:407
 msgid "This field is required"
 msgstr "此欄位為必填"
@@ -8924,7 +8928,7 @@ msgstr "正在翻譯..."
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:993
 #: packages/admin/src/components/TaxonomySidebar.tsx:471
-#: packages/admin/src/router.tsx:1205
+#: packages/admin/src/router.tsx:1249
 msgid "Translation created"
 msgstr "翻譯已建立"
 
@@ -9128,7 +9132,7 @@ msgstr "未命名的通行金鑰"
 msgid "Unpublish {itemLabel}"
 msgstr "取消發佈 {itemLabel}"
 
-#: packages/admin/src/router.tsx:1113
+#: packages/admin/src/router.tsx:1157
 msgid "Unpublished"
 msgstr "未發佈"
 
@@ -9144,7 +9148,7 @@ msgstr ""
 msgid "Unschedule"
 msgstr "取消排程"
 
-#: packages/admin/src/router.tsx:1174
+#: packages/admin/src/router.tsx:1218
 msgid "Unscheduled"
 msgstr "未排程"
 
@@ -9163,7 +9167,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "未命名"
 
-#: packages/admin/src/components/ContentEditor.tsx:1748
+#: packages/admin/src/components/ContentEditor.tsx:1805
 msgid "Untitled file"
 msgstr "未命名檔案"
 
@@ -9421,7 +9425,7 @@ msgstr "當頁面沒有圖片時，用作備用 Open Graph 圖片。建議尺寸
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "用作識別碼。僅限小寫字母、數字及底線。"
 
-#: packages/admin/src/components/ContentEditor.tsx:1436
+#: packages/admin/src/components/ContentEditor.tsx:1493
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "在清單頁面及文章頂端作為這篇文章的主要視覺"
 
@@ -9831,7 +9835,7 @@ msgstr "您需要管理員權限才能管理署名結構描述。"
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1825
+#: packages/admin/src/router.tsx:1902
 msgid "You need Editor permissions to moderate comments."
 msgstr "您需要編輯者權限才能審核留言。"
 

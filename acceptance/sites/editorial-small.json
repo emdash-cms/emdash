@@ -1,0 +1,6 @@
+{
+	"description": "A configured editorial site with the E2E fixture's sample content, taxonomies, bylines, and sections.",
+	"setup": "dev-bypass",
+	"includeContent": true,
+	"startPath": "/_emdash/admin/"
+}

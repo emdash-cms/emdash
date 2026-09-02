@@ -487,16 +487,21 @@ export async function getPreviewUrl(
 export async function publishContent(
 	collection: string,
 	id: string,
-	options?: { locale?: string },
+	options?: { locale?: string; _rev?: string },
 ): Promise<ContentItem> {
 	const params = new URLSearchParams();
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString() ? `?${params}` : "";
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/publish${query}`, {
 		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ _rev: options?._rev }),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to publish content");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to publish content",
+	);
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
