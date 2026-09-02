@@ -83,6 +83,7 @@ interface ContentHookEvent {
 #### Return Value
 
 - Return modified content object to apply changes
+- Return a sandbox hook error envelope to reject the save with a bounded plain-text reason
 - Return `void` to pass through unchanged
 
 ### `content:afterSave`

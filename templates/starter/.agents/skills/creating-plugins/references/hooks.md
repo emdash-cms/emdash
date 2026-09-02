@@ -466,7 +466,7 @@ Use `"continue"` for non-critical operations (analytics, notifications, external
 | `plugin:activate`         | Plugin enabled       | —                                | `void`                       |
 | `plugin:deactivate`       | Plugin disabled      | —                                | `void`                       |
 | `plugin:uninstall`        | Plugin removed       | —                                | `void`                       |
-| `content:beforeSave`      | Before save          | `content:write`                  | Modified content or `void`   |
+| `content:beforeSave`      | Before save          | `content:write`                  | Modified content, `SandboxHookErrorEnvelope`, or `void` |
 | `content:afterSave`       | After save           | `content:read`                   | `void`                       |
 | `content:beforeDelete`    | Before delete        | `content:read`                   | `false` to cancel            |
 | `content:afterDelete`     | After delete         | `content:read`                   | `void`                       |
