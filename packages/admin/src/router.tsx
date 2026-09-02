@@ -1387,10 +1387,9 @@ function ContentEditPage() {
 		},
 		[scheduleMutation.mutateAsync],
 	);
-	const handleUnschedule = React.useCallback(
-		() => unscheduleMutation.mutate(),
-		[unscheduleMutation.mutate],
-	);
+	const handleUnschedule = React.useCallback(async () => {
+		await unscheduleMutation.mutateAsync();
+	}, [unscheduleMutation.mutateAsync]);
 	const handleDelete = React.useCallback(() => deleteMutation.mutate(), [deleteMutation.mutate]);
 	const handleTranslate = React.useCallback(
 		(locale: string) => translateMutation.mutate(locale),
@@ -1444,6 +1443,7 @@ function ContentEditPage() {
 			onSchedule={handleSchedule}
 			onUnschedule={handleUnschedule}
 			isScheduling={scheduleMutation.isPending}
+			isUnscheduling={unscheduleMutation.isPending}
 			onPublishedAtChange={handlePublishedAtChange}
 			isUpdatingPublishedAt={publishedAtMutation.isPending}
 			onDelete={handleDelete}

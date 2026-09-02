@@ -32,6 +32,7 @@ import type {
 	TranslationSummary,
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
@@ -171,9 +172,11 @@ export interface ContentEditorProps {
 	/** Callback to schedule for future publishing */
 	onSchedule?: (scheduledAt: string) => void | Promise<void>;
 	/** Callback to cancel scheduling (revert to draft) */
-	onUnschedule?: () => void;
+	onUnschedule?: () => void | Promise<void>;
 	/** Whether scheduling is in progress */
 	isScheduling?: boolean;
+	/** Whether schedule removal is in progress */
+	isUnscheduling?: boolean;
 	/** Callback to change the timestamp of published content */
 	onPublishedAtChange?: (publishedAt: string) => void;
 	/** Whether the publish timestamp is being updated */
@@ -249,6 +252,7 @@ export function ContentEditor({
 	onSchedule,
 	onUnschedule,
 	isScheduling,
+	isUnscheduling,
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	supportsDrafts = false,
@@ -689,7 +693,13 @@ export function ContentEditor({
 	const hasSchedule = Boolean(item?.scheduledAt);
 	const canSchedule =
 		!isNew && !hasSchedule && Boolean(onSchedule) && (!isPublished || hasPendingChanges);
+	const publishingState = getContentPublishingState({
+		isLive,
+		hasPendingChanges,
+		scheduledAt: item?.scheduledAt,
+	});
 	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
+	const [publishingMenuOpen, setPublishingMenuOpen] = React.useState(false);
 	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
 	const handleOpenSchedule = React.useCallback(() => setScheduleDialogOpen(true), []);
 
@@ -706,6 +716,7 @@ export function ContentEditor({
 
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
+				if (scheduleDialogOpen || publishingMenuOpen) return;
 				e.preventDefault();
 				e.stopPropagation();
 				setIsDistractionFree(false);
@@ -714,7 +725,7 @@ export function ContentEditor({
 
 		document.addEventListener("keydown", handleKeyDown, { capture: true });
 		return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
-	}, [isDistractionFree]);
+	}, [isDistractionFree, publishingMenuOpen, scheduleDialogOpen]);
 
 	return (
 		<form
@@ -816,8 +827,15 @@ export function ContentEditor({
 												isNew={isNew}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
+												publishingState={publishingState}
+												canSchedule={canSchedule}
+												isScheduling={isScheduling}
+												isUnscheduling={isUnscheduling}
 												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
+												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+												onUnschedule={onUnschedule}
+												onMenuOpenChange={setPublishingMenuOpen}
 											/>
 											<MobileSettingsButton />
 										</div>
@@ -875,8 +893,15 @@ export function ContentEditor({
 												collectionLabel={collectionLabel}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
+												publishingState={publishingState}
+												canSchedule={canSchedule}
+												isScheduling={isScheduling}
+												isUnscheduling={isUnscheduling}
 												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
+												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+												onUnschedule={onUnschedule}
+												onMenuOpenChange={setPublishingMenuOpen}
 												size="sm"
 											/>
 										</>
@@ -957,12 +982,19 @@ export function ContentEditor({
 							saveDisabled={isContentSaveBlocked}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
+							publishingState={publishingState}
+							canSchedule={canSchedule}
+							isScheduling={isScheduling}
+							isUnscheduling={isUnscheduling}
 							liveViewUrl={liveViewUrl}
 							supportsPreview={supportsPreview}
 							isLoadingPreview={isLoadingPreview}
 							onPreview={handlePreview}
 							onPublish={handlePublish}
 							onUnpublish={onUnpublish}
+							onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+							onUnschedule={onUnschedule}
+							onMenuOpenChange={setPublishingMenuOpen}
 							announceSaveStatus={!isDistractionFree}
 						/>
 					)}
@@ -989,9 +1021,6 @@ export function ContentEditor({
 							hasPendingChanges={hasPendingChanges}
 							hasSchedule={hasSchedule}
 							supportsRevisions={supportsRevisions}
-							canSchedule={canSchedule}
-							onOpenSchedule={handleOpenSchedule}
-							onUnschedule={onUnschedule}
 							onPublishedAtChange={onPublishedAtChange}
 							isUpdatingPublishedAt={isUpdatingPublishedAt}
 							onDiscardDraft={onDiscardDraft}
