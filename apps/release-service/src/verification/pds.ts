@@ -57,6 +57,10 @@ export class PublisherSnapshotError extends Error {
 	}
 }
 
+export function samePdsOrigin(left: string, right: string): boolean {
+	return new URL(left).origin === new URL(right).origin;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
@@ -273,6 +277,24 @@ function parseRecord(value: unknown): AuthoritativeRecord | null {
 	return { uri: value["uri"], cid: value["cid"], value: value["value"] };
 }
 
+export async function resolvePublisherPds(
+	publisherDid: string,
+	options: ReadPublisherSnapshotOptions = {},
+): Promise<string> {
+	if (!isDid(publisherDid)) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	const fetchImplementation = options.fetch ?? globalThis.fetch;
+	let actor;
+	try {
+		actor = await (
+			options.actorResolver ?? createWorkerActorResolver(guardedIdentityFetch(fetchImplementation))
+		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
+	} catch {
+		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	}
+	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	return actor.pds;
+}
+
 function guardedIdentityFetch(fetchImplementation: typeof fetch): typeof fetch {
 	return async (input, init) => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
@@ -422,18 +444,10 @@ export async function readPublisherVerificationSnapshot(
 		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
 	}
 	const fetchImplementation = options.fetch ?? globalThis.fetch;
-	let actor;
-	try {
-		actor = await (
-			options.actorResolver ?? createWorkerActorResolver(guardedIdentityFetch(fetchImplementation))
-		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
-	} catch {
-		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
-	}
-	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
+	const pds = await resolvePublisherPds(publisherDid, options);
 	const [profile, releases] = await Promise.all([
 		getProfile(publisherDid, packageSlug, fetchImplementation, options.didDocumentResolver),
-		listPackageReleases(actor.pds, publisherDid, packageSlug, fetchImplementation),
+		listPackageReleases(pds, publisherDid, packageSlug, fetchImplementation),
 	]);
 	const proposedRkey = `${packageSlug}:${version}`;
 	let baseline: AuthoritativeRecord | null = null;
@@ -469,16 +483,8 @@ export async function findAuthoritativeRelease(
 		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
 	}
 	const fetchImplementation = options.fetch ?? globalThis.fetch;
-	let actor;
-	try {
-		actor = await (
-			options.actorResolver ?? createWorkerActorResolver(guardedIdentityFetch(fetchImplementation))
-		).resolve(publisherDid, { signal: AbortSignal.timeout(30_000), noCache: true });
-	} catch {
-		throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
-	}
-	if (actor.did !== publisherDid) throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
-	return getRelease(actor.pds, publisherDid, packageSlug, version, fetchImplementation);
+	const pds = await resolvePublisherPds(publisherDid, options);
+	return getRelease(pds, publisherDid, packageSlug, version, fetchImplementation);
 }
 
 export async function findProofVerifiedRelease(

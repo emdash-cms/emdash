@@ -233,6 +233,7 @@ jobs:
         with:
           service-url: ${input.serviceUrl}
           publisher-did: ${input.publisherDid}
+          connection-invitation: \${{ secrets.EMDASH_CONNECTION_INVITATION }}
           bundle-file: \${{ steps.bundle.outputs.path }}
           provenance-file: \${{ steps.attest.outputs.bundle-path }}
 `;

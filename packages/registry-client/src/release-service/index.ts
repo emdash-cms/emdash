@@ -6,6 +6,7 @@ import {
 	type AbortPublisherRestoreResult,
 	type AuditListOptions,
 	type ConfirmWorkflowConnectionResult,
+	type CreateWorkflowConnectionInvitationResult,
 	type ControlAuditEventResource,
 	type CursorPage,
 	type DelegationResource,
@@ -66,6 +67,7 @@ export type {
 	AbortPublisherRestoreResult,
 	AuditListOptions,
 	ConfirmWorkflowConnectionResult,
+	CreateWorkflowConnectionInvitationResult,
 	ControlAuditEventResource,
 	CursorPage,
 	DelegationResource,
@@ -129,6 +131,7 @@ const SCREENSHOT_SLOT_PATTERN = /^screenshots\[([0-7])\]$/;
 const DIGITS_PATTERN = /^[0-9]+$/;
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const CSRF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/;
+const WORKFLOW_CONNECTION_INVITATION_PATTERN = /^ewci1_[A-Za-z0-9_-]{43}$/;
 const ARCHIVE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{15,63}$/;
 const DIRECTORY_SHARD_PATTERN = /^[0-9a-f]{2}$/;
 const DIGEST_PATTERN = /^[A-Za-z0-9_-]{43}$/;
@@ -170,6 +173,10 @@ const API_ERROR_CODES: Readonly<Record<ReleaseServiceApiErrorCode, true>> = {
 	WORKFLOW_UNAVAILABLE: true,
 	WORKFLOW_CONNECTION_CONFLICT: true,
 	WORKFLOW_CONNECTION_EXPIRED: true,
+	WORKFLOW_CONNECTION_INVITATION_EXPIRED: true,
+	WORKFLOW_CONNECTION_INVITATION_INVALID: true,
+	WORKFLOW_CONNECTION_INVITATION_LIMIT_REACHED: true,
+	WORKFLOW_CONNECTION_INVITATION_REQUIRED: true,
 	WORKFLOW_CONNECTION_LIMIT_REACHED: true,
 	WORKFLOW_CONNECTION_NOT_FOUND: true,
 	WORKLOAD_NOT_ALLOWED: true,
@@ -1187,7 +1194,12 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 		input: RequestWorkflowConnectionInput,
 		options: MutationOptions,
 	): Promise<RequestWorkflowConnectionResult> {
-		if (!DID_PATTERN.test(input.publisherDid) || !PACKAGE_SLUG_PATTERN.test(input.packageSlug)) {
+		if (
+			!DID_PATTERN.test(input.publisherDid) ||
+			!PACKAGE_SLUG_PATTERN.test(input.packageSlug) ||
+			(input.invitationToken !== undefined &&
+				!WORKFLOW_CONNECTION_INVITATION_PATTERN.test(input.invitationToken))
+		) {
 			throw invalidResponse();
 		}
 		const headers = await this.#workloadHeaders(options.idempotencyKey);
@@ -1225,6 +1237,38 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 					throw invalidResponse();
 				}
 				return { status: "pending", request, approvalUrl, replayed: value["replayed"] };
+			},
+		);
+	}
+
+	async createWorkflowConnectionInvitation(
+		packageSlug: string,
+		options: MutationOptions,
+	): Promise<CreateWorkflowConnectionInvitationResult> {
+		if (!PACKAGE_SLUG_PATTERN.test(packageSlug)) throw invalidResponse();
+		return await this.call(
+			"/v1/publisher/workflow-connection-invitations",
+			{
+				method: "POST",
+				credentials: "include",
+				headers: await this.#publisherMutationHeaders(options.idempotencyKey),
+				body: JSON.stringify({ packageSlug }),
+				signal: options.signal,
+			},
+			(value) => {
+				if (!isRecord(value)) throw invalidResponse();
+				const invitationToken = stringValue(value, "invitationToken");
+				const returnedPackageSlug = stringValue(value, "packageSlug");
+				const expiresAt = safeInteger(value, "expiresAt");
+				if (
+					!invitationToken ||
+					!WORKFLOW_CONNECTION_INVITATION_PATTERN.test(invitationToken) ||
+					returnedPackageSlug !== packageSlug ||
+					expiresAt === null
+				) {
+					throw invalidResponse();
+				}
+				return { invitationToken, packageSlug: returnedPackageSlug, expiresAt };
 			},
 		);
 	}
@@ -1303,6 +1347,23 @@ export class ReleaseServiceClient extends BaseReleaseServiceClient {
 					policy: parsePolicy(value["policy"]),
 					replayed: value["replayed"],
 				};
+			},
+		);
+	}
+
+	async rejectWorkflowConnection(requestId: string, options: MutationOptions): Promise<void> {
+		if (!ULID_PATTERN.test(requestId)) throw invalidResponse();
+		await this.call(
+			`/v1/publisher/workflow-connections/${encodeURIComponent(requestId)}`,
+			{
+				method: "DELETE",
+				credentials: "include",
+				headers: await this.#publisherMutationHeaders(options.idempotencyKey),
+				body: "{}",
+				signal: options.signal,
+			},
+			(value) => {
+				if (!isRecord(value) || value["rejected"] !== true) throw invalidResponse();
 			},
 		);
 	}

@@ -67,6 +67,9 @@ describe("setupReleaseWorkflow", () => {
 		);
 		expect(workflow).toContain(`service-url: ${DEFAULT_RELEASE_SERVICE_URL}`);
 		expect(workflow).toContain(`publisher-did: ${PUBLISHER_DID}`);
+		expect(workflow).toContain(
+			"connection-invitation: ${{ secrets.EMDASH_CONNECTION_INVITATION }}",
+		);
 		expect(workflow).toContain("bundle-file: ${{ steps.bundle.outputs.path }}");
 		expect(workflow).toContain("provenance-file: ${{ steps.attest.outputs.bundle-path }}");
 		expect(workflow).not.toMatch(/git push|gh pr|gh repo/i);

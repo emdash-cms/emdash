@@ -13,7 +13,12 @@ import type {
 	TransitionIntentInput,
 } from "../publisher-do/publisher-do.js";
 import { reconcileReleaseRecord } from "../publishing/reconcile.js";
-import { publishVerifiedIntent, readPersistedMaterializedRelease } from "../publishing/workflow.js";
+import {
+	acquirePublicationCoordination,
+	publishVerifiedIntent,
+	readPersistedMaterializedRelease,
+	releasePublicationCoordination,
+} from "../publishing/workflow.js";
 import {
 	evaluateVerifiedRelease,
 	normalizeVerifierReport,
@@ -290,6 +295,20 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 				stateGeneration: decision.approvalEvidence.verificationGeneration - 2,
 			};
 			if (intent.state === "reconciling") {
+				const coordination = await acquirePublicationCoordination(
+					step,
+					publisher,
+					params.publisherDid,
+					intent,
+					"recovery",
+				);
+				if (!coordination) {
+					return {
+						intentId: params.intentId,
+						state: "ready",
+						reasonCode: "PUBLICATION_COORDINATION_BUSY",
+					};
+				}
 				const reconciliation = await step.do("recovery-reconciliation", async () => {
 					const materialized = await readPersistedMaterializedRelease(
 						publisher,
@@ -336,6 +355,13 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 						}),
 					);
 					if (!published.ok) throw new NonRetryableError(published.code);
+					await releasePublicationCoordination(
+						step,
+						publisher,
+						params.publisherDid,
+						coordination,
+						"recovery-coordinate-release-published",
+					);
 					return { intentId: params.intentId, state: "published", reasonCode: null };
 				}
 				if (reconciliation.outcome === "conflict") {
@@ -354,6 +380,13 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 						}),
 					);
 					if (!conflict.ok) throw new NonRetryableError(conflict.code);
+					await releasePublicationCoordination(
+						step,
+						publisher,
+						params.publisherDid,
+						coordination,
+						"recovery-coordinate-release-conflict",
+					);
 					return {
 						intentId: params.intentId,
 						state: "conflict",
@@ -375,6 +408,13 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 					}),
 				);
 				if (!ready.ok) throw new NonRetryableError(ready.code);
+				await releasePublicationCoordination(
+					step,
+					publisher,
+					params.publisherDid,
+					coordination,
+					"recovery-coordinate-release-absent",
+				);
 			}
 			return await publishVerifiedIntent(
 				this.env,

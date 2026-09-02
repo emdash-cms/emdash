@@ -54,6 +54,10 @@ export type ReleaseServiceApiErrorCode =
 	| "WORKFLOW_UNAVAILABLE"
 	| "WORKFLOW_CONNECTION_CONFLICT"
 	| "WORKFLOW_CONNECTION_EXPIRED"
+	| "WORKFLOW_CONNECTION_INVITATION_EXPIRED"
+	| "WORKFLOW_CONNECTION_INVITATION_INVALID"
+	| "WORKFLOW_CONNECTION_INVITATION_LIMIT_REACHED"
+	| "WORKFLOW_CONNECTION_INVITATION_REQUIRED"
 	| "WORKFLOW_CONNECTION_LIMIT_REACHED"
 	| "WORKFLOW_CONNECTION_NOT_FOUND"
 	| "WORKLOAD_NOT_ALLOWED"
@@ -192,6 +196,13 @@ export interface WorkflowConnectionRequestResource {
 export interface RequestWorkflowConnectionInput {
 	publisherDid: string;
 	packageSlug: string;
+	invitationToken?: string;
+}
+
+export interface CreateWorkflowConnectionInvitationResult {
+	invitationToken: string;
+	packageSlug: string;
+	expiresAt: number;
 }
 
 export type RequestWorkflowConnectionResult =

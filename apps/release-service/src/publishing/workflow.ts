@@ -20,6 +20,7 @@ import { writeOperationsMetric } from "../observability/metrics.js";
 import type {
 	IntentState,
 	PublicationArtifactSlot,
+	PublicationCoordinationLease,
 	PublicationOperationLease,
 	PublisherDurableObject,
 	StoredIntent,
@@ -29,14 +30,16 @@ import {
 	evaluateWorkloadAttestation,
 	evaluateVerifiedRelease,
 	normalizeVerifierReport,
+	parseNormalizedVerifierReport,
 	prepareVerifierInput,
-	type VerifiedProvenanceIdentity,
 } from "../verification/evaluate.js";
 import {
 	findProofVerifiedRelease,
 	PublisherSnapshotError,
 	readPublisherVerificationSnapshot,
 	resolvePublicHostname,
+	resolvePublisherPds,
+	samePdsOrigin,
 } from "../verification/pds.js";
 import { verifyReleaseEvidence } from "../verification/staged-input.js";
 import { createReleaseRecord, uploadReleaseBlob } from "./create-only.js";
@@ -63,8 +66,10 @@ import {
 } from "./workload-staging.js";
 
 const PUBLICATION_PERMIT_TTL_MS = 30_000;
+const PUBLICATION_COORDINATION_LEASE_MS = 5 * 60_000;
 const PUBLICATION_OPERATION_LEASE_MS = 5 * 60_000;
 const MAX_PUBLICATION_ATTEMPTS = 3;
+const MAX_COORDINATION_WAITS = 3;
 const FINAL_VERIFICATION_STEP_CONFIG = {
 	retries: { limit: 3, delay: "1 second", backoff: "exponential" },
 	timeout: "2 minutes",
@@ -121,6 +126,10 @@ type OperationBeginSummary =
 	| { ok: true; lease: PublicationOperationLease; replayed: boolean }
 	| { ok: false; code: string };
 
+type CoordinationAcquireSummary =
+	| { ok: true; lease: PublicationCoordinationLease }
+	| { ok: false; code: "PUBLICATION_COORDINATION_BUSY"; retryAt: number };
+
 type OperationPhaseSummary =
 	| { ok: true; phase: "creating" | "materialized"; materializationDigest: string }
 	| { ok: false; code: string };
@@ -139,7 +148,7 @@ type FinalVerificationResult =
 	| {
 			ok: true;
 			verificationDigest: string;
-			provenanceIdentity: VerifiedProvenanceIdentity;
+			verifierJson: string;
 	  }
 	| { ok: false; reasonCode: string; terminalState: "conflict" | "invalid" };
 
@@ -209,6 +218,61 @@ function randomCredential(): AttemptCredential {
 		attemptKey: base64url.encode(crypto.getRandomValues(new Uint8Array(32))),
 		token: base64url.encode(crypto.getRandomValues(new Uint8Array(32))),
 	};
+}
+
+export async function acquirePublicationCoordination(
+	step: WorkflowStep,
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	intent: StoredIntent,
+	attempt: number | "recovery",
+): Promise<PublicationCoordinationLease | null> {
+	const credential = await step.do<AttemptCredential>(
+		`publication-coordination-credential-${attempt}`,
+		async () => randomCredential(),
+	);
+	for (let wait = 1; wait <= MAX_COORDINATION_WAITS; wait += 1) {
+		const result = await step.do<CoordinationAcquireSummary>(
+			`publication-coordinate-${attempt}-${wait}`,
+			async () => {
+				const acquired = await publisher.acquirePublicationCoordination(
+					publisherDid,
+					intent.packageSlug,
+					intent.id,
+					PUBLICATION_COORDINATION_LEASE_MS,
+					credential.token,
+				);
+				return acquired.ok
+					? { ok: true, lease: acquired.lease }
+					: { ok: false, code: acquired.code, retryAt: acquired.retryAt };
+			},
+		);
+		if (result.ok) return result.lease;
+		await step.sleepUntil(
+			`publication-coordinate-wait-${attempt}-${wait}`,
+			Math.max(Date.now() + 1, result.retryAt),
+		);
+	}
+	return null;
+}
+
+export async function releasePublicationCoordination(
+	step: WorkflowStep,
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	lease: PublicationCoordinationLease,
+	stepName: string,
+): Promise<void> {
+	await step.do(stepName, async () => {
+		await publisher.releasePublicationCoordination({
+			publisherDid,
+			packageSlug: lease.packageSlug,
+			intentId: lease.intentId,
+			generation: lease.generation,
+			token: lease.token,
+		});
+		return true;
+	});
 }
 
 export function releaseFromIntent(intent: StoredIntent): DelegatedReleaseSourceRecord | null {
@@ -375,6 +439,22 @@ async function restorePublicationSession(env: PublicationWorkflowEnv, publisherD
 	}).restoreForPublication();
 }
 
+async function requireCurrentPublicationAudience(
+	publisher: DurableObjectStub<PublisherDurableObject>,
+	publisherDid: string,
+	restored: Awaited<ReturnType<typeof restorePublicationSession>>,
+): Promise<void> {
+	const token = await restored.session.getTokenInfo(false);
+	const currentPds = await resolvePublisherPds(publisherDid);
+	if (samePdsOrigin(token.aud, currentPds)) return;
+	await publisher.requireDelegationReauthorization(
+		publisherDid,
+		restored.delegationVersion,
+		"OAUTH_SESSION_INVALID",
+	);
+	throw new NonRetryableError("OAUTH_DELEGATION_UNAVAILABLE");
+}
+
 async function transition(
 	publisher: DurableObjectStub<PublisherDurableObject>,
 	input: Parameters<PublisherDurableObject["transitionIntent"]>[0],
@@ -505,6 +585,7 @@ async function uploadMaterializedArtifacts(
 				) {
 					throw new OAuthCustodyError("OAUTH_DELEGATION_UNAVAILABLE");
 				}
+				await requireCurrentPublicationAudience(publisher, publisherDid, restored);
 				const uploaded = await uploadReleaseBlob(
 					restored.session,
 					staged.bytes,
@@ -631,6 +712,20 @@ export async function publishVerifiedIntent(
 	const expectedEvidenceDigest = await computeApprovalEvidenceDigest(approvalEvidence);
 
 	for (let attempt = 1; attempt <= MAX_PUBLICATION_ATTEMPTS; attempt += 1) {
+		const coordination = await acquirePublicationCoordination(
+			step,
+			publisher,
+			publisherDid,
+			originalIntent,
+			attempt,
+		);
+		if (!coordination) {
+			return {
+				intentId: originalIntent.id,
+				state: "ready",
+				reasonCode: "PUBLICATION_COORDINATION_BUSY",
+			};
+		}
 		let finalVerification: FinalVerificationResult;
 		try {
 			finalVerification = await step.do<FinalVerificationResult>(
@@ -653,6 +748,9 @@ export async function publishVerifiedIntent(
 							verifier: env.RELEASE_VERIFIER,
 						}),
 					);
+					if (!verifier.success) {
+						return { ok: false, reasonCode: verifier.error.code, terminalState: "invalid" };
+					}
 					const evaluation = await evaluateVerifiedRelease(
 						publisherDid,
 						originalIntent,
@@ -686,14 +784,7 @@ export async function publishVerifiedIntent(
 						? {
 								ok: true,
 								verificationDigest: evaluation.value.approvalEvidence.verificationDigest,
-								provenanceIdentity: {
-									sourceRepository: evaluation.value.verifier.provenance.sourceRepository,
-									builderId: evaluation.value.verifier.provenance.builderId,
-									repositoryId: evaluation.value.verifier.provenance.repositoryId,
-									workflowRef: evaluation.value.verifier.provenance.workflowRef,
-									commitSha: evaluation.value.verifier.provenance.commitSha,
-									invocationId: evaluation.value.verifier.provenance.invocationId,
-								},
+								verifierJson: JSON.stringify(verifier),
 							}
 						: { ok: false, reasonCode: stored.code, terminalState: "invalid" };
 				},
@@ -708,6 +799,13 @@ export async function publishVerifiedIntent(
 			};
 		}
 		if (!finalVerification.ok) {
+			await releasePublicationCoordination(
+				step,
+				publisher,
+				publisherDid,
+				coordination,
+				`publication-coordinate-final-release-${attempt}`,
+			);
 			const current = await step.do(`final-invalid-state-${attempt}`, () =>
 				currentState(publisher, publisherDid, originalIntent.id),
 			);
@@ -716,6 +814,13 @@ export async function publishVerifiedIntent(
 					intentId: originalIntent.id,
 					state: finalVerification.terminalState,
 					reasonCode: finalVerification.reasonCode,
+				};
+			}
+			if (current?.state === "expired") {
+				return {
+					intentId: originalIntent.id,
+					state: "expired",
+					reasonCode: "INTENT_EXPIRED",
 				};
 			}
 			if (current?.state !== "ready") {
@@ -756,6 +861,7 @@ export async function publishVerifiedIntent(
 			if (current?.state === "published") {
 				return { state: "published", uri: "", cid: "" };
 			}
+			if (current?.state === "expired") return { state: "expired" };
 			if (current?.state === "reconciling") return { state: "reconciling" };
 			if (!current || (current.state !== "ready" && current.state !== "publishing")) {
 				return { state: "failed", reasonCode: "INTENT_NOT_READY" };
@@ -773,7 +879,11 @@ export async function publishVerifiedIntent(
 					reasonCode: "INTENT_EXPIRED",
 					stateDataJson: JSON.stringify({ reasonCode: "INTENT_EXPIRED" }),
 				});
-				return expired.ok ? { state: "expired" } : { state: "failed", reasonCode: expired.code };
+				if (expired.ok) return { state: "expired" };
+				const latest = await publisher.getIntent(publisherDid, originalIntent.id);
+				return latest?.state === "expired"
+					? { state: "expired" }
+					: { state: "failed", reasonCode: expired.code };
 			}
 			const staged = await step.do<MaterializationStageResult>(
 				"publication-stage",
@@ -975,12 +1085,47 @@ export async function publishVerifiedIntent(
 					) {
 						return failBeforeWrite("OAUTH_DELEGATION_UNAVAILABLE");
 					}
-					const permit = await control.issuePublicationPermit(
+					const snapshot = await readPublisherVerificationSnapshot(
 						publisherDid,
-						originalIntent.id,
-						PUBLICATION_PERMIT_TTL_MS,
-						serviceConfiguration.encryption.currentKeyVersion,
+						originalIntent.packageSlug,
+						originalIntent.version,
 					);
+					const verifier = parseNormalizedVerifierReport(finalVerification.verifierJson);
+					if (!verifier?.success) return failBeforeWrite("FINAL_INPUT_INVALID");
+					const evaluation = await evaluateVerifiedRelease(
+						publisherDid,
+						originalIntent,
+						snapshot,
+						await publisher.getWorkloadPolicy(publisherDid, originalIntent.packageSlug),
+						verifier,
+					);
+					if (
+						!evaluation.success ||
+						(await computeApprovalEvidenceDigest(evaluation.value.approvalEvidence)) !==
+							expectedEvidenceDigest
+					) {
+						return failBeforeWrite(
+							evaluation.success ? "FINAL_VERIFICATION_CHANGED" : evaluation.reasonCode,
+						);
+					}
+					const renewed = await publisher.renewPublicationCoordination({
+						publisherDid,
+						packageSlug: coordination.packageSlug,
+						intentId: coordination.intentId,
+						generation: coordination.generation,
+						token: coordination.token,
+						leaseMs: PUBLICATION_COORDINATION_LEASE_MS,
+					});
+					if (!renewed.ok) return failBeforeWrite(renewed.code, true);
+					const permit = await control.issuePublicationPermit({
+						publisherDid,
+						intentId: originalIntent.id,
+						packageSlug: originalIntent.packageSlug,
+						profileCid: snapshot.profile.cid,
+						baselineCid: snapshot.baseline?.cid ?? null,
+						ttlMs: PUBLICATION_PERMIT_TTL_MS,
+						encryptionKeyVersion: serviceConfiguration.encryption.currentKeyVersion,
+					});
 					if (!permit.ok) {
 						return failBeforeWrite(permit.code, isRetryablePublicationBlock(permit.code));
 					}
@@ -989,6 +1134,9 @@ export async function publishVerifiedIntent(
 						token: permit.permit.token,
 						publisherDid,
 						intentId: originalIntent.id,
+						packageSlug: originalIntent.packageSlug,
+						profileCid: snapshot.profile.cid,
+						baselineCid: snapshot.baseline?.cid ?? null,
 					});
 					if (!consumed.ok) {
 						return failBeforeWrite(consumed.code, isRetryablePublicationBlock(consumed.code));
@@ -1010,9 +1158,10 @@ export async function publishVerifiedIntent(
 					const workload = await evaluateWorkloadAttestation(
 						originalIntent,
 						await publisher.getWorkloadPolicy(publisherDid, originalIntent.packageSlug),
-						finalVerification.provenanceIdentity,
+						verifier.value.provenance,
 					);
 					if (!workload.ok) return failBeforeWrite(workload.reasonCode);
+					await requireCurrentPublicationAudience(publisher, publisherDid, restored);
 					const creatingPhase = await publisher.advancePublicationOperationPhase({
 						...completionBase,
 						phase: "creating",
@@ -1020,20 +1169,36 @@ export async function publishVerifiedIntent(
 					});
 					if (!creatingPhase.ok) return failBeforeWrite(creatingPhase.code);
 					writeStarted = true;
+					await requireCurrentPublicationAudience(publisher, publisherDid, restored);
 					const created = await createReleaseRecord(restored.session, {
 						publisherDid,
 						rkey: `${originalIntent.packageSlug}:${originalIntent.version}`,
 						record: persistedRecord.record,
 					});
-					const completionDigest = await digest(["published", created.uri, created.cid]);
+					const authoritative = await findProofVerifiedRelease(
+						publisherDid,
+						originalIntent.packageSlug,
+						originalIntent.version,
+					);
+					const proof = reconcileReleaseRecord(
+						publisherDid,
+						originalIntent.packageSlug,
+						originalIntent.version,
+						persistedRecord.record,
+						authoritative,
+					);
+					if (proof.outcome !== "exact" || proof.uri !== created.uri || proof.cid !== created.cid) {
+						throw new Error("PUBLICATION_PROOF_MISMATCH");
+					}
+					const completionDigest = await digest(["published", proof.uri, proof.cid]);
 					const completed = await publisher.completePublicationOperation({
 						...completionBase,
 						completionDigest,
 						outcome: "published",
-						resultUri: created.uri,
-						resultCid: created.cid,
+						resultUri: proof.uri,
+						resultCid: proof.cid,
 					});
-					if (completed.ok) return { state: "published", uri: created.uri, cid: created.cid };
+					if (completed.ok) return { state: "published", uri: proof.uri, cid: proof.cid };
 					const ambiguous = await publisher.completePublicationOperation({
 						...completionBase,
 						completionDigest: await digest(["ambiguous", attempt, expectedEvidenceDigest]),
@@ -1044,7 +1209,7 @@ export async function publishVerifiedIntent(
 					if (ambiguous.ok) return { state: "reconciling" };
 					const latest = await publisher.getIntent(publisherDid, originalIntent.id);
 					return latest?.state === "published"
-						? { state: "published", uri: created.uri, cid: created.cid }
+						? { state: "published", uri: proof.uri, cid: proof.cid }
 						: { state: "reconciling" };
 				} catch (error) {
 					const errorCode = writeStarted
@@ -1094,6 +1259,15 @@ export async function publishVerifiedIntent(
 				}
 			});
 		})();
+		if (attemptResult.state !== "reconciling") {
+			await releasePublicationCoordination(
+				step,
+				publisher,
+				publisherDid,
+				coordination,
+				`publication-coordinate-release-${attempt}`,
+			);
+		}
 		if (attemptResult.state === "published") {
 			return { intentId: originalIntent.id, state: "published", reasonCode: null };
 		}
@@ -1163,6 +1337,13 @@ export async function publishVerifiedIntent(
 		});
 		const current = await step.do(`reconciliation-state-${attempt}`, () =>
 			currentState(publisher, publisherDid, originalIntent.id),
+		);
+		await releasePublicationCoordination(
+			step,
+			publisher,
+			publisherDid,
+			coordination,
+			`publication-coordinate-reconciliation-release-${attempt}`,
 		);
 		if (current?.state === "published") {
 			return { intentId: originalIntent.id, state: "published", reasonCode: null };

@@ -206,6 +206,8 @@ export async function runAction(
 		runtime.getInput("wait-for-approval") || "false",
 		"wait-for-approval",
 	);
+	const connectionInvitation = runtime.getInput("connection-invitation");
+	if (connectionInvitation) runtime.addMask(connectionInvitation);
 	const client = new ReleaseServiceClient({
 		serviceUrl,
 		fetch: dependencies.fetch,
@@ -218,7 +220,11 @@ export async function runAction(
 	await runtime.setOutput("connection-url", "");
 	let connectionRequestId: string | null = null;
 	await client.waitForWorkflowConnection(
-		{ publisherDid, packageSlug },
+		{
+			publisherDid,
+			packageSlug,
+			...(connectionInvitation ? { invitationToken: connectionInvitation } : {}),
+		},
 		{
 			idempotencyKey: `github-connection-${runId}-${packageSlug}`,
 			pollIntervalMs: pollIntervalSeconds * 1000,
