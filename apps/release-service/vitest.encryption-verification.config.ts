@@ -1,4 +1,4 @@
-import { configDefaults, defineConfig } from "vitest/config";
+import { defineConfig } from "vitest/config";
 
 import baseConfig from "./vitest.config.js";
 
@@ -7,6 +7,8 @@ export default defineConfig({
 	test: {
 		...baseConfig.test,
 		include: ["test/encryption-verification-workflow.test.ts"],
-		exclude: [...configDefaults.exclude, "src/ui/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
+		exclude: baseConfig.test.exclude.filter(
+			(pattern) => pattern !== "test/encryption-verification-workflow.test.ts",
+		),
 	},
 });

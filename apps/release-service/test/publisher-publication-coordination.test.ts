@@ -130,7 +130,7 @@ describe("publisher publication coordination", () => {
 		await runInDurableObject(stub, (_instance, state) => {
 			state.storage.sql.exec(
 				"UPDATE publication_coordinations SET expires_at = ? WHERE package_slug = ?",
-				Date.now() - 1,
+				now - 1,
 				"gallery",
 			);
 		});
@@ -142,7 +142,7 @@ describe("publisher publication coordination", () => {
 				generation: acquired.lease.generation,
 				token: FIRST_TOKEN,
 				leaseMs: 1_000,
-				now: Date.now(),
+				now,
 			}),
 		).resolves.toEqual({ ok: false, code: "PUBLICATION_COORDINATION_REQUIRED" });
 
