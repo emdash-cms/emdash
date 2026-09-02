@@ -1382,8 +1382,10 @@ function ContentEditPage() {
 		[discardDraftMutation.mutate],
 	);
 	const handleSchedule = React.useCallback(
-		(scheduledAt: string) => scheduleMutation.mutate(scheduledAt),
-		[scheduleMutation.mutate],
+		async (scheduledAt: string) => {
+			await scheduleMutation.mutateAsync(scheduledAt);
+		},
+		[scheduleMutation.mutateAsync],
 	);
 	const handleUnschedule = React.useCallback(
 		() => unscheduleMutation.mutate(),

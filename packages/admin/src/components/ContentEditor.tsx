@@ -51,6 +51,7 @@ import {
 } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton.js";
@@ -168,7 +169,7 @@ export interface ContentEditorProps {
 	/** Callback to discard draft changes (revert to published version) */
 	onDiscardDraft?: () => void;
 	/** Callback to schedule for future publishing */
-	onSchedule?: (scheduledAt: string) => void;
+	onSchedule?: (scheduledAt: string) => void | Promise<void>;
 	/** Callback to cancel scheduling (revert to draft) */
 	onUnschedule?: () => void;
 	/** Whether scheduling is in progress */
@@ -688,6 +689,13 @@ export function ContentEditor({
 	const hasSchedule = Boolean(item?.scheduledAt);
 	const canSchedule =
 		!isNew && !hasSchedule && Boolean(onSchedule) && (!isPublished || hasPendingChanges);
+	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
+	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
+	const handleOpenSchedule = React.useCallback(() => setScheduleDialogOpen(true), []);
+
+	React.useEffect(() => {
+		setScheduleDialogOpen(false);
+	}, [item?.id, item?.locale, item?.scheduledAt]);
 
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
@@ -982,9 +990,8 @@ export function ContentEditor({
 							hasSchedule={hasSchedule}
 							supportsRevisions={supportsRevisions}
 							canSchedule={canSchedule}
-							onSchedule={onSchedule}
+							onOpenSchedule={handleOpenSchedule}
 							onUnschedule={onUnschedule}
-							isScheduling={isScheduling}
 							onPublishedAtChange={onPublishedAtChange}
 							isUpdatingPublishedAt={isUpdatingPublishedAt}
 							onDiscardDraft={onDiscardDraft}
@@ -1020,6 +1027,15 @@ export function ContentEditor({
 				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
 				<MobileSidebarPortalGuard />
 			</Sidebar.Provider>
+			<PublishingScheduleDialog
+				open={scheduleDialogOpen}
+				entryKey={scheduleEntryKey}
+				scheduledAt={item?.scheduledAt}
+				isLive={isLive}
+				isPending={isScheduling}
+				onOpenChange={setScheduleDialogOpen}
+				onSchedule={onSchedule}
+			/>
 		</form>
 	);
 }

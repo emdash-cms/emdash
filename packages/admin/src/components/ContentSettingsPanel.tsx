@@ -306,9 +306,8 @@ export interface ContentSettingsPanelProps {
 	hasSchedule: boolean;
 	supportsRevisions: boolean;
 	canSchedule: boolean;
-	onSchedule?: (scheduledAt: string) => void;
+	onOpenSchedule?: () => void;
 	onUnschedule?: () => void;
-	isScheduling?: boolean;
 	onPublishedAtChange?: (publishedAt: string) => void;
 	isUpdatingPublishedAt?: boolean;
 	onDiscardDraft?: () => void;
@@ -363,9 +362,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	hasSchedule,
 	supportsRevisions,
 	canSchedule,
-	onSchedule,
+	onOpenSchedule,
 	onUnschedule,
-	isScheduling,
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	onDiscardDraft,
@@ -407,8 +405,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
 	);
 
-	const [scheduleDate, setScheduleDate] = React.useState<string>("");
-	const [showScheduler, setShowScheduler] = React.useState(false);
 	const storedPublishedDate = toDatetimeLocalInputValue(item?.publishedAt);
 	const [publishedDate, setPublishedDate] = React.useState(storedPublishedDate);
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
@@ -427,15 +423,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	React.useEffect(() => {
 		setPublishedDate(storedPublishedDate);
 	}, [item?.id, storedPublishedDate]);
-
-	const handleScheduleSubmit = () => {
-		if (scheduleDate && onSchedule) {
-			const date = new Date(scheduleDate);
-			onSchedule(date.toISOString());
-			setShowScheduler(false);
-			setScheduleDate("");
-		}
-	};
 
 	const handlePublishedDateSubmit = () => {
 		if (publishedDate && onPublishedAtChange) {
@@ -559,49 +546,15 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 							{canSchedule && (
 								<div className="pt-2">
-									{showScheduler ? (
-										<div className="space-y-2">
-											<Input
-												label={t`Schedule for`}
-												type="datetime-local"
-												value={scheduleDate}
-												onChange={(e) => setScheduleDate(e.target.value)}
-												min={new Date().toISOString().slice(0, 16)}
-											/>
-											<div className="flex gap-2">
-												<Button
-													type="button"
-													size="sm"
-													onClick={handleScheduleSubmit}
-													disabled={!scheduleDate || isScheduling}
-													icon={isScheduling ? <Loader size="sm" /> : undefined}
-												>
-													{t`Schedule`}
-												</Button>
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													onClick={() => {
-														setShowScheduler(false);
-														setScheduleDate("");
-													}}
-												>
-													{t`Cancel`}
-												</Button>
-											</div>
-										</div>
-									) : (
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											className="w-full"
-											onClick={() => setShowScheduler(true)}
-										>
-											{t`Schedule for later`}
-										</Button>
-									)}
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										className="w-full"
+										onClick={onOpenSchedule}
+									>
+										{t`Schedule for later`}
+									</Button>
 								</div>
 							)}
 

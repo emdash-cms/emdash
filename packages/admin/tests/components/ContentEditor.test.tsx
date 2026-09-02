@@ -1,4 +1,5 @@
 import { i18n } from "@lingui/core";
+import { fireEvent } from "@testing-library/react";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -1864,50 +1865,32 @@ describe("ContentEditor", () => {
 			// second Live View link rather than replacing the panel's copy.
 			expect(screen.getByRole("link", { name: "Live View" }).all()).toHaveLength(2);
 		});
+	});
 
-		it("preserves settings panel state across a distraction-free round trip", async () => {
-			// The panel is hidden, not unmounted, in distraction-free mode —
-			// otherwise panel-local state (an open scheduler, a typed date)
-			// is silently destroyed by the toggle.
+	describe("scheduler", () => {
+		it("opens scheduling in a dialog with separate date and time fields", async () => {
 			const item = makeItem({ status: "draft" });
 			const screen = await renderEditor({ isNew: false, item, onSchedule: vi.fn() });
 
 			await screen.getByRole("button", { name: "Schedule for later" }).click();
-			const scheduleInput = screen.getByLabelText("Schedule for");
-			await scheduleInput.fill("2026-08-01T10:00");
 
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-			// Hidden while writing. Stylesheets aren't loaded in vitest browser
-			// mode, so assert the class hook (like the other DF tests) rather
-			// than computed visibility.
-			await vi.waitFor(() => {
-				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.contains("hidden")).toBe(true);
-			});
-
-			await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
-			// …and still open with the typed date after exiting.
-			await vi.waitFor(() => {
-				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.contains("hidden")).toBe(false);
-			});
-			await expect.element(screen.getByLabelText("Schedule for")).toHaveValue("2026-08-01T10:00");
+			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
+			await expect.element(dialog).toBeVisible();
+			await expect.element(dialog.getByLabelText("Date")).toBeInTheDocument();
+			await expect.element(dialog.getByLabelText("Time")).toBeInTheDocument();
+			await expect.element(dialog.getByText(/America\/New_York/)).toBeInTheDocument();
 		});
-	});
 
-	describe("scheduler", () => {
-		it("shows scheduler when Schedule for later is clicked", async () => {
+		it("fills a quick choice with the intended local time", async () => {
 			const item = makeItem({ status: "draft" });
 			const onSchedule = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onSchedule });
 
-			const scheduleBtn = screen.getByRole("button", { name: "Schedule for later" });
-			await scheduleBtn.click();
-
-			// Should now show the datetime input
-			await expect.element(screen.getByLabelText("Schedule for")).toBeInTheDocument();
-			// And a Schedule submit button
-			await expect.element(screen.getByRole("button", { name: "Schedule" })).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Schedule for later" }).click();
+			fireEvent.click(screen.getByRole("button", { name: /Tomorrow at/ }).element());
+			const timeInput = screen.getByLabelText("Time");
+			await expect.element(timeInput).toHaveValue("09:00");
+			expect(onSchedule).not.toHaveBeenCalled();
 		});
 
 		it("shows Publish button for scheduled items", async () => {
