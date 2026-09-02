@@ -951,6 +951,31 @@ describe("MediaLibrary", () => {
 			await expect.element(img).toHaveAttribute("src", "https://example.com/photo.jpg");
 			expect(img.element().style.objectPosition).toBe("20% 80%");
 		});
+
+		it("shows filenames and file formats on local grid cards", async () => {
+			const longFilename = "annual-report-final-approved-version.jpg";
+			const screen = await renderLibrary({
+				items: [
+					makeMediaItem({
+						id: "image-1",
+						filename: longFilename,
+						alt: "An annual report cover",
+						mimeType: "image/jpeg",
+					}),
+					makeMediaItem({
+						id: "document-1",
+						filename: "annual-report.pdf",
+						mimeType: "application/pdf",
+					}),
+				],
+			});
+
+			await expect.element(screen.getByText("JPEG", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("PDF", { exact: true })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: longFilename, exact: true }))
+				.toBeInTheDocument();
+		});
 	});
 
 	describe("view mode toggle", () => {
@@ -1514,6 +1539,7 @@ describe("MediaLibrary", () => {
 			const poster = screen.getByAltText("webinar.mp4");
 			await expect.element(poster).toBeInTheDocument();
 			expect(poster.element().getAttribute("src")).toBe(STREAM_POSTER);
+			await expect.element(screen.getByText("MP4", { exact: true })).toBeInTheDocument();
 		});
 
 		it("shows a size the provider reports only under meta", async () => {

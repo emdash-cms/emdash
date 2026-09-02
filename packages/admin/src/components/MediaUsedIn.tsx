@@ -1,10 +1,11 @@
-import { Badge, Banner, Button, SkeletonLine, Tooltip } from "@cloudflare/kumo";
+import { Badge, Banner, Button, LayerCard, SkeletonLine, Tooltip } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowCounterClockwise,
 	CircleNotch,
 	Clock,
 	Question,
+	ArrowUpRight,
 	Warning,
 	XCircle,
 } from "@phosphor-icons/react";
@@ -115,33 +116,36 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 
 	return (
 		<section
-			className="space-y-2"
+			className="flex h-full min-h-0 flex-col gap-4"
 			aria-labelledby={headingId}
 			aria-busy={usageQuery.isFetching || undefined}
 			data-testid="media-used-in"
 		>
-			<div className="flex items-center gap-2">
-				<h3 id={headingId} className="text-[14px] font-medium text-kumo-default">
-					{t`Used in`}
-				</h3>
-				{coverageIcon && coverageMessage && (
-					<Tooltip
-						content={coverageMessage}
-						delay={0}
-						closeDelay={0}
-						render={
-							<Button
-								type="button"
-								variant="ghost"
-								shape="square"
-								size="xs"
-								icon={coverageIcon}
-								className={coverageTone}
-								aria-label={coverageMessage}
-							/>
-						}
-					/>
-				)}
+			<div className="grid gap-1.5">
+				<div className="flex items-center gap-2">
+					<h3 id={headingId} className="text-base font-semibold text-kumo-default">
+						{t`Used in`}
+					</h3>
+					{coverageIcon && coverageMessage && (
+						<Tooltip
+							content={coverageMessage}
+							delay={0}
+							closeDelay={0}
+							render={
+								<Button
+									type="button"
+									variant="ghost"
+									shape="square"
+									size="xs"
+									icon={coverageIcon}
+									className={coverageTone}
+									aria-label={coverageMessage}
+								/>
+							}
+						/>
+					)}
+				</div>
+				<p className="text-sm text-kumo-subtle">{t`See where this file is used.`}</p>
 			</div>
 			<span className="sr-only" role="status">
 				{statusMessage}
@@ -156,11 +160,11 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 			) : usageQuery.isError && pages.length === 0 ? (
 				<UsageError onRetry={() => void usageQuery.refetch()} />
 			) : pages.length > 0 ? (
-				<div className="space-y-2">
+				<div className="flex min-h-0 flex-1 flex-col">
 					{refreshError && <UsageError onRetry={() => void usageQuery.refetch()} />}
 
 					{entries.length > 0 ? (
-						<ul className="max-h-[10.6875rem] space-y-2 overflow-y-auto overscroll-contain pe-1">
+						<ul className="grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto overscroll-contain p-px">
 							{entries.map((entry) => (
 								<li key={`${entry.collection}:${entry.contentId}`}>
 									<UsageEntry
@@ -173,11 +177,16 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 							))}
 						</ul>
 					) : canRenderEmpty ? (
-						<p className="text-sm text-kumo-subtle">
-							{coverageComplete
-								? t`No usage found in EmDash-managed content fields.`
-								: t`No indexed references are currently available.`}
-						</p>
+						<LayerCard className="grid justify-items-center gap-1.5 px-6 py-5 text-center">
+							<p className="text-sm font-medium text-kumo-default">
+								{coverageComplete ? t`No usage` : t`No usage to show yet`}
+							</p>
+							<p className="text-sm text-kumo-subtle">
+								{coverageComplete
+									? t`This file isn’t used in any content.`
+									: t`Some content may not appear here yet.`}
+							</p>
+						</LayerCard>
 					) : null}
 
 					{usageQuery.hasNextPage && (
@@ -242,12 +251,28 @@ function UsageEntry({
 	navigationBlocked?: boolean;
 	onEntryClick?: MediaUsedInProps["onEntryClick"];
 }) {
-	const { t } = useLingui();
+	const { i18n, t } = useLingui();
 	const title = entry.title || entry.slug || t`Untitled`;
 	const titleDirection = entry.title ? "auto" : entry.slug ? "ltr" : "auto";
 	const manifestLabel = manifest?.collections[entry.collection]?.label;
 	const collectionLabel = manifestLabel || entry.collection;
 	const identifier = entry.slug || entry.contentId;
+	const fieldSlugs = [
+		...new Set(
+			entry.sources.flatMap((source) =>
+				source.occurrences.map((occurrence) => occurrence.fieldSlug),
+			),
+		),
+	];
+	const fieldLabels = fieldSlugs.map(
+		(fieldSlug) => manifest?.collections[entry.collection]?.fields[fieldSlug]?.label || fieldSlug,
+	);
+	const usageLocation =
+		fieldLabels.length > 0
+			? new Intl.ListFormat(i18n.locale, { style: "short", type: "conjunction" }).format(
+					fieldLabels,
+				)
+			: identifier;
 	const showLocale = Boolean(manifest?.i18n && entry.locale);
 	const CollectionIcon = getCollectionNavIcon(entry.collection);
 	const content = (
@@ -257,7 +282,7 @@ function UsageEntry({
 			</span>
 			<span className="min-w-0 flex-1 space-y-0.5">
 				<span className="flex min-w-0 items-center gap-2">
-					<span className="truncate text-base font-medium text-kumo-default" dir={titleDirection}>
+					<span className="truncate text-sm font-medium text-kumo-default" dir={titleDirection}>
 						{title}
 					</span>
 					{entry.deletedAt && (
@@ -273,8 +298,13 @@ function UsageEntry({
 					<span className="shrink-0 text-kumo-inactive" aria-hidden="true">
 						·
 					</span>
-					<span className="min-w-0 truncate font-mono" dir="ltr" translate="no" title={identifier}>
-						{identifier}
+					<span
+						className={`min-w-0 truncate ${fieldLabels.length === 0 ? "font-mono" : ""}`}
+						dir={fieldLabels.length === 0 ? "ltr" : "auto"}
+						translate={fieldLabels.length === 0 ? "no" : undefined}
+						title={usageLocation}
+					>
+						{usageLocation}
 					</span>
 					{showLocale && (
 						<>
@@ -288,10 +318,16 @@ function UsageEntry({
 					)}
 				</span>
 			</span>
+			{!entry.deletedAt && (
+				<span className="ms-auto flex shrink-0 items-center gap-1 text-sm font-medium text-kumo-subtle group-hover:text-kumo-default">
+					{t`Open`}
+					<ArrowUpRight className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />
+				</span>
+			)}
 		</>
 	);
 	const rowClassName =
-		"flex w-full min-w-0 items-center gap-3 rounded-md border border-kumo-line bg-kumo-control px-3 py-2.5 text-start";
+		"group flex w-full min-w-0 items-center gap-3 rounded-lg bg-kumo-base px-3 py-3 text-start ring ring-kumo-line";
 
 	if (entry.deletedAt) return <div className={rowClassName}>{content}</div>;
 

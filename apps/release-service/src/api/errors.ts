@@ -1,0 +1,69 @@
+export type ApiErrorCode =
+	| "ACCESS_DENIED"
+	| "ACCESS_AUTH_INVALID"
+	| "ACCESS_AUTH_REQUIRED"
+	| "APPROVAL_INVALID"
+	| "APPROVER_SESSION_INVALID"
+	| "APPROVER_SUSPENDED"
+	| "ARCHIVE_OPERATION_FAILED"
+	| "AUTH_INVALID"
+	| "CONFIGURATION_ERROR"
+	| "CREDENTIAL_LIMIT_REACHED"
+	| "CREDENTIAL_NOT_FOUND"
+	| "CREDENTIAL_REVOKED"
+	| "CSRF_INVALID"
+	| "DELEGATION_REQUIRED"
+	| "ENCRYPTION_OPERATION_FAILED"
+	| "IDEMPOTENCY_KEY_INVALID"
+	| "IDEMPOTENCY_CONFLICT"
+	| "INTERNAL_ERROR"
+	| "INVALID_REQUEST"
+	| "INTENT_NOT_APPROVABLE"
+	| "INTENT_NOT_CANCELLABLE"
+	| "NOT_FOUND"
+	| "METHOD_NOT_ALLOWED"
+	| "OAUTH_AUTHORIZATION_FAILED"
+	| "OAUTH_CALLBACK_INVALID"
+	| "PUBLISHER_SESSION_INVALID"
+	| "PUBLISHER_SUSPENDED"
+	| "PROFILE_CHANGED"
+	| "PROFILE_FETCH_FAILED"
+	| "RELEASE_EXISTS"
+	| "RESTORE_OPERATION_FAILED"
+	| "SERVICE_PAUSED"
+	| "SERVICE_UNAVAILABLE"
+	| "VERSION_RESERVED"
+	| "WORKFLOW_UNAVAILABLE"
+	| "WORKFLOW_CONNECTION_CONFLICT"
+	| "WORKFLOW_CONNECTION_EXPIRED"
+	| "WORKFLOW_CONNECTION_INVITATION_EXPIRED"
+	| "WORKFLOW_CONNECTION_INVITATION_INVALID"
+	| "WORKFLOW_CONNECTION_INVITATION_LIMIT_REACHED"
+	| "WORKFLOW_CONNECTION_INVITATION_REQUIRED"
+	| "WORKFLOW_CONNECTION_LIMIT_REACHED"
+	| "WORKFLOW_CONNECTION_NOT_FOUND"
+	| "WORKLOAD_NOT_ALLOWED"
+	| "WORKLOAD_RATE_LIMITED";
+
+export interface SerializedApiError {
+	code: ApiErrorCode;
+	message: string;
+}
+
+export class ApiError extends Error {
+	readonly code: ApiErrorCode;
+	readonly status: number;
+
+	constructor(code: ApiErrorCode, status: number, message: string) {
+		super(message);
+		this.name = "ApiError";
+		this.code = code;
+		this.status = status;
+	}
+}
+
+export function serializeApiError(error: unknown): SerializedApiError {
+	return error instanceof ApiError
+		? { code: error.code, message: error.message }
+		: { code: "INTERNAL_ERROR", message: "Internal server error" };
+}

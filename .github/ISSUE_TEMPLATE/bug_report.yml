@@ -42,6 +42,15 @@ body:
       required: true
 
   - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: If this issue refers to the interface, attach at least one screenshot showing the problem. Include useful alt text. Otherwise, enter "Not applicable."
+      placeholder: Drag or paste screenshots here, or enter "Not applicable."
+    validations:
+      required: true
+
+  - type: textarea
     id: logs
     attributes:
       label: Logs / error output

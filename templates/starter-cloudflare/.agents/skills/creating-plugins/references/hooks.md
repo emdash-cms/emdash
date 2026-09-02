@@ -96,15 +96,11 @@ Returns: `void`
 
 ### `content:beforeSave`
 
-Runs before save. Return modified content, void to keep unchanged, or throw to cancel.
+Runs before save. Return modified content, or void to keep it unchanged. A plugin running in the sandbox cannot cancel a save: the sandbox logs the thrown error and the save continues. From the host process — a native plugin, or a sandboxed plugin moved to `plugins: []` — throw `ContentSaveRejectedError` (exported from `emdash`) to cancel with a message the admin shows to the editor; any other thrown error cancels with a generic message.
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
-	const { content, collection, isNew } = event;
-
-	if (collection === "posts" && !content.title) {
-		throw new Error("Posts require a title");
-	}
+	const { content } = event;
 
 	// Transform
 	if (content.slug) {

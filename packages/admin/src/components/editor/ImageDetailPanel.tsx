@@ -20,6 +20,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
+import { canonicalMediaProviderId } from "../../lib/media-utils.js";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { MediaPickerModal } from "../MediaPickerModal";
 
@@ -29,6 +30,7 @@ export interface ImageAttributes {
 	title?: string;
 	caption?: string;
 	mediaId?: string;
+	provider?: string;
 	/** Original image width */
 	width?: number;
 	/** Original image height */
@@ -117,6 +119,7 @@ export function ImageDetailPanel({
 			src: item.url,
 			alt: item.alt || item.filename,
 			mediaId: item.id,
+			provider: canonicalMediaProviderId(item.provider),
 			width: item.width,
 			height: item.height,
 			blurhash: item.blurhash,
@@ -232,7 +235,7 @@ export function ImageDetailPanel({
 
 				{/* Preview */}
 				<div className="p-4 border-b">
-					<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
+					<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
 						<img
 							src={attributes.src}
 							alt={attributes.alt || ""}
@@ -419,7 +422,7 @@ export function ImageDetailPanel({
 			<div className="flex-1 overflow-y-auto">
 				{/* Preview */}
 				<div className="p-4 border-b">
-					<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
+					<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
 						<img
 							src={attributes.src}
 							alt={attributes.alt || ""}

@@ -276,11 +276,14 @@
 					"title": "Building for the Long Term",
 					"excerpt": "The frameworks will change. The databases will change. What survives is the clarity of your thinking.",
 					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=1200&h=800&fit=crop",
-							"alt": "Code on a monitor in a dark room",
-							"filename": "building-long-term.jpg"
-						}
+						"provider": "local",
+						"id": "01M1A5H7P30125M3W71HJ7XC2F",
+						"alt": "Code on a monitor in a dark room",
+						"filename": "building-long-term.jpg",
+						"mimeType": "image/jpeg",
+						"width": 1200,
+						"height": 800,
+						"meta": { "storageKey": "playground-v1-building-long-term.jpg" }
 					},
 					"content": [
 						{
@@ -357,11 +360,14 @@
 					"title": "The Case for Static",
 					"excerpt": "Static sites aren't a step backwards. They're what you get when you take performance and simplicity seriously.",
 					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1499750310107-5fef28a66643?w=1200&h=800&fit=crop",
-							"alt": "Laptop and coffee on a wooden table",
-							"filename": "case-for-static.jpg"
-						}
+						"provider": "local",
+						"id": "01M1A5H7P5ENTD9V05G0PZX6CZ",
+						"alt": "Laptop and coffee on a wooden table",
+						"filename": "case-for-static.jpg",
+						"mimeType": "image/jpeg",
+						"width": 1200,
+						"height": 800,
+						"meta": { "storageKey": "playground-v1-case-for-static.jpg" }
 					},
 					"content": [
 						{
@@ -425,11 +431,14 @@
 					"title": "Learning in Public",
 					"excerpt": "Writing about what you're learning is the fastest way to find out what you don't actually understand.",
 					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1432821596592-e2c18b78144f?w=1200&h=800&fit=crop",
-							"alt": "Notebook and pen on a desk",
-							"filename": "learning-in-public.jpg"
-						}
+						"provider": "local",
+						"id": "01M1A5H7P589NPKC1G1KXMWCZW",
+						"alt": "Notebook and pen on a desk",
+						"filename": "learning-in-public.jpg",
+						"mimeType": "image/jpeg",
+						"width": 1200,
+						"height": 800,
+						"meta": { "storageKey": "playground-v1-learning-in-public.jpg" }
 					},
 					"content": [
 						{
@@ -492,11 +501,14 @@
 					"title": "Small Tools, Big Impact",
 					"excerpt": "The best developer tools do one thing well and get out of your way. A love letter to focused software.",
 					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1575026615908-666710ae5e47?w=1200&h=800&fit=crop",
-							"alt": "Wrenches and hand tools hanging on a workshop wall",
-							"filename": "small-tools.jpg"
-						}
+						"provider": "local",
+						"id": "01M1A5H7P56RDVDAYQBZHE98P5",
+						"alt": "Wrenches and hand tools hanging on a workshop wall",
+						"filename": "small-tools.jpg",
+						"mimeType": "image/jpeg",
+						"width": 1200,
+						"height": 800,
+						"meta": { "storageKey": "playground-v1-small-tools.jpg" }
 					},
 					"content": [
 						{
@@ -559,11 +571,14 @@
 					"title": "Designing with Constraints",
 					"excerpt": "Limitations aren't obstacles to creativity. They're the structure that makes creativity possible.",
 					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1513542789411-b6a5d4f31634?w=1200&h=800&fit=crop",
-							"alt": "Pencils and design tools on a desk",
-							"filename": "designing-with-constraints.jpg"
-						}
+						"provider": "local",
+						"id": "01M1A5H7P55HBXRAMRKYJ170FS",
+						"alt": "Pencils and design tools on a desk",
+						"filename": "designing-with-constraints.jpg",
+						"mimeType": "image/jpeg",
+						"width": 1200,
+						"height": 800,
+						"meta": { "storageKey": "playground-v1-designing-with-constraints.jpg" }
 					},
 					"content": [
 						{
@@ -626,11 +641,14 @@
 					"title": "A Weekend with a Side Project",
 					"excerpt": "No stakeholders, no deadlines, no Jira tickets. Just you and a dumb idea that might turn into something.",
 					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1542831371-29b0f74f9713?w=1200&h=800&fit=crop",
-							"alt": "Code on a screen with a dark theme",
-							"filename": "weekend-side-project.jpg"
-						}
+						"provider": "local",
+						"id": "01M1A5H7P573FR41Y0MGQNZTW3",
+						"alt": "Code on a screen with a dark theme",
+						"filename": "weekend-side-project.jpg",
+						"mimeType": "image/jpeg",
+						"width": 1200,
+						"height": 800,
+						"meta": { "storageKey": "playground-v1-weekend-side-project.jpg" }
 					},
 					"content": [
 						{
@@ -693,11 +711,14 @@
 					"title": "Notes on Simplicity",
 					"excerpt": "Simplicity isn't the absence of complexity. It's the result of understanding a problem well enough to solve it cleanly.",
 					"featured_image": {
-						"$media": {
-							"url": "https://images.unsplash.com/photo-1559051668-e1fa58f25786?w=1200&h=800&fit=crop",
-							"alt": "Geometric pattern carved into white paper",
-							"filename": "notes-on-simplicity.jpg"
-						}
+						"provider": "local",
+						"id": "01M1A5H7P50MKJJ39ZGZH0K78M",
+						"alt": "Geometric pattern carved into white paper",
+						"filename": "notes-on-simplicity.jpg",
+						"mimeType": "image/jpeg",
+						"width": 1200,
+						"height": 800,
+						"meta": { "storageKey": "playground-v1-notes-on-simplicity.jpg" }
 					},
 					"content": [
 						{

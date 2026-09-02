@@ -189,6 +189,7 @@ function standardErrors(
 		404: "Not Found",
 		409: "Conflict",
 		413: "Payload Too Large",
+		422: "Unprocessable Entity",
 		500: "Internal Server Error",
 	};
 	for (const code of codes) {
@@ -255,7 +256,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 500),
+				...standardErrors(400, 422, 500),
 			},
 		},
 	},
@@ -313,7 +314,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 404, 409, 500),
+				...standardErrors(400, 404, 409, 422, 500),
 			},
 		},
 		delete: {

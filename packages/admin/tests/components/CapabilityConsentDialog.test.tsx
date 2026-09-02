@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -252,5 +253,103 @@ describe("CapabilityConsentDialog", () => {
 
 		const dialog = screen.getByRole("dialog");
 		await expect.element(dialog).toBeInTheDocument();
+	});
+
+	it("shows verified provenance, exact record CIDs, and signed policy", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Test"
+				capabilities={[]}
+				verification={{
+					profileCid: "bafy-profile",
+					releaseCid: "bafy-release",
+					provenance: "verified",
+					policy: {
+						requireProvenance: true,
+						confirmation: "always",
+						approvers: ["did:plc:approver"],
+					},
+				}}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Independent verification")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Provenance is verified against the signed release and artifact."))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("bafy-profile")).toBeInTheDocument();
+		await expect.element(screen.getByText("bafy-release")).toBeInTheDocument();
+		await expect.element(screen.getByText("Provenance required")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Publisher approval required for every delegated release"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("did:plc:approver")).toBeInTheDocument();
+	});
+
+	it("explains when absent provenance is permitted by signed policy", async () => {
+		const screen = await render(
+			<CapabilityConsentDialog
+				pluginName="Test"
+				capabilities={[]}
+				verification={{
+					profileCid: "bafy-profile",
+					releaseCid: "bafy-release",
+					provenance: "absent-optional",
+					policy: {
+						requireProvenance: false,
+						confirmation: "escalation-only",
+						approvers: [],
+					},
+				}}
+				onConfirm={onConfirm}
+				onCancel={onCancel}
+			/>,
+		);
+
+		await expect
+			.element(
+				screen.getByText("No provenance was supplied; the signed publisher policy permits this."),
+			)
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Provenance optional")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Publisher approval required only for permission escalation"))
+			.toBeInTheDocument();
+	});
+
+	it("keeps CIDs and DIDs readable in Arabic RTL mode", async () => {
+		const previousLocale = i18n.locale;
+		i18n.load("ar", {});
+		i18n.activate("ar");
+		try {
+			const screen = await render(
+				<div dir="rtl">
+					<CapabilityConsentDialog
+						pluginName="Test"
+						capabilities={[]}
+						verification={{
+							profileCid: "bafy-profile",
+							releaseCid: "bafy-release",
+							provenance: "verified",
+							policy: {
+								requireProvenance: true,
+								confirmation: "always",
+								approvers: ["did:plc:approver"],
+							},
+						}}
+						onConfirm={onConfirm}
+						onCancel={onCancel}
+					/>
+				</div>,
+			);
+
+			expect(screen.getByText("bafy-profile").element().getAttribute("dir")).toBe("ltr");
+			expect(screen.getByText("bafy-release").element().getAttribute("dir")).toBe("ltr");
+			expect(screen.getByText("did:plc:approver").element().getAttribute("dir")).toBe("ltr");
+		} finally {
+			i18n.activate(previousLocale);
+		}
 	});
 });

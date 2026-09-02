@@ -37,13 +37,7 @@ export function extractMediaUsageOccurrences({
 		const value = data[field.slug];
 
 		if (field.type === "image") {
-			addOccurrence(occurrences, seen, {
-				fieldSlug: field.slug,
-				fieldPath: field.slug,
-				referenceType: "image_field",
-				value,
-				fallbackKind: "image",
-			});
+			addImageOccurrences(occurrences, seen, field.slug, field.slug, value);
 			continue;
 		}
 
@@ -86,14 +80,39 @@ function extractRepeaterOccurrences(
 		for (const subField of subFields) {
 			if (subField.type !== "image") continue;
 
-			addOccurrence(occurrences, seen, {
+			addImageOccurrences(
+				occurrences,
+				seen,
 				fieldSlug,
-				fieldPath: `${fieldSlug}[${itemIndex}].${subField.slug}`,
-				referenceType: "image_field",
-				value: item[subField.slug],
-				fallbackKind: "image",
-			});
+				`${fieldSlug}[${itemIndex}].${subField.slug}`,
+				item[subField.slug],
+			);
 		}
+	}
+}
+
+function addImageOccurrences(
+	occurrences: ExtractedMediaUsageOccurrence[],
+	seen: Set<string>,
+	fieldSlug: string,
+	fieldPath: string,
+	value: unknown,
+): void {
+	addOccurrence(occurrences, seen, {
+		fieldSlug,
+		fieldPath,
+		referenceType: "image_field",
+		value,
+		fallbackKind: "image",
+	});
+	if (isRecord(value) && value.darkVariant != null) {
+		addOccurrence(occurrences, seen, {
+			fieldSlug,
+			fieldPath: `${fieldPath}.darkVariant`,
+			referenceType: "image_field",
+			value: value.darkVariant,
+			fallbackKind: "image",
+		});
 	}
 }
 

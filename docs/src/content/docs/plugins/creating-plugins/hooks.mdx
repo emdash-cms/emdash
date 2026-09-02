@@ -136,15 +136,17 @@ Run during create, update, and delete operations on site content.
 
 ### `content:beforeSave`
 
-Runs before content is saved. Return modified content, or `void` to leave it unchanged. Throw to cancel.
+Runs before content is saved. Return modified content, or `void` to leave it unchanged.
+
+<Aside type="caution">
+	A plugin running in the sandbox cannot cancel a save: the sandbox logs the thrown error and the save continues. Cancelling works in the host process — in a native plugin, or in a sandboxed plugin [moved to `plugins: []`](/plugins/creating-plugins/choosing-a-format/#sandbox-runners-and-platform-support).
+</Aside>
+
+To cancel the save from a plugin running in the host process, throw `ContentSaveRejectedError` (exported from `emdash`): the API responds with a `SAVE_REJECTED` error that carries your message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one.
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
-	const { content, collection } = event;
-
-	if (collection === "posts" && !content.title) {
-		throw new Error("Posts require a title");
-	}
+	const { content } = event;
 
 	if (typeof content.slug === "string") {
 		content.slug = content.slug.toLowerCase().replace(/\s+/g, "-");

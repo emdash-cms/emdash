@@ -16,38 +16,6 @@ const PNG_1x1 = Uint8Array.from(
 /** A 3x5 GIF87a. The logical-screen descriptor at bytes 6-9 carries the size. */
 const GIF_3x5 = Uint8Array.from(Buffer.from("4749463837610300050080000000000000ffffff", "hex"));
 
-/**
- * A minimal ISOBMFF/AVIF header (`ftyp` brand `avif` + `meta>iprp>ipco>ispe`).
- * `image-size` reads the brand as the type and the `ispe` box as the
- * dimensions (64x48); no full image data is needed.
- */
-function box(name: string, payload: Buffer): Buffer {
-	const buf = Buffer.alloc(8 + payload.length);
-	buf.writeUInt32BE(buf.length, 0);
-	buf.write(name, 4, "ascii");
-	payload.copy(buf, 8);
-	return buf;
-}
-const AVIF_64x48 = (() => {
-	const ftyp = box(
-		"ftyp",
-		Buffer.concat([
-			Buffer.from("avif", "ascii"),
-			Buffer.from([0, 0, 0, 0]),
-			Buffer.from("avifmif1", "ascii"),
-		]),
-	);
-	const ispePayload = Buffer.alloc(12);
-	ispePayload.writeUInt32BE(64, 4);
-	ispePayload.writeUInt32BE(48, 8);
-	const ispe = box("ispe", ispePayload);
-	const meta = box(
-		"meta",
-		Buffer.concat([Buffer.from([0, 0, 0, 0]), box("iprp", box("ipco", ispe))]),
-	);
-	return new Uint8Array(Buffer.concat([ftyp, meta]));
-})();
-
 /** A minimal SVG with explicit width/height attributes — no longer an accepted type. */
 const SVG_12x8 = new TextEncoder().encode(
 	'<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"></svg>',
@@ -62,20 +30,8 @@ describe("measureImage", () => {
 		});
 	});
 
-	it("reads GIF dimensions and content type", () => {
-		expect(measureImage(GIF_3x5)).toEqual({
-			contentType: "image/gif",
-			width: 3,
-			height: 5,
-		});
-	});
-
-	it("reads AVIF dimensions and maps to image/avif", () => {
-		expect(measureImage(AVIF_64x48)).toEqual({
-			contentType: "image/avif",
-			width: 64,
-			height: 48,
-		});
+	it("rejects GIF because release images must be static raster formats", () => {
+		expect(() => measureImage(GIF_3x5)).toThrow(ArtifactError);
 	});
 
 	it("rejects SVG (removed from the allowlist)", () => {
@@ -146,5 +102,23 @@ describe("buildArtifactRecord", () => {
 		const a = buildArtifactRecord({ bytes: PNG_1x1, url: "https://x/a.png" });
 		const b = buildArtifactRecord({ bytes: PNG_1x1, url: "https://x/b.png" });
 		expect(a.checksum).toBe(b.checksum);
+	});
+
+	it("writes a blob-only record when the CID matches the bytes", () => {
+		const record = buildArtifactRecord({
+			bytes: PNG_1x1,
+			blob: {
+				$type: "blob",
+				ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+				mimeType: "image/png",
+				size: PNG_1x1.byteLength,
+			},
+		});
+
+		expect(record).toMatchObject({
+			blob: { ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" } },
+			contentType: "image/png",
+		});
+		expect(record).not.toHaveProperty("url");
 	});
 });

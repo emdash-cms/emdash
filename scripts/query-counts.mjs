@@ -354,19 +354,24 @@ async function hit(method, path, phase) {
 	// in the "default" phase), just papering over a race.
 	let lastErr;
 	for (let i = 0; i < 10; i++) {
+		let response;
 		try {
-			const r = await fetch(`${BASE}${path}`, {
+			response = await fetch(`${BASE}${path}`, {
 				method,
 				headers: { "x-perf-phase": phase },
 				redirect: "manual",
 			});
-			await r.arrayBuffer();
-			process.stdout.write(`  ${phase.padEnd(5)} ${method} ${path} -> ${r.status}\n`);
-			return r.status;
 		} catch (err) {
 			lastErr = err;
 			await new Promise((r) => setTimeout(r, 200));
+			continue;
 		}
+		await response.arrayBuffer();
+		process.stdout.write(`  ${phase.padEnd(5)} ${method} ${path} -> ${response.status}\n`);
+		if (!response.ok) {
+			throw new Error(`${phase} ${method} ${path} returned ${response.status}`);
+		}
+		return response.status;
 	}
 	throw lastErr;
 }

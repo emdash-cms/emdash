@@ -36,7 +36,9 @@ export function FocalPointPreviews({ src, point }: Pick<FocalPointEditorProps, "
 		<div className="grid w-full grid-cols-3 items-end gap-2" data-testid="focal-preview-group">
 			{previews.map(([id, label, ratio]) => (
 				<figure key={id} className="grid w-full min-w-0 gap-1.5">
-					<div className={`overflow-hidden rounded-lg bg-kumo-tint ring ring-kumo-line ${ratio}`}>
+					<div
+						className={`emdash-media-transparency-grid overflow-hidden rounded-lg ring ring-kumo-line ${ratio}`}
+					>
 						<img
 							src={src}
 							alt=""
@@ -119,7 +121,7 @@ export function FocalPointEditor({
 
 	return (
 		<div className="grid gap-4">
-			<div className="flex h-64 items-center justify-center overflow-hidden rounded-xl bg-kumo-tint ring ring-kumo-line md:h-80">
+			<div className="emdash-media-transparency-grid flex h-64 items-center justify-center overflow-hidden rounded-xl ring ring-kumo-line md:h-80">
 				<div className="relative inline-flex max-h-full max-w-full">
 					<img
 						src={src}

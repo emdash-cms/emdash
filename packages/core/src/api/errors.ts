@@ -28,6 +28,8 @@ export const ErrorCode = {
 	// Content
 	CONTENT_CREATE_ERROR: "CONTENT_CREATE_ERROR",
 	CONTENT_UPDATE_ERROR: "CONTENT_UPDATE_ERROR",
+	SAVE_REJECTED: "SAVE_REJECTED",
+	CONTENT_HOOK_ERROR: "CONTENT_HOOK_ERROR",
 	CONTENT_DELETE_ERROR: "CONTENT_DELETE_ERROR",
 	CONTENT_LIST_ERROR: "CONTENT_LIST_ERROR",
 	CONTENT_GET_ERROR: "CONTENT_GET_ERROR",
@@ -485,6 +487,7 @@ export function mapErrorStatus(code: string | undefined): number {
 			return 410;
 
 		// 422 Unprocessable Entity
+		case ErrorCode.SAVE_REJECTED:
 		case ErrorCode.CHECKSUM_MISMATCH:
 		case ErrorCode.INVALID_BUNDLE:
 		case ErrorCode.BUNDLE_EXTRACT_FAILED:
