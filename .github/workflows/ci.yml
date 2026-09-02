@@ -145,12 +145,12 @@ jobs:
           EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test
       # Render tests use the Astro Vite plugin (vitest.repro.config.ts);
       # they can't run under the plain-node config in test:unit.
-		- if: matrix.shardIndex == 1
-		  run: pnpm --filter emdash exec vitest run --config vitest.repro.config.ts
-		- if: matrix.shardIndex == 1
-		  run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action test
+      - if: matrix.shardIndex == 1
+        run: pnpm --filter emdash exec vitest run --config vitest.repro.config.ts
+      - if: matrix.shardIndex == 1
+        run: pnpm run --filter @emdash-cms/release-service --filter @emdash-cms/release-verifier --filter @emdash-cms/release-action test
 
-	test:
+  test:
     name: Tests
     if: always()
     needs: [test-shards]
@@ -161,8 +161,8 @@ jobs:
         run: |
           if [ "${{ needs.test-shards.result }}" != "success" ]; then
             echo "Tests failed or were cancelled"
-			  exit 1
-			fi
+            exit 1
+          fi
 
   test-smoke:
     name: Smoke Tests
