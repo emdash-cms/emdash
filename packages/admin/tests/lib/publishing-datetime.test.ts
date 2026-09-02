@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	formatPublishingInstant,
+	formatPublishingInstantWithZone,
 	getPublishingQuickChoices,
 	getPublishingTimeZone,
 	publishingFieldsMatchInstant,
@@ -84,6 +85,9 @@ describe("publishing date-time helpers", () => {
 
 	it("formats the instant and reports the browser time zone", () => {
 		expect(formatPublishingInstant("2026-07-01T13:30:00.000Z", "en-US")).toContain("9:30 AM");
+		expect(formatPublishingInstantWithZone("2026-07-01T13:30:00.000Z", "en-US")).toContain(
+			"9:30 AM (EDT)",
+		);
 		expect(getPublishingTimeZone(new Date("2026-07-01T13:30:00.000Z"), "en-US")).toEqual({
 			timeZone: "America/New_York",
 			shortName: "EDT",

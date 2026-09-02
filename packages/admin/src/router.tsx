@@ -1323,10 +1323,10 @@ function ContentEditPage() {
 		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
 	);
 	const handlePublishedAtChange = React.useCallback(
-		(publishedAt: string) => {
-			publishedAtMutation.mutate(publishedAt);
+		async (publishedAt: string) => {
+			await publishedAtMutation.mutateAsync(publishedAt);
 		},
-		[publishedAtMutation.mutate],
+		[publishedAtMutation.mutateAsync],
 	);
 
 	const handleSeoChange = React.useCallback(

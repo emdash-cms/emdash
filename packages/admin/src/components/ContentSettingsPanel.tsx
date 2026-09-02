@@ -43,19 +43,30 @@ import {
 	ContentEditorPanelBoundary,
 	resolveContentEditorPanels,
 } from "../lib/content-editor-panels";
-import type { ContentPublishingState } from "../lib/content-publishing-state.js";
-import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import {
+	getContentPublishingState,
+	type ContentPublishingState,
+} from "../lib/content-publishing-state.js";
 import { usePluginAdmins } from "../lib/plugin-context";
-import { cn, parseTimestamp } from "../lib/utils";
+import {
+	formatPublishingInstant,
+	formatPublishingInstantWithZone,
+} from "../lib/publishing-datetime.js";
+import { cn } from "../lib/utils";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
-import { ContentStatusBadge, isContentStatusState } from "./ContentStatusBadge.js";
+import {
+	ContentStatusBadge,
+	ContentStatusIcon,
+	isContentStatusState,
+} from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
+import { PublicationDatePopover } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
@@ -69,11 +80,238 @@ import { TranslationsPanel } from "./TranslationsPanel.js";
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
 
-/** Format scheduled date for display */
-function formatScheduledDate(dateStr: string | null) {
-	if (!dateStr) return null;
-	const date = parseTimestamp(dateStr);
-	return date.toLocaleString();
+function PublishingLifecycleBadge({
+	publishingState,
+	status,
+	supportsDrafts,
+}: {
+	publishingState: ContentPublishingState;
+	status: string;
+	supportsDrafts: boolean;
+}) {
+	if (supportsDrafts) {
+		const state =
+			publishingState === "draft"
+				? "draft"
+				: publishingState === "scheduled"
+					? "scheduled"
+					: "published";
+		return <ContentStatusBadge state={state} />;
+	}
+	return isContentStatusState(status) ? (
+		<ContentStatusBadge state={status} />
+	) : (
+		<Badge variant="secondary">{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
+	);
+}
+
+function PublishingVersionRow({
+	iconState,
+	title,
+	stateLabel,
+	description,
+	action,
+	connectToNext,
+}: {
+	iconState: "published" | "draft" | "scheduled" | "pendingChanges";
+	title: string;
+	stateLabel: string;
+	description: React.ReactNode;
+	action?: React.ReactNode;
+	connectToNext?: boolean;
+}) {
+	return (
+		<div className="flex items-start gap-3">
+			<span className="relative flex w-3.5 shrink-0 self-stretch justify-center">
+				{connectToNext ? (
+					<span
+						className="absolute top-2.5 -bottom-[1.625rem] w-px bg-kumo-line"
+						aria-hidden="true"
+					/>
+				) : null}
+				<span className="relative z-10 flex h-5 items-center bg-kumo-base">
+					<ContentStatusIcon state={iconState} decorative />
+				</span>
+			</span>
+			<div className="min-w-0 flex-1">
+				<div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+					<Text as="p" bold>
+						{title}
+					</Text>
+					<Text as="span" variant="secondary">
+						{stateLabel}
+					</Text>
+				</div>
+				<Text as="p" variant="secondary" DANGEROUS_className="mt-0.5 text-pretty">
+					{description}
+				</Text>
+				{action ? <div className="mt-2">{action}</div> : null}
+			</div>
+		</div>
+	);
+}
+
+function PublishingVersionRelationship({
+	publishingState,
+	supportsDrafts,
+	scheduledAt,
+	locale,
+	onDiscardDraft,
+}: {
+	publishingState: ContentPublishingState;
+	supportsDrafts: boolean;
+	scheduledAt?: string | null;
+	locale: string;
+	onDiscardDraft?: () => void;
+}) {
+	const { t } = useLingui();
+	const formattedSchedule = scheduledAt
+		? formatPublishingInstantWithZone(scheduledAt, locale)
+		: null;
+	const scheduledTime =
+		scheduledAt && formattedSchedule ? (
+			<time dateTime={scheduledAt}>{formattedSchedule}</time>
+		) : null;
+	const scheduledSummary =
+		scheduledAt && formattedSchedule ? (
+			<time dateTime={scheduledAt}>{t`Scheduled for ${formattedSchedule}`}</time>
+		) : null;
+
+	if (!supportsDrafts) {
+		return scheduledSummary ? (
+			<div className="mt-5 border-t border-kumo-line pt-4">
+				<PublishingVersionRow
+					iconState="scheduled"
+					title={t`Scheduled publication`}
+					stateLabel={t`Scheduled`}
+					description={scheduledSummary}
+				/>
+			</div>
+		) : null;
+	}
+
+	let rows: React.ReactNode;
+	switch (publishingState) {
+		case "draft":
+			rows = (
+				<PublishingVersionRow
+					iconState="draft"
+					title={t`Draft version`}
+					stateLabel={t`Draft`}
+					description={t`This version is not visible on the site`}
+				/>
+			);
+			break;
+		case "scheduled":
+			rows = (
+				<PublishingVersionRow
+					iconState="scheduled"
+					title={t`First publication`}
+					stateLabel={t`Scheduled`}
+					description={scheduledTime ?? t`A publication time has not been selected`}
+				/>
+			);
+			break;
+		case "published":
+			rows = (
+				<PublishingVersionRow
+					iconState="published"
+					title={t`Live version`}
+					stateLabel={t`Live`}
+					description={t`Visitors see this published version`}
+				/>
+			);
+			break;
+		case "published-with-changes":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						stateLabel={t`Live`}
+						description={t`Visitors still see the published version`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="pendingChanges"
+						title={t`Draft changes`}
+						stateLabel={t`Ready`}
+						description={t`Ready to publish now or schedule for later`}
+						action={
+							onDiscardDraft ? (
+								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+							) : undefined
+						}
+					/>
+				</>
+			);
+			break;
+		case "update-scheduled":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						stateLabel={t`Live`}
+						description={t`Visitors see the published version until the scheduled update`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="scheduled"
+						title={t`Draft changes`}
+						stateLabel={t`Scheduled`}
+						description={scheduledTime ?? t`A publication time has not been selected`}
+						action={
+							onDiscardDraft ? (
+								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+							) : undefined
+						}
+					/>
+				</>
+			);
+			break;
+		case "published-scheduled":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						stateLabel={t`Live`}
+						description={t`Visitors see this published version`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="scheduled"
+						title={t`Scheduled publication`}
+						stateLabel={t`Scheduled`}
+						description={scheduledTime ?? t`A publication time has not been selected`}
+					/>
+				</>
+			);
+	}
+
+	return <div className="mt-5 grid gap-4 border-t border-kumo-line pt-4">{rows}</div>;
+}
+
+function TimestampValue({ value, locale }: { value: string; locale: string }) {
+	return (
+		<time dateTime={value}>
+			<Text as="span">{formatPublishingInstant(value, locale)}</Text>
+		</time>
+	);
+}
+
+function TimestampRow({ label, children }: React.PropsWithChildren<{ label: string }>) {
+	return (
+		<div className="flex items-start justify-between gap-4">
+			<dt className="max-w-[45%] shrink-0">
+				<Text as="span" variant="secondary">
+					{label}
+				</Text>
+			</dt>
+			<dd className="min-w-0 flex-1 text-end">{children}</dd>
+		</div>
+	);
 }
 
 /**
@@ -522,9 +760,9 @@ export interface ContentSettingsPanelProps {
 	supportsDrafts: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
-	hasSchedule: boolean;
+	publishingState?: ContentPublishingState;
 	supportsRevisions: boolean;
-	onPublishedAtChange?: (publishedAt: string) => void;
+	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
 	onDiscardDraft?: () => void;
 	onDelete?: () => void;
@@ -575,7 +813,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	supportsDrafts,
 	isLive,
 	hasPendingChanges,
-	hasSchedule,
+	publishingState,
 	supportsRevisions,
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
@@ -618,11 +856,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
 	);
 
-	const storedPublishedDate = toDatetimeLocalInputValue(item?.publishedAt);
-	const [publishedDate, setPublishedDate] = React.useState(storedPublishedDate);
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
+	const resolvedPublishingState =
+		publishingState ??
+		getContentPublishingState({ isLive, hasPendingChanges, scheduledAt: item?.scheduledAt });
 	const hasApplicableTaxonomies = useHasApplicableTaxonomies(
 		collection,
 		activeEntryLocale,
@@ -632,16 +871,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		item?.publishedAt != null && (currentUser?.role ?? 0) >= ROLE_EDITOR && !!onPublishedAtChange;
 	const contentLocale = item?.locale ?? entryLocale ?? manifest?.contentLocale?.defaultLocale;
 	const usesImplicitEnglish = manifest?.contentLocale?.implicit === true && contentLocale === "en";
-
-	React.useEffect(() => {
-		setPublishedDate(storedPublishedDate);
-	}, [item?.id, storedPublishedDate]);
-
-	const handlePublishedDateSubmit = () => {
-		if (publishedDate && onPublishedAtChange) {
-			onPublishedAtChange(fromDatetimeLocalInputValue(publishedDate));
-		}
-	};
+	const publicationEntryKey = `${item?.id ?? "new"}:${activeEntryLocale ?? ""}`;
 
 	if (blockSidebarPanel) {
 		// A block requesting the sidebar replaces the default sections.
@@ -682,9 +912,16 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			>
 				<SortableContentSettingsSection id="publish" label={t`Publish`}>
 					<div className="p-4">
-						<Text bold as="h3" DANGEROUS_className="mb-4">
-							{t`Publish`}
-						</Text>
+						<div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+							<Text bold as="h3">
+								{t`Publish`}
+							</Text>
+							<PublishingLifecycleBadge
+								publishingState={resolvedPublishingState}
+								status={status}
+								supportsDrafts={supportsDrafts}
+							/>
+						</div>
 						<div className="space-y-4">
 							<Input
 								label={t`Slug`}
@@ -720,80 +957,42 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									) : null}
 								</div>
 							) : null}
-							<div>
-								<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-									<Label>{t`Status`}</Label>
-									{supportsDrafts ? (
-										<>
-											{isLive && <ContentStatusBadge state="published" />}
-											{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
-											{!isLive && !hasSchedule && <ContentStatusBadge state="draft" />}
-											{hasSchedule && <ContentStatusBadge state="scheduled" />}
-										</>
-									) : isContentStatusState(status) ? (
-										<ContentStatusBadge state={status} />
-									) : (
-										<Badge variant="secondary">
-											{status.charAt(0).toUpperCase() + status.slice(1)}
-										</Badge>
-									)}
-								</div>
-								{showDiscard && (
-									<div className="mt-2">
-										<DiscardDraftDialog
-											onDiscard={onDiscardDraft}
-											triggerVariant="outline"
-											triggerSize="sm"
-										/>
-									</div>
-								)}
-							</div>
-							{item?.scheduledAt && (
-								<div className="rounded-lg border px-3 py-2">
-									<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
-								</div>
-							)}
-
-							{canUpdatePublishedDate && (
-								<div className="space-y-2 pt-2">
-									<Input
-										label={t`Publish date`}
-										type="datetime-local"
-										value={publishedDate}
-										onChange={(event) => setPublishedDate(event.target.value)}
-										disabled={isUpdatingPublishedAt}
-									/>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={handlePublishedDateSubmit}
-										disabled={
-											!publishedDate ||
-											publishedDate === storedPublishedDate ||
-											isUpdatingPublishedAt
-										}
-										icon={isUpdatingPublishedAt ? <Loader size="sm" /> : undefined}
-									>
-										{t`Update publish date`}
-									</Button>
-								</div>
-							)}
 						</div>
+
+						<PublishingVersionRelationship
+							publishingState={resolvedPublishingState}
+							supportsDrafts={supportsDrafts}
+							scheduledAt={item?.scheduledAt}
+							locale={lingui.locale}
+							onDiscardDraft={showDiscard ? onDiscardDraft : undefined}
+						/>
 
 						{item && (
 							<dl
 								data-testid="content-timestamps"
-								className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle"
+								className="mt-5 grid gap-2 border-t border-kumo-line pt-4"
 							>
-								<div className="flex items-center justify-between gap-2">
-									<dt>{t`Created`}</dt>
-									<dd>{parseTimestamp(item.createdAt).toLocaleString()}</dd>
-								</div>
-								<div className="flex items-center justify-between gap-2">
-									<dt>{t`Updated`}</dt>
-									<dd>{parseTimestamp(item.updatedAt).toLocaleString()}</dd>
-								</div>
+								{item.publishedAt ? (
+									<TimestampRow label={t`Publication date`}>
+										{canUpdatePublishedDate && onPublishedAtChange ? (
+											<PublicationDatePopover
+												entryKey={publicationEntryKey}
+												publishedAt={item.publishedAt}
+												formattedValue={formatPublishingInstant(item.publishedAt, lingui.locale)}
+												isPending={isUpdatingPublishedAt}
+												onPublishedAtChange={onPublishedAtChange}
+											/>
+										) : (
+											<TimestampValue value={item.publishedAt} locale={lingui.locale} />
+										)}
+									</TimestampRow>
+								) : null}
+								<TimestampRow label={t`Created`}>
+									<TimestampValue value={item.createdAt} locale={lingui.locale} />
+								</TimestampRow>
+								<TimestampRow label={t`Updated`}>
+									<TimestampValue value={item.updatedAt} locale={lingui.locale} />
+								</TimestampRow>
 							</dl>
 						)}
 					</div>

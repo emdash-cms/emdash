@@ -118,6 +118,14 @@ export function formatPublishingInstant(value: string, locale: string): string {
 	}).format(parseTimestamp(value));
 }
 
+export function formatPublishingInstantWithZone(value: string, locale: string): string {
+	const date = parseTimestamp(value);
+	const formatted = formatPublishingInstant(value, locale);
+	const { timeZone, shortName } = getPublishingTimeZone(date, locale);
+	const zone = shortName ?? timeZone;
+	return zone ? `${formatted} (${zone})` : formatted;
+}
+
 export function getPublishingTimeZone(
 	date: Date,
 	locale: string,

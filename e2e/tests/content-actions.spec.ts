@@ -102,6 +102,7 @@ test.describe("Schedule content", () => {
 	let headers: Record<string, string>;
 	let baseUrl: string;
 	let postId: string;
+	let postSlug: string;
 
 	test.beforeEach(async ({ admin, serverInfo }) => {
 		await admin.devBypassAuth();
@@ -109,12 +110,8 @@ test.describe("Schedule content", () => {
 		headers = apiHeaders(serverInfo.token, baseUrl);
 
 		// Create a fresh draft post for scheduling tests
-		postId = await createPost(
-			baseUrl,
-			headers,
-			"Schedule Test Post",
-			`schedule-test-${Date.now()}`,
-		);
+		postSlug = `schedule-test-${Date.now()}`;
+		postId = await createPost(baseUrl, headers, "Schedule Test Post", postSlug);
 	});
 
 	test.afterEach(async () => {
@@ -128,21 +125,15 @@ test.describe("Schedule content", () => {
 		// Verify we're on the edit page with our post
 		await expect(page.locator("#field-title")).toHaveValue("Schedule Test Post");
 
-		// The "Schedule for later" button should be visible in the sidebar
-		const scheduleButton = page.getByRole("button", { name: "Schedule for later" });
-		await expect(scheduleButton).toBeVisible({ timeout: 5000 });
-		await scheduleButton.click();
+		const publishButton = page.getByRole("button", { name: "Publish", exact: true });
+		await expect(publishButton).toBeVisible({ timeout: 5000 });
+		await publishButton.click();
+		await page.getByRole("menuitem", { name: /Schedule publication/ }).click();
 
-		// A datetime input should appear
-		const dateInput = page.getByLabel("Schedule for");
-		await expect(dateInput).toBeVisible({ timeout: 5000 });
-
-		// Set a future date (tomorrow)
-		const tomorrow = new Date();
-		tomorrow.setDate(tomorrow.getDate() + 1);
-		tomorrow.setHours(9, 0, 0, 0);
-		const dateValue = tomorrow.toISOString().slice(0, 16); // datetime-local format
-		await dateInput.fill(dateValue);
+		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
+		await expect(dialog).toBeVisible({ timeout: 5000 });
+		await dialog.getByRole("button", { name: /Tomorrow at/ }).click();
+		await expect(dialog.getByLabel("Time")).toHaveValue("09:00");
 
 		// Click the "Schedule" confirm button and wait for the API response
 		const scheduleResponse = page.waitForResponse(
@@ -152,17 +143,46 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await page.getByRole("button", { name: "Schedule", exact: true }).click();
+		await dialog.getByRole("button", { name: "Schedule", exact: true }).click();
 		await scheduleResponse;
 
 		// A toast confirming scheduling should appear
 		await expect(page.getByRole("heading", { name: "Scheduled" })).toBeVisible({ timeout: 5000 });
 
-		// The scheduled date info should be visible
-		await expect(page.locator("text=Scheduled for:")).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText("First publication", { exact: true })).toBeVisible({
+			timeout: 5000,
+		});
+		const scheduledButton = page.getByRole("button", { name: "Scheduled", exact: true });
+		await expect(scheduledButton).toBeVisible();
+		await scheduledButton.click();
+		await expect(page.getByRole("menuitem", { name: /Edit schedule/ })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: /Remove schedule/ })).toBeVisible();
+	});
 
-		// An "Unschedule" button should be visible
-		await expect(page.getByRole("button", { name: "Unschedule" })).toBeVisible();
+	test("keeps publishing choices usable in a 320-pixel viewport", async ({ admin, page }) => {
+		await admin.goToEditContent("posts", postId);
+		await admin.waitForLoading();
+		await page.setViewportSize({ width: 320, height: 800 });
+
+		await page.getByRole("button", { name: "Publish", exact: true }).click();
+		const menu = page.getByRole("menu", { name: "Publish" });
+		const menuBox = await menu.boundingBox();
+		expect(menuBox).not.toBeNull();
+		expect(menuBox!.x).toBeGreaterThanOrEqual(0);
+		expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(320);
+
+		await page.getByRole("menuitem", { name: /Schedule publication/ }).click();
+		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
+		const dialogBox = await dialog.boundingBox();
+		expect(dialogBox).not.toBeNull();
+		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
+		expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(320);
+		expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+			true,
+		);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			320,
+		);
 	});
 
 	test("unschedule a scheduled post", async ({ admin, page }) => {
@@ -178,8 +198,9 @@ test.describe("Schedule content", () => {
 		await admin.goToEditContent("posts", postId);
 		await admin.waitForLoading();
 
-		// Verify scheduled state is shown
-		await expect(page.locator("text=Scheduled for:")).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText("First publication", { exact: true })).toBeVisible({
+			timeout: 5000,
+		});
 
 		// Click unschedule and wait for API response
 		const unscheduleResponse = page.waitForResponse(
@@ -189,16 +210,86 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await page.getByRole("button", { name: "Unschedule" }).click();
+		await page.getByRole("button", { name: "Scheduled", exact: true }).click();
+		await page.getByRole("menuitem", { name: /Remove schedule/ }).click();
 		await unscheduleResponse;
 
-		// The scheduled info should disappear
-		await expect(page.locator("text=Scheduled for:")).not.toBeVisible({ timeout: 5000 });
-
-		// The "Schedule for later" button should reappear
-		await expect(page.getByRole("button", { name: "Schedule for later" })).toBeVisible({
+		await expect(page.getByText("Draft version", { exact: true })).toBeVisible({
 			timeout: 5000,
 		});
+		await expect(page.getByRole("button", { name: "Publish", exact: true })).toBeVisible();
+	});
+
+	test("keeps the live version public while a draft update is scheduled and removed", async ({
+		admin,
+		page,
+	}) => {
+		await publishPost(baseUrl, headers, postId);
+		await admin.goToEditContent("posts", postId);
+		await admin.waitForLoading();
+
+		const title = page.locator("#field-title");
+		await expect(title).toHaveValue("Schedule Test Post");
+		await title.fill("Scheduled Draft Update");
+		await admin.clickSave();
+		await admin.waitForSaveComplete();
+
+		await expect(page.getByText("Live version", { exact: true })).toBeVisible();
+		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible();
+		let publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
+		expect(publicResponse.ok).toBe(true);
+		let publicHtml = await publicResponse.text();
+		expect(publicHtml).toContain("Schedule Test Post");
+		expect(publicHtml).not.toContain("Scheduled Draft Update");
+
+		await page.getByRole("button", { name: "Publish updates", exact: true }).click();
+		await page.getByRole("menuitem", { name: /Schedule updates/ }).click();
+		const dialog = page.getByRole("dialog", { name: "Schedule updates" });
+		await expect(dialog.getByText(/current version stays live/)).toBeVisible();
+		await dialog.getByRole("button", { name: /Tomorrow at/ }).click();
+		const scheduleResponse = page.waitForResponse(
+			(res) =>
+				SCHEDULE_API_PATTERN.test(res.url()) &&
+				res.request().method() === "POST" &&
+				res.status() === 200,
+			{ timeout: 10000 },
+		);
+		await dialog.getByRole("button", { name: "Schedule updates", exact: true }).click();
+		await scheduleResponse;
+
+		await expect(page.getByRole("button", { name: "Update scheduled", exact: true })).toBeVisible({
+			timeout: 5000,
+		});
+		await expect(
+			page.getByText("Visitors see the published version until the scheduled update", {
+				exact: true,
+			}),
+		).toBeVisible();
+		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible();
+		publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
+		publicHtml = await publicResponse.text();
+		expect(publicHtml).toContain("Schedule Test Post");
+		expect(publicHtml).not.toContain("Scheduled Draft Update");
+
+		await page.getByRole("button", { name: "Update scheduled", exact: true }).click();
+		const unscheduleResponse = page.waitForResponse(
+			(res) =>
+				SCHEDULE_API_PATTERN.test(res.url()) &&
+				res.request().method() === "DELETE" &&
+				res.status() === 200,
+			{ timeout: 10000 },
+		);
+		await page.getByRole("menuitem", { name: /Remove schedule/ }).click();
+		await unscheduleResponse;
+
+		await expect(page.getByRole("button", { name: "Publish updates", exact: true })).toBeVisible({
+			timeout: 5000,
+		});
+		await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+		publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
+		publicHtml = await publicResponse.text();
+		expect(publicHtml).toContain("Schedule Test Post");
+		expect(publicHtml).not.toContain("Scheduled Draft Update");
 	});
 });
 
@@ -482,8 +573,7 @@ test.describe("Discard draft changes", () => {
 		await admin.clickSave();
 		await admin.waitForSaveComplete();
 
-		// The "Pending changes" badge should appear
-		await expect(page.locator("text=Pending changes")).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible({ timeout: 5000 });
 
 		// The "Discard changes" button should be visible
 		const discardButton = page.getByRole("button", { name: "Discard changes" });
@@ -511,8 +601,9 @@ test.describe("Discard draft changes", () => {
 		// The title should revert to the published version
 		await expect(titleInput).toHaveValue("Published Original Title", { timeout: 10000 });
 
-		// The "Pending changes" badge should be gone
-		await expect(page.locator("text=Pending changes")).not.toBeVisible({ timeout: 5000 });
+		await expect(page.getByText("Draft changes", { exact: true })).not.toBeVisible({
+			timeout: 5000,
+		});
 
 		// The "Discard changes" button should also be gone
 		await expect(discardButton).not.toBeVisible({ timeout: 5000 });

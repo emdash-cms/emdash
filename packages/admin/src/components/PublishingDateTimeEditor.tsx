@@ -1,6 +1,6 @@
-import { Button, DatePicker, Dialog, Input, Label, Text } from "@cloudflare/kumo";
+import { Button, DatePicker, Dialog, Input, Label, Popover, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Globe, X } from "@phosphor-icons/react";
+import { CaretRight, Globe, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import {
@@ -21,8 +21,15 @@ interface PublishingDateTimeFieldsProps {
 	time: string;
 	disabled?: boolean;
 	showQuickChoices?: boolean;
+	restrictToFuture?: boolean;
+	dateAriaLabel: string;
 	onDateChange: (date: Date | undefined) => void;
 	onTimeChange: (time: string) => void;
+}
+
+function getLocalToday(): Date {
+	const now = new Date();
+	return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
 export function PublishingDateTimeFields({
@@ -30,6 +37,8 @@ export function PublishingDateTimeFields({
 	time,
 	disabled,
 	showQuickChoices,
+	restrictToFuture,
+	dateAriaLabel,
 	onDateChange,
 	onTimeChange,
 }: PublishingDateTimeFieldsProps) {
@@ -43,11 +52,10 @@ export function PublishingDateTimeFields({
 		() => new Intl.DateTimeFormat(i18n.locale, { weekday: "long" }),
 		[i18n.locale],
 	);
-	const now = new Date();
-	const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+	const today = getLocalToday();
 	const [month, setMonth] = React.useState(date ?? today);
 	React.useEffect(() => {
-		if (date) setMonth(date);
+		setMonth(date ?? getLocalToday());
 	}, [date]);
 	const resolved = resolvePublishingLocalDateTime(date, time);
 	const zoneDate = resolved.success ? resolved.date : (date ?? new Date());
@@ -106,10 +114,10 @@ export function PublishingDateTimeFields({
 					month={month}
 					onMonthChange={setMonth}
 					onChange={onDateChange}
-					disabled={disabled ? true : { before: today }}
+					disabled={disabled ? true : restrictToFuture ? { before: today } : undefined}
 					locale={getDayPickerLocale(i18n.locale)}
 					dir={getLocaleDir(i18n.locale)}
-					aria-label={t`Schedule date`}
+					aria-label={dateAriaLabel}
 					className="mx-auto"
 				/>
 			</div>
@@ -286,6 +294,8 @@ export function PublishingScheduleDialog({
 							time={time}
 							disabled={pending}
 							showQuickChoices={!isEditing}
+							restrictToFuture
+							dateAriaLabel={t`Schedule date`}
 							onDateChange={(nextDate) => {
 								setDate(nextDate);
 								clearError();
@@ -326,5 +336,180 @@ export function PublishingScheduleDialog({
 				</form>
 			</Dialog>
 		</Dialog.Root>
+	);
+}
+
+export interface PublicationDatePopoverProps {
+	entryKey: string;
+	publishedAt: string;
+	formattedValue: string;
+	isPending?: boolean;
+	onPublishedAtChange: (publishedAt: string) => void | Promise<void>;
+}
+
+export function PublicationDatePopover({
+	entryKey,
+	publishedAt,
+	formattedValue,
+	isPending,
+	onPublishedAtChange,
+}: PublicationDatePopoverProps) {
+	const { t } = useLingui();
+	const initial = React.useMemo(() => publishingInstantToLocalFields(publishedAt), [publishedAt]);
+	const [open, setOpen] = React.useState(false);
+	const [date, setDate] = React.useState(initial.date);
+	const [time, setTime] = React.useState(initial.time);
+	const [validationError, setValidationError] = React.useState<string | null>(null);
+	const [mutationError, setMutationError] = React.useState<unknown>(null);
+	const [submitting, setSubmitting] = React.useState(false);
+	const generationRef = React.useRef(0);
+	const contextKey = `${entryKey}:${publishedAt}`;
+	const contextRef = React.useRef(contextKey);
+	const activeSubmissionRef = React.useRef<{ contextKey: string; generation: number } | null>(null);
+	contextRef.current = contextKey;
+	const pending = Boolean(isPending || submitting);
+
+	const reset = React.useCallback(() => {
+		const next = publishingInstantToLocalFields(publishedAt);
+		setDate(next.date);
+		setTime(next.time);
+		setValidationError(null);
+		setMutationError(null);
+	}, [publishedAt]);
+
+	React.useEffect(() => {
+		generationRef.current++;
+		activeSubmissionRef.current = null;
+		setSubmitting(false);
+		setOpen(false);
+		reset();
+	}, [contextKey, reset]);
+
+	const clearError = () => {
+		setValidationError(null);
+		setMutationError(null);
+	};
+
+	const handleOpenChange = (nextOpen: boolean) => {
+		if (!nextOpen && !pending) reset();
+		setOpen(nextOpen);
+	};
+
+	const submit = async () => {
+		if (pending || activeSubmissionRef.current?.contextKey === contextKey) return;
+		const result = resolvePublishingLocalDateTime(date, time);
+		if (!result.success) {
+			setValidationError(validationMessage(result.error, t));
+			return;
+		}
+		if (publishingFieldsMatchInstant(publishedAt, date, time)) return;
+
+		clearError();
+		const generation = ++generationRef.current;
+		const submission = { contextKey, generation };
+		activeSubmissionRef.current = submission;
+		setSubmitting(true);
+		try {
+			await onPublishedAtChange(result.value);
+			if (contextRef.current === contextKey && generationRef.current === generation) {
+				reset();
+				setOpen(false);
+			}
+		} catch (error) {
+			if (contextRef.current === contextKey && generationRef.current === generation) {
+				setMutationError(error);
+			}
+		} finally {
+			if (activeSubmissionRef.current === submission) activeSubmissionRef.current = null;
+			if (contextRef.current === contextKey && generationRef.current === generation) {
+				setSubmitting(false);
+			}
+		}
+	};
+	const handleSubmit = (event: React.FormEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+		void submit();
+	};
+
+	return (
+		<Popover open={open} onOpenChange={handleOpenChange}>
+			<Popover.Trigger
+				render={
+					<Button
+						type="button"
+						variant="ghost"
+						className="h-auto min-h-9 w-full min-w-0 justify-end whitespace-normal px-2 py-1 text-end font-normal"
+						aria-label={t`Edit publication date: ${formattedValue}`}
+					/>
+				}
+			>
+				<time dateTime={publishedAt}>{formattedValue}</time>
+				<CaretRight className="size-3 shrink-0 rtl:-scale-x-100" aria-hidden="true" />
+			</Popover.Trigger>
+			<Popover.Content align="end" className="w-96 max-w-[calc(100vw-2rem)] p-4">
+				<form onSubmit={handleSubmit} noValidate>
+					<div className="flex items-start justify-between gap-4">
+						<div className="min-w-0 grid gap-1.5">
+							<Popover.Title className="text-base font-semibold">
+								{t`Edit publication date`}
+							</Popover.Title>
+							<Popover.Description className="text-base leading-5 text-pretty text-kumo-subtle">
+								{t`This changes the publication timestamp. It does not schedule an update.`}
+							</Popover.Description>
+						</div>
+						<Popover.Close
+							render={
+								<Button
+									type="button"
+									variant="ghost"
+									shape="square"
+									icon={<X aria-hidden="true" />}
+									aria-label={t`Close publication date editor`}
+								/>
+							}
+						/>
+					</div>
+
+					<div className="mt-4">
+						<PublishingDateTimeFields
+							date={date}
+							time={time}
+							disabled={pending}
+							dateAriaLabel={t`Publication date`}
+							onDateChange={(nextDate) => {
+								setDate(nextDate);
+								clearError();
+							}}
+							onTimeChange={(nextTime) => {
+								setTime(nextTime);
+								clearError();
+							}}
+						/>
+					</div>
+					<DialogError
+						message={validationError ?? getMutationError(mutationError)}
+						className="mt-3"
+					/>
+					<div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+						<Popover.Close render={<Button type="button" variant="secondary" />}>
+							{t`Cancel`}
+						</Popover.Close>
+						<Button
+							type="submit"
+							variant="primary"
+							loading={pending}
+							onClick={(event) => {
+								event.preventDefault();
+								void submit();
+							}}
+							disabled={pending || publishingFieldsMatchInstant(publishedAt, date, time)}
+						>
+							{t`Update date`}
+						</Button>
+					</div>
+				</form>
+			</Popover.Content>
+		</Popover>
 	);
 }

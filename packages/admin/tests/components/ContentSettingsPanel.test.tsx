@@ -16,6 +16,10 @@ import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor"
 import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
 import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
+import {
+	publishingInstantToLocalFields,
+	resolvePublishingLocalDateTime,
+} from "../../src/lib/publishing-datetime.js";
 import { render } from "../utils/render.tsx";
 
 // Mock child components with their own data fetching so the panel tests
@@ -137,7 +141,6 @@ function makePanelProps(
 		supportsDrafts: true,
 		isLive: false,
 		hasPendingChanges: false,
-		hasSchedule: false,
 		supportsRevisions: true,
 		canSchedule: false,
 		onDelete: vi.fn(),
@@ -199,12 +202,37 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
 	});
 
-	it("shows the normalized pending changes label", async () => {
+	it("places the lifecycle beside Publish and distinguishes live and draft versions", async () => {
 		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ isLive: true, hasPendingChanges: true })} />,
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						liveRevisionId: "rev-live",
+						draftRevisionId: "rev-draft",
+					}),
+					status: "published",
+					isLive: true,
+					hasPendingChanges: true,
+					onDiscardDraft: vi.fn(),
+				})}
+			/>,
 		);
 
-		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
+		const heading = screen.getByRole("heading", { name: "Publish" }).element();
+		const publishedBadge = screen.getByText("Published", { exact: true }).element();
+		expect(publishedBadge.parentElement).toBe(heading.parentElement);
+		await expect.element(screen.getByText("Live version", { exact: true })).toBeInTheDocument();
+		await expect.element(screen.getByText("Draft changes", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Visitors still see the published version"))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Ready to publish now or schedule for later"))
+			.toBeInTheDocument();
+		expect(screen.getByText("Status", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Pending changes", { exact: true }).query()).toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Discard changes" })).toBeVisible();
 	});
 
 	it("only grants inline taxonomy management to editors", async () => {
@@ -274,31 +302,107 @@ describe("ContentSettingsPanel", () => {
 
 	it("shows Scheduled without a Draft companion", async () => {
 		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ hasSchedule: true })} />,
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ scheduledAt: "2027-06-01T12:00:00.000Z" }),
+				})}
+			/>,
 		);
 
-		await expect.element(screen.getByText("Scheduled", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("First publication", { exact: true }))
+			.toBeInTheDocument();
+		expect(screen.getByText("Scheduled", { exact: true }).all()).toHaveLength(2);
+		expect(
+			screen.container.querySelector('time[datetime="2027-06-01T12:00:00.000Z"]')?.textContent,
+		).toContain("(EDT)");
 		expect(screen.container.textContent).not.toContain("Draft");
+	});
+
+	it("shows scheduled draft changes while the published version stays live", async () => {
+		const scheduledAt = "2027-06-01T12:00:00.000Z";
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						liveRevisionId: "rev-live",
+						draftRevisionId: "rev-draft",
+						scheduledAt,
+					}),
+					status: "published",
+					isLive: true,
+					hasPendingChanges: true,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Live version", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Draft changes", { exact: true })).toBeVisible();
+		await expect
+			.element(screen.getByText("Visitors see the published version until the scheduled update"))
+			.toBeVisible();
+		expect(screen.container.querySelector(`time[datetime="${scheduledAt}"]`)).not.toBeNull();
+	});
+
+	it("does not claim draft changes for a live item with only a persisted schedule", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						liveRevisionId: "rev-live",
+						draftRevisionId: "rev-live",
+						scheduledAt: "2027-06-01T12:00:00.000Z",
+					}),
+					status: "published",
+					isLive: true,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Live version", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Scheduled publication", { exact: true })).toBeVisible();
+		expect(screen.getByText("Draft changes", { exact: true }).query()).toBeNull();
 	});
 
 	it("normalizes recognized statuses for collections without draft support", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ status: "published", supportsDrafts: false })} />,
 		);
-		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+		const heading = screen.getByRole("heading", { name: "Publish" }).element();
+		const status = screen.getByText("Published", { exact: true }).element();
 
-		expect(statusRow.textContent).toContain("Published");
-		expect(statusRow.querySelector("svg")).not.toBeNull();
+		expect(status.parentElement).toBe(heading.parentElement);
+		expect(status.querySelector("svg")).not.toBeNull();
 	});
 
 	it("preserves custom statuses for collections without draft support", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ status: "reviewing", supportsDrafts: false })} />,
 		);
-		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+		const heading = screen.getByRole("heading", { name: "Publish" }).element();
+		const status = screen.getByText("Reviewing", { exact: true }).element();
 
-		expect(statusRow.textContent).toContain("Reviewing");
-		expect(statusRow.querySelector("svg")).toBeNull();
+		expect(status.parentElement).toBe(heading.parentElement);
+		expect(status.querySelector("svg")).toBeNull();
+	});
+
+	it("shows a persisted schedule without live-and-draft language when drafts are unsupported", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ scheduledAt: "2027-06-01T12:00:00.000Z" }),
+					status: "reviewing",
+					supportsDrafts: false,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Reviewing", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Scheduled publication", { exact: true })).toBeVisible();
+		expect(screen.getByText("Live version", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Draft version", { exact: true }).query()).toBeNull();
 	});
 
 	it("renders applicable trusted plugin panels in host-owned sections", async () => {
@@ -594,6 +698,8 @@ describe("ContentSettingsPanel", () => {
 
 	it("lets editors update the publish date of published content", async () => {
 		const onPublishedAtChange = vi.fn();
+		const publishedAt = "2025-01-15T10:30:45.123Z";
+		const initial = publishingInstantToLocalFields(publishedAt);
 		const previousLocale = i18n.locale;
 		i18n.load("ar", {});
 		i18n.activate("ar");
@@ -604,7 +710,7 @@ describe("ContentSettingsPanel", () => {
 						{...makePanelProps({
 							item: makeItem({
 								status: "published",
-								publishedAt: "2025-01-15T10:30:00.000Z",
+								publishedAt,
 							}),
 							isLive: true,
 							onPublishedAtChange,
@@ -613,15 +719,104 @@ describe("ContentSettingsPanel", () => {
 				</div>,
 			);
 
-			const input = screen.getByLabelText("Publish date");
-			await expect.element(input).toHaveValue("2025-01-15T10:30");
-			await input.fill("2020-06-01T08:45");
-			await screen.getByRole("button", { name: "Update publish date" }).click();
+			const trigger = screen.getByRole("button", { name: /Edit publication date:/ });
+			await expect.element(trigger).toBeVisible();
+			expect(screen.container.querySelector('input[type="time"]')).toBeNull();
+			await trigger.click();
+			await expect
+				.element(
+					screen.getByText(
+						"This changes the publication timestamp. It does not schedule an update.",
+					),
+				)
+				.toBeVisible();
+			await expect.element(screen.getByLabelText("Time")).toHaveValue(initial.time);
+			await expect.element(screen.getByRole("button", { name: "Update date" })).toBeDisabled();
+			await screen.getByRole("button", { name: "Cancel", exact: true }).click();
+			expect(onPublishedAtChange).not.toHaveBeenCalled();
 
-			expect(onPublishedAtChange).toHaveBeenCalledWith("2020-06-01T08:45:00.000Z");
+			await trigger.click();
+			await screen.getByLabelText("Time").fill("08:45");
+			const resolved = resolvePublishingLocalDateTime(initial.date, "08:45");
+			expect(resolved.success).toBe(true);
+			await screen.getByRole("button", { name: "Update date" }).click();
+
+			expect(onPublishedAtChange).toHaveBeenCalledWith(
+				resolved.success ? resolved.value : undefined,
+			);
 		} finally {
 			i18n.activate(previousLocale);
 		}
+	});
+
+	it("keeps publication-date values available after an update is rejected", async () => {
+		const onPublishedAtChange = vi.fn().mockRejectedValue(new Error("Date update failed"));
+		const publishedAt = "2025-01-15T10:30:00.000Z";
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ status: "published", publishedAt }),
+					isLive: true,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: /Edit publication date:/ }).click();
+		const time = screen.getByLabelText("Time");
+		await time.fill("08:45");
+		await screen.getByRole("button", { name: "Update date" }).click();
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
+		await expect.element(time).toHaveValue("08:45");
+		expect(onPublishedAtChange).toHaveBeenCalledOnce();
+	});
+
+	it("closes and resets the publication-date editor when the entry changes", async () => {
+		let rejectUpdate: (reason?: unknown) => void = () => {};
+		const pendingUpdate = new Promise<void>((_resolve, reject) => {
+			rejectUpdate = reject;
+		});
+		const onPublishedAtChange = vi.fn(() => pendingUpdate);
+		const firstPublishedAt = "2025-01-15T10:30:00.000Z";
+		const secondPublishedAt = "2025-02-20T17:15:00.000Z";
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ id: "item-1", status: "published", publishedAt: firstPublishedAt }),
+					isLive: true,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: /Edit publication date:/ }).click();
+		await screen.getByLabelText("Time").fill("08:45");
+		await screen.getByRole("button", { name: "Update date" }).click();
+		await expect.element(screen.getByRole("button", { name: "Update date" })).toBeDisabled();
+
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ id: "item-2", status: "published", publishedAt: secondPublishedAt }),
+					isLive: true,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+		await vi.waitFor(() => {
+			expect(screen.getByText("Edit publication date", { exact: true }).query()).toBeNull();
+		});
+		await act(async () => {
+			rejectUpdate(new Error("Stale update failed"));
+			await Promise.resolve();
+		});
+		expect(screen.getByRole("alert").query()).toBeNull();
+
+		await screen.getByRole("button", { name: /Edit publication date:/ }).click();
+		await expect
+			.element(screen.getByLabelText("Time"))
+			.toHaveValue(publishingInstantToLocalFields(secondPublishedAt).time);
 	});
 
 	it("does not expose publish-date editing below the editor role", async () => {
@@ -639,8 +834,12 @@ describe("ContentSettingsPanel", () => {
 			/>,
 		);
 
-		expect(screen.container.querySelector('input[type="datetime-local"]')).toBeNull();
-		expect(screen.container.textContent).not.toContain("Update publish date");
+		await expect.element(screen.getByText("Publication date", { exact: true })).toBeVisible();
+		expect(screen.getByRole("button", { name: /Edit publication date:/ }).query()).toBeNull();
+		expect(screen.container.querySelector('input[type="time"]')).toBeNull();
+		const timestamps = screen.getByTestId("content-timestamps").element();
+		expect(timestamps.querySelectorAll("time")).toHaveLength(3);
+		expect(timestamps.querySelector('time[datetime="2025-01-15T10:30:00.000Z"]')).not.toBeNull();
 	});
 
 	it("hides capability-gated sections when their flags are off", async () => {

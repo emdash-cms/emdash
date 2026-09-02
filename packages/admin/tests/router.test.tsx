@@ -62,7 +62,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
 		onAuthorChange?: (authorId: string | null) => void;
 		onSeoChange?: (seo: { title: string }) => void;
-		onPublishedAtChange?: (publishedAt: string) => void;
+		onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 		isSaving?: boolean;
 		isAutosaving?: boolean;
 		isSaveFeedbackActive?: boolean;
@@ -109,7 +109,11 @@ vi.mock("../src/components/ContentEditor", () => ({
 			<button
 				type="button"
 				disabled={isUpdatingPublishedAt}
-				onClick={() => onPublishedAtChange?.("2020-06-01T08:45:00.000Z")}
+				onClick={(event) => {
+					const result = onPublishedAtChange?.("2020-06-01T08:45:00.000Z");
+					event.currentTarget.dataset.returnsPromise = String(result instanceof Promise);
+					if (result instanceof Promise) void result.catch(() => undefined);
+				}}
 			>
 				Trigger Publish Date Sync
 			</button>
@@ -1453,7 +1457,9 @@ describe("ContentEditPage – autosave cache patching", () => {
 				expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
 			});
 
-			await screen.getByRole("button", { name: "Trigger Publish Date Sync" }).click();
+			const trigger = screen.getByRole("button", { name: "Trigger Publish Date Sync" });
+			await trigger.click();
+			await expect.element(trigger).toHaveAttribute("data-returns-promise", "true");
 
 			await waitFor(() => {
 				expect(updateBody).toEqual({ publishedAt: "2020-06-01T08:45:00.000Z" });
