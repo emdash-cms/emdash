@@ -23,12 +23,20 @@ const RUNS_DIR = join(ROOT, "acceptance", "runs");
 const CURRENT_RUN_PATH = join(RUNS_DIR, "current");
 const PROFILE_NAME_PATTERN = /^[a-z][a-z0-9-]*$/;
 const RUN_ID_PATTERN = /^\d{8}T\d{6}-[a-f0-9]{6}$/;
+const ADMIN_DIST_MARKERS = [
+	join(ROOT, "packages", "admin", "dist", "index.js"),
+	join(ROOT, "packages", "admin", "dist", "locales", "index.js"),
+	join(ROOT, "packages", "admin", "dist", "styles.css"),
+];
 
 const TARGETS = {
 	node: {
 		fixtureDir: join(ROOT, "e2e", "fixture"),
 		buildFilter: "emdash-e2e-fixture...",
-		buildMarkers: [join(ROOT, "packages", "core", "dist", "cli", "index.mjs")],
+		buildMarkers: [
+			join(ROOT, "packages", "core", "dist", "cli", "index.mjs"),
+			...ADMIN_DIST_MARKERS,
+		],
 		startupTimeoutMs: 60_000,
 		usesTempDatabase: true,
 	},
@@ -38,6 +46,7 @@ const TARGETS = {
 		buildMarkers: [
 			join(ROOT, "packages", "core", "dist", "cli", "index.mjs"),
 			join(ROOT, "packages", "cloudflare", "dist", "index.mjs"),
+			...ADMIN_DIST_MARKERS,
 		],
 		startupTimeoutMs: 120_000,
 		usesTempDatabase: false,
@@ -278,9 +287,7 @@ async function waitForOk(url, pid, timeoutMs, headers) {
 			if (response.ok) return response;
 			lastStatus = response.status;
 			lastBody = await response.text().catch(() => "");
-		} catch {
-			// Retry until the bounded startup deadline.
-		}
+		} catch {}
 		await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
 	}
 
@@ -454,7 +461,8 @@ function siteStatus() {
 	const run = readRun(runId);
 	const alive = processIsAlive(run.pid);
 	const astroLock = readAstroLock(run.fixtureDir);
-	process.stdout.write(`${JSON.stringify({ ...run, alive, astroLock }, null, 2)}\n`);
+	const { token: _token, ...status } = run;
+	process.stdout.write(`${JSON.stringify({ ...status, alive, astroLock }, null, 2)}\n`);
 }
 
 async function main() {
