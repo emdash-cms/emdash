@@ -1,0 +1,67 @@
+e2e/tests/media-library.spec.ts
+  s_c7dd983d240bd3::t_c35e54d9464cff 117,334-357,415-424
+packages/admin/src/components/FocalPointEditor.tsx
+  s_7401afe2e80f73::t_f86b78c5fbcfc9 38-41,43,55-57
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_7401afe2e80f73::t_e77131675dc22d 14,17,21,111-140,202-204,206-207,209-211
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_7401afe2e80f73::t_9cc5b6db03540f 62,186,212-213,243-248,275-277,328-333,350-351,526-532,674,683-686,691,711,718-722,731-736,872-880,898-900,907,941-943,1070-1082,1283,1288,1299,1306,1310,1334-1335,1337-1351,1353-1355,1359,1374,1376,1380,1382-1383,1426-1430,1543-1557
+packages/admin/src/components/MediaLibrary.tsx
+  s_7401afe2e80f73::t_4aea6bbbdc31e0 73,1686,1714-1719,1724,1821,1848,1853
+packages/admin/src/components/MediaPickerModal.tsx
+  s_7401afe2e80f73::t_dd620ad2581533 33,839,845-847,881
+packages/admin/src/lib/api/media.ts
+  s_7401afe2e80f73::t_5d6be90a0a25bd 25,91,328,450-451
+packages/admin/src/lib/media-utils.ts
+  s_7401afe2e80f73::t_7744bf83a13438 106-111,144,146-148,155,158
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_7401afe2e80f73::t_fae0666be108cc 2,5,8-12,74-90,119-210
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_7401afe2e80f73::t_2c7f10a7257d0c 288-316,429-436,480-494,503,588,590,693,1048,1062
+packages/admin/tests/lib/media-thumbnail.test.ts
+  s_7401afe2e80f73::t_373dd593b8d613 29-37
+packages/admin/tests/lib/media-upload.test.ts
+  s_7401afe2e80f73::t_0ae328c7f53cb8 104,107,128,132
+packages/core/src/api/handlers/media.ts
+  s_7401afe2e80f73::t_e967347cb561ea 152
+packages/core/src/api/schemas/media.ts
+  s_7401afe2e80f73::t_fa306791035653 134,159
+packages/core/src/astro/middleware.ts
+  s_7401afe2e80f73::t_51866dcad2e4e0 912-916
+packages/core/src/astro/routes/api/media.ts
+  s_7401afe2e80f73::t_e7766034a09c30 21,158-173,257
+packages/core/src/astro/routes/api/media/upload-url.ts
+  s_7401afe2e80f73::t_d0010b92186296 130
+packages/core/src/astro/types.ts
+  s_7401afe2e80f73::t_4210711ff6e11c 396
+packages/core/src/database/repositories/media.ts
+  s_7401afe2e80f73::t_7a418fc9dbf7b4 86,159,177
+packages/core/src/emdash-runtime.ts
+  s_7401afe2e80f73::t_278468b87da6ff 3438
+packages/core/tests/integration/astro/media-upload-deduplication.test.ts
+  s_7401afe2e80f73::t_264940c686a087 7-8,16,20,101-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6fefb5a946f35acb294212783d3508ab1a36ea12",
+  "prompts": {},
+  "sessions": {
+    "s_7401afe2e80f73": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05f2a-31ef-79e3-ba99-17dc671bebd6",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
