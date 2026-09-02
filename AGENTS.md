@@ -49,7 +49,7 @@ gh pr create --body-file /tmp/emdash-pr.md \
 	--attach './after.png#Settings screen after the change'
 ```
 
-To place an image at a specific point in the body, add `![descriptive alt text](./after.png)` to the body file and pass `--attach ./after.png`; `gh` replaces the local path with the uploaded asset URL. An attachment that is not referenced in the body is appended. Image uploads require repository write access. See [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots).
+To place an image at a specific point in the body, add `![descriptive alt text](./after.png)` to the body file and pass `--attach ./after.png`; `gh` replaces the local path with the uploaded asset URL. An attachment that is not referenced in the body is appended. CLI `--attach` uploads require repository write access. See [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots).
 
 ## Architecture
 
