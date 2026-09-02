@@ -307,9 +307,7 @@ jobs:
         if: failure()
         with:
           name: playwright-report-playground
-          path: |
-            playwright-report/
-            test-results/
+          path: test-results/
           retention-days: 7
 
   test-e2e-cloudflare:
