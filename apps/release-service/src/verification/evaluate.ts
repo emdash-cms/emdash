@@ -382,18 +382,18 @@ export async function evaluateWorkloadAttestation(
 	}
 	const workflowMarker = "/.github/workflows/";
 	const markerIndex = identity.workflow.ref.toLowerCase().indexOf(workflowMarker);
-	const expectedBuilderId = `${provenance.sourceRepository}${identity.workflow.ref.slice(markerIndex)}`;
+	const expectedBuilderId = `${sourceRepository}${identity.workflow.ref.slice(markerIndex)}`;
 	if (markerIndex < 1 || provenance.builderId !== expectedBuilderId) {
 		return { ok: false, reasonCode: "ATTESTED_WORKFLOW_MISMATCH" };
 	}
 	const workflowRef = identity.workflow.ref.slice(identity.workflow.ref.lastIndexOf("@") + 1);
-	if (provenance.workflowRef !== workflowRef || provenance.workflowRef !== identity.run.ref) {
+	if (provenance.workflowRef !== workflowRef) {
 		return { ok: false, reasonCode: "ATTESTED_REF_MISMATCH" };
 	}
 	if (provenance.commitSha !== identity.run.commitSha) {
 		return { ok: false, reasonCode: "ATTESTED_COMMIT_MISMATCH" };
 	}
-	const invocationId = `${provenance.sourceRepository}/actions/runs/${identity.run.id}/attempts/${identity.run.attempt}`;
+	const invocationId = `${sourceRepository}/actions/runs/${identity.run.id}/attempts/${identity.run.attempt}`;
 	if (provenance.invocationId !== invocationId) {
 		return { ok: false, reasonCode: "ATTESTED_INVOCATION_MISMATCH" };
 	}

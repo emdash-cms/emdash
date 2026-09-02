@@ -7,6 +7,7 @@ import type { ReleaseVerificationReport } from "../../release-verifier/src/verif
 import type { StoredIntent } from "../src/publisher-do/publisher-do.js";
 import type { StoredWorkloadPolicy } from "../src/publisher-do/workload-policy.js";
 import {
+	evaluateWorkloadAttestation,
 	evaluateVerifiedRelease,
 	normalizeVerifierReport,
 	parseNormalizedVerifierReport,
@@ -192,6 +193,33 @@ describe("verification evaluation", () => {
 				},
 			},
 		});
+	});
+
+	it("accepts a workflow file ref that differs from the triggering run ref", async () => {
+		const tagIdentity = structuredClone(WORKLOAD_IDENTITY);
+		tagIdentity.run.ref = "refs/tags/v1.2.3";
+		tagIdentity.run.refType = "tag";
+		const tagPolicy = { ...WORKLOAD_POLICY, allowedRefs: ["refs/tags/*"] };
+
+		await expect(
+			evaluateVerifiedRelease(
+				PUBLISHER_DID,
+				await intent(proposedRelease(), tagIdentity),
+				snapshot(),
+				tagPolicy,
+				verifierReport(),
+			),
+		).resolves.toMatchObject({ success: true });
+	});
+
+	it("uses canonical repository casing for builder and invocation identity", async () => {
+		const report = verifierReport();
+		if (!report.success) throw new Error("Expected successful fixture");
+		report.value.provenance.sourceRepository = "https://github.com/Example/Gallery";
+
+		await expect(
+			evaluateWorkloadAttestation(await intent(), WORKLOAD_POLICY, report.value.provenance),
+		).resolves.toEqual({ ok: true });
 	});
 
 	it("binds signed request URLs while retaining verified redirect destinations", async () => {
