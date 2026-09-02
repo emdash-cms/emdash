@@ -297,6 +297,28 @@ export async function handleSubmitReleaseIntent(
 			if (replay.requestDigest !== requestDigest) {
 				throw new ApiError("IDEMPOTENCY_CONFLICT", 409, "Idempotency key conflicts with prior use");
 			}
+		}
+		const admission = await env.SERVICE_CONTROL_DO.getByName(
+			SERVICE_CONTROL_OBJECT_NAME,
+		).getAdmissionDecision(publisherDid);
+		if (!admission.allowed) {
+			throw new ApiError(
+				admission.code === "PUBLISHER_SUSPENDED" ? "PUBLISHER_SUSPENDED" : "SERVICE_PAUSED",
+				503,
+				admission.code === "PUBLISHER_SUSPENDED"
+					? "Publisher is suspended"
+					: "Release admission is paused",
+			);
+		}
+		const policy = await publisher.getWorkloadPolicy(publisherDid, release.package);
+		if (
+			!policy ||
+			!evaluateWorkloadPolicy(identity, policy).ok ||
+			(replay !== null && replay.intent.workloadPolicyVersion !== policy.stateVersion)
+		) {
+			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
+		}
+		if (replay) {
 			const started = await (dependencies.startWorkflow ?? startReleaseIntentWorkflow)(
 				env.RELEASE_INTENT_WORKFLOW,
 				env.PUBLISHER_DO,
@@ -314,22 +336,6 @@ export async function handleSubmitReleaseIntent(
 				},
 				requestId,
 			);
-		}
-		const admission = await env.SERVICE_CONTROL_DO.getByName(
-			SERVICE_CONTROL_OBJECT_NAME,
-		).getAdmissionDecision(publisherDid);
-		if (!admission.allowed) {
-			throw new ApiError(
-				admission.code === "PUBLISHER_SUSPENDED" ? "PUBLISHER_SUSPENDED" : "SERVICE_PAUSED",
-				503,
-				admission.code === "PUBLISHER_SUSPENDED"
-					? "Publisher is suspended"
-					: "Release admission is paused",
-			);
-		}
-		const policy = await publisher.getWorkloadPolicy(publisherDid, release.package);
-		if (!policy || !evaluateWorkloadPolicy(identity, policy).ok) {
-			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
 		}
 		const workloadRateKey = await digest([
 			"intent-rate-limit",

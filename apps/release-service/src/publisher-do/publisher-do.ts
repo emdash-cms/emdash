@@ -1,10 +1,13 @@
 import { DurableObject } from "cloudflare:workers";
 
+import { invalidateApprovalChallenges } from "../approvals/invalidation.js";
 import type {
 	EncryptionRecordPage,
 	EncryptionRecordReplacement,
 } from "../operations/encryption-records.js";
 import { MAX_ENCRYPTION_RECORD_PAGE } from "../operations/encryption-records.js";
+import { digestWorkloadIdentity } from "../workload/policy.js";
+import { parseStoredWorkloadIdentity } from "../workload/types.js";
 import {
 	initializeIntentStateSchema,
 	IntentStateStore,
@@ -736,9 +739,33 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		});
 	}
 
-	putWorkloadPolicy(input: PutWorkloadPolicyInput): PutWorkloadPolicyResult {
+	async putWorkloadPolicy(input: PutWorkloadPolicyInput): Promise<PutWorkloadPolicyResult> {
 		this.#assertPublisherDid(input.publisherDid);
-		return this.#workloadPolicies.put(input);
+		const result = this.#workloadPolicies.put(input);
+		if (!result.ok) return result;
+		const invalidations = await Promise.allSettled(
+			result.invalidatedApprovalChallenges.map((invalidation) =>
+				invalidateApprovalChallenges(
+					this.env.APPROVER_DO,
+					invalidation.approverDids,
+					invalidation.intentId,
+					"WORKLOAD_CHANGED",
+					input.now ?? Date.now(),
+				),
+			),
+		);
+		for (const invalidation of invalidations) {
+			if (invalidation.status === "rejected") {
+				console.error(
+					JSON.stringify({
+						event: "workload_approval_invalidation_failed",
+						publisherDid: input.publisherDid,
+						name: invalidation.reason instanceof Error ? invalidation.reason.name : "UnknownError",
+					}),
+				);
+			}
+		}
+		return { ok: true, policy: result.policy };
 	}
 
 	getWorkloadPolicy(publisherDid: string, packageSlug: string): StoredWorkloadPolicy | null {
@@ -806,12 +833,12 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return this.#workflowConnections.listPending(limit, now);
 	}
 
-	confirmWorkflowConnection(
+	async confirmWorkflowConnection(
 		publisherDid: string,
 		requestId: string,
 		refScope: WorkflowConnectionRefScope,
 		now = Date.now(),
-	): ConfirmWorkflowConnectionResult {
+	): Promise<ConfirmWorkflowConnectionResult> {
 		this.#assertPublisherDid(publisherDid);
 		const prepared = this.#workflowConnections.prepareConfirmation(requestId, now);
 		if (!prepared.ok) return prepared;
@@ -829,7 +856,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				? { ok: true, request: prepared.request, policy, replayed: true }
 				: { ok: false, code: "WORKFLOW_CONNECTION_CONFLICT" };
 		}
-		const result = this.#workloadPolicies.put({
+		const result = await this.putWorkloadPolicy({
 			publisherDid,
 			...expectedPolicy,
 			expectedVersion,
@@ -960,7 +987,17 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		input: AdvancePublicationOperationPhaseInput,
 	): Promise<AdvancePublicationOperationPhaseResult> {
 		this.#assertPublisherDid(input.publisherDid);
-		const result = await this.#publicationOperations.advancePhase(input);
+		const intent = input.phase === "creating" ? this.#intents.get(input.intentId) : null;
+		const identity = intent ? parseStoredWorkloadIdentity(intent.workloadIdentityJson) : null;
+		const authorization =
+			intent && identity
+				? {
+						identity,
+						identityDigest: await digestWorkloadIdentity(identity),
+						identityJson: intent.workloadIdentityJson,
+					}
+				: null;
+		const result = await this.#publicationOperations.advancePhase(input, authorization);
 		await this.#scheduleNextAlarm(input.now ?? Date.now());
 		return result;
 	}

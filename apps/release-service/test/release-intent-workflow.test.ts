@@ -36,6 +36,38 @@ const PACKAGE_BYTES = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01]);
 const ARTIFACT_CHECKSUM = "bciqhazpl5w2ra742ngjezwxoy4p74p2eyiftnnhycsofanwmdrezity";
 const ARTIFACT_BLOB_CID = "bafkreidqmxv63niqp6ngtesm3lxmoh76h5cmeczwwt4bjhcqg3gbysmuj4";
 const DEFAULT_SIGNING_KEY = "zDnaeq9feE9D74uYD5jynoyyQPbhhWU2vStcmC8W1xQHG3fWe";
+const WORKLOAD_IDENTITY: VerifiedWorkloadIdentity = {
+	issuer: "github-actions",
+	subject: "repo:example/gallery:ref:refs/heads/main",
+	tokenId: "release-token-100",
+	repository: {
+		name: "example/gallery",
+		id: "123456789",
+		owner: "example",
+		ownerId: "987654321",
+		visibility: "public",
+	},
+	workflow: {
+		ref: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+		sha: "a".repeat(40),
+		jobRef: null,
+		jobSha: null,
+	},
+	run: {
+		id: "100",
+		attempt: 1,
+		actor: "release-bot",
+		actorId: "200",
+		eventName: "workflow_dispatch",
+		ref: "refs/heads/main",
+		refType: "branch",
+		commitSha: "b".repeat(40),
+		environment: null,
+		runnerEnvironment: "github-hosted",
+	},
+	issuedAt: 1_800_000_000,
+	expiresAt: 1_800_000_300,
+};
 
 function writeUint24LittleEndian(bytes: Uint8Array, offset: number, value: number): void {
 	bytes[offset] = value & 0xff;
@@ -124,38 +156,6 @@ const PROVENANCE = {
 	sourceRepository: "https://github.com/example/gallery",
 	builderId: "https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main",
 } as const;
-const WORKLOAD_IDENTITY: VerifiedWorkloadIdentity = {
-	issuer: "github-actions",
-	subject: "repo:example/gallery:ref:refs/heads/main",
-	tokenId: "token-100",
-	repository: {
-		name: "example/gallery",
-		id: "123456789",
-		owner: "example",
-		ownerId: "987654321",
-		visibility: "public",
-	},
-	workflow: {
-		ref: "example/gallery/.github/workflows/release.yml@refs/heads/main",
-		sha: "a".repeat(40),
-		jobRef: null,
-		jobSha: null,
-	},
-	run: {
-		id: "100",
-		attempt: 1,
-		actor: "release-bot",
-		actorId: "2468",
-		eventName: "push",
-		ref: "refs/heads/main",
-		refType: "branch",
-		commitSha: "b".repeat(40),
-		environment: null,
-		runnerEnvironment: "github-hosted",
-	},
-	issuedAt: 1_800_000_000,
-	expiresAt: 1_800_000_300,
-};
 const CONTROL_ACTOR = {
 	realm: "access",
 	identity: "admin@example.com",
@@ -1033,21 +1033,15 @@ describe("ReleaseIntentWorkflow", () => {
 					if (policyChanged) return;
 					policyChanged = true;
 					const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
-					const current = await publisher.getWorkloadPolicy(PUBLISHER_DID, "gallery");
-					if (!current) throw new Error("Expected active workload policy");
-					const updated = await publisher.putWorkloadPolicy({
-						publisherDid: PUBLISHER_DID,
-						packageSlug: "gallery",
-						repository: current.repository,
-						repositoryId: current.repositoryId,
-						repositoryOwnerId: current.repositoryOwnerId,
-						workflowRef: "example/gallery/.github/workflows/restricted.yml@refs/heads/main",
-						allowedRefs: current.allowedRefs,
-						allowedEnvironments: current.allowedEnvironments,
-						active: true,
-						expectedVersion: current.stateVersion,
+					await runInDurableObject(publisher, (_instance, state) => {
+						state.storage.sql.exec(
+							`UPDATE workload_policies
+							 SET workflow_ref = ?, state_version = state_version + 1
+							 WHERE package_slug = ?`,
+							"example/gallery/.github/workflows/restricted.yml@refs/heads/main",
+							"gallery",
+						);
 					});
-					if (!updated.ok) throw new Error(updated.code);
 				},
 				onCreateRecord: () => {
 					createAttempts += 1;

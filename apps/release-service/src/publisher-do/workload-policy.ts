@@ -41,6 +41,19 @@ export type PutWorkloadPolicyResult =
 	| { ok: true; policy: StoredWorkloadPolicy }
 	| { ok: false; code: "WORKLOAD_POLICY_CAS_REQUIRED" };
 
+export interface InvalidatedApprovalChallenges {
+	intentId: string;
+	approverDids: readonly string[];
+}
+
+export type WorkloadPolicyStoreResult =
+	| {
+			ok: true;
+			policy: StoredWorkloadPolicy;
+			invalidatedApprovalChallenges: readonly InvalidatedApprovalChallenges[];
+	  }
+	| { ok: false; code: "WORKLOAD_POLICY_CAS_REQUIRED" };
+
 interface WorkloadPolicyRow {
 	[key: string]: string | number | ArrayBuffer | null;
 	package_slug: string;
@@ -55,6 +68,18 @@ interface WorkloadPolicyRow {
 	authorized_by: string;
 	created_at: number;
 	updated_at: number;
+}
+
+interface InvalidatedIntentRow {
+	[key: string]: string | number | ArrayBuffer | null;
+	id: string;
+	state: string;
+	state_generation: number;
+	state_data_json: string;
+	workload_identity_digest: string;
+	operation_generation: number | null;
+	operation_phase: string | null;
+	operation_status: string | null;
 }
 
 export class WorkloadPolicyError extends Error {
@@ -104,6 +129,29 @@ function validEnvironment(value: string): boolean {
 		if (codePoint <= 31 || codePoint === 127) return false;
 	}
 	return true;
+}
+
+function approvalChallengeInvalidation(
+	row: InvalidatedIntentRow,
+): InvalidatedApprovalChallenges | null {
+	if (row.state !== "awaiting_approval") return null;
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(row.state_data_json);
+	} catch {
+		return null;
+	}
+	if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+	const approverDids = Reflect.get(parsed, "approverDids");
+	if (
+		!Array.isArray(approverDids) ||
+		approverDids.length > MAX_POLICY_VALUES ||
+		new Set(approverDids).size !== approverDids.length ||
+		approverDids.some((value) => typeof value !== "string" || !DID_PATTERN.test(value))
+	) {
+		return null;
+	}
+	return { intentId: row.id, approverDids };
 }
 
 export function validRefRule(value: string): boolean {
@@ -197,7 +245,7 @@ export class WorkloadPolicyStore {
 		this.#storage = storage;
 	}
 
-	put(input: PutWorkloadPolicyInput): PutWorkloadPolicyResult {
+	put(input: PutWorkloadPolicyInput): WorkloadPolicyStoreResult {
 		const now = input.now ?? Date.now();
 		if (typeof input.repository !== "string" || typeof input.workflowRef !== "string") {
 			throw new WorkloadPolicyError();
@@ -271,8 +319,113 @@ export class WorkloadPolicyStore {
 				input.packageSlug,
 				now,
 			);
-			return { ok: true, policy: this.get(input.packageSlug)! } as const;
+			const invalidatedApprovalChallenges = this.#invalidatePreWriteIntents(
+				input.publisherDid,
+				input.packageSlug,
+				stateVersion,
+				now,
+			);
+			return {
+				ok: true,
+				policy: this.get(input.packageSlug)!,
+				invalidatedApprovalChallenges,
+			} as const;
 		});
+	}
+
+	#invalidatePreWriteIntents(
+		publisherDid: string,
+		packageSlug: string,
+		policyVersion: number,
+		now: number,
+	): readonly InvalidatedApprovalChallenges[] {
+		const rows = this.#storage.sql
+			.exec<InvalidatedIntentRow>(
+				`SELECT intents.id, intents.state, intents.state_generation,
+				        intents.state_data_json, intents.workload_identity_digest,
+				        publication_operations.generation AS operation_generation,
+				        publication_operations.phase AS operation_phase,
+				        publication_operations.status AS operation_status
+				 FROM intents
+				 LEFT JOIN publication_operations ON publication_operations.intent_id = intents.id
+				 WHERE intents.package_slug = ?
+				   AND intents.workload_policy_version <> ?
+				   AND intents.state IN (
+				     'received', 'verifying', 'verified', 'awaiting_approval', 'ready', 'publishing'
+				   )`,
+				packageSlug,
+				policyVersion,
+			)
+			.toArray();
+		const invalidatedApprovalChallenges: InvalidatedApprovalChallenges[] = [];
+		for (const row of rows) {
+			if (
+				row.state === "publishing" &&
+				row.operation_status === "active" &&
+				row.operation_phase === "creating"
+			) {
+				continue;
+			}
+			const approvalInvalidation = approvalChallengeInvalidation(row);
+			if (approvalInvalidation) invalidatedApprovalChallenges.push(approvalInvalidation);
+			const nextGeneration = row.state_generation + 1;
+			const stateDataJson = '{"reasonCode":"WORKLOAD_POLICY_CHANGED"}';
+			this.#storage.sql.exec(
+				`UPDATE intents SET state = 'invalid', state_generation = ?,
+				        state_data_json = ?, updated_at = ? WHERE id = ?`,
+				nextGeneration,
+				stateDataJson,
+				now,
+				row.id,
+			);
+			this.#storage.sql.exec(
+				`INSERT INTO intent_transitions (
+					intent_id, sequence, from_state, to_state, state_generation,
+					transition_digest, actor_realm, actor_identity, reason_code,
+					state_data_json, created_at
+				) VALUES (?, ?, ?, 'invalid', ?, ?, 'publisher', ?,
+				          'WORKLOAD_POLICY_CHANGED', ?, ?)`,
+				row.id,
+				nextGeneration,
+				row.state,
+				nextGeneration,
+				row.workload_identity_digest,
+				publisherDid,
+				stateDataJson,
+				now,
+			);
+			this.#storage.sql.exec("DELETE FROM release_reservations WHERE intent_id = ?", row.id);
+			if (
+				row.state === "publishing" &&
+				row.operation_status === "active" &&
+				row.operation_generation !== null
+			) {
+				this.#storage.sql.exec(
+					`UPDATE publication_operations SET status = 'completed',
+					        completion_digest = token_hash, outcome = 'failed',
+					        reason_code = 'WORKLOAD_POLICY_CHANGED', completed_at = ?
+					 WHERE intent_id = ? AND generation = ? AND status = 'active'`,
+					now,
+					row.id,
+					row.operation_generation,
+				);
+				this.#storage.sql.exec(
+					"DELETE FROM deadlines WHERE kind = 'publication-operation' AND subject_id = ?",
+					row.id,
+				);
+			}
+			this.#storage.sql.exec(
+				`INSERT INTO audit_events (
+					event_type, actor_realm, actor_identity, subject,
+					reason_code, public_payload, created_at
+				) VALUES ('intent-invalidated', 'publisher', ?, ?,
+				          'WORKLOAD_POLICY_CHANGED', '{}', ?)`,
+				publisherDid,
+				row.id,
+				now,
+			);
+		}
+		return invalidatedApprovalChallenges;
 	}
 
 	get(packageSlug: string): StoredWorkloadPolicy | null {

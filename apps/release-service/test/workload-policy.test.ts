@@ -74,13 +74,13 @@ describe("publisher workload policies", () => {
 			},
 		});
 		await runInDurableObject(publisher(), async (instance) => {
-			expect(() =>
+			await expect(
 				instance.putWorkloadPolicy(
 					input({
 						workflowRef: "EmDash-CMS/Gallery/.github/workflows/*.yml@refs/tags/*",
 					}),
 				),
-			).toThrowError(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
+			).rejects.toEqual(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
 		});
 	});
 
@@ -156,24 +156,24 @@ describe("publisher workload policies", () => {
 	it("rejects invalid workflow ownership, duplicate restrictions, and publisher mismatch", async () => {
 		const stub = publisher();
 		await runInDurableObject(stub, async (instance) => {
-			expect(() =>
+			await expect(
 				instance.putWorkloadPolicy({
 					...input(),
 					// @ts-expect-error - exercises an untyped RPC payload
 					repository: 42,
 				}),
-			).toThrowError(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
-			expect(() =>
+			).rejects.toEqual(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
+			await expect(
 				instance.putWorkloadPolicy(
 					input({
 						workflowRef: "attacker/repo/.github/workflows/release.yml@refs/heads/main",
 					}),
 				),
-			).toThrowError(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
-			expect(() =>
+			).rejects.toEqual(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
+			await expect(
 				instance.putWorkloadPolicy(input({ allowedRefs: ["refs/heads/main", "refs/heads/main"] })),
-			).toThrowError(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
-			expect(() => instance.putWorkloadPolicy(input({ publisherDid: OTHER_DID }))).toThrowError(
+			).rejects.toEqual(expect.objectContaining({ code: "WORKLOAD_POLICY_INVALID" }));
+			await expect(instance.putWorkloadPolicy(input({ publisherDid: OTHER_DID }))).rejects.toEqual(
 				expect.objectContaining({ code: "PUBLISHER_DID_MISMATCH" }),
 			);
 		});
