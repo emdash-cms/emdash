@@ -7,7 +7,6 @@ import {
 	decodeSlug,
 	getSiteSettings,
 } from "emdash";
-import { getRelativeLocaleUrl } from "astro:i18n";
 import {
 	Image,
 	PortableText,
@@ -56,16 +55,11 @@ function getImageUrl(img: unknown): string | undefined {
 }
 const featuredImageUrl = getImageUrl(post.data.featured_image);
 const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
-const canonicalPath = getRelativeLocaleUrl(Astro.currentLocale ?? "en", `posts/${slug}`).replace(
-	/\/$/,
-	"",
-);
-
 // Generate SEO meta from content
 const seo = getSeoMeta(post, {
 	siteTitle,
 	siteUrl: Astro.url.origin,
-	path: canonicalPath,
+	path: Astro.originPathname.replace(/\/$/, ""),
 	defaultOgImage: featuredImageUrl,
 });
 
