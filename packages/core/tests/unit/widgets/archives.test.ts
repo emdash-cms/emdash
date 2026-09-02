@@ -39,13 +39,13 @@ describe("groupEntriesByPublishedAt", () => {
 
 	it("groups by year when type is yearly", () => {
 		const groups = groupEntriesByPublishedAt(
-			[entry(new Date(2025, 11, 1)), entry(new Date(2026, 0, 1)), entry(new Date(2026, 6, 1))],
+			[entry(new Date(2026, 6, 1)), entry(new Date(2026, 0, 1)), entry(new Date(2025, 11, 1))],
 			{ type: "yearly" },
 		);
 
 		expect(groups).toEqual([
-			{ label: "2025", count: 1, url: "/archives/2025" },
 			{ label: "2026", count: 2, url: "/archives/2026" },
+			{ label: "2025", count: 1, url: "/archives/2025" },
 		]);
 	});
 

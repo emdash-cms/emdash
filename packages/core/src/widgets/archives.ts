@@ -20,8 +20,8 @@ function toPublishedDate(value: unknown): Date | null {
 /**
  * Group collection entries by published date for the Archives widget.
  *
- * `getEmDashCollection()` returns `publishedAt` as a `Date`. The widget used
- * to skip every non-string value, so the list was always empty.
+ * Accepts `Date` objects, ISO strings, and numeric timestamps; `getEmDashCollection()`
+ * returns `publishedAt` as a `Date`.
  */
 export function groupEntriesByPublishedAt(
 	entries: Array<{ data: { publishedAt?: unknown } }>,
