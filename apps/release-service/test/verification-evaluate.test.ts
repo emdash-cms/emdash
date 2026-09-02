@@ -147,7 +147,9 @@ function verifierReport(): ReleaseVerificationReport {
 				sourceRepository: PROVENANCE.sourceRepository,
 				builderId: PROVENANCE.builderId,
 				repositoryId: WORKLOAD_IDENTITY.repository.id,
-				workflowRef: WORKLOAD_IDENTITY.run.ref,
+				workflowRef: WORKLOAD_IDENTITY.workflow.ref.slice(
+					WORKLOAD_IDENTITY.workflow.ref.lastIndexOf("@") + 1,
+				),
 				commitSha: WORKLOAD_IDENTITY.run.commitSha,
 				invocationId: "https://github.com/example/gallery/actions/runs/100/attempts/1",
 				artifactDigest: new Uint8Array(32),
@@ -212,7 +214,7 @@ describe("verification evaluation", () => {
 		).resolves.toMatchObject({ success: true });
 	});
 
-	it("uses canonical repository casing for builder and invocation identity", async () => {
+	it("uses canonical repository casing for the attested source repository", async () => {
 		const report = verifierReport();
 		if (!report.success) throw new Error("Expected successful fixture");
 		report.value.provenance.sourceRepository = "https://github.com/Example/Gallery";
