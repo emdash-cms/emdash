@@ -2,6 +2,11 @@ import { reset, runDurableObjectAlarm, runInDurableObject } from "cloudflare:tes
 import { env } from "cloudflare:workers";
 import { afterEach, describe, expect, it } from "vitest";
 
+import {
+	decodeAwaitingApprovalState,
+	encodeAwaitingApprovalState,
+	type ApprovalEvidence,
+} from "../src/approvals/digest.js";
 import type {
 	CreateIntentInput,
 	IntentState,
@@ -13,6 +18,8 @@ const DID = "did:plc:publisher";
 const INTENT_1 = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const INTENT_2 = "01JABCDEFGHJKMNPQRSTVWXYZ1";
 const NOW = 1_800_000_000_000;
+const APPROVER_DID = "did:plc:approver";
+const APPROVAL_CHALLENGE = "C".repeat(43);
 
 function publisher() {
 	return env.PUBLISHER_DO.getByName(DID);
@@ -250,6 +257,67 @@ describe("publisher release intents", () => {
 			ok: false,
 			code: "WORKLOAD_POLICY_UNAVAILABLE",
 		});
+	});
+
+	it("invalidates outstanding approval challenges when a workload policy changes", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent());
+		await stub.transitionIntent(transition("received", 1, "verifying"));
+		await stub.transitionIntent(transition("verifying", 2, "verified"));
+		const evidence: ApprovalEvidence = {
+			intentId: INTENT_1,
+			publisherDid: DID,
+			packageSlug: "gallery",
+			version: "1.2.3",
+			verificationGeneration: 4,
+			workloadIdentityDigest: "A".repeat(43),
+			releaseInputDigest: "B".repeat(43),
+			profileCid: "bafyprofile",
+			baselineReleaseCid: null,
+			artifactChecksum: "sha256:artifact",
+			provenanceChecksum: "sha256:provenance",
+			declaredAccessDiffDigest: "D".repeat(43),
+			verificationDigest: "E".repeat(43),
+		};
+		const approvalState = await encodeAwaitingApprovalState(evidence, [APPROVER_DID]);
+		const approval = await decodeAwaitingApprovalState(approvalState);
+		await stub.transitionIntent(
+			transition("verified", 3, "awaiting_approval", {
+				reasonCode: "APPROVAL_REQUIRED",
+				stateDataJson: approvalState,
+			}),
+		);
+		await env.APPROVER_DO.getByName(APPROVER_DID).createChallenge(APPROVER_DID, {
+			challengeHash: APPROVAL_CHALLENGE,
+			kind: "approval",
+			intentId: INTENT_1,
+			publisherDid: DID,
+			approvalDigest: approval.approvalEvidenceDigest,
+			context: "approval-context",
+			expiresAt: NOW + 60_000,
+			now: NOW + 4,
+		});
+
+		await stub.putWorkloadPolicy({
+			...policy(),
+			active: false,
+			expectedVersion: 1,
+			now: NOW + 5,
+		});
+
+		await expect(stub.getIntent(DID, INTENT_1)).resolves.toMatchObject({
+			state: "invalid",
+			stateDataJson: '{"reasonCode":"WORKLOAD_POLICY_CHANGED"}',
+		});
+		await expect(
+			env.APPROVER_DO.getByName(APPROVER_DID).consumeChallenge(
+				APPROVER_DID,
+				APPROVAL_CHALLENGE,
+				"approval",
+				NOW + 6,
+			),
+		).resolves.toEqual({ ok: false, code: "CHALLENGE_CONSUMED" });
 	});
 
 	it("enforces explicit generation-guarded transitions and idempotent replay", async () => {
