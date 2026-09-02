@@ -11,9 +11,9 @@
  * so the same handler is reachable via a wrapping `fetch` shim too.
  *
  * Response shapes mirror the cirrus PDS reference implementation: CAR bytes
- * for `sync.getRecord` with `Content-Type: application/vnd.ipld.car`, JSON
- * `sync.getRepo`, JSON `{ records, cursor? }` for `listRecords`, and JSON
- * `{ uri, cid, value }` for `repo.getRecord`.
+ * for `sync.getRecord` and `sync.getRepo` with
+ * `Content-Type: application/vnd.ipld.car`, JSON `{ records, cursor? }` for
+ * `listRecords`, and JSON `{ uri, cid, value }` for `repo.getRecord`.
  */
 
 import type { FetchHandlerObject } from "@atcute/client";

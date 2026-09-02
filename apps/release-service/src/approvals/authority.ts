@@ -205,8 +205,13 @@ function createGuardedIdentityFetch(fetchImplementation: typeof fetch): typeof f
 		if (method !== "GET") {
 			throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 		}
+		const headers = init?.headers ?? (input instanceof Request ? input.headers : undefined);
 		const resource = await fetchVerifiedResource(requestedUrl, {
-			fetch: (url, requestInit) => fetchImplementation(url, requestInit),
+			fetch: (url, requestInit) =>
+				fetchImplementation(url, {
+					...requestInit,
+					...(headers === undefined ? {} : { headers }),
+				}),
 			resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
 			headerTimeoutMs: 10_000,
 			totalTimeoutMs: 30_000,

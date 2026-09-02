@@ -153,8 +153,15 @@ function profileValue(approvers: string[] = [APPROVER_DID]) {
 	};
 }
 
-function authorityFetch(options: { approvers?: string[]; cid?: string; address?: string } = {}) {
-	return async (input: RequestInfo | URL): Promise<Response> => {
+function authorityFetch(
+	options: {
+		approvers?: string[];
+		cid?: string;
+		address?: string;
+		requireCarAccept?: boolean;
+	} = {},
+) {
+	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
 		if (url.hostname === "cloudflare-dns.com") {
 			return Response.json({
@@ -173,6 +180,12 @@ function authorityFetch(options: { approvers?: string[]; cid?: string; address?:
 			});
 		}
 		if (url.hostname === "pds.example.com" && url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+			if (
+				options.requireCarAccept &&
+				new Headers(init?.headers).get("accept") !== "application/vnd.ipld.car"
+			) {
+				return Response.json({ error: "NotAcceptable" }, { status: 406 });
+			}
 			const bytes = Uint8Array.from(atob(PROFILE_PROOF), (character) => character.charCodeAt(0));
 			return new Response(bytes, {
 				headers: { "content-type": "application/vnd.ipld.car" },
@@ -264,6 +277,15 @@ describe("approval authority", () => {
 				fetch: authorityFetch({ approvers: [APPROVER_DID, APPROVER_DID] }),
 			}),
 		).resolves.toEqual({ profileCid: EVIDENCE.profileCid, approverDids: [APPROVER_DID] });
+	});
+
+	it("requests the current profile as a repository proof CAR", async () => {
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch: authorityFetch({ requireCarAccept: true }),
+			}),
+		).resolves.toEqual({ profileCid: PROFILE_CID, approverDids: [APPROVER_DID] });
 	});
 
 	it("rejects private PDS resolution before fetching the record", async () => {
