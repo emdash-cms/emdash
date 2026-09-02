@@ -1,10 +1,12 @@
 import {
 	Badge,
 	Button,
+	Collapsible,
 	Dialog,
 	DropdownMenu,
 	Input,
 	Label,
+	LayerCard,
 	LinkButton,
 	Loader,
 	Select,
@@ -108,14 +110,12 @@ function PublishingLifecycleBadge({
 function PublishingVersionRow({
 	iconState,
 	title,
-	stateLabel,
 	description,
 	action,
 	connectToNext,
 }: {
 	iconState: "published" | "draft" | "scheduled" | "pendingChanges";
 	title: string;
-	stateLabel: string;
 	description: React.ReactNode;
 	action?: React.ReactNode;
 	connectToNext?: boolean;
@@ -134,18 +134,13 @@ function PublishingVersionRow({
 				</span>
 			</span>
 			<div className="min-w-0 flex-1">
-				<div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-					<Text as="p" bold>
-						{title}
-					</Text>
-					<Text as="span" variant="secondary">
-						{stateLabel}
-					</Text>
-				</div>
+				<Text as="p" bold>
+					{title}
+				</Text>
 				<Text as="p" variant="secondary" DANGEROUS_className="mt-0.5 text-pretty">
 					{description}
 				</Text>
-				{action ? <div className="mt-2">{action}</div> : null}
+				{action ? <div className="-ms-2 mt-1">{action}</div> : null}
 			</div>
 		</div>
 	);
@@ -168,10 +163,6 @@ function PublishingVersionRelationship({
 	const formattedSchedule = scheduledAt
 		? formatPublishingInstantWithZone(scheduledAt, locale)
 		: null;
-	const scheduledTime =
-		scheduledAt && formattedSchedule ? (
-			<time dateTime={scheduledAt}>{formattedSchedule}</time>
-		) : null;
 	const scheduledSummary =
 		scheduledAt && formattedSchedule ? (
 			<time dateTime={scheduledAt}>{t`Scheduled for ${formattedSchedule}`}</time>
@@ -179,11 +170,10 @@ function PublishingVersionRelationship({
 
 	if (!supportsDrafts) {
 		return scheduledSummary ? (
-			<div className="mt-5 border-t border-kumo-line pt-4">
+			<div className="grid gap-4 px-3 py-3">
 				<PublishingVersionRow
 					iconState="scheduled"
 					title={t`Scheduled publication`}
-					stateLabel={t`Scheduled`}
 					description={scheduledSummary}
 				/>
 			</div>
@@ -197,7 +187,6 @@ function PublishingVersionRelationship({
 				<PublishingVersionRow
 					iconState="draft"
 					title={t`Draft version`}
-					stateLabel={t`Draft`}
 					description={t`This version is not visible on the site`}
 				/>
 			);
@@ -207,8 +196,7 @@ function PublishingVersionRelationship({
 				<PublishingVersionRow
 					iconState="scheduled"
 					title={t`First publication`}
-					stateLabel={t`Scheduled`}
-					description={scheduledTime ?? t`A publication time has not been selected`}
+					description={scheduledSummary ?? t`A publication time has not been selected`}
 				/>
 			);
 			break;
@@ -217,7 +205,6 @@ function PublishingVersionRelationship({
 				<PublishingVersionRow
 					iconState="published"
 					title={t`Live version`}
-					stateLabel={t`Live`}
 					description={t`Visitors see this published version`}
 				/>
 			);
@@ -228,18 +215,16 @@ function PublishingVersionRelationship({
 					<PublishingVersionRow
 						iconState="published"
 						title={t`Live version`}
-						stateLabel={t`Live`}
 						description={t`Visitors still see the published version`}
 						connectToNext
 					/>
 					<PublishingVersionRow
 						iconState="pendingChanges"
 						title={t`Draft changes`}
-						stateLabel={t`Ready`}
 						description={t`Ready to publish now or schedule for later`}
 						action={
 							onDiscardDraft ? (
-								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
 							) : undefined
 						}
 					/>
@@ -252,18 +237,16 @@ function PublishingVersionRelationship({
 					<PublishingVersionRow
 						iconState="published"
 						title={t`Live version`}
-						stateLabel={t`Live`}
 						description={t`Visitors see the published version until the scheduled update`}
 						connectToNext
 					/>
 					<PublishingVersionRow
 						iconState="scheduled"
 						title={t`Draft changes`}
-						stateLabel={t`Scheduled`}
-						description={scheduledTime ?? t`A publication time has not been selected`}
+						description={scheduledSummary ?? t`A publication time has not been selected`}
 						action={
 							onDiscardDraft ? (
-								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerVariant="outline" />
+								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
 							) : undefined
 						}
 					/>
@@ -276,21 +259,19 @@ function PublishingVersionRelationship({
 					<PublishingVersionRow
 						iconState="published"
 						title={t`Live version`}
-						stateLabel={t`Live`}
 						description={t`Visitors see this published version`}
 						connectToNext
 					/>
 					<PublishingVersionRow
 						iconState="scheduled"
 						title={t`Scheduled publication`}
-						stateLabel={t`Scheduled`}
-						description={scheduledTime ?? t`A publication time has not been selected`}
+						description={scheduledSummary ?? t`A publication time has not been selected`}
 					/>
 				</>
 			);
 	}
 
-	return <div className="mt-5 grid gap-4 border-t border-kumo-line pt-4">{rows}</div>;
+	return <div className="grid gap-4 px-3 py-3">{rows}</div>;
 }
 
 function TimestampValue({ value, locale }: { value: string; locale: string }) {
@@ -857,6 +838,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	);
 
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
+	const [datesOpen, setDatesOpen] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
 	const resolvedPublishingState =
@@ -872,6 +854,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const contentLocale = item?.locale ?? entryLocale ?? manifest?.contentLocale?.defaultLocale;
 	const usesImplicitEnglish = manifest?.contentLocale?.implicit === true && contentLocale === "en";
 	const publicationEntryKey = `${item?.id ?? "new"}:${activeEntryLocale ?? ""}`;
+	const showPublishingRelationship = supportsDrafts || Boolean(item?.scheduledAt);
+	React.useEffect(() => setDatesOpen(false), [item?.id, item?.locale]);
 
 	if (blockSidebarPanel) {
 		// A block requesting the sidebar replaces the default sections.
@@ -959,42 +943,83 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							) : null}
 						</div>
 
-						<PublishingVersionRelationship
-							publishingState={resolvedPublishingState}
-							supportsDrafts={supportsDrafts}
-							scheduledAt={item?.scheduledAt}
-							locale={lingui.locale}
-							onDiscardDraft={showDiscard ? onDiscardDraft : undefined}
-						/>
-
-						{item && (
-							<dl
-								data-testid="content-timestamps"
-								className="mt-5 grid gap-2 border-t border-kumo-line pt-4"
+						{showPublishingRelationship || item ? (
+							<LayerCard
+								render={<div role="group" aria-label={t`Publishing summary`} />}
+								className="mt-5 overflow-hidden p-0"
 							>
-								{item.publishedAt ? (
-									<TimestampRow label={t`Publication date`}>
-										{canUpdatePublishedDate && onPublishedAtChange ? (
-											<PublicationDatePopover
-												entryKey={publicationEntryKey}
-												publishedAt={item.publishedAt}
-												formattedValue={formatPublishingInstant(item.publishedAt, lingui.locale)}
-												isPending={isUpdatingPublishedAt}
-												onPublishedAtChange={onPublishedAtChange}
-											/>
-										) : (
-											<TimestampValue value={item.publishedAt} locale={lingui.locale} />
-										)}
-									</TimestampRow>
+								{showPublishingRelationship ? (
+									<PublishingVersionRelationship
+										publishingState={resolvedPublishingState}
+										supportsDrafts={supportsDrafts}
+										scheduledAt={item?.scheduledAt}
+										locale={lingui.locale}
+										onDiscardDraft={showDiscard ? onDiscardDraft : undefined}
+									/>
 								) : null}
-								<TimestampRow label={t`Created`}>
-									<TimestampValue value={item.createdAt} locale={lingui.locale} />
-								</TimestampRow>
-								<TimestampRow label={t`Updated`}>
-									<TimestampValue value={item.updatedAt} locale={lingui.locale} />
-								</TimestampRow>
-							</dl>
-						)}
+
+								{item ? (
+									<div
+										data-testid="content-timestamps"
+										className={cn(
+											"px-3 py-2.5",
+											showPublishingRelationship && "border-t border-kumo-line",
+										)}
+									>
+										{item.publishedAt ? (
+											<dl>
+												<TimestampRow label={t`Publication date`}>
+													{canUpdatePublishedDate && onPublishedAtChange ? (
+														<PublicationDatePopover
+															entryKey={publicationEntryKey}
+															publishedAt={item.publishedAt}
+															formattedValue={formatPublishingInstant(
+																item.publishedAt,
+																lingui.locale,
+															)}
+															isPending={isUpdatingPublishedAt}
+															onPublishedAtChange={onPublishedAtChange}
+														/>
+													) : (
+														<TimestampValue value={item.publishedAt} locale={lingui.locale} />
+													)}
+												</TimestampRow>
+											</dl>
+										) : null}
+
+										<Collapsible.Root open={datesOpen} onOpenChange={setDatesOpen}>
+											<Collapsible.Trigger
+												render={
+													<Button
+														type="button"
+														variant="ghost"
+														className="mt-1 w-full justify-between px-0 font-normal"
+													/>
+												}
+											>
+												<Text as="span" variant="secondary">
+													{t`Created and updated`}
+												</Text>
+												<CaretDown
+													className={cn("size-3", datesOpen && "rotate-180")}
+													aria-hidden="true"
+												/>
+											</Collapsible.Trigger>
+											<Collapsible.Panel>
+												<dl className="grid gap-2 pt-1.5">
+													<TimestampRow label={t`Created`}>
+														<TimestampValue value={item.createdAt} locale={lingui.locale} />
+													</TimestampRow>
+													<TimestampRow label={t`Updated`}>
+														<TimestampValue value={item.updatedAt} locale={lingui.locale} />
+													</TimestampRow>
+												</dl>
+											</Collapsible.Panel>
+										</Collapsible.Root>
+									</div>
+								) : null}
+							</LayerCard>
+						) : null}
 					</div>
 				</SortableContentSettingsSection>
 

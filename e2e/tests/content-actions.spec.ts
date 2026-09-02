@@ -285,7 +285,9 @@ test.describe("Schedule content", () => {
 		await expect(page.getByRole("button", { name: "Publish updates", exact: true })).toBeVisible({
 			timeout: 5000,
 		});
-		await expect(page.getByText("Ready", { exact: true })).toBeVisible();
+		await expect(
+			page.getByText("Ready to publish now or schedule for later", { exact: true }),
+		).toBeVisible();
 		publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
 		publicHtml = await publicResponse.text();
 		expect(publicHtml).toContain("Schedule Test Post");

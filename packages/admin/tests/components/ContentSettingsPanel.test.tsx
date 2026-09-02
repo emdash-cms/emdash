@@ -222,17 +222,55 @@ describe("ContentSettingsPanel", () => {
 		const heading = screen.getByRole("heading", { name: "Publish" }).element();
 		const publishedBadge = screen.getByText("Published", { exact: true }).element();
 		expect(publishedBadge.parentElement).toBe(heading.parentElement);
-		await expect.element(screen.getByText("Live version", { exact: true })).toBeInTheDocument();
-		await expect.element(screen.getByText("Draft changes", { exact: true })).toBeInTheDocument();
+		const summary = screen.getByRole("group", { name: "Publishing summary" });
+		await expect.element(summary.getByText("Live version", { exact: true })).toBeInTheDocument();
+		await expect.element(summary.getByText("Draft changes", { exact: true })).toBeInTheDocument();
 		await expect
-			.element(screen.getByText("Visitors still see the published version"))
+			.element(summary.getByText("Visitors still see the published version"))
 			.toBeInTheDocument();
 		await expect
-			.element(screen.getByText("Ready to publish now or schedule for later"))
+			.element(summary.getByText("Ready to publish now or schedule for later"))
 			.toBeInTheDocument();
+		expect(screen.getByText("Live", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Ready", { exact: true }).query()).toBeNull();
 		expect(screen.getByText("Status", { exact: true }).query()).toBeNull();
 		expect(screen.getByText("Pending changes", { exact: true }).query()).toBeNull();
-		await expect.element(screen.getByRole("button", { name: "Discard changes" })).toBeVisible();
+		await expect.element(summary.getByRole("button", { name: "Discard changes" })).toBeVisible();
+	});
+
+	it("keeps publication date primary and discloses created and updated dates on request", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						publishedAt: "2025-01-15T10:30:00.000Z",
+						liveRevisionId: "rev-live",
+						draftRevisionId: "rev-live",
+					}),
+					status: "published",
+					isLive: true,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Publication date", { exact: true })).toBeVisible();
+		const history = screen.getByRole("button", { name: "Created and updated" });
+		await expect.element(history).toHaveAttribute("aria-expanded", "false");
+		expect(screen.getByText("Created", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Updated", { exact: true }).query()).toBeNull();
+
+		fireEvent.click(history.element());
+		await expect.element(history).toHaveAttribute("aria-expanded", "true");
+		await expect.element(screen.getByText("Created", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Updated", { exact: true })).toBeVisible();
+		fireEvent.click(history.element());
+		await expect.element(history).toHaveAttribute("aria-expanded", "false");
+		await vi.waitFor(() => {
+			expect(screen.getByText("Created", { exact: true }).query()).toBeNull();
+		});
+		history.element().blur();
+		await screen.unmount();
 	});
 
 	it("only grants inline taxonomy management to editors", async () => {
@@ -312,7 +350,8 @@ describe("ContentSettingsPanel", () => {
 		await expect
 			.element(screen.getByText("First publication", { exact: true }))
 			.toBeInTheDocument();
-		expect(screen.getByText("Scheduled", { exact: true }).all()).toHaveLength(2);
+		expect(screen.getByText("Scheduled", { exact: true }).all()).toHaveLength(1);
+		await expect.element(screen.getByText(/Scheduled for/)).toBeVisible();
 		expect(
 			screen.container.querySelector('time[datetime="2027-06-01T12:00:00.000Z"]')?.textContent,
 		).toContain("(EDT)");
@@ -838,8 +877,10 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.getByRole("button", { name: /Edit publication date:/ }).query()).toBeNull();
 		expect(screen.container.querySelector('input[type="time"]')).toBeNull();
 		const timestamps = screen.getByTestId("content-timestamps").element();
-		expect(timestamps.querySelectorAll("time")).toHaveLength(3);
+		expect(timestamps.querySelectorAll("time")).toHaveLength(1);
 		expect(timestamps.querySelector('time[datetime="2025-01-15T10:30:00.000Z"]')).not.toBeNull();
+		await screen.getByRole("button", { name: "Created and updated" }).click();
+		expect(timestamps.querySelectorAll("time")).toHaveLength(3);
 	});
 
 	it("hides capability-gated sections when their flags are off", async () => {
@@ -873,6 +914,16 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.querySelector('[data-testid="taxonomy-sidebar"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
+	});
+
+	it("does not render an empty publishing summary for a new collection without drafts", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, supportsDrafts: false })}
+			/>,
+		);
+
+		expect(screen.getByRole("group", { name: "Publishing summary" }).query()).toBeNull();
 	});
 
 	it("renders the block detail panel instead of settings when a block requests the sidebar", async () => {
