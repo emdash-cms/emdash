@@ -61,11 +61,21 @@ describe("LocaleSwitcher", () => {
 		const localeSwitcher = screen.getByRole("combobox", { name: "Locale" });
 		await userEvent.tab();
 		await expect.element(localeSwitcher).toHaveFocus();
-		await userEvent.keyboard("{Enter}{End}{Enter}");
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("listbox")).toBeVisible();
+		await expect.element(screen.getByRole("option", { name: "EN (default)" })).toHaveFocus();
+		await userEvent.keyboard("{End}");
+		await expect.element(screen.getByRole("option", { name: "FR" })).toHaveFocus();
+		await userEvent.keyboard("{Enter}");
 		await expect.element(localeSwitcher).toHaveTextContent(/^FR$/);
 		await expect.element(localeSwitcher).toHaveFocus();
 
-		await userEvent.keyboard("{Enter}{Home}{Escape}");
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("listbox")).toBeVisible();
+		await expect.element(screen.getByRole("option", { name: "FR" })).toHaveFocus();
+		await userEvent.keyboard("{Home}");
+		await expect.element(screen.getByRole("option", { name: "EN (default)" })).toHaveFocus();
+		await userEvent.keyboard("{Escape}");
 		await expect.element(localeSwitcher).toHaveTextContent(/^FR$/);
 		await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
 		await expect.element(localeSwitcher).toHaveFocus();
