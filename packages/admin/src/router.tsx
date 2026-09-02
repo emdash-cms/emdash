@@ -1188,10 +1188,10 @@ function ContentEditPage() {
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				source: "auxiliary",
-				changes: { authorId },
+				changes: { authorId, _rev: rawItem?._rev },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, rawItem?._rev, updateMutation.mutate],
 	);
 
 	const handleSeoChange = React.useCallback(
@@ -1200,10 +1200,10 @@ function ContentEditPage() {
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				source: "auxiliary",
-				changes: { seo },
+				changes: { seo, _rev: rawItem?._rev },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, rawItem?._rev, updateMutation.mutate],
 	);
 
 	const handlePublish = React.useCallback(() => publishMutation.mutate(), [publishMutation.mutate]);
