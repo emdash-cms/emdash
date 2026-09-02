@@ -38,6 +38,7 @@ export type DirectPdsReadErrorCode =
 	| "PROFILE_LEXICON_INVALID"
 	| "RECORD_NOT_FOUND"
 	| "RECORD_PROOF_INVALID"
+	| "REPOSITORY_NOT_FOUND"
 	| "RELEASE_LEXICON_INVALID";
 
 export class DirectPdsReadError extends Error {
@@ -170,6 +171,13 @@ export class DirectPdsClient {
 			method: "GET",
 			headers: { Accept: "application/vnd.ipld.car" },
 		});
+		if (response.status === 404) {
+			throw new DirectPdsReadError(
+				"REPOSITORY_NOT_FOUND",
+				"The publisher PDS does not contain the requested repository.",
+				404,
+			);
+		}
 		if (!response.ok) {
 			throw new DirectPdsReadError(
 				"PDS_REQUEST_FAILED",

@@ -119,6 +119,28 @@ describe("DirectPdsClient", () => {
 		expect(harness.fixture.pds.callsTo("com.atproto.repo.listRecords")).toHaveLength(0);
 	});
 
+	it("reports a missing repository export distinctly from other PDS failures", async () => {
+		const harness = await createPublisher();
+		const fetch: typeof globalThis.fetch = () =>
+			Promise.resolve(Response.json({ error: "RepoNotFound" }, { status: 404 }));
+
+		await expect(client(harness, { fetch }).getPackageRepository("gallery")).rejects.toMatchObject({
+			code: "REPOSITORY_NOT_FOUND",
+			status: 404,
+		});
+	});
+
+	it("preserves record-not-found errors from sync.getRecord", async () => {
+		const harness = await createPublisher();
+		const fetch: typeof globalThis.fetch = () =>
+			Promise.resolve(Response.json({ error: "RecordNotFound" }, { status: 404 }));
+
+		await expect(client(harness, { fetch }).getPackageProfile("gallery")).rejects.toMatchObject({
+			code: "RECORD_NOT_FOUND",
+			status: 404,
+		});
+	});
+
 	it("resolves the publisher DID before fetching its repository proof", async () => {
 		const harness = await createPublisher();
 		const document = harness.fixture.didResolver.resolve(harness.publisher.did);

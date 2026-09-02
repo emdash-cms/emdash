@@ -1,6 +1,7 @@
 import type { ActorResolver } from "@atcute/identity-resolver";
 import { isDid } from "@atcute/lexicons/syntax";
 import {
+	DEFAULT_DIRECT_PDS_MAX_RESPONSE_BYTES,
 	DirectPdsClient,
 	DirectPdsReadError,
 	type DirectPdsDidDocumentResolver,
@@ -15,6 +16,7 @@ import { createWorkerActorResolver } from "../oauth/custody.js";
 const DNS_ENDPOINT = "https://cloudflare-dns.com/dns-query";
 const MAX_DNS_BYTES = 64 * 1024;
 const MAX_PDS_RESPONSE_BYTES = 512 * 1024;
+const MAX_REPO_EXPORT_RESPONSE_BYTES = DEFAULT_DIRECT_PDS_MAX_RESPONSE_BYTES;
 const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const VERSION_PATTERN = /^[0-9A-Za-z][0-9A-Za-z.-]{0,127}$/;
 const UPSTREAM_STATUS_HEADER = "x-emdash-upstream-status";
@@ -160,7 +162,10 @@ async function guardedJson(url: URL, fetchImplementation: typeof fetch): Promise
 	}
 }
 
-function guardedFetch(fetchImplementation: typeof fetch): typeof fetch {
+function guardedFetch(
+	fetchImplementation: typeof fetch,
+	maximumBytes = MAX_PDS_RESPONSE_BYTES,
+): typeof fetch {
 	return async (input, init) => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
 		const method = init?.method ?? (input instanceof Request ? input.method : "GET");
@@ -185,7 +190,7 @@ function guardedFetch(fetchImplementation: typeof fetch): typeof fetch {
 			resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
 			headerTimeoutMs: 10_000,
 			totalTimeoutMs: 30_000,
-			maxBytes: MAX_PDS_RESPONSE_BYTES,
+			maxBytes: maximumBytes,
 			maxRedirects: 1,
 		});
 		if (!resource.success || resource.value.url.toString() !== url.toString()) {
@@ -315,10 +320,10 @@ async function getPackageRepository(
 	try {
 		const repository = await new DirectPdsClient({
 			did: publisherDid,
-			fetch: guardedFetch(fetchImplementation),
+			fetch: guardedFetch(fetchImplementation, MAX_REPO_EXPORT_RESPONSE_BYTES),
 			...(didDocumentResolver === undefined ? {} : { didDocumentResolver }),
 			requestTimeoutMs: 30_000,
-			maxResponseBytes: MAX_PDS_RESPONSE_BYTES,
+			maxResponseBytes: MAX_REPO_EXPORT_RESPONSE_BYTES,
 		}).getPackageRepository(packageSlug);
 		return {
 			profile: {
@@ -340,7 +345,8 @@ async function getPackageRepository(
 				error.code === "DID_SIGNING_KEY_INVALID" ||
 				error.code === "DID_SIGNING_KEY_MISSING" ||
 				error.code === "PDS_ENDPOINT_INVALID" ||
-				error.code === "PDS_ENDPOINT_MISSING"
+				error.code === "PDS_ENDPOINT_MISSING" ||
+				error.code === "REPOSITORY_NOT_FOUND"
 			) {
 				throw new PublisherSnapshotError("PUBLISHER_IDENTITY_INVALID");
 			}

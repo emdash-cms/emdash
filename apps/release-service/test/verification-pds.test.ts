@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 
 import {
 	findAuthoritativeRelease,
+	findProofVerifiedRelease,
 	PublisherSnapshotError,
 	readPublisherVerificationSnapshot,
 	samePdsOrigin,
@@ -74,7 +75,13 @@ function release(version: string, packageSlug = "gallery") {
 }
 
 function snapshotFetch(
-	options: { privateAddress?: boolean; proposedExists?: boolean; tamperedProfile?: boolean } = {},
+	options: {
+		privateAddress?: boolean;
+		proposedExists?: boolean;
+		repositoryContentLength?: number;
+		repositoryNotFound?: boolean;
+		tamperedProfile?: boolean;
+	} = {},
 ) {
 	return async (input: RequestInfo | URL): Promise<Response> => {
 		const url = new URL(input instanceof Request ? input.url : input.toString());
@@ -91,10 +98,17 @@ function snapshotFetch(
 			return profileProofResponse(options.tamperedProfile);
 		}
 		if (url.pathname === "/xrpc/com.atproto.sync.getRepo") {
-			return repositoryProofResponse(
+			if (options.repositoryNotFound) {
+				return Response.json({ error: "RepoNotFound" }, { status: 404 });
+			}
+			const response = repositoryProofResponse(
 				options.proposedExists ? REPOSITORY_PROOF_WITH_PROPOSED : REPOSITORY_PROOF,
 				options.tamperedProfile,
 			);
+			if (options.repositoryContentLength === undefined) return response;
+			const headers = new Headers(response.headers);
+			headers.set("content-length", String(options.repositoryContentLength));
+			return new Response(response.body, { headers });
 		}
 		if (url.pathname === "/xrpc/com.atproto.repo.listRecords") {
 			expect(url.searchParams.has("rkeyStart")).toBe(false);
@@ -228,6 +242,24 @@ describe("publisher verification snapshot", () => {
 		).rejects.toBeInstanceOf(PublisherSnapshotError);
 	});
 
+	it("accepts a repository export above the single-record response budget", async () => {
+		await expect(
+			readPublisherVerificationSnapshot(PUBLISHER_DID, "gallery", "2.0.0", {
+				didDocumentResolver: proofResolver(),
+				fetch: snapshotFetch({ repositoryContentLength: 600 * 1024 }),
+			}),
+		).resolves.toMatchObject({ baselineVersion: "1.7.0" });
+	});
+
+	it("maps a restored sync.getRepo 404 to an invalid publisher identity", async () => {
+		await expect(
+			readPublisherVerificationSnapshot(PUBLISHER_DID, "gallery", "2.0.0", {
+				didDocumentResolver: proofResolver(),
+				fetch: snapshotFetch({ repositoryNotFound: true }),
+			}),
+		).rejects.toMatchObject({ code: "PUBLISHER_IDENTITY_INVALID" });
+	});
+
 	it("ignores an unsigned higher-semver baseline injected into listRecords", async () => {
 		const fetch: typeof globalThis.fetch = async (input, init) => {
 			const url = new URL(input instanceof Request ? input.url : input.toString());
@@ -299,5 +331,29 @@ describe("authoritative release reconciliation read", () => {
 				fetch: releaseFetch(null, { error: "InvalidRequest" }),
 			}),
 		).rejects.toMatchObject({ code: "RELEASE_RECORD_INVALID" });
+	});
+
+	it("preserves sync.getRecord 404 status through the guarded fetch", async () => {
+		const fetch: typeof globalThis.fetch = async (input) => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.hostname === "cloudflare-dns.com") {
+				return Response.json({ Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] });
+			}
+			if (url.pathname === "/xrpc/com.atproto.repo.getRecord") {
+				return Response.json(release("2.0.0"));
+			}
+			if (url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+				return Response.json({ error: "RecordNotFound" }, { status: 404 });
+			}
+			throw new Error(`Unexpected request: ${url.toString()}`);
+		};
+
+		await expect(
+			findProofVerifiedRelease(PUBLISHER_DID, "gallery", "2.0.0", {
+				actorResolver: resolver(),
+				didDocumentResolver: proofResolver(),
+				fetch,
+			}),
+		).resolves.toBeNull();
 	});
 });
