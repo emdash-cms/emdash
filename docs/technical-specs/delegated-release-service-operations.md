@@ -33,7 +33,7 @@ The release-service Worker expects the following resources.
 | `OPERATIONS_METRICS`         | Analytics Engine dataset         | Privacy-safe operational alert events                                                                            |
 | `ASSETS`                     | Worker static assets             | Publisher, approver, and Access operator web surfaces                                                            |
 
-The initial Durable Object migration tag is `v1`. It contains every class required before the first deployment. Each publisher object initializes its complete schema, including short-lived `workflow_connection_requests`, before serving requests.
+The initial Durable Object migration tag is `v1`. It contains every class required before the first deployment. Each publisher object initializes its complete schema, including short-lived `workflow_connection_invitations` and `workflow_connection_requests`, before serving requests.
 
 ## Configure a self-hosted deployment
 
@@ -127,11 +127,12 @@ After deployment, `GET /health` must return `200` without loading configuration.
 Test the account and workflow connection journey against the deployed origin:
 
 1. Sign in once with a test Atmosphere account and confirm the account dashboard loads publishing state, connected workflows, recent releases, activity, and any existing approval passkeys.
-2. Run the permanent release Action in a test GitHub Actions job with `id-token: write` and no existing workload policy.
-3. Confirm the job summary contains the workflow approval URL and the Action remains waiting.
-4. Confirm the browser shows the expected repository, workflow file, branch or tag, and environment. Verify no workload policy exists before browser confirmation.
-5. Confirm the connection and verify the resulting workload policy contains the immutable GitHub repository and owner IDs plus the selected ref scope and environment.
-6. Confirm the waiting Action requests fresh OIDC, creates the release intent, and continues normally.
+2. Create a connection invitation for the test plugin and store it as the `EMDASH_CONNECTION_INVITATION` GitHub Actions secret.
+3. Run the permanent release Action in a test GitHub Actions job with `id-token: write` and no existing workload policy.
+4. Confirm the job summary contains the workflow approval URL and the Action remains waiting.
+5. Confirm the browser shows the expected repository, workflow file, branch or tag, and environment. Verify no workload policy exists before browser confirmation.
+6. Confirm the connection and verify the resulting workload policy contains the immutable GitHub repository and owner IDs plus the selected ref scope and environment.
+7. Confirm the waiting Action requests fresh OIDC, creates the release intent, and continues normally.
 
 List the staging lifecycle rules and confirm that `expire-publication-staging` and `expire-workload-staging` target their respective prefixes with a seven-day expiry:
 

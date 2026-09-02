@@ -13,6 +13,7 @@ const CREATED_URI = `at://${PUBLISHER_DID}/com.emdashcms.experimental.package.re
 const CREATED_CID = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
 const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
 const PROVENANCE_CHECKSUM = "bciqaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const CONNECTION_INVITATION = `ewci1_${"I".repeat(43)}`;
 
 function sourceRelease(): PackageRelease.Main {
 	const release = structuredClone(releaseFixture) as PackageRelease.Main;
@@ -179,6 +180,7 @@ function preparedFiles(): PreparedReleaseFiles {
 describe("delegated release Action", () => {
 	it("requests a fresh OIDC token, publishes, and emits stable outputs", async () => {
 		const runtime = new FakeRuntime();
+		runtime.inputs.set("connection-invitation", CONNECTION_INVITATION);
 		const responses = sequenceFetch([
 			success({ status: "connected", policy: policy() }),
 			success({ intent: intent("received"), replayed: false }, 202),
@@ -188,9 +190,9 @@ describe("delegated release Action", () => {
 				}),
 			}),
 		]);
-		const requests: RequestInit[] = [];
+		const requests: Request[] = [];
 		const fetch: typeof globalThis.fetch = async (input, init) => {
-			requests.push(init ?? {});
+			requests.push(new Request(input, init));
 			return responses(input, init);
 		};
 		const result = await runAction(runtime, { ...dependencies, fetch });
@@ -198,6 +200,7 @@ describe("delegated release Action", () => {
 		expect(result.state).toBe("published");
 		expect(runtime.tokenCount).toBe(3);
 		expect(runtime.masks).toEqual([
+			CONNECTION_INVITATION,
 			"header.payload.signature-1",
 			"header.payload.signature-2",
 			"header.payload.signature-3",
@@ -214,10 +217,15 @@ describe("delegated release Action", () => {
 			]),
 		);
 		expect(runtime.messages.at(-1)).toContain(CREATED_URI);
-		expect(new Headers(requests[0]?.headers).get("idempotency-key")).toBe(
+		expect(requests[0]?.headers.get("idempotency-key")).toBe(
 			"github-connection-10000000001-gallery",
 		);
-		expect(new Headers(requests[1]?.headers).get("idempotency-key")).toBe("github-run-10000000001");
+		expect(await requests[0]?.json()).toEqual({
+			publisherDid: PUBLISHER_DID,
+			packageSlug: "gallery",
+			invitationToken: CONNECTION_INVITATION,
+		});
+		expect(requests[1]?.headers.get("idempotency-key")).toBe("github-run-10000000001");
 	});
 
 	it("uploads a built bundle and attestation without a hand-authored release record", async () => {

@@ -108,7 +108,9 @@ The command reads the plugin publisher from `emdash-plugin.jsonc` and creates `.
 
 The generated workflow builds the plugin, creates signed GitHub build provenance, and publishes on version tags or a manual run. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
 
-Sign in to the release-service dashboard with the Atmosphere account that owns the plugin and authorize EmDash to create plugin releases. Start the workflow by pushing a version tag such as `v1.2.3`. The first run waits and adds an approval link to the GitHub job summary. Open that link, check the repository, workflow file, branch or tag, and environment, then confirm the workflow. The same run continues after confirmation.
+Sign in to the release-service dashboard with the Atmosphere account that owns the plugin and authorize EmDash to create plugin releases. Enter the plugin ID under **Connect another GitHub Actions workflow**, then create an invitation. Add the one-time value to the GitHub repository as an Actions secret named `EMDASH_CONNECTION_INVITATION`.
+
+Start the workflow within 30 minutes by pushing a version tag such as `v1.2.3`. The first run consumes the invitation, waits, and adds an approval link to the GitHub job summary. Open that link, check the repository, workflow file, branch or tag, and environment, then confirm the workflow. The same run continues after confirmation. If the invitation expires before the workflow consumes it, create another invitation and update the secret.
 
 For a release started from a tag, the dashboard can authorize all version tags or only the current tag. Repository and workflow paths remain exact in both cases.
 
@@ -124,7 +126,7 @@ emdash-plugin release submit release.json \
   --publisher-did did:web:publisher.example.com
 ```
 
-Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. The default idempotency key uses the GitHub run ID, so a re-run reuses the existing intent. Pass `--idempotency-key` when separate runs or jobs must replay the same submission.
+Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. An unmatched custom workflow also reads its one-time invitation from `EMDASH_CONNECTION_INVITATION`. The default idempotency key uses the GitHub run ID, so a re-run reuses the existing intent. Pass `--idempotency-key` when separate runs or jobs must replay the same submission.
 
 Each package or listing-image artifact in a hand-authored source record must use a checksum-bound HTTPS `url` and must not include `blob`. The published release record contains PDS blob references and no artifact source URLs.
 

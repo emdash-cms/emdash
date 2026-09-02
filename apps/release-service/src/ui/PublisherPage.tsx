@@ -1,10 +1,11 @@
-import { Badge, Button, Popover, Select, Surface, Table } from "@cloudflare/kumo";
+import { Badge, Button, Input, Popover, Select, Surface, Table } from "@cloudflare/kumo";
 import {
 	ReleaseServiceClient,
 	ReleaseServiceError,
 	createReleaseIdempotencyKey,
 	type PublisherApproverStatusResult,
 	type PublisherAuditEventResource,
+	type CreateWorkflowConnectionInvitationResult,
 	type PublisherResource,
 	type ReleaseIntentResource,
 	type WorkloadPolicyResource,
@@ -93,6 +94,10 @@ function activityEventLabel(t: ReturnType<typeof useT>, eventType: string): stri
 		return t("activity.signInExpired", "Account connection expired");
 	if (eventType === "workload-policy-stored")
 		return t("activity.workflowConnected", "GitHub workflow connected");
+	if (eventType === "workflow-connection-invitation-created")
+		return t("activity.workflowInvitationCreated", "Workflow invitation created");
+	if (eventType === "workflow-connection-rejected")
+		return t("activity.workflowConnectionRejected", "Workflow connection rejected");
 	if (eventType === "delegation-stored")
 		return t("activity.publishingEnabled", "Automated publishing enabled");
 	if (eventType === "delegation-revoked")
@@ -272,6 +277,9 @@ export function PublisherPage() {
 	const [loginRequired, setLoginRequired] = useState(false);
 	const [error, setError] = useState<unknown>(null);
 	const [busy, setBusy] = useState(false);
+	const [invitationPackageSlug, setInvitationPackageSlug] = useState("");
+	const [connectionInvitation, setConnectionInvitation] =
+		useState<CreateWorkflowConnectionInvitationResult | null>(null);
 	const [connectionScopes, setConnectionScopes] = useState<
 		Record<string, WorkflowConnectionRefScope>
 	>({});
@@ -438,6 +446,39 @@ export function PublisherPage() {
 		}
 	}
 
+	async function createWorkflowConnectionInvitation(event: React.FormEvent<HTMLFormElement>) {
+		event.preventDefault();
+		setBusy(true);
+		setError(null);
+		setConnectionInvitation(null);
+		try {
+			setConnectionInvitation(
+				await client.createWorkflowConnectionInvitation(invitationPackageSlug, {
+					idempotencyKey: createReleaseIdempotencyKey("web-workflow-invitation"),
+				}),
+			);
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function rejectWorkflowConnection(request: WorkflowConnectionRequestResource) {
+		setBusy(true);
+		setError(null);
+		try {
+			await client.rejectWorkflowConnection(request.id, {
+				idempotencyKey: createReleaseIdempotencyKey("web-workflow-reject"),
+			});
+			await refresh();
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
 	async function loadNextAuditPage() {
 		if (!data?.auditCursor) return;
 		setBusy(true);
@@ -532,6 +573,40 @@ export function PublisherPage() {
 						? t("publisher.workload.setupTitle", "2. Run your release workflow")
 						: t("publisher.workload.addTitle", "Connect another GitHub Actions workflow")}
 				</h2>
+				{publishingEnabled ? (
+					<form
+						className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+						onSubmit={createWorkflowConnectionInvitation}
+					>
+						<Input
+							className="flex-1"
+							label={t("publisher.connection.invitation.package", "Plugin ID")}
+							onChange={(event) => setInvitationPackageSlug(event.currentTarget.value)}
+							placeholder={t("publisher.connection.invitation.placeholder", "gallery")}
+							required
+							value={invitationPackageSlug}
+						/>
+						<Button disabled={busy} type="submit" variant="secondary">
+							{t("publisher.connection.invitation.create", "Create invitation")}
+						</Button>
+					</form>
+				) : null}
+				{connectionInvitation ? (
+					<div className="mt-4 rounded-lg bg-kumo-tint p-4" role="status">
+						<p className="text-sm font-medium text-kumo-strong">
+							{t("publisher.connection.invitation.secretLabel", "GitHub Actions secret value")}
+						</p>
+						<code className="mt-2 block break-all font-mono text-sm text-kumo-strong">
+							{connectionInvitation.invitationToken}
+						</code>
+						<p className="mt-2 text-sm text-kumo-subtle">
+							{t(
+								"publisher.connection.invitation.instructions",
+								"Add this one-time value to the repository as the EMDASH_CONNECTION_INVITATION Actions secret, then run the release workflow within 30 minutes.",
+							)}
+						</p>
+					</div>
+				) : null}
 				{!publishingEnabled ? (
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{t(
@@ -672,14 +747,22 @@ export function PublisherPage() {
 											)}
 										</p>
 									)}
-									<Button
-										className="mt-4"
-										disabled={!publishingEnabled || busy}
-										onClick={() => confirmWorkflowConnection(request)}
-										variant="primary"
-									>
-										{t("publisher.connection.approve", "Approve workflow")}
-									</Button>
+									<div className="mt-4 flex flex-wrap gap-2">
+										<Button
+											disabled={!publishingEnabled || busy}
+											onClick={() => confirmWorkflowConnection(request)}
+											variant="primary"
+										>
+											{t("publisher.connection.approve", "Approve workflow")}
+										</Button>
+										<Button
+											disabled={busy}
+											onClick={() => rejectWorkflowConnection(request)}
+											variant="secondary-destructive"
+										>
+											{t("publisher.connection.reject", "Reject request")}
+										</Button>
+									</div>
 								</div>
 							);
 						})}

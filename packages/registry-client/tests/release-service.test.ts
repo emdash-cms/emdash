@@ -12,6 +12,7 @@ const SERVICE = "https://release.example.com";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const CONNECTION_ID = "01JABCDEFGHJKMNPQRSTVWXYZ1";
+const CONNECTION_INVITATION = `ewci1_${"I".repeat(43)}`;
 const CSRF = "C".repeat(43);
 const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
 
@@ -448,6 +449,14 @@ describe("ReleaseServiceClient", () => {
 		const fetch: typeof globalThis.fetch = async (input, init = {}) => {
 			const request = new Request(input, init);
 			calls.push(request);
+			if (request.url.endsWith("/workflow-connection-invitations")) {
+				return success({
+					invitationToken: CONNECTION_INVITATION,
+					packageSlug: "gallery",
+					expiresAt: 1_800_000_900_000,
+				});
+			}
+			if (request.method === "DELETE") return success({ rejected: true });
 			if (request.url.endsWith("/confirm")) {
 				return success({ request: connection("confirmed"), policy: policy(), replayed: false });
 			}
@@ -473,8 +482,21 @@ describe("ReleaseServiceClient", () => {
 		});
 
 		await expect(
+			client.createWorkflowConnectionInvitation("gallery", {
+				idempotencyKey: "workflow-connection-invitation-0001",
+			}),
+		).resolves.toEqual({
+			invitationToken: CONNECTION_INVITATION,
+			packageSlug: "gallery",
+			expiresAt: 1_800_000_900_000,
+		});
+		await expect(
 			client.requestWorkflowConnection(
-				{ publisherDid: PUBLISHER_DID, packageSlug: "gallery" },
+				{
+					publisherDid: PUBLISHER_DID,
+					packageSlug: "gallery",
+					invitationToken: CONNECTION_INVITATION,
+				},
 				{
 					idempotencyKey: "workflow-connection-request-0001",
 				},
@@ -483,6 +505,11 @@ describe("ReleaseServiceClient", () => {
 		await expect(client.listWorkflowConnections()).resolves.toMatchObject([
 			{ id: CONNECTION_ID, state: "pending" },
 		]);
+		await expect(
+			client.rejectWorkflowConnection(CONNECTION_ID, {
+				idempotencyKey: "workflow-connection-reject-0001",
+			}),
+		).resolves.toBeUndefined();
 		await expect(
 			client.confirmWorkflowConnection(CONNECTION_ID, "version_tags", {
 				idempotencyKey: "workflow-connection-confirm-0001",
@@ -496,15 +523,24 @@ describe("ReleaseServiceClient", () => {
 		).resolves.toMatchObject({ status: "connected", policy: { active: true } });
 
 		expect(calls.map((request) => new URL(request.url).pathname)).toEqual([
+			"/v1/publisher/workflow-connection-invitations",
 			"/v1/workflow-connections",
 			"/v1/publisher/workflow-connections",
+			`/v1/publisher/workflow-connections/${CONNECTION_ID}`,
 			`/v1/publisher/workflow-connections/${CONNECTION_ID}/confirm`,
 			"/v1/workflow-connections",
 		]);
-		expect(calls[0]?.headers.get("authorization")).toBe("Bearer header.payload.signature");
-		expect(calls[1]?.credentials).toBe("include");
-		expect(calls[2]?.headers.get("x-emdash-csrf")).toBe(CSRF);
-		expect(calls[3]?.headers.get("authorization")).toBe("Bearer header.payload.signature");
+		expect(calls[0]?.credentials).toBe("include");
+		expect(calls[1]?.headers.get("authorization")).toBe("Bearer header.payload.signature");
+		expect(await calls[1]?.json()).toEqual({
+			publisherDid: PUBLISHER_DID,
+			packageSlug: "gallery",
+			invitationToken: CONNECTION_INVITATION,
+		});
+		expect(calls[2]?.credentials).toBe("include");
+		expect(calls[3]?.headers.get("x-emdash-csrf")).toBe(CSRF);
+		expect(calls[4]?.headers.get("x-emdash-csrf")).toBe(CSRF);
+		expect(calls[5]?.headers.get("authorization")).toBe("Bearer header.payload.signature");
 	});
 
 	it("lists only the authenticated publisher audit", async () => {

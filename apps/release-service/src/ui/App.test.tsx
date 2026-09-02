@@ -339,6 +339,105 @@ describe("release-service web surfaces", () => {
 		expect(await confirmationRequest?.json()).toEqual({ refScope: "version_tags" });
 	});
 
+	it("creates a one-time workflow invitation and rejects a pending request", async () => {
+		document.cookie = `__Host-emdash_publisher_csrf=${"C".repeat(43)}; Path=/; Secure`;
+		const invitationToken = `ewci1_${"I".repeat(43)}`;
+		const requests: Request[] = [];
+		let rejected = false;
+		const connectionRequest = {
+			id: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+			packageSlug: "gallery",
+			state: "pending",
+			claim: {
+				repository: "example/gallery",
+				repositoryId: "123",
+				repositoryOwner: "example",
+				repositoryOwnerId: "456",
+				repositoryVisibility: "private",
+				workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
+				ref: "refs/tags/v1.2.3",
+				environment: null,
+			},
+			refScope: null,
+			expiresAt: 1_900_000_000_000,
+			createdAt: 1_800_000_000_000,
+			confirmedAt: null,
+		};
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const request = new Request(input instanceof Request ? input.url : input.toString(), init);
+				requests.push(request);
+				const path = new URL(request.url).pathname;
+				if (path === "/v1/publisher") {
+					return success({
+						publisher: {
+							did: PUBLISHER_DID,
+							handle: "publisher.example.com",
+							delegation: {
+								releaseNsid: "com.emdashcms.experimental.package.release",
+								scope:
+									"atproto repo:com.emdashcms.experimental.package.release?action=create blob:application/gzip blob:image/*",
+								issuer: "https://authorization.example.com",
+								pdsUrl: "https://pds.example.com",
+								expiresAt: null,
+								refreshBefore: null,
+								status: "active",
+								stateVersion: 1,
+							},
+						},
+					});
+				}
+				if (path === "/v1/publisher/workflow-connection-invitations") {
+					return success({
+						invitationToken,
+						packageSlug: "gallery",
+						expiresAt: 1_800_001_800_000,
+					});
+				}
+				if (path === `/v1/publisher/workflow-connections/${connectionRequest.id}`) {
+					rejected = true;
+					return success({ rejected: true });
+				}
+				if (path === "/v1/publisher/workflow-connections") {
+					return success({ items: rejected ? [] : [connectionRequest] });
+				}
+				if (
+					path === "/v1/publisher/workloads" ||
+					path === "/v1/publisher/intents" ||
+					path === "/v1/publisher/audit" ||
+					path === "/v1/approver/credentials"
+				) {
+					return success({ items: [] });
+				}
+				throw new Error(`Unexpected request: ${request.method} ${path}`);
+			}),
+		);
+		renderApp("/publisher");
+
+		fireEvent.change(await screen.findByLabelText("Plugin ID"), {
+			target: { value: "gallery" },
+		});
+		fireEvent.click(screen.getByRole("button", { name: "Create invitation" }));
+		expect(await screen.findByText(invitationToken)).toBeTruthy();
+		expect(screen.getByText(/EMDASH_CONNECTION_INVITATION/)).toBeTruthy();
+		const invitationRequest = requests.find((request) =>
+			request.url.endsWith("/workflow-connection-invitations"),
+		);
+		expect(await invitationRequest?.json()).toEqual({ packageSlug: "gallery" });
+
+		fireEvent.click(screen.getByRole("button", { name: "Reject request" }));
+		await screen.findByRole("button", { name: "Check for workflow requests" });
+		expect(
+			requests.some(
+				(request) =>
+					request.method === "DELETE" &&
+					new URL(request.url).pathname ===
+						`/v1/publisher/workflow-connections/${connectionRequest.id}`,
+			),
+		).toBe(true);
+	});
+
 	it("focuses and polls a requested workflow until it is no longer pending", async () => {
 		vi.useFakeTimers();
 		const connectionId = "01JABCDEFGHJKMNPQRSTVWXYZ1";
