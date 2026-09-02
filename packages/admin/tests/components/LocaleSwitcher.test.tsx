@@ -9,7 +9,7 @@ import { LocaleSwitcher } from "../../src/components/LocaleSwitcher.js";
 // oxlint-disable-next-line import/no-unassigned-import -- Browser test verifies Kumo's computed theme surface.
 import "@cloudflare/kumo/styles/standalone";
 
-import { render } from "../utils/render.tsx";
+import { render } from "../utils/render.js";
 
 const defaultLocaleIndicator = msg` (default)`;
 
