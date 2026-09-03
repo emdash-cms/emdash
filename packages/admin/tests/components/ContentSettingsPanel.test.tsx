@@ -900,9 +900,7 @@ describe("ContentSettingsPanel", () => {
 		expect(resolved.success).toBe(true);
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
-		expect(onPublishedAtChange).toHaveBeenCalledWith(
-			resolved.success ? resolved.value : undefined,
-		);
+		expect(onPublishedAtChange).toHaveBeenCalledWith(resolved.success ? resolved.value : undefined);
 	});
 
 	it("does not expose publish-date editing below the editor role", async () => {
