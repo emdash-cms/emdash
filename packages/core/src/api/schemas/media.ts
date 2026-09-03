@@ -131,6 +131,7 @@ export function mediaUploadUrlBody(maxSize: number) {
 			contentHash: z.string().optional(),
 			fieldId: z.string().optional(),
 			deduplicate: z.boolean().optional(),
+			ensureUniqueFilename: z.boolean().optional(),
 			folderId: mediaFolderIdSchema.nullable().optional(),
 		})
 		.meta({ id: "MediaUploadUrlBody" });
@@ -139,6 +140,11 @@ export function mediaUploadUrlBody(maxSize: number) {
 export const mediaUploadDeduplicateForm = z
 	.enum(["true", "false"])
 	.default("true")
+	.transform((value) => value === "true");
+
+export const mediaUploadEnsureUniqueFilenameForm = z
+	.enum(["true", "false"])
+	.default("false")
 	.transform((value) => value === "true");
 
 export const mediaReplaceMetadataForm = z.object({
@@ -156,6 +162,7 @@ export const mediaDirectUploadBody = z
 		thumbnail: binaryFileSchema.optional(),
 		fieldId: z.string().optional(),
 		deduplicate: z.enum(["true", "false"]).optional(),
+		ensureUniqueFilename: z.enum(["true", "false"]).optional(),
 		folderId: z.union([mediaFolderIdSchema, z.literal("unfiled")]).optional(),
 	})
 	.meta({ id: "MediaDirectUploadBody" });

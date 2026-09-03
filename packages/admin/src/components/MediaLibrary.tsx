@@ -1389,7 +1389,6 @@ export function MediaLibrary({
 							(currentUser.role >= 30 && detailItem.authorId === currentUser.id)),
 					)}
 					canDuplicateCrop={Boolean(isLocalMediaItem(detailItem) && (currentUser?.role ?? 0) >= 20)}
-					existingFilenames={currentItems.map((item) => item.filename)}
 					restoreFocusTargetRef={mediaHeadingRef}
 					onClose={closeDetail}
 					onClosed={handleDetailClosed}

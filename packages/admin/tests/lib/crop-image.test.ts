@@ -55,20 +55,17 @@ async function pixels(
 
 describe("createCroppedFilename", () => {
 	it.each([
-		["photo.jpg", "square", 800, 800, [], "photo-square.jpg"],
-		["photo-cropped-cropped.jpg", "16:9", 1600, 900, [], "photo-16x9.jpg"],
-		["photo-square.jpg", "4:3", 1200, 900, [], "photo-4x3.jpg"],
-		["photo.jpg", "freeform", 1180, 760, [], "photo-1180x760.jpg"],
-		["photo.jpg", "original", 1200, 800, [], "photo-1200x800.jpg"],
-		["photo.jpg", "square", 800, 800, ["photo-square.jpg"], "photo-square-2.jpg"],
-	] as const)(
-		"names %s cropped as %s",
-		(filename, mode, width, height, existingFilenames, expected) => {
-			expect(createCroppedFilename(filename, mode, { width, height }, existingFilenames)).toBe(
-				expected,
-			);
-		},
-	);
+		["photo.jpg", "square", 800, 800, "photo-square.jpg"],
+		["photo-cropped-cropped.jpg", "16:9", 1600, 900, "photo-16x9.jpg"],
+		["hand-cropped.jpg", "16:9", 1600, 900, "hand-cropped-16x9.jpg"],
+		["photo-square.jpg", "4:3", 1200, 900, "photo-square-4x3.jpg"],
+		["wallpaper-1920x1080.jpg", "square", 800, 800, "wallpaper-1920x1080-square.jpg"],
+		["photo.jpg", "freeform", 1180, 760, "photo-1180x760.jpg"],
+		["photo.jpg", "original", 1200, 800, "photo-1200x800.jpg"],
+		["photo-square.jpg", "square", 800, 800, "photo-square.jpg"],
+	] as const)("names %s cropped as %s", (filename, mode, width, height, expected) => {
+		expect(createCroppedFilename(filename, mode, { width, height })).toBe(expected);
+	});
 });
 
 describe("createCroppedImageFile", () => {

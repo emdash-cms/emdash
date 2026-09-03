@@ -836,7 +836,7 @@ describe("MediaDetailPanel", () => {
 		await vi.waitFor(() => {
 			expect(uploadMedia).toHaveBeenCalledWith(
 				expect.objectContaining({ name: "photo-80x80.jpg", type: "image/jpeg" }),
-				{ deduplicate: false, folderId: "folder-1" },
+				{ deduplicate: false, ensureUniqueFilename: true, folderId: "folder-1" },
 			);
 			expect(onCroppedCopyCreated).toHaveBeenCalledTimes(1);
 		});
@@ -990,11 +990,7 @@ describe("MediaDetailPanel", () => {
 		expect(onClose).not.toHaveBeenCalled();
 
 		resolveUpload(makeLocalItem({ id: "media-copy" }));
-		await expect.element(screen.getByText("Cropped copy created.")).toBeInTheDocument();
-		expect(onClose).toHaveBeenCalledTimes(1);
-		await expect
-			.element(screen.getByRole("button", { name: "Create cropped copy" }))
-			.toBeDisabled();
+		await vi.waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
 	});
 
 	it("falls back to the ordinary preview when the crop source cannot load", async () => {

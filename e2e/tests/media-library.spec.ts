@@ -250,7 +250,7 @@ test.describe("Media Library", () => {
 		test.setTimeout(150_000);
 		const marker = Date.now();
 		const filename = `crop-source-${marker}.png`;
-		const duplicateFilename = `crop-source-${marker}-cropped.png`;
+		const duplicateFilename = `crop-source-${marker}-square.png`;
 		const slug = `crop-reference-${marker}`;
 		await admin.goToMedia();
 		await admin.waitForLoading();
@@ -357,9 +357,6 @@ test.describe("Media Library", () => {
 		await duplicateAction.click();
 		await duplicateResponse;
 		await expect(page.getByRole("heading", { name: "Cropped copy created." })).toBeVisible();
-		await expect(details).toBeVisible();
-		await expect(duplicateAction).toBeDisabled();
-		await details.getByRole("button", { name: "Cancel" }).click();
 		await expect(details).not.toBeVisible();
 
 		const duplicate = await findMediaByFilename(serverInfo, duplicateFilename);

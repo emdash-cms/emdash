@@ -144,7 +144,6 @@ export interface MediaDetailPanelProps {
 	canMoveLocation?: boolean;
 	canCropOriginal?: boolean;
 	canDuplicateCrop?: boolean;
-	existingFilenames?: readonly string[];
 	restoreFocusTargetRef?: React.RefObject<HTMLElement | null>;
 	onClose: () => void;
 	onClosed?: () => void;
@@ -165,7 +164,6 @@ export function MediaDetailPanel({
 	canMoveLocation: canMoveLocationProp,
 	canCropOriginal = false,
 	canDuplicateCrop = false,
-	existingFilenames,
 	restoreFocusTargetRef,
 	onClose,
 	onClosed,
@@ -583,7 +581,7 @@ export function MediaDetailPanel({
 					image,
 					pixels,
 					action === "duplicate"
-						? createCroppedFilename(item.filename, cropAspectMode, pixels, existingFilenames)
+						? createCroppedFilename(item.filename, cropAspectMode, pixels)
 						: item.filename,
 					cropMime,
 				);
@@ -596,6 +594,7 @@ export function MediaDetailPanel({
 					action,
 					item: await uploadMedia(file, {
 						deduplicate: false,
+						ensureUniqueFilename: true,
 						folderId: localItem?.folderId ?? null,
 					}),
 				};

@@ -21,6 +21,7 @@ import {
 	mediaFolderIdSchema,
 	mediaListQuery,
 	mediaUploadDeduplicateForm,
+	mediaUploadEnsureUniqueFilenameForm,
 } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
@@ -155,6 +156,12 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				})),
 			});
 		}
+		const ensureUniqueFilenameResult = mediaUploadEnsureUniqueFilenameForm.safeParse(
+			formData.get("ensureUniqueFilename") ?? undefined,
+		);
+		if (!ensureUniqueFilenameResult.success) {
+			return apiError("VALIDATION_ERROR", "Invalid request data", 400);
+		}
 		const folderEntry = formData.get("folderId");
 		let folderId: string | null | undefined;
 		if (folderEntry !== null) {
@@ -206,10 +213,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				return apiSuccess({ item: itemWithUrl, deduplicated: true });
 			}
 		}
+		const filename = ensureUniqueFilenameResult.data
+			? await repo.findAvailableFilename(file.name)
+			: file.name;
 
 		// Generate unique storage key
 		const id = ulid();
-		const ext = path.extname(file.name) || "";
+		const ext = path.extname(filename) || "";
 		const storageKey = `${id}${ext}`;
 
 		// Upload to storage using the configured adapter
@@ -241,7 +251,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Create media record
 		const result = await emdash.handleMediaCreate({
-			filename: file.name,
+			filename,
 			mimeType: normalizeMime(file.type),
 			size: file.size,
 			// Client dimensions win over server header dimensions: the browser's

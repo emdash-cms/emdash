@@ -7,7 +7,7 @@ export interface PixelCrop {
 
 export type CropAspectMode = "original" | "freeform" | "square" | "4:3" | "3:2" | "16:9";
 
-const GENERATED_CROP_SUFFIX = /(?:(?:-cropped)+|-(?:square|4x3|3x2|16x9|\d+x\d+)(?:-\d+)?)$/i;
+const REPEATED_LEGACY_CROP_SUFFIX = /(?:-cropped){2,}$/i;
 
 const CROPPABLE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -28,27 +28,21 @@ export function createCroppedFilename(
 	filename: string,
 	mode: CropAspectMode,
 	size: Pick<PixelCrop, "width" | "height">,
-	existingFilenames: readonly string[] = [],
 ): string {
 	const extensionIndex = filename.lastIndexOf(".");
 	const hasExtension = extensionIndex > 0;
 	const extension = hasExtension ? filename.slice(extensionIndex) : "";
 	const stem = hasExtension ? filename.slice(0, extensionIndex) : filename;
-	const base = stem.replace(GENERATED_CROP_SUFFIX, "") || stem;
+	const base = stem.replace(REPEATED_LEGACY_CROP_SUFFIX, "") || stem;
 	const descriptor =
 		mode === "original" || mode === "freeform"
 			? `${size.width}x${size.height}`
 			: mode.replace(":", "x");
-	const generatedStem = `${base}-${descriptor}`;
-	const existing = new Set(existingFilenames.map((name) => name.toLowerCase()));
-
-	let candidate = `${generatedStem}${extension}`;
-	let copyNumber = 2;
-	while (existing.has(candidate.toLowerCase())) {
-		candidate = `${generatedStem}-${copyNumber}${extension}`;
-		copyNumber += 1;
-	}
-	return candidate;
+	const suffix = `-${descriptor}`;
+	const generatedStem = base.toLowerCase().endsWith(suffix.toLowerCase())
+		? base
+		: `${base}${suffix}`;
+	return `${generatedStem}${extension}`;
 }
 
 export function createCroppedImageFile(

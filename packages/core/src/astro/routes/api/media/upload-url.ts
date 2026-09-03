@@ -10,7 +10,6 @@
 import * as path from "node:path";
 
 import type { APIRoute } from "astro";
-import { MediaRepository } from "emdash";
 import { ulid } from "ulidx";
 
 import { requirePerm } from "#api/authorize.js";
@@ -18,6 +17,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/media-allowlist.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaUploadUrlBody } from "#api/schemas.js";
+import { MediaRepository } from "#db/repositories/media.js";
 import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
 
 export const prerender = false;
@@ -102,10 +102,13 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				return apiSuccess(response);
 			}
 		}
+		const filename = body.ensureUniqueFilename
+			? await repo.findAvailableFilename(body.filename)
+			: body.filename;
 
 		// Generate unique storage key
 		const id = ulid();
-		const ext = path.extname(body.filename) || "";
+		const ext = path.extname(filename) || "";
 		const storageKey = `${id}${ext}`;
 
 		let signedUrl: Awaited<ReturnType<typeof emdash.storage.getSignedUploadUrl>> | null;
@@ -122,7 +125,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		}
 
 		const mediaItem = await repo.createPending({
-			filename: body.filename,
+			filename,
 			mimeType: normalizedContentType,
 			size: body.size,
 			storageKey,

@@ -384,6 +384,30 @@ export class MediaRepository {
 		return row ? this.rowToItem(row) : null;
 	}
 
+	async findAvailableFilename(filename: string): Promise<string> {
+		const exists = async (candidate: string) =>
+			Boolean(
+				await this.db
+					.selectFrom("media")
+					.select("id")
+					.where(sql<string>`lower(filename)`, "=", candidate.toLowerCase())
+					.executeTakeFirst(),
+			);
+		if (!(await exists(filename))) return filename;
+
+		const extensionIndex = filename.lastIndexOf(".");
+		const hasExtension = extensionIndex > 0;
+		const extension = hasExtension ? filename.slice(extensionIndex) : "";
+		const stem = hasExtension ? filename.slice(0, extensionIndex) : filename;
+		let copyNumber = 2;
+		let candidate = `${stem}-${copyNumber}${extension}`;
+		while (await exists(candidate)) {
+			copyNumber += 1;
+			candidate = `${stem}-${copyNumber}${extension}`;
+		}
+		return candidate;
+	}
+
 	/**
 	 * Find media by content hash
 	 * Used for deduplication - same content = same hash

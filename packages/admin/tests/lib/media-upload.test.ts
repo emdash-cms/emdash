@@ -101,10 +101,15 @@ it("forces a distinct signed upload when deduplication is disabled", async () =>
 
 	const item = await uploadMedia(new File(["png"], "cropped.png", { type: "image/png" }), {
 		deduplicate: false,
+		ensureUniqueFilename: true,
 		folderId: "folder-1",
 	});
 
-	expect(uploadUrlBody).toMatchObject({ deduplicate: false, folderId: "folder-1" });
+	expect(uploadUrlBody).toMatchObject({
+		deduplicate: false,
+		ensureUniqueFilename: true,
+		folderId: "folder-1",
+	});
 	expect(uploadUrlBody).not.toHaveProperty("contentHash");
 	expect(item.id).toBe("cropped-media");
 	expect(fetch).toHaveBeenCalledTimes(3);
@@ -125,10 +130,12 @@ it("forces a distinct direct upload when deduplication is disabled", async () =>
 
 	await uploadMedia(new File(["png"], "cropped.png", { type: "image/png" }), {
 		deduplicate: false,
+		ensureUniqueFilename: true,
 		folderId: "folder-1",
 	});
 
 	expect(directBody?.get("deduplicate")).toBe("false");
+	expect(directBody?.get("ensureUniqueFilename")).toBe("true");
 	expect(directBody?.get("folderId")).toBe("folder-1");
 });
 

@@ -13,11 +13,19 @@ import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js"
 
 const bytes = new Uint8Array([1, 2, 3]);
 
-function uploadRequest(deduplicate?: string, folderId?: string): Request {
+function uploadRequest(
+	deduplicate?: string,
+	folderId?: string,
+	ensureUniqueFilename?: string,
+	filename = "photo.png",
+): Request {
 	const form = new FormData();
-	form.set("file", new File([bytes], "photo.png", { type: "image/png" }));
+	form.set("file", new File([bytes], filename, { type: "image/png" }));
 	if (deduplicate !== undefined) form.set("deduplicate", deduplicate);
 	if (folderId !== undefined) form.set("folderId", folderId);
+	if (ensureUniqueFilename !== undefined) {
+		form.set("ensureUniqueFilename", ensureUniqueFilename);
+	}
 	return new Request("http://localhost/_emdash/api/media", {
 		method: "POST",
 		headers: { "X-EmDash-Request": "1" },
@@ -98,6 +106,30 @@ describe("direct media upload deduplication", () => {
 		expect(upload).toHaveBeenCalledOnce();
 	});
 
+	it("allocates an unused filename for a direct upload", async () => {
+		const repo = new MediaRepository(db);
+		await repo.create({
+			filename: "photo-square.png",
+			mimeType: "image/png",
+			storageKey: "existing-square.png",
+		});
+		await repo.create({
+			filename: "photo-square-2.png",
+			mimeType: "image/png",
+			storageKey: "existing-square-2.png",
+		});
+		const upload = vi.fn().mockResolvedValue({ key: "unused", url: "", size: bytes.byteLength });
+
+		const response = await postMedia(
+			buildContext(db, uploadRequest("false", undefined, "true", "photo-square.png"), upload),
+		);
+
+		expect(response.status).toBe(201);
+		expect(await response.json()).toMatchObject({
+			data: { item: { filename: "photo-square-3.png" } },
+		});
+	});
+
 	it("creates a distinct item in the requested folder", async () => {
 		const folder = await new MediaFolderRepository(db).create("Editorial");
 		const upload = vi.fn().mockResolvedValue({ key: "unused", url: "", size: bytes.byteLength });
@@ -148,6 +180,51 @@ describe("direct media upload deduplication", () => {
 		const body = (await response.json()) as { data: { mediaId: string } };
 		expect(await new MediaRepository(db).findById(body.data.mediaId)).toMatchObject({
 			folderId: folder.id,
+			status: "pending",
+		});
+	});
+
+	it("allocates an unused filename for a signed upload", async () => {
+		const repo = new MediaRepository(db);
+		await repo.create({
+			filename: "crop-square.png",
+			mimeType: "image/png",
+			storageKey: "existing-crop.png",
+		});
+		const request = new Request("http://localhost/_emdash/api/media/upload-url", {
+			method: "POST",
+			headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+			body: JSON.stringify({
+				filename: "crop-square.png",
+				contentType: "image/png",
+				size: bytes.byteLength,
+				deduplicate: false,
+				ensureUniqueFilename: true,
+			}),
+		});
+		const response = await postUploadUrl({
+			request,
+			locals: {
+				emdash: {
+					db,
+					config: {},
+					storage: {
+						getSignedUploadUrl: vi.fn().mockResolvedValue({
+							url: "https://uploads.example/crop-square-2.png",
+							method: "PUT",
+							headers: {},
+							expiresAt: new Date(Date.now() + 60_000),
+						}),
+					},
+				},
+				user: { id: "author-1", email: "author@example.com", name: "Author", role: 30 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as { data: { mediaId: string } };
+		expect(await repo.findById(body.data.mediaId)).toMatchObject({
+			filename: "crop-square-2.png",
 			status: "pending",
 		});
 	});
