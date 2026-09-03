@@ -127,11 +127,7 @@ describe("MCP content_unpublish — publishedAt preservation", () => {
 	});
 });
 
-// ---------------------------------------------------------------------------
-// Bug #11: schema_create_collection supports default
-// ---------------------------------------------------------------------------
-
-describe("MCP schema_create_collection — supports default (bug #11)", () => {
+describe("MCP schema_create_collection — supports default", () => {
 	let db: Kysely<Database>;
 	let harness: McpHarness;
 
@@ -153,7 +149,6 @@ describe("MCP schema_create_collection — supports default (bug #11)", () => {
 		expect(result.isError, extractText(result)).toBeFalsy();
 		const created = extractJson<{ supports: string[] }>(result);
 
-		// Bug #11: today this is [] or null. After fix: ['drafts', 'revisions'].
 		expect(created.supports).toEqual(expect.arrayContaining(["drafts", "revisions"]));
 	});
 
@@ -182,8 +177,6 @@ describe("MCP schema_create_collection — supports default (bug #11)", () => {
 	});
 
 	it("default-supports collection accepts publish/unpublish/revision flows immediately", async () => {
-		// Default supports should include drafts + revisions, so the standard
-		// publish/unpublish lifecycle should work without further config.
 		await harness.client.callTool({
 			name: "schema_create_collection",
 			arguments: { slug: "story", label: "Stories" },
@@ -200,7 +193,6 @@ describe("MCP schema_create_collection — supports default (bug #11)", () => {
 		expect(created.isError, extractText(created)).toBeFalsy();
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
 
-		// Update should create a draft revision (only meaningful if 'revisions' is in supports)
 		await harness.client.callTool({
 			name: "content_update",
 			arguments: { collection: "story", id, data: { title: "Updated" } },
@@ -210,8 +202,6 @@ describe("MCP schema_create_collection — supports default (bug #11)", () => {
 			name: "revision_list",
 			arguments: { collection: "story", id },
 		});
-		// If supports doesn't include 'revisions', revision_list returns empty
-		// or fails. After fix: revisions exist.
 		expect(revs.isError, extractText(revs)).toBeFalsy();
 		const items = extractJson<{ items: unknown[] }>(revs).items;
 		expect(items.length).toBeGreaterThan(0);
