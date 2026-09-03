@@ -170,9 +170,20 @@ export interface ContentEditorProps {
 	/** Callback to discard draft changes (revert to published version) */
 	onDiscardDraft?: () => void;
 	/** Callback to schedule for future publishing */
-	onSchedule?: (scheduledAt: string) => void | Promise<void>;
+	onSchedule?: (
+		scheduledAt: string,
+		payload?: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		},
+	) => void | Promise<void>;
 	/** Callback to cancel scheduling (revert to draft) */
-	onUnschedule?: () => void | Promise<void>;
+	onUnschedule?: (payload?: {
+		data: Record<string, unknown>;
+		slug?: string;
+		bylines?: BylineCreditInput[];
+	}) => void | Promise<void>;
 	/** Whether scheduling is in progress */
 	isScheduling?: boolean;
 	/** Whether schedule removal is in progress */
@@ -627,6 +638,66 @@ export function ContentEditor({
 		hasUnsupportedPortableTextMarks,
 		onPublish,
 	]);
+	const runScheduleChange = React.useCallback(
+		(
+			action: (payload?: {
+				data: Record<string, unknown>;
+				slug?: string;
+				bylines?: BylineCreditInput[];
+			}) => void | Promise<void>,
+		) => {
+			if (isPublishingRef.current) {
+				return Promise.reject(new Error(t`A publishing action is already in progress`));
+			}
+			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
+				return Promise.reject(new Error(t`Fix invalid fields before changing the schedule`));
+			}
+
+			cancelPendingAutosave();
+			const payload =
+				isDirty || saveFeedbackActive || autosaveFeedbackActive ? createSavePayload() : undefined;
+			isPublishingRef.current = true;
+			setIsPublishing(true);
+
+			let result: void | Promise<void>;
+			try {
+				result = action(payload);
+			} catch (error) {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				throw error;
+			}
+			if (!result) {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				return;
+			}
+
+			return result.finally(() => {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+			});
+		},
+		[
+			cancelPendingAutosave,
+			createSavePayload,
+			hasInvalidUrls,
+			hasUnsupportedPortableTextMarks,
+			autosaveFeedbackActive,
+			isDirty,
+			saveFeedbackActive,
+			t,
+		],
+	);
+	const handleSchedule = React.useCallback(
+		(scheduledAt: string) =>
+			onSchedule ? runScheduleChange((payload) => onSchedule(scheduledAt, payload)) : undefined,
+		[onSchedule, runScheduleChange],
+	);
+	const handleUnschedule = React.useCallback(
+		() => (onUnschedule ? runScheduleChange((payload) => onUnschedule(payload)) : undefined),
+		[onUnschedule, runScheduleChange],
+	);
 
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
@@ -834,7 +905,7 @@ export function ContentEditor({
 												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
 												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-												onUnschedule={onUnschedule}
+												onUnschedule={onUnschedule ? handleUnschedule : undefined}
 												onMenuOpenChange={setPublishingMenuOpen}
 											/>
 											<MobileSettingsButton />
@@ -900,7 +971,7 @@ export function ContentEditor({
 												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
 												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-												onUnschedule={onUnschedule}
+												onUnschedule={onUnschedule ? handleUnschedule : undefined}
 												onMenuOpenChange={setPublishingMenuOpen}
 												size="sm"
 											/>
@@ -993,7 +1064,7 @@ export function ContentEditor({
 							onPublish={handlePublish}
 							onUnpublish={onUnpublish}
 							onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-							onUnschedule={onUnschedule}
+							onUnschedule={onUnschedule ? handleUnschedule : undefined}
 							onMenuOpenChange={setPublishingMenuOpen}
 							announceSaveStatus={!isDistractionFree}
 						/>
@@ -1063,7 +1134,7 @@ export function ContentEditor({
 				isLive={isLive}
 				isPending={isScheduling}
 				onOpenChange={setScheduleDialogOpen}
-				onSchedule={onSchedule}
+				onSchedule={onSchedule ? handleSchedule : undefined}
 			/>
 		</form>
 	);

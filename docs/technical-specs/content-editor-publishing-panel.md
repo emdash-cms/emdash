@@ -1,10 +1,10 @@
 # Content editor publishing panel
 
 Status: Implemented locally
-Target package: `@emdash-cms/admin`
-Base: `origin/main` at `c5e0fae1cf505a983d0abd6ccb51f33aface52a7`
+Target packages: `@emdash-cms/admin` and `emdash`
+Base: `origin/main` at `450057e46e0f5cb6300e5cad127fb3b2281e1ad1`
 Stack position: Standalone pull request against `main`
-Authority: The approving implementation request authorizes the planned local code, tests, documentation, and commits. It does not authorize pushes, rebases, deployment, or GitHub changes.
+Authority: The approving implementation request authorizes the planned code, tests, documentation, commits, and pull request. It does not authorize deployment or merge.
 
 ## Purpose
 
@@ -24,12 +24,14 @@ This change includes:
 - keeping Slug, Content locale, and Publication date visible while placing Created and Updated in a collapsed Kumo disclosure;
 - using local-time display and editing for publishing instants without changing stored ISO timestamps;
 - preserving desktop, mobile, and distraction-free publishing access;
+- saving the current editor payload before scheduling or removing a schedule;
+- returning the updated revision token from schedule changes so later saves retain optimistic-concurrency protection;
 - updating behavioral, end-to-end, accessibility, and visual-regression coverage; and
-- adding a patch changeset for `@emdash-cms/admin`.
+- adding one patch changeset for the affected packages.
 
 This change excludes:
 
-- API routes, authorization rules, handlers, repositories, migrations, and scheduler execution;
+- API routes, authorization rules, repositories, migrations, and scheduler execution;
 - changes to draft, revision, publish, unpublish, discard, schedule, or unschedule persistence semantics;
 - changes to content-field `datetime` values or the shared `datetime-local.ts` contract used by field widgets;
 - a general workflow or status framework for other admin pages;
@@ -51,6 +53,7 @@ These facts are verified against the stated base commit.
 - Schedule and unschedule routes require `content:publish_own` for owned content or `content:publish_any` for other content. A scheduled time must parse as a valid future instant.
 - The repository already uses Kumo `DropdownMenu`, `Dialog`, `Popover`, `DatePicker`, `Input`, `Select`, `Button`, `Badge`, `Text`, and `Loader` patterns. `ContentList` already supplies Kumo `DatePicker` with `getDayPickerLocale()` and `getLocaleDir()`.
 - The `update-live-article-safely` acceptance journey requires an author to distinguish saved draft work from the public version and keep the current article live until publication. Its status is `needs-profile`, so it supplies acceptance intent but is not currently executable as a release gate.
+- `ContentEditor` saves and awaits its current payload before immediate publication. Schedule and unschedule actions need the same ordering so the two-second autosave debounce cannot leave the scheduled revision stale.
 
 ## Information architecture
 
@@ -197,7 +200,7 @@ The dialog contains:
 - a secondary Cancel button; and
 - a primary Schedule, Schedule changes, or Save schedule button.
 
-Use the shared compact dialog presentation for scheduling and publication-date editing. The dialog is 20rem wide at desktop sizes, remains bounded to `calc(100vw - 2rem)`, centers a `w-fit` date picker, and stacks the two quick choices. This removes the unused inline space created when a full-width calendar root contained a narrower month grid.
+Use the shared compact dialog presentation for scheduling and publication-date editing. The dialog is 20rem wide at desktop sizes, remains bounded to `calc(100vw - 2rem)` and `calc(100vh - 2rem)`, scrolls internally when the viewport is short, fills the available width with the date picker, and stacks the two quick choices.
 
 Creating a schedule starts without a selected instant. A quick choice fills both fields. Editing a schedule initializes both fields from `item.scheduledAt` in the browser's local time zone.
 
@@ -218,7 +221,7 @@ Close and reset the dialog when the entry ID, active locale, or persisted `sched
 
 Capture the entry ID, locale, and a monotonically increasing submission generation when scheduling begins. A late resolve or rejection may update dialog state only when all three still match. Query invalidation remains owned by the router mutation; the stale guard prevents an operation for one entry from closing, resetting, or adding an inline error to another entry's dialog.
 
-Use `Dialog` size `sm` with viewport-bounded padding so its Kumo date picker and time field fit a 320-pixel viewport without internal horizontal scrolling.
+Use `Dialog` size `sm` with viewport-bounded padding and height so its Kumo date picker and time field fit a 320-pixel-wide or 576-pixel-tall viewport without clipping or horizontal scrolling.
 
 ## Publication-date dialog
 
@@ -243,7 +246,7 @@ Add publishing-specific helpers instead of changing `lib/datetime-local.ts`.
 
 For a repeated local time during the daylight-saving fall-back transition, use the browser's earlier resolved occurrence and show its short zone name or offset before submission. Supporting selection between both repeated occurrences is outside this focused redesign.
 
-Opening and closing an unchanged editor sends no request, including when the persisted timestamp contains non-zero seconds. A changed value uses minute precision and zero seconds. Stored types, API shapes, database columns, and scheduler comparison semantics remain unchanged.
+Opening and closing an unchanged editor sends no request, including when the persisted timestamp contains non-zero seconds. A changed value uses minute precision and zero seconds. Stored types, request shapes, database columns, and scheduler comparison semantics remain unchanged. Schedule and unschedule responses add the existing optional `_rev` envelope field.
 
 ## Component and data flow
 
@@ -254,12 +257,13 @@ Use one small publishing-state helper because both the action surface and the pa
 3. `PublishActions` renders either a direct single action or a Kumo dropdown when timing or schedule management creates multiple choices.
 4. A schedule menu item opens the one `ContentEditor` schedule dialog.
 5. The dialog converts local fields to an ISO instant and awaits `onSchedule`.
-6. The router uses `scheduleMutation.mutateAsync()`. Its success handler invalidates the item query and reports Scheduled. Its error handler keeps the existing toast, while the dialog also presents the rejection beside the submitted fields.
-7. The refreshed `scheduledAt` changes the derived view state and panel relationship.
-8. Remove schedule awaits `unscheduleMutation.mutateAsync()`. An unpublished item returns to Draft; a live item remains Published with draft changes.
-9. Publication-date submission awaits `publishedAtMutation.mutateAsync()`, then the existing update-success path refreshes the item. Existing update-error handling remains, and the popover also presents the rejection beside the submitted fields.
+6. `ContentEditor` cancels the pending autosave and passes its current save payload when the form is dirty or an older save is still in flight. The router waits for the save queue, persists that payload when present, then calls `scheduleMutation.mutateAsync()`.
+7. The schedule success handler cancels an older item refetch, merges the returned schedule state with the item from the preceding save so draft fields and hydrated bylines remain available, records the returned `_rev`, and reports Scheduled.
+8. The refreshed `scheduledAt` changes the derived view state and panel relationship.
+9. Remove schedule uses the same save ordering and cache update before an unpublished item returns to Draft or a live item remains Published with draft changes.
+10. Publication-date submission awaits `publishedAtMutation.mutateAsync()`, then the existing update-success path refreshes the item. Existing update-error handling remains, and the popover also presents the rejection beside the submitted fields.
 
-Broaden the exported `ContentEditorProps` callback return types from `void` to `void | Promise<void>` for `onSchedule`, `onUnschedule`, and `onPublishedAtChange`. Existing synchronous callers remain valid. Add `isUnscheduling?: boolean`; continue to use the existing `isScheduling` and `isUpdatingPublishedAt` props. The router passes each mutation's pending state to the matching Kumo control.
+Broaden the exported `ContentEditorProps` callback return types from `void` to `void | Promise<void>` for `onSchedule`, `onUnschedule`, and `onPublishedAtChange`. Schedule and unschedule callbacks also receive the current editor save payload. Existing synchronous callers remain valid. Add `isUnscheduling?: boolean`; continue to use the existing `isScheduling` and `isUpdatingPublishedAt` props. The router passes each mutation's pending state to the matching Kumo control.
 
 Each responsive `PublishActions` instance owns its Kumo menu state and reports `onMenuOpenChange` to `ContentEditor`. Only one action surface is interactive at a time. `ContentEditor` uses that report together with the shared schedule-dialog state to give an open Kumo overlay first handling of Escape.
 
@@ -280,6 +284,8 @@ No direct-access route changes are required.
 ## Failure, concurrency, and interruption
 
 - Validate missing, past, and daylight-saving-gap values before calling the API.
+- Cancel the pending autosave and wait for the editor save queue before schedule or unschedule. Persist the current payload when the form is dirty or an older save is still in flight, and do not send the schedule change when that save fails.
+- Advance the editor's opaque revision token from successful schedule and unschedule responses before another save can begin.
 - Treat server rejection as authoritative. Do not reset the editor; preserve the submitted fields whether the overlay is open or closed. The toast reports the failure globally, and `DialogError` keeps correction context beside the fields when the editor still belongs to the active entry.
 - Disable repeated schedule, update-date, and unschedule submissions while their mutation is pending.
 - Allow an in-flight schedule dialog to close without claiming that the request was cancelled; reset its draft only after success.
@@ -288,20 +294,20 @@ No direct-access route changes are required.
 - Track whether the publishing menu or schedule dialog is open. The distraction-free Escape handler must return without exiting distraction-free mode while either Kumo overlay owns Escape; the overlay closes first.
 - Reset local editor state on entry or locale change to prevent stale-item submission.
 - Ignore local state updates from a schedule or publication-date promise that settles for an earlier entry, locale, or submission generation.
-- Preserve the existing route, repository, scheduled-worker, query invalidation, toast, and atomic publication behavior.
+- Preserve the existing route, repository, scheduled-worker, toast, and atomic publication behavior.
 - Do not add client retries. A user can retry after the existing mutation error is visible.
-- Do not add a client concurrency token to scheduling in this UI-only change.
+- Do not add a concurrency token to schedule requests. Return the existing editor `_rev` token after a schedule change.
 
 ## Compatibility and cost
 
 - No database migration or content backfill is required.
-- No API request or response shape changes.
+- Schedule and unschedule responses add the existing optional `_rev` envelope field. Request shapes do not change.
 - No new package dependency.
-- No new query, cache invalidation, scheduled-worker operation, or logged-out round trip.
+- No new query, scheduled-worker operation, or logged-out round trip.
 - Existing synchronous `ContentEditor` callback implementations remain assignable to the broadened callback types.
 - Existing plugin panels, sortable sections, preview behavior, and public component exports remain available.
 - Do not include extracted `messages.po` files. The locale workflow will extract the new source messages after merge.
-- Add one patch changeset for `@emdash-cms/admin` describing the clearer live-versus-draft state, contextual publish scheduling, and local-time publication display. State that stored timestamps do not change.
+- Add one patch changeset for `@emdash-cms/admin` and `emdash` describing the clearer live-versus-draft state, contextual publish scheduling, local-time publication display, and schedule revision-token response. State that stored timestamps do not change.
 
 ## Accessibility, localization, and visual contract
 
@@ -353,7 +359,9 @@ Tests must assert user behavior, not Tailwind classes or Kumo internals.
 
 ### Router and end-to-end tests
 
-- Router callbacks return the schedule, unschedule, and publication-date mutation promises while preserving current success invalidation and toast behavior. Schedule and publication-date rejected promises also render inline when their editor still belongs to the active entry.
+- Router callbacks return the schedule, unschedule, and publication-date mutation promises while preserving current toasts. Schedule changes cancel older item refetches and merge their returned state into the cache. Schedule and publication-date rejected promises also render inline when their editor still belongs to the active entry.
+- Scheduling and removing a schedule save a dirty editor payload first, cancel the pending debounce, and use the returned revision token for the next save.
+- Clean schedule changes create no draft revision when no save is active. If an older save is active, persist the current value after it before changing the schedule.
 - Update the schedule end-to-end flow to open the Kumo publish menu and dialog, select a future local time, observe the POST response, and see the scheduled relationship.
 - Add a published-with-changes flow that schedules updates through the UI, confirms the existing public version remains readable before the scheduled instant, then removes the schedule and confirms the item remains published with draft changes.
 - Keep the existing publish, unpublish, permission, and API tests green.
@@ -370,7 +378,9 @@ Expected production files:
 - `packages/admin/src/components/PublishingDateTimeEditor.tsx`, containing the shared fields and schedule dialog
 - `packages/admin/src/lib/content-publishing-state.ts`
 - `packages/admin/src/lib/publishing-datetime.ts`
+- `packages/admin/src/lib/api/content.ts`
 - `packages/admin/src/router.tsx`
+- `packages/core/src/api/handlers/content.ts`
 
 Expected test and release files:
 
@@ -380,6 +390,9 @@ Expected test and release files:
 - `packages/admin/tests/lib/content-publishing-state.test.ts`
 - `packages/admin/tests/lib/publishing-datetime.test.ts`
 - `packages/admin/tests/router.test.tsx`
+- `packages/admin/tests/lib/content-rev.test.ts`
+- `packages/admin/tests/publish-autosave-race.test.tsx`
+- `packages/core/tests/unit/api/content-handlers.test.ts`
 - `e2e/tests/content-actions.spec.ts`
 - `e2e/tests/accessibility.spec.ts`
 - `e2e/tests/visual-regression.spec.ts`
@@ -500,15 +513,33 @@ Responsibility:
 
 - replace the publication-date popover with the shared centered dialog pattern;
 - share the dialog header, fields, errors, and footer between scheduling and publication-date editing;
-- constrain both dialogs to a 20rem desktop width and center the Kumo date picker; and
+- constrain both dialogs to a 20rem desktop width, a viewport-safe height, and a full-width Kumo date picker; and
 - stack scheduling shortcuts to remove unused horizontal space.
 
 Acceptance:
 
 - both date editors open in the same location with the same interaction model;
-- the schedule dialog and publication-date dialog fit a 320-pixel viewport without horizontal scrolling;
+- the schedule dialog and publication-date dialog fit a 320-pixel-wide or 576-pixel-tall viewport without clipping or horizontal scrolling;
 - Cancel and Escape restore focus to the originating control; and
 - existing validation, async errors, stale-entry guards, and ISO serialization remain unchanged.
+
+### Commit 7: `fix(admin): preserve editor state across schedule changes`
+
+Responsibility:
+
+- serialize the current editor save before scheduling or removing a schedule;
+- cancel the pending autosave while either schedule change is in flight;
+- return the updated `_rev` from schedule and unschedule handlers; and
+- keep the admin revision token synchronized without a follow-up read.
+
+Acceptance:
+
+- edits made immediately before a schedule change are included in the saved draft;
+- clean schedule changes do not create a draft revision unless a corrective save must follow an older in-flight value;
+- a failed save prevents the schedule change;
+- schedule and unschedule responses expose the current revision token; and
+- schedule cache updates retain the draft fields and hydrated bylines from the preceding save; and
+- the next manual save or autosave does not fail with a stale revision conflict.
 
 ## Review and verification gates
 
@@ -529,7 +560,7 @@ Before completion, run:
 - `pnpm --dir docs build`; and
 - `git diff --check`.
 
-The pull request diff must contain no locale catalogs, API or database changes, unrelated editor cleanup, raw color utilities, physical-direction Tailwind classes, or hand-built Kumo equivalents. Include before-and-after interface screenshots with useful alt text.
+The pull request diff must contain no locale catalogs, API routes, request-shape changes, database changes, unrelated editor cleanup, raw color utilities, physical-direction Tailwind classes, or hand-built Kumo equivalents. The only response-contract change is the additive existing `_rev` field for schedule and unschedule. Include before-and-after interface screenshots with useful alt text.
 
 ## Acceptance criteria
 
@@ -544,7 +575,7 @@ The feature is ready for approval when all of the following are true:
 7. Save, autosave, Preview draft, Live View, Discard changes, Publish, Unpublish, scheduled publishing, and responsive action access retain their existing behavior.
 8. Kumo supplies every available interactive and display primitive; custom code provides only feature state, data conversion, and structural layout.
 9. English, Arabic, pseudo-localized, keyboard-only, reduced-motion, 320-pixel mobile, and 320–480-pixel sidebar checks pass without clipping or lost actions.
-10. The change adds no public query, database work, API contract, migration, dependency, or logged-out cost.
+10. The change adds no public query, database work, API request change, migration, dependency, or logged-out cost. Schedule and unschedule add only the existing optional `_rev` response field.
 11. Tests, typecheck, lint, formatting, visual proof, accessibility checks, and the patch changeset pass the stated gates.
 
 ## Decisions approved with this specification

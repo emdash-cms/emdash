@@ -1185,14 +1185,33 @@ function ContentEditPage() {
 			});
 		},
 	});
-
+	const applyScheduleChange = React.useCallback(
+		async (changedItem: ContentItem, savedItem?: ContentItem) => {
+			await queryClient.cancelQueries({ queryKey: ["content", collection, id] });
+			if (changedItem._rev) revisionTokensRef.current.set(id, changedItem._rev);
+			queryClient.setQueriesData<ContentItem>(
+				{ queryKey: ["content", collection, id] },
+				(existing) => {
+					const currentItem = savedItem ?? existing;
+					return currentItem
+						? {
+								...currentItem,
+								...changedItem,
+								data: currentItem.data,
+								slug: currentItem.slug,
+								byline: currentItem.byline ?? existing?.byline,
+								bylines: currentItem.bylines ?? existing?.bylines,
+							}
+						: changedItem;
+				},
+			);
+		},
+		[collection, id, queryClient],
+	);
 	const scheduleMutation = useMutation({
 		mutationFn: (scheduledAt: string) =>
 			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id],
-			});
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
@@ -1211,9 +1230,6 @@ function ContentEditPage() {
 		mutationFn: () =>
 			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id],
-			});
 			toastManager.add({
 				title: t`Unscheduled`,
 				description: t`Content reverted to draft`,
@@ -1382,14 +1398,64 @@ function ContentEditPage() {
 		[discardDraftMutation.mutate],
 	);
 	const handleSchedule = React.useCallback(
-		async (scheduledAt: string) => {
-			await scheduleMutation.mutateAsync(scheduledAt);
+		async (
+			scheduledAt: string,
+			payload?: {
+				data: Record<string, unknown>;
+				slug?: string;
+				bylines?: BylineCreditInput[];
+			},
+		) => {
+			const savedItem = await serializeEditorSave(async () => {
+				if (!payload) return;
+				return updateMutation.mutateAsync({
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+					source: "editor",
+					changes: payload,
+				});
+			});
+			const scheduledItem = await scheduleMutation.mutateAsync(scheduledAt);
+			await applyScheduleChange(scheduledItem, savedItem);
 		},
-		[scheduleMutation.mutateAsync],
+		[
+			activeLocale,
+			applyScheduleChange,
+			id,
+			rawItem?.locale,
+			scheduleMutation.mutateAsync,
+			serializeEditorSave,
+			updateMutation.mutateAsync,
+		],
 	);
-	const handleUnschedule = React.useCallback(async () => {
-		await unscheduleMutation.mutateAsync();
-	}, [unscheduleMutation.mutateAsync]);
+	const handleUnschedule = React.useCallback(
+		async (payload?: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		}) => {
+			const savedItem = await serializeEditorSave(async () => {
+				if (!payload) return;
+				return updateMutation.mutateAsync({
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+					source: "editor",
+					changes: payload,
+				});
+			});
+			const unscheduledItem = await unscheduleMutation.mutateAsync();
+			await applyScheduleChange(unscheduledItem, savedItem);
+		},
+		[
+			activeLocale,
+			applyScheduleChange,
+			id,
+			rawItem?.locale,
+			serializeEditorSave,
+			unscheduleMutation.mutateAsync,
+			updateMutation.mutateAsync,
+		],
+	);
 	const handleDelete = React.useCallback(() => deleteMutation.mutate(), [deleteMutation.mutate]);
 	const handleTranslate = React.useCallback(
 		(locale: string) => translateMutation.mutate(locale),

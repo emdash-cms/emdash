@@ -9,7 +9,12 @@
  */
 import { describe, it, expect, vi, afterEach } from "vitest";
 
-import { fetchContent, updateContent } from "../../src/lib/api/content";
+import {
+	fetchContent,
+	scheduleContent,
+	unscheduleContent,
+	updateContent,
+} from "../../src/lib/api/content";
 
 const originalFetch = globalThis.fetch;
 
@@ -65,5 +70,19 @@ describe("content _rev round-trip (#2121)", () => {
 		const [, init] = fetchSpy.mock.calls[0]!;
 		const sent = JSON.parse(init.body as string);
 		expect("_rev" in sent).toBe(false);
+	});
+
+	it("surfaces the updated _rev after schedule changes", async () => {
+		globalThis.fetch = vi.fn(async () =>
+			jsonResponse({
+				success: true,
+				data: { item: { id: "01ABC" }, _rev: "djM6dDM=" },
+			}),
+		);
+
+		expect((await scheduleContent("pages", "01ABC", "2030-01-01T09:00:00.000Z"))._rev).toBe(
+			"djM6dDM=",
+		);
+		expect((await unscheduleContent("pages", "01ABC"))._rev).toBe("djM6dDM=");
 	});
 });
