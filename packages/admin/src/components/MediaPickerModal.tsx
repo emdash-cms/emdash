@@ -658,6 +658,7 @@ export function MediaPickerModal({
 				);
 	const canUpload =
 		activeSource === "local" ? !folderId : Boolean(activeProviderInfo?.capabilities.upload);
+	const hasSourceControls = sourceTabs.length > 1 || canUpload;
 	const canSearch = activeSource === "local" || Boolean(activeProviderInfo?.capabilities.search);
 	const currentLoading = activeSource === "local" ? localQuery.isPending : providerQuery.isPending;
 	const currentFetching =
@@ -784,20 +785,20 @@ export function MediaPickerModal({
 						enqueueFiles([...event.dataTransfer.files]);
 					}}
 				>
-					{(sourceTabs.length > 1 || canUpload) && (
-						<div className="flex shrink-0 flex-wrap items-center gap-2 px-5 pt-4 sm:px-7">
+					{hasSourceControls && (
+						<div className="flex shrink-0 flex-wrap items-center gap-2 px-5 py-4 sm:px-7">
 							{sourceTabs.length > 1 && (
 								<div aria-disabled={uploadQueue.hasUnfinished || undefined} data-source-tabs>
 									<Tabs
 										variant="segmented"
 										size="base"
-										listClassName="px-0"
-										indicatorClassName="rounded-lg"
+										listClassName="px-px"
+										indicatorClassName="rounded-[7px]"
 										value={activeSource}
 										onValueChange={changeSource}
 										tabs={sourceTabs.map((source) => ({
 											value: source.id,
-											className: "my-0 h-9 rounded-lg px-3",
+											className: "my-px h-[34px] rounded-[7px] px-3",
 											render: (props) => <button {...props} disabled={uploadQueue.hasUnfinished} />,
 											label: (
 												<span className="flex items-center gap-2">
@@ -928,7 +929,9 @@ export function MediaPickerModal({
 						</ScrollArea.Root>
 					) : (
 						<>
-							<div className="shrink-0 space-y-4 px-5 pt-4 sm:px-7">
+							<div
+								className={`shrink-0 space-y-4 px-5 sm:px-7 ${hasSourceControls ? "pb-4" : "py-4"}`}
+							>
 								{folderId && activeSource === "local" && (
 									<div className="flex min-w-0 items-center gap-2">
 										<Button
@@ -969,6 +972,9 @@ export function MediaPickerModal({
 										<div role="group" aria-label={t`View mode`}>
 											<Tabs
 												variant="segmented"
+												size="base"
+												listClassName="px-px"
+												indicatorClassName="rounded-[7px]"
 												value={viewMode}
 												onValueChange={(value) => {
 													if (value === "grid" || value === "list") setViewMode(value);
@@ -976,6 +982,7 @@ export function MediaPickerModal({
 												tabs={[
 													{
 														value: "grid",
+														className: "my-px h-[34px] rounded-[7px] px-3",
 														label: (
 															<>
 																<SquaresFour className="size-4" aria-hidden="true" />
@@ -985,6 +992,7 @@ export function MediaPickerModal({
 													},
 													{
 														value: "list",
+														className: "my-px h-[34px] rounded-[7px] px-3",
 														label: (
 															<>
 																<List className="size-4" aria-hidden="true" />

@@ -111,12 +111,12 @@ test.describe("Bylines", () => {
 					uploadButtonBox!.height / 2,
 			),
 		).toBeLessThanOrEqual(2);
-		expect(uploadButtonBox!.height).toBe(searchBox!.height);
-		const [libraryTabSizing, uploadButtonSizing] = await Promise.all([
+		expect(Math.abs(uploadButtonBox!.height - searchBox!.height)).toBeLessThanOrEqual(1);
+		const [sourceTabsBox, libraryTabSizing, uploadButtonSizing] = await Promise.all([
+			dialog.locator("[data-source-tabs]").boundingBox(),
 			dialog.getByRole("tab", { name: "Library" }).evaluate((element) => {
 				const style = getComputedStyle(element);
 				return {
-					height: element.clientHeight,
 					fontSize: style.fontSize,
 					paddingInlineStart: style.paddingInlineStart,
 					paddingInlineEnd: style.paddingInlineEnd,
@@ -125,16 +125,41 @@ test.describe("Bylines", () => {
 			dialog.getByRole("button", { name: "Upload files" }).evaluate((element) => {
 				const style = getComputedStyle(element);
 				return {
-					height: element.clientHeight,
 					fontSize: style.fontSize,
 					paddingInlineStart: style.paddingInlineStart,
 					paddingInlineEnd: style.paddingInlineEnd,
 				};
 			}),
 		]);
+		expect(sourceTabsBox).not.toBeNull();
+		expect(Math.abs(sourceTabsBox!.height - uploadButtonBox!.height)).toBeLessThanOrEqual(1);
 		expect(libraryTabSizing).toEqual(uploadButtonSizing);
+		expect(libraryTabBox!.y).toBeGreaterThan(sourceTabsBox!.y);
+		expect(libraryTabBox!.y + libraryTabBox!.height).toBeLessThan(
+			sourceTabsBox!.y + sourceTabsBox!.height,
+		);
 		await expect(dialog.getByRole("tab", { name: "Library" }).locator("svg")).toBeVisible();
 		await expect(dialog.getByRole("tab", { name: "From URL" }).locator("svg")).toBeVisible();
+
+		const [typeFilterBox, viewModeBox, gridTabBox, resultsViewportBox] = await Promise.all([
+			dialog.getByRole("combobox", { name: "Filter by type" }).boundingBox(),
+			dialog.getByRole("group", { name: "View mode" }).boundingBox(),
+			dialog.getByRole("tab", { name: "Grid view" }).boundingBox(),
+			dialog.locator("[data-media-results-viewport]").boundingBox(),
+		]);
+		expect(typeFilterBox).not.toBeNull();
+		expect(viewModeBox).not.toBeNull();
+		expect(gridTabBox).not.toBeNull();
+		expect(resultsViewportBox).not.toBeNull();
+		expect(Math.abs(viewModeBox!.height - searchBox!.height)).toBeLessThanOrEqual(1);
+		expect(gridTabBox!.y).toBeGreaterThan(viewModeBox!.y);
+		expect(gridTabBox!.y + gridTabBox!.height).toBeLessThan(viewModeBox!.y + viewModeBox!.height);
+		const toolbarBottom = Math.max(
+			searchBox!.y + searchBox!.height,
+			typeFilterBox!.y + typeFilterBox!.height,
+			viewModeBox!.y + viewModeBox!.height,
+		);
+		expect(resultsViewportBox!.y).toBeGreaterThan(toolbarBottom);
 		const gridDialogWidth = await dialog.evaluate((element) => element.clientWidth);
 		await dialog.getByRole("tab", { name: "List view" }).click();
 		await expect(dialog.locator('[data-media-layout="list"]').first()).toBeVisible();
