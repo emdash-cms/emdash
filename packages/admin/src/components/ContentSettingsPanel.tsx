@@ -996,7 +996,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 													<Button
 														type="button"
 														variant="ghost"
-														className="-mx-1 mt-1 h-auto min-h-9 w-[calc(100%+0.5rem)] justify-between whitespace-normal px-1 py-1.5 font-normal"
+														className="-mx-2 mt-1 h-auto min-h-9 w-[calc(100%+1rem)] justify-between whitespace-normal px-2 py-1.5 font-normal"
 													/>
 												}
 											>

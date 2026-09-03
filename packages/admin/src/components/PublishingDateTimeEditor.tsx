@@ -530,7 +530,7 @@ export function PublicationDateDialog({
 					<Button
 						type="button"
 						variant="ghost"
-						className="-mx-1 h-9 w-[calc(100%+0.5rem)] min-w-0 overflow-hidden whitespace-nowrap px-1 py-1.5 font-normal"
+						className="-mx-2 h-9 w-[calc(100%+1rem)] min-w-0 overflow-hidden whitespace-nowrap px-2 py-1.5 font-normal"
 						aria-label={t`Change publication date: ${formattedValue}`}
 					/>
 				}

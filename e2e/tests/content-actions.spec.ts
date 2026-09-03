@@ -322,8 +322,8 @@ test.describe("Schedule content", () => {
 		}
 		expect(Math.abs(publicationLabelBox!.x - statusIconBox!.x)).toBeLessThanOrEqual(1);
 		expect(Math.abs(createdAndUpdatedLabelBox!.x - statusIconBox!.x)).toBeLessThanOrEqual(1);
-		expect(statusIconBox!.x - publicationButtonBox!.x).toBeGreaterThanOrEqual(3);
-		expect(statusIconBox!.x - createdAndUpdatedButtonBox!.x).toBeGreaterThanOrEqual(3);
+		expect(statusIconBox!.x - publicationButtonBox!.x).toBeGreaterThanOrEqual(7);
+		expect(statusIconBox!.x - createdAndUpdatedButtonBox!.x).toBeGreaterThanOrEqual(7);
 		const publicationDateLayout = await publicationDateTrigger.evaluate((element) => {
 			(element as HTMLElement).style.width = "296px";
 			const label = element.querySelector(".text-kumo-subtle")!;
