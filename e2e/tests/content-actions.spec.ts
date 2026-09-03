@@ -271,6 +271,22 @@ test.describe("Schedule content", () => {
 		const publicationDateTrigger = page.getByRole("button", {
 			name: /Change publication date:/,
 		});
+		const publicationDateLayout = await publicationDateTrigger.evaluate((element) => {
+			(element as HTMLElement).style.width = "296px";
+			const label = element.querySelector(".text-kumo-subtle")!;
+			const value = element.querySelector("time")!;
+			const lineCount = (target: Element) => {
+				const range = document.createRange();
+				range.selectNodeContents(target);
+				return range.getClientRects().length;
+			};
+			return {
+				height: element.getBoundingClientRect().height,
+				labelLines: lineCount(label),
+				valueLines: lineCount(value),
+			};
+		});
+		expect(publicationDateLayout).toEqual({ height: 36, labelLines: 1, valueLines: 1 });
 		await publicationDateTrigger.click();
 		const publicationDateDialog = page.getByRole("dialog", {
 			name: "Change publication date",
@@ -283,7 +299,14 @@ test.describe("Schedule content", () => {
 		await publicationDateDialog.getByRole("button", { name: "Cancel", exact: true }).click();
 		await expect(publicationDateTrigger).toBeFocused();
 
-		await page.getByRole("button", { name: "Publish changes", exact: true }).click();
+		const publishChanges = page.getByRole("button", { name: "Publish changes", exact: true });
+		const publishChangesLayout = await publishChanges.evaluate((element) => {
+			const button = element.getBoundingClientRect();
+			const caret = element.querySelector("svg")!.getBoundingClientRect();
+			return { trailingGap: button.right - caret.right };
+		});
+		expect(publishChangesLayout.trailingGap).toBeLessThanOrEqual(16);
+		await publishChanges.click();
 		await page.getByRole("menuitem", { name: /Schedule changes/ }).click();
 		const dialog = page.getByRole("dialog", { name: "Schedule changes" });
 		await expect(

@@ -298,13 +298,13 @@ function TimestampRow({
 	size = "base",
 }: React.PropsWithChildren<{ label: string; size?: "sm" | "base" }>) {
 	return (
-		<div className="flex items-start justify-between gap-3">
-			<dt className="max-w-[45%] shrink-0">
-				<Text as="span" variant="secondary" size={size}>
+		<div className="flex items-center justify-between gap-2 whitespace-nowrap">
+			<dt className="min-w-0 flex-1">
+				<Text as="span" variant="secondary" size={size} truncate>
 					{label}
 				</Text>
 			</dt>
-			<dd className="min-w-0 flex-1 text-end">{children}</dd>
+			<dd className="shrink-0 text-end">{children}</dd>
 		</div>
 	);
 }
@@ -600,16 +600,19 @@ export function PublishActions({
 		>
 			<DropdownMenu.Trigger
 				render={
-					<Button
-						type="button"
-						variant="primary"
-						size={size}
-						loading={isScheduling || isUnscheduling}
+						<Button
+							type="button"
+							variant="primary"
+							size={size}
+							className="w-full [&>span:last-child]:w-full"
+							loading={isScheduling || isUnscheduling}
 						aria-haspopup="menu"
 						aria-expanded={open}
 					>
-						{triggerLabel}
-						<CaretDown className="size-3" aria-hidden="true" />
+						<span className="flex w-full min-w-0 items-center justify-between gap-2">
+							<span className="min-w-0 truncate text-start">{triggerLabel}</span>
+							<CaretDown className="size-3 shrink-0" aria-hidden="true" />
+						</span>
 					</Button>
 				}
 			/>

@@ -520,17 +520,24 @@ export function PublicationDateDialog({
 					<Button
 						type="button"
 						variant="ghost"
-						className="h-auto min-h-9 w-full min-w-0 justify-between gap-3 whitespace-normal px-2 py-1.5 font-normal"
+						className="h-9 w-full min-w-0 overflow-hidden whitespace-nowrap px-1.5 py-1.5 font-normal"
 						aria-label={t`Change publication date: ${formattedValue}`}
 					/>
 				}
 			>
-				<Text as="span" variant="secondary">
-					{label}
-				</Text>
-				<span className="flex min-w-0 items-center justify-end gap-1.5 text-end">
-					<time dateTime={publishedAt}>{formattedValue}</time>
-					<PencilSimple className="size-3.5 shrink-0" aria-hidden="true" />
+				<span className="flex w-full min-w-0 items-center gap-2">
+					<Text
+						as="span"
+						variant="secondary"
+						truncate
+						DANGEROUS_className="flex-1 text-start"
+					>
+						{label}
+					</Text>
+					<span className="flex shrink-0 items-center justify-end gap-1 whitespace-nowrap text-end">
+						<time dateTime={publishedAt}>{formattedValue}</time>
+						<PencilSimple className="size-3 shrink-0" aria-hidden="true" />
+					</span>
 				</span>
 			</Dialog.Trigger>
 			<PublishingDateTimeDialogContent
