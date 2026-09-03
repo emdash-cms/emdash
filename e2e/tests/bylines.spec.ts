@@ -93,6 +93,7 @@ test.describe("Bylines", () => {
 		const dialog = page.locator('[role="dialog"]').filter({ hasText: "Select Avatar" });
 		await expect(dialog).toBeVisible();
 		await expect(dialog).not.toContainText("No media selected");
+		await expect(dialog.locator("[data-media-results-viewport]")).toBeVisible();
 
 		const [libraryTabBox, uploadButtonBox, searchBox] = await Promise.all([
 			dialog.getByRole("tab", { name: "Library" }).boundingBox(),
@@ -111,6 +112,12 @@ test.describe("Bylines", () => {
 			),
 		).toBeLessThanOrEqual(2);
 		expect(uploadButtonBox!.height).toBe(searchBox!.height);
+		const gridDialogWidth = await dialog.evaluate((element) => element.clientWidth);
+		await dialog.getByRole("tab", { name: "List view" }).click();
+		await expect(dialog.locator('[data-media-layout="list"]').first()).toBeVisible();
+		expect(await dialog.evaluate((element) => element.clientWidth)).toBe(gridDialogWidth);
+		await dialog.getByRole("tab", { name: "Grid view" }).click();
+		await expect(dialog.locator('[data-media-layout="grid"]').first()).toBeVisible();
 
 		const libraryDialogSize = await dialog.evaluate((element) => ({
 			width: element.clientWidth,

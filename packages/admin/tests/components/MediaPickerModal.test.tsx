@@ -413,6 +413,10 @@ describe("MediaPickerModal", () => {
 			const screen = await renderModal();
 			await expect.element(screen.getByRole("button", { name: "page1.jpg" })).toBeInTheDocument();
 			expect(screen.getByRole("combobox", { name: "Page size" }).query()).toBeNull();
+			await expect
+				.element(screen.getByRole("textbox", { name: "Page number" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("combobox", { name: "Page number" }).query()).toBeNull();
 			screen.getByRole("button", { name: "Next page" }).element().click();
 			await expect.element(screen.getByRole("button", { name: "page2.jpg" })).toBeInTheDocument();
 			expect(mock).toHaveBeenCalledTimes(2);

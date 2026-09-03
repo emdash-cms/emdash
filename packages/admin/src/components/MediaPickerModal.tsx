@@ -9,6 +9,7 @@ import {
 	Select,
 	Tabs,
 } from "@cloudflare/kumo";
+import { ScrollArea } from "@cloudflare/kumo/primitives/scroll-area";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -48,7 +49,6 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { canonicalMediaProviderId, providerItemToMediaItem } from "../lib/media-utils.js";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import {
-	MAX_MEDIA_PAGE_DROPDOWN_ITEMS,
 	MediaBrowserFolder,
 	MediaBrowserItem,
 	MediaSelectionTrayItem,
@@ -713,6 +713,27 @@ export function MediaPickerModal({
 		},
 		[activeSource, canUpload, filters, multiple, uploadQueue.addFiles],
 	);
+	const selectionTray =
+		multiple && selectedItems.length > 0 ? (
+			<section aria-labelledby="media-picker-selection" className="grid gap-2">
+				<h2 id="media-picker-selection" className="text-sm font-semibold">
+					{t`Selected media`}
+				</h2>
+				<ul className="grid gap-2">
+					{selectedItems.map((selected, index) => (
+						<MediaSelectionTrayItem
+							key={selected.key}
+							item={toMediaItem(selected)}
+							position={index + 1}
+							total={selectedItems.length}
+							onMoveEarlier={() => moveSelectedItem(index, index - 1, selected.item.filename)}
+							onMoveLater={() => moveSelectedItem(index, index + 1, selected.item.filename)}
+							onRemove={() => removeSelectedItem(selected)}
+						/>
+					))}
+				</ul>
+			</section>
+		) : null;
 
 	return (
 		<Dialog.Root
@@ -748,7 +769,7 @@ export function MediaPickerModal({
 				</header>
 
 				<div
-					className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 sm:px-7"
+					className="flex min-h-0 flex-1 flex-col overflow-hidden"
 					onDragOver={(event) => {
 						if (!event.dataTransfer.types.includes("Files")) return;
 						event.preventDefault();
@@ -762,7 +783,7 @@ export function MediaPickerModal({
 					}}
 				>
 					{(sourceTabs.length > 1 || canUpload) && (
-						<div className="flex flex-wrap items-center gap-2">
+						<div className="flex shrink-0 flex-wrap items-center gap-2 px-5 pt-4 sm:px-7">
 							{sourceTabs.length > 1 && (
 								<div aria-disabled={uploadQueue.hasUnfinished || undefined} data-source-tabs>
 									<Tabs
@@ -824,442 +845,464 @@ export function MediaPickerModal({
 					)}
 
 					{activeSource === URL_SOURCE ? (
-						<section className="mx-auto grid w-full max-w-2xl gap-4 py-6">
-							<div className="grid gap-1.5">
-								<Label htmlFor="media-picker-url">{t`Image URL`}</Label>
-								<div className="flex flex-col gap-2 sm:flex-row">
-									<div className="relative min-w-0 flex-1">
-										<Globe
-											className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-kumo-subtle"
-											aria-hidden="true"
-										/>
-										<Input
-											id="media-picker-url"
-											type="url"
-											aria-label={t`Image URL`}
-											placeholder={t`https://example.com/image.jpg`}
-											value={imageUrl}
-											onChange={(event) => {
-												setImageUrl(event.currentTarget.value);
-												setUrlError(null);
-											}}
-											onKeyDown={(event) => {
-												if (event.key !== "Enter") return;
-												event.preventDefault();
-												void handleUrlSubmit();
-											}}
-											className="w-full ps-9"
-										/>
-									</div>
-									<Button
-										onClick={() => void handleUrlSubmit()}
-										disabled={!imageUrl.trim() || isProbing}
-										loading={isProbing}
-									>
-										{t`Use URL`}
-									</Button>
-								</div>
-								{urlError && (
-									<p role="alert" className="text-sm text-kumo-danger">
-										{urlError}
-									</p>
-								)}
-							</div>
-
-							{selectedItems
-								.filter((selected) => selected.providerId === URL_SOURCE)
-								.map((selected) => (
-									<MediaBrowserItem
-										key={selected.key}
-										item={selected.item as MediaItem}
-										layout="list"
-										selected
-										selectable
-										onClick={(event) => {
-											if (event.detail > 1) return;
-											updateSelection(URL_SOURCE, selected.item);
-										}}
-									/>
-								))}
-						</section>
-					) : (
-						<>
-							{folderId && activeSource === "local" && (
-								<div className="flex min-w-0 items-center gap-2">
-									<Button
-										variant="ghost"
-										size="sm"
-										disabled={uploadQueue.hasUnfinished}
-										onClick={() => {
-											setFolderId(undefined);
-											resetPage();
-										}}
-										icon={<ArrowLeft className="rtl:-scale-x-100" aria-hidden="true" />}
-									>
-										{t`Main library`}
-									</Button>
-									<span aria-hidden="true" className="text-kumo-subtle">
-										/
-									</span>
-									<span dir="auto" className="min-w-0 truncate text-sm font-medium">
-										{currentFolderQuery.data?.name ?? t`Folder`}
-									</span>
-								</div>
-							)}
-							{folderId && currentFolderQuery.error && !missingFolder && (
-								<div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-kumo-danger-tint px-3 py-2 text-sm text-kumo-danger">
-									<span>{t`Could not load this folder.`}</span>
-									<Button
-										variant="outline"
-										size="sm"
-										onClick={() => void currentFolderQuery.refetch()}
-									>
-										{t`Retry`}
-									</Button>
-								</div>
-							)}
-
-							<TableToolbar
-								trailing={
-									<div role="group" aria-label={t`View mode`}>
-										<Tabs
-											variant="segmented"
-											value={viewMode}
-											onValueChange={(value) => {
-												if (value === "grid" || value === "list") setViewMode(value);
-											}}
-											tabs={[
-												{
-													value: "grid",
-													label: (
-														<>
-															<SquaresFour className="size-4" aria-hidden="true" />
-															<span className="sr-only">{t`Grid view`}</span>
-														</>
-													),
-												},
-												{
-													value: "list",
-													label: (
-														<>
-															<List className="size-4" aria-hidden="true" />
-															<span className="sr-only">{t`List view`}</span>
-														</>
-													),
-												},
-											]}
-										/>
-									</div>
-								}
+						<ScrollArea.Root className="relative min-h-0 flex-1" data-media-results-scroll>
+							<ScrollArea.Viewport
+								className="h-full w-full overscroll-contain"
+								data-media-results-viewport
 							>
-								{canSearch && (
-									<TableToolbarSearch
-										size="base"
-										placeholder={activeSource === "local" ? t`Search by filename...` : t`Search...`}
-										aria-label={t`Search media`}
-										value={searchQuery}
-										onChange={(event) => {
-											setSearchQuery(event.currentTarget.value);
-											if (activeSource === "local") resetPage();
-										}}
-										maxLength={MEDIA_SEARCH_MAX_LENGTH}
-										className="basis-full sm:w-72 sm:basis-auto"
-									/>
-								)}
-								{activeSource === "local" && (
-									<Select
-										size="base"
-										value={typeFilter}
-										onValueChange={(value) => {
-											setTypeFilter(value ?? "all");
-											resetPage();
-										}}
-										items={typeItems}
-										aria-label={t`Filter by type`}
-									/>
-								)}
-							</TableToolbar>
-
-							{uploadQueue.overflowCount > 0 && (
-								<p role="alert" className="text-sm text-kumo-danger">
-									{plural(uploadQueue.overflowCount, {
-										one: "# file was not added because the upload list is full.",
-										other: "# files were not added because the upload list is full.",
-									})}
-								</p>
-							)}
-							{activeSource === "local" && localQuery.error && localItems.length > 0 && (
-								<div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-kumo-danger-tint px-3 py-2 text-sm text-kumo-danger">
-									<span>{t`The latest media request failed. Showing the previous page.`}</span>
-									<Button variant="outline" size="sm" onClick={() => void localQuery.refetch()}>
-										{t`Retry`}
-									</Button>
-								</div>
-							)}
-
-							{showFolderResults &&
-								(foldersQuery.isPending || folders.length > 0 || foldersQuery.error) && (
-									<section aria-labelledby="media-picker-folders" className="grid gap-2">
-										<div className="flex items-center justify-between gap-2">
-											<h2 id="media-picker-folders" className="text-sm font-semibold">
-												{t`Folders`}
-											</h2>
-											{foldersQuery.error && (
-												<div className="flex items-center gap-2">
-													<span className="text-sm text-kumo-danger">
-														{t`Folders could not be loaded.`}
-													</span>
-													<Button
-														variant="outline"
-														size="sm"
-														onClick={() => void foldersQuery.refetch()}
-													>
-														{t`Retry`}
-													</Button>
+								<ScrollArea.Content className="space-y-4 px-5 pb-4 sm:px-7">
+									<section className="mx-auto grid w-full max-w-2xl gap-4 py-6">
+										<div className="grid gap-1.5">
+											<Label htmlFor="media-picker-url">{t`Image URL`}</Label>
+											<div className="flex flex-col gap-2 sm:flex-row">
+												<div className="relative min-w-0 flex-1">
+													<Globe
+														className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-kumo-subtle"
+														aria-hidden="true"
+													/>
+													<Input
+														id="media-picker-url"
+														type="url"
+														aria-label={t`Image URL`}
+														placeholder={t`https://example.com/image.jpg`}
+														value={imageUrl}
+														onChange={(event) => {
+															setImageUrl(event.currentTarget.value);
+															setUrlError(null);
+														}}
+														onKeyDown={(event) => {
+															if (event.key !== "Enter") return;
+															event.preventDefault();
+															void handleUrlSubmit();
+														}}
+														className="w-full ps-9"
+													/>
 												</div>
+												<Button
+													onClick={() => void handleUrlSubmit()}
+													disabled={!imageUrl.trim() || isProbing}
+													loading={isProbing}
+												>
+													{t`Use URL`}
+												</Button>
+											</div>
+											{urlError && (
+												<p role="alert" className="text-sm text-kumo-danger">
+													{urlError}
+												</p>
 											)}
 										</div>
-										{foldersQuery.isPending && folders.length === 0 ? (
-											<div
-												role="status"
-												className="flex items-center gap-2 text-sm text-kumo-subtle"
-											>
-												<Loader size="sm" />
-												{t`Loading folders`}
-											</div>
-										) : (
-											<div
-												className="grid grid-cols-[repeat(auto-fill,minmax(min(12rem,100%),1fr))] gap-2"
-												inert={uploadQueue.hasUnfinished || undefined}
-											>
-												{folders.map((folder) => (
-													<MediaBrowserFolder
-														key={folder.id}
-														folder={folder}
-														onOpen={() => {
-															if (uploadQueue.hasUnfinished) return;
-															setSearchQuery("");
-															setFolderId(folder.id);
-															resetPage();
-														}}
-													/>
-												))}
-											</div>
-										)}
-										{foldersQuery.hasNextPage && (
-											<Button
-												variant="outline"
-												size="sm"
-												onClick={() => void foldersQuery.fetchNextPage()}
-												disabled={foldersQuery.isFetchingNextPage || uploadQueue.hasUnfinished}
-												loading={foldersQuery.isFetchingNextPage}
-											>
-												{t`Load more folders`}
-											</Button>
-										)}
-									</section>
-								)}
 
-							<div
-								role="region"
-								aria-label={t`Media results`}
-								aria-busy={currentFetching || undefined}
-							>
-								{currentLoading && !hasVisibleItems ? (
-									<div
-										role="status"
-										className="flex min-h-48 items-center justify-center gap-2 text-sm text-kumo-subtle"
-									>
-										<Loader />
-										{t`Loading media`}
+										{selectedItems
+											.filter((selected) => selected.providerId === URL_SOURCE)
+											.map((selected) => (
+												<MediaBrowserItem
+													key={selected.key}
+													item={selected.item as MediaItem}
+													layout="list"
+													selected
+													selectable
+													onClick={(event) => {
+														if (event.detail > 1) return;
+														updateSelection(URL_SOURCE, selected.item);
+													}}
+												/>
+											))}
+									</section>
+									{selectionTray}
+								</ScrollArea.Content>
+							</ScrollArea.Viewport>
+							<ScrollArea.Scrollbar className="pointer-events-none w-2.5 p-0.5 opacity-0 data-[scrolling]:pointer-events-auto data-[scrolling]:opacity-100">
+								<ScrollArea.Thumb className="rounded-full bg-kumo-interact" />
+							</ScrollArea.Scrollbar>
+						</ScrollArea.Root>
+					) : (
+						<>
+							<div className="shrink-0 space-y-4 px-5 pt-4 sm:px-7">
+								{folderId && activeSource === "local" && (
+									<div className="flex min-w-0 items-center gap-2">
+										<Button
+											variant="ghost"
+											size="sm"
+											disabled={uploadQueue.hasUnfinished}
+											onClick={() => {
+												setFolderId(undefined);
+												resetPage();
+											}}
+											icon={<ArrowLeft className="rtl:-scale-x-100" aria-hidden="true" />}
+										>
+											{t`Main library`}
+										</Button>
+										<span aria-hidden="true" className="text-kumo-subtle">
+											/
+										</span>
+										<span dir="auto" className="min-w-0 truncate text-sm font-medium">
+											{currentFolderQuery.data?.name ?? t`Folder`}
+										</span>
 									</div>
-								) : (activeSource === "local" ? localQuery.error : providerQuery.error) &&
-								  !hasVisibleItems ? (
-									<div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
-										<p className="text-sm text-kumo-danger">{t`Could not load media.`}</p>
+								)}
+								{folderId && currentFolderQuery.error && !missingFolder && (
+									<div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-kumo-danger-tint px-3 py-2 text-sm text-kumo-danger">
+										<span>{t`Could not load this folder.`}</span>
 										<Button
 											variant="outline"
-											onClick={() =>
-												void (activeSource === "local"
-													? localQuery.refetch()
-													: providerQuery.refetch())
-											}
+											size="sm"
+											onClick={() => void currentFolderQuery.refetch()}
 										>
 											{t`Retry`}
 										</Button>
 									</div>
-								) : !hasVisibleItems ? (
-									<div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
-										<EmptyStateIcon className="size-10 text-kumo-subtle" aria-hidden="true" />
-										<div className="grid gap-1">
-											<h2 className="text-lg font-semibold">{t`No media found`}</h2>
-											<p className="text-sm text-kumo-subtle">
-												{searchQuery.trim()
-													? t`Try another filename or clear your search.`
-													: folderId && activeSource === "local"
-														? t`This folder is empty.`
-														: isFileKind
-															? t`Upload a file to get started`
-															: t`Upload an image to get started`}
-											</p>
-										</div>
-									</div>
-								) : viewMode === "grid" ? (
-									<Grid
-										variant="4up"
-										gap="sm"
-										className="2xl:grid-cols-5"
-										inert={currentFetching || undefined}
-										data-media-items
-									>
-										{visibleUploadJobs.map((job) => (
-											<MediaUploadPlaceholder
-												key={job.id}
-												job={job}
-												layout="grid"
-												onRetry={() => uploadQueue.retry(job.id)}
-												onRemove={() => {
-													uploadTargetsRef.current.delete(job.id);
-													uploadQueue.remove(job.id);
-												}}
-											/>
-										))}
-										{visibleItems.map((rawItem) => {
-											const key = selectionKey(activeSource, rawItem);
-											const item =
-												activeSource === "local"
-													? (rawItem as MediaItem)
-													: toMediaItem({ key, providerId: activeSource, item: rawItem });
-											return (
-												<MediaBrowserItem
-													key={key}
-													item={item}
-													layout="grid"
-													selectable
-													selected={selectedItems.some((selected) => selected.key === key)}
-													onClick={(event) => {
-														if (event.detail > 1) return;
-														updateSelection(activeSource, rawItem);
-													}}
-													onDimensionsLoaded={(width, height) =>
-														handleBrowserDimensions(activeSource, rawItem, key, width, height)
-													}
-												/>
-											);
-										})}
-									</Grid>
-								) : (
-									<div className="grid gap-2" inert={currentFetching || undefined} data-media-items>
-										{visibleUploadJobs.map((job) => (
-											<MediaUploadPlaceholder
-												key={job.id}
-												job={job}
-												layout="list"
-												onRetry={() => uploadQueue.retry(job.id)}
-												onRemove={() => {
-													uploadTargetsRef.current.delete(job.id);
-													uploadQueue.remove(job.id);
-												}}
-											/>
-										))}
-										{visibleItems.map((rawItem) => {
-											const key = selectionKey(activeSource, rawItem);
-											const item =
-												activeSource === "local"
-													? (rawItem as MediaItem)
-													: toMediaItem({ key, providerId: activeSource, item: rawItem });
-											return (
-												<MediaBrowserItem
-													key={key}
-													item={item}
-													layout="list"
-													selectable
-													selected={selectedItems.some((selected) => selected.key === key)}
-													onClick={(event) => {
-														if (event.detail > 1) return;
-														updateSelection(activeSource, rawItem);
-													}}
-													onDimensionsLoaded={(width, height) =>
-														handleBrowserDimensions(activeSource, rawItem, key, width, height)
-													}
-												/>
-											);
-										})}
-									</div>
 								)}
+
+								<TableToolbar
+									trailing={
+										<div role="group" aria-label={t`View mode`}>
+											<Tabs
+												variant="segmented"
+												value={viewMode}
+												onValueChange={(value) => {
+													if (value === "grid" || value === "list") setViewMode(value);
+												}}
+												tabs={[
+													{
+														value: "grid",
+														label: (
+															<>
+																<SquaresFour className="size-4" aria-hidden="true" />
+																<span className="sr-only">{t`Grid view`}</span>
+															</>
+														),
+													},
+													{
+														value: "list",
+														label: (
+															<>
+																<List className="size-4" aria-hidden="true" />
+																<span className="sr-only">{t`List view`}</span>
+															</>
+														),
+													},
+												]}
+											/>
+										</div>
+									}
+								>
+									{canSearch && (
+										<TableToolbarSearch
+											size="base"
+											placeholder={
+												activeSource === "local" ? t`Search by filename...` : t`Search...`
+											}
+											aria-label={t`Search media`}
+											value={searchQuery}
+											onChange={(event) => {
+												setSearchQuery(event.currentTarget.value);
+												if (activeSource === "local") resetPage();
+											}}
+											maxLength={MEDIA_SEARCH_MAX_LENGTH}
+											className="basis-full sm:w-72 sm:basis-auto"
+										/>
+									)}
+									{activeSource === "local" && (
+										<Select
+											size="base"
+											value={typeFilter}
+											onValueChange={(value) => {
+												setTypeFilter(value ?? "all");
+												resetPage();
+											}}
+											items={typeItems}
+											aria-label={t`Filter by type`}
+										/>
+									)}
+								</TableToolbar>
 							</div>
 
-							{activeSource === "local" && totalCount > 0 && (
-								<Pagination
-									page={isRecoveringPage ? lastPage : page}
-									setPage={(nextPage) => {
-										const pageCount = Math.max(1, Math.ceil(totalCount / PICKER_PAGE_SIZE));
-										if (
-											localQuery.isFetching ||
-											!Number.isSafeInteger(nextPage) ||
-											nextPage < 1 ||
-											nextPage > pageCount
-										)
-											return;
-										setPage(nextPage);
-									}}
-									perPage={PICKER_PAGE_SIZE}
-									totalCount={totalCount}
-									className="flex-wrap gap-y-3"
-									labels={{
-										navigation: t`Media pagination`,
-										firstPage: t`First page`,
-										previousPage: t`Previous page`,
-										nextPage: t`Next page`,
-										lastPage: t`Last page`,
-										pageNumber: t`Page number`,
-										pageSize: t`Page size`,
-									}}
+							<ScrollArea.Root className="relative min-h-0 flex-1" data-media-results-scroll>
+								<ScrollArea.Viewport
+									className="h-full w-full overscroll-contain"
+									data-media-results-viewport
 								>
-									<Pagination.Info className="min-w-fit">
-										{({ pageShowingRange, totalCount: count }) => (
-											<span role="status">{t`Showing ${pageShowingRange} of ${count ?? 0}`}</span>
+									<ScrollArea.Content className="space-y-4 px-5 py-4 sm:px-7">
+										{uploadQueue.overflowCount > 0 && (
+											<p role="alert" className="text-sm text-kumo-danger">
+												{plural(uploadQueue.overflowCount, {
+													one: "# file was not added because the upload list is full.",
+													other: "# files were not added because the upload list is full.",
+												})}
+											</p>
 										)}
-									</Pagination.Info>
-									<Pagination.Separator className="hidden sm:block" />
-									<div inert={localQuery.isFetching || undefined} className="contents">
-										<Pagination.Controls
-											pageSelector={
-												Math.ceil(totalCount / PICKER_PAGE_SIZE) <= MAX_MEDIA_PAGE_DROPDOWN_ITEMS
-													? "dropdown"
-													: "input"
-											}
-											className="basis-full sm:basis-auto rtl:[&_svg]:-scale-x-100"
-										/>
-									</div>
-								</Pagination>
+										{activeSource === "local" && localQuery.error && localItems.length > 0 && (
+											<div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-kumo-danger-tint px-3 py-2 text-sm text-kumo-danger">
+												<span>{t`The latest media request failed. Showing the previous page.`}</span>
+												<Button
+													variant="outline"
+													size="sm"
+													onClick={() => void localQuery.refetch()}
+												>
+													{t`Retry`}
+												</Button>
+											</div>
+										)}
+
+										{showFolderResults &&
+											(foldersQuery.isPending || folders.length > 0 || foldersQuery.error) && (
+												<section aria-labelledby="media-picker-folders" className="grid gap-2">
+													<div className="flex items-center justify-between gap-2">
+														<h2 id="media-picker-folders" className="text-sm font-semibold">
+															{t`Folders`}
+														</h2>
+														{foldersQuery.error && (
+															<div className="flex items-center gap-2">
+																<span className="text-sm text-kumo-danger">
+																	{t`Folders could not be loaded.`}
+																</span>
+																<Button
+																	variant="outline"
+																	size="sm"
+																	onClick={() => void foldersQuery.refetch()}
+																>
+																	{t`Retry`}
+																</Button>
+															</div>
+														)}
+													</div>
+													{foldersQuery.isPending && folders.length === 0 ? (
+														<div
+															role="status"
+															className="flex items-center gap-2 text-sm text-kumo-subtle"
+														>
+															<Loader size="sm" />
+															{t`Loading folders`}
+														</div>
+													) : (
+														<div
+															className="grid grid-cols-[repeat(auto-fill,minmax(min(12rem,100%),1fr))] gap-2"
+															inert={uploadQueue.hasUnfinished || undefined}
+														>
+															{folders.map((folder) => (
+																<MediaBrowserFolder
+																	key={folder.id}
+																	folder={folder}
+																	onOpen={() => {
+																		if (uploadQueue.hasUnfinished) return;
+																		setSearchQuery("");
+																		setFolderId(folder.id);
+																		resetPage();
+																	}}
+																/>
+															))}
+														</div>
+													)}
+													{foldersQuery.hasNextPage && (
+														<Button
+															variant="outline"
+															size="sm"
+															onClick={() => void foldersQuery.fetchNextPage()}
+															disabled={
+																foldersQuery.isFetchingNextPage || uploadQueue.hasUnfinished
+															}
+															loading={foldersQuery.isFetchingNextPage}
+														>
+															{t`Load more folders`}
+														</Button>
+													)}
+												</section>
+											)}
+
+										<div
+											role="region"
+											aria-label={t`Media results`}
+											aria-busy={currentFetching || undefined}
+										>
+											{currentLoading && !hasVisibleItems ? (
+												<div
+													role="status"
+													className="flex min-h-48 items-center justify-center gap-2 text-sm text-kumo-subtle"
+												>
+													<Loader />
+													{t`Loading media`}
+												</div>
+											) : (activeSource === "local" ? localQuery.error : providerQuery.error) &&
+											  !hasVisibleItems ? (
+												<div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
+													<p className="text-sm text-kumo-danger">{t`Could not load media.`}</p>
+													<Button
+														variant="outline"
+														onClick={() =>
+															void (activeSource === "local"
+																? localQuery.refetch()
+																: providerQuery.refetch())
+														}
+													>
+														{t`Retry`}
+													</Button>
+												</div>
+											) : !hasVisibleItems ? (
+												<div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
+													<EmptyStateIcon className="size-10 text-kumo-subtle" aria-hidden="true" />
+													<div className="grid gap-1">
+														<h2 className="text-lg font-semibold">{t`No media found`}</h2>
+														<p className="text-sm text-kumo-subtle">
+															{searchQuery.trim()
+																? t`Try another filename or clear your search.`
+																: folderId && activeSource === "local"
+																	? t`This folder is empty.`
+																	: isFileKind
+																		? t`Upload a file to get started`
+																		: t`Upload an image to get started`}
+														</p>
+													</div>
+												</div>
+											) : viewMode === "grid" ? (
+												<Grid
+													variant="4up"
+													gap="sm"
+													className="2xl:grid-cols-5"
+													inert={currentFetching || undefined}
+													data-media-items
+												>
+													{visibleUploadJobs.map((job) => (
+														<MediaUploadPlaceholder
+															key={job.id}
+															job={job}
+															layout="grid"
+															onRetry={() => uploadQueue.retry(job.id)}
+															onRemove={() => {
+																uploadTargetsRef.current.delete(job.id);
+																uploadQueue.remove(job.id);
+															}}
+														/>
+													))}
+													{visibleItems.map((rawItem) => {
+														const key = selectionKey(activeSource, rawItem);
+														const item =
+															activeSource === "local"
+																? (rawItem as MediaItem)
+																: toMediaItem({ key, providerId: activeSource, item: rawItem });
+														return (
+															<MediaBrowserItem
+																key={key}
+																item={item}
+																layout="grid"
+																selectable
+																selected={selectedItems.some((selected) => selected.key === key)}
+																onClick={(event) => {
+																	if (event.detail > 1) return;
+																	updateSelection(activeSource, rawItem);
+																}}
+																onDimensionsLoaded={(width, height) =>
+																	handleBrowserDimensions(activeSource, rawItem, key, width, height)
+																}
+															/>
+														);
+													})}
+												</Grid>
+											) : (
+												<div
+													className="grid gap-2"
+													inert={currentFetching || undefined}
+													data-media-items
+												>
+													{visibleUploadJobs.map((job) => (
+														<MediaUploadPlaceholder
+															key={job.id}
+															job={job}
+															layout="list"
+															onRetry={() => uploadQueue.retry(job.id)}
+															onRemove={() => {
+																uploadTargetsRef.current.delete(job.id);
+																uploadQueue.remove(job.id);
+															}}
+														/>
+													))}
+													{visibleItems.map((rawItem) => {
+														const key = selectionKey(activeSource, rawItem);
+														const item =
+															activeSource === "local"
+																? (rawItem as MediaItem)
+																: toMediaItem({ key, providerId: activeSource, item: rawItem });
+														return (
+															<MediaBrowserItem
+																key={key}
+																item={item}
+																layout="list"
+																selectable
+																selected={selectedItems.some((selected) => selected.key === key)}
+																onClick={(event) => {
+																	if (event.detail > 1) return;
+																	updateSelection(activeSource, rawItem);
+																}}
+																onDimensionsLoaded={(width, height) =>
+																	handleBrowserDimensions(activeSource, rawItem, key, width, height)
+																}
+															/>
+														);
+													})}
+												</div>
+											)}
+										</div>
+										{selectionTray}
+									</ScrollArea.Content>
+								</ScrollArea.Viewport>
+								<ScrollArea.Scrollbar className="pointer-events-none w-2.5 p-0.5 opacity-0 data-[scrolling]:pointer-events-auto data-[scrolling]:opacity-100">
+									<ScrollArea.Thumb className="rounded-full bg-kumo-interact" />
+								</ScrollArea.Scrollbar>
+							</ScrollArea.Root>
+
+							{activeSource === "local" && totalCount > 0 && (
+								<div
+									className="shrink-0 border-t border-kumo-line px-5 py-3 sm:px-7"
+									data-media-pagination
+								>
+									<Pagination
+										page={isRecoveringPage ? lastPage : page}
+										setPage={(nextPage) => {
+											const pageCount = Math.max(1, Math.ceil(totalCount / PICKER_PAGE_SIZE));
+											if (
+												localQuery.isFetching ||
+												!Number.isSafeInteger(nextPage) ||
+												nextPage < 1 ||
+												nextPage > pageCount
+											)
+												return;
+											setPage(nextPage);
+										}}
+										perPage={PICKER_PAGE_SIZE}
+										totalCount={totalCount}
+										className="flex-wrap gap-y-2"
+										labels={{
+											navigation: t`Media pagination`,
+											firstPage: t`First page`,
+											previousPage: t`Previous page`,
+											nextPage: t`Next page`,
+											lastPage: t`Last page`,
+											pageNumber: t`Page number`,
+											pageSize: t`Page size`,
+										}}
+									>
+										<Pagination.Info className="min-w-0 flex-1">
+											{({ pageShowingRange, totalCount: count }) => (
+												<span role="status">{t`Showing ${pageShowingRange} of ${count ?? 0}`}</span>
+											)}
+										</Pagination.Info>
+										<div inert={localQuery.isFetching || undefined} className="contents">
+											<Pagination.Controls
+												controls="full"
+												className="basis-full sm:basis-auto sm:grow-0 rtl:[&_svg]:-scale-x-100"
+											/>
+										</div>
+									</Pagination>
+								</div>
 							)}
 						</>
 					)}
-
-					{multiple && selectedItems.length > 0 && (
-						<section aria-labelledby="media-picker-selection" className="grid gap-2">
-							<h2 id="media-picker-selection" className="text-sm font-semibold">
-								{t`Selected media`}
-							</h2>
-							<ul className="grid gap-2">
-								{selectedItems.map((selected, index) => (
-									<MediaSelectionTrayItem
-										key={selected.key}
-										item={toMediaItem(selected)}
-										position={index + 1}
-										total={selectedItems.length}
-										onMoveEarlier={() => moveSelectedItem(index, index - 1, selected.item.filename)}
-										onMoveLater={() => moveSelectedItem(index, index + 1, selected.item.filename)}
-										onRemove={() => removeSelectedItem(selected)}
-									/>
-								))}
-							</ul>
-						</section>
-					)}
 				</div>
 
-				<footer className="flex shrink-0 justify-end border-t border-kumo-line px-5 py-3 sm:px-7">
+				<footer
+					className="flex shrink-0 justify-end border-t border-kumo-line px-5 py-3 sm:px-7"
+					data-media-actions
+				>
 					<div className="flex flex-wrap items-center justify-end gap-2">
 						<Button variant="outline" onClick={handleClose}>
 							{t`Cancel`}
