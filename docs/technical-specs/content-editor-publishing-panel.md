@@ -121,6 +121,7 @@ Render Publication date as the primary date row in the version card. Put Created
 - For an editor with `onPublishedAtChange`, render the Publication date value as the trigger for the shared Kumo publishing dialog and use a pencil icon as its edit affordance.
 - For an author or another read-only caller, render the same value without a button or editable affordance.
 - Render the Created and Updated disclosure label, labels, and values as 13-pixel secondary metadata. Align the expanded rows to the disclosure trigger's inline edges.
+- Animate the disclosure panel and caret with the same 150-millisecond height and rotation transitions used by Outline and Revisions. Disable those transitions under reduced motion.
 - Keep Created and Updated read-only.
 
 Use the label Publication date. It names stored publication history and does not resemble the Publish or Schedule actions.

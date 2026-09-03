@@ -1022,11 +1022,23 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 													{t`Created and updated`}
 												</Text>
 												<CaretDown
-													className={cn("size-3", datesOpen && "rotate-180")}
+													className={cn(
+														"size-3 transition-transform duration-150 ease-out motion-reduce:transition-none",
+														datesOpen && "rotate-180",
+													)}
 													aria-hidden="true"
 												/>
 											</Collapsible.Trigger>
-											<Collapsible.Panel>
+											<Collapsible.Panel
+												className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+												style={({ transitionStatus }) => ({
+													height:
+														transitionStatus === "starting" || transitionStatus === "ending"
+															? 0
+															: "var(--collapsible-panel-height)",
+													transitionProperty: "height",
+												})}
+											>
 												<dl className="grid gap-1.5 px-2 pt-1.5 pb-0.5">
 													<TimestampRow label={t`Created`} size="sm">
 														<TimestampValue
