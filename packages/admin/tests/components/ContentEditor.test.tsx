@@ -1918,11 +1918,16 @@ describe("ContentEditor", () => {
 			await expect
 				.element(screen.getByRole("menuitem", { name: /Schedule changes/ }))
 				.toBeInTheDocument();
+			expect(
+				screen.getByText("Make draft changes visible now", { exact: true }).query(),
+			).toBeNull();
+			expect(screen.getByText("Choose when changes go live", { exact: true }).query()).toBeNull();
+
+			await userEvent.hover(
+				screen.getByRole("menuitem", { name: /Publish changes now/ }).element(),
+			);
 			await expect
 				.element(screen.getByText("Make draft changes visible now", { exact: true }))
-				.toBeVisible();
-			await expect
-				.element(screen.getByText("Choose when changes go live", { exact: true }))
 				.toBeVisible();
 
 			await screen.getByRole("menuitem", { name: /Schedule changes/ }).click();

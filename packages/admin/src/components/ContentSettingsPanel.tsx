@@ -604,31 +604,31 @@ export function PublishActions({
 				className="w-80 max-w-[calc(100vw-2rem)] origin-[var(--transform-origin)] p-1.5 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none"
 			>
 				{actions.map(({ kind, label, description, Icon: ActionIcon, onSelect }) => (
-					<DropdownMenu.Item
+					<Tooltip
 						key={kind}
-						icon={
-							<span className="me-2.5 flex h-lh shrink-0 items-center">
-								<ActionIcon className="size-5" weight="bold" aria-hidden="true" />
-							</span>
-						}
-						disabled={isScheduling || isUnscheduling}
-						onClick={onSelect}
-						className="items-start px-2.5 py-2"
-					>
-						<span className="grid min-w-0 gap-0.5">
-							<Text as="span" bold>
-								{label}
-							</Text>
-							<Text
-								as="span"
-								variant="secondary"
-								size="sm"
-								DANGEROUS_className="text-pretty leading-5"
+						content={<span className="block max-w-64 text-pretty">{description}</span>}
+						delay={0}
+						closeDelay={0}
+						render={
+							<DropdownMenu.Item
+								icon={
+									<span className="me-2 flex h-lh shrink-0 items-center">
+										<ActionIcon className="size-4" aria-hidden="true" />
+									</span>
+								}
+								disabled={isScheduling || isUnscheduling}
+								onClick={onSelect}
+								className="px-2.5 py-1.5"
 							>
-								{description}
-							</Text>
-						</span>
-					</DropdownMenu.Item>
+								<Text as="span" bold>
+									{label}
+								</Text>
+								<span className="ms-auto flex h-lh shrink-0 items-center text-kumo-subtle">
+									<Info className="size-3.5" aria-hidden="true" />
+								</span>
+							</DropdownMenu.Item>
+						}
+					/>
 				))}
 			</DropdownMenu.Content>
 		</DropdownMenu>

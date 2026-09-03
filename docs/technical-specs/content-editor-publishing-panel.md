@@ -171,7 +171,7 @@ Use the current Kumo package for every matching UI primitive.
 | Action triggers and confirmations       | `Button`; use its `loading` prop for new or changed publishing buttons instead of inserting a custom spinner         |
 | Scheduling editor                       | One controlled, always-mounted `Dialog.Root` with `Dialog`, `Dialog.Title`, `Dialog.Description`, and `Dialog.Close` |
 | Calendar                                | `DatePicker` in `mode="single"`                                                                                      |
-| Time value                              | Two `Select` controls for 24-hour hour and minute values                                                               |
+| Time value                              | Two `Select` controls for 24-hour hour and minute values                                                             |
 | Form-level validation or mutation error | Existing `DialogError` with `getMutationError()`                                                                     |
 | Publication-date editor                 | The same `Dialog`, `DatePicker`, `Select`, and `Button` presentation used for scheduling                             |
 | Section text                            | `Text` with semantic `as` elements                                                                                   |
@@ -333,7 +333,7 @@ Tests must assert user behavior, not Tailwind classes or Kumo internals.
 
 - Draft, first-publication scheduled, published, published-with-changes, and update-scheduled items render the state matrix in this specification.
 - Published with changes exposes Live version and Draft changes simultaneously. It does not show Status or Schedule for later.
-- The Publish changes menu contains Publish changes now and Schedule changes. Each choice uses a 14-pixel title, a 13-pixel one-line description, and a 20-pixel icon aligned with the first line.
+- The Publish changes menu contains Publish changes now and Schedule changes. Each choice uses one compact 14-pixel row with a 16-pixel action icon and a smaller info icon. A native Kumo tooltip provides the supporting description.
 - A scheduled item exposes Publish now, Change schedule, and Remove schedule through one Kumo menu without duplicate panel actions.
 - Missing callbacks remove their actions, and a single remaining action renders as a direct Kumo button rather than a one-item menu.
 - Clean published content retains the direct Unpublish item action.
@@ -483,13 +483,13 @@ Responsibility:
 - rename published-draft actions around changes rather than updates;
 - simplify scheduled trigger labels;
 - remove the leading icon from the full-width menu trigger; and
-- use two-line menu items with 20-pixel icons, 14-pixel titles, and 13-pixel descriptions.
+- use compact one-line menu items with 16-pixel action icons and Kumo info tooltips for the descriptions.
 
 Acceptance:
 
 - Publish changes opens Publish changes now and Schedule changes;
 - Scheduled update opens Publish changes now, Change schedule, and Remove schedule;
-- each description stays on one line at the supported menu width in English; and
+- each description remains available through its Kumo info tooltip; and
 - the action wording matches the dialog it opens.
 
 ### Commit 6: `refine(admin): unify publishing date dialogs`
