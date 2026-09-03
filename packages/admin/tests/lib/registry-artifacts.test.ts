@@ -83,13 +83,25 @@ describe("extractMediaArtifacts", () => {
 		expect(extractMediaArtifacts("nope")).toEqual({ screenshots: [] });
 	});
 
-	it("extracts icon and banner dims without the url", () => {
+	it("extracts icon and banner dimensions without exposing the source", () => {
 		const result = extractMediaArtifacts({ package: { url: "https://x/a.tgz" }, icon, banner });
 		expect(result.icon).toEqual({ width: 256, height: 256 });
 		expect(result.banner).toEqual({ width: 1280, height: 320 });
 		expect(result.icon).not.toHaveProperty("url");
 		expect(result.banner).not.toHaveProperty("url");
 		expect(result.screenshots).toEqual([]);
+	});
+
+	it("keeps blob-backed image artifacts", () => {
+		const blob = {
+			$type: "blob",
+			ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+			mimeType: "image/png",
+			size: 80,
+		};
+		const result = extractMediaArtifacts({ icon: { blob, width: 256, height: 256 } });
+
+		expect(result.icon).toEqual({ width: 256, height: 256 });
 	});
 
 	it("collects the screenshots array in order with their raw index", () => {
@@ -121,7 +133,7 @@ describe("extractMediaArtifacts", () => {
 			icon: { width: 10 },
 			screenshots: [{ url: 123 }, s2, { url: "" }, s3],
 		});
-		// `icon` has no usable url -> dropped entirely.
+		// `icon` has no usable source, so it is dropped entirely.
 		expect(result.icon).toBeUndefined();
 		// Survivors keep their original array indices (1 and 3), so the proxy
 		// resolves the same entry the publisher declared.

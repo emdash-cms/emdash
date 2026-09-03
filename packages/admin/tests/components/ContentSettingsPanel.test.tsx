@@ -13,7 +13,7 @@ import {
 	type SettingsActionBarProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
-import type { AdminManifest, ContentItem } from "../../src/lib/api";
+import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
 import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
@@ -77,6 +77,23 @@ function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
 		liveRevisionId: null,
 		draftRevisionId: null,
 		...overrides,
+	};
+}
+
+function makeByline(): BylineSummary {
+	return {
+		id: "byline-1",
+		slug: "mina-patel",
+		displayName: "Mina Patel",
+		bio: null,
+		avatarMediaId: null,
+		websiteUrl: null,
+		userId: null,
+		isGuest: true,
+		createdAt: "2026-08-26T12:00:00Z",
+		updatedAt: "2026-08-26T12:00:00Z",
+		locale: "en",
+		translationGroup: null,
 	};
 }
 
@@ -164,6 +181,22 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
 		await expect.element(screen.getByTestId("revision-history")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
+	});
+
+	it("moves byline ordering guidance into help beside the heading", async () => {
+		const byline = makeByline();
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					activeBylines: [{ bylineId: byline.id, roleLabel: null }],
+					availableBylines: [byline],
+				})}
+			/>,
+		);
+		await expect.element(screen.getByRole("button", { name: "Add another byline" })).toBeVisible();
+		const trigger = screen.getByRole("button", { name: "Why are bylines shown in this order?" });
+		trigger.element().focus();
+		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
 	});
 
 	it("shows the normalized pending changes label", async () => {
@@ -589,6 +622,30 @@ describe("ContentSettingsPanel", () => {
 		} finally {
 			i18n.activate(previousLocale);
 		}
+	});
+
+	it("lets editors update a retained publish date while content is unpublished", async () => {
+		const onPublishedAtChange = vi.fn();
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "draft",
+						publishedAt: "2025-01-15T10:30:00.000Z",
+						liveRevisionId: null,
+					}),
+					isLive: false,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+
+		const input = screen.getByLabelText("Publish date");
+		await expect.element(input).toHaveValue("2025-01-15T10:30");
+		await input.fill("2020-06-01T08:45");
+		await screen.getByRole("button", { name: "Update publish date" }).click();
+
+		expect(onPublishedAtChange).toHaveBeenCalledWith("2020-06-01T08:45:00.000Z");
 	});
 
 	it("does not expose publish-date editing below the editor role", async () => {

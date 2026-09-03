@@ -1,0 +1,62 @@
+name: EmDash delegated release
+description: Publish an EmDash plugin release through the delegated release service.
+author: EmDash
+inputs:
+  service-url:
+    description: HTTPS origin of the delegated release service.
+    required: true
+  publisher-did:
+    description: Publisher DID that owns the package.
+    required: true
+  connection-invitation:
+    description: Single-use invitation created by the publisher for the first workflow connection.
+    required: false
+  release-file:
+    description: Legacy path to a URL-source release JSON file. Cannot be combined with bundle or provenance inputs.
+    required: false
+  bundle-file:
+    description: Path to an existing plugin tarball inside the GitHub workspace. Omit to build the plugin project.
+    required: false
+  plugin-directory:
+    description: Plugin project directory inside the GitHub workspace when bundle-file is omitted.
+    required: false
+    default: "."
+  provenance-file:
+    description: Path to the Sigstore bundle emitted by actions/attest-build-provenance.
+    required: false
+  idempotency-key:
+    description: Stable key for replaying this submission. Defaults to the GitHub run.
+    required: false
+  poll-interval-seconds:
+    description: Seconds between status requests.
+    required: false
+    default: "5"
+  timeout-minutes:
+    description: Maximum time to wait for workflow approval, publication, or release approval.
+    required: false
+    default: "30"
+  wait-for-approval:
+    description: Continue polling while the intent awaits approval.
+    required: false
+    default: "false"
+outputs:
+  connection-url:
+    description: Browser URL for approving the workflow on its first release run.
+  intent-id:
+    description: Release intent ULID.
+  state:
+    description: Final or approval-waiting intent state.
+  approval-url:
+    description: Approval URL when human approval is required.
+  release-uri:
+    description: Published AT URI.
+  release-cid:
+    description: Published record CID.
+  reason-code:
+    description: Stable terminal reason code when publication does not succeed.
+runs:
+  using: node24
+  main: dist/index.js
+branding:
+  icon: upload-cloud
+  color: purple

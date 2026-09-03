@@ -1,0 +1,84 @@
+---
+title: Update EmDash
+description: Move an existing site to a new EmDash release, from reading the release entries to verifying the deployed site.
+---
+
+import { Steps } from "@astrojs/starlight/components";
+
+This guide is for site operators: people who run a site built on EmDash and want it on a newer release. It covers the `emdash` package and `@emdash-cms/cloudflare`. Plugin packages have their own guide, [Upgrading plugins on your site](/plugins/upgrading-sites/), and changes to your own collections and fields are covered in [Evolving a Deployed Site](/deployment/schema-evolution/).
+
+## Releases and version numbers
+
+EmDash is released before version 1.0, and its version numbers follow two rules:
+
+- A patch release, for example 0.35.0 to 0.35.1, carries bug fixes and small improvements.
+- A minor release, for example 0.35 to 0.36, carries new features and any breaking change. A breaking change is marked **Breaking** in its release entry, and the entry states the action it requires from you.
+
+`emdash` and `@emdash-cms/cloudflare` are released together and share one version number. `@emdash-cms/cloudflare` depends on the exact matching `emdash` version, so update the two packages in one step. Plugin packages such as `@emdash-cms/plugin-forms` have their own version numbers and declare the minimum `emdash` version they need.
+
+The [releases page](https://github.com/emdash-cms/emdash/releases) has one entry per package and version. Before an update, read the `emdash` entries between your installed version and the target, and the same range for `@emdash-cms/cloudflare` if the site runs on Cloudflare.
+
+## Before you update
+
+Take a backup. Core migrations that a new release applies to the database have no undo step, so a backup is the only way back to the previous state. [Backups](/guides/backups/) describes the options for each database.
+
+Check the Node.js version on the machine that builds the site and, for a Node.js deployment, on the server. [Getting Started](/getting-started/#prerequisites) lists the supported versions.
+
+## Update the packages
+
+The commands below use pnpm and a site created from a Cloudflare template. For a Node.js deployment, leave out `@emdash-cms/cloudflare`.
+
+<Steps>
+
+1. Check the installed versions and the latest release.
+
+   ```bash
+   pnpm outdated emdash @emdash-cms/cloudflare
+   ```
+
+2. Move both packages to the latest release.
+
+   A template-generated `package.json` lists the packages with a caret range such as `^0.35.0`. For versions below 1.0, a caret range admits patch releases only (0.35.1, not 0.36.0), and `pnpm up` without further options stays inside the range. The `--latest` flag rewrites the range to the newest release and installs it.
+
+   ```bash
+   pnpm up --latest emdash @emdash-cms/cloudflare
+   ```
+
+   Add the plugin packages from your `package.json` to the same command.
+
+3. Build the site.
+
+   ```bash
+   pnpm build
+   ```
+
+   The build writes the migration manifest for the installed version. If the build fails, see [If the site breaks after an update](#if-the-site-breaks-after-an-update).
+
+4. Start the site locally and open the admin at `/_emdash/admin`.
+
+   ```bash
+   pnpm dev
+   ```
+
+   The EmDash integration generates `emdash-env.d.ts` when the dev server starts. Pending core migrations run on the first request.
+
+</Steps>
+
+## Deploy and verify
+
+Deploy the build the same way as any other change. The following command deploys a Cloudflare site; for a Node.js deployment, restart the server process with the new build.
+
+```bash
+pnpm wrangler deploy
+```
+
+With the default runtime migration mode, `auto`, the deployed site applies pending core migrations on its first request. To apply them before the new code receives traffic, and to verify the deployed database afterwards, follow [Manage Core Database Migrations](/deployment/core-migrations/). Its `emdash migrate --check` command exits non-zero when the deployed database has pending or unknown migrations for the installed version.
+
+After the deploy, open the admin and one public page of the site.
+
+## If the site breaks after an update
+
+- The build fails, or a page of your own errors at runtime: read the release entries marked **Breaking** for the versions you skipped and make the changes they state.
+- A plugin fails to load: read the plugin's own release entry and [Upgrading plugins on your site](/plugins/upgrading-sites/).
+- An error names an Astro API or an `@astrojs/*` package: EmDash requires Astro 6 or later. Astro's [upgrade guide](https://docs.astro.build/en/upgrade-astro/) explains how to update `astro` and its official integrations together.
+- To return to the previous release, reinstall the previous versions of the packages. Reinstalling does not undo core migrations; if the previous release fails against the migrated database, restore the backup taken before the update.

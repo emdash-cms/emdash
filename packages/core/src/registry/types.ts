@@ -155,8 +155,8 @@ export interface ExperimentalConfig {
 	 * release:
 	 *
 	 *   - The publisher DID associated with a `(did, slug)` pair.
-	 *   - The artifact `url`, the artifact `checksum`, and any mirror
-	 *     URLs returned for a release.
+	 *   - The artifact source fields, checksum, and cache services returned for
+	 *     a release.
 	 *   - The published handle for a DID (used for display only;
 	 *     EmDash separately verifies the DID->handle round-trip in the
 	 *     admin UI before treating a handle as confirmed).
@@ -165,7 +165,7 @@ export interface ExperimentalConfig {
 	 * installed plugin:
 	 *
 	 *   - The artifact bytes hash to the checksum the aggregator
-	 *     returned (so a malicious mirror or in-transit tamper can't
+	 *     returned (so a malicious cache or in-transit tamper can't
 	 *     swap the bundle).
 	 *   - The bundle's `manifest.id` matches the requested slug, and
 	 *     its `manifest.version` matches the release version (so an

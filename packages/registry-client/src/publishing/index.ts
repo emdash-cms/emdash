@@ -47,7 +47,7 @@
 // eslint-disable-next-line @typescript-eslint/no-empty-named-blocks, eslint-plugin-import/no-empty-named-blocks, eslint-plugin-unicorn/require-module-specifiers, import/no-empty-named-blocks, unicorn/require-module-specifiers
 import type {} from "@atcute/atproto";
 import { Client, type FetchHandler, type FetchHandlerObject, ok } from "@atcute/client";
-import type { Nsid } from "@atcute/lexicons";
+import type { Blob, Nsid } from "@atcute/lexicons";
 import type { RegistryRecordCollection, RegistryRecords } from "@emdash-cms/registry-lexicons";
 
 import type { Did } from "../credentials/types.js";
@@ -138,6 +138,17 @@ export class PublishingClient {
 	static fromHandler(options: PublishingClientFromHandlerOptions): PublishingClient {
 		const client = new Client({ handler: options.handler });
 		return new PublishingClient(client, options.did, options.pds);
+	}
+
+	/** Upload artifact bytes to the publisher's PDS. */
+	async uploadBlob(bytes: Uint8Array, mimeType: string): Promise<Blob> {
+		const data = await ok(
+			this.#client.post("com.atproto.repo.uploadBlob", {
+				headers: { "content-type": mimeType },
+				input: bytes,
+			}),
+		);
+		return data.blob;
 	}
 
 	/**

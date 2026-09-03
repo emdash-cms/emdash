@@ -479,13 +479,15 @@ In every mode, the toolbar can be dismissed in the browser via its × button (pe
 
 #### `experimental.registry`
 
-**Optional.** Point the admin dashboard's plugin browse and install flows at a federated [plugin registry](/plugins/registry/) instead of the central marketplace. Requires `sandboxRunner`, because registry plugins run sandboxed.
+**Optional.** Point the admin dashboard's plugin browse and install flows at a federated [plugin registry](/plugins/registry/) instead of the central marketplace. Requires a [`sandboxRunner`](/deployment/plugin-sandbox/), because registry plugins run sandboxed.
 
 Pass a bare aggregator URL string, or an object when you need a labeller or a release-age policy. The following example uses the object form:
 
 ```js title="astro.config.mjs"
+import { sandbox } from "@emdash-cms/cloudflare";
+
 emdash({
-	sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	sandboxRunner: sandbox(),
 	experimental: {
 		registry: {
 			aggregatorUrl: "https://registry.emdashcms.com",

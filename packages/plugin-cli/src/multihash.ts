@@ -15,7 +15,7 @@
  * total) and the multibase output is `b` + base32(those 34 bytes).
  */
 
-import { toBase32 } from "@atcute/multibase";
+import { fromBase32, toBase32 } from "@atcute/multibase";
 import { sha256 } from "@oslojs/crypto/sha2";
 
 /** multihash code for sha2-256 (single-byte varint). */
@@ -42,4 +42,20 @@ export function sha256Multihash(bytes: Uint8Array): string {
 	multihash.set(digest, 2);
 	// Multibase prefix `b` indicates base32 lowercase, no padding.
 	return `b${toBase32(multihash)}`;
+}
+
+/** Derive the artifact multihash carried inside a CIDv1 raw blob reference. */
+export function multihashFromBlobCid(cid: string): string {
+	if (!cid.startsWith("b")) throw new TypeError("Blob reference is not a base32 CID");
+	const bytes = fromBase32(cid.slice(1));
+	if (
+		bytes.length !== 36 ||
+		bytes[0] !== 1 ||
+		bytes[1] !== 0x55 ||
+		bytes[2] !== SHA256_CODE ||
+		bytes[3] !== SHA256_LENGTH
+	) {
+		throw new TypeError("Blob reference must use a CIDv1 raw sha2-256 CID");
+	}
+	return `b${toBase32(bytes.subarray(2))}`;
 }

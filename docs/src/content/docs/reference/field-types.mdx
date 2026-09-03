@@ -285,6 +285,7 @@ Reference to an uploaded image. Includes metadata like dimensions and alt text.
 **Widget options:**
 
 - `showPreview` — Show image preview in admin (default: true)
+- `darkVariant` — Offer editors a second slot for an image shown in dark color schemes (default: false). See [Dark Mode](/guides/dark-mode/).
 
 The value is stored as an object with the media reference and its metadata:
 
@@ -295,6 +296,22 @@ The value is stored as an object with the media reference and its metadata:
 	"alt": "Description",
 	"width": 1920,
 	"height": 1080
+}
+```
+
+With `darkVariant` enabled, the value can carry the dark counterpart under `darkVariant`, in the same shape:
+
+```json
+{
+	"id": "01HXK5MZSN...",
+	"alt": "Architecture diagram",
+	"width": 1920,
+	"height": 1080,
+	"darkVariant": {
+		"id": "01HXK5N2QT...",
+		"width": 1920,
+		"height": 1080
+	}
 }
 ```
 

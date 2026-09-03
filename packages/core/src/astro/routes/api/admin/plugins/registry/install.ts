@@ -59,6 +59,8 @@ const installBodySchema = z.object({
 	 */
 	acknowledgedDeclaredAccess: z.unknown().optional(),
 	acknowledgedMcpTools: z.unknown().optional(),
+	acknowledgedProfileCid: z.string().min(1).max(256).optional(),
+	acknowledgedReleaseCid: z.string().min(1).max(256).optional(),
 });
 
 export const POST: APIRoute = async ({ request, locals }) => {
@@ -99,6 +101,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				version: body.version,
 				acknowledgedDeclaredAccess: body.acknowledgedDeclaredAccess,
 				acknowledgedMcpTools: body.acknowledgedMcpTools,
+				acknowledgedProfileCid: body.acknowledgedProfileCid,
+				acknowledgedReleaseCid: body.acknowledgedReleaseCid,
 			},
 			{
 				configuredPluginIds: reservedPluginIds,

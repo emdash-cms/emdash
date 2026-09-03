@@ -14,9 +14,15 @@ import { DialogError, getMutationError } from "./DialogError.js";
 export interface ConfirmDialogProps {
 	open: boolean;
 	onClose: () => void;
+	/** ARIA role; use alertdialog for destructive actions requiring acknowledgment. */
+	role?: "dialog" | "alertdialog";
 	title: string;
+	/** Optional typography override for a confirmation with stronger hierarchy. */
+	titleClassName?: string;
 	/** Static description or dynamic JSX content */
 	description: React.ReactNode;
+	/** Optional typography override for the primary explanatory copy. */
+	descriptionClassName?: string;
 	/** Label for the confirm button (e.g. "Delete", "Disable User") */
 	confirmLabel: string;
 	/** Label shown while the action is pending (e.g. "Deleting...") */
@@ -40,8 +46,11 @@ export interface ConfirmDialogProps {
 export function ConfirmDialog({
 	open,
 	onClose,
+	role = "dialog",
 	title,
+	titleClassName,
 	description,
+	descriptionClassName,
 	confirmLabel,
 	pendingLabel,
 	variant = "destructive",
@@ -57,20 +66,25 @@ export function ConfirmDialog({
 	const closeLocked = preventCloseWhilePending && isPending;
 	return (
 		<Dialog.Root
+			role={role}
 			open={open}
 			onOpenChange={(nextOpen) => !nextOpen && !closeLocked && onClose()}
 			disablePointerDismissal
 		>
-			<Dialog className={compact ? "max-w-md px-5 pt-5 pb-4" : "p-6"} size="sm">
-				<div className={compact ? "grid gap-1.5" : undefined}>
+			<Dialog className={compact ? "max-w-md px-5 pt-6 pb-4" : "p-6"} size="sm">
+				<div className={compact ? "grid gap-1" : undefined}>
 					<Dialog.Title
-						className={compact ? "text-lg font-semibold leading-6" : "text-lg font-semibold"}
+						className={
+							titleClassName ??
+							(compact ? "text-lg font-semibold leading-6" : "text-lg font-semibold")
+						}
 					>
 						{title}
 					</Dialog.Title>
 					<Dialog.Description
 						className={
-							compact ? "text-sm leading-5 text-pretty text-kumo-subtle" : "text-kumo-subtle"
+							descriptionClassName ??
+							(compact ? "text-sm leading-5 text-pretty text-kumo-subtle" : "text-kumo-subtle")
 						}
 					>
 						{description}

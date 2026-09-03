@@ -966,7 +966,9 @@ describe("MCP Authorization", () => {
 			});
 
 			expect(result.isError).toBeFalsy();
-			expect(handlers.handleContentDiscardDraft).toHaveBeenCalledWith("post", CONTENT_ID);
+			expect(handlers.handleContentDiscardDraft).toHaveBeenCalledWith("post", CONTENT_ID, {
+				_rev: undefined,
+			});
 		});
 
 		it("content_update passes resolvedId (not slug) to handler", async () => {

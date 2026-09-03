@@ -3,6 +3,8 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+	resolve: { dedupe: ["react", "react-dom"] },
+	optimizeDeps: { include: ["react-image-crop"] },
 	plugins: [
 		react({
 			babel: {
