@@ -22,6 +22,7 @@ import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowCounterClockwise,
+	ArrowsClockwise,
 	X,
 	Trash,
 	Calendar,
@@ -68,6 +69,7 @@ import {
 	getFileIcon,
 	formatFileSize,
 	getMediaPreviewUrl,
+	getMediaThumbnailUrl,
 	metaPlayback,
 	normalizeMediaFocalPoint,
 	type MediaFocalPoint,
@@ -81,6 +83,7 @@ import { MediaUsedIn } from "./MediaUsedIn.js";
 const CLOSE_FALLBACK_MS = 500;
 const DIALOG_RESIZE_DURATION_MS = 340;
 const DIALOG_RESIZE_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+const MEDIA_DETAIL_PREVIEW_WIDTH = 1200;
 type MediaDetailTab = "details" | "used-in" | "edit-image";
 type ImageEditMode = "focal-point" | "crop";
 type CropAction = "duplicate" | "replace";
@@ -101,16 +104,6 @@ let cropPreviewFallbackId = 0;
 
 function createCropPreviewKey(): string {
 	return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${(cropPreviewFallbackId += 1)}`;
-}
-
-function cacheBustMediaUrl(url: string, key: string): string {
-	const result = new URL(url, window.location.origin);
-	if (result.protocol !== "http:" && result.protocol !== "https:") {
-		result.hash = `_emdash_crop=${encodeURIComponent(key)}`;
-		return result.href;
-	}
-	result.searchParams.set("_emdash_crop", key);
-	return result.href;
 }
 
 function normalizeCropMime(mimeType: string): string {
@@ -391,6 +384,7 @@ export function MediaDetailPanel({
 	}, [onClosed, restoreFocusTargetRef]);
 
 	const closeDialog = React.useCallback(() => {
+		replaceSelectionTokenRef.current += 1;
 		onClose();
 		if (closeFallbackTimerRef.current !== null) {
 			window.clearTimeout(closeFallbackTimerRef.current);
@@ -414,9 +408,15 @@ export function MediaDetailPanel({
 	const mediaPreviewUrl = localItem
 		? getMediaPreviewUrl(item.url, item.contentHash ?? cropPreviewKey)
 		: item.url;
-	const cropPreviewUrl = canShowCrop
-		? cacheBustMediaUrl(item.url, cropPreviewKey)
-		: mediaPreviewUrl;
+	const detailPreviewUrl = localItem
+		? getMediaThumbnailUrl(
+				item.url,
+				item.mimeType,
+				MEDIA_DETAIL_PREVIEW_WIDTH,
+				item.contentHash ?? cropPreviewKey,
+			)
+		: item.url;
+	const detailPreviewFallback = detailPreviewUrl === mediaPreviewUrl ? undefined : mediaPreviewUrl;
 	const cropAspectSource =
 		cropSourceSize ??
 		(item.width && item.height ? { width: item.width, height: item.height } : null);
@@ -1095,7 +1095,8 @@ export function MediaDetailPanel({
 									cropSourceFailed ? (
 										<FocalPointEditor
 											key={`${item.id}:${item.url}:crop-fallback`}
-											src={mediaPreviewUrl}
+											src={detailPreviewUrl}
+											fallbackSrc={detailPreviewFallback}
 											sourceSize={cropAspectSource ?? undefined}
 											alt={item.alt || item.filename}
 											editing={false}
@@ -1107,7 +1108,7 @@ export function MediaDetailPanel({
 									) : (
 										<MediaImageCropper
 											key={cropPreviewKey}
-											src={cropPreviewUrl}
+											src={mediaPreviewUrl}
 											sourceSize={cropAspectSource ?? undefined}
 											crop={cropSelection}
 											aspect={
@@ -1129,9 +1130,8 @@ export function MediaDetailPanel({
 								) : (
 									<FocalPointEditor
 										key={`${item.id}:${item.url}`}
-										src={
-											activeTab === "edit-image" && canShowCrop ? cropPreviewUrl : mediaPreviewUrl
-										}
+										src={detailPreviewUrl}
+										fallbackSrc={detailPreviewFallback}
 										sourceSize={cropAspectSource ?? undefined}
 										alt={item.alt || item.filename}
 										editing={activeTab === "edit-image"}
@@ -1570,7 +1570,8 @@ export function MediaDetailPanel({
 											>
 												<h3 className="text-sm font-semibold">{t`Preview`}</h3>
 												<FocalPointPreviews
-													src={mediaPreviewUrl}
+													src={detailPreviewUrl}
+													fallbackSrc={detailPreviewFallback}
 													point={focalPoint}
 													firstPreviewRef={focalPreviewFrameRef}
 												/>
@@ -1677,10 +1678,21 @@ export function MediaDetailPanel({
 						data-testid="media-detail-dialog-footer"
 					>
 						<div className="flex flex-wrap gap-2">
+							{canDelete && !cropFooterActive && (
+								<Button
+									variant="destructive"
+									icon={<Trash />}
+									onClick={handleDelete}
+									disabled={isBusy || mediaUnavailable}
+								>
+									{isDeleting ? t`Deleting...` : t`Delete`}
+								</Button>
+							)}
 							{canReplaceImage && activeTab === "details" ? (
 								<>
 									<Button
 										variant="outline"
+										icon={<ArrowsClockwise />}
 										onClick={openReplacementPicker}
 										disabled={replaceActionDisabled}
 									>
@@ -1698,16 +1710,6 @@ export function MediaDetailPanel({
 									/>
 								</>
 							) : null}
-							{canDelete && !cropFooterActive && (
-								<Button
-									variant="destructive"
-									icon={<Trash />}
-									onClick={handleDelete}
-									disabled={isBusy || mediaUnavailable}
-								>
-									{isDeleting ? t`Deleting...` : t`Delete`}
-								</Button>
-							)}
 						</div>
 						<div className="flex flex-wrap justify-end gap-2">
 							<Button variant="outline" onClick={requestClose} disabled={isBusy}>
