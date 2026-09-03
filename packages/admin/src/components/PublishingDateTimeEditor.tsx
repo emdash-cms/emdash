@@ -137,8 +137,8 @@ export function PublishingDateTimeFields({
 					months: "rdp-months !w-full !max-w-none",
 				}}
 			/>
-			<fieldset className="grid gap-2">
-				<Text as="legend" bold>
+			<fieldset>
+				<Text as="legend" bold DANGEROUS_className="mb-2">
 					{t`Time`}
 				</Text>
 				<div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
@@ -526,12 +526,7 @@ export function PublicationDateDialog({
 				}
 			>
 				<span className="flex w-full min-w-0 items-center gap-2">
-					<Text
-						as="span"
-						variant="secondary"
-						truncate
-						DANGEROUS_className="flex-1 text-start"
-					>
+					<Text as="span" variant="secondary" truncate DANGEROUS_className="flex-1 text-start">
 						{label}
 					</Text>
 					<span className="flex shrink-0 items-center justify-end gap-1 whitespace-nowrap text-end">

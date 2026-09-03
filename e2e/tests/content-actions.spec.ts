@@ -170,12 +170,9 @@ test.describe("Schedule content", () => {
 		await page.keyboard.press("Enter");
 		await page.keyboard.press("ArrowDown");
 		await expect(page.locator('[role="menuitem"][data-highlighted]')).toHaveCount(1);
-		await expect(page.getByText("Choose when this draft goes live", { exact: true })).toBeVisible();
-		await page.keyboard.press("Escape");
-		await expect(
-			page.getByText("Choose when this draft goes live", { exact: true }),
-		).not.toBeVisible();
-		await expect(publishButton).toHaveAttribute("aria-expanded", "true");
+		await expect(page.getByText("Choose when this draft goes live", { exact: true })).toHaveCount(
+			0,
+		);
 		await page.keyboard.press("Escape");
 		await expect(publishButton).toBeFocused();
 		await publishButton.click();
@@ -193,6 +190,13 @@ test.describe("Schedule content", () => {
 		expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(320);
 		expect(dialogBox!.y).toBeGreaterThanOrEqual(0);
 		expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(576);
+		const timeSpacing = await dialog.getByRole("group", { name: "Time" }).evaluate((fieldset) => {
+			const legend = fieldset.querySelector("legend")!;
+			const picker = legend.nextElementSibling!;
+			return picker.getBoundingClientRect().top - legend.getBoundingClientRect().bottom;
+		});
+		expect(timeSpacing).toBeGreaterThanOrEqual(7);
+		expect(timeSpacing).toBeLessThanOrEqual(9);
 		const calendarBox = await dialog.locator(".rdp-root").boundingBox();
 		expect(calendarBox).not.toBeNull();
 		const calendarStart = calendarBox!.x - dialogBox!.x;

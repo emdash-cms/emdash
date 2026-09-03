@@ -1897,7 +1897,7 @@ describe("ContentEditor", () => {
 				.toBeInTheDocument();
 		});
 
-		it("labels live draft actions as publishing changes", async () => {
+		it("labels live draft actions without nested menu tooltips", async () => {
 			const screen = await renderEditor({
 				isNew: false,
 				item: makeItem({
@@ -1926,9 +1926,9 @@ describe("ContentEditor", () => {
 			await userEvent.hover(
 				screen.getByRole("menuitem", { name: /Publish changes now/ }).element(),
 			);
-			await expect
-				.element(screen.getByText("Make draft changes visible now", { exact: true }))
-				.toBeVisible();
+			expect(
+				screen.getByText("Make draft changes visible now", { exact: true }).query(),
+			).toBeNull();
 
 			await screen.getByRole("menuitem", { name: /Schedule changes/ }).click();
 			const dialog = screen.getByRole("dialog", { name: "Schedule changes" });

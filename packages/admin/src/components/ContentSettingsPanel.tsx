@@ -441,7 +441,6 @@ export interface PublishActionsProps {
 interface PublishingAction {
 	kind: "publish" | "schedule" | "unschedule";
 	label: string;
-	description: string;
 	Icon: Icon;
 	onSelect: () => void;
 }
@@ -508,11 +507,6 @@ export function PublishActions({
 		actions.push({
 			kind: "publish",
 			label: hasDraftChanges ? t`Publish changes now` : t`Publish now`,
-			description: state.includes("scheduled")
-				? t`Publish before the scheduled time`
-				: hasDraftChanges
-					? t`Make draft changes visible now`
-					: t`Make this draft visible now`,
 			Icon: Upload,
 			onSelect: publish,
 		});
@@ -521,7 +515,6 @@ export function PublishActions({
 		actions.push({
 			kind: "schedule",
 			label: t`Schedule publication`,
-			description: t`Choose when this draft goes live`,
 			Icon: CalendarPlus,
 			onSelect: openSchedule,
 		});
@@ -530,7 +523,6 @@ export function PublishActions({
 		actions.push({
 			kind: "schedule",
 			label: t`Schedule changes`,
-			description: t`Choose when changes go live`,
 			Icon: CalendarPlus,
 			onSelect: openSchedule,
 		});
@@ -542,7 +534,6 @@ export function PublishActions({
 		actions.push({
 			kind: "schedule",
 			label: t`Change schedule`,
-			description: t`Choose a different date and time`,
 			Icon: CalendarDots,
 			onSelect: openSchedule,
 		});
@@ -554,8 +545,6 @@ export function PublishActions({
 		actions.push({
 			kind: "unschedule",
 			label: t`Remove schedule`,
-			description:
-				state === "scheduled" ? t`Keep this version as a draft` : t`Keep the changes as a draft`,
 			Icon: CalendarX,
 			onSelect: removeSchedule,
 		});
@@ -600,12 +589,12 @@ export function PublishActions({
 		>
 			<DropdownMenu.Trigger
 				render={
-						<Button
-							type="button"
-							variant="primary"
-							size={size}
-							className="w-full [&>span:last-child]:w-full"
-							loading={isScheduling || isUnscheduling}
+					<Button
+						type="button"
+						variant="primary"
+						size={size}
+						className="w-full [&>span:last-child]:w-full"
+						loading={isScheduling || isUnscheduling}
 						aria-haspopup="menu"
 						aria-expanded={open}
 					>
@@ -620,32 +609,22 @@ export function PublishActions({
 				align="end"
 				className="w-80 max-w-[calc(100vw-2rem)] origin-[var(--transform-origin)] p-1.5 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none"
 			>
-				{actions.map(({ kind, label, description, Icon: ActionIcon, onSelect }) => (
-					<Tooltip
+				{actions.map(({ kind, label, Icon: ActionIcon, onSelect }) => (
+					<DropdownMenu.Item
 						key={kind}
-						content={<span className="block max-w-64 text-pretty">{description}</span>}
-						delay={0}
-						closeDelay={0}
-						render={
-							<DropdownMenu.Item
-								icon={
-									<span className="me-2 flex h-lh shrink-0 items-center">
-										<ActionIcon className="size-4" aria-hidden="true" />
-									</span>
-								}
-								disabled={isScheduling || isUnscheduling}
-								onClick={onSelect}
-								className="px-2.5 py-1.5"
-							>
-								<Text as="span" bold>
-									{label}
-								</Text>
-								<span className="ms-auto flex h-lh shrink-0 items-center text-kumo-subtle">
-									<Info className="size-3.5" aria-hidden="true" />
-								</span>
-							</DropdownMenu.Item>
+						icon={
+							<span className="me-2 flex h-lh shrink-0 items-center">
+								<ActionIcon className="size-4" aria-hidden="true" />
+							</span>
 						}
-					/>
+						disabled={isScheduling || isUnscheduling}
+						onClick={onSelect}
+						className="px-2.5 py-1.5"
+					>
+						<Text as="span" bold>
+							{label}
+						</Text>
+					</DropdownMenu.Item>
 				))}
 			</DropdownMenu.Content>
 		</DropdownMenu>
