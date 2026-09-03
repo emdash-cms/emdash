@@ -88,15 +88,9 @@ async function setPublishingTime(
 	screen: Awaited<ReturnType<typeof render>>,
 	time: `${string}:${string}`,
 ) {
-	const [hour, minute] = time.split(":");
-	screen.getByRole("combobox", { name: "Hour" }).element().click();
-	const hourOption = screen.getByRole("option", { name: hour, exact: true });
-	await expect.element(hourOption).toBeInTheDocument();
-	hourOption.element().click();
-	screen.getByRole("combobox", { name: "Minute" }).element().click();
-	const minuteOption = screen.getByRole("option", { name: minute, exact: true });
-	await expect.element(minuteOption).toBeInTheDocument();
-	minuteOption.element().click();
+	const [hour = "", minute = ""] = time.split(":");
+	await screen.getByRole("textbox", { name: "Hour" }).fill(hour);
+	await screen.getByRole("textbox", { name: "Minute" }).fill(minute);
 }
 
 function makeByline(): BylineSummary {
@@ -783,11 +777,11 @@ describe("ContentSettingsPanel", () => {
 				.toBeVisible();
 			expect(dialog.getByText("Date", { exact: true }).query()).toBeNull();
 			await expect
-				.element(screen.getByRole("combobox", { name: "Hour" }))
-				.toHaveTextContent(initial.time.slice(0, 2));
+				.element(screen.getByRole("textbox", { name: "Hour" }))
+				.toHaveValue(initial.time.slice(0, 2));
 			await expect
-				.element(screen.getByRole("combobox", { name: "Minute" }))
-				.toHaveTextContent(initial.time.slice(3));
+				.element(screen.getByRole("textbox", { name: "Minute" }))
+				.toHaveValue(initial.time.slice(3));
 			await expect.element(dialog.getByRole("button", { name: "Save date" })).toBeDisabled();
 			fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }).element());
 			expect(onPublishedAtChange).not.toHaveBeenCalled();
@@ -796,11 +790,12 @@ describe("ContentSettingsPanel", () => {
 			await setPublishingTime(screen, "08:45");
 			const resolved = resolvePublishingLocalDateTime(initial.date, "08:45");
 			expect(resolved.success).toBe(true);
-			fireEvent.click(dialog.getByRole("button", { name: "Save date" }).element());
+			await userEvent.keyboard("{Enter}");
 
 			expect(onPublishedAtChange).toHaveBeenCalledWith(
 				resolved.success ? resolved.value : undefined,
 			);
+			await expect.element(dialog).not.toBeInTheDocument();
 		} finally {
 			i18n.activate(previousLocale);
 		}
@@ -824,8 +819,8 @@ describe("ContentSettingsPanel", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
-		await expect.element(screen.getByRole("combobox", { name: "Hour" })).toHaveTextContent("08");
-		await expect.element(screen.getByRole("combobox", { name: "Minute" })).toHaveTextContent("45");
+		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
+		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();
 	});
 
@@ -873,11 +868,11 @@ describe("ContentSettingsPanel", () => {
 		await screen.getByRole("button", { name: /Change publication date:/ }).click();
 		const resetTime = publishingInstantToLocalFields(secondPublishedAt).time;
 		await expect
-			.element(screen.getByRole("combobox", { name: "Hour" }))
-			.toHaveTextContent(resetTime.slice(0, 2));
+			.element(screen.getByRole("textbox", { name: "Hour" }))
+			.toHaveValue(resetTime.slice(0, 2));
 		await expect
-			.element(screen.getByRole("combobox", { name: "Minute" }))
-			.toHaveTextContent(resetTime.slice(3));
+			.element(screen.getByRole("textbox", { name: "Minute" }))
+			.toHaveValue(resetTime.slice(3));
 	});
 
 	it("lets editors update a retained publication date while content is unpublished", async () => {

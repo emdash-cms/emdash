@@ -1,4 +1,6 @@
+import * as React from "react";
 import { expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { PublishingDateTimeFields } from "../../src/components/PublishingDateTimeEditor.js";
 import { render } from "../utils/render.tsx";
@@ -33,7 +35,7 @@ it("returns the calendar to the current month when a new entry has no saved date
 	await expect.element(screen.getByText(currentMonth, { exact: true })).toBeVisible();
 });
 
-it("uses Kumo hour and minute selects instead of the browser time picker", async () => {
+it("uses Kumo hour and minute text inputs instead of the browser time picker", async () => {
 	const screen = await render(
 		<PublishingDateTimeFields
 			date={new Date(2035, 5, 15, 12)}
@@ -44,7 +46,32 @@ it("uses Kumo hour and minute selects instead of the browser time picker", async
 		/>,
 	);
 
-	await expect.element(screen.getByRole("combobox", { name: "Hour" })).toHaveTextContent("09");
-	await expect.element(screen.getByRole("combobox", { name: "Minute" })).toHaveTextContent("05");
+	await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("09");
+	await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("05");
 	expect(screen.container.querySelector('input[type="time"]')).toBeNull();
+});
+
+it("filters keyboard input and moves focus after a valid two-digit hour", async () => {
+	function ControlledFields() {
+		const [time, setTime] = React.useState("09:05");
+		return (
+			<PublishingDateTimeFields
+				date={new Date(2035, 5, 15, 12)}
+				time={time}
+				dateAriaLabel="Publication date"
+				onDateChange={vi.fn()}
+				onTimeChange={setTime}
+			/>
+		);
+	}
+
+	const screen = await render(<ControlledFields />);
+	const hour = screen.getByRole("textbox", { name: "Hour" });
+	const minute = screen.getByRole("textbox", { name: "Minute" });
+
+	await hour.click();
+	await userEvent.keyboard("a1b4");
+
+	await expect.element(hour).toHaveValue("14");
+	await expect.element(minute).toHaveFocus();
 });

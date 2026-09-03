@@ -132,32 +132,16 @@ test.describe("Schedule content", () => {
 
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		await expect(dialog).toBeVisible({ timeout: 5000 });
-		for (const name of ["Hour", "Minute"]) {
-			const trigger = dialog.getByRole("combobox", { name });
-			await trigger.click();
-			const options = page.getByRole("listbox");
-			await expect(options).toBeVisible();
-			const triggerBox = await trigger.boundingBox();
-			const optionsBox = await options.boundingBox();
-			expect(triggerBox).not.toBeNull();
-			expect(optionsBox).not.toBeNull();
-			expect(optionsBox!.height).toBeLessThanOrEqual(128);
-			expect(
-				Math.min(
-					Math.abs(optionsBox!.bottom - triggerBox!.top),
-					Math.abs(optionsBox!.top - triggerBox!.bottom),
-				),
-			).toBeLessThanOrEqual(8);
-			expect(await options.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
-				true,
-			);
-			await page.keyboard.press("Escape");
-		}
 		await dialog.getByRole("button", { name: /Tomorrow at/ }).click();
-		await expect(dialog.getByRole("combobox", { name: "Hour" })).toContainText("09");
-		await expect(dialog.getByRole("combobox", { name: "Minute" })).toContainText("00");
+		const hourInput = dialog.getByRole("textbox", { name: "Hour" });
+		const minuteInput = dialog.getByRole("textbox", { name: "Minute" });
+		await hourInput.fill("14");
+		await expect(minuteInput).toBeFocused();
+		await minuteInput.fill("43");
+		await expect(hourInput).toHaveValue("14");
+		await expect(minuteInput).toHaveValue("43");
 
-		// Click the "Schedule" confirm button and wait for the API response
+		// Submit from the minute field and wait for the API response.
 		const scheduleResponse = page.waitForResponse(
 			(res) =>
 				SCHEDULE_API_PATTERN.test(res.url()) &&
@@ -165,7 +149,7 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await dialog.getByRole("button", { name: "Schedule", exact: true }).click();
+		await minuteInput.press("Enter");
 		await scheduleResponse;
 
 		// A toast confirming scheduling should appear
@@ -350,25 +334,9 @@ test.describe("Schedule content", () => {
 			}),
 		).toBeVisible();
 		for (const name of ["Hour", "Minute"]) {
-			const trigger = publicationDateDialog.getByRole("combobox", { name });
-			await trigger.click();
-			const options = page.getByRole("listbox");
-			await expect(options).toBeVisible();
-			const triggerBox = await trigger.boundingBox();
-			const optionsBox = await options.boundingBox();
-			expect(triggerBox).not.toBeNull();
-			expect(optionsBox).not.toBeNull();
-			expect(optionsBox!.height).toBeLessThanOrEqual(128);
-			expect(
-				Math.min(
-					Math.abs(optionsBox!.bottom - triggerBox!.top),
-					Math.abs(optionsBox!.top - triggerBox!.bottom),
-				),
-			).toBeLessThanOrEqual(8);
-			expect(await options.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
-				true,
-			);
-			await page.keyboard.press("Escape");
+			const input = publicationDateDialog.getByRole("textbox", { name });
+			await expect(input).toHaveAttribute("inputmode", "numeric");
+			await expect(input).toHaveAttribute("maxlength", "2");
 		}
 		await publicationDateDialog.getByRole("button", { name: "Cancel", exact: true }).click();
 		await expect(publicationDateTrigger).toBeFocused();

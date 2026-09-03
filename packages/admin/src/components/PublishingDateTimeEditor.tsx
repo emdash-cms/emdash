@@ -1,4 +1,4 @@
-import { Button, DatePicker, Dialog, Select, Text } from "@cloudflare/kumo";
+import { Button, DatePicker, Dialog, Input, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Globe, PencilSimple, X } from "@phosphor-icons/react";
 import * as React from "react";
@@ -16,15 +16,6 @@ import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 
-const HOURS = Array.from({ length: 24 }, (_, hour) => {
-	const value = String(hour).padStart(2, "0");
-	return { value, label: value };
-});
-const MINUTES = Array.from({ length: 60 }, (_, minute) => {
-	const value = String(minute).padStart(2, "0");
-	return { value, label: value };
-});
-
 interface PublishingDateTimeFieldsProps {
 	date: Date | undefined;
 	time: string;
@@ -39,6 +30,10 @@ interface PublishingDateTimeFieldsProps {
 function getLocalToday(): Date {
 	const now = new Date();
 	return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+}
+
+function numericTimePart(value: string): string {
+	return value.replace(/\D/g, "").slice(0, 2);
 }
 
 export function PublishingDateTimeFields({
@@ -85,8 +80,24 @@ export function PublishingDateTimeFields({
 	const mondayDate = mondayResult.success ? mondayResult.date : new Date();
 	const nextMondayLabel = t`Next ${weekdayFormatter.format(mondayDate)} at ${timeFormatter.format(mondayDate)}`;
 	const [hour = "", minute = ""] = time.split(":");
+	const minuteInputRef = React.useRef<HTMLInputElement>(null);
 	const updateTime = (nextHour: string, nextMinute: string) => {
 		onTimeChange(nextHour || nextMinute ? `${nextHour}:${nextMinute}` : "");
+	};
+	const updateHour = (value: string) => {
+		let nextHour = numericTimePart(value);
+		if (nextHour.length === 1 && Number(nextHour) > 2) nextHour = `0${nextHour}`;
+		if (nextHour.length === 2 && Number(nextHour) > 23) return;
+		updateTime(nextHour, minute);
+		if (nextHour.length === 2) {
+			minuteInputRef.current?.focus();
+			minuteInputRef.current?.select();
+		}
+	};
+	const updateMinute = (value: string) => {
+		const nextMinute = numericTimePart(value);
+		if (nextMinute.length === 2 && Number(nextMinute) > 59) return;
+		updateTime(hour, nextMinute);
 	};
 
 	return (
@@ -142,37 +153,48 @@ export function PublishingDateTimeFields({
 					{t`Time`}
 				</Text>
 				<div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-					<Select
+					<Input
 						aria-label={t`Hour`}
-						placeholder={t`Hour`}
-						value={hour || null}
-						onValueChange={(value) => updateTime(typeof value === "string" ? value : "", minute)}
+						placeholder={t`HH`}
+						value={hour}
+						type="text"
+						inputMode="numeric"
+						maxLength={2}
+						pattern="[0-9]*"
+						autoComplete="off"
+						enterKeyHint="next"
+						onChange={(event) => updateHour(event.target.value)}
+						onFocus={(event) => event.currentTarget.select()}
+						onBlur={(event) => {
+							const blurredHour = numericTimePart(event.currentTarget.value);
+							if (blurredHour.length === 1) updateTime(blurredHour.padStart(2, "0"), minute);
+						}}
 						disabled={disabled}
 						className="w-full tabular-nums"
-					>
-						{HOURS.map(({ value, label }) => (
-							<Select.Option key={value} value={value} className="emdash-short-select-option">
-								{label}
-							</Select.Option>
-						))}
-					</Select>
+					/>
 					<Text as="span" variant="secondary" DANGEROUS_className="tabular-nums">
 						:
 					</Text>
-					<Select
+					<Input
+						ref={minuteInputRef}
 						aria-label={t`Minute`}
-						placeholder={t`Minute`}
-						value={minute || null}
-						onValueChange={(value) => updateTime(hour, typeof value === "string" ? value : "")}
+						placeholder={t`MM`}
+						value={minute}
+						type="text"
+						inputMode="numeric"
+						maxLength={2}
+						pattern="[0-9]*"
+						autoComplete="off"
+						enterKeyHint="done"
+						onChange={(event) => updateMinute(event.target.value)}
+						onFocus={(event) => event.currentTarget.select()}
+						onBlur={(event) => {
+							const blurredMinute = numericTimePart(event.currentTarget.value);
+							if (blurredMinute.length === 1) updateTime(hour, blurredMinute.padStart(2, "0"));
+						}}
 						disabled={disabled}
 						className="w-full tabular-nums"
-					>
-						{MINUTES.map(({ value, label }) => (
-							<Select.Option key={value} value={value} className="emdash-short-select-option">
-								{label}
-							</Select.Option>
-						))}
-					</Select>
+					/>
 				</div>
 			</fieldset>
 			<div className="flex items-start gap-2 text-kumo-subtle">

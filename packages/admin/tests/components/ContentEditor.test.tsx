@@ -1977,8 +1977,8 @@ describe("ContentEditor", () => {
 			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
 			await expect.element(dialog).toBeVisible();
 			await expect.element(dialog.getByLabelText("Schedule date")).toBeInTheDocument();
-			await expect.element(dialog.getByRole("combobox", { name: "Hour" })).toBeInTheDocument();
-			await expect.element(dialog.getByRole("combobox", { name: "Minute" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Hour" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Minute" })).toBeInTheDocument();
 			await expect.element(dialog.getByText(/America\/New_York/)).toBeInTheDocument();
 		});
 
@@ -1990,10 +1990,8 @@ describe("ContentEditor", () => {
 			await screen.getByRole("button", { name: "Publish", exact: true }).click();
 			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
 			fireEvent.click(screen.getByRole("button", { name: /Tomorrow at/ }).element());
-			await expect.element(screen.getByRole("combobox", { name: "Hour" })).toHaveTextContent("09");
-			await expect
-				.element(screen.getByRole("combobox", { name: "Minute" }))
-				.toHaveTextContent("00");
+			await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("09");
+			await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("00");
 			expect(onSchedule).not.toHaveBeenCalled();
 		});
 
