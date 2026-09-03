@@ -599,7 +599,10 @@ export function PublishActions({
 					</Button>
 				}
 			/>
-			<DropdownMenu.Content align="end" className="w-80 max-w-[calc(100vw-2rem)] p-1.5">
+			<DropdownMenu.Content
+				align="end"
+				className="w-80 max-w-[calc(100vw-2rem)] origin-[var(--transform-origin)] p-1.5 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none"
+			>
 				{actions.map(({ kind, label, description, Icon: ActionIcon, onSelect }) => (
 					<DropdownMenu.Item
 						key={kind}
