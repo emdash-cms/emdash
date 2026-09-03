@@ -136,17 +136,23 @@ Run during create, update, and delete operations on site content.
 
 ### `content:beforeSave`
 
-Runs before content is saved. Return modified content, or `void` to leave it unchanged.
+Runs before content is saved. Return modified content, a sandbox hook error result, or `void` to leave it unchanged.
 
-<Aside type="caution">
-	A plugin running in the sandbox cannot cancel a save: the sandbox logs the thrown error and the save continues. Cancelling works in the host process — in a native plugin, or in a sandboxed plugin [moved to `plugins: []`](/plugins/creating-plugins/choosing-a-format/#sandbox-runners-and-platform-support).
-</Aside>
-
-To cancel the save from a plugin running in the host process, throw `ContentSaveRejectedError` (exported from `emdash`): the API responds with a `SAVE_REJECTED` error that carries your message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one.
+To reject a save from the sandbox, return a versioned hook result with a `SAVE_REJECTED` error. Set `reason` to plain text between 1 and 500 characters. EmDash identifies the plugin and shows the reason to the editor. Empty, overlong, malformed, and unknown error results fail the save with a generic hook error.
 
 ```typescript
 "content:beforeSave": async (event, ctx) => {
 	const { content } = event;
+	if (typeof content.title !== "string" || content.title.trim() === "") {
+		return {
+			__emdashSandboxHookResult: true,
+			version: 1,
+			error: {
+				code: "SAVE_REJECTED",
+				reason: "Add a title before saving.",
+			},
+		};
+	}
 
 	if (typeof content.slug === "string") {
 		content.slug = content.slug.toLowerCase().replace(/\s+/g, "-");
@@ -156,7 +162,11 @@ To cancel the save from a plugin running in the host process, throw `ContentSave
 },
 ```
 
-**Event:** `{ content, collection, isNew }` — **Returns:** modified content or `void`.
+Do not put HTML in `reason`. The admin renders the value as text.
+
+From the host process, throw `ContentSaveRejectedError` (exported from `emdash`) instead. The API returns `SAVE_REJECTED` with your message. Any other exception from either execution mode fails the save with a generic `CONTENT_HOOK_ERROR` response.
+
+**Event:** `{ content, collection, isNew }` — **Returns:** modified content, a sandbox hook error result, or `void`.
 
 ### `content:afterSave`
 
@@ -394,7 +404,7 @@ Hooks default to 5000ms. Bump the timeout for slower work:
 | `plugin:activate`        | Plugin enabled                | `void`                               | No        |
 | `plugin:deactivate`      | Plugin disabled               | `void`                               | No        |
 | `plugin:uninstall`       | Plugin removed                | `void`                               | No        |
-| `content:beforeSave`     | Before content save           | Modified content or `void`           | No        |
+| `content:beforeSave`     | Before content save           | Modified content, rejection envelope, or `void` | No        |
 | `content:afterSave`      | After content save            | `void`                               | No        |
 | `content:beforeDelete`   | Before content delete         | `false` to cancel, else allow        | No        |
 | `content:afterDelete`    | After content delete          | `void`                               | No        |

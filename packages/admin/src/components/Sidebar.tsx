@@ -145,7 +145,7 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	const { state } = useSidebar();
 	const Icon = item.icon;
 	function IconComponent({ className }: { className?: string }) {
-		return <NavIcon icon={Icon} className={className} />;
+		return <NavIcon icon={Icon} className={className} isActive={isActive} />;
 	}
 
 	return (
@@ -163,10 +163,24 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
 	);
 }
 
-function NavIcon({ icon: Icon, className }: { icon: React.ElementType; className?: string }) {
+export function NavIcon({
+	icon: Icon,
+	className,
+	isActive,
+}: {
+	icon: React.ElementType;
+	className?: string;
+	isActive: boolean;
+}) {
+	const weight = isActive ? "fill" : "regular";
+
 	return (
-		<React.Suspense fallback={<ADMIN_NAV_ICONS.plugins className={className} aria-hidden="true" />}>
-			<Icon className={className} aria-hidden="true" />
+		<React.Suspense
+			fallback={
+				<ADMIN_NAV_ICONS.plugins className={className} weight={weight} aria-hidden="true" />
+			}
+		>
+			<Icon className={className} weight={weight} aria-hidden="true" />
 		</React.Suspense>
 	);
 }

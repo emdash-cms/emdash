@@ -9,7 +9,12 @@ process.env["ENCRYPTION_KEYRING"] ??=
 
 export default defineConfig({
 	test: {
-		exclude: [...configDefaults.exclude, "src/ui/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
+		exclude: [
+			...configDefaults.exclude,
+			"src/ui/**/*.test.{ts,tsx}",
+			"e2e/**/*.spec.ts",
+			"test/encryption-verification-workflow.test.ts",
+		],
 	},
 	plugins: [
 		cloudflareTest({

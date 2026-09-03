@@ -1260,6 +1260,10 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z
+					.string()
+					.optional()
+					.describe("Revision token from content_get for conflict detection"),
 				publishedAt: z.iso
 					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
 					.optional()
@@ -1297,6 +1301,7 @@ export function createMcpServer(
 			return unwrap(
 				await emdash.handleContentPublish(args.collection, resolvedId, {
 					publishedAt: args.publishedAt,
+					_rev: args._rev,
 				}),
 			);
 		},
@@ -1312,6 +1317,10 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z
+					.string()
+					.optional()
+					.describe("Revision token from content_get for conflict detection"),
 			}),
 		},
 		async (args, extra) => {
@@ -1332,7 +1341,9 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentUnpublish(args.collection, resolvedId));
+			return unwrap(
+				await ec.handleContentUnpublish(args.collection, resolvedId, { _rev: args._rev }),
+			);
 		},
 	);
 
@@ -1440,6 +1451,10 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z
+					.string()
+					.optional()
+					.describe("Revision token from content_get for conflict detection"),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1461,7 +1476,9 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentDiscardDraft(args.collection, resolvedId));
+			return unwrap(
+				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
+			);
 		},
 	);
 

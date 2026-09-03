@@ -58,6 +58,14 @@ function formatValidationIssues(error: Record<string, unknown>): string | undefi
 	return messages.length > 0 ? messages.join("; ") : undefined;
 }
 
+function formatSandboxedSaveRejection(error: Record<string, unknown>): string | undefined {
+	if (error.code !== "SAVE_REJECTED" || !isRecord(error.details)) return undefined;
+	const { pluginId, reason } = error.details;
+	if (typeof pluginId !== "string" || typeof reason !== "string") return undefined;
+	if (pluginId.length === 0 || reason.length === 0) return undefined;
+	return i18n._(msg`Plugin ${pluginId} rejected the save: ${reason}`);
+}
+
 /**
  * Client errors that pass no verdict on the request body, so resending it
  * unchanged can still succeed. Every other 4xx repeats its verdict on every
@@ -93,6 +101,7 @@ export async function throwResponseError(res: Response, fallback: string): Promi
 	if (isRecord(body) && isRecord(body.error)) {
 		const { error } = body;
 		message = formatValidationIssues(error);
+		if (!message) message = formatSandboxedSaveRejection(error);
 		if (!message && typeof error.message === "string") message = error.message;
 		if (typeof error.code === "string") code = error.code;
 		if (isRecord(error.details)) details = error.details;

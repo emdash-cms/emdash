@@ -58,6 +58,7 @@ import {
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
+import { inspectSandboxHookResult } from "./plugins/sandbox/hook-result.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
 import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
 import type {
@@ -2925,7 +2926,9 @@ export class EmDashRuntime {
 		}
 
 		// Run beforeSave hooks (sandboxed plugins)
-		processedData = await this.runSandboxedBeforeSave(processedData, collection, true);
+		const sandboxResult = await this.runSandboxedBeforeSave(processedData, collection, true);
+		if (!sandboxResult.success) return sandboxResult;
+		processedData = sandboxResult.data;
 
 		// Normalize media fields (fill dimensions, storageKey, etc.)
 		processedData = await this.normalizeMediaFields(collection, processedData);
@@ -3029,7 +3032,9 @@ export class EmDashRuntime {
 			}
 
 			// Run sandboxed beforeSave hooks
-			processedData = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			const sandboxResult = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			if (!sandboxResult.success) return sandboxResult;
+			processedData = sandboxResult.data;
 
 			// Normalize media fields (fill dimensions, storageKey, etc.)
 			processedData = await this.normalizeMediaFields(collection, processedData);
@@ -3328,6 +3333,7 @@ export class EmDashRuntime {
 			publishedAt?: string;
 			requireScheduledDue?: boolean;
 			expectedScheduledAt?: string;
+			_rev?: string;
 		} = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
@@ -3343,8 +3349,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentUnpublish(collection: string, id: string) {
-		const result = await handleContentUnpublish(this.db, collection, id);
+	async handleContentUnpublish(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentUnpublish(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3389,8 +3395,8 @@ export class EmDashRuntime {
 		return handleContentCountScheduled(this.db, collection);
 	}
 
-	async handleContentDiscardDraft(collection: string, id: string) {
-		const result = await handleContentDiscardDraft(this.db, collection, id);
+	async handleContentDiscardDraft(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentDiscardDraft(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -4085,7 +4091,7 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
-	): Promise<Record<string, unknown>> {
+	) {
 		let result = content;
 
 		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
@@ -4098,6 +4104,27 @@ export class EmDashRuntime {
 					collection,
 					isNew,
 				});
+				const inspection = inspectSandboxHookResult(hookResult);
+				if (inspection.kind === "error") {
+					return {
+						success: false as const,
+						error: {
+							code: ErrorCode.SAVE_REJECTED,
+							message: "Save rejected by a sandboxed plugin",
+							details: { pluginId: id, reason: inspection.error.reason },
+						},
+					};
+				}
+				if (inspection.kind === "malformed") {
+					console.error(`EmDash: Sandboxed plugin ${id} returned an invalid hook result`);
+					return {
+						success: false as const,
+						error: {
+							code: ErrorCode.CONTENT_HOOK_ERROR,
+							message: "A plugin hook failed while saving content",
+						},
+					};
+				}
 				if (hookResult && typeof hookResult === "object" && !Array.isArray(hookResult)) {
 					// Sandbox returns unknown; convert to record by iterating own properties
 					const record: Record<string, unknown> = {};
@@ -4107,14 +4134,18 @@ export class EmDashRuntime {
 					result = record;
 				}
 			} catch (error) {
-				console.error(
-					`EmDash: Sandboxed plugin ${id} beforeSave hook threw; a sandboxed plugin cannot cancel a save, so the save continues:`,
-					error,
-				);
+				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook failed:`, error);
+				return {
+					success: false as const,
+					error: {
+						code: ErrorCode.CONTENT_HOOK_ERROR,
+						message: "A plugin hook failed while saving content",
+					},
+				};
 			}
 		}
 
-		return result;
+		return { success: true as const, data: result };
 	}
 
 	private async runSandboxedBeforeDelete(id: string, collection: string): Promise<boolean> {

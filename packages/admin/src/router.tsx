@@ -161,6 +161,8 @@ interface ContentUpdateChanges {
 	bylines?: BylineCreditInput[];
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	/** Optimistic-concurrency token from the latest response. */
+	_rev?: string;
 }
 
 interface ContentUpdateMutationInput {
@@ -173,7 +175,7 @@ interface ContentUpdateMutationInput {
 interface AutosaveMutationInput {
 	targetId: string;
 	targetLocale?: string;
-	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines">;
+	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "_rev">;
 }
 
 function patchAutosaveQueries(
@@ -859,6 +861,25 @@ function ContentEditPage() {
 		queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
 		enabled: !i18n || !!activeLocale,
 	});
+	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
+	const activeRevisionEntryRef = React.useRef("");
+	if (activeRevisionEntryRef.current !== id) {
+		activeRevisionEntryRef.current = id;
+		revisionTokensRef.current.delete(id);
+	}
+	if (rawItem && !revisionTokensRef.current.has(rawItem.id)) {
+		revisionTokensRef.current.set(rawItem.id, rawItem._rev);
+	}
+	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+	const serializeEditorSave = React.useCallback(<T,>(operation: () => Promise<T>) => {
+		const result = editorSaveQueueRef.current.then(operation);
+		editorSaveQueueRef.current = result.then(
+			() => undefined,
+			() => undefined,
+		);
+		return result;
+	}, []);
+	const publishRequestRef = React.useRef<Promise<void> | null>(null);
 
 	React.useEffect(() => {
 		if (typeof searchParams.field !== "string" || isLoading) return;
@@ -1024,8 +1045,16 @@ function ContentEditPage() {
 	);
 
 	const updateMutation = useMutation({
-		mutationFn: ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) =>
-			updateContent(collection, targetId, changes, { locale: targetLocale }),
+		mutationFn: async ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) => {
+			const savedItem = await updateContent(
+				collection,
+				targetId,
+				{ ...changes, _rev: revisionTokensRef.current.get(targetId) },
+				{ locale: targetLocale },
+			);
+			revisionTokensRef.current.set(targetId, savedItem._rev);
+			return savedItem;
+		},
 		onMutate: (variables) => {
 			if (variables.source === "editor") {
 				updateEditorSavePendingCount(variables.targetId, 1);
@@ -1042,8 +1071,16 @@ function ContentEditPage() {
 		},
 	});
 	const publishedAtMutation = useMutation({
-		mutationFn: (publishedAt: string) =>
-			updateContent(collection, id, { publishedAt }, { locale: rawItem?.locale ?? activeLocale }),
+		mutationFn: async (publishedAt: string) => {
+			const savedItem = await updateContent(
+				collection,
+				id,
+				{ publishedAt },
+				{ locale: rawItem?.locale ?? activeLocale },
+			);
+			revisionTokensRef.current.set(id, savedItem._rev);
+			return savedItem;
+		},
 		onSuccess: () => {
 			handleContentUpdateSuccess(id);
 		},
@@ -1052,13 +1089,16 @@ function ContentEditPage() {
 
 	// Autosave mutation - skips revision creation
 	const autosaveMutation = useMutation({
-		mutationFn: ({ targetId, targetLocale, changes }: AutosaveMutationInput) =>
-			updateContent(
+		mutationFn: async ({ targetId, targetLocale, changes }: AutosaveMutationInput) => {
+			const savedItem = await updateContent(
 				collection,
 				targetId,
-				{ ...changes, skipRevision: true },
+				{ ...changes, skipRevision: true, _rev: revisionTokensRef.current.get(targetId) },
 				{ locale: targetLocale },
-			),
+			);
+			revisionTokensRef.current.set(targetId, savedItem._rev);
+			return savedItem;
+		},
 		onSuccess: (savedItem, variables) => {
 			recordAutosaveCompletion(variables.targetId);
 			patchAutosaveQueries(queryClient, {
@@ -1084,11 +1124,17 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: () => publishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: () => {
-			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id],
-			});
+		mutationFn: (revision: string | undefined) =>
+			publishContent(collection, id, {
+				locale: rawItem?.locale ?? activeLocale,
+				_rev: revision,
+			}),
+		onSuccess: (publishedItem) => {
+			revisionTokensRef.current.set(id, publishedItem._rev);
+			queryClient.setQueriesData<ContentItem>(
+				{ queryKey: ["content", collection, id] },
+				publishedItem,
+			);
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
@@ -1241,25 +1287,29 @@ function ContentEditPage() {
 	// are referentially stable.
 	const handleSave = React.useCallback(
 		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
-			updateMutation.mutate({
-				targetId: id,
-				targetLocale: rawItem?.locale ?? activeLocale,
-				source: "editor",
-				changes: payload,
-			});
+			void serializeEditorSave(() =>
+				updateMutation.mutateAsync({
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+					source: "editor",
+					changes: payload,
+				}),
+			).catch(() => undefined);
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, serializeEditorSave, updateMutation.mutateAsync],
 	);
 
 	const handleAutosave = React.useCallback(
 		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
-			autosaveMutation.mutate({
-				targetId: id,
-				targetLocale: rawItem?.locale ?? activeLocale,
-				changes: payload,
-			});
+			void serializeEditorSave(() =>
+				autosaveMutation.mutateAsync({
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+					changes: payload,
+				}),
+			).catch(() => undefined);
 		},
-		[activeLocale, autosaveMutation.mutate, id, rawItem?.locale],
+		[activeLocale, autosaveMutation.mutateAsync, id, rawItem?.locale, serializeEditorSave],
 	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {
@@ -1291,7 +1341,38 @@ function ContentEditPage() {
 		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
 	);
 
-	const handlePublish = React.useCallback(() => publishMutation.mutate(), [publishMutation.mutate]);
+	const handlePublish = React.useCallback(
+		(payload: { data: Record<string, unknown>; slug?: string; bylines?: BylineCreditInput[] }) => {
+			if (publishRequestRef.current) return publishRequestRef.current;
+
+			const request = (async () => {
+				const savedItem = await serializeEditorSave(() =>
+					updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "editor",
+						changes: payload,
+					}),
+				);
+				await publishMutation.mutateAsync(savedItem._rev);
+			})();
+			publishRequestRef.current = request;
+			void request
+				.catch(() => undefined)
+				.finally(() => {
+					if (publishRequestRef.current === request) publishRequestRef.current = null;
+				});
+			return request;
+		},
+		[
+			activeLocale,
+			id,
+			publishMutation.mutateAsync,
+			rawItem?.locale,
+			serializeEditorSave,
+			updateMutation.mutateAsync,
+		],
+	);
 	const handleUnpublish = React.useCallback(
 		() => unpublishMutation.mutate(),
 		[unpublishMutation.mutate],
@@ -1343,7 +1424,9 @@ function ContentEditPage() {
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
 			fields={collectionConfig.fields}
-			isSaving={updateMutation.isPending || publishedAtMutation.isPending}
+			isSaving={
+				updateMutation.isPending || publishedAtMutation.isPending || publishMutation.isPending
+			}
 			isSaveFeedbackActive={(editorSavePendingCounts.get(id) ?? 0) > 0}
 			onSave={handleSave}
 			onAutosave={handleAutosave}

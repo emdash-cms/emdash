@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import { CellSelection } from "@tiptap/pm/tables";
-import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import {
 	PortableTextEditor,
