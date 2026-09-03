@@ -353,7 +353,7 @@ export function GeneralSettings() {
 				onSelect={handleLogoSelect}
 				mimeTypeFilter="image/"
 				localOnly
-				title={t`Select Logo`}
+				title={t`Select logo`}
 			/>
 			<MediaPickerModal
 				open={faviconPickerOpen}
@@ -361,7 +361,7 @@ export function GeneralSettings() {
 				onSelect={handleFaviconSelect}
 				mimeTypeFilter="image/"
 				localOnly
-				title={t`Select Favicon`}
+				title={t`Select favicon`}
 			/>
 		</SettingsFrame>
 	);

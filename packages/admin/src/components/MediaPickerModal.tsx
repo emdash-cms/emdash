@@ -1,21 +1,40 @@
-/**
- * Media Picker Modal
- *
- * A modal dialog for selecting media from the library or uploading new files.
- * Supports multiple media providers with tabbed navigation.
- * Used by the rich text editor and image field components.
- */
-
-import { Button, Dialog, Input, Label, Loader } from "@cloudflare/kumo";
+import {
+	Button,
+	Dialog,
+	Grid,
+	Input,
+	Label,
+	Loader,
+	Pagination,
+	Select,
+	Tabs,
+} from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { Upload, Image, Check, Globe, MagnifyingGlass, Paperclip } from "@phosphor-icons/react";
-import { X } from "@phosphor-icons/react";
-import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+	ArrowLeft,
+	Globe,
+	Image,
+	List,
+	Paperclip,
+	SquaresFour,
+	Upload,
+	X,
+} from "@phosphor-icons/react";
+import {
+	keepPreviousData,
+	useInfiniteQuery,
+	useMutation,
+	useQuery,
+	useQueryClient,
+} from "@tanstack/react-query";
 import * as React from "react";
 
 import {
+	ApiResponseError,
 	MEDIA_SEARCH_MAX_LENGTH,
+	fetchMediaFolder,
+	fetchMediaFolders,
 	fetchMediaList,
 	fetchMediaProviders,
 	fetchProviderMedia,
@@ -24,104 +43,98 @@ import {
 	updateMedia,
 	type MediaItem,
 	type MediaProviderItem,
-} from "../lib/api";
+} from "../lib/api.js";
 import { useDebouncedValue } from "../lib/hooks.js";
-import {
-	providerItemToMediaItem,
-	getFileIcon,
-	getMediaThumbnailUrl,
-	getMediaPreviewUrl,
-	getMediaObjectPosition,
-	fallbackToOriginalThumbnail,
-} from "../lib/media-utils";
+import { canonicalMediaProviderId, providerItemToMediaItem } from "../lib/media-utils.js";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
-import { cn } from "../lib/utils";
 import { DialogError } from "./DialogError.js";
+import {
+	MAX_MEDIA_PAGE_DROPDOWN_ITEMS,
+	MEDIA_BROWSER_PAGE_SIZES,
+	MediaBrowserFolder,
+	MediaBrowserItem,
+	mimeForMediaTypeFilter,
+} from "./media/MediaBrowserItems.js";
+import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
-/** Selected item can be either a local MediaItem or a provider item with provider context */
+const URL_SOURCE = "__url";
+const DEFAULT_PAGE_SIZE = MEDIA_BROWSER_PAGE_SIZES[0]!;
+
 interface SelectedMedia {
+	key: string;
 	providerId: string;
 	item: MediaItem | MediaProviderItem;
 }
 
-/**
- * Returns true if the given MIME type matches any entry in the filters array.
- * Each filter entry is either an exact MIME type (e.g. "image/png") or a
- * type prefix ending with "/" (e.g. "image/").
- */
 function matchesAnyFilter(mime: string, filters: string[] | undefined): boolean {
 	if (!filters || filters.length === 0) return true;
-	const normalizedMime = mime.toLowerCase();
-	for (const entry of filters) {
-		if (!entry || !entry.includes("/")) continue;
-		const normalizedEntry = entry.toLowerCase();
-		if (normalizedEntry.endsWith("/")) {
-			if (normalizedMime.startsWith(normalizedEntry)) return true;
-		} else if (normalizedMime === normalizedEntry) {
-			return true;
-		}
+	return filters.some((entry) => {
+		if (!entry || !entry.includes("/")) return false;
+		return entry.endsWith("/")
+			? mime.toLowerCase().startsWith(entry.toLowerCase())
+			: mime.toLowerCase() === entry.toLowerCase();
+	});
+}
+
+function filtersOverlap(first: string, second: string): string | null {
+	const left = first.toLowerCase();
+	const right = second.toLowerCase();
+	if (left === right) return left;
+	if (left.endsWith("/") && right.startsWith(left)) return right;
+	if (right.endsWith("/") && left.startsWith(right)) return left;
+	return null;
+}
+
+function intersectMimeFilters(
+	allowed: string[] | undefined,
+	chosen: string | string[] | undefined,
+): string[] | undefined {
+	if (!allowed?.length) {
+		if (!chosen) return undefined;
+		return Array.isArray(chosen) ? chosen : [chosen];
 	}
-	return false;
+	if (!chosen) return allowed;
+	const chosenFilters = Array.isArray(chosen) ? chosen : [chosen];
+	return [
+		...new Set(
+			allowed.flatMap((allowedMime) =>
+				chosenFilters.flatMap((chosenMime) => filtersOverlap(allowedMime, chosenMime) ?? []),
+			),
+		),
+	];
+}
+
+function selectionKey(providerId: string, item: MediaItem | MediaProviderItem): string {
+	if (providerId === URL_SOURCE) return `external:${(item as MediaItem).url}`;
+	return `${canonicalMediaProviderId(providerId)}:${item.id}`;
+}
+
+function probeImageDimensions(
+	url: string,
+	errorMessage: string,
+): Promise<{ width: number; height: number }> {
+	return new Promise((resolve, reject) => {
+		const image = new window.Image();
+		image.onload = () => resolve({ width: image.naturalWidth, height: image.naturalHeight });
+		image.onerror = () => reject(new Error(errorMessage));
+		image.src = url;
+	});
 }
 
 export interface MediaPickerModalProps {
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
 	onSelect: (item: MediaItem) => void;
-	/** Allow selecting several items at once; confirms through `onSelectMany`. */
 	multiple?: boolean;
-	/** Called instead of `onSelect` when `multiple` is set. */
 	onSelectMany?: (items: MediaItem[]) => void;
-	/** Filter by mime type prefix, e.g. "image/" */
 	mimeTypeFilter?: string;
 	title?: string;
-	/**
-	 * Hide the "Insert from URL" input. Defaults to false.
-	 * The URL input probes image dimensions and is only meaningful for image pickers,
-	 * so non-image pickers (e.g. generic file pickers) should hide it.
-	 */
+	confirmLabel?: string;
 	hideUrlInput?: boolean;
-	/**
-	 * What kind of media this picker is for. Drives user-facing copy
-	 * (default title, empty-state message, upload button label, empty-state icon).
-	 * Defaults to "image" — set to "file" for generic file pickers.
-	 */
 	mediaKind?: "image" | "file";
-	/** MIME allowlist — array of exact MIMEs or `type/` prefixes. */
 	mimeTypeFilters?: string[];
-	/** `_emdash_fields` row id for server-side MIME widening. */
 	fieldId?: string;
-	/**
-	 * Restrict the picker to the local Library only — hides the "Insert from URL"
-	 * input and suppresses external provider tabs.
-	 *
-	 * Use this for fields whose storage model only persists a local `mediaId`.
-	 * Selecting an external URL or provider item would return an item the
-	 * server cannot later resolve back to a URL (the `id` is either empty
-	 * for "Insert from URL" or a provider-namespaced string that won't match
-	 * a row in the `media` table). Site settings (logo, favicon,
-	 * `seo.defaultOgImage`) are the canonical callers.
-	 */
 	localOnly?: boolean;
-}
-
-/**
- * Probe image URL to get dimensions
- */
-function probeImageDimensions(
-	url: string,
-	errorMessage: string,
-): Promise<{ width: number; height: number }> {
-	return new Promise((resolve, reject) => {
-		const img = new window.Image();
-		img.onload = () => {
-			resolve({ width: img.naturalWidth, height: img.naturalHeight });
-		};
-		img.onerror = () => {
-			reject(new Error(errorMessage));
-		};
-		img.src = url;
-	});
 }
 
 export function MediaPickerModal({
@@ -134,214 +147,306 @@ export function MediaPickerModal({
 	mimeTypeFilters,
 	fieldId,
 	title: providedTitle,
+	confirmLabel,
 	hideUrlInput = false,
 	mediaKind = "image",
 	localOnly = false,
 }: MediaPickerModalProps) {
 	const { t } = useLingui();
-	const isFileKind = mediaKind === "file";
-
-	// Unified filters: mimeTypeFilters (plural array) takes precedence over the
-	// legacy mimeTypeFilter (singular string).
-	const filters = React.useMemo(() => {
-		if (mimeTypeFilters !== undefined)
-			return mimeTypeFilters.length > 0 ? mimeTypeFilters : undefined;
-		if (mimeTypeFilter && mimeTypeFilter.length > 0) return [mimeTypeFilter];
-		return undefined;
-	}, [mimeTypeFilters, mimeTypeFilter]);
-	const title = providedTitle ?? (isFileKind ? t`Select File` : t`Select Image`);
-	const emptyStateUploadHint = isFileKind
-		? t`Upload a file to get started`
-		: t`Upload an image to get started`;
-	const emptyStateUploadCta = isFileKind ? t`Upload File` : t`Upload Image`;
-	const EmptyStateIcon = isFileKind ? Paperclip : Image;
 	const queryClient = useQueryClient();
-	const [selectedItem, setSelectedItem] = React.useState<SelectedMedia | null>(null);
-	// Multi-select mode keeps items in click order — it becomes the gallery order.
+	const isFileKind = mediaKind === "file";
+	const filters = React.useMemo(() => {
+		if (mimeTypeFilters !== undefined) {
+			return mimeTypeFilters.length > 0 ? mimeTypeFilters : undefined;
+		}
+		return mimeTypeFilter ? [mimeTypeFilter] : undefined;
+	}, [mimeTypeFilter, mimeTypeFilters]);
+	const title = providedTitle ?? (isFileKind ? t`Select file` : t`Select image`);
+	const description = isFileKind
+		? t`Choose a file from the library or upload a new one.`
+		: t`Choose an image from the library or upload a new one.`;
+	const EmptyStateIcon = isFileKind ? Paperclip : Image;
+
+	const [activeSource, setActiveSource] = React.useState("local");
 	const [selectedItems, setSelectedItems] = React.useState<SelectedMedia[]>([]);
-	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const [searchQuery, setSearchQuery] = React.useState("");
-	// Debounced for the local library's server-side filename search.
-	const debouncedSearch = useDebouncedValue(searchQuery, 300);
-	const fileInputRef = React.useRef<HTMLInputElement>(null);
-
-	// URL input state
+	const debouncedSearch = useDebouncedValue(searchQuery, 300).trim();
+	const activeSearch = searchQuery.trim() ? debouncedSearch : "";
+	const [typeFilter, setTypeFilter] = React.useState("all");
+	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
+	const [folderId, setFolderId] = React.useState<string | undefined>();
+	const [page, setPage] = React.useState(1);
+	const [pageSize, setPageSize] = React.useState(DEFAULT_PAGE_SIZE);
+	const [retainedTotalCount, setRetainedTotalCount] = React.useState(0);
 	const [imageUrl, setImageUrl] = React.useState("");
-	const [isProbing, setIsProbing] = React.useState(false);
 	const [urlError, setUrlError] = React.useState<string | null>(null);
-
-	// Track loaded image dimensions for providers that don't return them (e.g., CF Images)
+	const [isProbing, setIsProbing] = React.useState(false);
+	const [uploadError, setUploadError] = React.useState<string | null>(null);
+	const [liveMessage, setLiveMessage] = React.useState("");
 	const [providerDimensions, setProviderDimensions] = React.useState<
 		Record<string, { width: number; height: number }>
 	>({});
+	const fileInputRef = React.useRef<HTMLInputElement>(null);
+	const updatedDimensionsRef = React.useRef(new Set<string>());
+	const urlProbeIdRef = React.useRef(0);
+	const invalidateUrlProbe = React.useCallback(() => {
+		urlProbeIdRef.current += 1;
+		setIsProbing(false);
+	}, []);
 
-	// Reset state when modal opens, or when `localOnly` flips on while it's
-	// already open. Without the `localOnly` dependency a parent that toggles
-	// the prop mid-session could leave `activeProvider` on a non-local tab
-	// (the tab UI is suppressed, but the selection state and provider-media
-	// query would still target the external provider).
 	React.useEffect(() => {
-		if (open) {
-			setSelectedItem(null);
-			setSelectedItems([]);
-			setActiveProvider("local");
-			setSearchQuery("");
-			setImageUrl("");
-			setUrlError(null);
-			setUploadError(null);
-			setProviderDimensions({});
-		}
-	}, [open, localOnly]);
+		if (!open) return;
+		setActiveSource("local");
+		setSelectedItems([]);
+		setSearchQuery("");
+		setTypeFilter("all");
+		setViewMode("grid");
+		setFolderId(undefined);
+		setPage(1);
+		setPageSize(DEFAULT_PAGE_SIZE);
+		setRetainedTotalCount(0);
+		setImageUrl("");
+		setUrlError(null);
+		invalidateUrlProbe();
+		setUploadError(null);
+		setLiveMessage("");
+		setProviderDimensions({});
+		updatedDimensionsRef.current.clear();
+	}, [invalidateUrlProbe, localOnly, open]);
 
-	// Fetch available providers — skipped when `localOnly` is set since the
-	// list isn't used (provider tabs are suppressed and the active provider
-	// stays "local"). Avoids a request to /providers on every modal open
-	// when we'll just throw the result away.
-	const { data: providers } = useQuery({
+	const providersQuery = useQuery({
 		queryKey: ["media-providers"],
 		queryFn: fetchMediaProviders,
 		enabled: open && !localOnly,
-		// Default to just local if fetch fails
 		placeholderData: [],
 	});
-
-	// Get active provider info
-	const activeProviderInfo = React.useMemo(() => {
-		if (activeProvider === "local") {
-			return {
-				id: "local",
-				name: t`Library`,
-				icon: undefined,
-				capabilities: { browse: true, search: false, upload: true, delete: true },
-			};
+	const providers = providersQuery.data ?? [];
+	const urlSourceAvailable =
+		!hideUrlInput &&
+		!localOnly &&
+		(!filters || filters.some((mime) => filtersOverlap(mime, "image/")));
+	const sourceTabs = React.useMemo(() => {
+		const tabs: Array<{ id: string; name: string; icon?: string }> = [
+			{ id: "local", name: t`Library` },
+		];
+		for (const provider of providers) {
+			if (provider.id !== "local") tabs.push(provider);
 		}
-		return providers?.find((p) => p.id === activeProvider);
-	}, [activeProvider, providers, t]);
+		if (urlSourceAvailable) tabs.push({ id: URL_SOURCE, name: t`From URL` });
+		return tabs;
+	}, [providers, t, urlSourceAvailable]);
+	React.useEffect(() => {
+		if (sourceTabs.some((source) => source.id === activeSource)) return;
+		if (activeSource === URL_SOURCE) invalidateUrlProbe();
+		setActiveSource("local");
+	}, [activeSource, invalidateUrlProbe, sourceTabs]);
+	const activeProviderInfo =
+		activeSource === "local"
+			? {
+					id: "local",
+					name: t`Library`,
+					capabilities: { browse: true, search: true, upload: true, delete: false },
+				}
+			: providers.find((provider) => provider.id === activeSource);
 
-	// Fetch local media list (cursor-paginated so libraries beyond the
-	// first page remain selectable from the picker, not just the first 50).
-	// setQueryData is exact-match, so the optimistic dimension update below
-	// must share this exact key with the query that populates it.
-	const mediaQueryKey = ["media", filters?.join(",") ?? "", debouncedSearch.trim()];
-	const {
-		data: localData,
-		isLoading: localLoading,
-		fetchNextPage: fetchNextLocalPage,
-		hasNextPage: hasNextLocalPage,
-		isFetchingNextPage: isFetchingNextLocalPage,
-	} = useInfiniteQuery({
-		queryKey: mediaQueryKey,
-		queryFn: ({ pageParam }) =>
+	const typeItems = React.useMemo(() => {
+		const items: Record<string, string> = { all: t`All types` };
+		for (const [value, label] of [
+			["image", t`Images`],
+			["video", t`Video`],
+			["audio", t`Audio`],
+			["document", t`Documents`],
+		] as const) {
+			const category = mimeForMediaTypeFilter(value);
+			if (intersectMimeFilters(filters, category)?.length !== 0) items[value] = label;
+		}
+		return items;
+	}, [filters, t]);
+	React.useEffect(() => {
+		if (typeFilter in typeItems) return;
+		setTypeFilter("all");
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, [typeFilter, typeItems]);
+	const effectiveMimeFilters = React.useMemo(
+		() => intersectMimeFilters(filters, mimeForMediaTypeFilter(typeFilter)),
+		[filters, typeFilter],
+	);
+	const mimeKey = effectiveMimeFilters?.join(",") ?? "";
+	const localQueryKey = React.useMemo(
+		() =>
+			[
+				"media",
+				"picker",
+				{
+					search: activeSearch,
+					mime: mimeKey,
+					folder: activeSearch ? "all" : (folderId ?? "main"),
+					page,
+					pageSize,
+				},
+			] as const,
+		[activeSearch, folderId, mimeKey, page, pageSize],
+	);
+	const localQuery = useQuery({
+		queryKey: localQueryKey,
+		queryFn: () =>
 			fetchMediaList({
-				mimeType: filters,
-				cursor: pageParam,
-				limit: 100,
-				search: debouncedSearch.trim() || undefined,
+				page,
+				limit: pageSize,
+				search: activeSearch || undefined,
+				mimeType: effectiveMimeFilters,
+				folderId: activeSearch ? undefined : (folderId ?? null),
 			}),
-		initialPageParam: undefined as string | undefined,
-		getNextPageParam: (lastPage) => lastPage.nextCursor,
-		enabled: open && activeProvider === "local",
+		enabled: open && activeSource === "local" && effectiveMimeFilters?.length !== 0,
+		placeholderData: keepPreviousData,
 	});
 
-	// Fetch provider media list. Belt-and-suspenders: the reset effect
-	// forces `activeProvider` back to "local" when `localOnly` is true, but
-	// also gate this query directly so a stale render can't fire an
-	// external request between state updates.
-	const { data: providerData, isLoading: providerLoading } = useQuery({
-		queryKey: ["provider-media", activeProvider, filters?.join(",") ?? "", searchQuery],
+	React.useEffect(() => {
+		if (localQuery.data?.totalCount !== undefined) {
+			setRetainedTotalCount(localQuery.data.totalCount);
+		}
+	}, [localQuery.data?.totalCount]);
+	const fallbackItemCount = localQuery.data?.items.length ?? 0;
+	const totalCount = localQuery.data?.totalCount ?? (retainedTotalCount || fallbackItemCount);
+	const lastPage = Math.max(1, Math.ceil((localQuery.data?.totalCount ?? totalCount) / pageSize));
+	const isRecoveringPage =
+		localQuery.data?.totalCount !== undefined && page > lastPage && activeSource === "local";
+	React.useEffect(() => {
+		if (isRecoveringPage) setPage(lastPage);
+	}, [isRecoveringPage, lastPage]);
+
+	const showFolderResults =
+		activeSource === "local" &&
+		page === 1 &&
+		typeFilter === "all" &&
+		(!folderId || Boolean(activeSearch));
+	const foldersQuery = useInfiniteQuery({
+		queryKey: ["media-folders", "picker", { search: activeSearch }],
+		queryFn: ({ pageParam }) =>
+			fetchMediaFolders({ limit: 100, cursor: pageParam, search: activeSearch || undefined }),
+		initialPageParam: undefined as string | undefined,
+		getNextPageParam: (lastFolderPage) => lastFolderPage.nextCursor,
+		enabled: open && showFolderResults,
+	});
+	const folders = React.useMemo(
+		() => foldersQuery.data?.pages.flatMap((folderPage) => folderPage.items) ?? [],
+		[foldersQuery.data?.pages],
+	);
+	const currentFolderQuery = useQuery({
+		queryKey: ["media-folder", folderId],
+		queryFn: () => fetchMediaFolder(folderId!),
+		enabled: open && activeSource === "local" && Boolean(folderId),
+		retry: (failureCount, error) =>
+			!(error instanceof ApiResponseError && error.code === "NOT_FOUND") && failureCount < 2,
+	});
+	const missingFolder =
+		currentFolderQuery.error instanceof ApiResponseError &&
+		currentFolderQuery.error.code === "NOT_FOUND";
+	React.useEffect(() => {
+		if (!folderId || !missingFolder) return;
+		setFolderId(undefined);
+		setPage(1);
+		setLiveMessage(t`Folder no longer exists. Returned to the main library.`);
+	}, [folderId, missingFolder, t]);
+
+	const providerQuery = useQuery({
+		queryKey: ["provider-media", activeSource, filters?.join(",") ?? "", searchQuery],
 		queryFn: () =>
-			fetchProviderMedia(activeProvider, {
+			fetchProviderMedia(activeSource, {
 				mimeType: filters,
 				limit: 50,
-				query: searchQuery || undefined,
+				query: searchQuery.trim() || undefined,
 			}),
-		enabled: open && !localOnly && activeProvider !== "local",
+		enabled: open && !localOnly && activeSource !== "local" && activeSource !== URL_SOURCE,
 	});
 
-	const isLoading =
-		activeProvider === "local" ? localLoading || isFetchingNextLocalPage : providerLoading;
+	const updateSelection = React.useCallback(
+		(providerId: string, item: MediaItem | MediaProviderItem) => {
+			const key = selectionKey(providerId, item);
+			setSelectedItems((current) => {
+				const exists = current.some((selected) => selected.key === key);
+				if (exists) return current.filter((selected) => selected.key !== key);
+				const next = { key, providerId, item };
+				return multiple ? [...current, next] : [next];
+			});
+		},
+		[multiple],
+	);
+	const ensureSelection = React.useCallback(
+		(providerId: string, item: MediaItem | MediaProviderItem) => {
+			const key = selectionKey(providerId, item);
+			setSelectedItems((current) => {
+				if (current.some((selected) => selected.key === key)) return current;
+				const next = { key, providerId, item };
+				return multiple ? [...current, next] : [next];
+			});
+		},
+		[multiple],
+	);
+	const toMediaItem = React.useCallback(
+		(selected: SelectedMedia): MediaItem => {
+			if (selected.providerId === "local" || selected.providerId === URL_SOURCE) {
+				return selected.item as MediaItem;
+			}
+			const providerItem = selected.item as MediaProviderItem;
+			const dimensions = providerDimensions[selected.key];
+			return providerItemToMediaItem(
+				selected.providerId,
+				dimensions
+					? {
+							...providerItem,
+							width: providerItem.width ?? dimensions.width,
+							height: providerItem.height ?? dimensions.height,
+						}
+					: providerItem,
+			);
+		},
+		[providerDimensions],
+	);
 
-	const [uploadError, setUploadError] = React.useState<string | null>(null);
-
-	// Upload mutation for local provider
 	const uploadLocalMutation = useMutation({
 		mutationFn: (file: File) => uploadMedia(file, { fieldId }),
 		onSuccess: (item) => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
-			if (multiple) {
-				setSelectedItems((prev) => [...prev, { providerId: "local", item }]);
-			} else {
-				setSelectedItem({ providerId: "local", item });
-			}
+			ensureSelection("local", item);
 			setUploadError(null);
 		},
-		onError: (err: Error) => {
-			setUploadError(err.message);
-		},
+		onError: (error: Error) => setUploadError(error.message),
 	});
-
-	// Upload mutation for external providers
 	const uploadProviderMutation = useMutation({
 		mutationFn: ({ providerId, file }: { providerId: string; file: File }) =>
 			uploadToProvider(providerId, file),
 		onSuccess: (item, { providerId }) => {
 			void queryClient.invalidateQueries({ queryKey: ["provider-media", providerId] });
-			if (multiple) {
-				setSelectedItems((prev) => [...prev, { providerId, item }]);
-			} else {
-				setSelectedItem({ providerId, item });
-			}
+			ensureSelection(providerId, item);
 			setUploadError(null);
 		},
-		onError: (err: Error) => {
-			setUploadError(err.message);
-		},
+		onError: (error: Error) => setUploadError(error.message),
 	});
-
 	const isUploading = uploadLocalMutation.isPending || uploadProviderMutation.isPending;
 
-	// Track which items we've already updated dimensions for
-	const updatedDimensionsRef = React.useRef<Set<string>>(new Set());
-
-	// Mutation for updating media dimensions
 	const dimensionsMutation = useMutation({
 		mutationFn: ({ id, width, height }: { id: string; width: number; height: number }) =>
 			updateMedia(id, { width, height }),
-		onSuccess: (_updated, { id, width, height }) => {
-			queryClient.setQueryData(
-				mediaQueryKey,
-				(
-					old:
-						| {
-								pages: { items: MediaItem[]; nextCursor?: string }[];
-								pageParams: unknown[];
-						  }
-						| undefined,
-				) => {
-					if (!old) return old;
-					return {
-						...old,
-						pages: old.pages.map((page) => ({
-							...page,
-							items: page.items.map((item) => (item.id === id ? { ...item, width, height } : item)),
-						})),
-					};
-				},
+		onSuccess: (_item, { id, width, height }) => {
+			queryClient.setQueryData(localQueryKey, (current: typeof localQuery.data) => {
+				if (!current) return current;
+				return {
+					...current,
+					items: current.items.map((item) => (item.id === id ? { ...item, width, height } : item)),
+				};
+			});
+			setSelectedItems((current) =>
+				current.map((selected) =>
+					selected.providerId === "local" && selected.item.id === id
+						? { ...selected, item: { ...selected.item, width, height } }
+						: selected,
+				),
 			);
-
-			if (selectedItem?.providerId === "local" && selectedItem.item.id === id) {
-				setSelectedItem({
-					providerId: "local",
-					item: { ...selectedItem.item, width, height },
-				});
-			}
 		},
-		onError: (error) => {
-			console.warn("Failed to update media dimensions:", error);
-		},
+		onError: (error) => console.warn("Failed to update media dimensions:", error),
 	});
-
-	// Handle dimensions detected for local images missing them
 	const handleDimensionsDetected = React.useCallback(
 		(id: string, width: number, height: number) => {
 			if (updatedDimensionsRef.current.has(id)) return;
@@ -350,93 +455,46 @@ export function MediaPickerModal({
 		},
 		[dimensionsMutation],
 	);
+	const handleBrowserDimensions = React.useCallback(
+		(
+			providerId: string,
+			item: MediaItem | MediaProviderItem,
+			key: string,
+			width: number,
+			height: number,
+		) => {
+			if (providerId === "local") {
+				handleDimensionsDetected(item.id, width, height);
+				return;
+			}
+			setProviderDimensions((current) => ({ ...current, [key]: { width, height } }));
+		},
+		[handleDimensionsDetected],
+	);
 
-	// Get items for current view
-	const items = React.useMemo(() => {
-		if (activeProvider === "local") {
-			const localItems = localData?.pages.flatMap((page) => page.items) || [];
-			return localItems.filter((item) => matchesAnyFilter(item.mimeType, filters));
-		}
-		return providerData?.items || [];
-	}, [activeProvider, localData, providerData?.items, filters]);
-
-	const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-		const files = e.target.files;
-		const file = files?.[0];
+	const resetPage = React.useCallback(() => {
+		setPage(1);
+		setRetainedTotalCount(0);
+	}, []);
+	const changeSource = (source: string) => {
+		if (!source || source === activeSource) return;
+		if (activeSource === URL_SOURCE) invalidateUrlProbe();
+		setActiveSource(source);
+		setSearchQuery("");
+		setUploadError(null);
+	};
+	const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+		const file = event.currentTarget.files?.[0];
 		if (file) {
-			if (activeProvider === "local") {
-				uploadLocalMutation.mutate(file);
-			} else if (activeProviderInfo?.capabilities.upload) {
-				uploadProviderMutation.mutate({ providerId: activeProvider, file });
+			if (activeSource === "local") uploadLocalMutation.mutate(file);
+			else if (activeProviderInfo?.capabilities.upload) {
+				uploadProviderMutation.mutate({ providerId: activeSource, file });
 			}
 		}
-		if (fileInputRef.current) {
-			fileInputRef.current.value = "";
-		}
+		event.currentTarget.value = "";
 	};
-
-	// When providerId is "local", item is always MediaItem; otherwise MediaProviderItem
-	const toMediaItem = (selected: SelectedMedia): MediaItem => {
-		if (selected.providerId === "local") {
-			return selected.item as MediaItem;
-		}
-		const providerItem = selected.item as MediaProviderItem;
-		const dims = providerDimensions[providerItem.id];
-		const itemWithDims = dims
-			? {
-					...providerItem,
-					width: providerItem.width ?? dims.width,
-					height: providerItem.height ?? dims.height,
-				}
-			: providerItem;
-		return providerItemToMediaItem(selected.providerId, itemWithDims);
-	};
-
-	const isItemSelected = (providerId: string, id: string) =>
-		multiple
-			? selectedItems.some((s) => s.providerId === providerId && s.item.id === id)
-			: selectedItem?.providerId === providerId && selectedItem.item.id === id;
-
-	const handleItemClick = (providerId: string, item: MediaItem | MediaProviderItem) => {
-		if (multiple) {
-			setSelectedItems((prev) =>
-				prev.some((s) => s.providerId === providerId && s.item.id === item.id)
-					? prev.filter((s) => !(s.providerId === providerId && s.item.id === item.id))
-					: [...prev, { providerId, item }],
-			);
-		} else {
-			setSelectedItem({ providerId, item });
-		}
-	};
-
-	const handleConfirm = () => {
-		if (multiple) {
-			if (selectedItems.length === 0) return;
-			onSelectMany?.(selectedItems.map(toMediaItem));
-			onOpenChange(false);
-			setSelectedItems([]);
-			setImageUrl("");
-			return;
-		}
-		if (selectedItem) {
-			onSelect(toMediaItem(selectedItem));
-			onOpenChange(false);
-			setSelectedItem(null);
-			setImageUrl("");
-		}
-	};
-
-	const handleClose = () => {
-		onOpenChange(false);
-		setSelectedItem(null);
-		setSelectedItems([]);
-		setImageUrl("");
-		setUrlError(null);
-	};
-
 	const handleUrlSubmit = async () => {
 		if (!imageUrl.trim()) return;
-
 		let url: URL;
 		try {
 			url = new URL(imageUrl.trim());
@@ -444,89 +502,99 @@ export function MediaPickerModal({
 			setUrlError(t`Please enter a valid URL`);
 			return;
 		}
-
+		const probeId = (urlProbeIdRef.current += 1);
 		setIsProbing(true);
 		setUrlError(null);
-
 		try {
-			const sniffedMime = mimeFromUrl(url) ?? "image/unknown";
-
-			// Pre-validate against the field's allowlist so the user sees the error
-			// here rather than at content-save time (where it becomes INVALID_MIME_FOR_FIELD).
-			if (sniffedMime === "image/unknown" && filters && filters.length > 0) {
-				setUrlError(
-					t`Cannot determine MIME type from URL. Use a URL ending in a recognized image extension (e.g. .jpg, .png, .webp).`,
-				);
+			const mimeType = mimeFromUrl(url) ?? "image/unknown";
+			if (mimeType === "image/unknown" && filters?.length) {
+				setUrlError(t`Use a URL ending in a recognized image extension, such as .jpg or .png.`);
 				return;
 			}
-			if (filters && filters.length > 0 && !matchesMimeAllowlist(sniffedMime, filters)) {
-				setUrlError(t`This field does not accept ${sniffedMime} files.`);
+			if (filters?.length && !matchesMimeAllowlist(mimeType, filters)) {
+				setUrlError(t`This field does not accept ${mimeType} files.`);
 				return;
 			}
-
 			const dimensions = await probeImageDimensions(url.href, t`Failed to load image`);
-			const externalItem: MediaItem = {
+			if (urlProbeIdRef.current !== probeId) return;
+			const item: MediaItem = {
 				id: "",
 				filename: url.pathname.split("/").pop() || "external-image",
-				mimeType: sniffedMime,
+				mimeType,
 				url: url.href,
-				provider: "external-url",
+				provider: "external",
 				size: 0,
 				width: dimensions.width,
 				height: dimensions.height,
 				createdAt: new Date().toISOString(),
 			};
-
-			if (multiple) {
-				onSelectMany?.([externalItem]);
-			} else {
-				onSelect(externalItem);
-			}
-			onOpenChange(false);
+			ensureSelection(URL_SOURCE, item);
 			setImageUrl("");
 		} catch {
-			setUrlError(t`Could not load image from URL`);
+			if (urlProbeIdRef.current === probeId) setUrlError(t`Could not load image from URL`);
 		} finally {
-			setIsProbing(false);
+			if (urlProbeIdRef.current === probeId) setIsProbing(false);
 		}
 	};
 
-	const handleUrlKeyDown = (e: React.KeyboardEvent) => {
-		if (e.key === "Enter") {
-			e.preventDefault();
-			void handleUrlSubmit();
-		}
+	const handleConfirm = () => {
+		if (selectedItems.length === 0) return;
+		const items = selectedItems.map(toMediaItem);
+		if (multiple) onSelectMany?.(items);
+		else onSelect(items[0]!);
+		onOpenChange(false);
 	};
-
+	const handleClose = () => {
+		invalidateUrlProbe();
+		onOpenChange(false);
+		setSelectedItems([]);
+	};
+	const confirmText =
+		confirmLabel ??
+		(multiple
+			? isFileKind
+				? plural(selectedItems.length, { one: "Add # file", other: "Add # files" })
+				: plural(selectedItems.length, { one: "Add # image", other: "Add # images" })
+			: t`Select`);
+	const providerItems = React.useMemo(
+		() =>
+			(providerQuery.data?.items ?? []).filter((item) => matchesAnyFilter(item.mimeType, filters)),
+		[filters, providerQuery.data?.items],
+	);
+	const localItems = isRecoveringPage
+		? []
+		: effectiveMimeFilters?.length === 0
+			? []
+			: (localQuery.data?.items ?? []).filter((item) =>
+					matchesAnyFilter(item.mimeType, effectiveMimeFilters),
+				);
 	const canUpload =
-		activeProvider === "local" || (activeProviderInfo?.capabilities.upload ?? false);
-	const canSearch = activeProviderInfo?.capabilities.search ?? false;
-
-	// Build provider tabs - always show local first, then add external providers
-	// Filter out "local" from API response since we add it manually.
-	// When `localOnly` is set, suppress external providers entirely so the
-	// picker can only return locally-stored media (see prop docs).
-	const providerTabs = React.useMemo(() => {
-		const tabs: Array<{ id: string; name: string; icon?: string }> = [
-			{ id: "local", name: t`Library`, icon: undefined },
-		];
-		if (providers && !localOnly) {
-			for (const p of providers) {
-				if (p.id !== "local") {
-					tabs.push({ id: p.id, name: p.name, icon: p.icon });
-				}
-			}
-		}
-		return tabs;
-	}, [providers, localOnly, t]);
+		activeSource === "local" ? !folderId : Boolean(activeProviderInfo?.capabilities.upload);
+	const canSearch = activeSource === "local" || Boolean(activeProviderInfo?.capabilities.search);
+	const currentLoading = activeSource === "local" ? localQuery.isPending : providerQuery.isPending;
+	const currentFetching =
+		activeSource === "local" ? localQuery.isFetching : providerQuery.isFetching;
+	const hasVisibleItems =
+		activeSource === "local" ? localItems.length > 0 : providerItems.length > 0;
 
 	return (
-		<Dialog.Root open={open} onOpenChange={handleClose}>
-			<Dialog className="p-6 max-w-4xl max-h-[80vh] flex flex-col overflow-hidden" size="xl">
-				<div className="flex items-start justify-between gap-4 mb-4">
-					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight">
-						{title}
-					</Dialog.Title>
+		<Dialog.Root
+			open={open}
+			onOpenChange={(nextOpen) => {
+				if (!nextOpen) handleClose();
+			}}
+		>
+			<Dialog
+				size="xl"
+				className="flex max-h-[calc(100dvh-1rem)] min-h-0 min-w-0 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:max-h-[88dvh] sm:min-w-[48rem] sm:max-w-5xl"
+			>
+				<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-4 py-4 sm:px-6">
+					<div className="min-w-0">
+						<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
+						<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
+							{description}
+						</Dialog.Description>
+					</div>
 					<Dialog.Close
 						aria-label={t`Close`}
 						render={(props) => (
@@ -534,461 +602,483 @@ export function MediaPickerModal({
 								{...props}
 								variant="ghost"
 								shape="square"
+								size="sm"
 								aria-label={t`Close`}
-								className="absolute end-4 top-4"
-							>
-								<X className="h-4 w-4" />
-								<span className="sr-only">{t`Close`}</span>
-							</Button>
+								icon={<X aria-hidden="true" />}
+							/>
 						)}
 					/>
-				</div>
+				</header>
 
-				{/* URL Input (image pickers only — probes image dimensions) */}
-				{!hideUrlInput && !localOnly && (
-					<>
-						<div className="border-b pb-4">
-							<Label>{t`Insert from URL`}</Label>
-							<div className="flex gap-2 mt-1.5">
-								<div className="flex-1 relative">
-									<Globe className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-									<Input
-										type="url"
-										placeholder={t`https://example.com/image.jpg`}
-										aria-label={t`Image URL`}
-										value={imageUrl}
-										onChange={(e) => {
-											setImageUrl(e.target.value);
-											setUrlError(null);
-										}}
-										onKeyDown={handleUrlKeyDown}
-										className="ps-9"
-									/>
-								</div>
-								<Button onClick={handleUrlSubmit} disabled={!imageUrl.trim() || isProbing}>
-									{isProbing ? <Loader size="sm" /> : t`Insert`}
-								</Button>
-							</div>
-							{urlError && <p className="text-sm text-kumo-danger mt-1">{urlError}</p>}
-						</div>
-
-						{/* Divider with "or" */}
-						<div className="relative py-2">
-							<div className="absolute inset-0 flex items-center">
-								<span className="w-full border-t" />
-							</div>
-							<div className="relative flex justify-center text-xs uppercase">
-								<span className="bg-kumo-base px-2 text-kumo-subtle">{t`or choose from library`}</span>
-							</div>
-						</div>
-					</>
-				)}
-
-				{/* Provider Tabs */}
-				{providerTabs.length > 1 && (
-					<div className="flex gap-2 border-b pb-3 flex-wrap">
-						{providerTabs.map((tab) => (
-							<button
-								key={tab.id}
-								type="button"
-								onClick={() => {
-									setActiveProvider(tab.id);
-									setSelectedItem(null);
-									setSelectedItems([]);
-									setSearchQuery("");
-								}}
-								className={cn(
-									"flex items-center gap-2 px-4 h-9 text-sm font-medium rounded-md transition-colors whitespace-nowrap",
-									activeProvider === tab.id
-										? "bg-kumo-brand text-white"
-										: "bg-kumo-tint hover:bg-kumo-tint/80 text-kumo-subtle",
-								)}
-							>
-								{tab.icon &&
-									(tab.icon.startsWith("data:") ? (
-										<img src={tab.icon} alt="" className="h-4 w-4" aria-hidden="true" />
-									) : (
-										<span aria-hidden="true">{tab.icon}</span>
-									))}
-								{tab.name}
-							</button>
-						))}
-					</div>
-				)}
-
-				{/* Toolbar */}
-				<div className="flex items-center justify-between pb-3 gap-4">
-					{/* Search — providers that support it, plus the local library
-					    (filename/extension search, handled server-side). */}
-					{canSearch || activeProvider === "local" ? (
-						<div className="relative flex-1 max-w-xs">
-							<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-							<Input
-								type="search"
-								placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
-								aria-label={t`Search media`}
-								value={searchQuery}
-								onChange={(e) => setSearchQuery(e.target.value)}
-								maxLength={MEDIA_SEARCH_MAX_LENGTH}
-								className="ps-9"
-							/>
-						</div>
-					) : (
-						<p className="text-sm text-kumo-subtle">
-							{plural(items.length, { one: "# item", other: "# items" })}
-						</p>
+				<div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+					{sourceTabs.length > 1 && (
+						<Tabs
+							variant="underline"
+							value={activeSource}
+							onValueChange={changeSource}
+							tabs={sourceTabs.map((source) => ({
+								value: source.id,
+								label: (
+									<span className="flex items-center gap-2">
+										{source.icon &&
+											(source.icon.startsWith("data:") ? (
+												<img src={source.icon} alt="" className="size-4" aria-hidden="true" />
+											) : (
+												<span aria-hidden="true">{source.icon}</span>
+											))}
+										{source.name}
+									</span>
+								),
+							}))}
+						/>
 					)}
 
-					{/* Upload button (if provider supports it) */}
-					{canUpload && (
+					{activeSource === URL_SOURCE ? (
+						<section className="mx-auto grid w-full max-w-2xl gap-4 py-6">
+							<div className="grid gap-1.5">
+								<Label htmlFor="media-picker-url">{t`Image URL`}</Label>
+								<div className="flex flex-col gap-2 sm:flex-row">
+									<div className="relative min-w-0 flex-1">
+										<Globe
+											className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-kumo-subtle"
+											aria-hidden="true"
+										/>
+										<Input
+											id="media-picker-url"
+											type="url"
+											aria-label={t`Image URL`}
+											placeholder={t`https://example.com/image.jpg`}
+											value={imageUrl}
+											onChange={(event) => {
+												setImageUrl(event.currentTarget.value);
+												setUrlError(null);
+											}}
+											onKeyDown={(event) => {
+												if (event.key !== "Enter") return;
+												event.preventDefault();
+												void handleUrlSubmit();
+											}}
+											className="ps-9"
+										/>
+									</div>
+									<Button
+										onClick={() => void handleUrlSubmit()}
+										disabled={!imageUrl.trim() || isProbing}
+										loading={isProbing}
+									>
+										{t`Use URL`}
+									</Button>
+								</div>
+								{urlError && (
+									<p role="alert" className="text-sm text-kumo-danger">
+										{urlError}
+									</p>
+								)}
+							</div>
+
+							{selectedItems
+								.filter((selected) => selected.providerId === URL_SOURCE)
+								.map((selected) => (
+									<MediaBrowserItem
+										key={selected.key}
+										item={selected.item as MediaItem}
+										layout="list"
+										selected
+										selectable
+										onClick={(event) => {
+											if (event.detail > 1) return;
+											updateSelection(URL_SOURCE, selected.item);
+										}}
+									/>
+								))}
+						</section>
+					) : (
 						<>
-							<Button
-								size="sm"
-								icon={<Upload />}
-								onClick={() => fileInputRef.current?.click()}
-								disabled={isUploading}
-							>
-								{isUploading ? t`Uploading...` : t`Upload`}
-							</Button>
-							<input
-								ref={fileInputRef}
-								type="file"
-								accept={
-									filters
-										? filters.map((f) => (f.endsWith("/") ? f + "*" : f)).join(",")
-										: undefined
+							{folderId && activeSource === "local" && (
+								<div className="flex min-w-0 items-center gap-2">
+									<Button
+										variant="ghost"
+										size="sm"
+										onClick={() => {
+											setFolderId(undefined);
+											resetPage();
+										}}
+										icon={<ArrowLeft className="rtl:-scale-x-100" aria-hidden="true" />}
+									>
+										{t`Main library`}
+									</Button>
+									<span aria-hidden="true" className="text-kumo-subtle">
+										/
+									</span>
+									<span dir="auto" className="min-w-0 truncate text-sm font-medium">
+										{currentFolderQuery.data?.name ?? t`Folder`}
+									</span>
+								</div>
+							)}
+							{folderId && currentFolderQuery.error && !missingFolder && (
+								<div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-kumo-danger-tint px-3 py-2 text-sm text-kumo-danger">
+									<span>{t`Could not load this folder.`}</span>
+									<Button
+										variant="outline"
+										size="sm"
+										onClick={() => void currentFolderQuery.refetch()}
+									>
+										{t`Retry`}
+									</Button>
+								</div>
+							)}
+
+							<TableToolbar
+								trailing={
+									<div role="group" aria-label={t`View mode`}>
+										<Tabs
+											variant="segmented"
+											value={viewMode}
+											onValueChange={(value) => {
+												if (value === "grid" || value === "list") setViewMode(value);
+											}}
+											tabs={[
+												{
+													value: "grid",
+													label: (
+														<>
+															<SquaresFour className="size-4" aria-hidden="true" />
+															<span className="sr-only">{t`Grid view`}</span>
+														</>
+													),
+												},
+												{
+													value: "list",
+													label: (
+														<>
+															<List className="size-4" aria-hidden="true" />
+															<span className="sr-only">{t`List view`}</span>
+														</>
+													),
+												},
+											]}
+										/>
+									</div>
 								}
-								className="sr-only"
-								onChange={handleFileSelect}
-								aria-label={t`Upload file`}
-							/>
+							>
+								{canSearch && (
+									<TableToolbarSearch
+										size="base"
+										placeholder={activeSource === "local" ? t`Search by filename...` : t`Search...`}
+										aria-label={t`Search media`}
+										value={searchQuery}
+										onChange={(event) => {
+											setSearchQuery(event.currentTarget.value);
+											if (activeSource === "local") resetPage();
+										}}
+										maxLength={MEDIA_SEARCH_MAX_LENGTH}
+										className="w-full flex-1 sm:w-72"
+									/>
+								)}
+								{activeSource === "local" && (
+									<Select
+										size="base"
+										value={typeFilter}
+										onValueChange={(value) => {
+											setTypeFilter(value ?? "all");
+											resetPage();
+										}}
+										items={typeItems}
+										aria-label={t`Filter by type`}
+									/>
+								)}
+								{canUpload && (
+									<>
+										<Button
+											size="sm"
+											onClick={() => fileInputRef.current?.click()}
+											disabled={isUploading}
+											loading={isUploading}
+											icon={<Upload aria-hidden="true" />}
+										>
+											{t`Upload files`}
+										</Button>
+										<input
+											ref={fileInputRef}
+											type="file"
+											accept={
+												filters
+													? filters
+															.map((filter) => (filter.endsWith("/") ? `${filter}*` : filter))
+															.join(",")
+													: undefined
+											}
+											className="sr-only"
+											tabIndex={-1}
+											onChange={handleFileSelect}
+											aria-label={t`Choose files to upload`}
+										/>
+									</>
+								)}
+							</TableToolbar>
+
+							<DialogError message={uploadError ? t`Upload failed: ${uploadError}` : null} />
+							{activeSource === "local" && localQuery.error && localItems.length > 0 && (
+								<div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-kumo-danger-tint px-3 py-2 text-sm text-kumo-danger">
+									<span>{t`The latest media request failed. Showing the previous page.`}</span>
+									<Button variant="outline" size="sm" onClick={() => void localQuery.refetch()}>
+										{t`Retry`}
+									</Button>
+								</div>
+							)}
+
+							{showFolderResults &&
+								(foldersQuery.isPending || folders.length > 0 || foldersQuery.error) && (
+									<section aria-labelledby="media-picker-folders" className="grid gap-2">
+										<div className="flex items-center justify-between gap-2">
+											<h2 id="media-picker-folders" className="text-sm font-semibold">
+												{t`Folders`}
+											</h2>
+											{foldersQuery.error && (
+												<div className="flex items-center gap-2">
+													<span className="text-sm text-kumo-danger">
+														{t`Folders could not be loaded.`}
+													</span>
+													<Button
+														variant="outline"
+														size="sm"
+														onClick={() => void foldersQuery.refetch()}
+													>
+														{t`Retry`}
+													</Button>
+												</div>
+											)}
+										</div>
+										{foldersQuery.isPending && folders.length === 0 ? (
+											<div
+												role="status"
+												className="flex items-center gap-2 text-sm text-kumo-subtle"
+											>
+												<Loader size="sm" />
+												{t`Loading folders`}
+											</div>
+										) : (
+											<div className="grid grid-cols-[repeat(auto-fill,minmax(min(12rem,100%),1fr))] gap-2">
+												{folders.map((folder) => (
+													<MediaBrowserFolder
+														key={folder.id}
+														folder={folder}
+														onOpen={() => {
+															setSearchQuery("");
+															setFolderId(folder.id);
+															resetPage();
+														}}
+													/>
+												))}
+											</div>
+										)}
+										{foldersQuery.hasNextPage && (
+											<Button
+												variant="outline"
+												size="sm"
+												onClick={() => void foldersQuery.fetchNextPage()}
+												disabled={foldersQuery.isFetchingNextPage}
+												loading={foldersQuery.isFetchingNextPage}
+											>
+												{t`Load more folders`}
+											</Button>
+										)}
+									</section>
+								)}
+
+							<div
+								role="region"
+								aria-label={t`Media results`}
+								aria-busy={currentFetching || undefined}
+							>
+								{currentLoading && !hasVisibleItems ? (
+									<div
+										role="status"
+										className="flex min-h-48 items-center justify-center gap-2 text-sm text-kumo-subtle"
+									>
+										<Loader />
+										{t`Loading media`}
+									</div>
+								) : (activeSource === "local" ? localQuery.error : providerQuery.error) &&
+								  !hasVisibleItems ? (
+									<div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
+										<p className="text-sm text-kumo-danger">{t`Could not load media.`}</p>
+										<Button
+											variant="outline"
+											onClick={() =>
+												void (activeSource === "local"
+													? localQuery.refetch()
+													: providerQuery.refetch())
+											}
+										>
+											{t`Retry`}
+										</Button>
+									</div>
+								) : !hasVisibleItems ? (
+									<div className="flex min-h-48 flex-col items-center justify-center gap-3 text-center">
+										<EmptyStateIcon className="size-10 text-kumo-subtle" aria-hidden="true" />
+										<div className="grid gap-1">
+											<h2 className="text-lg font-semibold">{t`No media found`}</h2>
+											<p className="text-sm text-kumo-subtle">
+												{searchQuery.trim()
+													? t`Try another filename or clear your search.`
+													: folderId && activeSource === "local"
+														? t`This folder is empty.`
+														: isFileKind
+															? t`Upload a file to get started`
+															: t`Upload an image to get started`}
+											</p>
+										</div>
+									</div>
+								) : viewMode === "grid" ? (
+									<Grid
+										variant="4up"
+										gap="sm"
+										className="2xl:grid-cols-5"
+										inert={currentFetching || undefined}
+										data-media-items
+									>
+										{(activeSource === "local" ? localItems : providerItems).map((rawItem) => {
+											const key = selectionKey(activeSource, rawItem);
+											const item =
+												activeSource === "local"
+													? (rawItem as MediaItem)
+													: toMediaItem({ key, providerId: activeSource, item: rawItem });
+											return (
+												<MediaBrowserItem
+													key={key}
+													item={item}
+													layout="grid"
+													selectable
+													selected={selectedItems.some((selected) => selected.key === key)}
+													onClick={(event) => {
+														if (event.detail > 1) return;
+														updateSelection(activeSource, rawItem);
+													}}
+													onDimensionsLoaded={(width, height) =>
+														handleBrowserDimensions(activeSource, rawItem, key, width, height)
+													}
+												/>
+											);
+										})}
+									</Grid>
+								) : (
+									<div className="grid gap-2" inert={currentFetching || undefined} data-media-items>
+										{(activeSource === "local" ? localItems : providerItems).map((rawItem) => {
+											const key = selectionKey(activeSource, rawItem);
+											const item =
+												activeSource === "local"
+													? (rawItem as MediaItem)
+													: toMediaItem({ key, providerId: activeSource, item: rawItem });
+											return (
+												<MediaBrowserItem
+													key={key}
+													item={item}
+													layout="list"
+													selectable
+													selected={selectedItems.some((selected) => selected.key === key)}
+													onClick={(event) => {
+														if (event.detail > 1) return;
+														updateSelection(activeSource, rawItem);
+													}}
+													onDimensionsLoaded={(width, height) =>
+														handleBrowserDimensions(activeSource, rawItem, key, width, height)
+													}
+												/>
+											);
+										})}
+									</div>
+								)}
+							</div>
+
+							{activeSource === "local" && totalCount > 0 && (
+								<Pagination
+									page={isRecoveringPage ? lastPage : page}
+									setPage={(nextPage) => {
+										const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+										if (
+											localQuery.isFetching ||
+											!Number.isSafeInteger(nextPage) ||
+											nextPage < 1 ||
+											nextPage > pageCount
+										)
+											return;
+										setPage(nextPage);
+									}}
+									perPage={pageSize}
+									totalCount={totalCount}
+									className="flex-wrap gap-y-3"
+									labels={{
+										navigation: t`Media pagination`,
+										firstPage: t`First page`,
+										previousPage: t`Previous page`,
+										nextPage: t`Next page`,
+										lastPage: t`Last page`,
+										pageNumber: t`Page number`,
+										pageSize: t`Page size`,
+									}}
+								>
+									<Pagination.Info className="min-w-fit">
+										{({ pageShowingRange, totalCount: count }) => (
+											<span role="status">{t`Showing ${pageShowingRange} of ${count ?? 0}`}</span>
+										)}
+									</Pagination.Info>
+									<Pagination.Separator className="hidden sm:block" />
+									<div inert={localQuery.isFetching || undefined} className="contents">
+										<Pagination.PageSize
+											value={pageSize}
+											onChange={(nextPageSize) => {
+												if (
+													localQuery.isFetching ||
+													!MEDIA_BROWSER_PAGE_SIZES.includes(nextPageSize)
+												)
+													return;
+												setPageSize(nextPageSize);
+												resetPage();
+											}}
+											options={MEDIA_BROWSER_PAGE_SIZES}
+											label={t`Per page`}
+										/>
+										<Pagination.Controls
+											pageSelector={
+												Math.ceil(totalCount / pageSize) <= MAX_MEDIA_PAGE_DROPDOWN_ITEMS
+													? "dropdown"
+													: "input"
+											}
+											className="basis-full sm:basis-auto rtl:[&_svg]:-scale-x-100"
+										/>
+									</div>
+								</Pagination>
+							)}
 						</>
 					)}
 				</div>
 
-				{/* Upload error */}
-				<DialogError
-					message={uploadError ? t`Upload failed: ${uploadError}` : null}
-					className="mb-3"
-				/>
-
-				{/* Media Grid */}
-				<div className="flex-1 overflow-y-auto min-h-0">
-					{/*
-					 * Gate the centered loader on items being empty so that "Load More"
-					 * (which sets isLoading=true while fetching the next cursor page)
-					 * does not blank out already-rendered items / lose the user's
-					 * selection. Mirrors the ContentList pattern from #135.
-					 */}
-					{isLoading && items.length === 0 ? (
-						<div className="flex items-center justify-center h-full">
-							<Loader />
-						</div>
-					) : items.length === 0 ? (
-						<div className="flex flex-col items-center justify-center h-full text-center p-8">
-							<EmptyStateIcon className="h-12 w-12 text-kumo-subtle mb-4" aria-hidden="true" />
-							<h3 className="text-lg font-medium">{t`No media found`}</h3>
-							<p className="text-sm text-kumo-subtle mt-1">
-								{canSearch && searchQuery
-									? t`Try a different search term`
-									: canUpload
-										? emptyStateUploadHint
-										: t`No media available from this provider`}
-							</p>
-							{canUpload && !searchQuery && (
-								<Button
-									className="mt-4"
-									icon={<Upload />}
-									onClick={() => fileInputRef.current?.click()}
-								>
-									{emptyStateUploadCta}
-								</Button>
-							)}
-						</div>
-					) : (
-						<ul
-							className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-3 p-1"
-							role="listbox"
-							aria-label={t`Available media`}
-						>
-							{activeProvider === "local"
-								? (items as MediaItem[]).map((item) => (
-										<MediaPickerItem
-											key={item.id}
-											item={item}
-											selected={isItemSelected("local", item.id)}
-											onClick={() => handleItemClick("local", item)}
-											onDoubleClick={() => {
-												// Multi-select: double-click is just a toggle, no instant insert
-												if (multiple) {
-													handleItemClick("local", item);
-													return;
-												}
-												onSelect(item);
-												onOpenChange(false);
-											}}
-											onDimensionsDetected={handleDimensionsDetected}
-										/>
-									))
-								: (items as MediaProviderItem[]).map((item) => (
-										<ProviderMediaItem
-											key={item.id}
-											item={item}
-											selected={isItemSelected(activeProvider, item.id)}
-											onClick={() => handleItemClick(activeProvider, item)}
-											onDoubleClick={() => {
-												if (multiple) {
-													handleItemClick(activeProvider, item);
-													return;
-												}
-												// Merge loaded dimensions for double-click select
-												const dims = providerDimensions[item.id];
-												const itemWithDims = dims
-													? {
-															...item,
-															width: item.width ?? dims.width,
-															height: item.height ?? dims.height,
-														}
-													: item;
-												const mediaItem = providerItemToMediaItem(activeProvider, itemWithDims);
-												onSelect(mediaItem);
-												onOpenChange(false);
-											}}
-											onDimensionsLoaded={(width, height) => {
-												setProviderDimensions((prev) => ({
-													...prev,
-													[item.id]: { width, height },
-												}));
-											}}
-										/>
-									))}
-						</ul>
-					)}
-
-					{/* Load more (local library only — providers handle pagination internally) */}
-					{activeProvider === "local" && hasNextLocalPage && (
-						<div className="flex justify-center py-3">
-							<Button
-								variant="outline"
-								size="sm"
-								onClick={() => void fetchNextLocalPage()}
-								disabled={isFetchingNextLocalPage}
-							>
-								{isFetchingNextLocalPage ? t`Loading...` : t`Load More`}
-							</Button>
-						</div>
-					)}
-				</div>
-
-				{/* Footer */}
-				<div className="flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 border-t pt-4">
-					<div className="flex-1 text-sm text-kumo-subtle">
-						{multiple
-							? selectedItems.length > 0 && (
-									<span>
-										{plural(selectedItems.length, {
-											one: "# item selected",
-											other: "# items selected",
-										})}
-									</span>
-								)
-							: selectedItem && (
-									<span>
-										{t`Selected:`} <strong>{selectedItem.item.filename}</strong>
-										{selectedItem.providerId !== "local" && (
-											<span className="ms-2 text-xs">
-												{t`(from ${providers?.find((p) => p.id === selectedItem.providerId)?.name})`}
-											</span>
-										)}
-									</span>
-								)}
+				<footer className="flex shrink-0 flex-col gap-3 border-t border-kumo-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+					<div className="min-w-0 text-sm text-kumo-subtle">
+						{selectedItems.length > 0
+							? multiple
+								? plural(selectedItems.length, {
+										one: "# item selected",
+										other: "# items selected",
+									})
+								: t`Selected: ${selectedItems[0]!.item.filename}`
+							: t`No media selected`}
 					</div>
-					<Button variant="outline" onClick={handleClose}>
-						{t`Cancel`}
-					</Button>
-					<Button
-						onClick={handleConfirm}
-						disabled={multiple ? selectedItems.length === 0 : !selectedItem}
-					>
-						{t`Insert`}
-					</Button>
-				</div>
+					<div className="flex flex-wrap items-center justify-end gap-2">
+						<Button variant="outline" onClick={handleClose}>
+							{t`Cancel`}
+						</Button>
+						<Button onClick={handleConfirm} disabled={selectedItems.length === 0 || isUploading}>
+							{confirmText}
+						</Button>
+					</div>
+				</footer>
+				<span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+					{liveMessage}
+				</span>
 			</Dialog>
 		</Dialog.Root>
-	);
-}
-
-interface MediaPickerItemProps {
-	item: MediaItem;
-	selected: boolean;
-	onClick: () => void;
-	onDoubleClick: () => void;
-	onDimensionsDetected?: (id: string, width: number, height: number) => void;
-}
-
-function MediaPickerItem({
-	item,
-	selected,
-	onClick,
-	onDoubleClick,
-	onDimensionsDetected,
-}: MediaPickerItemProps) {
-	const { t } = useLingui();
-	const isImage = item.mimeType.startsWith("image/");
-	const needsDimensions = isImage && (!item.width || !item.height);
-	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
-
-	// Serve a resized thumbnail only when the original dimensions are already
-	// known. When they're missing we display the original so `onLoad` can read
-	// the true `naturalWidth`/`naturalHeight` to backfill them — a resized
-	// rendition would report the thumbnail's dimensions and corrupt the record.
-	const displayUrl = needsDimensions
-		? previewUrl
-		: getMediaThumbnailUrl(item.url, item.mimeType, undefined, item.contentHash);
-
-	const handleImageLoad = React.useCallback(
-		(e: React.SyntheticEvent<HTMLImageElement>) => {
-			if (needsDimensions && onDimensionsDetected) {
-				const img = e.currentTarget;
-				if (img.naturalWidth && img.naturalHeight) {
-					onDimensionsDetected(item.id, img.naturalWidth, img.naturalHeight);
-				}
-			}
-		},
-		[needsDimensions, onDimensionsDetected, item.id],
-	);
-
-	return (
-		<li role="option" aria-selected={selected}>
-			<button
-				type="button"
-				className={cn(
-					"relative aspect-square w-full rounded-lg border-2 overflow-hidden transition-all",
-					"hover:border-kumo-brand/50 focus:outline-none focus:ring-2 focus:ring-kumo-ring",
-					selected ? "border-kumo-brand ring-2 ring-kumo-brand/20" : "border-transparent",
-				)}
-				onClick={onClick}
-				onDoubleClick={onDoubleClick}
-				aria-label={t`${item.filename}${selected ? t` (selected)` : ""}`}
-			>
-				{isImage ? (
-					<img
-						src={displayUrl}
-						alt=""
-						className="emdash-media-transparency-grid h-full w-full object-cover"
-						style={{ objectPosition: getMediaObjectPosition(item) }}
-						onLoad={handleImageLoad}
-						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, previewUrl)}
-					/>
-				) : (
-					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">
-						<span className="text-3xl" aria-hidden="true">
-							{getFileIcon(item.mimeType)}
-						</span>
-					</div>
-				)}
-
-				{selected && (
-					<div
-						className="absolute inset-0 bg-kumo-brand/20 flex items-center justify-center"
-						aria-hidden="true"
-					>
-						<div className="bg-kumo-brand text-white rounded-full p-1">
-							<Check className="h-4 w-4" />
-						</div>
-					</div>
-				)}
-
-				<div
-					className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent p-2"
-					aria-hidden="true"
-				>
-					<p className="text-xs text-white truncate">{item.filename}</p>
-				</div>
-			</button>
-		</li>
-	);
-}
-
-interface ProviderMediaItemProps {
-	item: MediaProviderItem;
-	selected: boolean;
-	onClick: () => void;
-	onDoubleClick: () => void;
-	/** Callback when image dimensions are loaded (for providers that don't return dimensions) */
-	onDimensionsLoaded?: (width: number, height: number) => void;
-}
-
-function ProviderMediaItem({
-	item,
-	selected,
-	onClick,
-	onDoubleClick,
-	onDimensionsLoaded,
-}: ProviderMediaItemProps) {
-	const { t } = useLingui();
-	const isImage = item.mimeType.startsWith("image/");
-	const needsDimensions = isImage && (!item.width || !item.height);
-
-	const handleImageLoad = React.useCallback(
-		(e: React.SyntheticEvent<HTMLImageElement>) => {
-			if (needsDimensions && onDimensionsLoaded) {
-				const img = e.currentTarget;
-				if (img.naturalWidth && img.naturalHeight) {
-					onDimensionsLoaded(img.naturalWidth, img.naturalHeight);
-				}
-			}
-		},
-		[needsDimensions, onDimensionsLoaded],
-	);
-
-	return (
-		<li role="option" aria-selected={selected}>
-			<button
-				type="button"
-				className={cn(
-					"relative aspect-square w-full rounded-lg border-2 overflow-hidden transition-all",
-					"hover:border-kumo-brand/50 focus:outline-none focus:ring-2 focus:ring-kumo-ring",
-					selected ? "border-kumo-brand ring-2 ring-kumo-brand/20" : "border-transparent",
-				)}
-				onClick={onClick}
-				onDoubleClick={onDoubleClick}
-				aria-label={t`${item.filename}${selected ? t` (selected)` : ""}`}
-			>
-				{isImage && item.previewUrl ? (
-					<img
-						src={item.previewUrl}
-						alt=""
-						className="emdash-media-transparency-grid h-full w-full object-cover"
-						onLoad={handleImageLoad}
-					/>
-				) : (
-					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">
-						<span className="text-3xl" aria-hidden="true">
-							{getFileIcon(item.mimeType)}
-						</span>
-					</div>
-				)}
-
-				{selected && (
-					<div
-						className="absolute inset-0 bg-kumo-brand/20 flex items-center justify-center"
-						aria-hidden="true"
-					>
-						<div className="bg-kumo-brand text-white rounded-full p-1">
-							<Check className="h-4 w-4" />
-						</div>
-					</div>
-				)}
-
-				<div
-					className="absolute bottom-0 start-0 end-0 bg-gradient-to-t from-black/60 to-transparent p-2"
-					aria-hidden="true"
-				>
-					<p className="text-xs text-white truncate">{item.filename}</p>
-				</div>
-			</button>
-		</li>
 	);
 }
 
