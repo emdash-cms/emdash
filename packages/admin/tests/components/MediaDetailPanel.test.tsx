@@ -155,6 +155,8 @@ async function openFocalEditor(screen: Awaited<ReturnType<typeof renderPanel>>) 
 	const editTab = screen.getByRole("tab", { name: "Edit image" }).element();
 	editTab.focus();
 	editTab.click();
+	const focalTab = screen.getByRole("tab", { name: "Focal point" });
+	if (focalTab.query()) focalTab.element().click();
 	const surface = screen.getByRole("button", {
 		name: "Focal point. Use arrow keys to move it.",
 	});
@@ -168,7 +170,7 @@ async function openCropEditor(screen: Awaited<ReturnType<typeof renderPanel>>) {
 	screen.getByRole("tab", { name: "Edit image" }).element().click();
 	const cropTab = screen.getByRole("tab", { name: "Crop" });
 	await expect.element(cropTab).toBeVisible();
-	cropTab.element().click();
+	if (cropTab.element().getAttribute("aria-selected") !== "true") cropTab.element().click();
 	await expect
 		.element(
 			screen.getByRole("group", {
@@ -181,6 +183,7 @@ async function openCropEditor(screen: Awaited<ReturnType<typeof renderPanel>>) {
 async function resizeCrop(screen: Awaited<ReturnType<typeof renderPanel>>) {
 	const handle = screen.getByRole("button", { name: "Resize crop from bottom-right corner" });
 	handle.element().focus();
+	await expect.element(handle).toHaveFocus();
 	await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
 	await expect.element(screen.getByText(/^Crop area \d+ by \d+ pixels\.$/)).toBeInTheDocument();
 }
@@ -269,8 +272,6 @@ describe("MediaDetailPanel", () => {
 		);
 
 		screen.getByRole("tab", { name: "Edit image" }).element().click();
-		await expect.element(screen.getByTestId("focal-preview-square")).toBeVisible();
-		screen.getByRole("tab", { name: "Crop" }).element().click();
 		await expect
 			.element(
 				screen.getByRole("group", {
@@ -278,6 +279,8 @@ describe("MediaDetailPanel", () => {
 				}),
 			)
 			.toBeVisible();
+		screen.getByRole("tab", { name: "Focal point" }).element().click();
+		await expect.element(screen.getByTestId("focal-preview-square")).toBeVisible();
 
 		await vi.waitFor(() =>
 			expect(dialog.getBoundingClientRect().height).toBeLessThan(detailsHeight),
@@ -512,6 +515,43 @@ describe("MediaDetailPanel", () => {
 		}
 	});
 
+	it("aligns focal-point previews before painting the mode switch", async () => {
+		const nativeGetBoundingClientRect = HTMLElement.prototype.getBoundingClientRect;
+		const boundsSpy = vi
+			.spyOn(HTMLElement.prototype, "getBoundingClientRect")
+			.mockImplementation(function () {
+				if (
+					this.classList.contains("emdash-media-transparency-grid") &&
+					this.closest('[data-testid="media-detail-dialog-preview-column"]')
+				) {
+					return { bottom: 320 } as DOMRect;
+				}
+				if (this.querySelector('[data-testid="focal-preview-portrait"]')) {
+					return { bottom: 330 } as DOMRect;
+				}
+				return nativeGetBoundingClientRect.call(this);
+			});
+
+		try {
+			const screen = await renderPanel({
+				item: makeLocalItem({ url: TEST_IMAGE_URL }),
+				canDuplicateCrop: true,
+			});
+			screen.getByRole("tab", { name: "Edit image" }).element().click();
+			await expect.element(screen.getByRole("tab", { name: "Crop" })).toBeVisible();
+
+			screen.getByRole("tab", { name: "Focal point" }).element().click();
+			const previewSection = screen
+				.getByTestId("focal-preview-portrait")
+				.element()
+				.closest("section")!;
+
+			expect(previewSection.style.transform).toBe("translateY(-10px)");
+		} finally {
+			boundsSpy.mockRestore();
+		}
+	});
+
 	it("shows crop only for ready supported local images with an allowed action", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
@@ -524,10 +564,9 @@ describe("MediaDetailPanel", () => {
 			Array.from(editModeTabs.element().querySelectorAll('[role="tab"]'), (tab) => tab.textContent),
 		).toEqual(["Crop", "Focal point"]);
 		await expect
-			.element(screen.getByRole("tab", { name: "Focal point" }))
+			.element(screen.getByRole("tab", { name: "Crop" }))
 			.toHaveAttribute("aria-selected", "true");
 		await expect.element(screen.getByRole("tab", { name: "Crop" })).toBeVisible();
-		screen.getByRole("tab", { name: "Crop" }).element().click();
 		await vi.waitFor(() => {
 			const image = screen
 				.getByTestId("media-detail-dialog-preview-column")
@@ -548,7 +587,7 @@ describe("MediaDetailPanel", () => {
 		const editPane = screen.getByTestId("media-detail-dialog-details-column").element();
 		await vi.waitFor(() => expect(getComputedStyle(editPane).overflowY).not.toBe("hidden"));
 
-		screen.getByRole("tab", { name: "Crop" }).element().click();
+		screen.getByRole("tab", { name: "Focal point" }).element().click();
 		expect(getComputedStyle(editPane).overflowY).toBe("hidden");
 		await vi.waitFor(() => expect(getComputedStyle(editPane).overflowY).not.toBe("hidden"));
 	});
@@ -563,7 +602,16 @@ describe("MediaDetailPanel", () => {
 	])("hides crop for a %s", async (_label, item) => {
 		const screen = await renderPanel({ item, canDuplicateCrop: true });
 		const editImage = screen.getByRole("tab", { name: "Edit image" });
-		if (editImage.query()) editImage.element().click();
+		if (editImage.query()) {
+			editImage.element().click();
+			await expect
+				.element(
+					screen.getByRole("button", {
+						name: "Focal point. Use arrow keys to move it.",
+					}),
+				)
+				.toBeVisible();
+		}
 		expect(screen.getByRole("tab", { name: "Crop" }).query()).toBeNull();
 	});
 
@@ -643,6 +691,7 @@ describe("MediaDetailPanel", () => {
 			.toBeDisabled();
 		const rightHandle = screen.getByRole("button", { name: "Resize crop from right edge" });
 		rightHandle.element().focus();
+		await expect.element(rightHandle).toHaveFocus();
 		await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
 		await expect.element(screen.getByRole("button", { name: "Create cropped copy" })).toBeEnabled();
 		await expect.element(screen.getByRole("button", { name: "Replace original" })).toBeDisabled();

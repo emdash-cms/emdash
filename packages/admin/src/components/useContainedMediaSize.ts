@@ -15,12 +15,11 @@ export function useContainedMediaSize(
 		const frame = frameRef.current;
 		if (!frame) return;
 		const updateFrameSize = () => {
-			const bounds = frame.getBoundingClientRect();
-			if (bounds.width <= 0 || bounds.height <= 0) return;
+			const width = frame.clientWidth;
+			const height = frame.clientHeight;
+			if (width <= 0 || height <= 0) return;
 			setFrameSize((current) =>
-				current?.width === bounds.width && current.height === bounds.height
-					? current
-					: { width: bounds.width, height: bounds.height },
+				current?.width === width && current.height === height ? current : { width, height },
 			);
 		};
 		updateFrameSize();

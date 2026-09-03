@@ -15,10 +15,17 @@ type ReplaceMetadata = typeof handleMediaReplaceMetadata;
 
 function memoryStorage() {
 	const objects = new Map<string, Uint8Array>();
-	const upload = vi.fn(async (options: { key: string; body: Uint8Array; contentType: string }) => {
-		objects.set(options.key, options.body);
-		return { key: options.key, url: `/media/${options.key}`, size: options.body.byteLength };
-	});
+	const upload = vi.fn(
+		async (options: {
+			key: string;
+			body: Uint8Array;
+			contentType: string;
+			cacheControl?: string;
+		}) => {
+			objects.set(options.key, options.body);
+			return { key: options.key, url: `/media/${options.key}`, size: options.body.byteLength };
+		},
+	);
 	return { objects, upload };
 }
 
@@ -153,6 +160,11 @@ describe("PUT /media/:id/replace", () => {
 			createdAt: original.createdAt,
 		});
 		expect(storage.objects.get(original.storageKey)).toEqual(croppedBytes);
+		expect(storage.upload).toHaveBeenCalledWith(
+			expect.objectContaining({
+				cacheControl: "public, max-age=0, must-revalidate",
+			}),
+		);
 		expect((await repo.findMany()).items).toHaveLength(1);
 	});
 

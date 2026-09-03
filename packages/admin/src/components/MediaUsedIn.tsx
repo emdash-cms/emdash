@@ -164,7 +164,7 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 					{refreshError && <UsageError onRetry={() => void usageQuery.refetch()} />}
 
 					{entries.length > 0 ? (
-						<ul className="grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto overscroll-contain p-px">
+						<ul className="grid min-h-0 flex-1 grid-cols-2 content-start gap-3 overflow-y-auto overscroll-contain p-0.5">
 							{entries.map((entry) => (
 								<li key={`${entry.collection}:${entry.contentId}`}>
 									<UsageEntry

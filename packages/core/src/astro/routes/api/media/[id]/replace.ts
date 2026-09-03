@@ -3,6 +3,7 @@ import type { APIRoute } from "astro";
 import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaReplaceMetadataForm } from "#api/schemas.js";
+import { MUTABLE_MEDIA_CACHE_CONTROL } from "#media/image-endpoint.js";
 import { normalizeMime } from "#media/mime.js";
 import { computeContentHash } from "#utils/hash.js";
 
@@ -111,6 +112,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 				key: media.storageKey,
 				body: bytes,
 				contentType: sourceMime,
+				cacheControl: MUTABLE_MEDIA_CACHE_CONTROL,
 			});
 		} catch (error) {
 			return handleError(error, "Failed to replace media", "MEDIA_REPLACE_ERROR");

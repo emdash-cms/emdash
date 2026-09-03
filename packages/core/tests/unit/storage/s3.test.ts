@@ -302,19 +302,30 @@ describe("S3Storage same-key upload", () => {
 			key: "hero.png",
 			body: new Uint8Array([1, 2, 3]),
 			contentType: "image/png",
+			cacheControl: "public, max-age=0, must-revalidate",
 		});
 		await storage.upload({
 			key: "hero.png",
 			body: new Uint8Array([9, 8]),
 			contentType: "image/png",
+			cacheControl: "public, max-age=0, must-revalidate",
 		});
 
 		const inputs = s3Send.mock.calls.map(
-			([command]) => (command as { input: { Key: string; Body: Uint8Array } }).input,
+			([command]) =>
+				(command as { input: { Key: string; Body: Uint8Array; CacheControl: string } }).input,
 		);
 		expect(inputs).toMatchObject([
-			{ Key: "hero.png", Body: new Uint8Array([1, 2, 3]) },
-			{ Key: "hero.png", Body: new Uint8Array([9, 8]) },
+			{
+				Key: "hero.png",
+				Body: new Uint8Array([1, 2, 3]),
+				CacheControl: "public, max-age=0, must-revalidate",
+			},
+			{
+				Key: "hero.png",
+				Body: new Uint8Array([9, 8]),
+				CacheControl: "public, max-age=0, must-revalidate",
+			},
 		]);
 	});
 });

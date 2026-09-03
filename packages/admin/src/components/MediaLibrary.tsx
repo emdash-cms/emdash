@@ -1720,7 +1720,7 @@ function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGr
 						)}
 						alt={item.alt || item.filename}
 						draggable={false}
-						className="emdash-media-transparency-grid h-full w-full object-contain"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
 						style={{ objectPosition: getMediaObjectPosition(item) }}
 						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, previewUrl)}
 					/>

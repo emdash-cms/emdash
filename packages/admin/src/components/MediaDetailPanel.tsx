@@ -201,6 +201,13 @@ export function MediaDetailPanel({
 	const canDelete = !isProviderAsset || Boolean(canDeleteProp);
 	const localItem = isLocalMediaItem(item) ? item : null;
 	const canMoveLocation = Boolean(localItem && canMoveLocationProp);
+	const cropMime = normalizeCropMime(item.mimeType);
+	const canShowCrop = Boolean(
+		localItem &&
+		item.status === "ready" &&
+		["image/jpeg", "image/png", "image/webp"].includes(cropMime) &&
+		(canCropOriginal || canDuplicateCrop),
+	);
 
 	const [filename, setFilename] = React.useState(item.filename);
 	const [alt, setAlt] = React.useState(item.alt ?? "");
@@ -214,7 +221,9 @@ export function MediaDetailPanel({
 	);
 	const [focalPreviewOffset, setFocalPreviewOffset] = React.useState(0);
 	const [activeTab, setActiveTab] = React.useState<MediaDetailTab>("details");
-	const [imageEditMode, setImageEditMode] = React.useState<ImageEditMode>("focal-point");
+	const [imageEditMode, setImageEditMode] = React.useState<ImageEditMode>(
+		canShowCrop ? "crop" : "focal-point",
+	);
 	const [suppressImageModeOverflow, setSuppressImageModeOverflow] = React.useState(false);
 	const [suppressDialogResizeOverflow, setSuppressDialogResizeOverflow] = React.useState(false);
 	const [cropAspectMode, setCropAspectMode] = React.useState<CropAspectMode>("original");
@@ -262,7 +271,7 @@ export function MediaDetailPanel({
 		setFocalPoint(normalizeMediaFocalPoint(item));
 		setFocalPreviewOffset(0);
 		setActiveTab("details");
-		setImageEditMode("focal-point");
+		setImageEditMode(canShowCrop ? "crop" : "focal-point");
 		setCropAspectMode("original");
 		setCropSelection(undefined);
 		setCropPixels(null);
@@ -306,7 +315,7 @@ export function MediaDetailPanel({
 			});
 		};
 
-		alignPreview();
+		updateOffset();
 		const animationListenerFrame = window.requestAnimationFrame(() => {
 			resizeAnimation = dialogResizeAnimationRef.current;
 			resizeAnimation?.addEventListener("finish", alignPreview, { once: true });
@@ -375,13 +384,6 @@ export function MediaDetailPanel({
 	const hasTabs = canEditMetadata || hasUsage;
 	const hasChanges = metadataChanged || locationChanged;
 	const isConfirmOpen = showDeleteConfirm || showDiscardConfirm || showCropConfirm;
-	const cropMime = normalizeCropMime(item.mimeType);
-	const canShowCrop = Boolean(
-		localItem &&
-		item.status === "ready" &&
-		["image/jpeg", "image/png", "image/webp"].includes(cropMime) &&
-		(canCropOriginal || canDuplicateCrop),
-	);
 	const mediaPreviewUrl = localItem
 		? getMediaPreviewUrl(item.url, item.contentHash ?? cropPreviewKey)
 		: item.url;
@@ -1442,7 +1444,7 @@ export function MediaDetailPanel({
 											</div>
 											<section
 												ref={focalPreviewSectionRef}
-												className="mt-auto grid gap-2 pt-4 md:pt-2"
+												className="mt-auto grid gap-2 border-t border-kumo-line pt-4 md:pt-2"
 												style={{ transform: `translateY(${focalPreviewOffset}px)` }}
 											>
 												<h3 className="text-sm font-semibold">{t`Preview`}</h3>
