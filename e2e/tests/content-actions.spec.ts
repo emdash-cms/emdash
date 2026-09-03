@@ -172,7 +172,9 @@ test.describe("Schedule content", () => {
 		await expect(page.locator('[role="menuitem"][data-highlighted]')).toHaveCount(1);
 		await expect(page.getByText("Choose when this draft goes live", { exact: true })).toBeVisible();
 		await page.keyboard.press("Escape");
-		await expect(page.getByText("Choose when this draft goes live", { exact: true })).not.toBeVisible();
+		await expect(
+			page.getByText("Choose when this draft goes live", { exact: true }),
+		).not.toBeVisible();
 		await expect(publishButton).toHaveAttribute("aria-expanded", "true");
 		await page.keyboard.press("Escape");
 		await expect(publishButton).toBeFocused();
