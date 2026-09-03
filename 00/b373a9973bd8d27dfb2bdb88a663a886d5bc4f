@@ -1,0 +1,29 @@
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_829bdb541ea05c::t_380ffeb2abb440 277-285,288-290,295-299,303,1021,1030-1036,1038-1043
+docs/technical-specs/content-editor-publishing-panel.md
+  s_1ec6f4ec1eca53::t_6ca6bc8650639f 123,310
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "00b373a9973bd8d27dfb2bdb88a663a886d5bc4f",
+  "prompts": {},
+  "sessions": {
+    "s_1ec6f4ec1eca53": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0662e-b76e-73e3-bd46-13da4719b8ae",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

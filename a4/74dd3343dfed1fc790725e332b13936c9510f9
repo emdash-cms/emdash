@@ -1,0 +1,21 @@
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_829bdb541ea05c::t_965478e414ffb4 287
+packages/admin/src/components/PublishingDateTimeEditor.tsx
+  s_829bdb541ea05c::t_a51ab39baf0820 481
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a474dd3343dfed1fc790725e332b13936c9510f9",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
