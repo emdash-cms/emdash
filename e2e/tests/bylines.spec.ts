@@ -92,6 +92,25 @@ test.describe("Bylines", () => {
 		await page.getByRole("button", { name: "Select image" }).click();
 		const dialog = page.locator('[role="dialog"]').filter({ hasText: "Select Avatar" });
 		await expect(dialog).toBeVisible();
+		await expect(dialog).not.toContainText("No media selected");
+
+		const [libraryTabBox, uploadButtonBox, searchBox] = await Promise.all([
+			dialog.getByRole("tab", { name: "Library" }).boundingBox(),
+			dialog.getByRole("button", { name: "Upload files" }).boundingBox(),
+			dialog.getByRole("searchbox", { name: "Search media" }).boundingBox(),
+		]);
+		expect(libraryTabBox).not.toBeNull();
+		expect(uploadButtonBox).not.toBeNull();
+		expect(searchBox).not.toBeNull();
+		expect(
+			Math.abs(
+				libraryTabBox!.y +
+					libraryTabBox!.height / 2 -
+					uploadButtonBox!.y -
+					uploadButtonBox!.height / 2,
+			),
+		).toBeLessThanOrEqual(2);
+		expect(uploadButtonBox!.height).toBe(searchBox!.height);
 
 		const uploadDone = page.waitForResponse(
 			(res) => /\/api\/media/.test(res.url()) && res.request().method() === "POST" && res.ok(),

@@ -707,7 +707,7 @@ export function MediaPickerModal({
 				size="xl"
 				className="flex max-h-[calc(100dvh-1rem)] min-h-0 min-w-0 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:max-h-[88dvh] sm:min-w-[48rem] sm:max-w-5xl"
 			>
-				<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-4 py-4 sm:px-6">
+				<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-7">
 					<div className="min-w-0">
 						<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
 						<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
@@ -721,7 +721,7 @@ export function MediaPickerModal({
 								{...props}
 								variant="ghost"
 								shape="square"
-								size="sm"
+								size="base"
 								aria-label={t`Close`}
 								icon={<X aria-hidden="true" />}
 							/>
@@ -730,7 +730,7 @@ export function MediaPickerModal({
 				</header>
 
 				<div
-					className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+					className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 sm:px-7"
 					onDragOver={(event) => {
 						if (canUpload && event.dataTransfer.types.includes("Files")) event.preventDefault();
 					}}
@@ -740,28 +740,65 @@ export function MediaPickerModal({
 						enqueueFiles([...event.dataTransfer.files]);
 					}}
 				>
-					{sourceTabs.length > 1 && (
-						<div aria-disabled={uploadQueue.hasUnfinished || undefined} data-source-tabs>
-							<Tabs
-								variant="underline"
-								value={activeSource}
-								onValueChange={changeSource}
-								tabs={sourceTabs.map((source) => ({
-									value: source.id,
-									render: (props) => <button {...props} disabled={uploadQueue.hasUnfinished} />,
-									label: (
-										<span className="flex items-center gap-2">
-											{source.icon &&
-												(source.icon.startsWith("data:") ? (
-													<img src={source.icon} alt="" className="size-4" aria-hidden="true" />
-												) : (
-													<span aria-hidden="true">{source.icon}</span>
-												))}
-											{source.name}
-										</span>
-									),
-								}))}
-							/>
+					{(sourceTabs.length > 1 || canUpload) && (
+						<div className="flex flex-wrap items-center gap-2">
+							{sourceTabs.length > 1 && (
+								<div aria-disabled={uploadQueue.hasUnfinished || undefined} data-source-tabs>
+									<Tabs
+										variant="segmented"
+										size="base"
+										value={activeSource}
+										onValueChange={changeSource}
+										tabs={sourceTabs.map((source) => ({
+											value: source.id,
+											render: (props) => <button {...props} disabled={uploadQueue.hasUnfinished} />,
+											label: (
+												<span className="flex items-center gap-2">
+													{source.icon &&
+														(source.icon.startsWith("data:") ? (
+															<img src={source.icon} alt="" className="size-4" aria-hidden="true" />
+														) : (
+															<span aria-hidden="true">{source.icon}</span>
+														))}
+													{source.name}
+												</span>
+											),
+										}))}
+									/>
+								</div>
+							)}
+							{canUpload && (
+								<>
+									<Button
+										variant="outline"
+										size="base"
+										className="ms-auto"
+										onClick={() => fileInputRef.current?.click()}
+										icon={<Upload aria-hidden="true" />}
+									>
+										{t`Upload files`}
+									</Button>
+									<input
+										ref={fileInputRef}
+										type="file"
+										multiple={multiple}
+										accept={
+											filters
+												? filters
+														.map((filter) => (filter.endsWith("/") ? `${filter}*` : filter))
+														.join(",")
+												: undefined
+										}
+										className="sr-only"
+										tabIndex={-1}
+										onChange={(event) => {
+											enqueueFiles([...(event.currentTarget.files ?? [])]);
+											event.currentTarget.value = "";
+										}}
+										aria-label={t`Choose files to upload`}
+									/>
+								</>
+							)}
 						</div>
 					)}
 
@@ -919,36 +956,6 @@ export function MediaPickerModal({
 										items={typeItems}
 										aria-label={t`Filter by type`}
 									/>
-								)}
-								{canUpload && (
-									<>
-										<Button
-											size="sm"
-											onClick={() => fileInputRef.current?.click()}
-											icon={<Upload aria-hidden="true" />}
-										>
-											{t`Upload files`}
-										</Button>
-										<input
-											ref={fileInputRef}
-											type="file"
-											multiple={multiple}
-											accept={
-												filters
-													? filters
-															.map((filter) => (filter.endsWith("/") ? `${filter}*` : filter))
-															.join(",")
-													: undefined
-											}
-											className="sr-only"
-											tabIndex={-1}
-											onChange={(event) => {
-												enqueueFiles([...(event.currentTarget.files ?? [])]);
-												event.currentTarget.value = "";
-											}}
-											aria-label={t`Choose files to upload`}
-										/>
-									</>
 								)}
 							</TableToolbar>
 
@@ -1245,22 +1252,13 @@ export function MediaPickerModal({
 					)}
 				</div>
 
-				<footer className="flex shrink-0 flex-col gap-3 border-t border-kumo-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-					<div className="min-w-0 text-sm text-kumo-subtle">
-						{selectedItems.length > 0
-							? multiple
-								? plural(selectedItems.length, {
-										one: "# item selected",
-										other: "# items selected",
-									})
-								: t`Selected: ${selectedItems[0]!.item.filename}`
-							: t`No media selected`}
-					</div>
+				<footer className="flex shrink-0 justify-end border-t border-kumo-line px-5 py-3 sm:px-7">
 					<div className="flex flex-wrap items-center justify-end gap-2">
 						<Button variant="outline" onClick={handleClose}>
 							{t`Cancel`}
 						</Button>
 						<Button
+							variant="primary"
 							onClick={handleConfirm}
 							disabled={selectedItems.length === 0 || uploadQueue.hasUnfinished}
 						>

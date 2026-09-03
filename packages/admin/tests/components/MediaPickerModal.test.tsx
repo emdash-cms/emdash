@@ -116,7 +116,17 @@ describe("MediaPickerModal", () => {
 			item.element().click();
 
 			await expect.element(item).toHaveAttribute("aria-pressed", "true");
-			await expect.element(screen.getByText("Selected: photo.jpg")).toBeInTheDocument();
+		});
+
+		it("keeps the footer free of redundant selection copy", async () => {
+			const screen = await renderModal();
+			expect(document.body.textContent).not.toContain("No media selected");
+
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeInTheDocument();
+			item.element().click();
+
+			expect(document.body.textContent).not.toContain("Selected: photo.jpg");
 		});
 
 		it("double click does not bypass confirmation", async () => {
