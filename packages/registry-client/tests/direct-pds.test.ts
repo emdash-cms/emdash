@@ -119,6 +119,18 @@ describe("DirectPdsClient", () => {
 		expect(harness.fixture.pds.callsTo("com.atproto.repo.listRecords")).toHaveLength(0);
 	});
 
+	it("reports a missing profile distinctly in a repository export", async () => {
+		const harness = await createPublisher();
+		await harness.publisher.repo.deleteRecord(
+			"com.emdashcms.experimental.package.profile",
+			"gallery",
+		);
+
+		await expect(client(harness).getPackageRepository("gallery")).rejects.toMatchObject({
+			code: "RECORD_NOT_FOUND",
+		});
+	});
+
 	it("reports a missing repository export distinctly from other PDS failures", async () => {
 		const harness = await createPublisher();
 		const fetch: typeof globalThis.fetch = () =>

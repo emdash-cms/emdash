@@ -897,6 +897,15 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return this.#workflowConnections.listPending(limit, now);
 	}
 
+	getWorkflowConnectionRequest(
+		publisherDid: string,
+		requestId: string,
+		now = Date.now(),
+	): StoredWorkflowConnectionRequest | null {
+		this.#assertPublisherDid(publisherDid);
+		return this.#workflowConnections.get(requestId, now);
+	}
+
 	async rejectWorkflowConnection(
 		publisherDid: string,
 		requestId: string,
