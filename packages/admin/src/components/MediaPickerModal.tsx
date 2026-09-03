@@ -16,7 +16,9 @@ import {
 	ArrowLeft,
 	Globe,
 	Image,
+	ImagesSquare,
 	List,
+	LinkSimple,
 	Paperclip,
 	SquaresFour,
 	Upload,
@@ -789,19 +791,27 @@ export function MediaPickerModal({
 									<Tabs
 										variant="segmented"
 										size="base"
+										listClassName="px-0"
+										indicatorClassName="rounded-lg"
 										value={activeSource}
 										onValueChange={changeSource}
 										tabs={sourceTabs.map((source) => ({
 											value: source.id,
+											className: "my-0 h-9 rounded-lg px-3",
 											render: (props) => <button {...props} disabled={uploadQueue.hasUnfinished} />,
 											label: (
 												<span className="flex items-center gap-2">
-													{source.icon &&
-														(source.icon.startsWith("data:") ? (
+													{source.id === "local" ? (
+														<ImagesSquare className="size-4" aria-hidden="true" />
+													) : source.id === URL_SOURCE ? (
+														<LinkSimple className="size-4" aria-hidden="true" />
+													) : source.icon ? (
+														source.icon.startsWith("data:") ? (
 															<img src={source.icon} alt="" className="size-4" aria-hidden="true" />
 														) : (
 															<span aria-hidden="true">{source.icon}</span>
-														))}
+														)
+													) : null}
 													{source.name}
 												</span>
 											),
@@ -850,8 +860,8 @@ export function MediaPickerModal({
 								className="h-full w-full overscroll-contain"
 								data-media-results-viewport
 							>
-								<ScrollArea.Content className="space-y-4 px-5 pb-4 sm:px-7">
-									<section className="mx-auto grid w-full max-w-2xl gap-4 py-6">
+								<ScrollArea.Content className="grid min-h-full content-center gap-4 px-5 py-4 sm:px-7">
+									<section className="mx-auto grid w-full max-w-2xl gap-4">
 										<div className="grid gap-1.5">
 											<Label htmlFor="media-picker-url">{t`Image URL`}</Label>
 											<div className="flex flex-col gap-2 sm:flex-row">
@@ -1158,7 +1168,6 @@ export function MediaPickerModal({
 												<Grid
 													variant="4up"
 													gap="sm"
-													className="2xl:grid-cols-5"
 													inert={currentFetching || undefined}
 													data-media-items
 												>

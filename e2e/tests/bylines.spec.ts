@@ -112,6 +112,29 @@ test.describe("Bylines", () => {
 			),
 		).toBeLessThanOrEqual(2);
 		expect(uploadButtonBox!.height).toBe(searchBox!.height);
+		const [libraryTabSizing, uploadButtonSizing] = await Promise.all([
+			dialog.getByRole("tab", { name: "Library" }).evaluate((element) => {
+				const style = getComputedStyle(element);
+				return {
+					height: element.clientHeight,
+					fontSize: style.fontSize,
+					paddingInlineStart: style.paddingInlineStart,
+					paddingInlineEnd: style.paddingInlineEnd,
+				};
+			}),
+			dialog.getByRole("button", { name: "Upload files" }).evaluate((element) => {
+				const style = getComputedStyle(element);
+				return {
+					height: element.clientHeight,
+					fontSize: style.fontSize,
+					paddingInlineStart: style.paddingInlineStart,
+					paddingInlineEnd: style.paddingInlineEnd,
+				};
+			}),
+		]);
+		expect(libraryTabSizing).toEqual(uploadButtonSizing);
+		await expect(dialog.getByRole("tab", { name: "Library" }).locator("svg")).toBeVisible();
+		await expect(dialog.getByRole("tab", { name: "From URL" }).locator("svg")).toBeVisible();
 		const gridDialogWidth = await dialog.evaluate((element) => element.clientWidth);
 		await dialog.getByRole("tab", { name: "List view" }).click();
 		await expect(dialog.locator('[data-media-layout="list"]').first()).toBeVisible();
