@@ -234,6 +234,30 @@ references remain unchanged.
 
 For fields configured as image or file types, click the field to open the media picker.
 
+## Replacing an image
+
+Use **Replace image** to update the file behind an existing local media item. Authors can replace
+images they uploaded, and editors can replace any local image. The action is available for JPEG,
+PNG, and WebP images stored on local disk, Cloudflare R2, or S3-compatible storage.
+
+1. Open **Media**, then select an image from the local library.
+2. Stay on **Details**, then select **Replace image**.
+3. Choose a non-empty image in the same format as the existing file.
+4. Review the warning, then select **Replace image** to confirm.
+
+The replacement can use different dimensions or an aspect ratio from the existing image. EmDash
+keeps the media ID, filename, URL, alt text, caption, and location, so every existing reference uses
+the replacement. Replacing the file clears its focal point.
+
+**Replace image** uploads another file from your computer. To trim the current image, select
+**Replace original** from the **Crop** editor.
+
+<Aside type="caution">
+	Replacing an image cannot be undone. EmDash does not keep the previous file. A browser or content
+	delivery network may briefly show cached bytes from the previous image until the cached response
+	refreshes.
+</Aside>
+
 ## Setting a focal point
 
 A focal point keeps the important part of a local image visible when a card, gallery, or other

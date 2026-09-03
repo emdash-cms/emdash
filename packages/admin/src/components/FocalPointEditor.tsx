@@ -61,6 +61,7 @@ export function FocalPointPreviews({
 						className={`emdash-media-transparency-grid overflow-hidden rounded-lg ring ring-kumo-line ${ratio}`}
 					>
 						<img
+							key={src}
 							src={src}
 							alt=""
 							data-testid={`focal-preview-${id}`}
