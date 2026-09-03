@@ -39,6 +39,62 @@ vi.mock("../../src/lib/crop-image.js", () => ({
 	),
 }));
 
+vi.mock("../../src/components/MediaImageCropper.js", async () => {
+	const ReactModule = await import("react");
+	const fullCrop = { unit: "%", x: 0, y: 0, width: 100, height: 100 } as const;
+	return {
+		MediaImageCropper: (
+			props: import("../../src/components/MediaImageCropper.js").MediaImageCropperProps,
+		) => {
+			const imageRef = ReactModule.useRef<HTMLImageElement>(null);
+			const initializedRef = ReactModule.useRef(false);
+			ReactModule.useEffect(() => {
+				if (initializedRef.current) return;
+				initializedRef.current = true;
+				if (props.src.includes("base64,invalid")) {
+					props.onSourceError();
+					return;
+				}
+				props.onImageReady?.(imageRef.current);
+				props.onSourceReady({ width: 100, height: 100 });
+				if (!props.crop) {
+					props.onCropChange(fullCrop);
+					props.onCropComplete({ x: 0, y: 0, width: 100, height: 100 });
+				}
+			}, [props]);
+
+			const crop = props.crop ?? fullCrop;
+			return (
+				<div data-testid="media-image-cropper-frame">
+					<div className="emdash-react-image-crop">
+						<img ref={imageRef} src={props.src} alt="" />
+					</div>
+					<div
+						role="group"
+						aria-label="Crop selection. Use the Arrow keys to move it."
+						style={{
+							top: `${crop.y}%`,
+							left: `${crop.x}%`,
+							width: `${crop.width}%`,
+							height: `${crop.height}%`,
+						}}
+					>
+						<button
+							type="button"
+							onClick={() => {
+								props.onCropChange({ unit: "%", x: 0, y: 0, width: 80, height: 80 });
+								props.onCropComplete({ x: 0, y: 0, width: 80, height: 80 });
+							}}
+						>
+							Apply crop selection
+						</button>
+					</div>
+				</div>
+			);
+		},
+	};
+});
+
 // Import the mocked functions for assertions
 import {
 	updateMedia,
@@ -128,6 +184,8 @@ function makeLocalVideoItem(overrides: Partial<MediaItem> = {}): MediaItem {
 function makeLocalItem(overrides: Partial<LocalMediaItem> = {}): LocalMediaItem {
 	return {
 		...makeImageItem(),
+		width: 100,
+		height: 100,
 		storageKey: "media-1.jpg",
 		authorId: "user-1",
 		folderId: "folder-1",
@@ -178,14 +236,16 @@ async function openCropEditor(screen: Awaited<ReturnType<typeof renderPanel>>) {
 			}),
 		)
 		.toBeVisible();
+	await expect
+		.element(screen.getByLabelText("Crop output dimensions"))
+		.toHaveTextContent("100 × 100");
 }
 
 async function resizeCrop(screen: Awaited<ReturnType<typeof renderPanel>>) {
-	const handle = screen.getByRole("button", { name: "Resize crop from bottom-right corner" });
-	handle.element().focus();
-	await expect.element(handle).toHaveFocus();
-	await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
-	await expect.element(screen.getByText(/^Crop area \d+ by \d+ pixels\.$/)).toBeInTheDocument();
+	const output = screen.getByLabelText("Crop output dimensions");
+	const dimensionsBefore = output.element().textContent;
+	screen.getByRole("button", { name: "Apply crop selection" }).element().click();
+	await vi.waitFor(() => expect(output.element().textContent).not.toBe(dimensionsBefore));
 }
 
 function cropSelectionStyle(screen: Awaited<ReturnType<typeof renderPanel>>): string {
@@ -645,54 +705,24 @@ describe("MediaDetailPanel", () => {
 		await expect.element(replaceOriginal).toBeDisabled();
 	});
 
-	it("offers common aspect ratios and Freeform edge handles", async () => {
+	it("offers common aspect ratios and limits replacement to the original ratio", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
 			canCropOriginal: true,
 			canDuplicateCrop: true,
 		});
 		await openCropEditor(screen);
-		for (const corner of [
-			"top-left corner",
-			"top-right corner",
-			"bottom-right corner",
-			"bottom-left corner",
-		]) {
-			await expect
-				.element(screen.getByRole("button", { name: `Resize crop from ${corner}` }))
-				.toBeVisible();
-		}
-		for (const edge of ["top edge", "right edge", "bottom edge", "left edge"]) {
-			expect(screen.getByRole("button", { name: `Resize crop from ${edge}` }).query()).toBeNull();
-		}
 		const aspectRatio = screen.getByRole("combobox", { name: "Aspect ratio" });
 		aspectRatio.element().click();
 		for (const option of ["Original", "Freeform", "Square (1:1)", "4:3", "3:2", "16:9"]) {
 			await expect.element(screen.getByRole("option", { name: option })).toBeVisible();
 		}
 		screen.getByRole("option", { name: "Freeform" }).element().click();
-		for (const handle of [
-			"top-left corner",
-			"top edge",
-			"top-right corner",
-			"right edge",
-			"bottom-right corner",
-			"bottom edge",
-			"bottom-left corner",
-			"left edge",
-		]) {
-			await expect
-				.element(screen.getByRole("button", { name: `Resize crop from ${handle}` }))
-				.toBeVisible();
-		}
 
 		await expect
 			.element(screen.getByRole("button", { name: "Create cropped copy" }))
 			.toBeDisabled();
-		const rightHandle = screen.getByRole("button", { name: "Resize crop from right edge" });
-		rightHandle.element().focus();
-		await expect.element(rightHandle).toHaveFocus();
-		await userEvent.keyboard("{Shift>}{ArrowLeft}{/Shift}");
+		await resizeCrop(screen);
 		await expect.element(screen.getByRole("button", { name: "Create cropped copy" })).toBeEnabled();
 		await expect.element(screen.getByRole("button", { name: "Replace original" })).toBeDisabled();
 		expect(screen.getByText("Choose Original to replace the existing image.").query()).toBeNull();
