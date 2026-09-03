@@ -1648,7 +1648,7 @@ const taxonomyPaths = {
 			operationId: "getTaxonomy",
 			summary: "Get a taxonomy definition",
 			description:
-				"Definitions are per-locale; `locale` picks one, and without it the lowest-locale match is returned.",
+				"Definitions are per-locale; `locale` picks one. Without it the configured default locale is returned, falling back to the lowest locale code.",
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
