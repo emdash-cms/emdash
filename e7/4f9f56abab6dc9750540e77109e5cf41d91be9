@@ -1,0 +1,99 @@
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_c7dd983d240bd3::t_6032cfd9b5165e 204-210,224-226,274,318,1447
+packages/admin/src/components/useContainedMediaSize.ts
+  s_c7dd983d240bd3::t_e990ca73f0e257 18-20,22
+packages/admin/tests/editor-image-media-refresh.test.tsx
+  s_c7dd983d240bd3::t_ed8991ba3b43a0 1-73
+packages/cloudflare/src/image-endpoint.ts
+  s_829bdb541ea05c::t_304d041037fa4e 20,107
+packages/cloudflare/tests/storage/r2.test.ts
+  s_829bdb541ea05c::t_d12f6ed1baff5d 10,12,14-19,29,35,39-42
+packages/core/src/astro/image-endpoint.ts
+  s_829bdb541ea05c::t_cba5ea84c41888 19,75
+packages/core/src/astro/routes/api/media/file/[...key].ts
+  s_c7dd983d240bd3::t_6fdbe4f3fa5017 10,57-59
+packages/core/src/aws-sdk.d.ts
+  s_829bdb541ea05c::t_89cc1b2a8e57f2 67
+packages/core/src/media/image-endpoint.ts
+  s_829bdb541ea05c::t_0369079d4d0221 53,56-58,83
+packages/core/tests/unit/astro/routes.test.ts
+  s_c7dd983d240bd3::t_d09404afc6aaef 16,19,195,206-213
+.changeset/calm-media-crops.md
+  s_1ec6f4ec1eca53::t_ae2c1fc663ff47 4,9
+packages/admin/src/components/MediaLibrary.tsx
+  s_7401afe2e80f73::t_b52844faa7621d 1723
+packages/admin/src/components/MediaUsedIn.tsx
+  s_487f3884ddd2c0::t_e4158c0847ca77 167
+packages/admin/src/components/editor/ImageNode.tsx
+  s_1ec6f4ec1eca53::t_481d0368b2789c 15,21-22,64-76,205
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_7401afe2e80f73::t_1d3e43b5e754ab 158-159,173,186,282-283,518-554,567,590,605-614,694
+packages/admin/tests/components/MediaUsedIn.test.tsx
+  s_7401afe2e80f73::t_e4b1f7c2937ea9 166-175
+packages/admin/tests/components/useContainedMediaSize.test.tsx
+  s_7401afe2e80f73::t_f5ff1f50a19644 1-28
+packages/cloudflare/src/storage/r2.ts
+  s_7401afe2e80f73::t_31fdbec2971b54 45,51
+packages/core/src/astro/routes/api/media/[id]/replace.ts
+  s_7401afe2e80f73::t_37dcbcd0d5ff03 6,115
+packages/core/src/storage/local.ts
+  s_7401afe2e80f73::t_a1a58c45a97956 73
+packages/core/src/storage/s3.ts
+  s_7401afe2e80f73::t_dcd2ea5fc8c77d 160,184
+packages/core/src/storage/types.ts
+  s_7401afe2e80f73::t_114fcb045077c9 165-166
+packages/core/tests/integration/astro/media-replace.test.ts
+  s_7401afe2e80f73::t_bf5dd2d0aba1e1 18-28,163-167
+packages/core/tests/unit/media/image-endpoint.test.ts
+  s_1ec6f4ec1eca53::t_23429a8cbdf753 153
+packages/core/tests/unit/storage/s3.test.ts
+  s_7401afe2e80f73::t_69611221f4538e 305,311,315-316,319-328
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e74f9f56abab6dc9750540e77109e5cf41d91be9",
+  "prompts": {},
+  "sessions": {
+    "s_1ec6f4ec1eca53": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0662e-b76e-73e3-bd46-13da4719b8ae",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_487f3884ddd2c0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a066a0-70e7-7011-b114-b2114ddd74ae",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_7401afe2e80f73": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05f2a-31ef-79e3-ba99-17dc671bebd6",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
