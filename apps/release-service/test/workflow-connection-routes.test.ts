@@ -209,6 +209,32 @@ describe("GitHub workflow connection routes", () => {
 		await expect(
 			publisher.listWorkflowConnectionRequests(PUBLISHER_DID, 20, NOW + 2),
 		).resolves.toMatchObject([{ id: REQUEST_ID, state: "pending" }]);
+
+		const nonCanonical = await handleConfirmWorkflowConnection(
+			new Request(
+				`${TEST_BINDINGS.PUBLIC_ORIGIN}/v1/publisher/workflow-connections/${REQUEST_ID}/confirm`,
+				{
+					method: "POST",
+					headers: await publisherHeaders("workflow-connection-confirm-0002"),
+					body: JSON.stringify({ refScope: "version_tags" }),
+				},
+			),
+			"request-confirm-noncanonical",
+			configuration,
+			{ requestId: REQUEST_ID },
+			{
+				now: () => NOW + 2,
+				loadCurrentApprovalPolicy: async () => ({
+					profileCid: "bafyprofile",
+					approverDids: [PUBLISHER_DID],
+					repository: "https://github.com/example/gallery/",
+				}),
+			},
+		);
+		expect(nonCanonical.status).toBe(409);
+		await expect(nonCanonical.json()).resolves.toMatchObject({
+			error: { code: "PACKAGE_PROFILE_REQUIRED" },
+		});
 	});
 
 	it("does not initialize a publisher shard before the account authorizes publishing", async () => {

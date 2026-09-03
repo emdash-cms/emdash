@@ -1,4 +1,5 @@
 import { isDid } from "@atcute/lexicons/syntax";
+import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification";
 import { env } from "cloudflare:workers";
 import { base64url, type JWTVerifyGetKey } from "jose";
 import { ulid } from "ulidx";
@@ -197,7 +198,11 @@ async function requirePackageProfile(
 		publisherDid,
 		packageSlug,
 	);
-	if (profilePolicy.repository !== `https://github.com/${repository}`) {
+	const canonicalRepository = canonicalizeRepositoryUrl(profilePolicy.repository);
+	if (
+		canonicalRepository !== profilePolicy.repository ||
+		canonicalRepository !== `https://github.com/${repository}`
+	) {
 		throw new ApiError(
 			"PACKAGE_PROFILE_REQUIRED",
 			409,

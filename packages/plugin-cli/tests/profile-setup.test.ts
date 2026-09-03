@@ -1,7 +1,12 @@
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { ClientResponseError } from "@atcute/client";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import { describe, expect, it, vi } from "vitest";
 
+import { runProfileSetup } from "../src/commands/profile.js";
 import {
 	PackageProfileSetupError,
 	setupPackageProfile,
@@ -53,6 +58,19 @@ function publisher(existing: { cid: string; value: unknown } | null): {
 }
 
 describe("package profile setup", () => {
+	it("turns setup dependency failures into a clean command error", async () => {
+		const dir = await mkdtemp(join(tmpdir(), "emdash-profile-command-"));
+		try {
+			await expect(runProfileSetup({ dir, yes: true })).rejects.toMatchObject({
+				name: "PackageProfileSetupError",
+				code: "INVALID_INPUT",
+				message: expect.stringContaining("emdash-plugin.jsonc"),
+			});
+		} finally {
+			await rm(dir, { recursive: true, force: true });
+		}
+	});
+
 	it("creates a missing profile from manifest metadata and a safe default release policy", async () => {
 		const fixture = publisher(null);
 		const result = await setupPackageProfile({

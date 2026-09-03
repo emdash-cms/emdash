@@ -9,6 +9,7 @@ import pc from "picocolors";
 import { resolveSources } from "./build/pipeline.js";
 import { runProfileSetup } from "./commands/profile.js";
 import { resolveHandleToDid } from "./manifest/publisher.js";
+import { PackageProfileSetupError } from "./profile/setup.js";
 
 export const DEFAULT_RELEASE_SERVICE_URL = "https://emdash-release-service.emdash-cms.workers.dev";
 export const DEFAULT_RELEASE_ACTION_REF = "main";
@@ -316,7 +317,7 @@ export const releaseSetupCommand = defineCommand({
 				"Publish by pushing a version tag such as v1.2.3, or run the workflow from GitHub Actions.",
 			);
 		} catch (error) {
-			if (error instanceof ReleaseSetupError) {
+			if (error instanceof ReleaseSetupError || error instanceof PackageProfileSetupError) {
 				consola.error(error.message);
 				process.exit(1);
 			}

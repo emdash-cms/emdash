@@ -81,7 +81,7 @@ async function confirmationValue(
 	return answer;
 }
 
-export async function runProfileSetup(options: RunProfileSetupOptions): Promise<void> {
+async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise<void> {
 	const interactive = options.yes !== true && process.stdin.isTTY === true && !process.env["CI"];
 	if (interactive) clack.intro(pc.bold("Set up the package profile"));
 	const sources = await resolveSources(options.dir);
@@ -167,6 +167,18 @@ export async function runProfileSetup(options: RunProfileSetupOptions): Promise<
 			? "Your Atmosphere account must approve every release."
 			: "Your Atmosphere account must approve releases when plugin permissions increase.",
 	);
+}
+
+export async function runProfileSetup(options: RunProfileSetupOptions): Promise<void> {
+	try {
+		await runProfileSetupInternal(options);
+	} catch (error) {
+		if (error instanceof PackageProfileSetupError) throw error;
+		throw new PackageProfileSetupError(
+			"INVALID_INPUT",
+			error instanceof Error ? error.message : "Package profile setup failed.",
+		);
+	}
 }
 
 export const profileSetupCommand = defineCommand({
