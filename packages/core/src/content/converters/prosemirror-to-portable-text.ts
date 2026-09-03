@@ -346,7 +346,7 @@ function convertImage(node: ProseMirrorNode): PortableTextImageBlock {
 			provider: provider && provider !== "local" ? provider : undefined,
 		},
 		alt: alt || undefined,
-		caption: caption || undefined,
+		caption: caption || (title ? "" : undefined),
 		title: title || undefined,
 		width: width || undefined,
 		height: height || undefined,

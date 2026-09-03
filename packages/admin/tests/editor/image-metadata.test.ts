@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	_portableTextToProsemirror as portableTextToProsemirror,
 	_prosemirrorToPortableText as prosemirrorToPortableText,
-} from "../../src/components/PortableTextEditor";
+} from "../../src/components/PortableTextEditor.js";
 
 describe("admin editor image metadata", () => {
 	it("keeps captions and tooltip titles independent through a round trip", () => {
@@ -24,8 +24,8 @@ describe("admin editor image metadata", () => {
 		expect(restored.title).toBe("Hover title");
 	});
 
-	it("does not restore a cleared caption from the tooltip title", () => {
-		const restored = prosemirrorToPortableText({
+	it("keeps a cleared caption separate from the tooltip title across reloads", () => {
+		const portableText = prosemirrorToPortableText({
 			type: "doc",
 			content: [
 				{
@@ -38,28 +38,43 @@ describe("admin editor image metadata", () => {
 					},
 				},
 			],
-		})[0] as Record<string, unknown>;
+		});
+		const restored = prosemirrorToPortableText(
+			portableTextToProsemirror(portableText),
+		)[0] as Record<string, unknown>;
 
-		expect(restored.caption).toBeUndefined();
+		expect(restored.caption).toBe("");
 		expect(restored.title).toBe("Hover title");
 	});
 
-	it("reads captions from title-only legacy image nodes", () => {
-		const restored = prosemirrorToPortableText({
-			type: "doc",
-			content: [
+	it("reads captions from title-only legacy Portable Text blocks", () => {
+		const restored = prosemirrorToPortableText(
+			portableTextToProsemirror([
 				{
-					type: "image",
-					attrs: {
-						src: "/photo.jpg",
-						mediaId: "media-1",
-						title: "Legacy caption",
-					},
-				},
-			],
-		})[0] as Record<string, unknown>;
+					_type: "image",
+					_key: "image-legacy",
+					asset: { _ref: "media-1", url: "/photo.jpg" },
+					title: "Legacy caption",
+				} as never,
+			]),
+		)[0] as Record<string, unknown>;
 
 		expect(restored.caption).toBe("Legacy caption");
 		expect(restored.title).toBe("Legacy caption");
+	});
+
+	it("reads captions from title-only image blocks without an asset wrapper", () => {
+		const pm = portableTextToProsemirror([
+			{
+				_type: "image",
+				_key: "image-malformed",
+				url: "/photo.jpg",
+				title: "Legacy caption",
+			} as never,
+		]);
+		const image = pm.content?.[0] as { attrs?: Record<string, unknown> };
+
+		expect(image.attrs?.src).toBe("/photo.jpg");
+		expect(image.attrs?.caption).toBe("Legacy caption");
 	});
 });

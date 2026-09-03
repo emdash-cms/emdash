@@ -517,7 +517,7 @@ function convertImage(block: PortableTextImageBlock): ProseMirrorNode {
 			src: block.asset.url || block.asset._ref,
 			alt: block.alt || "",
 			title: block.title || "",
-			caption: block.caption || "",
+			caption: Object.hasOwn(block, "caption") ? block.caption || "" : block.title || "",
 			mediaId: block.asset._ref,
 			provider: block.asset.provider,
 			width: block.width,
@@ -537,8 +537,13 @@ function convertMalformedImage(block: PortableTextBlock): ProseMirrorNode {
 	// PortableTextUnknownBlock allows indexed access via [key: string]: unknown
 	const url = "url" in block && typeof block.url === "string" ? block.url : "";
 	const alt = "alt" in block && typeof block.alt === "string" ? block.alt : "";
-	const caption = "caption" in block && typeof block.caption === "string" ? block.caption : "";
 	const title = "title" in block && typeof block.title === "string" ? block.title : "";
+	const rawCaption = "caption" in block ? block.caption : undefined;
+	const caption = Object.hasOwn(block, "caption")
+		? typeof rawCaption === "string"
+			? rawCaption
+			: ""
+		: title;
 	const width = "width" in block && typeof block.width === "number" ? block.width : undefined;
 	const height = "height" in block && typeof block.height === "number" ? block.height : undefined;
 	const displayWidth =

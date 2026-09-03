@@ -259,6 +259,10 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			const provider = attrStrOpt(node.attrs, "provider");
 			const blurhash = attrStrOpt(node.attrs, "blurhash");
 			const dominantColor = attrStrOpt(node.attrs, "dominantColor");
+			const title = attrStrOpt(node.attrs, "title");
+			const caption = Object.hasOwn(node.attrs ?? {}, "caption")
+				? (attrStrOpt(node.attrs, "caption") ?? (title ? "" : undefined))
+				: title;
 			// Persist LQIP as first-class block fields (matching the image-field
 			// MediaValue path) rather than nesting in `asset.meta`, so read sites
 			// and normalize don't need a dual-shape fallback. `asset.meta` is left
@@ -273,10 +277,8 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 					provider: provider && provider !== "local" ? provider : undefined,
 				},
 				alt: attrStrOpt(node.attrs, "alt"),
-				caption: Object.hasOwn(node.attrs, "caption")
-					? attrStrOpt(node.attrs, "caption")
-					: attrStrOpt(node.attrs, "title"),
-				title: attrStrOpt(node.attrs, "title"),
+				caption,
+				title,
 				width: attrNum(node.attrs, "width"),
 				height: attrNum(node.attrs, "height"),
 				...(blurhash ? { blurhash } : {}),
@@ -592,7 +594,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
 				alt: ib.alt || "",
 				title: ib.title || "",
-				caption: ib.caption || "",
+				caption: Object.hasOwn(ib, "caption") ? ib.caption || "" : ib.title || "",
 				mediaId: asset?._ref,
 				provider: canonicalMediaProviderId(asset?.provider),
 				width: ib.width,

@@ -61,22 +61,20 @@ describe("Image dimension round-trip", () => {
 		expect(restored.height).toBe(600);
 	});
 
-	it("reads captions from title-only legacy image nodes", () => {
-		const [restored] = prosemirrorToPortableText({
-			type: "doc",
-			content: [
-				{
-					type: "image",
-					attrs: { src: "https://example.com/legacy.jpg", title: "Legacy caption" },
-				},
-			],
-		});
+	it("reads captions from title-only legacy Portable Text blocks", () => {
+		const legacyImage: PortableTextImageBlock = {
+			_type: "image",
+			_key: "legacy",
+			asset: { _ref: "legacy", url: "https://example.com/legacy.jpg" },
+			title: "Legacy caption",
+		};
+		const [restored] = prosemirrorToPortableText(portableTextToProsemirror([legacyImage]));
 
 		expect((restored as PortableTextImageBlock).caption).toBe("Legacy caption");
 	});
 
-	it("does not restore an explicitly cleared caption from the title", () => {
-		const [restored] = prosemirrorToPortableText({
+	it("keeps an explicitly cleared caption separate from the title across reloads", () => {
+		const portableText = prosemirrorToPortableText({
 			type: "doc",
 			content: [
 				{
@@ -89,8 +87,9 @@ describe("Image dimension round-trip", () => {
 				},
 			],
 		});
+		const [restored] = prosemirrorToPortableText(portableTextToProsemirror(portableText));
 
-		expect((restored as PortableTextImageBlock).caption).toBeUndefined();
+		expect((restored as PortableTextImageBlock).caption).toBe("");
 		expect((restored as PortableTextImageBlock).title).toBe("Tooltip");
 	});
 });

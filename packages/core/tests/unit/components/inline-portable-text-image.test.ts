@@ -139,17 +139,37 @@ describe("Image caption round-trip (inline editor seam)", () => {
 		expect(restored.title).toBe("Hover title");
 	});
 
-	it("reads captions from title-only legacy image nodes", () => {
-		const [restored] = pmToPortableText({
+	it("reads captions from title-only legacy Portable Text blocks", () => {
+		const [restored] = pmToPortableText(
+			portableTextToPM([
+				{
+					_type: "image",
+					_key: "img-legacy",
+					asset: { _ref: "01LEGACY", url: "/legacy.jpg" },
+					title: "Legacy caption",
+				},
+			]),
+		) as Array<{ caption?: string }>;
+
+		expect(restored.caption).toBe("Legacy caption");
+	});
+
+	it("keeps a cleared caption separate from the tooltip title across reloads", () => {
+		const portableText = pmToPortableText({
 			type: "doc",
 			content: [
 				{
 					type: "image",
-					attrs: { src: "/legacy.jpg", title: "Legacy caption" },
+					attrs: { src: "/current.jpg", caption: "", title: "Hover title" },
 				},
 			],
-		}) as Array<{ caption?: string }>;
+		});
+		const [restored] = pmToPortableText(portableTextToPM(portableText)) as Array<{
+			caption?: string;
+			title?: string;
+		}>;
 
-		expect(restored.caption).toBe("Legacy caption");
+		expect(restored.caption).toBe("");
+		expect(restored.title).toBe("Hover title");
 	});
 });
