@@ -2715,7 +2715,11 @@ export class EmDashRuntime {
 		const i18nConfig = virtualConfig?.i18n ?? getI18nConfig();
 		const i18n =
 			i18nConfig && i18nConfig.locales && i18nConfig.locales.length > 1
-				? { defaultLocale: i18nConfig.defaultLocale, locales: i18nConfig.locales }
+				? {
+						defaultLocale: i18nConfig.defaultLocale,
+						locales: i18nConfig.locales,
+						prefixDefaultLocale: i18nConfig.prefixDefaultLocale,
+					}
 				: undefined;
 
 		// Normalize the experimental registry config for browser consumption.

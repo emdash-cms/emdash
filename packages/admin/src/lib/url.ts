@@ -5,6 +5,15 @@
 const DEFAULT_REDIRECT = "/_emdash/admin";
 const LEADING_SLASHES = /^\/+/;
 
+export interface ContentUrlOptions {
+	locale?: string | null;
+	i18n?: {
+		defaultLocale: string;
+		locales: string[];
+		prefixDefaultLocale?: boolean;
+	};
+}
+
 /**
  * Sanitize a redirect URL to prevent open-redirect and javascript: XSS attacks.
  *
@@ -28,9 +37,19 @@ export function sanitizeRedirectUrl(raw: string): string {
  * otherwise falls back to `/{collection}/{slug}`. Leading slashes are
  * stripped from the slug to prevent protocol-relative URLs.
  */
-export function contentUrl(collection: string, slug: string, urlPattern?: string): string {
+export function contentUrl(
+	collection: string,
+	slug: string,
+	urlPattern?: string,
+	options?: ContentUrlOptions,
+): string {
 	const safe = slug.replace(LEADING_SLASHES, "");
-	return urlPattern ? urlPattern.replace("{slug}", safe) : `/${collection}/${safe}`;
+	const path = urlPattern ? urlPattern.replace("{slug}", safe) : `/${collection}/${safe}`;
+	const { locale, i18n } = options ?? {};
+	const shouldPrefix =
+		locale && i18n && (locale !== i18n.defaultLocale || i18n.prefixDefaultLocale === true);
+
+	return shouldPrefix ? `/${locale}/${path.replace(LEADING_SLASHES, "")}` : path;
 }
 
 /** Matches http:// or https:// URLs */

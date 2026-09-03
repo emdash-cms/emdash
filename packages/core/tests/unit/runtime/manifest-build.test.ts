@@ -149,6 +149,23 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "ja", implicit: false });
 	});
 
+	it("exposes locale-prefix routing to the admin", async () => {
+		setI18nConfig({
+			defaultLocale: "en",
+			locales: ["en", "pl"],
+			prefixDefaultLocale: true,
+		});
+		const runtime = buildRuntime(db);
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.i18n).toEqual({
+			defaultLocale: "en",
+			locales: ["en", "pl"],
+			prefixDefaultLocale: true,
+		});
+	});
+
 	it("includes field definitions for many collections in two queries flat", async () => {
 		const registry = new SchemaRegistry(db);
 		for (let i = 0; i < 5; i++) {
