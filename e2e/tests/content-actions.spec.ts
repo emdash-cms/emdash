@@ -296,6 +296,34 @@ test.describe("Schedule content", () => {
 		const publicationDateTrigger = page.getByRole("button", {
 			name: /Change publication date:/,
 		});
+		const publishingSummary = page.getByRole("group", { name: "Publishing summary" });
+		const createdAndUpdatedTrigger = publishingSummary.getByRole("button", {
+			name: "Created and updated",
+		});
+		const statusIconBox = await publishingSummary.locator("svg").first().boundingBox();
+		const publicationLabelBox = await publicationDateTrigger
+			.getByText("Publication date", { exact: true })
+			.boundingBox();
+		const createdAndUpdatedLabelBox = await createdAndUpdatedTrigger
+			.locator("span")
+			.filter({ hasText: /^Created and updated$/ })
+			.last()
+			.boundingBox();
+		const publicationButtonBox = await publicationDateTrigger.boundingBox();
+		const createdAndUpdatedButtonBox = await createdAndUpdatedTrigger.boundingBox();
+		for (const box of [
+			statusIconBox,
+			publicationLabelBox,
+			createdAndUpdatedLabelBox,
+			publicationButtonBox,
+			createdAndUpdatedButtonBox,
+		]) {
+			expect(box).not.toBeNull();
+		}
+		expect(Math.abs(publicationLabelBox!.x - statusIconBox!.x)).toBeLessThanOrEqual(1);
+		expect(Math.abs(createdAndUpdatedLabelBox!.x - statusIconBox!.x)).toBeLessThanOrEqual(1);
+		expect(statusIconBox!.x - publicationButtonBox!.x).toBeGreaterThanOrEqual(3);
+		expect(statusIconBox!.x - createdAndUpdatedButtonBox!.x).toBeGreaterThanOrEqual(3);
 		const publicationDateLayout = await publicationDateTrigger.evaluate((element) => {
 			(element as HTMLElement).style.width = "296px";
 			const label = element.querySelector(".text-kumo-subtle")!;

@@ -996,7 +996,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 													<Button
 														type="button"
 														variant="ghost"
-														className="mt-1 h-auto min-h-9 w-full justify-between whitespace-normal px-2 py-1.5 font-normal"
+														className="-mx-1 mt-1 h-auto min-h-9 w-[calc(100%+0.5rem)] justify-between whitespace-normal px-1 py-1.5 font-normal"
 													/>
 												}
 											>
@@ -1021,7 +1021,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 													transitionProperty: "height",
 												})}
 											>
-												<dl className="grid gap-1.5 px-2 pt-1.5 pb-0.5">
+												<dl className="grid gap-1.5 px-0 pt-1.5 pb-0.5">
 													<TimestampRow label={t`Created`} size="sm">
 														<TimestampValue
 															value={item.createdAt}
