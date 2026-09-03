@@ -375,7 +375,7 @@ describe("MediaPickerModal", () => {
 	});
 
 	describe("library browsing", () => {
-		it("uses numbered pagination and requests the selected page", async () => {
+		it("uses fixed twelve-item pages without a page-size control", async () => {
 			const api = await import("../../src/lib/api");
 			const mock = api.fetchMediaList as any;
 			mock
@@ -412,10 +412,11 @@ describe("MediaPickerModal", () => {
 
 			const screen = await renderModal();
 			await expect.element(screen.getByRole("button", { name: "page1.jpg" })).toBeInTheDocument();
+			expect(screen.getByRole("combobox", { name: "Page size" }).query()).toBeNull();
 			screen.getByRole("button", { name: "Next page" }).element().click();
 			await expect.element(screen.getByRole("button", { name: "page2.jpg" })).toBeInTheDocument();
 			expect(mock).toHaveBeenCalledTimes(2);
-			expect(mock.mock.calls[1][0]).toEqual(expect.objectContaining({ page: 2, limit: 35 }));
+			expect(mock.mock.calls[1][0]).toEqual(expect.objectContaining({ page: 2, limit: 12 }));
 		});
 
 		it("opens a folder and filters the media query", async () => {
@@ -429,7 +430,7 @@ describe("MediaPickerModal", () => {
 
 			await vi.waitFor(() => {
 				expect(api.fetchMediaList).toHaveBeenLastCalledWith(
-					expect.objectContaining({ folderId: "folder-1", page: 1, limit: 35 }),
+					expect.objectContaining({ folderId: "folder-1", page: 1, limit: 12 }),
 				);
 			});
 		});

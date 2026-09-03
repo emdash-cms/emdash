@@ -112,6 +112,20 @@ test.describe("Bylines", () => {
 		).toBeLessThanOrEqual(2);
 		expect(uploadButtonBox!.height).toBe(searchBox!.height);
 
+		const libraryDialogSize = await dialog.evaluate((element) => ({
+			width: element.clientWidth,
+			height: element.clientHeight,
+		}));
+		await dialog.getByRole("tab", { name: "From URL" }).click();
+		await expect(dialog.getByLabel("Image URL")).toBeVisible();
+		const urlDialogSize = await dialog.evaluate((element) => ({
+			width: element.clientWidth,
+			height: element.clientHeight,
+		}));
+		expect(urlDialogSize).toEqual(libraryDialogSize);
+		await dialog.getByRole("tab", { name: "Library" }).click();
+		await expect(dialog.getByRole("searchbox", { name: "Search media" })).toBeVisible();
+
 		const uploadDone = page.waitForResponse(
 			(res) => /\/api\/media/.test(res.url()) && res.request().method() === "POST" && res.ok(),
 			{ timeout: 15000 },

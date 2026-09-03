@@ -49,7 +49,6 @@ import { canonicalMediaProviderId, providerItemToMediaItem } from "../lib/media-
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
 import {
 	MAX_MEDIA_PAGE_DROPDOWN_ITEMS,
-	MEDIA_BROWSER_PAGE_SIZES,
 	MediaBrowserFolder,
 	MediaBrowserItem,
 	MediaSelectionTrayItem,
@@ -60,7 +59,7 @@ import { useMediaUploadQueue } from "./media/useMediaUploadQueue.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 const URL_SOURCE = "__url";
-const DEFAULT_PAGE_SIZE = MEDIA_BROWSER_PAGE_SIZES[0]!;
+const PICKER_PAGE_SIZE = 12;
 
 interface SelectedMedia {
 	key: string;
@@ -215,7 +214,6 @@ export function MediaPickerModal({
 	const [viewMode, setViewMode] = React.useState<"grid" | "list">("grid");
 	const [folderId, setFolderId] = React.useState<string | undefined>();
 	const [page, setPage] = React.useState(1);
-	const [pageSize, setPageSize] = React.useState(DEFAULT_PAGE_SIZE);
 	const [retainedTotalCount, setRetainedTotalCount] = React.useState(0);
 	const [imageUrl, setImageUrl] = React.useState("");
 	const [urlError, setUrlError] = React.useState<string | null>(null);
@@ -265,7 +263,6 @@ export function MediaPickerModal({
 		setViewMode("grid");
 		setFolderId(undefined);
 		setPage(1);
-		setPageSize(DEFAULT_PAGE_SIZE);
 		setRetainedTotalCount(0);
 		setImageUrl("");
 		setUrlError(null);
@@ -348,17 +345,17 @@ export function MediaPickerModal({
 					mime: mimeKey,
 					folder: activeSearch ? "all" : (folderId ?? "main"),
 					page,
-					pageSize,
+					limit: PICKER_PAGE_SIZE,
 				},
 			] as const,
-		[activeSearch, folderId, mimeKey, page, pageSize],
+		[activeSearch, folderId, mimeKey, page],
 	);
 	const localQuery = useQuery({
 		queryKey: localQueryKey,
 		queryFn: () =>
 			fetchMediaList({
 				page,
-				limit: pageSize,
+				limit: PICKER_PAGE_SIZE,
 				search: activeSearch || undefined,
 				mimeType: effectiveMimeFilters,
 				folderId: activeSearch ? undefined : (folderId ?? null),
@@ -374,7 +371,10 @@ export function MediaPickerModal({
 	}, [localQuery.data?.totalCount]);
 	const fallbackItemCount = localQuery.data?.items.length ?? 0;
 	const totalCount = localQuery.data?.totalCount ?? (retainedTotalCount || fallbackItemCount);
-	const lastPage = Math.max(1, Math.ceil((localQuery.data?.totalCount ?? totalCount) / pageSize));
+	const lastPage = Math.max(
+		1,
+		Math.ceil((localQuery.data?.totalCount ?? totalCount) / PICKER_PAGE_SIZE),
+	);
 	const isRecoveringPage =
 		localQuery.data?.totalCount !== undefined && page > lastPage && activeSource === "local";
 	React.useEffect(() => {
@@ -705,7 +705,7 @@ export function MediaPickerModal({
 		>
 			<Dialog
 				size="xl"
-				className="flex max-h-[calc(100dvh-1rem)] min-h-0 min-w-0 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:max-h-[88dvh] sm:min-w-[48rem] sm:max-w-5xl"
+				className="flex h-[min(48rem,calc(100dvh-1rem))] min-h-0 min-w-0 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:min-w-[48rem] sm:max-w-5xl"
 			>
 				<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-7">
 					<div className="min-w-0">
@@ -827,7 +827,7 @@ export function MediaPickerModal({
 												event.preventDefault();
 												void handleUrlSubmit();
 											}}
-											className="ps-9"
+											className="w-full ps-9"
 										/>
 									</div>
 									<Button
@@ -1172,7 +1172,7 @@ export function MediaPickerModal({
 								<Pagination
 									page={isRecoveringPage ? lastPage : page}
 									setPage={(nextPage) => {
-										const pageCount = Math.max(1, Math.ceil(totalCount / pageSize));
+										const pageCount = Math.max(1, Math.ceil(totalCount / PICKER_PAGE_SIZE));
 										if (
 											localQuery.isFetching ||
 											!Number.isSafeInteger(nextPage) ||
@@ -1182,7 +1182,7 @@ export function MediaPickerModal({
 											return;
 										setPage(nextPage);
 									}}
-									perPage={pageSize}
+									perPage={PICKER_PAGE_SIZE}
 									totalCount={totalCount}
 									className="flex-wrap gap-y-3"
 									labels={{
@@ -1202,23 +1202,9 @@ export function MediaPickerModal({
 									</Pagination.Info>
 									<Pagination.Separator className="hidden sm:block" />
 									<div inert={localQuery.isFetching || undefined} className="contents">
-										<Pagination.PageSize
-											value={pageSize}
-											onChange={(nextPageSize) => {
-												if (
-													localQuery.isFetching ||
-													!MEDIA_BROWSER_PAGE_SIZES.includes(nextPageSize)
-												)
-													return;
-												setPageSize(nextPageSize);
-												resetPage();
-											}}
-											options={MEDIA_BROWSER_PAGE_SIZES}
-											label={t`Per page`}
-										/>
 										<Pagination.Controls
 											pageSelector={
-												Math.ceil(totalCount / pageSize) <= MAX_MEDIA_PAGE_DROPDOWN_ITEMS
+												Math.ceil(totalCount / PICKER_PAGE_SIZE) <= MAX_MEDIA_PAGE_DROPDOWN_ITEMS
 													? "dropdown"
 													: "input"
 											}
