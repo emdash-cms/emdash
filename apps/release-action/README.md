@@ -2,7 +2,7 @@
 
 This experimental Action publishes a built EmDash plugin bundle through the delegated release service. It requests a GitHub OpenID Connect (OIDC) token for each service call, so the workflow does not store a release-service secret or an AT Protocol account credential.
 
-Follow [Automated plugin releases](../../docs/src/content/docs/plugins/creating-plugins/delegated-releases.mdx) for the publisher journey. This README is the Action input, output, and custom-workflow reference.
+Follow [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the publisher journey. This README is the Action input, output, and custom-workflow reference.
 
 ## Workflow setup
 

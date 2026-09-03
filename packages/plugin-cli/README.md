@@ -99,7 +99,7 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 ## Delegated releases
 
-See [Automated plugin releases](../../docs/src/content/docs/plugins/creating-plugins/delegated-releases.mdx) for the complete publisher journey, including release-service authorisation, workflow invitations, first-run approval, passkeys, and troubleshooting.
+See [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the complete publisher journey, including release-service authorisation, workflow invitations, first-run approval, passkeys, and troubleshooting.
 
 Run the setup command from a public GitHub repository containing an EmDash plugin:
 

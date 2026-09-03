@@ -2,7 +2,7 @@
 
 This Cloudflare Worker publishes verified EmDash plugin releases from approved GitHub Actions workflows. It keeps publisher-owned package metadata and release records in the publisher's Atmosphere account while removing the need to store an AT Protocol credential in GitHub.
 
-The service is experimental. Publishers should follow [Automated plugin releases](../../docs/src/content/docs/plugins/creating-plugins/delegated-releases.mdx). This README covers the service boundary, contributor workflow, and deployment resources.
+The service is experimental. Publishers should follow [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/). This README covers the service boundary, contributor workflow, and deployment resources.
 
 ## User surfaces
 

@@ -2,7 +2,7 @@
 
 This private Cloudflare Worker verifies untrusted plugin bundles and GitHub provenance for the delegated release service. The release-service Worker calls it through the `RELEASE_VERIFIER` service binding; it does not expose a public verification API.
 
-Publishers should follow [Automated plugin releases](../../docs/src/content/docs/plugins/creating-plugins/delegated-releases.mdx). This README covers the isolated verifier boundary for contributors and operators.
+Publishers should follow [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/). This README covers the isolated verifier boundary for contributors and operators.
 
 ## Verification boundary
 

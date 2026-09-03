@@ -49,4 +49,4 @@ pnpm --filter @emdash-cms/registry-verification check
 
 The test command validates source behavior, packed output, and the workerd-compatible entry points.
 
-See [Automated plugin releases](../../docs/src/content/docs/plugins/creating-plugins/delegated-releases.mdx) for the publisher flow and the [delegated release specification](../../docs/technical-specs/delegated-release-service.md) for the complete trust contract.
+See [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the publisher flow and the [delegated release specification](../../docs/technical-specs/delegated-release-service.md) for the complete trust contract.

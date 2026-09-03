@@ -34,7 +34,7 @@ Typed clients and resource shapes for the delegated release service:
 
 The client does not exchange GitHub OIDC for AT Protocol authority. Workload methods request a fresh token through the caller-provided `workloadToken` function; the release service holds its separate create-only publisher delegation.
 
-Follow [Automated plugin releases](../../docs/src/content/docs/plugins/creating-plugins/delegated-releases.mdx) for the standard CLI and GitHub Actions flow.
+Follow [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the standard CLI and GitHub Actions flow.
 
 ### Direct PDS reads (`@emdash-cms/registry-client/direct-pds`)
 
