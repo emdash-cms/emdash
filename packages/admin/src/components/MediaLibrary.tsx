@@ -1382,7 +1382,7 @@ export function MediaLibrary({
 					providerName={detailItem.provider ? activeProviderInfo?.name : undefined}
 					canDelete={detailItem.provider ? activeProviderInfo?.capabilities.delete : undefined}
 					canMoveLocation={isLocalMediaItem(detailItem) ? canMoveMedia?.(detailItem) : undefined}
-					canCropOriginal={Boolean(
+					canReplaceOriginal={Boolean(
 						isLocalMediaItem(detailItem) &&
 						currentUser &&
 						(currentUser.role >= 40 ||

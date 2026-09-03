@@ -395,7 +395,7 @@ async function uploadToSignedUrl(
 /**
  * Get image dimensions from a file
  */
-async function getImageDimensions(
+export async function getImageDimensions(
 	file: File,
 	options?: MediaUploadOptions,
 ): Promise<{ width: number; height: number } | null> {

@@ -323,6 +323,58 @@ describe("MediaDetailPanel", () => {
 		await expect.element(screen.getByText("1920 × 1080")).toBeVisible();
 	});
 
+	it("replaces a selected image and keeps the media dialog open", async () => {
+		const replacementBytes = Uint8Array.from(
+			atob(
+				"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+			),
+			(character) => character.charCodeAt(0),
+		);
+		const replacement = new File([replacementBytes], "replacement.png", { type: "image/png" });
+		const refreshed = makeLocalItem({
+			filename: "photo.png",
+			mimeType: "image/png",
+			width: 1,
+			height: 1,
+			contentHash: "sha256:replacement",
+			focalX: null,
+			focalY: null,
+		});
+		vi.mocked(replaceMediaImage).mockResolvedValueOnce(refreshed);
+		const onClose = vi.fn();
+		const onUpdated = vi.fn();
+		const onItemRefreshed = vi.fn();
+		const screen = await renderPanel({
+			item: makeLocalItem({ filename: "photo.png", mimeType: "image/png" }),
+			canReplaceOriginal: true,
+			onClose,
+			onUpdated,
+			onItemRefreshed,
+		});
+
+		await expect.element(screen.getByRole("button", { name: "Replace image" })).toBeVisible();
+		await userEvent.upload(screen.getByLabelText("Choose replacement image"), replacement);
+
+		const confirmation = screen.getByRole("alertdialog", { name: "Replace original image?" });
+		await expect.element(confirmation).toBeVisible();
+		await expect
+			.element(confirmation)
+			.toHaveTextContent("Every place using this image will update to the selected version.");
+		confirmation.getByRole("button", { name: "Replace image" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(replaceMediaImage).toHaveBeenCalledWith("media-1", replacement, {
+				width: 1,
+				height: 1,
+			});
+			expect(onItemRefreshed).toHaveBeenCalledWith(refreshed);
+			expect(onUpdated).toHaveBeenCalledTimes(1);
+		});
+		await expect.element(screen.getByText("Image replaced.")).toBeInTheDocument();
+		expect(onClose).not.toHaveBeenCalled();
+		await expect.element(screen.getByRole("dialog", { name: "Media details" })).toBeVisible();
+	});
+
 	it("adapts the dialog height to each image task without clipping its actions", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
@@ -714,7 +766,7 @@ describe("MediaDetailPanel", () => {
 	it("offers common aspect ratios and limits replacement to the original ratio", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
-			canCropOriginal: true,
+			canReplaceOriginal: true,
 			canDuplicateCrop: true,
 		});
 		await openCropEditor(screen);
@@ -740,10 +792,11 @@ describe("MediaDetailPanel", () => {
 	it("blocks crop actions while metadata is dirty", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
-			canCropOriginal: true,
+			canReplaceOriginal: true,
 			canDuplicateCrop: true,
 		});
 		await screen.getByLabelText("Alt Text").fill("Changed alt");
+		await expect.element(screen.getByRole("button", { name: "Replace image" })).toBeDisabled();
 		await openCropEditor(screen);
 		await resizeCrop(screen);
 
@@ -858,7 +911,7 @@ describe("MediaDetailPanel", () => {
 		const onItemRefreshed = vi.fn();
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL, focalX: 0.2, focalY: 0.8 }),
-			canCropOriginal: true,
+			canReplaceOriginal: true,
 			canDuplicateCrop: true,
 			onClose,
 			onItemRefreshed,
@@ -933,7 +986,7 @@ describe("MediaDetailPanel", () => {
 		vi.mocked(replaceMediaImage).mockRejectedValueOnce(new Error("Replace failed"));
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
-			canCropOriginal: true,
+			canReplaceOriginal: true,
 		});
 		await openCropEditor(screen);
 		await resizeCrop(screen);
