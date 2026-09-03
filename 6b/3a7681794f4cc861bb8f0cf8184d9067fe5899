@@ -1,0 +1,31 @@
+docs/src/content/docs/guides/media-library.mdx
+  s_ba8a5b40429554::t_878397f2da6382 237-260
+packages/admin/src/components/FocalPointEditor.tsx
+  s_ba8a5b40429554::t_d5b1f111474a0c 64
+packages/admin/tests/components/FocalPointEditor.test.tsx
+  s_a5546e654e1f61::t_30db95b932cad2 1-30
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6b3a7681794f4cc861bb8f0cf8184d9067fe5899",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_ba8a5b40429554": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06832-c3c2-75f2-ab27-f1f6418ca935",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
