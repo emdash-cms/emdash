@@ -284,7 +284,7 @@ function TimestampValue({ value, locale }: { value: string; locale: string }) {
 
 function TimestampRow({ label, children }: React.PropsWithChildren<{ label: string }>) {
 	return (
-		<div className="flex items-start justify-between gap-4">
+		<div className="flex items-start justify-between gap-3">
 			<dt className="max-w-[45%] shrink-0">
 				<Text as="span" variant="secondary">
 					{label}

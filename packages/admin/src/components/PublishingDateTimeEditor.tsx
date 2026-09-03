@@ -478,7 +478,7 @@ export function PublicationDateDialog({
 					<Button
 						type="button"
 						variant="ghost"
-						className="h-auto min-h-9 w-full min-w-0 justify-end whitespace-normal px-2 py-1 text-end font-normal"
+						className="h-auto min-h-9 w-full min-w-0 justify-end whitespace-normal px-1 py-1 text-end font-normal"
 						aria-label={t`Change publication date: ${formattedValue}`}
 					/>
 				}
