@@ -1,4 +1,4 @@
-import { Button, DatePicker, Dialog, Input, Label, Text } from "@cloudflare/kumo";
+import { Button, DatePicker, Dialog, Select, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Globe, PencilSimple, X } from "@phosphor-icons/react";
 import * as React from "react";
@@ -15,6 +15,15 @@ import {
 import { getLocaleDir } from "../locales/config.js";
 import { getDayPickerLocale } from "../locales/day-picker.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+
+const HOURS = Array.from({ length: 24 }, (_, hour) => {
+	const value = String(hour).padStart(2, "0");
+	return { value, label: value };
+});
+const MINUTES = Array.from({ length: 60 }, (_, minute) => {
+	const value = String(minute).padStart(2, "0");
+	return { value, label: value };
+});
 
 interface PublishingDateTimeFieldsProps {
 	date: Date | undefined;
@@ -75,6 +84,10 @@ export function PublishingDateTimeFields({
 	);
 	const mondayDate = mondayResult.success ? mondayResult.date : new Date();
 	const nextMondayLabel = t`Next ${weekdayFormatter.format(mondayDate)} at ${timeFormatter.format(mondayDate)}`;
+	const [hour = "", minute = ""] = time.split(":");
+	const updateTime = (nextHour: string, nextMinute: string) => {
+		onTimeChange(nextHour || nextMinute ? `${nextHour}:${nextMinute}` : "");
+	};
 
 	return (
 		<div className="space-y-4">
@@ -106,29 +119,52 @@ export function PublishingDateTimeFields({
 					</Button>
 				</div>
 			)}
-			<div className="space-y-2">
-				<Label>{t`Date`}</Label>
-				<DatePicker
-					mode="single"
-					selected={date}
-					month={month}
-					onMonthChange={setMonth}
-					onChange={onDateChange}
-					disabled={disabled ? true : restrictToFuture ? { before: today } : undefined}
-					locale={getDayPickerLocale(i18n.locale)}
-					dir={getLocaleDir(i18n.locale)}
-					aria-label={dateAriaLabel}
-					className="mx-auto w-fit"
-				/>
-			</div>
-			<Input
-				label={t`Time`}
-				type="time"
-				step={60}
-				value={time}
-				onChange={(event) => onTimeChange(event.target.value)}
-				disabled={disabled}
+			<DatePicker
+				mode="single"
+				selected={date}
+				month={month}
+				onMonthChange={setMonth}
+				onChange={onDateChange}
+				disabled={disabled ? true : restrictToFuture ? { before: today } : undefined}
+				locale={getDayPickerLocale(i18n.locale)}
+				dir={getLocaleDir(i18n.locale)}
+				aria-label={dateAriaLabel}
+				className="w-full"
+				classNames={{
+					caption_label: "rdp-caption_label text-base !font-medium",
+					month: "rdp-month !w-full",
+					month_grid: "rdp-month_grid !w-full",
+					months: "rdp-months !w-full !max-w-none",
+				}}
 			/>
+			<fieldset className="grid gap-2">
+				<Text as="legend" bold>
+					{t`Time`}
+				</Text>
+				<div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
+					<Select
+						aria-label={t`Hour`}
+						placeholder={t`Hour`}
+						value={hour || null}
+						onValueChange={(value) => updateTime(typeof value === "string" ? value : "", minute)}
+						items={HOURS}
+						disabled={disabled}
+						className="w-full tabular-nums"
+					/>
+					<Text as="span" variant="secondary" DANGEROUS_className="tabular-nums">
+						:
+					</Text>
+					<Select
+						aria-label={t`Minute`}
+						placeholder={t`Minute`}
+						value={minute || null}
+						onValueChange={(value) => updateTime(hour, typeof value === "string" ? value : "")}
+						items={MINUTES}
+						disabled={disabled}
+						className="w-full tabular-nums"
+					/>
+				</div>
+			</fieldset>
 			<div className="flex items-start gap-2 text-kumo-subtle">
 				<span className="flex h-lh items-center" aria-hidden="true">
 					<Globe className="size-4" />
@@ -495,7 +531,7 @@ export function PublicationDateDialog({
 			</Dialog.Trigger>
 			<PublishingDateTimeDialogContent
 				title={t`Change publication date`}
-				description={t`Change the date recorded for the live version. This does not publish or schedule changes.`}
+				description={t`Change the recorded date for the live version.`}
 				date={date}
 				time={time}
 				pending={pending}

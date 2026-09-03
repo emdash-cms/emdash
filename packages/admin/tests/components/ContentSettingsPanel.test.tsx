@@ -84,6 +84,21 @@ function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
 	};
 }
 
+async function setPublishingTime(
+	screen: Awaited<ReturnType<typeof render>>,
+	time: `${string}:${string}`,
+) {
+	const [hour, minute] = time.split(":");
+	screen.getByRole("combobox", { name: "Hour" }).element().click();
+	const hourOption = screen.getByRole("option", { name: hour, exact: true });
+	await expect.element(hourOption).toBeInTheDocument();
+	hourOption.element().click();
+	screen.getByRole("combobox", { name: "Minute" }).element().click();
+	const minuteOption = screen.getByRole("option", { name: minute, exact: true });
+	await expect.element(minuteOption).toBeInTheDocument();
+	minuteOption.element().click();
+}
+
 function makeByline(): BylineSummary {
 	return {
 		id: "byline-1",
@@ -764,19 +779,21 @@ describe("ContentSettingsPanel", () => {
 			await trigger.getByText("Publication date", { exact: true }).click();
 			const dialog = screen.getByRole("dialog", { name: "Change publication date" });
 			await expect
-				.element(
-					dialog.getByText(
-						"Change the date recorded for the live version. This does not publish or schedule changes.",
-					),
-				)
+				.element(dialog.getByText("Change the recorded date for the live version."))
 				.toBeVisible();
-			await expect.element(screen.getByLabelText("Time")).toHaveValue(initial.time);
+			expect(dialog.getByText("Date", { exact: true }).query()).toBeNull();
+			await expect
+				.element(screen.getByRole("combobox", { name: "Hour" }))
+				.toHaveTextContent(initial.time.slice(0, 2));
+			await expect
+				.element(screen.getByRole("combobox", { name: "Minute" }))
+				.toHaveTextContent(initial.time.slice(3));
 			await expect.element(dialog.getByRole("button", { name: "Save date" })).toBeDisabled();
 			fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }).element());
 			expect(onPublishedAtChange).not.toHaveBeenCalled();
 
 			await trigger.click();
-			await screen.getByLabelText("Time").fill("08:45");
+			await setPublishingTime(screen, "08:45");
 			const resolved = resolvePublishingLocalDateTime(initial.date, "08:45");
 			expect(resolved.success).toBe(true);
 			fireEvent.click(dialog.getByRole("button", { name: "Save date" }).element());
@@ -803,12 +820,12 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		await screen.getByRole("button", { name: /Change publication date:/ }).click();
-		const time = screen.getByLabelText("Time");
-		await time.fill("08:45");
+		await setPublishingTime(screen, "08:45");
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
-		await expect.element(time).toHaveValue("08:45");
+		await expect.element(screen.getByRole("combobox", { name: "Hour" })).toHaveTextContent("08");
+		await expect.element(screen.getByRole("combobox", { name: "Minute" })).toHaveTextContent("45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();
 	});
 
@@ -831,7 +848,7 @@ describe("ContentSettingsPanel", () => {
 		);
 
 		await screen.getByRole("button", { name: /Change publication date:/ }).click();
-		await screen.getByLabelText("Time").fill("08:45");
+		await setPublishingTime(screen, "08:45");
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 		await expect.element(screen.getByRole("button", { name: "Save date" })).toBeDisabled();
 
@@ -854,9 +871,13 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.getByRole("alert").query()).toBeNull();
 
 		await screen.getByRole("button", { name: /Change publication date:/ }).click();
+		const resetTime = publishingInstantToLocalFields(secondPublishedAt).time;
 		await expect
-			.element(screen.getByLabelText("Time"))
-			.toHaveValue(publishingInstantToLocalFields(secondPublishedAt).time);
+			.element(screen.getByRole("combobox", { name: "Hour" }))
+			.toHaveTextContent(resetTime.slice(0, 2));
+		await expect
+			.element(screen.getByRole("combobox", { name: "Minute" }))
+			.toHaveTextContent(resetTime.slice(3));
 	});
 
 	it("does not expose publish-date editing below the editor role", async () => {

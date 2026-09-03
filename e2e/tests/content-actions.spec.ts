@@ -133,7 +133,8 @@ test.describe("Schedule content", () => {
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		await expect(dialog).toBeVisible({ timeout: 5000 });
 		await dialog.getByRole("button", { name: /Tomorrow at/ }).click();
-		await expect(dialog.getByLabel("Time")).toHaveValue("09:00");
+		await expect(dialog.getByRole("combobox", { name: "Hour" })).toContainText("09");
+		await expect(dialog.getByRole("combobox", { name: "Minute" })).toContainText("00");
 
 		// Click the "Schedule" confirm button and wait for the API response
 		const scheduleResponse = page.waitForResponse(
@@ -268,7 +269,7 @@ test.describe("Schedule content", () => {
 		});
 		await expect(
 			publicationDateDialog.getByText(
-				"Change the date recorded for the live version. This does not publish or schedule changes.",
+				"Change the recorded date for the live version.",
 				{ exact: true },
 			),
 		).toBeVisible();

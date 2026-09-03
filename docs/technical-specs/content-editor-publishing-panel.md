@@ -49,7 +49,7 @@ These facts are verified against the stated base commit.
 - Scheduling converts a browser-local `datetime-local` value with `new Date(value).toISOString()`. Its `min` value is derived from a UTC string, so the browser-local control and its minimum disagree outside UTC.
 - Publish actions render in three responsive locations: the desktop settings action bar, the mobile editor header, and the distraction-free header. The settings panel stays mounted while distraction-free mode hides it.
 - Schedule and unschedule routes require `content:publish_own` for owned content or `content:publish_any` for other content. A scheduled time must parse as a valid future instant.
-- The repository already uses Kumo `DropdownMenu`, `Dialog`, `Popover`, `DatePicker`, `Input`, `Button`, `Badge`, `Text`, and `Loader` patterns. `ContentList` already supplies Kumo `DatePicker` with `getDayPickerLocale()` and `getLocaleDir()`.
+- The repository already uses Kumo `DropdownMenu`, `Dialog`, `Popover`, `DatePicker`, `Input`, `Select`, `Button`, `Badge`, `Text`, and `Loader` patterns. `ContentList` already supplies Kumo `DatePicker` with `getDayPickerLocale()` and `getLocaleDir()`.
 - The `update-live-article-safely` acceptance journey requires an author to distinguish saved draft work from the public version and keep the current article live until publication. Its status is `needs-profile`, so it supplies acceptance intent but is not currently executable as a release gate.
 
 ## Information architecture
@@ -171,9 +171,9 @@ Use the current Kumo package for every matching UI primitive.
 | Action triggers and confirmations       | `Button`; use its `loading` prop for new or changed publishing buttons instead of inserting a custom spinner         |
 | Scheduling editor                       | One controlled, always-mounted `Dialog.Root` with `Dialog`, `Dialog.Title`, `Dialog.Description`, and `Dialog.Close` |
 | Calendar                                | `DatePicker` in `mode="single"`                                                                                      |
-| Time value                              | `Input type="time"` with `step={60}` and its built-in label, description, disabled, and error states                 |
+| Time value                              | Two `Select` controls for 24-hour hour and minute values                                                               |
 | Form-level validation or mutation error | Existing `DialogError` with `getMutationError()`                                                                     |
-| Publication-date editor                 | The same `Dialog`, `DatePicker`, `Input`, and `Button` presentation used for scheduling                              |
+| Publication-date editor                 | The same `Dialog`, `DatePicker`, `Select`, and `Button` presentation used for scheduling                             |
 | Section text                            | `Text` with semantic `as` elements                                                                                   |
 | Slug and content locale                 | Existing Kumo `Input`, `Label`, `Badge`, `Tooltip`, and `Button` implementation                                      |
 | Discard confirmation                    | Existing `DiscardDraftDialog`, backed by Kumo `Dialog` and `Button`                                                  |
@@ -190,7 +190,7 @@ The dialog contains:
 - a short description that says whether a live version remains public;
 - Tomorrow at 09:00 and Next Monday at 09:00 quick choices, where Next Monday is the next strictly future Monday and advances seven days when today is Monday;
 - a localized Kumo single-date picker;
-- a Kumo time input;
+- Kumo hour and minute selects;
 - the browser's IANA time-zone name and selected short offset or abbreviation;
 - a secondary Cancel button; and
 - a primary Schedule, Schedule changes, or Save schedule button.
@@ -206,7 +206,7 @@ Disable calendar days before the browser's current date. On submit, combine the 
 While the schedule mutation is pending:
 
 - set the primary Kumo button's `loading` prop;
-- disable the calendar, time input, quick choices, and duplicate submission;
+- disable the calendar, time selects, quick choices, and duplicate submission;
 - let the user dismiss the dialog; and
 - keep the submitted values in component state because dismissing the dialog does not cancel the request.
 
@@ -220,9 +220,9 @@ Use `Dialog` size `sm` with viewport-bounded padding so its Kumo date picker and
 
 ## Publication-date dialog
 
-The Publication date detail row opens the shared centered Kumo dialog for authorized editors. The trigger uses a pencil icon rather than a directional caret. The dialog reuses the localized date picker, time input, time-zone label, local validation, compact geometry, and async-submit behavior from scheduling. It does not render quick scheduling choices.
+The Publication date detail row opens the shared centered Kumo dialog for authorized editors. The trigger uses a pencil icon rather than a directional caret. The dialog reuses the localized date picker, time selects, time-zone label, local validation, compact geometry, and async-submit behavior from scheduling. It does not render quick scheduling choices.
 
-The description states: Change the date recorded for the live version. This does not publish or schedule changes.
+The description states: Change the recorded date for the live version.
 
 Use Save date for the primary action. Keep the dialog open on rejection, render the rejection through `DialogError`, and close it on success. Cancel, close, or Escape resets its draft to the persisted value. Reset its draft values when `item.id`, active locale, or `item.publishedAt` changes. Apply the same entry, locale, and submission-generation guard used by scheduling.
 
@@ -405,7 +405,7 @@ Responsibility:
 
 Acceptance:
 
-- the existing scheduling capability uses Kumo `Dialog`, `DatePicker`, `Input`, and `Button`;
+- the existing scheduling capability uses Kumo `Dialog`, `DatePicker`, `Select`, and `Button`;
 - local fields serialize to the intended ISO instant outside UTC;
 - invalid or past local values do not call `onSchedule`; and
 - success closes the dialog while rejection preserves its values.
