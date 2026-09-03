@@ -274,19 +274,33 @@ function PublishingVersionRelationship({
 	return <div className="grid gap-4 px-3 py-3">{rows}</div>;
 }
 
-function TimestampValue({ value, locale }: { value: string; locale: string }) {
+function TimestampValue({
+	value,
+	locale,
+	size = "base",
+}: {
+	value: string;
+	locale: string;
+	size?: "sm" | "base";
+}) {
 	return (
 		<time dateTime={value}>
-			<Text as="span">{formatPublishingInstant(value, locale)}</Text>
+			<Text as="span" size={size}>
+				{formatPublishingInstant(value, locale)}
+			</Text>
 		</time>
 	);
 }
 
-function TimestampRow({ label, children }: React.PropsWithChildren<{ label: string }>) {
+function TimestampRow({
+	label,
+	children,
+	size = "base",
+}: React.PropsWithChildren<{ label: string; size?: "sm" | "base" }>) {
 	return (
 		<div className="flex items-start justify-between gap-3">
 			<dt className="max-w-[45%] shrink-0">
-				<Text as="span" variant="secondary">
+				<Text as="span" variant="secondary" size={size}>
 					{label}
 				</Text>
 			</dt>
@@ -1004,7 +1018,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 													/>
 												}
 											>
-												<Text as="span" variant="secondary">
+												<Text as="span" variant="secondary" size="sm">
 													{t`Created and updated`}
 												</Text>
 												<CaretDown
@@ -1013,12 +1027,20 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												/>
 											</Collapsible.Trigger>
 											<Collapsible.Panel>
-												<dl className="grid gap-2 pt-1.5">
-													<TimestampRow label={t`Created`}>
-														<TimestampValue value={item.createdAt} locale={lingui.locale} />
+												<dl className="grid gap-1.5 px-2 pt-1.5 pb-0.5">
+													<TimestampRow label={t`Created`} size="sm">
+														<TimestampValue
+															value={item.createdAt}
+															locale={lingui.locale}
+															size="sm"
+														/>
 													</TimestampRow>
-													<TimestampRow label={t`Updated`}>
-														<TimestampValue value={item.updatedAt} locale={lingui.locale} />
+													<TimestampRow label={t`Updated`} size="sm">
+														<TimestampValue
+															value={item.updatedAt}
+															locale={lingui.locale}
+															size="sm"
+														/>
 													</TimestampRow>
 												</dl>
 											</Collapsible.Panel>

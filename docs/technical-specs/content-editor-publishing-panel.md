@@ -120,6 +120,7 @@ Render Publication date as the primary date row in the version card. Put Created
 - Show Publication date only when `publishedAt` exists.
 - For an editor with `onPublishedAtChange`, render the Publication date value as the trigger for the shared Kumo publishing dialog and use a pencil icon as its edit affordance.
 - For an author or another read-only caller, render the same value without a button or editable affordance.
+- Render the Created and Updated disclosure label, labels, and values as 13-pixel secondary metadata. Align the expanded rows to the disclosure trigger's inline edges.
 - Keep Created and Updated read-only.
 
 Use the label Publication date. It names stored publication history and does not resemble the Publish or Schedule actions.
@@ -306,7 +307,7 @@ No direct-access route changes are required.
 - Put every user-facing string, aria label, date phrase, validation message, and toast change through Lingui.
 - Pass `getDayPickerLocale(lingui.locale)` and `getLocaleDir(lingui.locale)` to Kumo `DatePicker`.
 - Use logical Tailwind properties. Flip directional carets in right-to-left layouts when Kumo does not do so itself.
-- Keep all normal content and controls at Kumo's 14-pixel content size. Use semibold headings and medium emphasis; do not add letter tracking.
+- Keep normal content and controls at Kumo's 14-pixel content size. Use 13 pixels for the secondary Created and Updated metadata. Use semibold headings and medium emphasis; do not add letter tracking.
 - Use only semantic Kumo color, line, surface, and text tokens. Do not add raw colors or `dark:` classes.
 - Let `DropdownMenu`, `Dialog`, and `Collapsible` own focus, keyboard navigation, overlay position, motion, and reduced-motion behavior.
 - Keep menu and dialog actions available without hover.
