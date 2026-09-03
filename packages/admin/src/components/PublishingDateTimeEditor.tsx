@@ -387,6 +387,7 @@ export function PublishingScheduleDialog({
 export interface PublicationDateDialogProps {
 	entryKey: string;
 	publishedAt: string;
+	label: string;
 	formattedValue: string;
 	isPending?: boolean;
 	onPublishedAtChange: (publishedAt: string) => void | Promise<void>;
@@ -395,6 +396,7 @@ export interface PublicationDateDialogProps {
 export function PublicationDateDialog({
 	entryKey,
 	publishedAt,
+	label,
 	formattedValue,
 	isPending,
 	onPublishedAtChange,
@@ -478,13 +480,18 @@ export function PublicationDateDialog({
 					<Button
 						type="button"
 						variant="ghost"
-						className="h-auto min-h-9 w-full min-w-0 justify-end whitespace-normal px-1 py-1 text-end font-normal"
+						className="h-auto min-h-9 w-full min-w-0 justify-between gap-3 whitespace-normal px-2 py-1.5 font-normal"
 						aria-label={t`Change publication date: ${formattedValue}`}
 					/>
 				}
 			>
-				<time dateTime={publishedAt}>{formattedValue}</time>
-				<PencilSimple className="size-3.5 shrink-0" aria-hidden="true" />
+				<Text as="span" variant="secondary">
+					{label}
+				</Text>
+				<span className="flex min-w-0 items-center justify-end gap-1.5 text-end">
+					<time dateTime={publishedAt}>{formattedValue}</time>
+					<PencilSimple className="size-3.5 shrink-0" aria-hidden="true" />
+				</span>
 			</Dialog.Trigger>
 			<PublishingDateTimeDialogContent
 				title={t`Change publication date`}

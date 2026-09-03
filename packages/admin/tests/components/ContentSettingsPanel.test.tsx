@@ -761,7 +761,7 @@ describe("ContentSettingsPanel", () => {
 			const trigger = screen.getByRole("button", { name: /Change publication date:/ });
 			await expect.element(trigger).toBeVisible();
 			expect(screen.container.querySelector('input[type="time"]')).toBeNull();
-			await trigger.click();
+			await trigger.getByText("Publication date", { exact: true }).click();
 			const dialog = screen.getByRole("dialog", { name: "Change publication date" });
 			await expect
 				.element(

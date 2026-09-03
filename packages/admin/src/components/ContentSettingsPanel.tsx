@@ -966,22 +966,28 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									>
 										{item.publishedAt ? (
 											<dl>
-												<TimestampRow label={t`Publication date`}>
-													{canUpdatePublishedDate && onPublishedAtChange ? (
-														<PublicationDateDialog
-															entryKey={publicationEntryKey}
-															publishedAt={item.publishedAt}
-															formattedValue={formatPublishingInstant(
-																item.publishedAt,
-																lingui.locale,
-															)}
-															isPending={isUpdatingPublishedAt}
-															onPublishedAtChange={onPublishedAtChange}
-														/>
-													) : (
+												{canUpdatePublishedDate && onPublishedAtChange ? (
+													<div>
+														<dt className="sr-only">{t`Publication date`}</dt>
+														<dd>
+															<PublicationDateDialog
+																entryKey={publicationEntryKey}
+																publishedAt={item.publishedAt}
+																label={t`Publication date`}
+																formattedValue={formatPublishingInstant(
+																	item.publishedAt,
+																	lingui.locale,
+																)}
+																isPending={isUpdatingPublishedAt}
+																onPublishedAtChange={onPublishedAtChange}
+															/>
+														</dd>
+													</div>
+												) : (
+													<TimestampRow label={t`Publication date`}>
 														<TimestampValue value={item.publishedAt} locale={lingui.locale} />
-													)}
-												</TimestampRow>
+													</TimestampRow>
+												)}
 											</dl>
 										) : null}
 
@@ -991,7 +997,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 													<Button
 														type="button"
 														variant="ghost"
-														className="mt-1 w-full justify-between px-0 font-normal"
+														className="mt-1 h-auto min-h-9 w-full justify-between whitespace-normal px-2 py-1.5 font-normal"
 													/>
 												}
 											>
