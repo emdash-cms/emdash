@@ -11,6 +11,7 @@ describe("Image dimension round-trip", () => {
 		asset: { _ref: "media-123", url: "https://example.com/photo.jpg" },
 		alt: "A photo",
 		caption: "My caption",
+		title: "Photo details",
 		width: 1920,
 		height: 1080,
 		displayWidth: 400,
@@ -37,6 +38,8 @@ describe("Image dimension round-trip", () => {
 		expect(restored.displayHeight).toBe(225);
 		expect(restored.width).toBe(1920);
 		expect(restored.height).toBe(1080);
+		expect(restored.caption).toBe("My caption");
+		expect(restored.title).toBe("Photo details");
 	});
 
 	it("handles images without display dimensions", () => {
@@ -56,5 +59,38 @@ describe("Image dimension round-trip", () => {
 		expect(restored.displayHeight).toBeUndefined();
 		expect(restored.width).toBe(800);
 		expect(restored.height).toBe(600);
+	});
+
+	it("reads captions from title-only legacy image nodes", () => {
+		const [restored] = prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "image",
+					attrs: { src: "https://example.com/legacy.jpg", title: "Legacy caption" },
+				},
+			],
+		});
+
+		expect((restored as PortableTextImageBlock).caption).toBe("Legacy caption");
+	});
+
+	it("does not restore an explicitly cleared caption from the title", () => {
+		const [restored] = prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "image",
+					attrs: {
+						src: "https://example.com/current.jpg",
+						caption: "",
+						title: "Tooltip",
+					},
+				},
+			],
+		});
+
+		expect((restored as PortableTextImageBlock).caption).toBeUndefined();
+		expect((restored as PortableTextImageBlock).title).toBe("Tooltip");
 	});
 });

@@ -117,3 +117,39 @@ describe("Image LQIP round-trip (inline editor seam)", () => {
 		expect(restored.dominantColor).toBeUndefined();
 	});
 });
+
+describe("Image caption round-trip (inline editor seam)", () => {
+	it("keeps captions and tooltip titles independent", () => {
+		const pm = portableTextToPM([
+			{
+				_type: "image",
+				_key: "img003",
+				asset: { _ref: "01CAPTION", url: "/caption.jpg" },
+				caption: "Visible caption",
+				title: "Hover title",
+			},
+		]);
+
+		const [restored] = pmToPortableText(pm) as Array<{
+			caption?: string;
+			title?: string;
+		}>;
+
+		expect(restored.caption).toBe("Visible caption");
+		expect(restored.title).toBe("Hover title");
+	});
+
+	it("reads captions from title-only legacy image nodes", () => {
+		const [restored] = pmToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "image",
+					attrs: { src: "/legacy.jpg", title: "Legacy caption" },
+				},
+			],
+		}) as Array<{ caption?: string }>;
+
+		expect(restored.caption).toBe("Legacy caption");
+	});
+});

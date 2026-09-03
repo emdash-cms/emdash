@@ -114,6 +114,7 @@ describe("faithful render of migrated image node", () => {
 			...node,
 			alt: "Migrated image",
 			caption: "A caption",
+			title: "Image details",
 			alignment: "center",
 			width: 1200,
 			height: 800,
@@ -125,6 +126,7 @@ describe("faithful render of migrated image node", () => {
 		expect(compact(html)).toContain('<figure class="emdash-image emdash-image--align-center"');
 		expect(attr(tag, "src")).toContain("/_emdash/api/media/file/01KTRTJ55S65SADEH9P9TSY89H.png");
 		expect(attr(tag, "alt")).toBe("Migrated image");
+		expect(attr(tag, "title")).toBe("Image details");
 		expect(attr(tag, "width")).toBe("600");
 		expect(attr(tag, "height")).toBe("400");
 		expect(attr(tag, "loading")).toBe("lazy");

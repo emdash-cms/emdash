@@ -273,7 +273,10 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 					provider: provider && provider !== "local" ? provider : undefined,
 				},
 				alt: attrStrOpt(node.attrs, "alt"),
-				caption: attrStrOpt(node.attrs, "caption") ?? attrStrOpt(node.attrs, "title"),
+				caption: Object.hasOwn(node.attrs, "caption")
+					? attrStrOpt(node.attrs, "caption")
+					: attrStrOpt(node.attrs, "title"),
+				title: attrStrOpt(node.attrs, "title"),
 				width: attrNum(node.attrs, "width"),
 				height: attrNum(node.attrs, "height"),
 				...(blurhash ? { blurhash } : {}),
@@ -559,6 +562,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			url?: string;
 			alt?: string;
 			caption?: string;
+			title?: string;
 			width?: number;
 			height?: number;
 			/** LQIP — first-class field (legacy snapshots keep it in `asset.meta`). */
@@ -587,7 +591,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			attrs: {
 				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
 				alt: ib.alt || "",
-				title: ib.caption || "",
+				title: ib.title || "",
 				caption: ib.caption || "",
 				mediaId: asset?._ref,
 				provider: canonicalMediaProviderId(asset?.provider),
@@ -2158,6 +2162,7 @@ export function InlinePortableTextEditor({
 						provider: { default: null },
 						width: { default: null },
 						height: { default: null },
+						caption: { default: null },
 						blurhash: { default: null },
 						dominantColor: { default: null },
 					};

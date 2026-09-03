@@ -185,6 +185,7 @@ interface PortableTextImageBlock {
 	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
+	title?: string;
 	width?: number;
 	height?: number;
 	/** LQIP blurhash — first-class field (legacy snapshots store it in `asset.meta`). */
@@ -567,7 +568,8 @@ function convertPMNode(
 					provider: provider && provider !== "local" ? provider : undefined,
 				},
 				alt: attrStr(attrs.alt),
-				caption: attrStr(attrs.caption) ?? attrStr(attrs.title),
+				caption: Object.hasOwn(attrs, "caption") ? attrStr(attrs.caption) : attrStr(attrs.title),
+				title: attrStr(attrs.title),
 				width: attrNum(attrs.width),
 				height: attrNum(attrs.height),
 				...(blurhash ? { blurhash } : {}),
@@ -1012,7 +1014,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 				attrs: {
 					src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
 					alt: imageBlock.alt || "",
-					title: imageBlock.caption || "",
+					title: imageBlock.title || "",
 					caption: imageBlock.caption || "",
 					mediaId: imageBlock.asset._ref,
 					provider: canonicalMediaProviderId(imageBlock.asset.provider),

@@ -27,6 +27,7 @@ export interface Props {
 		};
 		alt?: string;
 		caption?: string;
+		title?: string;
 		/** Original image width */
 		width?: number;
 		/** Original image height */
@@ -68,7 +69,7 @@ if (!node?.asset) {
 	return null;
 }
 
-const { asset, alt = "", caption, width, height, displayWidth, displayHeight, alignment } = node;
+const { asset, alt = "", caption, title, width, height, displayWidth, displayHeight, alignment } = node;
 
 // Calculate aspect ratio from original dimensions
 const aspectRatio = width && height ? width / height : undefined;
@@ -172,6 +173,7 @@ if (placeholder && blurhash) {
 			<AstroImage
 				src={astroImageSrc}
 				alt={alt}
+				title={title}
 				width={renderWidth}
 				height={renderHeight}
 				layout="constrained"
@@ -185,6 +187,7 @@ if (placeholder && blurhash) {
 				srcset={srcset}
 				sizes={sizes}
 				alt={alt}
+				title={title}
 				width={renderWidth}
 				height={renderHeight}
 				loading="lazy"

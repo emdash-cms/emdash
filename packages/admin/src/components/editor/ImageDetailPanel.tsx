@@ -95,23 +95,50 @@ export function ImageDetailPanel({
 
 	const handleWidthChange = (value: string) => {
 		const newWidth = value ? parseInt(value, 10) : undefined;
+		const newHeight =
+			lockAspectRatio && aspectRatio && newWidth
+				? Math.round(newWidth / aspectRatio)
+				: displayHeight;
 		setDisplayWidth(newWidth);
-		if (lockAspectRatio && aspectRatio && newWidth) {
-			setDisplayHeight(Math.round(newWidth / aspectRatio));
-		}
+		setDisplayHeight(newHeight);
+		onUpdate({ displayWidth: newWidth, displayHeight: newHeight });
 	};
 
 	const handleHeightChange = (value: string) => {
 		const newHeight = value ? parseInt(value, 10) : undefined;
+		const newWidth =
+			lockAspectRatio && aspectRatio && newHeight
+				? Math.round(newHeight * aspectRatio)
+				: displayWidth;
 		setDisplayHeight(newHeight);
-		if (lockAspectRatio && aspectRatio && newHeight) {
-			setDisplayWidth(Math.round(newHeight * aspectRatio));
-		}
+		setDisplayWidth(newWidth);
+		onUpdate({ displayWidth: newWidth, displayHeight: newHeight });
 	};
 
 	const handleResetDimensions = () => {
 		setDisplayWidth(attributes.width);
 		setDisplayHeight(attributes.height);
+		onUpdate({ displayWidth: attributes.width, displayHeight: attributes.height });
+	};
+
+	const handleAltChange = (value: string) => {
+		setAlt(value);
+		onUpdate({ alt: value || undefined });
+	};
+
+	const handleCaptionChange = (value: string) => {
+		setCaption(value);
+		onUpdate({ caption: value || undefined });
+	};
+
+	const handleTitleChange = (value: string) => {
+		setTitle(value);
+		onUpdate({ title: value || undefined });
+	};
+
+	const handleAlignmentChange = (value: ImageAttributes["alignment"]) => {
+		setAlignment(value);
+		onUpdate({ alignment: value });
 	};
 
 	const handleMediaSelect = (item: MediaItem) => {
@@ -132,32 +159,6 @@ export function ImageDetailPanel({
 		onClose();
 	};
 
-	// Track if form has unsaved changes
-	const hasChanges = React.useMemo(() => {
-		const originalDisplayWidth = attributes.displayWidth ?? attributes.width;
-		const originalDisplayHeight = attributes.displayHeight ?? attributes.height;
-		return (
-			alt !== (attributes.alt ?? "") ||
-			caption !== (attributes.caption ?? "") ||
-			title !== (attributes.title ?? "") ||
-			displayWidth !== originalDisplayWidth ||
-			displayHeight !== originalDisplayHeight ||
-			alignment !== attributes.alignment
-		);
-	}, [attributes, alt, caption, title, displayWidth, displayHeight, alignment]);
-
-	const handleSave = () => {
-		onUpdate({
-			alt: alt || undefined,
-			caption: caption || undefined,
-			title: title || undefined,
-			displayWidth,
-			displayHeight,
-			alignment,
-		});
-		onClose();
-	};
-
 	const alignmentOptions: { value: ImageAttributes["alignment"]; label: string }[] = [
 		{ value: undefined, label: t`None` },
 		{ value: "left", label: t`Left` },
@@ -172,9 +173,7 @@ export function ImageDetailPanel({
 	const handleDelete = () => {
 		setShowDeleteConfirm(true);
 	};
-
 	const stableOnClose = useStableCallback(onClose);
-	const stableHandleSave = useStableCallback(handleSave);
 
 	// Handle keyboard shortcuts
 	React.useEffect(() => {
@@ -182,15 +181,11 @@ export function ImageDetailPanel({
 			if (e.key === "Escape") {
 				stableOnClose();
 			}
-			if ((e.metaKey || e.ctrlKey) && e.key === "s") {
-				e.preventDefault();
-				stableHandleSave();
-			}
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [stableOnClose, stableHandleSave]);
+	}, [stableOnClose]);
 
 	const dialogs = (
 		<>
@@ -332,7 +327,7 @@ export function ImageDetailPanel({
 									type="button"
 									size="sm"
 									variant={alignment === opt.value ? "primary" : "secondary"}
-									onClick={() => setAlignment(opt.value)}
+									onClick={() => handleAlignmentChange(opt.value)}
 								>
 									{opt.label}
 								</Button>
@@ -346,7 +341,7 @@ export function ImageDetailPanel({
 					<Input
 						label={t`Alt Text`}
 						value={alt}
-						onChange={(e) => setAlt(e.target.value)}
+						onChange={(e) => handleAltChange(e.target.value)}
 						placeholder={t`Describe this image for accessibility`}
 						description={t`Required for accessibility. Describes the image for screen readers.`}
 					/>
@@ -354,7 +349,7 @@ export function ImageDetailPanel({
 					<InputArea
 						label={t`Caption`}
 						value={caption}
-						onChange={(e) => setCaption(e.target.value)}
+						onChange={(e) => handleCaptionChange(e.target.value)}
 						placeholder={t`Optional caption displayed below the image`}
 						description={t`Displayed below the image as a visible caption.`}
 						rows={2}
@@ -363,7 +358,7 @@ export function ImageDetailPanel({
 					<Input
 						label={t`Title (Tooltip)`}
 						value={title}
-						onChange={(e) => setTitle(e.target.value)}
+						onChange={(e) => handleTitleChange(e.target.value)}
 						placeholder={t`Optional tooltip on hover`}
 						description={t`Shown when hovering over the image.`}
 					/>
@@ -390,12 +385,9 @@ export function ImageDetailPanel({
 				</div>
 
 				{/* Actions */}
-				<div className="p-4 border-t flex items-center justify-between gap-2">
+				<div className="p-4 border-t">
 					<Button variant="destructive" size="sm" onClick={handleDelete}>
 						{t`Remove Image`}
-					</Button>
-					<Button size="sm" onClick={handleSave} disabled={!hasChanges}>
-						{t`Save`}
 					</Button>
 				</div>
 
@@ -521,7 +513,7 @@ export function ImageDetailPanel({
 									type="button"
 									size="sm"
 									variant={alignment === opt.value ? "primary" : "secondary"}
-									onClick={() => setAlignment(opt.value)}
+									onClick={() => handleAlignmentChange(opt.value)}
 								>
 									{opt.label}
 								</Button>
@@ -535,7 +527,7 @@ export function ImageDetailPanel({
 					<Input
 						label={t`Alt Text`}
 						value={alt}
-						onChange={(e) => setAlt(e.target.value)}
+						onChange={(e) => handleAltChange(e.target.value)}
 						placeholder={t`Describe this image for accessibility`}
 						description={t`Required for accessibility. Describes the image for screen readers.`}
 					/>
@@ -543,7 +535,7 @@ export function ImageDetailPanel({
 					<InputArea
 						label={t`Caption`}
 						value={caption}
-						onChange={(e) => setCaption(e.target.value)}
+						onChange={(e) => handleCaptionChange(e.target.value)}
 						placeholder={t`Optional caption displayed below the image`}
 						description={t`Displayed below the image as a visible caption.`}
 						rows={2}
@@ -552,7 +544,7 @@ export function ImageDetailPanel({
 					<Input
 						label={t`Title (Tooltip)`}
 						value={title}
-						onChange={(e) => setTitle(e.target.value)}
+						onChange={(e) => handleTitleChange(e.target.value)}
 						placeholder={t`Optional tooltip on hover`}
 						description={t`Shown when hovering over the image.`}
 					/>
@@ -584,14 +576,9 @@ export function ImageDetailPanel({
 				<Button variant="destructive" size="sm" onClick={handleDelete}>
 					{t`Remove Image`}
 				</Button>
-				<div className="flex gap-2">
-					<Button variant="outline" size="sm" onClick={onClose}>
-						{t`Cancel`}
-					</Button>
-					<Button size="sm" onClick={handleSave} disabled={!hasChanges}>
-						{t`Save`}
-					</Button>
-				</div>
+				<Button variant="outline" size="sm" onClick={onClose}>
+					{t`Close`}
+				</Button>
 			</div>
 
 			{dialogs}
