@@ -2,7 +2,7 @@
 
 Status: Implemented locally
 Target packages: `@emdash-cms/admin` and `emdash`
-Base: `origin/main` at `450057e46e0f5cb6300e5cad127fb3b2281e1ad1`
+Base: `origin/main` at `7a5d9c1838f6afc5649b7bc0940eacf920b40dab`
 Stack position: Standalone pull request against `main`
 Authority: The approving implementation request authorizes the planned code, tests, documentation, commits, and pull request. It does not authorize deployment or merge.
 
