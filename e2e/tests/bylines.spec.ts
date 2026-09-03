@@ -87,8 +87,8 @@ test.describe("Bylines", () => {
 		await page.getByRole("button", { name }).click();
 		await expect(page.getByText("Avatar", { exact: true })).toBeVisible();
 
-		// Open the avatar picker and upload an image. The picker auto-selects
-		// the freshly uploaded item, enabling the Insert button.
+		// Open the avatar picker and upload an image. The upload stays inside
+		// this picker and becomes the selected library card when it finishes.
 		await page.getByRole("button", { name: "Select image" }).click();
 		const dialog = page.locator('[role="dialog"]').filter({ hasText: "Select Avatar" });
 		await expect(dialog).toBeVisible();
@@ -99,10 +99,12 @@ test.describe("Bylines", () => {
 		);
 		await dialog.locator('input[type="file"]').setInputFiles(TEST_IMAGE_PATH);
 		await uploadDone;
+		await expect(page.getByRole("dialog")).toHaveCount(1);
+		await expect(
+			dialog.getByRole("button", { name: "test-image.png", exact: true }),
+		).toHaveAttribute("aria-pressed", "true");
 
-		// Two "Insert" buttons exist (the disabled "Insert from URL" action and
-		// the footer confirm); the confirm enables once an item is selected.
-		await dialog.getByRole("button", { name: "Insert", disabled: false }).click();
+		await dialog.getByRole("button", { name: "Select", disabled: false }).click();
 		await expect(dialog).not.toBeVisible();
 
 		// Persist the byline and wait for the PUT to land.

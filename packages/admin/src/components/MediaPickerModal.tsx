@@ -47,14 +47,16 @@ import {
 import { useDebouncedValue } from "../lib/hooks.js";
 import { canonicalMediaProviderId, providerItemToMediaItem } from "../lib/media-utils.js";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
-import { DialogError } from "./DialogError.js";
 import {
 	MAX_MEDIA_PAGE_DROPDOWN_ITEMS,
 	MEDIA_BROWSER_PAGE_SIZES,
 	MediaBrowserFolder,
 	MediaBrowserItem,
+	MediaSelectionTrayItem,
+	MediaUploadPlaceholder,
 	mimeForMediaTypeFilter,
 } from "./media/MediaBrowserItems.js";
+import { useMediaUploadQueue } from "./media/useMediaUploadQueue.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 const URL_SOURCE = "__url";
@@ -62,6 +64,12 @@ const DEFAULT_PAGE_SIZE = MEDIA_BROWSER_PAGE_SIZES[0]!;
 
 interface SelectedMedia {
 	key: string;
+	providerId: string;
+	item: MediaItem | MediaProviderItem;
+	uploadJobId?: number;
+}
+
+interface UploadedMedia {
 	providerId: string;
 	item: MediaItem | MediaProviderItem;
 }
@@ -107,6 +115,37 @@ function intersectMimeFilters(
 function selectionKey(providerId: string, item: MediaItem | MediaProviderItem): string {
 	if (providerId === URL_SOURCE) return `external:${(item as MediaItem).url}`;
 	return `${canonicalMediaProviderId(providerId)}:${item.id}`;
+}
+
+function appendUniqueSelections(
+	current: SelectedMedia[],
+	additions: SelectedMedia[],
+	sortUploads = true,
+) {
+	const keys = new Set(current.map((selected) => selected.key));
+	const next = [...current];
+	for (const selected of additions) {
+		if (keys.has(selected.key)) continue;
+		keys.add(selected.key);
+		next.push(selected);
+	}
+	if (sortUploads) {
+		const uploadPositions = next.flatMap((selected, index) =>
+			selected.uploadJobId === undefined ? [] : [index],
+		);
+		const uploads = uploadPositions
+			.map((index) => next[index]!)
+			.toSorted((first, second) => first.uploadJobId! - second.uploadJobId!);
+		uploadPositions.forEach((position, index) => {
+			next[position] = uploads[index]!;
+		});
+	}
+	return next;
+}
+
+function withLocalMediaUrl(item: MediaItem): MediaItem {
+	if (item.url || !item.storageKey) return item;
+	return { ...item, url: `/_emdash/api/media/file/${item.storageKey}` };
 }
 
 function probeImageDimensions(
@@ -181,18 +220,41 @@ export function MediaPickerModal({
 	const [imageUrl, setImageUrl] = React.useState("");
 	const [urlError, setUrlError] = React.useState<string | null>(null);
 	const [isProbing, setIsProbing] = React.useState(false);
-	const [uploadError, setUploadError] = React.useState<string | null>(null);
 	const [liveMessage, setLiveMessage] = React.useState("");
+	const [pinnedItems, setPinnedItems] = React.useState<SelectedMedia[]>([]);
 	const [providerDimensions, setProviderDimensions] = React.useState<
 		Record<string, { width: number; height: number }>
 	>({});
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
 	const updatedDimensionsRef = React.useRef(new Set<string>());
 	const urlProbeIdRef = React.useRef(0);
+	const uploadTargetsRef = React.useRef(new Map<number, string>());
+	const selectionOrderEditedRef = React.useRef(false);
 	const invalidateUrlProbe = React.useCallback(() => {
 		urlProbeIdRef.current += 1;
 		setIsProbing(false);
 	}, []);
+	const uploadFile = React.useCallback(
+		async (
+			file: File,
+			{ signal, jobId }: { signal: AbortSignal; jobId: number; attempt: number },
+		): Promise<UploadedMedia> => {
+			const providerId = uploadTargetsRef.current.get(jobId);
+			if (!providerId) throw new Error("Missing upload target");
+			if (providerId === "local") {
+				return {
+					providerId,
+					item: withLocalMediaUrl(await uploadMedia(file, { fieldId, signal })),
+				};
+			}
+			return {
+				providerId,
+				item: await uploadToProvider(providerId, file, undefined, { signal }),
+			};
+		},
+		[fieldId],
+	);
+	const uploadQueue = useMediaUploadQueue<UploadedMedia>({ upload: uploadFile });
 
 	React.useEffect(() => {
 		if (!open) return;
@@ -208,11 +270,14 @@ export function MediaPickerModal({
 		setImageUrl("");
 		setUrlError(null);
 		invalidateUrlProbe();
-		setUploadError(null);
 		setLiveMessage("");
+		setPinnedItems([]);
 		setProviderDimensions({});
 		updatedDimensionsRef.current.clear();
-	}, [invalidateUrlProbe, localOnly, open]);
+		uploadQueue.reset();
+		uploadTargetsRef.current.clear();
+		selectionOrderEditedRef.current = false;
+	}, [invalidateUrlProbe, localOnly, open, uploadQueue.reset]);
 
 	const providersQuery = useQuery({
 		queryKey: ["media-providers"],
@@ -405,26 +470,34 @@ export function MediaPickerModal({
 		[providerDimensions],
 	);
 
-	const uploadLocalMutation = useMutation({
-		mutationFn: (file: File) => uploadMedia(file, { fieldId }),
-		onSuccess: (item) => {
-			void queryClient.invalidateQueries({ queryKey: ["media"] });
-			ensureSelection("local", item);
-			setUploadError(null);
-		},
-		onError: (error: Error) => setUploadError(error.message),
-	});
-	const uploadProviderMutation = useMutation({
-		mutationFn: ({ providerId, file }: { providerId: string; file: File }) =>
-			uploadToProvider(providerId, file),
-		onSuccess: (item, { providerId }) => {
-			void queryClient.invalidateQueries({ queryKey: ["provider-media", providerId] });
-			ensureSelection(providerId, item);
-			setUploadError(null);
-		},
-		onError: (error: Error) => setUploadError(error.message),
-	});
-	const isUploading = uploadLocalMutation.isPending || uploadProviderMutation.isPending;
+	React.useEffect(() => {
+		if (uploadQueue.hasUnfinished) return;
+		const completed = uploadQueue.jobs.filter(
+			(job): job is typeof job & { result: UploadedMedia } =>
+				job.status === "complete" && job.result !== undefined,
+		);
+		if (completed.length === 0) return;
+		const additions = completed.map(({ id, result }) => ({
+			key: selectionKey(result.providerId, result.item),
+			providerId: result.providerId,
+			item: result.item,
+			uploadJobId: id,
+		}));
+		setPinnedItems((current) => appendUniqueSelections(current, additions));
+		setSelectedItems((current) => {
+			if (!multiple) return [additions.at(-1)!];
+			return appendUniqueSelections(current, additions, !selectionOrderEditedRef.current);
+		});
+		for (const providerId of new Set(additions.map((selected) => selected.providerId))) {
+			void queryClient.invalidateQueries({
+				queryKey: providerId === "local" ? ["media"] : ["provider-media", providerId],
+			});
+		}
+		for (const job of completed) {
+			uploadTargetsRef.current.delete(job.id);
+			uploadQueue.remove(job.id);
+		}
+	}, [multiple, queryClient, uploadQueue.hasUnfinished, uploadQueue.jobs, uploadQueue.remove]);
 
 	const dimensionsMutation = useMutation({
 		mutationFn: ({ id, width, height }: { id: string; width: number; height: number }) =>
@@ -477,21 +550,10 @@ export function MediaPickerModal({
 		setRetainedTotalCount(0);
 	}, []);
 	const changeSource = (source: string) => {
-		if (!source || source === activeSource) return;
+		if (!source || source === activeSource || uploadQueue.hasUnfinished) return;
 		if (activeSource === URL_SOURCE) invalidateUrlProbe();
 		setActiveSource(source);
 		setSearchQuery("");
-		setUploadError(null);
-	};
-	const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-		const file = event.currentTarget.files?.[0];
-		if (file) {
-			if (activeSource === "local") uploadLocalMutation.mutate(file);
-			else if (activeProviderInfo?.capabilities.upload) {
-				uploadProviderMutation.mutate({ providerId: activeSource, file });
-			}
-		}
-		event.currentTarget.value = "";
 	};
 	const handleUrlSubmit = async () => {
 		if (!imageUrl.trim()) return;
@@ -546,8 +608,28 @@ export function MediaPickerModal({
 	};
 	const handleClose = () => {
 		invalidateUrlProbe();
+		uploadQueue.reset();
+		uploadTargetsRef.current.clear();
+		setPinnedItems([]);
 		onOpenChange(false);
 		setSelectedItems([]);
+	};
+	const moveSelectedItem = (from: number, to: number, filename: string) => {
+		if (to < 0 || to >= selectedItems.length) return;
+		selectionOrderEditedRef.current = true;
+		setSelectedItems((current) => {
+			if (!current[from] || !current[to]) return current;
+			const next = [...current];
+			const [moved] = next.splice(from, 1);
+			next.splice(to, 0, moved!);
+			return next;
+		});
+		setLiveMessage(t`Moved ${filename} to position ${to + 1}.`);
+	};
+	const removeSelectedItem = (selected: SelectedMedia) => {
+		selectionOrderEditedRef.current = true;
+		setSelectedItems((current) => current.filter((item) => item.key !== selected.key));
+		setLiveMessage(t`Removed ${selected.item.filename} from selection.`);
 	};
 	const confirmText =
 		confirmLabel ??
@@ -574,8 +656,45 @@ export function MediaPickerModal({
 	const currentLoading = activeSource === "local" ? localQuery.isPending : providerQuery.isPending;
 	const currentFetching =
 		activeSource === "local" ? localQuery.isFetching : providerQuery.isFetching;
-	const hasVisibleItems =
-		activeSource === "local" ? localItems.length > 0 : providerItems.length > 0;
+	const fetchedItems: Array<MediaItem | MediaProviderItem> =
+		activeSource === "local" ? localItems : providerItems;
+	const visibleItems = React.useMemo(() => {
+		const pinned = pinnedItems.filter(
+			(selected) =>
+				selected.providerId === activeSource &&
+				!(activeSource === "local" && folderId && !activeSearch),
+		);
+		const keys = new Set(pinned.map((selected) => selected.key));
+		return [
+			...pinned.map((selected) => selected.item),
+			...fetchedItems.filter((item) => !keys.has(selectionKey(activeSource, item))),
+		];
+	}, [activeSearch, activeSource, fetchedItems, folderId, pinnedItems]);
+	const visibleUploadJobs = uploadQueue.jobs.filter(
+		(job) => job.status !== "complete" && uploadTargetsRef.current.get(job.id) === activeSource,
+	);
+	const hasVisibleItems = visibleItems.length > 0 || visibleUploadJobs.length > 0;
+	const enqueueFiles = React.useCallback(
+		(files: readonly File[]) => {
+			if (!canUpload || files.length === 0) return;
+			const compatible = filters?.length
+				? files.filter((file) => matchesAnyFilter(file.type, filters))
+				: [...files];
+			const accepted = multiple ? compatible : compatible.slice(0, 1);
+			const rejectedCount = files.length - accepted.length;
+			const jobs = uploadQueue.addFiles(accepted);
+			for (const job of jobs) uploadTargetsRef.current.set(job.id, activeSource);
+			if (rejectedCount > 0) {
+				setLiveMessage(
+					plural(rejectedCount, {
+						one: "# file was not added.",
+						other: "# files were not added.",
+					}),
+				);
+			}
+		},
+		[activeSource, canUpload, filters, multiple, uploadQueue.addFiles],
+	);
 
 	return (
 		<Dialog.Root
@@ -610,27 +729,40 @@ export function MediaPickerModal({
 					/>
 				</header>
 
-				<div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6">
+				<div
+					className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-4 sm:px-6"
+					onDragOver={(event) => {
+						if (canUpload && event.dataTransfer.types.includes("Files")) event.preventDefault();
+					}}
+					onDrop={(event) => {
+						if (!canUpload || !event.dataTransfer.types.includes("Files")) return;
+						event.preventDefault();
+						enqueueFiles([...event.dataTransfer.files]);
+					}}
+				>
 					{sourceTabs.length > 1 && (
-						<Tabs
-							variant="underline"
-							value={activeSource}
-							onValueChange={changeSource}
-							tabs={sourceTabs.map((source) => ({
-								value: source.id,
-								label: (
-									<span className="flex items-center gap-2">
-										{source.icon &&
-											(source.icon.startsWith("data:") ? (
-												<img src={source.icon} alt="" className="size-4" aria-hidden="true" />
-											) : (
-												<span aria-hidden="true">{source.icon}</span>
-											))}
-										{source.name}
-									</span>
-								),
-							}))}
-						/>
+						<div aria-disabled={uploadQueue.hasUnfinished || undefined} data-source-tabs>
+							<Tabs
+								variant="underline"
+								value={activeSource}
+								onValueChange={changeSource}
+								tabs={sourceTabs.map((source) => ({
+									value: source.id,
+									render: (props) => <button {...props} disabled={uploadQueue.hasUnfinished} />,
+									label: (
+										<span className="flex items-center gap-2">
+											{source.icon &&
+												(source.icon.startsWith("data:") ? (
+													<img src={source.icon} alt="" className="size-4" aria-hidden="true" />
+												) : (
+													<span aria-hidden="true">{source.icon}</span>
+												))}
+											{source.name}
+										</span>
+									),
+								}))}
+							/>
+						</div>
 					)}
 
 					{activeSource === URL_SOURCE ? (
@@ -699,6 +831,7 @@ export function MediaPickerModal({
 									<Button
 										variant="ghost"
 										size="sm"
+										disabled={uploadQueue.hasUnfinished}
 										onClick={() => {
 											setFolderId(undefined);
 											resetPage();
@@ -772,7 +905,7 @@ export function MediaPickerModal({
 											if (activeSource === "local") resetPage();
 										}}
 										maxLength={MEDIA_SEARCH_MAX_LENGTH}
-										className="w-full flex-1 sm:w-72"
+										className="basis-full sm:w-72 sm:basis-auto"
 									/>
 								)}
 								{activeSource === "local" && (
@@ -792,8 +925,6 @@ export function MediaPickerModal({
 										<Button
 											size="sm"
 											onClick={() => fileInputRef.current?.click()}
-											disabled={isUploading}
-											loading={isUploading}
 											icon={<Upload aria-hidden="true" />}
 										>
 											{t`Upload files`}
@@ -801,6 +932,7 @@ export function MediaPickerModal({
 										<input
 											ref={fileInputRef}
 											type="file"
+											multiple={multiple}
 											accept={
 												filters
 													? filters
@@ -810,14 +942,24 @@ export function MediaPickerModal({
 											}
 											className="sr-only"
 											tabIndex={-1}
-											onChange={handleFileSelect}
+											onChange={(event) => {
+												enqueueFiles([...(event.currentTarget.files ?? [])]);
+												event.currentTarget.value = "";
+											}}
 											aria-label={t`Choose files to upload`}
 										/>
 									</>
 								)}
 							</TableToolbar>
 
-							<DialogError message={uploadError ? t`Upload failed: ${uploadError}` : null} />
+							{uploadQueue.overflowCount > 0 && (
+								<p role="alert" className="text-sm text-kumo-danger">
+									{plural(uploadQueue.overflowCount, {
+										one: "# file was not added because the upload list is full.",
+										other: "# files were not added because the upload list is full.",
+									})}
+								</p>
+							)}
 							{activeSource === "local" && localQuery.error && localItems.length > 0 && (
 								<div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-kumo-danger-tint px-3 py-2 text-sm text-kumo-danger">
 									<span>{t`The latest media request failed. Showing the previous page.`}</span>
@@ -858,12 +1000,16 @@ export function MediaPickerModal({
 												{t`Loading folders`}
 											</div>
 										) : (
-											<div className="grid grid-cols-[repeat(auto-fill,minmax(min(12rem,100%),1fr))] gap-2">
+											<div
+												className="grid grid-cols-[repeat(auto-fill,minmax(min(12rem,100%),1fr))] gap-2"
+												inert={uploadQueue.hasUnfinished || undefined}
+											>
 												{folders.map((folder) => (
 													<MediaBrowserFolder
 														key={folder.id}
 														folder={folder}
 														onOpen={() => {
+															if (uploadQueue.hasUnfinished) return;
 															setSearchQuery("");
 															setFolderId(folder.id);
 															resetPage();
@@ -877,7 +1023,7 @@ export function MediaPickerModal({
 												variant="outline"
 												size="sm"
 												onClick={() => void foldersQuery.fetchNextPage()}
-												disabled={foldersQuery.isFetchingNextPage}
+												disabled={foldersQuery.isFetchingNextPage || uploadQueue.hasUnfinished}
 												loading={foldersQuery.isFetchingNextPage}
 											>
 												{t`Load more folders`}
@@ -938,7 +1084,19 @@ export function MediaPickerModal({
 										inert={currentFetching || undefined}
 										data-media-items
 									>
-										{(activeSource === "local" ? localItems : providerItems).map((rawItem) => {
+										{visibleUploadJobs.map((job) => (
+											<MediaUploadPlaceholder
+												key={job.id}
+												job={job}
+												layout="grid"
+												onRetry={() => uploadQueue.retry(job.id)}
+												onRemove={() => {
+													uploadTargetsRef.current.delete(job.id);
+													uploadQueue.remove(job.id);
+												}}
+											/>
+										))}
+										{visibleItems.map((rawItem) => {
 											const key = selectionKey(activeSource, rawItem);
 											const item =
 												activeSource === "local"
@@ -964,7 +1122,19 @@ export function MediaPickerModal({
 									</Grid>
 								) : (
 									<div className="grid gap-2" inert={currentFetching || undefined} data-media-items>
-										{(activeSource === "local" ? localItems : providerItems).map((rawItem) => {
+										{visibleUploadJobs.map((job) => (
+											<MediaUploadPlaceholder
+												key={job.id}
+												job={job}
+												layout="list"
+												onRetry={() => uploadQueue.retry(job.id)}
+												onRemove={() => {
+													uploadTargetsRef.current.delete(job.id);
+													uploadQueue.remove(job.id);
+												}}
+											/>
+										))}
+										{visibleItems.map((rawItem) => {
 											const key = selectionKey(activeSource, rawItem);
 											const item =
 												activeSource === "local"
@@ -1052,6 +1222,27 @@ export function MediaPickerModal({
 							)}
 						</>
 					)}
+
+					{multiple && selectedItems.length > 0 && (
+						<section aria-labelledby="media-picker-selection" className="grid gap-2">
+							<h2 id="media-picker-selection" className="text-sm font-semibold">
+								{t`Selected media`}
+							</h2>
+							<ul className="grid gap-2">
+								{selectedItems.map((selected, index) => (
+									<MediaSelectionTrayItem
+										key={selected.key}
+										item={toMediaItem(selected)}
+										position={index + 1}
+										total={selectedItems.length}
+										onMoveEarlier={() => moveSelectedItem(index, index - 1, selected.item.filename)}
+										onMoveLater={() => moveSelectedItem(index, index + 1, selected.item.filename)}
+										onRemove={() => removeSelectedItem(selected)}
+									/>
+								))}
+							</ul>
+						</section>
+					)}
 				</div>
 
 				<footer className="flex shrink-0 flex-col gap-3 border-t border-kumo-line px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
@@ -1069,13 +1260,28 @@ export function MediaPickerModal({
 						<Button variant="outline" onClick={handleClose}>
 							{t`Cancel`}
 						</Button>
-						<Button onClick={handleConfirm} disabled={selectedItems.length === 0 || isUploading}>
+						<Button
+							onClick={handleConfirm}
+							disabled={selectedItems.length === 0 || uploadQueue.hasUnfinished}
+						>
 							{confirmText}
 						</Button>
 					</div>
 				</footer>
 				<span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
-					{liveMessage}
+					{uploadQueue.hasUnfinished
+						? plural(
+								uploadQueue.jobs.filter(
+									(job) => job.status === "queued" || job.status === "uploading",
+								).length,
+								{ one: "# file uploading", other: "# files uploading" },
+							)
+						: uploadQueue.failedCount > 0
+							? plural(uploadQueue.failedCount, {
+									one: "# upload failed",
+									other: "# uploads failed",
+								})
+							: liveMessage}
 				</span>
 			</Dialog>
 		</Dialog.Root>

@@ -1,6 +1,6 @@
-import { Badge, LayerCard } from "@cloudflare/kumo";
+import { Badge, Button, LayerCard, Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Check, FolderSimple } from "@phosphor-icons/react";
+import { ArrowDown, ArrowUp, Check, FolderSimple, WarningCircle, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaFolder, MediaItem } from "../../lib/api/media.js";
@@ -13,6 +13,7 @@ import {
 	getMediaThumbnailUrl,
 } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils.js";
+import type { MediaUploadJob } from "./useMediaUploadQueue.js";
 
 export const MEDIA_BROWSER_PAGE_SIZES = [35, 70, 90];
 export const MAX_MEDIA_PAGE_DROPDOWN_ITEMS = 100;
@@ -60,7 +61,7 @@ export function MediaBrowserItem({
 	const isImage = item.mimeType.startsWith("image/");
 	const hasVisualPreview = Boolean(item.url) && (isImage || Boolean(item.provider));
 	const needsDimensions = hasVisualPreview && (!item.width || !item.height);
-	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
+	const previewUrl = item.url ? getMediaPreviewUrl(item.url, item.contentHash) : "";
 	const imageUrl =
 		needsDimensions && onDimensionsLoaded
 			? previewUrl
@@ -188,6 +189,148 @@ export function MediaBrowserFolder({
 			<span dir="auto" className="min-w-0 truncate text-sm font-medium" title={folder.name}>
 				{folder.name}
 			</span>
+		</LayerCard>
+	);
+}
+
+export function MediaUploadPlaceholder({
+	job,
+	layout,
+	onRetry,
+	onRemove,
+}: {
+	job: MediaUploadJob<unknown>;
+	layout: "grid" | "list";
+	onRetry: () => void;
+	onRemove: () => void;
+}) {
+	const { t } = useLingui();
+	const failed = job.status === "failed";
+	const status = failed ? t`Upload failed` : t`Uploading`;
+	const statusIcon = failed ? (
+		<WarningCircle className="size-5 text-kumo-danger" weight="fill" aria-hidden="true" />
+	) : (
+		<Loader size="sm" />
+	);
+	const actions = failed ? (
+		<div className="flex flex-wrap items-center gap-1">
+			<Button variant="ghost" size="sm" onClick={onRetry} aria-label={t`Retry ${job.file.name}`}>
+				{t`Retry`}
+			</Button>
+			<Button variant="ghost" size="sm" onClick={onRemove} aria-label={t`Remove ${job.file.name}`}>
+				{t`Remove`}
+			</Button>
+		</div>
+	) : null;
+
+	if (layout === "list") {
+		return (
+			<LayerCard
+				data-upload-status={job.status}
+				className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 bg-kumo-tint/60 px-3 py-2 opacity-75"
+			>
+				<div className="flex h-10 w-14 items-center justify-center rounded-md bg-kumo-recessed">
+					{statusIcon}
+				</div>
+				<div className="min-w-0">
+					<p dir="auto" className="truncate text-sm font-medium" title={job.file.name}>
+						{job.file.name}
+					</p>
+					<p className={cn("text-sm", failed ? "text-kumo-danger" : "text-kumo-subtle")}>
+						{status}
+					</p>
+				</div>
+				{actions}
+			</LayerCard>
+		);
+	}
+
+	return (
+		<LayerCard data-upload-status={job.status} className="min-w-0 bg-kumo-tint/60 opacity-75">
+			<LayerCard.Primary className="flex aspect-video items-center justify-center bg-kumo-recessed p-0">
+				{statusIcon}
+			</LayerCard.Primary>
+			<LayerCard.Secondary className="my-0 grid min-w-0 gap-1 px-3 py-2.5">
+				<p dir="auto" className="truncate text-sm font-medium" title={job.file.name}>
+					{job.file.name}
+				</p>
+				<p className={cn("text-sm", failed ? "text-kumo-danger" : "text-kumo-subtle")}>{status}</p>
+				{actions}
+			</LayerCard.Secondary>
+		</LayerCard>
+	);
+}
+
+export function MediaSelectionTrayItem({
+	item,
+	position,
+	total,
+	onMoveEarlier,
+	onMoveLater,
+	onRemove,
+}: {
+	item: MediaItem;
+	position: number;
+	total: number;
+	onMoveEarlier: () => void;
+	onMoveLater: () => void;
+	onRemove: () => void;
+}) {
+	const { t } = useLingui();
+	const image = item.mimeType.startsWith("image/") && item.url;
+	return (
+		<LayerCard
+			render={<li />}
+			className="grid min-w-0 grid-cols-[3.5rem_minmax(0,1fr)_auto] items-center gap-3 px-3 py-2"
+		>
+			<div className="h-10 w-14 overflow-hidden rounded-md bg-kumo-tint">
+				{image ? (
+					<img
+						src={getMediaThumbnailUrl(item.url, item.mimeType, 80, item.contentHash)}
+						alt=""
+						className="emdash-media-transparency-grid h-full w-full object-cover"
+						style={{ objectPosition: getMediaObjectPosition(item) }}
+					/>
+				) : (
+					<span className="flex h-full items-center justify-center text-xl" aria-hidden="true">
+						{getFileIcon(item.mimeType)}
+					</span>
+				)}
+			</div>
+			<div className="min-w-0">
+				<p dir="auto" className="truncate text-sm font-medium" title={item.filename}>
+					{item.filename}
+				</p>
+				<p className="text-sm text-kumo-subtle">{t`${position} of ${total}`}</p>
+			</div>
+			<div className="flex items-center gap-1">
+				<Button
+					variant="ghost"
+					shape="square"
+					size="sm"
+					disabled={position === 1}
+					onClick={onMoveEarlier}
+					aria-label={t`Move ${item.filename} earlier`}
+					icon={<ArrowUp aria-hidden="true" />}
+				/>
+				<Button
+					variant="ghost"
+					shape="square"
+					size="sm"
+					disabled={position === total}
+					onClick={onMoveLater}
+					aria-label={t`Move ${item.filename} later`}
+					icon={<ArrowDown aria-hidden="true" />}
+				/>
+				<Button
+					variant="ghost"
+					shape="square"
+					size="sm"
+					onClick={onRemove}
+					aria-label={t`Remove ${item.filename} from selection`}
+					icon={<X aria-hidden="true" />}
+				/>
+			</div>
 		</LayerCard>
 	);
 }

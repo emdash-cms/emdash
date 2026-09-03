@@ -16,7 +16,10 @@ export interface MediaUploadJob<TResult> {
 }
 
 interface UseMediaUploadQueueOptions<TResult> {
-	upload: (file: File, options: { signal: AbortSignal }) => Promise<TResult>;
+	upload: (
+		file: File,
+		options: { signal: AbortSignal; jobId: number; attempt: number },
+	) => Promise<TResult>;
 	concurrency?: number;
 	createPreviewUrl?: (file: File) => string | undefined;
 	onQueueIdle?: () => void;
@@ -56,7 +59,7 @@ export function useMediaUploadQueue<TResult>({
 			const available = Math.max(0, MAX_VISIBLE_JOBS - jobsRef.current.length);
 			const accepted = files.slice(0, available);
 			setOverflowCount(Math.max(0, files.length - accepted.length));
-			if (accepted.length === 0) return;
+			if (accepted.length === 0) return [];
 
 			busyRunRef.current = true;
 			const added = accepted.map((file): MediaUploadJob<TResult> => {
@@ -75,6 +78,7 @@ export function useMediaUploadQueue<TResult>({
 				};
 			});
 			updateJobs((current) => [...current, ...added]);
+			return added;
 		},
 		[createPreviewUrl, updateJobs],
 	);
@@ -99,7 +103,13 @@ export function useMediaUploadQueue<TResult>({
 			);
 
 			void Promise.resolve()
-				.then(() => upload(job.file, { signal: controller.signal }))
+				.then(() =>
+					upload(job.file, {
+						signal: controller.signal,
+						jobId: job.id,
+						attempt: job.attempt,
+					}),
+				)
 				.then(
 					(result) => {
 						const active = activeRef.current.get(job.id);

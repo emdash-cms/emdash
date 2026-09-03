@@ -84,7 +84,7 @@ function renderModal(props: Partial<React.ComponentProps<typeof MediaPickerModal
 }
 
 function optionButton(screen: Awaited<ReturnType<typeof renderModal>>, name: string) {
-	return screen.getByRole("button", { name }).element() as HTMLButtonElement;
+	return screen.getByRole("button", { name, exact: true }).element() as HTMLButtonElement;
 }
 
 function confirmationButton(): HTMLButtonElement {
@@ -102,23 +102,25 @@ describe("MediaPickerModal — multi-select", () => {
 		const onSelectMany = vi.fn();
 		const screen = await renderModal({ multiple: true, onSelectMany });
 
-		await expect.element(screen.getByRole("button", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 
 		// Click landscape, then photo, then portrait — order should be preserved
 		// as the gallery insertion order, not the grid's display order.
 		optionButton(screen, "landscape.png").click();
 		await expect
-			.element(screen.getByRole("button", { name: "landscape.png" }))
+			.element(screen.getByRole("button", { name: "landscape.png", exact: true }))
 			.toHaveAttribute("aria-pressed", "true");
 
 		optionButton(screen, "photo.jpg").click();
 		await expect
-			.element(screen.getByRole("button", { name: "photo.jpg" }))
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
 			.toHaveAttribute("aria-pressed", "true");
 
 		optionButton(screen, "portrait.png").click();
 		await expect
-			.element(screen.getByRole("button", { name: "portrait.png" }))
+			.element(screen.getByRole("button", { name: "portrait.png", exact: true }))
 			.toHaveAttribute("aria-pressed", "true");
 
 		await vi.waitFor(() => {
@@ -139,22 +141,24 @@ describe("MediaPickerModal — multi-select", () => {
 		const onSelectMany = vi.fn();
 		const screen = await renderModal({ multiple: true, onSelectMany });
 
-		await expect.element(screen.getByRole("button", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 
 		optionButton(screen, "photo.jpg").click();
 		await expect
-			.element(screen.getByRole("button", { name: "photo.jpg" }))
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
 			.toHaveAttribute("aria-pressed", "true");
 
 		optionButton(screen, "landscape.png").click();
 		await expect
-			.element(screen.getByRole("button", { name: "landscape.png" }))
+			.element(screen.getByRole("button", { name: "landscape.png", exact: true }))
 			.toHaveAttribute("aria-pressed", "true");
 
 		// Deselect the first click
 		optionButton(screen, "photo.jpg").click();
 		await expect
-			.element(screen.getByRole("button", { name: "photo.jpg" }))
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
 			.toHaveAttribute("aria-pressed", "false");
 
 		await vi.waitFor(() => {
@@ -177,7 +181,9 @@ describe("MediaPickerModal — multi-select", () => {
 
 	it("confirmation follows the current selection count", async () => {
 		const screen = await renderModal({ multiple: true });
-		await expect.element(screen.getByRole("button", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 
 		optionButton(screen, "photo.jpg").click();
 		await vi.waitFor(() => {
@@ -195,11 +201,13 @@ describe("MediaPickerModal — multi-select", () => {
 		const onSelectMany = vi.fn();
 		const screen = await renderModal({ onSelect, onSelectMany });
 
-		await expect.element(screen.getByRole("button", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 
 		optionButton(screen, "photo.jpg").click();
 		await expect
-			.element(screen.getByRole("button", { name: "photo.jpg" }))
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
 			.toHaveAttribute("aria-pressed", "true");
 
 		screen.getByRole("button", { name: "Select" }).element().click();
@@ -234,13 +242,17 @@ describe("MediaPickerModal — multi-select", () => {
 		});
 		const onSelectMany = vi.fn();
 		const screen = await renderModal({ multiple: true, onSelectMany });
-		await expect.element(screen.getByRole("button", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 		optionButton(screen, "photo.jpg").click();
 		screen.getByRole("tab", { name: "Cloudflare Images" }).element().click();
-		await expect.element(screen.getByRole("button", { name: "provider.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "provider.jpg", exact: true }))
+			.toBeInTheDocument();
 		optionButton(screen, "provider.jpg").click();
 		await expect
-			.element(screen.getByRole("button", { name: "provider.jpg" }))
+			.element(screen.getByRole("button", { name: "provider.jpg", exact: true }))
 			.toHaveAttribute("aria-pressed", "true");
 		confirmationButton().click();
 
