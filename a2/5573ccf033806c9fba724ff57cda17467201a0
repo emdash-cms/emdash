@@ -1,0 +1,21 @@
+packages/core/src/api/openapi/document.ts
+  s_7401afe2e80f73::t_32f5b2182799b1 917
+packages/core/tests/integration/astro/media-replace.test.ts
+  s_7401afe2e80f73::t_f4e1277430d593 137-142,154-155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a25573ccf033806c9fba724ff57cda17467201a0",
+  "prompts": {},
+  "sessions": {
+    "s_7401afe2e80f73": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05f2a-31ef-79e3-ba99-17dc671bebd6",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
