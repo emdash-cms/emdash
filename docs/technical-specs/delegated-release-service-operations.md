@@ -127,7 +127,7 @@ After deployment, `GET /health` must return `200` without loading configuration.
 Test the account and workflow connection journey against the deployed origin:
 
 1. Run `emdash-plugin profile setup` from the test plugin with the test publisher's local CLI session. Confirm the signed profile extension names the canonical GitHub repository and the intended approval policy.
-2. Sign in once with the same test [Atmosphere account](https://docs.emdashcms.com/guides/atmosphere-auth/) and confirm the account dashboard loads publishing state, connected workflows, recent releases, activity, and any existing approval passkeys.
+2. Sign in once with the same test [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) and confirm the account dashboard loads publishing state, connected workflows, recent releases, activity, and any existing approval passkeys.
 3. Create a connection invitation for the test plugin and store it as the `EMDASH_CONNECTION_INVITATION` GitHub Actions secret.
 4. Run the permanent release Action in a test GitHub Actions job with `id-token: write` and no existing workload policy.
 5. Confirm the job summary contains the workflow approval URL and the Action remains waiting without accepting bundle or provenance uploads.

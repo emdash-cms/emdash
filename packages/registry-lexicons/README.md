@@ -62,7 +62,7 @@ Automated releases require `PackageProfileExtension` under the profile's `extens
 
 - `requireProvenance` tells every publisher and installer to require supported provenance. The delegated service always requires provenance.
 - `confirmation: "escalation-only"` requires approval when declared access expands. `"always"` requires approval for every release.
-- `approvers` lists the [Atmosphere account](https://docs.emdashcms.com/guides/atmosphere-auth/) DIDs allowed to approve releases.
+- `approvers` lists the [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) DIDs allowed to approve releases.
 
 Use `emdash-plugin profile setup` to create this extension. The release service validates the signed value but cannot edit it.
 

@@ -40,11 +40,11 @@ Canonical service state is sharded across SQLite-backed Durable Objects. A `Publ
 
 The service has three external authentication mechanisms. Credentials from one mechanism never authorize another.
 
-| Actor                                                                           | Authentication                                         | Authority                                                                                         |
-| ------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| GitHub Actions workflow                                                         | GitHub Actions OIDC                                    | Request publisher approval for its identity, then submit release intents                          |
-| [Atmosphere account](https://docs.emdashcms.com/guides/atmosphere-auth/) holder | AT Protocol OAuth plus an enrolled passkey when needed | Establish or revoke delegation, confirm a GitHub workflow, and approve or reject an exact release |
-| Service operator                                                                | Cloudflare Access                                      | Observe, pause, suspend, revoke, retry, and recover the service                                   |
+| Actor                                                                                                                | Authentication                                         | Authority                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| GitHub Actions workflow                                                                                              | GitHub Actions OIDC                                    | Request publisher approval for its identity, then submit release intents                          |
+| [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) holder | AT Protocol OAuth plus an enrolled passkey when needed | Establish or revoke delegation, confirm a GitHub workflow, and approve or reject an exact release |
+| Service operator                                                                                                     | Cloudflare Access                                      | Observe, pause, suspend, revoke, retry, and recover the service                                   |
 
 Cloudflare Access protects `/admin/*` and the operator API. The Worker verifies the `Cf-Access-Jwt-Assertion` signature, team issuer, role-specific audience, time claims, token type, and human identity. Access-injected identity headers and the browser cookie are not sufficient by themselves. Operator mutations retain CSRF and idempotency protection.
 

@@ -13,7 +13,7 @@ emdash-plugin login <handle-or-did>
 emdash-plugin release setup
 ```
 
-Before writing `.github/workflows/emdash-release.yml`, the command creates a missing package profile or adds delegated-release settings to an existing valid profile. Profile setup binds the package to the canonical GitHub repository, uses the signed-in [Atmosphere account](https://docs.emdashcms.com/guides/atmosphere-auth/) as the initial approver, and asks whether approval is required for permission increases or every release. Run `emdash-plugin profile setup` to perform this step without changing the workflow file.
+Before writing `.github/workflows/emdash-release.yml`, the command creates a missing package profile or adds delegated-release settings to an existing valid profile. Profile setup binds the package to the canonical GitHub repository, uses the signed-in [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) as the initial approver, and asks whether approval is required for permission increases or every release. Run `emdash-plugin profile setup` to perform this step without changing the workflow file.
 
 The generated workflow uses pinned third-party Actions, builds one bundle, creates GitHub provenance for the exact bundle, and calls this Action. It does not push the workflow. The generated workflow currently supports public repositories because the verifier trusts GitHub's public Sigstore root.
 
