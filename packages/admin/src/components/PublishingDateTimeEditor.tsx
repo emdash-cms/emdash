@@ -277,7 +277,7 @@ function PublishingDateTimeDialogContent({
 
 	return (
 		<Dialog
-			className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto px-5 py-4 sm:px-6 sm:py-5"
+			className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto px-6 py-4 sm:px-8 sm:py-5"
 			size="sm"
 			style={{ width: "20rem" }}
 		>
