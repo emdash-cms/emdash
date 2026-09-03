@@ -14,7 +14,7 @@ import {
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
-import { promisify } from "node:util";
+import { promisify, stripVTControlCharacters } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -408,7 +408,9 @@ describe.sequential("Isolated template installs", () => {
 						output += data.toString();
 					});
 					const readOutput = () =>
-						[output, existsSync(devLogPath) ? readFileSync(devLogPath, "utf8") : ""].join("\n");
+						stripVTControlCharacters(
+							[output, existsSync(devLogPath) ? readFileSync(devLogPath, "utf8") : ""].join("\n"),
+						);
 
 					try {
 						await waitForReady(serverProcess, readOutput);
