@@ -99,6 +99,7 @@ describe("MCP content_unpublish — publishedAt preservation", () => {
 	});
 
 	it("re-publish after unpublish keeps the original publishedAt timestamp", async () => {
+		const publishedAt = "2020-01-01T00:00:00.000Z";
 		const created = await harness.client.callTool({
 			name: "content_create",
 			arguments: { collection: "post", data: { title: "T" } },
@@ -107,10 +108,10 @@ describe("MCP content_unpublish — publishedAt preservation", () => {
 
 		const firstPub = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, publishedAt },
 		});
 		const firstTs = extractJson<{ item: { publishedAt: string } }>(firstPub).item.publishedAt;
-		expect(firstTs).toBeTruthy();
+		expect(firstTs).toBe(publishedAt);
 
 		await harness.client.callTool({
 			name: "content_unpublish",
@@ -122,8 +123,7 @@ describe("MCP content_unpublish — publishedAt preservation", () => {
 			arguments: { collection: "post", id },
 		});
 		const secondTs = extractJson<{ item: { publishedAt: string } }>(secondPub).item.publishedAt;
-		expect(secondTs).toBeTruthy();
-		expect(secondTs).toBe(firstTs);
+		expect(secondTs).toBe(publishedAt);
 	});
 });
 
