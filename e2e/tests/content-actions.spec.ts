@@ -164,7 +164,14 @@ test.describe("Schedule content", () => {
 		await admin.waitForLoading();
 		await page.setViewportSize({ width: 320, height: 800 });
 
-		await page.getByRole("button", { name: "Publish", exact: true }).click();
+		const publishButton = page.getByRole("button", { name: "Publish", exact: true });
+		await publishButton.focus();
+		await page.keyboard.press("Enter");
+		await page.keyboard.press("ArrowDown");
+		await expect(page.locator('[role="menuitem"][data-highlighted]')).toHaveCount(1);
+		await page.keyboard.press("Escape");
+		await expect(publishButton).toBeFocused();
+		await publishButton.click();
 		const menu = page.getByRole("menu", { name: "Publish" });
 		const menuBox = await menu.boundingBox();
 		expect(menuBox).not.toBeNull();
