@@ -168,6 +168,10 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	min-width: var(--anchor-width);
 }
 
+div:has(> [role="listbox"] > .emdash-short-select-option) {
+	max-height: min(var(--available-height), 12rem);
+}
+
 /* Transitions.dev — Text states swap */
 :root {
 	--text-swap-dur: 150ms;

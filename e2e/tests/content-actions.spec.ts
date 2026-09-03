@@ -132,6 +132,17 @@ test.describe("Schedule content", () => {
 
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		await expect(dialog).toBeVisible({ timeout: 5000 });
+		for (const name of ["Hour", "Minute"]) {
+			await dialog.getByRole("combobox", { name }).click();
+			const options = page.getByRole("listbox");
+			const optionsBox = await options.boundingBox();
+			expect(optionsBox).not.toBeNull();
+			expect(optionsBox!.height).toBeLessThanOrEqual(192);
+			expect(await options.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
+				true,
+			);
+			await page.keyboard.press("Escape");
+		}
 		await dialog.getByRole("button", { name: /Tomorrow at/ }).click();
 		await expect(dialog.getByRole("combobox", { name: "Hour" })).toContainText("09");
 		await expect(dialog.getByRole("combobox", { name: "Minute" })).toContainText("00");
@@ -300,6 +311,17 @@ test.describe("Schedule content", () => {
 				exact: true,
 			}),
 		).toBeVisible();
+		for (const name of ["Hour", "Minute"]) {
+			await publicationDateDialog.getByRole("combobox", { name }).click();
+			const options = page.getByRole("listbox");
+			const optionsBox = await options.boundingBox();
+			expect(optionsBox).not.toBeNull();
+			expect(optionsBox!.height).toBeLessThanOrEqual(192);
+			expect(await options.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
+				true,
+			);
+			await page.keyboard.press("Escape");
+		}
 		await publicationDateDialog.getByRole("button", { name: "Cancel", exact: true }).click();
 		await expect(publicationDateTrigger).toBeFocused();
 

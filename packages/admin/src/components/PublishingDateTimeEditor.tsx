@@ -147,10 +147,15 @@ export function PublishingDateTimeFields({
 						placeholder={t`Hour`}
 						value={hour || null}
 						onValueChange={(value) => updateTime(typeof value === "string" ? value : "", minute)}
-						items={HOURS}
 						disabled={disabled}
 						className="w-full tabular-nums"
-					/>
+					>
+						{HOURS.map(({ value, label }) => (
+							<Select.Option key={value} value={value} className="emdash-short-select-option">
+								{label}
+							</Select.Option>
+						))}
+					</Select>
 					<Text as="span" variant="secondary" DANGEROUS_className="tabular-nums">
 						:
 					</Text>
@@ -159,10 +164,15 @@ export function PublishingDateTimeFields({
 						placeholder={t`Minute`}
 						value={minute || null}
 						onValueChange={(value) => updateTime(hour, typeof value === "string" ? value : "")}
-						items={MINUTES}
 						disabled={disabled}
 						className="w-full tabular-nums"
-					/>
+					>
+						{MINUTES.map(({ value, label }) => (
+							<Select.Option key={value} value={value} className="emdash-short-select-option">
+								{label}
+							</Select.Option>
+						))}
+					</Select>
 				</div>
 			</fieldset>
 			<div className="flex items-start gap-2 text-kumo-subtle">
