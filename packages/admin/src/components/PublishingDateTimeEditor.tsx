@@ -244,7 +244,11 @@ function PublishingDateTimeDialogContent({
 	};
 
 	return (
-		<Dialog className="max-w-[calc(100vw-2rem)] p-4 sm:p-5" size="sm" style={{ width: "20rem" }}>
+		<Dialog
+			className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto p-4 sm:p-5"
+			size="sm"
+			style={{ width: "20rem" }}
+		>
 			<form onSubmit={handleSubmit} noValidate>
 				<div className="flex items-start justify-between gap-4">
 					<div className="min-w-0 grid gap-1.5">

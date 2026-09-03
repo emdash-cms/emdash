@@ -163,13 +163,17 @@ test.describe("Schedule content", () => {
 	test("keeps publishing choices usable in a 320-pixel viewport", async ({ admin, page }) => {
 		await admin.goToEditContent("posts", postId);
 		await admin.waitForLoading();
-		await page.setViewportSize({ width: 320, height: 800 });
+		await page.setViewportSize({ width: 320, height: 576 });
 
 		const publishButton = page.getByRole("button", { name: "Publish", exact: true });
 		await publishButton.focus();
 		await page.keyboard.press("Enter");
 		await page.keyboard.press("ArrowDown");
 		await expect(page.locator('[role="menuitem"][data-highlighted]')).toHaveCount(1);
+		await expect(page.getByText("Choose when this draft goes live", { exact: true })).toBeVisible();
+		await page.keyboard.press("Escape");
+		await expect(page.getByText("Choose when this draft goes live", { exact: true })).not.toBeVisible();
+		await expect(publishButton).toHaveAttribute("aria-expanded", "true");
 		await page.keyboard.press("Escape");
 		await expect(publishButton).toBeFocused();
 		await publishButton.click();
@@ -185,6 +189,8 @@ test.describe("Schedule content", () => {
 		expect(dialogBox).not.toBeNull();
 		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
 		expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(320);
+		expect(dialogBox!.y).toBeGreaterThanOrEqual(0);
+		expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(576);
 		const calendarBox = await dialog.locator(".rdp-root").boundingBox();
 		expect(calendarBox).not.toBeNull();
 		const calendarStart = calendarBox!.x - dialogBox!.x;
@@ -268,10 +274,9 @@ test.describe("Schedule content", () => {
 			name: "Change publication date",
 		});
 		await expect(
-			publicationDateDialog.getByText(
-				"Change the recorded date for the live version.",
-				{ exact: true },
-			),
+			publicationDateDialog.getByText("Change the recorded date for the live version.", {
+				exact: true,
+			}),
 		).toBeVisible();
 		await publicationDateDialog.getByRole("button", { name: "Cancel", exact: true }).click();
 		await expect(publicationDateTrigger).toBeFocused();
