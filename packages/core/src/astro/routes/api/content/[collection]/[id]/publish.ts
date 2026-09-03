@@ -3,7 +3,7 @@
  *
  * POST /_emdash/api/content/{collection}/{id}/publish
  *
- * Optional JSON body: { publishedAt?: string }
+ * Optional JSON body: { publishedAt?: string, _rev?: string }
  *   publishedAt — ISO 8601 datetime to backdate the publish (e.g. when
  *   migrating content). Writing publishedAt requires content:publish_any.
  *   Without it, the existing published_at is preserved on re-publish and
@@ -78,6 +78,7 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 
 	const result = await emdash.handleContentPublish(collection, resolvedId, {
 		publishedAt,
+		_rev: body?._rev,
 	});
 
 	if (!result.success) return unwrapResult(result);

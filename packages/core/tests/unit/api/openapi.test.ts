@@ -388,6 +388,18 @@ describe("OpenAPI document generation", () => {
 		);
 	});
 
+	it("documents the 422 a rejected save returns on content create and update", () => {
+		const doc = generateOpenApiDocument();
+		const createResponses = doc.paths?.["/_emdash/api/content/{collection}"]?.post?.responses as
+			| Record<string, { description?: string }>
+			| undefined;
+		const updateResponses = doc.paths?.["/_emdash/api/content/{collection}/{id}"]?.put
+			?.responses as Record<string, { description?: string }> | undefined;
+
+		expect(createResponses?.["422"]?.description).toBe("Unprocessable Entity");
+		expect(updateResponses?.["422"]?.description).toBe("Unprocessable Entity");
+	});
+
 	it("generates unique operation IDs for all operations", () => {
 		const doc = generateOpenApiDocument();
 		const operationIds: string[] = [];

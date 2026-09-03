@@ -32,7 +32,7 @@ const SUPPORTED_SUBJECT_DIGESTS = new Map([
 	["sha384", 48],
 	["sha512", 64],
 ]);
-const decoder = new TextDecoder("utf-8", { fatal: true });
+const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
 const trustedRoot = TrustedRoot.fromJSON(trustedRootJson);
 const verifier = new Verifier(toTrustMaterial(trustedRoot), {
 	tlogThreshold: 1,
@@ -46,6 +46,7 @@ export interface ProvenanceVerificationInput {
 	document: Uint8Array;
 	reference: ReleaseProvenance;
 	artifactDigest: Uint8Array;
+	artifactDigests?: readonly Uint8Array[];
 	profileRepository: string;
 }
 
@@ -56,6 +57,13 @@ export interface VerifiedProvenance {
 	builderId: string;
 }
 
+export interface VerifiedGitHubProvenance extends VerifiedProvenance {
+	repositoryId: string;
+	workflowRef: string;
+	commitSha: string;
+	invocationId: string;
+}
+
 export interface ProvenanceVerifier {
 	verify(input: ProvenanceVerificationInput): Promise<VerificationResult<VerifiedProvenance>>;
 }
@@ -63,7 +71,7 @@ export interface ProvenanceVerifier {
 export class GitHubProvenanceVerifier implements ProvenanceVerifier {
 	async verify(
 		input: ProvenanceVerificationInput,
-	): Promise<VerificationResult<VerifiedProvenance>> {
+	): Promise<VerificationResult<VerifiedGitHubProvenance>> {
 		try {
 			const snapshot = snapshotInput(input);
 			const checksum = await verifyMultihash(snapshot.document, snapshot.reference.checksum);
@@ -83,9 +91,13 @@ export class GitHubProvenanceVerifier implements ProvenanceVerifier {
 				success: true,
 				value: {
 					predicateType: PREDICATE_TYPE,
-					artifactDigest: snapshot.artifactDigest,
+					artifactDigest: expected.artifactDigest,
 					sourceRepository: expected.repository,
 					builderId: expected.builderId,
+					repositoryId: expected.repositoryId,
+					workflowRef: expected.workflowRef,
+					commitSha: expected.commitSha,
+					invocationId: expected.invocationId,
 				},
 			};
 		} catch {
@@ -105,6 +117,7 @@ function snapshotInput(input: ProvenanceVerificationInput): ProvenanceVerificati
 			url: input.reference.url,
 		},
 		artifactDigest: new Uint8Array(input.artifactDigest),
+		artifactDigests: input.artifactDigests?.map((digest) => new Uint8Array(digest)),
 		profileRepository: input.profileRepository,
 	};
 }
@@ -114,6 +127,7 @@ function exactRegexPattern(value: string): string {
 }
 
 interface ExpectedIdentity {
+	artifactDigest: Uint8Array;
 	repository: string;
 	builderId: string;
 	workflowRef: string;
@@ -173,7 +187,10 @@ function validateStatement(
 	if (input.reference.predicateType !== PREDICATE_TYPE) {
 		throw new Error("Provenance predicate reference mismatch");
 	}
-	validateArtifactSubject(statement.subject, input.artifactDigest);
+	const artifactDigest = validateArtifactSubject(statement.subject, [
+		input.artifactDigest,
+		...(input.artifactDigests ?? []),
+	]);
 
 	const profileRepository = requireRepository(input.profileRepository);
 	const referenceRepository = requireRepository(input.reference.sourceRepository);
@@ -220,6 +237,7 @@ function validateStatement(
 	if (!GIT_COMMIT_RE.test(commitSha)) throw new Error("Invalid Git commit digest");
 
 	return {
+		artifactDigest,
 		repository: attestedRepository,
 		builderId,
 		workflowRef,
@@ -229,18 +247,21 @@ function validateStatement(
 	};
 }
 
-function validateArtifactSubject(subjects: unknown[], artifactDigest: Uint8Array): void {
-	let matched = false;
+function validateArtifactSubject(
+	subjects: unknown[],
+	artifactDigests: readonly Uint8Array[],
+): Uint8Array {
 	for (const value of subjects) {
 		const digest = requireObject(requireObject(value).digest);
 		for (const [algorithm, expectedLength] of SUPPORTED_SUBJECT_DIGESTS) {
 			if (!(algorithm in digest)) continue;
 			const bytes = decodeHex(requireString(digest[algorithm]));
 			if (bytes.byteLength !== expectedLength) throw new Error("Invalid subject digest length");
-			matched ||= compareDigestBytes(bytes, artifactDigest);
+			const matched = artifactDigests.find((candidate) => compareDigestBytes(bytes, candidate));
+			if (matched) return new Uint8Array(matched);
 		}
 	}
-	if (!matched) throw new Error("Artifact digest mismatch");
+	throw new Error("Artifact digest mismatch");
 }
 
 function validateSignerIdentity(

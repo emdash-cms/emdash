@@ -219,8 +219,15 @@ export const contentScheduleBody = z
 	})
 	.meta({ id: "ContentScheduleBody" });
 
-export const contentPublishBody = z
-	.object({
+export const contentRevisionConditionBody = z.object({
+	_rev: z
+		.string()
+		.optional()
+		.meta({ description: "Opaque revision token for optimistic concurrency" }),
+});
+
+export const contentPublishBody = contentRevisionConditionBody
+	.extend({
 		// .optional() rather than .nullish(): publishing has no semantic
 		// meaning for `null` (you can't "clear" a publish timestamp by
 		// publishing). Tightening the schema here means callers either

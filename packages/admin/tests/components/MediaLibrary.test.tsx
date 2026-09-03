@@ -458,7 +458,7 @@ describe("MediaLibrary", () => {
 			await simulateMediaDrop(item, folder);
 			await vi.waitFor(() => expect(onMoveMedia).toHaveBeenCalledWith(item, folder));
 			expect(onOpenFolder).not.toHaveBeenCalled();
-			expect(screen.getByRole("heading", { name: "Media Details" }).query()).toBeNull();
+			expect(screen.getByRole("heading", { name: "Media details" }).query()).toBeNull();
 			await expect
 				.element(screen.getByText("Moved to Product photos", { exact: true }))
 				.toBeVisible();
@@ -519,7 +519,7 @@ describe("MediaLibrary", () => {
 
 			expect(onMoveMedia).not.toHaveBeenCalled();
 			await expect
-				.element(screen.getByRole("heading", { name: "Media Details" }))
+				.element(screen.getByRole("heading", { name: "Media details" }))
 				.toBeInTheDocument();
 		});
 
@@ -1009,6 +1009,31 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("tab", { name: "List view" }).click();
 			await expect.element(screen.getByAltText("cloud-pic.jpg")).toHaveAttribute("loading", "lazy");
 		});
+
+		it("shows filenames and file formats on local grid cards", async () => {
+			const longFilename = "annual-report-final-approved-version.jpg";
+			const screen = await renderLibrary({
+				items: [
+					makeMediaItem({
+						id: "image-1",
+						filename: longFilename,
+						alt: "An annual report cover",
+						mimeType: "image/jpeg",
+					}),
+					makeMediaItem({
+						id: "document-1",
+						filename: "annual-report.pdf",
+						mimeType: "application/pdf",
+					}),
+				],
+			});
+
+			await expect.element(screen.getByText("JPEG", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("PDF", { exact: true })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: longFilename, exact: true }))
+				.toBeInTheDocument();
+		});
 	});
 
 	describe("view mode toggle", () => {
@@ -1142,6 +1167,56 @@ describe("MediaLibrary", () => {
 	});
 
 	describe("item selection", () => {
+		it.each([
+			{
+				label: "owner",
+				role: 30,
+				authorId: "user-1",
+				duplicate: true,
+				replace: true,
+			},
+			{
+				label: "another author",
+				role: 30,
+				authorId: "user-2",
+				duplicate: true,
+				replace: false,
+			},
+			{
+				label: "subscriber",
+				role: 10,
+				authorId: "user-1",
+				duplicate: false,
+				replace: false,
+			},
+		])("derives crop actions for an $label", async (testCase) => {
+			setupMocks.role = testCase.role;
+			const item = makeLocalMediaItem({
+				status: "ready",
+				authorId: testCase.authorId,
+				url: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100'/%3E",
+			});
+			const screen = await renderLibrary({ items: [item] });
+
+			await screen.getByRole("button", { name: "photo.jpg" }).click();
+			screen.getByRole("tab", { name: "Edit image" }).element().click();
+			const crop = screen.getByRole("tab", { name: "Crop" });
+			if (!testCase.duplicate && !testCase.replace) {
+				expect(crop.query()).toBeNull();
+				return;
+			}
+			await expect.element(crop).toBeVisible();
+			crop.element().click();
+			await expect.element(screen.getByLabelText("Crop output dimensions")).toBeVisible();
+
+			expect(screen.getByRole("button", { name: "Create cropped copy" }).query() !== null).toBe(
+				testCase.duplicate,
+			);
+			expect(screen.getByRole("button", { name: "Replace original" }).query() !== null).toBe(
+				testCase.replace,
+			);
+		});
+
 		it("clicking an item opens detail dialog", async () => {
 			const items = [makeMediaItem({ id: "1", filename: "photo.jpg", alt: "A photo" })];
 			const screen = await renderLibrary({ items });
@@ -1150,7 +1225,7 @@ describe("MediaLibrary", () => {
 			await screen.getByRole("button", { name: "photo.jpg" }).click();
 
 			// MediaDetailPanel should open showing the item details
-			await expect.element(screen.getByText("Media Details")).toBeInTheDocument();
+			await expect.element(screen.getByText("Media details")).toBeInTheDocument();
 		});
 
 		it("opens the detail dialog on an animation frame so Kumo entry animation runs", async () => {
@@ -1173,12 +1248,12 @@ describe("MediaLibrary", () => {
 
 				expect(requestAnimationFrameSpy).toHaveBeenCalledTimes(1);
 				await expect
-					.element(screen.getByText("Media Details"), { timeout: 100 })
+					.element(screen.getByText("Media details"), { timeout: 100 })
 					.not.toBeInTheDocument();
 
 				openFrame?.(performance.now());
 
-				await expect.element(screen.getByText("Media Details")).toBeInTheDocument();
+				await expect.element(screen.getByText("Media details")).toBeInTheDocument();
 			} finally {
 				requestAnimationFrameSpy.mockRestore();
 				cancelAnimationFrameSpy.mockRestore();
@@ -1211,7 +1286,7 @@ describe("MediaLibrary", () => {
 
 			await screen.getByRole("button", { name: "photo.jpg" }).click();
 			screen.getByRole("button", { name: "Delete" }).element().click();
-			await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
+			await expect.element(screen.getByText("Delete media?")).toBeInTheDocument();
 			screen.getByRole("button", { name: "Delete" }).all().at(-1)!.element().click();
 
 			await vi.waitFor(() => {
@@ -1237,7 +1312,7 @@ describe("MediaLibrary", () => {
 
 			await screen.getByRole("button", { name: "photo.jpg" }).click();
 			screen.getByRole("button", { name: "Delete" }).element().click();
-			await expect.element(screen.getByText("Delete Media?")).toBeInTheDocument();
+			await expect.element(screen.getByText("Delete media?")).toBeInTheDocument();
 			screen.getByRole("button", { name: "Delete" }).all().at(-1)!.element().click();
 
 			await vi.waitFor(() => {
@@ -1579,6 +1654,7 @@ describe("MediaLibrary", () => {
 			const poster = screen.getByAltText("webinar.mp4");
 			await expect.element(poster).toBeInTheDocument();
 			expect(poster.element().getAttribute("src")).toBe(STREAM_POSTER);
+			await expect.element(screen.getByText("MP4", { exact: true })).toBeInTheDocument();
 		});
 
 		it("shows a size the provider reports only under meta", async () => {

@@ -15,8 +15,8 @@ import { GET as genericGET } from "astro/assets/endpoint/generic";
 import { getConfiguredImageService, imageConfig } from "astro:assets";
 
 import {
-	IMMUTABLE_IMAGE_CACHE,
 	matchInternalMediaKey,
+	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
 } from "../media/image-endpoint.js";
 
@@ -72,7 +72,7 @@ export const GET: APIRoute = async (ctx) => {
 			status: 200,
 			headers: {
 				"Content-Type": FORMAT_MIME[format] ?? source.contentType,
-				"Cache-Control": IMMUTABLE_IMAGE_CACHE,
+				"Cache-Control": MUTABLE_MEDIA_CACHE_CONTROL,
 				"X-Content-Type-Options": "nosniff",
 			},
 		});

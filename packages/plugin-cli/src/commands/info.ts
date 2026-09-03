@@ -60,9 +60,13 @@ export const infoCommand = defineCommand({
 			);
 			process.exit(2);
 		}
+		const latestRelease = await getLatestReleaseForInfo(result.latestVersion, () =>
+			client.getLatestRelease({ did: result.did, package: result.slug }),
+		);
+		const hosting = hostingMode(latestRelease?.release?.artifacts.package);
 
 		if (args.json) {
-			console.log(JSON.stringify(result, null, 2));
+			console.log(JSON.stringify({ ...result, latestRelease, hosting }, null, 2));
 			return;
 		}
 
@@ -92,6 +96,9 @@ export const infoCommand = defineCommand({
 		if (result.latestVersion) {
 			console.log(`  Latest:    ${result.latestVersion}`);
 		}
+		if (hosting) {
+			console.log(`  Hosting:   ${hosting}`);
+		}
 		console.log(`  AT URI:    ${pc.dim(result.uri)}`);
 		console.log();
 
@@ -103,3 +110,24 @@ export const infoCommand = defineCommand({
 		}
 	},
 });
+
+export async function getLatestReleaseForInfo<T>(
+	latestVersion: string | null | undefined,
+	lookup: () => Promise<T>,
+): Promise<T | null> {
+	if (!latestVersion) return null;
+	try {
+		return await lookup();
+	} catch {
+		return null;
+	}
+}
+
+function hostingMode(artifact: unknown): string | null {
+	if (!artifact || typeof artifact !== "object") return null;
+	const value = artifact as { blob?: unknown; url?: unknown };
+	if (value.blob && typeof value.url === "string") return "publisher PDS blob + external URL";
+	if (value.blob) return "publisher PDS blob";
+	if (typeof value.url === "string") return "external URL";
+	return "invalid (no blob or URL)";
+}

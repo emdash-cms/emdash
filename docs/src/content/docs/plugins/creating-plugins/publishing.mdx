@@ -7,7 +7,7 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 Once your sandboxed plugin works, publish it so other sites can install it. Publishing is sandboxed-only — native plugins distribute via npm.
 
-When you publish, the CLI records the release to your own [Atmosphere account](#your-atmosphere-account). **You host the tarball** yourself — a GitHub release asset, R2, S3, or any public URL — and the registry stores a link to it.
+When you publish, the CLI builds the plugin, uploads the package and listing images to your [Atmosphere account](#your-atmosphere-account), and writes the release record there. You only need a separate artifact host when you explicitly choose the `--url` path.
 
 <Aside type="caution" title="Experimental">
 	The registry, its lexicon, and record shapes are governed by RFC 0001 and
@@ -48,18 +48,18 @@ If you do not have an Atmosphere account yet, create one through any provider, t
 
 Whichever you choose, the `@handle` from that account is what you pass to `emdash-plugin login`, and the account's DID is what you pin as the [`publisher`](/plugins/creating-plugins/manifest/#publisher-pinning) in your manifest.
 
-## Three steps
+## Publish from your plugin directory
 
-The following commands log in, build a tarball, and publish a release that points at the hosted tarball:
+Log in once, then publish from the directory containing `emdash-plugin.jsonc`:
 
 ```sh
-emdash-plugin login                     # if not already logged in
-emdash-plugin bundle                    # produces dist/<slug>-<version>.tar.gz
-# upload that tarball to a public URL, then:
-emdash-plugin publish --url https://your-host/<slug>-<version>.tar.gz
+emdash-plugin login alice.example.com
+emdash-plugin publish
 ```
 
-`bundle` prints the next two steps when it finishes, including the `--url` invocation, so you don't have to remember the shape.
+`publish` runs the same build and validation checks as `bundle`, creates the gzip archive, uploads it to your Personal Data Server (PDS), uploads any declared listing images, and writes the release record.
+
+Sites need a version of EmDash that supports PDS-hosted registry artifacts before they can install a blob-only release. Use the [external package URL](#use-an-external-package-url) path when the release must remain installable on older sites.
 
 ## Bundle
 
@@ -106,30 +106,60 @@ tar tzf dist/my-plugin-1.1.0.tar.gz
 
 ## Publish
 
-Publishing writes the release record. The tarball must already be hosted at a public URL:
+Publish the current source and host its artifacts on your PDS:
 
 ```sh
-emdash-plugin publish --url <hosted-tarball-url>
+emdash-plugin publish
 ```
 
-`--url` is required: it is where the plugin's bytes live, and the registry record points at it. To verify the hosted URL serves the exact bytes you built before writing the record, pass `--local`:
+The following manifest block adds listing images. Paths are relative to `emdash-plugin.jsonc`; PNG, JPEG, and WebP are supported.
 
-```sh
-emdash-plugin publish --url https://your-host/foo-1.0.0.tar.gz --local dist/foo-1.0.0.tar.gz
+```jsonc title="emdash-plugin.jsonc"
+{
+  "release": {
+    "artifacts": {
+      "icon": { "file": "./icon.png" },
+      "banner": { "file": "./banner.webp" },
+      "screenshots": [
+        { "file": "./screenshots/editor.png" },
+        { "file": "./screenshots/settings.jpg", "lang": "en" }
+      ]
+    }
+  }
+}
 ```
 
 What `publish` does:
 
 <Steps>
 
-1. Fetches the tarball at `--url` (with URL and size guards) and extracts the manifest from those bytes.
-2. Resumes your Atmosphere account session and checks [publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning) — the active session must match the manifest's pinned `publisher`, or it refuses with `MANIFEST_PUBLISHER_MISMATCH`.
-3. Creates the package profile from the manifest on first publish (`license`, author, security contact). On later publishes, the existing profile wins.
-4. Publishes the profile and release records to your account.
+1. Builds the plugin, validates the decompressed limits, and creates the gzip archive.
+2. Resumes your Atmosphere account session and checks [publisher pinning](/plugins/creating-plugins/manifest/#publisher-pinning).
+3. Confirms that the OAuth grant includes package and image blob scopes.
+4. Uploads the package and declared images to your PDS, then verifies each returned blob CID against the uploaded bytes.
+5. Creates the package profile on first publish and writes the immutable release record.
 
 </Steps>
 
-On first publish you can supply profile fields by flag (`--license`, `--security-email`, …) instead of the manifest; explicit flags override manifest values, which is handy in CI. `--no-manifest` opts out of the manifest entirely.
+If an existing login predates blob publishing, `publish` reports `MISSING_BLOB_SCOPE`. Run `emdash-plugin logout`, then log in again to approve the new scopes.
+
+### Use an external package URL
+
+Pass `--url` when the package bundle is already available over HTTPS or the account provider does not accept gzip blobs:
+
+```sh
+emdash-plugin publish --url https://downloads.example.com/gallery-1.0.0.tar.gz
+```
+
+The CLI downloads the URL, validates the served bundle, and computes its checksum. It does not upload the package blob on this path. Listing images still use PDS blobs.
+
+To compare the hosted bytes with a local tarball, add `--local`:
+
+```sh
+emdash-plugin publish \\
+  --url https://downloads.example.com/gallery-1.0.0.tar.gz \\
+  --local dist/gallery-1.0.0.tar.gz
+```
 
 ### Versions are immutable
 

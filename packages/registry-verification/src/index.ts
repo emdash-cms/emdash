@@ -1,9 +1,17 @@
 export {
 	compareDigestBytes,
+	computeArtifactDigestCandidates,
 	computeMultihash,
 	decodeMultihash,
+	multihashFromBlobCid,
 	verifyMultihash,
 } from "./checksum.js";
+export {
+	fetchReleaseArtifact,
+	recordScopedBlobCacheUrl,
+	recordScopedImageCacheUrl,
+	resolvePublisherPdsEndpoint,
+} from "./artifact.js";
 export { DEFAULT_FETCH_LIMITS, fetchVerifiedResource } from "./fetch.js";
 export { VERIFICATION_ERROR_CODES } from "./errors.js";
 export {
@@ -17,8 +25,15 @@ export {
 export { validatePluginBundle } from "./bundle.js";
 export { GitHubProvenanceVerifier } from "./provenance.js";
 export { canonicalizeRepositoryUrl } from "./repository.js";
-export { verifyPackageReleaseRecords } from "./records.js";
+export { inspectPackageReleaseRecords } from "./records.js";
+export { verifyPackageReleaseRecords } from "./records-default.js";
 export type { DecodedMultihash, MultihashAlgorithm } from "./checksum.js";
+export type {
+	FetchedReleaseArtifact,
+	FetchReleaseArtifactInput,
+	ReleaseArtifactReference,
+	RecordScopedImagePreset,
+} from "./artifact.js";
 export type {
 	FetchImplementation,
 	FetchVerifiedResourceOptions,
@@ -31,13 +46,18 @@ export type {
 	ProvenanceVerificationInput,
 	ProvenanceVerifier,
 	ReleaseProvenance,
+	VerifiedGitHubProvenance,
 	VerifiedProvenance,
 } from "./provenance.js";
 export type {
 	NormalizedReleasePolicy,
 	ProvenanceEvidence,
 	ProvenanceStatus,
+	RecordInspectionInput,
+	RecordInspectionReport,
+	RecordVerificationDetails,
 	RecordVerificationCode,
+	RecordVerificationFailure,
 	RecordVerificationInput,
 	RecordVerificationReason,
 	RecordVerificationReport,

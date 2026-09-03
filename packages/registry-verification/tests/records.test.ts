@@ -9,7 +9,8 @@ import type {
 	ReleaseProvenance,
 	VerifiedProvenance,
 } from "../src/index.js";
-import { verifyPackageReleaseRecords } from "../src/index.js";
+import { inspectPackageReleaseRecords, verifyPackageReleaseRecords } from "../src/index.js";
+import { verifyPackageReleaseRecords as verifyPackageReleaseRecordsWithExplicitVerifier } from "../src/records-entry.js";
 
 const publisherDid = "did:plc:publisher";
 const packageSlug = "gallery";
@@ -80,6 +81,23 @@ describe("verifyPackageReleaseRecords", () => {
 		});
 	});
 
+	it("keeps unattested releases available through the runtime-neutral entrypoint", async () => {
+		const report = await verifyPackageReleaseRecordsWithExplicitVerifier({
+			publisherDid,
+			package: packageSlug,
+			version,
+			rkey,
+			profile: cloneProfile(),
+			release: cloneRelease(),
+		});
+
+		expect(report).toMatchObject({
+			success: true,
+			status: "unattested",
+			code: "PROVENANCE_ABSENT_OPTIONAL",
+		});
+	});
+
 	it.each([
 		["profile", { profile: { nope: true } }, "PROFILE_LEXICON_INVALID"],
 		["release", { release: { nope: true } }, "RELEASE_LEXICON_INVALID"],
@@ -125,6 +143,64 @@ describe("verifyPackageReleaseRecords", () => {
 		});
 	});
 
+	it("rejects an artifact with no retrieval source", async () => {
+		const release = cloneRelease();
+		delete release.artifacts.package.url;
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "RELEASE_ARTIFACT_SOURCE_MISSING",
+		});
+	});
+
+	it("rejects a blob checksum that does not match the blob CID", async () => {
+		const release = cloneRelease();
+		release.artifacts.package.blob = {
+			$type: "blob",
+			ref: { $link: "bafkreibm6jg3ux5qu5wzvikphw4qjzx6i7htc4w4e4c4pv7a7uynxqevmy" },
+			mimeType: "application/gzip",
+			size: 24_000,
+		};
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "CHECKSUM_MISMATCH",
+		});
+	});
+
+	it("rejects unknown authentication methods without trusting their display text", async () => {
+		const release = cloneRelease();
+		release.auth = {
+			$type: "com.example.package.auth",
+			hint: "Sign in to the publisher account",
+			hint_url: "https://example.com/help",
+		};
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "AUTH_METHOD_UNSUPPORTED",
+			reasons: [
+				{
+					code: "AUTH_METHOD_UNSUPPORTED",
+					message: "This release requires an authentication method the client does not support.",
+				},
+			],
+			details: {
+				hintUrl: "https://example.com/help",
+			},
+		});
+	});
+
+	it("rejects gated artifacts without a supported authentication method", async () => {
+		const release = cloneRelease();
+		release.artifacts.package.requiresAuth = true;
+
+		expect(await verify({ release })).toMatchObject({
+			success: false,
+			code: "AUTH_METHOD_UNSUPPORTED",
+		});
+	});
+
 	it.each([
 		"http://github.com/example/gallery",
 		"https://github.com/example/gallery/",
@@ -161,6 +237,28 @@ describe("verifyPackageReleaseRecords", () => {
 			success: false,
 			code: "PROVENANCE_REQUIRED",
 			provenance: { status: "absent-required" },
+		});
+	});
+
+	it("inspects signed policy before provenance evidence is available", async () => {
+		const profile = cloneProfile();
+		profile.extensions["com.emdashcms.experimental.package.profileExtension"].releasePolicy = {
+			requireProvenance: true,
+		};
+		expect(
+			await inspectPackageReleaseRecords({
+				publisherDid,
+				package: packageSlug,
+				version,
+				rkey,
+				profile,
+				release: cloneRelease(),
+			}),
+		).toMatchObject({
+			success: true,
+			status: "inspected",
+			provenance: { status: "not-checked" },
+			value: { policy: { requireProvenance: true } },
 		});
 	});
 
