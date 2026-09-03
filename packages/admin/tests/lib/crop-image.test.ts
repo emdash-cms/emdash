@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createCroppedImageFile } from "../../src/lib/crop-image.js";
+import { createCroppedFilename, createCroppedImageFile } from "../../src/lib/crop-image.js";
 
 const ANIMATED_WEBP_BASE64 =
 	"UklGRoQAAABXRUJQVlA4WAoAAAACAAAAAAAAAAAAQU5JTQYAAAD/////AQBBTk1GJgAAAAAAAAAAAAAAAAAAAGQAAAJWUDhMDgAAAC8AAAAABxAR/Q9ERP8DQU5NRioAAAAAAAAAAAAAAAAAAABkAAAAVlA4TBEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
@@ -52,6 +52,24 @@ async function pixels(
 		bitmap.close();
 	}
 }
+
+describe("createCroppedFilename", () => {
+	it.each([
+		["photo.jpg", "square", 800, 800, [], "photo-square.jpg"],
+		["photo-cropped-cropped.jpg", "16:9", 1600, 900, [], "photo-16x9.jpg"],
+		["photo-square.jpg", "4:3", 1200, 900, [], "photo-4x3.jpg"],
+		["photo.jpg", "freeform", 1180, 760, [], "photo-1180x760.jpg"],
+		["photo.jpg", "original", 1200, 800, [], "photo-1200x800.jpg"],
+		["photo.jpg", "square", 800, 800, ["photo-square.jpg"], "photo-square-2.jpg"],
+	] as const)(
+		"names %s cropped as %s",
+		(filename, mode, width, height, existingFilenames, expected) => {
+			expect(createCroppedFilename(filename, mode, { width, height }, existingFilenames)).toBe(
+				expected,
+			);
+		},
+	);
+});
 
 describe("createCroppedImageFile", () => {
 	it("creates the selected pixels without modifying the source file", async () => {

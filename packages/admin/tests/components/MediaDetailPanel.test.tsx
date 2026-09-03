@@ -32,12 +32,18 @@ vi.mock("../../src/components/MediaUsedIn.js", () => ({
 		open ? <div data-testid="media-used-in" data-media-id={mediaId} /> : null,
 }));
 
-vi.mock("../../src/lib/crop-image.js", () => ({
-	createCroppedImageFile: vi.fn(
-		async (_source: CanvasImageSource, _crop: unknown, filename: string, mimeType: string) =>
-			new File(["crop"], filename, { type: mimeType }),
-	),
-}));
+vi.mock("../../src/lib/crop-image.js", async () => {
+	const actual = await vi.importActual<typeof import("../../src/lib/crop-image.js")>(
+		"../../src/lib/crop-image.js",
+	);
+	return {
+		...actual,
+		createCroppedImageFile: vi.fn(
+			async (_source: CanvasImageSource, _crop: unknown, filename: string, mimeType: string) =>
+				new File(["crop"], filename, { type: mimeType }),
+		),
+	};
+});
 
 vi.mock("../../src/components/MediaImageCropper.js", async () => {
 	const ReactModule = await import("react");
@@ -810,7 +816,7 @@ describe("MediaDetailPanel", () => {
 	});
 
 	it("creates a distinct cropped copy and closes the source dialog after success", async () => {
-		const duplicate = makeLocalItem({ id: "media-copy", filename: "photo-cropped.jpg" });
+		const duplicate = makeLocalItem({ id: "media-copy", filename: "photo-80x80.jpg" });
 		vi.mocked(uploadMedia).mockResolvedValueOnce(duplicate);
 		const onClose = vi.fn();
 		const onCroppedCopyCreated = vi.fn();
@@ -829,7 +835,7 @@ describe("MediaDetailPanel", () => {
 
 		await vi.waitFor(() => {
 			expect(uploadMedia).toHaveBeenCalledWith(
-				expect.objectContaining({ name: "photo-cropped.jpg", type: "image/jpeg" }),
+				expect.objectContaining({ name: "photo-80x80.jpg", type: "image/jpeg" }),
 				{ deduplicate: false, folderId: "folder-1" },
 			);
 			expect(onCroppedCopyCreated).toHaveBeenCalledTimes(1);

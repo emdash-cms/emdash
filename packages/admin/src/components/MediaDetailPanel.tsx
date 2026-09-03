@@ -56,7 +56,12 @@ import {
 	type MediaUpdateInput,
 	type MediaUsageEntryDetail,
 } from "../lib/api";
-import { createCroppedImageFile, type PixelCrop } from "../lib/crop-image.js";
+import {
+	createCroppedFilename,
+	createCroppedImageFile,
+	type CropAspectMode,
+	type PixelCrop,
+} from "../lib/crop-image.js";
 import { useDebouncedValue, useStableCallback } from "../lib/hooks";
 import {
 	getFileIcon,
@@ -78,7 +83,6 @@ const DIALOG_RESIZE_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 type MediaDetailTab = "details" | "used-in" | "edit-image";
 type ImageEditMode = "focal-point" | "crop";
 type CropAction = "duplicate" | "replace";
-type CropAspectMode = "original" | "freeform" | "square" | "4:3" | "3:2" | "16:9";
 
 interface CropViewportSize {
 	width: number;
@@ -106,12 +110,6 @@ function cacheBustMediaUrl(url: string, key: string): string {
 function normalizeCropMime(mimeType: string): string {
 	const normalized = mimeType.split(";")[0]!.trim().toLowerCase();
 	return normalized === "image/jpg" ? "image/jpeg" : normalized;
-}
-
-function croppedFilename(filename: string): string {
-	const extensionIndex = filename.lastIndexOf(".");
-	if (extensionIndex <= 0) return `${filename}-cropped`;
-	return `${filename.slice(0, extensionIndex)}-cropped${filename.slice(extensionIndex)}`;
 }
 
 function isCropAspectMode(value: string | null): value is CropAspectMode {
@@ -146,6 +144,7 @@ export interface MediaDetailPanelProps {
 	canMoveLocation?: boolean;
 	canCropOriginal?: boolean;
 	canDuplicateCrop?: boolean;
+	existingFilenames?: readonly string[];
 	restoreFocusTargetRef?: React.RefObject<HTMLElement | null>;
 	onClose: () => void;
 	onClosed?: () => void;
@@ -166,6 +165,7 @@ export function MediaDetailPanel({
 	canMoveLocation: canMoveLocationProp,
 	canCropOriginal = false,
 	canDuplicateCrop = false,
+	existingFilenames,
 	restoreFocusTargetRef,
 	onClose,
 	onClosed,
@@ -582,7 +582,9 @@ export function MediaDetailPanel({
 				file = await createCroppedImageFile(
 					image,
 					pixels,
-					action === "duplicate" ? croppedFilename(item.filename) : item.filename,
+					action === "duplicate"
+						? createCroppedFilename(item.filename, cropAspectMode, pixels, existingFilenames)
+						: item.filename,
 					cropMime,
 				);
 			} catch {
