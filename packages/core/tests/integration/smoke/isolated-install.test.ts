@@ -12,7 +12,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join, relative, resolve, sep } from "node:path";
+import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 
@@ -141,7 +141,7 @@ function parseCatalog(): Map<string, string> {
 		const match = line.match(/^\s{2}(?:"([^"]+)"|([^:]+)):\s+(.+)$/);
 		if (!match) continue;
 		const name = match[1] ?? match[2]?.trim();
-		const version = match[3]?.trim();
+		const version = match[3]?.trim().replace(/\s+#.*$/, "");
 		if (name && version) catalog.set(name, version.replace(/^"|"$/g, ""));
 	}
 	return catalog;
@@ -186,7 +186,8 @@ async function packLocalPackages(
 			if (typeof filename !== "string") {
 				throw new Error(`pnpm pack did not return a tarball for ${manifest.name}`);
 			}
-			return [manifest.name, filename] as const;
+			const tarballPath = isAbsolute(filename) ? filename : resolve(tarballDir, filename);
+			return [manifest.name, tarballPath] as const;
 		}),
 	);
 	return new Map(packed);
@@ -245,14 +246,14 @@ function prepareStandaloneTemplate(
 	).join("\n");
 	const allowBuilds =
 		platform.id === "cloudflare"
-			? "  esbuild: true\n  workerd: true\n  better-sqlite3: false\n  sharp: false"
-			: "  esbuild: true\n  better-sqlite3: true\n  sharp: true\n  workerd: false";
+			? "  esbuild: true\n  workerd: true\n  sharp: false"
+			: "  esbuild: true\n  sharp: true\n  workerd: false";
 	writeFileSync(
 		join(projectDir, "pnpm-workspace.yaml"),
 		`minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
-  - astro
-  - "@astrojs/*"
+  - emdash
+  - "@emdash-cms/*"
 blockExoticSubdeps: true
 strictDepBuilds: true
 overrides:
@@ -289,7 +290,9 @@ async function waitForReady(
 		if (/\bready in \d+ ms\b/.test(readOutput())) return;
 		await new Promise((resolveSleep) => setTimeout(resolveSleep, 250));
 	}
-	throw new Error(`Isolated dev server was not ready within ${STARTUP_TIMEOUT_MS}ms`);
+	throw new Error(
+		`Isolated dev server was not ready within ${STARTUP_TIMEOUT_MS}ms:\n${readOutput().slice(-5000)}`,
+	);
 }
 
 async function waitForInjectedRoute(url: string, readOutput: () => string): Promise<Response> {
@@ -387,15 +390,16 @@ describe.sequential("Isolated template installs", () => {
 						WRANGLER_LOG_PATH: join(temporaryDirectory, "wrangler.log"),
 					});
 					delete serverEnv.CODEX_THREAD_ID;
-					const serverProcess = spawn(
-						"pnpm",
-						["exec", "astro", "dev", "--port", String(platform.port)],
-						{
-							cwd: projectDir,
-							env: serverEnv,
-							stdio: "pipe",
-						},
+					const astroBinary = join(
+						projectDir,
+						"node_modules/.bin",
+						process.platform === "win32" ? "astro.cmd" : "astro",
 					);
+					const serverProcess = spawn(astroBinary, ["dev", "--port", String(platform.port)], {
+						cwd: projectDir,
+						env: serverEnv,
+						stdio: "pipe",
+					});
 					let output = "";
 					serverProcess.stdout?.on("data", (data: Buffer) => {
 						output += data.toString();
