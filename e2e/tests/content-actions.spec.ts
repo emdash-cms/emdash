@@ -307,8 +307,13 @@ test.describe("Schedule content", () => {
 		const publishChangesLayout = await publishChanges.evaluate((element) => {
 			const button = element.getBoundingClientRect();
 			const caret = element.querySelector("svg")!.getBoundingClientRect();
-			return { trailingGap: button.right - caret.right };
+			const label = element.querySelector("span.truncate")!.getBoundingClientRect();
+			return {
+				labelCenterOffset: Math.abs(button.left + button.width / 2 - (label.left + label.width / 2)),
+				trailingGap: button.right - caret.right,
+			};
 		});
+		expect(publishChangesLayout.labelCenterOffset).toBeLessThanOrEqual(1);
 		expect(publishChangesLayout.trailingGap).toBeLessThanOrEqual(16);
 		await publishChanges.click();
 		await page.getByRole("menuitem", { name: /Schedule changes/ }).click();

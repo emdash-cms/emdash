@@ -598,9 +598,9 @@ export function PublishActions({
 						aria-haspopup="menu"
 						aria-expanded={open}
 					>
-						<span className="flex w-full min-w-0 items-center justify-between gap-2">
-							<span className="min-w-0 truncate text-start">{triggerLabel}</span>
-							<CaretDown className="size-3 shrink-0" aria-hidden="true" />
+						<span className="relative flex w-full min-w-0 items-center justify-center">
+							<span className="max-w-full truncate px-5 text-center">{triggerLabel}</span>
+							<CaretDown className="absolute end-0 size-3 shrink-0" aria-hidden="true" />
 						</span>
 					</Button>
 				}
