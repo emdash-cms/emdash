@@ -108,11 +108,11 @@ emdash-plugin login <handle-or-did>
 emdash-plugin release setup
 ```
 
-The command reads the plugin metadata and publisher from `emdash-plugin.jsonc`. If the package profile does not exist, it offers to create it. If the profile predates delegated releases, it offers to add the signed repository and release policy while preserving the existing package metadata. The default policy requires the publisher's Atmosphere account to approve releases when plugin permissions increase. Choose the every-release option to require approval each time.
+The command reads the plugin metadata and publisher from `emdash-plugin.jsonc`. If the package profile does not exist, it offers to create it. If the profile predates delegated releases, it offers to add the signed repository and release policy while preserving the existing package metadata. The default policy requires the publisher's [Atmosphere account](https://docs.emdashcms.com/guides/atmosphere-auth/) to approve releases when plugin permissions increase. Choose the every-release option to require approval each time.
 
 Set `repo` in `emdash-plugin.jsonc`, or enter the canonical GitHub repository URL when prompted. The standalone `emdash-plugin profile setup` command prepares only the package profile.
 
-Both setup commands accept `--repository <url>`, `--confirmation escalation-only|always`, and `--yes`. `release setup` also accepts `--service-url`, `--action-ref`, and `--force` for the generated workflow.
+Both setup commands accept `--repository <url>`, `--confirmation escalation-only|always`, and `--yes`. `release setup` also accepts `--service-url`, `--action-ref`, and `--force` for the generated workflow. The default hosted service is `https://releases.emdashcms.com`.
 
 After preparing the profile, `release setup` creates `.github/workflows/emdash-release.yml`. Review and commit that file. The command does not push or change an existing workflow; pass `--force` to replace one deliberately. In a non-interactive environment, pass `--yes` to accept the default approval policy. The command fails rather than creating or changing a profile when it cannot prompt and `--yes` is absent.
 

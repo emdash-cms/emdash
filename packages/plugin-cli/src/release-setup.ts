@@ -11,7 +11,7 @@ import { runProfileSetup } from "./commands/profile.js";
 import { resolveHandleToDid } from "./manifest/publisher.js";
 import { PackageProfileSetupError } from "./profile/setup.js";
 
-export const DEFAULT_RELEASE_SERVICE_URL = "https://emdash-release-service.emdash-cms.workers.dev";
+export const DEFAULT_RELEASE_SERVICE_URL = "https://releases.emdashcms.com";
 export const DEFAULT_RELEASE_ACTION_REF = "main";
 export const RELEASE_WORKFLOW_PATH = ".github/workflows/emdash-release.yml";
 

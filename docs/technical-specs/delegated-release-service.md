@@ -2,8 +2,6 @@
 
 Status: Implemented locally; deployment conformance pending
 
-Related design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
-
 ## Summary
 
 The delegated release service lets a plugin publisher authorize automated releases without placing an AT Protocol account credential in continuous integration. The publisher grants the service create-only access to the package-release collection and bounded blob-upload access. A GitHub Actions workflow authenticates to the service with OpenID Connect (OIDC), uploads its bundle and provenance to private staging, and submits the checksum-bound release. The service verifies those bytes, uploads the bundle to the publisher's PDS, and creates a blob-only release record. The workflow receives either the published release or an intent waiting for passkey approval.
@@ -42,11 +40,11 @@ Canonical service state is sharded across SQLite-backed Durable Objects. A `Publ
 
 The service has three external authentication mechanisms. Credentials from one mechanism never authorize another.
 
-| Actor                     | Authentication                                         | Authority                                                                                         |
-| ------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| GitHub Actions workflow   | GitHub Actions OIDC                                    | Request publisher approval for its identity, then submit release intents                          |
-| Atmosphere account holder | AT Protocol OAuth plus an enrolled passkey when needed | Establish or revoke delegation, confirm a GitHub workflow, and approve or reject an exact release |
-| Service operator          | Cloudflare Access                                      | Observe, pause, suspend, revoke, retry, and recover the service                                   |
+| Actor                                                                           | Authentication                                         | Authority                                                                                         |
+| ------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| GitHub Actions workflow                                                         | GitHub Actions OIDC                                    | Request publisher approval for its identity, then submit release intents                          |
+| [Atmosphere account](https://docs.emdashcms.com/guides/atmosphere-auth/) holder | AT Protocol OAuth plus an enrolled passkey when needed | Establish or revoke delegation, confirm a GitHub workflow, and approve or reject an exact release |
+| Service operator                                                                | Cloudflare Access                                      | Observe, pause, suspend, revoke, retry, and recover the service                                   |
 
 Cloudflare Access protects `/admin/*` and the operator API. The Worker verifies the `Cf-Access-Jwt-Assertion` signature, team issuer, role-specific audience, time claims, token type, and human identity. Access-injected identity headers and the browser cookie are not sufficient by themselves. Operator mutations retain CSRF and idempotency protection.
 

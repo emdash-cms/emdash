@@ -7,6 +7,8 @@ import { Steps } from "@astrojs/starlight/components";
 
 `@emdash-cms/plugin-cli` is the authoring toolchain: scaffold, build, watch, validate, bundle, publish, plus identity and discovery. The binary is `emdash-plugin`.
 
+The CLI uses an [Atmosphere account](/guides/atmosphere-auth/) as the publisher identity for package profiles and releases.
+
 ## Commands
 
 The CLI provides the following commands:
@@ -139,7 +141,7 @@ It accepts the `profile setup` flags plus the following workflow options:
 
 | Flag | Default | Description |
 | --- | --- | --- |
-| `--service-url <origin>` | EmDash hosted release service | HTTPS origin used by the generated Action. |
+| `--service-url <origin>` | `https://releases.emdashcms.com` | HTTPS origin used by the generated Action. |
 | `--action-ref <ref>` | `main` | EmDash repository ref containing the release Action. |
 | `--force` | `false` | Replace an existing generated workflow. Without it, setup leaves the existing file unchanged. |
 

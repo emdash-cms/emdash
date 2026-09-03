@@ -1,8 +1,8 @@
 # EmDash delegated release service
 
-This Cloudflare Worker publishes verified EmDash plugin releases from approved GitHub Actions workflows. It keeps publisher-owned package metadata and release records in the publisher's Atmosphere account while removing the need to store an AT Protocol credential in GitHub.
+This Cloudflare Worker publishes verified EmDash plugin releases from approved GitHub Actions workflows. It keeps publisher-owned package metadata and release records in the publisher's [Atmosphere account](https://docs.emdashcms.com/guides/atmosphere-auth/) while removing the need to store an AT Protocol credential in GitHub.
 
-The service is experimental. Publishers should follow [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/). This README covers the service boundary, contributor workflow, and deployment resources.
+The hosted service runs at [releases.emdashcms.com](https://releases.emdashcms.com). The service is experimental. Publishers should follow [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/). This README covers the service boundary, contributor workflow, and deployment resources.
 
 ## User surfaces
 

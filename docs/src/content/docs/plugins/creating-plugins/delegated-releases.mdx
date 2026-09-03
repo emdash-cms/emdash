@@ -5,7 +5,7 @@ description: Publish sandboxed plugins from GitHub Actions through the EmDash re
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Automated releases build and publish a sandboxed plugin when you push a version tag or start a GitHub Actions workflow manually. Your Atmosphere account owns the package profile and release records. GitHub identifies the approved workflow, and the release service verifies and publishes the result without storing an account credential in the repository.
+Automated releases build and publish a sandboxed plugin when you push a version tag or start a GitHub Actions workflow manually. Your [Atmosphere account](/guides/atmosphere-auth/) owns the package profile and release records. GitHub identifies the approved workflow, and the release service verifies and publishes the result without storing an account credential in the repository.
 
 Use [`emdash-plugin publish`](/plugins/creating-plugins/publishing/#publish) for a release started from your computer. Use this guide when GitHub Actions should build and publish releases.
 
@@ -13,8 +13,7 @@ Use [`emdash-plugin publish`](/plugins/creating-plugins/publishing/#publish) for
 	The plugin registry and delegated release service use experimental record
 	formats. Pin `@emdash-cms/plugin-cli` to an exact version. Automated releases
 	currently require a public GitHub repository because the verifier trusts
-	GitHub's public Sigstore root. [RFC 0001](https://github.com/emdash-cms/emdash/pull/694)
-	governs the experimental registry protocol.
+	GitHub's public Sigstore root.
 </Aside>
 
 ## Prerequisites
@@ -75,7 +74,7 @@ pnpm exec emdash-plugin validate
 
    The generated workflow runs for version tags matching `v*` and through `workflow_dispatch`. It grants `contents: read`, `id-token: write`, and `attestations: write`; pins third-party Actions to full commit identifiers; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
 
-4. Open the [release-service dashboard](https://emdash-release-service.emdash-cms.workers.dev/publisher) and sign in with the same Atmosphere account.
+4. Open the [release-service dashboard](https://releases.emdashcms.com/publisher) and sign in with the same Atmosphere account.
 
    Select **Authorize publishing**. Your account provider shows the exact delegated permission. The retained grant can create package release records and upload package or listing-image blobs. It cannot create or edit package profiles, update or delete releases, or write another collection.
 
