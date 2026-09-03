@@ -133,11 +133,21 @@ test.describe("Schedule content", () => {
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		await expect(dialog).toBeVisible({ timeout: 5000 });
 		for (const name of ["Hour", "Minute"]) {
-			await dialog.getByRole("combobox", { name }).click();
+			const trigger = dialog.getByRole("combobox", { name });
+			await trigger.click();
 			const options = page.getByRole("listbox");
+			await expect(options).toBeVisible();
+			const triggerBox = await trigger.boundingBox();
 			const optionsBox = await options.boundingBox();
+			expect(triggerBox).not.toBeNull();
 			expect(optionsBox).not.toBeNull();
-			expect(optionsBox!.height).toBeLessThanOrEqual(192);
+			expect(optionsBox!.height).toBeLessThanOrEqual(128);
+			expect(
+				Math.min(
+					Math.abs(optionsBox!.bottom - triggerBox!.top),
+					Math.abs(optionsBox!.top - triggerBox!.bottom),
+				),
+			).toBeLessThanOrEqual(8);
 			expect(await options.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
 				true,
 			);
@@ -312,11 +322,21 @@ test.describe("Schedule content", () => {
 			}),
 		).toBeVisible();
 		for (const name of ["Hour", "Minute"]) {
-			await publicationDateDialog.getByRole("combobox", { name }).click();
+			const trigger = publicationDateDialog.getByRole("combobox", { name });
+			await trigger.click();
 			const options = page.getByRole("listbox");
+			await expect(options).toBeVisible();
+			const triggerBox = await trigger.boundingBox();
 			const optionsBox = await options.boundingBox();
+			expect(triggerBox).not.toBeNull();
 			expect(optionsBox).not.toBeNull();
-			expect(optionsBox!.height).toBeLessThanOrEqual(192);
+			expect(optionsBox!.height).toBeLessThanOrEqual(128);
+			expect(
+				Math.min(
+					Math.abs(optionsBox!.bottom - triggerBox!.top),
+					Math.abs(optionsBox!.top - triggerBox!.bottom),
+				),
+			).toBeLessThanOrEqual(8);
 			expect(await options.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(
 				true,
 			);

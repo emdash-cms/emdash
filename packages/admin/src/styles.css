@@ -169,7 +169,14 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 }
 
 div:has(> [role="listbox"] > .emdash-short-select-option) {
-	max-height: min(var(--available-height), 12rem);
+	max-height: min(var(--available-height), 8rem);
+}
+
+/* Compact trays use anchored positioning instead of aligning one option over the trigger. */
+div[data-side="none"]:has(
+	> [role="presentation"] > [role="listbox"] > .emdash-short-select-option
+) {
+	min-height: 100dvh;
 }
 
 /* Transitions.dev — Text states swap */
