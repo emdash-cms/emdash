@@ -1,0 +1,27 @@
+e2e/tests/media-library.spec.ts
+  s_1b27be0d330029::t_2f6117d9eb1289 294,438-439,589,640,845
+packages/admin/src/components/MediaImageCropper.tsx
+  s_1b27be0d330029::t_b5e342e92aa9e0 146-149
+packages/admin/tests/components/MediaDetailPanelNavigation.test.tsx
+  s_1b27be0d330029::t_77cb6eeef7b125 138-157
+packages/admin/tests/components/MediaImageCropper.test.tsx
+  s_1b27be0d330029::t_19e0e63b2f1b2d 209-249
+packages/admin/tests/components/MediaLibrary.test.tsx
+  s_1b27be0d330029::t_63bda786fb4c4f 451,512,1170,1193,1198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "06012ceded811d000f12a6f683cf15ba471eda37",
+  "prompts": {},
+  "sessions": {
+    "s_1b27be0d330029": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05def-c57e-7500-8415-5dc8bded4c92",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+e2e/tests/media-library.spec.ts
+  s_1b27be0d330029::t_8c647e4f6f2ce1 349-355
+packages/admin/src/components/MediaLibrary.tsx
+  s_1b27be0d330029::t_1d157d71aacd39 1715
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "55d99dfc2772e4dd19a13a62339f587aa58e5969",
+  "prompts": {},
+  "sessions": {
+    "s_1b27be0d330029": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05def-c57e-7500-8415-5dc8bded4c92",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

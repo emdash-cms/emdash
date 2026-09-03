@@ -1,0 +1,31 @@
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_c7dd983d240bd3::t_ec5c94393bbfe2 17-21
+packages/core/src/components/InlinePortableTextEditor.tsx
+  s_c7dd983d240bd3::t_8957112abd29b1 158-161,593,2232
+packages/core/tests/unit/components/inline-portable-text-media-picker.test.ts
+  s_97e3674bdac896::t_6ee532a27794ca 8-12,35-52,65-66,73,114,147-154
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4f7cbdf9648ec5c86748c2a737945db3905320a9",
+  "prompts": {},
+  "sessions": {
+    "s_97e3674bdac896": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc72b-55cd-7a91-afb2-371592f75474",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

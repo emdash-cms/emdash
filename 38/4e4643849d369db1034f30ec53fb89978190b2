@@ -1,0 +1,77 @@
+packages/core/src/astro/routes/api/media/[id]/replace.ts
+  s_c7dd983d240bd3::t_5f154193b3f432 1-136
+packages/core/tests/integration/openapi/openapi.test.ts
+  s_c7dd983d240bd3::t_4c81da75e94b1c 18-63
+packages/core/tests/unit/astro/routes.test.ts
+  s_c7dd983d240bd3::t_b14b5d50509bf4 12,91-103
+packages/cloudflare/tests/storage/r2.test.ts
+  s_9fec0a266cf76a::t_1e42455bc00333 1-31
+packages/core/src/api/errors.ts
+  s_9fec0a266cf76a::t_aac3d50f36c37e 90-91
+packages/core/src/api/handlers/index.ts
+  s_9fec0a266cf76a::t_c8b1591015ce47 59
+packages/core/src/api/handlers/media.ts
+  s_9fec0a266cf76a::t_826cae9bb7d8ee 231-259
+packages/core/src/api/openapi/document.ts
+  s_9fec0a266cf76a::t_d50c7eab0ebb72 65,77-78,84,177,721-741,912-935
+packages/core/src/api/schemas/media.ts
+  s_9fec0a266cf76a::t_00f11ab110d539 133,138-168,283-293
+packages/core/src/astro/integration/routes.ts
+  s_9fec0a266cf76a::t_3d74b5cd5ebc64 241-245
+packages/core/src/astro/routes/api/media.ts
+  s_9fec0a266cf76a::t_f0a4cd0a3a446c 18-23,146-157,185-190
+packages/core/src/astro/routes/api/media/upload-url.ts
+  s_9fec0a266cf76a::t_3ae079c718181a 93
+packages/core/src/database/repositories/media.ts
+  s_9fec0a266cf76a::t_801d7a12d923a0 108-114,490-515
+packages/core/src/emdash-runtime.ts
+  s_9fec0a266cf76a::t_fe027c3ba21b59 192,3502-3513
+packages/core/src/index.ts
+  s_9fec0a266cf76a::t_1e8275f73828c8 86
+packages/core/tests/integration/astro/media-replace.test.ts
+  s_2707b7da77e407::t_caef78e85f7630 1-319
+packages/core/tests/integration/astro/media-stream-upload.test.ts
+  s_9fec0a266cf76a::t_d878c64cb69159 48,57,198-248
+packages/core/tests/integration/astro/media-upload-deduplication.test.ts
+  s_9fec0a266cf76a::t_e635a6224ff63c 1-108
+packages/core/tests/integration/database/media-replace.test.ts
+  s_9fec0a266cf76a::t_ddde85e7624ec1 1-105
+packages/core/tests/unit/settings/settings.test.ts
+  s_9fec0a266cf76a::t_7b045e66c8f3d8 467-468,561-602
+packages/core/tests/unit/storage/local.test.ts
+  s_9fec0a266cf76a::t_303c84754dfe4b 1-37
+packages/core/tests/unit/storage/s3.test.ts
+  s_9fec0a266cf76a::t_f1f96e721432e4 3-6,12-13,289-320
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "384e4643849d369db1034f30ec53fb89978190b2",
+  "prompts": {},
+  "sessions": {
+    "s_2707b7da77e407": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d94-d8fd-7e20-8821-5df8d1ac6157",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_9fec0a266cf76a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d6d-e88d-72d1-a3e6-46d8becafd66",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

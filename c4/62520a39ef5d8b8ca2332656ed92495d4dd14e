@@ -1,0 +1,31 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_803ace2d3565ca::t_d28195ff329208 116,185,1018,3203
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_803ace2d3565ca::t_9ab4b7b17f7778 23,33,122
+packages/admin/src/components/editor/ImageNode.tsx
+  s_803ace2d3565ca::t_4b2b217df6976e 99
+packages/admin/tests/components/ImageDetailPanel.test.tsx
+  s_803ace2d3565ca::t_a4c220d3ef4add 1-68
+packages/admin/tests/editor/image-lqip.test.ts
+  s_803ace2d3565ca::t_614dc84e38226b 20,81-123
+packages/admin/tests/editor/image-selection.test.tsx
+  s_803ace2d3565ca::t_0e6aefdc947d71 5,10,17-20,25-33,74-87
+packages/admin/tests/editor/toolbar.test.tsx
+  s_803ace2d3565ca::t_4abcc824e6ceb4 45-60,449-465
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c462520a39ef5d8b8ca2332656ed92495d4dd14e",
+  "prompts": {},
+  "sessions": {
+    "s_803ace2d3565ca": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05a10-97ae-7912-a842-ceca963d4664",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

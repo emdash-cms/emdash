@@ -1,0 +1,143 @@
+.changeset/clear-media-usage-tabs.md
+  s_175ffb1df876da::t_e75be6718c8bb0 1-5
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_175ffb1df876da::t_a37a68129be779 67,119,207,499,503,506-512,516-527,534-535,537-538,540,542-548,554,681,953,955-962
+  s_97e3674bdac896::t_4e8acb6bf0aef3 475,536,552,600,602-605,611,621,634-641,649,679,682-686,697-698,908-909,918,954
+  s_175ffb1df876da::t_63271a3d99944d 28,30,765-776,811-816,853-860,1058-1068
+  s_681f8ac6d2160d::t_f58bcd0165a7df 22,609,619,632,647,658-661,807,914-915,924-931
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_175ffb1df876da::t_508d1a3887708e 27-28,229,231-239,241-274,346-347,350-352
+  s_97e3674bdac896::t_37a0d684d59a6e 219-222,311-315
+  s_97e3674bdac896::t_fc111320c29e35 668,679-682,684-689,816-818
+packages/admin/src/components/MediaUsedIn.tsx
+  s_175ffb1df876da::t_67894630dd770a 8,119,124-147,163,167,254,260-275,285,301-307,321-323,325-326,330
+  s_97e3674bdac896::t_d0631b13510596 324
+  s_97e3674bdac896::t_ed109fe8e8a974 1,148,180-189
+packages/admin/tests/components/MediaUsedIn.test.tsx
+  s_175ffb1df876da::t_49d34feae76a13 55-57,128-142,159,161
+  s_681f8ac6d2160d::t_a9158b29813728 166-183
+  s_97e3674bdac896::t_514010a3f7b4fe 118,227,229,245-248
+.changeset/subtle-media-transparency.md
+  s_f7da1a00d7a35d::t_f75bb9d8f72ecf 1-5
+packages/admin/src/components/BlockKitMediaPickerField.tsx
+  s_f7da1a00d7a35d::t_34f7e740b5ffad 65,95
+packages/admin/src/components/FocalPointEditor.tsx
+  s_f7da1a00d7a35d::t_8e1b0a36dec90c 39-41,124
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_f7da1a00d7a35d::t_3d40eb01fb14ab 246,258,318,348
+  s_803ace2d3565ca::t_45f955ab52da10 17,122-124,128-132
+packages/admin/src/components/MediaLibrary.tsx
+  s_f7da1a00d7a35d::t_22f0550b80a6e1 1700,1760,1828,1886
+  s_97e3674bdac896::t_edd1170312b715 2,1197,1598-1601,1679,1682,1684,1688-1689,1694,1709-1710,1716-1724,1746-1747,1749,1751-1752,1755,1768-1769,1775-1783
+  s_97e3674bdac896::t_1bd8874161da27 858,862,871,874
+  s_eb694def01646c::t_5734098eb83ad1 1042,1149-1155
+  s_97e3674bdac896::t_912225af05cf17 1711-1715,1770-1774
+packages/admin/src/components/MediaPickerModal.tsx
+  s_f7da1a00d7a35d::t_e63264aa6e47a5 874,958
+packages/admin/src/components/MediaUploadDialog.tsx
+  s_f7da1a00d7a35d::t_1d5e914376a373 127-132
+packages/admin/src/components/SeoImageField.tsx
+  s_f7da1a00d7a35d::t_41773896222ce5 50-54
+packages/admin/src/components/editor/GalleryDetailPanel.tsx
+  s_f7da1a00d7a35d::t_bca348f673a1ec 310,353
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_f7da1a00d7a35d::t_23e7a0df900416 235,422
+packages/admin/src/components/settings/GeneralSettings.tsx
+  s_f7da1a00d7a35d::t_61e4cfb973eba9 199,259
+packages/admin/src/components/settings/SeoSettings.tsx
+  s_f7da1a00d7a35d::t_45bfd7c5e00a8c 182
+packages/admin/src/styles.css
+  s_f7da1a00d7a35d::t_bc732dcd1a2b0b 107-116
+packages/admin/tests/components/MediaDetailPanelNavigation.test.tsx
+  s_f7da1a00d7a35d::t_12bf3399e38d85 110-116,127,149,183-184,198
+packages/admin/tests/components/MediaLibrary.test.tsx
+  s_97e3674bdac896::t_dcdc64ebc5e1a2 954-978,1542
+.changeset/large-media-cards.md
+  s_2475d4feb449ab::t_b648d4edde240c 1-5
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_612440889090f7::t_bda795ff8aa971 10-51,155-178
+packages/core/tests/repro/image-render.render.test.ts
+  s_612440889090f7::t_37814eddc61e95 11,78-82,248-274
+packages/core/tests/unit/media/normalize.test.ts
+  s_612440889090f7::t_c1ceade7d3af0d 48-89
+packages/admin/src/lib/media-utils.ts
+  s_803ace2d3565ca::t_7b18ff76525c3a 3-7
+packages/core/src/components/EmDashImage.astro
+  s_803ace2d3565ca::t_05ca49f4e4de47 28,82
+packages/core/src/components/EmDashMedia.astro
+  s_803ace2d3565ca::t_9a346add464563 23,46
+packages/core/src/media/normalize.ts
+  s_803ace2d3565ca::t_987a2a03c66921 18-27,54-56,60,64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "97d856e944730c14e4ad6d4b0a521dac5fca4850",
+  "prompts": {},
+  "sessions": {
+    "s_175ffb1df876da": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a042a2-5ba0-76c2-8611-a9b63dc3a8e2",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_2475d4feb449ab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03089-610c-72b3-8e15-32c53948da17",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_612440889090f7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fb7d3-3dad-7210-bc48-532105684f76",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_681f8ac6d2160d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03f61-517c-74e3-a368-e5bf63b7ac62",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_803ace2d3565ca": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05a10-97ae-7912-a842-ceca963d4664",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_97e3674bdac896": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc72b-55cd-7a91-afb2-371592f75474",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_eb694def01646c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0572e-9221-7441-9be1-5b6e55e12002",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_f7da1a00d7a35d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a015a7-d54d-7a90-9c40-5d48a814f2b7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

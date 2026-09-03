@@ -1,0 +1,23 @@
+packages/core/src/components/InlinePortableTextEditor.tsx
+  s_803ace2d3565ca::t_60c985c121b291 2228
+.changeset/preserve-media-source-identity.md
+  s_803ace2d3565ca::t_f732daaa1639a3 1-6
+packages/core/tests/unit/components/inline-portable-text-media-picker.test.ts
+  s_803ace2d3565ca::t_26bf2eef0460ff 1-128
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "07b166e4e3b8b7622c02656b0bf43a2bea52d55d",
+  "prompts": {},
+  "sessions": {
+    "s_803ace2d3565ca": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05a10-97ae-7912-a842-ceca963d4664",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

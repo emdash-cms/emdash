@@ -1,0 +1,21 @@
+packages/admin/src/components/MediaUsedIn.tsx
+  s_97e3674bdac896::t_ed109fe8e8a974 1,148,180-189
+packages/admin/tests/components/MediaUsedIn.test.tsx
+  s_97e3674bdac896::t_514010a3f7b4fe 118,227,229,245-248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4019fcd46252497425228a7e7d9b7997f597ca37",
+  "prompts": {},
+  "sessions": {
+    "s_97e3674bdac896": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fc72b-55cd-7a91-afb2-371592f75474",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+packages/admin/src/components/ContentEditor.tsx
+  s_829bdb541ea05c::t_3ea538f4b5c0a9 35,171,174-175,251,639-643,645,662,671,773-776,779-781,839-842,845-847,928-931,938-940
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_829bdb541ea05c::t_212b13ceb3e72a 5,15-28,46,139-142,149-151,196-199,202-204,208-215,221-224,227-229,234-261,264-267,269-292,294-341,343-351,355-365,367-414,436-439,446-448,495-498,501-503,752
+packages/admin/src/router.tsx
+  s_829bdb541ea05c::t_f1b5b87226eab0 1315-1317,1369
+packages/admin/tests/lib/content-publishing-state.test.ts
+  s_829bdb541ea05c::t_9a2b86f865ac4e 1-25
+packages/admin/src/lib/content-publishing-state.ts
+  s_829bdb541ea05c::t_38c8b2bbeac595 1-21
+packages/admin/tests/components/ContentSettingsPanel.test.tsx
+  s_829bdb541ea05c::t_74201564dc1cc6 772,776-779,833
+packages/admin/tests/publish-button-locale.test.tsx
+  s_829bdb541ea05c::t_5d3acc77ba61d9 5,138,162,173,183,245,281,291,308,311,369,392-394
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "823f87a2087cc1a5a30c59e1bf4ef509fa81b9af",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,41 @@
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_612440889090f7::t_bda795ff8aa971 10-51,155-178
+packages/core/tests/repro/image-render.render.test.ts
+  s_612440889090f7::t_37814eddc61e95 11,78-82,248-274
+packages/core/tests/unit/media/normalize.test.ts
+  s_612440889090f7::t_c1ceade7d3af0d 48-89
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_803ace2d3565ca::t_45f955ab52da10 17,91-93,97-101
+packages/admin/src/lib/media-utils.ts
+  s_803ace2d3565ca::t_7b18ff76525c3a 3-7
+packages/core/src/components/EmDashImage.astro
+  s_803ace2d3565ca::t_05ca49f4e4de47 24,71
+packages/core/src/components/EmDashMedia.astro
+  s_803ace2d3565ca::t_9a346add464563 23,46
+packages/core/src/media/normalize.ts
+  s_803ace2d3565ca::t_987a2a03c66921 18-27,54-56,60,64
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9a47125f75cd5e6b549090c43a33897d8f3b6845",
+  "prompts": {},
+  "sessions": {
+    "s_612440889090f7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fb7d3-3dad-7210-bc48-532105684f76",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_803ace2d3565ca": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05a10-97ae-7912-a842-ceca963d4664",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

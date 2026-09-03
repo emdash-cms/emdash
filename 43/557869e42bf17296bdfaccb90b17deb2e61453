@@ -1,0 +1,19 @@
+docs/technical-specs/content-editor-publishing-panel.md
+  s_829bdb541ea05c::t_b30bd3f10b27c1 3,22-24,66-77,83-85,102,110,112,116,121-122,135,137-138,140,150-152,155,159,168-169,176,181,185,189,196-198,202,221,223,225,227,311,336-337,340-342,377,382-383,429-430,445,463-510,553,555-557
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "43557869e42bf17296bdfaccb90b17deb2e61453",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

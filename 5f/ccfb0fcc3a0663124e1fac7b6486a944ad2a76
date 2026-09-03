@@ -1,0 +1,39 @@
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_c7dd983d240bd3::t_3078d5de4cb623 15,75-80,111-129,207-208,248-249,314-317,330-340,527-528,615,622-634,809-813,817,1244-1250,1265-1269,1294,1300-1302
+packages/admin/tests/components/MediaImageCropper.test.tsx
+  s_c7dd983d240bd3::t_5e171658de3208 8,10-11,14,20,26,30,33,35-36,39,45-47,52-56,95-178
+.changeset/calm-media-crops.md
+  s_1b27be0d330029::t_30268c06117c4e 8
+docs/src/content/docs/guides/media-library.mdx
+  s_1b27be0d330029::t_e0dca5164cd411 259-261,263,271-272
+e2e/tests/media-library.spec.ts
+  s_1b27be0d330029::t_b713d6cb75fe5b 331-334,350
+packages/admin/src/components/MediaImageCropper.tsx
+  s_1b27be0d330029::t_c721e0acd1d28c 4,8-167,172-174,178,189-191,195,203-207,210,214-256,260-263,270,290,300,305-344,373-378
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_1b27be0d330029::t_a6bf1f64297bf8 418-447
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5fccfb0fcc3a0663124e1fac7b6486a944ad2a76",
+  "prompts": {},
+  "sessions": {
+    "s_1b27be0d330029": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05def-c57e-7500-8415-5dc8bded4c92",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

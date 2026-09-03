@@ -1,0 +1,29 @@
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_829bdb541ea05c::t_dbcfdbfa0745ec 465,496-501,510,518-519,530,570,573-577,602,607-608,613,619-624
+e2e/tests/content-actions.spec.ts
+  s_829bdb541ea05c::t_b058c66b1315e7 158,245-250,259,262,276,287
+packages/admin/src/components/PublishingDateTimeEditor.tsx
+  s_829bdb541ea05c::t_70820580b65a9b 256,258,261-265
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_829bdb541ea05c::t_dead9deddf9d99 1900,1913,1916,1919,1921-1932,1953
+packages/admin/tests/components/ContentSettingsPanel.test.tsx
+  s_829bdb541ea05c::t_6025d5b85de9b1 1022,1027,1083
+packages/admin/tests/publish-button-locale.test.tsx
+  s_829bdb541ea05c::t_4f3e50c8cabf2f 5,138,162,173,183,245,281,291,308,311,369,392
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "54140772b0392a0ac052fb2bffa897566e218dc4",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

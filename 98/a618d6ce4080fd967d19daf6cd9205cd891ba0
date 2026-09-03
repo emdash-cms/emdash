@@ -1,0 +1,45 @@
+packages/admin/package.json
+  s_c7dd983d240bd3::t_cf66a8a462f993 88
+packages/admin/src/lib/crop-image.ts
+  s_c7dd983d240bd3::t_fdbe0ad873b798 1-62
+packages/admin/tests/lib/crop-image.test.ts
+  s_c7dd983d240bd3::t_8ba150f90811f4 1-147
+packages/admin/src/components/MediaImageCropper.tsx
+  s_9fec0a266cf76a::t_026714a18b6d4b 1-116
+packages/admin/src/lib/api/media.ts
+  s_9fec0a266cf76a::t_b84471971a2c19 24,102,313-314,325,446,497-518
+packages/admin/src/styles.css
+  s_9fec0a266cf76a::t_25aa52a078bb05 15,19-23
+packages/admin/tests/components/MediaImageCropper.test.tsx
+  s_9fec0a266cf76a::t_22517c7cecd26f 1-81
+packages/admin/tests/lib/media-upload.test.ts
+  s_9fec0a266cf76a::t_30a1d6b1e067c5 3,75-156
+packages/admin/vitest.config.ts
+  s_9fec0a266cf76a::t_a8e733f052cbe3 6-7
+pnpm-lock.yaml
+  s_9fec0a266cf76a::t_e31095546f8104 1404-1409,10673-10675,11303-11308,22439-22440,23177-23182
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "98a618d6ce4080fd967d19daf6cd9205cd891ba0",
+  "prompts": {},
+  "sessions": {
+    "s_9fec0a266cf76a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d6d-e88d-72d1-a3e6-46d8becafd66",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

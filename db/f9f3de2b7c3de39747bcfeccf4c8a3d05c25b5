@@ -1,0 +1,19 @@
+packages/admin/src/components/MediaLibrary.tsx
+  s_eb694def01646c::t_5734098eb83ad1 1042,1149-1155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "dbf9f3de2b7c3de39747bcfeccf4c8a3d05c25b5",
+  "prompts": {},
+  "sessions": {
+    "s_eb694def01646c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0572e-9221-7441-9be1-5b6e55e12002",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
