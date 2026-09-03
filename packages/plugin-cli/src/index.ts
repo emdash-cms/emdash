@@ -16,6 +16,8 @@
  *   - dev      — watch sources and rebuild on change
  *   - bundle         — bundle a plugin source directory into a tarball
  *   - publish        — build, upload, and publish a release
+ *   - profile        — prepare a package profile for delegated releases
+ *   - release        — set up and manage delegated release workflows
  *   - update-package — edit an already-published package without a new release
  *   - validate       — validate an emdash-plugin.jsonc manifest against the v1 schema
  *
@@ -32,6 +34,7 @@ import { initCommand } from "./commands/init.js";
 import { loginCommand } from "./commands/login.js";
 import { logoutCommand } from "./commands/logout.js";
 import { pdsConformanceCommand } from "./commands/pds-conformance.js";
+import { profileCommand } from "./commands/profile.js";
 import { publishCommand } from "./commands/publish.js";
 import { releaseCommand } from "./commands/release.js";
 import { searchCommand } from "./commands/search.js";
@@ -50,6 +53,7 @@ const main = defineCommand({
 		login: loginCommand,
 		logout: logoutCommand,
 		"pds-conformance": pdsConformanceCommand,
+		profile: profileCommand,
 		whoami: whoamiCommand,
 		switch: switchCommand,
 		search: searchCommand,
