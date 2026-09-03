@@ -83,6 +83,10 @@ function matchesAnyFilter(mime: string, filters: string[] | undefined): boolean 
 	});
 }
 
+function matchesFilenameSearch(filename: string, search: string): boolean {
+	return !search || filename.toLowerCase().includes(search.toLowerCase());
+}
+
 function filtersOverlap(first: string, second: string): string | null {
 	const left = first.toLowerCase();
 	const right = second.toLowerCase();
@@ -659,17 +663,31 @@ export function MediaPickerModal({
 	const fetchedItems: Array<MediaItem | MediaProviderItem> =
 		activeSource === "local" ? localItems : providerItems;
 	const visibleItems = React.useMemo(() => {
+		const pinnedSearch = activeSource === "local" ? activeSearch : searchQuery.trim();
+		const pinnedMimeFilters = activeSource === "local" ? effectiveMimeFilters : filters;
 		const pinned = pinnedItems.filter(
 			(selected) =>
 				selected.providerId === activeSource &&
-				!(activeSource === "local" && folderId && !activeSearch),
+				!(activeSource === "local" && folderId && !activeSearch) &&
+				!(activeSource === "local" && effectiveMimeFilters?.length === 0) &&
+				matchesFilenameSearch(selected.item.filename, pinnedSearch) &&
+				matchesAnyFilter(selected.item.mimeType, pinnedMimeFilters),
 		);
 		const keys = new Set(pinned.map((selected) => selected.key));
 		return [
 			...pinned.map((selected) => selected.item),
 			...fetchedItems.filter((item) => !keys.has(selectionKey(activeSource, item))),
 		];
-	}, [activeSearch, activeSource, fetchedItems, folderId, pinnedItems]);
+	}, [
+		activeSearch,
+		activeSource,
+		effectiveMimeFilters,
+		fetchedItems,
+		filters,
+		folderId,
+		pinnedItems,
+		searchQuery,
+	]);
 	const visibleUploadJobs = uploadQueue.jobs.filter(
 		(job) => job.status !== "complete" && uploadTargetsRef.current.get(job.id) === activeSource,
 	);
@@ -705,7 +723,7 @@ export function MediaPickerModal({
 		>
 			<Dialog
 				size="xl"
-				className="flex h-[min(48rem,calc(100dvh-1rem))] min-h-0 min-w-0 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 sm:min-w-[48rem] sm:max-w-5xl"
+				className="flex h-[min(48rem,calc(100dvh-1rem))] w-[calc(100vw-2rem)] min-h-0 min-w-0 max-w-[48rem] flex-col overflow-hidden p-0 sm:w-[min(48rem,calc(100vw-2rem))]"
 			>
 				<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-7">
 					<div className="min-w-0">
@@ -732,11 +750,14 @@ export function MediaPickerModal({
 				<div
 					className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 sm:px-7"
 					onDragOver={(event) => {
-						if (canUpload && event.dataTransfer.types.includes("Files")) event.preventDefault();
+						if (!event.dataTransfer.types.includes("Files")) return;
+						event.preventDefault();
+						event.dataTransfer.dropEffect = canUpload ? "copy" : "none";
 					}}
 					onDrop={(event) => {
-						if (!canUpload || !event.dataTransfer.types.includes("Files")) return;
+						if (!event.dataTransfer.types.includes("Files")) return;
 						event.preventDefault();
+						if (!canUpload) return;
 						enqueueFiles([...event.dataTransfer.files]);
 					}}
 				>

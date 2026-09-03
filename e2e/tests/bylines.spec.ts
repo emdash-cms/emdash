@@ -126,6 +126,17 @@ test.describe("Bylines", () => {
 		await dialog.getByRole("tab", { name: "Library" }).click();
 		await expect(dialog.getByRole("searchbox", { name: "Search media" })).toBeVisible();
 
+		const originalViewport = page.viewportSize();
+		expect(originalViewport).not.toBeNull();
+		for (const width of [320, 640, 768, 784]) {
+			await page.setViewportSize({ width, height: 800 });
+			const responsiveDialogBox = await dialog.boundingBox();
+			expect(responsiveDialogBox).not.toBeNull();
+			expect(responsiveDialogBox!.x).toBeGreaterThanOrEqual(0);
+			expect(responsiveDialogBox!.x + responsiveDialogBox!.width).toBeLessThanOrEqual(width);
+		}
+		await page.setViewportSize(originalViewport!);
+
 		const uploadDone = page.waitForResponse(
 			(res) => /\/api\/media/.test(res.url()) && res.request().method() === "POST" && res.ok(),
 			{ timeout: 15000 },

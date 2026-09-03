@@ -156,6 +156,60 @@ describe("MediaPickerModal inline uploads", () => {
 		expect(screen.getByRole("button", { name: "main-only.jpg", exact: true }).query()).toBeNull();
 	});
 
+	it("prevents a disabled-source file drop from leaving the editor", async () => {
+		const api = await import("../../src/lib/api");
+		(api.fetchMediaFolders as any).mockResolvedValueOnce({
+			items: [{ id: "folder-1", name: "Photography" }],
+		});
+		const screen = await renderPicker();
+		await expect
+			.element(screen.getByRole("button", { name: "Open folder Photography" }))
+			.toBeInTheDocument();
+		screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+		await expect.element(screen.getByText("Photography", { exact: true })).toBeInTheDocument();
+
+		const transfer = new DataTransfer();
+		transfer.items.add(new File(["blocked"], "blocked.jpg", { type: "image/jpeg" }));
+		const results = screen.getByRole("region", { name: "Media results" }).element();
+		const dragOver = new DragEvent("dragover", {
+			bubbles: true,
+			cancelable: true,
+			dataTransfer: transfer,
+		});
+		const drop = new DragEvent("drop", {
+			bubbles: true,
+			cancelable: true,
+			dataTransfer: transfer,
+		});
+		results.dispatchEvent(dragOver);
+		results.dispatchEvent(drop);
+
+		expect(dragOver.defaultPrevented).toBe(true);
+		expect(drop.defaultPrevented).toBe(true);
+		expect(apiMocks.uploadMedia).not.toHaveBeenCalled();
+	});
+
+	it("keeps an uploaded selection while hiding it from a nonmatching search", async () => {
+		apiMocks.uploadMedia.mockResolvedValueOnce(mediaItem("uploaded-1", "new.jpg"));
+		const screen = await renderPicker({ multiple: true });
+		setInputFiles(screen.getByLabelText("Choose files to upload").element() as HTMLInputElement, [
+			new File(["new"], "new.jpg", { type: "image/jpeg" }),
+		]);
+
+		await expect
+			.element(screen.getByRole("button", { name: "new.jpg", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
+		await screen.getByRole("searchbox", { name: "Search media" }).fill("report");
+
+		await vi.waitFor(() => {
+			expect(screen.getByRole("button", { name: "new.jpg", exact: true }).query()).toBeNull();
+		});
+		await expect
+			.element(screen.getByRole("button", { name: "Remove new.jpg from selection" }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Add 1 image" })).toBeEnabled();
+	});
+
 	it("shows failed files inline and retries only that file", async () => {
 		apiMocks.uploadMedia
 			.mockRejectedValueOnce(new Error("network"))
