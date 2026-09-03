@@ -809,7 +809,7 @@ describe("MediaDetailPanel", () => {
 		);
 	});
 
-	it("creates a distinct cropped copy and keeps the source dialog open", async () => {
+	it("creates a distinct cropped copy and closes the source dialog after success", async () => {
 		const duplicate = makeLocalItem({ id: "media-copy", filename: "photo-cropped.jpg" });
 		vi.mocked(uploadMedia).mockResolvedValueOnce(duplicate);
 		const onClose = vi.fn();
@@ -834,11 +834,7 @@ describe("MediaDetailPanel", () => {
 			);
 			expect(onCroppedCopyCreated).toHaveBeenCalledTimes(1);
 		});
-		expect(onClose).not.toHaveBeenCalled();
-		await expect.element(screen.getByRole("dialog", { name: "Media details" })).toBeVisible();
-		await expect
-			.element(screen.getByRole("button", { name: "Create cropped copy" }))
-			.toBeDisabled();
+		expect(onClose).toHaveBeenCalledTimes(1);
 		expect(replaceMediaImage).not.toHaveBeenCalled();
 		expect(onItemRefreshed).not.toHaveBeenCalled();
 	});
@@ -908,9 +904,11 @@ describe("MediaDetailPanel", () => {
 
 	it("keeps a failed crop draft available for retry", async () => {
 		vi.mocked(createCroppedImageFile).mockRejectedValueOnce(new Error("canvas failed"));
+		const onClose = vi.fn();
 		const screen = await renderPanel({
 			item: makeLocalItem({ url: TEST_IMAGE_URL }),
 			canDuplicateCrop: true,
+			onClose,
 		});
 		await openCropEditor(screen);
 		await resizeCrop(screen);
@@ -918,6 +916,7 @@ describe("MediaDetailPanel", () => {
 
 		screen.getByRole("button", { name: "Create cropped copy" }).element().click();
 		await expect.element(screen.getByText("The cropped image could not be created.")).toBeVisible();
+		expect(onClose).not.toHaveBeenCalled();
 		expect(cropSelectionStyle(screen)).toBe(draftStyle);
 		screen.getByRole("button", { name: "Create cropped copy" }).element().click();
 		await vi.waitFor(() => expect(uploadMedia).toHaveBeenCalledTimes(1));
@@ -986,7 +985,7 @@ describe("MediaDetailPanel", () => {
 
 		resolveUpload(makeLocalItem({ id: "media-copy" }));
 		await expect.element(screen.getByText("Cropped copy created.")).toBeInTheDocument();
-		expect(onClose).not.toHaveBeenCalled();
+		expect(onClose).toHaveBeenCalledTimes(1);
 		await expect
 			.element(screen.getByRole("button", { name: "Create cropped copy" }))
 			.toBeDisabled();

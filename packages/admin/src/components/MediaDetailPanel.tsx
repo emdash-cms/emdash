@@ -615,6 +615,7 @@ export function MediaDetailPanel({
 				setCropSelection(undefined);
 				setCropPixels(null);
 				setCropStatus(t`Cropped copy created.`);
+				closeDialog();
 				return;
 			}
 
