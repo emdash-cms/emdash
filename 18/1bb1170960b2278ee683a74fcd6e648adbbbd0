@@ -1,0 +1,19 @@
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_829bdb541ea05c::t_9bca6a895c9056 42-97,187-188,239-241,245-248,708,725
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "181bb1170960b2278ee683a74fcd6e648adbbbd0",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
