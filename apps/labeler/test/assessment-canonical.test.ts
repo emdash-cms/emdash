@@ -134,6 +134,41 @@ describe("canonical assessment input", () => {
 		]);
 	});
 
+	it("projects blob-backed display media through the record-scoped Cumulus URL", async () => {
+		const checksum = await computeMultihash(PNG_BYTES);
+		if (!checksum.success) throw new Error("test checksum could not be computed");
+		const record: RegistryRecords["com.emdashcms.experimental.package.release"] =
+			createReleaseRecord(checksum.value);
+		const icon = record.artifacts.icon;
+		if (!icon) throw new Error("test icon is missing");
+		icon.blob = {
+			$type: "blob",
+			ref: { $link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe" },
+			mimeType: "image/png",
+			size: PNG_BYTES.byteLength,
+		};
+		delete icon.url;
+		const verified = await verifyExactRegistryRecord(
+			{
+				async verifyExactRecord() {
+					return {
+						uri: RELEASE_URI,
+						cid: RELEASE_CID,
+						record,
+						verification: "did-mst-signature" as const,
+					};
+				},
+			},
+			{ uri: RELEASE_URI, cid: RELEASE_CID, kind: "release" },
+		);
+
+		const canonical = buildCanonicalAssessmentInput(verified);
+
+		expect(canonical.media[0]?.url).toBe(
+			`https://cdn.em-da.sh/r/did:plc:assessmentfixture00000000/com.emdashcms.experimental.package.release/gallery:1.2.3/${RELEASE_CID}/bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe`,
+		);
+	});
+
 	it.each(["package", "sbom", "repository", "provenance", "source"] as const)(
 		"rejects display media aliasing the %s never-fetch URL",
 		async (source: "package" | "sbom" | "repository" | "provenance" | "source") => {

@@ -1,5 +1,106 @@
 # @emdash-cms/admin
 
+## 0.36.0
+
+### Minor Changes
+
+- [#2765](https://github.com/emdash-cms/emdash/pull/2765) [`9d92b55`](https://github.com/emdash-cms/emdash/commit/9d92b55b0c6b1e8d0506ea11887f18738989c414) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates plugin publishing to host package bundles, icons, banners, and screenshots as blobs on the publisher's Personal Data Server by default. Run `emdash-plugin publish` from the plugin directory; the CLI builds the bundle, checks the stored OAuth grant, uploads the artifacts, and writes CID-bound checksums into the release record.
+
+  Existing scripts can keep externally hosted package bundles with `emdash-plugin publish --url <https-url>`. The CLI still downloads that URL to validate and hash the served bytes. Listing images are uploaded as publisher blobs on both paths.
+
+  The experimental aggregator release envelope replaces `mirrors` with typed `artifactCaches`. The field is optional during rolling upgrades, and updated clients treat an omitted field as an empty cache list. A record-scoped cache descriptor supplies its service endpoint; clients derive `/r/{did}/{collection}/{rkey}/{recordCid}/{blobCid}` so cache admission is bound to the exact release revision.
+
+  Install and update verify raw cache, PDS, and external fallback bytes against the signed checksum and blob metadata. The authenticated image proxy may serve a transformed record-scoped cache rendition; if that cache is unavailable, it falls back to checksum-verified PDS or external bytes. Listing images remain capped at 1 MiB.
+
+  Sites must upgrade EmDash before installing a release whose package artifact is available only as a PDS blob. Older EmDash versions require an external package URL.
+
+  #### What should I do?
+
+  Remove `--artifact-base-url` from publish scripts and stop pre-uploading listing images. The CLI rejects the removed option with migration guidance. Replace any experimental `releaseView.mirrors` access with `releaseView.artifactCaches ?? []`. If an existing granular login reports `MISSING_BLOB_SCOPE`, run `emdash-plugin logout` and log in again to grant `blob:application/gzip` and `blob:image/*`.
+
+- [#2582](https://github.com/emdash-cms/emdash/pull/2582) [`8d8d3de`](https://github.com/emdash-cms/emdash/commit/8d8d3de006ca8652f0ec9e531dd8be7d851e1a4f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds numbered page navigation and page-size controls to the local Media Library. Media list requests can opt into numbered pages with `page` and receive an exact `totalCount`; cursor pagination remains the default.
+
+  `MediaLibrary` accepts controlled numbered pagination through `pagination`. Existing `hasMore` and `onLoadMore` props remain supported when `pagination` is omitted.
+
+- [#2622](https://github.com/emdash-cms/emdash/pull/2622) [`089d747`](https://github.com/emdash-cms/emdash/commit/089d747dcfde8e27ea805d303e5899805d7b5d70) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds Lua and Zig to code block language selectors in the admin and inline visual editors. Lua code is syntax highlighted, while Zig uses the existing plain-text fallback.
+
+- [#2609](https://github.com/emdash-cms/emdash/pull/2609) [`d379d10`](https://github.com/emdash-cms/emdash/commit/d379d10f83008748a7479cf959632f3151dc1594) Thanks [@danielmlr](https://github.com/danielmlr)! - Adds an optional dark mode counterpart to image fields, so editors can pick a second image that the site shows in dark color schemes.
+
+  Enable the slot per field with the `darkVariant` widget option (`"options": { "darkVariant": true }` in a seed file, or the **Dark mode variant** switch in the admin field editor). Editors then see **Add dark mode variant** below the selected image. The variant is stored inside the field value as `darkVariant`, in the same shape as the primary image.
+
+  The `Image` component from `emdash/ui` renders both images when a variant is present and shows the matching one with CSS: a `dark` or `light` class on `<html>` pins the scheme, otherwise `prefers-color-scheme` decides. Both images share the primary image's alt text and loading attributes, and an `id` you pass lands on the primary image while the variant gets it with a `--dark` suffix. Without `priority`, the hidden one stays lazy and is not fetched until the scheme changes; with `priority`, both images download. Sites with another theme convention can override the `.emdash-image--light` and `.emdash-image--dark` selectors; the [Dark Mode guide](https://docs.emdashcms.com/guides/dark-mode/) shows the rules. Fields without the option, and values without a variant, render exactly as before.
+
+- [#2624](https://github.com/emdash-cms/emdash/pull/2624) [`436f63d`](https://github.com/emdash-cms/emdash/commit/436f63d7f9f8bf43062ccdbbed76b98307b59149) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds focal points for local images so cover-cropped thumbnails, galleries, and image components keep the selected subject visible.
+
+- [#2586](https://github.com/emdash-cms/emdash/pull/2586) [`815553c`](https://github.com/emdash-cms/emdash/commit/815553cbcb3f0263116a1dcde3a039fadd867000) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds flat-folder organization to the local Media Library. Editors can create, rename, and delete folders. Authors can organize their own local media, and editors can organize any local media, through Media Details or by dragging a media card or row onto a visible folder.
+
+  Uploads continue to enter the Main library. Deleting a folder returns its media to the Main library without deleting files or changing their URLs.
+
+- [#2538](https://github.com/emdash-cms/emdash/pull/2538) [`9c52b39`](https://github.com/emdash-cms/emdash/commit/9c52b39fa82f3c13fe9bfbc04d0aa36de4acc219) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a media usage tracking setting. Tracking is enabled during initial setup. Existing sites enable it from Settings, keep the page open while EmDash scans existing content, and can return later to continue from saved progress.
+
+- [#2470](https://github.com/emdash-cms/emdash/pull/2470) [`f527127`](https://github.com/emdash-cms/emdash/commit/f5271270ea32f8c771016d2b4cdf02cb1a0505e2) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a coverage-aware Used in section to local media details.
+
+- [#2647](https://github.com/emdash-cms/emdash/pull/2647) [`e3ad082`](https://github.com/emdash-cms/emdash/commit/e3ad0823121704c508cd104783a59fccd3f6a44e) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds signed-label policy and listing-status support to the plugin registry client. Registry requests use the aggregator's required listing policy with an optional accepted-labeler declaration, and withdrawn releases are excluded from install and update results.
+
+  The EmDash admin waits for a fresh listing-policy response before rendering registry metadata, uses the approved author name or publisher DID instead of a mutable handle, and does not request media for an unapproved release. Install, update, and media-proxy checks enforce listing withdrawal independently from the existing plugin-code and capability checks.
+
+  Registry artifact downloads and proxied media connect only to the public IP addresses validated for each URL, preventing DNS changes between validation and connection from reaching private services.
+
+### Patch Changes
+
+- [#2590](https://github.com/emdash-cms/emdash/pull/2590) [`724241f`](https://github.com/emdash-cms/emdash/commit/724241f95f390a09f896a817f4e48aa2883ddbd7) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a resizable settings panel to the desktop content editor, including keyboard controls and bounded widths.
+
+- [#2468](https://github.com/emdash-cms/emdash/pull/2468) [`72664ad`](https://github.com/emdash-cms/emdash/commit/72664ad09c230e5b0ba5b55789b5eb118c6b487e) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes vertical alignment of editor sidebar drag handles with standard and collapsible section headings.
+
+- [#2614](https://github.com/emdash-cms/emdash/pull/2614) [`561f1d1`](https://github.com/emdash-cms/emdash/commit/561f1d13df6efb639154310e3706829203eb4c3c) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the content editor's autosave so that a draft that the server rejected, such as a field value that exceeds its `maxLength`, is not resent every few seconds. The editor keeps the unsaved changes and tries again only after the content changes.
+
+- [#2683](https://github.com/emdash-cms/emdash/pull/2683) [`3e90689`](https://github.com/emdash-cms/emdash/commit/3e90689102d02e479c0130dcee520c5209530e94) Thanks [@hossein-webdev](https://github.com/hossein-webdev)! - Fixes AVIF images being rejected with "File type not allowed" on upload. `image/avif` is back in the default media allowlist alongside PNG, JPEG, GIF, and WebP, so editors can upload `.avif` files again from the media library and from image fields that use the default allowlist.
+
+  The admin file picker now offers `.avif` files and renders their thumbnails, the built-in "Images" preset in a field's allowed-types editor includes AVIF, and `.avif` works as extension shorthand in a field's `allowedMimeTypes`.
+
+  SVG stays excluded from the default allowlist.
+
+- [#2606](https://github.com/emdash-cms/emdash/pull/2606) [`22c4422`](https://github.com/emdash-cms/emdash/commit/22c442285d648c2226d13c40b807045fcfc2ba74) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes code blocks in the admin and inline visual editors with syntax highlighting for supported languages and readable, borderless styling in light and dark appearances.
+
+- [#2610](https://github.com/emdash-cms/emdash/pull/2610) [`2ffda17`](https://github.com/emdash-cms/emdash/commit/2ffda1737cfbe57c5d10bf57f2b3a48f4d49ae4a) Thanks [@MatsudaTsunenori](https://github.com/MatsudaTsunenori)! - Completes the Japanese admin translation so Japanese-speaking users see localized text for every catalog message.
+
+- [#2686](https://github.com/emdash-cms/emdash/pull/2686) [`42fa5d8`](https://github.com/emdash-cms/emdash/commit/42fa5d8ed3ee1858468603eb3d5a39810cf20e27) Thanks [@MatsudaTsunenori](https://github.com/MatsudaTsunenori)! - Fixes translated admin guidance and WordPress import summaries so links, emphasized text, dynamic values, and plural counts can follow each locale's word order. Clarifies the content type empty-state action.
+
+- [#2754](https://github.com/emdash-cms/emdash/pull/2754) [`70c487c`](https://github.com/emdash-cms/emdash/commit/70c487c1b1cfce3cd9356a7669dfd9abadad6354) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the content editor's byline controls with a focused search-and-create flow, clear automatic owner credits, accessible ordering and roles, and actions that distinguish post credits from reusable byline profiles.
+
+- [#2490](https://github.com/emdash-cms/emdash/pull/2490) [`2b54096`](https://github.com/emdash-cms/emdash/commit/2b540969f3a73f670c724c17ac59d778d429e055) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes image action controls intermittently failing to appear when selecting an image in the editor.
+
+- [#2632](https://github.com/emdash-cms/emdash/pull/2632) [`76dd3eb`](https://github.com/emdash-cms/emdash/commit/76dd3ebee96ddf53a149d09f98919d43f07fd53a) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes implicit English locale guidance in the content editor by replacing the persistent warning with compact, accessible help.
+
+- [#2599](https://github.com/emdash-cms/emdash/pull/2599) [`b383a67`](https://github.com/emdash-cms/emdash/commit/b383a67b5f4a75d5757f76c4385e9ee83df6f3de) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes code blocks in the admin and inline visual editors so Tab and Shift+Tab indent and outdent code instead of moving focus.
+
+- [#2687](https://github.com/emdash-cms/emdash/pull/2687) [`05b0a8b`](https://github.com/emdash-cms/emdash/commit/05b0a8bb2453d14dd2a65ea22a1e6af6d0a3048b) Thanks [@MatsudaTsunenori](https://github.com/MatsudaTsunenori)! - Fixes newly created taxonomies not appearing in the admin sidebar until the page is reloaded.
+
+- [#2548](https://github.com/emdash-cms/emdash/pull/2548) [`1f2678b`](https://github.com/emdash-cms/emdash/commit/1f2678b7a477fdd225d2888f50fa664c85cf9e43) Thanks [@ahliweb](https://github.com/ahliweb)! - Completes the Indonesian admin translations, covering the image gallery block, plugin MCP tool settings, byline filters, content locale settings, and scheduled publishing warnings.
+
+- [#2590](https://github.com/emdash-cms/emdash/pull/2590) [`724241f`](https://github.com/emdash-cms/emdash/commit/724241f95f390a09f896a817f4e48aa2883ddbd7) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the content editor's Move to Trash section to match the other settings surfaces and use a softer destructive button treatment.
+
+- [#2778](https://github.com/emdash-cms/emdash/pull/2778) [`3367fae`](https://github.com/emdash-cms/emdash/commit/3367faeeb7b6efb693635e89244e1c24c9e07be2) Thanks [@MatsudaTsunenori](https://github.com/MatsudaTsunenori)! - Adds missing Japanese translations and improves existing phrasing across the admin content, media, comments, menus, redirects, widgets, sections, users, plugins, import, settings, date-range filter, and code-block UIs.
+
+- [#2603](https://github.com/emdash-cms/emdash/pull/2603) [`f5e18d8`](https://github.com/emdash-cms/emdash/commit/f5e18d8b9f91ba1f758457a8c4765a011dfa70cf) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds one-click copy actions to code-block controls in the admin and inline visual editors, and polishes the layout so controls stay usable on narrow screens and in right-to-left locales.
+
+- [#2561](https://github.com/emdash-cms/emdash/pull/2561) [`f9a488a`](https://github.com/emdash-cms/emdash/commit/f9a488a454147e94a90b756d159581d9639ef7b9) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Refines admin table toolbars with consistent compact search and filters, including a calendar-based date range picker for content lists.
+
+- [#2629](https://github.com/emdash-cms/emdash/pull/2629) [`52f7c91`](https://github.com/emdash-cms/emdash/commit/52f7c91ae9efe2a9b023ea7b6cb739376f8da096) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes the Section editor so plugin-provided Portable Text blocks appear in the slash menu alongside core blocks, matching the content and widget editors.
+
+- [#2676](https://github.com/emdash-cms/emdash/pull/2676) [`7571581`](https://github.com/emdash-cms/emdash/commit/7571581d598803162f59c6105e23fb0bf29f6520) Thanks [@MatsudaTsunenori](https://github.com/MatsudaTsunenori)! - Fixes the vertical alignment of the Required and Translatable switches in the byline field editor when helper text appears below Translatable.
+
+- [#2468](https://github.com/emdash-cms/emdash/pull/2468) [`72664ad`](https://github.com/emdash-cms/emdash/commit/72664ad09c230e5b0ba5b55789b5eb118c6b487e) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the meta description field shifting after the first character is entered.
+
+- [#2463](https://github.com/emdash-cms/emdash/pull/2463) [`f613a14`](https://github.com/emdash-cms/emdash/commit/f613a1470581ad750183ba74ba9562d624db8d88) Thanks [@helio-cf](https://github.com/helio-cf)! - Fixes media previews for streaming providers such as Cloudflare Stream. Video from these providers now shows its poster thumbnail in the media library grid and list, plays in the detail panel instead of stalling at 0:00, and reports the file size the provider supplies. Also exports `Media` from `emdash/ui`, so frontends can render provider-backed video and audio that `Image` cannot.
+
+- [#2628](https://github.com/emdash-cms/emdash/pull/2628) [`1c6b893`](https://github.com/emdash-cms/emdash/commit/1c6b893b40134aeaeedd056594d5bd7b6bfc1a53) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes line breaks entered in table cells disappearing from saved content.
+
+- Updated dependencies [[`9d92b55`](https://github.com/emdash-cms/emdash/commit/9d92b55b0c6b1e8d0506ea11887f18738989c414), [`6178888`](https://github.com/emdash-cms/emdash/commit/61788888bf5933e2a9ac310a931f1c241fa63878), [`e3ad082`](https://github.com/emdash-cms/emdash/commit/e3ad0823121704c508cd104783a59fccd3f6a44e)]:
+  - @emdash-cms/registry-client@0.4.0
+  - @emdash-cms/registry-lexicons@0.4.0
+  - @emdash-cms/blocks@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes

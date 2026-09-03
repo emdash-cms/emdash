@@ -1,0 +1,139 @@
+---
+title: Dark Mode
+description: Follow the visitor's color scheme, let editors pick a dark counterpart for an image, and render the right one with the Image component.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+A site decides between light and dark in one of two ways: the visitor's system preference, or an explicit choice the site stores for that visitor. EmDash components read both signals through one convention on the `<html>` element. This page describes that convention, how to give an image field a dark counterpart, and how to render it with the `Image` component from `emdash/ui`.
+
+## Theme convention
+
+Components and templates use these two signals, in this order:
+
+1. A `dark` or `light` class on `<html>` pins the scheme. The class wins over the system preference.
+2. Without a class, the scheme follows the `prefers-color-scheme` media query.
+
+The bundled templates store an explicit choice in a `theme` cookie and apply it before the first paint with an inline script in `<head>`. The following script reads the cookie and sets the class, and does nothing when no choice is stored:
+
+```html title="src/layouts/Base.astro"
+<script is:inline>
+	(function () {
+		var c = document.cookie;
+		var i = c.indexOf("theme=");
+		var theme = i >= 0 ? c.slice(i + 6).split(";")[0] : null;
+		if (theme === "dark" || theme === "light") {
+			document.documentElement.classList.add(theme);
+		}
+	})();
+</script>
+```
+
+Define colors once with [`light-dark()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/light-dark) and let the class pin the scheme:
+
+```css title="src/styles/global.css"
+:root {
+	color-scheme: light dark;
+	--color-bg: light-dark(#ffffff, #0d0d0d);
+	--color-text: light-dark(#1a1a1a, #ededed);
+}
+:root.light {
+	color-scheme: light;
+}
+:root.dark {
+	color-scheme: dark;
+}
+```
+
+A site without a theme switcher needs no script: leave `<html>` without a class and the system preference applies.
+
+## Dark image variants
+
+An image field can carry a second image for dark color schemes. Editors pick it next to the primary image, and the `Image` component shows whichever matches the visitor's scheme.
+
+### Enable the slot on a field
+
+The slot is off by default. Turn it on per field, either in the admin or in a seed file.
+
+In the admin, open **Content Types**, edit the image field, and switch on **Dark mode variant**.
+
+In a seed file, set the `darkVariant` widget option on the field:
+
+```json title="seed/seed.json"
+{
+	"slug": "featured_image",
+	"label": "Featured Image",
+	"type": "image",
+	"options": { "darkVariant": true }
+}
+```
+
+### Pick the variant in the editor
+
+<Steps>
+
+1. Open an entry and select the primary image as usual.
+
+2. Click **Add dark mode variant** below the image and choose the dark counterpart from the media library.
+
+3. Save the entry.
+
+</Steps>
+
+The variant is stored inside the field value as `darkVariant`. Removing the primary image removes the variant with it; replacing the primary image keeps the variant until you replace or remove it.
+
+### Render the variant
+
+The `Image` component renders both images when the value carries a `darkVariant` and shows the matching one with CSS. Nothing changes in the template:
+
+```astro title="src/pages/posts/[slug].astro"
+---
+import { Image } from "emdash/ui";
+import { getEmDashEntry } from "emdash";
+
+const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
+---
+
+{post?.data.featured_image && <Image image={post.data.featured_image} priority />}
+```
+
+The output contains two `<img>` elements. The primary image gets the class `emdash-image--light` and the variant gets `emdash-image--dark`. Both use the primary image's `alt` text, width and height overrides, and loading attributes. Each keeps its own placeholder color.
+
+An `id` you pass stays on the primary image; the variant gets the same `id` with a `--dark` suffix, so `id="hero"` yields `hero` and `hero--dark`.
+
+When the dark image comes from somewhere else, such as a second image field, pass it explicitly:
+
+```astro
+<Image image={post.data.hero} darkVariant={post.data.hero_dark} />
+```
+
+### Loading behaviour
+
+Both images are lazy by default. Browsers do not fetch a lazy image that is hidden with `display: none`, so a visitor downloads only the variant for their scheme, and the other one loads when the scheme changes.
+
+With `priority`, both images get `loading="eager"` and `fetchpriority="high"`, and both download in every scheme. The theme is decided in the browser, so the server cannot tell which variant a visitor will see. Use `priority` on the one above-the-fold image and leave other images lazy.
+
+## Use a different theme convention
+
+The shipped CSS hides the variant that does not match the scheme. Its selectors use `:where()` on the `<html>` part, so any rule of yours that targets `<html>` with a class or attribute wins.
+
+If your switcher sets an attribute such as `data-theme`, the shortest fix is to also set the `dark` and `light` classes from the same code path. Otherwise, override the four cases in your own stylesheet:
+
+```css title="src/styles/global.css"
+:root[data-theme="dark"] .emdash-image--light,
+:root[data-theme="light"] .emdash-image--dark {
+	display: none;
+}
+:root[data-theme="dark"] .emdash-image--dark,
+:root[data-theme="light"] .emdash-image--light {
+	display: block;
+}
+```
+
+Match the `display` value to what your stylesheet gives images elsewhere, for example `inline` when you do not reset `img` to `block`.
+
+<Aside>
+	The `prefers-color-scheme` rules from EmDash still apply when `<html>` carries neither a
+	`light` nor a `dark` class. The overrides above take effect as soon as your attribute is
+	present.
+</Aside>

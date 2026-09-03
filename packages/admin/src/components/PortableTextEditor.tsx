@@ -113,6 +113,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import { canonicalMediaProviderId } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -181,7 +182,7 @@ interface PortableTextTextBlock {
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string; meta?: Record<string, unknown> };
+	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
@@ -1014,6 +1015,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					title: imageBlock.caption || "",
 					caption: imageBlock.caption || "",
 					mediaId: imageBlock.asset._ref,
+					provider: canonicalMediaProviderId(imageBlock.asset.provider),
 					width: imageBlock.width,
 					height: imageBlock.height,
 					blurhash,
@@ -1028,9 +1030,13 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		case "code": {
 			if (!isCodeBlock(block)) return null;
 			const codeBlock = block;
+			const language =
+				typeof codeBlock.language === "string" && codeBlock.language.length > 0
+					? codeBlock.language
+					: null;
 			return {
 				type: "codeBlock",
-				attrs: { language: codeBlock.language || null },
+				attrs: { language },
 				content: codeBlock.code ? [{ type: "text", text: codeBlock.code }] : undefined,
 			};
 		}
@@ -3194,7 +3200,7 @@ export function PortableTextEditor({
 					src: item.url,
 					alt: item.alt || item.filename,
 					mediaId: item.id,
-					provider: item.provider || "local",
+					provider: canonicalMediaProviderId(item.provider),
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,

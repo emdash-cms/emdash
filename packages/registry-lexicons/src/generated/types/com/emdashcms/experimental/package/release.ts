@@ -9,14 +9,25 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 		),
 	),
 	/**
-	 * Multibase-encoded multihash of the artifact bytes. EmDash clients MUST support sha2-256 (multihash code 0x12) and SHOULD support sha2-512 (0x13) and blake3 (0x1e). Recommended base prefix: base32 ('b'). Clients reject artifacts whose checksum uses an unsupported hash function rather than skipping verification.
+	 * Artifact bytes stored as a blob in the publisher's PDS.
+	 * @accept application/gzip
+	 * @maxSize 262144
+	 */
+	blob: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.blob(), [
+			/*#__PURE__*/ v.blobSize(262144),
+			/*#__PURE__*/ v.blobAccept(["application/gzip"]),
+		]),
+	),
+	/**
+	 * Lowercase base32 multibase-encoded sha2-256 multihash of the artifact bytes (multihash code 0x12). EmDash clients reject unsupported hash functions rather than skipping verification.
 	 * @maxLength 256
 	 */
 	checksum: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
 		/*#__PURE__*/ v.stringLength(0, 256),
 	]),
 	/**
-	 * MIME type of the artifact, per RFC6838. FAIR HTTP equivalent: 'content-type'.
+	 * MIME type of the artifact, per RFC6838.
 	 * @maxLength 256
 	 */
 	contentType: /*#__PURE__*/ v.optional(
@@ -48,15 +59,15 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 	 */
 	lang: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.languageCodeString()),
 	/**
-	 * Whether the URL points to a platform release asset rather than a directly-served file. When true, clients MUST send 'Accept: application/octet-stream' when downloading. FAIR HTTP equivalent: 'release-asset'.
+	 * Whether the URL points to a platform release asset rather than a directly-served file. When true, clients MUST send 'Accept: application/octet-stream' when downloading.
 	 */
 	releaseAsset: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.boolean()),
 	/**
-	 * Whether the artifact requires authentication to access. FAIR HTTP equivalent: 'requires-auth'.
+	 * Whether the artifact requires authentication to access.
 	 */
 	requiresAuth: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.boolean()),
 	/**
-	 * Optional cryptographic signature of the artifact. Retained for FAIR compatibility, but EmDash clients do not require it as integrity is proven via the atproto MST signature over the record's checksum.
+	 * Optional cryptographic signature of the artifact. EmDash clients do not require it because integrity is proven through the atproto MST signature over the record's checksum.
 	 * @maxLength 1024
 	 */
 	signature: /*#__PURE__*/ v.optional(
@@ -68,9 +79,11 @@ const _artifactSchema = /*#__PURE__*/ v.object({
 	 * URL where the artifact can be downloaded.
 	 * @maxLength 2048
 	 */
-	url: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.genericUriString(), [
-		/*#__PURE__*/ v.stringLength(0, 2048),
-	]),
+	url: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.genericUriString(), [
+			/*#__PURE__*/ v.stringLength(0, 2048),
+		]),
+	),
 	/**
 	 * Pixel width, for image artifacts (icon, screenshot, banner).
 	 * @minimum 1
@@ -89,10 +102,10 @@ const _artifactsSchema = /*#__PURE__*/ v.object({
 		),
 	),
 	get banner() {
-		return /*#__PURE__*/ v.optional(artifactSchema);
+		return /*#__PURE__*/ v.optional(imageArtifactSchema);
 	},
 	get icon() {
-		return /*#__PURE__*/ v.optional(artifactSchema);
+		return /*#__PURE__*/ v.optional(imageArtifactSchema);
 	},
 	/**
 	 * The installable plugin bundle.
@@ -101,16 +114,109 @@ const _artifactsSchema = /*#__PURE__*/ v.object({
 		return artifactSchema;
 	},
 	/**
-	 * Ordered screenshot gallery for the plugin's detail page. FAIR's singular 'screenshot' alias is a transport-boundary concern and does not appear on the record.
+	 * Ordered screenshot gallery for the plugin's detail page.
 	 * @maxLength 8
 	 */
 	get screenshots() {
 		return /*#__PURE__*/ v.optional(
-			/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.array(artifactSchema), [
+			/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.array(imageArtifactSchema), [
 				/*#__PURE__*/ v.arrayLength(0, 8),
 			]),
 		);
 	},
+});
+const _imageArtifactSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.release#imageArtifact",
+		),
+	),
+	/**
+	 * Image bytes stored as a blob in the publisher's PDS.
+	 * @accept image/png, image/jpeg, image/webp
+	 * @maxSize 1048576
+	 */
+	blob: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.blob(), [
+			/*#__PURE__*/ v.blobSize(1048576),
+			/*#__PURE__*/ v.blobAccept(["image/png", "image/jpeg", "image/webp"]),
+		]),
+	),
+	/**
+	 * Lowercase base32 multibase-encoded sha2-256 multihash of the artifact bytes (multihash code 0x12). EmDash clients reject unsupported hash functions rather than skipping verification.
+	 * @maxLength 256
+	 */
+	checksum: /*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+		/*#__PURE__*/ v.stringLength(0, 256),
+	]),
+	/**
+	 * MIME type of the artifact, per RFC6838.
+	 * @maxLength 256
+	 */
+	contentType: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 256),
+		]),
+	),
+	/**
+	 * Pixel height.
+	 * @minimum 1
+	 * @maximum 8192
+	 */
+	height: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.integer(), [
+			/*#__PURE__*/ v.integerRange(1, 8192),
+		]),
+	),
+	/**
+	 * Unique ID within the artifact type.
+	 * @maxLength 128
+	 */
+	id: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 128),
+		]),
+	),
+	/**
+	 * BCP 47 language tag for a localised artifact.
+	 */
+	lang: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.languageCodeString()),
+	/**
+	 * Whether the URL points to a platform release asset rather than a directly-served file. When true, clients MUST send 'Accept: application/octet-stream' when downloading.
+	 */
+	releaseAsset: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.boolean()),
+	/**
+	 * Whether the artifact requires authentication to access.
+	 */
+	requiresAuth: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.boolean()),
+	/**
+	 * Optional cryptographic signature of the artifact. EmDash clients do not require it because integrity is proven through the atproto MST signature over the record's checksum.
+	 * @maxLength 1024
+	 */
+	signature: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.string(), [
+			/*#__PURE__*/ v.stringLength(0, 1024),
+		]),
+	),
+	/**
+	 * URL where the artifact can be downloaded.
+	 * @maxLength 2048
+	 */
+	url: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.genericUriString(), [
+			/*#__PURE__*/ v.stringLength(0, 2048),
+		]),
+	),
+	/**
+	 * Pixel width.
+	 * @minimum 1
+	 * @maximum 8192
+	 */
+	width: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.constrain(/*#__PURE__*/ v.integer(), [
+			/*#__PURE__*/ v.integerRange(1, 8192),
+		]),
+	),
 });
 const _mainSchema = /*#__PURE__*/ v.record(
 	/*#__PURE__*/ v.string(),
@@ -125,9 +231,11 @@ const _mainSchema = /*#__PURE__*/ v.record(
 			return artifactsSchema;
 		},
 		/**
-		 * Authentication requirements (FAIR's commercial / private packages). Out of scope for EmDash use today, but the field is reserved.
+		 * Authentication requirements for gated artifacts. No authentication variants are currently defined.
 		 */
-		auth: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.unknown()),
+		get auth() {
+			return /*#__PURE__*/ v.optional(/*#__PURE__*/ v.variant([]));
+		},
 		/**
 		 * Open-union container for extension data, keyed by NSID. Each value is an embedded record carrying its own $type discriminator. Releases of type emdash-plugin MUST include a com.emdashcms.experimental.package.releaseExtension entry here.
 		 */
@@ -141,11 +249,11 @@ const _mainSchema = /*#__PURE__*/ v.record(
 			/*#__PURE__*/ v.stringLength(1, 64),
 		]),
 		/**
-		 * Capabilities the package provides. Map of capability type to string or list of strings. Open shape per FAIR's extension model.
+		 * Capabilities the package provides. Map of capability type to string or list of strings.
 		 */
 		provides: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.unknown()),
 		/**
-		 * AT URI or HTTPS URL of the source repository for this release. Equivalent to FAIR's 'https://fair.pm/rel/repo' HAL relation.
+		 * AT URI or HTTPS URL of the source repository for this release.
 		 * @maxLength 1024
 		 */
 		repo: /*#__PURE__*/ v.optional(
@@ -213,21 +321,27 @@ const _sbomSchema = /*#__PURE__*/ v.object({
 
 type artifact$schematype = typeof _artifactSchema;
 type artifacts$schematype = typeof _artifactsSchema;
+type imageArtifact$schematype = typeof _imageArtifactSchema;
 type main$schematype = typeof _mainSchema;
 type sbom$schematype = typeof _sbomSchema;
 
 export interface artifactSchema extends artifact$schematype {}
 export interface artifactsSchema extends artifacts$schematype {}
+export interface imageArtifactSchema extends imageArtifact$schematype {}
 export interface mainSchema extends main$schematype {}
 export interface sbomSchema extends sbom$schematype {}
 
 export const artifactSchema = _artifactSchema as artifactSchema;
 export const artifactsSchema = _artifactsSchema as artifactsSchema;
+export const imageArtifactSchema = _imageArtifactSchema as imageArtifactSchema;
 export const mainSchema = _mainSchema as mainSchema;
 export const sbomSchema = _sbomSchema as sbomSchema;
 
 export interface Artifact extends v.InferInput<typeof artifactSchema> {}
 export interface Artifacts extends v.InferInput<typeof artifactsSchema> {}
+export interface ImageArtifact extends v.InferInput<
+	typeof imageArtifactSchema
+> {}
 export interface Main extends v.InferInput<typeof mainSchema> {}
 export interface Sbom extends v.InferInput<typeof sbomSchema> {}
 

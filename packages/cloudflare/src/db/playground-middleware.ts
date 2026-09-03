@@ -15,7 +15,7 @@
 
 import { defineMiddleware } from "astro:middleware";
 import { env } from "cloudflare:workers";
-import { Kysely, sql } from "kysely";
+import { Kysely } from "kysely";
 import { ulid } from "ulidx";
 // @ts-ignore - virtual module populated by EmDash integration at build time
 import virtualConfig from "virtual:emdash/config";
@@ -24,6 +24,7 @@ import type { EmDashPreviewDB } from "./do-class.js";
 import { PreviewDODialect } from "./do-dialect.js";
 import type { PreviewDBStub } from "./do-dialect.js";
 import { isBlockedInPlayground } from "./do-playground-routes.js";
+import { initializePlayground } from "./playground-initializer.js";
 import { renderPlaygroundLoadingPage } from "./playground-loading.js";
 import { renderPlaygroundToolbar } from "./playground-toolbar.js";
 
@@ -48,6 +49,27 @@ const PLAYGROUND_USER = {
 
 /** Track which DOs have been initialized this Worker lifetime */
 const initializedSessions = new Set<string>();
+
+async function ensurePlaygroundInitialized(
+	binding: string,
+	token: string,
+	ttl: number,
+): Promise<void> {
+	if (initializedSessions.has(token)) return;
+
+	const stub = getStub(binding, token);
+	const dialect = new PreviewDODialect({ getStub: () => stub });
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	const db = new Kysely<any>({ dialect });
+	try {
+		await getFullStub(binding, token).setTtlAlarm(ttl);
+		const { loadSeed } = await import("emdash/seed");
+		await initializePlayground(db, await loadSeed());
+		initializedSessions.add(token);
+	} finally {
+		await db.destroy();
+	}
+}
 
 /**
  * Read the DO binding name from the virtual config.
@@ -112,107 +134,6 @@ function getSessionCreatedAt(token: string): string {
 	} catch {
 		return new Date().toISOString();
 	}
-}
-
-/**
- * Initialize a playground DO: run migrations, apply seed, create admin user.
- */
-async function initializePlayground(
-	// eslint-disable-next-line @typescript-eslint/no-explicit-any
-	db: Kysely<any>,
-	token: string,
-): Promise<void> {
-	// Check if already initialized (persisted in the DO)
-	try {
-		const { rows } = await sql<{ value: string }>`
-			SELECT value FROM options WHERE name = ${"emdash:setup_complete"}
-		`.execute(db);
-
-		if (rows.length > 0) {
-			return;
-		}
-	} catch {
-		// Table doesn't exist yet -- first initialization
-	}
-
-	console.log(`[playground] Initializing session ${token}`);
-
-	// 1. Run all EmDash migrations.
-	// If the DO was previously initialized (persisted state) but somehow the
-	// setup_complete flag is missing, migrations may partially fail on tables
-	// that already exist. Treat migration errors as non-fatal if there are
-	// tables present (i.e. the DO was previously initialized).
-	const { runMigrations } = await import("emdash/db");
-	try {
-		const migrations = await runMigrations(db);
-		console.log(`[playground] Migrations applied: ${migrations.applied.length}`);
-	} catch (migrationError) {
-		// Check if this looks like a "tables already exist" error -- the DO
-		// was probably initialized in a previous Worker lifetime and the
-		// options check above failed for a transient reason.
-		const msg = migrationError instanceof Error ? migrationError.message : String(migrationError);
-		if (msg.includes("already exists")) {
-			console.log(`[playground] Migrations skipped (tables already exist)`);
-			// Mark setup complete if it wasn't (recover from partial init)
-			try {
-				await sql`
-					INSERT OR IGNORE INTO options (name, value)
-					VALUES (${"emdash:setup_complete"}, ${JSON.stringify(true)})
-				`.execute(db);
-			} catch {
-				// Best effort
-			}
-			return;
-		}
-		throw migrationError;
-	}
-
-	// 2. Load and apply seed with content (skip media downloads)
-	const { loadSeed } = await import("emdash/seed");
-	const { applySeed } = await import("emdash");
-	const seed = await loadSeed();
-	const seedResult = await applySeed(db, seed, {
-		includeContent: true,
-		onConflict: "skip",
-		skipMediaDownload: true,
-	});
-	console.log(
-		`[playground] Seed applied: ${seedResult.collections.created} collections, ${seedResult.content.created} content entries`,
-	);
-
-	// 3. Create anonymous admin user
-	const now = new Date().toISOString();
-	try {
-		await sql`
-			INSERT INTO users (id, email, name, role, email_verified, created_at, updated_at)
-			VALUES (${PLAYGROUND_USER_ID}, ${PLAYGROUND_USER_EMAIL}, ${PLAYGROUND_USER_NAME},
-			        ${PLAYGROUND_USER_ROLE}, ${1}, ${now}, ${now})
-		`.execute(db);
-	} catch {
-		// User might already exist
-	}
-
-	// 4. Mark setup complete
-	try {
-		await sql`
-			INSERT INTO options (name, value)
-			VALUES (${"emdash:setup_complete"}, ${JSON.stringify(true)})
-		`.execute(db);
-	} catch {
-		// May already exist
-	}
-
-	// 5. Set site title
-	try {
-		await sql`
-			INSERT OR REPLACE INTO options (name, value)
-			VALUES (${"emdash:site_title"}, ${JSON.stringify("EmDash Playground")})
-		`.execute(db);
-	} catch {
-		// Non-critical
-	}
-
-	console.log(`[playground] Session ${token} initialized`);
 }
 
 /**
@@ -284,19 +205,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			return Response.json({ ok: true });
 		}
 
-		const stub = getStub(binding, token);
-		const dialect = new PreviewDODialect({ getStub: () => stub });
-		// eslint-disable-next-line @typescript-eslint/no-explicit-any
-		const db = new Kysely<any>({ dialect });
-
 		try {
-			await initializePlayground(db, token);
+			await ensurePlaygroundInitialized(binding, token, ttl);
 			console.log(`[playground] Session ${token} initialized`);
-			initializedSessions.add(token);
-			const fullStub = getFullStub(binding, token);
-			console.log(`[playground] Setting TTL alarm for session ${token} (${ttl} seconds)`);
-			await fullStub.setTtlAlarm(ttl);
-			console.log(`[playground] TTL alarm set for session ${token}`);
 			return Response.json({ ok: true });
 		} catch (error) {
 			console.error("Playground initialization failed:", error);
@@ -321,7 +232,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	}
 
 	// --- Route gating ---
-	if (isBlockedInPlayground(url.pathname)) {
+	if (isBlockedInPlayground(url.pathname, context.request.method)) {
 		return Response.json(
 			{ error: { code: "PLAYGROUND_MODE", message: "Not available in playground mode" } },
 			{ status: 403 },
@@ -335,27 +246,22 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return context.redirect("/playground");
 	}
 
+	// Ensure initialized
+	try {
+		await ensurePlaygroundInitialized(binding, token, ttl);
+	} catch (error) {
+		console.error("Playground initialization failed:", error);
+		return Response.json(
+			{ error: { code: "PLAYGROUND_INIT_ERROR", message: "Failed to initialize playground" } },
+			{ status: 500 },
+		);
+	}
+
 	// --- Set up DO database and ALS ---
 	const stub = getStub(binding, token);
 	const dialect = new PreviewDODialect({ getStub: () => stub });
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = new Kysely<any>({ dialect });
-
-	// Ensure initialized
-	if (!initializedSessions.has(token)) {
-		try {
-			await initializePlayground(db, token);
-			initializedSessions.add(token);
-			const fullStub = getFullStub(binding, token);
-			await fullStub.setTtlAlarm(ttl);
-		} catch (error) {
-			console.error("Playground initialization failed:", error);
-			return Response.json(
-				{ error: { code: "PLAYGROUND_INIT_ERROR", message: "Failed to initialize playground" } },
-				{ status: 500 },
-			);
-		}
-	}
 
 	// Stash the DO database and user on locals so downstream middleware
 	// (runtime init, request-context) can use them. We can't use ALS directly

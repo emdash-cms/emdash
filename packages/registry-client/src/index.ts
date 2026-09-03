@@ -66,6 +66,45 @@ export {
 } from "./withdrawal.js";
 
 export {
+	type DirectPdsClientOptions,
+	type DirectPdsDidDocumentResolver,
+	type DirectPdsProfileRecord,
+	type DirectPdsReadErrorCode,
+	type DirectPdsReleaseRecord,
+	DirectPdsClient,
+	DirectPdsReadError,
+} from "./direct-pds/index.js";
+
+export {
+	type CursorPage,
+	type DelegationResource,
+	type MutationOptions as ReleaseServiceMutationOptions,
+	type MutationResult,
+	type OperatorClientOptions,
+	type OperatorPublisherResource,
+	type PublisherControlResource,
+	type PublisherResource,
+	type PutWorkloadPolicyInput,
+	type ReleaseIntentResource,
+	type ReleaseIntentResult,
+	type ReleaseIntentState,
+	type ReleaseServiceApiErrorCode,
+	type ReleaseServiceClientErrorCode,
+	type ReleaseServiceClientOptions,
+	type RequestOptions as ReleaseServiceRequestOptions,
+	type ServiceControlState,
+	type SubmitReleaseIntentInput,
+	type SubmitReleaseIntentResult,
+	type WaitForIntentOptions,
+	type WorkloadPolicyResource,
+	ReleaseServiceClient,
+	ReleaseServiceError,
+	ReleaseServiceOperatorClient,
+	TERMINAL_RELEASE_INTENT_STATES,
+	createReleaseIdempotencyKey,
+} from "./release-service/index.js";
+
+export {
 	type EnvMismatch,
 	type HostEnv,
 	type SkippedEnvConstraint,

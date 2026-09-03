@@ -30,9 +30,9 @@ type BylineRow = Selectable<BylineTable>;
 
 /**
  * A byline row optionally augmented with the avatar's media columns, folded in
- * by the `LEFT JOIN media` in the content-credit hydration queries. The plain
- * `selectAll()` finders produce rows without these keys, so they're optional
- * and `rowToByline` defaults them to null.
+ * by the `LEFT JOIN media` in the credit-hydration and single-row finder
+ * queries. `findMany` selects without the join, so the keys are optional and
+ * `rowToByline` defaults them to null.
  */
 type BylineRowWithAvatar = BylineRow & {
 	avatar_storage_key?: string | null;
@@ -298,7 +298,7 @@ export class BylineRepository {
 	 * same way `BylineRepository` doesn't resolve locale fallback for
 	 * the base byline lookup.
 	 */
-	private async withCustomFields(rows: BylineRow[]): Promise<BylineSummary[]> {
+	private async withCustomFields(rows: BylineRowWithAvatar[]): Promise<BylineSummary[]> {
 		const summaries = rows.map(rowToByline);
 		// Always populate `customFields = {}` (PR plan AC #6) — even when
 		// no fields are registered, every BylineSummary carries the empty
@@ -311,7 +311,9 @@ export class BylineRepository {
 		return summaries;
 	}
 
-	private async withCustomFieldsOne(row: BylineRow | undefined): Promise<BylineSummary | null> {
+	private async withCustomFieldsOne(
+		row: BylineRowWithAvatar | undefined,
+	): Promise<BylineSummary | null> {
 		if (!row) return null;
 		const [result] = await this.withCustomFields([row]);
 		return result ?? null;
@@ -501,12 +503,26 @@ export class BylineRepository {
 	// Reads
 	// ============================================
 
+	/**
+	 * Every byline column plus the avatar's media columns, folded in by the
+	 * same `LEFT JOIN media` the credit-hydration queries use. Only the
+	 * single-row finders select this; `findMany` stays a single-table scan.
+	 */
+	private selectBylineWithAvatar() {
+		return this.db
+			.selectFrom("_emdash_bylines as b")
+			.leftJoin("media as m", "m.id", "b.avatar_media_id")
+			.selectAll("b")
+			.select([
+				"m.storage_key as avatar_storage_key",
+				"m.alt as avatar_alt",
+				"m.blurhash as avatar_blurhash",
+				"m.dominant_color as avatar_dominant_color",
+			]);
+	}
+
 	async findById(id: string): Promise<BylineSummary | null> {
-		const row = await this.db
-			.selectFrom("_emdash_bylines")
-			.selectAll()
-			.where("id", "=", id)
-			.executeTakeFirst();
+		const row = await this.selectBylineWithAvatar().where("b.id", "=", id).executeTakeFirst();
 		return this.withCustomFieldsOne(row);
 	}
 
@@ -516,9 +532,9 @@ export class BylineRepository {
 	 * calls). Mirrors `TaxonomyRepository.findBySlug`.
 	 */
 	async findBySlug(slug: string, options?: { locale?: string }): Promise<BylineSummary | null> {
-		let query = this.db.selectFrom("_emdash_bylines").selectAll().where("slug", "=", slug);
-		if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
-		const row = await query.orderBy("locale", "asc").executeTakeFirst();
+		let query = this.selectBylineWithAvatar().where("b.slug", "=", slug);
+		if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+		const row = await query.orderBy("b.locale", "asc").executeTakeFirst();
 		return this.withCustomFieldsOne(row);
 	}
 
@@ -529,9 +545,9 @@ export class BylineRepository {
 	 * the lowest-locale-code match.
 	 */
 	async findByUserId(userId: string, options?: { locale?: string }): Promise<BylineSummary | null> {
-		let query = this.db.selectFrom("_emdash_bylines").selectAll().where("user_id", "=", userId);
-		if (options?.locale !== undefined) query = query.where("locale", "=", options.locale);
-		const row = await query.orderBy("locale", "asc").executeTakeFirst();
+		let query = this.selectBylineWithAvatar().where("b.user_id", "=", userId);
+		if (options?.locale !== undefined) query = query.where("b.locale", "=", options.locale);
+		const row = await query.orderBy("b.locale", "asc").executeTakeFirst();
 		return this.withCustomFieldsOne(row);
 	}
 

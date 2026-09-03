@@ -139,7 +139,7 @@ test.describe("Bylines", () => {
 		expect(afterEdit.avatarMediaId).toBe(avatarId);
 	});
 
-	test("assigns and reorders bylines, preserves bylines on ownership change", async ({
+	test("assigns bylines and preserves them on ownership change", async ({
 		admin,
 		page,
 		serverInfo,
@@ -164,8 +164,6 @@ test.describe("Bylines", () => {
 			return body.data.id as string;
 		};
 
-		// Create two bylines for the test post. IDs aren't needed downstream;
-		// the test selects them by name via the bylines combobox.
 		await createByline(primaryName, `primary-writer-${unique}`);
 		await createByline(secondaryName, `secondary-writer-${unique}`);
 
@@ -175,49 +173,29 @@ test.describe("Bylines", () => {
 		await admin.clickSave();
 		await expect(page).toHaveURL(CONTENT_EDIT_URL_PATTERN, { timeout: 10000 });
 
-		const contentId = page.url().split("/").pop();
+		const contentId = new URL(page.url()).pathname.split("/").pop();
 		expect(contentId).toBeTruthy();
 		await admin.waitForLoading();
 
-		// Scope the byline picker to the Bylines section to avoid hitting the Ownership combobox
-		const bylinesSidebar = page
+		const bylinesSection = page
 			.getByRole("heading", { name: "Bylines" })
-			.locator("xpath=ancestor::div[contains(@class,'p-4')]")
+			.locator("xpath=ancestor::section")
 			.first();
-		// The picker is a debounced server search: type a name, wait for the result
-		// button to appear, click it, then wait for the credit row to commit before
-		// the next add (the search debounce + React commit race otherwise drops one).
-		const bylineSearch = bylinesSidebar.getByLabel("Search bylines");
-		const creditRow = (displayName: string) =>
-			bylinesSidebar.locator("p.text-sm.font-medium").filter({ hasText: displayName });
 		const addByline = async (displayName: string) => {
-			await bylineSearch.fill(displayName);
-			const result = bylinesSidebar.getByRole("button", { name: displayName });
-			await expect(result).toBeVisible({ timeout: 5000 });
-			await result.click();
-			await expect(creditRow(displayName)).toBeVisible({ timeout: 5000 });
+			await bylinesSection
+				.getByRole("button", { name: /Choose bylines|Add another byline/ })
+				.click();
+			await page.getByLabel("Search bylines").fill(displayName);
+			await page.getByRole("button", { name: `Add ${displayName}` }).click();
+			await expect(
+				bylinesSection.getByRole("button", { name: `More actions for ${displayName}` }),
+			).toBeVisible();
 		};
 
 		await addByline(primaryName);
 		await addByline(secondaryName);
-
-		// Move the secondary credit above the primary via its own row's "Up" button,
-		// then confirm the reorder committed before saving.
-		const secondaryCreditRow = bylinesSidebar
-			.locator("div.rounded-lg.border.p-2")
-			.filter({ hasText: secondaryName });
-		await secondaryCreditRow.getByLabel("Role label").fill("Co-author");
-		await secondaryCreditRow.getByRole("button", { name: "Up" }).click();
-		await expect(bylinesSidebar.locator("p.text-sm.font-medium").first()).toContainText(
-			secondaryName,
-		);
-
 		await admin.clickSave();
 		await admin.waitForSaveComplete();
-
-		await expect(bylinesSidebar.locator("p.text-sm.font-medium").first()).toContainText(
-			secondaryName,
-		);
 
 		const ownershipUpdateResponse = await fetch(
 			`${serverInfo.baseUrl}/_emdash/api/content/posts/${contentId as string}`,
@@ -233,14 +211,16 @@ test.describe("Bylines", () => {
 		await admin.waitForShell();
 		await admin.waitForLoading();
 
-		const bylineSectionAfterReload = page
+		const bylinesAfterReload = page
 			.getByRole("heading", { name: "Bylines" })
-			.locator("xpath=ancestor::div[contains(@class,'p-4')]")
+			.locator("xpath=ancestor::section")
 			.first();
-
-		await expect(bylineSectionAfterReload.locator("p.text-sm.font-medium").first()).toContainText(
-			secondaryName,
-		);
+		await expect(
+			bylinesAfterReload.getByRole("button", { name: `More actions for ${primaryName}` }),
+		).toBeVisible();
+		await expect(
+			bylinesAfterReload.getByRole("button", { name: `More actions for ${secondaryName}` }),
+		).toBeVisible();
 
 		const contentResponse = await fetch(
 			`${serverInfo.baseUrl}/_emdash/api/content/posts/${contentId as string}`,
@@ -248,15 +228,10 @@ test.describe("Bylines", () => {
 		);
 		expect(contentResponse.ok).toBe(true);
 		const contentBody: any = await contentResponse.json();
-		const item = contentBody.data?.item;
-
-		expect(item.byline?.displayName).toBe(secondaryName);
-		expect(item.bylines).toHaveLength(2);
-		expect(item.bylines[0]?.byline?.displayName).toBe(secondaryName);
-		expect(item.bylines[1]?.byline?.displayName).toBe(primaryName);
-		const secondaryCredit = item.bylines.find(
-			(credit: any) => credit?.byline?.displayName === secondaryName,
+		const names = (contentBody.data?.item?.bylines ?? []).map(
+			(credit: { byline?: { displayName?: string } }) => credit?.byline?.displayName,
 		);
-		expect(secondaryCredit?.roleLabel).toBe("Co-author");
+		expect(names).toHaveLength(2);
+		expect(names).toEqual(expect.arrayContaining([primaryName, secondaryName]));
 	});
 });

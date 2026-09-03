@@ -111,6 +111,9 @@ catalogs:
     '@lingui/macro':
       specifier: ^5.9.4
       version: 5.9.5
+    '@lingui/message-utils':
+      specifier: ^5.9.4
+      version: 5.9.5
     '@lingui/react':
       specifier: ^5.9.4
       version: 5.9.5
@@ -143,6 +146,9 @@ catalogs:
       version: 3.20.0
     '@tiptap/extension-code-block':
       specifier: ^3.20.0
+      version: 3.20.0
+    '@tiptap/extension-code-block-lowlight':
+      specifier: 3.20.0
       version: 3.20.0
     '@tiptap/extension-collaboration':
       specifier: ^3.20.0
@@ -243,6 +249,9 @@ catalogs:
     chokidar:
       specifier: ^5.0.0
       version: 5.0.0
+    highlight.js:
+      specifier: 11.11.2
+      version: 11.11.2
     image-size:
       specifier: 2.0.2
       version: 2.0.2
@@ -252,12 +261,18 @@ catalogs:
     kysely:
       specifier: ^0.29.0
       version: 0.29.2
+    lowlight:
+      specifier: ^3.3.0
+      version: 3.3.0
     publint:
       specifier: 0.3.17
       version: 0.3.17
     react:
       specifier: 19.2.4
       version: 19.2.4
+    react-day-picker:
+      specifier: ^9.14.0
+      version: 9.14.0
     react-dom:
       specifier: 19.2.4
       version: 19.2.4
@@ -535,6 +550,174 @@ importers:
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.124.0(@cloudflare/workers-types@4.20260305.1)
+
+  apps/release-action:
+    dependencies:
+      '@atcute/lexicons':
+        specifier: 'catalog:'
+        version: 2.0.0
+      '@emdash-cms/registry-client':
+        specifier: workspace:*
+        version: link:../../packages/registry-client
+      '@emdash-cms/registry-lexicons':
+        specifier: workspace:*
+        version: link:../../packages/registry-lexicons
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../../packages/registry-verification
+    devDependencies:
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.10.13
+      tsdown:
+        specifier: 'catalog:'
+        version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260421.2)(oxc-resolver@11.16.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3))(publint@0.3.17)(typescript@6.0.3)
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.16(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+
+  apps/release-service:
+    dependencies:
+      '@atcute/atproto':
+        specifier: 'catalog:'
+        version: 4.0.2(@atcute/lexicons@2.0.0)
+      '@atcute/client':
+        specifier: 'catalog:'
+        version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity-resolver':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/lexicons':
+        specifier: 'catalog:'
+        version: 2.0.0
+      '@atcute/oauth-node-client':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity-resolver@2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@cloudflare/kumo':
+        specifier: 'catalog:'
+        version: 2.6.0(@date-fns/tz@1.4.1)(@phosphor-icons/react@2.1.10(react-dom@19.2.4(react@19.2.4))(react@19.2.4))(@types/react@19.2.14)(date-fns@4.1.0)(echarts@6.0.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(zod@4.4.1)
+      '@emdash-cms/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@emdash-cms/plugin-types':
+        specifier: workspace:*
+        version: link:../../packages/plugin-types
+      '@emdash-cms/registry-client':
+        specifier: workspace:*
+        version: link:../../packages/registry-client
+      '@emdash-cms/registry-lexicons':
+        specifier: workspace:*
+        version: link:../../packages/registry-lexicons
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../../packages/registry-verification
+      '@lingui/core':
+        specifier: 'catalog:'
+        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))
+      '@lingui/message-utils':
+        specifier: 'catalog:'
+        version: 5.9.5
+      '@lingui/react':
+        specifier: 'catalog:'
+        version: 5.9.5(@lingui/babel-plugin-lingui-macro@5.9.5(typescript@6.0.3))(react@19.2.4)
+      jose:
+        specifier: ^6.1.3
+        version: 6.1.3
+      react:
+        specifier: 'catalog:'
+        version: 19.2.4
+      react-dom:
+        specifier: 'catalog:'
+        version: 19.2.4(react@19.2.4)
+      semver:
+        specifier: 'catalog:'
+        version: 7.7.4
+      ulidx:
+        specifier: ^2.4.1
+        version: 2.4.1
+    devDependencies:
+      '@cloudflare/vite-plugin':
+        specifier: 'catalog:'
+        version: 1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(workerd@1.20260820.1)(wrangler@4.124.0)
+      '@cloudflare/vitest-pool-workers':
+        specifier: 'catalog:'
+        version: 0.16.3(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)))
+      '@playwright/test':
+        specifier: ^1.61.1
+        version: 1.61.1
+      '@tailwindcss/vite':
+        specifier: ^4.3.3
+        version: 4.3.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      '@testing-library/react':
+        specifier: ^16.3.0
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.10.13
+      '@types/react':
+        specifier: 'catalog:'
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: 'catalog:'
+        version: 19.2.3(@types/react@19.2.14)
+      '@types/semver':
+        specifier: 'catalog:'
+        version: 7.7.1
+      '@vitejs/plugin-react':
+        specifier: ^4.6.0
+        version: 4.7.0(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      jsdom:
+        specifier: ^26.1.0
+        version: 26.1.0
+      tailwindcss:
+        specifier: ^4.1.10
+        version: 4.3.3
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vite:
+        specifier: 'catalog:'
+        version: 8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.124.0(@cloudflare/workers-types@4.20260305.1)
+
+  apps/release-verifier:
+    dependencies:
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../../packages/registry-verification
+    devDependencies:
+      '@cloudflare/vite-plugin':
+        specifier: 'catalog:'
+        version: 1.36.3(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0))(workerd@1.20260820.1)(wrangler@4.124.0)
+      '@cloudflare/vitest-pool-workers':
+        specifier: 'catalog:'
+        version: 0.16.3(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)))
+      '@types/node':
+        specifier: 'catalog:'
+        version: 24.10.13
+      modern-tar:
+        specifier: ^0.7.6
+        version: 0.7.6
       typescript:
         specifier: 'catalog:'
         version: 6.0.3
@@ -1296,6 +1479,9 @@ importers:
       '@tiptap/extension-code-block':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+      '@tiptap/extension-code-block-lowlight':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/extension-code-block@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)(highlight.js@11.11.2)(lowlight@3.3.0)
       '@tiptap/extension-collaboration':
         specifier: 'catalog:'
         version: 3.27.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)(@tiptap/y-tiptap@3.0.5(prosemirror-model@1.25.4)(prosemirror-state@1.4.4)(prosemirror-view@1.41.5)(y-protocols@1.0.7(yjs@13.6.29))(yjs@13.6.29))(yjs@13.6.29)
@@ -1371,18 +1557,30 @@ importers:
       dompurify:
         specifier: ^3.3.2
         version: 3.3.2
+      highlight.js:
+        specifier: 'catalog:'
+        version: 11.11.2
+      lowlight:
+        specifier: 'catalog:'
+        version: 3.3.0
       marked:
         specifier: ^17.0.3
         version: 17.0.3
       react:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4
+      react-day-picker:
+        specifier: 'catalog:'
+        version: 9.14.0(react@19.2.4)
       react-dom:
         specifier: ^18.0.0 || ^19.0.0
         version: 19.2.4(react@19.2.4)
       react-hotkeys-hook:
         specifier: ^5.2.4
         version: 5.2.4(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      react-image-crop:
+        specifier: ^11.1.2
+        version: 11.1.2(react@19.2.4)
       tailwind-merge:
         specifier: ^3.3.0
         version: 3.4.0
@@ -1805,6 +2003,12 @@ importers:
       '@emdash-cms/registry-client':
         specifier: workspace:*
         version: link:../registry-client
+      '@emdash-cms/registry-lexicons':
+        specifier: workspace:*
+        version: link:../registry-lexicons
+      '@emdash-cms/registry-verification':
+        specifier: workspace:*
+        version: link:../registry-verification
       '@floating-ui/react':
         specifier: ^0.27.16
         version: 0.27.16(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -1829,6 +2033,9 @@ importers:
       '@tiptap/extension-code-block':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+      '@tiptap/extension-code-block-lowlight':
+        specifier: 'catalog:'
+        version: 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/extension-code-block@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)(highlight.js@11.11.2)(lowlight@3.3.0)
       '@tiptap/extension-focus':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/extensions@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))
@@ -1889,6 +2096,9 @@ importers:
       croner:
         specifier: ^10.0.1
         version: 10.0.1
+      highlight.js:
+        specifier: 'catalog:'
+        version: 11.11.2
       jose:
         specifier: ^6.1.3
         version: 6.1.3
@@ -1901,6 +2111,9 @@ importers:
       kysely:
         specifier: 'catalog:'
         version: 0.29.2
+      lowlight:
+        specifier: 'catalog:'
+        version: 3.3.0
       mime:
         specifier: ^4.1.0
         version: 4.1.0
@@ -1944,6 +2157,9 @@ importers:
       '@cloudflare/vitest-pool-workers':
         specifier: 'catalog:'
         version: 0.16.3(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5)
+      '@emdash-cms/atproto-test-utils':
+        specifier: workspace:*
+        version: link:../atproto-test-utils
       '@emdash-cms/blocks':
         specifier: workspace:*
         version: link:../blocks
@@ -2111,8 +2327,8 @@ importers:
         specifier: 'catalog:'
         version: 5.0.0
       citty:
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: ^0.2.2
+        version: 0.2.2
       consola:
         specifier: ^3.4.2
         version: 3.4.2
@@ -2422,9 +2638,24 @@ importers:
       '@atcute/client':
         specifier: 'catalog:'
         version: 5.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/crypto':
+        specifier: 'catalog:'
+        version: 2.4.1
+      '@atcute/identity':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3)
+      '@atcute/identity-resolver':
+        specifier: 'catalog:'
+        version: 2.0.0(@atcute/identity@2.0.0(@atcute/lexicons@2.0.0)(typescript@6.0.3))(@atcute/lexicons@2.0.0)(typescript@6.0.3)
       '@atcute/lexicons':
         specifier: 'catalog:'
         version: 2.0.0
+      '@atcute/multibase':
+        specifier: 'catalog:'
+        version: 1.2.0
+      '@atcute/repo':
+        specifier: 'catalog:'
+        version: 1.0.0(@atcute/cbor@2.3.3(@atcute/cid@2.4.1))(@atcute/cid@2.4.1)(@atcute/lexicons@2.0.0)
       '@emdash-cms/registry-lexicons':
         specifier: workspace:*
         version: link:../registry-lexicons
@@ -2435,6 +2666,9 @@ importers:
       '@arethetypeswrong/cli':
         specifier: 'catalog:'
         version: 0.18.2
+      '@emdash-cms/atproto-test-utils':
+        specifier: workspace:*
+        version: link:../atproto-test-utils
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
@@ -7651,6 +7885,15 @@ packages:
     peerDependencies:
       '@tiptap/extensions': ^3.20.0
 
+  '@tiptap/extension-code-block-lowlight@3.20.0':
+    resolution: {integrity: sha512-9lN9rn07lOWkLnByT5C1axtq56MHpOI7MpLaCmX3p+x1bDl6Uvixm6AoBdTLfZUmUYeEFBsf7t5cR+QepMbkiA==}
+    peerDependencies:
+      '@tiptap/core': ^3.20.0
+      '@tiptap/extension-code-block': ^3.20.0
+      '@tiptap/pm': ^3.20.0
+      highlight.js: ^11
+      lowlight: ^2 || ^3
+
   '@tiptap/extension-code-block@3.20.0':
     resolution: {integrity: sha512-lBbmNek14aCjrHcBcq3PRqWfNLvC6bcRa2Osc6e/LtmXlcpype4f6n+Yx+WZ+f2uUh0UmDRCz7BEyUETEsDmlQ==}
     peerDependencies:
@@ -9627,6 +9870,10 @@ packages:
   highlight.js@10.7.3:
     resolution: {integrity: sha512-tzcUFauisWKNHaRkN4Wjl/ZA07gENAjFl3J/c480dprkGTg5EQstgaNFqBfUqCq54kZRIEcreTsAgF/m2quD7A==}
 
+  highlight.js@11.11.2:
+    resolution: {integrity: sha512-oaXMACAU0kzOMXBjWpNcX+vlwSBCIAiZ9BHa7gA15NOTtT2L/l8OSZDuqS2XppOhZBPJ7hm4o8ep2kyuip2uEQ==}
+    engines: {node: '>=12.0.0'}
+
   hono-openapi@1.3.0:
     resolution: {integrity: sha512-xDvCWpWEIv0weEmnl3EjRQzqbHIO8LnfzMuYOCmbuyE5aes6aXxLg4vM3ybnoZD5TiTUkA6PuRQPJs3R7WRBig==}
     peerDependencies:
@@ -10134,6 +10381,9 @@ packages:
 
   longest-streak@3.1.0:
     resolution: {integrity: sha512-9Ri+o0JYgehTaVBBDoMqIl8GXtbWg711O3srftcHhZ0dqnETqLaoIK0x17fUw9rFSlK/0NlsKe0Ahhyl5pXE2g==}
+
+  lowlight@3.3.0:
+    resolution: {integrity: sha512-0JNhgFoPvP6U6lE/UdVsSq99tn6DhjjpAj5MxG49ewd2mOBVtwWYIT8ClyABhq198aXXODMU6Ox8DrGy/CpTZQ==}
 
   lru-cache@10.4.3:
     resolution: {integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ==}
@@ -11245,6 +11495,11 @@ packages:
       react: '>=16.8.0'
       react-dom: '>=16.8.0'
 
+  react-image-crop@11.1.2:
+    resolution: {integrity: sha512-+0Pc2fxpwKL4u4oLmdKBw8XSwUceFbXbKEHvFOlsl/MGB1OVNic4uBlAPmEHGXYgoJIq+b63xHbc/aJMG0AVkA==}
+    peerDependencies:
+      react: '>=16.13.1'
+
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
 
@@ -11509,10 +11764,12 @@ packages:
 
   semver@6.3.1:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
+    hasBin: true
 
   semver@7.7.4:
     resolution: {integrity: sha512-vFKC2IEtQnVhpT78h1Yp8wzwrf8CM+MzKMHGJZfBtzhZNycRFnXsHk6E5TxIkkMsgNS7mdX3AGB7x2QM2di4lA==}
     engines: {node: '>=10'}
+    hasBin: true
 
   semver@7.8.4:
     resolution: {integrity: sha512-rUCObTnP32Q08R2uuIrt7r9PlEonuTmtuXYcW6s5kjdlj3xbnwe+21yXptAUYcMAABLkYYTtnmzb3w3EDZfueA==}
@@ -13013,7 +13270,7 @@ snapshots:
       commander: 10.0.1
       marked: 9.1.6
       marked-terminal: 7.1.0(marked@9.1.6)
-      semver: 7.7.4
+      semver: 7.8.5
 
   '@arethetypeswrong/core@0.18.2':
     dependencies:
@@ -18294,6 +18551,14 @@ snapshots:
     dependencies:
       '@tiptap/extensions': 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
 
+  '@tiptap/extension-code-block-lowlight@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/extension-code-block@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)(highlight.js@11.11.2)(lowlight@3.3.0)':
+    dependencies:
+      '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
+      '@tiptap/extension-code-block': 3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)
+      '@tiptap/pm': 3.20.0
+      highlight.js: 11.11.2
+      lowlight: 3.3.0
+
   '@tiptap/extension-code-block@3.20.0(@tiptap/core@3.20.0(@tiptap/pm@3.20.0))(@tiptap/pm@3.20.0)':
     dependencies:
       '@tiptap/core': 3.20.0(@tiptap/pm@3.20.0)
@@ -19362,7 +19627,7 @@ snapshots:
       piccolore: 0.1.3
       picomatch: 4.0.4
       rehype: 13.0.2
-      semver: 7.7.4
+      semver: 7.8.5
       shiki: 4.0.1
       smol-toml: 1.6.0
       svgo: 4.0.0
@@ -19456,7 +19721,7 @@ snapshots:
       piccolore: 0.1.3
       picomatch: 4.0.4
       rehype: 13.0.2
-      semver: 7.7.4
+      semver: 7.8.5
       shiki: 4.0.2
       smol-toml: 1.6.0
       svgo: 4.0.1
@@ -19550,7 +19815,7 @@ snapshots:
       piccolore: 0.1.3
       picomatch: 4.0.4
       rehype: 13.0.2
-      semver: 7.7.4
+      semver: 7.8.5
       shiki: 4.0.2
       smol-toml: 1.6.0
       svgo: 4.0.1
@@ -19646,7 +19911,7 @@ snapshots:
       piccolore: 0.1.3
       picomatch: 4.0.4
       rehype: 13.0.2
-      semver: 7.8.4
+      semver: 7.8.5
       shiki: 4.0.2
       smol-toml: 1.6.0
       svgo: 4.0.1
@@ -19741,7 +20006,7 @@ snapshots:
       piccolore: 0.1.3
       picomatch: 4.0.4
       rehype: 13.0.2
-      semver: 7.8.4
+      semver: 7.8.5
       shiki: 4.0.2
       smol-toml: 1.6.0
       svgo: 4.0.1
@@ -21117,6 +21382,8 @@ snapshots:
 
   highlight.js@10.7.3: {}
 
+  highlight.js@11.11.2: {}
+
   hono-openapi@1.3.0(@hono/standard-validator@0.2.2(@standard-schema/spec@1.1.0)(hono@4.12.27))(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.1(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.3.7)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.3))(zod@4.4.3))(@standard-community/standard-openapi@0.2.9(@standard-community/standard-json@0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.1(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.3.7)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.3))(zod@4.4.3))(@standard-schema/spec@1.1.0)(openapi-types@12.1.3)(typebox@1.3.7)(valibot@1.4.1(typescript@6.0.3))(zod@4.4.3))(@types/json-schema@7.0.15)(hono@4.12.27)(openapi-types@12.1.3):
     dependencies:
       '@standard-community/standard-json': 0.3.5(@standard-schema/spec@1.1.0)(@types/json-schema@7.0.15)(@valibot/to-json-schema@1.7.1(valibot@1.4.1(typescript@6.0.3)))(quansync@0.2.11)(typebox@1.3.7)(valibot@1.4.1(typescript@6.0.3))(zod-to-json-schema@3.25.1(zod@4.4.3))(zod@4.4.3)
@@ -21587,6 +21854,12 @@ snapshots:
   long@5.3.2: {}
 
   longest-streak@3.1.0: {}
+
+  lowlight@3.3.0:
+    dependencies:
+      '@types/hast': 3.0.4
+      devlop: 1.1.0
+      highlight.js: 11.11.2
 
   lru-cache@10.4.3: {}
 
@@ -23004,7 +23277,7 @@ snapshots:
   publint@0.3.17:
     dependencies:
       '@publint/pack': 0.1.4
-      package-manager-detector: 1.6.0
+      package-manager-detector: 1.7.0
       picocolors: 1.1.1
       sade: 1.8.1
 
@@ -23078,6 +23351,10 @@ snapshots:
     dependencies:
       react: 19.2.4
       react-dom: 19.2.4(react@19.2.4)
+
+  react-image-crop@11.1.2(react@19.2.4):
+    dependencies:
+      react: 19.2.4
 
   react-is@17.0.2: {}
 
@@ -23569,7 +23846,7 @@ snapshots:
     dependencies:
       '@img/colour': 1.0.0
       detect-libc: 2.1.2
-      semver: 7.7.4
+      semver: 7.8.5
     optionalDependencies:
       '@img/sharp-darwin-arm64': 0.34.5
       '@img/sharp-darwin-x64': 0.34.5
@@ -24024,7 +24301,7 @@ snapshots:
       picomatch: 4.0.4
       rolldown: 1.0.0-rc.3
       rolldown-plugin-dts: 0.22.2(@typescript/native-preview@7.0.0-dev.20260421.2)(oxc-resolver@11.16.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.11.3))(rolldown@1.0.0-rc.3)(typescript@6.0.3)
-      semver: 7.7.4
+      semver: 7.8.5
       tinyexec: 1.0.4
       tinyglobby: 0.2.15
       tree-kill: 1.2.2

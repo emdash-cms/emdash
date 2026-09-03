@@ -250,6 +250,7 @@ describe("DiscoveryClient", () => {
 					did: "did:plc:abc",
 					package: "gallery",
 					version: "1.0.0",
+					artifactCaches: [],
 					indexedAt: "2026-04-01T00:00:00Z",
 					release: {},
 				},
@@ -355,6 +356,7 @@ describe("DiscoveryClient", () => {
 						did: "did:plc:abc",
 						package: "x",
 						version: "1.0.0",
+						artifactCaches: [],
 						indexedAt: "2026-04-01T00:00:00Z",
 						release: { not: "a valid release record" },
 					},
@@ -363,6 +365,28 @@ describe("DiscoveryClient", () => {
 			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
 			const result = await client.getLatestRelease({ did: "did:plc:abc", package: "x" });
 			expect(result.release).toBeNull();
+		});
+
+		it("accepts an older aggregator response without artifact cache descriptors", async () => {
+			const { fetch } = buildFetchStub({
+				"/xrpc/com.emdashcms.experimental.aggregator.getLatestRelease": {
+					status: 200,
+					body: {
+						uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/gallery:1.0.0",
+						cid: CID,
+						did: "did:plc:abc",
+						package: "gallery",
+						version: "1.0.0",
+						indexedAt: "2026-04-01T00:00:00Z",
+						release: validRelease,
+					},
+				},
+			});
+			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+
+			await expect(
+				client.getLatestRelease({ did: "did:plc:abc", package: "gallery" }),
+			).resolves.toMatchObject({ artifactCaches: [] });
 		});
 
 		it("does NOT sanitise URL schemes — a javascript: author url passes lexicon validation", async () => {
@@ -403,6 +427,7 @@ describe("DiscoveryClient", () => {
 								did: "did:plc:abc",
 								package: "gallery",
 								version: "1.0.0",
+								artifactCaches: [],
 								indexedAt: "2026-04-01T00:00:00Z",
 								release: validRelease,
 							},
@@ -412,6 +437,7 @@ describe("DiscoveryClient", () => {
 								did: "did:plc:abc",
 								package: "gallery",
 								version: "0.9.0",
+								artifactCaches: [],
 								indexedAt: "2026-03-01T00:00:00Z",
 								release: { garbage: true },
 							},
