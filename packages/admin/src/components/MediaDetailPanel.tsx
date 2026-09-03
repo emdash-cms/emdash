@@ -1442,7 +1442,7 @@ export function MediaDetailPanel({
 											</div>
 											<section
 												ref={focalPreviewSectionRef}
-												className="mt-auto grid gap-2 border-t border-kumo-line pt-4 md:pt-2"
+												className="mt-auto grid gap-2 pt-4 md:pt-2"
 												style={{ transform: `translateY(${focalPreviewOffset}px)` }}
 											>
 												<h3 className="text-sm font-semibold">{t`Preview`}</h3>
