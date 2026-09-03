@@ -103,6 +103,12 @@ export function providerItemToMediaItem(
 /** Root-absolute path prefix for locally stored media served by EmDash. */
 const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
 
+export function getMediaPreviewUrl(originalUrl: string, contentHash?: string | null): string {
+	if (!contentHash || !originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
+	const separator = originalUrl.includes("?") ? "&" : "?";
+	return `${originalUrl}${separator}_emdash_media=${encodeURIComponent(contentHash)}`;
+}
+
 /**
  * Default rendered width (CSS px) for admin grid thumbnails, requested at ~2x
  * the largest grid cell (200px) so they stay crisp on HiDPI displays.
@@ -135,19 +141,21 @@ export function getMediaThumbnailUrl(
 	originalUrl: string,
 	mimeType: string,
 	width: number = MEDIA_THUMBNAIL_WIDTH,
+	contentHash?: string | null,
 ): string {
-	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return originalUrl;
-	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
+	const previewUrl = getMediaPreviewUrl(originalUrl, contentHash);
+	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return previewUrl;
+	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return previewUrl;
 
 	// Astro authorizes the media route by absolute origin (see the
 	// `image.remotePatterns` entry the EmDash integration registers), so the
 	// transform source must be an absolute same-origin URL. The admin is served
 	// from the site origin, so `window.location.origin` is the right host.
 	const origin = typeof window === "undefined" ? "" : window.location.origin;
-	if (!origin) return originalUrl;
+	if (!origin) return previewUrl;
 
 	const params = new URLSearchParams({
-		href: `${origin}${originalUrl}`,
+		href: `${origin}${previewUrl}`,
 		w: String(width),
 		f: "webp",
 	});

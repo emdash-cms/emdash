@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, stat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { isDid, isHandle, type Handle } from "@atcute/lexicons/syntax";
@@ -7,7 +7,9 @@ import consola from "consola";
 import pc from "picocolors";
 
 import { resolveSources } from "./build/pipeline.js";
+import { runProfileSetup } from "./commands/profile.js";
 import { resolveHandleToDid } from "./manifest/publisher.js";
+import { PackageProfileSetupError } from "./profile/setup.js";
 
 export const DEFAULT_RELEASE_SERVICE_URL = "https://emdash-release-service.emdash-cms.workers.dev";
 export const DEFAULT_RELEASE_ACTION_REF = "main";
@@ -39,6 +41,7 @@ export interface SetupReleaseWorkflowOptions {
 	serviceUrl?: string;
 	actionRef?: string;
 	resolvePublisherDid?: (handle: Handle) => Promise<string>;
+	beforeWrite?: (context: { publisherDid: string; pluginDir: string }) => Promise<void>;
 }
 
 export interface SetupReleaseWorkflowResult {
@@ -65,6 +68,19 @@ export async function setupReleaseWorkflow(
 	const serviceUrl = validateServiceUrl(options.serviceUrl ?? DEFAULT_RELEASE_SERVICE_URL);
 	const actionRef = validateActionRef(options.actionRef ?? DEFAULT_RELEASE_ACTION_REF);
 	const workflowPath = join(sources.pluginDir, RELEASE_WORKFLOW_PATH);
+	if (!options.force) {
+		try {
+			await stat(workflowPath);
+			throw new ReleaseSetupError(
+				"WORKFLOW_EXISTS",
+				`${workflowPath} already exists. Re-run with --force to replace it.`,
+			);
+		} catch (error) {
+			if (error instanceof ReleaseSetupError) throw error;
+			if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+		}
+	}
+	await options.beforeWrite?.({ publisherDid, pluginDir: sources.pluginDir });
 
 	await mkdir(join(sources.pluginDir, ".github", "workflows"), { recursive: true });
 	try {
@@ -265,6 +281,20 @@ export const releaseSetupCommand = defineCommand({
 			description: `Replace an existing ${RELEASE_WORKFLOW_PATH}`,
 			default: false,
 		},
+		repository: {
+			type: "string",
+			description: "Canonical HTTPS GitHub repository URL (defaults to manifest repo)",
+		},
+		confirmation: {
+			type: "string",
+			description: "Approval policy: escalation-only or always",
+		},
+		yes: {
+			type: "boolean",
+			alias: "y",
+			description: "Accept the default package-profile approval policy without prompting",
+			default: false,
+		},
 	},
 	async run({ args }) {
 		try {
@@ -273,6 +303,13 @@ export const releaseSetupCommand = defineCommand({
 				serviceUrl: args["service-url"],
 				actionRef: args["action-ref"],
 				force: args.force,
+				beforeWrite: async () =>
+					runProfileSetup({
+						dir: args.dir,
+						repository: args.repository,
+						confirmation: args.confirmation,
+						yes: args.yes,
+					}),
 			});
 			consola.success(`Created ${pc.cyan(result.path)}`);
 			consola.info("Review and commit the workflow when you are ready. Nothing was pushed.");
@@ -280,7 +317,7 @@ export const releaseSetupCommand = defineCommand({
 				"Publish by pushing a version tag such as v1.2.3, or run the workflow from GitHub Actions.",
 			);
 		} catch (error) {
-			if (error instanceof ReleaseSetupError) {
+			if (error instanceof ReleaseSetupError || error instanceof PackageProfileSetupError) {
 				consola.error(error.message);
 				process.exit(1);
 			}

@@ -43,7 +43,9 @@ The following table lists every hook, what triggers it, what it can modify, and 
 
 ### `content:beforeSave`
 
-Runs before content is saved to the database. Use to validate, transform, or enrich content. To reject a save, throw `ContentSaveRejectedError` (exported from `emdash`): the API responds with a `SAVE_REJECTED` error that carries the message, and the admin shows it to the editor. Any other thrown error also cancels the save, but the response replaces its message with a generic one. A plugin running in the sandbox cannot reject a save: the sandbox logs the thrown error and the save continues.
+Runs before content is saved to the database. Use it to validate, transform, or enrich content. A sandboxed hook rejects a save by returning a version 1 hook result with a `SAVE_REJECTED` error and a plain-text `reason` of 1–500 characters. The API responds with `SAVE_REJECTED`, and the admin identifies the plugin and shows the reason as text. Empty, overlong, malformed, and unknown error results fail the save with a generic `CONTENT_HOOK_ERROR` response.
+
+From the host process, throw `ContentSaveRejectedError` (exported from `emdash`) to reject a save. Any other exception from either execution mode fails the save with a generic response that does not expose the exception message.
 
 ```ts
 import { definePlugin } from "emdash";
@@ -81,6 +83,7 @@ interface ContentHookEvent {
 #### Return Value
 
 - Return modified content object to apply changes
+- Return a sandbox hook error envelope to reject the save with a bounded plain-text reason
 - Return `void` to pass through unchanged
 
 ### `content:afterSave`

@@ -30,6 +30,7 @@ import {
 	providerItemToMediaItem,
 	getFileIcon,
 	getMediaThumbnailUrl,
+	getMediaPreviewUrl,
 	getMediaObjectPosition,
 	fallbackToOriginalThumbnail,
 } from "../lib/media-utils";
@@ -835,12 +836,15 @@ function MediaPickerItem({
 	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 	const needsDimensions = isImage && (!item.width || !item.height);
+	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
 
 	// Serve a resized thumbnail only when the original dimensions are already
 	// known. When they're missing we display the original so `onLoad` can read
 	// the true `naturalWidth`/`naturalHeight` to backfill them — a resized
 	// rendition would report the thumbnail's dimensions and corrupt the record.
-	const displayUrl = needsDimensions ? item.url : getMediaThumbnailUrl(item.url, item.mimeType);
+	const displayUrl = needsDimensions
+		? previewUrl
+		: getMediaThumbnailUrl(item.url, item.mimeType, undefined, item.contentHash);
 
 	const handleImageLoad = React.useCallback(
 		(e: React.SyntheticEvent<HTMLImageElement>) => {
@@ -874,7 +878,7 @@ function MediaPickerItem({
 						className="emdash-media-transparency-grid h-full w-full object-cover"
 						style={{ objectPosition: getMediaObjectPosition(item) }}
 						onLoad={handleImageLoad}
-						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
+						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, previewUrl)}
 					/>
 				) : (
 					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">

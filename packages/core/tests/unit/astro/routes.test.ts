@@ -9,13 +9,14 @@ import {
 	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 } from "../../../src/astro/integration/routes.js";
+import * as mediaReplaceRoute from "../../../src/astro/routes/api/media/[id]/replace.js";
 import * as mediaUploadRoute from "../../../src/astro/routes/api/media/[id]/upload.js";
 import { GET as getMediaFile } from "../../../src/astro/routes/api/media/file/[...key].js";
 
-function mockMediaContext(key: string | undefined) {
+function mockMediaContext(key: string | undefined, contentType = "image/png") {
 	const download = vi.fn().mockResolvedValue({
 		body: new Uint8Array([1, 2, 3]),
-		contentType: "image/png",
+		contentType,
 		size: 3,
 	});
 
@@ -84,6 +85,19 @@ describe("core media route injection", () => {
 		expect(mediaUploadRoute.PUT).toBeTypeOf("function");
 		for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
 			expect(mediaUploadRoute).not.toHaveProperty(method);
+		}
+	});
+
+	it("registers the media replacement route with PUT only", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => routes.push(route));
+
+		expect(routes).toContainEqual(
+			expect.objectContaining({ pattern: "/_emdash/api/media/[id]/replace" }),
+		);
+		expect(mediaReplaceRoute.PUT).toBeTypeOf("function");
+		for (const method of ["GET", "POST", "PATCH", "DELETE"]) {
+			expect(mediaReplaceRoute).not.toHaveProperty(method);
 		}
 	});
 
@@ -178,6 +192,7 @@ describe("media file catch-all route", () => {
 
 		const response = await getMediaFile(context);
 		expect(response.status).toBe(200);
+		expect(response.headers.get("Cache-Control")).toBe("public, max-age=0, must-revalidate");
 		expect(download).toHaveBeenCalledWith("nested/path/file.png");
 	});
 
@@ -187,5 +202,13 @@ describe("media file catch-all route", () => {
 		const response = await getMediaFile(context);
 		expect(response.status).toBe(404);
 		expect(download).not.toHaveBeenCalled();
+	});
+
+	it("keeps immutable caching for media that cannot be cropped", async () => {
+		const { context } = mockMediaContext("clip.mp4", "video/mp4");
+
+		const response = await getMediaFile(context);
+
+		expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
 	});
 });

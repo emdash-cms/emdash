@@ -114,6 +114,10 @@ function success(data: unknown, status = 200): Response {
 	return Response.json({ data, requestId: "request-1" }, { status });
 }
 
+function failure(code: string, message: string, status: number): Response {
+	return Response.json({ error: { code, message }, requestId: "request-1" }, { status });
+}
+
 function policy() {
 	return {
 		packageSlug: "gallery",
@@ -304,6 +308,39 @@ describe("delegated release Action", () => {
 				},
 			},
 		});
+	});
+
+	it("fails before uploading when the package profile needs setup", async () => {
+		const runtime = new FakeRuntime();
+		runtime.inputs.delete("release-file");
+		runtime.inputs.set("bundle-file", ".emdash-release/gallery.tar.gz");
+		runtime.inputs.set("provenance-file", "/runner/temp/attestation.json");
+		runtime.environment.set("RUNNER_TEMP", "/runner/temp");
+		runtime.environment.set("GITHUB_REPOSITORY", "example/gallery");
+		runtime.environment.set(
+			"GITHUB_WORKFLOW_REF",
+			"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+		);
+		runtime.environment.set("GITHUB_REPOSITORY_VISIBILITY", "public");
+		const requests: Request[] = [];
+		await executeAction(runtime, {
+			prepareReleaseFiles: async () => preparedFiles(),
+			fetch: async (input, init) => {
+				requests.push(new Request(input, init));
+				return failure(
+					"PACKAGE_PROFILE_REQUIRED",
+					"Create this plugin's package profile with `emdash-plugin profile setup`, then try again",
+					409,
+				);
+			},
+		});
+
+		expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+			"/v1/workflow-connections",
+		]);
+		expect(runtime.failures).toEqual([
+			"PACKAGE_PROFILE_REQUIRED: Create this plugin's package profile with `emdash-plugin profile setup`, then try again",
+		]);
 	});
 
 	it("puts first-run workflow approval in the job summary and continues after confirmation", async () => {

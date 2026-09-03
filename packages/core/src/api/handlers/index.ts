@@ -56,6 +56,7 @@ export {
 	handleMediaGet,
 	handleMediaCreate,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
 	type MediaListResponse,
 	type MediaResponse,

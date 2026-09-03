@@ -29,8 +29,10 @@ import {
 	Trophy,
 	ClockCounterClockwise,
 	IdentificationCard,
+	SquaresFour,
 } from "@phosphor-icons/react";
 import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect } from "vitest";
 
 import {
@@ -38,6 +40,7 @@ import {
 	filterNavItemsByRole,
 	getSidebarTaxonomies,
 	isItemActive,
+	NavIcon,
 	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
@@ -96,6 +99,19 @@ describe("resolveItemPath", () => {
 describe("isItemActive", () => {
 	it("matches taxonomy links independently of their locale query", () => {
 		expect(isItemActive("/taxonomies/course?locale=de", "/taxonomies/course")).toBe(true);
+	});
+});
+
+describe("NavIcon", () => {
+	it("uses Phosphor's filled variant while its navigation item is active", () => {
+		const inactiveIcon = renderToStaticMarkup(<NavIcon icon={SquaresFour} isActive={false} />);
+		const activeIcon = renderToStaticMarkup(<NavIcon icon={SquaresFour} isActive />);
+
+		expect(inactiveIcon).toBe(
+			renderToStaticMarkup(<SquaresFour weight="regular" aria-hidden="true" />),
+		);
+		expect(activeIcon).toBe(renderToStaticMarkup(<SquaresFour weight="fill" aria-hidden="true" />));
+		expect(activeIcon).not.toBe(inactiveIcon);
 	});
 });
 

@@ -12,6 +12,7 @@ const EVENTS = new Set<OperationsMetricEvent>([
 	"reconciliation_required",
 	"refresh_failure",
 	"restore_failure",
+	"staged_artifact_rate_limited",
 	"verifier_failure",
 ]);
 
@@ -25,6 +26,7 @@ export type OperationsMetricEvent =
 	| "reconciliation_required"
 	| "refresh_failure"
 	| "restore_failure"
+	| "staged_artifact_rate_limited"
 	| "verifier_failure";
 
 export interface OperationsMetricInput {

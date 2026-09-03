@@ -2,9 +2,11 @@ import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { getMediaObjectPosition, type MediaFocalPoint } from "../lib/media-utils.js";
+import { useContainedMediaSize } from "./useContainedMediaSize.js";
 
 interface FocalPointEditorProps {
 	src: string;
+	sourceSize?: { width: number; height: number };
 	alt: string;
 	editing: boolean;
 	disabled: boolean;
@@ -12,6 +14,11 @@ interface FocalPointEditorProps {
 	descriptionId: string;
 	onChange: (point: MediaFocalPoint) => void;
 	onReadyChange?: (ready: boolean) => void;
+	editorFrameRef?: React.RefObject<HTMLDivElement | null>;
+}
+
+interface FocalPointPreviewsProps extends Pick<FocalPointEditorProps, "src" | "point"> {
+	firstPreviewRef?: React.RefObject<HTMLDivElement | null>;
 }
 
 const KEY_MOVES: Record<string, [number, number]> = {
@@ -22,7 +29,7 @@ const KEY_MOVES: Record<string, [number, number]> = {
 };
 const clamp = (value: number) => Math.min(1, Math.max(0, Math.round(value * 10_000) / 10_000));
 
-export function FocalPointPreviews({ src, point }: Pick<FocalPointEditorProps, "src" | "point">) {
+export function FocalPointPreviews({ src, point, firstPreviewRef }: FocalPointPreviewsProps) {
 	const { t } = useLingui();
 	const current = point ?? { focalX: 0.5, focalY: 0.5 };
 	const objectPosition = getMediaObjectPosition(current)!;
@@ -35,8 +42,9 @@ export function FocalPointPreviews({ src, point }: Pick<FocalPointEditorProps, "
 	return (
 		<div className="grid w-full grid-cols-3 items-end gap-2" data-testid="focal-preview-group">
 			{previews.map(([id, label, ratio]) => (
-				<figure key={id} className="grid w-full min-w-0 gap-1.5">
+				<figure key={id} className="grid w-full min-w-0 gap-1">
 					<div
+						ref={id === "portrait" ? firstPreviewRef : undefined}
 						className={`emdash-media-transparency-grid overflow-hidden rounded-lg ring ring-kumo-line ${ratio}`}
 					>
 						<img
@@ -56,6 +64,7 @@ export function FocalPointPreviews({ src, point }: Pick<FocalPointEditorProps, "
 
 export function FocalPointEditor({
 	src,
+	sourceSize: knownSourceSize,
 	alt,
 	editing,
 	disabled,
@@ -63,12 +72,26 @@ export function FocalPointEditor({
 	descriptionId,
 	onChange,
 	onReadyChange,
+	editorFrameRef,
 }: FocalPointEditorProps) {
 	const { t } = useLingui();
 	const activePointerRef = React.useRef<number | null>(null);
+	const frameRef = React.useRef<HTMLDivElement>(null);
 	const [ready, setReady] = React.useState(false);
+	const [loadedSourceSize, setLoadedSourceSize] = React.useState<{
+		width: number;
+		height: number;
+	} | null>(null);
 	const [announcement, setAnnouncement] = React.useState("");
+	const displaySize = useContainedMediaSize(frameRef, loadedSourceSize ?? knownSourceSize ?? null);
 	const current = point ?? { focalX: 0.5, focalY: 0.5 };
+	const setFrameRef = React.useCallback(
+		(node: HTMLDivElement | null) => {
+			frameRef.current = node;
+			if (editorFrameRef) editorFrameRef.current = node;
+		},
+		[editorFrameRef],
+	);
 
 	const announce = (next: MediaFocalPoint) =>
 		setAnnouncement(
@@ -121,18 +144,28 @@ export function FocalPointEditor({
 
 	return (
 		<div className="grid gap-4">
-			<div className="emdash-media-transparency-grid flex h-64 items-center justify-center overflow-hidden rounded-xl ring ring-kumo-line md:h-80">
-				<div className="relative inline-flex max-h-full max-w-full">
+			<div
+				ref={setFrameRef}
+				className="emdash-media-transparency-grid flex h-64 items-center justify-center overflow-hidden rounded-xl ring ring-kumo-line md:h-80"
+			>
+				<div
+					className="relative inline-flex max-h-full max-w-full"
+					style={displaySize ?? undefined}
+				>
 					<img
 						src={src}
 						alt={alt}
 						className="block max-h-64 max-w-full object-contain md:max-h-80"
+						style={displaySize ? { width: "100%", height: "100%" } : undefined}
 						draggable={false}
-						onLoad={() => {
+						onLoad={(event) => {
+							const image = event.currentTarget;
+							setLoadedSourceSize({ width: image.naturalWidth, height: image.naturalHeight });
 							setReady(true);
 							onReadyChange?.(true);
 						}}
 						onError={() => {
+							setLoadedSourceSize(null);
 							setReady(false);
 							onReadyChange?.(false);
 						}}

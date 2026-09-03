@@ -182,7 +182,7 @@ describe("release-service web surfaces", () => {
 		expect(screen.getByText("pnpm exec emdash-plugin release setup")).toBeTruthy();
 		expect(
 			screen.getByText(
-				"It creates .github/workflows/emdash-release.yml. Review and commit the file, then push a version tag or start it from GitHub Actions.",
+				"Review and commit .github/workflows/emdash-release.yml, then push a version tag or start it from GitHub Actions.",
 			),
 		).toBeTruthy();
 		expect(screen.getAllByText("@publisher.example.com")).toHaveLength(1);
@@ -326,7 +326,8 @@ describe("release-service web surfaces", () => {
 		);
 		renderApp("/publisher");
 
-		await screen.findByRole("heading", { name: "2. Run your release workflow" });
+		await screen.findByRole("heading", { name: "2. Prepare your plugin" });
+		expect(screen.getByText(/the package profile must link this plugin/i)).toBeTruthy();
 		expect(await screen.findByText("Approve workflow for gallery")).toBeTruthy();
 		expect(screen.getByText("example/gallery")).toBeTruthy();
 		expect(screen.getByText(".github/workflows/release.yml")).toBeTruthy();

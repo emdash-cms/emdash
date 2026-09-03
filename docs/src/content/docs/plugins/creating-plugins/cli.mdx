@@ -1,6 +1,6 @@
 ---
 title: The emdash-plugin CLI
-description: init, build, dev, bundle, validate, publish — the plugin authoring toolchain.
+description: init, build, dev, bundle, validate, profile setup, and publishing.
 ---
 
 import { Steps } from "@astrojs/starlight/components";
@@ -18,6 +18,8 @@ emdash-plugin dev                            Watch sources and rebuild on change
 emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
 emdash-plugin validate [path]                Validate emdash-plugin.jsonc against the schema
 emdash-plugin publish                        Build, upload, and publish a release
+emdash-plugin profile setup                  Prepare the signed package profile for delegated releases
+emdash-plugin release setup                  Create the delegated-release GitHub Actions workflow
 emdash-plugin login <handle-or-did>          Sign in with your Atmosphere account
 emdash-plugin logout [--did <did>]           Revoke the active session
 emdash-plugin whoami                         Show stored sessions
@@ -105,6 +107,21 @@ emdash-plugin publish
 Pass `--url <https-url>` to use an externally hosted package bundle. The CLI downloads and validates the URL before publishing. Add `--local <path>` to verify that a local tarball matches the downloaded bytes.
 
 Full walkthrough: [Bundling and publishing](/plugins/creating-plugins/publishing/).
+
+## Delegated release setup
+
+Sign in locally, then prepare the package profile and GitHub Actions workflow with the following commands:
+
+```sh
+emdash-plugin login alice.example.com
+emdash-plugin release setup
+```
+
+If the package profile is missing, `release setup` offers to create it from `emdash-plugin.jsonc`. For an existing profile without delegated-release settings, it adds the signed GitHub repository and release policy while preserving the package metadata. The default policy asks the signed-in Atmosphere account to approve releases when plugin permissions increase. You can choose to require approval for every release instead.
+
+Set `repo` in `emdash-plugin.jsonc`, or enter the canonical GitHub repository URL when prompted. Run `emdash-plugin profile setup` when you need to prepare only the profile.
+
+In a non-interactive environment, profile changes require `--yes`. A GitHub Actions release fails with `PACKAGE_PROFILE_REQUIRED` before uploading files when its signed profile is missing or links a different repository. Run profile setup locally, then start the workflow again.
 
 ## Programmatic API
 

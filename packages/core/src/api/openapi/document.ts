@@ -62,6 +62,7 @@ import {
 	DEFAULT_MAX_UPLOAD_SIZE,
 	mediaConfirmBody,
 	mediaConfirmResponseSchema,
+	mediaDirectUploadBody,
 	mediaExistingResponseSchema,
 	mediaFolderBody,
 	mediaFolderIdSchema,
@@ -73,11 +74,14 @@ import {
 	mediaListReadResponseSchema,
 	mediaListResponseSchema,
 	mediaReadResponseSchema,
+	mediaReplaceBody,
+	mediaReplaceResponseSchema,
 	mediaResponseSchema,
 	mediaStreamUploadResponseSchema,
 	mediaUpdateBody,
 	mediaUploadUrlBody,
 	mediaUploadUrlResponseSchema,
+	mediaUploadResponseSchema,
 } from "../schemas/media.js";
 import {
 	createMenuBody,
@@ -170,6 +174,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const JSON_CONTENT = "application/json";
+const MULTIPART_CONTENT = "multipart/form-data";
 
 /** Standard error responses shared across all authenticated endpoints */
 function standardErrors(
@@ -713,6 +718,27 @@ function buildMediaPaths(maxUploadSize: number) {
 					...standardErrors(400, 500),
 				},
 			},
+			post: {
+				operationId: "uploadMedia",
+				summary: "Upload a media item",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [MULTIPART_CONTENT]: { schema: mediaDirectUploadBody } },
+				},
+				responses: {
+					"200": {
+						description: "Existing deduplicated media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaUploadResponseSchema) } },
+					},
+					"201": {
+						description: "Created media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaUploadResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(400, 413, 500),
+				},
+			},
 		},
 		"/_emdash/api/media/folders": {
 			get: {
@@ -880,6 +906,30 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/{id}/replace": {
+			put: {
+				operationId: "replaceMediaImage",
+				summary: "Replace a media image",
+				description:
+					"Overwrites a ready local image under its existing storage key and refreshes its file metadata.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				requestBody: {
+					required: true,
+					content: { [MULTIPART_CONTENT]: { schema: mediaReplaceBody } },
+				},
+				responses: {
+					"200": {
+						description: "Replaced media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaReplaceResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(400, 404, 413, 500),
 				},
 			},
 		},
@@ -1648,7 +1698,7 @@ const taxonomyPaths = {
 			operationId: "getTaxonomy",
 			summary: "Get a taxonomy definition",
 			description:
-				"Definitions are per-locale; `locale` picks one, and without it the lowest-locale match is returned.",
+				"Definitions are per-locale; `locale` picks one. Without it the configured default locale is returned, falling back to the lowest locale code.",
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),

@@ -118,6 +118,18 @@ export default {
 };
 `;
 
+const SAVE_REJECTION_PLUGIN = `
+export default {
+	hooks: {
+		"content:beforeSave": async () => ({
+			__emdashSandboxHookResult: true,
+			version: 1,
+			error: { code: "SAVE_REJECTED", reason: "Add a summary" }
+		})
+	}
+};
+`;
+
 describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	let db: Kysely<any>;
 	let sqlite: Database.Database;
@@ -196,6 +208,25 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(kvResult.kvValue).toBeTruthy();
 		const parsed = JSON.parse(kvResult.kvValue);
 		expect(parsed.hook).toBe("content:beforeSave");
+	}, 30_000);
+
+	it("preserves a versioned hook error result over the workerd HTTP transport", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-save-rejection",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+			},
+			SAVE_REJECTION_PLUGIN,
+		);
+
+		await expect(plugin.invokeHook("content:beforeSave", {})).resolves.toEqual({
+			__emdashSandboxHookResult: true,
+			version: 1,
+			error: { code: "SAVE_REJECTED", reason: "Add a summary" },
+		});
 	}, 30_000);
 
 	it("enforces KV isolation between plugins via routes", async () => {
