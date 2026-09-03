@@ -1,6 +1,6 @@
 # Content editor publishing panel
 
-Status: Approved for local implementation
+Status: Implemented locally
 Target package: `@emdash-cms/admin`
 Base: `origin/main` at `c5e0fae1cf505a983d0abd6ccb51f33aface52a7`
 Stack position: Standalone pull request against `main`
@@ -19,9 +19,9 @@ This change includes:
 - moving the primary publish and schedule choices into one contextual action menu;
 - distinguishing the live version from draft changes in the Publish section;
 - showing the lifecycle badge beside the Publish heading instead of after a separate Status label;
-- replacing the persistent publish-date form with a view-first detail row and editor-only disclosure;
-- replacing the inline scheduling form with one reusable date-and-time dialog;
-- keeping Slug, Content locale, Publication date, Created, and Updated in the section;
+- replacing the persistent publish-date form with a view-first detail row and the shared publishing date-and-time dialog;
+- replacing the inline scheduling form with the same compact date-and-time dialog pattern;
+- keeping Slug, Content locale, and Publication date visible while placing Created and Updated in a collapsed Kumo disclosure;
 - using local-time display and editing for publishing instants without changing stored ISO timestamps;
 - preserving desktop, mobile, and distraction-free publishing access;
 - updating behavioral, end-to-end, accessibility, and visual-regression coverage; and
@@ -63,24 +63,26 @@ Slug
 [ autumn-opening-hours                         ]
 
 Content locale                                    EN
-----------------------------------------------------
-● Live version                                  Live
-| Visitors still see the published version
-● Draft changes                                Ready
-  Ready to publish now or schedule for later
-  [Discard changes]
-----------------------------------------------------
-Publication date             2 Sept 2026, 12:55  >
-Created                      2 Sept 2026, 13:55
-Updated                      2 Sept 2026, 14:08
+
+┌──────────────────────────────────────────────────┐
+│ ● Live version                                   │
+│   Visitors still see the published version      │
+│ |                                                │
+│ ● Draft changes                                  │
+│   Ready to publish now or schedule for later    │
+│   Discard changes                                │
+├──────────────────────────────────────────────────┤
+│ Publication date       2 Sept 2026, 12:55  edit │
+│ Created and updated                              │
+└──────────────────────────────────────────────────┘
 ```
 
 The action surface remains above the section:
 
 ```text
-[Save] [Live View] [Preview draft] [Publish updates v]
-                                      Publish updates now
-                                      Schedule updates
+[Save] [Live View] [Preview draft] [Publish changes v]
+                                      Publish changes now
+                                      Schedule changes
 ```
 
 ### Publish heading
@@ -97,7 +99,7 @@ Pending changes belong in the version relationship below the heading, not in a s
 
 ### Version relationship
 
-Render a compact, unframed relationship below Slug and Content locale.
+Render a compact relationship in one Kumo `LayerCard` below Slug and Content locale. The card groups version state, Publication date, and the Created and Updated disclosure without creating separate floating rows.
 
 - A live item has a Live version row.
 - A live item with pending changes adds a Draft changes row.
@@ -105,19 +107,19 @@ Render a compact, unframed relationship below Slug and Content locale.
 - A live item with `scheduledAt` adds a scheduled Draft changes row and states that the live version remains public until then.
 - A draft item has one Draft version row stating that it is not visible on the site.
 
-Use `ContentStatusIcon` and Kumo `Text` inside ordinary semantic layout elements. A one-pixel `bg-kumo-line` connector may link simultaneous live and draft rows. The connector is structural, has no interaction, and is the only custom visual primitive required by this design.
+Use `ContentStatusIcon` and Kumo `Text` inside ordinary semantic layout elements. Do not add trailing Live, Ready, or Scheduled labels: the row title, description, icon, and scheduled instant already communicate that state. A one-pixel `bg-kumo-line` connector may link simultaneous live and draft rows. The connector is structural and has no interaction.
 
-Keep Discard changes adjacent to Draft changes through the existing `DiscardDraftDialog`. Do not duplicate it in the publish menu.
+Keep Discard changes adjacent to Draft changes through the existing `DiscardDraftDialog`, but render its trigger as a quiet inline ghost action below the draft description. Do not duplicate it in the publish menu.
 
 ### Date details
 
-Render Publication date, Created, and Updated as one semantic definition list separated from the version relationship by a Kumo line token.
+Render Publication date as the primary date row in the version card. Put Created and Updated in a closed-by-default Kumo `Collapsible` titled Created and updated.
 
 - Parse every stored value with the existing `parseTimestamp()` helper, then format it with `Intl.DateTimeFormat(lingui.locale, { dateStyle: "medium", timeStyle: "short" })`. This preserves the existing UTC interpretation of timezone-less SQLite timestamps.
 - Render values in `<time dateTime={storedValue}>` where a stored value exists.
 - Show Publication date only when `publishedAt` exists.
-- For an editor with `onPublishedAtChange`, render the Publication date value as the trigger for the Kumo publication-date popover.
-- For an author or another read-only caller, render the same value without a button, caret, or editable affordance.
+- For an editor with `onPublishedAtChange`, render the Publication date value as the trigger for the shared Kumo publishing dialog and use a pencil icon as its edit affordance.
+- For an author or another read-only caller, render the same value without a button or editable affordance.
 - Keep Created and Updated read-only.
 
 Use the label Publication date. It names stored publication history and does not resemble the Publish or Schedule actions.
@@ -130,12 +132,12 @@ Derive one internal view state from the existing `isNew`, `isLive`, `hasPendingC
 | --------------------------- | ------------------------------------------ | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | New draft                   | `isNew`                                    | Draft version, not visible                        | Save only; preserve the current rule that a new unsaved item cannot publish or schedule                                        |
 | Draft                       | not live, no `scheduledAt`                 | Draft version, not visible                        | Kumo menu with Publish now and Schedule publication when scheduling is available; otherwise the existing direct Publish button |
-| First publication scheduled | not live, `scheduledAt` present            | First publication with local date, time, and zone | Kumo menu with Publish now, Edit schedule, and Remove schedule                                                                 |
+| First publication scheduled | not live, `scheduledAt` present            | First publication with local date, time, and zone | Kumo menu with Publish now, Change schedule, and Remove schedule                                                               |
 | Published                   | live, no pending changes, no `scheduledAt` | Live version                                      | Preserve direct Unpublish item action; publication-date editing stays in the detail row                                        |
-| Published with changes      | live, pending changes, no `scheduledAt`    | Live version plus Draft changes                   | Kumo menu with Publish updates now and Schedule updates; Discard changes remains beside Draft changes                          |
-| Update scheduled            | live, `scheduledAt` present                | Live version plus scheduled Draft changes         | Kumo menu with Publish updates now, Edit schedule, and Remove schedule                                                         |
+| Published with changes      | live, pending changes, no `scheduledAt`    | Live version plus Draft changes                   | Kumo menu with Publish changes now and Schedule changes; Discard changes remains beside Draft changes                          |
+| Scheduled update            | live, `scheduledAt` present                | Live version plus scheduled Draft changes         | Kumo menu with Publish changes now, Change schedule, and Remove schedule                                                       |
 
-If a live item has `scheduledAt` without a distinct draft revision, use Update scheduled presentation rather than hiding the persisted schedule. Do not claim that unpublished content exists; label the second row Scheduled publication and show the stored instant.
+If a live item has `scheduledAt` without a distinct draft revision, use Scheduled publication presentation rather than hiding the persisted schedule. Do not claim that unpublished content exists; label the second row Scheduled publication and show the stored instant.
 
 For a collection without draft support, keep the existing raw lifecycle badge fallback and omit the two-version relationship. If `scheduledAt` exists, show one schedule summary without live/draft language. Continue to expose only actions allowed by the existing callbacks and schedule state.
 
@@ -145,16 +147,16 @@ Use labels that identify both the target and timing:
 
 - Publish now
 - Schedule publication
-- Publish updates now
-- Schedule updates
-- Edit schedule
+- Publish changes now
+- Schedule changes
+- Change schedule
 - Remove schedule
 
-The menu trigger is Publish for an unpublished draft, Publish updates for a live item with draft changes, Scheduled for a first-publication schedule, and Update scheduled for a scheduled live item. A caret and `aria-haspopup="menu"` communicate that these triggers open choices.
+The menu trigger is Publish for an unpublished draft, Publish changes for a live item with draft changes, Scheduled for a first-publication schedule, Scheduled update for a scheduled draft update, and Scheduled publication for a persisted schedule without a distinct draft. A caret and `aria-haspopup="menu"` communicate that these triggers open choices. The trigger omits a leading icon so its centered text and caret remain balanced in the full-width action slot.
 
 Do not add the collection label to these menu choices. Preserve the existing collection-aware Unpublish item label for the clean published state.
 
-Omit an action when its callback is absent. If only one action remains, render the existing direct Kumo button instead of a one-item menu. For an existing schedule, `onSchedule` enables Edit schedule even though `canSchedule` is false, while `onUnschedule` independently enables Remove schedule.
+Omit an action when its callback is absent. If only one action remains, render the existing direct Kumo button instead of a one-item menu. For an existing schedule, `onSchedule` enables Change schedule even though `canSchedule` is false, while `onUnschedule` independently enables Remove schedule.
 
 ## Kumo component contract
 
@@ -163,37 +165,41 @@ Use the current Kumo package for every matching UI primitive.
 | Surface                                 | Required component                                                                                                   |
 | --------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Lifecycle badge                         | Existing `ContentStatusBadge`, backed by Kumo `Badge`                                                                |
+| Publishing summary container            | `LayerCard`                                                                                                          |
+| Created and Updated disclosure          | `Collapsible.Root`, `Collapsible.Trigger`, and `Collapsible.Panel`                                                   |
 | Primary publishing choices              | `DropdownMenu`, `DropdownMenu.Trigger`, `DropdownMenu.Content`, and `DropdownMenu.Item`                              |
 | Action triggers and confirmations       | `Button`; use its `loading` prop for new or changed publishing buttons instead of inserting a custom spinner         |
 | Scheduling editor                       | One controlled, always-mounted `Dialog.Root` with `Dialog`, `Dialog.Title`, `Dialog.Description`, and `Dialog.Close` |
 | Calendar                                | `DatePicker` in `mode="single"`                                                                                      |
 | Time value                              | `Input type="time"` with `step={60}` and its built-in label, description, disabled, and error states                 |
 | Form-level validation or mutation error | Existing `DialogError` with `getMutationError()`                                                                     |
-| Publication-date disclosure             | `Popover`, `Popover.Trigger`, `Popover.Content`, `Popover.Title`, `Popover.Description`, and `Popover.Close`         |
+| Publication-date editor                 | The same `Dialog`, `DatePicker`, `Input`, and `Button` presentation used for scheduling                              |
 | Section text                            | `Text` with semantic `as` elements                                                                                   |
 | Slug and content locale                 | Existing Kumo `Input`, `Label`, `Badge`, `Tooltip`, and `Button` implementation                                      |
 | Discard confirmation                    | Existing `DiscardDraftDialog`, backed by Kumo `Dialog` and `Button`                                                  |
 
-Do not create a custom button, menu, dialog, popover, calendar, input, badge, tooltip, spinner, focus trap, overlay animation, or dark-mode style. Use Tailwind only for layout, the version connector, and semantic Kumo tokens. Do not refactor unchanged controls such as `PreviewButton` solely to adopt another Kumo prop.
+Do not create a custom button, menu, dialog, disclosure, calendar, input, badge, tooltip, spinner, focus trap, overlay animation, or dark-mode style. Use Tailwind only for layout, the version connector, and semantic Kumo tokens. Do not refactor unchanged controls such as `PreviewButton` solely to adopt another Kumo prop.
 
 ## Schedule dialog
 
-Render one schedule dialog at `ContentEditor` scope. The desktop settings action bar, mobile editor header, and distraction-free header open the same controlled instance. The panel shows schedule state but does not duplicate Edit schedule or Remove schedule. Keep `Dialog.Root` mounted and control it through `open` and `onOpenChange` so Kumo preserves its exit animation.
+Render one schedule dialog at `ContentEditor` scope. The desktop settings action bar, mobile editor header, and distraction-free header open the same controlled instance. The panel shows schedule state but does not duplicate Change schedule or Remove schedule. Keep `Dialog.Root` mounted and control it through `open` and `onOpenChange` so Kumo preserves its exit animation.
 
 The dialog contains:
 
-- Schedule publication or Schedule updates as the contextual title;
+- Schedule publication, Schedule changes, or Change schedule as the contextual title;
 - a short description that says whether a live version remains public;
 - Tomorrow at 09:00 and Next Monday at 09:00 quick choices, where Next Monday is the next strictly future Monday and advances seven days when today is Monday;
 - a localized Kumo single-date picker;
 - a Kumo time input;
 - the browser's IANA time-zone name and selected short offset or abbreviation;
 - a secondary Cancel button; and
-- a primary Schedule, Schedule updates, or Update schedule button.
+- a primary Schedule, Schedule changes, or Save schedule button.
+
+Use the shared compact dialog presentation for scheduling and publication-date editing. The dialog is 20rem wide at desktop sizes, remains bounded to `calc(100vw - 2rem)`, centers a `w-fit` date picker, and stacks the two quick choices. This removes the unused inline space created when a full-width calendar root contained a narrower month grid.
 
 Creating a schedule starts without a selected instant. A quick choice fills both fields. Editing a schedule initializes both fields from `item.scheduledAt` in the browser's local time zone.
 
-Schedule and publication-date controls edit minute precision. Disable Update schedule or Update date while the local date and minute still match the persisted instant. A changed value serializes with seconds and milliseconds set to zero, matching the current admin control contract.
+Schedule and publication-date controls edit minute precision. Disable Save schedule or Save date while the local date and minute still match the persisted instant. A changed value serializes with seconds and milliseconds set to zero, matching the current admin control contract.
 
 Disable calendar days before the browser's current date. On submit, combine the selected local calendar date and time, reject a nonexistent daylight-saving time, serialize the resulting instant with `toISOString()`, and require it to be later than the current instant. The server remains authoritative and performs the same future-instant validation.
 
@@ -212,13 +218,13 @@ Capture the entry ID, locale, and a monotonically increasing submission generati
 
 Use `Dialog` size `sm` with viewport-bounded padding so its Kumo date picker and time field fit a 320-pixel viewport without internal horizontal scrolling.
 
-## Publication-date popover
+## Publication-date dialog
 
-The Publication date detail row opens an anchored Kumo popover for authorized editors. The popover reuses the localized date picker, time input, time-zone label, local validation, and async-submit behavior from the schedule dialog. It does not render quick scheduling choices. Bound its content to `calc(100vw - 2rem)` so the calendar fits a 320-pixel viewport.
+The Publication date detail row opens the shared centered Kumo dialog for authorized editors. The trigger uses a pencil icon rather than a directional caret. The dialog reuses the localized date picker, time input, time-zone label, local validation, compact geometry, and async-submit behavior from scheduling. It does not render quick scheduling choices.
 
-The description states: This changes the publication timestamp. It does not schedule an update.
+The description states: Change the date recorded for the live version. This does not publish or schedule changes.
 
-Use Update date for the primary action. Keep the popover open on rejection, render the rejection through `DialogError`, and close it on success. Cancel, close, or Escape resets its draft to the persisted value. Reset its draft values when `item.id`, active locale, or `item.publishedAt` changes. Apply the same entry, locale, and submission-generation guard used by scheduling.
+Use Save date for the primary action. Keep the dialog open on rejection, render the rejection through `DialogError`, and close it on success. Cancel, close, or Escape resets its draft to the persisted value. Reset its draft values when `item.id`, active locale, or `item.publishedAt` changes. Apply the same entry, locale, and submission-generation guard used by scheduling.
 
 ## Date-time contract
 
@@ -302,7 +308,7 @@ No direct-access route changes are required.
 - Use logical Tailwind properties. Flip directional carets in right-to-left layouts when Kumo does not do so itself.
 - Keep all normal content and controls at Kumo's 14-pixel content size. Use semibold headings and medium emphasis; do not add letter tracking.
 - Use only semantic Kumo color, line, surface, and text tokens. Do not add raw colors or `dark:` classes.
-- Let `DropdownMenu`, `Dialog`, and `Popover` own focus, keyboard navigation, overlay position, motion, and reduced-motion behavior.
+- Let `DropdownMenu`, `Dialog`, and `Collapsible` own focus, keyboard navigation, overlay position, motion, and reduced-motion behavior.
 - Keep menu and dialog actions available without hover.
 - Preserve the action bar's flexible wrapping at a 320-pixel mobile viewport and settings widths from 320 through 480 pixels.
 - Keep long translated menu labels and date values wrapping without horizontal scrolling or clipped controls.
@@ -327,12 +333,13 @@ Tests must assert user behavior, not Tailwind classes or Kumo internals.
 
 - Draft, first-publication scheduled, published, published-with-changes, and update-scheduled items render the state matrix in this specification.
 - Published with changes exposes Live version and Draft changes simultaneously. It does not show Status or Schedule for later.
-- The Publish updates menu contains Publish updates now and Schedule updates. The schedule description says the current version remains live.
-- A scheduled item exposes Publish now, Edit schedule, and Remove schedule through one Kumo menu without duplicate panel actions.
+- The Publish changes menu contains Publish changes now and Schedule changes. Each choice uses a 14-pixel title, a 13-pixel one-line description, and a 20-pixel icon aligned with the first line.
+- A scheduled item exposes Publish now, Change schedule, and Remove schedule through one Kumo menu without duplicate panel actions.
 - Missing callbacks remove their actions, and a single remaining action renders as a direct Kumo button rather than a one-item menu.
 - Clean published content retains the direct Unpublish item action.
-- Discard changes stays adjacent to Draft changes and retains its confirmation dialog.
-- Publication date is view-first, opens its popover for editors, stays read-only for authors, and submits the expected ISO instant.
+- The version relationship and date details share one Kumo `LayerCard`; it omits redundant trailing state words and keeps Discard changes as a quiet inline draft action.
+- Publication date stays visible, while Created and Updated start collapsed behind the Kumo Created and updated disclosure.
+- Publication date is view-first, opens the shared centered dialog for editors, stays read-only for authors, and submits the expected ISO instant.
 - The schedule dialog opens from desktop, mobile, and distraction-free action surfaces while only one dialog exists.
 - A rejected async callback preserves its values for correction or retry. A resolved callback closes and resets the editor. Pending state prevents duplicate submission, and dismissing a pending dialog does not cancel or duplicate the request.
 - Entry and locale changes close the editors and clear stale transient values.
@@ -367,10 +374,13 @@ Expected test and release files:
 
 - `packages/admin/tests/components/ContentSettingsPanel.test.tsx`
 - `packages/admin/tests/components/ContentEditor.test.tsx`
+- `packages/admin/tests/components/PublishingDateTimeEditor.test.tsx`
 - `packages/admin/tests/lib/content-publishing-state.test.ts`
 - `packages/admin/tests/lib/publishing-datetime.test.ts`
 - `packages/admin/tests/router.test.tsx`
 - `e2e/tests/content-actions.spec.ts`
+- `e2e/tests/accessibility.spec.ts`
+- `e2e/tests/visual-regression.spec.ts`
 - existing content-editor visual snapshots
 - one patch changeset for `@emdash-cms/admin`
 
@@ -416,8 +426,8 @@ Responsibility:
 Acceptance:
 
 - each lifecycle state exposes only the actions in the state matrix;
-- published draft actions use Publish updates and Schedule updates;
-- scheduled items can publish immediately, edit the schedule, or remove it; and
+- published draft actions group immediate and scheduled publication choices;
+- scheduled items can publish immediately, change the schedule, or remove it; and
 - clean published items retain the direct collection-aware Unpublish action.
 
 Expected size: 150–220 production lines and 160–240 test lines.
@@ -432,7 +442,7 @@ Responsibility:
 
 - move the lifecycle badge into the Publish heading;
 - add the live/draft relationship and adjacent discard action;
-- replace the persistent publish-date form with the Kumo publication-date popover;
+- replace the persistent publish-date form with a view-first Kumo publication-date editor;
 - render the date details with localized semantic time values;
 - update focused end-to-end, accessibility, and English/Arabic visual proof; and
 - add the patch changeset.
@@ -449,6 +459,54 @@ Expected size: 130–190 production lines, 190–270 test lines, and 5–12 chan
 Dependency: Commits 1 and 2 supply the shared date-time and action contracts.
 
 Exclusions: no core, database, scheduler, public-site, or general editor refactor.
+
+### Commit 4: `refine(admin): frame publishing state and dates`
+
+Responsibility:
+
+- place the version relationship and date metadata in one Kumo `LayerCard`;
+- remove redundant trailing state words from version rows;
+- make Discard changes a quiet inline draft action; and
+- keep Publication date visible while moving Created and Updated into a Kumo disclosure.
+
+Acceptance:
+
+- the summary has one rounded visual boundary with balanced inline padding;
+- Live version and Draft changes retain their relationship without a separate Live or Ready label;
+- scheduled descriptions include the scheduled instant in text; and
+- Created and Updated remain keyboard-accessible without competing with Publication date.
+
+### Commit 5: `refine(admin): clarify publishing actions`
+
+Responsibility:
+
+- rename published-draft actions around changes rather than updates;
+- simplify scheduled trigger labels;
+- remove the leading icon from the full-width menu trigger; and
+- use two-line menu items with 20-pixel icons, 14-pixel titles, and 13-pixel descriptions.
+
+Acceptance:
+
+- Publish changes opens Publish changes now and Schedule changes;
+- Scheduled update opens Publish changes now, Change schedule, and Remove schedule;
+- each description stays on one line at the supported menu width in English; and
+- the action wording matches the dialog it opens.
+
+### Commit 6: `refine(admin): unify publishing date dialogs`
+
+Responsibility:
+
+- replace the publication-date popover with the shared centered dialog pattern;
+- share the dialog header, fields, errors, and footer between scheduling and publication-date editing;
+- constrain both dialogs to a 20rem desktop width and center the Kumo date picker; and
+- stack scheduling shortcuts to remove unused horizontal space.
+
+Acceptance:
+
+- both date editors open in the same location with the same interaction model;
+- the schedule dialog and publication-date dialog fit a 320-pixel viewport without horizontal scrolling;
+- Cancel and Escape restore focus to the originating control; and
+- existing validation, async errors, stale-entry guards, and ISO serialization remain unchanged.
 
 ## Review and verification gates
 
@@ -492,10 +550,11 @@ The feature is ready for approval when all of the following are true:
 Approving this specification also approves these implementation choices:
 
 - Use a single Kumo `Dialog` for scheduling instead of reproducing the mockup's anchored scheduling popover. Scheduling can start from three responsive action surfaces, and one dialog preserves input, focus, and pending state without duplicated overlay implementations.
-- Use a Kumo `Popover` for Publication date because it has one stable trigger in the Publish section.
+- Use the same compact centered Kumo `Dialog` pattern for Publication date and scheduling so both date-editing interactions behave predictably.
 - Display and edit `scheduledAt` and `publishedAt` as local instants with an explicit browser time-zone label while preserving their stored ISO values.
-- Include Tomorrow at 09:00 and Next Monday at 09:00 as localized quick choices.
-- Keep Discard changes beside Draft changes and outside the publish menu.
+- Include Tomorrow at 09:00 and Next Monday at 09:00 as localized, vertically stacked quick choices.
+- Group version state and date metadata in one Kumo `LayerCard`, with Created and Updated behind a Kumo disclosure.
+- Keep Discard changes beside Draft changes as a quiet inline action outside the publish menu.
 - Keep the clean-published Unpublish item action direct because it has no competing timing choice.
 
 No unresolved product decision blocks implementation after these choices are approved.
