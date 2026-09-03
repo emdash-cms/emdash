@@ -309,7 +309,9 @@ test.describe("Schedule content", () => {
 			const caret = element.querySelector("svg")!.getBoundingClientRect();
 			const label = element.querySelector("span.truncate")!.getBoundingClientRect();
 			return {
-				labelCenterOffset: Math.abs(button.left + button.width / 2 - (label.left + label.width / 2)),
+				labelCenterOffset: Math.abs(
+					button.left + button.width / 2 - (label.left + label.width / 2),
+				),
 				trailingGap: button.right - caret.right,
 			};
 		});
