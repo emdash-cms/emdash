@@ -68,6 +68,7 @@ interface RecordedRequest {
 interface MockServerOptions {
 	initialBylines?: ContentItem["bylines"];
 	initialScheduledAt?: string;
+	omitScheduleChangeRevision?: boolean;
 	onContentGet?: (request: RecordedRequest, index: number) => Promise<Response> | Response;
 	onPut?: (request: RecordedRequest, index: number) => Promise<Response> | Response;
 	onPublish?: (request: RecordedRequest, index: number) => Promise<Response> | Response;
@@ -188,7 +189,7 @@ function createMockServer(options: MockServerOptions = {}) {
 			currentScheduledAt = String(body?.scheduledAt);
 			return contentResponse(
 				makeItem({
-					_rev: currentRevision,
+					_rev: options.omitScheduleChangeRevision ? undefined : currentRevision,
 					scheduledAt: currentScheduledAt,
 				}),
 			);
@@ -198,7 +199,12 @@ function createMockServer(options: MockServerOptions = {}) {
 			if (options.onUnschedule) return options.onUnschedule(request, index);
 			currentRevision = `rev-unschedule-${index + 1}`;
 			currentScheduledAt = null;
-			return contentResponse(makeItem({ _rev: currentRevision, scheduledAt: null }));
+			return contentResponse(
+				makeItem({
+					_rev: options.omitScheduleChangeRevision ? undefined : currentRevision,
+					scheduledAt: null,
+				}),
+			);
 		}
 
 		throw new Error(`Unhandled request: ${method} ${url}`);
@@ -728,6 +734,35 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		expect(correctiveSave?.body).toMatchObject({
 			data: { title: "Draft title" },
 			_rev: "rev-autosave",
+		});
+	});
+
+	it("refreshes the revision token when a schedule response omits it", async () => {
+		server = createMockServer({ omitScheduleChangeRevision: true });
+		const screen = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title" });
+
+		await title.fill("Scheduled title");
+		await (await getPublishAction(screen, /Schedule changes/)).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+		fireEvent.click(dialog.getByRole("button", { name: /Tomorrow at/ }).element());
+		fireEvent.click(
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
+		);
+		await vi.waitFor(() => {
+			expect(server!.requests.filter((request) => request.method === "POST")).toHaveLength(1);
+		});
+
+		await title.fill("After schedule");
+		await vi.advanceTimersByTimeAsync(2000);
+		await vi.waitFor(() => {
+			expect(server!.requests.filter((request) => request.method === "PUT")).toHaveLength(2);
+		});
+		const saveAfterSchedule = server.requests.filter((request) => request.method === "PUT")[1];
+		expect(saveAfterSchedule?.body).toMatchObject({
+			data: { title: "After schedule" },
+			_rev: "rev-schedule-1",
 		});
 	});
 });

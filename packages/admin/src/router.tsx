@@ -1188,7 +1188,12 @@ function ContentEditPage() {
 	const applyScheduleChange = React.useCallback(
 		async (changedItem: ContentItem, savedItem?: ContentItem) => {
 			await queryClient.cancelQueries({ queryKey: ["content", collection, id] });
-			if (changedItem._rev) revisionTokensRef.current.set(id, changedItem._rev);
+			const currentChangedItem = changedItem._rev
+				? changedItem
+				: await fetchContent(collection, id, { locale: rawItem?.locale ?? activeLocale });
+			if (currentChangedItem._rev) {
+				revisionTokensRef.current.set(id, currentChangedItem._rev);
+			}
 			queryClient.setQueriesData<ContentItem>(
 				{ queryKey: ["content", collection, id] },
 				(existing) => {
@@ -1196,17 +1201,17 @@ function ContentEditPage() {
 					return currentItem
 						? {
 								...currentItem,
-								...changedItem,
+								...currentChangedItem,
 								data: currentItem.data,
 								slug: currentItem.slug,
 								byline: currentItem.byline ?? existing?.byline,
 								bylines: currentItem.bylines ?? existing?.bylines,
 							}
-						: changedItem;
+						: currentChangedItem;
 				},
 			);
 		},
-		[collection, id, queryClient],
+		[activeLocale, collection, id, queryClient, rawItem?.locale],
 	);
 	const scheduleMutation = useMutation({
 		mutationFn: (scheduledAt: string) =>
