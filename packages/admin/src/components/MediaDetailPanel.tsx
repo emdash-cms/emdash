@@ -1546,17 +1546,14 @@ export function MediaDetailPanel({
 											</Combobox.Content>
 										</Combobox>
 									) : (
-										<div className="space-y-1">
-											<p className="text-sm font-medium text-kumo-default">{t`Location`}</p>
-											<p
-												className="flex items-center gap-2 text-sm text-kumo-subtle"
-												aria-live="polite"
-											>
-												<MediaLocationIcon folderId={localItem.folderId} />
-												<span className="min-w-0 truncate" dir="auto">
-													{currentLocationName}
-												</span>
-											</p>
+										<div className="w-full space-y-2">
+											<span className="text-[14px] font-medium text-kumo-default">{t`Location`}</span>
+											<Input
+												aria-label={t`Location`}
+												value={currentLocationName}
+												disabled
+												className="w-full bg-kumo-tint text-kumo-subtle"
+											/>
 										</div>
 									))}
 

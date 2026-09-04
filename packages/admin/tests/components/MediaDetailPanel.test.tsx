@@ -993,7 +993,10 @@ describe("MediaDetailPanel", () => {
 		expect(screen.getByRole("tab", { name: "Used in" }).query()).toBeNull();
 		expect(screen.getByRole("button", { name: "Delete" }).query()).toBeNull();
 		expect(screen.getByRole("combobox", { name: "Location" }).query()).toBeNull();
-		await expect.element(screen.getByText("Product photos")).toBeVisible();
+		await expect
+			.element(screen.getByRole("textbox", { name: "Location" }))
+			.toHaveValue("Product photos");
+		await expect.element(screen.getByRole("textbox", { name: "Location" })).toBeDisabled();
 	});
 
 	it("confirms and replaces the original while keeping the dialog open", async () => {
@@ -1691,13 +1694,9 @@ describe("MediaDetailPanel", () => {
 	it("shows a read-only Location when the user cannot move the item", async () => {
 		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: false });
 
-		await expect.element(screen.getByText("Location")).toBeInTheDocument();
-		const currentLocation = screen.getByText("Product photos");
-		await expect.element(currentLocation).toBeInTheDocument();
-		expect(currentLocation.element()).toHaveAttribute("dir", "auto");
-		expect(
-			currentLocation.element().parentElement?.querySelector('[data-testid="media-location-icon"]'),
-		).not.toBeNull();
+		const currentLocation = screen.getByRole("textbox", { name: "Location" });
+		await expect.element(currentLocation).toHaveValue("Product photos");
+		await expect.element(currentLocation).toBeDisabled();
 		expect(screen.getByRole("combobox", { name: "Location" }).query()).toBeNull();
 		expect(fetchMediaFolders).not.toHaveBeenCalled();
 	});
