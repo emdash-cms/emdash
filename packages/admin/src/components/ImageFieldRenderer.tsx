@@ -407,7 +407,7 @@ export function ImageFieldRenderer({
 				)}
 			</div>
 			<div className="flex min-w-0 flex-col justify-center gap-3 px-4 py-3">
-				<div className="grid min-w-0 gap-1">
+				<div className="grid min-w-0 gap-1" style={{ transform: "translateY(2px)" }}>
 					<Text as="p" bold truncate>
 						{selectedFilename}
 					</Text>
