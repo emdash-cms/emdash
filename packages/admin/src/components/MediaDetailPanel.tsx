@@ -151,6 +151,7 @@ export interface MediaDetailPanelProps {
 	onUpdated?: () => void;
 	onItemRefreshed?: (item: LocalMediaItem) => void;
 	onCroppedCopyCreated?: (item: LocalMediaItem) => void;
+	onUnavailable?: (id: string) => void;
 	onDeleted?: () => void;
 }
 
@@ -173,6 +174,7 @@ export function MediaDetailPanel({
 	onUpdated,
 	onItemRefreshed,
 	onCroppedCopyCreated,
+	onUnavailable,
 	onDeleted,
 }: MediaDetailPanelProps) {
 	const { t } = useLingui();
@@ -186,6 +188,7 @@ export function MediaDetailPanel({
 	const closeFallbackTimerRef = React.useRef<number | null>(null);
 	const closeFinishedRef = React.useRef(false);
 	const cropPendingRef = React.useRef(false);
+	const unavailableReportedRef = React.useRef<string | null>(null);
 	const cropImageRef = React.useRef<HTMLImageElement | null>(null);
 	const dialogBodyRef = React.useRef<HTMLDivElement | null>(null);
 	const dialogResizeAnimationRef = React.useRef<Animation | null>(null);
@@ -271,6 +274,7 @@ export function MediaDetailPanel({
 		replacePendingRef.current = false;
 		replaceSelectionTokenRef.current += 1;
 		cropPendingRef.current = false;
+		unavailableReportedRef.current = null;
 		cropImageRef.current = null;
 		if (imageModeOverflowFrameRef.current !== null) {
 			window.cancelAnimationFrame(imageModeOverflowFrameRef.current);
@@ -688,9 +692,10 @@ export function MediaDetailPanel({
 			setShowCropConfirm(false);
 			setCropStatus(t`Original image cropped.`);
 		},
-		onError: (_error, action) => {
+		onError: (error, action) => {
 			setCropStatus("");
 			if (action === "replace") setShowCropConfirm(false);
+			if (error instanceof ApiResponseError && error.code === "NOT_FOUND") recoverMediaItem();
 		},
 		onSettled: () => {
 			cropPendingRef.current = false;
@@ -708,6 +713,11 @@ export function MediaDetailPanel({
 	const mediaUnavailable =
 		recoverMediaMutation.error instanceof ApiResponseError &&
 		recoverMediaMutation.error.code === "NOT_FOUND";
+	React.useEffect(() => {
+		if (!open || !mediaUnavailable || unavailableReportedRef.current === item.id) return;
+		unavailableReportedRef.current = item.id;
+		onUnavailable?.(item.id);
+	}, [item.id, mediaUnavailable, onUnavailable, open]);
 	const isBusy = isSaving || isDeleting || isRecovering || isReplacing || isCropping;
 	const cropFooterActive = activeTab === "edit-image" && imageEditMode === "crop" && canShowCrop;
 	const cropActionDisabled =

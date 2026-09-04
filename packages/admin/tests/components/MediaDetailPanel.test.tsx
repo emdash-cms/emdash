@@ -1079,6 +1079,33 @@ describe("MediaDetailPanel", () => {
 		expect(cropSelectionStyle(screen)).toBe(draftStyle);
 	});
 
+	it("reports when the image is deleted while replacing the original", async () => {
+		vi.mocked(replaceMediaImage).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
+		);
+		vi.mocked(fetchMediaItem).mockRejectedValueOnce(
+			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
+		);
+		const onUnavailable = vi.fn();
+		const screen = await renderPanel({
+			item: makeLocalItem({ url: TEST_IMAGE_URL }),
+			canCropOriginal: true,
+			onUnavailable,
+		});
+		await openCropEditor(screen);
+		await resizeCrop(screen);
+
+		screen.getByRole("button", { name: "Replace original" }).element().click();
+		const confirmation = screen.getByRole("alertdialog", { name: "Replace original image?" });
+		await expect.element(confirmation).toBeVisible();
+		confirmation.getByRole("button", { name: "Replace original" }).element().click();
+
+		await vi.waitFor(() => {
+			expect(fetchMediaItem).toHaveBeenCalledWith("media-1");
+			expect(onUnavailable).toHaveBeenCalledWith("media-1");
+		});
+	});
+
 	it("explains that cropped WebP output is static", async () => {
 		const screen = await renderPanel({
 			item: makeLocalItem({
@@ -1749,7 +1776,12 @@ describe("MediaDetailPanel", () => {
 		vi.mocked(fetchMediaItem).mockRejectedValueOnce(
 			new ApiResponseError(404, "NOT_FOUND", "Media item not found"),
 		);
-		const screen = await renderPanel({ item: makeLocalItem(), canMoveLocation: true });
+		const onUnavailable = vi.fn();
+		const screen = await renderPanel({
+			item: makeLocalItem(),
+			canMoveLocation: true,
+			onUnavailable,
+		});
 
 		screen.getByRole("combobox", { name: "Location" }).element().click();
 		await expect.element(screen.getByRole("option", { name: "Main library" })).toBeInTheDocument();
@@ -1764,6 +1796,7 @@ describe("MediaDetailPanel", () => {
 				.query(),
 		).toBeNull();
 		await expect.element(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+		expect(onUnavailable).toHaveBeenCalledWith("media-1");
 	});
 
 	it("does not blame the folder when missing-item recovery cannot confirm the state", async () => {

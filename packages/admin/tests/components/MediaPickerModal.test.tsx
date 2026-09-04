@@ -77,6 +77,7 @@ vi.mock("../../src/components/MediaDetailPanel", () => ({
 		onClosed,
 		onItemRefreshed,
 		onCroppedCopyCreated,
+		onUnavailable,
 	}: {
 		open: boolean;
 		item: { filename: string };
@@ -85,6 +86,7 @@ vi.mock("../../src/components/MediaDetailPanel", () => ({
 		onClosed?: () => void;
 		onItemRefreshed?: (item: unknown) => void;
 		onCroppedCopyCreated?: (item: unknown) => void;
+		onUnavailable?: (id: string) => void;
 	}) =>
 		open ? (
 			<div role="dialog" aria-label="Asset details" data-context={context}>
@@ -143,6 +145,16 @@ vi.mock("../../src/components/MediaDetailPanel", () => ({
 					}}
 				>
 					Create cropped copy
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onUnavailable?.("m1");
+						onClose();
+						onClosed?.();
+					}}
+				>
+					Report asset missing
 				</button>
 			</div>
 		) : null,
@@ -356,6 +368,26 @@ describe("MediaPickerModal", () => {
 
 			await expect.element(item).toHaveAttribute("aria-pressed", "true");
 			expect(screen.getByRole("button", { name: "Edit asset" }).query()).toBeNull();
+		});
+
+		it("removes a missing edited asset from the picker selection", async () => {
+			const screen = await renderModal();
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+			const editAsset = screen.getByRole("button", { name: "Edit asset" });
+			await expect.element(editAsset).toBeEnabled();
+			editAsset.element().click();
+			await expect
+				.element(screen.getByRole("button", { name: "Report asset missing" }))
+				.toBeVisible();
+
+			screen.getByRole("button", { name: "Report asset missing" }).element().click();
+
+			await expect.element(screen.getByRole("button", { name: "Select" })).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "photo.jpg" }))
+				.toHaveAttribute("aria-pressed", "false");
 		});
 	});
 

@@ -757,6 +757,19 @@ export function MediaPickerModal({
 		},
 		[assetItem.id, cacheLocalItem, multiple, queryClient],
 	);
+	const handleAssetUnavailable = React.useCallback(
+		(id: string) => {
+			setSelectedItems((current) =>
+				current.filter((selected) => selected.providerId !== "local" || selected.item.id !== id),
+			);
+			setPinnedItems((current) =>
+				current.filter((selected) => selected.providerId !== "local" || selected.item.id !== id),
+			);
+			queryClient.removeQueries({ queryKey: ["media", id], exact: true });
+			void queryClient.invalidateQueries({ queryKey: ["media"] });
+		},
+		[queryClient],
+	);
 	const openAssetEditor = () => {
 		if (!editableSelection || uploadQueue.hasUnfinished) return;
 		setAssetItem(editableSelection);
@@ -1544,6 +1557,7 @@ export function MediaPickerModal({
 				onClosed={handleAssetClosed}
 				onItemRefreshed={handleAssetRefreshed}
 				onCroppedCopyCreated={handleCroppedCopyCreated}
+				onUnavailable={handleAssetUnavailable}
 			/>
 		</>
 	);
