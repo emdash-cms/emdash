@@ -56,6 +56,11 @@ export function renderElement(
 			return null;
 		case "media_picker":
 			return null;
+		case "portable_text":
+		case "block_list":
+			// Admin-authoring only, like `repeater`: the value is persisted on the
+			// parent block and consumed by the plugin's own runtime component.
+			return null;
 		default: {
 			const _exhaustive: never = element;
 			return null;

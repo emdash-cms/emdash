@@ -25,6 +25,8 @@ export type {
 	RepeaterElement,
 	RepeaterSubField,
 	MediaPickerElement,
+	PortableTextElement,
+	BlockListElement,
 	Element,
 	// Form
 	FieldCondition,
