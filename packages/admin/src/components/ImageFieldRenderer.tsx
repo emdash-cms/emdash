@@ -406,18 +406,23 @@ export function ImageFieldRenderer({
 					/>
 				)}
 			</div>
-			<div className="flex min-w-0 flex-col justify-center gap-3 px-4 py-3">
-				<div className="grid min-w-0 gap-1" style={{ transform: "translateY(2px)" }}>
-					<Text as="p" bold truncate>
-						{selectedFilename}
-					</Text>
-					{metadata && (
-						<Text as="p" variant="secondary" truncate>
-							<bdi dir="ltr">{metadata}</bdi>
+			<div className="flex min-w-0 flex-col justify-center px-4 py-3">
+				<div
+					className="flex w-full min-w-0 flex-col gap-3"
+					style={{ transform: "translateY(6px)" }}
+				>
+					<div className="grid min-w-0 gap-1">
+						<Text as="p" bold truncate>
+							{selectedFilename}
 						</Text>
-					)}
+						{metadata && (
+							<Text as="p" variant="secondary" truncate>
+								<bdi dir="ltr">{metadata}</bdi>
+							</Text>
+						)}
+					</div>
+					{primaryActions}
 				</div>
-				{primaryActions}
 			</div>
 		</LayerCard>
 	) : null;
