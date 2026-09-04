@@ -1,0 +1,37 @@
+packages/admin/src/components/MediaLibrary.tsx
+  s_a5546e654e1f61::t_85bdcbfabcb91b 78-83,351,528,977,1325,1330-1331,1678,1684,1689-1696,1710-1713,1715-1716
+packages/admin/src/components/MediaPickerModal.tsx
+  s_a5546e654e1f61::t_fdc629958745d5 1-11,14-30,34,36-37,46,48,51-61,64,71-94,96-121,132,150,156,159,161-167,169-170,173-180,183-185,189-195,198-217,223-233,235-293,295-299,301-302,305-354,356,359,361,364-406,412,415,422,425,432-445,448,458-468,470-473,475-484,486-492,494,505,509-511,514-515,519-520,523,525,531,534,536,540-545,547-570,572-578,581-597,605,607-608,611-677,679-690,693-715,717-729,731-762,764-828,830-892,894-992,994-1019,1021-1034,1036-1037,1039-1040,1042-1048,1050-1053,1057-1066,1068-1079
+packages/admin/src/components/PortableTextEditor.tsx
+  s_a5546e654e1f61::t_c13ba90476aaf0 3453-3454,3468
+packages/admin/src/components/SeoImageField.tsx
+  s_a5546e654e1f61::t_c7020b9fd071f4 89
+packages/admin/src/components/editor/GalleryDetailPanel.tsx
+  s_a5546e654e1f61::t_ed46d6b10159df 402
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_a5546e654e1f61::t_6de65b83770f0a 216-217
+packages/admin/src/components/settings/GeneralSettings.tsx
+  s_a5546e654e1f61::t_715be73fccf732 356,364
+packages/admin/src/components/settings/SeoSettings.tsx
+  s_a5546e654e1f61::t_015d9a9eff5693 284
+packages/admin/tests/components/settings/GeneralSettings.test.tsx
+  s_a5546e654e1f61::t_45b6f80d719190 46
+packages/admin/tests/components/settings/SeoSettings.test.tsx
+  s_a5546e654e1f61::t_bf7d49677466c5 221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "96904562c314d40019b36933401606f4c61ead94",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

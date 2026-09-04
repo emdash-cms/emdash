@@ -1,0 +1,33 @@
+e2e/tests/bylines.spec.ts
+  s_a5546e654e1f61::t_2d55db5691c286 90-91,102-105,107
+packages/admin/tests/components/MediaPickerUpload.test.tsx
+  s_a5546e654e1f61::t_2fb97b0d47048a 1-260
+.changeset/clean-rivers-browse.md
+  s_a5546e654e1f61::t_db6cb3a74d153d 1-10
+docs/src/content/docs/guides/media-library.mdx
+  s_a5546e654e1f61::t_8adf5aad615598 38,48,50,52,54-55,57-62,213,215,221,223,225,227,235,237,239,241-242
+packages/admin/src/components/MediaPickerModal.tsx
+  s_a5546e654e1f61::t_e7ae20045009e2 55-56,59,69-74,120-150,224,231-232,237-257,274,277-280,473-500,553,611-613,617-633,659-697,732-742,744-765,834,908,935,945-948,955-962,1003-1006,1012,1026,1087-1099,1125-1137,1225-1245,1263-1266,1272-1284
+packages/admin/src/components/media/MediaBrowserItems.tsx
+  s_a5546e654e1f61::t_ceb75de82c8727 1,3,16,64,195-336
+packages/admin/src/components/media/useMediaUploadQueue.ts
+  s_a5546e654e1f61::t_6df3196abc672e 19-22,62,81,106-112
+packages/admin/tests/media-picker-multiselect.test.tsx
+  s_a5546e654e1f61::t_c1d2dc35df150d 87,105-107,113,118,123,144-146,150,155,161,184-186,204-206,210,245-247,250-252,255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3f12a5bb661009591da373fb0b3844ff7619dcb1",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
