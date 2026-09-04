@@ -252,7 +252,14 @@ export function ImageFieldRenderer({
 		darkValue?.id && canonicalMediaProviderId(darkValue.provider) === "local",
 	);
 	const primaryActions = (
-		<div className="flex flex-wrap items-center gap-2">
+		<div
+			className={
+				isFeatured
+					? "-m-0.5 flex w-full min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+					: "flex flex-wrap items-center gap-2"
+			}
+			style={isFeatured ? { scrollbarWidth: "none" } : undefined}
+		>
 			<Button
 				type="button"
 				size="sm"
