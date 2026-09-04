@@ -1,0 +1,19 @@
+packages/core/tests/integration/smoke/isolated-install.test.ts
+  s_829bdb541ea05c::t_8215e5901f86f1 14,49-50,335-341,343,345-360,363-367,370-399
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "90c03bf4cfcd485d188ac22b0c3eb286d5fbc905",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
