@@ -1,0 +1,27 @@
+packages/admin/src/components/MediaPickerModal.tsx
+  s_a5546e654e1f61::t_01a945164dca97 23,49,52,64,69-80,217,249-251,253,258-263,290-307,685-788,890,892,894-912,1491-1501,1532-1549
+packages/admin/tests/components/MediaPickerModal.test.tsx
+  s_a5546e654e1f61::t_6b915d6ae9b9c6 16-18,36-39,67-150,179,257-359
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_a5546e654e1f61::t_0077d543e1eb7f 142,153,163,200-201,203,615
+packages/admin/src/lib/api/media.ts
+  s_a5546e654e1f61::t_d8d935d91c953a 360,367,441,461,474
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_a5546e654e1f61::t_cf5d2db9bc136a 841,848-865
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2260d1bb3d58e5f4f39758dd8e43f3616a9b6eb7",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
