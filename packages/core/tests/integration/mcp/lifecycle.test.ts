@@ -19,6 +19,7 @@ import type { Database } from "../../../src/database/types.js";
 import {
 	connectMcpHarness,
 	extractJson,
+	revOf,
 	extractText,
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
@@ -54,14 +55,14 @@ describe("MCP content_unpublish — publishedAt preservation", () => {
 		// Publish — populates publishedAt
 		const published = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: revOf(created) },
 		});
 		const publishedAt = extractJson<{ item: { publishedAt: string } }>(published).item.publishedAt;
 		expect(publishedAt).toBeTruthy();
 
 		const unpublished = await harness.client.callTool({
 			name: "content_unpublish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: revOf(published) },
 		});
 		const unpubItem = extractJson<{
 			item: { publishedAt: string | null; status: string };
@@ -79,12 +80,12 @@ describe("MCP content_unpublish — publishedAt preservation", () => {
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
 		const published = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: revOf(created) },
 		});
 		const publishedAt = extractJson<{ item: { publishedAt: string } }>(published).item.publishedAt;
 		await harness.client.callTool({
 			name: "content_unpublish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: revOf(published) },
 		});
 
 		const got = await harness.client.callTool({
@@ -108,19 +109,19 @@ describe("MCP content_unpublish — publishedAt preservation", () => {
 
 		const firstPub = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id, publishedAt },
+			arguments: { collection: "post", id, publishedAt, _rev: revOf(created) },
 		});
 		const firstTs = extractJson<{ item: { publishedAt: string } }>(firstPub).item.publishedAt;
 		expect(firstTs).toBe(publishedAt);
 
-		await harness.client.callTool({
+		const unpublished = await harness.client.callTool({
 			name: "content_unpublish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: revOf(firstPub) },
 		});
 
 		const secondPub = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: revOf(unpublished) },
 		});
 		const secondTs = extractJson<{ item: { publishedAt: string } }>(secondPub).item.publishedAt;
 		expect(secondTs).toBe(publishedAt);
@@ -195,7 +196,7 @@ describe("MCP schema_create_collection — supports default", () => {
 
 		await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "story", id, data: { title: "Updated" } },
+			arguments: { collection: "story", id, data: { title: "Updated" }, _rev: revOf(created) },
 		});
 
 		const revs = await harness.client.callTool({

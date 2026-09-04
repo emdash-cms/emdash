@@ -6,6 +6,7 @@ import type { Database } from "../../../src/database/types.js";
 import {
 	connectMcpHarness,
 	extractJson,
+	currentRev,
 	extractText,
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
@@ -45,7 +46,11 @@ describe("MCP conditional content publication", () => {
 		const created = await createDraft();
 		const result = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id: created.item.id },
+			arguments: {
+				collection: "post",
+				id: created.item.id,
+				_rev: await currentRev(harness.client, "post", created.item.id),
+			},
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
 		return extractJson<ContentResult>(result);
@@ -115,7 +120,11 @@ describe("MCP conditional content publication", () => {
 		const created = await createDraft();
 		const result = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id: created.item.id },
+			arguments: {
+				collection: "post",
+				id: created.item.id,
+				_rev: await currentRev(harness.client, "post", created.item.id),
+			},
 		});
 
 		expect(result.isError, extractText(result)).toBeFalsy();

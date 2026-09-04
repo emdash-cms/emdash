@@ -17,6 +17,7 @@ import type { Database } from "../../../src/database/types.js";
 import {
 	connectMcpHarness,
 	extractJson,
+	currentRev,
 	extractText,
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
@@ -160,6 +161,7 @@ describe("MCP markdown -> Portable Text on write", () => {
 				collection: "post",
 				id,
 				data: { content: "## Updated\n\nNew body." },
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		expect(updated.isError, extractText(updated)).toBeFalsy();

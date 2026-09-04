@@ -107,7 +107,7 @@ List content items in a collection with optional filtering and pagination.
 
 #### `content_get`
 
-Get a single content item by ID or slug. Returns all field values, metadata, and a `_rev` token for optimistic concurrency.
+Get a single content item by ID or slug. Returns all field values, metadata, and a `_rev` token. `content_update`, `content_publish`, `content_unpublish` and `content_discard_draft` require that token, so read the item here before calling them.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -118,7 +118,7 @@ Get a single content item by ID or slug. Returns all field values, metadata, and
 **Scope:** `content:read` | **Read-only:** Yes
 
 <Aside>
-	The `_rev` token in the response is used for conflict detection. Pass it back when updating to ensure no one else has modified the item since you read it.
+	A write built on a stale `_rev` token fails with a conflict instead of overwriting a change you have not seen. Read the item again and retry with the new token.
 </Aside>
 
 #### `content_create`
@@ -138,7 +138,7 @@ Create a new content item. The `data` object should contain field values matchin
 
 #### `content_update`
 
-Update an existing content item. Only include fields you want to change -- unspecified fields are left unchanged.
+Update an existing content item. Only include fields you want to change -- unspecified fields are left unchanged. When `status` is not set, a change to a published item is staged as a draft: the response shows the new values while the live version keeps the old ones until `content_publish`.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
@@ -147,7 +147,7 @@ Update an existing content item. Only include fields you want to change -- unspe
 | `data` | `object` | No | Field values to update |
 | `slug` | `string` | No | New URL slug |
 | `status` | `string` | No | New status: `draft` or `published` |
-| `_rev` | `string` | No | Revision token from `content_get` for conflict detection |
+| `_rev` | `string` | Yes | Revision token from `content_get`. The update fails with a conflict if the item changed since that read. |
 
 **Scope:** `content:write`
 
@@ -193,6 +193,7 @@ Publish a content item, making it live on the site. Creates a published revision
 | `collection` | `string` | Yes | Collection slug |
 | `id` | `string` | Yes | Content item ID or slug |
 | `publishedAt` | `string` | No | ISO 8601 publication date. Setting it requires `content:publish_any`. |
+| `_rev` | `string` | Yes | Revision token from `content_get`. The call fails with a conflict if the item changed since that read. |
 
 **Scope:** `content:write`
 
@@ -204,6 +205,7 @@ Revert a published item to draft status. It will no longer be visible on the liv
 | --- | --- | --- | --- |
 | `collection` | `string` | Yes | Collection slug |
 | `id` | `string` | Yes | Content item ID or slug |
+| `_rev` | `string` | Yes | Revision token from `content_get`. The call fails with a conflict if the item changed since that read. |
 
 **Scope:** `content:write`
 
@@ -249,6 +251,7 @@ Discard the current draft and revert to the last published version. Only works o
 | --- | --- | --- | --- |
 | `collection` | `string` | Yes | Collection slug |
 | `id` | `string` | Yes | Content item ID or slug |
+| `_rev` | `string` | Yes | Revision token from `content_get`. The call fails with a conflict if the item changed since that read. |
 
 **Scope:** `content:write` | **Destructive:** Yes
 

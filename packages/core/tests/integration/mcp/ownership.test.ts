@@ -16,7 +16,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
-import { connectMcpHarness, extractText, type McpHarness } from "../../utils/mcp-runtime.js";
+import {
+	connectMcpHarness,
+	currentRev,
+	extractText,
+	type McpHarness,
+} from "../../utils/mcp-runtime.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 const ADMIN_ID = "user_admin";
@@ -82,7 +87,12 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Updated by admin" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Updated by admin" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			// Currently fails with NULL_AUTHOR_ERROR. After fix: succeeds.
@@ -95,7 +105,12 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Updated by editor" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Updated by editor" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			expect(result.isError, extractText(result)).toBeFalsy();
@@ -107,7 +122,12 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Should fail" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Should fail" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			// AUTHOR has only content:edit_own — without an authorId match,
@@ -126,7 +146,12 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Should fail" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Should fail" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			expect(result.isError).toBe(true);
@@ -183,7 +208,11 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_publish",
-				arguments: { collection: "post", id: item.id },
+				arguments: {
+					collection: "post",
+					id: item.id,
+					_rev: await currentRev(harness.client, "post", item.id),
+				},
 			});
 
 			expect(result.isError, extractText(result)).toBeFalsy();
@@ -195,7 +224,7 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_unpublish",
-				arguments: { collection: "post", id },
+				arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 			});
 
 			expect(result.isError, extractText(result)).toBeFalsy();
@@ -254,7 +283,12 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Updated own" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Updated own" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			expect(result.isError, extractText(result)).toBeFalsy();
@@ -266,7 +300,12 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Updated other" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Updated other" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			expect(result.isError).toBe(true);
@@ -278,7 +317,12 @@ describe("MCP ownership — null authorId (bug #1)", () => {
 
 			const result = await harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: "Editor override" } },
+				arguments: {
+					collection: "post",
+					id,
+					data: { title: "Editor override" },
+					_rev: await currentRev(harness.client, "post", id),
+				},
 			});
 
 			expect(result.isError, extractText(result)).toBeFalsy();
@@ -316,7 +360,12 @@ describe("MCP ownership — error shape consistency", () => {
 
 		const result = await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id: item.id, data: { title: "Nope" } },
+			arguments: {
+				collection: "post",
+				id: item.id,
+				data: { title: "Nope" },
+				_rev: await currentRev(harness.client, "post", item.id),
+			},
 		});
 
 		expect(result.isError).toBe(true);

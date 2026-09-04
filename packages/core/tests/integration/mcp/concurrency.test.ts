@@ -17,6 +17,7 @@ import type { Database } from "../../../src/database/types.js";
 import {
 	connectMcpHarness,
 	extractJson,
+	revOf,
 	extractText,
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
@@ -106,17 +107,21 @@ describe("MCP concurrency — in-memory transport (bug #8 partial)", () => {
 		});
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
 
-		// 10 concurrent updates with different titles
+		// All ten build on one token, so at most one lands; corruption is the subject.
+		const rev = revOf(created);
 		const work = Array.from({ length: 10 }, (_, i) =>
 			harness.client.callTool({
 				name: "content_update",
-				arguments: { collection: "post", id, data: { title: `update ${i}` } },
+				arguments: { collection: "post", id, data: { title: `update ${i}` }, _rev: rev },
 			}),
 		);
 
 		const results = await Promise.all(work);
+		expect(results.some((result) => !result.isError)).toBe(true);
 		for (const result of results) {
-			expect(result.isError, extractText(result)).toBeFalsy();
+			if (result.isError) {
+				expect(extractText(result)).toMatch(/conflict|modified/i);
+			}
 		}
 
 		// Final state should be a valid title from one of the updates,
@@ -149,19 +154,18 @@ describe("MCP concurrency — in-memory transport (bug #8 partial)", () => {
 			expect(created.isError, extractText(created)).toBeFalsy();
 			const id = extractJson<{ item: { id: string } }>(created).item.id;
 
-			// 10 concurrent updates: 5 from admin (allowed), 5 from contributor
-			// who isn't the author (denied). All admin updates should succeed,
-			// all contributor updates should fail — no cross-contamination.
+			// Admin writes may lose the token race; only a permission refusal is wrong.
+			const rev = revOf(created);
 			const adminWork = Array.from({ length: 5 }, (_, i) =>
 				harness.client.callTool({
 					name: "content_update",
-					arguments: { collection: "post", id, data: { title: `admin ${i}` } },
+					arguments: { collection: "post", id, data: { title: `admin ${i}` }, _rev: rev },
 				}),
 			);
 			const contribWork = Array.from({ length: 5 }, (_, i) =>
 				userTwo.client.callTool({
 					name: "content_update",
-					arguments: { collection: "post", id, data: { title: `contrib ${i}` } },
+					arguments: { collection: "post", id, data: { title: `contrib ${i}` }, _rev: rev },
 				}),
 			);
 
@@ -171,8 +175,9 @@ describe("MCP concurrency — in-memory transport (bug #8 partial)", () => {
 			]);
 
 			for (const r of adminResults) {
-				expect(r.isError, extractText(r)).toBeFalsy();
+				if (r.isError) expect(extractText(r)).toMatch(/conflict|modified/i);
 			}
+			expect(adminResults.some((r) => !r.isError)).toBe(true);
 			for (const r of contribResults) {
 				expect(r.isError).toBe(true);
 			}
