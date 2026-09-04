@@ -1,0 +1,37 @@
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_829bdb541ea05c::t_94ea5da1987142 98,922,959-962
+packages/admin/src/components/PublishingDateTimeEditor.tsx
+  s_4d5d0325d98b80::t_c86c6c31223d46 78-86,92-95,129,175-179,451
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_4d5d0325d98b80::t_a720c77514d1ec 1964,1979
+packages/admin/tests/components/ContentSettingsPanel.test.tsx
+  s_4d5d0325d98b80::t_bfb9f5b0083dd9 91,760,762,800,847
+packages/admin/tests/components/PublishingDateTimeEditor.test.tsx
+  s_4d5d0325d98b80::t_d4219afe6a927f 39,51-53,58,61,76-77,79
+packages/admin/tests/publish-autosave-race.test.tsx
+  s_4d5d0325d98b80::t_6bdc242ffff9f5 288,671
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "559f188f6c93bb63cda75ab6aeee01c8ae4c9ef3",
+  "prompts": {},
+  "sessions": {
+    "s_4d5d0325d98b80": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0672f-d223-7e80-9e15-3f0c8ff09a30",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
