@@ -848,6 +848,24 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Normalizes a scheduledAt value to UTC before it's persisted.
+	 *
+	 * findReadyToPublish() compares scheduled_at against new Date().toISOString()
+	 * (always UTC/"Z") using plain string ordering, so any write path that stores
+	 * a caller-supplied offset (e.g. "+09:00") verbatim reproduces the late/early
+	 * publish bug fixed in schedule(). Every write path must normalize through
+	 * here rather than storing the raw input.
+	 */
+	private normalizeScheduledAt(value: string | null): string | null {
+		if (value === null) return null;
+		const scheduledDate = new Date(value);
+		if (isNaN(scheduledDate.getTime())) {
+			throw new EmDashValidationError("Invalid scheduled date");
+		}
+		return scheduledDate.toISOString();
+	}
+
+	/**
 	 * Update content
 	 */
 	async update(type: string, id: string, input: UpdateContentInput): Promise<ContentItem> {
@@ -871,7 +889,7 @@ export class ContentRepository {
 		}
 
 		if (input.scheduledAt !== undefined) {
-			updates.scheduled_at = input.scheduledAt;
+			updates.scheduled_at = this.normalizeScheduledAt(input.scheduledAt);
 		}
 
 		if (input.authorId !== undefined) {
@@ -1030,7 +1048,7 @@ export class ContentRepository {
 			liveMetadataChanged = true;
 		}
 		if (input.scheduledAt !== undefined) {
-			assignments.push(sql`scheduled_at = ${input.scheduledAt}`);
+			assignments.push(sql`scheduled_at = ${this.normalizeScheduledAt(input.scheduledAt)}`);
 			liveMetadataChanged = true;
 		}
 		if (input.authorId !== undefined) {
@@ -1537,10 +1555,14 @@ export class ContentRepository {
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
+		// Normalize to UTC before storing. findReadyToPublish() compares
+		// scheduled_at against new Date().toISOString() (always UTC/"Z") using
+		// plain string ordering, so a caller-supplied offset like "+09:00"
+		// would sort wrong and publish up to that many hours late/early.
 		await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
-				scheduled_at = ${scheduledAt},
+				scheduled_at = ${scheduledDate.toISOString()},
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
