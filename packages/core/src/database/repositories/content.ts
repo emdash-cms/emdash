@@ -1537,10 +1537,14 @@ export class ContentRepository {
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
+		// Normalize to UTC before storing. findReadyToPublish() compares
+		// scheduled_at against new Date().toISOString() (always UTC/"Z") using
+		// plain string ordering, so a caller-supplied offset like "+09:00"
+		// would sort wrong and publish up to that many hours late/early.
 		await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
-				scheduled_at = ${scheduledAt},
+				scheduled_at = ${scheduledDate.toISOString()},
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
