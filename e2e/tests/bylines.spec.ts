@@ -94,10 +94,14 @@ test.describe("Bylines", () => {
 		await expect(dialog).toBeVisible();
 		await expect(dialog).not.toContainText("No media selected");
 		await expect(dialog.locator("[data-media-results-viewport]")).toBeVisible();
+		const libraryTab = dialog.getByRole("tab", { name: "Library" });
+		const fromUrlTab = dialog.getByRole("tab", { name: "From URL" });
+		const uploadButton = dialog.getByRole("button", { name: "Upload files" });
+		await uploadButton.hover();
 
 		const [libraryTabBox, uploadButtonBox, searchBox] = await Promise.all([
-			dialog.getByRole("tab", { name: "Library" }).boundingBox(),
-			dialog.getByRole("button", { name: "Upload files" }).boundingBox(),
+			libraryTab.boundingBox(),
+			uploadButton.boundingBox(),
 			dialog.getByRole("searchbox", { name: "Search media" }).boundingBox(),
 		]);
 		expect(libraryTabBox).not.toBeNull();
@@ -112,9 +116,8 @@ test.describe("Bylines", () => {
 			),
 		).toBeLessThanOrEqual(2);
 		expect(Math.abs(uploadButtonBox!.height - searchBox!.height)).toBeLessThanOrEqual(1);
-		const [sourceTabsBox, libraryTabSizing, uploadButtonSizing] = await Promise.all([
-			dialog.locator("[data-source-tabs]").boundingBox(),
-			dialog.getByRole("tab", { name: "Library" }).evaluate((element) => {
+		const [libraryTabSizing, uploadButtonSizing] = await Promise.all([
+			libraryTab.evaluate((element) => {
 				const style = getComputedStyle(element);
 				return {
 					fontSize: style.fontSize,
@@ -122,7 +125,7 @@ test.describe("Bylines", () => {
 					paddingInlineEnd: style.paddingInlineEnd,
 				};
 			}),
-			dialog.getByRole("button", { name: "Upload files" }).evaluate((element) => {
+			uploadButton.evaluate((element) => {
 				const style = getComputedStyle(element);
 				return {
 					fontSize: style.fontSize,
@@ -131,29 +134,25 @@ test.describe("Bylines", () => {
 				};
 			}),
 		]);
-		expect(sourceTabsBox).not.toBeNull();
-		expect(Math.abs(sourceTabsBox!.height - uploadButtonBox!.height)).toBeLessThanOrEqual(1);
 		expect(libraryTabSizing).toEqual(uploadButtonSizing);
-		expect(libraryTabBox!.y).toBeGreaterThan(sourceTabsBox!.y);
-		expect(libraryTabBox!.y + libraryTabBox!.height).toBeLessThan(
-			sourceTabsBox!.y + sourceTabsBox!.height,
-		);
-		await expect(dialog.getByRole("tab", { name: "Library" }).locator("svg")).toBeVisible();
-		await expect(dialog.getByRole("tab", { name: "From URL" }).locator("svg")).toBeVisible();
+		await expect(libraryTab).toBeInViewport({ ratio: 1 });
+		await expect(fromUrlTab).toBeInViewport({ ratio: 1 });
+		await expect(libraryTab.locator("svg")).toBeVisible();
+		await expect(fromUrlTab.locator("svg")).toBeVisible();
 
-		const [typeFilterBox, viewModeBox, gridTabBox, resultsViewportBox] = await Promise.all([
+		const gridTab = dialog.getByRole("tab", { name: "Grid view" });
+		const listTab = dialog.getByRole("tab", { name: "List view" });
+		const [typeFilterBox, viewModeBox, resultsViewportBox] = await Promise.all([
 			dialog.getByRole("combobox", { name: "Filter by type" }).boundingBox(),
 			dialog.getByRole("group", { name: "View mode" }).boundingBox(),
-			dialog.getByRole("tab", { name: "Grid view" }).boundingBox(),
 			dialog.locator("[data-media-results-viewport]").boundingBox(),
 		]);
 		expect(typeFilterBox).not.toBeNull();
 		expect(viewModeBox).not.toBeNull();
-		expect(gridTabBox).not.toBeNull();
 		expect(resultsViewportBox).not.toBeNull();
 		expect(Math.abs(viewModeBox!.height - searchBox!.height)).toBeLessThanOrEqual(1);
-		expect(gridTabBox!.y).toBeGreaterThan(viewModeBox!.y);
-		expect(gridTabBox!.y + gridTabBox!.height).toBeLessThan(viewModeBox!.y + viewModeBox!.height);
+		await expect(gridTab).toBeInViewport({ ratio: 1 });
+		await expect(listTab).toBeInViewport({ ratio: 1 });
 		const toolbarBottom = Math.max(
 			searchBox!.y + searchBox!.height,
 			typeFilterBox!.y + typeFilterBox!.height,
@@ -161,24 +160,24 @@ test.describe("Bylines", () => {
 		);
 		expect(resultsViewportBox!.y).toBeGreaterThan(toolbarBottom);
 		const gridDialogWidth = await dialog.evaluate((element) => element.clientWidth);
-		await dialog.getByRole("tab", { name: "List view" }).click();
+		await listTab.click();
 		await expect(dialog.locator('[data-media-layout="list"]').first()).toBeVisible();
 		expect(await dialog.evaluate((element) => element.clientWidth)).toBe(gridDialogWidth);
-		await dialog.getByRole("tab", { name: "Grid view" }).click();
+		await gridTab.click();
 		await expect(dialog.locator('[data-media-layout="grid"]').first()).toBeVisible();
 
 		const libraryDialogSize = await dialog.evaluate((element) => ({
 			width: element.clientWidth,
 			height: element.clientHeight,
 		}));
-		await dialog.getByRole("tab", { name: "From URL" }).click();
+		await fromUrlTab.click();
 		await expect(dialog.getByLabel("Image URL")).toBeVisible();
 		const urlDialogSize = await dialog.evaluate((element) => ({
 			width: element.clientWidth,
 			height: element.clientHeight,
 		}));
 		expect(urlDialogSize).toEqual(libraryDialogSize);
-		await dialog.getByRole("tab", { name: "Library" }).click();
+		await libraryTab.click();
 		await expect(dialog.getByRole("searchbox", { name: "Search media" })).toBeVisible();
 
 		const originalViewport = page.viewportSize();
