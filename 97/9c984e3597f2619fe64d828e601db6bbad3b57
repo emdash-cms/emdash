@@ -1,0 +1,32 @@
+packages/admin/src/components/editor/GalleryDetailPanel.tsx
+  s_a5546e654e1f61::t_c027ba18066183 11-18,20-26,29,33,35,37,52,55,69-78,90-93,95,137-183,210,215-221,263,272-277,303-305,375-376,384,408-410,413-420,423-429,435-449,454-458,460,462-472,503-504,506-511
+docs/src/content/docs/guides/media-library.mdx
+  s_a5546e654e1f61::t_16489801d25b0b 244-259,265-266
+e2e/tests/media-library.spec.ts
+  s_a5546e654e1f61::t_9918be96a7b6c4 396-457
+  s_a5546e654e1f61::t_ce0c8893079319 393-395
+  s_a5546e654e1f61::t_aad0ee4c13b363 458-460
+  s_a5546e654e1f61::t_8db25e2d337b17 390-392,461-464
+packages/admin/src/components/editor/GalleryNode.tsx
+  s_a5546e654e1f61::t_828bbc44a6767c 13,19-24,86-112,216-217
+packages/admin/tests/gallery-detail-panel.test.tsx
+  s_a5546e654e1f61::t_88ccf7db07de91 26-37,44-116,312-442
+.changeset/bright-otters-edit.md
+  s_a5546e654e1f61::t_efba64f90b2fc0 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "979c984e3597f2619fe64d828e601db6bbad3b57",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,37 @@
+packages/admin/src/components/ContentEditor.tsx
+  s_a5546e654e1f61::t_45a50d8d90fd5f 1863,1899-1900
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_a5546e654e1f61::t_685d62c1e66613 264,331,333,475-489
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_a5546e654e1f61::t_dc6fcc7c017359 696
+docs/src/content/docs/guides/media-library.mdx
+  s_a5546e654e1f61::t_8bbc6dabaa625e 248,257
+e2e/tests/media-library.spec.ts
+  s_a5546e654e1f61::t_d7a04a55576a30 478
+packages/admin/src/components/editor/GalleryDetailPanel.tsx
+  s_a5546e654e1f61::t_e9638e9d972906 447,503-504
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_a5546e654e1f61::t_c4e49d5b3f19b1 226,291-292
+packages/admin/tests/components/ImageDetailPanel.test.tsx
+  s_a5546e654e1f61::t_3f61895f5f6826 147,176,314
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_a5546e654e1f61::t_0d5feae18cddf7 182,330,357,401,552
+packages/admin/tests/gallery-detail-panel.test.tsx
+  s_a5546e654e1f61::t_6034734f5588b6 362
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a2498f4487827145261f50904fc43d4d9aa24076",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
