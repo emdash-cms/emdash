@@ -1,5 +1,44 @@
 # @emdash-cms/registry-cli
 
+## 0.10.0
+
+### Minor Changes
+
+- [#2892](https://github.com/emdash-cms/emdash/pull/2892) [`66aeecd`](https://github.com/emdash-cms/emdash/commit/66aeecd1feded23c2ee607b799500c390a04eb92) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds interactive package-profile setup for delegated plugin releases. `emdash-plugin release setup` now creates a missing profile or adds delegated-release settings to an existing valid profile before writing the GitHub Actions workflow. Run `emdash-plugin profile setup` to prepare only the profile.
+
+  Interactive setup asks for the GitHub repository when it is absent from `emdash-plugin.jsonc`, lets you choose when releases require approval, and confirms the profile write. Non-interactive callers must pass `--yes` when a profile change is required.
+
+  The release service returns `PACKAGE_PROFILE_REQUIRED` before accepting artifact uploads when the signed profile is missing, lacks delegated-release settings, or names a different GitHub repository. Existing release intents also terminate with an actionable reason if their authoritative profile becomes invalid.
+
+- [#2747](https://github.com/emdash-cms/emdash/pull/2747) [`3b124f2`](https://github.com/emdash-cms/emdash/commit/3b124f23126fead8884884b9f3d53e3be5d41bd3) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds typed clients for the experimental delegated release service. `ReleaseServiceClient` submits, polls, and cancels GitHub OpenID Connect release intents; manages publisher workload policies and retained delegation; and lets publishers check whether profile-listed approvers have an active passkey and inspect publisher-scoped audit events through a publisher session. `ReleaseServiceOperatorClient` exposes the Cloudflare Access status and sanitized audit, sharded publisher and approver inventory, pause, suspension, revocation, cancellation, reconciliation, resumable encryption-key rotation, Workflow-backed fleet verification, audited key retirement, encrypted R2 archive, and fail-safe publisher restore and abort operations.
+
+  `ReleaseServiceClient` can request, poll, list, and confirm GitHub workflow connections. The first permanent release run records GitHub's signed repository, workflow, ref, and environment as a pending request and returns a browser approval URL. The publisher must confirm those details before the service creates a workload policy. Tag-based connections can cover the current tag or all version tags while keeping the repository and workflow path exact.
+
+  Both clients validate response envelopes and return stable `ReleaseServiceError` codes with retry metadata. Mutation helpers require idempotency keys, and workload polling requests a fresh token from the configured provider for each call.
+
+  The plugin CLI adds `emdash-plugin release dry-run`, `release submit`, `release status`, and `release cancel` for GitHub Actions jobs. The first `release submit` requests browser approval for the permanent workflow and waits for confirmation before creating an intent. Dry-run verifies existing workload admission without creating a connection request, intent, consuming rate budget, or reserving a version. The commands request audience-bound OIDC tokens from the runner, support JSON output, and use the GitHub run identity as the default idempotency key where a mutation occurs.
+
+  Delegated submissions use a URL-source release record: each package or listing-image artifact supplies a checksum-bound HTTPS URL and no blob. The service stages and uploads those bytes through the publisher's delegation, then creates a blob-only release record. Submit and dry-run reject mixed or blob-backed source inputs before requesting GitHub OIDC.
+
+  Interactive `release delegate`, `revoke`, `workload`, `enrol`, `approve`, and `reject` commands print validated browser handoffs. Publisher application sessions, OAuth credentials, and passkey assertions remain at the release-service origin instead of entering the terminal process.
+
+- [#2749](https://github.com/emdash-cms/emdash/pull/2749) [`920e1f3`](https://github.com/emdash-cms/emdash/commit/920e1f3fe6a7c7bf725c85e26f81e588e1201243) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `emdash-plugin release setup` to create the permanent GitHub Actions workflow for delegated plugin releases. The generated workflow builds and attests the plugin, waits for first-run browser authorization, and uploads its exact bundle and provenance through GitHub OIDC before publishing.
+
+  `ReleaseServiceClient.uploadReleaseArtifact()` supports custom workflows that need to stage checksum-bound bundle, image, or provenance bytes. Existing URL-source `release submit` workflows remain supported.
+
+### Patch Changes
+
+- [#2743](https://github.com/emdash-cms/emdash/pull/2743) [`d99a0e8`](https://github.com/emdash-cms/emdash/commit/d99a0e835628edca896e304700746707e1bf56e7) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes saved OAuth sessions failing to refresh or revoke after the original loopback callback server closes. New logins retain the loopback client registration needed to recreate the same OAuth client.
+
+  Sessions created before this fix do not contain that registration metadata and cannot be resumed. Sign in again after upgrading.
+
+- [#2848](https://github.com/emdash-cms/emdash/pull/2848) [`e0e60ba`](https://github.com/emdash-cms/emdash/commit/e0e60ba17b93d2022411afb8a3187c08e5142c18) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds publisher-created workflow connection invitations to delegated releases. First-time or unmatched GitHub workflows must use a package-bound, single-use invitation before they can request publisher approval; connected workflows continue without one.
+
+  Create the invitation in the publisher dashboard or with `createWorkflowConnectionInvitation()`, then save its value as the repository's `EMDASH_CONNECTION_INVITATION` GitHub Actions secret. The generated release workflow passes this secret to the release Action automatically. Custom workflows can pass `invitationToken` to `requestWorkflowConnection()`, and publishers can reject pending requests with `rejectWorkflowConnection()`.
+
+- Updated dependencies [[`66aeecd`](https://github.com/emdash-cms/emdash/commit/66aeecd1feded23c2ee607b799500c390a04eb92), [`52fffdc`](https://github.com/emdash-cms/emdash/commit/52fffdc3556396f48a5320a0213da1a03337f642), [`3b124f2`](https://github.com/emdash-cms/emdash/commit/3b124f23126fead8884884b9f3d53e3be5d41bd3), [`920e1f3`](https://github.com/emdash-cms/emdash/commit/920e1f3fe6a7c7bf725c85e26f81e588e1201243), [`e0e60ba`](https://github.com/emdash-cms/emdash/commit/e0e60ba17b93d2022411afb8a3187c08e5142c18), [`c7b6fdf`](https://github.com/emdash-cms/emdash/commit/c7b6fdfd1f5dd9a168f5d0f6bfa9b7b9ff343145)]:
+  - @emdash-cms/registry-client@0.5.0
+
 ## 0.9.0
 
 ### Minor Changes
