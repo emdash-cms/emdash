@@ -950,11 +950,29 @@ describe("MediaDetailPanel", () => {
 				expect.objectContaining({ name: "photo-80x80.jpg", type: "image/jpeg" }),
 				{ deduplicate: false, ensureUniqueFilename: true, folderId: "folder-1" },
 			);
-			expect(onCroppedCopyCreated).toHaveBeenCalledTimes(1);
+			expect(onCroppedCopyCreated).toHaveBeenCalledWith(duplicate);
 		});
 		expect(onClose).toHaveBeenCalledTimes(1);
 		expect(replaceMediaImage).not.toHaveBeenCalled();
 		expect(onItemRefreshed).not.toHaveBeenCalled();
+	});
+
+	it("keeps asset-management controls out of content workflows", async () => {
+		const screen = await renderPanel({
+			item: makeLocalItem(),
+			context: "content",
+			canDelete: true,
+			canMoveLocation: true,
+			canCropOriginal: true,
+			canDuplicateCrop: true,
+		});
+
+		await expect.element(screen.getByRole("tab", { name: "Details" })).toBeVisible();
+		await expect.element(screen.getByRole("tab", { name: "Edit image" })).toBeVisible();
+		expect(screen.getByRole("tab", { name: "Used in" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Delete" }).query()).toBeNull();
+		expect(screen.getByRole("combobox", { name: "Location" }).query()).toBeNull();
+		await expect.element(screen.getByText("Product photos")).toBeVisible();
 	});
 
 	it("confirms and replaces the original while keeping the dialog open", async () => {

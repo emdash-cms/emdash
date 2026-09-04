@@ -138,6 +138,7 @@ interface MediaLocationOption {
 export interface MediaDetailPanelProps {
 	open: boolean;
 	item: MediaItem;
+	context?: "library" | "content";
 	providerName?: string;
 	canDelete?: boolean;
 	canMoveLocation?: boolean;
@@ -149,7 +150,7 @@ export interface MediaDetailPanelProps {
 	onClosed?: () => void;
 	onUpdated?: () => void;
 	onItemRefreshed?: (item: LocalMediaItem) => void;
-	onCroppedCopyCreated?: () => void;
+	onCroppedCopyCreated?: (item: LocalMediaItem) => void;
 	onDeleted?: () => void;
 }
 
@@ -159,6 +160,7 @@ export interface MediaDetailPanelProps {
 export function MediaDetailPanel({
 	open,
 	item,
+	context = "library",
 	providerName,
 	canDelete: canDeleteProp,
 	canMoveLocation: canMoveLocationProp,
@@ -199,10 +201,10 @@ export function MediaDetailPanel({
 	// Present when the item streams rather than resolving to a playable file.
 	const playback = metaPlayback(item.meta);
 	const canEditMetadata = !isProviderAsset && isImage;
-	const hasUsage = !isProviderAsset;
-	const canDelete = !isProviderAsset || Boolean(canDeleteProp);
+	const hasUsage = context === "library" && !isProviderAsset;
+	const canDelete = context === "library" && (!isProviderAsset || Boolean(canDeleteProp));
 	const localItem = isLocalMediaItem(item) ? item : null;
-	const canMoveLocation = Boolean(localItem && canMoveLocationProp);
+	const canMoveLocation = context === "library" && Boolean(localItem && canMoveLocationProp);
 	const canReplaceOriginal = canReplaceOriginalProp ?? canCropOriginal;
 	const cropMime = normalizeCropMime(item.mimeType);
 	const canShowCrop = Boolean(
@@ -665,7 +667,7 @@ export function MediaDetailPanel({
 		onSuccess: ({ action, item: croppedItem }) => {
 			void queryClient.invalidateQueries({ queryKey: ["media"] });
 			if (action === "duplicate") {
-				onCroppedCopyCreated?.();
+				onCroppedCopyCreated?.(croppedItem);
 				onUpdated?.();
 				setCropAspectMode("original");
 				setCropSelection(undefined);

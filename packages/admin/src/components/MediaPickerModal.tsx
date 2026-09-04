@@ -20,6 +20,7 @@ import {
 	List,
 	LinkSimple,
 	Paperclip,
+	PencilSimple,
 	SquaresFour,
 	Upload,
 	X,
@@ -45,8 +46,10 @@ import {
 	uploadToProvider,
 	updateMedia,
 	type MediaItem,
+	type LocalMediaItem,
 	type MediaProviderItem,
 } from "../lib/api.js";
+import { useCurrentUser } from "../lib/api/current-user.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { canonicalMediaProviderId, providerItemToMediaItem } from "../lib/media-utils.js";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
@@ -58,10 +61,23 @@ import {
 	mimeForMediaTypeFilter,
 } from "./media/MediaBrowserItems.js";
 import { useMediaUploadQueue } from "./media/useMediaUploadQueue.js";
+import { MediaDetailPanel } from "./MediaDetailPanel.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 const URL_SOURCE = "__url";
 const PICKER_PAGE_SIZE = 12;
+const ROLE_CONTRIBUTOR = 20;
+const ROLE_AUTHOR = 30;
+const ROLE_EDITOR = 40;
+const EMPTY_DETAIL_ITEM: MediaItem = {
+	id: "",
+	filename: "",
+	mimeType: "application/octet-stream",
+	url: "",
+	size: 0,
+	createdAt: "",
+	provider: "picker-placeholder",
+};
 
 interface SelectedMedia {
 	key: string;
@@ -198,6 +214,7 @@ export function MediaPickerModal({
 }: MediaPickerModalProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const currentUser = useCurrentUser().data;
 	const isFileKind = mediaKind === "file";
 	const filters = React.useMemo(() => {
 		if (mimeTypeFilters !== undefined) {
@@ -229,11 +246,21 @@ export function MediaPickerModal({
 	const [providerDimensions, setProviderDimensions] = React.useState<
 		Record<string, { width: number; height: number }>
 	>({});
+	const [browseOpen, setBrowseOpen] = React.useState(open);
+	const [assetOpen, setAssetOpen] = React.useState(false);
+	const [assetItem, setAssetItem] = React.useState<MediaItem>(EMPTY_DETAIL_ITEM);
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
+	const editAssetButtonRef = React.useRef<HTMLButtonElement>(null);
 	const updatedDimensionsRef = React.useRef(new Set<string>());
 	const urlProbeIdRef = React.useRef(0);
 	const uploadTargetsRef = React.useRef(new Map<number, string>());
 	const selectionOrderEditedRef = React.useRef(false);
+	const parentOpenRef = React.useRef(open);
+	const flowGenerationRef = React.useRef(0);
+	const transitionRef = React.useRef<
+		{ kind: "open-asset" | "return-browse"; generation: number } | undefined
+	>(undefined);
+	const restoreEditFocusRef = React.useRef(false);
 	const invalidateUrlProbe = React.useCallback(() => {
 		urlProbeIdRef.current += 1;
 		setIsProbing(false);
@@ -259,6 +286,24 @@ export function MediaPickerModal({
 		[fieldId],
 	);
 	const uploadQueue = useMediaUploadQueue<UploadedMedia>({ upload: uploadFile });
+
+	React.useEffect(() => {
+		const wasOpen = parentOpenRef.current;
+		parentOpenRef.current = open;
+		if (!open) {
+			flowGenerationRef.current += 1;
+			transitionRef.current = undefined;
+			restoreEditFocusRef.current = false;
+			setBrowseOpen(false);
+			setAssetOpen(false);
+			return;
+		}
+		if (wasOpen) return;
+		flowGenerationRef.current += 1;
+		transitionRef.current = undefined;
+		setAssetOpen(false);
+		setBrowseOpen(true);
+	}, [open]);
 
 	React.useEffect(() => {
 		if (!open) return;
@@ -637,6 +682,110 @@ export function MediaPickerModal({
 		setSelectedItems((current) => current.filter((item) => item.key !== selected.key));
 		setLiveMessage(t`Removed ${selected.item.filename} from selection.`);
 	};
+	const editableSelection = React.useMemo(() => {
+		if (selectedItems.length !== 1 || !currentUser) return null;
+		const selected = selectedItems[0]!;
+		if (selected.providerId !== "local" || !selected.item.mimeType.startsWith("image/")) {
+			return null;
+		}
+		const item = selected.item as LocalMediaItem;
+		const canEdit =
+			currentUser.role >= ROLE_EDITOR ||
+			(currentUser.role >= ROLE_AUTHOR && item.authorId === currentUser.id);
+		return canEdit ? item : null;
+	}, [currentUser, selectedItems]);
+	const replaceSelectedLocalItem = React.useCallback((item: LocalMediaItem) => {
+		setSelectedItems((current) =>
+			current.map((selected) =>
+				selected.providerId === "local" && selected.item.id === item.id
+					? { ...selected, item }
+					: selected,
+			),
+		);
+		setPinnedItems((current) =>
+			current.map((selected) =>
+				selected.providerId === "local" && selected.item.id === item.id
+					? { ...selected, item }
+					: selected,
+			),
+		);
+	}, []);
+	const cacheLocalItem = React.useCallback(
+		(item: LocalMediaItem) => {
+			queryClient.setQueryData(["media", item.id], item);
+			queryClient.setQueriesData<{ items: LocalMediaItem[] }>({ queryKey: ["media"] }, (current) =>
+				current && Array.isArray(current.items)
+					? {
+							...current,
+							items: current.items.map((entry) => (entry.id === item.id ? item : entry)),
+						}
+					: current,
+			);
+		},
+		[queryClient],
+	);
+	const handleAssetRefreshed = React.useCallback(
+		(item: LocalMediaItem) => {
+			setAssetItem(item);
+			replaceSelectedLocalItem(item);
+			cacheLocalItem(item);
+		},
+		[cacheLocalItem, replaceSelectedLocalItem],
+	);
+	const handleCroppedCopyCreated = React.useCallback(
+		(item: LocalMediaItem) => {
+			const selected: SelectedMedia = {
+				key: selectionKey("local", item),
+				providerId: "local",
+				item,
+			};
+			setAssetItem(item);
+			setPinnedItems((current) => appendUniqueSelections(current, [selected]));
+			setSelectedItems((current) => {
+				if (!multiple) return [selected];
+				const sourceId = assetItem.id;
+				const sourceIndex = current.findIndex(
+					(entry) => entry.providerId === "local" && entry.item.id === sourceId,
+				);
+				if (sourceIndex === -1) return appendUniqueSelections(current, [selected]);
+				const next = [...current];
+				next[sourceIndex] = selected;
+				return next;
+			});
+			cacheLocalItem(item);
+			void queryClient.invalidateQueries({ queryKey: ["media"] });
+		},
+		[assetItem.id, cacheLocalItem, multiple, queryClient],
+	);
+	const openAssetEditor = () => {
+		if (!editableSelection || uploadQueue.hasUnfinished) return;
+		setAssetItem(editableSelection);
+		transitionRef.current = {
+			kind: "open-asset",
+			generation: flowGenerationRef.current,
+		};
+		setBrowseOpen(false);
+	};
+	const closeAssetEditor = () => {
+		transitionRef.current = {
+			kind: "return-browse",
+			generation: flowGenerationRef.current,
+		};
+		setAssetOpen(false);
+	};
+	const handleAssetClosed = () => {
+		const transition = transitionRef.current;
+		if (
+			!parentOpenRef.current ||
+			transition?.kind !== "return-browse" ||
+			transition.generation !== flowGenerationRef.current
+		) {
+			return;
+		}
+		transitionRef.current = undefined;
+		restoreEditFocusRef.current = true;
+		setBrowseOpen(true);
+	};
 	const confirmText =
 		confirmLabel ??
 		(multiple
@@ -738,11 +887,29 @@ export function MediaPickerModal({
 			</section>
 		) : null;
 
-	return (
+	const browseDialog = (
 		<Dialog.Root
-			open={open}
+			open={open && browseOpen}
 			onOpenChange={(nextOpen) => {
-				if (!nextOpen) handleClose();
+				if (!nextOpen && transitionRef.current?.kind !== "open-asset") handleClose();
+			}}
+			onOpenChangeComplete={(nextOpen) => {
+				if (nextOpen) {
+					if (!restoreEditFocusRef.current) return;
+					restoreEditFocusRef.current = false;
+					editAssetButtonRef.current?.focus({ preventScroll: true });
+					return;
+				}
+				const transition = transitionRef.current;
+				if (
+					!parentOpenRef.current ||
+					transition?.kind !== "open-asset" ||
+					transition.generation !== flowGenerationRef.current
+				) {
+					return;
+				}
+				transitionRef.current = undefined;
+				setAssetOpen(true);
 			}}
 		>
 			<Dialog
@@ -1321,6 +1488,17 @@ export function MediaPickerModal({
 					data-media-actions
 				>
 					<div className="flex flex-wrap items-center justify-end gap-2">
+						{editableSelection && (
+							<Button
+								ref={editAssetButtonRef}
+								variant="outline"
+								onClick={openAssetEditor}
+								disabled={uploadQueue.hasUnfinished}
+								icon={<PencilSimple aria-hidden="true" />}
+							>
+								{t`Edit asset`}
+							</Button>
+						)}
 						<Button variant="outline" onClick={handleClose}>
 							{t`Cancel`}
 						</Button>
@@ -1350,6 +1528,24 @@ export function MediaPickerModal({
 				</span>
 			</Dialog>
 		</Dialog.Root>
+	);
+
+	return (
+		<>
+			{browseDialog}
+			<MediaDetailPanel
+				open={open && assetOpen}
+				item={assetItem}
+				context="content"
+				canCropOriginal={Boolean(editableSelection)}
+				canDuplicateCrop={(currentUser?.role ?? 0) >= ROLE_CONTRIBUTOR}
+				restoreFocusTargetRef={editAssetButtonRef}
+				onClose={closeAssetEditor}
+				onClosed={handleAssetClosed}
+				onItemRefreshed={handleAssetRefreshed}
+				onCroppedCopyCreated={handleCroppedCopyCreated}
+			/>
+		</>
 	);
 }
 
