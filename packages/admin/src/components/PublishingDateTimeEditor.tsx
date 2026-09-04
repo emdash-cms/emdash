@@ -30,10 +30,6 @@ function getLocalToday(): Date {
 	return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
-function numericTimePart(value: string): string {
-	return value.replace(/\D/g, "").slice(0, 2);
-}
-
 export function PublishingDateTimeFields({
 	date,
 	time,
@@ -54,26 +50,6 @@ export function PublishingDateTimeFields({
 	const { timeZone, shortName } = getPublishingTimeZone(zoneDate, i18n.locale);
 	const zoneDetails = timeZone ? (shortName ? `${timeZone} (${shortName})` : timeZone) : null;
 	const zoneValue = zoneDetails ?? t`Local time`;
-	const [hour = "", minute = ""] = time.split(":");
-	const minuteInputRef = React.useRef<HTMLInputElement>(null);
-	const updateTime = (nextHour: string, nextMinute: string) => {
-		onTimeChange(nextHour || nextMinute ? `${nextHour}:${nextMinute}` : "");
-	};
-	const updateHour = (value: string) => {
-		let nextHour = numericTimePart(value);
-		if (nextHour.length === 1 && Number(nextHour) > 2) nextHour = `0${nextHour}`;
-		if (nextHour.length === 2 && Number(nextHour) > 23) return;
-		updateTime(nextHour, minute);
-		if (nextHour.length === 2) {
-			minuteInputRef.current?.focus();
-			minuteInputRef.current?.select();
-		}
-	};
-	const updateMinute = (value: string) => {
-		const nextMinute = numericTimePart(value);
-		if (nextMinute.length === 2 && Number(nextMinute) > 59) return;
-		updateTime(hour, nextMinute);
-	};
 
 	return (
 		<div className="space-y-4">
@@ -99,64 +75,24 @@ export function PublishingDateTimeFields({
 				<Text as="legend" bold DANGEROUS_className="mb-2">
 					{t`Time`}
 				</Text>
-				<div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
-					<Input
-						aria-label={t`Hour`}
-						placeholder={t`HH`}
-						value={hour}
-						type="text"
-						inputMode="numeric"
-						maxLength={2}
-						pattern="[0-9]*"
-						autoComplete="off"
-						enterKeyHint="next"
-						onChange={(event) => updateHour(event.target.value)}
-						onFocus={(event) => event.currentTarget.select()}
-						onBlur={(event) => {
-							const blurredHour = numericTimePart(event.currentTarget.value);
-							if (blurredHour.length === 1) updateTime(blurredHour.padStart(2, "0"), minute);
-						}}
-						disabled={disabled}
-						className="w-full tabular-nums"
-					/>
-					<Text as="span" variant="secondary" DANGEROUS_className="tabular-nums">
-						:
-					</Text>
-					<Input
-						ref={minuteInputRef}
-						aria-label={t`Minute`}
-						placeholder={t`MM`}
-						value={minute}
-						type="text"
-						inputMode="numeric"
-						maxLength={2}
-						pattern="[0-9]*"
-						autoComplete="off"
-						enterKeyHint="done"
-						onChange={(event) => updateMinute(event.target.value)}
-						onFocus={(event) => event.currentTarget.select()}
-						onBlur={(event) => {
-							const blurredMinute = numericTimePart(event.currentTarget.value);
-							if (blurredMinute.length === 1) updateTime(hour, blurredMinute.padStart(2, "0"));
-						}}
-						disabled={disabled}
-						className="w-full tabular-nums"
-					/>
-				</div>
+				<Input
+					aria-label={t`Time`}
+					type="time"
+					step={60}
+					value={time}
+					onChange={(event) => onTimeChange(event.target.value)}
+					disabled={disabled}
+					className="w-full tabular-nums"
+				/>
 			</fieldset>
 			<div className="flex items-start gap-2 text-kumo-subtle">
 				<span className="flex h-lh items-center" aria-hidden="true">
 					<Globe className="size-4" />
 				</span>
-				<div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
-					<Text as="span" variant="secondary">
-						{t`Timezone`}
-					</Text>
-					<span aria-hidden="true">·</span>
-					<Text as="span" variant="secondary" DANGEROUS_className="min-w-0">
-						<bdi>{zoneValue}</bdi>
-					</Text>
-				</div>
+				<Text as="p" variant="secondary" DANGEROUS_className="min-w-0">
+					<span className="sr-only">{t`Timezone`}: </span>
+					<bdi>{zoneValue}</bdi>
+				</Text>
 			</div>
 		</div>
 	);
@@ -190,7 +126,7 @@ function validationMessage(error: PublishingDateTimeError, t: ReturnType<typeof 
 
 interface PublishingDateTimeDialogContentProps {
 	title: string;
-	description: string;
+	description?: string;
 	date: Date | undefined;
 	time: string;
 	pending: boolean;
@@ -236,9 +172,11 @@ function PublishingDateTimeDialogContent({
 				<div className="flex items-start justify-between gap-4">
 					<div className="min-w-0 grid gap-1.5">
 						<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
-						<Dialog.Description className="text-base leading-5 text-pretty text-kumo-subtle">
-							{description}
-						</Dialog.Description>
+						{description ? (
+							<Dialog.Description className="text-base leading-5 text-pretty text-kumo-subtle">
+								{description}
+							</Dialog.Description>
+						) : null}
 					</div>
 					<Dialog.Close
 						render={
@@ -510,7 +448,7 @@ export function PublicationDateDialog({
 					<Text as="span" variant="secondary" truncate DANGEROUS_className="flex-1 text-start">
 						{label}
 					</Text>
-					<span className="flex shrink-0 items-center justify-end gap-1 whitespace-nowrap text-end">
+					<span className="flex shrink-0 items-center justify-end gap-1.5 whitespace-nowrap text-end">
 						<time dateTime={publishedAt}>{formattedValue}</time>
 						<PencilSimple className="size-3 shrink-0" aria-hidden="true" />
 					</span>
@@ -518,7 +456,6 @@ export function PublicationDateDialog({
 			</Dialog.Trigger>
 			<PublishingDateTimeDialogContent
 				title={t`Change publication date`}
-				description={t`Change the recorded date for the live version.`}
 				date={date}
 				time={time}
 				pending={pending}

@@ -95,10 +95,7 @@ function PublishingVersionRow({
 		<div className="flex items-start gap-3">
 			<span className="relative flex w-3.5 shrink-0 self-stretch justify-center">
 				{connectToNext ? (
-					<span
-						className="absolute top-2.5 -bottom-[1.625rem] w-px bg-kumo-line"
-						aria-hidden="true"
-					/>
+					<span className="absolute top-6 -bottom-3 w-px bg-kumo-line" aria-hidden="true" />
 				) : null}
 				<span className="relative z-10 flex h-5 items-center bg-kumo-base">
 					<ContentStatusIcon state={iconState} decorative />
@@ -922,7 +919,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<div
 										data-testid="content-timestamps"
 										className={cn(
-											"px-3 py-2.5",
+											"px-3 py-3",
 											showPublishingRelationship && "border-t border-kumo-line",
 										)}
 									>
@@ -959,7 +956,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 													<Button
 														type="button"
 														variant="ghost"
-														className="-mx-2 mt-1 h-auto min-h-9 w-[calc(100%+1rem)] justify-between whitespace-normal px-2 py-1.5 font-normal"
+														className={cn(
+															"-mx-2 h-auto min-h-8 w-[calc(100%+1rem)] justify-between whitespace-normal px-2 py-1 font-normal",
+															item.publishedAt && "mt-1",
+														)}
 													/>
 												}
 											>

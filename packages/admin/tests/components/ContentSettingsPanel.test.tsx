@@ -88,9 +88,7 @@ async function setPublishingTime(
 	screen: Awaited<ReturnType<typeof render>>,
 	time: `${string}:${string}`,
 ) {
-	const [hour = "", minute = ""] = time.split(":");
-	await screen.getByRole("textbox", { name: "Hour" }).fill(hour);
-	await screen.getByRole("textbox", { name: "Minute" }).fill(minute);
+	await screen.getByLabelText("Time").fill(time);
 }
 
 function makeByline(): BylineSummary {
@@ -759,16 +757,9 @@ describe("ContentSettingsPanel", () => {
 			expect(screen.container.querySelector('input[type="time"]')).toBeNull();
 			await trigger.getByText("Publication date", { exact: true }).click();
 			const dialog = screen.getByRole("dialog", { name: "Change publication date" });
-			await expect
-				.element(dialog.getByText("Change the recorded date for the live version."))
-				.toBeVisible();
+			expect(dialog.getByText("Change the recorded date for the live version.").query()).toBeNull();
 			expect(dialog.getByText("Date", { exact: true }).query()).toBeNull();
-			await expect
-				.element(screen.getByRole("textbox", { name: "Hour" }))
-				.toHaveValue(initial.time.slice(0, 2));
-			await expect
-				.element(screen.getByRole("textbox", { name: "Minute" }))
-				.toHaveValue(initial.time.slice(3));
+			await expect.element(screen.getByLabelText("Time")).toHaveValue(initial.time);
 			await expect.element(dialog.getByRole("button", { name: "Save date" })).toBeDisabled();
 			fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }).element());
 			expect(onPublishedAtChange).not.toHaveBeenCalled();
@@ -806,8 +797,7 @@ describe("ContentSettingsPanel", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
-		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
-		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
+		await expect.element(screen.getByLabelText("Time")).toHaveValue("08:45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();
 	});
 
@@ -854,12 +844,7 @@ describe("ContentSettingsPanel", () => {
 
 		await screen.getByRole("button", { name: /Change publication date:/ }).click();
 		const resetTime = publishingInstantToLocalFields(secondPublishedAt).time;
-		await expect
-			.element(screen.getByRole("textbox", { name: "Hour" }))
-			.toHaveValue(resetTime.slice(0, 2));
-		await expect
-			.element(screen.getByRole("textbox", { name: "Minute" }))
-			.toHaveValue(resetTime.slice(3));
+		await expect.element(screen.getByLabelText("Time")).toHaveValue(resetTime);
 	});
 
 	it("lets editors update a retained publication date while content is unpublished", async () => {

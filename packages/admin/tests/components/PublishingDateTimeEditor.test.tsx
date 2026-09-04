@@ -1,7 +1,6 @@
 import { i18n } from "@lingui/core";
 import * as React from "react";
 import { expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
 
 import { PublishingDateTimeFields } from "../../src/components/PublishingDateTimeEditor.js";
 import { getPublishingTimeZone } from "../../src/lib/publishing-datetime.js";
@@ -37,7 +36,7 @@ it("returns the calendar to the current month when a new entry has no saved date
 	await expect.element(screen.getByText(currentMonth, { exact: true })).toBeVisible();
 });
 
-it("uses Kumo hour and minute text inputs instead of the browser time picker", async () => {
+it("uses a Kumo native time input", async () => {
 	const date = new Date(2035, 5, 15, 12);
 	const screen = await render(
 		<PublishingDateTimeFields
@@ -49,16 +48,17 @@ it("uses Kumo hour and minute text inputs instead of the browser time picker", a
 		/>,
 	);
 
-	await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("09");
-	await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("05");
+	const timeInput = screen.getByLabelText("Time");
+	await expect.element(timeInput).toHaveValue("09:05");
+	await expect.element(timeInput).toHaveAttribute("type", "time");
 	const { timeZone, shortName } = getPublishingTimeZone(date, i18n.locale);
 	const zoneDetails = timeZone ? (shortName ? `${timeZone} (${shortName})` : timeZone) : null;
 	expect(zoneDetails).not.toBeNull();
 	await expect.element(screen.getByText(zoneDetails!, { exact: true })).toBeVisible();
-	expect(screen.container.querySelector('input[type="time"]')).toBeNull();
+	expect(screen.container.querySelectorAll('input[type="time"]')).toHaveLength(1);
 });
 
-it("filters keyboard input and moves focus after a valid two-digit hour", async () => {
+it("accepts browser-native time values", async () => {
 	function ControlledFields() {
 		const [time, setTime] = React.useState("09:05");
 		return (
@@ -73,12 +73,8 @@ it("filters keyboard input and moves focus after a valid two-digit hour", async 
 	}
 
 	const screen = await render(<ControlledFields />);
-	const hour = screen.getByRole("textbox", { name: "Hour" });
-	const minute = screen.getByRole("textbox", { name: "Minute" });
+	const timeInput = screen.getByLabelText("Time");
+	await timeInput.fill("14:43");
 
-	await hour.click();
-	await userEvent.keyboard("a1b4");
-
-	await expect.element(hour).toHaveValue("14");
-	await expect.element(minute).toHaveFocus();
+	await expect.element(timeInput).toHaveValue("14:43");
 });

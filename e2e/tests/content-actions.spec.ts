@@ -149,15 +149,11 @@ test.describe("Schedule content", () => {
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		await expect(dialog).toBeVisible({ timeout: 5000 });
 		await selectTomorrow(dialog);
-		const hourInput = dialog.getByRole("textbox", { name: "Hour" });
-		const minuteInput = dialog.getByRole("textbox", { name: "Minute" });
-		await hourInput.fill("14");
-		await expect(minuteInput).toBeFocused();
-		await minuteInput.fill("43");
-		await expect(hourInput).toHaveValue("14");
-		await expect(minuteInput).toHaveValue("43");
+		const timeInput = dialog.getByLabel("Time", { exact: true });
+		await timeInput.fill("14:43");
+		await expect(timeInput).toHaveValue("14:43");
 
-		// Submit from the minute field and wait for the API response.
+		// Submit from the time field and wait for the API response.
 		const scheduleResponse = page.waitForResponse(
 			(res) =>
 				SCHEDULE_API_PATTERN.test(res.url()) &&
@@ -165,7 +161,7 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await minuteInput.press("Enter");
+		await timeInput.press("Enter");
 		await scheduleResponse;
 
 		// A toast confirming scheduling should appear
@@ -345,12 +341,11 @@ test.describe("Schedule content", () => {
 			publicationDateDialog.getByText("Change the recorded date for the live version.", {
 				exact: true,
 			}),
-		).toBeVisible();
-		for (const name of ["Hour", "Minute"]) {
-			const input = publicationDateDialog.getByRole("textbox", { name });
-			await expect(input).toHaveAttribute("inputmode", "numeric");
-			await expect(input).toHaveAttribute("maxlength", "2");
-		}
+		).toHaveCount(0);
+		await expect(publicationDateDialog.getByLabel("Time", { exact: true })).toHaveAttribute(
+			"type",
+			"time",
+		);
 		await publicationDateDialog.getByRole("button", { name: "Cancel", exact: true }).click();
 		await expect(publicationDateTrigger).toBeFocused();
 
@@ -375,8 +370,7 @@ test.describe("Schedule content", () => {
 			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
 		).toBeVisible();
 		await selectTomorrow(dialog);
-		await dialog.getByRole("textbox", { name: "Hour" }).fill("09");
-		await dialog.getByRole("textbox", { name: "Minute" }).fill("00");
+		await dialog.getByLabel("Time", { exact: true }).fill("09:00");
 		const scheduleResponse = page.waitForResponse(
 			(res) =>
 				SCHEDULE_API_PATTERN.test(res.url()) &&
