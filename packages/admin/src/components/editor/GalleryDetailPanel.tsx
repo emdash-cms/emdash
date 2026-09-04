@@ -307,7 +307,7 @@ function SortableGalleryThumb({
 				<img
 					src={galleryImageUrl(image)}
 					alt={image.alt || ""}
-					className="object-cover w-full h-full"
+					className="emdash-media-transparency-grid h-full w-full object-cover"
 					style={{ objectPosition: getMediaObjectPosition(image) }}
 					draggable={false}
 				/>
@@ -350,7 +350,7 @@ function GalleryImageSettings({ image, onChange, onReplace }: GalleryImageSettin
 
 	return (
 		<div className="border rounded-lg p-3 space-y-3">
-			<div className="aspect-video bg-kumo-tint rounded-lg overflow-hidden flex items-center justify-center relative group">
+			<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
 				<img
 					src={galleryImageUrl(image)}
 					alt={image.alt || ""}

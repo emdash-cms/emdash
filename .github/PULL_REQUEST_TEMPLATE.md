@@ -28,6 +28,7 @@ Closes #
 - [ ] User-visible strings in the admin UI are [wrapped for translation](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md#internationalization-i18n) (if applicable). Do not include `messages.po` changes except in translation PRs — a workflow extracts catalogs on merge to `main`.
 - [ ] I have added and reviewed the user-facing [changeset](https://github.com/emdash-cms/emdash/blob/main/.changeset/README.md) (if this PR changes a published package)
 - [ ] New features link to an approved Discussion: https://github.com/emdash-cms/emdash/discussions/...
+- [ ] I have included screenshots below if this PR changes the UI
 
 ## AI-generated code disclosure
 
@@ -37,4 +38,4 @@ Closes #
 
 ## Screenshots / test output
 
-<!-- Optional. Include if the change is visual or if you want to show test results. -->
+<!-- Screenshots are required for every UI change. Show the rendered result and include before-and-after images when the result alone is not enough. Use descriptive alt text. For non-UI changes, write "Not applicable"; test output remains optional. -->

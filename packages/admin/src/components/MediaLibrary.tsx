@@ -1,4 +1,5 @@
 import {
+	Badge,
 	Banner,
 	Breadcrumbs,
 	Button,
@@ -69,6 +70,7 @@ import {
 	getFileIcon,
 	formatFileSize,
 	getMediaThumbnailUrl,
+	getMediaPreviewUrl,
 	getMediaObjectPosition,
 	fallbackToOriginalThumbnail,
 	MEDIA_THUMBNAIL_WIDTH,
@@ -225,7 +227,8 @@ export function MediaLibrary({
 	onMoveMedia,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
-	const isAdmin = (useCurrentUser().data?.role ?? 0) >= 50;
+	const currentUser = useCurrentUser().data;
+	const isAdmin = (currentUser?.role ?? 0) >= 50;
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const activationQuery = useQuery({
 		queryKey: MEDIA_USAGE_ACTIVATION_QUERY_KEY,
@@ -786,7 +789,7 @@ export function MediaLibrary({
 			aria-busy={currentLoading || moveMutation.isPending || undefined}
 			onClickCapture={handleRootClickCapture}
 		>
-			{onMoveMedia && <Toasty toastManager={toastManager}>{null}</Toasty>}
+			<Toasty toastManager={toastManager}>{null}</Toasty>
 			{isFileDragActive && canUploadHere && (
 				<div
 					className="pointer-events-none fixed inset-0 z-50 bg-kumo-base/70 p-4 backdrop-blur-sm sm:p-8"
@@ -854,10 +857,11 @@ export function MediaLibrary({
 					{activeProvider === "local" && !folderId && folderActionsAvailable && (
 						<Button
 							variant="secondary"
+							size="base"
 							icon={<Plus className="hidden sm:block" aria-hidden="true" />}
 							aria-label={t`Add new folder`}
 							onClick={openCreateFolder}
-							className="h-6.5 shrink-0 gap-1 px-2 text-xs sm:h-9 sm:gap-1.5 sm:px-3 sm:text-base"
+							className="shrink-0"
 						>
 							<span className="sm:hidden">{t`New folder`}</span>
 							<span className="hidden sm:inline">{t`Add new folder`}</span>
@@ -866,9 +870,10 @@ export function MediaLibrary({
 					{canUploadHere && (
 						<Button
 							onClick={openUploadDialog}
+							size="base"
 							icon={<Upload className="hidden sm:block" aria-hidden="true" />}
 							aria-label={uploadActionLabel}
-							className="h-6.5 shrink-0 gap-1 px-2 text-xs sm:h-9 sm:gap-1.5 sm:px-3 sm:text-base"
+							className="shrink-0"
 						>
 							<span className="sm:hidden">{t`Upload`}</span>
 							<span className="hidden sm:inline">{uploadActionLabel}</span>
@@ -967,6 +972,7 @@ export function MediaLibrary({
 				>
 					{(canSearch || activeProvider === "local") && (
 						<TableToolbarSearch
+							size="base"
 							placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
 							aria-label={t`Search media`}
 							value={searchQuery}
@@ -977,7 +983,7 @@ export function MediaLibrary({
 					)}
 					{activeProvider === "local" && (
 						<Select
-							size="sm"
+							size="base"
 							value={localTypeFilter}
 							onValueChange={(v) => {
 								const next = v ?? "all";
@@ -1036,7 +1042,7 @@ export function MediaLibrary({
 							<Loader />
 						</div>
 					) : (
-						<Grid variant="4up" gap="sm">
+						<Grid variant="4up" gap="sm" className="2xl:grid-cols-6">
 							{visibleFolders.map((folder) => (
 								<MediaFolderCard
 									key={folder.id}
@@ -1143,10 +1149,12 @@ export function MediaLibrary({
 					/>
 				)
 			) : viewMode === "grid" ? (
-				<div
+				<Grid
+					variant="4up"
+					gap="sm"
+					className="2xl:grid-cols-6"
 					data-media-grid
 					inert={currentLoading || undefined}
-					className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(160px,1fr))]"
 				>
 					{activeProvider === "local"
 						? currentItems.map((item) => (
@@ -1189,7 +1197,7 @@ export function MediaLibrary({
 									}}
 								/>
 							))}
-				</div>
+				</Grid>
 			) : (
 				<div
 					inert={currentLoading || undefined}
@@ -1374,11 +1382,25 @@ export function MediaLibrary({
 					providerName={detailItem.provider ? activeProviderInfo?.name : undefined}
 					canDelete={detailItem.provider ? activeProviderInfo?.capabilities.delete : undefined}
 					canMoveLocation={isLocalMediaItem(detailItem) ? canMoveMedia?.(detailItem) : undefined}
+					canReplaceOriginal={Boolean(
+						isLocalMediaItem(detailItem) &&
+						currentUser &&
+						(currentUser.role >= 40 ||
+							(currentUser.role >= 30 && detailItem.authorId === currentUser.id)),
+					)}
+					canDuplicateCrop={Boolean(isLocalMediaItem(detailItem) && (currentUser?.role ?? 0) >= 20)}
 					restoreFocusTargetRef={mediaHeadingRef}
 					onClose={closeDetail}
 					onClosed={handleDetailClosed}
 					onUpdated={onItemUpdated}
 					onItemRefreshed={handleDetailItemRefreshed}
+					onCroppedCopyCreated={() => {
+						toastManager.add({
+							title: t`Cropped copy created.`,
+							variant: "success",
+							timeout: 3000,
+						});
+					}}
 					onDeleted={detailItem.provider ? undefined : onItemUpdated}
 				/>
 			)}
@@ -1590,6 +1612,10 @@ function isLocalMediaItem(item: MediaItem): item is LocalMediaItem {
 	);
 }
 
+function formatFileFormat(mimeType: string): string {
+	return (mimeType.split("/").at(-1)?.split("+")[0] || mimeType).toUpperCase();
+}
+
 function MediaDragOverlay({ item }: { item: LocalMediaItem }) {
 	return (
 		<div aria-hidden="true" className="max-w-[calc(100vw-2rem)]" data-media-drag-overlay>
@@ -1658,6 +1684,7 @@ interface MediaGridItemProps {
 function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGridItemProps) {
 	const isImage = item.mimeType.startsWith("image/");
 	const localItem = isLocalMediaItem(item) ? item : null;
+	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
 	const { setNodeRef, listeners, isDragging } = useDraggable({
 		id: mediaDragId(item.id),
 		data: localItem
@@ -1667,42 +1694,57 @@ function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGr
 	});
 
 	return (
-		<button
+		<LayerCard
 			ref={setNodeRef}
 			{...listeners}
-			type="button"
+			render={<button type="button" />}
 			onClick={onClick}
+			aria-label={item.filename}
 			aria-busy={isMoving || undefined}
 			data-media-draggable={draggable || undefined}
 			className={cn(
-				"group relative w-full max-w-[200px] overflow-hidden rounded-lg border bg-kumo-base text-start transition-opacity max-sm:max-w-none",
-				selected ? "ring-2 ring-kumo-brand border-kumo-brand" : "hover:border-kumo-brand/50",
+				"group w-full min-w-0 text-start transition-opacity focus-visible:ring-2 focus-visible:ring-kumo-brand",
+				selected ? "ring-2 ring-kumo-brand" : "hover:ring-kumo-brand/50",
 				draggable && "cursor-grab touch-manipulation active:cursor-grabbing",
 				(isDragging || isMoving) && "opacity-40",
 			)}
 		>
-			<div className="aspect-square">
+			<LayerCard.Primary className="aspect-video p-0">
 				{isImage ? (
 					<img
-						src={getMediaThumbnailUrl(item.url, item.mimeType, MEDIA_THUMBNAIL_WIDTH)}
+						src={getMediaThumbnailUrl(
+							item.url,
+							item.mimeType,
+							MEDIA_THUMBNAIL_WIDTH,
+							item.contentHash,
+						)}
 						alt={item.alt || item.filename}
 						draggable={false}
-						className="h-full w-full object-cover"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
 						style={{ objectPosition: getMediaObjectPosition(item) }}
-						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
+						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, previewUrl)}
 					/>
 				) : (
 					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">
 						<span className="text-4xl">{getFileIcon(item.mimeType)}</span>
 					</div>
 				)}
-			</div>
-			<div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100">
-				<div className="w-full p-3">
-					<p className="truncate text-sm font-medium text-white">{item.filename}</p>
-				</div>
-			</div>
-		</button>
+			</LayerCard.Primary>
+			<LayerCard.Secondary className="my-0 min-w-0 justify-between px-3 py-2.5 text-sm text-kumo-default">
+				<span
+					dir="auto"
+					title={item.filename}
+					className="min-w-0 flex-1 truncate font-medium leading-5"
+				>
+					{item.filename}
+				</span>
+				<Badge variant="secondary" className="h-5 min-w-11 justify-center rounded-md px-2 py-0">
+					<span className="text-[11px] leading-none text-kumo-default/75">
+						{formatFileFormat(item.mimeType)}
+					</span>
+				</Badge>
+			</LayerCard.Secondary>
+		</LayerCard>
 	);
 }
 
@@ -1724,20 +1766,21 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 	};
 
 	return (
-		<button
-			type="button"
+		<LayerCard
+			render={<button type="button" />}
 			onClick={onClick}
+			aria-label={item.filename}
 			className={cn(
-				"group relative overflow-hidden rounded-lg border bg-kumo-base text-start transition-all max-w-[200px]",
-				selected ? "ring-2 ring-kumo-brand border-kumo-brand" : "hover:border-kumo-brand/50",
+				"group w-full min-w-0 text-start focus-visible:ring-2 focus-visible:ring-kumo-brand",
+				selected ? "ring-2 ring-kumo-brand" : "hover:ring-kumo-brand/50",
 			)}
 		>
-			<div className="aspect-square">
+			<LayerCard.Primary className="aspect-[4/3] p-0">
 				{item.previewUrl ? (
 					<img
 						src={item.previewUrl}
 						alt={item.alt || item.filename}
-						className="h-full w-full object-cover"
+						className="emdash-media-transparency-grid h-full w-full object-cover"
 						onLoad={handleImageLoad}
 					/>
 				) : (
@@ -1745,13 +1788,22 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 						<span className="text-4xl">{getFileIcon(item.mimeType)}</span>
 					</div>
 				)}
-			</div>
-			<div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 to-transparent opacity-0 transition-opacity group-hover:opacity-100">
-				<div className="w-full p-3">
-					<p className="truncate text-sm font-medium text-white">{item.filename}</p>
-				</div>
-			</div>
-		</button>
+			</LayerCard.Primary>
+			<LayerCard.Secondary className="my-0 min-w-0 justify-between px-3 py-2.5 text-sm text-kumo-default">
+				<span
+					dir="auto"
+					title={item.filename}
+					className="min-w-0 flex-1 truncate font-medium leading-5"
+				>
+					{item.filename}
+				</span>
+				<Badge variant="secondary" className="h-5 min-w-11 justify-center rounded-md px-2 py-0">
+					<span className="text-[11px] leading-none text-kumo-default/75">
+						{formatFileFormat(item.mimeType)}
+					</span>
+				</Badge>
+			</LayerCard.Secondary>
+		</LayerCard>
 	);
 }
 
@@ -1767,6 +1819,7 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 	const localItem = isLocalMediaItem(item) ? item : null;
+	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
 	const { setNodeRef, listeners, isDragging } = useDraggable({
 		id: mediaDragId(item.id),
 		data: localItem
@@ -1793,12 +1846,12 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 				<div className="h-10 w-10 overflow-hidden rounded">
 					{isImage ? (
 						<img
-							src={getMediaThumbnailUrl(item.url, item.mimeType, 80)}
+							src={getMediaThumbnailUrl(item.url, item.mimeType, 80, item.contentHash)}
 							alt={item.alt || item.filename}
 							draggable={false}
-							className="h-full w-full object-cover"
+							className="emdash-media-transparency-grid h-full w-full object-cover"
 							style={{ objectPosition: getMediaObjectPosition(item) }}
-							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
+							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, previewUrl)}
 						/>
 					) : (
 						<div className="flex h-full w-full items-center justify-center bg-kumo-tint text-xl">
@@ -1854,7 +1907,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 						<img
 							src={item.previewUrl}
 							alt={item.alt || item.filename}
-							className="h-full w-full object-cover"
+							className="emdash-media-transparency-grid h-full w-full object-cover"
 							onLoad={handleImageLoad}
 						/>
 					) : (

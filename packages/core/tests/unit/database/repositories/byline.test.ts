@@ -255,7 +255,7 @@ describe("BylineRepository", () => {
 		expect(resolved?.avatarDominantColor).toBe("#112233");
 	});
 
-	it("leaves avatar storage key null on the plain byline finders", async () => {
+	it("hydrates avatar media on the single-row byline finders", async () => {
 		await db
 			.insertInto("media")
 			.values({
@@ -264,19 +264,56 @@ describe("BylineRepository", () => {
 				mime_type: "image/png",
 				storage_key: "media-avatar-2.png",
 				status: "ready",
+				alt: "Finder avatar",
+				blurhash: "L6PZfSi_.AyE_3t7t7R**0o#DgR4",
+				dominant_color: "#445566",
+			})
+			.execute();
+		await db
+			.insertInto("users")
+			.values({
+				id: "user-finder",
+				email: "finder@example.com",
+				name: "Finder Avatar",
+				role: 30,
+				email_verified: 1,
 			})
 			.execute();
 		const created = await bylineRepo.create({
 			slug: "finder-avatar",
 			displayName: "Finder Avatar",
 			avatarMediaId: "media-avatar-2",
+			userId: "user-finder",
 		});
 
-		// findById/findBySlug don't join media — the field is null there, and
-		// callers should rely on the content-credit hydration path for it.
-		const byId = await bylineRepo.findById(created.id);
-		expect(byId?.avatarMediaId).toBe("media-avatar-2");
-		expect(byId?.avatarStorageKey).toBeNull();
+		// A byline profile page resolves exactly one byline and has no entry to
+		// hydrate credits through, so the by-id/by-slug/by-user finders join
+		// media themselves.
+		for (const found of [
+			await bylineRepo.findById(created.id),
+			await bylineRepo.findBySlug("finder-avatar"),
+			await bylineRepo.findByUserId("user-finder"),
+		]) {
+			expect(found?.avatarMediaId).toBe("media-avatar-2");
+			expect(found?.avatarStorageKey).toBe("media-avatar-2.png");
+			expect(found?.avatarAlt).toBe("Finder avatar");
+			expect(found?.avatarBlurhash).toBe("L6PZfSi_.AyE_3t7t7R**0o#DgR4");
+			expect(found?.avatarDominantColor).toBe("#445566");
+		}
+
+		// A byline with no avatar keeps nulls rather than undefined.
+		const bare = await bylineRepo.create({ slug: "no-avatar", displayName: "No Avatar" });
+		const foundBare = await bylineRepo.findById(bare.id);
+		expect(foundBare?.avatarStorageKey).toBeNull();
+		expect(foundBare?.avatarAlt).toBeNull();
+		expect(foundBare?.avatarBlurhash).toBeNull();
+		expect(foundBare?.avatarDominantColor).toBeNull();
+
+		// findMany stays a single-table scan — list pages pay no media join.
+		const listed = await bylineRepo.findMany();
+		const fromList = listed.items.find((b) => b.id === created.id);
+		expect(fromList?.avatarMediaId).toBe("media-avatar-2");
+		expect(fromList?.avatarStorageKey).toBeNull();
 	});
 
 	it("getContentBylinesMany handles more IDs than SQL_BATCH_SIZE", async () => {

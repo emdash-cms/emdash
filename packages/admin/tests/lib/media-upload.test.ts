@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 
-import { uploadMedia, uploadToProvider } from "../../src/lib/api/media.js";
+import { replaceMediaImage, uploadMedia, uploadToProvider } from "../../src/lib/api/media.js";
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -70,6 +70,98 @@ it("deduplicates uploads using the file content hash", async () => {
 	expect(item.id).toBe("existing-media");
 	expect(fetch).toHaveBeenCalledTimes(2);
 	expect(fetch.mock.calls.every(([, init]) => init?.signal === controller.signal)).toBe(true);
+});
+
+it("forces a distinct signed upload when deduplication is disabled", async () => {
+	let uploadUrlBody: Record<string, unknown> | undefined;
+	const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url === "/_emdash/api/media/upload-url") {
+			if (typeof init?.body !== "string") throw new TypeError("Expected a JSON request body");
+			uploadUrlBody = JSON.parse(init.body) as Record<string, unknown>;
+			return Response.json({
+				success: true,
+				data: {
+					uploadUrl: "https://uploads.example/cropped.png",
+					method: "PUT",
+					headers: { "Content-Type": "image/png" },
+					mediaId: "cropped-media",
+					storageKey: "cropped.png",
+					expiresAt: "2026-01-01T01:00:00.000Z",
+				},
+			});
+		}
+		if (url === "https://uploads.example/cropped.png") return new Response(null, { status: 200 });
+		if (url === "/_emdash/api/media/cropped-media/confirm") {
+			return mediaItemResponse("cropped-media", "cropped.png", "image/png");
+		}
+		return new Response(null, { status: 500 });
+	});
+
+	const item = await uploadMedia(new File(["png"], "cropped.png", { type: "image/png" }), {
+		deduplicate: false,
+		ensureUniqueFilename: true,
+		folderId: "folder-1",
+	});
+
+	expect(uploadUrlBody).toMatchObject({
+		deduplicate: false,
+		ensureUniqueFilename: true,
+		folderId: "folder-1",
+	});
+	expect(uploadUrlBody).not.toHaveProperty("contentHash");
+	expect(item.id).toBe("cropped-media");
+	expect(fetch).toHaveBeenCalledTimes(3);
+});
+
+it("forces a distinct direct upload when deduplication is disabled", async () => {
+	let directBody: FormData | undefined;
+	vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url === "/_emdash/api/media/upload-url") return new Response(null, { status: 501 });
+		if (url === "/_emdash/api/media") {
+			directBody = init?.body as FormData;
+			return mediaItemResponse("cropped-media", "cropped.png", "image/png");
+		}
+		return new Response(null, { status: 500 });
+	});
+
+	await uploadMedia(new File(["png"], "cropped.png", { type: "image/png" }), {
+		deduplicate: false,
+		ensureUniqueFilename: true,
+		folderId: "folder-1",
+	});
+
+	expect(directBody?.get("deduplicate")).toBe("false");
+	expect(directBody?.get("ensureUniqueFilename")).toBe("true");
+	expect(directBody?.get("folderId")).toBe("folder-1");
+});
+
+it("replaces an image through the same-key media endpoint", async () => {
+	let replacementBody: FormData | undefined;
+	const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+		const url =
+			typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+		if (url === "/_emdash/api/media/media%2Fid/replace") {
+			replacementBody = init?.body as FormData;
+			return mediaItemResponse("media/id", "hero.png", "image/png");
+		}
+		return new Response(null, { status: 500 });
+	});
+	const file = new File(["crop"], "hero.png", { type: "image/png" });
+
+	const item = await replaceMediaImage("media/id", file, { width: 600, height: 400 });
+
+	expect(item.id).toBe("media/id");
+	expect(fetch).toHaveBeenCalledWith(
+		"/_emdash/api/media/media%2Fid/replace",
+		expect.objectContaining({ method: "PUT", body: expect.any(FormData) }),
+	);
+	expect(replacementBody?.get("file")).toBe(file);
+	expect(replacementBody?.get("width")).toBe("600");
+	expect(replacementBody?.get("height")).toBe("400");
 });
 
 it("uploads without deduplication when Web Crypto is unavailable", async () => {

@@ -157,7 +157,13 @@ export interface ContentEditorProps {
 	isAutosaveFeedbackActive?: boolean;
 	/** Entry-scoped token advanced after a successful autosave. */
 	autosaveCompletionToken?: number;
-	onPublish?: () => void;
+	/** Entry-scoped token advanced after the server rejected an autosave payload. */
+	autosaveRejectionToken?: number;
+	onPublish?: (payload: {
+		data: Record<string, unknown>;
+		slug?: string;
+		bylines?: BylineCreditInput[];
+	}) => void | Promise<void>;
 	onUnpublish?: () => void;
 	/** Callback to discard draft changes (revert to published version) */
 	onDiscardDraft?: () => void;
@@ -235,6 +241,7 @@ export function ContentEditor({
 	isAutosaving,
 	isAutosaveFeedbackActive,
 	autosaveCompletionToken,
+	autosaveRejectionToken,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -336,6 +343,9 @@ export function ContentEditor({
 		}),
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
+	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
+	const [isPublishing, setIsPublishing] = React.useState(false);
+	const isPublishingRef = React.useRef(false);
 
 	// Synchronously reset form state when the underlying item changes (e.g. a
 	// translation switch where TanStack Router keeps ContentEditor mounted but
@@ -366,6 +376,7 @@ export function ContentEditor({
 			}),
 		);
 		pendingAutosaveStateRef.current = null;
+		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
 	}
 
@@ -379,11 +390,14 @@ export function ContentEditor({
 	React.useEffect(() => {
 		if (item) {
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
-			setFormData(item.data);
-			setSlug(item.slug || "");
-			setSlugTouched(!!item.slug);
+			if (!isPublishingRef.current) {
+				setFormData(item.data);
+				setSlug(item.slug || "");
+				setSlugTouched(!!item.slug);
+				setInternalBylines(nextBylines);
+				setBylinesTouched(false);
+			}
 			setStatus(item.status);
-			setInternalBylines(nextBylines);
 			setLastSavedData(
 				serializeEditorState({
 					data: item.data,
@@ -392,7 +406,7 @@ export function ContentEditor({
 				}),
 			);
 			pendingAutosaveStateRef.current = null;
-			setBylinesTouched(false);
+			setRejectedAutosaveState(null);
 		}
 	}, [item?.updatedAt, itemDataString, itemBylinesString, item?.slug, item?.status]);
 
@@ -457,6 +471,15 @@ export function ContentEditor({
 		pendingAutosaveStateRef.current = null;
 	}, [autosaveCompletionToken]);
 
+	React.useEffect(() => {
+		if (!autosaveRejectionToken || !pendingAutosaveStateRef.current) {
+			return;
+		}
+
+		setRejectedAutosaveState(pendingAutosaveStateRef.current);
+		pendingAutosaveStateRef.current = null;
+	}, [autosaveRejectionToken]);
+
 	const hasInvalidUrls = React.useCallback(
 		(data: Record<string, unknown>) => {
 			for (const [name, field] of Object.entries(fields)) {
@@ -469,15 +492,37 @@ export function ContentEditor({
 		},
 		[fields],
 	);
+	const createSavePayload = React.useCallback(() => {
+		const payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		} = {
+			data: formDataRef.current,
+			slug: slugRef.current || undefined,
+		};
+		if (isNew || bylinesTouched) payload.bylines = activeBylines;
+		return payload;
+	}, [activeBylines, bylinesTouched, isNew]);
+	const cancelPendingAutosave = React.useCallback(() => {
+		if (autosaveTimeoutRef.current) {
+			clearTimeout(autosaveTimeoutRef.current);
+			autosaveTimeoutRef.current = null;
+		}
+	}, []);
 
 	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
-		if (isNew || !onAutosave || !item?.id || hasUnsupportedPortableTextMarks) {
+		if (isNew || !onAutosave || !item?.id || hasUnsupportedPortableTextMarks || isPublishing) {
 			return;
 		}
 
 		// Don't autosave if not dirty or already saving
 		if (!isDirty || isSaving || isAutosaving) {
+			return;
+		}
+
+		if (currentData === rejectedAutosaveState) {
 			return;
 		}
 
@@ -489,15 +534,7 @@ export function ContentEditor({
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
 			if (hasInvalidUrls(formDataRef.current)) return;
-			const payload: {
-				data: Record<string, unknown>;
-				slug?: string;
-				bylines?: BylineCreditInput[];
-			} = {
-				data: formDataRef.current,
-				slug: slugRef.current || undefined,
-			};
-			if (bylinesTouched) payload.bylines = activeBylines;
+			const payload = createSavePayload();
 			pendingAutosaveStateRef.current = serializeEditorState({
 				data: payload.data,
 				slug: payload.slug || "",
@@ -521,30 +558,70 @@ export function ContentEditor({
 		isAutosaving,
 		activeBylines,
 		bylinesTouched,
+		createSavePayload,
 		hasInvalidUrls,
 		hasUnsupportedPortableTextMarks,
+		isPublishing,
+		rejectedAutosaveState,
 	]);
 
 	// Cancel pending autosave on manual save
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (hasInvalidUrls(formData) || hasUnsupportedPortableTextMarks) return;
-		// Cancel pending autosave
-		if (autosaveTimeoutRef.current) {
-			clearTimeout(autosaveTimeoutRef.current);
-			autosaveTimeoutRef.current = null;
-		}
-		const payload: {
-			data: Record<string, unknown>;
-			slug?: string;
-			bylines?: BylineCreditInput[];
-		} = {
-			data: formData,
-			slug: slug || undefined,
-		};
-		if (isNew || bylinesTouched) payload.bylines = activeBylines;
-		onSave?.(payload);
+		if (
+			isContentSaveBlocked ||
+			isPublishingRef.current ||
+			hasInvalidUrls(formData) ||
+			hasUnsupportedPortableTextMarks
+		)
+			return;
+		cancelPendingAutosave();
+		onSave?.(createSavePayload());
 	};
+	const handlePublish = React.useCallback(() => {
+		if (
+			isPublishingRef.current ||
+			!onPublish ||
+			hasInvalidUrls(formDataRef.current) ||
+			hasUnsupportedPortableTextMarks
+		)
+			return;
+		cancelPendingAutosave();
+		const payload = createSavePayload();
+		const savedState = serializeEditorState({
+			data: payload.data,
+			slug: payload.slug || "",
+			bylines: activeBylines,
+		});
+		isPublishingRef.current = true;
+		setIsPublishing(true);
+		const result = onPublish(payload);
+		if (!result) {
+			isPublishingRef.current = false;
+			setIsPublishing(false);
+			return;
+		}
+		void result.then(
+			() => {
+				setLastSavedData(savedState);
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				return undefined;
+			},
+			() => {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				return undefined;
+			},
+		);
+	}, [
+		activeBylines,
+		cancelPendingAutosave,
+		createSavePayload,
+		hasInvalidUrls,
+		hasUnsupportedPortableTextMarks,
+		onPublish,
+	]);
 
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
@@ -731,7 +808,7 @@ export function ContentEditor({
 												isNew={isNew}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
-												onPublish={onPublish}
+												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
 											/>
 											<MobileSettingsButton />
@@ -790,7 +867,7 @@ export function ContentEditor({
 												collectionLabel={collectionLabel}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
-												onPublish={onPublish}
+												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
 												size="sm"
 											/>
@@ -876,7 +953,7 @@ export function ContentEditor({
 							supportsPreview={supportsPreview}
 							isLoadingPreview={isLoadingPreview}
 							onPreview={handlePreview}
-							onPublish={onPublish}
+							onPublish={handlePublish}
 							onUnpublish={onUnpublish}
 							announceSaveStatus={!isDistractionFree}
 						/>
@@ -1426,6 +1503,7 @@ function FieldRenderer({
 					}
 					fieldId={field.id}
 					variant={name === "featured_image" ? "featured" : "default"}
+					darkVariant={!Array.isArray(field.options) && field.options?.darkVariant === true}
 				/>
 			);
 		}

@@ -1,6 +1,6 @@
 {
   "name": "@emdash-cms/admin",
-  "version": "0.35.0",
+  "version": "0.36.0",
   "description": "Admin UI for EmDash CMS",
   "type": "module",
   "main": "dist/index.js",
@@ -86,6 +86,7 @@
     "marked": "^17.0.3",
     "react-day-picker": "catalog:",
     "react-hotkeys-hook": "^5.2.4",
+    "react-image-crop": "^11.1.2",
     "tailwind-merge": "^3.3.0",
     "y-protocols": "catalog:",
     "yjs": "catalog:"

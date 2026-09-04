@@ -304,8 +304,8 @@ export async function handleTaxonomyList(
 /**
  * Get a single taxonomy definition by name.
  *
- * Definitions are per-locale, so `locale` picks which one; without it the
- * lowest-locale match wins (same rule as `handleMenuGet`).
+ * Definitions are per-locale, so `locale` picks which one. Without it the
+ * configured default locale wins, then the lowest locale code.
  */
 export async function handleTaxonomyGet(
 	db: Kysely<Database>,

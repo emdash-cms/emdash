@@ -464,7 +464,8 @@ describe("Site Settings caching", () => {
 //
 // Invalidation lives in three places (any caller of any of these clears
 // the cache):
-//   - `EmDashRuntime.handleMediaUpdate` / `handleMediaDelete` — REST + MCP.
+//   - `EmDashRuntime.handleMediaUpdate` / `handleMediaReplaceMetadata` /
+//     `handleMediaDelete` — REST + MCP.
 //   - Plugin context `media.delete()` — the plugin-facing public API.
 //   - `local-runtime.delete()` — the provider DELETE route's local path.
 //
@@ -555,6 +556,48 @@ describe("Media mutations invalidate site settings cache", () => {
 			const after = await getSiteSettings();
 			expect(after.seo?.defaultOgImage?.width).toBe(1200);
 			expect(after.seo?.defaultOgImage?.height).toBe(630);
+		});
+	});
+
+	it("EmDashRuntime.handleMediaReplaceMetadata invalidates the cache on success", async () => {
+		const { createTestRuntime } = await import("../../utils/mcp-runtime.js");
+		const { setupTestDatabaseWithCollections } = await import("../../utils/test-db.js");
+
+		const db = await setupTestDatabaseWithCollections();
+		const runtime = createTestRuntime(db);
+		const mediaId = "med_invalidation_replace";
+		const storageKey = `media/${mediaId}.png`;
+		await db
+			.insertInto("media" as never)
+			.values({
+				id: mediaId,
+				filename: "og.png",
+				mime_type: "image/png",
+				size: 1024,
+				width: 800,
+				height: 600,
+				storage_key: storageKey,
+				created_at: new Date().toISOString(),
+			} as never)
+			.execute();
+		await setSiteSettings({ seo: { defaultOgImage: { mediaId } } }, db);
+
+		await runWithContext({ editMode: false, db }, async () => {
+			expect((await getSiteSettings()).seo?.defaultOgImage?.width).toBe(800);
+		});
+
+		const result = await runtime.handleMediaReplaceMetadata(mediaId, storageKey, {
+			size: 512,
+			width: 400,
+			height: 300,
+			contentHash: "sha256:replacement",
+		});
+		expect(result.success).toBe(true);
+
+		await runWithContext({ editMode: false, db }, async () => {
+			const after = await getSiteSettings();
+			expect(after.seo?.defaultOgImage?.width).toBe(400);
+			expect(after.seo?.defaultOgImage?.height).toBe(300);
 		});
 	});
 });

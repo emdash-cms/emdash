@@ -109,6 +109,7 @@ catalog:
   "@lingui/conf": ^5.9.4
   "@lingui/core": ^5.9.4
   "@lingui/macro": ^5.9.4
+  "@lingui/message-utils": ^5.9.4
   "@lingui/react": ^5.9.4
   "@oslojs/crypto": ^1.0.1
   "@oslojs/encoding": ^1.1.0
