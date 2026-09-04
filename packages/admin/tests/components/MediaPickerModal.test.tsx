@@ -107,7 +107,7 @@ vi.mock("../../src/components/MediaDetailPanel", () => ({
 						onClosed?.();
 					}}
 				>
-					Back to library
+					Back
 				</button>
 				<button
 					type="button"
@@ -304,7 +304,7 @@ describe("MediaPickerModal", () => {
 			expect(document.querySelector('[role="dialog"]')).toBe(workspace);
 			expect(screen.getByRole("button", { name: "Select" }).query()).toBeNull();
 
-			screen.getByRole("button", { name: "Back to library" }).element().click();
+			screen.getByRole("button", { name: "Back" }).element().click();
 
 			const returnedItem = screen.getByRole("button", { name: "photo.jpg" });
 			await expect.element(returnedItem).toBeVisible();
@@ -389,7 +389,7 @@ describe("MediaPickerModal", () => {
 				.element(screen.getByRole("button", { name: "Save updated asset" }))
 				.toBeVisible();
 			screen.getByRole("button", { name: "Save updated asset" }).element().click();
-			screen.getByRole("button", { name: "Back to library" }).element().click();
+			screen.getByRole("button", { name: "Back" }).element().click();
 
 			await expect.element(screen.getByRole("button", { name: "Select" })).toBeEnabled();
 			screen.getByRole("button", { name: "Select" }).element().click();

@@ -222,7 +222,6 @@ function renderEmbeddedPanel(props: Partial<React.ComponentProps<typeof MediaDet
 		open: true,
 		item: makeImageItem(),
 		embedded: true,
-		backLabel: "Back to library",
 		onClose: vi.fn(),
 		onDeleted: vi.fn(),
 		...props,
@@ -1947,12 +1946,18 @@ describe("MediaDetailPanel", () => {
 		expect(onClose).toHaveBeenCalled();
 	});
 
-	it("uses Back to return from embedded details without closing the workspace", async () => {
+	it("places a compact Back action in the embedded footer", async () => {
 		const onClose = vi.fn();
 		const onExit = vi.fn();
 		const screen = await renderEmbeddedPanel({ onClose, onExit });
+		const header = screen.getByTestId("media-detail-dialog-header").element();
+		const footer = screen.getByTestId("media-detail-dialog-footer").element();
+		const back = screen.getByRole("button", { name: "Back" });
 
-		screen.getByRole("button", { name: "Back to library" }).element().click();
+		expect(header).not.toContainElement(back.element());
+		expect(footer).toContainElement(back.element());
+		expect(screen.getByRole("button", { name: "Cancel" }).query()).toBeNull();
+		back.element().click();
 
 		expect(onClose).toHaveBeenCalledTimes(1);
 		expect(onExit).not.toHaveBeenCalled();

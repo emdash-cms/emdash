@@ -434,7 +434,7 @@ test.describe("Media Library", () => {
 		).toBe(true);
 		await expect(page.getByRole("dialog")).toHaveCount(1);
 		await expect(pickerDetails.getByRole("searchbox", { name: "Search media" })).toHaveCount(0);
-		await pickerDetails.getByRole("button", { name: "Back to library" }).click();
+		await pickerDetails.getByRole("button", { name: "Back" }).click();
 		await expect(picker).toBeVisible();
 		await expect(picker.getByRole("button", { name: "Edit asset" })).toBeFocused();
 		expect(

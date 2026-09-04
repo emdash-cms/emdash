@@ -140,7 +140,6 @@ export interface MediaDetailPanelProps {
 	open: boolean;
 	item: MediaItem;
 	embedded?: boolean;
-	backLabel?: string;
 	context?: "library" | "content";
 	providerName?: string;
 	canDelete?: boolean;
@@ -202,10 +201,7 @@ function MediaDetailSurface({
 }) {
 	if (embedded) {
 		return (
-			<div
-				className="flex h-full min-h-0 flex-col overflow-hidden"
-				data-testid="media-detail-workspace"
-			>
+			<div className="flex min-h-0 flex-col overflow-hidden" data-testid="media-detail-workspace">
 				{children}
 			</div>
 		);
@@ -228,7 +224,6 @@ export function MediaDetailPanel({
 	open,
 	item,
 	embedded = false,
-	backLabel,
 	context = "library",
 	providerName,
 	canDelete: canDeleteProp,
@@ -1106,26 +1101,11 @@ export function MediaDetailPanel({
 						style={embedded ? undefined : { padding: "1.25rem 2rem" }}
 						data-testid="media-detail-dialog-header"
 					>
-						<div className="flex min-w-0 flex-1 items-start gap-2">
-							{embedded && backLabel ? (
-								<Button
-									variant="ghost"
-									size="base"
-									className="-ms-2 shrink-0"
-									aria-label={backLabel}
-									icon={<ArrowLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />}
-									onClick={requestClose}
-									disabled={isBusy}
-								>
-									<span className="hidden sm:inline">{backLabel}</span>
-								</Button>
-							) : null}
-							<div className="min-w-0 flex-1">
-								<Dialog.Title className="truncate text-lg font-semibold leading-none">
-									{t`Media details`}
-								</Dialog.Title>
-								<p className="mt-1 truncate text-sm text-kumo-subtle">{item.filename}</p>
-							</div>
+						<div className="min-w-0 flex-1">
+							<Dialog.Title className="truncate text-lg font-semibold leading-none">
+								{t`Media details`}
+							</Dialog.Title>
+							<p className="mt-1 truncate text-sm text-kumo-subtle">{item.filename}</p>
 						</div>
 						<Button
 							variant="ghost"
@@ -1803,43 +1783,58 @@ export function MediaDetailPanel({
 						data-testid="media-detail-dialog-footer"
 					>
 						<div className="flex flex-wrap gap-2">
-							{canDelete && !cropFooterActive && (
+							{embedded ? (
 								<Button
-									variant="destructive"
-									icon={<Trash />}
-									onClick={handleDelete}
-									disabled={isBusy || mediaUnavailable}
+									variant="outline"
+									icon={<ArrowLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />}
+									onClick={requestClose}
+									disabled={isBusy}
 								>
-									{isDeleting ? t`Deleting...` : t`Delete`}
+									{t`Back`}
 								</Button>
-							)}
-							{canReplaceImage && activeTab === "details" ? (
+							) : (
 								<>
-									<Button
-										variant="outline"
-										icon={<ArrowsClockwise />}
-										onClick={openReplacementPicker}
-										disabled={replaceActionDisabled}
-									>
-										{t`Replace image`}
-									</Button>
-									<input
-										ref={replaceInputRef}
-										type="file"
-										accept={cropMime}
-										className="sr-only"
-										tabIndex={-1}
-										disabled={replaceActionDisabled}
-										aria-label={t`Choose replacement image`}
-										onChange={handleReplacementFile}
-									/>
+									{canDelete && !cropFooterActive ? (
+										<Button
+											variant="destructive"
+											icon={<Trash />}
+											onClick={handleDelete}
+											disabled={isBusy || mediaUnavailable}
+										>
+											{isDeleting ? t`Deleting...` : t`Delete`}
+										</Button>
+									) : null}
+									{canReplaceImage && activeTab === "details" ? (
+										<>
+											<Button
+												variant="outline"
+												icon={<ArrowsClockwise />}
+												onClick={openReplacementPicker}
+												disabled={replaceActionDisabled}
+											>
+												{t`Replace image`}
+											</Button>
+											<input
+												ref={replaceInputRef}
+												type="file"
+												accept={cropMime}
+												className="sr-only"
+												tabIndex={-1}
+												disabled={replaceActionDisabled}
+												aria-label={t`Choose replacement image`}
+												onChange={handleReplacementFile}
+											/>
+										</>
+									) : null}
 								</>
-							) : null}
+							)}
 						</div>
 						<div className="flex flex-wrap justify-end gap-2">
-							<Button variant="outline" onClick={requestClose} disabled={isBusy}>
-								{canEdit && (activeTab !== "used-in" || hasChanges) ? t`Cancel` : t`Close`}
-							</Button>
+							{!embedded ? (
+								<Button variant="outline" onClick={requestClose} disabled={isBusy}>
+									{canEdit && (activeTab !== "used-in" || hasChanges) ? t`Cancel` : t`Close`}
+								</Button>
+							) : null}
 							{cropFooterActive ? (
 								<>
 									{canReplaceOriginal ? (

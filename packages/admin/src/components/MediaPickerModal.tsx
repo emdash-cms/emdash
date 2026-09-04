@@ -883,14 +883,20 @@ export function MediaPickerModal({
 		>
 			<Dialog
 				size="xl"
-				className="flex h-[min(48rem,calc(100dvh-1rem))] w-[calc(100vw-2rem)] min-h-0 min-w-0 max-w-[48rem] flex-col overflow-hidden p-0 sm:w-[min(48rem,calc(100vw-2rem))]"
+				className={
+					assetOpen
+						? "min-w-0 flex flex-col overflow-hidden p-0"
+						: "flex h-[min(48rem,calc(100dvh-1rem))] w-[calc(100vw-2rem)] min-h-0 min-w-0 max-w-[48rem] flex-col overflow-hidden p-0 sm:w-[min(48rem,calc(100vw-2rem))]"
+				}
+				style={
+					assetOpen ? { width: "min(94vw, 68rem)", maxHeight: "min(88dvh, 43.5rem)" } : undefined
+				}
 			>
 				{assetOpen ? (
 					<MediaDetailPanel
 						open={open}
 						item={assetItem}
 						embedded
-						backLabel={t`Back to library`}
 						context="content"
 						canCropOriginal={Boolean(editableSelection)}
 						canDuplicateCrop={(currentUser?.role ?? 0) >= ROLE_CONTRIBUTOR}
