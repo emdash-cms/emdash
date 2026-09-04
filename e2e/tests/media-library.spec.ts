@@ -399,6 +399,81 @@ test.describe("Media Library", () => {
 		).toBe(true);
 	});
 
+	test("edits a selected content image and uses a cropped copy without leaving the editor", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		test.setTimeout(90_000);
+		const marker = Date.now();
+		const filename = `editor-asset-${marker}.png`;
+		const duplicateFilename = `editor-asset-${marker}-square.png`;
+		await admin.goToMedia();
+		await admin.waitForLoading();
+		await uploadCropTestImage(page, filename);
+		const original = await findMediaByFilename(serverInfo, filename);
+
+		await admin.goto("/content/posts/new");
+		await admin.waitForShell();
+		await admin.waitForLoading();
+		const editorUrl = page.url();
+		await page.getByRole("button", { name: "Select image" }).click();
+		const picker = page.getByRole("dialog").filter({ hasText: "Select Featured Image" });
+		await picker.getByRole("searchbox", { name: "Search media" }).fill(filename);
+		await picker.getByRole("button", { name: filename, exact: true }).click();
+		await picker.getByRole("button", { name: "Edit asset" }).click();
+		const pickerDetails = page.getByRole("dialog", { name: "Media details" });
+		await expect(pickerDetails).toBeVisible();
+		await expect(picker).not.toBeVisible();
+		await pickerDetails.getByRole("button", { name: "Close" }).first().click();
+		await expect(picker).toBeVisible();
+		await expect(picker.getByRole("button", { name: filename, exact: true })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await picker.getByRole("button", { name: "Select", exact: true }).click();
+		const featuredImageField = page.locator("#field-featured_image");
+		await expect(featuredImageField.getByText(filename, { exact: true })).toBeVisible();
+
+		await featuredImageField.getByRole("button", { name: "Edit asset" }).click();
+		const details = page.getByRole("dialog", { name: "Media details" });
+		await expect(details).toBeVisible();
+		await expect(picker).not.toBeVisible();
+		await expect(details.getByRole("tab", { name: "Used in" })).toHaveCount(0);
+		await expect(details.getByRole("button", { name: "Delete" })).toHaveCount(0);
+		expect(page.url()).toBe(editorUrl);
+
+		await details.getByRole("tab", { name: "Edit image" }).click();
+		const aspectRatio = details.getByRole("combobox", { name: "Aspect ratio" });
+		await aspectRatio.click();
+		await page.getByRole("option", { name: "Square (1:1)" }).click();
+		const duplicateResponse = page.waitForResponse(
+			(response) =>
+				response.request().method() === "POST" &&
+				new URL(response.url()).pathname.endsWith("/confirm") &&
+				response.status() === 200,
+		);
+		await details.getByRole("button", { name: "Create cropped copy" }).click();
+		await duplicateResponse;
+
+		await expect(details).not.toBeVisible();
+		await expect(featuredImageField.getByText(duplicateFilename, { exact: true })).toBeVisible();
+		expect(page.url()).toBe(editorUrl);
+		const duplicate = await findMediaByFilename(serverInfo, duplicateFilename);
+		expect(duplicate.id).not.toBe(original.id);
+
+		await page.setViewportSize({ width: 320, height: 800 });
+		await expect(featuredImageField.getByRole("button", { name: "Choose another" })).toBeVisible();
+		await expect(featuredImageField.getByRole("button", { name: "Edit asset" })).toBeVisible();
+		await expect(featuredImageField.getByRole("button", { name: "Remove image" })).toBeVisible();
+		expect(
+			await featuredImageField.evaluate((element) => element.scrollWidth <= element.clientWidth),
+		).toBe(true);
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		).toBe(true);
+	});
+
 	test.describe("List View", () => {
 		test("shows file details in list view", async ({ admin, page }) => {
 			// Upload a file first so there's something to show
