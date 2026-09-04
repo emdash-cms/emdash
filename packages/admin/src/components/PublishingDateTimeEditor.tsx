@@ -167,7 +167,7 @@ export function PublishingDateTimeFields({
 				classNames={{
 					caption_label: "rdp-caption_label text-base !font-medium",
 					month: "rdp-month !w-full",
-					month_grid: "rdp-month_grid !w-full",
+					month_grid: "rdp-month_grid !w-full table-fixed",
 					months: "rdp-months !w-full !max-w-none",
 				}}
 			/>
@@ -319,10 +319,10 @@ function PublishingDateTimeDialogContent({
 		<Dialog
 			className="max-h-[calc(100vh-2rem)] max-w-[calc(100vw-2rem)] overflow-y-auto px-6 py-4 sm:px-7 sm:py-5"
 			size="sm"
-			style={{ width: "20rem" }}
+			style={{ width: "22rem" }}
 		>
 			<form onSubmit={handleSubmit} noValidate>
-				<div className="flex items-start justify-between gap-4">
+				<div className="flex items-center justify-between gap-2">
 					<div className="min-w-0 grid gap-1.5">
 						<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
 						{description ? (

@@ -919,7 +919,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									<div
 										data-testid="content-timestamps"
 										className={cn(
-											"px-3 py-3",
+											"px-3 py-1.5",
 											showPublishingRelationship && "border-t border-kumo-line",
 										)}
 									>
@@ -957,7 +957,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 														type="button"
 														variant="ghost"
 														className={cn(
-															"-mx-2 h-auto min-h-8 w-[calc(100%+1rem)] justify-between whitespace-normal px-2 py-1 font-normal",
+															"-mx-2 h-9 w-[calc(100%+1rem)] min-w-0 justify-between overflow-hidden whitespace-nowrap px-2 py-1.5 font-normal",
 															item.publishedAt && "mt-1",
 														)}
 													/>
