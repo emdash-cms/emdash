@@ -98,19 +98,6 @@ export function publishingFieldsMatchInstant(
 	);
 }
 
-export function getPublishingQuickChoices(now = new Date()): {
-	tomorrow: PublishingDateTimeFields;
-	nextMonday: PublishingDateTimeFields;
-} {
-	const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 12);
-	const mondayOffset = (8 - now.getDay()) % 7 || 7;
-	const nextMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + mondayOffset, 12);
-	return {
-		tomorrow: { date: tomorrow, time: "09:00" },
-		nextMonday: { date: nextMonday, time: "09:00" },
-	};
-}
-
 export function formatPublishingInstant(value: string, locale: string): string {
 	return new Intl.DateTimeFormat(locale, {
 		dateStyle: "medium",

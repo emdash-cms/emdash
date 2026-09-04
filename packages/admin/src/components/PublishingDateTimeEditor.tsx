@@ -4,7 +4,6 @@ import { Globe, PencilSimple, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import {
-	getPublishingQuickChoices,
 	getPublishingTimeZone,
 	publishingFieldsMatchInstant,
 	publishingInstantToLocalFields,
@@ -20,7 +19,6 @@ interface PublishingDateTimeFieldsProps {
 	date: Date | undefined;
 	time: string;
 	disabled?: boolean;
-	showQuickChoices?: boolean;
 	restrictToFuture?: boolean;
 	dateAriaLabel: string;
 	onDateChange: (date: Date | undefined) => void;
@@ -40,22 +38,12 @@ export function PublishingDateTimeFields({
 	date,
 	time,
 	disabled,
-	showQuickChoices,
 	restrictToFuture,
 	dateAriaLabel,
 	onDateChange,
 	onTimeChange,
 }: PublishingDateTimeFieldsProps) {
 	const { i18n, t } = useLingui();
-	const quickChoices = getPublishingQuickChoices();
-	const timeFormatter = React.useMemo(
-		() => new Intl.DateTimeFormat(i18n.locale, { hour: "numeric", minute: "2-digit" }),
-		[i18n.locale],
-	);
-	const weekdayFormatter = React.useMemo(
-		() => new Intl.DateTimeFormat(i18n.locale, { weekday: "long" }),
-		[i18n.locale],
-	);
 	const today = getLocalToday();
 	const [month, setMonth] = React.useState(date ?? today);
 	React.useEffect(() => {
@@ -65,20 +53,7 @@ export function PublishingDateTimeFields({
 	const zoneDate = resolved.success ? resolved.date : (date ?? new Date());
 	const { timeZone, shortName } = getPublishingTimeZone(zoneDate, i18n.locale);
 	const zoneDetails = timeZone ? (shortName ? `${timeZone} (${shortName})` : timeZone) : null;
-	const zoneLabel = zoneDetails ? t`Times use ${zoneDetails}` : t`Times use your local time zone`;
-	const tomorrowResult = resolvePublishingLocalDateTime(
-		quickChoices.tomorrow.date,
-		quickChoices.tomorrow.time,
-	);
-	const tomorrowTime = timeFormatter.format(
-		tomorrowResult.success ? tomorrowResult.date : new Date(),
-	);
-	const mondayResult = resolvePublishingLocalDateTime(
-		quickChoices.nextMonday.date,
-		quickChoices.nextMonday.time,
-	);
-	const mondayDate = mondayResult.success ? mondayResult.date : new Date();
-	const nextMondayLabel = t`Next ${weekdayFormatter.format(mondayDate)} at ${timeFormatter.format(mondayDate)}`;
+	const zoneValue = zoneDetails ?? t`Local time`;
 	const [hour = "", minute = ""] = time.split(":");
 	const minuteInputRef = React.useRef<HTMLInputElement>(null);
 	const updateTime = (nextHour: string, nextMinute: string) => {
@@ -102,34 +77,6 @@ export function PublishingDateTimeFields({
 
 	return (
 		<div className="space-y-4">
-			{showQuickChoices && (
-				<div className="grid gap-2">
-					<Button
-						type="button"
-						variant="secondary"
-						className="h-auto min-h-9 w-full justify-start whitespace-normal py-2 text-start"
-						disabled={disabled}
-						onClick={() => {
-							onDateChange(quickChoices.tomorrow.date);
-							onTimeChange(quickChoices.tomorrow.time);
-						}}
-					>
-						{t`Tomorrow at ${tomorrowTime}`}
-					</Button>
-					<Button
-						type="button"
-						variant="secondary"
-						className="h-auto min-h-9 w-full justify-start whitespace-normal py-2 text-start"
-						disabled={disabled}
-						onClick={() => {
-							onDateChange(quickChoices.nextMonday.date);
-							onTimeChange(quickChoices.nextMonday.time);
-						}}
-					>
-						{nextMondayLabel}
-					</Button>
-				</div>
-			)}
 			<DatePicker
 				mode="single"
 				selected={date}
@@ -201,9 +148,15 @@ export function PublishingDateTimeFields({
 				<span className="flex h-lh items-center" aria-hidden="true">
 					<Globe className="size-4" />
 				</span>
-				<Text as="p" variant="secondary">
-					{zoneLabel}
-				</Text>
+				<div className="flex min-w-0 flex-wrap items-baseline gap-x-1.5">
+					<Text as="span" variant="secondary">
+						{t`Timezone`}
+					</Text>
+					<span aria-hidden="true">·</span>
+					<Text as="span" variant="secondary" DANGEROUS_className="min-w-0">
+						<bdi>{zoneValue}</bdi>
+					</Text>
+				</div>
 			</div>
 		</div>
 	);
@@ -241,7 +194,6 @@ interface PublishingDateTimeDialogContentProps {
 	date: Date | undefined;
 	time: string;
 	pending: boolean;
-	showQuickChoices?: boolean;
 	restrictToFuture?: boolean;
 	dateAriaLabel: string;
 	errorMessage: string | null;
@@ -258,7 +210,6 @@ function PublishingDateTimeDialogContent({
 	date,
 	time,
 	pending,
-	showQuickChoices,
 	restrictToFuture,
 	dateAriaLabel,
 	errorMessage,
@@ -307,7 +258,6 @@ function PublishingDateTimeDialogContent({
 						date={date}
 						time={time}
 						disabled={pending}
-						showQuickChoices={showQuickChoices}
 						restrictToFuture={restrictToFuture}
 						dateAriaLabel={dateAriaLabel}
 						onDateChange={onDateChange}
@@ -436,7 +386,6 @@ export function PublishingScheduleDialog({
 				date={date}
 				time={time}
 				pending={pending}
-				showQuickChoices={!isEditing}
 				restrictToFuture
 				dateAriaLabel={t`Schedule date`}
 				errorMessage={validationError ?? getMutationError(mutationError)}

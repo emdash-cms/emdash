@@ -11,6 +11,8 @@
  * Uses the seeded "posts" collection which supports drafts and revisions.
  */
 
+import type { Locator } from "@playwright/test";
+
 import { test, expect } from "../fixtures";
 
 // ---------- regex patterns ----------
@@ -35,6 +37,20 @@ function apiHeaders(token: string, baseUrl: string) {
 		"X-EmDash-Request": "1",
 		Origin: baseUrl,
 	};
+}
+
+function localDateKey(date: Date): string {
+	return [
+		date.getFullYear(),
+		String(date.getMonth() + 1).padStart(2, "0"),
+		String(date.getDate()).padStart(2, "0"),
+	].join("-");
+}
+
+async function selectTomorrow(dialog: Locator) {
+	const tomorrow = new Date();
+	tomorrow.setDate(tomorrow.getDate() + 1);
+	await dialog.locator(`[data-day="${localDateKey(tomorrow)}"] button`).click();
 }
 
 /** Create a post via API and return its ID */
@@ -132,7 +148,7 @@ test.describe("Schedule content", () => {
 
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		await expect(dialog).toBeVisible({ timeout: 5000 });
-		await dialog.getByRole("button", { name: /Tomorrow at/ }).click();
+		await selectTomorrow(dialog);
 		const hourInput = dialog.getByRole("textbox", { name: "Hour" });
 		const minuteInput = dialog.getByRole("textbox", { name: "Minute" });
 		await hourInput.fill("14");
@@ -207,11 +223,8 @@ test.describe("Schedule content", () => {
 		const calendarStart = calendarBox!.x - dialogBox!.x;
 		const calendarEnd = dialogBox!.x + dialogBox!.width - (calendarBox!.x + calendarBox!.width);
 		expect(Math.abs(calendarStart - calendarEnd)).toBeLessThan(2);
-		const tomorrowBox = await dialog.getByRole("button", { name: /Tomorrow at/ }).boundingBox();
-		const mondayBox = await dialog.getByRole("button", { name: /Next Monday at/ }).boundingBox();
-		expect(tomorrowBox).not.toBeNull();
-		expect(mondayBox).not.toBeNull();
-		expect(mondayBox!.y).toBeGreaterThanOrEqual(tomorrowBox!.y + tomorrowBox!.height);
+		await expect(dialog.getByRole("button", { name: /Tomorrow at/ })).toHaveCount(0);
+		await expect(dialog.getByRole("button", { name: /Next .* at/ })).toHaveCount(0);
 		expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
 			true,
 		);
@@ -361,7 +374,9 @@ test.describe("Schedule content", () => {
 		await expect(
 			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
 		).toBeVisible();
-		await dialog.getByRole("button", { name: /Tomorrow at/ }).click();
+		await selectTomorrow(dialog);
+		await dialog.getByRole("textbox", { name: "Hour" }).fill("09");
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("00");
 		const scheduleResponse = page.waitForResponse(
 			(res) =>
 				SCHEDULE_API_PATTERN.test(res.url()) &&

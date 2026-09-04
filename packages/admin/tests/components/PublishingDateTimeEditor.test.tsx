@@ -1,8 +1,10 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { PublishingDateTimeFields } from "../../src/components/PublishingDateTimeEditor.js";
+import { getPublishingTimeZone } from "../../src/lib/publishing-datetime.js";
 import { render } from "../utils/render.tsx";
 
 it("returns the calendar to the current month when a new entry has no saved date", async () => {
@@ -36,9 +38,10 @@ it("returns the calendar to the current month when a new entry has no saved date
 });
 
 it("uses Kumo hour and minute text inputs instead of the browser time picker", async () => {
+	const date = new Date(2035, 5, 15, 12);
 	const screen = await render(
 		<PublishingDateTimeFields
-			date={new Date(2035, 5, 15, 12)}
+			date={date}
 			time="09:05"
 			dateAriaLabel="Publication date"
 			onDateChange={vi.fn()}
@@ -48,6 +51,10 @@ it("uses Kumo hour and minute text inputs instead of the browser time picker", a
 
 	await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("09");
 	await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("05");
+	const { timeZone, shortName } = getPublishingTimeZone(date, i18n.locale);
+	const zoneDetails = timeZone ? (shortName ? `${timeZone} (${shortName})` : timeZone) : null;
+	expect(zoneDetails).not.toBeNull();
+	await expect.element(screen.getByText(zoneDetails!, { exact: true })).toBeVisible();
 	expect(screen.container.querySelector('input[type="time"]')).toBeNull();
 });
 

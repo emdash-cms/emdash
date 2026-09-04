@@ -57,11 +57,7 @@ import {
 import { cn } from "../lib/utils";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
-import {
-	ContentStatusBadge,
-	ContentStatusIcon,
-	isContentStatusState,
-} from "./ContentStatusBadge.js";
+import { ContentStatusIcon } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
@@ -81,31 +77,6 @@ import { TranslationsPanel } from "./TranslationsPanel.js";
 
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
-
-function PublishingLifecycleBadge({
-	publishingState,
-	status,
-	supportsDrafts,
-}: {
-	publishingState: ContentPublishingState;
-	status: string;
-	supportsDrafts: boolean;
-}) {
-	if (supportsDrafts) {
-		const state =
-			publishingState === "draft"
-				? "draft"
-				: publishingState === "scheduled"
-					? "scheduled"
-					: "published";
-		return <ContentStatusBadge state={state} />;
-	}
-	return isContentStatusState(status) ? (
-		<ContentStatusBadge state={status} />
-	) : (
-		<Badge variant="secondary">{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>
-	);
-}
 
 function PublishingVersionRow({
 	iconState,
@@ -787,7 +758,6 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	entryLocale,
 	slug,
 	onSlugChange,
-	status,
 	supportsDrafts,
 	isLive,
 	hasPendingChanges,
@@ -893,16 +863,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			>
 				<SortableContentSettingsSection id="publish" label={t`Publish`}>
 					<div className="p-4">
-						<div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-							<Text bold as="h3">
-								{t`Publish`}
-							</Text>
-							<PublishingLifecycleBadge
-								publishingState={resolvedPublishingState}
-								status={status}
-								supportsDrafts={supportsDrafts}
-							/>
-						</div>
+						<Text bold as="h3" DANGEROUS_className="mb-4">
+							{t`Publish`}
+						</Text>
 						<div className="space-y-4">
 							<Input
 								label={t`Slug`}

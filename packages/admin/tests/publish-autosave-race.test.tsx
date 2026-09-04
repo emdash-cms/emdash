@@ -268,6 +268,27 @@ async function publishNow(screen: Awaited<ReturnType<typeof render>>) {
 	await (await getPublishAction(screen, /Publish changes now/)).click();
 }
 
+function localDateKey(date: Date): string {
+	return [
+		date.getFullYear(),
+		String(date.getMonth() + 1).padStart(2, "0"),
+		String(date.getDate()).padStart(2, "0"),
+	].join("-");
+}
+
+async function fillScheduleFields(screen: Awaited<ReturnType<typeof render>>) {
+	const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+	const tomorrow = new Date();
+	tomorrow.setDate(tomorrow.getDate() + 1);
+	const dayButton = dialog
+		.element()
+		.querySelector<HTMLButtonElement>(`[data-day="${localDateKey(tomorrow)}"] button`);
+	expect(dayButton).not.toBeNull();
+	fireEvent.click(dayButton!);
+	await dialog.getByRole("textbox", { name: "Hour" }).fill("09");
+	await dialog.getByRole("textbox", { name: "Minute" }).fill("00");
+}
+
 function contentMutations(requests: RecordedRequest[]) {
 	return requests.filter(
 		(request) =>
@@ -483,7 +504,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		await (await getPublishAction(screen, /Schedule changes/)).click();
 		await vi.advanceTimersByTimeAsync(150);
 		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
-		fireEvent.click(dialog.getByRole("button", { name: /Tomorrow at/ }).element());
+		await fillScheduleFields(screen);
 		fireEvent.click(
 			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
 		);
@@ -601,7 +622,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		await (await getPublishAction(screen, /Schedule changes/)).click();
 		await vi.advanceTimersByTimeAsync(150);
 		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
-		fireEvent.click(dialog.getByRole("button", { name: /Tomorrow at/ }).element());
+		await fillScheduleFields(screen);
 		fireEvent.click(
 			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
 		);
@@ -627,7 +648,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		await (await getPublishAction(screen, /Schedule changes/)).click();
 		await vi.advanceTimersByTimeAsync(150);
 		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
-		fireEvent.click(dialog.getByRole("button", { name: /Tomorrow at/ }).element());
+		await fillScheduleFields(screen);
 		fireEvent.click(
 			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
 		);
@@ -693,7 +714,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		await (await getPublishAction(screen, /Schedule changes/)).click();
 		await vi.advanceTimersByTimeAsync(150);
 		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
-		fireEvent.click(dialog.getByRole("button", { name: /Tomorrow at/ }).element());
+		await fillScheduleFields(screen);
 		fireEvent.click(
 			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
 		);
@@ -743,7 +764,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		await (await getPublishAction(screen, /Schedule changes/)).click();
 		await vi.advanceTimersByTimeAsync(150);
 		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
-		fireEvent.click(dialog.getByRole("button", { name: /Tomorrow at/ }).element());
+		await fillScheduleFields(screen);
 		fireEvent.click(
 			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
 		);

@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
 	formatPublishingInstant,
 	formatPublishingInstantWithZone,
-	getPublishingQuickChoices,
 	getPublishingTimeZone,
 	publishingFieldsMatchInstant,
 	publishingInstantToLocalFields,
@@ -69,17 +68,6 @@ describe("publishing date-time helpers", () => {
 
 		expect(publishingFieldsMatchInstant("2026-07-01T13:30:45.123Z", fields.date, fields.time)).toBe(
 			true,
-		);
-	});
-
-	it("keeps quick choices in the future across a year boundary", () => {
-		const choices = getPublishingQuickChoices(new Date(2026, 11, 31, 18));
-
-		expect(choices.tomorrow.date?.getFullYear()).toBe(2027);
-		expect(choices.tomorrow.date?.getMonth()).toBe(0);
-		expect(choices.tomorrow.date?.getDate()).toBe(1);
-		expect(choices.nextMonday.date?.getTime()).toBeGreaterThan(
-			new Date(2026, 11, 31, 18).getTime(),
 		);
 	});
 

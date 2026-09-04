@@ -211,7 +211,7 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
 	});
 
-	it("places the lifecycle beside Publish and distinguishes live and draft versions", async () => {
+	it("omits the redundant lifecycle badge and distinguishes live and draft versions", async () => {
 		const screen = await render(
 			<ContentSettingsPanel
 				{...makePanelProps({
@@ -228,9 +228,7 @@ describe("ContentSettingsPanel", () => {
 			/>,
 		);
 
-		const heading = screen.getByRole("heading", { name: "Publish" }).element();
-		const publishedBadge = screen.getByText("Published", { exact: true }).element();
-		expect(publishedBadge.parentElement).toBe(heading.parentElement);
+		expect(screen.getByText("Published", { exact: true }).query()).toBeNull();
 		const summary = screen.getByRole("group", { name: "Publishing summary" });
 		await expect.element(summary.getByText("Live version", { exact: true })).toBeInTheDocument();
 		await expect.element(summary.getByText("Draft changes", { exact: true })).toBeInTheDocument();
@@ -347,7 +345,7 @@ describe("ContentSettingsPanel", () => {
 		await vi.waitFor(() => expect(help.query()).toBeNull());
 	});
 
-	it("shows Scheduled without a Draft companion", async () => {
+	it("shows the scheduled summary without redundant status badges", async () => {
 		const screen = await render(
 			<ContentSettingsPanel
 				{...makePanelProps({
@@ -359,7 +357,7 @@ describe("ContentSettingsPanel", () => {
 		await expect
 			.element(screen.getByText("First publication", { exact: true }))
 			.toBeInTheDocument();
-		expect(screen.getByText("Scheduled", { exact: true }).all()).toHaveLength(1);
+		expect(screen.getByText("Scheduled", { exact: true }).query()).toBeNull();
 		await expect.element(screen.getByText(/Scheduled for/)).toBeVisible();
 		expect(
 			screen.container.querySelector('time[datetime="2027-06-01T12:00:00.000Z"]')?.textContent,
@@ -414,26 +412,16 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.getByText("Draft changes", { exact: true }).query()).toBeNull();
 	});
 
-	it("normalizes recognized statuses for collections without draft support", async () => {
+	it("omits header lifecycle badges when drafts are unsupported", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ status: "published", supportsDrafts: false })} />,
 		);
-		const heading = screen.getByRole("heading", { name: "Publish" }).element();
-		const status = screen.getByText("Published", { exact: true }).element();
+		expect(screen.getByText("Published", { exact: true }).query()).toBeNull();
 
-		expect(status.parentElement).toBe(heading.parentElement);
-		expect(status.querySelector("svg")).not.toBeNull();
-	});
-
-	it("preserves custom statuses for collections without draft support", async () => {
-		const screen = await render(
+		await screen.rerender(
 			<ContentSettingsPanel {...makePanelProps({ status: "reviewing", supportsDrafts: false })} />,
 		);
-		const heading = screen.getByRole("heading", { name: "Publish" }).element();
-		const status = screen.getByText("Reviewing", { exact: true }).element();
-
-		expect(status.parentElement).toBe(heading.parentElement);
-		expect(status.querySelector("svg")).toBeNull();
+		expect(screen.getByText("Reviewing", { exact: true }).query()).toBeNull();
 	});
 
 	it("shows a persisted schedule without live-and-draft language when drafts are unsupported", async () => {
@@ -447,7 +435,6 @@ describe("ContentSettingsPanel", () => {
 			/>,
 		);
 
-		await expect.element(screen.getByText("Reviewing", { exact: true })).toBeVisible();
 		await expect.element(screen.getByText("Scheduled publication", { exact: true })).toBeVisible();
 		expect(screen.getByText("Live version", { exact: true }).query()).toBeNull();
 		expect(screen.getByText("Draft version", { exact: true }).query()).toBeNull();

@@ -1,5 +1,4 @@
 import { i18n } from "@lingui/core";
-import { fireEvent } from "@testing-library/react";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -1982,16 +1981,15 @@ describe("ContentEditor", () => {
 			await expect.element(dialog.getByText(/America\/New_York/)).toBeInTheDocument();
 		});
 
-		it("fills a quick choice with the intended local time", async () => {
+		it("omits schedule shortcuts", async () => {
 			const item = makeItem({ status: "draft" });
 			const onSchedule = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn(), onSchedule });
 
 			await screen.getByRole("button", { name: "Publish", exact: true }).click();
 			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
-			fireEvent.click(screen.getByRole("button", { name: /Tomorrow at/ }).element());
-			await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("09");
-			await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("00");
+			expect(screen.getByRole("button", { name: /Tomorrow at/ }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: /Next .* at/ }).query()).toBeNull();
 			expect(onSchedule).not.toHaveBeenCalled();
 		});
 
