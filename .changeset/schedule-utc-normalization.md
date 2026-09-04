@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Fixes `content.schedule()` storing `scheduledAt` with whatever offset the caller supplied (e.g. `+09:00`) instead of normalizing it to UTC. Because `findReadyToPublish()` compares `scheduled_at` against `new Date().toISOString()` (always UTC/`Z`) via plain string ordering, a non-UTC offset sorted incorrectly and published up to that many hours late (or early, for offsets ahead of UTC). `schedule()` now stores `scheduledDate.toISOString()`, the same value it already validates against.
+Fixes `content.schedule()` so it always stores `scheduledAt` in UTC. Previously, a caller-supplied timezone offset such as `+09:00` was stored verbatim and compared incorrectly against the UTC clock used by the scheduled-publishing sweep, causing entries to publish up to several hours late or early. The same normalization now applies to every path that writes `scheduled_at`, including plain content updates.

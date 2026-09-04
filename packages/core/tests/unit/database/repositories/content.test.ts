@@ -319,6 +319,48 @@ describe("ContentRepository", () => {
 			expect(updated.updatedAt).not.toBe(created.updatedAt);
 		});
 
+		it("should normalize a non-UTC scheduledAt offset to 'Z', same as schedule()", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+
+			// A fixed instant safely in the future, pinned to a UTC hour where
+			// adding the +09:00 offset below can't roll over into the next day.
+			const future = new Date(Date.now() + 2 * 86_400_000);
+			future.setUTCHours(3, 44, 0, 0);
+
+			const pad = (n: number) => String(n).padStart(2, "0");
+			const localHour = pad(future.getUTCHours() + 9);
+			const scheduledAtWithOffset = `${future.getUTCFullYear()}-${pad(future.getUTCMonth() + 1)}-${pad(future.getUTCDate())}T${localHour}:44:00+09:00`;
+
+			const updated = await repo.update("post", created.id, {
+				scheduledAt: scheduledAtWithOffset,
+			});
+
+			expect(updated.scheduledAt).toBe(future.toISOString());
+		});
+
+		it("should clear scheduledAt when set to null", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+			const future = new Date(Date.now() + 86_400_000).toISOString();
+			await repo.update("post", created.id, { scheduledAt: future });
+
+			const updated = await repo.update("post", created.id, {
+				scheduledAt: null,
+			});
+
+			expect(updated.scheduledAt).toBeNull();
+		});
+
+		it("should reject an invalid scheduledAt string", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+
+			await expect(
+				repo.update("post", created.id, { scheduledAt: "not-a-date" }),
+			).rejects.toThrow(EmDashValidationError);
+		});
+
 		it("should throw error for non-existent content", async () => {
 			await expect(repo.update("post", "01J9FAKE0000000000000000", { data: {} })).rejects.toThrow(
 				"Content not found",
