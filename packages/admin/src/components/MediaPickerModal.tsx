@@ -33,6 +33,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import {
 	ApiResponseError,
@@ -66,6 +67,8 @@ import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 const URL_SOURCE = "__url";
 const PICKER_PAGE_SIZE = 12;
+const WORKSPACE_RESIZE_DURATION_MS = 340;
+const WORKSPACE_RESIZE_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
 const ROLE_CONTRIBUTOR = 20;
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
@@ -251,6 +254,8 @@ export function MediaPickerModal({
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
 	const editAssetButtonRef = React.useRef<HTMLButtonElement>(null);
 	const mediaDetailPanelRef = React.useRef<(() => void) | null>(null);
+	const workspaceResizeAnimationRef = React.useRef<Animation | null>(null);
+	const workspaceResizeTimerRef = React.useRef<number | null>(null);
 	const updatedDimensionsRef = React.useRef(new Set<string>());
 	const urlProbeIdRef = React.useRef(0);
 	const uploadTargetsRef = React.useRef(new Map<number, string>());
@@ -284,9 +289,30 @@ export function MediaPickerModal({
 
 	React.useEffect(() => {
 		if (open) return;
+		workspaceResizeAnimationRef.current?.cancel();
+		workspaceResizeAnimationRef.current = null;
+		if (workspaceResizeTimerRef.current !== null) {
+			window.clearTimeout(workspaceResizeTimerRef.current);
+			workspaceResizeTimerRef.current = null;
+		}
+		const dialog = editAssetButtonRef.current?.closest<HTMLDivElement>('[role="dialog"]');
+		if (dialog) {
+			dialog.style.height = "";
+			dialog.style.maxHeight = "";
+		}
 		restoreEditFocusRef.current = false;
 		setAssetOpen(false);
 	}, [open]);
+
+	React.useEffect(
+		() => () => {
+			workspaceResizeAnimationRef.current?.cancel();
+			if (workspaceResizeTimerRef.current !== null) {
+				window.clearTimeout(workspaceResizeTimerRef.current);
+			}
+		},
+		[],
+	);
 
 	React.useEffect(() => {
 		if (!open || assetOpen || !restoreEditFocusRef.current) return;
@@ -759,14 +785,71 @@ export function MediaPickerModal({
 		},
 		[queryClient],
 	);
+	const transitionWorkspaceLayout = (nextAssetOpen: boolean) => {
+		const dialog = editAssetButtonRef.current?.closest<HTMLDivElement>('[role="dialog"]') ?? null;
+		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		if (!dialog || reduceMotion || typeof dialog.animate !== "function") {
+			setAssetOpen(nextAssetOpen);
+			return;
+		}
+
+		const startHeight = dialog.getBoundingClientRect().height;
+		workspaceResizeAnimationRef.current?.cancel();
+		workspaceResizeAnimationRef.current = null;
+		if (workspaceResizeTimerRef.current !== null) {
+			window.clearTimeout(workspaceResizeTimerRef.current);
+			workspaceResizeTimerRef.current = null;
+		}
+		dialog.style.height = `${startHeight}px`;
+		dialog.style.maxHeight = "none";
+		flushSync(() => setAssetOpen(nextAssetOpen));
+		dialog.style.maxHeight = "none";
+		dialog.style.height = "";
+		const naturalEndHeight = dialog.getBoundingClientRect().height;
+		const rootFontSize =
+			Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+		const detailMaxHeight = Math.min(window.innerHeight * 0.88, rootFontSize * 43.5);
+		const endHeight = nextAssetOpen
+			? Math.min(naturalEndHeight, detailMaxHeight)
+			: naturalEndHeight;
+		const finalMaxHeight = nextAssetOpen ? "min(88dvh, 43.5rem)" : "";
+		if (Math.abs(endHeight - startHeight) < 1) {
+			dialog.style.maxHeight = finalMaxHeight;
+			return;
+		}
+
+		dialog.style.height = `${startHeight}px`;
+		const animation = dialog.animate(
+			[{ height: `${startHeight}px` }, { height: `${endHeight}px` }],
+			{
+				duration: WORKSPACE_RESIZE_DURATION_MS,
+				easing: WORKSPACE_RESIZE_EASING,
+				fill: "forwards",
+			},
+		);
+		workspaceResizeAnimationRef.current = animation;
+		const finish = () => {
+			if (workspaceResizeAnimationRef.current !== animation) return;
+			workspaceResizeAnimationRef.current = null;
+			if (workspaceResizeTimerRef.current !== null) {
+				window.clearTimeout(workspaceResizeTimerRef.current);
+				workspaceResizeTimerRef.current = null;
+			}
+			dialog.style.height = "";
+			dialog.style.maxHeight = finalMaxHeight;
+			animation.cancel();
+		};
+		animation.addEventListener("finish", finish, { once: true });
+		workspaceResizeTimerRef.current = window.setTimeout(finish, WORKSPACE_RESIZE_DURATION_MS + 100);
+	};
 	const openAssetEditor = () => {
 		if (!editableSelection || uploadQueue.hasUnfinished) return;
 		setAssetItem(editableSelection);
-		setAssetOpen(true);
+		transitionWorkspaceLayout(true);
 	};
 	const closeAssetEditor = () => {
 		restoreEditFocusRef.current = true;
-		setAssetOpen(false);
+		transitionWorkspaceLayout(false);
 	};
 	const confirmText =
 		confirmLabel ??
@@ -883,14 +966,8 @@ export function MediaPickerModal({
 		>
 			<Dialog
 				size="xl"
-				className={
-					assetOpen
-						? "min-w-0 flex flex-col overflow-hidden p-0"
-						: "flex h-[min(48rem,calc(100dvh-1rem))] w-[calc(100vw-2rem)] min-h-0 min-w-0 max-w-[48rem] flex-col overflow-hidden p-0 sm:w-[min(48rem,calc(100vw-2rem))]"
-				}
-				style={
-					assetOpen ? { width: "min(94vw, 68rem)", maxHeight: "min(88dvh, 43.5rem)" } : undefined
-				}
+				className={`flex w-[calc(100vw-2rem)] min-h-0 min-w-0 max-w-[48rem] flex-col overflow-hidden p-0 sm:w-[min(48rem,calc(100vw-2rem))] ${assetOpen ? "" : "h-[min(48rem,calc(100dvh-1rem))]"}`}
+				style={assetOpen ? { maxHeight: "min(88dvh, 43.5rem)" } : undefined}
 			>
 				{assetOpen ? (
 					<MediaDetailPanel

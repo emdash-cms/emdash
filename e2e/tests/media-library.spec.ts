@@ -421,11 +421,13 @@ test.describe("Media Library", () => {
 		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
 		const workspaceElement = await picker.elementHandle();
 		expect(workspaceElement).not.toBeNull();
+		const workspaceWidth = await picker.evaluate((dialog) => dialog.clientWidth);
 		await picker.getByRole("searchbox", { name: "Search media" }).fill(filename);
 		await picker.getByRole("button", { name: filename, exact: true }).click();
 		await picker.getByRole("button", { name: "Edit asset" }).click();
 		const pickerDetails = page.getByRole("dialog", { name: "Media details" });
 		await expect(pickerDetails).toBeVisible();
+		expect(await pickerDetails.evaluate((dialog) => dialog.clientWidth)).toBe(workspaceWidth);
 		expect(
 			await pickerDetails.evaluate(
 				(dialog, originalDialog) => dialog === originalDialog,
