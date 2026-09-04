@@ -234,19 +234,73 @@ references remain unchanged.
 
 For fields configured as image or file types, click the field to open the media picker.
 
+## Replacing an image
+
+Use **Replace image** to update the file behind an existing local media item. Authors can replace
+images they uploaded, and editors can replace any local image. The action is available for JPEG,
+PNG, and WebP images stored on local disk, Cloudflare R2, or S3-compatible storage.
+
+1. Open **Media**, then select an image from the local library.
+2. Stay on **Details**, then select **Replace image**.
+3. Choose a non-empty image in the same format as the existing file.
+4. Review the warning, then select **Replace image** to confirm.
+
+The replacement can use different dimensions or an aspect ratio from the existing image. EmDash
+keeps the media ID, filename, URL, alt text, caption, and location, so every existing reference uses
+the replacement. Replacing the file clears its focal point.
+
+**Replace image** uploads another file from your computer. To trim the current image, select
+**Replace original** from the **Crop** editor.
+
+<Aside type="caution">
+	Replacing an image cannot be undone. EmDash does not keep the previous file. A browser or content
+	delivery network may briefly show cached bytes from the previous image until the cached response
+	refreshes.
+</Aside>
+
 ## Setting a focal point
 
 A focal point keeps the important part of a local image visible when a card, gallery, or other
 layout crops it to fill a fixed shape.
 
 1. Open **Media**, then select an image from the local library.
-2. Select **Focal point**.
+2. Select **Edit image**, then **Focal point**.
 3. Click or drag the marker onto the important part of the image. You can also use the Arrow keys.
 4. Check the square, landscape, and portrait previews, then select **Save**.
 
 Select **Reset** to remove a custom focal point. The saved point is copied when you select
 the image for a content field or gallery. Content that already uses the image keeps its stored point
 until you select the image again.
+
+## Cropping an image
+
+Cropping is available for JPEG, PNG, and WebP images uploaded to EmDash. It works with local
+storage, Cloudflare R2, and S3-compatible storage. Images from external media providers cannot be
+cropped in the Media Library.
+
+1. Open **Media**, then select an image from the local library.
+2. Select **Edit image**, then **Crop**.
+3. Select **Original**, **Freeform**, or a common aspect ratio. Fixed ratios stay locked while you
+   resize. **Freeform** lets you change the width and height independently.
+4. Move the crop frame over the image. For a fixed ratio, drag a corner to resize it. **Freeform**
+	also provides four edge handles. The rule-of-thirds grid remains visible. You can focus the frame
+	or a handle and use the Arrow keys. Hold Shift for larger steps.
+5. Select one of the crop actions:
+	- **Create cropped copy** creates a separate media item and leaves the original unchanged. Select
+		the cropped copy in each content entry where you want to use it.
+	- **Replace original** replaces the image everywhere the media item is used. Existing content
+		entries keep the same media reference and are not rewritten or republished.
+
+<Aside type="caution">
+	**Replace original** cannot be undone. EmDash does not keep the uncropped bytes or a crop history.
+	It is available only with the **Original** aspect ratio. Use **Create cropped copy** for Freeform
+	or a common aspect ratio.
+	The media URL stays the same, so browsers or content delivery networks may show cached uncropped
+	bytes until that cached response expires or is purged separately.
+</Aside>
+
+Cropping a WebP file produces a still WebP image. If the source is animated, the cropped result
+does not retain the animation.
 
 ## Displaying Media in Templates
 

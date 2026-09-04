@@ -12,11 +12,14 @@
 import { Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Trash, Pencil, X, Check, SlidersHorizontal } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
+import { fetchMediaItem } from "../../lib/api/media.js";
+import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import type { ImageAttributes } from "./ImageDetailPanel";
 
@@ -58,6 +61,19 @@ function ImageNodeView({
 	const { t } = useLingui();
 	const [isEditingAlt, setIsEditingAlt] = React.useState(false);
 	const [altText, setAltText] = React.useState(node.attrs.alt || "");
+	const mediaId =
+		typeof node.attrs.mediaId === "string" &&
+		node.attrs.mediaId &&
+		canonicalMediaProviderId(node.attrs.provider) === "local"
+			? node.attrs.mediaId
+			: null;
+	const { data: currentMedia } = useQuery({
+		queryKey: ["media", mediaId],
+		queryFn: ({ signal }) => fetchMediaItem(mediaId!, { signal }),
+		enabled: mediaId !== null,
+	});
+	const storedSrc = typeof node.attrs.src === "string" ? node.attrs.src : "";
+	const displaySrc = getMediaPreviewUrl(currentMedia?.url || storedSrc, currentMedia?.contentHash);
 
 	/** Whether this node currently has its sidebar panel open */
 	const sidebarOpenRef = React.useRef(false);
@@ -186,7 +202,7 @@ function ImageNodeView({
 		>
 			<figure className="relative">
 				<img
-					src={node.attrs.src}
+					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
 					className="rounded-lg max-w-full mx-auto"

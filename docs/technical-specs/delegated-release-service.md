@@ -132,6 +132,8 @@ interface PackageProfileExtension {
 
 The service normalizes omitted values to the protocol defaults. It validates the repository as a canonical HTTPS source URL and every approver as a DID. The release service can display this policy but cannot change it.
 
+`emdash-plugin release setup` creates a missing package profile or adds the extension to an existing valid profile through the publisher's local CLI session. It asks for confirmation in an interactive terminal and preserves existing package metadata. The service checks the signed extension before confirming a workflow and again before accepting that workflow's artifact uploads. A missing profile, missing extension, or repository mismatch returns `PACKAGE_PROFILE_REQUIRED` with the local setup command.
+
 The delegated path always requires supported provenance, even when `requireProvenance` is absent. The profile field communicates the publisher's requirement to every installer and non-delegated publisher. A supplied unsupported predicate is present-but-unverifiable and fails delegated publication.
 
 ### Signed release provenance
@@ -564,28 +566,29 @@ State-changing requests require content-type validation, CSRF where cookies are 
 
 At minimum, the API and Workflow use these error classes:
 
-| Code                   | Meaning                                                     | Retry behavior                   |
-| ---------------------- | ----------------------------------------------------------- | -------------------------------- |
-| `AUTH_INVALID`         | Authentication or session proof failed                      | Permanent for request            |
-| `ACCESS_DENIED`        | Verified actor lacks required role or ownership             | Permanent                        |
-| `PUBLISHER_SUSPENDED`  | Hosted service or operator blocked the publisher            | Retry after state change         |
-| `SERVICE_PAUSED`       | Admission or publication is paused                          | Retry after state change         |
-| `DELEGATION_REQUIRED`  | No usable exact-scope session exists                        | Publisher must reauthorize       |
-| `WORKLOAD_NOT_ALLOWED` | OIDC claims do not match active policy                      | Permanent until policy changes   |
-| `IDEMPOTENCY_CONFLICT` | Same key was used with a different request                  | Permanent                        |
-| `VERSION_RESERVED`     | Package/version belongs to another intent                   | Permanent or return owner intent |
-| `RELEASE_EXISTS`       | Proposed deterministic key already exists                   | Permanent unless exact replay    |
-| `PROFILE_CHANGED`      | Authoritative policy changed after verification or approval | Reverify and possibly reapprove  |
-| `BASELINE_CHANGED`     | Access baseline changed                                     | Reverify and possibly reapprove  |
-| `ARTIFACT_INVALID`     | Fetch, checksum, bundle, or manifest failed                 | Permanent for supplied input     |
-| `PROVENANCE_INVALID`   | Provenance or workload binding failed                       | Permanent for supplied input     |
-| `APPROVAL_REQUIRED`    | Valid release awaits human decision                         | Not an error state               |
-| `APPROVAL_INVALID`     | DID, credential, challenge, digest, or UV failed            | Permanent for attempt            |
-| `DELEGATION_REVOKED`   | Session was revoked or cannot refresh                       | Publisher must reauthorize       |
-| `PDS_TRANSIENT`        | PDS result is retryable                                     | Workflow retry                   |
-| `PDS_AMBIGUOUS`        | Create outcome is unknown                                   | Reconciliation                   |
-| `RELEASE_CONFLICT`     | Deterministic key contains different data                   | Terminal conflict                |
-| `INTERNAL_ERROR`       | Public-safe catch-all                                       | Operator-visible correlation ID  |
+| Code                       | Meaning                                                     | Retry behavior                   |
+| -------------------------- | ----------------------------------------------------------- | -------------------------------- |
+| `AUTH_INVALID`             | Authentication or session proof failed                      | Permanent for request            |
+| `ACCESS_DENIED`            | Verified actor lacks required role or ownership             | Permanent                        |
+| `PUBLISHER_SUSPENDED`      | Hosted service or operator blocked the publisher            | Retry after state change         |
+| `SERVICE_PAUSED`           | Admission or publication is paused                          | Retry after state change         |
+| `DELEGATION_REQUIRED`      | No usable exact-scope session exists                        | Publisher must reauthorize       |
+| `WORKLOAD_NOT_ALLOWED`     | OIDC claims do not match active policy                      | Permanent until policy changes   |
+| `IDEMPOTENCY_CONFLICT`     | Same key was used with a different request                  | Permanent                        |
+| `VERSION_RESERVED`         | Package/version belongs to another intent                   | Permanent or return owner intent |
+| `RELEASE_EXISTS`           | Proposed deterministic key already exists                   | Permanent unless exact replay    |
+| `PACKAGE_PROFILE_REQUIRED` | Signed profile is missing, incomplete, or linked elsewhere  | Run local profile setup          |
+| `PROFILE_CHANGED`          | Authoritative policy changed after verification or approval | Reverify and possibly reapprove  |
+| `BASELINE_CHANGED`         | Access baseline changed                                     | Reverify and possibly reapprove  |
+| `ARTIFACT_INVALID`         | Fetch, checksum, bundle, or manifest failed                 | Permanent for supplied input     |
+| `PROVENANCE_INVALID`       | Provenance or workload binding failed                       | Permanent for supplied input     |
+| `APPROVAL_REQUIRED`        | Valid release awaits human decision                         | Not an error state               |
+| `APPROVAL_INVALID`         | DID, credential, challenge, digest, or UV failed            | Permanent for attempt            |
+| `DELEGATION_REVOKED`       | Session was revoked or cannot refresh                       | Publisher must reauthorize       |
+| `PDS_TRANSIENT`            | PDS result is retryable                                     | Workflow retry                   |
+| `PDS_AMBIGUOUS`            | Create outcome is unknown                                   | Reconciliation                   |
+| `RELEASE_CONFLICT`         | Deterministic key contains different data                   | Terminal conflict                |
+| `INTERNAL_ERROR`           | Public-safe catch-all                                       | Operator-visible correlation ID  |
 
 Provider payloads, tokens, secrets, raw assertions, private evidence, and stack traces never enter public errors or persistent generic error strings.
 

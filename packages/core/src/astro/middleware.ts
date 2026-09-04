@@ -909,6 +909,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					handleMediaGet: runtime.handleMediaGet.bind(runtime),
 					handleMediaCreate: runtime.handleMediaCreate.bind(runtime),
 					handleMediaUpdate: runtime.handleMediaUpdate.bind(runtime),
+					...(runtime.handleMediaReplaceMetadata
+						? {
+								handleMediaReplaceMetadata: runtime.handleMediaReplaceMetadata.bind(runtime),
+							}
+						: {}),
 					handleMediaDelete: runtime.handleMediaDelete.bind(runtime),
 
 					// Revision handlers

@@ -1,12 +1,16 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const { s3Send } = vi.hoisted(() => ({
+	s3Send: vi.fn((_command: unknown): Promise<unknown> => Promise.resolve({})),
+}));
+
 // The AWS SDK is a "bring-your-own" dependency of emdash core — it is NOT
 // installed in CI. Stub it here so loading s3.ts (which statically imports
 // both modules) does not require the real package.
 vi.mock("@aws-sdk/client-s3", () => {
 	class S3Client {
-		send(_command: unknown): Promise<unknown> {
-			return Promise.resolve({});
+		send(command: unknown): Promise<unknown> {
+			return s3Send(command);
 		}
 	}
 	class Command {
@@ -280,5 +284,48 @@ describe("S3Storage.getSignedUploadUrl", () => {
 		});
 
 		expect(signed.headers["Content-Length"]).toBe("0");
+	});
+});
+
+describe("S3Storage same-key upload", () => {
+	afterEach(() => s3Send.mockClear());
+
+	it("sends replacement bytes to the existing object key", async () => {
+		const storage = createStorage({
+			endpoint: "https://bucket.s3.example.com",
+			bucket: "my-bucket",
+			accessKeyId: "key",
+			secretAccessKey: "secret",
+		});
+
+		await storage.upload({
+			key: "hero.png",
+			body: new Uint8Array([1, 2, 3]),
+			contentType: "image/png",
+			cacheControl: "public, max-age=0, must-revalidate",
+		});
+		await storage.upload({
+			key: "hero.png",
+			body: new Uint8Array([9, 8]),
+			contentType: "image/png",
+			cacheControl: "public, max-age=0, must-revalidate",
+		});
+
+		const inputs = s3Send.mock.calls.map(
+			([command]) =>
+				(command as { input: { Key: string; Body: Uint8Array; CacheControl: string } }).input,
+		);
+		expect(inputs).toMatchObject([
+			{
+				Key: "hero.png",
+				Body: new Uint8Array([1, 2, 3]),
+				CacheControl: "public, max-age=0, must-revalidate",
+			},
+			{
+				Key: "hero.png",
+				Body: new Uint8Array([9, 8]),
+				CacheControl: "public, max-age=0, must-revalidate",
+			},
+		]);
 	});
 });

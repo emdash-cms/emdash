@@ -11,12 +11,14 @@
 import { Button, Label, LayerCard, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Image as ImageIcon, ImageBroken, ImageSquare, Moon, X } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import type { MediaItem } from "../lib/api";
+import { fetchMediaItem, type MediaItem } from "../lib/api";
 import {
 	canonicalMediaProviderId,
 	getMediaObjectPosition,
+	getMediaPreviewUrl,
 	metaString,
 } from "../lib/media-utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
@@ -105,9 +107,37 @@ export function ImageFieldRenderer({
 			: typeof value === "string" && value
 				? { id: "", src: value }
 				: undefined;
-	const displayUrl = mediaDisplayUrl(value);
 	const darkValue = objectValue?.darkVariant;
-	const darkDisplayUrl = mediaDisplayUrl(darkValue);
+	const currentMediaId =
+		variant === "featured" &&
+		objectValue?.id &&
+		canonicalMediaProviderId(objectValue.provider) === "local"
+			? objectValue.id
+			: null;
+	const { data: currentMedia } = useQuery({
+		queryKey: ["media", currentMediaId],
+		queryFn: ({ signal }) => fetchMediaItem(currentMediaId!, { signal }),
+		enabled: currentMediaId !== null,
+	});
+	const currentDarkMediaId =
+		variant === "featured" &&
+		darkValue?.id &&
+		canonicalMediaProviderId(darkValue.provider) === "local"
+			? darkValue.id
+			: null;
+	const { data: currentDarkMedia } = useQuery({
+		queryKey: ["media", currentDarkMediaId],
+		queryFn: ({ signal }) => fetchMediaItem(currentDarkMediaId!, { signal }),
+		enabled: currentDarkMediaId !== null,
+	});
+	const storedDisplayUrl = mediaDisplayUrl(value);
+	const displayUrl = storedDisplayUrl
+		? getMediaPreviewUrl(storedDisplayUrl, currentMedia?.contentHash)
+		: undefined;
+	const storedDarkDisplayUrl = mediaDisplayUrl(darkValue);
+	const darkDisplayUrl = storedDarkDisplayUrl
+		? getMediaPreviewUrl(storedDarkDisplayUrl, currentDarkMedia?.contentHash)
+		: undefined;
 
 	React.useEffect(() => {
 		setImageBroken(false);
@@ -169,11 +199,16 @@ export function ImageFieldRenderer({
 	const isFeatured = variant === "featured";
 	const selectedFilename =
 		typeof value === "object" && value.filename ? value.filename : t`Selected image`;
+	const currentWidth = currentMedia?.width ?? (typeof value === "object" ? value.width : undefined);
+	const currentHeight =
+		currentMedia?.height ?? (typeof value === "object" ? value.height : undefined);
 	const dimensions =
-		typeof value === "object" && typeof value.width === "number" && typeof value.height === "number"
-			? `${value.width} × ${value.height}`
+		typeof currentWidth === "number" && typeof currentHeight === "number"
+			? `${currentWidth} × ${currentHeight}`
 			: undefined;
-	const mimeType = typeof value === "object" && value.mimeType ? value.mimeType : undefined;
+	const mimeType =
+		currentMedia?.mimeType ??
+		(typeof value === "object" && value.mimeType ? value.mimeType : undefined);
 	const metadata = [dimensions, mimeType].filter(Boolean).join(" · ");
 	const objectPosition =
 		typeof value === "object" && value ? getMediaObjectPosition(value) : undefined;

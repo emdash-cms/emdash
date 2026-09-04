@@ -401,6 +401,7 @@ export interface EmDashHandlers {
 		blurhash?: string;
 		dominantColor?: string;
 		authorId?: string;
+		folderId?: string | null;
 	}) => Promise<HandlerResponse>;
 
 	handleMediaUpdate: (
@@ -414,6 +415,12 @@ export interface EmDashHandlers {
 			focalX?: number | null;
 			focalY?: number | null;
 		},
+	) => Promise<HandlerResponse>;
+
+	handleMediaReplaceMetadata?: (
+		id: string,
+		expectedStorageKey: string,
+		input: { size: number; width: number; height: number; contentHash: string },
 	) => Promise<HandlerResponse>;
 
 	handleMediaDelete: (id: string) => Promise<HandlerResponse>;

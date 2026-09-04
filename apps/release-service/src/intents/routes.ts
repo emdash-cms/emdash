@@ -50,6 +50,11 @@ interface IntentActor {
 	publisherDid: string;
 }
 
+interface AuthenticatedIntentRequest {
+	publisherDid: string;
+	workloadIdentity: VerifiedWorkloadIdentity | null;
+}
+
 export interface SubmitIntentDependencies {
 	keyResolver?: JWTVerifyGetKey;
 	now?: () => number;
@@ -198,29 +203,16 @@ export async function serializeIntentResource(
 	};
 }
 
-async function authorizeIntent(
+async function authenticateIntentRequest(
 	request: Request,
 	configuration: ServiceConfiguration,
-	intent: StoredIntent,
-	publisherDid: string,
 	requireCsrf: boolean,
 	keyResolver?: JWTVerifyGetKey,
-): Promise<IntentActor> {
+): Promise<AuthenticatedIntentRequest> {
 	if (request.headers.has("authorization")) {
-		const identity = await authenticateWorkload(request, configuration, keyResolver);
-		const workloadDigest = await digestWorkloadIdempotencyIdentity(
-			identity,
-			publisherDid,
-			intent.packageSlug,
-			intent.version,
-		);
-		if (workloadDigest !== intent.workloadIdempotencyDigest) {
-			throw new ApiError("ACCESS_DENIED", 403, "Release intent access denied");
-		}
 		return {
-			realm: "oidc",
-			identity: await digestWorkloadIdentity(identity),
-			publisherDid,
+			publisherDid: requirePublisherQuery(request),
+			workloadIdentity: await authenticateWorkload(request, configuration, keyResolver),
 		};
 	}
 	const session = await requirePublisherApplicationSession(
@@ -229,10 +221,34 @@ async function authorizeIntent(
 		configuration.publicOrigin,
 		{ requireCsrf },
 	);
-	if (session.publisherDid !== publisherDid) {
-		throw new ApiError("ACCESS_DENIED", 403, "Release intent access denied");
+	return { publisherDid: session.publisherDid, workloadIdentity: null };
+}
+
+async function authorizeIntent(
+	request: AuthenticatedIntentRequest,
+	intent: StoredIntent,
+): Promise<IntentActor> {
+	if (request.workloadIdentity) {
+		const workloadDigest = await digestWorkloadIdempotencyIdentity(
+			request.workloadIdentity,
+			request.publisherDid,
+			intent.packageSlug,
+			intent.version,
+		);
+		if (workloadDigest !== intent.workloadIdempotencyDigest) {
+			throw new ApiError("NOT_FOUND", 404, "Release intent not found");
+		}
+		return {
+			realm: "oidc",
+			identity: intent.workloadIdentityDigest,
+			publisherDid: request.publisherDid,
+		};
 	}
-	return { realm: "publisher", identity: session.publisherDid, publisherDid };
+	return {
+		realm: "publisher",
+		identity: request.publisherDid,
+		publisherDid: request.publisherDid,
+	};
 }
 
 export function matchIntentResourcePath(pathname: string): Readonly<Record<string, string>> | null {
@@ -287,6 +303,10 @@ export async function handleSubmitReleaseIntent(
 		}
 		const requestDigest = await digest(["release-intent", 1, publisherDid, release]);
 		const now = dependencies.now?.() ?? Date.now();
+		const policy = await publisher.getWorkloadPolicyIfInitialized(publisherDid, release.package);
+		if (!policy || !evaluateWorkloadPolicy(identity, policy).ok) {
+			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
+		}
 		const replay = await publisher.findIdempotentIntent(
 			publisherDid,
 			workloadIdempotencyDigest,
@@ -296,6 +316,9 @@ export async function handleSubmitReleaseIntent(
 		if (replay) {
 			if (replay.requestDigest !== requestDigest) {
 				throw new ApiError("IDEMPOTENCY_CONFLICT", 409, "Idempotency key conflicts with prior use");
+			}
+			if (replay.intent.workloadPolicyVersion !== policy.stateVersion) {
+				throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
 			}
 		}
 		const admission = await env.SERVICE_CONTROL_DO.getByName(
@@ -309,14 +332,6 @@ export async function handleSubmitReleaseIntent(
 					? "Publisher is suspended"
 					: "Release admission is paused",
 			);
-		}
-		const policy = await publisher.getWorkloadPolicy(publisherDid, release.package);
-		if (
-			!policy ||
-			!evaluateWorkloadPolicy(identity, policy).ok ||
-			(replay !== null && replay.intent.workloadPolicyVersion !== policy.stateVersion)
-		) {
-			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
 		}
 		if (replay) {
 			const started = await (dependencies.startWorkflow ?? startReleaseIntentWorkflow)(
@@ -456,6 +471,13 @@ export async function handleDryRunReleaseIntent(
 			throw new ApiError("INVALID_REQUEST", 400, "Invalid release intent request");
 		}
 		const publisherDid = body["publisherDid"];
+		const policy = await env.PUBLISHER_DO.getByName(publisherDid).getWorkloadPolicyIfInitialized(
+			publisherDid,
+			release.package,
+		);
+		if (!policy || !evaluateWorkloadPolicy(identity, policy).ok) {
+			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
+		}
 		const admission = await env.SERVICE_CONTROL_DO.getByName(
 			SERVICE_CONTROL_OBJECT_NAME,
 		).getAdmissionDecision(publisherDid);
@@ -467,13 +489,6 @@ export async function handleDryRunReleaseIntent(
 					? "Publisher is suspended"
 					: "Release admission is paused",
 			);
-		}
-		const policy = await env.PUBLISHER_DO.getByName(publisherDid).getWorkloadPolicyIfInitialized(
-			publisherDid,
-			release.package,
-		);
-		if (!policy || !evaluateWorkloadPolicy(identity, policy).ok) {
-			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
 		}
 		return apiSuccess(
 			{
@@ -504,18 +519,19 @@ export async function handleGetReleaseIntent(
 		if (!intentId || !ULID_PATTERN.test(intentId)) {
 			throw new ApiError("NOT_FOUND", 404, "Release intent not found");
 		}
-		const publisherDid = request.headers.has("authorization")
-			? requirePublisherQuery(request)
-			: (
-					await requirePublisherApplicationSession(
-						request,
-						env.PUBLISHER_DO,
-						configuration.publicOrigin,
-					)
-				).publisherDid;
-		const intent = await env.PUBLISHER_DO.getByName(publisherDid).getIntent(publisherDid, intentId);
+		const authenticated = await authenticateIntentRequest(
+			request,
+			configuration,
+			false,
+			keyResolver,
+		);
+		const publisherDid = authenticated.publisherDid;
+		const intent = await env.PUBLISHER_DO.getByName(publisherDid).getIntentIfInitialized(
+			publisherDid,
+			intentId,
+		);
 		if (!intent) throw new ApiError("NOT_FOUND", 404, "Release intent not found");
-		await authorizeIntent(request, configuration, intent, publisherDid, false, keyResolver);
+		await authorizeIntent(authenticated, intent);
 		return apiSuccess(
 			{ intent: await serializeIntentResource(publisherDid, intent, configuration.publicOrigin) },
 			requestId,
@@ -542,27 +558,17 @@ export async function handleCancelReleaseIntent(
 		if (!hasExactKeys(body, [])) {
 			throw new ApiError("INVALID_REQUEST", 400, "Invalid cancellation request");
 		}
-		const publisherDid = request.headers.has("authorization")
-			? requirePublisherQuery(request)
-			: (
-					await requirePublisherApplicationSession(
-						request,
-						env.PUBLISHER_DO,
-						configuration.publicOrigin,
-						{ requireCsrf: true },
-					)
-				).publisherDid;
-		const publisher = env.PUBLISHER_DO.getByName(publisherDid);
-		const intent = await publisher.getIntent(publisherDid, intentId);
-		if (!intent) throw new ApiError("NOT_FOUND", 404, "Release intent not found");
-		const actor = await authorizeIntent(
+		const authenticated = await authenticateIntentRequest(
 			request,
 			configuration,
-			intent,
-			publisherDid,
 			true,
 			keyResolver,
 		);
+		const publisherDid = authenticated.publisherDid;
+		const publisher = env.PUBLISHER_DO.getByName(publisherDid);
+		const intent = await publisher.getIntentIfInitialized(publisherDid, intentId);
+		if (!intent) throw new ApiError("NOT_FOUND", 404, "Release intent not found");
+		const actor = await authorizeIntent(authenticated, intent);
 		if (intent.state === "cancelled") {
 			return apiSuccess(
 				{ intent: await serializeIntentResource(publisherDid, intent, configuration.publicOrigin) },

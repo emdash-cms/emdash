@@ -116,6 +116,23 @@ describe("publisher release intents", () => {
 		]);
 	});
 
+	it("records base64url workload digests as OIDC actor identities", async () => {
+		const stub = publisher();
+		await stub.putWorkloadPolicy(policy());
+		await stub.createIntent(intent());
+		const actorIdentity = "_".repeat(43);
+
+		await expect(
+			stub.transitionIntent(
+				transition("received", 1, "cancelled", { actorRealm: "oidc", actorIdentity }),
+			),
+		).resolves.toMatchObject({ ok: true, intent: { state: "cancelled" } });
+		await expect(stub.listIntentTransitions(DID, INTENT_1)).resolves.toMatchObject([
+			{},
+			{ actorRealm: "oidc", actorIdentity },
+		]);
+	});
+
 	it("replays identical workload idempotency and rejects changed input", async () => {
 		const stub = publisher();
 		await stub.putWorkloadPolicy(policy());

@@ -290,6 +290,7 @@ function proofBytes(value: string): Uint8Array {
 
 interface WorkflowNetworkOptions {
 	artifactSources?: ReadonlyMap<string, { bytes: Uint8Array; mimeType: string }>;
+	profileInvalid?: boolean;
 	profileProof?: string;
 	repositoryProof?: () => Uint8Array;
 	authoritativeProof?: () => Uint8Array | null;
@@ -352,13 +353,14 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 						})
 					: Response.json({ error: "RecordNotFound" }, { status: 404 });
 			}
-			return new Response(
-				Uint8Array.from(atob(profileProof), (character) => character.charCodeAt(0)),
-				{ headers: { "content-type": "application/vnd.ipld.car" } },
-			);
+			const bytes = Uint8Array.from(atob(profileProof), (character) => character.charCodeAt(0));
+			if (options.profileInvalid) bytes[bytes.length - 1] = (bytes.at(-1) ?? 0) ^ 0xff;
+			return new Response(bytes, { headers: { "content-type": "application/vnd.ipld.car" } });
 		}
 		if (url.origin === pdsUrl && url.pathname === "/xrpc/com.atproto.sync.getRepo") {
-			return new Response(options.repositoryProof?.() ?? proofBytes(profileProof), {
+			const bytes = options.repositoryProof?.() ?? proofBytes(profileProof);
+			if (options.profileInvalid) bytes[bytes.length - 1] = (bytes.at(-1) ?? 0) ^ 0xff;
+			return new Response(bytes, {
 				headers: { "content-type": "application/vnd.ipld.car" },
 			});
 		}
@@ -507,6 +509,31 @@ afterEach(async () => {
 });
 
 describe("ReleaseIntentWorkflow", () => {
+	it("terminates an intent when its authoritative repository cannot be verified", async () => {
+		vi.stubGlobal("fetch", workflowNetwork({ profileInvalid: true }));
+		await createVerifyingIntent();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "failed",
+			reasonCode: "RELEASE_LIST_INVALID",
+		});
+		await expect(publisher.getIntent(PUBLISHER_DID, INTENT_ID)).resolves.toMatchObject({
+			state: "failed",
+			stateDataJson: '{"code":"RELEASE_LIST_INVALID"}',
+		});
+	});
+
 	it("fails the intent when a verification step conflicts", async () => {
 		vi.stubGlobal("fetch", workflowNetwork());
 		await createVerifyingIntent();

@@ -35,7 +35,7 @@ import {
 } from "../verification/evaluate.js";
 import {
 	findProofVerifiedRelease,
-	PublisherSnapshotError,
+	publisherSnapshotErrorCode,
 	readPublisherVerificationSnapshot,
 	resolvePublicHostname,
 	resolvePublisherPds,
@@ -151,25 +151,6 @@ type FinalVerificationResult =
 			verifierJson: string;
 	  }
 	| { ok: false; reasonCode: string; terminalState: "conflict" | "invalid" };
-
-const PUBLISHER_SNAPSHOT_ERROR_CODES: readonly PublisherSnapshotError["code"][] = [
-	"PUBLISHER_IDENTITY_INVALID",
-	"PUBLISHER_PDS_INVALID",
-	"PROFILE_INVALID",
-	"RELEASE_EXISTS",
-	"RELEASE_RECORD_INVALID",
-	"RELEASE_LIST_INVALID",
-];
-
-function publisherSnapshotErrorCode(error: unknown): PublisherSnapshotError["code"] | null {
-	if (error instanceof PublisherSnapshotError) return error.code;
-	if (!(error instanceof Error)) return null;
-	return (
-		PUBLISHER_SNAPSHOT_ERROR_CODES.find(
-			(code) => error.message === `PublisherSnapshotError: ${code}`,
-		) ?? null
-	);
-}
 
 function isRetryablePublicationBlock(code: string): boolean {
 	return (

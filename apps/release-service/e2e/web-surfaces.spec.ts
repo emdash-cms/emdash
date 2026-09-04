@@ -179,7 +179,7 @@ test("account approves a connection requested by the permanent release workflow"
 	await page.goto(`/publisher?connection=${connectionRequest.id}`);
 	await expect(page.getByText("Signed in as @publisher.example.com")).toBeVisible();
 	await expect(page.getByText(PUBLISHER_DID)).toHaveCount(0);
-	await expect(page.getByRole("heading", { name: "2. Run your release workflow" })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "2. Prepare your plugin" })).toBeVisible();
 	await expect(page.getByRole("heading", { name: "Approve workflow for gallery" })).toBeVisible();
 	await expect(page.getByText("example/gallery")).toBeVisible();
 	await expect(page.getByText(".github/workflows/release.yml")).toBeVisible();
