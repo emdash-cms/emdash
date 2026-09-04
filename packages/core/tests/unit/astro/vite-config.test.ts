@@ -170,3 +170,35 @@ describe("createViteConfig use-sync-external-store shim aliasing", () => {
 		});
 	}
 });
+
+describe("createViteConfig Astro logger optimization", () => {
+	const astroSevenRoot = new URL("../../../../../demos/cloudflare/", import.meta.url);
+	const astroSixRoot = new URL("../../../../../docs/", import.meta.url);
+
+	function buildConfig(root: URL) {
+		return createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: {} as never,
+				pluginDescriptors: [],
+				astroConfig: {
+					root,
+					adapter: { name: "@astrojs/cloudflare" },
+				} as AstroConfig,
+			},
+			"dev",
+		);
+	}
+
+	it("pre-bundles the public logger export for Astro 7", () => {
+		const config = buildConfig(astroSevenRoot);
+
+		expect(config.ssr?.optimizeDeps?.include).toContain("astro/logger/console");
+	});
+
+	it("does not require the unavailable logger export from Astro 6", () => {
+		const config = buildConfig(astroSixRoot);
+
+		expect(config.ssr?.optimizeDeps?.include).not.toContain("astro/logger/console");
+	});
+});
