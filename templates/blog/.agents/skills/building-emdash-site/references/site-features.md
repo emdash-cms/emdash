@@ -257,6 +257,11 @@ Search requires per-collection enablement:
 
 ## SEO Meta
 
+> [!IMPORTANT]
+> Content detail pages must render metadata from `getSeoMeta`. A template that
+> hard-codes `<title>{entry.data.title}</title>` bypasses the admin SEO panel,
+> including its "hide from search engines" setting.
+
 Generate SEO meta from content entries:
 
 ```typescript
@@ -268,18 +273,30 @@ const seo = getSeoMeta(post, {
 	path: `/posts/${slug}`,
 	defaultOgImage: featuredImageUrl, // Optional fallback
 });
-
-// Returns: { title, description, canonical, ogImage, robots }
 ```
 
 Use in your layout's `<head>`:
 
 ```astro
 <title>{seo.title}</title>
-<meta name="description" content={seo.description} />
-<link rel="canonical" href={seo.canonical} />
-<meta property="og:image" content={seo.ogImage} />
+{seo.description && <meta name="description" content={seo.description} />}
+{seo.canonical && <link rel="canonical" href={seo.canonical} />}
+{seo.ogImage && <meta property="og:image" content={seo.ogImage} />}
 {seo.robots && <meta name="robots" content={seo.robots} />}
+```
+
+### Custom title and description defaults
+
+Pass computed fallbacks through `defaultTitle` and `defaultDescription`. Values
+set in the SEO panel take precedence over these defaults:
+
+```ts
+import { getSeoMeta } from "emdash";
+
+const seo = getSeoMeta(post, {
+	defaultTitle: `${post.data.title}: A practical guide`,
+	defaultDescription: `Read ${post.data.title} on My Blog.`,
+});
 ```
 
 ## Comments
