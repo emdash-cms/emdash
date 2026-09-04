@@ -241,6 +241,21 @@ references remain unchanged.
 For fields configured as image or file types, select the field action to open the same media
 picker. The field's MIME type rules limit the sources and files you can choose.
 
+### Edit a selected image asset
+
+Local image fields, rich text images, and gallery images provide three actions:
+
+- **Replace** changes the image used in the current field, block, or gallery position.
+- **Edit asset** opens Media Details for the selected Media Library item. You can update its alt
+  text, caption, focal point, or crop while staying in the content editor.
+- **Remove** clears the current content reference. The Media Library item remains available.
+
+**Create cropped copy** selects the new copy for the current usage. Rich text and gallery images
+keep their per-use alt text, caption, layout, and position. **Replace original** keeps the same media
+reference and changes the image anywhere that asset is used.
+
+External-provider images and file fields provide **Replace** and **Remove**, but not **Edit asset**.
+
 ## Replacing an image
 
 Use **Replace image** to update the file behind an existing local media item. Authors can replace
@@ -270,14 +285,16 @@ the replacement. Replacing the file clears its focal point.
 A focal point keeps the important part of a local image visible when a card, gallery, or other
 layout crops it to fill a fixed shape.
 
-1. Open **Media**, then select an image from the local library.
+1. Open **Media** and select an image from the local library, or select **Edit asset** for a local
+   image in the content editor.
 2. Select **Edit image**, then **Focal point**.
 3. Click or drag the marker onto the important part of the image. You can also use the Arrow keys.
 4. Check the square, landscape, and portrait previews, then select **Save**.
 
 Select **Reset** to remove a custom focal point. The saved point is copied when you select
-the image for a content field or gallery. Content that already uses the image keeps its stored point
-until you select the image again.
+the image for a content field or gallery. Other content already using the image keeps its stored point
+until you select the image again. When you edit an asset from a content field or gallery, that current
+usage refreshes with the saved focal point.
 
 ## Cropping an image
 

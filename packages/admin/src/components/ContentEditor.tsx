@@ -1858,19 +1858,19 @@ function FileFieldRenderer({
 							</p>
 						)}
 					</div>
-					<div className="flex gap-1">
+					<div className="flex flex-wrap gap-2">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Change`}
+							{t`Replace`}
 						</Button>
 						<Button
 							type="button"
-							shape="square"
-							variant="destructive"
-							className="h-8 w-8"
+							size="sm"
+							variant="secondary-destructive"
+							icon={<X aria-hidden="true" />}
 							onClick={handleRemove}
 							aria-label={t`Remove ${label}`}
 						>
-							<X className="h-4 w-4" />
+							{t`Remove`}
 						</Button>
 					</div>
 				</div>
@@ -1896,7 +1896,8 @@ function FileFieldRenderer({
 				fieldId={fieldId}
 				hideUrlInput
 				mediaKind="file"
-				title={t`Select ${label}`}
+				title={normalized ? t`Replace ${label}` : t`Select ${label}`}
+				confirmLabel={normalized ? t`Replace` : undefined}
 			/>
 			{required && !normalized && (
 				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>

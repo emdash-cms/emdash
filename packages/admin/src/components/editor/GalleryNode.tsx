@@ -10,12 +10,18 @@
 import { Button } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Images, Trash, SlidersHorizontal } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
-import { getMediaObjectPosition } from "../../lib/media-utils.js";
+import { fetchMediaItem } from "../../lib/api/media.js";
+import {
+	canonicalMediaProviderId,
+	getMediaObjectPosition,
+	getMediaPreviewUrl,
+} from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 
 /** One image inside a gallery block — mirrors the Portable Text shape. */
@@ -75,6 +81,33 @@ export function galleryImageUrl(image: GalleryImage): string {
 	if (image.asset.url) return image.asset.url;
 	if (image.asset._ref) return `/_emdash/api/media/file/${encodeURIComponent(image.asset._ref)}`;
 	return "";
+}
+
+export function GalleryPreviewImage({
+	image,
+	className,
+}: {
+	image: GalleryImage;
+	className: string;
+}) {
+	const mediaId =
+		canonicalMediaProviderId(image.asset.provider) === "local" && image.asset._ref
+			? image.asset._ref
+			: null;
+	const { data: currentMedia } = useQuery({
+		queryKey: mediaId ? ["media", mediaId] : ["media-preview-disabled", image.asset._ref],
+		queryFn: ({ signal }) => fetchMediaItem(mediaId!, { signal }),
+		enabled: false,
+	});
+	return (
+		<img
+			src={getMediaPreviewUrl(galleryImageUrl(image), currentMedia?.contentHash)}
+			alt={image.alt || ""}
+			className={className}
+			style={{ objectPosition: getMediaObjectPosition(image) }}
+			draggable={false}
+		/>
+	);
 }
 
 function GalleryNodeView({
@@ -180,12 +213,9 @@ function GalleryNodeView({
 								}}
 								aria-label={t`Edit image ${index + 1}`}
 							>
-								<img
-									src={galleryImageUrl(image)}
-									alt={image.alt || ""}
+								<GalleryPreviewImage
+									image={image}
 									className="w-full aspect-square object-cover rounded-md border"
-									style={{ objectPosition: getMediaObjectPosition(image) }}
-									draggable={false}
 								/>
 							</button>
 							{image.caption && (

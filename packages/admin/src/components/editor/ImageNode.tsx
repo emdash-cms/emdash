@@ -21,7 +21,7 @@ import * as React from "react";
 import { fetchMediaItem } from "../../lib/api/media.js";
 import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
-import type { ImageAttributes } from "./ImageDetailPanel";
+import type { ImageAttributes, ImagePanelAttributes } from "./ImageDetailPanel";
 
 // Extend the Commands interface to include setImage
 declare module "@tiptap/react" {
@@ -77,6 +77,7 @@ function ImageNodeView({
 
 	/** Whether this node currently has its sidebar panel open */
 	const sidebarOpenRef = React.useRef(false);
+	const nodeKeyRef = React.useRef({});
 
 	const handleSaveAlt = () => {
 		updateAttributes({ alt: altText });
@@ -106,7 +107,8 @@ function ImageNodeView({
 		}
 	};
 
-	const getImageAttrs = (): ImageAttributes => ({
+	const getImageAttrs = (): ImagePanelAttributes => ({
+		nodeKey: nodeKeyRef.current,
 		src: node.attrs.src,
 		alt: node.attrs.alt,
 		title: node.attrs.title,
@@ -127,7 +129,7 @@ function ImageNodeView({
 		const onOpen = storage?.onOpenBlockSidebar as
 			| ((panel: {
 					type: "image";
-					attrs: ImageAttributes;
+					attrs: ImagePanelAttributes;
 					onUpdate: (attrs: Partial<ImageAttributes>) => void;
 					onReplace: (attrs: ImageAttributes) => void;
 					onDelete: () => void;
@@ -329,7 +331,7 @@ export const ImageExtension = Node.create({
 			onOpenBlockSidebar: null as
 				| ((panel: {
 						type: "image";
-						attrs: import("./ImageDetailPanel").ImageAttributes;
+						attrs: import("./ImageDetailPanel").ImagePanelAttributes;
 						onUpdate: (attrs: Partial<import("./ImageDetailPanel").ImageAttributes>) => void;
 						onReplace: (attrs: import("./ImageDetailPanel").ImageAttributes) => void;
 						onDelete: () => void;

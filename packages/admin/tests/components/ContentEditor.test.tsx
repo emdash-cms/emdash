@@ -398,9 +398,7 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 
 				// Closing the block panel restores the sheet's prior (closed) state.
 				close();
@@ -443,9 +441,7 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 			} finally {
 				media.restore();
 			}
@@ -469,9 +465,7 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.not.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 			} finally {
 				media.restore();
 			}
@@ -699,8 +693,10 @@ describe("ContentEditor", () => {
 
 			// Filename should be visible
 			await expect.element(screen.getByText("report.pdf")).toBeInTheDocument();
-			// Change button present (picker is wired up)
-			await expect.element(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Remove Attachment" }))
+				.toHaveTextContent("Remove");
 		});
 
 		it("renders 0-byte file size instead of hiding it", async () => {
