@@ -1719,6 +1719,7 @@ function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGr
 							item.contentHash,
 						)}
 						alt={item.alt || item.filename}
+						loading="lazy"
 						draggable={false}
 						className="emdash-media-transparency-grid h-full w-full object-cover"
 						style={{ objectPosition: getMediaObjectPosition(item) }}
@@ -1780,6 +1781,7 @@ function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 					<img
 						src={item.previewUrl}
 						alt={item.alt || item.filename}
+						loading="lazy"
 						className="emdash-media-transparency-grid h-full w-full object-cover"
 						onLoad={handleImageLoad}
 					/>
@@ -1848,6 +1850,7 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 						<img
 							src={getMediaThumbnailUrl(item.url, item.mimeType, 80, item.contentHash)}
 							alt={item.alt || item.filename}
+							loading="lazy"
 							draggable={false}
 							className="emdash-media-transparency-grid h-full w-full object-cover"
 							style={{ objectPosition: getMediaObjectPosition(item) }}
@@ -1907,6 +1910,7 @@ function ProviderListItem({ item, selected, onClick, onDimensionsLoaded }: Provi
 						<img
 							src={item.previewUrl}
 							alt={item.alt || item.filename}
+							loading="lazy"
 							className="emdash-media-transparency-grid h-full w-full object-cover"
 							onLoad={handleImageLoad}
 						/>
