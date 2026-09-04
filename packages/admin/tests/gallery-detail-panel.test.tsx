@@ -359,7 +359,7 @@ describe("GalleryDetailPanel", () => {
 			onUpdate,
 		});
 
-		await expect.element(screen.getByRole("button", { name: "Choose another" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Replace" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Edit asset" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Remove", exact: true })).toBeVisible();
 		await screen.getByRole("button", { name: "Edit asset" }).click();

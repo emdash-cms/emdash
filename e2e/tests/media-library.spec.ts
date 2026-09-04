@@ -481,7 +481,7 @@ test.describe("Media Library", () => {
 		expect(duplicate.id).not.toBe(original.id);
 
 		await page.setViewportSize({ width: 320, height: 800 });
-		await expect(featuredImageField.getByRole("button", { name: "Choose another" })).toBeVisible();
+		await expect(featuredImageField.getByRole("button", { name: "Replace" })).toBeVisible();
 		await expect(featuredImageField.getByRole("button", { name: "Edit asset" })).toBeVisible();
 		await expect(featuredImageField.getByRole("button", { name: "Remove image" })).toBeVisible();
 		expect(

@@ -223,7 +223,7 @@ export function ImageDetailPanel({
 				onClick={() => setShowMediaPicker(true)}
 				disabled={assetEditor.isActive}
 			>
-				{t`Choose another`}
+				{t`Replace`}
 			</Button>
 			{canEditAsset && (
 				<Button
@@ -288,8 +288,8 @@ export function ImageDetailPanel({
 				onOpenChange={setShowMediaPicker}
 				onSelect={handleMediaSelect}
 				mimeTypeFilter="image/"
-				title={t`Choose another image`}
-				confirmLabel={t`Choose another`}
+				title={t`Replace image`}
+				confirmLabel={t`Replace`}
 			/>
 			{assetEditor.dialog}
 		</>

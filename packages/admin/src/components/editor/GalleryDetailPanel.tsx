@@ -444,7 +444,7 @@ function GalleryImageSettings({
 					onClick={() => setShowReplacePicker(true)}
 					disabled={assetEditor.isActive}
 				>
-					{t`Choose another`}
+					{t`Replace`}
 				</Button>
 				{canEditAsset && (
 					<Button
@@ -500,8 +500,8 @@ function GalleryImageSettings({
 					setShowReplacePicker(false);
 				}}
 				mimeTypeFilters={["image/"]}
-				title={t`Choose another image`}
-				confirmLabel={t`Choose another`}
+				title={t`Replace image`}
+				confirmLabel={t`Replace`}
 			/>
 			{assetEditor.dialog}
 			{assetEditor.error && (

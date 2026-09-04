@@ -144,7 +144,7 @@ describe("ImageDetailPanel replacement", () => {
 			/>,
 		);
 
-		await screen.getByRole("button", { name: "Choose another" }).click();
+		await screen.getByRole("button", { name: "Replace" }).click();
 		await screen.getByRole("button", { name: action }).click();
 
 		expect(onReplace).toHaveBeenCalledWith(expect.objectContaining({ provider: expectedProvider }));
@@ -173,7 +173,7 @@ describe("ImageDetailPanel replacement", () => {
 			/>,
 		);
 
-		await expect.element(screen.getByRole("button", { name: "Choose another" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Replace" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Edit asset" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Remove" })).toBeVisible();
 		expect(fetchMediaItem).not.toHaveBeenCalled();
@@ -311,7 +311,7 @@ describe("ImageDetailPanel replacement", () => {
 
 		await screen.getByRole("button", { name: "Edit asset" }).click();
 
-		await expect.element(screen.getByRole("button", { name: "Choose another" })).toBeDisabled();
+		await expect.element(screen.getByRole("button", { name: "Replace" })).toBeDisabled();
 		await expect.element(screen.getByRole("button", { name: "Remove" })).toBeDisabled();
 		resolveItem({
 			id: "old-image",

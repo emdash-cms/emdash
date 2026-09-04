@@ -1860,7 +1860,7 @@ function FileFieldRenderer({
 					</div>
 					<div className="flex flex-wrap gap-2">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Choose another`}
+							{t`Replace`}
 						</Button>
 						<Button
 							type="button"
@@ -1896,7 +1896,8 @@ function FileFieldRenderer({
 				fieldId={fieldId}
 				hideUrlInput
 				mediaKind="file"
-				title={t`Select ${label}`}
+				title={normalized ? t`Replace ${label}` : t`Select ${label}`}
+				confirmLabel={normalized ? t`Replace` : undefined}
 			/>
 			{required && !normalized && (
 				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>

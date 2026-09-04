@@ -179,7 +179,7 @@ describe("ImageFieldRenderer", () => {
 		const metadata = screen.getByText("1200 × 800 · image/jpeg");
 		await expect.element(metadata).toBeVisible();
 		expect(metadata.element()).toHaveAttribute("dir", "ltr");
-		const chooseAnotherButton = screen.getByRole("button", { name: "Choose another" });
+		const chooseAnotherButton = screen.getByRole("button", { name: "Replace" });
 		await expect.element(chooseAnotherButton).toBeVisible();
 		expect(chooseAnotherButton.element().querySelector("svg")).not.toBeNull();
 		await expect.element(screen.getByRole("button", { name: "Edit asset" })).toBeVisible();
@@ -327,7 +327,7 @@ describe("ImageFieldRenderer", () => {
 			/>,
 		);
 
-		await screen.getByRole("button", { name: "Choose another" }).click();
+		await screen.getByRole("button", { name: "Replace" }).click();
 		await screen.getByRole("button", { name: "Choose replacement" }).click();
 
 		expect(onChange).toHaveBeenCalledWith(
@@ -354,7 +354,7 @@ describe("ImageFieldRenderer", () => {
 			/>,
 		);
 
-		await screen.getByRole("button", { name: "Choose another" }).click();
+		await screen.getByRole("button", { name: "Replace" }).click();
 		await screen.getByRole("button", { name: "Choose external URL" }).click();
 
 		expect(onChange).toHaveBeenCalledWith(
@@ -398,7 +398,7 @@ describe("ImageFieldRenderer", () => {
 
 		await expect.element(screen.getByText("Image not found")).toBeVisible();
 		await expect.element(screen.getByText("notes-on-simplicity.jpg")).toBeVisible();
-		await expect.element(screen.getByRole("button", { name: "Choose another" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Replace" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Edit asset" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
 	});
@@ -549,7 +549,7 @@ describe("ImageFieldRenderer", () => {
 			/>,
 		);
 
-		await screen.getByRole("button", { name: "Choose another", exact: true }).click();
+		await screen.getByRole("button", { name: "Replace", exact: true }).click();
 		await screen.getByRole("button", { name: "Choose replacement" }).click();
 
 		expect(onChange).toHaveBeenCalledWith(

@@ -693,9 +693,7 @@ describe("ContentEditor", () => {
 
 			// Filename should be visible
 			await expect.element(screen.getByText("report.pdf")).toBeInTheDocument();
-			await expect
-				.element(screen.getByRole("button", { name: "Choose another" }))
-				.toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
 			await expect
 				.element(screen.getByRole("button", { name: "Remove Attachment" }))
 				.toHaveTextContent("Remove");

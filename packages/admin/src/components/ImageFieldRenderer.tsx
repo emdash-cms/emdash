@@ -261,7 +261,7 @@ export function ImageFieldRenderer({
 				onClick={() => openPicker("image")}
 				disabled={assetEditor.isActive}
 			>
-				{t`Choose another`}
+				{t`Replace`}
 			</Button>
 			{canEditPrimaryAsset && (
 				<Button
@@ -328,9 +328,9 @@ export function ImageFieldRenderer({
 								icon={<ImageSquare />}
 								onClick={() => openPicker("darkVariant")}
 								disabled={assetEditor.isActive}
-								aria-label={t`Choose another dark mode image`}
+								aria-label={t`Replace dark mode image`}
 							>
-								{t`Choose another`}
+								{t`Replace`}
 							</Button>
 							{canEditDarkAsset && (
 								<Button
@@ -472,8 +472,21 @@ export function ImageFieldRenderer({
 				fieldId={fieldId}
 				title={
 					pickerTarget === "darkVariant"
-						? t`Select dark mode variant for ${label}`
-						: t`Select ${label}`
+						? darkDisplayUrl
+							? t`Replace dark mode variant for ${label}`
+							: t`Select dark mode variant for ${label}`
+						: displayUrl
+							? t`Replace ${label}`
+							: t`Select ${label}`
+				}
+				confirmLabel={
+					pickerTarget === "darkVariant"
+						? darkDisplayUrl
+							? t`Replace`
+							: undefined
+						: displayUrl
+							? t`Replace`
+							: undefined
 				}
 			/>
 			{assetEditor.dialog}
