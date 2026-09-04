@@ -73,7 +73,9 @@ vi.mock("../../src/components/MediaDetailPanel", () => ({
 		open,
 		item,
 		context,
+		embedded,
 		onClose,
+		onExit,
 		onClosed,
 		onItemRefreshed,
 		onCroppedCopyCreated,
@@ -82,14 +84,21 @@ vi.mock("../../src/components/MediaDetailPanel", () => ({
 		open: boolean;
 		item: { filename: string };
 		context?: string;
+		embedded?: boolean;
 		onClose: () => void;
+		onExit?: () => void;
 		onClosed?: () => void;
 		onItemRefreshed?: (item: unknown) => void;
 		onCroppedCopyCreated?: (item: unknown) => void;
 		onUnavailable?: (id: string) => void;
 	}) =>
 		open ? (
-			<div role="dialog" aria-label="Asset details" data-context={context}>
+			<div
+				role={embedded ? "region" : "dialog"}
+				aria-label="Asset details"
+				data-context={context}
+				data-embedded={embedded || undefined}
+			>
 				<span>{item.filename}</span>
 				<button
 					type="button"
@@ -98,7 +107,16 @@ vi.mock("../../src/components/MediaDetailPanel", () => ({
 						onClosed?.();
 					}}
 				>
-					Close asset details
+					Back to library
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						(onExit ?? onClose)();
+						onClosed?.();
+					}}
+				>
+					Close workspace
 				</button>
 				<button
 					type="button"
@@ -269,6 +287,7 @@ describe("MediaPickerModal", () => {
 
 		it("edits a selected local image and returns to the preserved picker state", async () => {
 			const screen = await renderModal();
+			const workspace = screen.getByRole("dialog", { name: "Select image" }).element();
 			const item = screen.getByRole("button", { name: "photo.jpg" });
 			await expect.element(item).toBeVisible();
 			item.element().click();
@@ -277,17 +296,37 @@ describe("MediaPickerModal", () => {
 			await expect.element(editAsset).toBeEnabled();
 			editAsset.element().click();
 
-			const details = screen.getByRole("dialog", { name: "Asset details" });
+			const details = screen.getByRole("region", { name: "Asset details" });
 			await expect.element(details).toBeVisible();
 			expect(details.element()).toHaveAttribute("data-context", "content");
-			expect(screen.getByRole("dialog", { name: "Select image" }).query()).toBeNull();
+			expect(details.element()).toHaveAttribute("data-embedded", "true");
+			expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+			expect(document.querySelector('[role="dialog"]')).toBe(workspace);
+			expect(screen.getByRole("button", { name: "Select" }).query()).toBeNull();
 
-			screen.getByRole("button", { name: "Close asset details" }).element().click();
+			screen.getByRole("button", { name: "Back to library" }).element().click();
 
 			const returnedItem = screen.getByRole("button", { name: "photo.jpg" });
 			await expect.element(returnedItem).toBeVisible();
 			await expect.element(returnedItem).toHaveAttribute("aria-pressed", "true");
 			await expect.element(screen.getByRole("button", { name: "Edit asset" })).toHaveFocus();
+		});
+
+		it("closes the complete workspace from asset details without returning to browse", async () => {
+			const onOpenChange = vi.fn();
+			const screen = await renderModal({ onOpenChange });
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+			const editAsset = screen.getByRole("button", { name: "Edit asset" });
+			await expect.element(editAsset).toBeEnabled();
+			editAsset.element().click();
+			await expect.element(screen.getByRole("button", { name: "Close workspace" })).toBeVisible();
+
+			screen.getByRole("button", { name: "Close workspace" }).element().click();
+
+			expect(onOpenChange).toHaveBeenCalledWith(false);
+			expect(screen.getByRole("button", { name: "photo.jpg" }).query()).toBeNull();
 		});
 
 		it("does not reopen either dialog when the parent closes during the handoff", async () => {
@@ -350,7 +389,7 @@ describe("MediaPickerModal", () => {
 				.element(screen.getByRole("button", { name: "Save updated asset" }))
 				.toBeVisible();
 			screen.getByRole("button", { name: "Save updated asset" }).element().click();
-			screen.getByRole("button", { name: "Close asset details" }).element().click();
+			screen.getByRole("button", { name: "Back to library" }).element().click();
 
 			await expect.element(screen.getByRole("button", { name: "Select" })).toBeEnabled();
 			screen.getByRole("button", { name: "Select" }).element().click();

@@ -246,20 +246,15 @@ export function MediaPickerModal({
 	const [providerDimensions, setProviderDimensions] = React.useState<
 		Record<string, { width: number; height: number }>
 	>({});
-	const [browseOpen, setBrowseOpen] = React.useState(open);
 	const [assetOpen, setAssetOpen] = React.useState(false);
 	const [assetItem, setAssetItem] = React.useState<MediaItem>(EMPTY_DETAIL_ITEM);
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
 	const editAssetButtonRef = React.useRef<HTMLButtonElement>(null);
+	const mediaDetailPanelRef = React.useRef<(() => void) | null>(null);
 	const updatedDimensionsRef = React.useRef(new Set<string>());
 	const urlProbeIdRef = React.useRef(0);
 	const uploadTargetsRef = React.useRef(new Map<number, string>());
 	const selectionOrderEditedRef = React.useRef(false);
-	const parentOpenRef = React.useRef(open);
-	const flowGenerationRef = React.useRef(0);
-	const transitionRef = React.useRef<
-		{ kind: "open-asset" | "return-browse"; generation: number } | undefined
-	>(undefined);
 	const restoreEditFocusRef = React.useRef(false);
 	const invalidateUrlProbe = React.useCallback(() => {
 		urlProbeIdRef.current += 1;
@@ -288,22 +283,16 @@ export function MediaPickerModal({
 	const uploadQueue = useMediaUploadQueue<UploadedMedia>({ upload: uploadFile });
 
 	React.useEffect(() => {
-		const wasOpen = parentOpenRef.current;
-		parentOpenRef.current = open;
-		if (!open) {
-			flowGenerationRef.current += 1;
-			transitionRef.current = undefined;
-			restoreEditFocusRef.current = false;
-			setBrowseOpen(false);
-			setAssetOpen(false);
-			return;
-		}
-		if (wasOpen) return;
-		flowGenerationRef.current += 1;
-		transitionRef.current = undefined;
+		if (open) return;
+		restoreEditFocusRef.current = false;
 		setAssetOpen(false);
-		setBrowseOpen(true);
 	}, [open]);
+
+	React.useEffect(() => {
+		if (!open || assetOpen || !restoreEditFocusRef.current) return;
+		restoreEditFocusRef.current = false;
+		editAssetButtonRef.current?.focus({ preventScroll: true });
+	}, [assetOpen, open]);
 
 	React.useEffect(() => {
 		if (!open) return;
@@ -773,31 +762,11 @@ export function MediaPickerModal({
 	const openAssetEditor = () => {
 		if (!editableSelection || uploadQueue.hasUnfinished) return;
 		setAssetItem(editableSelection);
-		transitionRef.current = {
-			kind: "open-asset",
-			generation: flowGenerationRef.current,
-		};
-		setBrowseOpen(false);
+		setAssetOpen(true);
 	};
 	const closeAssetEditor = () => {
-		transitionRef.current = {
-			kind: "return-browse",
-			generation: flowGenerationRef.current,
-		};
-		setAssetOpen(false);
-	};
-	const handleAssetClosed = () => {
-		const transition = transitionRef.current;
-		if (
-			!parentOpenRef.current ||
-			transition?.kind !== "return-browse" ||
-			transition.generation !== flowGenerationRef.current
-		) {
-			return;
-		}
-		transitionRef.current = undefined;
 		restoreEditFocusRef.current = true;
-		setBrowseOpen(true);
+		setAssetOpen(false);
 	};
 	const confirmText =
 		confirmLabel ??
@@ -902,56 +871,64 @@ export function MediaPickerModal({
 
 	const browseDialog = (
 		<Dialog.Root
-			open={open && browseOpen}
+			open={open}
 			onOpenChange={(nextOpen) => {
-				if (!nextOpen && transitionRef.current?.kind !== "open-asset") handleClose();
-			}}
-			onOpenChangeComplete={(nextOpen) => {
-				if (nextOpen) {
-					if (!restoreEditFocusRef.current) return;
-					restoreEditFocusRef.current = false;
-					editAssetButtonRef.current?.focus({ preventScroll: true });
+				if (nextOpen) return;
+				if (assetOpen && mediaDetailPanelRef.current) {
+					mediaDetailPanelRef.current();
 					return;
 				}
-				const transition = transitionRef.current;
-				if (
-					!parentOpenRef.current ||
-					transition?.kind !== "open-asset" ||
-					transition.generation !== flowGenerationRef.current
-				) {
-					return;
-				}
-				transitionRef.current = undefined;
-				setAssetOpen(true);
+				handleClose();
 			}}
 		>
 			<Dialog
 				size="xl"
 				className="flex h-[min(48rem,calc(100dvh-1rem))] w-[calc(100vw-2rem)] min-h-0 min-w-0 max-w-[48rem] flex-col overflow-hidden p-0 sm:w-[min(48rem,calc(100vw-2rem))]"
 			>
-				<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-7">
-					<div className="min-w-0">
-						<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
-						<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
-							{description}
-						</Dialog.Description>
-					</div>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								size="base"
-								aria-label={t`Close`}
-								icon={<X aria-hidden="true" />}
-							/>
-						)}
+				{assetOpen ? (
+					<MediaDetailPanel
+						open={open}
+						item={assetItem}
+						embedded
+						backLabel={t`Back to library`}
+						context="content"
+						canCropOriginal={Boolean(editableSelection)}
+						canDuplicateCrop={(currentUser?.role ?? 0) >= ROLE_CONTRIBUTOR}
+						requestExitRef={mediaDetailPanelRef}
+						restoreFocusTargetRef={editAssetButtonRef}
+						onClose={closeAssetEditor}
+						onExit={handleClose}
+						onItemRefreshed={handleAssetRefreshed}
+						onCroppedCopyCreated={handleCroppedCopyCreated}
+						onUnavailable={handleAssetUnavailable}
 					/>
-				</header>
+				) : null}
+				{!assetOpen ? (
+					<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-7">
+						<div className="min-w-0">
+							<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
+							<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
+								{description}
+							</Dialog.Description>
+						</div>
+						<Dialog.Close
+							aria-label={t`Close`}
+							render={(props) => (
+								<Button
+									{...props}
+									variant="ghost"
+									shape="square"
+									size="base"
+									aria-label={t`Close`}
+									icon={<X aria-hidden="true" />}
+								/>
+							)}
+						/>
+					</header>
+				) : null}
 
 				<div
+					hidden={assetOpen}
 					className="flex min-h-0 flex-1 flex-col overflow-hidden"
 					onDragOver={(event) => {
 						if (!event.dataTransfer.types.includes("Files")) return;
@@ -1376,7 +1353,11 @@ export function MediaPickerModal({
 														const item =
 															activeSource === "local"
 																? (rawItem as MediaItem)
-																: toMediaItem({ key, providerId: activeSource, item: rawItem });
+																: toMediaItem({
+																		key,
+																		providerId: activeSource,
+																		item: rawItem,
+																	});
 														return (
 															<MediaBrowserItem
 																key={key}
@@ -1418,7 +1399,11 @@ export function MediaPickerModal({
 														const item =
 															activeSource === "local"
 																? (rawItem as MediaItem)
-																: toMediaItem({ key, providerId: activeSource, item: rawItem });
+																: toMediaItem({
+																		key,
+																		providerId: activeSource,
+																		item: rawItem,
+																	});
 														return (
 															<MediaBrowserItem
 																key={key}
@@ -1497,6 +1482,7 @@ export function MediaPickerModal({
 				</div>
 
 				<footer
+					hidden={assetOpen}
 					className="flex shrink-0 justify-end border-t border-kumo-line px-5 py-3 sm:px-7"
 					data-media-actions
 				>
@@ -1524,7 +1510,13 @@ export function MediaPickerModal({
 						</Button>
 					</div>
 				</footer>
-				<span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+				<span
+					hidden={assetOpen}
+					className="sr-only"
+					role="status"
+					aria-live="polite"
+					aria-atomic="true"
+				>
 					{uploadQueue.hasUnfinished
 						? plural(
 								uploadQueue.jobs.filter(
@@ -1543,24 +1535,7 @@ export function MediaPickerModal({
 		</Dialog.Root>
 	);
 
-	return (
-		<>
-			{browseDialog}
-			<MediaDetailPanel
-				open={open && assetOpen}
-				item={assetItem}
-				context="content"
-				canCropOriginal={Boolean(editableSelection)}
-				canDuplicateCrop={(currentUser?.role ?? 0) >= ROLE_CONTRIBUTOR}
-				restoreFocusTargetRef={editAssetButtonRef}
-				onClose={closeAssetEditor}
-				onClosed={handleAssetClosed}
-				onItemRefreshed={handleAssetRefreshed}
-				onCroppedCopyCreated={handleCroppedCopyCreated}
-				onUnavailable={handleAssetUnavailable}
-			/>
-		</>
-	);
+	return browseDialog;
 }
 
 export default MediaPickerModal;

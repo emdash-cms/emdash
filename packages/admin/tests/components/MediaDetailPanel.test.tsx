@@ -1,3 +1,4 @@
+import { Dialog } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -212,6 +213,27 @@ function renderPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel
 	return render(
 		<QueryWrapper>
 			<MediaDetailPanel {...defaultProps} />
+		</QueryWrapper>,
+	);
+}
+
+function renderEmbeddedPanel(props: Partial<React.ComponentProps<typeof MediaDetailPanel>> = {}) {
+	const defaultProps: React.ComponentProps<typeof MediaDetailPanel> = {
+		open: true,
+		item: makeImageItem(),
+		embedded: true,
+		backLabel: "Back to library",
+		onClose: vi.fn(),
+		onDeleted: vi.fn(),
+		...props,
+	};
+	return render(
+		<QueryWrapper>
+			<Dialog.Root open>
+				<Dialog>
+					<MediaDetailPanel {...defaultProps} />
+				</Dialog>
+			</Dialog.Root>
 		</QueryWrapper>,
 	);
 }
@@ -1923,6 +1945,36 @@ describe("MediaDetailPanel", () => {
 		screen.getByRole("button", { name: "Close" }).element().click();
 
 		expect(onClose).toHaveBeenCalled();
+	});
+
+	it("uses Back to return from embedded details without closing the workspace", async () => {
+		const onClose = vi.fn();
+		const onExit = vi.fn();
+		const screen = await renderEmbeddedPanel({ onClose, onExit });
+
+		screen.getByRole("button", { name: "Back to library" }).element().click();
+
+		expect(onClose).toHaveBeenCalledTimes(1);
+		expect(onExit).not.toHaveBeenCalled();
+		expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+	});
+
+	it("confirms dirty changes before closing an embedded workspace", async () => {
+		const onClose = vi.fn();
+		const onExit = vi.fn();
+		const item = makeImageItem({ alt: "Original" });
+		const screen = await renderEmbeddedPanel({ item, onClose, onExit });
+
+		await screen.getByLabelText("Alt Text").fill("Changed alt");
+		screen.getByRole("button", { name: "Close" }).element().click();
+
+		await expect.element(screen.getByText("Discard changes?")).toBeInTheDocument();
+		expect(onClose).not.toHaveBeenCalled();
+		expect(onExit).not.toHaveBeenCalled();
+
+		screen.getByRole("button", { name: "Discard" }).element().click();
+		expect(onExit).toHaveBeenCalledTimes(1);
+		expect(onClose).not.toHaveBeenCalled();
 	});
 
 	it("close button opens discard confirmation when dirty", async () => {

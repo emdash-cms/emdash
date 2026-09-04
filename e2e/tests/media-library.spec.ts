@@ -418,15 +418,31 @@ test.describe("Media Library", () => {
 		await admin.waitForLoading();
 		const editorUrl = page.url();
 		await page.getByRole("button", { name: "Select image" }).click();
-		const picker = page.getByRole("dialog").filter({ hasText: "Select Featured Image" });
+		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
+		const workspaceElement = await picker.elementHandle();
+		expect(workspaceElement).not.toBeNull();
 		await picker.getByRole("searchbox", { name: "Search media" }).fill(filename);
 		await picker.getByRole("button", { name: filename, exact: true }).click();
 		await picker.getByRole("button", { name: "Edit asset" }).click();
 		const pickerDetails = page.getByRole("dialog", { name: "Media details" });
 		await expect(pickerDetails).toBeVisible();
-		await expect(picker).not.toBeVisible();
-		await pickerDetails.getByRole("button", { name: "Close" }).first().click();
+		expect(
+			await pickerDetails.evaluate(
+				(dialog, originalDialog) => dialog === originalDialog,
+				workspaceElement,
+			),
+		).toBe(true);
+		await expect(page.getByRole("dialog")).toHaveCount(1);
+		await expect(pickerDetails.getByRole("searchbox", { name: "Search media" })).toHaveCount(0);
+		await pickerDetails.getByRole("button", { name: "Back to library" }).click();
 		await expect(picker).toBeVisible();
+		await expect(picker.getByRole("button", { name: "Edit asset" })).toBeFocused();
+		expect(
+			await picker.evaluate(
+				(dialog, originalDialog) => dialog === originalDialog,
+				workspaceElement,
+			),
+		).toBe(true);
 		await expect(picker.getByRole("button", { name: filename, exact: true })).toHaveAttribute(
 			"aria-pressed",
 			"true",

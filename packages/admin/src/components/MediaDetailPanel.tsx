@@ -21,6 +21,7 @@ import {
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
+	ArrowLeft,
 	ArrowCounterClockwise,
 	ArrowsClockwise,
 	X,
@@ -138,6 +139,8 @@ interface MediaLocationOption {
 export interface MediaDetailPanelProps {
 	open: boolean;
 	item: MediaItem;
+	embedded?: boolean;
+	backLabel?: string;
 	context?: "library" | "content";
 	providerName?: string;
 	canDelete?: boolean;
@@ -145,8 +148,10 @@ export interface MediaDetailPanelProps {
 	canReplaceOriginal?: boolean;
 	canCropOriginal?: boolean;
 	canDuplicateCrop?: boolean;
+	requestExitRef?: React.MutableRefObject<(() => void) | null>;
 	restoreFocusTargetRef?: React.RefObject<HTMLElement | null>;
 	onClose: () => void;
+	onExit?: () => void;
 	onClosed?: () => void;
 	onUpdated?: () => void;
 	onItemRefreshed?: (item: LocalMediaItem) => void;
@@ -155,12 +160,75 @@ export interface MediaDetailPanelProps {
 	onDeleted?: () => void;
 }
 
+interface MediaDetailRootProps {
+	embedded: boolean;
+	open: boolean;
+	isConfirmOpen: boolean;
+	onRequestClose: () => void;
+	onClosed: () => void;
+	children: React.ReactNode;
+}
+
+function MediaDetailRoot({
+	embedded,
+	open,
+	isConfirmOpen,
+	onRequestClose,
+	onClosed,
+	children,
+}: MediaDetailRootProps) {
+	if (embedded) return <>{children}</>;
+	return (
+		<Dialog.Root
+			open={open}
+			onOpenChange={(nextOpen) => {
+				if (!nextOpen && !isConfirmOpen) onRequestClose();
+			}}
+			onOpenChangeComplete={(nextOpen) => {
+				if (!nextOpen) onClosed();
+			}}
+		>
+			{children}
+		</Dialog.Root>
+	);
+}
+
+function MediaDetailSurface({
+	embedded,
+	children,
+}: {
+	embedded: boolean;
+	children: React.ReactNode;
+}) {
+	if (embedded) {
+		return (
+			<div
+				className="flex h-full min-h-0 flex-col overflow-hidden"
+				data-testid="media-detail-workspace"
+			>
+				{children}
+			</div>
+		);
+	}
+	return (
+		<Dialog
+			size="xl"
+			className="min-w-0 flex flex-col overflow-hidden p-0"
+			style={{ width: "min(94vw, 68rem)", maxHeight: "min(88dvh, 43.5rem)" }}
+		>
+			{children}
+		</Dialog>
+	);
+}
+
 /**
  * Centered dialog for viewing and editing media metadata.
  */
 export function MediaDetailPanel({
 	open,
 	item,
+	embedded = false,
+	backLabel,
 	context = "library",
 	providerName,
 	canDelete: canDeleteProp,
@@ -168,8 +236,10 @@ export function MediaDetailPanel({
 	canReplaceOriginal: canReplaceOriginalProp,
 	canCropOriginal = false,
 	canDuplicateCrop = false,
+	requestExitRef,
 	restoreFocusTargetRef,
 	onClose,
+	onExit,
 	onClosed,
 	onUpdated,
 	onItemRefreshed,
@@ -257,6 +327,7 @@ export function MediaDetailPanel({
 	const [replacementImage, setReplacementImage] = React.useState<ReplacementImage | null>(null);
 	const [replaceSelectionError, setReplaceSelectionError] = React.useState("");
 	const [replaceStatus, setReplaceStatus] = React.useState("");
+	const discardActionRef = React.useRef<"close" | "exit">("close");
 	const [pendingUsageEntry, setPendingUsageEntry] = React.useState<MediaUsageEntryDetail | null>(
 		null,
 	);
@@ -307,6 +378,7 @@ export function MediaDetailPanel({
 		setReplacementImage(null);
 		setReplaceSelectionError("");
 		setReplaceStatus("");
+		discardActionRef.current = "close";
 		setPendingUsageEntry(null);
 	}, [item.id, localItem?.folderId, open]);
 
@@ -389,14 +461,26 @@ export function MediaDetailPanel({
 		}
 	}, [onClosed, restoreFocusTargetRef]);
 
-	const closeDialog = React.useCallback(() => {
-		replaceSelectionTokenRef.current += 1;
-		onClose();
-		if (closeFallbackTimerRef.current !== null) {
-			window.clearTimeout(closeFallbackTimerRef.current);
-		}
-		closeFallbackTimerRef.current = window.setTimeout(finishClose, CLOSE_FALLBACK_MS);
-	}, [finishClose, onClose]);
+	const closeWith = React.useCallback(
+		(callback: () => void) => {
+			replaceSelectionTokenRef.current += 1;
+			callback();
+			if (embedded) {
+				finishClose();
+				return;
+			}
+			if (closeFallbackTimerRef.current !== null) {
+				window.clearTimeout(closeFallbackTimerRef.current);
+			}
+			closeFallbackTimerRef.current = window.setTimeout(finishClose, CLOSE_FALLBACK_MS);
+		},
+		[embedded, finishClose],
+	);
+	const closeDialog = React.useCallback(() => closeWith(onClose), [closeWith, onClose]);
+	const exitDialog = React.useCallback(
+		() => closeWith(onExit ?? onClose),
+		[closeWith, onClose, onExit],
+	);
 
 	const originalFocalPoint = normalizeMediaFocalPoint(item);
 	const focalPointChanged =
@@ -743,6 +827,7 @@ export function MediaDetailPanel({
 	const requestClose = React.useCallback(() => {
 		if (isBusy) return;
 		if (isConfirmOpen) return;
+		discardActionRef.current = "close";
 		setPendingUsageEntry(null);
 		if (hasChanges) {
 			setShowDiscardConfirm(true);
@@ -750,6 +835,24 @@ export function MediaDetailPanel({
 		}
 		closeDialog();
 	}, [closeDialog, hasChanges, isBusy, isConfirmOpen]);
+	const requestExit = React.useCallback(() => {
+		if (isBusy) return;
+		if (isConfirmOpen) return;
+		discardActionRef.current = "exit";
+		setPendingUsageEntry(null);
+		if (hasChanges) {
+			setShowDiscardConfirm(true);
+			return;
+		}
+		exitDialog();
+	}, [exitDialog, hasChanges, isBusy, isConfirmOpen]);
+	React.useLayoutEffect(() => {
+		if (!requestExitRef) return;
+		requestExitRef.current = requestExit;
+		return () => {
+			if (requestExitRef.current === requestExit) requestExitRef.current = null;
+		};
+	}, [requestExit, requestExitRef]);
 
 	const handleSave = () => {
 		if (!canEdit || !hasChanges || isBusy || mediaUnavailable || savePendingRef.current) return;
@@ -943,7 +1046,8 @@ export function MediaDetailPanel({
 		const usageEntry = pendingUsageEntry;
 		setShowDiscardConfirm(false);
 		setPendingUsageEntry(null);
-		closeDialog();
+		if (usageEntry || discardActionRef.current === "close") closeDialog();
+		else exitDialog();
 		if (usageEntry) {
 			void navigate({
 				to: "/content/$collection/$id",
@@ -965,6 +1069,7 @@ export function MediaDetailPanel({
 		if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
 
 		event.preventDefault();
+		discardActionRef.current = "close";
 		setPendingUsageEntry(entry);
 		setShowDiscardConfirm(true);
 	};
@@ -988,37 +1093,45 @@ export function MediaDetailPanel({
 
 	return (
 		<>
-			<Dialog.Root
+			<MediaDetailRoot
+				embedded={embedded}
 				open={open}
-				onOpenChange={(nextOpen) => {
-					if (!nextOpen && !isConfirmOpen) requestClose();
-				}}
-				onOpenChangeComplete={(nextOpen) => {
-					if (nextOpen) return;
-					finishClose();
-				}}
+				isConfirmOpen={isConfirmOpen}
+				onRequestClose={requestClose}
+				onClosed={finishClose}
 			>
-				<Dialog
-					size="xl"
-					className="min-w-0 flex flex-col overflow-hidden p-0"
-					style={{ width: "min(94vw, 68rem)", maxHeight: "min(88dvh, 43.5rem)" }}
-				>
+				<MediaDetailSurface embedded={embedded}>
 					<div
-						className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line"
-						style={{ padding: "1.25rem 2rem" }}
+						className={`flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line ${embedded ? "px-5 py-4 sm:px-7" : ""}`}
+						style={embedded ? undefined : { padding: "1.25rem 2rem" }}
 						data-testid="media-detail-dialog-header"
 					>
-						<div className="min-w-0 flex-1">
-							<Dialog.Title className="truncate text-lg font-semibold leading-none">
-								{t`Media details`}
-							</Dialog.Title>
-							<p className="mt-1 truncate text-sm text-kumo-subtle">{item.filename}</p>
+						<div className="flex min-w-0 flex-1 items-start gap-2">
+							{embedded && backLabel ? (
+								<Button
+									variant="ghost"
+									size="base"
+									className="-ms-2 shrink-0"
+									aria-label={backLabel}
+									icon={<ArrowLeft className="h-4 w-4 rtl:-scale-x-100" aria-hidden="true" />}
+									onClick={requestClose}
+									disabled={isBusy}
+								>
+									<span className="hidden sm:inline">{backLabel}</span>
+								</Button>
+							) : null}
+							<div className="min-w-0 flex-1">
+								<Dialog.Title className="truncate text-lg font-semibold leading-none">
+									{t`Media details`}
+								</Dialog.Title>
+								<p className="mt-1 truncate text-sm text-kumo-subtle">{item.filename}</p>
+							</div>
 						</div>
 						<Button
 							variant="ghost"
 							shape="square"
 							aria-label={t`Close`}
-							onClick={requestClose}
+							onClick={embedded ? requestExit : requestClose}
 							disabled={isBusy}
 						>
 							<X className="h-4 w-4" aria-hidden="true" />
@@ -1760,8 +1873,8 @@ export function MediaDetailPanel({
 							) : null}
 						</div>
 					</div>
-				</Dialog>
-			</Dialog.Root>
+				</MediaDetailSurface>
+			</MediaDetailRoot>
 
 			<ConfirmDialog
 				open={showDiscardConfirm}
