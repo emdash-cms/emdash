@@ -404,6 +404,7 @@ export interface PublishActionsProps {
 	onUnschedule?: () => void | Promise<void>;
 	onMenuOpenChange?: (open: boolean) => void;
 	size?: "sm";
+	fullWidth?: boolean;
 }
 
 interface PublishingAction {
@@ -428,6 +429,7 @@ export function PublishActions({
 	onUnschedule,
 	onMenuOpenChange,
 	size,
+	fullWidth,
 }: PublishActionsProps) {
 	const { t } = useLingui();
 	const itemLabel = collectionLabel ?? t`content`;
@@ -561,7 +563,7 @@ export function PublishActions({
 						type="button"
 						variant="primary"
 						size={size}
-						className="w-full [&>span:last-child]:w-full"
+						className={cn(fullWidth && "w-full", "[&>span:last-child]:w-full")}
 						loading={isScheduling || isUnscheduling}
 						aria-haspopup="menu"
 						aria-expanded={open}
@@ -686,6 +688,7 @@ export function SettingsActionBar({
 						onUnschedule={onUnschedule}
 						onMenuOpenChange={onMenuOpenChange}
 						size="sm"
+						fullWidth
 					/>
 				</SettingsActionSlot>
 			)}
