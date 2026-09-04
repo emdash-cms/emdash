@@ -1139,7 +1139,7 @@ export class ContentRepository {
 	 */
 	async findTrashed(
 		type: string,
-		options: Omit<FindManyOptions, "where"> = {},
+		options: Omit<FindManyOptions, "where"> & { where?: { locale?: string } } = {},
 	): Promise<FindManyResult<ContentItem & { deletedAt: string }>> {
 		const tableName = getTableName(type);
 		const limit = Math.min(options.limit || 50, 100);
@@ -1155,6 +1155,10 @@ export class ContentRepository {
 			.selectFrom(tableName as keyof Database)
 			.selectAll()
 			.where("deleted_at" as never, "is not", null);
+
+		if (options.where?.locale) {
+			query = query.where("locale" as any, "=", options.where.locale);
+		}
 
 		// Handle cursor pagination — decodeCursor throws on invalid input.
 		if (options.cursor) {
@@ -1212,14 +1216,19 @@ export class ContentRepository {
 	/**
 	 * Count trashed content items
 	 */
-	async countTrashed(type: string): Promise<number> {
+	async countTrashed(type: string, options: { locale?: string } = {}): Promise<number> {
 		const tableName = getTableName(type);
 
-		const result = await this.db
+		let query = this.db
 			.selectFrom(tableName as keyof Database)
 			.select((eb) => eb.fn.count("id").as("count"))
-			.where("deleted_at" as never, "is not", null)
-			.executeTakeFirst();
+			.where("deleted_at" as never, "is not", null);
+
+		if (options.locale) {
+			query = query.where("locale" as any, "=", options.locale);
+		}
+
+		const result = await query.executeTakeFirst();
 
 		return Number(result?.count || 0);
 	}

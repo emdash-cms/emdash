@@ -329,14 +329,17 @@ export interface EmDashHandlers {
 	// Trash handlers
 	handleContentListTrashed: (
 		collection: string,
-		params?: { cursor?: string; limit?: number },
+		params?: { cursor?: string; limit?: number; locale?: string },
 	) => Promise<HandlerResponse>;
 
 	handleContentRestore: (collection: string, id: string) => Promise<HandlerResponse>;
 
 	handleContentPermanentDelete: (collection: string, id: string) => Promise<HandlerResponse>;
 
-	handleContentCountTrashed: (collection: string) => Promise<HandlerResponse>;
+	handleContentCountTrashed: (
+		collection: string,
+		params?: { locale?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentGetIncludingTrashed: (collection: string, id: string) => Promise<HandlerResponse>;
 

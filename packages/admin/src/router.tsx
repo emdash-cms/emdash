@@ -449,8 +449,8 @@ function ContentListPage() {
 
 	// Fetch trashed items
 	const { data: trashedData, isLoading: isTrashedLoading } = useQuery({
-		queryKey: ["content", collection, "trash"],
-		queryFn: () => fetchTrashedContent(collection),
+		queryKey: ["content", collection, "trash", { locale: activeLocale }],
+		queryFn: () => fetchTrashedContent(collection, { locale: activeLocale }),
 	});
 
 	const deleteMutation = useMutation({

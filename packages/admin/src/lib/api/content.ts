@@ -335,11 +335,13 @@ export async function fetchTrashedContent(
 	options?: {
 		cursor?: string;
 		limit?: number;
+		locale?: string;
 	},
 ): Promise<FindManyResult<TrashedContentItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
 	if (options?.limit) params.set("limit", String(options.limit));
+	if (options?.locale) params.set("locale", options.locale);
 
 	const url = `${API_BASE}/content/${collection}/trash${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);

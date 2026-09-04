@@ -3277,7 +3277,7 @@ export class EmDashRuntime {
 
 	async handleContentListTrashed(
 		collection: string,
-		params: { cursor?: string; limit?: number } = {},
+		params: { cursor?: string; limit?: number; locale?: string } = {},
 	) {
 		return handleContentListTrashed(this.db, collection, params);
 	}
@@ -3310,8 +3310,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentCountTrashed(collection: string) {
-		return handleContentCountTrashed(this.db, collection);
+	async handleContentCountTrashed(collection: string, params: { locale?: string } = {}) {
+		return handleContentCountTrashed(this.db, collection, params);
 	}
 
 	async handleContentDuplicate(collection: string, id: string, authorId?: string) {
