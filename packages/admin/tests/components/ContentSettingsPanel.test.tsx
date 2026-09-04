@@ -88,7 +88,37 @@ async function setPublishingTime(
 	screen: Awaited<ReturnType<typeof render>>,
 	time: `${string}:${string}`,
 ) {
-	await screen.getByLabelText("Time").fill(time);
+	const [hour = "", minute = ""] = time.split(":");
+	const hour24 = Number(hour);
+	const hourCycle = new Intl.DateTimeFormat(i18n.locale, { hour: "numeric" }).resolvedOptions()
+		.hourCycle;
+	const use12HourClock = hourCycle === "h11" || hourCycle === "h12";
+	const displayHour = String(use12HourClock ? hour24 % 12 || 12 : hour24).padStart(2, "0");
+	await screen.getByRole("textbox", { name: "Hour" }).fill(displayHour);
+	await screen.getByRole("textbox", { name: "Minute" }).fill(minute);
+	if (use12HourClock) {
+		const periodLabel =
+			new Intl.DateTimeFormat(i18n.locale, { hour: "numeric", hour12: true })
+				.formatToParts(new Date(2020, 0, 1, hour24))
+				.find(({ type }) => type === "dayPeriod")?.value ?? (hour24 >= 12 ? "PM" : "AM");
+		const period = screen.getByRole("combobox", { name: "Period" });
+		if (!period.element().textContent?.includes(periodLabel)) {
+			fireEvent.click(period.element());
+			const option = screen.getByRole("option", { name: periodLabel, exact: true });
+			await expect.element(option).toBeInTheDocument();
+			fireEvent.click(option.element());
+		}
+	}
+}
+
+function displayedHour(time: string): string {
+	const hour = Number(time.slice(0, 2));
+	const hourCycle = new Intl.DateTimeFormat(i18n.locale, { hour: "numeric" }).resolvedOptions()
+		.hourCycle;
+	return String(hourCycle === "h11" || hourCycle === "h12" ? hour % 12 || 12 : hour).padStart(
+		2,
+		"0",
+	);
 }
 
 function makeByline(): BylineSummary {
@@ -759,7 +789,12 @@ describe("ContentSettingsPanel", () => {
 			const dialog = screen.getByRole("dialog", { name: "Change publication date" });
 			expect(dialog.getByText("Change the recorded date for the live version.").query()).toBeNull();
 			expect(dialog.getByText("Date", { exact: true }).query()).toBeNull();
-			await expect.element(screen.getByLabelText("Time")).toHaveValue(initial.time);
+			await expect
+				.element(screen.getByRole("textbox", { name: "Hour" }))
+				.toHaveValue(displayedHour(initial.time));
+			await expect
+				.element(screen.getByRole("textbox", { name: "Minute" }))
+				.toHaveValue(initial.time.slice(3));
 			await expect.element(dialog.getByRole("button", { name: "Save date" })).toBeDisabled();
 			fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }).element());
 			expect(onPublishedAtChange).not.toHaveBeenCalled();
@@ -797,7 +832,8 @@ describe("ContentSettingsPanel", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
 
 		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
-		await expect.element(screen.getByLabelText("Time")).toHaveValue("08:45");
+		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
+		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
 		expect(onPublishedAtChange).toHaveBeenCalledOnce();
 	});
 
@@ -844,7 +880,12 @@ describe("ContentSettingsPanel", () => {
 
 		await screen.getByRole("button", { name: /Change publication date:/ }).click();
 		const resetTime = publishingInstantToLocalFields(secondPublishedAt).time;
-		await expect.element(screen.getByLabelText("Time")).toHaveValue(resetTime);
+		await expect
+			.element(screen.getByRole("textbox", { name: "Hour" }))
+			.toHaveValue(displayedHour(resetTime));
+		await expect
+			.element(screen.getByRole("textbox", { name: "Minute" }))
+			.toHaveValue(resetTime.slice(3));
 	});
 
 	it("lets editors update a retained publication date while content is unpublished", async () => {

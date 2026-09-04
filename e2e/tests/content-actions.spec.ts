@@ -11,7 +11,7 @@
  * Uses the seeded "posts" collection which supports drafts and revisions.
  */
 
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 import { test, expect } from "../fixtures";
 
@@ -51,6 +51,20 @@ async function selectTomorrow(dialog: Locator) {
 	const tomorrow = new Date();
 	tomorrow.setDate(tomorrow.getDate() + 1);
 	await dialog.locator(`[data-day="${localDateKey(tomorrow)}"] button`).click();
+}
+
+async function fillTime(page: Page, dialog: Locator, value: `${string}:${string}`) {
+	const [hour = "", minute = ""] = value.split(":");
+	const hour24 = Number(hour);
+	const displayHour = String(hour24 % 12 || 12).padStart(2, "0");
+	await dialog.getByRole("textbox", { name: "Hour" }).fill(displayHour);
+	await dialog.getByRole("textbox", { name: "Minute" }).fill(minute);
+	const desiredPeriod = hour24 >= 12 ? "PM" : "AM";
+	const period = dialog.getByRole("combobox", { name: "Period" });
+	if (!(await period.textContent())?.includes(desiredPeriod)) {
+		await period.click();
+		await page.getByRole("option", { name: desiredPeriod, exact: true }).click();
+	}
 }
 
 /** Create a post via API and return its ID */
@@ -149,9 +163,9 @@ test.describe("Schedule content", () => {
 		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
 		await expect(dialog).toBeVisible({ timeout: 5000 });
 		await selectTomorrow(dialog);
-		const timeInput = dialog.getByLabel("Time", { exact: true });
-		await timeInput.fill("14:43");
-		await expect(timeInput).toHaveValue("14:43");
+		await fillTime(page, dialog, "14:43");
+		const minuteInput = dialog.getByRole("textbox", { name: "Minute" });
+		await expect(minuteInput).toHaveValue("43");
 
 		// Submit from the time field and wait for the API response.
 		const scheduleResponse = page.waitForResponse(
@@ -161,7 +175,7 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await timeInput.press("Enter");
+		await minuteInput.press("Enter");
 		await scheduleResponse;
 
 		// A toast confirming scheduling should appear
@@ -342,10 +356,9 @@ test.describe("Schedule content", () => {
 				exact: true,
 			}),
 		).toHaveCount(0);
-		await expect(publicationDateDialog.getByLabel("Time", { exact: true })).toHaveAttribute(
-			"type",
-			"time",
-		);
+		await expect(publicationDateDialog.getByRole("textbox", { name: "Hour" })).toBeVisible();
+		await expect(publicationDateDialog.getByRole("textbox", { name: "Minute" })).toBeVisible();
+		expect(await publicationDateDialog.locator('input[type="time"]').count()).toBe(0);
 		await publicationDateDialog.getByRole("button", { name: "Cancel", exact: true }).click();
 		await expect(publicationDateTrigger).toBeFocused();
 
@@ -370,7 +383,7 @@ test.describe("Schedule content", () => {
 			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
 		).toBeVisible();
 		await selectTomorrow(dialog);
-		await dialog.getByLabel("Time", { exact: true }).fill("09:00");
+		await fillTime(page, dialog, "09:00");
 		const scheduleResponse = page.waitForResponse(
 			(res) =>
 				SCHEDULE_API_PATTERN.test(res.url()) &&

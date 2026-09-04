@@ -1,4 +1,4 @@
-import { Button, DatePicker, Dialog, Input, Text } from "@cloudflare/kumo";
+import { Button, DatePicker, Dialog, Input, Select, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Globe, PencilSimple, X } from "@phosphor-icons/react";
 import * as React from "react";
@@ -30,6 +30,58 @@ function getLocalToday(): Date {
 	return new Date(now.getFullYear(), now.getMonth(), now.getDate());
 }
 
+type DayPeriod = "am" | "pm";
+
+interface TimeParts {
+	hour: string;
+	minute: string;
+	period: DayPeriod;
+}
+
+const TIME_VALUE_PATTERN = /^(?<hour>\d{2}):(?<minute>\d{2})$/;
+
+function numericTimePart(value: string): string {
+	return value.replace(/\D/g, "").slice(0, 2);
+}
+
+function uses12HourClock(locale: string): boolean {
+	const hourCycle = new Intl.DateTimeFormat(locale, { hour: "numeric" }).resolvedOptions()
+		.hourCycle;
+	return hourCycle === "h11" || hourCycle === "h12";
+}
+
+function dayPeriodLabel(locale: string, hour: number, fallback: string): string {
+	return (
+		new Intl.DateTimeFormat(locale, { hour: "numeric", hour12: true })
+			.formatToParts(new Date(2020, 0, 1, hour))
+			.find(({ type }) => type === "dayPeriod")?.value ?? fallback
+	);
+}
+
+function timePartsFromValue(value: string, use12HourClock: boolean): TimeParts {
+	const match = TIME_VALUE_PATTERN.exec(value);
+	if (!match?.groups) return { hour: "", minute: "", period: "am" };
+	const { hour = "", minute = "" } = match.groups;
+	const hour24 = Number(hour);
+	if (hour24 > 23 || Number(minute) > 59) {
+		return { hour: "", minute: "", period: "am" };
+	}
+	return {
+		hour: String(use12HourClock ? hour24 % 12 || 12 : hour24).padStart(2, "0"),
+		minute,
+		period: hour24 >= 12 ? "pm" : "am",
+	};
+}
+
+function timeValueFromParts(parts: TimeParts, use12HourClock: boolean): string {
+	if (parts.hour.length !== 2 || parts.minute.length !== 2) return "";
+	const hour = Number(parts.hour);
+	const minute = Number(parts.minute);
+	if (minute > 59 || (use12HourClock ? hour < 1 || hour > 12 : hour > 23)) return "";
+	const hour24 = use12HourClock ? (hour % 12) + (parts.period === "pm" ? 12 : 0) : hour;
+	return `${String(hour24).padStart(2, "0")}:${parts.minute}`;
+}
+
 export function PublishingDateTimeFields({
 	date,
 	time,
@@ -50,6 +102,54 @@ export function PublishingDateTimeFields({
 	const { timeZone, shortName } = getPublishingTimeZone(zoneDate, i18n.locale);
 	const zoneDetails = timeZone ? (shortName ? `${timeZone} (${shortName})` : timeZone) : null;
 	const zoneValue = zoneDetails ?? t`Local time`;
+	const use12HourClock = React.useMemo(() => uses12HourClock(i18n.locale), [i18n.locale]);
+	const periodItems = React.useMemo(
+		() => [
+			{ value: "am" as const, label: dayPeriodLabel(i18n.locale, 9, "AM") },
+			{ value: "pm" as const, label: dayPeriodLabel(i18n.locale, 13, "PM") },
+		],
+		[i18n.locale],
+	);
+	const [timeParts, setTimeParts] = React.useState(() => timePartsFromValue(time, use12HourClock));
+	const minuteInputRef = React.useRef<HTMLInputElement>(null);
+	const lastEmittedValueRef = React.useRef<string | null>(null);
+	const previousHourCycleRef = React.useRef(use12HourClock);
+	React.useEffect(() => {
+		const hourCycleChanged = previousHourCycleRef.current !== use12HourClock;
+		previousHourCycleRef.current = use12HourClock;
+		if (!hourCycleChanged && lastEmittedValueRef.current === time) {
+			lastEmittedValueRef.current = null;
+			return;
+		}
+		lastEmittedValueRef.current = null;
+		setTimeParts(timePartsFromValue(time, use12HourClock));
+	}, [time, use12HourClock]);
+	const updateTimeParts = (nextParts: TimeParts) => {
+		setTimeParts(nextParts);
+		const nextValue = timeValueFromParts(nextParts, use12HourClock);
+		lastEmittedValueRef.current = nextValue;
+		onTimeChange(nextValue);
+	};
+	const updateHour = (value: string) => {
+		let hour = numericTimePart(value);
+		if (hour.length === 1 && Number(hour) > (use12HourClock ? 1 : 2)) hour = `0${hour}`;
+		if (
+			hour.length === 2 &&
+			(use12HourClock ? Number(hour) < 1 || Number(hour) > 12 : Number(hour) > 23)
+		) {
+			return;
+		}
+		updateTimeParts({ ...timeParts, hour });
+		if (hour.length === 2) {
+			minuteInputRef.current?.focus();
+			minuteInputRef.current?.select();
+		}
+	};
+	const updateMinute = (value: string) => {
+		const minute = numericTimePart(value);
+		if (minute.length === 2 && Number(minute) > 59) return;
+		updateTimeParts({ ...timeParts, minute });
+	};
 
 	return (
 		<div className="space-y-4">
@@ -75,15 +175,68 @@ export function PublishingDateTimeFields({
 				<Text as="legend" bold DANGEROUS_className="mb-2">
 					{t`Time`}
 				</Text>
-				<Input
-					aria-label={t`Time`}
-					type="time"
-					step={60}
-					value={time}
-					onChange={(event) => onTimeChange(event.target.value)}
-					disabled={disabled}
-					className="w-full tabular-nums"
-				/>
+				<div
+					className={
+						use12HourClock
+							? "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_minmax(0,1fr)] items-center gap-2"
+							: "grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2"
+					}
+				>
+					<Input
+						aria-label={t`Hour`}
+						placeholder="--"
+						value={timeParts.hour}
+						type="text"
+						inputMode="numeric"
+						maxLength={2}
+						pattern="[0-9]*"
+						autoComplete="off"
+						onChange={(event) => updateHour(event.target.value)}
+						onFocus={(event) => event.currentTarget.select()}
+						onBlur={(event) => {
+							const hour = numericTimePart(event.currentTarget.value);
+							if (hour.length === 1) updateHour(hour.padStart(2, "0"));
+						}}
+						disabled={disabled}
+						className="w-full tabular-nums"
+					/>
+					<Text as="span" variant="secondary" DANGEROUS_className="tabular-nums">
+						:
+					</Text>
+					<Input
+						ref={minuteInputRef}
+						aria-label={t`Minute`}
+						placeholder="--"
+						value={timeParts.minute}
+						type="text"
+						inputMode="numeric"
+						maxLength={2}
+						pattern="[0-9]*"
+						autoComplete="off"
+						onChange={(event) => updateMinute(event.target.value)}
+						onFocus={(event) => event.currentTarget.select()}
+						onBlur={(event) => {
+							const minute = numericTimePart(event.currentTarget.value);
+							if (minute.length === 1) updateMinute(minute.padStart(2, "0"));
+						}}
+						disabled={disabled}
+						className="w-full tabular-nums"
+					/>
+					{use12HourClock ? (
+						<Select
+							aria-label={t`Period`}
+							value={timeParts.period}
+							onValueChange={(period) => {
+								if (period === "am" || period === "pm") {
+									updateTimeParts({ ...timeParts, period });
+								}
+							}}
+							items={periodItems}
+							disabled={disabled}
+							className="w-full"
+						/>
+					) : null}
+				</div>
 			</fieldset>
 			<div className="flex items-start gap-2 text-kumo-subtle">
 				<span className="flex h-lh items-center" aria-hidden="true">

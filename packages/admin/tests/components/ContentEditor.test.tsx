@@ -1961,7 +1961,7 @@ describe("ContentEditor", () => {
 				.toBeInTheDocument();
 		});
 
-		it("opens scheduling in a dialog with native date and time fields", async () => {
+		it("opens scheduling in a dialog with segmented date and time fields", async () => {
 			const item = makeItem({ status: "draft" });
 			const screen = await renderEditor({
 				isNew: false,
@@ -1976,7 +1976,10 @@ describe("ContentEditor", () => {
 			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
 			await expect.element(dialog).toBeVisible();
 			await expect.element(dialog.getByLabelText("Schedule date")).toBeInTheDocument();
-			await expect.element(dialog.getByLabelText("Time")).toHaveAttribute("type", "time");
+			await expect.element(dialog.getByRole("textbox", { name: "Hour" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Minute" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("combobox", { name: "Period" })).toBeInTheDocument();
+			expect(dialog.element().querySelector('input[type="time"]')).toBeNull();
 			await expect.element(dialog.getByText(/America\/New_York/)).toBeInTheDocument();
 		});
 

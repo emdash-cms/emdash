@@ -285,7 +285,8 @@ async function fillScheduleFields(screen: Awaited<ReturnType<typeof render>>) {
 		.querySelector<HTMLButtonElement>(`[data-day="${localDateKey(tomorrow)}"] button`);
 	expect(dayButton).not.toBeNull();
 	fireEvent.click(dayButton!);
-	await dialog.getByLabelText("Time").fill("09:00");
+	await dialog.getByRole("textbox", { name: "Hour" }).fill("09");
+	await dialog.getByRole("textbox", { name: "Minute" }).fill("00");
 }
 
 function contentMutations(requests: RecordedRequest[]) {
@@ -668,7 +669,7 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		fireEvent.click(screen.getByRole("menuitem", { name: /Change schedule/ }).element());
 		await vi.advanceTimersByTimeAsync(150);
 		const dialog = screen.getByRole("dialog", { name: "Change schedule" });
-		await dialog.getByLabelText("Time").fill("10:00");
+		await dialog.getByRole("textbox", { name: "Hour" }).fill("10");
 		await vi.advanceTimersByTimeAsync(0);
 		fireEvent.click(dialog.getByRole("button", { name: "Save schedule", exact: true }).element());
 		await vi.advanceTimersByTimeAsync(0);
