@@ -190,6 +190,7 @@ describe("ImageFieldRenderer", () => {
 		const image = screen.container.querySelector("img");
 		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/featured-image.jpg");
 		expect(image?.style.objectPosition).toBe("25% 75%");
+		expect(getComputedStyle(image!.parentElement!).aspectRatio).toBe("16 / 9");
 	});
 
 	it("refreshes a featured local preview from the current media item", async () => {
