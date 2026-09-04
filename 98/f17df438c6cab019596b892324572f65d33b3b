@@ -1,0 +1,31 @@
+packages/admin/src/components/FocalPointEditor.tsx
+  s_c7dd983d240bd3::t_6a0f7dff6a145a 4-8,13,25-28,40-45,69-71,83,97-98,102-103,168-169,176,184-188,191-197
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_ba8a5b40429554::t_9032b940b1f856 25,72,86,410-418,1097-1098,1110,1132-1133,1572-1573,1680-1689,1694
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_ba8a5b40429554::t_7e7d8aceebba23 14,643,871-890,923,933
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "98f17df438c6cab019596b892324572f65d33b3b",
+  "prompts": {},
+  "sessions": {
+    "s_ba8a5b40429554": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06832-c3c2-75f2-ab27-f1f6418ca935",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

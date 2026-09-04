@@ -1,0 +1,59 @@
+e2e/tests/media-library.spec.ts
+  s_829bdb541ea05c::t_7dc7526d8960e4 253
+packages/admin/src/lib/crop-image.ts
+  s_829bdb541ea05c::t_d6e5b5048d0109 10,36,41-45
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_829bdb541ea05c::t_dd06211aa52e96 839,993
+packages/admin/tests/lib/crop-image.test.ts
+  s_829bdb541ea05c::t_4c6c8349f28b42 58-68
+packages/core/src/astro/routes/api/media/upload-url.ts
+  s_829bdb541ea05c::t_2b17110b9d0775 20,105-107,111,128
+packages/core/src/database/repositories/media.ts
+  s_829bdb541ea05c::t_856c1de53a8345 387-410
+packages/core/tests/integration/database/media-filename-search.test.ts
+  s_829bdb541ea05c::t_d3bf0a23d55cc8 65-73
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_7401afe2e80f73::t_ada994f8ee16ba 584,597
+packages/admin/src/lib/api/media.ts
+  s_7401afe2e80f73::t_1a33e5e9f7ed82 25,329,452
+packages/admin/tests/lib/media-upload.test.ts
+  s_4d5d0325d98b80::t_cbe6bdc3d5b813 104,108-112,133,138
+packages/core/src/api/schemas/media.ts
+  s_7401afe2e80f73::t_30e6edcc207d93 134,145-149,165
+packages/core/src/astro/routes/api/media.ts
+  s_7401afe2e80f73::t_a6d5e7a77cb353 24,159-164,216-218,222,254
+packages/core/tests/integration/astro/media-upload-deduplication.test.ts
+  s_4d5d0325d98b80::t_44d3f431ce3020 16-21,23,26-28,109-132,187-231
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2f46bf4fa898bff48ac419d33e7da7ead147a847",
+  "prompts": {},
+  "sessions": {
+    "s_4d5d0325d98b80": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0672f-d223-7e80-9e15-3f0c8ff09a30",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_7401afe2e80f73": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05f2a-31ef-79e3-ba99-17dc671bebd6",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

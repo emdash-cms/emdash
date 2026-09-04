@@ -1,0 +1,25 @@
+e2e/tests/bylines.spec.ts
+  s_a5546e654e1f61::t_363200491c8ffd 96,115-120
+packages/admin/src/components/MediaPickerModal.tsx
+  s_a5546e654e1f61::t_778d8d7917153e 12,716-736,772,786,848-894,896-918,921-930,932-941,944-954,957-1046,1048-1129,1132-1136,1141-1242,1245-1251,1254-1256,1258-1296,1302-1305
+packages/admin/tests/components/MediaPickerModal.test.tsx
+  s_a5546e654e1f61::t_dc2cd1d6eedae0 416-419
+packages/admin/vitest.config.ts
+  s_a5546e654e1f61::t_bb1b4579e93d32 7
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bac5236dc49bc931a6c74b56703e68f5c7317a65",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

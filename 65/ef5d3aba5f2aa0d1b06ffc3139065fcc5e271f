@@ -1,0 +1,71 @@
+.changeset/calm-drafts-remember.md
+  s_829bdb541ea05c::t_ae0bd599af82ff 1-5
+.changeset/scheduled-sweep-index.md
+  s_829bdb541ea05c::t_cc6c54ff0789a3 1-5
+.changeset/taxonomy-get-locale-description.md
+  s_829bdb541ea05c::t_433302863ce49b 1-5
+AGENTS.md
+  s_829bdb541ea05c::t_537f2e143de722 178
+docs/src/content/docs/guides/preview.mdx
+  s_829bdb541ea05c::t_a44996228f7983 318
+docs/src/content/docs/reference/api.mdx
+  s_829bdb541ea05c::t_b0f5c14a790a3a 183
+docs/src/content/docs/reference/mcp-server.mdx
+  s_829bdb541ea05c::t_8a1ec05d15db1e 189,195,201
+docs/src/content/docs/reference/rest-api.mdx
+  s_829bdb541ea05c::t_f6abd1fabdd559 1383-1427,1443-1529
+packages/admin/tests/components/RevisionHistory.test.tsx
+  s_829bdb541ea05c::t_3edb7a832f7509 5
+packages/admin/tests/components/users/InviteUserModal.test.tsx
+  s_829bdb541ea05c::t_b6f1712628db67 3
+packages/admin/tests/components/users/UserDetail.test.tsx
+  s_829bdb541ea05c::t_791f0f9c40c815 3
+packages/admin/tests/editor/block-menu.test.tsx
+  s_829bdb541ea05c::t_cc10014e84b3c0 17
+packages/admin/tests/editor/bubble-menu.test.tsx
+  s_829bdb541ea05c::t_186e5686d4ae73 15
+packages/admin/tests/editor/slash-menu.test.tsx
+  s_829bdb541ea05c::t_11513a44fe366c 15
+packages/admin/tests/editor/toolbar.test.tsx
+  s_829bdb541ea05c::t_2b6192102ece1f 4
+packages/admin/tests/lib/hooks.test.tsx
+  s_829bdb541ea05c::t_1e8a25195e2530 3
+packages/core/src/api/handlers/taxonomies.ts
+  s_829bdb541ea05c::t_963bf94ea23ef1 307-308
+packages/core/src/api/openapi/document.ts
+  s_829bdb541ea05c::t_a9d24c28872583 1651
+packages/core/src/database/migrations/074_content_deleted_scheduled_index.ts
+  s_829bdb541ea05c::t_87938cd88f7ea0 1-55
+packages/core/src/database/migrations/runner.ts
+  s_829bdb541ea05c::t_93de6f6cd0252e 79,154
+packages/core/src/database/repositories/content.ts
+  s_829bdb541ea05c::t_780b35929874a8 2045-2046
+packages/core/src/mcp/server.ts
+  s_829bdb541ea05c::t_df19b293c0aa8f 1316
+packages/core/src/schema/registry.ts
+  s_829bdb541ea05c::t_b5e5e816f41ab5 1466-1469,1471-1472
+packages/core/tests/integration/database/migrations.test.ts
+  s_829bdb541ea05c::t_3e205e31fc0089 190
+packages/core/tests/integration/database/scheduled-publish-plan.test.ts
+  s_829bdb541ea05c::t_a7261df78ae346 1-156
+packages/core/tests/integration/mcp/lifecycle.test.ts
+  s_829bdb541ea05c::t_a3e119d8c5aeb0 6-8,33,47,59-60,71,74,80,84,98,101-102,111,114,126,130
+packages/core/tests/unit/loader-revision-preview.test.ts
+  s_829bdb541ea05c::t_6345a7c40ec096 97-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "65ef5d3aba5f2aa0d1b06ffc3139065fcc5e271f",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

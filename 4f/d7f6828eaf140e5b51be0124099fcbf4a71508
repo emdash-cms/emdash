@@ -1,0 +1,19 @@
+packages/core/src/components/InlinePortableTextEditor.tsx
+  s_10b32d5cf04a7f::t_1c4bf257fa0888 262-265,280-281,597
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4fd7f6828eaf140e5b51be0124099fcbf4a71508",
+  "prompts": {},
+  "sessions": {
+    "s_10b32d5cf04a7f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f97dbf59effem2zZRqeKwUWJnb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "scottbuscemi <sbuscemi@cloudflare.com>"
+    }
+  }
+}

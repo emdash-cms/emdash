@@ -1,0 +1,25 @@
+e2e/tests/content-actions.spec.ts
+  s_829bdb541ea05c::t_78facdf8d618cb 173-175,193-199
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_829bdb541ea05c::t_d79d21ab6cc2b0 592-597,612-613,615-618,620-627
+packages/admin/src/components/PublishingDateTimeEditor.tsx
+  s_829bdb541ea05c::t_493e96dee9f81f 140-141,529
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_829bdb541ea05c::t_e3032b0858b4f4 1900,1929-1931
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "bef4d94c4e904ea4768fcc9aa8c4ecb057515aad",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

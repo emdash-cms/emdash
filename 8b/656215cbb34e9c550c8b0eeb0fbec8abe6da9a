@@ -1,0 +1,35 @@
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_829bdb541ea05c::t_69a58ac7be96f0 1974-1976,1988-1991
+e2e/tests/content-actions.spec.ts
+  s_1ec6f4ec1eca53::t_1c3a548ceb47a2 136-137,272
+packages/admin/src/components/PublishingDateTimeEditor.tsx
+  s_1ec6f4ec1eca53::t_665030ec8943d9 1,19-27,87-90,122-138,140-167,534
+packages/admin/tests/components/ContentSettingsPanel.test.tsx
+  s_1ec6f4ec1eca53::t_ec2e29930b90fd 87-101,782,784-790,796,823,827-828,851,874-877,879-880
+packages/admin/tests/components/PublishingDateTimeEditor.test.tsx
+  s_1ec6f4ec1eca53::t_5caced8e3ec1a3 35-50
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8b656215cbb34e9c550c8b0eeb0fbec8abe6da9a",
+  "prompts": {},
+  "sessions": {
+    "s_1ec6f4ec1eca53": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0662e-b76e-73e3-bd46-13da4719b8ae",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

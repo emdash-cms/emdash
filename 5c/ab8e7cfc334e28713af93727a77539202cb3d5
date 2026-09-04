@@ -1,0 +1,31 @@
+.changeset/fresh-icons-fill.md
+  s_c7dd983d240bd3::t_c96380ad22fa69 1-5
+packages/admin/src/components/Sidebar.tsx
+  s_c7dd983d240bd3::t_cc3d52ea709780 148,166-176,178-183
+packages/admin/tests/components/Sidebar.test.tsx
+  s_ffcc4594881ca6::t_8d4eb1fb9795bf 32,35,43,105-117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5cab8e7cfc334e28713af93727a77539202cb3d5",
+  "prompts": {},
+  "sessions": {
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_ffcc4594881ca6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06284-c2a3-7ea2-ab27-203610558ae0",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

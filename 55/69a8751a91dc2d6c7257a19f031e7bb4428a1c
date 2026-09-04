@@ -1,0 +1,31 @@
+.changeset/calm-media-crops.md
+  s_7401afe2e80f73::t_cf503cd1ed2e3a 8
+docs/src/content/docs/guides/media-library.mdx
+  s_7401afe2e80f73::t_a24ae59df5d38e 267,271
+e2e/tests/media-library.spec.ts
+  s_7401afe2e80f73::t_20f8a4307c022f 385,387-388,429
+packages/admin/src/components/ConfirmDialog.tsx
+  s_7401afe2e80f73::t_4399247a1e1ad6 17-18,20-21,24-25,49,51,53,69,77-80,86-87
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_7401afe2e80f73::t_ac1b3e3521b0b0 9,36,1502,1563,1565-1571,1575,1580-1591
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_7401afe2e80f73::t_9243cfc7694ec8 518,587,610,727,729,731-738,793-794
+packages/admin/tests/components/MediaLibrary.test.tsx
+  s_7401afe2e80f73::t_2ac66a373e34bb 1157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5569a8751a91dc2d6c7257a19f031e7bb4428a1c",
+  "prompts": {},
+  "sessions": {
+    "s_7401afe2e80f73": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05f2a-31ef-79e3-ba99-17dc671bebd6",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

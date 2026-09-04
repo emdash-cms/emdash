@@ -1,0 +1,51 @@
+docs/technical-specs/content-editor-publishing-panel.md
+  s_c7dd983d240bd3::t_cece3ce450e495 4-5,7,27-28,30,34,56,203,224,249,260-264,266,287-288,297,299,304,306,310,362-364,381,383,393-395,516,522,526-543,563,578
+packages/admin/tests/lib/content-rev.test.ts
+  s_829bdb541ea05c::t_a12176eaaded5e 12-17,74-87
+packages/admin/tests/publish-autosave-race.test.tsx
+  s_829bdb541ea05c::t_5378196afc6bdd 6,69-71,74-75,97,100-104,126-138,141-143,150,160-168,184-202,234,237-242,248-250,254-264,298,329,359,370,382,420,423,453,468-732
+.changeset/soft-days-publish.md
+  s_1ec6f4ec1eca53::t_af9950cc4f228f 3,9-10
+packages/admin/src/components/ContentEditor.tsx
+  s_1ec6f4ec1eca53::t_13d7223ffaccd8 173-180,182-186,641-700,908,974,1067,1137
+packages/admin/src/lib/api/content.ts
+  s_1ec6f4ec1eca53::t_dfc53b19f03508 404,408,425,429
+packages/admin/src/router.tsx
+  s_1ec6f4ec1eca53::t_07bb0a9a754e5a 1188-1210,1401-1419,1421-1457
+packages/core/src/api/handlers/content.ts
+  s_1ec6f4ec1eca53::t_54bdcee7a0d4d8 1520,1563
+packages/core/tests/unit/api/content-handlers.test.ts
+  s_1ec6f4ec1eca53::t_dee9a0818ca1db 11,365-371
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "73e12094b2139dc16a5faeceecfc8a4801966536",
+  "prompts": {},
+  "sessions": {
+    "s_1ec6f4ec1eca53": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0662e-b76e-73e3-bd46-13da4719b8ae",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-terra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

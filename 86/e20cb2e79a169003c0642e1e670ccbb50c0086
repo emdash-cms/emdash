@@ -1,0 +1,59 @@
+e2e/tests/content-actions.spec.ts
+  s_c7dd983d240bd3::t_2f614b429c9dd3 105,113-114,128-131,133-136,146,152-160,162-185,201-203,213-214,217-229,231-285,288-292,576,604-606
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_829bdb541ea05c::t_5fa270f36361f1 46-49,51-55,58-62,69,83-314,763,765,816,862-864,874,915-924,962-969,973,975-995
+packages/admin/src/components/PublishingDateTimeEditor.tsx
+  s_c7dd983d240bd3::t_25c8b3e0ad8f04 1,3,24-25,30-34,40-41,55,58,117,120,297-298,341-515
+packages/admin/src/router.tsx
+  s_829bdb541ea05c::t_db637bd1d6473c 1326-1327,1329
+packages/admin/tests/components/ContentSettingsPanel.test.tsx
+  s_c7dd983d240bd3::t_e7fe649f137a30 19-22,205,207-219,222-235,305-309,312-318,322-368,373-374,376-377,384-400,402-405,701-702,713,722-746,752-821,837-842
+packages/admin/tests/components/PublishingDateTimeEditor.test.tsx
+  s_c7dd983d240bd3::t_13a4c5a0863a85 1-34
+.changeset/soft-days-publish.md
+  s_829bdb541ea05c::t_56fd073c9a2cad 1-7
+e2e/tests/accessibility.spec.ts
+  s_829bdb541ea05c::t_eca05f3378a4ed 198-224
+e2e/tests/visual-regression.spec.ts
+  s_829bdb541ea05c::t_f481d44d490dfc 124-149,160-164,223-230
+packages/admin/src/components/ContentEditor.tsx
+  s_829bdb541ea05c::t_f09e7fda80a9ab 181,1022
+packages/admin/src/lib/publishing-datetime.ts
+  s_829bdb541ea05c::t_10da6cff4ef9a5 121-128
+packages/admin/tests/lib/publishing-datetime.test.ts
+  s_829bdb541ea05c::t_3e18c7b591c36e 5,88-90
+packages/admin/tests/router.test.tsx
+  s_7401afe2e80f73::t_1eaf5735ee731c 65,112-116,1460-1462
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "86e20cb2e79a169003c0642e1e670ccbb50c0086",
+  "prompts": {},
+  "sessions": {
+    "s_7401afe2e80f73": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05f2a-31ef-79e3-ba99-17dc671bebd6",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c7dd983d240bd3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d3b-2e0d-7470-a2bc-8d3c810d91d4",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

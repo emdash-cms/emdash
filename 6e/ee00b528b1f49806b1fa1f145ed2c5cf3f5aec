@@ -1,0 +1,25 @@
+packages/admin/src/components/ConfirmDialog.tsx
+  s_7401afe2e80f73::t_ec26fd0521b0da 74-75
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_7401afe2e80f73::t_bca2a047ae6242 1551-1563,1567,1570-1585
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_7401afe2e80f73::t_ed959f33af9030 1512-1519,1543-1548,1565-1567
+packages/admin/tests/components/MediaLibrary.test.tsx
+  s_7401afe2e80f73::t_0552a70342f075 1231,1257
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "6eee00b528b1f49806b1fa1f145ed2c5cf3f5aec",
+  "prompts": {},
+  "sessions": {
+    "s_7401afe2e80f73": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05f2a-31ef-79e3-ba99-17dc671bebd6",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

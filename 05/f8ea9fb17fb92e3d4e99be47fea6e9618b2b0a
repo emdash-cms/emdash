@@ -1,0 +1,21 @@
+packages/admin/src/components/media/useMediaUploadQueue.ts
+  s_a5546e654e1f61::t_5eb891b29b7eac 1-233
+packages/admin/src/components/MediaUploadDialog.tsx
+  s_a5546e654e1f61::t_545de4186bbf76 20-24,72,107,181,186-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "05f8ea9fb17fb92e3d4e99be47fea6e9618b2b0a",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

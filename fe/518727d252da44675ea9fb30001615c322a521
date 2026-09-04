@@ -1,0 +1,21 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_10b32d5cf04a7f::t_258f4383700567 188,571-572,1017
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_10b32d5cf04a7f::t_8a7cd907f0fb99 98-101,103-104,109-112,114-115,121-141,188,330,344,352,361,388,516,530,538,547,579-581
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fe518727d252da44675ea9fb30001615c322a521",
+  "prompts": {},
+  "sessions": {
+    "s_10b32d5cf04a7f": {
+      "agent_id": {
+        "tool": "opencode",
+        "id": "ses_f97dbf59effem2zZRqeKwUWJnb",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "scottbuscemi <sbuscemi@cloudflare.com>"
+    }
+  }
+}
