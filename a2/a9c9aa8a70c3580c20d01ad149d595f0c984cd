@@ -1,0 +1,29 @@
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_829bdb541ea05c::t_a9fa0e15321435 1549-1556
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_a5546e654e1f61::t_0e3df086de2b22 996-999,1697-1699
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a2a9c9aa8a70c3580c20d01ad149d595f0c984cd",
+  "prompts": {},
+  "sessions": {
+    "s_829bdb541ea05c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06286-413c-7331-8240-e7bf1baafca1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_a5546e654e1f61::t_177a1115338305 1,220-240,1950-1979
+packages/admin/tests/components/MediaPickerModal.test.tsx
+  s_a5546e654e1f61::t_b33087d8b661c4 76,78,87,89,96-101,110-119,290,299,302-305,307,315-331,392
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_a5546e654e1f61::t_beed52cdf1bc5d 24,142-143,151,154,163-223,230-231,239,242,330,381,464-465,467-483,830,838-855,1049-1050,1072,1096-1097,1099-1101,1103,1105-1106,1109-1128,1134,1876-1877
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8d586c3124bddf8002e61bc6037fe9be4b6bd1dd",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

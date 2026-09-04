@@ -1,0 +1,88 @@
+packages/admin/src/components/media/useMediaUploadQueue.ts
+  s_a5546e654e1f61::t_5eb891b29b7eac 1-18,23-61,63-80,82-105,113-243
+  s_a5546e654e1f61::t_6df3196abc672e 19-22,62,81,106-112
+packages/admin/src/components/MediaUploadDialog.tsx
+  s_a5546e654e1f61::t_545de4186bbf76 20-24,72,107,181,186-204
+packages/admin/src/components/MediaLibrary.tsx
+  s_a5546e654e1f61::t_85bdcbfabcb91b 78-83,351,528,977,1325,1330-1331,1678,1684,1689-1696,1710-1713,1715-1716
+packages/admin/src/components/MediaPickerModal.tsx
+  s_a5546e654e1f61::t_fdc629958745d5 1-11,15-18,20,22,24-34,38,40-41,51,54,56,57-58,61-62,65-67,83,96-103,108-123,125-140,172-181,192,210,216,220,222-228,230-231,234-239,240,243,244,252,254-255,264-267,309-316,317-320,321,323-324,329-330,336-346,348-398,400-401,403-406,408,410-412,414-415,418-424,429-470,472,475,477,480-522,556-569,572,582-592,594-597,599-603,605-607,618,622-624,627-628,632-633,636,638,644,647,649,653-658,660-661,665-667,789-807,809,811-814,891,893,913-916,918,920-925,935-936,939-940,989,992-993,998,1000,1014,1017,1019,1021,1050,1057,1066,1073,1099,1122,1127-1128,1131-1134,1135,1481-1482,1490,1502-1504,1510-1514,1528
+  s_a5546e654e1f61::t_e7ae20045009e2 59-60,63,86-91,141-171,245,256-257,268-288,322,325-328,524-551,604,662-664,668-684,815-817,820-822,827-832,843-867,941,943,947-948,950,952-954,1183,1186,1505,1507-1509,1515-1527
+  s_a5546e654e1f61::t_aa21fdb60dd32f 919,933,957-961,964-967,969-971,978-980,983-1021,1506
+  s_a5546e654e1f61::t_bdb1951e2b96ef 68,399,402,409,425-428
+  s_a5546e654e1f61::t_819549c24ed312 104-107,818-819,823-826,833-842,917,944-946,949,951
+  s_a5546e654e1f61::t_778d8d7917153e 12,868-888,942,1026-1030,1033-1072,1074-1096,1102-1110,1112-1121,1124-1134,1137-1141,1145-1151,1153-1161,1163-1231,1233-1314,1317-1321,1326-1345,1346-1426,1429-1435,1438-1440,1442-1480,1486-1489
+  s_a5546e654e1f61::t_b96e3a60acf330 19,21,972-977,981-982,1031-1032
+  s_a5546e654e1f61::t_6cdd4e7f759e54 810,955-956,962-963,968,1099-1101,1142-1144,1152,1162
+  s_a5546e654e1f61::t_01a945164dca97 23,49,52,64,69-80,217,249-251,253,258-263,290-307,685-788,890,892,894-912,1491-1501,1532-1549
+packages/admin/src/components/PortableTextEditor.tsx
+  s_a5546e654e1f61::t_c13ba90476aaf0 3453-3454,3468
+packages/admin/src/components/SeoImageField.tsx
+  s_a5546e654e1f61::t_c7020b9fd071f4 89
+packages/admin/src/components/editor/GalleryDetailPanel.tsx
+  s_a5546e654e1f61::t_ed46d6b10159df 402
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_a5546e654e1f61::t_6de65b83770f0a 216-217
+packages/admin/src/components/settings/GeneralSettings.tsx
+  s_a5546e654e1f61::t_715be73fccf732 356,364
+packages/admin/src/components/settings/SeoSettings.tsx
+  s_a5546e654e1f61::t_015d9a9eff5693 284
+packages/admin/tests/components/settings/GeneralSettings.test.tsx
+  s_a5546e654e1f61::t_45b6f80d719190 46
+packages/admin/tests/components/settings/SeoSettings.test.tsx
+  s_a5546e654e1f61::t_bf7d49677466c5 221
+e2e/tests/bylines.spec.ts
+  s_a5546e654e1f61::t_2d55db5691c286 90-91,200-203,205
+  s_a5546e654e1f61::t_29465ccf3a9a1e 95,101-102,105-117
+  s_a5546e654e1f61::t_41ec61c34f75d0 169-172,174-179,181-182
+  s_a5546e654e1f61::t_44285598f59e67 183-193
+  s_a5546e654e1f61::t_363200491c8ffd 96,162,164-165,167
+  s_a5546e654e1f61::t_3cc1bc08b67d05 119,121-122,123-127,129-130,131-137
+  s_a5546e654e1f61::t_354b809d2d52f8 118,146-147,148-151,152-153,156-161
+packages/admin/tests/components/MediaPickerUpload.test.tsx
+  s_a5546e654e1f61::t_2fb97b0d47048a 1-158,213-314
+  s_a5546e654e1f61::t_28e99f39b9d970 159-212
+.changeset/clean-rivers-browse.md
+  s_a5546e654e1f61::t_db6cb3a74d153d 1-10
+docs/src/content/docs/guides/media-library.mdx
+  s_a5546e654e1f61::t_8adf5aad615598 38,48,50,52,54-55,57-62,213,215,221,223,225,227,235,237,239,241-242
+packages/admin/src/components/media/MediaBrowserItems.tsx
+  s_a5546e654e1f61::t_ceb75de82c8727 1,3,16,64,195-336
+packages/admin/tests/media-picker-multiselect.test.tsx
+  s_a5546e654e1f61::t_c1d2dc35df150d 87,105-107,113,118,123,144-146,150,155,161,184-186,204-206,210,245-247,250-252,255
+packages/admin/tests/components/MediaPickerModal.test.tsx
+  s_a5546e654e1f61::t_fbdda583ddec8f 211-221
+  s_a5546e654e1f61::t_9b732dfbc8b96e 573,610,618,632
+  s_a5546e654e1f61::t_dc2cd1d6eedae0 611-614
+  s_a5546e654e1f61::t_6b915d6ae9b9c6 16-18,36-39,67-150,179,257-359
+packages/admin/vitest.config.ts
+  s_a5546e654e1f61::t_bb1b4579e93d32 7
+e2e/tests/media-library.spec.ts
+  s_a5546e654e1f61::t_38d6f989911dcc 716-718
+.changeset/fresh-astro-loggers.md
+  s_a5546e654e1f61::t_6c811368d2f5f6 1-5
+packages/core/tests/unit/astro/vite-config.test.ts
+  s_a5546e654e1f61::t_b0f72da6d08be5 173-204
+packages/admin/src/components/MediaDetailPanel.tsx
+  s_a5546e654e1f61::t_0077d543e1eb7f 141,153,163,204-205,207,670
+packages/admin/src/lib/api/media.ts
+  s_a5546e654e1f61::t_d8d935d91c953a 360,367,441,461,474
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_a5546e654e1f61::t_cf5d2db9bc136a 953,960-977
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1ece23bfe7ceee5ad0ad14eff034a8b70f355193",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

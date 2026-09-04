@@ -1,0 +1,21 @@
+e2e/tests/media-library.spec.ts
+  s_a5546e654e1f61::t_9fb165cb1a7f31 424,430
+packages/admin/src/components/MediaPickerModal.tsx
+  s_a5546e654e1f61::t_3937ecb48b1f23 36,70-71,257-258,292-302,307-316,788-844,848,852,969-970
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "aa0d74053e0592272e7dfb2c01aa130a4d5cf6ec",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
