@@ -1,0 +1,21 @@
+.changeset/fresh-astro-loggers.md
+  s_a5546e654e1f61::t_6c811368d2f5f6 1-5
+packages/core/tests/unit/astro/vite-config.test.ts
+  s_a5546e654e1f61::t_b0f72da6d08be5 173-204
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e9e86265fa85d260c5dc447db3bf165630420039",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
