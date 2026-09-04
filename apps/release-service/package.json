@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/release-service",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"private": true,
 	"description": "Cloudflare Worker for delegated EmDash registry releases.",
 	"type": "module",
