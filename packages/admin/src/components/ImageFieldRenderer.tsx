@@ -10,7 +10,14 @@
 
 import { Button, Label, LayerCard, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Image as ImageIcon, ImageBroken, ImageSquare, Moon, X } from "@phosphor-icons/react";
+import {
+	Image as ImageIcon,
+	ImageBroken,
+	ImageSquare,
+	Moon,
+	PencilSimple,
+	X,
+} from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
@@ -22,6 +29,7 @@ import {
 	metaString,
 } from "../lib/media-utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
+import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
 /**
@@ -68,6 +76,28 @@ function mediaDisplayUrl(value: ImageFieldValue | string | undefined): string | 
 	return undefined;
 }
 
+function mediaItemToImageFieldValue(item: MediaItem): ImageFieldValue {
+	const provider = canonicalMediaProviderId(item.provider);
+	const isLocalProvider = provider === "local";
+	const isDirectUrl = provider === "external";
+	return {
+		id: item.id,
+		provider,
+		src: isDirectUrl ? item.url : undefined,
+		previewUrl: !isLocalProvider && !isDirectUrl ? item.url : undefined,
+		alt: item.alt || "",
+		width: item.width,
+		height: item.height,
+		focalX: item.focalX ?? undefined,
+		focalY: item.focalY ?? undefined,
+		filename: item.filename,
+		mimeType: item.mimeType,
+		blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+		dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
+		meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
+	};
+}
+
 export interface ImageFieldRendererProps {
 	id?: string;
 	label: string;
@@ -99,6 +129,9 @@ export function ImageFieldRenderer({
 	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
 	const [imageBroken, setImageBroken] = React.useState(false);
 	const [darkImageBroken, setDarkImageBroken] = React.useState(false);
+	const [editedContentHashes, setEditedContentHashes] = React.useState<
+		Record<string, string | null | undefined>
+	>({});
 	// A legacy string URL needs object form to carry a dark variant. The runtime
 	// resolves the URL in `src` on save, so the provider linkage survives.
 	const objectValue: ImageFieldValue | undefined =
@@ -108,6 +141,19 @@ export function ImageFieldRenderer({
 				? { id: "", src: value }
 				: undefined;
 	const darkValue = objectValue?.darkVariant;
+	const handleAssetItemChanged = React.useCallback(
+		(item: MediaItem) => {
+			const selected = mediaItemToImageFieldValue(item);
+			setEditedContentHashes((current) => ({ ...current, [item.id]: item.contentHash }));
+			if (pickerTarget === "darkVariant") {
+				if (objectValue) onChange({ ...objectValue, darkVariant: selected });
+				return;
+			}
+			onChange(darkValue ? { ...selected, darkVariant: darkValue } : selected);
+		},
+		[darkValue, objectValue, onChange, pickerTarget],
+	);
+	const assetEditor = useMediaAssetEditor(handleAssetItemChanged);
 	const currentMediaId =
 		variant === "featured" &&
 		objectValue?.id &&
@@ -131,12 +177,20 @@ export function ImageFieldRenderer({
 		enabled: currentDarkMediaId !== null,
 	});
 	const storedDisplayUrl = mediaDisplayUrl(value);
+	const primaryContentHash =
+		objectValue?.id && Object.hasOwn(editedContentHashes, objectValue.id)
+			? editedContentHashes[objectValue.id]
+			: currentMedia?.contentHash;
 	const displayUrl = storedDisplayUrl
-		? getMediaPreviewUrl(storedDisplayUrl, currentMedia?.contentHash)
+		? getMediaPreviewUrl(storedDisplayUrl, primaryContentHash)
 		: undefined;
 	const storedDarkDisplayUrl = mediaDisplayUrl(darkValue);
+	const darkContentHash =
+		darkValue?.id && Object.hasOwn(editedContentHashes, darkValue.id)
+			? editedContentHashes[darkValue.id]
+			: currentDarkMedia?.contentHash;
 	const darkDisplayUrl = storedDarkDisplayUrl
-		? getMediaPreviewUrl(storedDarkDisplayUrl, currentDarkMedia?.contentHash)
+		? getMediaPreviewUrl(storedDarkDisplayUrl, darkContentHash)
 		: undefined;
 
 	React.useEffect(() => {
@@ -153,30 +207,7 @@ export function ImageFieldRenderer({
 	};
 
 	const handleSelect = (item: MediaItem) => {
-		const provider = canonicalMediaProviderId(item.provider);
-		const isLocalProvider = provider === "local";
-		const isDirectUrl = provider === "external";
-
-		const selected: ImageFieldValue = {
-			id: item.id,
-			provider,
-			// Local media derives its URL from storageKey. Direct URLs persist src,
-			// while external providers cache a preview URL for the admin.
-			src: isDirectUrl ? item.url : undefined,
-			previewUrl: !isLocalProvider && !isDirectUrl ? item.url : undefined,
-			alt: item.alt || "",
-			width: item.width,
-			height: item.height,
-			focalX: item.focalX ?? undefined,
-			focalY: item.focalY ?? undefined,
-			filename: item.filename,
-			mimeType: item.mimeType,
-			// Cache LQIP alongside dimensions so embeds render a placeholder without a
-			// runtime lookup. Fall back to `meta` for providers that stash it there.
-			blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
-			dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
-			meta: isLocalProvider ? { ...item.meta, storageKey: item.storageKey } : item.meta,
-		};
+		const selected = mediaItemToImageFieldValue(item);
 
 		if (pickerTarget === "darkVariant") {
 			if (objectValue) onChange({ ...objectValue, darkVariant: selected });
@@ -214,6 +245,52 @@ export function ImageFieldRenderer({
 		typeof value === "object" && value ? getMediaObjectPosition(value) : undefined;
 	const darkObjectPosition = darkValue ? getMediaObjectPosition(darkValue) : undefined;
 	const darkFilename = darkValue?.filename || t`Selected image`;
+	const canEditPrimaryAsset = Boolean(
+		objectValue?.id && canonicalMediaProviderId(objectValue.provider) === "local",
+	);
+	const canEditDarkAsset = Boolean(
+		darkValue?.id && canonicalMediaProviderId(darkValue.provider) === "local",
+	);
+	const primaryActions = (
+		<div className="flex flex-wrap items-center gap-2">
+			<Button
+				type="button"
+				size="sm"
+				variant="secondary"
+				icon={<ImageSquare aria-hidden="true" />}
+				onClick={() => openPicker("image")}
+				disabled={assetEditor.isActive}
+			>
+				{t`Choose another`}
+			</Button>
+			{canEditPrimaryAsset && (
+				<Button
+					type="button"
+					size="sm"
+					variant="secondary"
+					icon={<PencilSimple aria-hidden="true" />}
+					loading={assetEditor.isOpening && pickerTarget === "image"}
+					onClick={(event) => {
+						setPickerTarget("image");
+						void assetEditor.openAssetEditor(objectValue!.id, event.currentTarget);
+					}}
+				>
+					{t`Edit asset`}
+				</Button>
+			)}
+			<Button
+				type="button"
+				size="sm"
+				variant="secondary-destructive"
+				icon={<X aria-hidden="true" />}
+				onClick={handleRemove}
+				disabled={assetEditor.isActive}
+				aria-label={t`Remove image`}
+			>
+				{t`Remove`}
+			</Button>
+		</div>
+	);
 
 	const darkVariantSlot =
 		darkVariant && objectValue && displayUrl ? (
@@ -243,23 +320,41 @@ export function ImageFieldRenderer({
 								{darkFilename}
 							</Text>
 						</div>
-						<div className="flex shrink-0 items-center gap-2">
+						<div className="flex basis-full flex-wrap items-center gap-2 sm:basis-auto">
 							<Button
 								type="button"
 								size="sm"
 								variant="secondary"
 								icon={<ImageSquare />}
 								onClick={() => openPicker("darkVariant")}
-								aria-label={t`Replace dark mode variant`}
+								disabled={assetEditor.isActive}
+								aria-label={t`Choose another dark mode image`}
 							>
-								{t`Replace`}
+								{t`Choose another`}
 							</Button>
+							{canEditDarkAsset && (
+								<Button
+									type="button"
+									size="sm"
+									variant="secondary"
+									icon={<PencilSimple aria-hidden="true" />}
+									loading={assetEditor.isOpening && pickerTarget === "darkVariant"}
+									onClick={(event) => {
+										setPickerTarget("darkVariant");
+										void assetEditor.openAssetEditor(darkValue!.id, event.currentTarget);
+									}}
+									aria-label={t`Edit dark mode asset`}
+								>
+									{t`Edit asset`}
+								</Button>
+							)}
 							<Button
 								type="button"
 								size="sm"
 								variant="secondary-destructive"
 								icon={<X />}
 								onClick={handleRemoveDarkVariant}
+								disabled={assetEditor.isActive}
 								aria-label={t`Remove dark mode variant`}
 							>
 								{t`Remove`}
@@ -273,6 +368,7 @@ export function ImageFieldRenderer({
 						variant="secondary"
 						icon={<Moon />}
 						onClick={() => openPicker("darkVariant")}
+						disabled={assetEditor.isActive}
 					>
 						{t`Add dark mode variant`}
 					</Button>
@@ -311,27 +407,7 @@ export function ImageFieldRenderer({
 						</Text>
 					)}
 				</div>
-				<div className="flex shrink-0 items-center gap-2">
-					<Button
-						type="button"
-						size="sm"
-						variant="secondary"
-						icon={<ImageSquare />}
-						onClick={() => openPicker("image")}
-					>
-						{t`Replace`}
-					</Button>
-					<Button
-						type="button"
-						size="sm"
-						variant="secondary-destructive"
-						icon={<X />}
-						onClick={handleRemove}
-						aria-label={t`Remove image`}
-					>
-						{t`Remove`}
-					</Button>
-				</div>
+				{primaryActions}
 			</div>
 		</LayerCard>
 	) : null;
@@ -353,34 +429,15 @@ export function ImageFieldRenderer({
 				featuredCard
 			) : displayUrl ? (
 				imageBroken ? (
-					<div className="relative group">
+					<div className="grid gap-2">
 						<div className="flex min-h-20 items-center justify-center gap-2 rounded-lg border bg-kumo-tint text-kumo-subtle">
 							<ImageBroken className="h-5 w-5" />
 							<span className="text-sm">{t`Image not found`}</span>
 						</div>
-						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-							<Button
-								type="button"
-								size="sm"
-								variant="secondary"
-								onClick={() => openPicker("image")}
-							>
-								{t`Change`}
-							</Button>
-							<Button
-								type="button"
-								shape="square"
-								variant="destructive"
-								className="h-8 w-8"
-								onClick={handleRemove}
-								aria-label={t`Remove image`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
+						{primaryActions}
 					</div>
 				) : (
-					<div className="relative group">
+					<div className="grid gap-2">
 						<img
 							src={displayUrl}
 							alt=""
@@ -388,26 +445,7 @@ export function ImageFieldRenderer({
 							style={{ objectPosition }}
 							onError={() => setImageBroken(true)}
 						/>
-						<div className="absolute top-2 end-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
-							<Button
-								type="button"
-								size="sm"
-								variant="secondary"
-								onClick={() => openPicker("image")}
-							>
-								{t`Change`}
-							</Button>
-							<Button
-								type="button"
-								shape="square"
-								variant="destructive"
-								className="h-8 w-8"
-								onClick={handleRemove}
-								aria-label={t`Remove image`}
-							>
-								<X className="h-4 w-4" />
-							</Button>
-						</div>
+						{primaryActions}
 					</div>
 				)
 			) : (
@@ -438,6 +476,12 @@ export function ImageFieldRenderer({
 						: t`Select ${label}`
 				}
 			/>
+			{assetEditor.dialog}
+			{assetEditor.error && (
+				<p role="alert" className="text-sm text-kumo-danger">
+					{assetEditor.error}
+				</p>
+			)}
 			{required && !displayUrl && (
 				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
 			)}

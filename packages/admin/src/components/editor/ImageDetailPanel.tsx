@@ -13,6 +13,7 @@ import {
 	Ruler,
 	SlidersHorizontal,
 	ImageSquare,
+	PencilSimple,
 	LinkSimple,
 	LinkBreak,
 } from "@phosphor-icons/react";
@@ -20,8 +21,9 @@ import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
-import { canonicalMediaProviderId } from "../../lib/media-utils.js";
+import { canonicalMediaProviderId, metaString } from "../../lib/media-utils.js";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { useMediaAssetEditor } from "../media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 
 export interface ImageAttributes {
@@ -76,6 +78,38 @@ export function ImageDetailPanel({
 	const [caption, setCaption] = React.useState(attributes.caption ?? "");
 	const [title, setTitle] = React.useState(attributes.title ?? "");
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
+	const [asset, setAsset] = React.useState(attributes);
+	const handleAssetItemChanged = React.useCallback(
+		(item: MediaItem) => {
+			setDisplayWidth((current) =>
+				attributes.displayWidth === undefined && current === asset.width ? item.width : current,
+			);
+			setDisplayHeight((current) =>
+				attributes.displayHeight === undefined && current === asset.height ? item.height : current,
+			);
+			setAsset((current) => ({
+				...current,
+				src: item.url,
+				mediaId: item.id,
+				provider: "local",
+				width: item.width,
+				height: item.height,
+				blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+				dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
+			}));
+			onUpdate({
+				src: item.url,
+				mediaId: item.id,
+				provider: "local",
+				width: item.width,
+				height: item.height,
+				blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+				dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
+			});
+		},
+		[asset.height, asset.width, attributes.displayHeight, attributes.displayWidth, onUpdate],
+	);
+	const assetEditor = useMediaAssetEditor(handleAssetItemChanged);
 
 	// Dimension state - default to display dimensions, fall back to original
 	const [displayWidth, setDisplayWidth] = React.useState<number | undefined>(
@@ -90,8 +124,7 @@ export function ImageDetailPanel({
 	);
 
 	// Calculate aspect ratio from original dimensions
-	const aspectRatio =
-		attributes.width && attributes.height ? attributes.width / attributes.height : undefined;
+	const aspectRatio = asset.width && asset.height ? asset.width / asset.height : undefined;
 
 	const handleWidthChange = (value: string) => {
 		const newWidth = value ? parseInt(value, 10) : undefined;
@@ -110,8 +143,8 @@ export function ImageDetailPanel({
 	};
 
 	const handleResetDimensions = () => {
-		setDisplayWidth(attributes.width);
-		setDisplayHeight(attributes.height);
+		setDisplayWidth(asset.width);
+		setDisplayHeight(asset.height);
 	};
 
 	const handleMediaSelect = (item: MediaItem) => {
@@ -134,8 +167,8 @@ export function ImageDetailPanel({
 
 	// Track if form has unsaved changes
 	const hasChanges = React.useMemo(() => {
-		const originalDisplayWidth = attributes.displayWidth ?? attributes.width;
-		const originalDisplayHeight = attributes.displayHeight ?? attributes.height;
+		const originalDisplayWidth = attributes.displayWidth ?? asset.width;
+		const originalDisplayHeight = attributes.displayHeight ?? asset.height;
 		return (
 			alt !== (attributes.alt ?? "") ||
 			caption !== (attributes.caption ?? "") ||
@@ -144,7 +177,17 @@ export function ImageDetailPanel({
 			displayHeight !== originalDisplayHeight ||
 			alignment !== attributes.alignment
 		);
-	}, [attributes, alt, caption, title, displayWidth, displayHeight, alignment]);
+	}, [
+		asset.height,
+		asset.width,
+		attributes,
+		alt,
+		caption,
+		title,
+		displayWidth,
+		displayHeight,
+		alignment,
+	]);
 
 	const handleSave = () => {
 		onUpdate({
@@ -168,6 +211,33 @@ export function ImageDetailPanel({
 	];
 
 	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+	const canEditAsset = Boolean(
+		asset.mediaId && canonicalMediaProviderId(asset.provider) === "local",
+	);
+	const imageActions = (
+		<div className="mt-3 flex flex-wrap items-center gap-2">
+			<Button
+				variant="secondary"
+				size="sm"
+				icon={<ImageSquare aria-hidden="true" />}
+				onClick={() => setShowMediaPicker(true)}
+				disabled={assetEditor.isActive}
+			>
+				{t`Choose another`}
+			</Button>
+			{canEditAsset && (
+				<Button
+					variant="secondary"
+					size="sm"
+					icon={<PencilSimple aria-hidden="true" />}
+					loading={assetEditor.isOpening}
+					onClick={(event) => void assetEditor.openAssetEditor(asset.mediaId!, event.currentTarget)}
+				>
+					{t`Edit asset`}
+				</Button>
+			)}
+		</div>
+	);
 
 	const handleDelete = () => {
 		setShowDeleteConfirm(true);
@@ -179,10 +249,15 @@ export function ImageDetailPanel({
 	// Handle keyboard shortcuts
 	React.useEffect(() => {
 		const handleKeyDown = (e: KeyboardEvent) => {
+			const saveShortcut = (e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s";
+			if (showDeleteConfirm || showMediaPicker || assetEditor.isActive) {
+				if (saveShortcut) e.preventDefault();
+				return;
+			}
 			if (e.key === "Escape") {
 				stableOnClose();
 			}
-			if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+			if (saveShortcut) {
 				e.preventDefault();
 				stableHandleSave();
 			}
@@ -190,14 +265,14 @@ export function ImageDetailPanel({
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [stableOnClose, stableHandleSave]);
+	}, [assetEditor.isActive, showDeleteConfirm, showMediaPicker, stableOnClose, stableHandleSave]);
 
 	const dialogs = (
 		<>
 			<ConfirmDialog
 				open={showDeleteConfirm}
 				onClose={() => setShowDeleteConfirm(false)}
-				title={t`Remove Image?`}
+				title={t`Remove image?`}
 				description={t`Remove this image from the document?`}
 				confirmLabel={t`Remove`}
 				pendingLabel={t`Removing...`}
@@ -213,9 +288,10 @@ export function ImageDetailPanel({
 				onOpenChange={setShowMediaPicker}
 				onSelect={handleMediaSelect}
 				mimeTypeFilter="image/"
-				title={t`Replace image`}
-				confirmLabel={t`Replace image`}
+				title={t`Choose another image`}
+				confirmLabel={t`Choose another`}
 			/>
+			{assetEditor.dialog}
 		</>
 	);
 
@@ -236,42 +312,38 @@ export function ImageDetailPanel({
 
 				{/* Preview */}
 				<div className="p-4 border-b">
-					<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
+					<div className="emdash-media-transparency-grid relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
 						<img
-							src={attributes.src}
+							src={asset.src}
 							alt={attributes.alt || ""}
 							className="max-h-full max-w-full object-contain"
 						/>
-						<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-							<Button
-								variant="secondary"
-								size="sm"
-								icon={<ImageSquare />}
-								onClick={() => setShowMediaPicker(true)}
-							>
-								{t`Replace Image`}
-							</Button>
-						</div>
 					</div>
+					{imageActions}
+					{assetEditor.error && (
+						<p role="alert" className="mt-2 text-sm text-kumo-danger">
+							{assetEditor.error}
+						</p>
+					)}
 
 					{/* Original dimensions */}
-					{(attributes.width || attributes.height) && (
+					{(asset.width || asset.height) && (
 						<div className="flex items-center gap-2 text-sm mt-3">
 							<Ruler className="h-4 w-4 text-kumo-subtle" />
 							<span className="text-kumo-subtle">{t`Original:`}</span>
 							<span>
-								{attributes.width} × {attributes.height}
+								{asset.width} × {asset.height}
 							</span>
 						</div>
 					)}
 				</div>
 
 				{/* Display Size — shown for any image; migrated images may lack original dims */}
-				{attributes.src && (
+				{asset.src && (
 					<div className="p-4 border-b space-y-3">
 						<div className="flex items-center justify-between">
 							<Label>{t`Display Size`}</Label>
-							{attributes.width && attributes.height && (
+							{asset.width && asset.height && (
 								<Button
 									variant="ghost"
 									size="sm"
@@ -323,7 +395,7 @@ export function ImageDetailPanel({
 				)}
 
 				{/* Alignment */}
-				{attributes.src && (
+				{asset.src && (
 					<div className="p-4 border-b space-y-3">
 						<Label>{t`Alignment`}</Label>
 						<div className="flex flex-wrap gap-1">
@@ -370,15 +442,15 @@ export function ImageDetailPanel({
 					/>
 
 					{/* Source URL - only show for external images (no mediaId) */}
-					{!attributes.mediaId && attributes.src && (
+					{!asset.mediaId && asset.src && (
 						<div>
 							<Label>{t`Source`}</Label>
 							<div className="mt-1.5 flex gap-2">
-								<Input value={attributes.src} readOnly className="text-xs font-mono flex-1" />
+								<Input value={asset.src} readOnly className="text-xs font-mono flex-1" />
 								<LinkButton
 									variant="outline"
 									shape="square"
-									href={attributes.src}
+									href={asset.src}
 									external
 									title={t`Open in new tab`}
 									aria-label={t`Open in new tab`}
@@ -392,8 +464,13 @@ export function ImageDetailPanel({
 
 				{/* Actions */}
 				<div className="p-4 border-t flex items-center justify-between gap-2">
-					<Button variant="destructive" size="sm" onClick={handleDelete}>
-						{t`Remove Image`}
+					<Button
+						variant="destructive"
+						size="sm"
+						onClick={handleDelete}
+						disabled={assetEditor.isActive}
+					>
+						{t`Remove`}
 					</Button>
 					<Button size="sm" onClick={handleSave} disabled={!hasChanges}>
 						{t`Save`}
@@ -423,44 +500,40 @@ export function ImageDetailPanel({
 			<div className="flex-1 overflow-y-auto">
 				{/* Preview */}
 				<div className="p-4 border-b">
-					<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
+					<div className="emdash-media-transparency-grid relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
 						<img
-							src={attributes.src}
+							src={asset.src}
 							alt={attributes.alt || ""}
 							className="max-h-full max-w-full object-contain"
 						/>
-						<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-							<Button
-								variant="secondary"
-								size="sm"
-								icon={<ImageSquare />}
-								onClick={() => setShowMediaPicker(true)}
-							>
-								{t`Replace Image`}
-							</Button>
-						</div>
 					</div>
+					{imageActions}
+					{assetEditor.error && (
+						<p role="alert" className="mt-2 text-sm text-kumo-danger">
+							{assetEditor.error}
+						</p>
+					)}
 				</div>
 
 				{/* Image Info - original dimensions */}
-				{(attributes.width || attributes.height) && (
+				{(asset.width || asset.height) && (
 					<div className="p-4 border-b">
 						<div className="flex items-center gap-2 text-sm">
 							<Ruler className="h-4 w-4 text-kumo-subtle" />
 							<span className="text-kumo-subtle">{t`Original:`}</span>
 							<span>
-								{attributes.width} × {attributes.height}
+								{asset.width} × {asset.height}
 							</span>
 						</div>
 					</div>
 				)}
 
 				{/* Display Size — shown for any image; migrated images may lack original dims */}
-				{attributes.src && (
+				{asset.src && (
 					<div className="p-4 border-b space-y-3">
 						<div className="flex items-center justify-between">
 							<Label>{t`Display Size`}</Label>
-							{attributes.width && attributes.height && (
+							{asset.width && asset.height && (
 								<Button
 									variant="ghost"
 									size="sm"
@@ -512,7 +585,7 @@ export function ImageDetailPanel({
 				)}
 
 				{/* Alignment */}
-				{attributes.src && (
+				{asset.src && (
 					<div className="p-4 border-b space-y-3">
 						<Label>{t`Alignment`}</Label>
 						<div className="flex flex-wrap gap-1">
@@ -559,15 +632,15 @@ export function ImageDetailPanel({
 					/>
 
 					{/* Source URL - only show for external images (no mediaId) */}
-					{!attributes.mediaId && attributes.src && (
+					{!asset.mediaId && asset.src && (
 						<div>
 							<Label>{t`Source`}</Label>
 							<div className="mt-1.5 flex gap-2">
-								<Input value={attributes.src} readOnly className="text-xs font-mono flex-1" />
+								<Input value={asset.src} readOnly className="text-xs font-mono flex-1" />
 								<LinkButton
 									variant="outline"
 									shape="square"
-									href={attributes.src}
+									href={asset.src}
 									external
 									title={t`Open in new tab`}
 									aria-label={t`Open in new tab`}
@@ -582,8 +655,13 @@ export function ImageDetailPanel({
 
 			{/* Footer */}
 			<div className="p-4 border-t flex items-center justify-between gap-2">
-				<Button variant="destructive" size="sm" onClick={handleDelete}>
-					{t`Remove Image`}
+				<Button
+					variant="destructive"
+					size="sm"
+					onClick={handleDelete}
+					disabled={assetEditor.isActive}
+				>
+					{t`Remove`}
 				</Button>
 				<div className="flex gap-2">
 					<Button variant="outline" size="sm" onClick={onClose}>

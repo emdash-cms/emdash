@@ -1858,19 +1858,19 @@ function FileFieldRenderer({
 							</p>
 						)}
 					</div>
-					<div className="flex gap-1">
+					<div className="flex flex-wrap gap-2">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Change`}
+							{t`Choose another`}
 						</Button>
 						<Button
 							type="button"
-							shape="square"
-							variant="destructive"
-							className="h-8 w-8"
+							size="sm"
+							variant="secondary-destructive"
+							icon={<X aria-hidden="true" />}
 							onClick={handleRemove}
 							aria-label={t`Remove ${label}`}
 						>
-							<X className="h-4 w-4" />
+							{t`Remove`}
 						</Button>
 					</div>
 				</div>
