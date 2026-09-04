@@ -966,8 +966,11 @@ export function MediaPickerModal({
 		>
 			<Dialog
 				size="xl"
-				className={`flex w-[calc(100vw-2rem)] min-h-0 min-w-0 max-w-[48rem] flex-col overflow-hidden p-0 sm:w-[min(48rem,calc(100vw-2rem))] ${assetOpen ? "" : "h-[min(48rem,calc(100dvh-1rem))]"}`}
-				style={assetOpen ? { maxHeight: "min(88dvh, 43.5rem)" } : undefined}
+				className={`flex w-full min-h-0 min-w-0 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 ${assetOpen ? "" : "h-[min(48rem,calc(100dvh-1rem))]"}`}
+				style={{
+					width: "min(94vw, 68rem)",
+					maxHeight: assetOpen ? "min(88dvh, 43.5rem)" : undefined,
+				}}
 			>
 				{assetOpen ? (
 					<MediaDetailPanel
