@@ -332,7 +332,7 @@ export function ImageFieldRenderer({
 								type="button"
 								size="sm"
 								variant="secondary"
-								icon={<ImageSquare />}
+								icon={<ImageSquare aria-hidden="true" />}
 								onClick={() => openPicker("darkVariant")}
 								disabled={assetEditor.isActive}
 								aria-label={t`Replace dark mode image`}
@@ -359,7 +359,7 @@ export function ImageFieldRenderer({
 								type="button"
 								size="sm"
 								variant="secondary-destructive"
-								icon={<X />}
+								icon={<X aria-hidden="true" />}
 								onClick={handleRemoveDarkVariant}
 								disabled={assetEditor.isActive}
 								aria-label={t`Remove dark mode variant`}

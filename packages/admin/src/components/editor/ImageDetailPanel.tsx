@@ -49,8 +49,13 @@ export interface ImageAttributes {
 	alignment?: "left" | "center" | "right" | "wide" | "full";
 }
 
+export interface ImagePanelAttributes extends ImageAttributes {
+	/** Transient identity for the image node that opened the sidebar. */
+	nodeKey?: object;
+}
+
 export interface ImageDetailPanelProps {
-	attributes: ImageAttributes;
+	attributes: ImagePanelAttributes;
 	onUpdate: (attrs: Partial<ImageAttributes>) => void;
 	onReplace: (attrs: ImageAttributes) => void;
 	onDelete: () => void;
@@ -122,6 +127,19 @@ export function ImageDetailPanel({
 	const [alignment, setAlignment] = React.useState<ImageAttributes["alignment"]>(
 		attributes.alignment,
 	);
+	const nodeKey = attributes.nodeKey;
+
+	React.useEffect(() => {
+		setAlt(attributes.alt ?? "");
+		setCaption(attributes.caption ?? "");
+		setTitle(attributes.title ?? "");
+		setAsset(attributes);
+		setDisplayWidth(attributes.displayWidth ?? attributes.width);
+		setDisplayHeight(attributes.displayHeight ?? attributes.height);
+		setLockAspectRatio(true);
+		setAlignment(attributes.alignment);
+		// eslint-disable-next-line react-hooks/exhaustive-deps -- the node token identifies a new attribute snapshot
+	}, [nodeKey]);
 
 	// Calculate aspect ratio from original dimensions
 	const aspectRatio = asset.width && asset.height ? asset.width / asset.height : undefined;

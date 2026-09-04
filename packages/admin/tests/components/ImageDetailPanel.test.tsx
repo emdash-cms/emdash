@@ -1,7 +1,10 @@
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ImageDetailPanel } from "../../src/components/editor/ImageDetailPanel.js";
+import {
+	ImageDetailPanel,
+	type ImagePanelAttributes,
+} from "../../src/components/editor/ImageDetailPanel.js";
 import { ApiResponseError, fetchMediaItem } from "../../src/lib/api";
 import type { LocalMediaItem, MediaItem } from "../../src/lib/api/media.js";
 import { render } from "../utils/render.js";
@@ -358,5 +361,102 @@ describe("ImageDetailPanel replacement", () => {
 				signal: expect.any(AbortSignal),
 			}),
 		);
+	});
+
+	it("resyncs the complete form when the sidebar switches image nodes", async () => {
+		const firstNode = {};
+		const secondNode = {};
+		const thirdNode = {};
+		const onSecondUpdate = vi.fn();
+		const onThirdUpdate = vi.fn();
+		const panel = (attributes: ImagePanelAttributes, onUpdate = vi.fn()) => (
+			<ImageDetailPanel
+				attributes={attributes}
+				onUpdate={onUpdate}
+				onReplace={vi.fn()}
+				onDelete={vi.fn()}
+				onClose={vi.fn()}
+				inline
+			/>
+		);
+		const screen = await render(
+			panel({
+				nodeKey: firstNode,
+				src: "/_emdash/api/media/file/first.jpg",
+				mediaId: "first-image",
+				provider: "local",
+				width: 1200,
+				height: 800,
+				alt: "First alt",
+				caption: "First caption",
+				title: "First title",
+				displayWidth: 600,
+				displayHeight: 400,
+				alignment: "wide",
+			}),
+		);
+
+		await screen.rerender(
+			panel(
+				{
+					nodeKey: secondNode,
+					src: "/_emdash/api/media/file/second.jpg",
+					mediaId: "second-image",
+					provider: "local",
+					width: 900,
+					height: 600,
+					alt: "Second alt",
+					caption: "Second caption",
+					title: "Second title",
+					displayWidth: 450,
+					displayHeight: 300,
+					alignment: "center",
+				},
+				onSecondUpdate,
+			),
+		);
+
+		await expect
+			.element(screen.getByRole("img", { name: "Second alt" }))
+			.toHaveAttribute("src", "/_emdash/api/media/file/second.jpg");
+		await expect.element(screen.getByLabelText("Alt Text")).toHaveValue("Second alt");
+		await expect.element(screen.getByLabelText("Caption")).toHaveValue("Second caption");
+		await expect.element(screen.getByLabelText("Title (Tooltip)")).toHaveValue("Second title");
+		await expect.element(screen.getByLabelText("Width")).toHaveValue(450);
+		await expect.element(screen.getByLabelText("Height")).toHaveValue(300);
+
+		await screen.rerender(
+			panel(
+				{
+					nodeKey: thirdNode,
+					src: "/_emdash/api/media/file/second.jpg",
+					mediaId: "second-image",
+					provider: "local",
+					width: 900,
+					height: 600,
+					alt: "Third alt",
+					caption: "Third caption",
+					title: "Third title",
+					displayWidth: 300,
+					displayHeight: 200,
+					alignment: "full",
+				},
+				onThirdUpdate,
+			),
+		);
+
+		await expect.element(screen.getByLabelText("Alt Text")).toHaveValue("Third alt");
+		await screen.getByLabelText("Alt Text").fill("Updated third alt");
+		await screen.getByRole("button", { name: "Save" }).click();
+
+		expect(onSecondUpdate).not.toHaveBeenCalled();
+		expect(onThirdUpdate).toHaveBeenCalledWith({
+			alt: "Updated third alt",
+			caption: "Third caption",
+			title: "Third title",
+			displayWidth: 300,
+			displayHeight: 200,
+			alignment: "full",
+		});
 	});
 });
