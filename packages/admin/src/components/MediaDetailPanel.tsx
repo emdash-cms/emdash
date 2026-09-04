@@ -201,7 +201,10 @@ function MediaDetailSurface({
 }) {
 	if (embedded) {
 		return (
-			<div className="flex min-h-0 flex-col overflow-hidden" data-testid="media-detail-workspace">
+			<div
+				className="flex h-full min-h-0 flex-col overflow-hidden"
+				data-testid="media-detail-workspace"
+			>
 				{children}
 			</div>
 		);
