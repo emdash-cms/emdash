@@ -70,6 +70,7 @@ import {
 	getFileIcon,
 	formatFileSize,
 	getMediaThumbnailUrl,
+	getMediaPreviewUrl,
 	getMediaObjectPosition,
 	fallbackToOriginalThumbnail,
 	MEDIA_THUMBNAIL_WIDTH,
@@ -226,7 +227,8 @@ export function MediaLibrary({
 	onMoveMedia,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
-	const isAdmin = (useCurrentUser().data?.role ?? 0) >= 50;
+	const currentUser = useCurrentUser().data;
+	const isAdmin = (currentUser?.role ?? 0) >= 50;
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const activationQuery = useQuery({
 		queryKey: MEDIA_USAGE_ACTIVATION_QUERY_KEY,
@@ -787,7 +789,7 @@ export function MediaLibrary({
 			aria-busy={currentLoading || moveMutation.isPending || undefined}
 			onClickCapture={handleRootClickCapture}
 		>
-			{onMoveMedia && <Toasty toastManager={toastManager}>{null}</Toasty>}
+			<Toasty toastManager={toastManager}>{null}</Toasty>
 			{isFileDragActive && canUploadHere && (
 				<div
 					className="pointer-events-none fixed inset-0 z-50 bg-kumo-base/70 p-4 backdrop-blur-sm sm:p-8"
@@ -970,6 +972,7 @@ export function MediaLibrary({
 				>
 					{(canSearch || activeProvider === "local") && (
 						<TableToolbarSearch
+							size="base"
 							placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
 							aria-label={t`Search media`}
 							value={searchQuery}
@@ -980,7 +983,7 @@ export function MediaLibrary({
 					)}
 					{activeProvider === "local" && (
 						<Select
-							size="sm"
+							size="base"
 							value={localTypeFilter}
 							onValueChange={(v) => {
 								const next = v ?? "all";
@@ -1379,11 +1382,25 @@ export function MediaLibrary({
 					providerName={detailItem.provider ? activeProviderInfo?.name : undefined}
 					canDelete={detailItem.provider ? activeProviderInfo?.capabilities.delete : undefined}
 					canMoveLocation={isLocalMediaItem(detailItem) ? canMoveMedia?.(detailItem) : undefined}
+					canCropOriginal={Boolean(
+						isLocalMediaItem(detailItem) &&
+						currentUser &&
+						(currentUser.role >= 40 ||
+							(currentUser.role >= 30 && detailItem.authorId === currentUser.id)),
+					)}
+					canDuplicateCrop={Boolean(isLocalMediaItem(detailItem) && (currentUser?.role ?? 0) >= 20)}
 					restoreFocusTargetRef={mediaHeadingRef}
 					onClose={closeDetail}
 					onClosed={handleDetailClosed}
 					onUpdated={onItemUpdated}
 					onItemRefreshed={handleDetailItemRefreshed}
+					onCroppedCopyCreated={() => {
+						toastManager.add({
+							title: t`Cropped copy created.`,
+							variant: "success",
+							timeout: 3000,
+						});
+					}}
 					onDeleted={detailItem.provider ? undefined : onItemUpdated}
 				/>
 			)}
@@ -1667,6 +1684,7 @@ interface MediaGridItemProps {
 function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGridItemProps) {
 	const isImage = item.mimeType.startsWith("image/");
 	const localItem = isLocalMediaItem(item) ? item : null;
+	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
 	const { setNodeRef, listeners, isDragging } = useDraggable({
 		id: mediaDragId(item.id),
 		data: localItem
@@ -1691,15 +1709,20 @@ function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGr
 				(isDragging || isMoving) && "opacity-40",
 			)}
 		>
-			<LayerCard.Primary className="aspect-[4/3] p-0">
+			<LayerCard.Primary className="aspect-video p-0">
 				{isImage ? (
 					<img
-						src={getMediaThumbnailUrl(item.url, item.mimeType, MEDIA_THUMBNAIL_WIDTH)}
+						src={getMediaThumbnailUrl(
+							item.url,
+							item.mimeType,
+							MEDIA_THUMBNAIL_WIDTH,
+							item.contentHash,
+						)}
 						alt={item.alt || item.filename}
 						draggable={false}
 						className="emdash-media-transparency-grid h-full w-full object-cover"
 						style={{ objectPosition: getMediaObjectPosition(item) }}
-						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
+						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, previewUrl)}
 					/>
 				) : (
 					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">
@@ -1796,6 +1819,7 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 	const localItem = isLocalMediaItem(item) ? item : null;
+	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
 	const { setNodeRef, listeners, isDragging } = useDraggable({
 		id: mediaDragId(item.id),
 		data: localItem
@@ -1822,12 +1846,12 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 				<div className="h-10 w-10 overflow-hidden rounded">
 					{isImage ? (
 						<img
-							src={getMediaThumbnailUrl(item.url, item.mimeType, 80)}
+							src={getMediaThumbnailUrl(item.url, item.mimeType, 80, item.contentHash)}
 							alt={item.alt || item.filename}
 							draggable={false}
 							className="emdash-media-transparency-grid h-full w-full object-cover"
 							style={{ objectPosition: getMediaObjectPosition(item) }}
-							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
+							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, previewUrl)}
 						/>
 					) : (
 						<div className="flex h-full w-full items-center justify-center bg-kumo-tint text-xl">

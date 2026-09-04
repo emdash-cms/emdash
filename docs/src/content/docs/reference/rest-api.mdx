@@ -1380,6 +1380,51 @@ Content-Type: application/json
 GET /_emdash/api/taxonomies
 ```
 
+### Get Taxonomy
+
+```http
+GET /_emdash/api/taxonomies/:name
+```
+
+A taxonomy has one definition per locale. `locale` selects which one to return.
+Omit it and EmDash returns the definition for the site's default locale, falling
+back to the lowest locale code when the default locale has no definition. The
+endpoint requires `taxonomies:read`.
+
+#### Parameters
+
+| Parameter | Type     | Description                      |
+| --------- | -------- | -------------------------------- |
+| `name`    | `string` | Taxonomy name (path)             |
+| `locale`  | `string` | Locale of the definition (query) |
+
+#### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "taxonomy": {
+      "id": "01HXK5MZSN...",
+      "name": "genre",
+      "label": "Genres",
+      "labelSingular": "Genre",
+      "hierarchical": true,
+      "collections": ["books", "movies"],
+      "locale": "en",
+      "translationGroup": "01HXK5MZSN..."
+    }
+  }
+}
+```
+
+`collections` lists only the collections that still exist. A collection that was
+deleted after being added to the taxonomy is filtered out of the response but
+kept in storage, so re-creating the collection restores the link.
+
+Every locale of a taxonomy shares one `translationGroup`. An untranslated
+taxonomy has its own `id` there, as above.
+
 ### Create Taxonomy
 
 ```http
@@ -1394,6 +1439,93 @@ Content-Type: application/json
   "collections": ["books", "movies"]
 }
 ```
+
+### Update Taxonomy
+
+```http
+PUT /_emdash/api/taxonomies/:name
+Content-Type: application/json
+
+{
+  "label": "Categories",
+  "labelSingular": "Category",
+  "hierarchical": true,
+  "collections": ["books"]
+}
+```
+
+Every field is optional and an omitted field keeps its stored value. Send
+`"labelSingular": null` to clear it. Naming a collection that does not exist
+returns `VALIDATION_ERROR` and writes nothing. The response is the updated
+definition, in the same shape as [Get Taxonomy](#get-taxonomy). The endpoint
+requires `taxonomies:manage`.
+
+The request writes a single locale's definition, selected by `locale`. Pass it
+explicitly on a translated taxonomy: without it, the write lands on the
+definition with the lowest locale code. Addressing a locale that has no
+definition returns `NOT_FOUND` — unlike [Get Taxonomy](#get-taxonomy), this
+endpoint never falls back to another locale's row.
+
+Do not send `name` or `locale` in the body. Both identify the definition being
+written rather than a value to change, so the body rejects them with
+`VALIDATION_ERROR` instead of ignoring them. A taxonomy cannot be renamed,
+because its terms are keyed on `name`.
+
+### Delete Taxonomy
+
+```http
+DELETE /_emdash/api/taxonomies/:name
+```
+
+Deletes the taxonomy in every locale: each locale's definition, every term under
+that name, and every assignment of those terms to content. Content entries
+themselves are not deleted; they lose the term assignments.
+
+There is no `locale` parameter, and EmDash does not refuse the request when the
+taxonomy still has terms. The endpoint requires `taxonomies:manage`.
+
+<Aside type="caution">
+	This endpoint deletes immediately and EmDash cannot restore the terms or their content
+	assignments afterwards. Back up the database before deleting a taxonomy in production.
+</Aside>
+
+#### Response
+
+```json
+{
+  "success": true,
+  "data": { "deleted": true }
+}
+```
+
+### List Taxonomy Translations
+
+```http
+GET /_emdash/api/taxonomies/:name/translations
+```
+
+Lists every locale that the taxonomy definition has been translated into. Any
+locale of the taxonomy returns the same list, so `locale` only chooses which
+definition resolves the group. The endpoint requires `taxonomies:read`.
+
+#### Response
+
+```json
+{
+  "success": true,
+  "data": {
+    "translationGroup": "01HXK5MZSN...",
+    "translations": [
+      { "id": "01HXK5MZSN...", "name": "genre", "label": "Genres", "locale": "en" },
+      { "id": "01HXK6P2QT...", "name": "genre", "label": "Géneros", "locale": "es" }
+    ]
+  }
+}
+```
+
+To add a locale, post to [Create Taxonomy](#create-taxonomy) with the same
+`name`, the new `locale`, and `translationOf` set to a definition `id` from this
+list.
 
 ### List Terms
 

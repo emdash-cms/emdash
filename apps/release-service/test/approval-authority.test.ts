@@ -159,6 +159,7 @@ function authorityFetch(
 		cid?: string;
 		address?: string;
 		requireCarAccept?: boolean;
+		missing?: boolean;
 	} = {},
 ) {
 	return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
@@ -180,6 +181,9 @@ function authorityFetch(
 			});
 		}
 		if (url.hostname === "pds.example.com" && url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+			if (options.missing) {
+				return Response.json({ error: "RecordNotFound" }, { status: 404 });
+			}
 			if (
 				options.requireCarAccept &&
 				new Headers(init?.headers).get("accept") !== "application/vnd.ipld.car"
@@ -270,13 +274,21 @@ describe("approval authority", () => {
 				didDocumentResolver: proofResolver(),
 				fetch: authorityFetch(),
 			}),
-		).resolves.toEqual({ profileCid: PROFILE_CID, approverDids: [APPROVER_DID] });
+		).resolves.toEqual({
+			profileCid: PROFILE_CID,
+			approverDids: [APPROVER_DID],
+			repository: "https://github.com/emdash-cms/gallery",
+		});
 		await expect(
 			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
 				didDocumentResolver: proofResolver(),
 				fetch: authorityFetch({ approvers: [APPROVER_DID, APPROVER_DID] }),
 			}),
-		).resolves.toEqual({ profileCid: EVIDENCE.profileCid, approverDids: [APPROVER_DID] });
+		).resolves.toEqual({
+			profileCid: EVIDENCE.profileCid,
+			approverDids: [APPROVER_DID],
+			repository: "https://github.com/emdash-cms/gallery",
+		});
 	});
 
 	it("requests the current profile as a repository proof CAR", async () => {
@@ -285,7 +297,20 @@ describe("approval authority", () => {
 				didDocumentResolver: proofResolver(),
 				fetch: authorityFetch({ requireCarAccept: true }),
 			}),
-		).resolves.toEqual({ profileCid: PROFILE_CID, approverDids: [APPROVER_DID] });
+		).resolves.toEqual({
+			profileCid: PROFILE_CID,
+			approverDids: [APPROVER_DID],
+			repository: "https://github.com/emdash-cms/gallery",
+		});
+	});
+
+	it("distinguishes a missing profile from a transient profile read failure", async () => {
+		await expect(
+			loadCurrentApprovalPolicy(PUBLISHER_DID, "gallery", {
+				didDocumentResolver: proofResolver(),
+				fetch: authorityFetch({ missing: true }),
+			}),
+		).rejects.toMatchObject({ code: "PROFILE_NOT_FOUND" });
 	});
 
 	it("rejects private PDS resolution before fetching the record", async () => {

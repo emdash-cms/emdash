@@ -1,8 +1,14 @@
 import * as React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageFieldRenderer, type ImageFieldValue } from "../../src/components/ImageFieldRenderer";
+import { fetchMediaItem, type LocalMediaItem } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
+
+vi.mock("../../src/lib/api", async () => {
+	const actual = await vi.importActual("../../src/lib/api");
+	return { ...actual, fetchMediaItem: vi.fn() };
+});
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
 	MediaPickerModal: ({ open, onSelect }: { open: boolean; onSelect: (item: unknown) => void }) =>
@@ -65,6 +71,23 @@ const selectedImage: ImageFieldValue = {
 	meta: { storageKey: "featured-image.jpg" },
 };
 
+beforeEach(() => {
+	vi.mocked(fetchMediaItem).mockResolvedValue({
+		id: selectedImage.id,
+		filename: selectedImage.filename!,
+		mimeType: selectedImage.mimeType!,
+		url: "/_emdash/api/media/file/featured-image.jpg",
+		storageKey: "featured-image.jpg",
+		size: 1,
+		width: selectedImage.width,
+		height: selectedImage.height,
+		contentHash: null,
+		createdAt: "2026-01-01T00:00:00.000Z",
+		authorId: "author-1",
+		folderId: null,
+	} as LocalMediaItem);
+});
+
 describe("ImageFieldRenderer", () => {
 	it("renders the featured variant as a full-width media card with metadata", async () => {
 		const screen = await render(
@@ -91,6 +114,98 @@ describe("ImageFieldRenderer", () => {
 		const image = screen.container.querySelector("img");
 		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/featured-image.jpg");
 		expect(image?.style.objectPosition).toBe("25% 75%");
+	});
+
+	it("refreshes a featured local preview from the current media item", async () => {
+		vi.mocked(fetchMediaItem).mockResolvedValueOnce({
+			id: selectedImage.id,
+			filename: selectedImage.filename!,
+			mimeType: selectedImage.mimeType!,
+			url: "/_emdash/api/media/file/featured-image.jpg",
+			storageKey: "featured-image.jpg",
+			size: 42_500,
+			width: 449,
+			height: 299,
+			contentHash: "sha256:cropped",
+			createdAt: "2026-01-01T00:00:00.000Z",
+			authorId: "author-1",
+			folderId: null,
+		} as LocalMediaItem);
+
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Featured image"
+				value={selectedImage}
+				onChange={vi.fn()}
+				variant="featured"
+			/>,
+		);
+
+		await vi.waitFor(() =>
+			expect(fetchMediaItem).toHaveBeenCalledWith(
+				"featured-image",
+				expect.objectContaining({ signal: expect.any(AbortSignal) }),
+			),
+		);
+		await expect
+			.element(screen.container.querySelector("img")!)
+			.toHaveAttribute(
+				"src",
+				"/_emdash/api/media/file/featured-image.jpg?_emdash_media=sha256%3Acropped",
+			);
+		await expect.element(screen.getByText("449 × 299 · image/jpeg")).toBeVisible();
+	});
+
+	it("refreshes a featured dark mode preview from the current media item", async () => {
+		vi.mocked(fetchMediaItem).mockImplementation(async (id) => {
+			const dark = id === "dark-image";
+			return {
+				id,
+				filename: dark ? "featured-dark.jpg" : selectedImage.filename!,
+				mimeType: "image/jpeg",
+				url: `/_emdash/api/media/file/${dark ? "featured-dark.jpg" : "featured-image.jpg"}`,
+				storageKey: dark ? "featured-dark.jpg" : "featured-image.jpg",
+				size: 42_500,
+				width: dark ? 320 : 449,
+				height: dark ? 200 : 299,
+				contentHash: dark ? "sha256:dark-cropped" : "sha256:cropped",
+				createdAt: "2026-01-01T00:00:00.000Z",
+				authorId: "author-1",
+				folderId: null,
+			};
+		});
+		const value: ImageFieldValue = {
+			...selectedImage,
+			darkVariant: {
+				id: "dark-image",
+				provider: "local",
+				filename: "featured-dark.jpg",
+				meta: { storageKey: "featured-dark.jpg" },
+			},
+		};
+
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Featured image"
+				value={value}
+				onChange={vi.fn()}
+				variant="featured"
+				darkVariant
+			/>,
+		);
+
+		await vi.waitFor(() =>
+			expect(fetchMediaItem).toHaveBeenCalledWith(
+				"dark-image",
+				expect.objectContaining({ signal: expect.any(AbortSignal) }),
+			),
+		);
+		await expect
+			.element(screen.container.querySelectorAll("img")[1]!)
+			.toHaveAttribute(
+				"src",
+				"/_emdash/api/media/file/featured-dark.jpg?_emdash_media=sha256%3Adark-cropped",
+			);
 	});
 
 	it("falls back cleanly when optional featured-image metadata is missing", async () => {

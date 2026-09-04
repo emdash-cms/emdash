@@ -1801,12 +1801,21 @@ export class MediaUsageRepository {
 		};
 	}
 
+	/**
+	 * Scans for reclaimable occurrences, or resolves to `null` when the sweep was
+	 * never issued because the lease is gone or the tick is out of budget. An
+	 * empty array means the scan ran and found nothing, which lets the caller
+	 * retire the sweep window; `null` must leave the cursor where it was.
+	 */
 	async findMediaUsageCleanupCandidates(input: {
 		cutoff: string;
 		cursor: MediaUsageCleanupCursor | null;
 		limit: number;
 		cleanupLease?: MediaUsageCleanupLease;
-	}): Promise<MediaUsageCleanupCandidate[]> {
+		canIssueStatement?: () => boolean;
+	}): Promise<MediaUsageCleanupCandidate[] | null> {
+		if (!(await this.admitCleanupScan(input.cleanupLease, input.canIssueStatement))) return null;
+
 		let query = this.db
 			.selectFrom("_emdash_media_usage as u")
 			.leftJoin("_emdash_media_usage_sources as s", "s.source_key", "u.source_key")
@@ -1828,9 +1837,6 @@ export class MediaUsageRepository {
 			.orderBy("u.created_at", "asc")
 			.orderBy("u.id", "asc")
 			.limit(Math.max(0, Math.floor(input.limit)));
-		if (input.cleanupLease) {
-			query = query.where(this.activeCleanupLeaseExpression(input.cleanupLease));
-		}
 
 		if (input.cursor) {
 			query = query.where((eb) =>
@@ -1928,9 +1934,9 @@ export class MediaUsageRepository {
 				options.canIssueStatement,
 			);
 		}
-		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
+		if (!(await this.admitCleanupScan(options.cleanupLease, options.canIssueStatement))) return 0;
 
-		let query = this.db
+		const rows = await this.db
 			.selectFrom("_emdash_media_usage as u")
 			.leftJoin("_emdash_media_usage_sources as s", (join) =>
 				join.onRef("s.source_key", "=", "u.source_key"),
@@ -1946,11 +1952,8 @@ export class MediaUsageRepository {
 			.where(this.noActiveGenerationWriteExpression("u"))
 			.orderBy("u.created_at", "asc")
 			.orderBy("u.id", "asc")
-			.limit(batchLimit);
-		if (options.cleanupLease) {
-			query = query.where(this.activeCleanupLeaseExpression(options.cleanupLease));
-		}
-		const rows = await query.execute();
+			.limit(batchLimit)
+			.execute();
 
 		return this.deleteOrphanCandidateIds(
 			rows.map((row) => row.id),
@@ -1975,9 +1978,9 @@ export class MediaUsageRepository {
 				options.canIssueStatement,
 			);
 		}
-		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
+		if (!(await this.admitCleanupScan(options.cleanupLease, options.canIssueStatement))) return 0;
 
-		let query = this.db
+		const rows = await this.db
 			.selectFrom("_emdash_media_usage as u")
 			.innerJoin("_emdash_media_usage_sources as s", (join) =>
 				join.onRef("s.source_key", "=", "u.source_key"),
@@ -1994,11 +1997,8 @@ export class MediaUsageRepository {
 			.where(this.noActiveGenerationWriteExpression("u"))
 			.orderBy("u.created_at", "asc")
 			.orderBy("u.id", "asc")
-			.limit(batchLimit);
-		if (options.cleanupLease) {
-			query = query.where(this.activeCleanupLeaseExpression(options.cleanupLease));
-		}
-		const rows = await query.execute();
+			.limit(batchLimit)
+			.execute();
 
 		return this.deleteStaleCandidateIds(
 			rows.map((row) => row.id),
@@ -2023,9 +2023,9 @@ export class MediaUsageRepository {
 				options.canIssueStatement,
 			);
 		}
-		if (!canIssueCleanupStatement(options.canIssueStatement)) return 0;
+		if (!(await this.admitCleanupScan(options.cleanupLease, options.canIssueStatement))) return 0;
 
-		let query = this.db
+		const rows = await this.db
 			.selectFrom("_emdash_media_usage as u")
 			.innerJoin("_emdash_media_usage_sources as s", (join) =>
 				join.onRef("s.source_key", "=", "u.source_key"),
@@ -2042,11 +2042,8 @@ export class MediaUsageRepository {
 			.where(this.noActiveGenerationWriteExpression("u"))
 			.orderBy("u.created_at", "asc")
 			.orderBy("u.id", "asc")
-			.limit(batchLimit);
-		if (options.cleanupLease) {
-			query = query.where(this.activeCleanupLeaseExpression(options.cleanupLease));
-		}
-		const rows = await query.execute();
+			.limit(batchLimit)
+			.execute();
 
 		return this.deleteAbandonedCandidateIds(
 			rows.map((row) => row.id),
@@ -2062,16 +2059,16 @@ export class MediaUsageRepository {
 		canIssueStatement?: () => boolean,
 	): Promise<number> {
 		const batchLimit = Math.floor(limit);
-		if (batchLimit <= 0 || !canIssueCleanupStatement(canIssueStatement)) return 0;
-		let query = this.db
+		if (batchLimit <= 0) return 0;
+		if (!(await this.admitCleanupScan(cleanupLease, canIssueStatement))) return 0;
+		const rows = await this.db
 			.selectFrom("_emdash_media_usage_generation_writes")
 			.select("lease_token")
 			.where(this.generationWriteLeaseHasExpired("expires_at"))
 			.orderBy("expires_at", "asc")
 			.orderBy("lease_token", "asc")
-			.limit(batchLimit);
-		if (cleanupLease) query = query.where(this.activeCleanupLeaseExpression(cleanupLease));
-		const rows = await query.execute();
+			.limit(batchLimit)
+			.execute();
 		if (rows.length === 0 || !canIssueCleanupStatement(canIssueStatement)) return 0;
 		let deleteQuery = this.db
 			.deleteFrom("_emdash_media_usage_generation_writes")
@@ -2904,6 +2901,43 @@ export class MediaUsageRepository {
 					AND writer.generation = ${generation}
 					AND ${this.generationWriteLeaseExpiryIsInFuture("writer.expires_at")}
 			)`;
+	}
+
+	/**
+	 * Gates a bounded cleanup scan on the lease and the tick's statement budget.
+	 *
+	 * The budget is re-read after the lease row because that read is itself a
+	 * statement: an isolate suspended across it can resume with the budget spent.
+	 */
+	private async admitCleanupScan(
+		cleanupLease: MediaUsageCleanupLease | undefined,
+		canIssueStatement: (() => boolean) | undefined,
+	): Promise<boolean> {
+		if (!canIssueCleanupStatement(canIssueStatement)) return false;
+		if (!cleanupLease) return true;
+		return (
+			(await this.holdsCleanupLease(cleanupLease)) && canIssueCleanupStatement(canIssueStatement)
+		);
+	}
+
+	/**
+	 * Reads the lease row on its own so a lost lease can short-circuit a sweep.
+	 *
+	 * As a row-level `EXISTS` inside a `LIMIT`ed scan this predicate is constant
+	 * across every candidate row: when it is false the limit is unreachable and
+	 * the scan reads the whole `created_at` range before returning nothing.
+	 * Mutating statements still carry {@link activeCleanupLeaseExpression},
+	 * which is what actually fences a displaced owner.
+	 */
+	private async holdsCleanupLease(cleanupLease: MediaUsageCleanupLease): Promise<boolean> {
+		let query = this.db
+			.selectFrom("_emdash_media_usage_cleanup")
+			.select("task_key")
+			.where("task_key", "=", "projection_gc")
+			.where("lease_token", "=", cleanupLease.leaseToken)
+			.where(this.cleanupLeaseExpiryIsInFuture("_emdash_media_usage_cleanup.lease_expires_at"));
+		if (isPostgres(this.db)) query = query.forUpdate();
+		return (await query.executeTakeFirst()) !== undefined;
 	}
 
 	private activeCleanupLeaseExpression(cleanupLease: MediaUsageCleanupLease) {

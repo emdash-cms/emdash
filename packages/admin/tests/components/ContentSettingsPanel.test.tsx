@@ -624,6 +624,30 @@ describe("ContentSettingsPanel", () => {
 		}
 	});
 
+	it("lets editors update a retained publish date while content is unpublished", async () => {
+		const onPublishedAtChange = vi.fn();
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "draft",
+						publishedAt: "2025-01-15T10:30:00.000Z",
+						liveRevisionId: null,
+					}),
+					isLive: false,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+
+		const input = screen.getByLabelText("Publish date");
+		await expect.element(input).toHaveValue("2025-01-15T10:30");
+		await input.fill("2020-06-01T08:45");
+		await screen.getByRole("button", { name: "Update publish date" }).click();
+
+		expect(onPublishedAtChange).toHaveBeenCalledWith("2020-06-01T08:45:00.000Z");
+	});
+
 	it("does not expose publish-date editing below the editor role", async () => {
 		const screen = await render(
 			<ContentSettingsPanel

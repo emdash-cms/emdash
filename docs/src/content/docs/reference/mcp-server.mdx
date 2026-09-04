@@ -186,18 +186,19 @@ Permanently and irreversibly delete a trashed content item. The item must be in 
 
 #### `content_publish`
 
-Publish a content item, making it live on the site. Creates a published revision from the current draft. Further edits create a new draft without affecting the live version until re-published.
+Publish a content item, making it live on the site. Creates a published revision from the current draft. Further edits create a new draft without affecting the live version until re-published. Re-publishing without `publishedAt` reuses the retained publication date.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |
 | `collection` | `string` | Yes | Collection slug |
 | `id` | `string` | Yes | Content item ID or slug |
+| `publishedAt` | `string` | No | ISO 8601 publication date. Setting it requires `content:publish_any`. |
 
 **Scope:** `content:write`
 
 #### `content_unpublish`
 
-Revert a published item to draft status. It will no longer be visible on the live site but its content is preserved.
+Revert a published item to draft status. It will no longer be visible on the live site, but its content and publication date are preserved.
 
 | Parameter | Type | Required | Description |
 | --- | --- | --- | --- |

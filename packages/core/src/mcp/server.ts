@@ -1313,7 +1313,7 @@ export function createMcpServer(
 			title: "Unpublish Content",
 			description:
 				"Unpublish a content item, reverting it to draft status. It will no " +
-				"longer be visible on the live site but its content is preserved.",
+				"longer be visible on the live site, but its content and publication date are preserved.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),

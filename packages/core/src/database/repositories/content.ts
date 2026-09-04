@@ -2042,8 +2042,8 @@ export class ContentRepository {
 	/**
 	 * Unpublish content
 	 *
-	 * Removes live pointer but preserves draft. If no draft exists,
-	 * creates one from the live version so the content isn't lost.
+	 * Removes live pointer but preserves the draft and publication date. If no
+	 * draft exists, creates one from the live version so the content isn't lost.
 	 */
 	async unpublish(
 		type: string,
@@ -2082,7 +2082,6 @@ export class ContentRepository {
 				SET live_revision_id = NULL,
 					draft_revision_id = ${draftRevisionId},
 					status = 'draft',
-					published_at = NULL,
 					updated_at = ${now},
 					version = version + 1
 				WHERE id = ${id}

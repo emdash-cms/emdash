@@ -7,6 +7,7 @@
 import type { APIRoute } from "astro";
 
 import { apiError, handleError } from "#api/error.js";
+import { IMMUTABLE_IMAGE_CACHE, MUTABLE_MEDIA_CACHE_CONTROL } from "#media/image-endpoint.js";
 
 export const prerender = false;
 
@@ -53,7 +54,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 
 		const headers: Record<string, string> = {
 			"Content-Type": result.contentType,
-			"Cache-Control": "public, max-age=31536000, immutable",
+			"Cache-Control": result.contentType.startsWith("image/")
+				? MUTABLE_MEDIA_CACHE_CONTROL
+				: IMMUTABLE_IMAGE_CACHE,
 			"X-Content-Type-Options": "nosniff",
 			// Sandbox CSP on all user-uploaded content — prevents script execution
 			// even for SVGs navigated to directly or content types that support scripting.

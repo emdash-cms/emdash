@@ -83,6 +83,7 @@ export {
 	handleMediaGet,
 	handleMediaCreate,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
 	handleMediaUsageActivationAdvance,
 	handleMediaUsageProgress,
