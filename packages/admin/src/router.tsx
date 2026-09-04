@@ -178,6 +178,10 @@ interface AutosaveMutationInput {
 	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "_rev">;
 }
 
+function isSaveConflict(error: unknown): boolean {
+	return error instanceof ApiResponseError && error.code === "CONFLICT";
+}
+
 function patchAutosaveQueries(
 	queryClient: QueryClient,
 	params: {
@@ -985,6 +989,7 @@ function ContentEditPage() {
 		autosaveRejectionSequenceRef.current += 1;
 		setAutosaveRejection({ entryId, token: autosaveRejectionSequenceRef.current });
 	}, []);
+	const [conflictedEntryId, setConflictedEntryId] = React.useState("");
 	const { data: bylinesData, isSuccess: bylinesLoaded } = useQuery({
 		queryKey: ["bylines", "picker", itemLocale ?? null],
 		queryFn: () => fetchBylines({ locale: itemLocale, limit: 100 }),
@@ -1033,6 +1038,25 @@ function ContentEditPage() {
 		},
 		[collection, queryClient, rawItem?.draftRevisionId],
 	);
+	const recoverFromSaveConflict = React.useCallback(
+		async (entryId: string) => {
+			setConflictedEntryId(entryId);
+			try {
+				const server = await fetchContent(collection, entryId, {
+					locale: rawItem?.locale ?? activeLocale,
+				});
+				revisionTokensRef.current.set(entryId, server._rev);
+				return true;
+			} catch {
+				// Dropping the refused token would make the next save a blind write, so
+				// it stays. Offering to save over a version that could not be read
+				// would promise a write the server refuses again.
+				setConflictedEntryId((conflicted) => (conflicted === entryId ? "" : conflicted));
+				return false;
+			}
+		},
+		[activeLocale, collection, rawItem?.locale],
+	);
 	const handleContentUpdateError = React.useCallback(
 		(error: unknown) => {
 			toastManager.add({
@@ -1061,9 +1085,13 @@ function ContentEditPage() {
 			}
 		},
 		onSuccess: (_, variables) => {
+			setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
 			handleContentUpdateSuccess(variables.targetId);
 		},
-		onError: handleContentUpdateError,
+		onError: async (error, variables) => {
+			if (isSaveConflict(error) && (await recoverFromSaveConflict(variables.targetId))) return;
+			handleContentUpdateError(error);
+		},
 		onSettled: (_, __, variables) => {
 			if (variables.source === "editor") {
 				updateEditorSavePendingCount(variables.targetId, -1);
@@ -1100,6 +1128,7 @@ function ContentEditPage() {
 			return savedItem;
 		},
 		onSuccess: (savedItem, variables) => {
+			setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
 			recordAutosaveCompletion(variables.targetId);
 			patchAutosaveQueries(queryClient, {
 				collection,
@@ -1113,7 +1142,8 @@ function ContentEditPage() {
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
 		},
-		onError: (err, variables) => {
+		onError: async (err, variables) => {
+			if (isSaveConflict(err) && (await recoverFromSaveConflict(variables.targetId))) return;
 			if (isTerminalRequestError(err)) recordAutosaveRejection(variables.targetId);
 			toastManager.add({
 				title: t`Autosave failed`,
@@ -1168,6 +1198,7 @@ function ContentEditPage() {
 	const discardDraftMutation = useMutation({
 		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
+			setConflictedEntryId((conflicted) => (conflicted === id ? "" : conflicted));
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
@@ -1436,6 +1467,7 @@ function ContentEditPage() {
 			}
 			autosaveCompletionToken={autosaveCompletion.entryId === id ? autosaveCompletion.token : 0}
 			autosaveRejectionToken={autosaveRejection.entryId === id ? autosaveRejection.token : 0}
+			hasSaveConflict={conflictedEntryId === id}
 			onPublish={handlePublish}
 			onUnpublish={handleUnpublish}
 			onDiscardDraft={handleDiscardDraft}

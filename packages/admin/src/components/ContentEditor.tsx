@@ -1,5 +1,6 @@
 import {
 	Badge,
+	Banner,
 	Button,
 	Checkbox,
 	Input,
@@ -157,8 +158,14 @@ export interface ContentEditorProps {
 	isAutosaveFeedbackActive?: boolean;
 	/** Entry-scoped token advanced after a successful autosave. */
 	autosaveCompletionToken?: number;
-	/** Entry-scoped token advanced after the server rejected an autosave payload. */
+	/**
+	 * Entry-scoped token advanced after the server rejected an autosave payload in
+	 * a way that resending cannot fix. A conflict does not count: it recovers
+	 * through `hasSaveConflict`.
+	 */
 	autosaveRejectionToken?: number;
+	/** Whether the server refused the last save because it was based on a stale read. */
+	hasSaveConflict?: boolean;
 	onPublish?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -242,6 +249,7 @@ export function ContentEditor({
 	isAutosaveFeedbackActive,
 	autosaveCompletionToken,
 	autosaveRejectionToken,
+	hasSaveConflict,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
@@ -526,6 +534,12 @@ export function ContentEditor({
 			return;
 		}
 
+		// Autosaving through a conflict would put the writer's copy over the other
+		// version without them ever choosing to.
+		if (hasSaveConflict) {
+			return;
+		}
+
 		// Clear any pending autosave
 		if (autosaveTimeoutRef.current) {
 			clearTimeout(autosaveTimeoutRef.current);
@@ -563,11 +577,11 @@ export function ContentEditor({
 		hasUnsupportedPortableTextMarks,
 		isPublishing,
 		rejectedAutosaveState,
+		hasSaveConflict,
 	]);
 
 	// Cancel pending autosave on manual save
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
+	const submitSave = () => {
 		if (
 			isContentSaveBlocked ||
 			isPublishingRef.current ||
@@ -577,6 +591,10 @@ export function ContentEditor({
 			return;
 		cancelPendingAutosave();
 		onSave?.(createSavePayload());
+	};
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		submitSave();
 	};
 	const handlePublish = React.useCallback(() => {
 		if (
@@ -892,6 +910,19 @@ export function ContentEditor({
 							isDistractionFree ? "mx-auto max-w-3xl pt-16" : "mx-auto max-w-3xl space-y-6",
 						)}
 					>
+						{hasSaveConflict && (
+							<Banner
+								variant="error"
+								role="alert"
+								title={t`This entry changed somewhere else after you opened it.`}
+								description={t`What you typed is still here. Saving replaces the newer version.`}
+								action={
+									<Button size="sm" variant="secondary" type="button" onClick={submitSave}>
+										{t`Save anyway`}
+									</Button>
+								}
+							/>
+						)}
 						<div className="space-y-6">
 							{Object.entries(fields).map(([name, field]) => {
 								// Key by item id so all field editors remount cleanly when the
