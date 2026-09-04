@@ -2,7 +2,7 @@
  * Reproduction for emdash-cms/emdash#1557 — "Bug with publish button when editing posts".
  *
  * Two reported symptoms, one root cause:
- *   1. After saving an edit to a published post, no "Publish" button appears
+ *   1. After saving an edit to a published post, no "Publish changes" button appears
  *      until the page is refreshed.
  *   2. After refreshing and publishing, the button stays active ("Publish")
  *      instead of flipping to "Unpublish Post".
@@ -135,7 +135,7 @@ describe("ContentEditPage – publish button stays in sync after publishing (#15
 			.on("GET", "/_emdash/api/auth/me", { data: { id: "user_01", role: 30 } })
 			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
 			.on("GET", "/_emdash/api/users", { data: { items: [] } })
-			// Initial state: published WITH pending draft changes -> "Publish" shows.
+			// Initial state: published WITH pending draft changes -> "Publish changes" shows.
 			.on("GET", "/_emdash/api/content/posts/post_1", { data: { item: publishedWithChanges() } })
 			.on("GET", "/_emdash/api/revisions/rev_draft", {
 				data: {
@@ -159,7 +159,7 @@ describe("ContentEditPage – publish button stays in sync after publishing (#15
 		mockFetch.restore();
 	});
 
-	it("flips 'Publish' to 'Unpublish Post' after a successful publish", async () => {
+	it("flips 'Publish changes' to 'Unpublish Post' after a successful publish", async () => {
 		const { router, TestApp } = buildRouter();
 
 		await router.navigate({
@@ -170,7 +170,7 @@ describe("ContentEditPage – publish button stays in sync after publishing (#15
 		const screen = await render(<TestApp />);
 
 		// The editor loads in the published-with-changes state.
-		const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
+		const publishBtn = screen.getByRole("button", { name: "Publish changes", exact: true });
 		await expect.element(publishBtn).toBeInTheDocument();
 
 		// After this point the server reports no pending changes (live === draft),
@@ -180,6 +180,7 @@ describe("ContentEditPage – publish button stays in sync after publishing (#15
 		});
 
 		await publishBtn.click();
+		await screen.getByRole("menuitem", { name: /Publish changes now/ }).click();
 
 		// Wait for the publish toast so we know the mutation's onSuccess has run
 		// (this is where the cache invalidation fires).
@@ -241,7 +242,7 @@ describe("ContentEditPage – publish button appears after saving an edit (#1557
 			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
 			.on("GET", "/_emdash/api/users", { data: { items: [] } })
 			// Initial state: published, no pending changes -> "Unpublish Post" shows, no
-			// "Publish" button.
+			// "Publish changes" button.
 			.on("GET", "/_emdash/api/content/posts/post_1", { data: { item: publishedClean() } })
 			.on("GET", "/_emdash/api/revisions/rev_1", {
 				data: {
@@ -277,7 +278,7 @@ describe("ContentEditPage – publish button appears after saving an edit (#1557
 		mockFetch.restore();
 	});
 
-	it("shows 'Publish' after editing the title and saving", async () => {
+	it("shows 'Publish changes' after editing the title and saving", async () => {
 		const { router, TestApp } = buildRouter();
 
 		await router.navigate({
@@ -287,7 +288,7 @@ describe("ContentEditPage – publish button appears after saving an edit (#1557
 
 		const screen = await render(<TestApp />);
 
-		// Loads in the clean published state: "Unpublish Post" present, no "Publish".
+		// Loads in the clean published state: "Unpublish Post" present, no "Publish changes".
 		await expect
 			.element(screen.getByRole("button", { name: "Unpublish Post" }))
 			.toBeInTheDocument();
@@ -304,10 +305,10 @@ describe("ContentEditPage – publish button appears after saving an edit (#1557
 
 		// After saving, the editor must offer to publish the new draft. With the
 		// locale-key mismatch the invalidation matches nothing, the item is never
-		// refetched, and this assertion fails because no "Publish" button
+		// refetched, and this assertion fails because no "Publish changes" button
 		// is rendered until a hard refresh.
 		await expect
-			.element(screen.getByRole("button", { name: "Publish", exact: true }))
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
 			.toBeInTheDocument();
 	});
 });
@@ -365,7 +366,7 @@ describe("ContentEditPage – publish button appears after an autosave", () => {
 		mockFetch.restore();
 	});
 
-	it("shows 'Publish' after editing the title and letting autosave fire", async () => {
+	it("shows 'Publish changes' after editing the title and letting autosave fire", async () => {
 		const { router, TestApp } = buildRouter();
 
 		await router.navigate({
@@ -388,7 +389,9 @@ describe("ContentEditPage – publish button appears after an autosave", () => {
 		// The patch lands on a key nobody observes, so this assertion fails: the
 		// editor keeps the stale revision pointers and never offers to publish.
 		await expect
-			.element(screen.getByRole("button", { name: "Publish", exact: true }), { timeout: 8000 })
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }), {
+				timeout: 8000,
+			})
 			.toBeInTheDocument();
 	});
 });

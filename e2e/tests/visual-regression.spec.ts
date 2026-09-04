@@ -121,7 +121,32 @@ function normalizeTimestamps(value: unknown): unknown {
 	);
 }
 
-async function installTimestampNormalizer(admin: AdminPage): Promise<void> {
+function representPublishedWithChanges(value: unknown, entryId?: string): unknown {
+	if (!entryId || value === null || typeof value !== "object") return value;
+	const response = value as { data?: { item?: Record<string, unknown> } };
+	const item = response.data?.item;
+	if (!item || item.id !== entryId) return value;
+	const draftRevisionId = item.draftRevisionId ?? item.liveRevisionId;
+	if (typeof draftRevisionId !== "string") return value;
+
+	return {
+		...response,
+		data: {
+			...response.data,
+			item: {
+				...item,
+				status: "published",
+				draftRevisionId,
+				liveRevisionId: `visual-live-${entryId}`,
+			},
+		},
+	};
+}
+
+async function installTimestampNormalizer(
+	admin: AdminPage,
+	publishedWithChangesId?: string,
+): Promise<void> {
 	for (const url of TIMESTAMPED_API_ROUTES) {
 		await admin.page.route(url, async (route) => {
 			const response = await route.fetch();
@@ -132,7 +157,11 @@ async function installTimestampNormalizer(admin: AdminPage): Promise<void> {
 			}
 
 			const body: unknown = await response.json();
-			await route.fulfill({ response, json: normalizeTimestamps(body) });
+			const normalized = normalizeTimestamps(body);
+			await route.fulfill({
+				response,
+				json: representPublishedWithChanges(normalized, publishedWithChangesId),
+			});
 		});
 	}
 }
@@ -182,9 +211,6 @@ test.describe("visual regression", () => {
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
 		await admin.page.clock.setFixedTime(FIXED_VISUAL_TIME);
-		// A screenshot mask changes pixels after layout, so masked timestamps can
-		// still resize columns or cover an overlapping popover.
-		await installTimestampNormalizer(admin);
 	});
 
 	test.afterEach(async ({ admin }) => {
@@ -194,6 +220,14 @@ test.describe("visual regression", () => {
 	for (const locale of LOCALES) {
 		for (const pageCase of PAGES) {
 			test(`${pageCase.name} @${locale.name}`, async ({ admin, serverInfo }) => {
+				// A screenshot mask changes pixels after layout, so masked timestamps can
+				// still resize columns or cover an overlapping popover. The editor case
+				// also presents the seeded live entry as having a distinct draft revision
+				// without mutating shared fixture data.
+				await installTimestampNormalizer(
+					admin,
+					pageCase.name === "content-editor" ? serverInfo.contentIds.posts[0] : undefined,
+				);
 				await setLocale(admin, locale.code);
 				if (pageCase.viewport) await admin.page.setViewportSize(pageCase.viewport);
 				await openAdmin(admin, pageCase.path(serverInfo), locale.dir);
