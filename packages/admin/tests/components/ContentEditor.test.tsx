@@ -1109,7 +1109,7 @@ describe("ContentEditor", () => {
 			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 			await screen.getByRole("menuitem", { name: "Remove from post" }).click();
 
-			await expect.element(screen.getByText("No byline is shown on this post.")).toBeVisible();
+			await expect.element(screen.getByRole("button", { name: "Choose bylines" })).toBeVisible();
 			await expect.element(screen.getByText("Owner Profile")).not.toBeInTheDocument();
 			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
 		});

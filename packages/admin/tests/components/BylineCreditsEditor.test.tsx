@@ -241,7 +241,7 @@ describe("BylineCreditsEditor", () => {
 
 		await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 		await screen.getByRole("menuitem", { name: "Remove from post" }).click();
-		await expect.element(screen.getByText("No byline is shown on this post.")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Choose bylines" })).toBeVisible();
 	});
 
 	it("clears an unfinished role draft when its byline is removed", async () => {
