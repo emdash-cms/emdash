@@ -1,11 +1,28 @@
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
+
+const phosphorPackageDir = dirname(
+	fileURLToPath(import.meta.resolve("@phosphor-icons/react/package.json")),
+);
+const phosphorCsrDir = join(phosphorPackageDir, "dist", "csr");
+const PHOSPHOR_DEEP_IMPORT_RE = /^@phosphor-icons\/react\/([A-Z][A-Za-z0-9]*)$/;
 
 export default defineConfig({
 	resolve: { dedupe: ["react", "react-dom"] },
 	optimizeDeps: { include: ["react-image-crop"] },
 	plugins: [
+		{
+			name: "phosphor-icon-source",
+			enforce: "pre",
+			resolveId(id) {
+				const iconName = id.match(PHOSPHOR_DEEP_IMPORT_RE)?.[1];
+				if (iconName) return join(phosphorCsrDir, `${iconName}.es.js`);
+			},
+		},
 		react({
 			babel: {
 				plugins: [

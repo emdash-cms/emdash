@@ -46,6 +46,13 @@ describe("createViteConfig admin aliasing", () => {
 		return adminAlias.replacement;
 	}
 
+	function getPlugin(config: ReturnType<typeof createViteConfig>, name: string) {
+		return config.plugins?.find(
+			(plugin) =>
+				typeof plugin === "object" && plugin !== null && "name" in plugin && plugin.name === name,
+		);
+	}
+
 	it("uses raw admin source for local monorepo dev", () => {
 		const config = buildConfig(monorepoDemoRoot);
 		const replacement = getAdminAliasReplacement(config);
@@ -76,6 +83,39 @@ describe("createViteConfig admin aliasing", () => {
 
 		expect(basename(replacement)).toBe("dist");
 		expect(replacement).toMatch(adminDistPattern);
+	});
+
+	it("resolves Phosphor deep imports while serving raw admin source", async () => {
+		const plugin = getPlugin(buildConfig(monorepoDemoRoot), "emdash-phosphor-icon-source");
+		if (!plugin || !("resolveId" in plugin) || typeof plugin.resolveId !== "function") {
+			throw new Error("Missing Phosphor icon source resolver");
+		}
+
+		const resolved = await plugin.resolveId.call(
+			{} as never,
+			"@phosphor-icons/react/Heart",
+			undefined,
+			{} as never,
+		);
+		if (typeof resolved !== "string") {
+			throw new Error("Phosphor deep import did not resolve to a file path");
+		}
+
+		expect(isAbsolute(resolved)).toBe(true);
+		expect(existsSync(resolved)).toBe(true);
+		expect(basename(resolved)).toBe("Heart.es.js");
+		expect(
+			await plugin.resolveId.call({} as never, "@phosphor-icons/react", undefined, {} as never),
+		).toBeUndefined();
+	});
+
+	it("omits the Phosphor source resolver when serving built admin output", () => {
+		expect(
+			getPlugin(buildConfig(externalProjectRoot), "emdash-phosphor-icon-source"),
+		).toBeUndefined();
+		expect(
+			getPlugin(buildConfig(monorepoDemoRoot, "build"), "emdash-phosphor-icon-source"),
+		).toBeUndefined();
 	});
 });
 

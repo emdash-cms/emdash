@@ -127,7 +127,7 @@ catalogs:
       specifier: ^1.0.0
       version: 1.0.0
     '@phosphor-icons/react':
-      specifier: ^2.1.10
+      specifier: 2.1.10
       version: 2.1.10
     '@tanstack/react-query':
       specifier: 5.90.21

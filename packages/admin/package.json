@@ -24,12 +24,14 @@
     }
   },
   "scripts": {
-    "build": "node --run locale:compile && tsdown && node --run locale:copy && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
-    "dev": "tsdown --watch",
+    "build": "node --run icons:generate && node --run locale:compile && tsdown && node --run locale:copy && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
+    "dev": "node --run icons:generate && tsdown --watch",
     "prepublishOnly": "node --run build",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
     "test": "vitest",
-    "typecheck": "tsgo --noEmit",
+    "typecheck": "node --run icons:check && tsgo --noEmit",
+    "icons:generate": "node ./scripts/generate-phosphor-icon-buckets.js",
+    "icons:check": "node ./scripts/generate-phosphor-icon-buckets.js --check",
     "locale:compile": "lingui compile --namespace es",
     "locale:copy": "node ./scripts/copy-locales.js",
     "locale:extract": "lingui extract --clean"
