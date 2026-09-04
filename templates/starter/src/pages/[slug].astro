@@ -22,7 +22,7 @@ const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
 const seo = getSeoMeta(page, {
 	siteTitle,
 	siteUrl: Astro.url.origin,
-	path: `/${slug}`,
+	path: Astro.originPathname.replace(/\/$/, ""),
 });
 ---
 
