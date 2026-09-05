@@ -4,6 +4,8 @@ import type {
 	BannerBlock,
 	Block,
 	ButtonElement,
+	CardGridBlock,
+	CardGridItem,
 	CheckboxElement,
 	ChartBlock,
 	ChartSeries,
@@ -495,6 +497,21 @@ function accordion(opts: {
 	};
 }
 
+function cardGrid(opts: {
+	blockId?: string;
+	cards: CardGridItem[];
+	columns?: 1 | 2 | 3;
+	emptyText?: string;
+}): CardGridBlock {
+	return {
+		type: "card_grid",
+		cards: opts.cards,
+		...(opts.columns !== undefined && { columns: opts.columns }),
+		...(opts.emptyText !== undefined && { empty_text: opts.emptyText }),
+		...(opts.blockId !== undefined && { block_id: opts.blockId }),
+	};
+}
+
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 export const blocks = {
@@ -517,6 +534,7 @@ export const blocks = {
 	tab: tabBlock,
 	empty,
 	accordion,
+	cardGrid,
 };
 
 export const elements = {
