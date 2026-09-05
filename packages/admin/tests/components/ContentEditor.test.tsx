@@ -1670,6 +1670,29 @@ describe("ContentEditor", () => {
 			}
 		});
 
+		it("links live translated content to its locale-prefixed path", async () => {
+			const item = makeItem({
+				status: "published",
+				locale: "pl",
+				liveRevisionId: "rev-1",
+				draftRevisionId: "rev-1",
+			});
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				i18n: {
+					defaultLocale: "en",
+					locales: ["en", "pl"],
+					prefixDefaultLocale: false,
+				},
+				supportsDrafts: true,
+			});
+
+			await expect
+				.element(screen.getByRole("link", { name: "Live View" }))
+				.toHaveAttribute("href", "/pl/posts/my-post");
+		});
+
 		it("keeps actions reachable when crossing from mobile to desktop layout", async () => {
 			const media = installMatchMedia(true);
 			try {

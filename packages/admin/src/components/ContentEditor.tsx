@@ -209,7 +209,7 @@ export interface ContentEditorProps {
 	/** Whether delete is in progress */
 	isDeleting?: boolean;
 	/** i18n config — present when multiple locales are configured */
-	i18n?: { defaultLocale: string; locales: string[] };
+	i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean };
 	/** Existing translations for this content item */
 	translations?: TranslationSummary[];
 	/** Callback to create a translation for a locale */
@@ -644,14 +644,20 @@ export function ContentEditor({
 				window.open(result.url, "_blank", "noopener,noreferrer");
 			} else {
 				window.open(
-					contentUrl(collection, slug || item.id, urlPattern),
+					contentUrl(collection, slug || item.id, urlPattern, {
+						locale: item.locale,
+						i18n,
+					}),
 					"_blank",
 					"noopener,noreferrer",
 				);
 			}
 		} catch {
 			window.open(
-				contentUrl(collection, slug || item?.id || "", urlPattern),
+				contentUrl(collection, slug || item?.id || "", urlPattern, {
+					locale: item?.locale,
+					i18n,
+				}),
 				"_blank",
 				"noopener,noreferrer",
 			);
@@ -681,7 +687,13 @@ export function ContentEditor({
 	const draftStatus = item ? getDraftStatus(item) : "unpublished";
 	const hasPendingChanges = draftStatus === "published_with_changes";
 	const isLive = draftStatus === "published" || draftStatus === "published_with_changes";
-	const liveViewUrl = isLive && item?.slug ? contentUrl(collection, item.slug, urlPattern) : null;
+	const liveViewUrl =
+		isLive && item?.slug
+			? contentUrl(collection, item.slug, urlPattern, {
+					locale: item.locale,
+					i18n,
+				})
+			: null;
 
 	// Scheduling — keyed off scheduledAt rather than status, since published
 	// posts can now have a pending schedule without changing status.
