@@ -73,6 +73,7 @@ const repeaterSubFieldSchema = z.object({
 	label: z.string().min(1),
 	required: z.boolean().optional(),
 	options: z.array(z.string()).optional(),
+	hidden: z.boolean().optional(),
 });
 
 const urlPatternValue = z.string().superRefine((pattern, ctx) => {
