@@ -2,6 +2,7 @@ import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import { setDevTypegenRefresh } from "../../../src/astro/dev-typegen.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
 import { SchemaRegistry, SchemaError } from "../../../src/schema/registry.js";
@@ -1078,6 +1079,28 @@ describe("SchemaRegistry", () => {
 
 			const field = await registry.getField("articles", "body");
 			expect(field).toBeNull();
+		});
+	});
+
+	describe("dev typegen hook", () => {
+		it("triggers the registered refresh callback after a schema mutation", async () => {
+			const originalDev = (import.meta.env as { DEV?: boolean }).DEV;
+			(import.meta.env as { DEV?: boolean }).DEV = true;
+
+			const refresh = vi.fn();
+			setDevTypegenRefresh(refresh);
+
+			await registry.createCollection({
+				slug: "typed",
+				label: "Typed",
+				supports: ["drafts", "revisions"],
+			});
+
+			expect(refresh).toHaveBeenCalledTimes(1);
+			expect(refresh).toHaveBeenCalledWith(db);
+
+			setDevTypegenRefresh(() => {});
+			(import.meta.env as { DEV?: boolean }).DEV = originalDev;
 		});
 	});
 });
