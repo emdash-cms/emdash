@@ -11,6 +11,7 @@ import {
 	Switch,
 	useSidebar,
 } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowSquareOut,
@@ -1301,6 +1302,7 @@ function FieldRenderer({
 						id: string;
 						required?: boolean;
 						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
+						validation?: Record<string, unknown>;
 						minimal?: boolean;
 				  }>
 				| undefined;
@@ -1314,6 +1316,7 @@ function FieldRenderer({
 							id={id}
 							required={field.required}
 							options={field.options}
+							validation={field.validation}
 							minimal={minimal}
 						/>
 					</PluginFieldErrorBoundary>
@@ -1341,14 +1344,25 @@ function FieldRenderer({
 	}
 
 	switch (field.kind) {
-		case "string":
+		case "string": {
+			const text = typeof value === "string" ? value : "";
+			const length = lengthConstraints(field.validation);
+			const tooLong = isOutOfBounds(text.length, length, typeof value === "string");
 			return (
 				<Input
 					label={<span className={labelClass}>{label}</span>}
 					id={id}
-					value={typeof value === "string" ? value : ""}
+					value={text}
 					onChange={(e) => handleChange(e.target.value)}
 					required={field.required}
+					maxLength={length.max}
+					variant={tooLong ? "error" : undefined}
+					aria-invalid={tooLong || undefined}
+					description={
+						hasBounds(length) ? (
+							<LengthHint count={text.length} bounds={length} violated={tooLong} />
+						) : undefined
+					}
 					dir="auto"
 					className={
 						minimal
@@ -1357,8 +1371,11 @@ function FieldRenderer({
 					}
 				/>
 			);
+		}
 
-		case "number":
+		case "number": {
+			const range = rangeConstraints(field.validation);
+			const outOfRange = typeof value === "number" && isOutOfBounds(value, range, true);
 			return (
 				<Input
 					label={<span className={labelClass}>{label}</span>}
@@ -1367,8 +1384,16 @@ function FieldRenderer({
 					value={typeof value === "number" ? value : ""}
 					onChange={(e) => handleChange(Number(e.target.value))}
 					required={field.required}
+					min={range.min}
+					max={range.max}
+					variant={outOfRange ? "error" : undefined}
+					aria-invalid={outOfRange || undefined}
+					description={
+						hasBounds(range) ? <RangeHint bounds={range} violated={outOfRange} /> : undefined
+					}
 				/>
 			);
+		}
 
 		case "boolean":
 			return (
@@ -1403,19 +1428,30 @@ function FieldRenderer({
 			);
 		}
 
-		case "richText":
-			// For richText (markdown), use InputArea
+		case "richText": {
+			const text = typeof value === "string" ? value : "";
+			const length = lengthConstraints(field.validation);
+			const tooLong = isOutOfBounds(text.length, length, typeof value === "string");
 			return (
 				<InputArea
 					label={label}
 					id={id}
-					value={typeof value === "string" ? value : ""}
+					value={text}
 					onChange={(e) => handleChange(e.target.value)}
 					rows={10}
+					maxLength={length.max}
+					variant={tooLong ? "error" : undefined}
+					aria-invalid={tooLong || undefined}
+					description={
+						hasBounds(length) ? (
+							<LengthHint count={text.length} bounds={length} violated={tooLong} />
+						) : undefined
+					}
 					dir="auto"
 					placeholder={t`Enter markdown content...`}
 				/>
 			);
+		}
 
 		case "select": {
 			const selectOptions = Array.isArray(field.options) ? field.options : [];
@@ -1609,6 +1645,91 @@ function isValidUrl(val: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+interface Bounds {
+	min?: number;
+	max?: number;
+}
+
+function constraintNumber(validation: Record<string, unknown> | undefined, key: string) {
+	const value = validation?.[key];
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function lengthConstraints(validation: Record<string, unknown> | undefined): Bounds {
+	return {
+		min: constraintNumber(validation, "minLength"),
+		max: constraintNumber(validation, "maxLength"),
+	};
+}
+
+function rangeConstraints(validation: Record<string, unknown> | undefined): Bounds {
+	return { min: constraintNumber(validation, "min"), max: constraintNumber(validation, "max") };
+}
+
+function hasBounds({ min, max }: Bounds) {
+	return min !== undefined || max !== undefined;
+}
+
+function isOutOfBounds(value: number, { min, max }: Bounds, hasValue: boolean) {
+	if (max !== undefined && value > max) return true;
+	return hasValue && min !== undefined && value < min;
+}
+
+interface BoundsHintProps {
+	bounds: Bounds;
+	violated: boolean;
+}
+
+function LengthHint({ count, bounds, violated }: BoundsHintProps & { count: number }) {
+	const { i18n } = useLingui();
+	const counted = i18n.number(count);
+	let text: string;
+	if (bounds.max !== undefined && bounds.min !== undefined) {
+		const min = i18n.number(bounds.min);
+		text = plural(bounds.max, {
+			one: `${counted} of # character, at least ${min}`,
+			other: `${counted} of # characters, at least ${min}`,
+		});
+	} else if (bounds.max !== undefined) {
+		text = plural(bounds.max, {
+			one: `${counted} of # character`,
+			other: `${counted} of # characters`,
+		});
+	} else if (bounds.min !== undefined) {
+		text = plural(bounds.min, { one: "At least # character", other: "At least # characters" });
+	} else {
+		return null;
+	}
+	return (
+		<span dir="auto" className={cn("tabular-nums", violated && "text-kumo-danger")}>
+			{text}
+		</span>
+	);
+}
+
+function RangeHint({ bounds, violated }: BoundsHintProps) {
+	const { t, i18n } = useLingui();
+	let text: string;
+	if (bounds.min !== undefined && bounds.max !== undefined) {
+		const min = i18n.number(bounds.min);
+		const max = i18n.number(bounds.max);
+		text = t`Between ${min} and ${max}`;
+	} else if (bounds.max !== undefined) {
+		const max = i18n.number(bounds.max);
+		text = t`At most ${max}`;
+	} else if (bounds.min !== undefined) {
+		const min = i18n.number(bounds.min);
+		text = t`At least ${min}`;
+	} else {
+		return null;
+	}
+	return (
+		<span dir="auto" className={cn("tabular-nums", violated && "text-kumo-danger")}>
+			{text}
+		</span>
+	);
 }
 
 /**

@@ -255,6 +255,8 @@ interface FieldValidation {
 }
 ```
 
+The editor shows these rules while an author types: `minLength` and `maxLength` as a character count under a text field, `min` and `max` as the allowed range under a number field. A value outside its rules is marked in the editor before a save is attempted.
+
 The following field requires a unique, pattern-matched email address:
 
 ```ts

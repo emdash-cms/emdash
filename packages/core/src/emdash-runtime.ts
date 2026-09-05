@@ -2502,12 +2502,7 @@ export class EmDashRuntime {
 							label: v.charAt(0).toUpperCase() + v.slice(1),
 						}));
 					}
-					// Include full validation for repeater fields (subFields, minItems, maxItems)
-					// and for file/image fields (allowedMimeTypes).
-					if (
-						(field.type === "repeater" || field.type === "file" || field.type === "image") &&
-						field.validation
-					) {
+					if (field.validation) {
 						entry.validation = { ...field.validation };
 					}
 					fields[field.slug] = entry;

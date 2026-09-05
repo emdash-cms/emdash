@@ -10,6 +10,7 @@ import {
 } from "../../src/components/ContentEditor";
 import { fetchBylines } from "../../src/lib/api";
 import type { BylineSummary, ContentItem } from "../../src/lib/api";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
 
 function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
@@ -1024,6 +1025,130 @@ describe("ContentEditor", () => {
 			});
 			const textarea = screen.getByLabelText("Metadata");
 			await expect.element(textarea).toHaveValue(JSON.stringify(jsonData, null, 2));
+		});
+	});
+
+	describe("field constraints", () => {
+		it("caps string fields at maxLength and counts characters against it", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { summary: "Hello" } }),
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { maxLength: 160 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary");
+			await expect.element(input).toHaveAttribute("maxlength", "160");
+			await expect.element(screen.getByText("5 of 160 characters")).toBeInTheDocument();
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+
+			await userEvent.fill(input, "Hello world");
+			await expect.element(screen.getByText("11 of 160 characters")).toBeInTheDocument();
+		});
+
+		it("flags string content that already exceeds maxLength", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { summary: "x".repeat(170) } }),
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { maxLength: 160 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary");
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+			await expect.element(screen.getByText("170 of 160 characters")).toBeInTheDocument();
+		});
+
+		it("flags a cleared field against minLength, not an untouched one", async () => {
+			const screen = await renderEditor({
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { minLength: 10 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary");
+			await expect.element(screen.getByText("At least 10 characters")).toBeInTheDocument();
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+
+			await userEvent.fill(input, "short");
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+
+			await userEvent.clear(input);
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+			await expect.element(screen.getByText("At least 10 characters")).toBeInTheDocument();
+		});
+
+		it("caps text fields at maxLength", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { body: "Some markdown" } }),
+				fields: {
+					body: { kind: "richText", label: "Body", validation: { maxLength: 500 } },
+				},
+			});
+			const textarea = screen.getByLabelText("Body");
+			await expect.element(textarea).toHaveAttribute("maxlength", "500");
+			await expect.element(screen.getByText("13 of 500 characters")).toBeInTheDocument();
+		});
+
+		it("shows the allowed range on number fields and flags values outside it", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { rating: 12 } }),
+				fields: {
+					rating: { kind: "number", label: "Rating", validation: { min: 1, max: 10 } },
+				},
+			});
+			const input = screen.getByLabelText("Rating", { exact: true });
+			await expect.element(input).toHaveAttribute("min", "1");
+			await expect.element(input).toHaveAttribute("max", "10");
+			await expect.element(screen.getByText("Between 1 and 10")).toBeInTheDocument();
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+
+			await userEvent.fill(input, "7");
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+		});
+
+		it("renders no hint when a field declares no bounds", async () => {
+			const screen = await renderEditor({
+				fields: { title: { kind: "string", label: "Title" } },
+			});
+			const input = screen.getByLabelText("Title");
+			await expect.element(input).not.toHaveAttribute("maxlength");
+			expect(screen.container.textContent).not.toContain("characters");
+		});
+
+		it("passes the field's validation to plugin field widgets", async () => {
+			const seen: unknown[] = [];
+			const pluginAdmins: PluginAdmins = {
+				counter: {
+					fields: {
+						limited: ({ validation }: { validation?: Record<string, unknown> }) => {
+							seen.push(validation);
+							return <div data-testid="limited-widget" />;
+						},
+					},
+				},
+			};
+			const screen = await render(
+				<PluginAdminProvider pluginAdmins={pluginAdmins}>
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						isNew
+						onSave={vi.fn()}
+						fields={{
+							summary: {
+								kind: "string",
+								label: "Summary",
+								widget: "counter:limited",
+								validation: { maxLength: 160 },
+							},
+						}}
+					/>
+				</PluginAdminProvider>,
+			);
+			await expect.element(screen.getByTestId("limited-widget")).toBeInTheDocument();
+			expect(seen[0]).toEqual({ maxLength: 160 });
 		});
 	});
 

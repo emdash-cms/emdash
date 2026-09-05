@@ -132,6 +132,43 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(posts?.fields.body?.kind).toBe("json");
 	});
 
+	it("forwards declared validation on every field type", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "posts",
+			label: "Posts",
+			labelSingular: "Post",
+			source: "test",
+		});
+		await registry.createField("posts", {
+			slug: "title",
+			label: "Title",
+			type: "string",
+			validation: { minLength: 3, maxLength: 80 },
+		});
+		await registry.createField("posts", {
+			slug: "excerpt",
+			label: "Excerpt",
+			type: "text",
+			validation: { maxLength: 160 },
+		});
+		await registry.createField("posts", {
+			slug: "reading_minutes",
+			label: "Reading minutes",
+			type: "integer",
+			validation: { min: 1, max: 60 },
+		});
+		await registry.createField("posts", { slug: "subtitle", label: "Subtitle", type: "string" });
+
+		const runtime = buildRuntime(db);
+		const fields = (await runtime.getManifest()).collections.posts?.fields;
+
+		expect(fields?.title?.validation).toEqual({ minLength: 3, maxLength: 80 });
+		expect(fields?.excerpt?.validation).toEqual({ maxLength: 160 });
+		expect(fields?.reading_minutes?.validation).toEqual({ min: 1, max: 60 });
+		expect(fields?.subtitle?.validation).toBeUndefined();
+	});
+
 	it("reports the implicit English content locale when i18n is not configured", async () => {
 		const runtime = buildRuntime(db);
 
