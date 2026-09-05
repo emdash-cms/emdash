@@ -8,7 +8,8 @@
 
 import { Role } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
-import { describe, it, expect, vi } from "vitest";
+import type { Kysely } from "kysely";
+import { describe, it, expect, vi, beforeAll, afterAll } from "vitest";
 
 import {
 	PUT as putItem,
@@ -21,8 +22,20 @@ import {
 	DELETE as deleteSchedule,
 } from "../../../src/astro/routes/api/content/[collection]/[id]/schedule.js";
 import { POST as postUnpublish } from "../../../src/astro/routes/api/content/[collection]/[id]/unpublish.js";
+import type { Database } from "../../../src/database/types.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 const editor = { id: "u-edit", role: Role.EDITOR };
+
+let db: Kysely<Database>;
+
+beforeAll(async () => {
+	db = await setupTestDatabase();
+});
+
+afterAll(async () => {
+	await teardownTestDatabase(db);
+});
 
 function buildEmdash() {
 	const handleContentGet = vi.fn(async (_collection: string, _id: string, _locale?: string) => ({
@@ -86,6 +99,7 @@ function buildEmdash() {
 	}));
 
 	return {
+		db,
 		handleContentGet,
 		handleContentUpdate,
 		handleContentDelete,

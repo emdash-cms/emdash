@@ -196,6 +196,7 @@ export async function buildSeedCollectionCaptureFingerprint(
 				hidden: input.hidden ?? false,
 				sortOrder: input.sortOrder ?? null,
 				commentsEnabled: input.commentsEnabled ?? false,
+				...(input.editLocking === false ? { editLocking: false } : {}),
 				urlPattern: input.urlPattern ?? null,
 				routable: input.routable ?? true,
 			},
@@ -462,6 +463,7 @@ export class SchemaRegistry {
 				hidden: input.hidden ? 1 : 0,
 				sort_order: input.sortOrder ?? null,
 				comments_enabled: input.commentsEnabled ? 1 : 0,
+				edit_locking: input.editLocking === false ? 0 : 1,
 				url_pattern: input.urlPattern ?? null,
 			};
 
@@ -605,6 +607,7 @@ export class SchemaRegistry {
 					hidden: input.hidden ? 1 : 0,
 					sort_order: input.sortOrder ?? null,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
+					edit_locking: input.editLocking === false ? 0 : 1,
 					url_pattern: input.urlPattern ?? null,
 				};
 				const rows = fieldRows.map((row) => ({
@@ -769,6 +772,7 @@ export class SchemaRegistry {
 			if (input.commentsAutoApproveUsers !== undefined) {
 				updates.comments_auto_approve_users = input.commentsAutoApproveUsers ? 1 : 0;
 			}
+			if (input.editLocking !== undefined) updates.edit_locking = input.editLocking ? 1 : 0;
 
 			updates.updated_at = new Date().toISOString();
 			await trx
@@ -1817,6 +1821,7 @@ export class SchemaRegistry {
 					: "first_time",
 			commentsClosedAfterDays: row.comments_closed_after_days ?? 90,
 			commentsAutoApproveUsers: row.comments_auto_approve_users === 1,
+			editLocking: row.edit_locking !== 0,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
 		};

@@ -107,6 +107,9 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (!collection.label) {
 					errors.push(`${prefix}: label is required`);
 				}
+				if (collection.editLocking !== undefined && typeof collection.editLocking !== "boolean") {
+					errors.push(`${prefix}.editLocking: must be a boolean`);
+				}
 				if (collection.routable !== undefined && typeof collection.routable !== "boolean") {
 					errors.push(`${prefix}.routable: must be a boolean`);
 				}

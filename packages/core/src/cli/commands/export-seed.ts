@@ -318,6 +318,7 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 			supports: collection.supports.length > 0 ? collection.supports : undefined,
 			urlPattern: collection.urlPattern || undefined,
 			routable: collection.routable === false ? false : undefined,
+			editLocking: collection.editLocking === false ? false : undefined,
 			hidden: collection.hidden || undefined,
 			sortOrder: collection.sortOrder,
 			fields: fields.map(

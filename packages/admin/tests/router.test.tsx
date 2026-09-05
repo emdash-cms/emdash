@@ -1152,7 +1152,10 @@ describe("ContentNewPage – locale passed to createContent", () => {
 		globalThis.fetch = async (input, init) => {
 			const url =
 				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-			if (url.includes("/content/posts") && init?.method === "POST") {
+			// Match the create endpoint exactly. A successful create navigates to
+			// the editor, whose own POSTs live under /content/posts/{id}/.
+			const path = url.split("?")[0] ?? url;
+			if (path.endsWith("/content/posts") && init?.method === "POST") {
 				const body = init.body ? JSON.parse(init.body as string) : null;
 				requests.push({ url, body });
 			}

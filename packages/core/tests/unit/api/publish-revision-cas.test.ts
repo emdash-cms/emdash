@@ -1,7 +1,7 @@
 import { Role } from "@emdash-cms/auth";
 import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as postPublish } from "../../../src/astro/routes/api/content/[collection]/[id]/publish.js";
 import type { Database } from "../../../src/database/types.js";
@@ -11,7 +11,9 @@ import { createTestRuntime } from "../../utils/mcp-runtime.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
+	setupTestDatabase,
 	teardownForDialect,
+	teardownTestDatabase,
 	type DialectTestContext,
 } from "../../utils/test-db.js";
 
@@ -166,6 +168,16 @@ describeEachDialect("conditional content publication", (dialect) => {
 });
 
 describe("conditional publish route authorization", () => {
+	let routeDb: Kysely<Database>;
+
+	beforeAll(async () => {
+		routeDb = await setupTestDatabase();
+	});
+
+	afterAll(async () => {
+		await teardownTestDatabase(routeDb);
+	});
+
 	it("passes the revision condition through and returns the next revision", async () => {
 		const handleContentPublish = vi.fn().mockResolvedValue({
 			success: true,
@@ -188,6 +200,7 @@ describe("conditional publish route authorization", () => {
 						data: { item: { id: "entry", authorId: "owner" }, _rev: "approved-rev" },
 					}),
 					handleContentPublish,
+					db: routeDb,
 				},
 			},
 			cache: { enabled: false, invalidate: vi.fn() },
@@ -220,6 +233,7 @@ describe("conditional publish route authorization", () => {
 						data: { item: { id: "entry", authorId: "subscriber" }, _rev: "current-rev" },
 					}),
 					handleContentPublish,
+					db: routeDb,
 				},
 			},
 			cache: { enabled: false, invalidate: vi.fn() },

@@ -89,6 +89,8 @@ The server exposes tools across eight domains: content, schema, media, search, t
 
 ### Content Tools
 
+The write tools do not honour an entry's [edit lock](/reference/rest-api/#entry-edit-lock). An editor who has the entry open in the admin is only protected by `_rev`.
+
 #### `content_list`
 
 List content items in a collection with optional filtering and pagination.
@@ -322,6 +324,7 @@ Create a new content collection. This creates a database table and schema defini
 | `description` | `string` | No | Description of this collection |
 | `icon` | `string` | No | Icon name for the admin UI |
 | `supports` | `string[]` | No | Features: `drafts`, `revisions`, `preview`, `scheduling`, `search`, `seo` (default: `['drafts', 'revisions']`) |
+| `editLocking` | `boolean` | No | Take an edit lock when an entry is opened (default: `true`) |
 
 **Scope:** `schema:write` | **Minimum role:** Admin
 
@@ -343,6 +346,7 @@ Update an existing collection without deleting its table, fields, or content. On
 | `commentsModeration` | `string` | No | Moderation policy: `all`, `first_time`, or `none` |
 | `commentsClosedAfterDays` | `integer` | No | Close comments after this many days; `0` keeps them open |
 | `commentsAutoApproveUsers` | `boolean` | No | Automatically approve comments from authenticated users |
+| `editLocking` | `boolean` | No | Whether opening an entry takes an edit lock that refuses other editors' writes |
 
 **Scope:** `schema:write` | **Minimum role:** Admin
 

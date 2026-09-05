@@ -161,6 +161,7 @@ export function ContentTypeEditor({
 	const [description, setDescription] = React.useState(collection?.description ?? "");
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
 	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
+	const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true);
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
@@ -202,6 +203,7 @@ export function ContentTypeEditor({
 			description !== (collection.description ?? "") ||
 			urlPattern !== (collection.urlPattern ?? "") ||
 			routable !== (collection.routable ?? true) ||
+			editLocking !== (collection.editLocking ?? true) ||
 			JSON.stringify([...supports].toSorted()) !==
 				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
@@ -219,6 +221,7 @@ export function ContentTypeEditor({
 		description,
 		urlPattern,
 		routable,
+		editLocking,
 		supports,
 		hasSeo,
 		commentsEnabled,
@@ -265,6 +268,7 @@ export function ContentTypeEditor({
 				description: description || undefined,
 				urlPattern: urlPattern || undefined,
 				routable,
+				editLocking,
 				supports,
 				hasSeo,
 			});
@@ -275,6 +279,7 @@ export function ContentTypeEditor({
 				description: description || undefined,
 				urlPattern: urlPattern || undefined,
 				routable,
+				editLocking,
 				supports,
 				hasSeo,
 				commentsEnabled,
@@ -428,6 +433,20 @@ export function ContentTypeEditor({
 										<span className="text-sm font-medium">{t`Routable`}</span>
 										<p className="text-xs text-kumo-subtle">
 											{t`Require a slug before content can be published`}
+										</p>
+									</div>
+								}
+							/>
+
+							<Switch
+								checked={editLocking}
+								onCheckedChange={setEditLocking}
+								disabled={isFromCode}
+								label={
+									<div>
+										<span className="text-sm font-medium">{t`Edit locking`}</span>
+										<p className="text-xs text-kumo-subtle">
+											{t`Hold an entry while someone is editing it, and refuse other writers`}
 										</p>
 									</div>
 								}

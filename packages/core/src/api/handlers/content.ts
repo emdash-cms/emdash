@@ -15,6 +15,7 @@ import {
 	isSystemOrderField,
 	type ContentRevisionPrecondition,
 } from "../../database/repositories/content.js";
+import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -1382,6 +1383,7 @@ export async function handleContentPermanentDelete(
 				// Clean up revisions for permanently deleted content
 				const revisionRepo = new RevisionRepository(trx);
 				await revisionRepo.deleteByEntry(collection, resolvedId);
+				await new EntryLockRepository(trx).releaseEntry(collection, resolvedId);
 			}
 
 			return wasDeleted;

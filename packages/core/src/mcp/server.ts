@@ -150,6 +150,9 @@ const schemaUpdateCollectionToolSchema = z.object({
 	commentsAutoApproveUsers: updateCollectionBody.shape.commentsAutoApproveUsers.describe(
 		"Whether comments from authenticated users are automatically approved",
 	),
+	editLocking: updateCollectionBody.shape.editLocking.describe(
+		"Whether opening an entry takes an edit lock that refuses other editors' writes",
+	),
 });
 
 const schemaUpdateFieldToolSchema = z.object({
@@ -1838,6 +1841,9 @@ export function createMcpServer(
 				routable: createCollectionBody.shape.routable.describe(
 					"Require a slug before publishing (default: true)",
 				),
+				editLocking: createCollectionBody.shape.editLocking.describe(
+					"Take an edit lock when an entry is opened (default: true)",
+				),
 			}),
 		},
 		async (args, extra) => {
@@ -1857,6 +1863,7 @@ export function createMcpServer(
 					// ['drafts', 'revisions'] when undefined; pass through verbatim.
 					supports: args.supports,
 					routable: args.routable,
+					editLocking: args.editLocking,
 				});
 				ec.invalidateUrlPatternCache();
 				return jsonResult(collection);

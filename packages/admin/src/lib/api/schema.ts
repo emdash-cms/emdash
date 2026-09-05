@@ -47,6 +47,8 @@ export interface SchemaCollection {
 	commentsModeration: "all" | "first_time" | "none";
 	commentsClosedAfterDays: number;
 	commentsAutoApproveUsers: boolean;
+	/** Opening an entry takes an edit lock unless this is false. */
+	editLocking: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -99,6 +101,7 @@ export interface CreateCollectionInput {
 	hasSeo?: boolean;
 	hidden?: boolean;
 	sortOrder?: number | null;
+	editLocking?: boolean;
 }
 
 export interface UpdateCollectionInput {
@@ -117,6 +120,7 @@ export interface UpdateCollectionInput {
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
+	editLocking?: boolean;
 }
 
 export interface CreateFieldInput {

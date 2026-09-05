@@ -2227,4 +2227,129 @@ describe("ContentEditor", () => {
 			await expect.element(screen.getByText("Ada Lovelace")).toBeInTheDocument();
 		});
 	});
+
+	describe("edit lock read-only mode", () => {
+		it("does not accept edits while another editor holds the entry", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				readOnly: true,
+			});
+
+			await expect.element(screen.getByLabelText("Title")).toBeDisabled();
+			await expect.element(screen.getByRole("button", { name: "Save" }).first()).toBeDisabled();
+		});
+
+		it("stops autosaving as soon as the entry is taken away", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item: makeItem(),
+					onSave: vi.fn(),
+					onAutosave,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				await screen.getByLabelText("Title").fill("Half-typed title");
+				await screen.rerender(<ContentEditor {...props} readOnly />);
+
+				await vi.advanceTimersByTimeAsync(5000);
+
+				expect(onAutosave).not.toHaveBeenCalled();
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it("retries a refused autosave once the entry is taken back", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item: makeItem(),
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					autosaveCompletionToken: 0,
+					autosaveRejectionToken: 0,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				await screen.getByLabelText("Title").fill("Typed before the take-over");
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} readOnly />,
+				);
+				await vi.advanceTimersByTimeAsync(10_000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} />,
+				);
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(2);
+				expect(onAutosave).toHaveBeenLastCalledWith(
+					expect.objectContaining({
+						data: expect.objectContaining({ title: "Typed before the take-over" }),
+					}),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
+
+		it("keeps the entry editable when nobody else holds it", async () => {
+			const screen = await renderEditor({ isNew: false, item: makeItem() });
+
+			await expect.element(screen.getByLabelText("Title")).not.toBeDisabled();
+		});
+
+		// `disabled` on a fieldset does not reach a contenteditable, so the rich
+		// text editor has to be told separately.
+		it("stops the rich text editor accepting input in read-only", async () => {
+			await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				fields: { content: { kind: "portableText", label: "Content" } },
+				readOnly: true,
+			});
+
+			expect(portableTextProps.current?.editable).toBe(false);
+		});
+
+		it("can still leave distraction-free mode while the entry is read-only", async () => {
+			const screen = await renderEditor({ isNew: false, item: makeItem(), readOnly: true });
+
+			const enter = screen.getByRole("button", { name: "Enter distraction-free mode" });
+			await expect.element(enter).not.toBeDisabled();
+			await enter.click();
+
+			const exit = screen.getByRole("button", { name: "Exit distraction-free mode" });
+			await expect.element(exit).not.toBeDisabled();
+		});
+
+		it("leaves the rich text editor writable when the entry is not locked", async () => {
+			await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				fields: { content: { kind: "portableText", label: "Content" } },
+			});
+
+			expect(portableTextProps.current?.editable).toBe(true);
+		});
+	});
 });
