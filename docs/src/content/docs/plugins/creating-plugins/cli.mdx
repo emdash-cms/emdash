@@ -7,6 +7,8 @@ import { Steps } from "@astrojs/starlight/components";
 
 `@emdash-cms/plugin-cli` is the authoring toolchain: scaffold, build, watch, validate, bundle, publish, plus identity and discovery. The binary is `emdash-plugin`.
 
+The CLI uses an [Atmosphere account](/plugins/creating-plugins/publishing/#your-atmosphere-account) as the publisher identity for package profiles and releases.
+
 ## Commands
 
 The CLI provides the following commands:
@@ -108,20 +110,42 @@ Pass `--url <https-url>` to use an externally hosted package bundle. The CLI dow
 
 Full walkthrough: [Bundling and publishing](/plugins/creating-plugins/publishing/).
 
-## Delegated release setup
+## `profile setup`
 
-Sign in locally, then prepare the package profile and GitHub Actions workflow with the following commands:
+`profile setup` prepares the publisher-owned package profile for automated releases. It creates a missing profile from `emdash-plugin.jsonc`, or adds delegated-release settings to an existing valid profile without replacing its package metadata.
+
+Run the interactive setup from the plugin directory:
 
 ```sh
-emdash-plugin login alice.example.com
+emdash-plugin profile setup
+```
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--dir <path>` | Current directory | Plugin source directory. |
+| `--repository <url>` | Manifest `repo` | Canonical public GitHub repository URL. Interactive setup asks when neither value is present. |
+| `--confirmation <mode>` | `escalation-only` | Use `escalation-only` for permission increases or `always` for every release. |
+| `--yes`, `-y` | `false` | Accept the default policy without prompting. Required when a non-interactive run would change the profile. |
+
+The command uses the active CLI login to write the profile. It refuses to replace a different signed repository. Run `emdash-plugin switch <did>` when the active account does not match the manifest publisher.
+
+## `release setup`
+
+`release setup` runs package-profile setup, then creates `.github/workflows/emdash-release.yml` for the release service.
+
+```sh
 emdash-plugin release setup
 ```
 
-If the package profile is missing, `release setup` offers to create it from `emdash-plugin.jsonc`. For an existing profile without delegated-release settings, it adds the signed GitHub repository and release policy while preserving the package metadata. The default policy asks the signed-in Atmosphere account to approve releases when plugin permissions increase. You can choose to require approval for every release instead.
+It accepts the `profile setup` flags plus the following workflow options:
 
-Set `repo` in `emdash-plugin.jsonc`, or enter the canonical GitHub repository URL when prompted. Run `emdash-plugin profile setup` when you need to prepare only the profile.
+| Flag | Default | Description |
+| --- | --- | --- |
+| `--service-url <origin>` | `https://releases.emdashcms.com` | HTTPS origin used by the generated Action. |
+| `--action-ref <ref>` | `main` | EmDash repository ref containing the release Action. |
+| `--force` | `false` | Replace an existing generated workflow. Without it, setup leaves the existing file unchanged. |
 
-In a non-interactive environment, profile changes require `--yes`. A GitHub Actions release fails with `PACKAGE_PROFILE_REQUIRED` before uploading files when its signed profile is missing or links a different repository. Run profile setup locally, then start the workflow again.
+The command never pushes the generated workflow. Follow [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) to authorise the release service, connect the workflow, and publish the first release.
 
 ## Programmatic API
 

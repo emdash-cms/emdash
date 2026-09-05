@@ -14,7 +14,12 @@ Generated TypeScript types and runtime validation schemas for the EmDash plugin 
 ## Usage
 
 ```ts
-import { NSID, PackageProfile, PackageRelease } from "@emdash-cms/registry-lexicons";
+import {
+	NSID,
+	PackageProfile,
+	PackageProfileExtension,
+	PackageRelease,
+} from "@emdash-cms/registry-lexicons";
 import { is, safeParse } from "@atcute/lexicons/validations";
 
 // Type a profile record:
@@ -25,6 +30,18 @@ const profile: PackageProfile.Main = {
 	license: "MIT",
 	authors: [{ name: "Alice Example", url: "https://alice.example.com" }],
 	security: [{ email: "security@example.com" }],
+	extensions: {
+		[NSID.packageProfileExtension]: {
+			$type: NSID.packageProfileExtension,
+			repository: "https://github.com/example/gallery",
+			releasePolicy: {
+				$type: `${NSID.packageProfileExtension}#releasePolicy`,
+				requireProvenance: true,
+				confirmation: "escalation-only",
+				approvers: ["did:plc:abc123"],
+			} satisfies PackageProfileExtension.ReleasePolicy,
+		},
+	},
 };
 
 // Validate at runtime:
@@ -38,6 +55,16 @@ if (!result.ok) {
 	console.error(result.issues);
 }
 ```
+
+## Delegated release policy
+
+Automated releases require `PackageProfileExtension` under the profile's `extensions` map. `repository` is the canonical HTTPS source repository that GitHub provenance and the approved workflow must match. The optional `releasePolicy` controls approval outside the release service:
+
+- `requireProvenance` tells every publisher and installer to require supported provenance. The delegated service always requires provenance.
+- `confirmation: "escalation-only"` requires approval when declared access expands. `"always"` requires approval for every release.
+- `approvers` lists the [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) DIDs allowed to approve releases.
+
+Use `emdash-plugin profile setup` to create this extension. The release service validates the signed value but cannot edit it.
 
 ## Building
 

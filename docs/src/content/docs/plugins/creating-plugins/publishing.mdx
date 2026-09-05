@@ -5,9 +5,9 @@ description: Bundle a sandboxed plugin and publish it to the EmDash plugin regis
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Once your sandboxed plugin works, publish it so other sites can install it. Publishing is sandboxed-only — native plugins distribute via npm.
+Publish a working sandboxed plugin so other sites can install it. Publishing is sandboxed-only — native plugins distribute through npm.
 
-When you publish, the CLI builds the plugin, uploads the package and listing images to your [Atmosphere account](#your-atmosphere-account), and writes the release record there. You only need a separate artifact host when you explicitly choose the `--url` path.
+Publish directly from the CLI, or use the [automated release service](/plugins/creating-plugins/delegated-releases/) to build and publish from GitHub Actions. Both paths write the release to your [Atmosphere account](#your-atmosphere-account). You only need a separate artifact host when you explicitly choose the direct CLI's `--url` path.
 
 <Aside type="caution" title="Experimental">
 	The registry, its lexicon, and record shapes are governed by RFC 0001 and
@@ -21,6 +21,15 @@ When you publish, the CLI builds the plugin, uploads the package and listing ima
 - A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author (`author` or `authors`), and a security contact (`security` or `securityContacts`). Run `emdash-plugin validate` to confirm.
 - A `version` (in `package.json`, or the manifest for registry-only plugins).
 - An [Atmosphere account](#your-atmosphere-account) to publish under.
+
+## Choose a publishing method
+
+Both methods create the same signed package and release records. Choose where the release build should run.
+
+| Method | Use it when | Account access |
+| --- | --- | --- |
+| `emdash-plugin publish` | You build and publish from your computer or another trusted environment. | The local CLI session writes the package profile, release, and blobs. |
+| [Automated releases](/plugins/creating-plugins/delegated-releases/) | GitHub Actions should build releases from version tags or manual workflow runs. | The local CLI prepares the profile; the release service retains create-only release and blob authority. |
 
 ## Your Atmosphere account
 
@@ -172,5 +181,6 @@ If `publish` fails with `MANIFEST_PUBLISHER_MISMATCH`, the active session is a d
 ## What to read next
 
 - [The `emdash-plugin` CLI](/plugins/creating-plugins/cli/) — every command
+- [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) — publish from an approved GitHub Actions workflow
 - [The manifest](/plugins/creating-plugins/manifest/) — fields, trust contract, publisher pinning
 - [Capabilities and security](/plugins/creating-plugins/capabilities/)

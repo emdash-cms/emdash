@@ -1,0 +1,215 @@
+---
+title: Automated plugin releases
+description: Publish sandboxed plugins from GitHub Actions through the EmDash release service.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Automated releases build and publish a sandboxed plugin when you push a version tag or start a GitHub Actions workflow manually. Your [Atmosphere account](/plugins/creating-plugins/publishing/#your-atmosphere-account) owns the package profile and release records. GitHub identifies the approved workflow, and the release service verifies and publishes the result without storing an account credential in the repository.
+
+Use [`emdash-plugin publish`](/plugins/creating-plugins/publishing/#publish) for a release started from your computer. Use this guide when GitHub Actions should build and publish releases.
+
+<Aside type="caution" title="Experimental">
+	The plugin registry and delegated release service use experimental record
+	formats. Pin `@emdash-cms/plugin-cli` to an exact version. Automated releases
+	currently require a public GitHub repository because the verifier trusts
+	GitHub's public Sigstore root.
+</Aside>
+
+## Prerequisites
+
+Prepare the following before starting:
+
+- A public GitHub repository containing a sandboxed EmDash plugin.
+- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author, and a security contact. Set `repo` to the canonical GitHub URL, or enter it during interactive setup.
+- A version in `package.json`, or in `emdash-plugin.jsonc` for a registry-only plugin.
+- The Atmosphere account named by `publisher`.
+- Permission to add a GitHub Actions secret to the repository.
+- A browser that supports passkeys. Release approval requires user verification.
+
+Run the manifest check before configuring the workflow:
+
+```sh
+pnpm exec emdash-plugin validate
+```
+
+## Set up automated releases
+
+<Steps>
+
+1. Sign in to the plugin CLI with the Atmosphere account that owns the package.
+
+   ```sh
+   pnpm exec emdash-plugin login alice.example.com
+   ```
+
+   The CLI stores this local publishing session outside the project. GitHub Actions never receives it.
+
+2. Prepare the package profile and generate the workflow.
+
+   ```sh
+   pnpm exec emdash-plugin release setup
+   ```
+
+   The command reads the package metadata from `emdash-plugin.jsonc`. If the package profile is missing, it offers to create it. If the profile exists without delegated-release settings, it offers to add them while preserving the existing package metadata.
+
+   Setup asks when a release needs approval:
+
+   - **When plugin permissions increase** is the default. A release waits for approval when its declared access expands relative to the latest release.
+   - **For every release** requires approval for every version.
+
+   The signed-in Atmosphere account becomes the initial approver. The profile also binds the package to the canonical GitHub repository URL and requires verifiable provenance.
+
+   Run only the profile step when a workflow file already exists:
+
+   ```sh
+   pnpm exec emdash-plugin profile setup
+   ```
+
+   In a non-interactive terminal, pass `--yes` to accept the default approval policy. Pass `--repository <https-url>` when the manifest does not contain `repo`, and `--confirmation always` to require approval for every release.
+
+3. Review and commit the generated workflow.
+
+   The command creates `.github/workflows/emdash-release.yml`. It does not push the file and does not replace an existing workflow unless you pass `--force`.
+
+   The generated workflow runs for version tags matching `v*` and through `workflow_dispatch`. It grants `contents: read`, `id-token: write`, and `attestations: write`; pins third-party Actions to full commit identifiers; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
+
+4. Open the [release-service dashboard](https://releases.emdashcms.com/publisher) and sign in with the same Atmosphere account.
+
+   Select **Authorize publishing**. Your account provider shows the exact delegated permission. The retained grant can create package release records and upload package or listing-image blobs. It cannot create or edit package profiles, update or delete releases, or write another collection.
+
+5. Create a workflow invitation.
+
+   Enter the plugin ID from `emdash-plugin.jsonc`, then select **Create invitation**. Add the one-time value to the GitHub repository as an Actions secret named `EMDASH_CONNECTION_INVITATION`.
+
+   The invitation is valid for 30 minutes and can connect only the named plugin. Create a new invitation if it expires before the workflow consumes it.
+
+6. Start the release workflow.
+
+   Update the package version before creating the version tag. The following commands start a `1.2.3` release:
+
+   ```sh
+   git tag v1.2.3
+   git push origin v1.2.3
+   ```
+
+   You can also select **Run workflow** on the repository's GitHub Actions page.
+
+7. Approve the workflow connection on its first run.
+
+   The Action writes a link to the GitHub job summary and waits. Open the link and confirm the plugin, repository, workflow file, branch or tag, and environment.
+
+   For a tag-triggered run, choose **All version tags** or **Only this tag**. A branch-triggered request covers only that branch. The service stores the GitHub repository and owner IDs as well as the selected ref and environment scope. Later runs must match this policy.
+
+8. Approve the release when required.
+
+   A release that expands plugin permissions, or a profile configured for every-release confirmation, enters **Awaiting approval**. Open the approval URL from the Action output or release dashboard. Enrol a passkey if the approving account does not already have one, review the permission change, and approve or reject the release.
+
+   The default Action setting returns successfully when the release reaches **Awaiting approval**. The service workflow continues waiting for the browser decision and publishes after approval.
+
+</Steps>
+
+## What the release service verifies
+
+The service completes these checks before it writes a release:
+
+1. The GitHub OpenID Connect (OIDC) token names an authorised repository, owner, workflow, ref, environment, commit, run, and GitHub-hosted runner.
+2. The package profile exists, is signed by the publisher, contains delegated-release settings, and names the same canonical GitHub repository.
+3. The requested package and version match the built plugin bundle.
+4. The package checksum matches the uploaded bytes.
+5. GitHub provenance covers the same bundle, repository, workflow, commit, and run.
+6. The release record's declared access matches the bundle manifest.
+7. The version record does not already exist.
+8. Any required passkey approval covers the exact verification result and current profile revision.
+
+The Action requests a fresh GitHub OIDC token for each service call. Bundle and provenance files enter private transient storage only after the workflow is authorised. The service uploads verified package and image bytes to the publisher's personal data server (PDS), creates the release record there, and exposes the verified provenance through an immutable checksum-addressed URL.
+
+## Authority boundaries
+
+Each credential has one job:
+
+| Credential | Used by | Authority |
+| --- | --- | --- |
+| Local CLI OAuth session | `emdash-plugin profile setup` | Create or update the publisher-owned package profile after local confirmation. |
+| GitHub OIDC token | Release Action | Identify one GitHub workflow run to the service. It grants no AT Protocol write access. |
+| Release-service delegation | Release service | Create package release records and upload the required blobs. |
+| Publisher application session | Release dashboard | Authorise workflow connections and revoke delegated publishing. |
+| Approver session and passkey | Approval page | Approve or reject one checksum-bound release verification. |
+| Cloudflare Access identity | Service operator console | Operate the hosted service. It does not represent a publisher or approver. |
+
+The service stores publisher and approver state separately. Signing in to view your releases does not grant operator access, and an operator identity cannot approve a release as a publisher.
+
+## Action behaviour
+
+The generated workflow uses the Action from `apps/release-action`. The Action accepts either a built bundle plus raw Sigstore provenance, or a compatibility `release-file` containing checksum-bound HTTPS artifact sources. Do not combine `release-file` with bundle or provenance inputs.
+
+The standard generated workflow supplies these inputs:
+
+| Input | Value |
+| --- | --- |
+| `service-url` | Release-service HTTPS origin. |
+| `publisher-did` | DID that owns the package profile and releases. |
+| `connection-invitation` | `EMDASH_CONNECTION_INVITATION` on the first connection. |
+| `bundle-file` | The single tarball produced by `emdash-plugin bundle`. |
+| `provenance-file` | Raw `bundle-path` output from `actions/attest-build-provenance`. |
+
+The Action returns these outputs:
+
+| Output | Meaning |
+| --- | --- |
+| `connection-url` | Browser URL for first-run workflow approval. |
+| `intent-id` | Release intent identifier. |
+| `state` | Published, terminal, or `awaiting_approval` state. |
+| `approval-url` | Browser URL when passkey approval is required. |
+| `release-uri` | Published release AT URI. |
+| `release-cid` | Published release record CID. |
+| `reason-code` | Stable reason for a terminal intent. |
+
+See the [Action reference](https://github.com/emdash-cms/emdash/tree/main/apps/release-action) for optional inputs, custom URL-source workflows, polling controls, and exact output behavior.
+
+## Troubleshooting
+
+### `PACKAGE_PROFILE_REQUIRED`
+
+The package profile is missing, lacks delegated-release settings, uses a non-canonical repository URL, or names a different repository from the GitHub workflow.
+
+Run profile setup locally with the publisher account, then start the workflow again:
+
+```sh
+pnpm exec emdash-plugin profile setup
+```
+
+This check runs before the service accepts bundle or provenance uploads.
+
+### Public repository required
+
+GitHub uses a private Sigstore trust root for private and internal repositories. The release verifier currently trusts only public GitHub provenance. Move the release workflow to a public repository or publish locally with `emdash-plugin publish`.
+
+### Invitation expired or invalid
+
+Create another invitation in the release dashboard and replace `EMDASH_CONNECTION_INVITATION`. Start the workflow within 30 minutes. An invitation is single-use and scoped to one plugin ID.
+
+### `WORKLOAD_NOT_ALLOWED`
+
+The GitHub repository, owner, workflow file, ref, or environment does not match the approved workflow policy. Open the release dashboard and approve a new workflow connection with the intended scope.
+
+### `PROFILE_FETCH_FAILED`
+
+The service could not verify the profile from the publisher's PDS. Retry after the account provider is available. Run `emdash-plugin profile setup` if the profile was removed or changed.
+
+### `POLL_TIMEOUT`
+
+The Action reached `timeout-minutes` before workflow approval, release approval, or publication completed. Check the release dashboard for the intent state before rerunning. A rerun of the same GitHub Actions run reuses its idempotency key.
+
+## Revoke automated publishing
+
+Select **Turn off automated publishing** in the release dashboard. Revocation clears the retained release delegation. Existing package profiles, releases, moderation labels, installed plugins, and the dashboard login do not change.
+
+Reconnect publishing and approve the workflow again before the next automated release.
+
+## Related documentation
+
+- [Bundling and publishing](/plugins/creating-plugins/publishing/) covers local publishing and bundle validation.
+- [The plugin manifest](/plugins/creating-plugins/manifest/) defines package metadata and declared access.
+- [Capabilities and security](/plugins/creating-plugins/capabilities/) explains the permissions reviewed during release approval and installation.
+- [The plugin registry](/plugins/registry/) explains discovery, moderation, and installation verification.

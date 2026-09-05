@@ -147,6 +147,10 @@ export default defineConfig({
 									slug: "plugins/creating-plugins/publishing",
 								},
 								{
+									label: "Automated Releases",
+									slug: "plugins/creating-plugins/delegated-releases",
+								},
+								{
 									label: "Migrating to the CLI",
 									slug: "plugins/creating-plugins/migrating-to-the-cli",
 								},
