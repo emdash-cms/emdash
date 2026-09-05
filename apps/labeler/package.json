@@ -49,7 +49,7 @@
 		"@lingui/babel-plugin-lingui-macro": "catalog:",
 		"@lingui/cli": "catalog:",
 		"@tailwindcss/vite": "^4.3.3",
-		"@testing-library/react": "^16.3.0",
+		"@testing-library/react": "^16.3.3",
 		"@types/node": "catalog:",
 		"@types/react": "catalog:",
 		"@types/react-dom": "catalog:",

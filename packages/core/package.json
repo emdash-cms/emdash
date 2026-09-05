@@ -310,7 +310,7 @@
     "@types/react": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
-    "@vitest/ui": "^4.1.10",
+    "@vitest/ui": "^4.1.11",
     "image-size": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",
