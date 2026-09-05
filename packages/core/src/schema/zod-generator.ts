@@ -146,6 +146,9 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 				mimeType: z.string().optional(),
 				blurhash: z.string().optional(),
 				dominantColor: z.string().optional(),
+				/** Focal point as 0..1 fractions of width and height */
+				focalX: z.number().optional(),
+				focalY: z.number().optional(),
 				/** Provider ID (e.g. "local", "cloudflare-images") */
 				provider: z.string().optional(),
 				/** Admin-side preview URL for external providers (not persisted by plugins) */
@@ -490,7 +493,7 @@ function fieldTypeToTypeScript(field: {
 
 		case "image": {
 			const media =
-				"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+				"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
 			return `${media.slice(0, -2)}; darkVariant?: ${media} }`;
 		}
 

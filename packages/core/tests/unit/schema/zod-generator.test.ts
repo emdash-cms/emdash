@@ -289,6 +289,8 @@ describe("Zod Generator", () => {
 				height: 800,
 				blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
 				dominantColor: "#d9d2c5",
+				focalX: 0.25,
+				focalY: 0.75,
 				meta: { storageKey: "photo.webp" },
 			};
 			expect(schema.parse(validImage)).toEqual(validImage);
@@ -609,7 +611,7 @@ describe("Zod Generator", () => {
 			expect(ts).toContain("featured?: boolean;");
 			expect(ts).toContain('status: "draft" | "published";');
 			expect(ts).toContain(
-				"hero: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };",
+				"hero: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };",
 			);
 			// Hydrated by getEmDashCollection/getEmDashEntry
 			expect(ts).toContain("bylines?: ContentBylineCredit[];");
@@ -706,7 +708,7 @@ describe("Zod Generator", () => {
 		// The literal the top-level `image` case emits. An `image` sub-field must
 		// emit the same shape.
 		const MEDIA_LITERAL =
-			"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }";
+			"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } }";
 
 		// A collection with a single `specs` repeater. Passing `undefined` omits
 		// `validation` entirely, which is how a repeater with no declared rows
