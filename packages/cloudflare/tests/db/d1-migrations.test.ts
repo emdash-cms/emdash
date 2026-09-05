@@ -41,13 +41,15 @@ describe("D1 migration executor", () => {
 			if (!url.endsWith("/query")) {
 				return response({ uuid: DATABASE_ID, name: "site-db", version: "production" });
 			}
-			return response([
+			return Response.json(
 				{
 					success: false,
-					error: "no such table: _emdash_migrations",
-					results: [],
+					errors: [{ code: 7500, message: "no such table: _emdash_migrations: SQLITE_ERROR" }],
+					messages: [],
+					result: null,
 				},
-			]);
+				{ status: 400 },
+			);
 		});
 		globalThis.fetch = fetch;
 		const executor = await createMigrationExecutor(

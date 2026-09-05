@@ -114,6 +114,27 @@ describe("D1RestDialect", () => {
 		await db.destroy();
 	});
 
+	it("preserves a structured D1 query error returned with HTTP 400", async () => {
+		const fetch = vi.fn<typeof globalThis.fetch>(async () =>
+			jsonResponse(
+				{
+					success: false,
+					errors: [{ code: 7500, message: "no such table: _emdash_migrations: SQLITE_ERROR" }],
+					messages: [],
+					result: null,
+				},
+				{ status: 400 },
+			),
+		);
+		const db = database(fetch);
+
+		await expect(sql`select name from _emdash_migrations`.execute(db)).rejects.toThrow(
+			"no such table: _emdash_migrations",
+		);
+		expect(fetch).toHaveBeenCalledTimes(1);
+		await db.destroy();
+	});
+
 	it("preserves a top-level Cloudflare API failure", async () => {
 		const fetch = vi.fn<typeof globalThis.fetch>(async () =>
 			jsonResponse({

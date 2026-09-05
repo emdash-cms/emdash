@@ -250,6 +250,14 @@ class D1RestTransport {
 			);
 			if (!response.ok) {
 				if (isWrite && response.status >= 500) throw new D1AmbiguousWriteError();
+				if (response.status === 400) {
+					try {
+						const body = await readBoundedJson(response, this.#config.maxResponseBytes);
+						validateStatementResponse(body, this.#config.token);
+					} catch (error) {
+						if (error instanceof D1DefinitiveResponseError) throw error;
+					}
+				}
 				throw new D1DefinitiveResponseError(
 					`D1 API request failed with HTTP status ${response.status}.`,
 				);
