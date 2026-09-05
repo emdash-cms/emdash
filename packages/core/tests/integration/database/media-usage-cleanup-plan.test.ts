@@ -104,6 +104,42 @@ it("uses an indexed, D1-compatible fixed statement and bind budget", async () =>
 	expect(plan).not.toContain("USE TEMP B-TREE");
 });
 
+it("walks the cleanup scan in index order from a bound cursor", async () => {
+	const createdAt = "2026-02-01T18:00:00.000Z";
+	for (let index = 0; index < 40; index++) {
+		await insertOccurrence(db, {
+			id: `scan-${String(index).padStart(3, "0")}`,
+			sourceKey: `scan-source-${index}`,
+			generation: `scan-generation-${index}`,
+			mediaId: `media-scan-${index}`,
+			createdAt,
+		});
+	}
+	const recorder = new CompiledQueryRecorder(db);
+
+	const candidates = await new MediaUsageRepository(
+		db.withPlugin(recorder),
+	).findMediaUsageCleanupCandidates({
+		cutoff: "2026-02-01T19:00:00.000Z",
+		cursor: { createdAt, id: "scan-019" },
+		limit: 5,
+	});
+
+	expect(candidates?.map((candidate) => candidate.id)).toEqual([
+		"scan-020",
+		"scan-021",
+		"scan-022",
+		"scan-023",
+		"scan-024",
+	]);
+	const scan = recorder.queries.at(-1);
+	if (!scan) throw new Error("the candidate scan issued no statement");
+	const plan = explain({ sql: scan.sql, parameters: scan.parameters });
+	expect(plan).toContain("SEARCH u USING COVERING INDEX idx__emdash_media_usage_cleanup_scan");
+	expect(plan).not.toContain("MULTI-INDEX OR");
+	expect(plan).not.toContain("USE TEMP B-TREE");
+});
+
 it("uses the expiry index without sorting generation write leases", async () => {
 	await db
 		.insertInto("_emdash_media_usage_generation_writes")
@@ -549,10 +585,15 @@ function explain(query: CapturedQuery): string {
 	return rows.map((row) => row.detail).join("\n");
 }
 
-it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async () => {
+it.skipIf(!hasPgTestDatabase).each([
+	{ name: "from the start of the sweep", cursorIndex: null },
+	{ name: "from a bound cursor", cursorIndex: 3_000 },
+])("uses the cleanup scan index in PostgreSQL $name", async ({ cursorIndex }) => {
 	const context = await setupForDialect("postgres");
 	try {
 		const now = new Date();
+		const createdAtFor = (index: number) =>
+			new Date(now.getTime() - (index + 2) * 60_000).toISOString();
 		for (let batchStart = 0; batchStart < 6_000; batchStart += 1_000) {
 			await context.db
 				.insertInto("_emdash_media_usage")
@@ -572,7 +613,7 @@ it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async
 							provider_asset_id: `plan-media-${index}`,
 							media_kind: "image",
 							mime_type: null,
-							created_at: new Date(now.getTime() - (index + 2) * 60_000).toISOString(),
+							created_at: createdAtFor(index),
 						};
 					}),
 				)
@@ -584,7 +625,10 @@ it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async
 		await new MediaUsageRepository(context.db.withPlugin(recorder)).findMediaUsageCleanupCandidates(
 			{
 				cutoff: now.toISOString(),
-				cursor: null,
+				cursor:
+					cursorIndex === null
+						? null
+						: { createdAt: createdAtFor(cursorIndex), id: `plan-${cursorIndex}` },
 				limit: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
 			},
 		);
