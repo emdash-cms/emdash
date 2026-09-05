@@ -16,6 +16,7 @@ import { SectionBlockComponent } from "./blocks/section.js";
 import { StatsBlockComponent } from "./blocks/stats.js";
 import { TabBlockComponent } from "./blocks/tab.js";
 import { TableBlockComponent } from "./blocks/table.js";
+import { TimelineBlockComponent } from "./blocks/timeline.js";
 import type { Block, BlockInteraction } from "./types.js";
 
 function renderBlock(
@@ -59,6 +60,8 @@ function renderBlock(
 			return <EmptyBlockComponent block={block} onAction={onAction} />;
 		case "accordion":
 			return <AccordionBlockComponent block={block} onAction={onAction} />;
+		case "timeline":
+			return <TimelineBlockComponent block={block} onAction={onAction} />;
 		default: {
 			const _exhaustive: never = block;
 			return null;
