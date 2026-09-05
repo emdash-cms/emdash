@@ -26,6 +26,33 @@ export class StorageQueryError extends Error {
 }
 
 /**
+ * Error thrown when a guarded `updateIf` loses a concurrent race under an
+ * isolation level stricter than READ COMMITTED.
+ *
+ * `updateIf`'s `{ applied: false }` contract (row absent OR guard failed)
+ * assumes READ COMMITTED — the default. There, a losing concurrent writer
+ * re-evaluates the guard against the winner's freshly committed row and
+ * cleanly resolves to `{ applied: false }`. Under REPEATABLE READ /
+ * SERIALIZABLE the loser cannot re-read against a newer snapshot, so it aborts
+ * with SQLSTATE `40001` (serialization_failure) or `40P01` (deadlock_detected)
+ * instead. This error surfaces that abort so the caller can retry the write
+ * (or run it at READ COMMITTED).
+ *
+ * The no-oversell SAFETY invariant holds either way: a losing writer NEVER
+ * applies its update — it either sees `{ applied: false }` or throws here.
+ */
+export class StorageSerializationError extends Error {
+	/** The Postgres SQLSTATE that triggered this error (`40001` / `40P01`). */
+	readonly sqlState?: string;
+
+	constructor(message: string, options?: { cause?: unknown; sqlState?: string }) {
+		super(message, { cause: options?.cause });
+		this.name = "StorageSerializationError";
+		this.sqlState = options?.sqlState;
+	}
+}
+
+/**
  * Check if a value is a range filter
  */
 export function isRangeFilter(value: WhereValue): value is RangeFilter {
