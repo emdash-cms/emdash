@@ -113,6 +113,25 @@ describe("core media route injection", () => {
 		expect(folder).toBeLessThan(mediaItem);
 	});
 
+	it("injects the maintenance bridge only when Cloudflare dev requests it", () => {
+		const defaultRoutes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => defaultRoutes.push(route));
+		expect(defaultRoutes).not.toContainEqual(
+			expect.objectContaining({ pattern: "/_emdash/api/dev/scheduled-tasks" }),
+		);
+
+		const cloudflareDevRoutes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => cloudflareDevRoutes.push(route), {
+			cloudflareDevScheduler: true,
+		});
+		expect(cloudflareDevRoutes).toContainEqual(
+			expect.objectContaining({
+				pattern: "/_emdash/api/dev/scheduled-tasks",
+				entrypoint: expect.stringContaining("api/dev/scheduled-tasks"),
+			}),
+		);
+	});
+
 	it("injects default root SEO routes when the site does not define them", () => {
 		const routes = collectRoutePatterns();
 

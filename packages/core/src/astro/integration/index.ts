@@ -29,6 +29,7 @@ import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { VERSION } from "../../version.js";
 import { local } from "../storage/adapters.js";
+import { startCloudflareDevScheduler } from "./cloudflare-dev-scheduler.js";
 import { notoSans } from "./font-provider.js";
 import {
 	injectCoreRoutes,
@@ -452,6 +453,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	// Captured in astro:config:setup so the astro:server:setup hook can tell
 	// whether we're running `astro dev` (where the dev-bypass shortcut applies).
 	let astroCommand: "dev" | "build" | "preview" | "sync" | undefined;
+	let usesCloudflareAdapter = false;
 	let normalizedI18n: ReturnType<typeof normalizeAstroI18n> = null;
 	const migrationMetadata = createMigrationIntegrationMetadata(resolvedConfig.database);
 
@@ -467,6 +469,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				astroCommand = command;
+				usesCloudflareAdapter = astroConfig.adapter?.name === "@astrojs/cloudflare";
 				printBanner(logger);
 				// Capture the host's Astro version so the runtime can expose it
 				// to the admin and the registry install gate for `env:astro`
@@ -582,7 +585,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				});
 
 				// Inject all core routes
-				injectCoreRoutes(injectRoute, { srcDir: astroConfig.srcDir });
+				injectCoreRoutes(injectRoute, {
+					srcDir: astroConfig.srcDir,
+					cloudflareDevScheduler: command === "dev" && usesCloudflareAdapter,
+				});
 
 				// Inject routes from pluggable auth providers (authProviders config)
 				if (resolvedConfig.authProviders?.length) {
@@ -634,6 +640,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				await writeMigrationManifest(fileURLToPath(finalConfig.root), manifest);
 			},
 			"astro:server:setup": ({ server, logger }) => {
+				if (astroCommand === "dev" && usesCloudflareAdapter) {
+					startCloudflareDevScheduler(server, logger);
+				}
+
 				// Print route info with absolute, clickable URLs once the server
 				// is listening. Only in `astro dev` -- the dev-bypass shortcut is
 				// dev-only and the port is unknown until now.
