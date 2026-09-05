@@ -80,7 +80,7 @@ export default {
 
 		"content:beforeSave": {
 			handler: async (event, ctx) => {
-				const contentId = stringifyId(event.content.id);
+				const contentId = stringifyId(event.id ?? event.content.id);
 				if (!event.isNew && contentId) {
 					try {
 						if (ctx.content) {

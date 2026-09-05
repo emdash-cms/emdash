@@ -166,7 +166,7 @@ Do not put HTML in `reason`. The admin renders the value as text.
 
 From the host process, throw `ContentSaveRejectedError` (exported from `emdash`) instead. The API returns `SAVE_REJECTED` with your message. Any other exception from either execution mode fails the save with a generic `CONTENT_HOOK_ERROR` response.
 
-**Event:** `{ content, collection, isNew }` — **Returns:** modified content, a sandbox hook error result, or `void`.
+**Event:** `{ content, collection, isNew, id }` — **Returns:** modified content, a sandbox hook error result, or `void`. On an update, `id` is the ID of the existing item and `content` holds only the submitted field values; load the stored item with `ctx.content.get(event.collection, event.id)`.
 
 ### `content:afterSave`
 
