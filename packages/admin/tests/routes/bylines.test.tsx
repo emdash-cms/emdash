@@ -2,13 +2,11 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import { fetchBylines } from "../../src/lib/api";
+import { fetchManifest } from "../../src/lib/api/client.js";
 import { BylinesPage } from "../../src/routes/bylines";
 import { render } from "../utils/render.tsx";
 import { QueryWrapper } from "../utils/test-helpers.tsx";
 
-// The bylines page reads the active locale from the URL and navigates on
-// locale switches; neither matters for the search-debounce behaviour, so we
-// stub the router hooks to a single-locale, no-op shape.
 vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
@@ -44,10 +42,59 @@ function searchArgs(): (string | undefined)[] {
 	return fetchBylinesMock.mock.calls.map((call) => call[0]?.search);
 }
 
-describe("BylinesPage search", () => {
+describe("BylinesPage", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		fetchBylinesMock.mockResolvedValue({ items: [], nextCursor: undefined });
+	});
+
+	it("preserves unsaved edits when the active locale is selected again", async () => {
+		vi.mocked(fetchManifest).mockResolvedValueOnce({
+			version: "1.0.0",
+			hash: "test-manifest",
+			authMode: "passkey",
+			collections: {},
+			plugins: {},
+			taxonomies: [],
+			i18n: { defaultLocale: "en", locales: ["en", "fr"] },
+		});
+		fetchBylinesMock.mockResolvedValue({
+			items: [
+				{
+					id: "byline-1",
+					slug: "alice",
+					displayName: "Alice Example",
+					bio: null,
+					avatarMediaId: null,
+					websiteUrl: null,
+					userId: null,
+					isGuest: true,
+					createdAt: "2026-01-01T00:00:00Z",
+					updatedAt: "2026-01-01T00:00:00Z",
+					locale: "en",
+					translationGroup: "group-1",
+				},
+			],
+		});
+		const screen = await render(
+			<QueryWrapper>
+				<BylinesPage />
+			</QueryWrapper>,
+		);
+		await screen.getByRole("button", { name: "Alice Example alice" }).click();
+		const displayName = screen.getByRole("textbox", { name: "Display name", exact: true });
+		await expect.element(displayName).toHaveValue("Alice Example");
+		await displayName.fill("Unsaved display name");
+
+		await screen.getByRole("combobox", { name: "Locale", exact: true }).click();
+		await screen.getByRole("option", { name: "EN (default)", exact: true }).click();
+
+		await expect.element(screen.getByRole("listbox")).not.toBeInTheDocument();
+		await expect.element(displayName).toHaveValue("Unsaved display name");
+		await expect.element(screen.getByRole("heading", { name: "Edit Alice Example" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("textbox", { name: "Slug", exact: true }))
+			.toHaveValue("alice");
 	});
 
 	it("debounces rapid typing into a single refetch and keeps the input mounted", async () => {
