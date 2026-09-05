@@ -1,0 +1,159 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.package.profile",
+	"description": "Plugin package profile record. The atproto-record form of FAIR's Metadata Document. EXPERIMENTAL: this NSID is part of the experimental phase of the EmDash plugin registry. The shape is expected to migrate to either pm.fair.package.profile (if FAIR adopts it) or com.emdashcms.package.profile once stable.",
+	"defs": {
+		"main": {
+			"type": "record",
+			"description": "A plugin package profile, identifying the package and carrying metadata that does not change between releases. Each release belongs to exactly one profile in the same publisher's repo. The record key is the package slug.",
+			"key": "any",
+			"record": {
+				"type": "object",
+				"required": ["id", "type", "license", "authors", "security"],
+				"properties": {
+					"id": {
+						"type": "string",
+						"format": "at-uri",
+						"description": "Canonical AT URI of this profile record. Derived from the record's location at publish time; not authored by the publisher. Aggregators MUST reject records whose id does not match the AT URI they were fetched from. Mirrors FAIR's id-must-match-the-resolved-identifier rule."
+					},
+					"type": {
+						"type": "string",
+						"description": "Package type from FAIR's type registry. EmDash plugins use 'emdash-plugin'. Custom types use the 'x-' prefix.",
+						"knownValues": ["emdash-plugin"],
+						"maxLength": 64
+					},
+					"license": {
+						"type": "string",
+						"description": "SPDX license expression, or the literal 'proprietary'. Clients SHOULD refuse to install packages without a valid license.",
+						"maxLength": 256
+					},
+					"authors": {
+						"type": "array",
+						"description": "At least one author. Vendors SHOULD specify at least one of url or email per author.",
+						"minLength": 1,
+						"maxLength": 32,
+						"items": {
+							"type": "ref",
+							"ref": "#author"
+						}
+					},
+					"security": {
+						"type": "array",
+						"description": "At least one security contact. Vendors SHOULD specify at least one of url or email per contact. Clients SHOULD refuse to install packages without at least one valid security contact.",
+						"minLength": 1,
+						"maxLength": 8,
+						"items": {
+							"type": "ref",
+							"ref": "#contact"
+						}
+					},
+					"slug": {
+						"type": "string",
+						"description": "URL-safe slug. ASCII letter followed by ASCII letters, digits, '-', or '_'. If present, MUST equal the record key. If absent, clients use the rkey as the display slug. Aggregators MUST reject records where slug is present and disagrees with the rkey.",
+						"minLength": 1,
+						"maxLength": 64
+					},
+					"name": {
+						"type": "string",
+						"description": "Human-readable name for the package, displayed in directory listings.",
+						"maxLength": 1024,
+						"maxGraphemes": 100
+					},
+					"description": {
+						"type": "string",
+						"description": "Short description of the package. SHOULD NOT exceed 140 characters per FAIR convention.",
+						"maxLength": 1024,
+						"maxGraphemes": 140
+					},
+					"keywords": {
+						"type": "array",
+						"description": "Search keywords. SHOULD NOT exceed 5 items per FAIR convention.",
+						"maxLength": 5,
+						"items": {
+							"type": "string",
+							"maxLength": 128,
+							"maxGraphemes": 64
+						}
+					},
+					"sections": {
+						"type": "ref",
+						"ref": "#sections",
+						"description": "Map of human-readable text sections (description, installation, faq, changelog, security). CommonMark Markdown. Each value capped at 20000 bytes / 2000 graphemes."
+					},
+					"lastUpdated": {
+						"type": "string",
+						"format": "datetime",
+						"description": "ISO 8601 datetime for the package's last update."
+					}
+				}
+			}
+		},
+		"author": {
+			"type": "object",
+			"description": "FAIR Metadata Document authors[] item. Authors SHOULD include at least one of url or email so users can identify the publisher behind the package; clients render absent contact information as 'unknown'.",
+			"required": ["name"],
+			"properties": {
+				"name": {
+					"type": "string",
+					"maxLength": 256,
+					"maxGraphemes": 64
+				},
+				"url": {
+					"type": "string",
+					"format": "uri",
+					"maxLength": 1024
+				},
+				"email": {
+					"type": "string",
+					"maxLength": 256
+				}
+			}
+		},
+		"contact": {
+			"type": "object",
+			"description": "FAIR Metadata Document security[] item. At least one of url or email MUST be present; Lexicon cannot express required-one-of, so aggregators MUST validate this and reject records carrying a contact with neither field.",
+			"properties": {
+				"url": {
+					"type": "string",
+					"format": "uri",
+					"maxLength": 1024
+				},
+				"email": {
+					"type": "string",
+					"maxLength": 256
+				}
+			}
+		},
+		"sections": {
+			"type": "object",
+			"description": "Free-form map keyed by section name (FAIR-recognised: description, installation, faq, changelog, security). Each value is CommonMark Markdown capped at 20000 bytes / 2000 graphemes. Clients sanitise rendered output. Lexicon cannot type arbitrary keys; unrecognised sections pass through verbatim and renderers display them with the section key as heading.",
+			"properties": {
+				"description": {
+					"type": "string",
+					"maxLength": 20000,
+					"maxGraphemes": 2000
+				},
+				"installation": {
+					"type": "string",
+					"maxLength": 20000,
+					"maxGraphemes": 2000
+				},
+				"faq": {
+					"type": "string",
+					"maxLength": 20000,
+					"maxGraphemes": 2000
+				},
+				"changelog": {
+					"type": "string",
+					"maxLength": 20000,
+					"maxGraphemes": 2000
+				},
+				"security": {
+					"type": "string",
+					"maxLength": 20000,
+					"maxGraphemes": 2000
+				}
+			}
+		}
+	}
+}
