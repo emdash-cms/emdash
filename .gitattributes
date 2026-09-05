@@ -1,0 +1,5 @@
+# The committed JSON Schema is compared byte-for-byte against a freshly
+# generated string (packages/plugin-cli schema-drift). The generated side is
+# always LF, so a CRLF checkout makes that comparison fail with no difference
+# in content.
+*.json text eol=lf

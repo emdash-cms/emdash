@@ -8,8 +8,9 @@
  *
  *     "$schema": "./node_modules/@emdash-cms/plugin-cli/schemas/emdash-plugin.schema.json"
  *
- * Drift between the Zod schema and the committed JSON Schema is caught
- * by the snapshot test in `tests/schema.test.ts`.
+ * Drift between the Zod schema and the committed JSON Schema is caught by
+ * `tests/schema-drift.test.ts`, which compares the committed file against a
+ * freshly generated one byte for byte.
  *
  * Why a separate script rather than emitting on build:
  *
