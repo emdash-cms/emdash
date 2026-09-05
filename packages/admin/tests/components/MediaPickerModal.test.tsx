@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MediaPickerModal } from "../../src/components/MediaPickerModal";
 import { render } from "../utils/render.tsx";
@@ -12,7 +12,7 @@ import { render } from "../utils/render.tsx";
 // Anchored to the button's exact accessible name. Without anchors this also
 // matches the hidden file `<input aria-label="Upload file">` and trips
 // playwright's strict-mode "resolved to N elements" guard.
-const UPLOAD_BUTTON_REGEX = /^Upload$/;
+const UPLOAD_BUTTON_REGEX = /^Upload files$/;
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -43,7 +43,12 @@ vi.mock("../../src/lib/api", async () => {
 					createdAt: "2024-01-02",
 				},
 			],
+			totalCount: 2,
 		}),
+		fetchMediaFolders: vi.fn().mockResolvedValue({
+			items: [{ id: "folder-1", name: "Photography" }],
+		}),
+		fetchMediaFolder: vi.fn().mockResolvedValue({ id: "folder-1", name: "Photography" }),
 		fetchMediaProviders: vi.fn().mockResolvedValue([]),
 		fetchProviderMedia: vi.fn().mockResolvedValue({ items: [] }),
 		uploadMedia: vi.fn().mockResolvedValue({ id: "m3", filename: "new.jpg" }),
@@ -73,20 +78,25 @@ function renderModal(props: Partial<React.ComponentProps<typeof MediaPickerModal
 	);
 }
 
+async function openUrlSource(screen: Awaited<ReturnType<typeof renderModal>>) {
+	screen.getByRole("tab", { name: "From URL" }).element().click();
+}
+
 describe("MediaPickerModal", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
+	afterEach(() => vi.unstubAllGlobals());
 
 	describe("displaying items", () => {
 		it("shows media items when open", async () => {
 			const screen = await renderModal({ open: true });
-			await expect.element(screen.getByRole("option", { name: "photo.jpg" })).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "photo.jpg" })).toBeInTheDocument();
 			await expect
-				.element(screen.getByRole("option", { name: "landscape.png" }))
+				.element(screen.getByRole("button", { name: "landscape.png" }))
 				.toBeInTheDocument();
 			const image = screen
-				.getByRole("option", { name: "photo.jpg" })
+				.getByRole("button", { name: "photo.jpg" })
 				.element()
 				.querySelector("img");
 			expect(image?.style.objectPosition).toBe("20% 80%");
@@ -101,69 +111,52 @@ describe("MediaPickerModal", () => {
 	describe("selection", () => {
 		it("single click selects item (highlighted)", async () => {
 			const screen = await renderModal();
-			const option = screen.getByRole("option", { name: "photo.jpg" });
-			await expect.element(option).toBeInTheDocument();
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeInTheDocument();
+			item.element().click();
 
-			// Direct DOM click to bypass inert overlay
-			const btn = option.element().querySelector("button")!;
-			btn.click();
-
-			// Should show selected state via aria-selected
-			await expect.element(option).toHaveAttribute("aria-selected", "true");
-			// Footer should show selected filename in a <strong> tag
-			await expect.element(screen.getByRole("strong")).toBeInTheDocument();
+			await expect.element(item).toHaveAttribute("aria-pressed", "true");
 		});
 
-		it("double click selects and calls onSelect", async () => {
+		it("keeps the footer free of redundant selection copy", async () => {
+			const screen = await renderModal();
+			expect(document.body.textContent).not.toContain("No media selected");
+
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeInTheDocument();
+			item.element().click();
+
+			expect(document.body.textContent).not.toContain("Selected: photo.jpg");
+		});
+
+		it("double click does not bypass confirmation", async () => {
 			const onSelect = vi.fn();
 			const screen = await renderModal({ onSelect });
 
-			const option = screen.getByRole("option", { name: "photo.jpg" });
-			await expect.element(option).toBeInTheDocument();
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeInTheDocument();
+			item.element().dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 1 }));
+			item.element().dispatchEvent(new MouseEvent("click", { bubbles: true, detail: 2 }));
+			item.element().dispatchEvent(new MouseEvent("dblclick", { bubbles: true, detail: 2 }));
 
-			// Use direct DOM dblclick to bypass inert overlay
-			const btn = option.element().querySelector("button")!;
-			btn.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
-
-			expect(onSelect).toHaveBeenCalledWith(
-				expect.objectContaining({ id: "m1", filename: "photo.jpg" }),
-			);
+			expect(onSelect).not.toHaveBeenCalled();
+			await expect.element(item).toHaveAttribute("aria-pressed", "true");
 		});
 
-		it("Insert button disabled when nothing selected", async () => {
-			await renderModal();
-			// There are two Insert buttons — URL section and footer.
-			// The footer Insert is the last one and should be disabled.
-			await vi.waitFor(() => {
-				const allInsertBtns = document.querySelectorAll("button");
-				const insertBtns = [...allInsertBtns].filter((b) => b.textContent?.trim() === "Insert");
-				// The footer Insert (last one) should be disabled
-				const lastInsert = insertBtns.at(-1);
-				expect(lastInsert?.disabled).toBe(true);
-			});
+		it("Select button is disabled when nothing is selected", async () => {
+			const screen = await renderModal();
+			await expect.element(screen.getByRole("button", { name: "Select" })).toBeDisabled();
 		});
 
-		it("Insert button enabled when item selected, calls onSelect", async () => {
+		it("Select button confirms the selected item", async () => {
 			const onSelect = vi.fn();
 			const screen = await renderModal({ onSelect });
 
-			// Select an item via direct DOM click
-			const option = screen.getByRole("option", { name: "photo.jpg" });
-			await expect.element(option).toBeInTheDocument();
-			const itemBtn = option.element().querySelector("button")!;
-			itemBtn.click();
-
-			// Wait for selection to register
-			await expect.element(option).toHaveAttribute("aria-selected", "true");
-
-			// Click the footer Insert button (last Insert button)
-			await vi.waitFor(() => {
-				const allInsertBtns = document.querySelectorAll("button");
-				const insertBtns = [...allInsertBtns].filter((b) => b.textContent?.trim() === "Insert");
-				const lastInsert = insertBtns.at(-1)!;
-				expect(lastInsert.disabled).toBe(false);
-				lastInsert.click();
-			});
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeInTheDocument();
+			item.element().click();
+			await expect.element(item).toHaveAttribute("aria-pressed", "true");
+			screen.getByRole("button", { name: "Select" }).element().click();
 
 			expect(onSelect).toHaveBeenCalledWith(
 				expect.objectContaining({ id: "m1", filename: "photo.jpg" }),
@@ -174,8 +167,8 @@ describe("MediaPickerModal", () => {
 	describe("URL input", () => {
 		it("invalid URL shows error", async () => {
 			const screen = await renderModal();
+			await openUrlSource(screen);
 
-			// The URL input has aria-label "Image URL"
 			const urlInput = screen.getByLabelText("Image URL");
 			await expect.element(urlInput).toBeInTheDocument();
 
@@ -190,14 +183,7 @@ describe("MediaPickerModal", () => {
 			inputEl.dispatchEvent(new Event("input", { bubbles: true }));
 			inputEl.dispatchEvent(new Event("change", { bubbles: true }));
 
-			// Click the URL Insert button (first Insert button)
-			await vi.waitFor(() => {
-				const urlInsert = [...document.querySelectorAll("button")].find(
-					(b) => b.textContent?.trim() === "Insert",
-				)!;
-				expect(urlInsert.disabled).toBe(false);
-				urlInsert.click();
-			});
+			screen.getByRole("button", { name: "Use URL" }).element().click();
 
 			await expect.element(screen.getByText("Please enter a valid URL")).toBeInTheDocument();
 		});
@@ -205,6 +191,7 @@ describe("MediaPickerModal", () => {
 		it("URL input: typing a URL and submitting triggers probe", async () => {
 			const onSelect = vi.fn();
 			const screen = await renderModal({ onSelect });
+			await openUrlSource(screen);
 
 			const urlInput = screen.getByLabelText("Image URL");
 			const inputEl = urlInput.element() as HTMLInputElement;
@@ -216,13 +203,7 @@ describe("MediaPickerModal", () => {
 			inputEl.dispatchEvent(new Event("input", { bubbles: true }));
 			inputEl.dispatchEvent(new Event("change", { bubbles: true }));
 
-			// Click URL Insert button
-			await vi.waitFor(() => {
-				const urlInsert = [...document.querySelectorAll("button")].find(
-					(b) => b.textContent?.trim() === "Insert",
-				)!;
-				urlInsert.click();
-			});
+			screen.getByRole("button", { name: "Use URL" }).element().click();
 
 			// Image probe will fail in test env, so either onSelect called or error shown
 			await vi.waitFor(
@@ -240,7 +221,7 @@ describe("MediaPickerModal", () => {
 			const screen = await renderModal({ hideUrlInput: true });
 
 			// "Insert from URL" label should not appear when hidden
-			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			await expect.element(screen.getByText("Select image")).toBeInTheDocument();
 			expect(document.body.textContent).not.toContain("Insert from URL");
 			expect(document.body.textContent).not.toContain("or choose from library");
 
@@ -255,7 +236,7 @@ describe("MediaPickerModal", () => {
 			// an external URL would return an item the server cannot resolve later.
 			const screen = await renderModal({ localOnly: true });
 
-			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			await expect.element(screen.getByText("Select image")).toBeInTheDocument();
 			expect(document.body.textContent).not.toContain("Insert from URL");
 
 			const urlInput = document.querySelector('input[aria-label="Image URL"]');
@@ -296,7 +277,7 @@ describe("MediaPickerModal", () => {
 
 			const screen = await renderModal({ localOnly: true });
 
-			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			await expect.element(screen.getByText("Select image")).toBeInTheDocument();
 			// External providers must not be reachable through any tab when
 			// localOnly is set, even if the API would report them.
 			expect(document.body.textContent).not.toContain("Cloudflare Images");
@@ -316,15 +297,14 @@ describe("MediaPickerModal", () => {
 
 			const screen = await renderModal({ mediaKind: "file", hideUrlInput: true });
 
-			// Default title should be "Select File", not "Select Image"
-			await expect.element(screen.getByText("Select File")).toBeInTheDocument();
-			expect(document.body.textContent).not.toContain("Select Image");
+			await expect.element(screen.getByText("Select file")).toBeInTheDocument();
+			expect(document.body.textContent).not.toContain("Select image");
 
-			// Empty-state hint and CTA should reference files, not images
 			await expect.element(screen.getByText("Upload a file to get started")).toBeInTheDocument();
-			await expect.element(screen.getByText("Upload File")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: UPLOAD_BUTTON_REGEX }))
+				.toBeInTheDocument();
 			expect(document.body.textContent).not.toContain("Upload an image to get started");
-			expect(document.body.textContent).not.toContain("Upload Image");
 		});
 
 		it("defaults to image-specific copy when mediaKind is unset", async () => {
@@ -333,7 +313,7 @@ describe("MediaPickerModal", () => {
 
 			const screen = await renderModal();
 
-			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			await expect.element(screen.getByText("Select image")).toBeInTheDocument();
 			await expect.element(screen.getByText("Upload an image to get started")).toBeInTheDocument();
 		});
 	});
@@ -343,7 +323,7 @@ describe("MediaPickerModal", () => {
 			const onOpenChange = vi.fn();
 			const screen = await renderModal({ onOpenChange });
 
-			await expect.element(screen.getByText("Select Image")).toBeInTheDocument();
+			await expect.element(screen.getByText("Select image")).toBeInTheDocument();
 			// Direct DOM click to bypass inert overlay
 			const cancelEl = screen.getByText("Cancel").element();
 			const cancelBtn = cancelEl.closest("button")!;
@@ -360,13 +340,11 @@ describe("MediaPickerModal", () => {
 			const screen = await renderModal({ open: true, onSelect, onOpenChange });
 
 			// Select an item
-			const option = screen.getByRole("option", { name: "photo.jpg" });
-			await expect.element(option).toBeInTheDocument();
-			const btn = option.element().querySelector("button")!;
-			btn.click();
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeInTheDocument();
+			item.element().click();
 
-			// Verify selection
-			await expect.element(option).toHaveAttribute("aria-selected", "true");
+			await expect.element(item).toHaveAttribute("aria-pressed", "true");
 
 			// Close modal
 			await screen.rerender(
@@ -382,13 +360,7 @@ describe("MediaPickerModal", () => {
 				</QueryWrapper>,
 			);
 
-			// Footer Insert should be disabled (no selection after reset)
-			await vi.waitFor(() => {
-				const allInsertBtns = document.querySelectorAll("button");
-				const insertBtns = [...allInsertBtns].filter((b) => b.textContent?.trim() === "Insert");
-				const lastInsert = insertBtns.at(-1);
-				expect(lastInsert?.disabled).toBe(true);
-			});
+			await expect.element(screen.getByRole("button", { name: "Select" })).toBeDisabled();
 		});
 	});
 
@@ -398,52 +370,14 @@ describe("MediaPickerModal", () => {
 			await expect
 				.element(screen.getByRole("button", { name: UPLOAD_BUTTON_REGEX }))
 				.toBeInTheDocument();
-			await expect.element(screen.getByLabelText("Upload file")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Choose files to upload")).toBeInTheDocument();
 		});
 	});
 
-	describe("load more pagination", () => {
-		it("renders Load More button when first page returns nextCursor", async () => {
-			const api = await import("../../src/lib/api");
-			(api.fetchMediaList as any).mockResolvedValueOnce({
-				items: [
-					{
-						id: "p1",
-						filename: "page1.jpg",
-						mimeType: "image/jpeg",
-						url: "/media/page1.jpg",
-						size: 1024,
-						width: 800,
-						height: 600,
-						createdAt: "2024-01-01",
-					},
-				],
-				nextCursor: "cursor-2",
-			});
-
-			const screen = await renderModal();
-			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
-			await expect.element(screen.getByRole("button", { name: "Load More" })).toBeInTheDocument();
-		});
-
-		it("does not render Load More button when no nextCursor", async () => {
-			const screen = await renderModal();
-			// Default mock returns 2 items with no nextCursor → button should be absent
-			await expect.element(screen.getByRole("option", { name: "photo.jpg" })).toBeInTheDocument();
-			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
-		});
-
-		it("keeps already-loaded items visible while fetching the next page", async () => {
-			// Reproduces the Copilot review concern: when the next-page fetch is
-			// in flight, the picker grid must not blank out into a centered
-			// loader — the user's prior selection / scroll context would be lost.
+	describe("library browsing", () => {
+		it("uses fixed twelve-item pages without a page-size control", async () => {
 			const api = await import("../../src/lib/api");
 			const mock = api.fetchMediaList as any;
-			mock.mockReset();
-			let resolveSecond: (value: unknown) => void = () => {};
-			const secondPagePromise = new Promise((resolve) => {
-				resolveSecond = resolve;
-			});
 			mock
 				.mockResolvedValueOnce({
 					items: [
@@ -458,44 +392,7 @@ describe("MediaPickerModal", () => {
 							createdAt: "2024-01-01",
 						},
 					],
-					nextCursor: "cursor-2",
-				})
-				.mockReturnValueOnce(secondPagePromise);
-
-			const screen = await renderModal();
-			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
-
-			const loadMoreBtn = [...document.querySelectorAll("button")].find(
-				(b) => b.textContent?.trim() === "Load More",
-			)!;
-			loadMoreBtn.click();
-
-			// While the second page is still pending, the first-page item must
-			// stay in the DOM (not be replaced by a centered loader).
-			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
-
-			resolveSecond({ items: [] });
-		});
-
-		it("Load More click fetches the next page with the previous cursor", async () => {
-			const api = await import("../../src/lib/api");
-			const mock = api.fetchMediaList as any;
-			mock.mockReset();
-			mock
-				.mockResolvedValueOnce({
-					items: [
-						{
-							id: "p1",
-							filename: "page1.jpg",
-							mimeType: "image/jpeg",
-							url: "/media/page1.jpg",
-							size: 1024,
-							width: 800,
-							height: 600,
-							createdAt: "2024-01-01",
-						},
-					],
-					nextCursor: "cursor-2",
+					totalCount: 36,
 				})
 				.mockResolvedValueOnce({
 					items: [
@@ -510,24 +407,323 @@ describe("MediaPickerModal", () => {
 							createdAt: "2024-01-02",
 						},
 					],
+					totalCount: 36,
 				});
 
 			const screen = await renderModal();
-			await expect.element(screen.getByRole("option", { name: "page1.jpg" })).toBeInTheDocument();
-
-			// Direct DOM click to bypass the dialog's inert overlay
-			const loadMoreBtn = [...document.querySelectorAll("button")].find(
-				(b) => b.textContent?.trim() === "Load More",
-			)!;
-			loadMoreBtn.click();
-
-			await expect.element(screen.getByRole("option", { name: "page2.jpg" })).toBeInTheDocument();
-
-			// Second call should have been made with the previous response's cursor.
+			await expect.element(screen.getByRole("button", { name: "page1.jpg" })).toBeInTheDocument();
+			expect(screen.getByRole("combobox", { name: "Page size" }).query()).toBeNull();
+			await expect
+				.element(screen.getByRole("textbox", { name: "Page number" }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("combobox", { name: "Page number" }).query()).toBeNull();
+			screen.getByRole("button", { name: "Next page" }).element().click();
+			await expect.element(screen.getByRole("button", { name: "page2.jpg" })).toBeInTheDocument();
 			expect(mock).toHaveBeenCalledTimes(2);
-			expect(mock.mock.calls[1][0]).toEqual(
-				expect.objectContaining({ cursor: "cursor-2", limit: 100 }),
+			expect(mock.mock.calls[1][0]).toEqual(expect.objectContaining({ page: 2, limit: 12 }));
+		});
+
+		it("opens a folder and filters the media query", async () => {
+			const api = await import("../../src/lib/api");
+			const screen = await renderModal();
+
+			await expect
+				.element(screen.getByRole("button", { name: "Open folder Photography" }))
+				.toBeInTheDocument();
+			screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+
+			await vi.waitFor(() => {
+				expect(api.fetchMediaList).toHaveBeenLastCalledWith(
+					expect.objectContaining({ folderId: "folder-1", page: 1, limit: 12 }),
+				);
+			});
+		});
+
+		it("keeps uploads in the main library by hiding upload inside a folder", async () => {
+			const screen = await renderModal();
+			await expect
+				.element(screen.getByRole("button", { name: "Open folder Photography" }))
+				.toBeInTheDocument();
+			screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+
+			await expect.element(screen.getByText("Photography", { exact: true })).toBeInTheDocument();
+			expect(screen.getByRole("button", { name: UPLOAD_BUTTON_REGEX }).query()).toBeNull();
+		});
+
+		it("offers grid and list views", async () => {
+			const screen = await renderModal();
+
+			await expect.element(screen.getByRole("tab", { name: "Grid view" })).toBeInTheDocument();
+			screen.getByRole("tab", { name: "List view" }).element().click();
+			await expect
+				.element(screen.getByRole("button", { name: "photo.jpg" }))
+				.toHaveAttribute("data-media-layout", "list");
+		});
+
+		it("keeps detected image dimensions when selecting from list view", async () => {
+			const api = await import("../../src/lib/api");
+			(api.fetchMediaList as any).mockResolvedValueOnce({
+				items: [
+					{
+						id: "missing-size",
+						filename: "missing-size.jpg",
+						mimeType: "image/jpeg",
+						url: "/media/missing-size.jpg",
+						size: 1024,
+						createdAt: "2024-01-01",
+					},
+				],
+				totalCount: 1,
+			});
+			const onSelect = vi.fn();
+			const screen = await renderModal({ onSelect });
+			screen.getByRole("tab", { name: "List view" }).element().click();
+			const item = screen.getByRole("button", { name: "missing-size.jpg" });
+			await expect.element(item).toHaveAttribute("data-media-layout", "list");
+			const image = item.element().querySelector("img")!;
+			Object.defineProperties(image, {
+				naturalWidth: { configurable: true, value: 1280 },
+				naturalHeight: { configurable: true, value: 720 },
+			});
+			image.dispatchEvent(new Event("load", { bubbles: true }));
+			await vi.waitFor(() => {
+				expect(api.updateMedia).toHaveBeenCalledWith("missing-size", {
+					width: 1280,
+					height: 720,
+				});
+			});
+
+			item.element().click();
+			await expect.element(item).toHaveAttribute("aria-pressed", "true");
+			screen.getByRole("button", { name: "Select" }).element().click();
+			expect(onSelect).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "missing-size", width: 1280, height: 720 }),
 			);
+		});
+
+		it("shows direct URLs as a source", async () => {
+			const screen = await renderModal();
+
+			await expect.element(screen.getByRole("tab", { name: "From URL" })).toBeInTheDocument();
+			screen.getByRole("tab", { name: "From URL" }).element().click();
+			await expect.element(screen.getByLabelText("Image URL")).toBeInTheDocument();
+		});
+
+		it("combines the caller allowlist with the selected type", async () => {
+			const api = await import("../../src/lib/api");
+			const screen = await renderModal({ mimeTypeFilters: [] });
+
+			screen.getByRole("combobox", { name: "Filter by type" }).element().click();
+			await expect.element(screen.getByRole("option", { name: "Video" })).toBeInTheDocument();
+			screen.getByRole("option", { name: "Video" }).element().click();
+
+			await vi.waitFor(() => {
+				expect(api.fetchMediaList).toHaveBeenLastCalledWith(
+					expect.objectContaining({ mimeType: ["video/"], page: 1 }),
+				);
+			});
+		});
+
+		it("selects a direct URL only after confirmation", async () => {
+			class LoadedImage {
+				naturalWidth = 640;
+				naturalHeight = 480;
+				onload: (() => void) | null = null;
+				onerror: (() => void) | null = null;
+				set src(_value: string) {
+					queueMicrotask(() => this.onload?.());
+				}
+			}
+			vi.stubGlobal("Image", LoadedImage);
+			const onSelect = vi.fn();
+			const screen = await renderModal({ onSelect });
+			await openUrlSource(screen);
+			const input = screen.getByLabelText("Image URL").element() as HTMLInputElement;
+			const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+			setValue.call(input, "https://example.com/cover.png");
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+			input.dispatchEvent(new Event("change", { bubbles: true }));
+			screen.getByRole("button", { name: "Use URL" }).element().click();
+
+			await expect
+				.element(screen.getByRole("button", { name: "cover.png" }))
+				.toHaveAttribute("aria-pressed", "true");
+			expect(onSelect).not.toHaveBeenCalled();
+			screen.getByRole("button", { name: "Select" }).element().click();
+
+			expect(onSelect).toHaveBeenCalledWith(
+				expect.objectContaining({
+					url: "https://example.com/cover.png",
+					provider: "external",
+					width: 640,
+					height: 480,
+				}),
+			);
+		});
+
+		it("keeps the previous page visible but inert while the next page loads", async () => {
+			const api = await import("../../src/lib/api");
+			let resolveNextPage!: (value: {
+				items: Array<Record<string, unknown>>;
+				totalCount: number;
+			}) => void;
+			const nextPage = new Promise<{
+				items: Array<Record<string, unknown>>;
+				totalCount: number;
+			}>((resolve) => {
+				resolveNextPage = resolve;
+			});
+			(api.fetchMediaList as any)
+				.mockResolvedValueOnce({
+					items: [
+						{
+							id: "p1",
+							filename: "page1.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/page1.jpg",
+							size: 1024,
+							width: 800,
+							height: 600,
+							createdAt: "2024-01-01",
+						},
+					],
+					totalCount: 36,
+				})
+				.mockReturnValueOnce(nextPage);
+			const screen = await renderModal();
+			await expect.element(screen.getByRole("button", { name: "page1.jpg" })).toBeInTheDocument();
+
+			screen.getByRole("button", { name: "Next page" }).element().click();
+			await vi.waitFor(() => expect(api.fetchMediaList).toHaveBeenCalledTimes(2));
+			const results = screen.getByRole("region", { name: "Media results" });
+			const itemSurface = document.querySelector<HTMLElement>("[data-media-items]")!;
+			await expect.element(results).toHaveAttribute("aria-busy", "true");
+			expect(itemSurface).toHaveAttribute("inert");
+			await expect.element(screen.getByRole("button", { name: "page1.jpg" })).toBeInTheDocument();
+
+			resolveNextPage({
+				items: [
+					{
+						id: "p2",
+						filename: "page2.jpg",
+						mimeType: "image/jpeg",
+						url: "/media/page2.jpg",
+						size: 1024,
+						width: 800,
+						height: 600,
+						createdAt: "2024-01-02",
+					},
+				],
+				totalCount: 36,
+			});
+			await expect.element(screen.getByRole("button", { name: "page2.jpg" })).toBeInTheDocument();
+			expect(itemSurface).not.toHaveAttribute("inert");
+		});
+
+		it("ignores a URL probe that finishes after a newer request", async () => {
+			class ControlledImage {
+				static instances: ControlledImage[] = [];
+				naturalWidth = 640;
+				naturalHeight = 480;
+				onload: (() => void) | null = null;
+				onerror: (() => void) | null = null;
+				constructor() {
+					ControlledImage.instances.push(this);
+				}
+				set src(_value: string) {}
+			}
+			vi.stubGlobal("Image", ControlledImage);
+			const screen = await renderModal();
+			await openUrlSource(screen);
+			const input = screen.getByLabelText("Image URL").element() as HTMLInputElement;
+			const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+
+			setValue.call(input, "https://example.com/first.png");
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+			input.dispatchEvent(new Event("change", { bubbles: true }));
+			screen.getByRole("button", { name: "Use URL" }).element().click();
+			await vi.waitFor(() => expect(ControlledImage.instances).toHaveLength(1));
+
+			setValue.call(input, "https://example.com/second.png");
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+			input.dispatchEvent(new Event("change", { bubbles: true }));
+			input.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
+			await vi.waitFor(() => expect(ControlledImage.instances).toHaveLength(2));
+
+			ControlledImage.instances[1]!.onload?.();
+			await expect
+				.element(screen.getByRole("button", { name: "second.png" }))
+				.toHaveAttribute("aria-pressed", "true");
+			ControlledImage.instances[0]!.onload?.();
+			await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+			await expect
+				.element(screen.getByRole("button", { name: "second.png" }))
+				.toHaveAttribute("aria-pressed", "true");
+			expect(screen.getByRole("button", { name: "first.png" }).query()).toBeNull();
+		});
+
+		it("ignores a URL probe after selecting from the library", async () => {
+			class ControlledImage {
+				static instance: ControlledImage;
+				naturalWidth = 640;
+				naturalHeight = 480;
+				onload: (() => void) | null = null;
+				onerror: (() => void) | null = null;
+				constructor() {
+					ControlledImage.instance = this;
+				}
+				set src(_value: string) {}
+			}
+			vi.stubGlobal("Image", ControlledImage);
+			const onSelect = vi.fn();
+			const screen = await renderModal({ onSelect });
+			await openUrlSource(screen);
+			const input = screen.getByLabelText("Image URL").element() as HTMLInputElement;
+			const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+			setValue.call(input, "https://example.com/slow.png");
+			input.dispatchEvent(new Event("input", { bubbles: true }));
+			input.dispatchEvent(new Event("change", { bubbles: true }));
+			screen.getByRole("button", { name: "Use URL" }).element().click();
+			await vi.waitFor(() => expect(ControlledImage.instance).toBeDefined());
+
+			screen.getByRole("tab", { name: "Library" }).element().click();
+			await expect.element(screen.getByRole("button", { name: "photo.jpg" })).toBeInTheDocument();
+			screen.getByRole("button", { name: "photo.jpg" }).element().click();
+			await expect
+				.element(screen.getByRole("button", { name: "photo.jpg" }))
+				.toHaveAttribute("aria-pressed", "true");
+			ControlledImage.instance.onload?.();
+			await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+
+			screen.getByRole("button", { name: "Select" }).element().click();
+			expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ filename: "photo.jpg" }));
+		});
+
+		it("clears a global search before opening one of its folder results", async () => {
+			const api = await import("../../src/lib/api");
+			const screen = await renderModal();
+			const search = screen.getByRole("searchbox", { name: "Search media" }).element();
+			const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+			setValue.call(search, "report");
+			search.dispatchEvent(new Event("input", { bubbles: true }));
+			search.dispatchEvent(new Event("change", { bubbles: true }));
+			await vi.waitFor(() => {
+				expect(api.fetchMediaList).toHaveBeenLastCalledWith(
+					expect.objectContaining({ search: "report", folderId: undefined }),
+				);
+			});
+
+			await expect
+				.element(screen.getByRole("button", { name: "Open folder Photography" }))
+				.toBeInTheDocument();
+			screen.getByRole("button", { name: "Open folder Photography" }).element().click();
+
+			await vi.waitFor(() => {
+				expect(api.fetchMediaList).toHaveBeenLastCalledWith(
+					expect.objectContaining({ search: undefined, folderId: "folder-1", page: 1 }),
+				);
+			});
 		});
 	});
 });

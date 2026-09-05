@@ -17,13 +17,15 @@ import {
 import * as React from "react";
 
 import { formatFileSize } from "../lib/media-utils.js";
+import {
+	useMediaUploadQueue,
+	type MediaUploadJob,
+	type MediaUploadJobStatus,
+} from "./media/useMediaUploadQueue.js";
 
 export const LOCAL_MEDIA_UPLOAD_ACCEPT =
 	"image/png,image/jpeg,image/gif,image/webp,image/avif,video/*,audio/*,application/pdf";
 
-const DEFAULT_CONCURRENCY = 3;
-const MAX_CONCURRENCY = 6;
-const MAX_VISIBLE_ROWS = 100;
 const MAX_PREVIEW_BYTES = 8 * 1024 * 1024;
 const PREVIEW_MIME_TYPES = new Set([
 	"image/jpeg",
@@ -32,16 +34,6 @@ const PREVIEW_MIME_TYPES = new Set([
 	"image/webp",
 	"image/avif",
 ]);
-
-type UploadStatus = "queued" | "uploading" | "complete" | "failed";
-
-interface UploadRow {
-	id: number;
-	file: File;
-	status: UploadStatus;
-	attempt: number;
-	previewUrl?: string;
-}
 
 export interface MediaUploadDialogProps {
 	open: boolean;
@@ -77,7 +69,7 @@ function FileKindIcon({ file }: { file: File }) {
 	return <File className={className} aria-hidden="true" />;
 }
 
-function UploadStatusLabel({ status }: { status: UploadStatus }) {
+function UploadStatusLabel({ status }: { status: MediaUploadJobStatus }) {
 	const { t } = useLingui();
 	if (status === "uploading") {
 		return (
@@ -112,7 +104,7 @@ function UploadFileRow({
 	onRetry,
 	onRemove,
 }: {
-	row: UploadRow;
+	row: MediaUploadJob<void>;
 	onCancel: () => void;
 	onRetry: () => void;
 	onRemove: () => void;
@@ -186,49 +178,30 @@ export function MediaUploadDialog({
 	onCloseComplete,
 	onQueueIdle,
 	upload,
-	concurrency = DEFAULT_CONCURRENCY,
+	concurrency,
 }: MediaUploadDialogProps) {
 	const { t } = useLingui();
-	const [rows, setRows] = React.useState<UploadRow[]>([]);
-	const [overflowCount, setOverflowCount] = React.useState(0);
-	const rowsRef = React.useRef<UploadRow[]>([]);
-	const activeRef = React.useRef(
-		new Map<number, { attempt: number; controller: AbortController }>(),
-	);
-	const nextIdRef = React.useRef(0);
 	const lastRequestIdRef = React.useRef<number | null>(null);
-	const busyRunRef = React.useRef(false);
-	const unmountingRef = React.useRef(false);
 	const inputRef = React.useRef<HTMLInputElement>(null);
-	const requestedConcurrency = Number.isFinite(concurrency)
-		? Math.floor(concurrency)
-		: DEFAULT_CONCURRENCY;
-	const maxConcurrent = Math.min(MAX_CONCURRENCY, Math.max(1, requestedConcurrency));
-
-	const updateRows = React.useCallback((update: (current: UploadRow[]) => UploadRow[]) => {
-		const next = update(rowsRef.current);
-		rowsRef.current = next;
-		setRows(next);
-	}, []);
-
-	const addFiles = React.useCallback(
-		(files: readonly File[]) => {
-			const available = Math.max(0, MAX_VISIBLE_ROWS - rowsRef.current.length);
-			const accepted = files.slice(0, available);
-			setOverflowCount(Math.max(0, files.length - accepted.length));
-			if (accepted.length === 0) return;
-			busyRunRef.current = true;
-			const added = accepted.map((file) => ({
-				id: (nextIdRef.current += 1),
-				file,
-				status: "queued" as const,
-				attempt: 1,
-				previewUrl: previewUrlFor(file),
-			}));
-			updateRows((current) => [...current, ...added]);
-		},
-		[updateRows],
-	);
+	const {
+		jobs: rows,
+		overflowCount,
+		hasUnfinished,
+		completedCount,
+		failedCount,
+		addFiles,
+		remove: removeRow,
+		retry: retryRow,
+		retryFailed,
+		cancelUnfinished: cancelRemaining,
+		clearCompleted,
+		reset,
+	} = useMediaUploadQueue({
+		upload,
+		concurrency,
+		createPreviewUrl: previewUrlFor,
+		onQueueIdle,
+	});
 
 	React.useEffect(() => {
 		if (!open || !enqueueRequest || enqueueRequest.id === lastRequestIdRef.current) return;
@@ -237,143 +210,6 @@ export function MediaUploadDialog({
 		onEnqueueRequestConsumed(enqueueRequest.id);
 	}, [addFiles, enqueueRequest, onEnqueueRequestConsumed, open]);
 
-	React.useEffect(() => {
-		const slots = maxConcurrent - activeRef.current.size;
-		if (slots <= 0) return;
-		const candidates = rowsRef.current
-			.filter((row) => row.status === "queued" && !activeRef.current.has(row.id))
-			.slice(0, slots);
-		if (candidates.length === 0) return;
-
-		for (const row of candidates) {
-			const controller = new AbortController();
-			activeRef.current.set(row.id, { attempt: row.attempt, controller });
-			updateRows((current) =>
-				current.map((item) =>
-					item.id === row.id && item.attempt === row.attempt
-						? { ...item, status: "uploading" }
-						: item,
-				),
-			);
-
-			Promise.resolve()
-				.then(() => upload(row.file, { signal: controller.signal }))
-				.then(
-					() => {
-						const active = activeRef.current.get(row.id);
-						if (active?.attempt !== row.attempt) return undefined;
-						activeRef.current.delete(row.id);
-						updateRows((current) =>
-							current.map((item) =>
-								item.id === row.id && item.attempt === row.attempt
-									? { ...item, status: "complete" }
-									: item,
-							),
-						);
-						return undefined;
-					},
-					() => {
-						const active = activeRef.current.get(row.id);
-						if (active?.attempt !== row.attempt) return undefined;
-						activeRef.current.delete(row.id);
-						if (controller.signal.aborted) return undefined;
-						updateRows((current) =>
-							current.map((item) =>
-								item.id === row.id && item.attempt === row.attempt
-									? { ...item, status: "failed" }
-									: item,
-							),
-						);
-						return undefined;
-					},
-				);
-		}
-	}, [maxConcurrent, rows, updateRows, upload]);
-
-	const hasUnfinished = rows.some((row) => row.status === "queued" || row.status === "uploading");
-	React.useEffect(() => {
-		if (hasUnfinished || !busyRunRef.current || unmountingRef.current) return;
-		busyRunRef.current = false;
-		onQueueIdle?.();
-	}, [hasUnfinished, onQueueIdle]);
-
-	React.useEffect(
-		() => () => {
-			unmountingRef.current = true;
-			activeRef.current.forEach(({ controller }) => controller.abort());
-			activeRef.current.clear();
-			rowsRef.current.forEach((row) => row.previewUrl && URL.revokeObjectURL(row.previewUrl));
-		},
-		[],
-	);
-
-	const removeRow = React.useCallback(
-		(id: number) => {
-			const row = rowsRef.current.find((item) => item.id === id);
-			if (!row) return;
-			activeRef.current.get(id)?.controller.abort();
-			activeRef.current.delete(id);
-			if (row.previewUrl) URL.revokeObjectURL(row.previewUrl);
-			updateRows((current) => current.filter((item) => item.id !== id));
-		},
-		[updateRows],
-	);
-
-	const retryRow = React.useCallback(
-		(id: number) => {
-			busyRunRef.current = true;
-			updateRows((current) =>
-				current.map((row) =>
-					row.id === id && row.status === "failed"
-						? { ...row, status: "queued", attempt: row.attempt + 1 }
-						: row,
-				),
-			);
-		},
-		[updateRows],
-	);
-
-	const retryFailed = () => {
-		if (!rowsRef.current.some((row) => row.status === "failed")) return;
-		busyRunRef.current = true;
-		updateRows((current) =>
-			current.map((row) =>
-				row.status === "failed" ? { ...row, status: "queued", attempt: row.attempt + 1 } : row,
-			),
-		);
-	};
-
-	const cancelRemaining = () => {
-		activeRef.current.forEach(({ controller }) => controller.abort());
-		activeRef.current.clear();
-		const removed = rowsRef.current.filter(
-			(row) => row.status === "queued" || row.status === "uploading",
-		);
-		removed.forEach((row) => row.previewUrl && URL.revokeObjectURL(row.previewUrl));
-		updateRows((current) =>
-			current.filter((row) => row.status !== "queued" && row.status !== "uploading"),
-		);
-	};
-
-	const clearCompleted = () => {
-		rowsRef.current
-			.filter((row) => row.status === "complete")
-			.forEach((row) => row.previewUrl && URL.revokeObjectURL(row.previewUrl));
-		updateRows((current) => current.filter((row) => row.status !== "complete"));
-	};
-
-	const reset = () => {
-		activeRef.current.forEach(({ controller }) => controller.abort());
-		activeRef.current.clear();
-		rowsRef.current.forEach((row) => row.previewUrl && URL.revokeObjectURL(row.previewUrl));
-		rowsRef.current = [];
-		setRows([]);
-		setOverflowCount(0);
-		busyRunRef.current = false;
-	};
-
-	const completedCount = rows.filter((row) => row.status === "complete").length;
-	const failedCount = rows.filter((row) => row.status === "failed").length;
 	const liveMessage = hasUnfinished
 		? t`${completedCount} of ${rows.length} uploads complete`
 		: failedCount > 0

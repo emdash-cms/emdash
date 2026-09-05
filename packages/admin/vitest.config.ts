@@ -4,7 +4,7 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
 	resolve: { dedupe: ["react", "react-dom"] },
-	optimizeDeps: { include: ["react-image-crop"] },
+	optimizeDeps: { include: ["@cloudflare/kumo/primitives/scroll-area", "react-image-crop"] },
 	plugins: [
 		react({
 			babel: {

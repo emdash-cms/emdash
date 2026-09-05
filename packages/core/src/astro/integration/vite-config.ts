@@ -372,6 +372,15 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 	return astroConfig.adapter?.name === "@astrojs/cloudflare";
 }
 
+function canResolveProjectDependency(projectRoot: string, specifier: string): boolean {
+	try {
+		createRequire(resolve(projectRoot, "package.json")).resolve(specifier);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 /**
  * Creates the Vite config update for EmDash.
  */
@@ -383,6 +392,7 @@ export function createViteConfig(
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
 	const isDev = command === "dev";
 	const projectRoot = fileURLToPath(options.astroConfig.root);
+	const hasAstroConsoleLogger = canResolveProjectDependency(projectRoot, "astro/logger/console");
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
@@ -541,6 +551,7 @@ export function createViteConfig(
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
 							"astro/app/manifest",
+							...(hasAstroConsoleLogger ? ["astro/logger/console"] : []),
 							"astro/virtual-modules/middleware.js",
 							"astro/virtual-modules/live-config",
 							"astro/content/runtime",

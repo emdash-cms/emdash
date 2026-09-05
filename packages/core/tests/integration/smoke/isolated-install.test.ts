@@ -147,6 +147,36 @@ function parseCatalog(): Map<string, string> {
 	return catalog;
 }
 
+function parseWorkspaceStringList(key: string): string[] {
+	const workspaceConfig = readFileSync(join(WORKSPACE_ROOT, "pnpm-workspace.yaml"), "utf8");
+	const values: string[] = [];
+	let inList = false;
+	for (const line of workspaceConfig.split(/\r?\n/)) {
+		if (line === `${key}:`) {
+			inList = true;
+			continue;
+		}
+		if (inList && /^\S/.test(line)) break;
+		if (!inList) continue;
+
+		const match = line.match(/^\s{2}-\s+(.+)$/);
+		if (!match) continue;
+		const value = match[1]!.replace(/\s+#.*$/, "").replace(/^["']|["']$/g, "");
+		if (value) values.push(value);
+	}
+	return values;
+}
+
+function parseWorkspaceNumber(key: string): number {
+	const workspaceConfig = readFileSync(join(WORKSPACE_ROOT, "pnpm-workspace.yaml"), "utf8");
+	const match = workspaceConfig.match(new RegExp(`^${key}:\\s+(\\d+)`, "m"));
+	const value = Number(match?.[1]);
+	if (!Number.isSafeInteger(value) || value < 0) {
+		throw new Error(`Missing numeric ${key} in pnpm-workspace.yaml`);
+	}
+	return value;
+}
+
 function consumerEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
 	const environment = { ...process.env, ...overrides };
 	for (const key of Object.keys(environment)) {
@@ -248,12 +278,16 @@ function prepareStandaloneTemplate(
 		platform.id === "cloudflare"
 			? "  esbuild: true\n  workerd: true\n  sharp: false"
 			: "  esbuild: true\n  sharp: true\n  workerd: false";
+	const releaseAgeExcludes = Array.from(
+		new Set([...parseWorkspaceStringList("minimumReleaseAgeExclude"), "emdash", "@emdash-cms/*"]),
+		(value) => `  - ${JSON.stringify(value)}`,
+	).join("\n");
+	const minimumReleaseAge = parseWorkspaceNumber("minimumReleaseAge");
 	writeFileSync(
 		join(projectDir, "pnpm-workspace.yaml"),
-		`minimumReleaseAge: 1440
+		`minimumReleaseAge: ${minimumReleaseAge}
 minimumReleaseAgeExclude:
-  - emdash
-  - "@emdash-cms/*"
+${releaseAgeExcludes}
 blockExoticSubdeps: true
 strictDepBuilds: true
 overrides:
@@ -356,6 +390,18 @@ describe.sequential("Isolated template installs", () => {
 
 	afterAll(() => {
 		if (temporaryDirectory) rmSync(temporaryDirectory, { recursive: true, force: true });
+	});
+
+	it("inherits workspace release-age exclusions", () => {
+		const expected = parseWorkspaceStringList("minimumReleaseAgeExclude");
+		const expectedAge = parseWorkspaceNumber("minimumReleaseAge");
+		for (const projectDir of projectDirs.values()) {
+			const workspaceConfig = readFileSync(join(projectDir, "pnpm-workspace.yaml"), "utf8");
+			expect(workspaceConfig).toContain(`minimumReleaseAge: ${expectedAge}`);
+			for (const value of expected) {
+				expect(workspaceConfig).toContain(`  - ${JSON.stringify(value)}`);
+			}
+		}
 	});
 
 	for (const platform of PLATFORM_CASES) {

@@ -336,10 +336,16 @@ test.describe("Media Library", () => {
 		await expect
 			.poll(() => refreshedPreview.evaluate((image) => image.naturalWidth))
 			.toBe(replaced.width);
-		await expect(refreshedPreview).toHaveAttribute(
-			"src",
-			new RegExp(encodeURIComponent(replaced.contentHash!)),
-		);
+		await expect
+			.poll(async () => {
+				const source = await refreshedPreview.getAttribute("src");
+				if (!source) return null;
+				const previewUrl = new URL(source, page.url());
+				const renditionSource = previewUrl.searchParams.get("href");
+				const mediaUrl = renditionSource ? new URL(renditionSource) : previewUrl;
+				return mediaUrl.searchParams.get("_emdash_media");
+			})
+			.toBe(replaced.contentHash);
 		await details.getByRole("tab", { name: "Edit image" }).click();
 
 		const aspectRatio = details.getByRole("combobox", { name: "Aspect ratio" });
@@ -707,7 +713,9 @@ test.describe("Media Library", () => {
 			.boundingBox();
 		const viewModeBox = await page.getByRole("group", { name: "View mode" }).boundingBox();
 		const mediaGridBox = await page.locator("[data-media-grid]").boundingBox();
-		const mediaCardBox = await page.locator("[data-media-grid] > button").first().boundingBox();
+		const mediaCard = page.locator('[data-media-grid] [data-media-layout="grid"]').first();
+		await expect(mediaCard).toBeVisible();
+		const mediaCardBox = await mediaCard.boundingBox();
 		expect(mediaTitleBox).not.toBeNull();
 		expect(addFolderBox).not.toBeNull();
 		expect(uploadFilesBox).not.toBeNull();

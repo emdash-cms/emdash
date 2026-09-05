@@ -3450,7 +3450,8 @@ export function PortableTextEditor({
 					}}
 					onSelect={handleImageSelect}
 					mimeTypeFilter="image/"
-					title={t`Select Image`}
+					title={t`Select image`}
+					confirmLabel={t`Insert image`}
 				/>
 
 				{/* Multi-select media picker for gallery insertion */}
@@ -3464,7 +3465,7 @@ export function PortableTextEditor({
 					onSelect={() => {}}
 					onSelectMany={handleGallerySelect}
 					mimeTypeFilter="image/"
-					title={t`Select Gallery Images`}
+					title={t`Select gallery images`}
 				/>
 
 				{/* Plugin block insertion/editing modal */}

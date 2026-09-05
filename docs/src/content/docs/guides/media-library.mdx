@@ -35,7 +35,7 @@ Once media usage tracking is on, it cannot be turned off.
 	or external sites, so an empty list does not prove that a file is safe to delete.
 </Aside>
 
-## Uploading Files
+## Uploading files
 
 ### From the Media Library
 
@@ -45,15 +45,21 @@ Once media usage tracking is on, it cannot be turned off.
 
 3. Uploads start automatically. The dialog shows each file's status and lets you cancel or retry individual files.
 
-### From the Content Editor
+### From the content editor
 
-1. In the rich text editor, click the image button
+1. Open an image, file, or gallery field in the content editor.
 
-2. Click **Upload** in the media picker
+2. Search, filter by type, browse a folder, or switch between the available media sources.
 
-3. Select a file from your computer
+3. Select existing media, or select **Upload files** and choose files from your computer. You can
+   also drop files onto the picker. Each upload appears in the results with its current status.
 
-4. Add alt text and click **Insert**
+4. If an upload fails, select **Retry** or **Remove** on that item. A successful upload becomes a
+   selected media card.
+
+5. For a gallery, use the arrow controls under **Selected media** to set the returned order.
+
+6. Select the picker action, such as **Select**, **Insert image**, or **Add 3 images**.
 
 ## Supported File Types
 
@@ -204,21 +210,21 @@ Uploads enter the Main library. Move them into a folder after upload using eithe
 Deleting a folder returns its media to the Main library. The media files, URLs, and content
 references remain unchanged.
 
-## Using Media in Content
+## Using media in content
 
-### In the Rich Text Editor
+### In the rich text editor
 
 1. Place your cursor where you want the image
 
 2. Click the image button in the toolbar
 
-3. Select an image from the media library or upload a new one
+3. Find an image in the picker or upload a new one.
 
-4. Enter alt text
+4. Select **Insert image**.
 
-5. Click **Insert**
+5. Add alt text in the image settings.
 
-### As a Featured Image
+### As a featured image
 
 1. Open a content entry in the editor
 
@@ -226,13 +232,38 @@ references remain unchanged.
 
 3. Click **Select Image**
 
-4. Choose from the media library or upload
+4. Choose an image from the picker or upload one.
 
-5. Click **Save**
+5. Select **Select**, then select **Save**.
 
-### In Custom Fields
+### In custom fields
 
-For fields configured as image or file types, click the field to open the media picker.
+For fields configured as image or file types, select the field action to open the same media
+picker. The field's MIME type rules limit the sources and files you can choose.
+
+## Replacing an image
+
+Use **Replace image** to update the file behind an existing local media item. Authors can replace
+images they uploaded, and editors can replace any local image. The action is available for JPEG,
+PNG, and WebP images stored on local disk, Cloudflare R2, or S3-compatible storage.
+
+1. Open **Media**, then select an image from the local library.
+2. Stay on **Details**, then select **Replace image**.
+3. Choose a non-empty image in the same format as the existing file.
+4. Review the warning, then select **Replace image** to confirm.
+
+The replacement can use different dimensions or an aspect ratio from the existing image. EmDash
+keeps the media ID, filename, URL, alt text, caption, and location, so every existing reference uses
+the replacement. Replacing the file clears its focal point.
+
+**Replace image** uploads another file from your computer. To trim the current image, select
+**Replace original** from the **Crop** editor.
+
+<Aside type="caution">
+	Replacing an image cannot be undone. EmDash does not keep the previous file. A browser or content
+	delivery network may briefly show cached bytes from the previous image until the cached response
+	refreshes.
+</Aside>
 
 ## Setting a focal point
 
