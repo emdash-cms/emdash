@@ -5,7 +5,7 @@
  * Wraps astro-embed's Gist component, extracting props from the PT block node.
  * astro-portabletext passes `node` (not `value`) for custom type components.
  */
-import { Gist as AstroGist } from "astro-embed";
+import { Gist as AstroGist } from "@astro-community/astro-embed-gist";
 import type { GistBlock } from "../schemas.js";
 
 interface Props {
