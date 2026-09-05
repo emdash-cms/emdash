@@ -299,6 +299,7 @@ export interface ContentSettingsPanelProps {
 	entryLocale?: string | null;
 	slug: string;
 	onSlugChange: (value: string) => void;
+	onSlugBlur?: () => void;
 	status: string;
 	supportsDrafts: boolean;
 	isLive: boolean;
@@ -356,6 +357,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	entryLocale,
 	slug,
 	onSlugChange,
+	onSlugBlur,
 	status,
 	supportsDrafts,
 	isLive,
@@ -490,6 +492,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								label={t`Slug`}
 								value={slug}
 								onChange={(e) => onSlugChange(e.target.value)}
+								onBlur={onSlugBlur}
 								placeholder="my-post-slug"
 							/>
 							{contentLocale ? (
