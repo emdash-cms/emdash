@@ -612,6 +612,7 @@ describe("Zod Generator", () => {
 				"hero: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };",
 			);
 			// Hydrated by getEmDashCollection/getEmDashEntry
+			expect(ts).toContain("byline?: BylineSummary | null;");
 			expect(ts).toContain("bylines?: ContentBylineCredit[];");
 			expect(ts).toContain("terms?: Record<string, TaxonomyTerm[]>;");
 		});
@@ -699,6 +700,13 @@ describe("Zod Generator", () => {
 			expect(ts).toContain("book: Book;");
 			expect(ts).toContain("export interface BlogPost {");
 			expect(ts).toContain("blog_posts: BlogPost;");
+		});
+
+		it("includes BylineSummary in generated interface imports and byline property", () => {
+			const ts = generateTypesFile([makeCollection("posts")]);
+
+			expect(ts).toContain('import type { BylineSummary, ContentBylineCredit, TaxonomyTerm } from "emdash";');
+			expect(ts).toContain("byline?: BylineSummary | null;");
 		});
 	});
 

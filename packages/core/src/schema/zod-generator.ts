@@ -344,6 +344,7 @@ export function generateTypeScript(
 	lines.push(`  updatedAt: Date;`);
 	lines.push(`  publishedAt: Date | null;`);
 	// Bylines are eagerly loaded by getEmDashCollection/getEmDashEntry
+	lines.push(`  byline?: BylineSummary | null;`);
 	lines.push(`  bylines?: ContentBylineCredit[];`);
 	// Taxonomy terms are eagerly loaded by getEmDashCollection/getEmDashEntry,
 	// keyed by taxonomy name (e.g. data.terms?.tag)
@@ -372,9 +373,9 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 		c.fields.some((f) => f.type === "portableText"),
 	);
 
-	// Build imports - ContentBylineCredit and TaxonomyTerm are always needed
+	// Build imports - BylineSummary, ContentBylineCredit and TaxonomyTerm are always needed
 	// for the hydrated bylines/terms fields
-	const imports = ["ContentBylineCredit", "TaxonomyTerm"];
+	const imports = ["BylineSummary", "ContentBylineCredit", "TaxonomyTerm"];
 	if (needsPortableText) {
 		imports.push("PortableTextBlock");
 	}
