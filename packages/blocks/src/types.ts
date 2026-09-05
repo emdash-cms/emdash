@@ -201,6 +201,13 @@ export interface StatItem {
 	trend?: "up" | "down" | "neutral";
 }
 
+export interface ChecklistItem {
+	label: string;
+	status: "pending" | "complete" | "warning" | "error";
+	description?: string;
+	action?: ButtonElement;
+}
+
 /** A single data series for a timeseries chart. */
 export interface ChartSeries {
 	/** Display name shown in tooltips and legends */
@@ -364,6 +371,13 @@ export interface AccordionBlock extends BlockBase {
 	default_open?: boolean;
 }
 
+export interface ChecklistBlock extends BlockBase {
+	type: "checklist";
+	items: ChecklistItem[];
+	title?: string;
+	description?: string;
+}
+
 export type Block =
 	| HeaderBlock
 	| SectionBlock
@@ -382,7 +396,8 @@ export type Block =
 	| CodeBlock
 	| TabBlock
 	| EmptyBlock
-	| AccordionBlock;
+	| AccordionBlock
+	| ChecklistBlock;
 
 // ── Interactions ─────────────────────────────────────────────────────────────
 
