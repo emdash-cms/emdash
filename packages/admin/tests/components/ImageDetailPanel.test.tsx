@@ -66,3 +66,23 @@ describe("ImageDetailPanel replacement", () => {
 		expect(onReplace).toHaveBeenCalledWith(expect.objectContaining({ provider: expectedProvider }));
 	});
 });
+
+describe("ImageDetailPanel edits", () => {
+	it("applies caption edits without requiring the Save button", async () => {
+		const onUpdate = vi.fn();
+		const screen = await render(
+			<ImageDetailPanel
+				attributes={{ src: "/photo.jpg" }}
+				onUpdate={onUpdate}
+				onReplace={vi.fn()}
+				onDelete={vi.fn()}
+				onClose={vi.fn()}
+				inline
+			/>,
+		);
+
+		await screen.getByLabelText("Caption").fill("A saved caption");
+
+		expect(onUpdate).toHaveBeenLastCalledWith({ caption: "A saved caption" });
+	});
+});
