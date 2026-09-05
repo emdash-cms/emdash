@@ -31,7 +31,7 @@ if (!post) return new Response("Not found", { status: 404 });
 			{post.data.excerpt && <p id="excerpt">{post.data.excerpt}</p>}
 			<div id="body"><PortableText value={post.data.body} /></div>
 		</article>
-		<Comments collection="posts" contentId={post.data.id} threaded />
-		<CommentForm collection="posts" contentId={post.data.id} />
+		<Comments collection="posts" contentId={post.data.id} threaded live />
+		<CommentForm collection="posts" contentId={post.data.id} live />
 	</body>
 </html>
