@@ -270,6 +270,8 @@ async function writeDescriptor(ctx: WriteDescriptorContext): Promise<DescriptorF
 
 	const descriptorObject = {
 		id: manifest.slug,
+		displayName: manifest.name,
+		description: manifest.description,
 		version: manifest.version,
 		format: "standard" as const,
 		entrypoint: `${packageName}/sandbox`,

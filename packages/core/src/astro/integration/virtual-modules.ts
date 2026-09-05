@@ -284,6 +284,8 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 			instantiations.push(
 				`adaptSandboxEntry(${varName}, ${JSON.stringify({
 					id: descriptor.id,
+					displayName: descriptor.displayName,
+					description: descriptor.description,
 					version: descriptor.version,
 					capabilities: descriptor.capabilities,
 					allowedHosts: descriptor.allowedHosts,
@@ -299,7 +301,12 @@ export function generatePluginsModule(descriptors: PluginDescriptor[]): string {
 			// Native format: import createPlugin and call with options
 			const varName = `createPlugin${index}`;
 			imports.push(`import { createPlugin as ${varName} } from "${descriptor.entrypoint}";`);
-			instantiations.push(`${varName}(${JSON.stringify(descriptor.options ?? {})})`);
+			instantiations.push(
+				`({ ...${varName}(${JSON.stringify(descriptor.options ?? {})}), ...${JSON.stringify({
+					displayName: descriptor.displayName,
+					description: descriptor.description,
+				})} })`,
+			);
 		}
 	});
 
@@ -691,6 +698,8 @@ export const sandboxedPlugins = [];
 		// Create the plugin entry with embedded code and sandbox config
 		pluginEntries.push(`{
     id: ${JSON.stringify(descriptor.id)},
+		displayName: ${JSON.stringify(descriptor.displayName)},
+		description: ${JSON.stringify(descriptor.description)},
     version: ${JSON.stringify(descriptor.version)},
     options: ${JSON.stringify(descriptor.options ?? {})},
     capabilities: ${JSON.stringify(descriptor.capabilities ?? [])},

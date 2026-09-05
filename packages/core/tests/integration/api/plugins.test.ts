@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { handlePluginList } from "../../../src/api/handlers/plugins.js";
 import type { Database } from "../../../src/database/types.js";
 import type { SandboxedPluginEntry } from "../../../src/emdash-runtime.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import { PluginStateRepository } from "../../../src/plugins/state.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
@@ -92,5 +93,37 @@ describe("plugin admin handlers: sandboxed plugins", () => {
 		const withoutSettings = result.data.items.find((p) => p.id === "mp-without-settings");
 		expect(withSettings?.hasSettings).toBe(true);
 		expect(withoutSettings?.hasSettings).toBe(false);
+	});
+
+	it("surfaces metadata declared by configured plugins", async () => {
+		const trusted = definePlugin({
+			id: "trusted-plugin",
+			version: "1.0.0",
+			displayName: "Trusted Plugin",
+			description: "Runs in the application process",
+		});
+		const sandboxed = createSandboxedEntry({
+			displayName: "Sandboxed Plugin",
+			description: "Runs in an isolated worker",
+		});
+
+		const result = await handlePluginList(db, [trusted], [sandboxed]);
+
+		expect(result.success).toBe(true);
+		if (!result.success) return;
+		expect(result.data.items).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "trusted-plugin",
+					name: "Trusted Plugin",
+					description: "Runs in the application process",
+				}),
+				expect.objectContaining({
+					id: "sandboxed-plugin",
+					name: "Sandboxed Plugin",
+					description: "Runs in an isolated worker",
+				}),
+			]),
+		);
 	});
 });

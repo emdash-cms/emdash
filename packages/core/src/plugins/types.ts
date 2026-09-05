@@ -1413,6 +1413,10 @@ export interface PluginAdminConfig {
 export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginStorageConfig> {
 	/** Unique plugin identifier */
 	id: string;
+	/** Human-readable plugin name */
+	displayName?: string;
+	/** Description shown in plugin management UI */
+	description?: string;
 	/** Plugin version (semver) */
 	version: string;
 
@@ -1443,6 +1447,8 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
  */
 export interface ResolvedPlugin<TStorage extends PluginStorageConfig = PluginStorageConfig> {
 	id: string;
+	displayName?: string;
+	description?: string;
 	version: string;
 	capabilities: PluginCapability[];
 	allowedHosts: string[];
