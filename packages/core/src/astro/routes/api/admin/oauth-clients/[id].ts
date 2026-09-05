@@ -23,7 +23,7 @@ export const prerender = false;
 const updateClientSchema = z.object({
 	name: z.string().min(1).max(255).optional(),
 	redirectUris: z
-		.array(z.string().url("Each redirect URI must be a valid URL"))
+		.array(z.url("Each redirect URI must be a valid URL"))
 		.min(1, "At least one redirect URI is required")
 		.optional(),
 	scopes: z.array(z.string()).nullable().optional(),

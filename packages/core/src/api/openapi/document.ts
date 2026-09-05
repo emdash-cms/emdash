@@ -222,7 +222,7 @@ const contentPaths = {
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
-					collection: z.string().meta({ description: "Collection slug", example: "posts" }),
+					collection: z.string().meta({ description: "Collection slug", examples: ["posts"] }),
 				}),
 				query: contentListQuery,
 			},

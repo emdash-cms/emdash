@@ -23,7 +23,7 @@ import { open } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { parseTree, type Node, type ParseError, printParseErrorCode } from "jsonc-parser";
-import type { ZodIssue } from "zod";
+import type { $ZodIssue } from "zod/v4/core";
 
 import { ManifestSchema, type Manifest } from "./schema.js";
 
@@ -275,13 +275,13 @@ function parseAndValidate(source: string, filePath: string): LoadManifestResult 
  * inside the parent and use ITS source offset, so a `"licens": "MIT"`
  * mistake gets the pointer landing on the bad key's line and column.
  */
-function zodIssueToManifestIssue(issue: ZodIssue, source: string, root: Node): ManifestIssue {
+function zodIssueToManifestIssue(issue: $ZodIssue, source: string, root: Node): ManifestIssue {
 	const path = narrowZodPath(issue.path);
 	const pathStr = formatZodPath(path);
 
 	let offset: number | undefined;
 	if (issue.code === "unrecognized_keys") {
-		const keys = (issue as ZodIssue & { keys?: readonly string[] }).keys;
+		const keys = (issue as $ZodIssue & { keys?: readonly string[] }).keys;
 		const firstKey = keys?.[0];
 		if (firstKey !== undefined) {
 			const parent = findNodeAtPath(root, path);

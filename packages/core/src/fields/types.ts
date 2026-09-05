@@ -10,7 +10,7 @@ export type ColumnType = "TEXT" | "REAL" | "INTEGER" | "JSON";
 /**
  * Base field definition
  *
- * Note: schema uses z.ZodTypeAny to accommodate optional/default wrappers
+ * Note: schema uses z.ZodType to accommodate optional/default wrappers
  */
 export interface FieldDefinition<_T = unknown> {
 	type: string;
@@ -18,7 +18,7 @@ export interface FieldDefinition<_T = unknown> {
 	 * The SQLite column type to use when storing this field
 	 */
 	columnType: ColumnType;
-	schema: z.ZodTypeAny;
+	schema: z.ZodType;
 	options?: unknown;
 	ui?: FieldUIHints;
 	validation?: FieldValidation;

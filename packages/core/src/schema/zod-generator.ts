@@ -1,4 +1,4 @@
-import { z, type ZodTypeAny } from "zod";
+import { z, type ZodType } from "zod";
 
 import { hashString } from "../utils/hash.js";
 import type { CollectionWithFields, Field, FieldType, RepeaterSubField } from "./types.js";
@@ -14,8 +14,8 @@ const PASCAL_CASE_SPLIT_PATTERN = /[_\-\s]+/;
  */
 export function generateZodSchema(
 	collection: CollectionWithFields,
-): z.ZodObject<Record<string, ZodTypeAny>> {
-	const shape: Record<string, ZodTypeAny> = {};
+): z.ZodObject<Record<string, ZodType>> {
+	const shape: Record<string, ZodType> = {};
 
 	for (const field of collection.fields) {
 		shape[field.slug] = generateFieldSchema(field);
@@ -27,7 +27,7 @@ export function generateZodSchema(
 /**
  * Generate Zod schema for a single field
  */
-export function generateFieldSchema(field: Field): ZodTypeAny {
+export function generateFieldSchema(field: Field): ZodType {
 	let schema = getBaseSchema(field.type, field);
 
 	// Apply validation rules
@@ -58,10 +58,10 @@ export function generateFieldSchema(field: Field): ZodTypeAny {
 /**
  * Get base Zod schema for a field type
  */
-function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTypeAny {
+function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodType {
 	switch (type) {
 		case "url":
-			return z.string().url();
+			return z.url();
 
 		case "string":
 		case "text":
@@ -122,7 +122,7 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 			// renderers dispatch on it, but `_key` is intentionally optional:
 			// it's a UI-layer concern that the editor regenerates on every
 			// change (see `PortableTextEditor`), and the rest of this schema
-			// uses `.passthrough()` for everything below the top level. Making
+			// uses `.loose()` for everything below the top level. Making
 			// `_key` strictly required here was an accidentally tight invariant
 			// that rejected any seed/import data not authored against the
 			// editor (#867 — autosave failures on seeded template content).
@@ -132,7 +132,7 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 						_type: z.string(),
 						_key: z.string().optional(),
 					})
-					.passthrough(),
+					.loose(),
 			);
 
 		case "image": {
@@ -186,8 +186,8 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 
 function generateRepeaterRowSchema(
 	subFields: readonly RepeaterSubField[],
-): z.ZodObject<Record<string, ZodTypeAny>> {
-	const shape: Record<string, ZodTypeAny> = {};
+): z.ZodObject<Record<string, ZodType>> {
+	const shape: Record<string, ZodType> = {};
 
 	for (const subField of subFields) {
 		let schema = getBaseSchema(subField.type, {
@@ -204,13 +204,13 @@ function generateRepeaterRowSchema(
 		shape[subField.slug] = schema;
 	}
 
-	return z.object(shape).passthrough();
+	return z.object(shape).loose();
 }
 
 /**
  * Apply validation rules to a schema
  */
-function applyValidation(schema: ZodTypeAny, field: Field): ZodTypeAny {
+function applyValidation(schema: ZodType, field: Field): ZodType {
 	const validation = field.validation;
 	if (!validation) return schema;
 

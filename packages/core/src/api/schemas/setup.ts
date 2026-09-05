@@ -28,7 +28,7 @@ export const setupBody = z.object({
 });
 
 export const setupAdminBody = z.object({
-	email: z.string().email(),
+	email: z.email(),
 	name: z.string().optional(),
 });
 

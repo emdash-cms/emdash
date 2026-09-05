@@ -25,7 +25,7 @@ export function datetime(options: DatetimeOptions = {}): FieldDefinition<Date> {
 	}
 
 	// Optional vs required
-	const schema: z.ZodTypeAny = options.required ? dateSchema : dateSchema.optional();
+	const schema: z.ZodType = options.required ? dateSchema : dateSchema.optional();
 
 	const ui: FieldUIHints = {
 		widget: "datetime",

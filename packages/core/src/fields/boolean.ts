@@ -15,7 +15,7 @@ export function boolean(options: BooleanOptions = {}): FieldDefinition<boolean> 
 	const boolSchema = z.boolean();
 
 	// Apply default
-	const schema: z.ZodTypeAny =
+	const schema: z.ZodType =
 		options.default !== undefined ? boolSchema.default(options.default) : boolSchema;
 
 	const ui: FieldUIHints = {

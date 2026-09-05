@@ -8,10 +8,7 @@ import { z } from "astro/zod";
 const HTTP_SCHEME_RE = /^https?:\/\//i;
 
 /** Validates that a URL string uses http or https scheme. Rejects javascript:/data: URI XSS vectors. */
-const httpUrl = z
-	.string()
-	.url()
-	.refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
+const httpUrl = z.url().refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
 
 // ─── Field Schemas ───────────────────────────────────────────────
 
@@ -92,7 +89,7 @@ const autoresponderSchema = z
 const formSettingsSchema = z.object({
 	confirmationMessage: z.string().min(1).default("Thank you for your submission."),
 	redirectUrl: httpUrl.optional().or(z.literal("")),
-	notifyEmails: z.array(z.string().email()).default([]),
+	notifyEmails: z.array(z.email()).default([]),
 	digestEnabled: z.boolean().default(false),
 	digestHour: z.number().int().min(0).max(23).default(9),
 	autoresponder: autoresponderSchema,
@@ -197,8 +194,8 @@ export const exportSchema = z.object({
 	formId: z.string().min(1),
 	format: z.enum(["csv", "json"]).default("csv"),
 	status: z.enum(["new", "read", "archived"]).optional(),
-	from: z.string().datetime().optional(),
-	to: z.string().datetime().optional(),
+	from: z.iso.datetime().optional(),
+	to: z.iso.datetime().optional(),
 });
 
 // ─── Type Exports ────────────────────────────────────────────────

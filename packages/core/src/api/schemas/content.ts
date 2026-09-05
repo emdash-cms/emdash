@@ -61,7 +61,7 @@ const booleanParam = z
 	.optional()
 	.transform((value) => value === "1" || value === "true");
 
-const contentFieldComparable = z.union([z.string().max(2048), z.number().finite()]);
+const contentFieldComparable = z.union([z.string().max(2048), z.number()]);
 const contentFieldFilterScalar = z.union([contentFieldComparable, z.boolean(), z.null()]);
 const contentFieldFilterValue = z.union([
 	contentFieldFilterScalar,
@@ -212,10 +212,13 @@ export const contentUpdateBody = z
 
 export const contentScheduleBody = z
 	.object({
-		scheduledAt: z.string().min(1, "scheduledAt is required").meta({
-			description: "ISO 8601 datetime for scheduled publishing",
-			example: "2025-06-15T09:00:00Z",
-		}),
+		scheduledAt: z
+			.string()
+			.min(1, "scheduledAt is required")
+			.meta({
+				description: "ISO 8601 datetime for scheduled publishing",
+				examples: ["2025-06-15T09:00:00Z"],
+			}),
 	})
 	.meta({ id: "ContentScheduleBody" });
 

@@ -1986,7 +1986,7 @@ export function createMcpServer(
 							.describe("Target collection slug for reference fields"),
 						rows: z.number().optional().describe("Number of rows for textarea"),
 					})
-					.passthrough()
+					.loose()
 					.optional()
 					.describe("Widget configuration"),
 				searchable: z
@@ -2185,7 +2185,6 @@ export function createMcpServer(
 					.optional()
 					.describe("Base64-encoded file contents. Provide exactly one of base64 / url."),
 				url: z
-					.string()
 					.url()
 					.optional()
 					.describe(
@@ -3043,10 +3042,7 @@ export function createMcpServer(
 					.describe("Favicon media reference ({ mediaId, alt? })"),
 				url: z
 					.union([
-						z
-							.string()
-							.url()
-							.refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
+						z.url().refine((u) => HTTP_SCHEME_PATTERN.test(u), "URL must use http or https"),
 						z.literal(""),
 					])
 					.optional()

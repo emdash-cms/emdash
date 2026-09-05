@@ -243,7 +243,7 @@ const pluginAdminConfigSchema = z.object({
 								action_id: z.string(),
 								label: z.string().optional(),
 							})
-							.passthrough(),
+							.loose(),
 					)
 					.optional(),
 			}),

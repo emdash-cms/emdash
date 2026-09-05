@@ -21,7 +21,7 @@ export function file(options: FileOptions = {}): FieldDefinition<FileValue> {
 		meta: z.record(z.string(), z.unknown()).optional(),
 	});
 
-	const schema: z.ZodTypeAny = options.required ? fileObjSchema : fileObjSchema.optional();
+	const schema: z.ZodType = options.required ? fileObjSchema : fileObjSchema.optional();
 
 	const ui: FieldUIHints = {
 		widget: "file",

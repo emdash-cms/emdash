@@ -47,6 +47,8 @@ overrides:
   "@ungap/structured-clone": "^1.3.1"
   # Flue exports Hono types, so its copy must match the bot's exact pin.
   "@flue/runtime@2.0.3>hono": "4.12.27"
+  # 2.2.27 causes pathological selector performance in jsdom UI tests.
+  nwsapi: "2.2.25"
 patchedDependencies:
   "@sigstore/core@4.0.1": patches/@sigstore__core@4.0.1.patch
   image-size@2.0.2: patches/image-size@2.0.2.patch
@@ -172,4 +174,4 @@ catalog:
   wrangler: ^4.124.0
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
-  zod: ^4.4.1
+  zod: 4.5.4
