@@ -1,5 +1,5 @@
 import { i18n } from "@lingui/core";
-import { act, fireEvent } from "@testing-library/react";
+import { act, fireEvent, waitFor } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -745,8 +745,10 @@ describe("ContentSettingsPanel", () => {
 			fireEvent.keyDown(document, { key: "Escape", code: "Escape" });
 			await new Promise((resolve) => setTimeout(resolve, 0));
 		});
-		expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
-		expect(trashActions).not.toHaveAttribute("aria-hidden");
+		await waitFor(() => {
+			expect(trashActions).not.toHaveClass("invisible", "pointer-events-none");
+			expect(trashActions).not.toHaveAttribute("aria-hidden");
+		});
 	});
 });
 
