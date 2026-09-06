@@ -69,6 +69,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `agent.by_design` | agent result | system | — | Agent verified the behaviour as intended. |
 | `agent.reproduced` | agent result | system | — | Reproduced, but the fix needs a human decision. |
 | `agent.diagnosed` | agent result | system | — | Root cause identified without a confirming reproduction. |
+| `agent.revised` | agent result | system | — | Review feedback is addressed and the PR branch is updated. |
 | `agent.fix_ready` | agent result | system | — | A candidate change is published on bot/fix-<n>. |
 | `agent.needs_info` | agent result | system | — | Investigation is blocked on information only the reporter can supply. |
 | `agent.failed` | agent result | system | — | Agent run errored or produced no usable result. |
@@ -100,6 +101,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `working` | `agent.diagnosed` | `diagnosed` | — |
 | `working` | `agent.needs_info` | `needs_info` | — |
 | `working` | `agent.fix_ready` | `awaiting_feedback` | — |
+| `working` | `agent.revised` | `in_review` | — |
 | `working` | `agent.failed` | `failed` | — |
 | `blocked` | `fix` | `fixing` | `investigate.implement` |
 | `blocked` | `implement` | `fixing` | `investigate.implement` |
@@ -111,6 +113,8 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `awaiting_feedback` | `reject` | `working` | `investigate.revise` |
 | `awaiting_feedback` | `retry` | `working` | `investigate.repro` |
 | `awaiting_feedback` | `take_over` | `human_owned` | — |
+| `failed` | `revise` | `working` | `investigate.revise` |
+| `awaiting_feedback` | `revise` | `working` | `investigate.revise` |
 | `in_review` | `pr.opened` | `in_review` | — |
 | `in_review` | `pr.approved` | `in_review` | — |
 | `in_review` | `pr.changes_requested` | `in_review` | — |
@@ -207,6 +211,7 @@ stateDiagram-v2
     working --> diagnosed: agent.diagnosed
     working --> needs_info: agent.needs_info
     working --> awaiting_feedback: agent.fix_ready
+    working --> in_review: agent.revised
     working --> failed: agent.failed
     blocked --> fixing: fix / investigate.implement
     blocked --> fixing: implement / investigate.implement
@@ -218,6 +223,8 @@ stateDiagram-v2
     awaiting_feedback --> working: reject / investigate.revise
     awaiting_feedback --> working: retry / investigate.repro
     awaiting_feedback --> human_owned: take_over
+    failed --> working: revise / investigate.revise
+    awaiting_feedback --> working: revise / investigate.revise
     in_review --> in_review: pr.opened
     in_review --> in_review: pr.approved
     in_review --> in_review: pr.changes_requested

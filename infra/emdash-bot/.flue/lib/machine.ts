@@ -392,6 +392,7 @@ export type AgentEvent =
 	| "agent.by_design" // verdict === "intended-behavior"
 	| "agent.reproduced" // reproduced && !fixed
 	| "agent.diagnosed" // root cause found, no confirming reproduction
+	| "agent.revised"
 	| "agent.fix_ready" // reproduced && fixed
 	| "agent.needs_info" // reproduced/unclear but blocked on reporter-only info
 	| "agent.failed"; // nonzero exit / no result file
@@ -550,6 +551,10 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "Root cause identified without a confirming reproduction.",
 		actors: ["system"],
 	},
+	"agent.revised": {
+		description: "Review feedback is addressed and the PR branch is updated.",
+		actors: ["system"],
+	},
 	"agent.fix_ready": {
 		description: "A candidate change is published on bot/fix-<n>.",
 		actors: ["system"],
@@ -681,6 +686,7 @@ export const TRANSITIONS: Transition[] = [
 		to: "awaiting_feedback",
 		note: "executor pushes bot/fix-<n>; orchestrator asks the reporter to confirm. PR opens on confirm, not here.",
 	},
+	{ from: "working", event: "agent.revised", to: "in_review" },
 	{ from: "working", event: "agent.failed", to: "failed" },
 
 	// --- blocked: every reason accepts the same overrides (kills the sinks) ---
@@ -704,6 +710,8 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "awaiting_feedback", event: "take_over", to: "human_owned" },
 
 	// --- in review (the PR bridge) ---
+	{ from: "failed", event: "revise", to: "working", action: "investigate.revise" },
+	{ from: "awaiting_feedback", event: "revise", to: "working", action: "investigate.revise" },
 	{
 		from: "in_review",
 		event: "pr.opened",

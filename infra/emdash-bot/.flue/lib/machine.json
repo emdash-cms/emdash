@@ -436,6 +436,12 @@
 				"system"
 			]
 		},
+		"agent.revised": {
+			"description": "Review feedback is addressed and the PR branch is updated.",
+			"actors": [
+				"system"
+			]
+		},
 		"agent.fix_ready": {
 			"description": "A candidate change is published on bot/fix-<n>.",
 			"actors": [
@@ -594,6 +600,11 @@
 		},
 		{
 			"from": "working",
+			"event": "agent.revised",
+			"to": "in_review"
+		},
+		{
+			"from": "working",
 			"event": "agent.failed",
 			"to": "failed"
 		},
@@ -654,6 +665,18 @@
 			"from": "awaiting_feedback",
 			"event": "take_over",
 			"to": "human_owned"
+		},
+		{
+			"from": "failed",
+			"event": "revise",
+			"to": "working",
+			"action": "investigate.revise"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "revise",
+			"to": "working",
+			"action": "investigate.revise"
 		},
 		{
 			"from": "in_review",
