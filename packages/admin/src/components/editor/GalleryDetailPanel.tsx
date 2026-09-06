@@ -389,7 +389,7 @@ function SortableGalleryThumb({
 				onPointerDown={(e) => e.stopPropagation()}
 				aria-label={t`Remove image ${index + 1}`}
 			>
-				<Trash className="h-3 w-3" />
+				<Trash className="h-3 w-3" aria-hidden="true" />
 			</Button>
 			<span
 				className="absolute bottom-1 start-1 text-[10px] bg-black/60 text-white rounded px-1"
@@ -440,7 +440,7 @@ function GalleryImageSettings({
 					type="button"
 					variant="outline"
 					size="sm"
-					icon={<ImageSquare />}
+					icon={<ImageSquare aria-hidden="true" />}
 					onClick={() => setShowReplacePicker(true)}
 					disabled={assetEditor.isActive}
 				>

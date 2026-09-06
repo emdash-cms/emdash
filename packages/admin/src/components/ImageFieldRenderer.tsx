@@ -373,7 +373,7 @@ export function ImageFieldRenderer({
 						type="button"
 						size="sm"
 						variant="secondary"
-						icon={<Moon />}
+						icon={<Moon aria-hidden="true" />}
 						onClick={() => openPicker("darkVariant")}
 						disabled={assetEditor.isActive}
 					>
