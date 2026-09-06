@@ -36,6 +36,8 @@ test.describe("Editor image panel", () => {
 
 		const settings = page.getByRole("navigation", { name: "Settings" });
 		await expect(settings).toBeVisible();
+		await expect(settings.getByRole("button", { name: "Close image settings" })).toHaveCount(1);
+		await expect(settings.getByRole("button", { name: "Close settings" })).toHaveCount(0);
 		await expect
 			.poll(() =>
 				settings.evaluate((element) => {
@@ -45,10 +47,52 @@ test.describe("Editor image panel", () => {
 			)
 			.toBe(true);
 		const panel = settings
-			.getByRole("heading", { name: "Image Settings" })
+			.getByRole("heading", { name: "Image settings" })
 			.locator("xpath=../../..");
 		expect(await panel.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
 			true,
+		);
+
+		await page.setViewportSize({ width: 368, height: 800 });
+		const replaceImage = settings.getByRole("button", { name: "Replace image" });
+		await replaceImage.focus();
+		await expect(replaceImage).toBeFocused();
+		await expect
+			.poll(() =>
+				replaceImage.evaluate((element) => {
+					let current: HTMLElement | null = element;
+					while (current) {
+						if (getComputedStyle(current).opacity === "0") return false;
+						current = current.parentElement;
+					}
+					return true;
+				}),
+			)
+			.toBe(true);
+		await page.keyboard.press("Enter");
+		const replacementPicker = page.getByRole("dialog", { name: "Replace image" });
+		await expect(replacementPicker).toBeVisible();
+		await replacementPicker.getByRole("button", { name: "Close" }).click();
+
+		await settings.getByRole("textbox", { name: "Alt text" }).fill("Updated diagram");
+		await settings.getByRole("combobox", { name: "Alignment" }).click();
+		await page.getByRole("option", { name: "Wide" }).click();
+		await settings.getByRole("button", { name: "Apply" }).click();
+
+		const updatedImage = page.getByRole("img", { name: "Updated diagram" });
+		await updatedImage.click();
+		await page.getByRole("button", { name: "Image settings" }).click();
+		await expect(settings.getByRole("textbox", { name: "Alt text" })).toHaveValue(
+			"Updated diagram",
+		);
+		await expect(settings.getByRole("combobox", { name: "Alignment" })).toContainText("Wide");
+
+		await settings.getByRole("textbox", { name: "Alt text" }).fill("Discarded change");
+		await settings.getByRole("button", { name: "Cancel" }).click();
+		await updatedImage.click();
+		await page.getByRole("button", { name: "Image settings" }).click();
+		await expect(settings.getByRole("textbox", { name: "Alt text" })).toHaveValue(
+			"Updated diagram",
 		);
 	});
 });

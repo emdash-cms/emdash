@@ -1073,7 +1073,7 @@ export function ContentEditor({
 						className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
 						style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
 					>
-						{isBelowLg && (
+						{isBelowLg && blockSidebarPanel?.type !== "image" && (
 							<div className="flex justify-end px-4 pt-3">
 								<MobileSettingsCloseButton />
 							</div>

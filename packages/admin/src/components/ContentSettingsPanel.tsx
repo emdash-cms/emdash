@@ -836,6 +836,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				onDelete={onBlockSidebarDelete}
 				onClose={onBlockSidebarClose}
 				inlineClassName="rounded-none border-0"
+				stickyFooter
 				inline
 			/>
 		) : blockSidebarPanel.type === "gallery" ? (

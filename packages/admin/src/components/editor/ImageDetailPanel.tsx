@@ -5,7 +5,7 @@
  * Shows preview and allows editing alt text, caption, and link settings.
  */
 
-import { Button, Input, InputArea, Label, LinkButton } from "@cloudflare/kumo";
+import { Button, Input, InputArea, Label, LinkButton, Select, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	X,
@@ -24,6 +24,7 @@ import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, metaString } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import { ConfirmDialog } from "../ConfirmDialog";
+import { FieldHelpLabel } from "../FieldHelpLabel.js";
 import { useMediaAssetEditor } from "../media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "../MediaPickerModal";
 
@@ -62,6 +63,7 @@ export interface ImageDetailPanelProps {
 	onDelete: () => void;
 	onClose: () => void;
 	inlineClassName?: string;
+	stickyFooter?: boolean;
 	/** When true, renders inline within the sidebar column instead of as a fixed overlay */
 	inline?: boolean;
 }
@@ -78,9 +80,13 @@ export function ImageDetailPanel({
 	onDelete,
 	onClose,
 	inlineClassName,
+	stickyFooter = false,
 	inline = false,
 }: ImageDetailPanelProps) {
 	const { t } = useLingui();
+	const altInputId = React.useId();
+	const sourceInputId = React.useId();
+	const closeLabel = t`Close image settings`;
 	// Form state
 	const [alt, setAlt] = React.useState(attributes.alt ?? "");
 	const [caption, setCaption] = React.useState(attributes.caption ?? "");
@@ -280,13 +286,21 @@ export function ImageDetailPanel({
 			}
 			if (saveShortcut) {
 				e.preventDefault();
-				stableHandleSave();
+				if (!inline || hasChanges) stableHandleSave();
 			}
 		};
 
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [assetEditor.isActive, showDeleteConfirm, showMediaPicker, stableOnClose, stableHandleSave]);
+	}, [
+		assetEditor.isActive,
+		hasChanges,
+		inline,
+		showDeleteConfirm,
+		showMediaPicker,
+		stableOnClose,
+		stableHandleSave,
+	]);
 
 	const dialogs = (
 		<>
@@ -325,20 +339,20 @@ export function ImageDetailPanel({
 				)}
 			>
 				{/* Header */}
-				<div className="flex items-center justify-between p-4 border-b">
+				<div className="flex items-center justify-between border-b px-4 py-3">
 					<div className="flex items-center gap-2">
-						<SlidersHorizontal className="h-4 w-4 text-kumo-subtle" />
-						<h3 className="text-sm font-semibold">{t`Image Settings`}</h3>
+						<Text bold as="h3">
+							{t`Image settings`}
+						</Text>
 					</div>
-					<Button variant="ghost" shape="square" aria-label={t`Close`} onClick={onClose}>
-						<X className="h-4 w-4" />
-						<span className="sr-only">{t`Close`}</span>
+					<Button variant="ghost" shape="square" aria-label={closeLabel} onClick={onClose}>
+						<X className="h-4 w-4" aria-hidden="true" />
 					</Button>
 				</div>
 
 				{/* Preview */}
 				<div className="p-4 border-b">
-					<div className="emdash-media-transparency-grid relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
+					<div className="emdash-media-transparency-grid relative flex aspect-video items-center justify-center overflow-hidden rounded-lg ring-1 ring-kumo-line">
 						<img
 							src={asset.src}
 							alt={attributes.alt || ""}
@@ -354,33 +368,37 @@ export function ImageDetailPanel({
 
 					{/* Original dimensions */}
 					{(asset.width || asset.height) && (
-						<div className="flex items-center gap-2 text-sm mt-3">
-							<Ruler className="h-4 w-4 text-kumo-subtle" />
+						<Text size="sm" variant="secondary" DANGEROUS_className="mt-3 flex items-center gap-2">
+							<Ruler className="size-4" aria-hidden="true" />
 							<span className="text-kumo-subtle">{t`Original:`}</span>
-							<span>
+							<span className="tabular-nums text-kumo-default">
 								{asset.width} × {asset.height}
 							</span>
-						</div>
+						</Text>
 					)}
 				</div>
 
 				{/* Display Size — shown for any image; migrated images may lack original dims */}
 				{asset.src && (
-					<div className="p-4 border-b space-y-3">
-						<div className="flex items-center justify-between">
-							<Label>{t`Display Size`}</Label>
+					<div className="p-4 border-b space-y-4">
+						<div className="flex items-center justify-between gap-2">
+							<FieldHelpLabel
+								help={
+									<span className="block max-w-64 text-pretty">
+										{t`Set a custom width and height for this image in the document. The original media file is unchanged.`}
+									</span>
+								}
+								helpLabel={t`More information about Display size`}
+							>
+								{t`Display size`}
+							</FieldHelpLabel>
 							{asset.width && asset.height && (
-								<Button
-									variant="ghost"
-									size="sm"
-									onClick={handleResetDimensions}
-									className="h-auto py-1 px-2 text-xs"
-								>
-									{t`Reset to original`}
+								<Button variant="ghost" size="sm" onClick={handleResetDimensions}>
+									{t`Reset`}
 								</Button>
 							)}
 						</div>
-						<div className="flex items-end gap-2">
+						<div className="flex min-w-0 items-end gap-2" role="group" aria-label={t`Display size`}>
 							<div className="min-w-0 flex-1">
 								<Input
 									label={t`Width`}
@@ -395,13 +413,14 @@ export function ImageDetailPanel({
 									variant="ghost"
 									shape="square"
 									onClick={() => setLockAspectRatio(!lockAspectRatio)}
-									title={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
-									aria-label={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
+									title={t`Keep aspect ratio`}
+									aria-label={t`Keep aspect ratio`}
+									aria-pressed={lockAspectRatio}
 								>
 									{lockAspectRatio ? (
-										<LinkSimple className="h-4 w-4" />
+										<LinkSimple className="h-4 w-4" aria-hidden="true" />
 									) : (
-										<LinkBreak className="h-4 w-4 text-kumo-subtle" />
+										<LinkBreak className="h-4 w-4 text-kumo-subtle" aria-hidden="true" />
 									)}
 								</Button>
 							)}
@@ -415,65 +434,76 @@ export function ImageDetailPanel({
 								/>
 							</div>
 						</div>
-						<p className="text-xs text-kumo-subtle">
-							{t`Set a custom display size for this image instance.`}
-						</p>
-					</div>
-				)}
-
-				{/* Alignment */}
-				{asset.src && (
-					<div className="p-4 border-b space-y-3">
-						<Label>{t`Alignment`}</Label>
-						<div className="flex flex-wrap gap-1">
-							{alignmentOptions.map((opt) => (
-								<Button
-									key={opt.value ?? "none"}
-									type="button"
-									size="sm"
-									variant={alignment === opt.value ? "primary" : "secondary"}
-									onClick={() => setAlignment(opt.value)}
-								>
-									{opt.label}
-								</Button>
-							))}
-						</div>
+						<Select
+							label={t`Alignment`}
+							value={alignment ?? "none"}
+							onValueChange={(value) =>
+								setAlignment(value === "none" ? undefined : (value as ImageAttributes["alignment"]))
+							}
+							items={{
+								none: t`None`,
+								left: t`Left`,
+								center: t`Center`,
+								right: t`Right`,
+								wide: t`Wide`,
+								full: t`Full`,
+							}}
+							className="w-full"
+						/>
 					</div>
 				)}
 
 				{/* Editable Fields */}
-				<div className="p-4 space-y-4">
-					<Input
-						label={t`Alt Text`}
-						value={alt}
-						onChange={(e) => setAlt(e.target.value)}
-						placeholder={t`Describe this image for accessibility`}
-						description={t`Required for accessibility. Describes the image for screen readers.`}
-					/>
+				<div className="p-4 space-y-4 border-b">
+					<div className="space-y-1.5">
+						<FieldHelpLabel
+							htmlFor={altInputId}
+							help={
+								<span className="block max-w-64 text-pretty">
+									{t`Describe the image's purpose and relevant details for people who cannot see it.`}
+								</span>
+							}
+							helpLabel={t`More information about Alt text`}
+						>
+							{t`Alt text`}
+						</FieldHelpLabel>
+						<Input
+							id={altInputId}
+							aria-label={t`Alt text`}
+							value={alt}
+							onChange={(e) => setAlt(e.target.value)}
+							placeholder={t`Describe the image`}
+							className="w-full"
+						/>
+					</div>
 
 					<InputArea
 						label={t`Caption`}
 						value={caption}
 						onChange={(e) => setCaption(e.target.value)}
-						placeholder={t`Optional caption displayed below the image`}
-						description={t`Displayed below the image as a visible caption.`}
+						placeholder={t`Optional caption`}
 						rows={2}
 					/>
 
 					<Input
-						label={t`Title (Tooltip)`}
+						label={t`Tooltip text`}
 						value={title}
 						onChange={(e) => setTitle(e.target.value)}
-						placeholder={t`Optional tooltip on hover`}
-						description={t`Shown when hovering over the image.`}
+						placeholder={t`Optional hover text`}
 					/>
 
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!asset.mediaId && asset.src && (
 						<div>
-						<Label>{t`Source`}</Label>
-						<div className="mt-1.5 flex min-w-0 gap-2">
-							<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-xs" />
+							<Label htmlFor={sourceInputId}>{t`Source`}</Label>
+							<div className="mt-1.5 flex min-w-0 gap-2">
+								<Input
+									id={sourceInputId}
+									aria-label={t`Source`}
+									value={asset.src}
+									readOnly
+									className="min-w-0 flex-1 font-mono text-xs"
+								/>
 								<LinkButton
 									variant="outline"
 									shape="square"
@@ -482,7 +512,7 @@ export function ImageDetailPanel({
 									title={t`Open in new tab`}
 									aria-label={t`Open in new tab`}
 								>
-									<ArrowSquareOut className="h-4 w-4" />
+									<ArrowSquareOut className="h-4 w-4" aria-hidden="true" />
 								</LinkButton>
 							</div>
 						</div>
@@ -490,17 +520,28 @@ export function ImageDetailPanel({
 				</div>
 
 				{/* Actions */}
-				<div className="p-4 border-t flex items-center justify-between gap-2">
+				<div className="p-4">
 					<Button
-						variant="destructive"
-						size="sm"
+						variant="ghost"
+						className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
 						onClick={handleDelete}
 						disabled={assetEditor.isActive}
 					>
-						{t`Remove`}
+						{t`Remove image`}
 					</Button>
-					<Button size="sm" onClick={handleSave} disabled={!hasChanges}>
-						{t`Save`}
+				</div>
+
+				<div
+					className={cn(
+						"flex items-center justify-end gap-2 border-t bg-kumo-base px-4 py-3",
+						stickyFooter && "sticky bottom-0 z-10",
+					)}
+				>
+					<Button variant="outline" onClick={onClose}>
+						{t`Cancel`}
+					</Button>
+					<Button variant="primary" onClick={handleSave} disabled={!hasChanges}>
+						{t`Apply`}
 					</Button>
 				</div>
 
@@ -662,9 +703,9 @@ export function ImageDetailPanel({
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!asset.mediaId && asset.src && (
 						<div>
-						<Label>{t`Source`}</Label>
-						<div className="mt-1.5 flex min-w-0 gap-2">
-							<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-xs" />
+							<Label>{t`Source`}</Label>
+							<div className="mt-1.5 flex min-w-0 gap-2">
+								<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-xs" />
 								<LinkButton
 									variant="outline"
 									shape="square"
