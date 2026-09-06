@@ -70,6 +70,43 @@ it("uses Kumo segmented time fields without a browser picker", async () => {
 	expect(screen.container.querySelector('input[type="time"]')).toBeNull();
 });
 
+it("accepts localized numerals in the time fields", async () => {
+	function ControlledFields() {
+		const [time, setTime] = React.useState("");
+		return (
+			<>
+				<PublishingDateTimeFields
+					date={new Date(2035, 5, 15, 12)}
+					time={time}
+					dateAriaLabel="Publication date"
+					onDateChange={vi.fn()}
+					onTimeChange={setTime}
+				/>
+				<output>{time}</output>
+			</>
+		);
+	}
+
+	const screen = await render(<ControlledFields />);
+	const hour = screen.getByRole("textbox", { name: "Hour" });
+	const minute = screen.getByRole("textbox", { name: "Minute" });
+	await hour.fill("١٠");
+	await expect.element(minute).toHaveFocus();
+	await minute.fill("۳۰");
+
+	await expect.element(screen.getByText("10:30", { exact: true })).toBeVisible();
+
+	await hour.fill("११");
+	await expect.element(minute).toHaveFocus();
+	await minute.fill("४५");
+	await expect.element(screen.getByText("11:45", { exact: true })).toBeVisible();
+
+	await hour.fill("๑๒");
+	await expect.element(minute).toHaveFocus();
+	await minute.fill("๕๙");
+	await expect.element(screen.getByText("00:59", { exact: true })).toBeVisible();
+});
+
 it("moves focus to minutes and converts the selected day period", async () => {
 	function ControlledFields() {
 		const [time, setTime] = React.useState("09:05");

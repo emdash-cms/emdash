@@ -41,7 +41,13 @@ interface TimeParts {
 const TIME_VALUE_PATTERN = /^(?<hour>\d{2}):(?<minute>\d{2})$/;
 
 function numericTimePart(value: string): string {
-	return value.replace(/\D/g, "").slice(0, 2);
+	return value
+		.replace(/[\u0660-\u0669]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+		.replace(/[\u06f0-\u06f9]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+		.replace(/[\u0966-\u096f]/g, (digit) => String(digit.charCodeAt(0) - 0x0966))
+		.replace(/[\u0e50-\u0e59]/g, (digit) => String(digit.charCodeAt(0) - 0x0e50))
+		.replace(/\D/g, "")
+		.slice(0, 2);
 }
 
 function uses12HourClock(locale: string): boolean {
