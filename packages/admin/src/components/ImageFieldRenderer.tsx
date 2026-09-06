@@ -8,7 +8,7 @@
  * sub-fields) can reuse the same picker without a circular import.
  */
 
-import { Button, DropdownMenu, Label, LayerCard, Text } from "@cloudflare/kumo";
+import { Button, DropdownMenu, Label, LayerCard, Text, Tooltip } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Image as ImageIcon,
@@ -313,32 +313,39 @@ export function ImageFieldRenderer({
 	);
 	const mobileFeaturedActions = (
 		<DropdownMenu open={mobileActionsOpen} onOpenChange={setMobileActionsOpen}>
-			<DropdownMenu.Trigger
+			<Tooltip
+				content={t`Image actions`}
+				side="top"
+				className="cursor-pointer"
 				render={
-					<Button
-						ref={mobileImageActionsRef}
-						type="button"
-						shape="square"
-						variant="ghost"
-						icon={<DotsThree aria-hidden="true" />}
-						loading={assetEditor.isOpening && pickerTarget === "image"}
-						disabled={assetEditor.isActive}
-						aria-label={t`Image actions`}
-						aria-haspopup="menu"
-						aria-expanded={mobileActionsOpen}
+					<DropdownMenu.Trigger
+						render={
+							<Button
+								ref={mobileImageActionsRef}
+								type="button"
+								shape="square"
+								variant="ghost"
+								icon={<DotsThree aria-hidden="true" />}
+								loading={assetEditor.isOpening && pickerTarget === "image"}
+								disabled={assetEditor.isActive}
+								aria-label={t`Image actions`}
+								aria-haspopup="menu"
+								aria-expanded={mobileActionsOpen}
+							/>
+						}
 					/>
 				}
 			/>
 			<DropdownMenu.Content align="end" className="min-w-40 sm:hidden">
 				<DropdownMenu.Item
-					icon={<ImageSquare aria-hidden="true" />}
+					icon={<ImageSquare className="me-1.5 size-4" aria-hidden="true" />}
 					onClick={() => openPicker("image")}
 				>
 					{t`Replace`}
 				</DropdownMenu.Item>
 				{canEditPrimaryAsset && (
 					<DropdownMenu.Item
-						icon={<PencilSimple aria-hidden="true" />}
+						icon={<PencilSimple className="me-1.5 size-4" aria-hidden="true" />}
 						onClick={() => {
 							setPickerTarget("image");
 							void assetEditor.openAssetEditor(objectValue!.id, mobileImageActionsRef.current);
@@ -348,7 +355,11 @@ export function ImageFieldRenderer({
 					</DropdownMenu.Item>
 				)}
 				<DropdownMenu.Separator />
-				<DropdownMenu.Item variant="danger" icon={<X aria-hidden="true" />} onClick={handleRemove}>
+				<DropdownMenu.Item
+					variant="danger"
+					icon={<X className="me-1.5 size-4" aria-hidden="true" />}
+					onClick={handleRemove}
+				>
 					{t`Remove`}
 				</DropdownMenu.Item>
 			</DropdownMenu.Content>
