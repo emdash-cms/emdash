@@ -572,19 +572,10 @@ export function createViteConfig(
 		optimizeDeps: {
 			// When using source, don't pre-bundle JS — let Vite transform on the fly for HMR.
 			// When using dist, pre-bundle to avoid re-optimization on first hydration.
+			// lowlight pulls in a CommonJS highlight.js entry, so the inline Portable
+			// Text editor requires these to be pre-bundled with ESM interop in dev.
 			include: useSource
-				? [
-						"@astrojs/react/client.js",
-						// The inline Portable Text editor loads the code-block extension, which
-						// pulls in lowlight. lowlight default-imports highlight.js/lib/core, a
-						// CommonJS file. Pre-bundling both here ensures Vite wraps the deep CJS
-						// import with an ESM interop stub instead of serving it raw to the
-						// browser, which would make hydration fail with
-						// "does not provide an export named 'default'".
-						"lowlight",
-						"highlight.js",
-						"highlight.js/lib/core",
-					]
+				? ["@astrojs/react/client.js", "lowlight", "highlight.js", "highlight.js/lib/core"]
 				: [
 						"@emdash-cms/admin",
 						"@astrojs/react/client.js",
