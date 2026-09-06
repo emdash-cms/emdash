@@ -187,6 +187,7 @@ export function Sections() {
 										setCreateSlug(e.target.value);
 										setSlugTouched(true);
 									}}
+									onBlur={() => setCreateSlug((current) => slugify(current))}
 									required
 									placeholder="hero-banner"
 									pattern="[a-z0-9\-]+"

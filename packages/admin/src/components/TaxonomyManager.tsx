@@ -584,6 +584,7 @@ function TermFormDialog({
 									setSlug(e.target.value);
 									setAutoSlug(false);
 								}}
+								onBlur={() => setSlug((current) => slugify(current))}
 								placeholder="news"
 								required
 							/>

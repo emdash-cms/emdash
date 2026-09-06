@@ -345,6 +345,23 @@ describe("TaxonomyManager", () => {
 		await expect.element(screen.getByText("Description (optional)")).toBeInTheDocument();
 	});
 
+	it("normalizes a manually-typed slug on blur in create dialog", async () => {
+		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
+			wrapper: Wrapper,
+		});
+
+		await expect.element(screen.getByRole("heading", { name: "Categories" })).toBeInTheDocument();
+
+		await screen.getByRole("button", { name: ADD_CATEGORY_BUTTON_REGEX }).click();
+
+		const slugInput = screen.getByLabelText("Slug");
+		await slugInput.fill("My New Term!");
+		// Tab away to blur, same as a real user tabbing away. Clicking a sibling
+		// field instead races Base UI's dialog focus-trap re-render on blur.
+		await userEvent.tab();
+		await expect.element(slugInput).toHaveValue("my-new-term");
+	});
+
 	it("lets the server derive an auto-generated term slug", async () => {
 		const screen = await render(<TaxonomyManager taxonomyName="categories" />, {
 			wrapper: Wrapper,

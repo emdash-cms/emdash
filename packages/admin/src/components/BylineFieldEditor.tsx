@@ -41,6 +41,13 @@ import { DialogError, getMutationError } from "./DialogError.js";
 const SLUG_INVALID_CHARS_REGEX = /[^a-z0-9]+/g;
 const SLUG_LEADING_TRAILING_REGEX = /^_|_$/g;
 
+function normalizeSlug(value: string): string {
+	return value
+		.toLowerCase()
+		.replace(SLUG_INVALID_CHARS_REGEX, "_")
+		.replace(SLUG_LEADING_TRAILING_REGEX, "");
+}
+
 /**
  * The five v1 byline field types. Kept in lock-step with the server-side
  * `BYLINE_FIELD_TYPES` constant (`packages/core/src/schema/types.ts`).
@@ -137,13 +144,7 @@ export function BylineFieldEditor({
 		// slug post-create is rejected by the registry; preserving the
 		// stored slug on edit avoids confusing the editor.
 		if (!isEdit) {
-			setField(
-				"slug",
-				value
-					.toLowerCase()
-					.replace(SLUG_INVALID_CHARS_REGEX, "_")
-					.replace(SLUG_LEADING_TRAILING_REGEX, ""),
-			);
+			setField("slug", normalizeSlug(value));
 		}
 	};
 
@@ -239,6 +240,7 @@ export function BylineFieldEditor({
 								label={t`Slug`}
 								value={state.slug}
 								onChange={(e) => setField("slug", e.target.value)}
+								onBlur={() => setField("slug", normalizeSlug(state.slug))}
 								// The literal slug is an example identifier, not natural-language
 								// copy — translators will typically leave it as-is, but the
 								// AGENTS.md "every user-facing string via Lingui" rule applies

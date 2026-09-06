@@ -25,6 +25,7 @@ import { Toast } from "@cloudflare/kumo";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import { BylineFieldEditor } from "../../src/components/BylineFieldEditor";
 import type { BylineFieldDefinition } from "../../src/lib/api/byline-fields";
@@ -183,6 +184,16 @@ describe("BylineFieldEditor", () => {
 		it("does not render the select-options textarea for the default string type", async () => {
 			const screen = await render(<BylineFieldEditor {...defaultProps} />);
 			expect(screen.getByLabelText("Options (one per line)").query()).toBeNull();
+		});
+
+		it("normalizes a manually-typed slug on blur", async () => {
+			const screen = await render(<BylineFieldEditor {...defaultProps} />);
+			const slugInput = screen.getByLabelText("Slug");
+			await slugInput.fill("Job Title!");
+			// Tab away to blur — this dialog's data-base-ui-inert overlay blocks
+			// click() targeting sibling fields (see FieldEditor.test.tsx note).
+			await userEvent.tab();
+			await expect.element(slugInput).toHaveValue("job_title");
 		});
 	});
 
