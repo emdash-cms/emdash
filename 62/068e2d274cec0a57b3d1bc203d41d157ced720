@@ -1,0 +1,33 @@
+e2e/tests/media-library.spec.ts
+  s_669e4e36f3cd5c::t_5add5fbbac68ed 484-504,506-529
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_669e4e36f3cd5c::t_97a3fecded7143 11,17,131,134,207-216,271,314-356,443,445,451,465-466,480
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_669e4e36f3cd5c::t_76b8d34dc4ede9 371-393
+packages/admin/src/styles.css
+  s_6a4faa61744b31::t_8da9bffc63b60e 118-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "62068e2d274cec0a57b3d1bc203d41d157ced720",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a4faa61744b31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07886-e73b-7de1-a8d8-ce170d5daee1",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
