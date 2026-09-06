@@ -22,6 +22,7 @@ import * as React from "react";
 import type { MediaItem } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, metaString } from "../../lib/media-utils.js";
+import { cn } from "../../lib/utils";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { useMediaAssetEditor } from "../media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "../MediaPickerModal";
@@ -60,6 +61,7 @@ export interface ImageDetailPanelProps {
 	onReplace: (attrs: ImageAttributes) => void;
 	onDelete: () => void;
 	onClose: () => void;
+	inlineClassName?: string;
 	/** When true, renders inline within the sidebar column instead of as a fixed overlay */
 	inline?: boolean;
 }
@@ -75,6 +77,7 @@ export function ImageDetailPanel({
 	onReplace,
 	onDelete,
 	onClose,
+	inlineClassName,
 	inline = false,
 }: ImageDetailPanelProps) {
 	const { t } = useLingui();
@@ -315,7 +318,12 @@ export function ImageDetailPanel({
 
 	if (inline) {
 		return (
-			<div className="rounded-lg border bg-kumo-base flex flex-col">
+			<div
+				className={cn(
+					"flex min-w-0 flex-col whitespace-normal rounded-lg border bg-kumo-base",
+					inlineClassName,
+				)}
+			>
 				{/* Header */}
 				<div className="flex items-center justify-between p-4 border-b">
 					<div className="flex items-center gap-2">
@@ -372,20 +380,20 @@ export function ImageDetailPanel({
 								</Button>
 							)}
 						</div>
-						<div className="flex items-center gap-2">
-							<div className="flex-1">
+						<div className="flex items-end gap-2">
+							<div className="min-w-0 flex-1">
 								<Input
 									label={t`Width`}
 									type="number"
 									value={displayWidth ?? ""}
 									onChange={(e) => handleWidthChange(e.target.value)}
+									className="w-full min-w-0"
 								/>
 							</div>
 							{aspectRatio && (
 								<Button
 									variant="ghost"
 									shape="square"
-									className="mt-5"
 									onClick={() => setLockAspectRatio(!lockAspectRatio)}
 									title={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
 									aria-label={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
@@ -397,12 +405,13 @@ export function ImageDetailPanel({
 									)}
 								</Button>
 							)}
-							<div className="flex-1">
+							<div className="min-w-0 flex-1">
 								<Input
 									label={t`Height`}
 									type="number"
 									value={displayHeight ?? ""}
 									onChange={(e) => handleHeightChange(e.target.value)}
+									className="w-full min-w-0"
 								/>
 							</div>
 						</div>
@@ -462,9 +471,9 @@ export function ImageDetailPanel({
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!asset.mediaId && asset.src && (
 						<div>
-							<Label>{t`Source`}</Label>
-							<div className="mt-1.5 flex gap-2">
-								<Input value={asset.src} readOnly className="text-xs font-mono flex-1" />
+						<Label>{t`Source`}</Label>
+						<div className="mt-1.5 flex min-w-0 gap-2">
+							<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-xs" />
 								<LinkButton
 									variant="outline"
 									shape="square"
@@ -562,20 +571,20 @@ export function ImageDetailPanel({
 								</Button>
 							)}
 						</div>
-						<div className="flex items-center gap-2">
-							<div className="flex-1">
+						<div className="flex items-end gap-2">
+							<div className="min-w-0 flex-1">
 								<Input
 									label={t`Width`}
 									type="number"
 									value={displayWidth ?? ""}
 									onChange={(e) => handleWidthChange(e.target.value)}
+									className="w-full min-w-0"
 								/>
 							</div>
 							{aspectRatio && (
 								<Button
 									variant="ghost"
 									shape="square"
-									className="mt-5"
 									onClick={() => setLockAspectRatio(!lockAspectRatio)}
 									title={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
 									aria-label={lockAspectRatio ? t`Unlock aspect ratio` : t`Lock aspect ratio`}
@@ -587,12 +596,13 @@ export function ImageDetailPanel({
 									)}
 								</Button>
 							)}
-							<div className="flex-1">
+							<div className="min-w-0 flex-1">
 								<Input
 									label={t`Height`}
 									type="number"
 									value={displayHeight ?? ""}
 									onChange={(e) => handleHeightChange(e.target.value)}
+									className="w-full min-w-0"
 								/>
 							</div>
 						</div>
@@ -652,9 +662,9 @@ export function ImageDetailPanel({
 					{/* Source URL - only show for external images (no mediaId) */}
 					{!asset.mediaId && asset.src && (
 						<div>
-							<Label>{t`Source`}</Label>
-							<div className="mt-1.5 flex gap-2">
-								<Input value={asset.src} readOnly className="text-xs font-mono flex-1" />
+						<Label>{t`Source`}</Label>
+						<div className="mt-1.5 flex min-w-0 gap-2">
+							<Input value={asset.src} readOnly className="min-w-0 flex-1 font-mono text-xs" />
 								<LinkButton
 									variant="outline"
 									shape="square"

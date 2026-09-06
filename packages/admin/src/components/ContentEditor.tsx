@@ -826,7 +826,7 @@ export function ContentEditor({
 				style={
 					{
 						"--sidebar-bg": "var(--color-kumo-elevated)",
-						...(isBelowLg ? { "--sidebar-width": "20rem" } : {}),
+						...(isBelowLg ? { "--sidebar-width": "min(20rem, 100vw)" } : {}),
 					} as React.CSSProperties
 				}
 			>

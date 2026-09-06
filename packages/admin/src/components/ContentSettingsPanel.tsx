@@ -827,18 +827,17 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	if (blockSidebarPanel) {
 		// A block requesting the sidebar replaces the default sections.
 		return blockSidebarPanel.type === "image" ? (
-			<div className="p-4">
-				<ImageDetailPanel
-					attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
-					onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
-					onReplace={(attrs) =>
-						blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
-					}
-					onDelete={onBlockSidebarDelete}
-					onClose={onBlockSidebarClose}
-					inline
-				/>
-			</div>
+			<ImageDetailPanel
+				attributes={blockSidebarPanel.attrs as unknown as ImageAttributes}
+				onUpdate={(attrs) => blockSidebarPanel.onUpdate(attrs)}
+				onReplace={(attrs) =>
+					blockSidebarPanel.onReplace(attrs as unknown as Record<string, unknown>)
+				}
+				onDelete={onBlockSidebarDelete}
+				onClose={onBlockSidebarClose}
+				inlineClassName="rounded-none border-0"
+				inline
+			/>
 		) : blockSidebarPanel.type === "gallery" ? (
 			<div className="p-4">
 				<GalleryDetailPanel
