@@ -1,0 +1,121 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-release-service",
+	"main": "./src/index.ts",
+	// Pinned to the newest date supported by the workspace's workerd test
+	// runtime. Request handling uses stable Web Platform APIs.
+	"compatibility_date": "2026-05-14",
+	"compatibility_flags": ["nodejs_compat"],
+	"analytics_engine_datasets": [
+		{
+			"binding": "OPERATIONS_METRICS",
+			"dataset": "emdash_release_service_operations",
+		},
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "IDENTITY_DIRECTORY_DO",
+				"class_name": "IdentityDirectoryDurableObject",
+			},
+			{
+				"name": "APPROVER_DO",
+				"class_name": "ApproverDurableObject",
+			},
+			{
+				"name": "OAUTH_STATE_DO",
+				"class_name": "OAuthStateDurableObject",
+			},
+			{
+				"name": "SERVICE_CONTROL_DO",
+				"class_name": "ServiceControlDurableObject",
+			},
+			{
+				"name": "PUBLISHER_DO",
+				"class_name": "PublisherDurableObject",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"ApproverDurableObject",
+				"IdentityDirectoryDurableObject",
+				"OAuthStateDurableObject",
+				"PublisherDurableObject",
+				"ServiceControlDurableObject",
+			],
+		},
+	],
+	"services": [
+		{
+			"binding": "RELEASE_VERIFIER",
+			"service": "emdash-release-verifier",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "PUBLICATION_STAGING",
+			"bucket_name": "emdash-release-service-publication-staging",
+		},
+		{
+			"binding": "PROVENANCE_STORE",
+			"bucket_name": "emdash-release-service-provenance",
+		},
+		{
+			"binding": "OPERATIONS_ARCHIVE",
+			"bucket_name": "emdash-release-service-operations",
+		},
+	],
+	"workflows": [
+		{
+			"binding": "RELEASE_INTENT_WORKFLOW",
+			"name": "emdash-release-intent",
+			"class_name": "ReleaseIntentWorkflow",
+		},
+		{
+			"binding": "PUBLISHER_ARCHIVE_WORKFLOW",
+			"name": "emdash-publisher-archive",
+			"class_name": "PublisherArchiveWorkflow",
+		},
+		{
+			"binding": "ENCRYPTION_VERIFICATION_WORKFLOW",
+			"name": "emdash-encryption-verification",
+			"class_name": "EncryptionVerificationWorkflow",
+		},
+	],
+	"assets": {
+		"directory": "./dist/client",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"html_handling": "none",
+		"run_worker_first": [
+			"/",
+			"/.well-known/*",
+			"/admin",
+			"/admin/*",
+			"/approvals/*",
+			"/health",
+			"/oauth/*",
+			"/publisher*",
+			"/ready",
+			"/v1/*",
+		],
+	},
+	"vars": {
+		"PUBLIC_ORIGIN": "https://emdash-release-service.emdash-cms.workers.dev",
+		"DEPLOYMENT_ID": "emdash-release-service-production",
+		"ACCESS_TEAM_DOMAIN": "https://cf-emdash-cms.cloudflareaccess.com",
+		"ACCESS_VIEWER_AUD": "9e94dcee531107093096e1aff1a1fe7df68f93fc599c1ee8282ed76d70fd568c",
+		"ACCESS_REVIEWER_AUD": "b282de16228e3c42a0aa41d3aba8478d79d1987e37a7b5778f628552581ad8f6",
+		"ACCESS_ADMIN_AUD": "[\"a53a97932d4d07decf44e727abfe0c1c9d85412c62b5e55669148d5d2296338c\",\"1a4f3f6eba0fb3c3cdfcc3f77f6e5f4a0e4af2e0f7efe31ef12fb077e7cccc64\",\"54c4eec8766ebf5ade4c9e9c95cd8e2cadfcf441850bb56f34bfe097acd68ac0\",\"4a68acabdd10af19b45d7d6bf6623aa7a18b4407999f0b769b3371ab256c292f\"]",
+		"OAUTH_REDIRECT_URIS": "[\"https://emdash-release-service.emdash-cms.workers.dev/oauth/callback\"]",
+	},
+	"secrets": {
+		"required": ["OAUTH_ASSERTION_KEYSET", "ENCRYPTION_KEYRING"],
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

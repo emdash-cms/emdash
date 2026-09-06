@@ -10,7 +10,11 @@ import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
 import { CommentRepository } from "../../database/repositories/comment.js";
-import { ContentRepository, isSystemOrderField } from "../../database/repositories/content.js";
+import {
+	ContentRepository,
+	isSystemOrderField,
+	type ContentRevisionPrecondition,
+} from "../../database/repositories/content.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -39,7 +43,7 @@ import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
-import { encodeRev, validateRev } from "../rev.js";
+import { decodeRev, encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 import { validateMediaFields } from "./validate-media-fields.js";
 
@@ -57,6 +61,15 @@ function hasApiError(error: unknown): error is Error & { apiError: { code: strin
 		"code" in apiError &&
 		typeof apiError.code === "string"
 	);
+}
+
+function decodeRevisionPrecondition(
+	rev: string | undefined,
+): ContentRevisionPrecondition | undefined {
+	if (rev === undefined) return undefined;
+	const decoded = decodeRev(rev);
+	if (!decoded) throw new ContentMutationConflictError("Revision precondition did not match");
+	return decoded;
 }
 
 /**
@@ -1584,9 +1597,11 @@ export async function handleContentPublish(
 		publishedAt?: string;
 		requireScheduledDue?: boolean;
 		expectedScheduledAt?: string;
+		_rev?: string;
 	} = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
@@ -1607,6 +1622,7 @@ export async function handleContentPublish(
 				options.expectedScheduledAt,
 				publishConfig.supportsRevisions,
 				publishConfig.routable,
+				expectedRevision,
 			);
 
 			// Leave a 301 behind when publishing changed the slug of an entry that
@@ -1629,7 +1645,7 @@ export async function handleContentPublish(
 
 		return {
 			success: true,
-			data: { item },
+			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
 		if (error instanceof ContentMutationConflictError) {
@@ -1707,12 +1723,14 @@ export async function handleContentUnpublish(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { _rev?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.unpublish(collection, resolvedId);
+			return repo.unpublish(collection, resolvedId, expectedRevision);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1720,9 +1738,15 @@ export async function handleContentUnpublish(
 
 		return {
 			success: true,
-			data: { item },
+			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,
@@ -1777,12 +1801,14 @@ export async function handleContentDiscardDraft(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { _rev?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.discardDraft(collection, resolvedId);
+			return repo.discardDraft(collection, resolvedId, expectedRevision);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1790,9 +1816,15 @@ export async function handleContentDiscardDraft(
 
 		return {
 			success: true,
-			data: { item },
+			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,

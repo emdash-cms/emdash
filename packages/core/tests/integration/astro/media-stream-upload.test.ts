@@ -45,7 +45,7 @@ function uploadUrlRequest() {
 	});
 }
 
-function uploadUrlRequestWithHash(contentHash: string) {
+function uploadUrlRequestWithHash(contentHash: string, deduplicate?: boolean) {
 	return new Request("http://localhost/_emdash/api/media/upload-url", {
 		method: "POST",
 		headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
@@ -54,6 +54,7 @@ function uploadUrlRequestWithHash(contentHash: string) {
 			contentType: "image/png",
 			size: 3,
 			contentHash,
+			...(deduplicate === undefined ? {} : { deduplicate }),
 		}),
 	});
 }
@@ -192,6 +193,57 @@ describe("streamed media upload fallback", () => {
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as { data: { existing?: boolean; mediaId: string } };
 		expect(body.data).toMatchObject({ existing: true, mediaId: existing.id });
+	});
+
+	it("creates a distinct pending item when deduplication is disabled", async () => {
+		const repo = new MediaRepository(db);
+		const contentHash = "sha256:ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad";
+		const existing = await repo.create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			contentHash,
+		});
+
+		const response = await postUploadUrl(
+			buildContext({
+				db,
+				request: uploadUrlRequestWithHash(contentHash, false),
+				storage: unsupportedSignedUrlStorage(),
+			}),
+		);
+
+		expect(response.status).toBe(200);
+		const body = (await response.json()) as {
+			data: { existing?: boolean; mediaId: string; storageKey: string };
+		};
+		expect(body.data.existing).toBeUndefined();
+		expect(body.data.mediaId).not.toBe(existing.id);
+		expect(body.data.storageKey).not.toBe(existing.storageKey);
+		expect(await repo.findById(body.data.mediaId)).toMatchObject({ status: "pending" });
+	});
+
+	it("rejects non-boolean signed-upload deduplication values", async () => {
+		const request = new Request("http://localhost/_emdash/api/media/upload-url", {
+			method: "POST",
+			headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
+			body: JSON.stringify({
+				filename: "photo.png",
+				contentType: "image/png",
+				size: 3,
+				deduplicate: "false",
+			}),
+		});
+
+		const response = await postUploadUrl(
+			buildContext({ db, request, storage: unsupportedSignedUrlStorage() }),
+		);
+
+		expect(response.status).toBe(400);
+		expect(await response.json()).toMatchObject({
+			error: { code: "VALIDATION_ERROR" },
+		});
 	});
 
 	it.each([

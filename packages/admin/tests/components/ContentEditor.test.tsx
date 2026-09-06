@@ -1240,6 +1240,55 @@ describe("ContentEditor", () => {
 				vi.useRealTimers();
 			}
 		});
+
+		it("does not resend a rejected autosave payload until the content changes", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const item = makeItem();
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					autosaveCompletionToken: 0,
+					autosaveRejectionToken: 0,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				const titleInput = screen.getByLabelText("Title");
+				await titleInput.fill("Too long");
+
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} />,
+				);
+
+				await vi.advanceTimersByTimeAsync(10_000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+				await expect.element(screen.getByLabelText("Title")).toHaveValue("Too long");
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).first())
+					.toBeEnabled();
+
+				await titleInput.fill("Short");
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(2);
+				expect(onAutosave).toHaveBeenLastCalledWith(
+					expect.objectContaining({ data: expect.objectContaining({ title: "Short" }) }),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
 	});
 
 	describe("delete", () => {

@@ -8,12 +8,13 @@
  * - User preference stored in localStorage, applied via data-mode attribute on <html>
  */
 
-/* Scan Kumo component JS for Tailwind utility classes (e.g. Dialog centering) */
-@source "../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
-
 @import "@cloudflare/kumo/styles";
+@import "./media-image-cropper.css";
 @import "tailwindcss";
 @plugin "@tailwindcss/typography";
+
+/* Scan Kumo component JS for Tailwind utility classes (e.g. Dialog centering) */
+@source "../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
 
 /* Map Tailwind dark: variant to kumo's data-mode attribute */
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
@@ -102,6 +103,16 @@ body {
 	color: var(--text-color-kumo-default);
 	-webkit-font-smoothing: antialiased;
 	-moz-osx-font-smoothing: grayscale;
+}
+
+.emdash-media-transparency-grid {
+	background-color: var(--color-kumo-base);
+	background-image: repeating-conic-gradient(
+		var(--color-kumo-tint) 0% 25%,
+		var(--color-kumo-base) 0% 50%
+	);
+	background-position: 50%;
+	background-size: 20px 20px;
 }
 
 /*

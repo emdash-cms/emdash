@@ -467,13 +467,16 @@ const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
 export async function ssrfSafeFetch(
 	url: string,
 	init?: RequestInit,
-	options?: { resolver?: DnsResolver },
+	options?: { resolver?: DnsResolver; httpsOnly?: boolean },
 ): Promise<Response> {
 	let currentUrl = url;
 	let currentInit = init;
 
 	for (let i = 0; i <= MAX_REDIRECTS; i++) {
-		await resolveAndValidateExternalUrl(currentUrl, options);
+		const validated = await resolveAndValidateExternalUrl(currentUrl, options);
+		if (options?.httpsOnly === true && validated.protocol !== "https:") {
+			throw new SsrfError("Only HTTPS URLs are allowed");
+		}
 
 		const response = await globalThis.fetch(currentUrl, {
 			...currentInit,

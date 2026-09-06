@@ -238,6 +238,11 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/media/[id]/upload.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/media/[id]/replace",
+		entrypoint: resolveRoute("api/media/[id]/replace.ts"),
+	});
+
 	// Media provider routes
 	injectRoute({
 		pattern: "/_emdash/api/media/providers",

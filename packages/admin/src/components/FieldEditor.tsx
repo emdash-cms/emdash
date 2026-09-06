@@ -104,6 +104,7 @@ interface FieldFormState {
 	minItems: string;
 	maxItems: string;
 	allowedMimeTypes: string[];
+	darkVariant: boolean;
 }
 
 function getInitialFormState(field?: SchemaField): FieldFormState {
@@ -129,6 +130,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			minItems: (field.validation as Record<string, unknown>)?.minItems?.toString() ?? "",
 			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
 			allowedMimeTypes: field.validation?.allowedMimeTypes ?? [],
+			darkVariant: field.options?.darkVariant === true,
 		};
 	}
 	return {
@@ -150,6 +152,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		minItems: "",
 		maxItems: "",
 		allowedMimeTypes: [],
+		darkVariant: false,
 	};
 }
 
@@ -354,6 +357,13 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			indexed: isIndexableType ? indexed : false,
 			validation: Object.keys(validation).length > 0 ? validation : null,
 		};
+
+		if (selectedType === "image") {
+			const widgetOptions: Record<string, unknown> = { ...field?.options };
+			delete widgetOptions.darkVariant;
+			if (formState.darkVariant) widgetOptions.darkVariant = true;
+			input.options = widgetOptions;
+		}
 
 		onSave(input);
 	};
@@ -668,6 +678,19 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								value={formState.allowedMimeTypes}
 								onChange={(next) => setField("allowedMimeTypes", next)}
 							/>
+						)}
+
+						{selectedType === "image" && (
+							<div className="grid gap-1">
+								<Switch
+									checked={formState.darkVariant}
+									onCheckedChange={(checked) => setField("darkVariant", checked)}
+									label={<span className="text-sm">{t`Dark mode variant`}</span>}
+								/>
+								<p className="text-xs text-kumo-subtle">
+									{t`Editors can select a second image that the site shows in dark mode.`}
+								</p>
+							</div>
 						)}
 					</div>
 				)}

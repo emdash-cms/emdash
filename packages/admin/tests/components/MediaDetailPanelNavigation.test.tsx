@@ -107,6 +107,13 @@ async function renderPanelRouter(panelItem?: MediaItem) {
 	return { router, screen };
 }
 
+async function openUsageLink(screen: Awaited<ReturnType<typeof renderPanelRouter>>["screen"]) {
+	screen.getByRole("tab", { name: "Used in" }).element().click();
+	const link = screen.getByRole("link", { name: /Launch notes/ });
+	await expect.element(link).toBeVisible();
+	return link;
+}
+
 describe("MediaDetailPanel usage navigation", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -117,8 +124,7 @@ describe("MediaDetailPanel usage navigation", () => {
 
 	it("requests and navigates from local media without a usage summary", async () => {
 		const { router, screen } = await renderPanelRouter();
-		const link = screen.getByRole("link", { name: /Launch notes/ });
-		await expect.element(link).toBeVisible();
+		const link = await openUsageLink(screen);
 		expect(fetchMediaUsageDetails).toHaveBeenCalledTimes(1);
 
 		link.element().click();
@@ -127,6 +133,26 @@ describe("MediaDetailPanel usage navigation", () => {
 			expect(router.state.location.pathname).toBe("/content/posts/post-1");
 			expect(router.state.location.search).toEqual({ locale: "fr" });
 		});
+	});
+
+	it("keeps the Used in height stable when loading results appear", async () => {
+		let resolveUsage!: (value: MediaUsageDetailsResponse) => void;
+		vi.mocked(fetchMediaUsageDetails).mockReturnValueOnce(
+			new Promise((resolve) => {
+				resolveUsage = resolve;
+			}),
+		);
+		const { screen } = await renderPanelRouter();
+		const dialog = screen.getByRole("dialog", { name: "Media details" }).element();
+
+		screen.getByRole("tab", { name: "Used in" }).element().click();
+		await vi.waitFor(() => expect(fetchMediaUsageDetails).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() => expect(dialog.style.height).toBe(""));
+		const loadingHeight = dialog.getBoundingClientRect().height;
+
+		resolveUsage(usageDetails);
+		await expect.element(screen.getByRole("link", { name: /Launch notes/ })).toBeVisible();
+		expect(dialog.getBoundingClientRect().height).toBeCloseTo(loadingHeight, 0);
 	});
 
 	it("makes no usage request for provider media", async () => {
@@ -140,7 +166,7 @@ describe("MediaDetailPanel usage navigation", () => {
 	it("preserves modified links and lets dirty same-tab navigation be cancelled", async () => {
 		const { router, screen } = await renderPanelRouter();
 		await screen.getByLabelText("Alt Text").fill("Changed");
-		const link = screen.getByRole("link", { name: /Launch notes/ });
+		const link = await openUsageLink(screen);
 
 		let preventedBeforeNavigationGuard: boolean | undefined;
 		const preventIframeNavigation = (event: MouseEvent) => {
@@ -174,10 +200,8 @@ describe("MediaDetailPanel usage navigation", () => {
 		const { router, screen } = await renderPanelRouter();
 		await screen.getByLabelText("Alt Text").fill("Changed");
 
-		screen
-			.getByRole("link", { name: /Launch notes/ })
-			.element()
-			.click();
+		const link = await openUsageLink(screen);
+		link.element().click();
 		await expect.element(screen.getByText("Discard changes?")).toBeVisible();
 		screen.getByRole("button", { name: "Discard" }).element().click();
 
@@ -191,8 +215,8 @@ describe("MediaDetailPanel usage navigation", () => {
 		vi.mocked(updateMedia).mockImplementation(() => new Promise(() => {}));
 		const { router, screen } = await renderPanelRouter();
 		await screen.getByLabelText("Alt Text").fill("Changed");
+		const link = await openUsageLink(screen);
 		screen.getByRole("button", { name: "Save" }).element().click();
-		const link = screen.getByRole("link", { name: /Launch notes/ });
 
 		await expect.element(link).toHaveAttribute("aria-disabled", "true");
 		const primaryAllowed = link

@@ -1,3 +1,4 @@
+import { NSID, REGISTRY_CUMULUS_ORIGIN } from "@emdash-cms/registry-lexicons";
 import {
 	CanonicalProfileModerationInputSchema,
 	CanonicalReleaseModerationInputSchema,
@@ -6,6 +7,7 @@ import {
 	type CanonicalProfileModerationInput,
 	type CanonicalReleaseModerationInput,
 } from "@emdash-cms/registry-moderation";
+import { recordScopedBlobCacheUrl } from "@emdash-cms/registry-verification/artifact";
 import { marked } from "marked";
 
 import type {
@@ -186,7 +188,7 @@ export function buildCanonicalReleaseInput(
 		repositoryUrl: record.repo,
 		requires: parseRequires(record.requires),
 		sbom: record.sbom ? { format: record.sbom.format, url: record.sbom.url } : undefined,
-		media: selectDisplayMedia(record, neverFetchUrls),
+		media: selectDisplayMedia(verified, neverFetchUrls),
 	});
 	return canonicalReleaseFromInput(input, [...neverFetchUrls]);
 }
@@ -259,15 +261,30 @@ function parseRequires(value: unknown): Record<string, string> {
 }
 
 function selectDisplayMedia(
-	record: VerifiedReleaseRecord["record"],
+	verified: VerifiedReleaseRecord,
 	neverFetch: ReadonlySet<string>,
 ): CanonicalMediaDescriptor[] {
+	const record = verified.record;
+	const subject = parseSubjectUri(verified.uri);
 	const artifacts = record.artifacts;
 	const media = [
-		...(artifacts.icon ? [projectMedia("icon", artifacts.icon, 0)] : []),
-		...(artifacts.banner ? [projectMedia("banner", artifacts.banner, 0)] : []),
+		...(artifacts.icon
+			? [projectMedia("icon", artifacts.icon, 0, subject.publisherDid, subject.rkey, verified.cid)]
+			: []),
+		...(artifacts.banner
+			? [
+					projectMedia(
+						"banner",
+						artifacts.banner,
+						0,
+						subject.publisherDid,
+						subject.rkey,
+						verified.cid,
+					),
+				]
+			: []),
 		...(artifacts.screenshots?.map((artifact, index) =>
-			projectMedia("screenshot", artifact, index),
+			projectMedia("screenshot", artifact, index, subject.publisherDid, subject.rkey, verified.cid),
 		) ?? []),
 	];
 	for (const descriptor of media) {
@@ -280,14 +297,17 @@ function selectDisplayMedia(
 
 function projectMedia(
 	kind: CanonicalMediaDescriptor["kind"],
-	artifact: VerifiedReleaseRecord["record"]["artifacts"]["package"],
+	artifact: NonNullable<VerifiedReleaseRecord["record"]["artifacts"]["icon"]>,
 	index: number,
+	publisherDid: string,
+	rkey: string,
+	recordCid: string,
 ): CanonicalMediaDescriptor {
 	return {
 		kind,
 		index,
 		id: artifact.id,
-		url: artifact.url,
+		url: displayArtifactUrl(artifact, publisherDid, rkey, recordCid),
 		checksum: artifact.checksum,
 		contentType: artifact.contentType,
 		requiresAuth: artifact.requiresAuth,
@@ -296,6 +316,26 @@ function projectMedia(
 		height: artifact.height,
 		language: artifact.lang,
 	};
+}
+
+function displayArtifactUrl(
+	artifact: NonNullable<VerifiedReleaseRecord["record"]["artifacts"]["icon"]>,
+	publisherDid: string,
+	rkey: string,
+	recordCid: string,
+): string {
+	const blob = artifact.blob;
+	if (blob && "ref" in blob) {
+		const url = recordScopedBlobCacheUrl(
+			REGISTRY_CUMULUS_ORIGIN,
+			{ did: publisherDid, collection: NSID.packageRelease, rkey, cid: recordCid },
+			blob.ref.$link,
+		);
+		if (!url.success) throw new TypeError(url.error.message);
+		return url.value.href;
+	}
+	if (artifact.url) return artifact.url;
+	throw new TypeError("display artifact has no blob or URL source");
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {

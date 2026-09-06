@@ -76,6 +76,7 @@ import * as m070 from "./070_collection_routable.js";
 import * as m071 from "./071_restore_content_bylines_table.js";
 import * as m072 from "./072_media_folders.js";
 import * as m073 from "./073_media_focal_point.js";
+import * as m074 from "./074_content_deleted_scheduled_index.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -150,6 +151,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"071_restore_content_bylines_table": m071,
 	"072_media_folders": m072,
 	"073_media_focal_point": m073,
+	"074_content_deleted_scheduled_index": m074,
 });
 
 /** Ordered names from the statically registered migration set. */

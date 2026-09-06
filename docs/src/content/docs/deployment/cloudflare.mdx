@@ -43,6 +43,8 @@ Provision the production D1 database and R2 bucket, then create `wrangler.jsonc`
 
 These are the bindings you configure yourself. The `@astrojs/cloudflare` adapter adds more of its own when it generates the deployed Worker config. One of them is the `IMAGES` binding that media transforms use — see [Image Transformation](#image-transformation).
 
+Sandboxed plugins — marketplace installs and the plugins under `sandboxed: []` — need a `worker_loaders` binding and a Worker entry point that exports `PluginBridge`. See [Plugin Sandbox](/deployment/plugin-sandbox/#cloudflare-workers).
+
 ## Configure EmDash
 
 The following Astro configuration uses the D1 and R2 bindings.
