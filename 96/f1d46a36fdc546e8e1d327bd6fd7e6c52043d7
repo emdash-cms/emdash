@@ -1,0 +1,21 @@
+packages/admin/src/components/PublishingDateTimeEditor.tsx
+  s_6a4faa61744b31::t_dc854d832b1235 44-50
+packages/admin/tests/components/PublishingDateTimeEditor.test.tsx
+  s_6a4faa61744b31::t_123e3728898058 73-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "96f1d46a36fdc546e8e1d327bd6fd7e6c52043d7",
+  "prompts": {},
+  "sessions": {
+    "s_6a4faa61744b31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07886-e73b-7de1-a8d8-ce170d5daee1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
