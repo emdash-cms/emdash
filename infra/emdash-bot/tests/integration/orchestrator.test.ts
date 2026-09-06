@@ -114,40 +114,55 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect((await stub.getPersistedState()).state).toBe("in_review");
 	});
 
-	test("queues review feedback during a revision while allowing a PR close through", async () => {
-		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
-		await runInDurableObject(stub, async (_instance, state) => {
-			await state.storage.put({
-				"o:anchorNumber": 42,
-				"o:prNumber": 99,
-				"o:state": "working",
-				"o:kind": "bug",
+	test.each([
+		["pr.closed", "blocked"],
+		["pr.merged", "done"],
+	] as const)(
+		"queues review feedback during a revision, then discards it when %s arrives",
+		async (event, expectedState) => {
+			const calls: string[] = [];
+			const comments: string[] = [];
+			testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+			vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:state": "working",
+					"o:kind": "bug",
+				});
 			});
-		});
-		await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
-		await stub.enqueue(
-			makeEvent({
-				event: "revise",
-				arg: "Also cover null",
-				anchorNumber: 42,
-				pullRequestNumber: 99,
-				deliveryId: "another-review",
-			}),
-		);
-		await stub.tick();
-		expect(await stub.getInboxDepth()).toBe(1);
-		await stub.enqueue(
-			makeEvent({
-				event: "pr.closed",
-				arg: null,
-				actor: "system",
-				anchorNumber: 42,
-				deliveryId: "closed-pr",
-			}),
-		);
-		await stub.tick();
-		expect((await stub.getPersistedState()).state).toBe("blocked");
-	});
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+			await stub.enqueue(
+				makeEvent({
+					event: "revise",
+					arg: "Also cover null",
+					anchorNumber: 42,
+					pullRequestNumber: 99,
+					deliveryId: "another-review",
+					dryRun: false,
+				}),
+			);
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(1);
+			await stub.enqueue(
+				makeEvent({
+					event,
+					arg: null,
+					actor: "system",
+					anchorNumber: 42,
+					deliveryId: "closed-pr",
+					dryRun: false,
+				}),
+			);
+			await stub.tick();
+			expect((await stub.getPersistedState()).state).toBe(expectedState);
+			expect(await stub.getInboxDepth()).toBe(0);
+			expect(comments.some((comment) => comment.includes("isn't available"))).toBe(false);
+		},
+	);
 
 	test.each([true, false])(
 		"processes queued feedback after the revision settles (success=%s)",

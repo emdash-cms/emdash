@@ -2688,6 +2688,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 						: []),
 				);
 			}
+			if (decision.event === "pr.closed" || decision.event === "pr.merged") {
+				const inbox = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
+				const kept = inbox.filter(
+					(candidate) => !(candidate.input.event === "revise" && candidate.input.pullRequestNumber),
+				);
+				if (kept.length !== inbox.length) {
+					puts.push(
+						kept.length === 0
+							? transaction.delete(STORAGE.inbox)
+							: transaction.put(STORAGE.inbox, kept),
+					);
+				}
+			}
 			const anchorNumber =
 				input.anchorNumber ?? (await transaction.get<number>(STORAGE.anchorNumber));
 			const commentTargetNumber =

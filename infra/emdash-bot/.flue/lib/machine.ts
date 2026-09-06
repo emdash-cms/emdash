@@ -200,7 +200,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"A fix is staged on bot/fix-<n>; waiting for the reporter or a maintainer to confirm or reject.",
 		terminal: false,
-		offeredCommands: ["confirm", "reject", "retry", "take_over"],
+		offeredCommands: ["confirm", "reject", "retry", "revise", "take_over"],
 	},
 	in_review: {
 		label: "bot:in-review",
@@ -251,7 +251,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		boardColumn: "Failed",
 		description: "An agent run errored or produced no usable result. Retryable -- not a dead end.",
 		terminal: false,
-		offeredCommands: ["resume", "retry", "implement", "repro", "investigate", "decline"],
+		offeredCommands: ["resume", "retry", "implement", "repro", "investigate", "revise", "decline"],
 	},
 
 	// -----------------------------------------------------------------------
@@ -398,12 +398,7 @@ export type AgentEvent =
 	| "agent.failed"; // nonzero exit / no result file
 
 // GitHub PR lifecycle events that propagate onto the anchoring issue.
-export type PrEvent =
-	| "pr.opened"
-	| "pr.merged"
-	| "pr.closed"
-	| "pr.changes_requested"
-	| "pr.approved";
+export type PrEvent = "pr.opened" | "pr.merged" | "pr.closed" | "pr.approved";
 
 // Preview-deploy lifecycle events, emitted by the preview-build pipeline.
 export type PreviewEvent =
@@ -577,10 +572,6 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		description: "The bot PR was closed without merging.",
 		actors: ["system"],
 	},
-	"pr.changes_requested": {
-		description: "A reviewer requested changes (review sub-state).",
-		actors: ["system"],
-	},
 	"pr.approved": {
 		description: "A reviewer approved the PR (review sub-state).",
 		actors: ["system"],
@@ -719,12 +710,6 @@ export const TRANSITIONS: Transition[] = [
 		note: "idempotent; sets review sub-state",
 	},
 	{ from: "in_review", event: "pr.approved", to: "in_review", note: "review sub-state only" },
-	{
-		from: "in_review",
-		event: "pr.changes_requested",
-		to: "in_review",
-		note: "review sub-state only",
-	},
 	{
 		from: "in_review",
 		event: "revise",

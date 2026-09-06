@@ -29,12 +29,12 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `triage` | `intake` | `bot:triage` | Triage | no | no | `investigate`, `repro`, `fix`, `implement`, `decline` |
 | `working` | `evidence` | `bot:working` | Working | no | yes | `status` |
 | `blocked` | `candidate` | `bot:blocked` | Blocked | no | no | `investigate`, `fix`, `implement`, `repro`, `retry`, `decline`, `take_over` |
-| `awaiting_feedback` | `confirmation` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `take_over` |
+| `awaiting_feedback` | `confirmation` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `revise`, `take_over` |
 | `in_review` | `review` | `bot:in-review` | In review | no | no | `revise`, `decline`, `take_over` |
 | `human_owned` | `review` | `bot:human-owned` | Human owned | no | no | `hand_back` |
 | `done` | `complete` | `bot:done` | Done | yes | no | `reopen` |
 | `declined` | `complete` | `bot:declined` | Declined | yes | no | `reopen` |
-| `failed` | `candidate` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `decline` |
+| `failed` | `candidate` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `revise`, `decline` |
 | `investigating` | `evidence` | `bot:investigating` | Investigating | no | yes | `status` |
 | `reproduced` | `verdict` | `bot:reproduced` | Reproduced | no | no | `fix`, `implement`, `investigate`, `decline`, `take_over` |
 | `diagnosed` | `verdict` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `implement`, `investigate`, `decline`, `take_over` |
@@ -76,7 +76,6 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `pr.opened` | pr lifecycle | system | — | A bot PR was opened for this item. |
 | `pr.merged` | pr lifecycle | system | — | The bot PR was merged. |
 | `pr.closed` | pr lifecycle | system | — | The bot PR was closed without merging. |
-| `pr.changes_requested` | pr lifecycle | system | — | A reviewer requested changes (review sub-state). |
 | `pr.approved` | pr lifecycle | system | — | A reviewer approved the PR (review sub-state). |
 | `preview.ready` | preview | system | — | The preview deploy for the candidate change is live; link ready to post. |
 | `preview.failed` | preview | system | — | The preview deploy failed to build. |
@@ -117,7 +116,6 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `awaiting_feedback` | `revise` | `working` | `investigate.revise` |
 | `in_review` | `pr.opened` | `in_review` | — |
 | `in_review` | `pr.approved` | `in_review` | — |
-| `in_review` | `pr.changes_requested` | `in_review` | — |
 | `in_review` | `revise` | `working` | `investigate.revise` |
 | `in_review` | `pr.merged` | `done` | — |
 | `working` | `pr.merged` | `done` | — |
@@ -227,7 +225,6 @@ stateDiagram-v2
     awaiting_feedback --> working: revise / investigate.revise
     in_review --> in_review: pr.opened
     in_review --> in_review: pr.approved
-    in_review --> in_review: pr.changes_requested
     in_review --> working: revise / investigate.revise
     in_review --> done: pr.merged
     working --> done: pr.merged
