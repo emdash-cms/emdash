@@ -6,6 +6,7 @@
 // pool provides via wrangler.test.jsonc / vitest.workers.config.ts. We use
 // the same secret to sign synthetic payloads.
 
+import { runInDurableObject } from "cloudflare:test";
 import { env, exports } from "cloudflare:workers";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -294,6 +295,133 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(res.status).toBe(202);
 		expect(await res.text()).toMatch(/skipped/);
 	});
+
+	test("submitted review batches its body and inline comments before admission", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const pullRequestNumber = uniqueIssueNumber();
+		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			return Promise.resolve(
+				new Response(
+					JSON.stringify(
+						url.includes("/access_tokens")
+							? { token: "installation-token" }
+							: [
+									{
+										body: "Handle null too",
+										path: "src/adapter.ts",
+										line: 42,
+										diff_hunk: "@@ -1 +1 @@\n+read()",
+									},
+								],
+					),
+					{ status: 200 },
+				),
+			);
+		});
+		const request = {
+			eventType: "pull_request_review",
+			delivery: `review-${issueNumber}`,
+			payload: {
+				action: "submitted",
+				pull_request: {
+					number: pullRequestNumber,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: `bot/fix-${issueNumber}` },
+				},
+				review: {
+					id: 77,
+					state: "changes_requested",
+					body: "Cover the adapter case",
+					author_association: "MEMBER",
+					user: { login: "alice" },
+				},
+			},
+		};
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": issueNumber,
+				"o:prNumber": pullRequestNumber,
+				"o:state": "working",
+				"o:kind": "bug",
+			});
+		});
+		await stub.debugSetStaleRun("active-review", Date.now(), "investigate-review", "revise");
+		const admitted = await postWebhook(request);
+		expect(admitted.status).toBe(202);
+		expect(await admitted.json()).toMatchObject({ admission: { kind: "admitted" } });
+		expect(await (await postWebhook(request)).json()).toMatchObject({
+			admission: { kind: "duplicate" },
+		});
+		expect(await stub.getInboxDepth()).toBe(1);
+		await runInDurableObject(stub, async (_instance, state) => {
+			const inbox =
+				await state.storage.get<
+					Array<{ input: { arg: string; triggeringComment: { body: string; actor: string } } }>
+				>("o:inbox");
+			expect(inbox?.[0]?.input.arg).toContain("Cover the adapter case");
+			expect(inbox?.[0]?.input.triggeringComment.body).toContain("src/adapter.ts:42");
+			expect(inbox?.[0]?.input.triggeringComment.body).toContain("Handle null too");
+			expect(inbox?.[0]?.input.triggeringComment.body).toContain("+read()");
+			expect(inbox?.[0]?.input.triggeringComment.actor).toBe("maintainer");
+		});
+	});
+
+	test.each([200, 503])(
+		"empty or unavailable review comments do not start partial work (%s)",
+		async (status) => {
+			const issueNumber = uniqueIssueNumber();
+			testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+			vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]) =>
+				Promise.resolve(
+					new Response(
+						JSON.stringify(
+							(typeof input === "string"
+								? input
+								: input instanceof URL
+									? input.href
+									: input.url
+							).includes("/access_tokens")
+								? { token: "installation-token" }
+								: [],
+						),
+						{
+							status: (typeof input === "string"
+								? input
+								: input instanceof URL
+									? input.href
+									: input.url
+							).includes("/access_tokens")
+								? 200
+								: status,
+						},
+					),
+				),
+			);
+			const res = await postWebhook({
+				eventType: "pull_request_review",
+				payload: {
+					action: "submitted",
+					pull_request: {
+						number: 99,
+						user: { login: "emdashbot[bot]" },
+						head: { ref: `bot/fix-${issueNumber}` },
+					},
+					review: {
+						id: 77,
+						state: "commented",
+						body: "",
+						author_association: "MEMBER",
+						user: { login: "alice" },
+					},
+				},
+			});
+			expect(res.status).toBe(status === 200 ? 202 : 503);
+			expect(await testEnv.Orchestrator.getByName(`issue-${issueNumber}`).getInboxDepth()).toBe(0);
+		},
+	);
 
 	test("top-level bot PR feedback resolves its head branch before durable admission", async () => {
 		const issueNumber = uniqueIssueNumber();

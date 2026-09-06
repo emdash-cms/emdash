@@ -349,10 +349,11 @@ describe("normalizeWebhook", () => {
 			expect(r.event.actor).toBe("system");
 		});
 
-		test("changes_requested → pr.changes_requested", () => {
+		test("changes_requested starts a revision", () => {
 			const payload: PullRequestReviewEvent = {
 				action: "submitted",
 				review: {
+					id: 77,
 					state: "changes_requested",
 					author_association: "MEMBER",
 					user: { login: "alice" },
@@ -367,7 +368,7 @@ describe("normalizeWebhook", () => {
 			const r = normalizeWebhook({ eventType: "pull_request_review", payload });
 			expect(r.kind).toBe("dispatch");
 			if (r.kind !== "dispatch") return;
-			expect(r.event.event).toBe("pr.changes_requested");
+			expect(r.event.event).toBe("revise");
 		});
 
 		test("commented (no approval signal) is skipped", () => {
@@ -441,7 +442,7 @@ describe("bot pull request anchoring", () => {
 			payload: {
 				action: "submitted",
 				pull_request: pullRequest,
-				review: { state: "approved", user: { login: "alice" } },
+				review: { state: "approved", author_association: "MEMBER", user: { login: "alice" } },
 			},
 		});
 
@@ -533,5 +534,108 @@ describe("bot pull request anchoring", () => {
 		});
 
 		expect(result.kind).toBe("skip");
+	});
+});
+
+describe("maintainer review revisions", () => {
+	const pullRequest = {
+		number: 99,
+		user: { login: "emdashbot[bot]" },
+		head: { ref: "bot/fix-42" },
+	};
+	test.each(["changes_requested", "commented"])(
+		"%s carries the whole review without a mention",
+		(state) => {
+			const result = normalizeWebhook({
+				eventType: "pull_request_review",
+				deliveryId: "review-delivery",
+				payload: {
+					action: "submitted",
+					pull_request: pullRequest,
+					review: {
+						id: 77,
+						state,
+						body: "Cover the adapter case",
+						author_association: "MEMBER",
+						user: { login: "alice" },
+					},
+				},
+			});
+			expect(result).toMatchObject({
+				kind: "dispatch",
+				anchor: "issue-42",
+				event: {
+					event: "revise",
+					actor: "maintainer",
+					pullRequestNumber: 99,
+					reviewId: 77,
+					triggeringComment: {
+						body: "Cover the adapter case",
+						authorLogin: "alice",
+						actor: "maintainer",
+					},
+					deliveryId: "review-delivery",
+					needsClassify: false,
+				},
+			});
+		},
+	);
+	test.each(["NONE", "CONTRIBUTOR", undefined])(
+		"does not accept reviews from %s",
+		(association) => {
+			for (const state of ["approved", "changes_requested", "commented"]) {
+				expect(
+					normalizeWebhook({
+						eventType: "pull_request_review",
+						payload: {
+							action: "submitted",
+							pull_request: pullRequest,
+							review: {
+								id: 77,
+								state,
+								body: "change this",
+								author_association: association,
+								user: { login: "outsider" },
+							},
+						},
+					}).kind,
+				).toBe("skip");
+			}
+		},
+	);
+	test("an inline-only submitted review is collected as one revision", () => {
+		expect(
+			normalizeWebhook({
+				eventType: "pull_request_review",
+				payload: {
+					action: "submitted",
+					pull_request: pullRequest,
+					review: {
+						id: 77,
+						state: "commented",
+						body: "",
+						author_association: "OWNER",
+						user: { login: "alice" },
+					},
+				},
+			}),
+		).toMatchObject({ kind: "dispatch", event: { event: "revise", reviewId: 77 } });
+	});
+	test("bot reviews cannot trigger another run", () => {
+		expect(
+			normalizeWebhook({
+				eventType: "pull_request_review",
+				payload: {
+					action: "submitted",
+					pull_request: pullRequest,
+					review: {
+						id: 77,
+						state: "changes_requested",
+						author_association: "MEMBER",
+						user: { login: "reviewer[bot]" },
+					},
+				},
+			}).kind,
+		).toBe("skip");
 	});
 });
