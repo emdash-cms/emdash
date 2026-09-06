@@ -479,8 +479,21 @@ test.describe("Media Library", () => {
 		expect(page.url()).toBe(editorUrl);
 		const duplicate = await findMediaByFilename(serverInfo, duplicateFilename);
 		expect(duplicate.id).not.toBe(original.id);
+	});
 
+	test("keeps featured image actions compact and reachable on mobile", async ({ admin, page }) => {
+		test.setTimeout(60_000);
+		await admin.goto("/content/posts/new");
+		await admin.waitForShell();
+		await admin.waitForLoading();
 		await page.setViewportSize({ width: 320, height: 800 });
+		await page.getByRole("button", { name: "Select image" }).click();
+		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
+		await picker.getByRole("button", { name: "test-image.png", exact: true }).click();
+		await picker.getByRole("button", { name: "Select", exact: true }).click();
+
+		const featuredImageField = page.locator("#field-featured_image");
+		await expect(featuredImageField.getByText("test-image.png", { exact: true })).toBeVisible();
 		const featuredPreview = featuredImageField.locator(".emdash-featured-image-preview");
 		const featuredCard = featuredPreview.locator("..");
 		expect(
@@ -513,6 +526,7 @@ test.describe("Media Library", () => {
 
 		await imageActions.click();
 		await page.getByRole("menuitem", { name: "Edit asset" }).click();
+		const details = page.getByRole("dialog", { name: "Media details" });
 		await expect(details).toBeVisible();
 		await details.getByRole("button", { name: "Close" }).click();
 		await expect(details).not.toBeVisible();
