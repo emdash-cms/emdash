@@ -368,6 +368,29 @@ describe("ImageFieldRenderer", () => {
 		expect(onChange.mock.calls[0]?.[0].previewUrl).toBeUndefined();
 	});
 
+	it("does not offer asset editing in mobile actions for an external featured image", async () => {
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Featured image"
+				value={{
+					id: "",
+					provider: "external",
+					src: "https://media.example/external.jpg",
+					filename: "external.jpg",
+					mimeType: "image/jpeg",
+				}}
+				onChange={vi.fn()}
+				variant="featured"
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Image actions" }).click();
+
+		await expect.element(screen.getByRole("menuitem", { name: "Replace" })).toBeVisible();
+		expect(screen.getByRole("menuitem", { name: "Edit asset" }).query()).toBeNull();
+		await expect.element(screen.getByRole("menuitem", { name: "Remove" })).toBeVisible();
+	});
+
 	it("removes the featured image immediately", async () => {
 		const onChange = vi.fn();
 		const screen = await render(

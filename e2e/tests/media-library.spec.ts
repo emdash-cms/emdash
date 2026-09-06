@@ -481,9 +481,52 @@ test.describe("Media Library", () => {
 		expect(duplicate.id).not.toBe(original.id);
 
 		await page.setViewportSize({ width: 320, height: 800 });
+		const featuredPreview = featuredImageField.locator(".emdash-featured-image-preview");
+		const featuredCard = featuredPreview.locator("..");
+		expect(
+			await featuredPreview.evaluate((element) => element.getBoundingClientRect().height),
+		).toBeLessThan(80);
+		expect(
+			await featuredCard.evaluate((element) => element.getBoundingClientRect().height),
+		).toBeLessThan(120);
+		const imageActions = featuredImageField.getByRole("button", { name: "Image actions" });
+		await expect(imageActions).toBeVisible();
+		await expect(featuredImageField.getByRole("button", { name: "Replace" })).toHaveCount(0);
+		await expect(featuredImageField.getByRole("button", { name: "Edit asset" })).toHaveCount(0);
+		await expect(featuredImageField.getByRole("button", { name: "Remove image" })).toHaveCount(0);
+
+		await imageActions.click();
+		await expect(imageActions).toHaveAttribute("aria-expanded", "true");
+		await expect(page.getByRole("menuitem", { name: "Replace" })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: "Edit asset" })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: "Remove" })).toBeVisible();
+		await page.setViewportSize({ width: 640, height: 800 });
+		await expect(page.getByRole("menu", { name: "Image actions" })).not.toBeVisible();
 		await expect(featuredImageField.getByRole("button", { name: "Replace" })).toBeVisible();
-		await expect(featuredImageField.getByRole("button", { name: "Edit asset" })).toBeVisible();
-		await expect(featuredImageField.getByRole("button", { name: "Remove image" })).toBeVisible();
+		await page.setViewportSize({ width: 320, height: 800 });
+		await expect(imageActions).toHaveAttribute("aria-expanded", "false");
+		await imageActions.click();
+		await page.getByRole("menuitem", { name: "Replace" }).click();
+		const replacePicker = page.getByRole("dialog", { name: "Replace Featured Image" });
+		await expect(replacePicker).toBeVisible();
+		await replacePicker.getByRole("button", { name: "Close" }).click();
+
+		await imageActions.click();
+		await page.getByRole("menuitem", { name: "Edit asset" }).click();
+		await expect(details).toBeVisible();
+		await details.getByRole("button", { name: "Close" }).click();
+		await expect(details).not.toBeVisible();
+		await expect(imageActions).toBeFocused();
+		await featuredPreview.locator("img").dispatchEvent("error");
+		await expect(featuredPreview.getByText("Image not found")).toHaveCount(1);
+		expect(
+			await featuredCard.evaluate((element) => element.getBoundingClientRect().height),
+		).toBeLessThan(120);
+		await expect(imageActions).toBeVisible();
+
+		await imageActions.click();
+		await page.getByRole("menuitem", { name: "Remove" }).click();
+		await expect(featuredImageField.getByRole("button", { name: "Select image" })).toBeVisible();
 		expect(
 			await featuredImageField.evaluate((element) => element.scrollWidth <= element.clientWidth),
 		).toBe(true);

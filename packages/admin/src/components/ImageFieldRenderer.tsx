@@ -8,12 +8,13 @@
  * sub-fields) can reuse the same picker without a circular import.
  */
 
-import { Button, Label, LayerCard, Text } from "@cloudflare/kumo";
+import { Button, DropdownMenu, Label, LayerCard, Text } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	Image as ImageIcon,
 	ImageBroken,
 	ImageSquare,
+	DotsThree,
 	Moon,
 	PencilSimple,
 	X,
@@ -127,8 +128,10 @@ export function ImageFieldRenderer({
 	const { t } = useLingui();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
 	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
+	const [mobileActionsOpen, setMobileActionsOpen] = React.useState(false);
 	const [imageBroken, setImageBroken] = React.useState(false);
 	const [darkImageBroken, setDarkImageBroken] = React.useState(false);
+	const mobileImageActionsRef = React.useRef<HTMLButtonElement>(null);
 	const [editedContentHashes, setEditedContentHashes] = React.useState<
 		Record<string, string | null | undefined>
 	>({});
@@ -201,6 +204,16 @@ export function ImageFieldRenderer({
 		setDarkImageBroken(false);
 	}, [darkDisplayUrl]);
 
+	React.useEffect(() => {
+		if (variant !== "featured") return;
+		const desktop = window.matchMedia("(min-width: 640px)");
+		const closeMobileActions = (event: MediaQueryListEvent) => {
+			if (event.matches) setMobileActionsOpen(false);
+		};
+		desktop.addEventListener("change", closeMobileActions);
+		return () => desktop.removeEventListener("change", closeMobileActions);
+	}, [variant]);
+
 	const openPicker = (target: "image" | "darkVariant") => {
 		setPickerTarget(target);
 		setPickerOpen(true);
@@ -255,7 +268,7 @@ export function ImageFieldRenderer({
 		<div
 			className={
 				isFeatured
-					? "-m-0.5 flex w-full min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain p-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+					? "-m-0.5 hidden w-full min-w-0 items-center gap-2 overflow-x-auto overscroll-x-contain p-0.5 [scrollbar-width:none] sm:flex [&::-webkit-scrollbar]:hidden"
 					: "flex flex-wrap items-center gap-2"
 			}
 			style={isFeatured ? { scrollbarWidth: "none" } : undefined}
@@ -297,6 +310,49 @@ export function ImageFieldRenderer({
 				{t`Remove`}
 			</Button>
 		</div>
+	);
+	const mobileFeaturedActions = (
+		<DropdownMenu open={mobileActionsOpen} onOpenChange={setMobileActionsOpen}>
+			<DropdownMenu.Trigger
+				render={
+					<Button
+						ref={mobileImageActionsRef}
+						type="button"
+						shape="square"
+						variant="ghost"
+						icon={<DotsThree aria-hidden="true" />}
+						loading={assetEditor.isOpening && pickerTarget === "image"}
+						disabled={assetEditor.isActive}
+						aria-label={t`Image actions`}
+						aria-haspopup="menu"
+						aria-expanded={mobileActionsOpen}
+					/>
+				}
+			/>
+			<DropdownMenu.Content align="end" className="min-w-40 sm:hidden">
+				<DropdownMenu.Item
+					icon={<ImageSquare aria-hidden="true" />}
+					onClick={() => openPicker("image")}
+				>
+					{t`Replace`}
+				</DropdownMenu.Item>
+				{canEditPrimaryAsset && (
+					<DropdownMenu.Item
+						icon={<PencilSimple aria-hidden="true" />}
+						onClick={() => {
+							setPickerTarget("image");
+							void assetEditor.openAssetEditor(objectValue!.id, mobileImageActionsRef.current);
+						}}
+					>
+						{t`Edit asset`}
+					</DropdownMenu.Item>
+				)}
+				<DropdownMenu.Separator />
+				<DropdownMenu.Item variant="danger" icon={<X aria-hidden="true" />} onClick={handleRemove}>
+					{t`Remove`}
+				</DropdownMenu.Item>
+			</DropdownMenu.Content>
+		</DropdownMenu>
 	);
 
 	const darkVariantSlot =
@@ -384,15 +440,15 @@ export function ImageFieldRenderer({
 		) : null;
 
 	const featuredCard = displayUrl ? (
-		<LayerCard className="grid w-full grid-cols-1 rounded-xl p-0 sm:grid-cols-[12rem_minmax(0,1fr)]">
+		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)_auto] items-center rounded-xl p-0 sm:grid-cols-[12rem_minmax(0,1fr)] sm:items-stretch">
 			<div
-				className="m-2 overflow-hidden rounded bg-kumo-tint ring ring-kumo-line"
+				className="emdash-featured-image-preview m-2 overflow-hidden rounded bg-kumo-tint ring ring-kumo-line"
 				style={{ aspectRatio: "16 / 9" }}
 			>
 				{imageBroken ? (
 					<div className="flex h-full items-center justify-center gap-2 text-kumo-subtle">
 						<ImageBroken className="h-5 w-5" aria-hidden="true" />
-						<Text as="span" variant="secondary">
+						<Text as="span" variant="secondary" DANGEROUS_className="sr-only sm:not-sr-only">
 							{t`Image not found`}
 						</Text>
 					</div>
@@ -406,11 +462,8 @@ export function ImageFieldRenderer({
 					/>
 				)}
 			</div>
-			<div className="flex min-w-0 flex-col justify-center px-4 py-3">
-				<div
-					className="flex w-full min-w-0 flex-col gap-3"
-					style={{ transform: "translateY(6px)" }}
-				>
+			<div className="flex min-w-0 flex-col justify-center px-2 py-2 sm:px-4 sm:py-3">
+				<div className="flex w-full min-w-0 flex-col gap-1.5 sm:translate-y-1.5 sm:gap-3">
 					<div className="grid min-w-0 gap-1">
 						<Text as="p" bold truncate>
 							{selectedFilename}
@@ -424,6 +477,7 @@ export function ImageFieldRenderer({
 					{primaryActions}
 				</div>
 			</div>
+			<div className="me-2 sm:hidden">{mobileFeaturedActions}</div>
 		</LayerCard>
 	) : null;
 
