@@ -1,0 +1,33 @@
+e2e/tests/editor-image-panel.spec.ts
+  s_669e4e36f3cd5c::t_b7296a1ac7c030 39-40,50,55-96
+packages/admin/tests/components/ImageDetailPanel.test.tsx
+  s_6a4faa61744b31::t_77ef98196633c6 3,5-8,34-42,44,50-53,57-231,236-240,242
+packages/admin/src/components/ContentEditor.tsx
+  s_6a4faa61744b31::t_1ae5acbc6e4ab2 965
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_6a4faa61744b31::t_db6c55289e2246 458
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5a9a31bd9eb70eb75085f50080a8e1a6efa735ba",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a4faa61744b31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07886-e73b-7de1-a8d8-ce170d5daee1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
