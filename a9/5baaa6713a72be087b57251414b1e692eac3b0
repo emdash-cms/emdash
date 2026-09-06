@@ -1,0 +1,43 @@
+.changeset/calm-images-fit.md
+  s_669e4e36f3cd5c::t_a011835f848a14 1-5
+e2e/tests/editor-image-panel.spec.ts
+  s_6a4faa61744b31::t_1e68bd7ef42f33 1-54
+packages/admin/src/components/ContentEditor.tsx
+  s_3239e0b54c0e1f::t_b14a5f62e9f509 739
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_6a4faa61744b31::t_0c8250038f95e0 449-459
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_6a4faa61744b31::t_60bf94cec588b0 24,57,73,227-232,293-294,300,318,324,385-390,487-488,494,512,518,579-584
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a95baaa6713a72be087b57251414b1e692eac3b0",
+  "prompts": {},
+  "sessions": {
+    "s_3239e0b54c0e1f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078aa-24b7-7292-819b-f3d5baae6813",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a4faa61744b31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07886-e73b-7de1-a8d8-ce170d5daee1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
