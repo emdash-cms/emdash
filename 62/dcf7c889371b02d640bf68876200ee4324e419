@@ -1,0 +1,107 @@
+.changeset/polished-portable-text-tables.md
+  s_119ad910f3005b::t_db89f8d7ddcc50 1-10
+.github/workflows/ci.yml
+  s_669e4e36f3cd5c::t_5caa0bb5d16097 242,249,290-326
+e2e/global-setup.ts
+  s_669e4e36f3cd5c::t_25e51de31acea4 331-332
+e2e/tests/portable-text-table.spec.ts
+  s_119ad910f3005b::t_4f15ce9fc94e51 1-673
+e2e/tests/visual-regression.spec.ts
+  s_669e4e36f3cd5c::t_5283af8cba9490 176-230,235,267-487
+packages/admin/src/components/PortableTextEditor.tsx
+  s_669e4e36f3cd5c::t_77028dc26a48ba 798-801,808,810
+packages/admin/src/components/editor/TableActions.ts
+  s_669e4e36f3cd5c::t_a9d03c2db7fc34 18,258-259,358-361
+packages/admin/src/components/editor/TableControls.tsx
+  s_669e4e36f3cd5c::t_de8d9221013062 8-13,40,213-220,222,225,317,339-357,385,394-396,412-413,421
+packages/admin/src/components/editor/TableExtensions.ts
+  s_669e4e36f3cd5c::t_bd2f55652b8b48 1,6,8-19,106-240,242-264
+packages/admin/src/portable-text-table.ts
+  s_669e4e36f3cd5c::t_4b77953160749b 158,186,278,301,412-426,457,464,484,500,526,675,683-684,689-696,739-741,746
+packages/admin/src/styles.css
+  s_669e4e36f3cd5c::t_8a8342397c4abd 503-515
+packages/admin/tests/components/PortableTextEditor.table.test.ts
+  s_669e4e36f3cd5c::t_95153e0a9ba421 364,393-397,422,428-432
+packages/admin/tests/editor/table-controls.test.tsx
+  s_669e4e36f3cd5c::t_fcf27dfc9aa0ab 13-17,106-128,135-190,303-351,383-462,502-510
+packages/admin/tests/editor/toolbar.test.tsx
+  s_669e4e36f3cd5c::t_0448ad26b9ea06 496-530
+packages/core/src/components/InlinePortableTextEditor.tsx
+  s_669e4e36f3cd5c::t_6d3d7ebc6abf9a 1139-1149
+packages/core/src/components/Table.astro
+  s_669e4e36f3cd5c::t_3004f00b060ab5 4,30,114,121,153,170
+packages/core/src/content/converters/prosemirror-to-portable-text.ts
+  s_669e4e36f3cd5c::t_c9eb246fa7f3ec 396,477-478,481-482,491,493
+packages/core/tests/repro/portable-text-table.render.test.ts
+  s_669e4e36f3cd5c::t_784693e803486f 194-214,216-217,219-231,233-239
+packages/core/tests/unit/components/inline-portable-text-table.test.ts
+  s_669e4e36f3cd5c::t_b7100f898b7003 68-79
+packages/core/tests/unit/converters/table-round-trip.test.ts
+  s_669e4e36f3cd5c::t_91c6a6646bb9b2 44-61
+.github/workflows/visual.yml
+  s_669e4e36f3cd5c::t_5ef580c21037b3 47-49,51-52,65,111
+package.json
+  s_669e4e36f3cd5c::t_323484c9c6a5e2 16
+packages/admin/src/components/editor/TableClipboard.ts
+  s_5b62df774d93d1::t_970bbf43c981ce 19,172-179,287,289
+packages/admin/src/components/editor/TableResize.ts
+  s_c1939f0ab7e0cf::t_2f820503689dff 194
+packages/admin/tests/editor/table-clipboard.test.tsx
+  s_5b62df774d93d1::t_3ac5da2b6b3dfb 100-108,192-210
+packages/admin/tests/editor/table-resize.test.tsx
+  s_c1939f0ab7e0cf::t_6f87559d9c355b 226,228-230,232-235,238-241,243
+packages/admin/tests/lib/portable-text-table.test.ts
+  s_4676f43e486ea6::t_d31e3638d6343b 1,37-93,367-385
+playwright.config.ts
+  s_669e4e36f3cd5c::t_1c6ce262812272 13
+playwright.table.config.ts
+  s_669e4e36f3cd5c::t_b8bd775b39394c 1-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "62dcf7c889371b02d640bf68876200ee4324e419",
+  "prompts": {},
+  "sessions": {
+    "s_119ad910f3005b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07be4-9f21-7973-a50b-1199346e12b1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_4676f43e486ea6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07be3-fe9c-7952-a276-40e4eaa91498",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_5b62df774d93d1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07b6b-2cdb-7e80-a83d-c1d58cbe0e30",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c1939f0ab7e0cf": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07b6a-9398-7a52-80b0-cd4f914e5e94",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
