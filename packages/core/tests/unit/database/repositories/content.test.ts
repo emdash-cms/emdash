@@ -356,9 +356,9 @@ describe("ContentRepository", () => {
 			const input = createPostFixture();
 			const created = await repo.create(input);
 
-			await expect(
-				repo.update("post", created.id, { scheduledAt: "not-a-date" }),
-			).rejects.toThrow(EmDashValidationError);
+			await expect(repo.update("post", created.id, { scheduledAt: "not-a-date" })).rejects.toThrow(
+				EmDashValidationError,
+			);
 		});
 
 		it("should throw error for non-existent content", async () => {
