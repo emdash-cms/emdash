@@ -70,6 +70,7 @@ export class LocalStorage implements Storage {
 		key: string;
 		body: Buffer | Uint8Array | ReadableStream<Uint8Array>;
 		contentType: string;
+		cacheControl?: string;
 	}): Promise<UploadResult> {
 		try {
 			const filePath = this.getFilePath(options.key);

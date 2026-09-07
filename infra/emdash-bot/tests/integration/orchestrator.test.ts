@@ -65,6 +65,159 @@ describe("OrchestratorDO (workers-pool)", () => {
 		vi.unstubAllGlobals();
 	});
 
+	test("review revisions publish progress and completion on the PR and remain reviewable", async () => {
+		const requests: Array<{ method: string; url: string; body: string }> = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = init?.method ?? "GET";
+			requests.push({ method, url, body: typeof init?.body === "string" ? init.body : "" });
+			return Promise.resolve(
+				new Response(
+					JSON.stringify(method === "POST" && url.endsWith("/comments") ? { id: 776 } : {}),
+					{ status: 200 },
+				),
+			);
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:prNumber": 99,
+				"o:state": "working",
+				"o:kind": "bug",
+			});
+		});
+		await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+		await stub.prepareWorkPlanComment({ runId: "review-run", summary: "Address adapter review" });
+		await stub.updateWorkPlan({
+			runId: "review-run",
+			summary: "Address adapter review",
+			steps: [{ id: "fix", title: "Test and fix the adapter", status: "completed" }],
+		});
+		await stub.applyAgentResult({
+			runId: "review-run",
+			result: { fixed: true, summary: "Covered the adapter case." },
+			pushed: true,
+			ok: true,
+		});
+		const posts = requests.filter(
+			(request) => request.method === "POST" && request.url.endsWith("/comments"),
+		);
+		expect(posts).toHaveLength(1);
+		expect(posts[0]?.url).toContain("/issues/99/comments");
+		expect(posts[0]?.body).toContain("Preparing workspace");
+		expect(requests.findLast((request) => request.method === "PATCH")?.body).toContain(
+			"Covered the adapter case.",
+		);
+		expect((await stub.getPersistedState()).state).toBe("in_review");
+	});
+
+	test.each([
+		["pr.closed", "blocked"],
+		["pr.merged", "done"],
+	] as const)(
+		"queues review feedback during a revision, then discards it when %s arrives",
+		async (event, expectedState) => {
+			const calls: string[] = [];
+			const comments: string[] = [];
+			testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+			vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:state": "working",
+					"o:kind": "bug",
+				});
+			});
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+			await stub.enqueue(
+				makeEvent({
+					event: "revise",
+					arg: "Also cover null",
+					anchorNumber: 42,
+					pullRequestNumber: 99,
+					deliveryId: "another-review",
+					dryRun: false,
+				}),
+			);
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(1);
+			await stub.enqueue(
+				makeEvent({
+					event,
+					arg: null,
+					actor: "system",
+					anchorNumber: 42,
+					deliveryId: "closed-pr",
+					dryRun: false,
+				}),
+			);
+			await stub.tick();
+			expect((await stub.getPersistedState()).state).toBe(expectedState);
+			expect(await stub.getInboxDepth()).toBe(0);
+			expect(comments.some((comment) => comment.includes("isn't available"))).toBe(false);
+		},
+	);
+
+	test.each([true, false])(
+		"processes queued feedback after the revision settles (success=%s)",
+		async (ok) => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:state": "working",
+					"o:kind": "bug",
+				});
+			});
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+			await stub.enqueue(
+				makeEvent({
+					event: "revise",
+					arg: "Also cover null",
+					anchorNumber: 42,
+					pullRequestNumber: 99,
+					deliveryId: "another-review",
+				}),
+			);
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(1);
+			await stub.applyAgentResult({
+				runId: "review-run",
+				result: { fixed: ok, summary: "Review outcome" },
+				pushed: ok,
+				ok,
+			});
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(0);
+			expect((await stub.getPersistedState()).state).toBe("working");
+			expect(
+				await stub.enqueue(makeEvent({ event: "revise", deliveryId: "another-review" })),
+			).toMatchObject({ kind: "duplicate" });
+		},
+	);
+
+	test("a revision before a PR exists still asks for reporter confirmation", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:anchorNumber": 42, "o:state": "working", "o:kind": "bug" });
+		});
+		await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+		await stub.applyAgentResult({
+			runId: "review-run",
+			result: { fixed: true },
+			pushed: true,
+			ok: true,
+		});
+		expect((await stub.getPersistedState()).state).toBe("awaiting_feedback");
+	});
+
 	test("fresh instance starts with no persisted state", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		const state = await stub.getPersistedState();

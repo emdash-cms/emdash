@@ -219,8 +219,15 @@ export const contentScheduleBody = z
 	})
 	.meta({ id: "ContentScheduleBody" });
 
-export const contentPublishBody = z
-	.object({
+export const contentRevisionConditionBody = z.object({
+	_rev: z
+		.string()
+		.optional()
+		.meta({ description: "Opaque revision token for optimistic concurrency" }),
+});
+
+export const contentPublishBody = contentRevisionConditionBody
+	.extend({
 		// .optional() rather than .nullish(): publishing has no semantic
 		// meaning for `null` (you can't "clear" a publish timestamp by
 		// publishing). Tightening the schema here means callers either
@@ -249,7 +256,13 @@ export const contentTermsBody = z
 	})
 	.meta({ id: "ContentTermsBody" });
 
-export const contentTrashQuery = cursorPaginationQuery;
+export const contentTrashQuery = cursorPaginationQuery
+	.extend({
+		locale: localeCode.optional().meta({
+			description: "Restrict the trash listing to entries in this locale",
+		}),
+	})
+	.meta({ id: "ContentTrashQuery" });
 
 // ---------------------------------------------------------------------------
 // Content: Response schemas
@@ -337,6 +350,8 @@ export const trashedContentItemSchema = z
 		type: z.string(),
 		slug: z.string().nullable(),
 		status: z.string(),
+		locale: z.string().nullable(),
+		translationGroup: z.string().nullable(),
 		data: z.record(z.string(), z.unknown()),
 		authorId: z.string().nullable(),
 		createdAt: z.string(),

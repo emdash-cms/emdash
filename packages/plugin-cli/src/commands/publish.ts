@@ -147,7 +147,7 @@ export const publishCommand = defineCommand({
 			await runPublish(args);
 		} catch (error) {
 			exitCode = error instanceof CliError ? error.exitCode : 1;
-			handlePublishError(error, args.json);
+			handlePublishError(error, args.json === true);
 		} finally {
 			restoreReporters?.();
 		}

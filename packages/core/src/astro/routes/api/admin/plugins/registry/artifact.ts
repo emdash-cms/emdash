@@ -35,8 +35,8 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError } from "#api/error.js";
-import { verifyChecksum } from "#api/handlers/registry.js";
 
+import { verifyRegistryArtifactChecksum } from "../../../../../../registry/artifact-checksum.js";
 import { fetchRegistryArtifactUrl } from "../../../../../../registry/artifact-fetch.js";
 import { coerceRegistryConfig, validateAggregatorUrl } from "../../../../../../registry/config.js";
 import { resolveAndValidateExternalUrlTarget } from "../../../../../../security/ssrf.js";
@@ -453,11 +453,7 @@ function recordScopedCacheEndpoint(value: unknown): string | null {
 	return typeof endpoint === "string" ? endpoint : null;
 }
 
-/**
- * Read a response body into memory, aborting once it exceeds `limit`. Returns
- * `null` when the cap is breached (the streamed body lied about / omitted
- * Content-Length). The cap is the real defence against an unbounded body.
- */
+/** Build bounded, SSRF-validated fetch options for cache, PDS, and URL sources. */
 function proxyFetchOptions(signal: AbortSignal) {
 	return {
 		fetch: async (url: URL, init: RequestInit) =>
@@ -504,7 +500,7 @@ async function fetchRawArtifact(
 			lastCode = fetched.error.code;
 			continue;
 		}
-		if (!(await verifyChecksum(fetched.value.bytes, resolved.artifact.checksum))) {
+		if (!(await verifyRegistryArtifactChecksum(fetched.value.bytes, resolved.artifact.checksum))) {
 			lastCode = "CHECKSUM_MISMATCH";
 			checksumMismatch = { bytes: fetched.value.bytes, headers: fetched.value.headers };
 			continue;

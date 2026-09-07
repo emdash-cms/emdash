@@ -143,7 +143,7 @@ export default defineConfig({
 	clean: true,
 	// pnpm applies the image-size patch only inside this workspace, so bundle
 	// the patched implementation into every published entry that uses it.
-	noExternal: ["image-size"],
+	noExternal: ["image-size", /^@emdash-cms\/registry-verification(?:\/|$)/],
 	inlineOnly: false,
 	inputOptions: (options) => {
 		// tsdown has already normalized the `entry` array into an input record

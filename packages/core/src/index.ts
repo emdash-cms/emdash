@@ -83,6 +83,7 @@ export {
 	handleMediaGet,
 	handleMediaCreate,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
 	handleMediaUsageActivationAdvance,
 	handleMediaUsageProgress,
@@ -258,6 +259,9 @@ export {
 	createSandboxRouteErrorEnvelope,
 	getSandboxRouteErrorDetails,
 	getSandboxRouteErrorEnvelope,
+	MAX_SANDBOX_SAVE_REJECTION_REASON_LENGTH,
+	SANDBOX_HOOK_RESULT_VERSION,
+	inspectSandboxHookResult,
 	createNoopSandboxRunner,
 	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
 	createHttpAccess,
@@ -331,6 +335,9 @@ export type {
 	SandboxRouteErrorCode,
 	SandboxRouteErrorDetails,
 	SandboxRouteErrorEnvelope,
+	SandboxHookErrorEnvelope,
+	SandboxHookResultInspection,
+	SandboxSaveRejectedError,
 } from "./plugins/index.js";
 
 // Capability normalization (legacy → canonical alias layer)

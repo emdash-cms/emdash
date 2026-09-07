@@ -3,7 +3,9 @@ import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type {
+	DidHandleResolution,
 	RegistryClientConfig,
+	RegistryInstallResult,
 	RegistryPackageView,
 	RegistryReleaseView,
 } from "../../src/lib/api/registry";
@@ -26,6 +28,12 @@ vi.mock("@tanstack/react-router", async () => {
 const mockGetRegistryPackageStatus = vi.fn();
 const mockResolveRegistryPackageStatus = vi.fn();
 const mockListRegistryReleases = vi.fn();
+const mockVerifyRegistryPlugin = vi.fn();
+const mockInstallRegistryPlugin = vi.fn();
+const mockResolveDidToHandle = vi.fn<(did: string) => Promise<DidHandleResolution>>(async () => ({
+	status: "ok",
+	handle: "acme.dev",
+}));
 
 vi.mock("../../src/lib/api/registry", async () => {
 	const actual = await vi.importActual<typeof import("../../src/lib/api/registry")>(
@@ -36,6 +44,9 @@ vi.mock("../../src/lib/api/registry", async () => {
 		getRegistryPackageStatus: (...a: unknown[]) => mockGetRegistryPackageStatus(...a),
 		resolveRegistryPackageStatus: (...a: unknown[]) => mockResolveRegistryPackageStatus(...a),
 		listRegistryReleases: (...a: unknown[]) => mockListRegistryReleases(...a),
+		verifyRegistryPlugin: (...a: unknown[]) => mockVerifyRegistryPlugin(...a),
+		installRegistryPlugin: (...a: unknown[]) => mockInstallRegistryPlugin(...a),
+		resolveDidToHandle: (did: string) => mockResolveDidToHandle(did),
 	};
 });
 
@@ -120,6 +131,28 @@ function setup(pkg: RegistryPackageView, releases: RegistryReleaseView[]) {
 	mockGetRegistryPackageStatus.mockResolvedValue({ status: "passed", value: pkg });
 	mockResolveRegistryPackageStatus.mockResolvedValue({ status: "passed", value: pkg });
 	mockListRegistryReleases.mockResolvedValue({ releases });
+}
+
+function verificationPreview(): RegistryInstallResult {
+	return {
+		pluginId: "r_verified",
+		publisherDid: "did:plc:acme",
+		slug: "myplugin",
+		version: "1.2.3",
+		capabilities: ["users:read"],
+		declaredAccess: { users: { read: {} } },
+		mcpTools: [],
+		verification: {
+			profileCid: "bafy-profile",
+			releaseCid: "bafy-release",
+			provenance: "verified",
+			policy: {
+				requireProvenance: true,
+				confirmation: "always",
+				approvers: ["did:plc:approver"],
+			},
+		},
+	};
 }
 
 describe("RegistryPluginDetail sections", () => {
@@ -283,7 +316,82 @@ describe("RegistryPluginDetail release withdrawal", () => {
 	});
 });
 
-describe("RegistryPluginDetail approved publisher identity", () => {
+describe("RegistryPluginDetail independent install consent", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("opens consent from the server's verified bundle and provenance report", async () => {
+		setup(makePackage(), [
+			makeRelease({
+				extensions: {
+					[RELEASE_EXTENSION_NSID]: {
+						declaredAccess: { content: { read: {} } },
+					},
+				},
+			}),
+		]);
+		mockVerifyRegistryPlugin.mockResolvedValue(verificationPreview());
+		mockInstallRegistryPlugin.mockResolvedValue(verificationPreview());
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Install" }).click();
+
+		expect(mockVerifyRegistryPlugin).toHaveBeenCalledWith({
+			did: "did:plc:acme",
+			slug: "myplugin",
+			version: "1.2.3",
+		});
+		await expect.element(screen.getByText("Independent verification")).toBeInTheDocument();
+		await expect.element(screen.getByText("Read user accounts")).toBeInTheDocument();
+		await expect.element(screen.getByText("bafy-profile")).toBeInTheDocument();
+		await expect.element(screen.getByText("bafy-release")).toBeInTheDocument();
+		await screen.getByRole("button", { name: "Accept & Install" }).click();
+		expect(mockInstallRegistryPlugin).toHaveBeenCalledWith(
+			expect.objectContaining({
+				acknowledgedProfileCid: "bafy-profile",
+				acknowledgedReleaseCid: "bafy-release",
+			}),
+		);
+	});
+
+	it("shows a verification failure without opening consent", async () => {
+		setup(makePackage(), [makeRelease()]);
+		mockVerifyRegistryPlugin.mockRejectedValue(new Error("Repository proof invalid"));
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await screen.getByRole("button", { name: "Install" }).click();
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Repository proof invalid");
+		expect(screen.getByRole("dialog").query()).toBeNull();
+	});
+
+	it("blocks install when the publisher's claimed handle does not resolve back to its DID", async () => {
+		mockResolveDidToHandle.mockResolvedValueOnce({ status: "invalid" });
+		setup(makePackage(), [makeRelease()]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail pluginId="acme.dev/myplugin" config={CONFIG} />
+			</Wrapper>,
+		);
+
+		await expect
+			.element(screen.getByText("We couldn't verify this publisher's identity"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+		expect(mockVerifyRegistryPlugin).not.toHaveBeenCalled();
+	});
+});
+
+describe("RegistryPluginDetail lastUpdated and approved publisher identity", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});

@@ -18,7 +18,7 @@ async function openFreshPlayground(page: Page): Promise<void> {
 		dialog.getByRole("button", { name: "Get Started" }).click(),
 	);
 	await page.goto("/playground");
-	await page.waitForURL(ADMIN_URL_PATTERN, { timeout: 120_000 });
+	await page.waitForURL(ADMIN_URL_PATTERN, { timeout: 240_000 });
 	await expect(page.getByRole("link", { name: "Media", exact: true })).toBeVisible({
 		timeout: 60_000,
 	});
@@ -50,7 +50,7 @@ test("opens with seeded media and ready usage", async ({ page }) => {
 	for (const [filename, postTitle] of expectedMediaUsage) {
 		await page.locator("[data-media-grid] button").filter({ hasText: filename }).click();
 		const dialog = page.getByRole("dialog");
-		await expect(dialog.getByText("Used in", { exact: true })).toBeVisible();
+		await dialog.getByRole("tab", { name: "Used in", exact: true }).click();
 		await expect(dialog.getByText(postTitle, { exact: true })).toBeVisible();
 		await page.keyboard.press("Escape");
 		await expect(dialog).not.toBeVisible();

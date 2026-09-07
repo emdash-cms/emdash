@@ -147,6 +147,10 @@ export default defineConfig({
 									slug: "plugins/creating-plugins/publishing",
 								},
 								{
+									label: "Automated Releases",
+									slug: "plugins/creating-plugins/delegated-releases",
+								},
+								{
 									label: "Migrating to the CLI",
 									slug: "plugins/creating-plugins/migrating-to-the-cli",
 								},
@@ -227,6 +231,7 @@ export default defineConfig({
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
 						{ label: "Object Cache", slug: "deployment/object-cache" },
+						{ label: "Plugin Sandbox", slug: "deployment/plugin-sandbox" },
 						{ label: "Secrets & Key Management", slug: "deployment/secrets" },
 					],
 				},

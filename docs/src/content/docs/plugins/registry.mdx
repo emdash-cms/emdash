@@ -32,18 +32,19 @@ You configure one or the other for a given site. When `experimental.registry` is
 
 ## Enable the registry
 
-The registry requires a `sandboxRunner`, because registry plugins always run sandboxed. See [Installing Plugins](/plugins/installing/#prerequisites) for the runner setup.
+The registry requires a `sandboxRunner`, because registry plugins always run sandboxed. See [Plugin Sandbox](/deployment/plugin-sandbox/) for the runner setup.
 
 The following configuration points a site at the reference aggregator:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
+import { sandbox } from "@emdash-cms/cloudflare";
 import emdash from "emdash/astro";
 
 export default defineConfig({
   integrations: [
     emdash({
-      sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+      sandboxRunner: sandbox(),
       experimental: {
         registry: "https://registry.emdashcms.com",
       },
@@ -56,7 +57,7 @@ The bare URL string is shorthand. Use the object form when you need to declare a
 
 ```typescript title="astro.config.mjs"
 emdash({
-  sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+  sandboxRunner: sandbox(),
   experimental: {
     registry: {
       aggregatorUrl: "https://registry.emdashcms.com",
@@ -108,6 +109,6 @@ Plugin-code checks remain separate. Before activating a plugin, EmDash independe
 
 - [Installing Plugins](/plugins/installing/) — the marketplace and config-based install flows
 - [Bundling and publishing](/plugins/creating-plugins/publishing/) — publish your own plugin to the registry
+- [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) — publish verified releases from GitHub Actions
 - [Querying the registry](/plugins/registry-client/) — build a plugin directory or search page against the registry's discovery API
 - [Capabilities and security](/plugins/creating-plugins/capabilities/) — the sandbox trust contract
-- [RFC 0001](https://github.com/emdash-cms/emdash/pull/694) — the protocol design, for contributors and aggregator operators

@@ -86,6 +86,7 @@ export {
 	renameMediaFolder,
 	deleteMediaFolder,
 	uploadMedia,
+	replaceMediaImage,
 	deleteMedia,
 	updateMedia,
 	fetchMediaProviders,

@@ -507,6 +507,16 @@ function convertMarks(
 	return pmMarks;
 }
 
+function imageAlignment(value: unknown): PortableTextImageBlock["alignment"] {
+	return value === "left" ||
+		value === "center" ||
+		value === "right" ||
+		value === "wide" ||
+		value === "full"
+		? value
+		: undefined;
+}
+
 /**
  * Convert image block to ProseMirror
  */
@@ -523,6 +533,7 @@ function convertImage(block: PortableTextImageBlock): ProseMirrorNode {
 			height: block.height,
 			displayWidth: block.displayWidth,
 			displayHeight: block.displayHeight,
+			alignment: imageAlignment(block.alignment),
 		},
 	};
 }
@@ -559,6 +570,7 @@ function convertMalformedImage(block: PortableTextBlock): ProseMirrorNode {
 			height,
 			displayWidth,
 			displayHeight,
+			alignment: imageAlignment("alignment" in block ? block.alignment : undefined),
 		},
 	};
 }

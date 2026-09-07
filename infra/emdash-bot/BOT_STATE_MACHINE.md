@@ -29,12 +29,12 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `triage` | `intake` | `bot:triage` | Triage | no | no | `investigate`, `repro`, `fix`, `implement`, `decline` |
 | `working` | `evidence` | `bot:working` | Working | no | yes | `status` |
 | `blocked` | `candidate` | `bot:blocked` | Blocked | no | no | `investigate`, `fix`, `implement`, `repro`, `retry`, `decline`, `take_over` |
-| `awaiting_feedback` | `confirmation` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `take_over` |
+| `awaiting_feedback` | `confirmation` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `revise`, `take_over` |
 | `in_review` | `review` | `bot:in-review` | In review | no | no | `revise`, `decline`, `take_over` |
 | `human_owned` | `review` | `bot:human-owned` | Human owned | no | no | `hand_back` |
 | `done` | `complete` | `bot:done` | Done | yes | no | `reopen` |
 | `declined` | `complete` | `bot:declined` | Declined | yes | no | `reopen` |
-| `failed` | `candidate` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `decline` |
+| `failed` | `candidate` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `revise`, `decline` |
 | `investigating` | `evidence` | `bot:investigating` | Investigating | no | yes | `status` |
 | `reproduced` | `verdict` | `bot:reproduced` | Reproduced | no | no | `fix`, `implement`, `investigate`, `decline`, `take_over` |
 | `diagnosed` | `verdict` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `implement`, `investigate`, `decline`, `take_over` |
@@ -69,13 +69,13 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `agent.by_design` | agent result | system | — | Agent verified the behaviour as intended. |
 | `agent.reproduced` | agent result | system | — | Reproduced, but the fix needs a human decision. |
 | `agent.diagnosed` | agent result | system | — | Root cause identified without a confirming reproduction. |
+| `agent.revised` | agent result | system | — | Review feedback is addressed and the PR branch is updated. |
 | `agent.fix_ready` | agent result | system | — | A candidate change is published on bot/fix-<n>. |
 | `agent.needs_info` | agent result | system | — | Investigation is blocked on information only the reporter can supply. |
 | `agent.failed` | agent result | system | — | Agent run errored or produced no usable result. |
 | `pr.opened` | pr lifecycle | system | — | A bot PR was opened for this item. |
 | `pr.merged` | pr lifecycle | system | — | The bot PR was merged. |
 | `pr.closed` | pr lifecycle | system | — | The bot PR was closed without merging. |
-| `pr.changes_requested` | pr lifecycle | system | — | A reviewer requested changes (review sub-state). |
 | `pr.approved` | pr lifecycle | system | — | A reviewer approved the PR (review sub-state). |
 | `preview.ready` | preview | system | — | The preview deploy for the candidate change is live; link ready to post. |
 | `preview.failed` | preview | system | — | The preview deploy failed to build. |
@@ -100,6 +100,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `working` | `agent.diagnosed` | `diagnosed` | — |
 | `working` | `agent.needs_info` | `needs_info` | — |
 | `working` | `agent.fix_ready` | `awaiting_feedback` | — |
+| `working` | `agent.revised` | `in_review` | — |
 | `working` | `agent.failed` | `failed` | — |
 | `blocked` | `fix` | `fixing` | `investigate.implement` |
 | `blocked` | `implement` | `fixing` | `investigate.implement` |
@@ -111,9 +112,10 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `awaiting_feedback` | `reject` | `working` | `investigate.revise` |
 | `awaiting_feedback` | `retry` | `working` | `investigate.repro` |
 | `awaiting_feedback` | `take_over` | `human_owned` | — |
+| `failed` | `revise` | `working` | `investigate.revise` |
+| `awaiting_feedback` | `revise` | `working` | `investigate.revise` |
 | `in_review` | `pr.opened` | `in_review` | — |
 | `in_review` | `pr.approved` | `in_review` | — |
-| `in_review` | `pr.changes_requested` | `in_review` | — |
 | `in_review` | `revise` | `working` | `investigate.revise` |
 | `in_review` | `pr.merged` | `done` | — |
 | `working` | `pr.merged` | `done` | — |
@@ -207,6 +209,7 @@ stateDiagram-v2
     working --> diagnosed: agent.diagnosed
     working --> needs_info: agent.needs_info
     working --> awaiting_feedback: agent.fix_ready
+    working --> in_review: agent.revised
     working --> failed: agent.failed
     blocked --> fixing: fix / investigate.implement
     blocked --> fixing: implement / investigate.implement
@@ -218,9 +221,10 @@ stateDiagram-v2
     awaiting_feedback --> working: reject / investigate.revise
     awaiting_feedback --> working: retry / investigate.repro
     awaiting_feedback --> human_owned: take_over
+    failed --> working: revise / investigate.revise
+    awaiting_feedback --> working: revise / investigate.revise
     in_review --> in_review: pr.opened
     in_review --> in_review: pr.approved
-    in_review --> in_review: pr.changes_requested
     in_review --> working: revise / investigate.revise
     in_review --> done: pr.merged
     working --> done: pr.merged

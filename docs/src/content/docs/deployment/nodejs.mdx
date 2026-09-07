@@ -65,6 +65,10 @@ The built-in scheduler runs only while a Node.js process is running. It handles 
 
 Keep at least one Node.js process running continuously in production. Scheduled tasks pause when every process stops or sleeps.
 
+## Plugin sandbox
+
+Marketplace plugins and the plugins listed under `sandboxed: []` need a sandbox runner. On Node.js, the runner is `@emdash-cms/sandbox-workerd`, which runs plugins in a `workerd` child process. [Plugin Sandbox](/deployment/plugin-sandbox/#nodejs) covers the installation, how the `workerd` process runs, and its failure modes.
+
 ## Production Storage
 
 For production, use S3-compatible storage instead of local filesystem:

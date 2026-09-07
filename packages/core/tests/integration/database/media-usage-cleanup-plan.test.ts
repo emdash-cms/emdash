@@ -1,5 +1,16 @@
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect, sql } from "kysely";
+import {
+	CompiledQuery,
+	Kysely,
+	SqliteDialect,
+	sql,
+	type KyselyPlugin,
+	type PluginTransformQueryArgs,
+	type PluginTransformResultArgs,
+	type QueryResult,
+	type RootOperationNode,
+	type UnknownRow,
+} from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -17,7 +28,7 @@ interface CapturedQuery {
 	parameters: readonly unknown[];
 }
 
-const MAX_CLEANUP_STATEMENTS_PER_TICK = 14;
+const MAX_CLEANUP_STATEMENTS_PER_TICK = 16;
 const MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT = 52;
 const MAX_CLEANUP_ADMISSION_TIME_MS = 5_000;
 
@@ -515,6 +526,22 @@ async function insertOccurrence(
 		.execute();
 }
 
+/** Compiles every statement a repository call issues, so a plan test can EXPLAIN the real query. */
+class CompiledQueryRecorder implements KyselyPlugin {
+	readonly queries: CompiledQuery[] = [];
+
+	constructor(private readonly target: Kysely<DatabaseSchema>) {}
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.queries.push(this.target.getExecutor().compileQuery(args.node, args.queryId));
+		return args.node;
+	}
+
+	async transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return args.result;
+	}
+}
+
 function explain(query: CapturedQuery): string {
 	const rows = sqlite.prepare(`EXPLAIN QUERY PLAN ${query.sql}`).all(...query.parameters) as {
 		detail: string;
@@ -553,40 +580,19 @@ it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async
 		}
 
 		await sql`ANALYZE _emdash_media_usage`.execute(context.db);
-		await context.db
-			.updateTable("_emdash_media_usage_cleanup")
-			.set({
-				lease_token: "plan-cleanup-lease",
-				lease_expires_at: "2100-01-01T00:00:00.000Z",
-			})
-			.where("task_key", "=", "projection_gc")
-			.execute();
-		const result = await sql<{ "QUERY PLAN": string }>`
-			EXPLAIN (COSTS OFF)
-			SELECT
-				u.id,
-				u.source_key,
-				u.generation,
-				u.created_at,
-				s.current_generation,
-				s.indexed_at,
-				writer.expires_at AS write_lease_expires_at
-			FROM _emdash_media_usage AS u
-			LEFT JOIN _emdash_media_usage_sources AS s ON s.source_key = u.source_key
-			LEFT JOIN _emdash_media_usage_generation_writes AS writer
-				ON writer.source_key = u.source_key AND writer.generation = u.generation
-			WHERE u.created_at < ${now.toISOString()}
-				AND EXISTS (
-					SELECT 1
-					FROM _emdash_media_usage_cleanup AS cleanup
-					WHERE cleanup.task_key = 'projection_gc'
-						AND cleanup.lease_token = 'plan-cleanup-lease'
-						AND cleanup.lease_expires_at::timestamptz > clock_timestamp()
-					FOR UPDATE
-				)
-			ORDER BY u.created_at ASC, u.id ASC
-			LIMIT 250
-		`.execute(context.db);
+		const recorder = new CompiledQueryRecorder(context.db);
+		await new MediaUsageRepository(context.db.withPlugin(recorder)).findMediaUsageCleanupCandidates(
+			{
+				cutoff: now.toISOString(),
+				cursor: null,
+				limit: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
+			},
+		);
+		const scan = recorder.queries.at(-1);
+		if (!scan) throw new Error("the candidate scan issued no statement");
+		const result = await context.db.executeQuery<{ "QUERY PLAN": string }>(
+			CompiledQuery.raw(`EXPLAIN (COSTS OFF) ${scan.sql}`, [...scan.parameters]),
+		);
 		const plan = result.rows.map((row) => row["QUERY PLAN"]).join("\n");
 
 		expect(plan).toMatch(/Index(?: Only)? Scan using idx__emdash_media_usage_cleanup_scan/);

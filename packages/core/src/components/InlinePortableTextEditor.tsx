@@ -155,6 +155,10 @@ function attrNum(attrs: Record<string, unknown> | undefined, key: string): numbe
 	return typeof v === "number" ? v : undefined;
 }
 
+function canonicalMediaProviderId(provider: string | undefined): string | undefined {
+	return provider === "external-url" ? "external" : provider;
+}
+
 function pmToPortableText(doc: PMNode): PTBlock[] {
 	if (!doc || doc.type !== "doc" || !doc.content) return [];
 	const blocks: PTBlock[] = [];
@@ -586,7 +590,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 				title: ib.caption || "",
 				caption: ib.caption || "",
 				mediaId: asset?._ref,
-				provider: asset?.provider,
+				provider: canonicalMediaProviderId(asset?.provider),
 				width: ib.width,
 				height: ib.height,
 				blurhash,
@@ -2225,6 +2229,7 @@ export function InlinePortableTextEditor({
 					src,
 					alt: item.alt || item.filename || "",
 					mediaId: item.id,
+					provider: canonicalMediaProviderId(item.provider) || "local",
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,

@@ -25,6 +25,7 @@ import type { HTMLAttributes } from "astro/types";
 import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
+import { normalizeLegacyExternalMediaValue } from "../media/normalize.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	buildResponsiveImage,
@@ -78,7 +79,7 @@ function normalizeImage(
 	if (typeof img === "string") {
 		return { id: "", src: img };
 	}
-	return img;
+	return normalizeLegacyExternalMediaValue(img);
 }
 
 /**

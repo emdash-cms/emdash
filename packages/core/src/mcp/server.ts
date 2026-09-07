@@ -39,6 +39,23 @@ import { decodeBase64, encodeBase64 } from "../utils/base64.js";
 const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 /** http(s) scheme matcher used by `settings_update` URL validation. */
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
+/**
+ * Shared wording for the `_rev` parameter on write tools. Agents only see the
+ * tool schema, so the retry protocol is stated here.
+ */
+const REV_PARAM_DESCRIPTION =
+	"Revision token proving you have read the current item. Call content_get " +
+	"first and pass back the _rev it returns. If this call fails with CONFLICT " +
+	"the item changed in the meantime: call content_get again and retry with " +
+	"the new token.";
+
+/**
+ * Replaces Zod's "expected string, received undefined" for a caller that never
+ * read the schema, so the message says where the token comes from.
+ */
+const REV_MISSING_ERROR =
+	"_rev is required: call content_get for this item and pass back the _rev it returns.";
+
 const TAXONOMY_CURSOR_VERSION = 2;
 const MAX_TAXONOMY_CURSOR_LENGTH = 2048;
 
@@ -619,6 +636,13 @@ function extractContentId(data: unknown): string | undefined {
 	return typeof item?.id === "string" ? item.id : undefined;
 }
 
+/** Extract the `_rev` token from a content handler response. */
+function extractContentRev(data: unknown): string | undefined {
+	if (!data || typeof data !== "object") return undefined;
+	const rev = (data as Record<string, unknown>)._rev;
+	return typeof rev === "string" ? rev : undefined;
+}
+
 // ---------------------------------------------------------------------------
 // Server factory
 // ---------------------------------------------------------------------------
@@ -829,8 +853,9 @@ export function createMcpServer(
 			title: "Get Content",
 			description:
 				"Get a single content item by its ID or slug. Returns the full content data " +
-				"including all field values, metadata, and a _rev token for optimistic " +
-				"concurrency (pass _rev back when updating to detect conflicts).",
+				"including all field values, metadata, and a _rev token. content_update, " +
+				"content_publish, content_unpublish and content_discard_draft require that " +
+				"token, so read the item here before calling them.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
 				id: z.string().describe("Content item ID (ULID) or slug"),
@@ -997,9 +1022,12 @@ export function createMcpServer(
 				"in the 'data' object — unspecified fields are left unchanged. Rich text " +
 				"(portableText) fields accept a Markdown string (recommended, converted " +
 				"automatically); use a Portable Text JSON array only for complex content " +
-				"Markdown can't express (custom blocks, embeds). Pass the " +
-				"_rev token from content_get to enable optimistic concurrency checking " +
-				"(the update fails if the item was modified since you read it). " +
+				"Markdown can't express (custom blocks, embeds). Requires the _rev " +
+				"token from content_get, so read the item before updating it: the " +
+				"update fails if the item changed since that read. When status is not " +
+				"set, a change to a published item is staged as a draft, so the " +
+				"response shows the new values while the live version keeps the old " +
+				"ones until content_publish. " +
 				"`seo` and `bylines` are persisted alongside the field updates in a " +
 				"single transaction. `publishedAt` requires the content:publish_any " +
 				"permission and is useful for migrations or correcting historical dates.",
@@ -1051,10 +1079,7 @@ export function createMcpServer(
 					.describe(
 						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Pass null to clear. Useful for content migrations.",
 					),
-				_rev: z
-					.string()
-					.optional()
-					.describe("Revision token from content_get for conflict detection"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1092,6 +1117,7 @@ export function createMcpServer(
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
 				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+				let rev: string | undefined = args._rev;
 				if (
 					args.data ||
 					args.slug ||
@@ -1112,12 +1138,16 @@ export function createMcpServer(
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
+					rev = extractContentRev(updateResult.data);
 				}
-				return unwrap(await emdash.handleContentPublish(args.collection, resolvedId));
+				return unwrap(
+					await emdash.handleContentPublish(args.collection, resolvedId, { _rev: rev }),
+				);
 			}
 
 			if (args.status === "draft") {
 				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+				let rev: string | undefined = args._rev;
 				if (
 					args.data ||
 					args.slug ||
@@ -1138,8 +1168,11 @@ export function createMcpServer(
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
+					rev = extractContentRev(updateResult.data);
 				}
-				return unwrap(await emdash.handleContentUnpublish(args.collection, resolvedId));
+				return unwrap(
+					await emdash.handleContentUnpublish(args.collection, resolvedId, { _rev: rev }),
+				);
 			}
 
 			return unwrap(
@@ -1262,6 +1295,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				publishedAt: z.iso
 					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
 					.optional()
@@ -1299,6 +1333,7 @@ export function createMcpServer(
 			return unwrap(
 				await emdash.handleContentPublish(args.collection, resolvedId, {
 					publishedAt: args.publishedAt,
+					_rev: args._rev,
 				}),
 			);
 		},
@@ -1310,10 +1345,11 @@ export function createMcpServer(
 			title: "Unpublish Content",
 			description:
 				"Unpublish a content item, reverting it to draft status. It will no " +
-				"longer be visible on the live site but its content is preserved.",
+				"longer be visible on the live site, but its content and publication date are preserved.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1334,7 +1370,9 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentUnpublish(args.collection, resolvedId));
+			return unwrap(
+				await ec.handleContentUnpublish(args.collection, resolvedId, { _rev: args._rev }),
+			);
 		},
 	);
 
@@ -1442,6 +1480,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1463,7 +1502,9 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentDiscardDraft(args.collection, resolvedId));
+			return unwrap(
+				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
+			);
 		},
 	);
 

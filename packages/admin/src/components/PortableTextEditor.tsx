@@ -113,6 +113,7 @@ import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
 import type { Section } from "../lib/api";
+import { canonicalMediaProviderId } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -181,7 +182,7 @@ interface PortableTextTextBlock {
 interface PortableTextImageBlock {
 	_type: "image";
 	_key: string;
-	asset: { _ref: string; url?: string; meta?: Record<string, unknown> };
+	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
 	width?: number;
@@ -1014,6 +1015,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					title: imageBlock.caption || "",
 					caption: imageBlock.caption || "",
 					mediaId: imageBlock.asset._ref,
+					provider: canonicalMediaProviderId(imageBlock.asset.provider),
 					width: imageBlock.width,
 					height: imageBlock.height,
 					blurhash,
@@ -2889,7 +2891,7 @@ export function PortableTextEditor({
 		() => ({
 			attributes: {
 				class:
-					"prose prose-sm sm:prose-base dark:prose-invert w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
+					"prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			},
 		}),
@@ -3198,7 +3200,7 @@ export function PortableTextEditor({
 					src: item.url,
 					alt: item.alt || item.filename,
 					mediaId: item.id,
-					provider: item.provider || "local",
+					provider: canonicalMediaProviderId(item.provider),
 					width: item.width,
 					height: item.height,
 					blurhash: item.blurhash,
@@ -3448,7 +3450,8 @@ export function PortableTextEditor({
 					}}
 					onSelect={handleImageSelect}
 					mimeTypeFilter="image/"
-					title={t`Select Image`}
+					title={t`Select image`}
+					confirmLabel={t`Insert image`}
 				/>
 
 				{/* Multi-select media picker for gallery insertion */}
@@ -3462,7 +3465,7 @@ export function PortableTextEditor({
 					onSelect={() => {}}
 					onSelectMany={handleGallerySelect}
 					mimeTypeFilter="image/"
-					title={t`Select Gallery Images`}
+					title={t`Select gallery images`}
 				/>
 
 				{/* Plugin block insertion/editing modal */}

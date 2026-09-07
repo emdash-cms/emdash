@@ -147,6 +147,8 @@ export interface NormalizedEvent {
 	readonly classifyText?: string | null;
 	/** Exact human comment that caused this event, retained for agent context. */
 	readonly triggeringComment?: TriggeringComment;
+	readonly pullRequestNumber?: number;
+	readonly reviewId?: number;
 	/** True only on a bot-authored PR (enables the in_review default). */
 	readonly allowDefault?: boolean;
 	/** Webhook delivery id; the DO dedupes by this. */
@@ -383,6 +385,7 @@ interface PendingSideEffect {
 	readonly addLabels: readonly string[];
 	readonly removeLabels: readonly string[];
 	readonly commentBody: string;
+	readonly commentTargetNumber?: number;
 	readonly commentMarker: string;
 	readonly commentMayExist: boolean;
 	/** Post the comment before flipping labels (fix-loop ask ordering). */
@@ -833,7 +836,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 				? { ...existing, body, pending: true }
 				: {
 						runId: input.runId,
-						anchorNumber,
+						anchorNumber:
+							run.mode === "revise"
+								? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+								: anchorNumber,
 						marker,
 						body,
 						commentId: null,
@@ -896,7 +902,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 					? { ...existing, body, pending: true }
 					: {
 							runId: input.runId,
-							anchorNumber,
+							anchorNumber:
+								run.mode === "revise"
+									? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+									: anchorNumber,
 							marker,
 							body,
 							commentId: null,
@@ -961,7 +970,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 				? { ...existing, body, pending: true }
 				: {
 						runId: input.runId,
-						anchorNumber,
+						anchorNumber:
+							run.mode === "revise"
+								? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+								: anchorNumber,
 						marker,
 						body,
 						commentId: null,
@@ -1022,12 +1034,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.persistSuccessfulDiagnosis(input.runId, currentRunMode, input.result);
 		}
 
-		const event = outcomeFromResult({
+		let event = outcomeFromResult({
 			ok: input.ok,
 			result: input.result,
 			pushed: input.pushed,
 			mode: currentRunMode,
 		});
+		if (
+			event === "agent.fix_ready" &&
+			currentRunMode === "revise" &&
+			(await this.ctx.storage.get<number>(STORAGE.prNumber))
+		) {
+			event = "agent.revised";
+		}
 		const resumedAttempt = savedRun?.runId === input.runId || (run?.attempt ?? 1) > 1;
 		if (event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state) {
 			await this.ctx.storage.put<ResumableRunCheckpoint>(STORAGE.resumableRun, {
@@ -1327,7 +1346,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 	private async processInboxHead(): Promise<boolean> {
 		const inbox = (await this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-		const entry = inbox[0];
+		const [state, runId] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+		]);
+		const entry = inbox.find(
+			(candidate) =>
+				!(
+					state === "working" &&
+					runId &&
+					candidate.input.event === "revise" &&
+					candidate.input.pullRequestNumber
+				),
+		);
 		if (!entry) return false;
 
 		try {
@@ -1337,9 +1368,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const attempts = (entry.attempts ?? 0) + 1;
 			await this.ctx.storage.transaction(async (transaction) => {
 				const current = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-				if (current[0]?.id !== entry.id) return;
+				if (!current.some((candidate) => candidate.id === entry.id)) return;
 				if (attempts < CLASSIFIER_MAX_ATTEMPTS) {
-					await transaction.put(STORAGE.inbox, [{ ...entry, attempts }, ...current.slice(1)]);
+					await transaction.put(
+						STORAGE.inbox,
+						current.map((candidate) =>
+							candidate.id === entry.id ? { ...entry, attempts } : candidate,
+						),
+					);
 					return;
 				}
 				if (entry.input.deliveryId) {
@@ -1352,7 +1388,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 					}
 				}
 				if (current.length === 1) await transaction.delete(STORAGE.inbox);
-				else await transaction.put(STORAGE.inbox, current.slice(1));
+				else
+					await transaction.put(
+						STORAGE.inbox,
+						current.filter((candidate) => candidate.id !== entry.id),
+					);
 			});
 			if (attempts >= CLASSIFIER_MAX_ATTEMPTS) {
 				console.error("[orchestrator] discarded classifier entry after retry limit", {
@@ -1365,9 +1405,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		await this.ctx.storage.transaction(async (transaction) => {
 			const current = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-			if (current[0]?.id !== entry.id) return;
+			if (!current.some((candidate) => candidate.id === entry.id)) return;
 			if (current.length === 1) await transaction.delete(STORAGE.inbox);
-			else await transaction.put(STORAGE.inbox, current.slice(1));
+			else
+				await transaction.put(
+					STORAGE.inbox,
+					current.filter((candidate) => candidate.id !== entry.id),
+				);
 		});
 		return true;
 	}
@@ -2454,7 +2498,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			exists = await hasIssueCommentMarker(
 				token,
 				repo,
-				pending.anchorNumber,
+				pending.commentTargetNumber ?? pending.anchorNumber,
 				pending.commentMarker,
 			);
 		} else {
@@ -2465,7 +2509,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await postIssueComment(
 				token,
 				repo,
-				pending.anchorNumber,
+				pending.commentTargetNumber ?? pending.anchorNumber,
 				`${pending.commentBody}\n\n${pending.commentMarker}`,
 			);
 		}
@@ -2577,6 +2621,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 				const kind = parseKind(kindLabel.slice("bot:".length));
 				if (kind) puts.push(transaction.put(STORAGE.kind, kind));
 			}
+			if (input.pullRequestNumber)
+				puts.push(transaction.put(STORAGE.prNumber, input.pullRequestNumber));
 			if (preparedInvestigation) {
 				const run = startRunLifecycle({
 					runId: preparedInvestigation.runId,
@@ -2642,8 +2688,26 @@ export class OrchestratorDO extends DurableObject<Env> {
 						: []),
 				);
 			}
+			if (decision.event === "pr.closed" || decision.event === "pr.merged") {
+				const inbox = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
+				const kept = inbox.filter(
+					(candidate) => !(candidate.input.event === "revise" && candidate.input.pullRequestNumber),
+				);
+				if (kept.length !== inbox.length) {
+					puts.push(
+						kept.length === 0
+							? transaction.delete(STORAGE.inbox)
+							: transaction.put(STORAGE.inbox, kept),
+					);
+				}
+			}
 			const anchorNumber =
 				input.anchorNumber ?? (await transaction.get<number>(STORAGE.anchorNumber));
+			const commentTargetNumber =
+				input.pullRequestNumber ??
+				((await transaction.get<InvestigationMode>(STORAGE.currentRunMode)) === "revise"
+					? await transaction.get<number>(STORAGE.prNumber)
+					: undefined);
 			const effectRunId =
 				preparedInvestigation?.runId ?? preparedResume?.checkpoint.runId ?? input.settlesRunId;
 			const effectDeliveryId = input.settlesDeliveryId ?? input.deliveryId;
@@ -2661,6 +2725,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 							anchorNumber,
 							addLabels: decision.addLabels,
 							removeLabels: decision.removeLabels,
+							...(commentTargetNumber ? { commentTargetNumber } : {}),
 							commentBody:
 								input.commentBodyOverride ??
 								renderComment(
