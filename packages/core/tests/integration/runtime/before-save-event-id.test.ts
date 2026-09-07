@@ -188,5 +188,25 @@ describe("content:beforeSave event id", () => {
 				id: item.id,
 			});
 		});
+
+		it("passes the resolved item id when updating by slug", async () => {
+			const item = await repo.create({
+				type: "post",
+				slug: "hello-world",
+				data: { title: "Original" },
+			});
+
+			const result = await runtime.handleContentUpdate("post", "hello-world", {
+				data: { title: "Changed" },
+			});
+
+			expect(result.success).toBe(true);
+			expect(invokeHook).toHaveBeenCalledWith("content:beforeSave", {
+				content: { title: "Changed" },
+				collection: "post",
+				isNew: false,
+				id: item.id,
+			});
+		});
 	});
 });

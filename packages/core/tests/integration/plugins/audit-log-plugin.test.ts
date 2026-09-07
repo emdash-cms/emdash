@@ -150,8 +150,8 @@ describe("audit-log plugin", () => {
 		const entry = (await readEntries()).find((e) => e.action === "update");
 		expect(entry).toBeDefined();
 		expect(entry?.resourceId).toBe(created.data.item.id);
-		expect(entry?.changes?.before).toMatchObject({ data: { title: "Before" } });
-		expect(entry?.changes?.after).toMatchObject({ title: "After" });
+		expect(entry?.changes?.before).toEqual({ title: "Before" });
+		expect(entry?.changes?.after).toEqual({ title: "After" });
 	});
 
 	it("records media uploads", async () => {
