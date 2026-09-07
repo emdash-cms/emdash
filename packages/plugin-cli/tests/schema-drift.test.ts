@@ -45,11 +45,10 @@ function regenerate(): string {
 	return `${JSON.stringify(document, null, "\t")}\n`;
 }
 
-// The generated side is built with "\n". Comparing it byte-for-byte against a
-// file read straight off disk measures the checkout's line endings as well as
-// the schema, so a CRLF working copy fails with no difference in content.
-// `.gitattributes` pins the bytes; this keeps the reported reason honest if a
-// CRLF copy ever reaches the comparison anyway.
+// The generated side is built with "\n". Without normalization, comparing it
+// against a file read straight off disk would measure the checkout's line
+// endings as well as the schema. `.gitattributes` pins JSON files to LF; `lf()`
+// keeps the comparison independent if a CRLF copy reaches it anyway.
 const lf = (text: string) => text.replace(/\r\n/g, "\n");
 
 describe("JSON Schema drift", () => {
