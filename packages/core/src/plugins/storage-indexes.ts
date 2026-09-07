@@ -12,9 +12,9 @@ import { sql } from "kysely";
 import { jsonExtractExpr, isPostgres } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import {
-	validateIdentifier,
 	validateJsonFieldName,
 	validatePluginIdentifier,
+	validateStorageCollectionName,
 } from "../database/validate.js";
 
 /**
@@ -36,8 +36,10 @@ export function generateIndexName(
 /**
  * Generate a Kysely sql expression for creating an expression index.
  *
- * Validates all identifiers before interpolation to prevent SQL injection.
- * Plugin ID and collection values are parameterized in the WHERE clause.
+ * Validates all inputs before interpolation. The collection uses the
+ * permissive manifest-key rules rather than SQL-identifier rules — it is
+ * stored as opaque text and only reaches SQL inside the generated index
+ * name — so kebab-case collections index like any other.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function generateCreateIndexSql(
@@ -47,9 +49,8 @@ export function generateCreateIndexSql(
 	fields: string[],
 	options?: { unique?: boolean },
 ): RawBuilder<unknown> {
-	// Validate all identifiers
 	validatePluginIdentifier(pluginId, "plugin ID");
-	validateIdentifier(collection, "collection name");
+	validateStorageCollectionName(collection, "collection name");
 	for (const field of fields) {
 		validateJsonFieldName(field, "index field name");
 	}
@@ -68,14 +69,15 @@ export function generateCreateIndexSql(
 		})
 		.join(", ");
 
-	// Partial index filtered to this plugin/collection
-	// SQLite prohibits bound parameters in partial index WHERE clauses,
-	// so we use sql.lit() for literal string values. Both pluginId and
-	// collection are validated above, so this is safe.
+	// Composite non-partial index: the leading (plugin_id, collection) columns
+	// scope it per plugin/collection — including unique-index semantics — and
+	// let it serve the repository's bound-parameter WHERE plus the JSON
+	// expression ORDER BY. A partial index (WHERE plugin_id = 'x' AND
+	// collection = 'y') is never chosen by SQLite under bound parameters
+	// unless ANALYZE has run, and D1 never runs ANALYZE.
 	const createKeyword = options?.unique ? "CREATE UNIQUE INDEX" : "CREATE INDEX";
 	return sql`${sql.raw(createKeyword)} IF NOT EXISTS ${sql.ref(indexName)}
-		ON _plugin_storage(${sql.raw(expressions)})
-		WHERE plugin_id = ${sql.lit(pluginId)} AND collection = ${sql.lit(collection)}
+		ON _plugin_storage(plugin_id, collection, ${sql.raw(expressions)})
 	`;
 }
 
@@ -252,6 +254,43 @@ export async function syncStorageIndexes(
 		removed: removeResult.removed,
 		errors: [...createResult.errors, ...removeResult.errors],
 	};
+}
+
+/**
+ * Materialize the storage indexes a set of plugins declare in their
+ * manifests. Failures are logged per collection and never thrown — a missing
+ * index affects query performance, not correctness, so it must not fail an
+ * install or a scheduler tick.
+ */
+export async function syncDeclaredStorageIndexes(
+	db: Kysely<Database>,
+	plugins: Array<{
+		id: string;
+		storage?: Record<
+			string,
+			{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
+		>;
+	}>,
+): Promise<void> {
+	for (const plugin of plugins) {
+		for (const [collection, config] of Object.entries(plugin.storage ?? {})) {
+			try {
+				const result = await syncStorageIndexes(db, plugin.id, collection, config.indexes, {
+					uniqueIndexes: config.uniqueIndexes,
+				});
+				for (const failure of result.errors) {
+					console.error(
+						`[plugins] Failed to sync storage index ${failure.index} for ${plugin.id}/${collection}: ${failure.error}`,
+					);
+				}
+			} catch (error) {
+				console.error(
+					`[plugins] Failed to sync storage indexes for ${plugin.id}/${collection}:`,
+					error,
+				);
+			}
+		}
+	}
 }
 
 /**

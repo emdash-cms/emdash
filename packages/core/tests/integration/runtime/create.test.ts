@@ -15,6 +15,7 @@ import { Kysely, sql, SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_COMMENT_MODERATOR_PLUGIN_ID } from "../../../src/comments/moderator.js";
+import { PendingMigrationsError } from "../../../src/database/migrations/policy.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
@@ -190,6 +191,37 @@ describe("EmDashRuntime.create — cold boot", () => {
 				"1:en",
 			);
 		} finally {
+			await runtime.stopCron();
+			await setupDb.destroy();
+			setI18nConfig(previousI18nConfig);
+		}
+	});
+
+	it("warns about historical taxonomy locales when the operator manifest is built", async () => {
+		const previousI18nConfig = getI18nConfig();
+		setI18nConfig(null);
+		const sqlite = new Database(":memory:");
+		const setupDb = new Kysely<EmDashDatabase>({
+			dialect: new SqliteDialect({ database: sqlite }),
+		});
+		await runMigrations(setupDb);
+		await new OptionsRepository(setupDb).set("emdash:setup_complete", true);
+		setI18nConfig({ defaultLocale: "ja", locales: ["ja"] });
+
+		const deps = createDeps();
+		deps.createDialect = () => new SqliteDialect({ database: sqlite });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+		const runtime = await EmDashRuntime.create(deps);
+
+		try {
+			expect(warn).not.toHaveBeenCalled();
+			await runtime.getManifest();
+			expect(warn).toHaveBeenCalledWith(
+				expect.stringContaining("Taxonomy rows use locales outside the configured locales (ja)"),
+			);
+			expect(warn).toHaveBeenCalledWith(expect.stringContaining("definitions: en"));
+		} finally {
+			warn.mockRestore();
 			await runtime.stopCron();
 			await setupDb.destroy();
 			setI18nConfig(previousI18nConfig);
@@ -376,6 +408,31 @@ describe("EmDashRuntime.create — cold boot", () => {
 		// fail fast without building a new connection or touching the db.
 		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
 		expect(dialectCalls).toBe(1);
+	});
+
+	it("rechecks pending migrations without entering migration-failure backoff", async () => {
+		let dialectCalls = 0;
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			migrationMode: "check",
+			createDialect: () => {
+				dialectCalls += 1;
+				return new SqliteDialect({ database: new Database(":memory:") });
+			},
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(PendingMigrationsError);
+		await expect(EmDashRuntime.create(deps)).rejects.toBeInstanceOf(PendingMigrationsError);
+		expect(dialectCalls).toBe(2);
+	});
+
+	it("rejects an empty database in manual migration mode", async () => {
+		const deps: RuntimeDependencies = {
+			...createDeps(),
+			migrationMode: "manual",
+		};
+
+		await expect(EmDashRuntime.create(deps)).rejects.toThrow(/no such table/i);
 	});
 
 	// A per-request isolated db (playground / DO preview) must never be

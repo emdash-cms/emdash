@@ -13,7 +13,6 @@ export async function repairLocaleCasing(
 
 	for (const tableName of tableNames) {
 		const table = sql.ref(tableName);
-		const slug = tableName.slice("ec_".length);
 		for (const locale of configuredLocales) {
 			await sql`
 				UPDATE ${table} AS target
@@ -31,19 +30,6 @@ export async function repairLocaleCasing(
 						WHERE candidate.slug = target.slug
 							AND lower(candidate.locale) = lower(${locale})
 							AND candidate.locale != ${locale}
-					)
-			`.execute(db);
-
-			await sql`
-				UPDATE content_taxonomies AS pivot
-				SET locale = ${locale}
-				WHERE pivot.collection = ${slug}
-					AND lower(pivot.locale) = lower(${locale})
-					AND pivot.locale != ${locale}
-					AND EXISTS (
-						SELECT 1
-						FROM ${table} AS content
-						WHERE content.id = pivot.entry_id AND content.locale = ${locale}
 					)
 			`.execute(db);
 		}

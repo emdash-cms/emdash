@@ -9,6 +9,7 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, unwrapResult } from "#api/error.js";
 import { handlePluginEnable } from "#api/index.js";
+import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { setCronTasksEnabled } from "#plugins/cron.js";
 
 export const prerender = false;
@@ -23,6 +24,9 @@ export const POST: APIRoute = async ({ params, locals }) => {
 
 	const denied = requirePerm(user, "plugins:manage");
 	if (denied) return denied;
+
+	const activationFence = await checkMediaUsageActivationWriteFence(emdash.db);
+	if (activationFence) return activationFence;
 
 	if (!id) {
 		return apiError("INVALID_REQUEST", "Plugin ID required", 400);

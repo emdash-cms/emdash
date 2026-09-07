@@ -1,0 +1,398 @@
+{
+	"$schema_comment": "Evaluation dataset for emdash's next-gen investigation bot. Each case is a real closed issue from emdash-cms/emdash, selected so the issue body alone carries enough context to attempt (or correctly decline) a reproduction. Fields: number (GitHub issue #); title; category (CONFIRMED_BUG = reproduced and fixed, linked to a merging PR; NOT_REPRODUCIBLE = closed as cannot-reproduce / already-resolved / not-a-code-bug, no fix warranted; NEEDS_INFO = body lacks the specifics to attempt a repro, correct first move is to ask the reporter); ground_truth (one line: what a correct investigation should conclude, citing the fixing PR where applicable); fixing_pr (PR number that resolved it, or null); difficulty (easy/medium/hard, judged by how much setup + insight a correct investigation needs); repro_path (primary surface the bot must drive: 'public site' | 'admin' | 'api' | 'build'); area (subsystem, for coverage diversity). All source data gathered read-only via gh; nothing was posted to GitHub.",
+	"counts": {
+		"CONFIRMED_BUG": 19,
+		"NOT_REPRODUCIBLE": 3,
+		"NEEDS_INFO": 4
+	},
+	"cases": [
+		{
+			"number": 2344,
+			"title": "WYSIWYG numbered lists reset to 1. when inserting blocks or formatted text between items",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: inserting a block/formatted text between ordered-list items restarts numbering at 1 because separated ordered-list segments don't carry a continued `start`. Fixed by PR #2348 (preserve numbering across separated ordered-list segments).",
+			"fixing_pr": 2348,
+			"difficulty": "easy",
+			"repro_path": "admin",
+			"area": "admin editor / portable-text",
+			"pre_fix": {
+				"merge_commit": "640da63dd06c307cf4d533d63c10da1feadb36f5",
+				"parents": ["72660dabdb4a164f01d152741f89c0b7163c4314"]
+			},
+			"fault_anchors": ["ordered", "start", "numbering", "list"]
+		},
+		{
+			"number": 2330,
+			"title": "Taxonomy term list 500s when a taxonomy declares more collections than the backend's compound-SELECT limit",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on D1: fetchVisibleTermCounts builds one UNION ALL branch per declared collection; >=6 collections exceeds D1's SQLITE_LIMIT_COMPOUND_SELECT, so GET /taxonomies/:name/terms 500s and the admin shows an empty term list. Fixed by PR #2331 (chunk/batch the term-count query).",
+			"fixing_pr": 2331,
+			"difficulty": "medium",
+			"repro_path": "api",
+			"area": "core / taxonomies / D1 dialect",
+			"pre_fix": {
+				"merge_commit": "121b3339b6a2aa1ac86e01bb9ccb5d642af1b620",
+				"parents": ["3dee16e411baf3a4c57f4507f4d39730a8d71116"]
+			},
+			"fault_anchors": [
+				"fetchVisibleTermCounts",
+				"UNION ALL",
+				"compound",
+				"SQLITE_LIMIT_COMPOUND_SELECT",
+				"term count"
+			]
+		},
+		{
+			"number": 2245,
+			"title": "Search: FTS5 tokenizer hardcoded to 'porter unicode61' — full-text search silently returns nothing for non-space-delimited languages",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: FTSManager.createFtsTable hardcodes tokenize='porter unicode61'; unicode61 collapses whole CJK/Thai/Khmer sentences into one token, so prefix-query MATCH returns zero for mid-sentence terms (LIKE finds 11 rows, MATCH finds 0). Fixed by PR #2257 (configurable/segmenting tokenizer).",
+			"fixing_pr": 2257,
+			"difficulty": "hard",
+			"repro_path": "api",
+			"area": "core / search / i18n",
+			"pre_fix": {
+				"merge_commit": "e7c445ca0ee5bc3970909a1c07d41b14de5d3d79",
+				"parents": ["1dd7f135a043701effeb164be4f5ae95d106fc78"]
+			},
+			"fault_anchors": ["FTSManager", "createFtsTable", "tokenize", "unicode61", "porter", "FTS5"]
+		},
+		{
+			"number": 2210,
+			"title": "Layout prefetch recomputes visible term counts on every HTML render; with no object-cache backend the O(total assignments) scan goes straight to D1",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: prefetchLayoutData (via after()) computes term counts on every render; without an objectCache backend cachedQuery degrades to passthrough, so each render full-scans content_taxonomies (~1M+ D1 rows read/branch) even for widgets that hide counts. Fixed by PR #2219.",
+			"fixing_pr": 2219,
+			"difficulty": "hard",
+			"repro_path": "public site",
+			"area": "core / caching / performance",
+			"pre_fix": {
+				"merge_commit": "f81aa6842c659799eb8952f7f40869b537e340df",
+				"parents": ["09e5b5ca5b8e23775c9c4fac75094c9a016f4612"]
+			},
+			"fault_anchors": [
+				"prefetchLayoutData",
+				"term count",
+				"cachedQuery",
+				"objectCache",
+				"content_taxonomies"
+			]
+		},
+		{
+			"number": 2034,
+			"title": "Publish fails with opaque D1 UNIQUE error when staged slug collides with an existing published entry",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: ContentRepository.publish() writes staged _slug straight to the live slug column, bypassing the slug-uniqueness pre-check, so a colliding (slug, locale) surfaces only as a raw D1 UNIQUE 500 with no actionable message. Fixed by PR #2036 (pre-check + friendly error).",
+			"fixing_pr": 2036,
+			"difficulty": "medium",
+			"repro_path": "api",
+			"area": "core / publishing / api",
+			"pre_fix": {
+				"merge_commit": "4b7fd08468caf7897f9c23a238da27cda8cdf171",
+				"parents": ["3b0fd64c4ca77bffe3646e6ebb37dcba7485f8c2"]
+			},
+			"fault_anchors": ["ContentRepository", "publish", "slug", "UNIQUE", "uniqueness"]
+		},
+		{
+			"number": 1986,
+			"title": "Slug rename + revert creates circular redirect loop",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: renaming A->B then B->A creates two redirects (A->B and B->A) forming a loop that makes the page unreachable; the redirect-creation path doesn't remove the inverse/self redirect. Fixed by PR #1992 (guard source===destination and clear the conflicting inverse).",
+			"fixing_pr": 1992,
+			"difficulty": "medium",
+			"repro_path": "public site",
+			"area": "core / redirects / routing",
+			"pre_fix": {
+				"merge_commit": "7b9e5589a79435b8cf069528fdbdb4dd9b8988ae",
+				"parents": ["d30373826208bd0182e842d20ca718a78a0585c6"]
+			},
+			"fault_anchors": ["redirect", "circular", "inverse", "loop", "rename"]
+		},
+		{
+			"number": 1884,
+			"title": "Blockquote splits into multiple blocks on import/reload",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: a blockquote whose second line begins with '- ' is re-parsed into two separate blockquote blocks on load, and re-merging in admin doesn't survive reload. Fixed by PR #1905 (blockquote parsing/normalization).",
+			"fixing_pr": 1905,
+			"difficulty": "medium",
+			"repro_path": "admin",
+			"area": "core / portable-text / rendering",
+			"pre_fix": {
+				"merge_commit": "e12f393fcb70255a5fe74c2ee7ad4f7c23e0bbfd",
+				"parents": ["1ec775877fdfd972b1ca8d1b3e74d987102a4f3c"]
+			},
+			"fault_anchors": ["blockquote", "parse", "normaliz", "reload", "block"]
+		},
+		{
+			"number": 1671,
+			"title": "Clicking \"Login with Google\" on the admin dashboard navigates to an incorrect URL",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: the OAuth button uses a relative href so it resolves to /_emdash/admin/_emdash/api/auth/oauth/google (doubled prefix) and 404s; should be an absolute /_emdash/api/... path. Fixed by PR #1720.",
+			"fixing_pr": 1720,
+			"difficulty": "easy",
+			"repro_path": "admin",
+			"area": "admin / auth",
+			"pre_fix": {
+				"merge_commit": "9792226e1618735af3726fd949cb89c4e5ba9587",
+				"parents": ["58f594b59641649a445231b56a2dfbdcab434611"]
+			},
+			"fault_anchors": ["oauth", "relative", "href", "_emdash", "absolute", "basepath"]
+		},
+		{
+			"number": 1607,
+			"title": "admin@0.21+ primary Button invisible: 'bg-linear-to-b' with arbitrary-value gradient stops not generated in styles.css (Tailwind v4 scanner miss)",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: Kumo primary Button uses bg-linear-to-b with arbitrary CSS-var gradient stops that the Tailwind v4 scanner doesn't emit into styles.css, so the passkey button is white-on-transparent (invisible but clickable). Fixed by PR #1630 (safelist/generate the gradient utilities).",
+			"fixing_pr": 1630,
+			"difficulty": "medium",
+			"repro_path": "admin",
+			"area": "admin / Kumo / Tailwind build",
+			"pre_fix": {
+				"merge_commit": "f5566e819f3d047a84b3f1f38a50b6707a6dbe9d",
+				"parents": ["c6b93aaa41aa94f303d94bad5ea9174ff8a6414c"]
+			},
+			"fault_anchors": ["bg-linear-to-b", "gradient", "tailwind", "button", "styles.css", "kumo"]
+		},
+		{
+			"number": 1551,
+			"title": "localeCode schema lowercases the ?locale= filter, returning zero rows for locales with uppercase subtags",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on SQLite/D1: localeCode.transform(toLowerCase) rewrites ?locale=zh-TW to zh-tw, but rows are stored with configured casing (zh-TW) and SQLite compares strings case-sensitively, so the API returns 0 items while the DB has the data. Fixed by PR #1552.",
+			"fixing_pr": 1552,
+			"difficulty": "medium",
+			"repro_path": "api",
+			"area": "core / i18n / api validation",
+			"pre_fix": {
+				"merge_commit": "c568876d78bfcb90d170e03212544a2bda81ddf2",
+				"parents": ["8470b978caef2c073038cbe046d5097882d1ed2c"],
+				"note": "Landed on main as commit c568876d via PR #2174, a re-land of the original #1552 fix. pre_fix.parent is that commit's parent."
+			},
+			"fault_anchors": ["localeCode", "toLowerCase", "transform", "locale", "case-sensitive"]
+		},
+		{
+			"number": 1421,
+			"title": "CLI hardcodes 'en' as default locale: export-seed -> seed round-trip rewrites a non-'en' default locale to 'en'",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: with a single-locale non-'en' default (e.g. de), export-seed omits locale (detectI18nEnabled needs >1 locale) and apply.ts falls back to 'en', so a seed round-trip files all rows under 'en' and locale-scoped lookups miss. Fixed by PR #1426.",
+			"fixing_pr": 1426,
+			"difficulty": "hard",
+			"repro_path": "build",
+			"area": "cli / seed / i18n",
+			"pre_fix": {
+				"merge_commit": "61ea3c9fee5b0f11974895a278d8297c56abec0b",
+				"parents": ["ff5855ab41ef8a5417889ac123a7cbd82c9fa3fa"]
+			},
+			"fault_anchors": ["export-seed", "detectI18nEnabled", "apply.ts", "locale", "default locale"]
+		},
+		{
+			"number": 1080,
+			"title": "WXR importer silently loses WPML translation posts (hard UNIQUE(slug, locale) violation since migration 019)",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: the WXR file-import path ignores WPML _icl_lang_code / Polylang lang, assigns one config.locale to all posts, so translation pairs sharing post_name collide on UNIQUE(slug, locale) and every second post is dropped (63% loss on the reporter's corpus). Fixed by PR #1087 (extract per-post locale + translation_group).",
+			"fixing_pr": 1087,
+			"difficulty": "hard",
+			"repro_path": "build",
+			"area": "import / wordpress / i18n",
+			"pre_fix": {
+				"merge_commit": "878a0b689b9475e501f809d81d0fe494a040bfe4",
+				"parents": ["883b75b992854a4e339d3896bbd73bec36180b9b"]
+			},
+			"fault_anchors": ["WXR", "WPML", "_icl_lang_code", "Polylang", "translation_group", "locale"]
+		},
+		{
+			"number": 1021,
+			"title": "Migration 036 (0.12.0) silently destroys content_taxonomies data on Cloudflare D1",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on D1: migration 036 relies on PRAGMA foreign_keys=OFF before DROP TABLE taxonomies, but D1 ignores the pragma and always enforces FKs, so ON DELETE CASCADE wipes content_taxonomies before rebuild; the migration reports success with all associations lost. Fixed by PR #1086.",
+			"fixing_pr": 1086,
+			"difficulty": "hard",
+			"repro_path": "build",
+			"area": "migrations / D1 dialect / data-safety",
+			"pre_fix": {
+				"merge_commit": "23597d017360673cf95eee8e5d24c873137fc215",
+				"parents": ["878a0b689b9475e501f809d81d0fe494a040bfe4"]
+			},
+			"fault_anchors": [
+				"migration 036",
+				"PRAGMA foreign_keys",
+				"content_taxonomies",
+				"CASCADE",
+				"D1"
+			]
+		},
+		{
+			"number": 917,
+			"title": "Scheduled posts never become visible on SQLite/D1: string comparison between ISO scheduled_at and CURRENT_TIMESTAMP always false",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on SQLite/D1: buildStatusCondition compares ISO 'T...Z' scheduled_at against space-separated CURRENT_TIMESTAMP as raw text (no datetime() cast, unlike the Postgres branch), so scheduled_at <= now is always false and scheduled posts stay hidden forever. Fixed by PR #1157 (wrap both sides in datetime()).",
+			"fixing_pr": 1157,
+			"difficulty": "medium",
+			"repro_path": "public site",
+			"area": "core / scheduling / SQLite dialect",
+			"pre_fix": {
+				"merge_commit": "7554bd3ba81477383d2616df209050cb29e6ad17",
+				"parents": ["c0c6c72e0a75e9560f204e3780cafb5baf6a9b4b"]
+			},
+			"fault_anchors": ["buildStatusCondition", "datetime", "scheduled_at", "CURRENT_TIMESTAMP"]
+		},
+		{
+			"number": 895,
+			"title": "Dashboard 500 on D1: fetchRecentItems UNION ALL exceeds SQLITE_LIMIT_COMPOUND_SELECT",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on D1: fetchRecentItems chains one UNION ALL per title-bearing collection; with ~9+ such collections it exceeds D1's compound-SELECT cap (tighter than better-sqlite3's default), so GET /dashboard 500s for every authenticated user. Fixed by PR #896.",
+			"fixing_pr": 896,
+			"difficulty": "medium",
+			"repro_path": "admin",
+			"area": "core / dashboard / D1 dialect",
+			"pre_fix": {
+				"merge_commit": "699e1b3d208a5ef4bca5dc3a40a39291e484f060",
+				"parents": ["9172aecc1d82a679d4ec868d2660812adfbe1d28"]
+			},
+			"fault_anchors": [
+				"fetchRecentItems",
+				"UNION ALL",
+				"compound",
+				"SQLITE_LIMIT_COMPOUND_SELECT",
+				"dashboard"
+			]
+		},
+		{
+			"number": 808,
+			"title": "Redirect middleware silently skipped for public visitors (locals.emdash.db missing on the anonymous path)",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: on the anonymous public branch the runtime middleware installs a partial locals.emdash without db, so the redirect middleware's `if (!emdash?.db) return next()` bails and no _emdash_redirects rule ever fires for real visitors (nor increments hit/404 logs). Fixed by PR #817.",
+			"fixing_pr": 817,
+			"difficulty": "medium",
+			"repro_path": "public site",
+			"area": "core / middleware / redirects",
+			"pre_fix": {
+				"merge_commit": "a9c29ea584300f6cf67206bedcb1d39f05ea1c26",
+				"parents": ["dca9fdd6bf3350e37bbf67c5f273f4d2117d3040"]
+			},
+			"fault_anchors": ["redirect", "middleware", "locals.emdash", "anonymous", "_emdash_redirects"]
+		},
+		{
+			"number": 696,
+			"title": "MediaValue.src contains bare media ID instead of URL",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible: an image field's MediaValue is returned with id=\"\" and src set to the bare ULID rather than a resolved URL, so JSON-LD/og:image and templates that read .src emit the raw id. Fixed by PR #701 (resolve src to a URL / populate id).",
+			"fixing_pr": 701,
+			"difficulty": "easy",
+			"repro_path": "public site",
+			"area": "core / media",
+			"pre_fix": {
+				"merge_commit": "a2d3658e510f292bf1fbe6b0a9e8e4f02ebc1e03",
+				"parents": ["5eb431876cbfb69a961735fbb6ab09c9de937f28"]
+			},
+			"fault_anchors": ["MediaValue", "src", "URL", "media", "id"]
+		},
+		{
+			"number": 1413,
+			"title": "Public pages with React islands download the full 9 MB admin bundle",
+			"category": "NOT_REPRODUCIBLE",
+			"ground_truth": "Not reproducible on current main: adding a React island to the Cloudflare demo yields ~27 KB of transitive JS for the public island; React already sits in its own chunk and no admin chunk is reachable from the public island graph. Correct conclusion: cannot reproduce (already resolved / version-specific to 0.17.2); no fix warranted.",
+			"fixing_pr": null,
+			"difficulty": "hard",
+			"repro_path": "build",
+			"area": "build / bundling / islands",
+			"pre_fix": null,
+			"fault_anchors": []
+		},
+		{
+			"number": 1193,
+			"title": "publishedAt is overwritten with current timestamp on every update/edit in Admin UI",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on main: ContentRepository.update() overwrites published_at whenever the update payload carries publishedAt, discarding the original publication timestamp (content.ts update path; the admin UI no longer sends publishedAt, but the API path still loses the timestamp). Unfixed -- no fixing PR yet; a fix must preserve the deliberate backdating support.",
+			"fixing_pr": null,
+			"difficulty": "medium",
+			"repro_path": "api",
+			"area": "core / publishing / admin",
+			"pre_fix": null,
+			"fault_anchors": ["published_at", "publishedAt", "update", "overwrit"]
+		},
+		{
+			"number": 1190,
+			"title": "Admin content list stops after 50 items even though the API returns nextCursor",
+			"category": "NOT_REPRODUCIBLE",
+			"ground_truth": "Not reproducible on current admin: with 188 seeded posts the list paginates through all items; admin sends limit=100 and wires nextCursor into useInfiniteQuery. The reporter's URL had no limit param (server default 50), consistent with an older @emdash-cms/admin build. Correct conclusion: cannot reproduce on current version.",
+			"fixing_pr": null,
+			"difficulty": "medium",
+			"repro_path": "admin",
+			"area": "admin / pagination",
+			"pre_fix": null,
+			"fault_anchors": []
+		},
+		{
+			"number": 1022,
+			"title": "autosave includes 'seo' in data payload, fails validation on collections with seo support",
+			"category": "CONFIRMED_BUG",
+			"ground_truth": "Reproducible on main: validateContentData rejects any non-underscore key that is not among the collection defined field slugs, so legacy revisions carrying a seo envelope fail autosave/publish with VALIDATION_ERROR. Fresh entries never send seo, which is why the issue was closed, but pre-0.5 content on upgraded sites still hits it. Unfixed -- no fixing PR yet.",
+			"fixing_pr": null,
+			"difficulty": "hard",
+			"repro_path": "admin",
+			"area": "admin / autosave / legacy data",
+			"pre_fix": null,
+			"fault_anchors": ["validation", "seo", "unknown field", "autosave"]
+		},
+		{
+			"number": 914,
+			"title": "SSL Connection Failure - emdashcms.com throwing ERR_SSL_PROTOCOL_ERROR",
+			"category": "NOT_REPRODUCIBLE",
+			"ground_truth": "Not a code bug: the marketing site serves fine over TLS (HTTP 200, valid cert); the report was a transient infrastructure/TLS hiccup and works on other clients. Correct conclusion: invalid / not reproducible in the codebase — nothing to fix.",
+			"fixing_pr": null,
+			"difficulty": "easy",
+			"repro_path": "public site",
+			"area": "infrastructure (out of codebase)",
+			"pre_fix": null,
+			"fault_anchors": []
+		},
+		{
+			"number": 959,
+			"title": "HTTP ERROR 500 on front end",
+			"category": "NEEDS_INFO",
+			"ground_truth": "Underspecified: emdash 0.0.3, Cloudflare deploy, only a one-line 'Cannot read properties of undefined (reading set)' trace and no repro. Correct first move: ask for version/config/repro; it is in fact a duplicate of #945 (Astro.cache cache-provider not configured). Ground truth: needs-info / duplicate, not an independent repro.",
+			"fixing_pr": null,
+			"difficulty": "easy",
+			"repro_path": "public site",
+			"area": "triage / duplicate",
+			"pre_fix": null,
+			"fault_anchors": []
+		},
+		{
+			"number": 1113,
+			"title": "Astro is not defined",
+			"category": "NEEDS_INFO",
+			"ground_truth": "Underspecified usage issue: reporter hit 'Astro is not defined' running the dev server after create-emdash; it resolved once they ran build + preview. Correct first move: ask which command they ran / clarify the dev-mode limitation rather than chase a code bug. Ground truth: needs-info -> user/usage error, no code fix.",
+			"fixing_pr": null,
+			"difficulty": "easy",
+			"repro_path": "build",
+			"area": "triage / onboarding / usage",
+			"pre_fix": null,
+			"fault_anchors": []
+		},
+		{
+			"number": 1272,
+			"title": "Bug - Media library - Searchable entries capped at 100",
+			"category": "NEEDS_INFO",
+			"ground_truth": "Thin report (emdash 0.15.0, CF Workers): Media library shows only 100 items and Load More fails, related to #1221, no root cause or schema. Correct first move: pin the reporter's admin version and get a concrete repro; the reporter then confirmed it was already fixed on a deployed 0.16.1. Ground truth: needs-info -> resolved on upgrade, no dedicated fix identified.",
+			"fixing_pr": null,
+			"difficulty": "medium",
+			"repro_path": "admin",
+			"area": "admin / media / pagination",
+			"pre_fix": null,
+			"fault_anchors": []
+		},
+		{
+			"number": 1124,
+			"title": "Content saving not working when modified content is in repeater fields only",
+			"category": "NEEDS_INFO",
+			"ground_truth": "Body is screenshots only — no versions, collection schema, or repeater field config — so it can't be reproduced as filed; the bot's response was explicitly 'could not reproduce, please share a minimal reproduction'. Correct first move: ask for a minimal repro. (On current main repeater-only edits do flow through handleFieldChange and save, so it also reads as already-resolved.)",
+			"fixing_pr": null,
+			"difficulty": "medium",
+			"repro_path": "admin",
+			"area": "admin / repeater fields / autosave",
+			"pre_fix": null,
+			"fault_anchors": []
+		}
+	]
+}

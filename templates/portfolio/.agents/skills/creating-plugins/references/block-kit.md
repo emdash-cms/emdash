@@ -105,7 +105,7 @@ routes: {
 {
 	"type": "section",
 	"text": "Configure your plugin settings below.",
-	"accessory": { "type": "button", "text": "Refresh", "action_id": "refresh" }
+	"accessory": { "type": "button", "label": "Refresh", "action_id": "refresh" }
 }
 ```
 
@@ -132,12 +132,16 @@ routes: {
 ```json
 {
 	"type": "stats",
-	"stats": [
-		{ "label": "Total", "value": "1,234", "trend": "+12%", "trend_direction": "up" },
+	"items": [
+		{ "label": "Total", "value": "1,234", "trend": "up", "description": "+12% vs last week" },
 		{ "label": "Active", "value": "567" }
 	]
 }
 ```
+
+- `items` — the array key is `items`, not `stats`
+- `trend` — `"up"`, `"down"`, or `"neutral"`; renders an arrow icon next to the value
+- `description` — secondary line beneath the value, for context such as "+12% vs last week"
 
 ### Table
 
@@ -149,9 +153,15 @@ routes: {
 		{ "key": "status", "label": "Status" },
 		{ "key": "date", "label": "Date" }
 	],
-	"rows": [{ "name": "Item 1", "status": "Active", "date": "2025-01-01" }]
+	"rows": [{ "name": "Item 1", "status": "Active", "date": "2025-01-01" }],
+	"page_action_id": "browse_items",
+	"empty_text": "No items yet."
 }
 ```
+
+- `page_action_id` — required. The admin sends it as the `block_action` id when the user sorts a column or pages through results.
+- `empty_text` — shown in place of the table when `rows` is empty
+- `next_cursor` — set it to render a "Load more" control
 
 ### Actions
 
@@ -159,8 +169,8 @@ routes: {
 {
 	"type": "actions",
 	"elements": [
-		{ "type": "button", "text": "Save", "action_id": "save", "style": "primary" },
-		{ "type": "button", "text": "Cancel", "action_id": "cancel" }
+		{ "type": "button", "label": "Save", "action_id": "save", "style": "primary" },
+		{ "type": "button", "label": "Cancel", "action_id": "cancel" }
 	]
 }
 ```
@@ -196,11 +206,19 @@ routes: {
 {
 	"type": "columns",
 	"columns": [
-		{ "blocks": [{ "type": "header", "text": "Left" }] },
-		{ "blocks": [{ "type": "header", "text": "Right" }] }
+		[
+			{ "type": "header", "text": "Usage" },
+			{ "type": "meter", "label": "Storage used", "value": 65 }
+		],
+		[
+			{ "type": "header", "text": "Activity" },
+			{ "type": "context", "text": "Last sync 2 hours ago" }
+		]
 	]
 }
 ```
+
+- `columns` — 2 or 3 columns, each one an array of blocks
 
 ### Chart (Timeseries)
 
@@ -395,7 +413,7 @@ return {
 ```json
 {
 	"type": "button",
-	"text": "Delete All",
+	"label": "Delete All",
 	"action_id": "delete_all",
 	"style": "danger",
 	"confirm": {

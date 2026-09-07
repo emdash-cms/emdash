@@ -7,6 +7,10 @@ describe("d1()", () => {
 		const result = d1({ binding: "DB" });
 		expect(result.supportsRequestScope).toBe(true);
 		expect(result.supportsCoalescing).toBe(true);
+		expect(result.migrations).toEqual({
+			entrypoint: "@emdash-cms/cloudflare/db/d1-migrations",
+			manifestConfig: { binding: "DB" },
+		});
 	});
 });
 

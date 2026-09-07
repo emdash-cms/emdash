@@ -9,6 +9,13 @@ describe("hyperdrive()", () => {
 			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive",
 			config: { binding: "HYPERDRIVE", max: undefined },
 			type: "postgres",
+			migrations: {
+				entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+				manifestConfig: {
+					binding: "HYPERDRIVE",
+					connectionStringEnv: "CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE",
+				},
+			},
 			supportsRequestScope: true,
 		});
 	});
@@ -41,5 +48,48 @@ describe("hyperdrive()", () => {
 			max: undefined,
 			cachedBinding: "HYPERDRIVE_CACHED",
 		});
+	});
+
+	it("keeps migration credentials out of runtime config and never selects the cached binding", () => {
+		const result = hyperdrive({
+			binding: "PRIMARY_DB",
+			cachedBinding: "CACHED_DB",
+			migrationConnectionStringEnv: "DEPLOYMENT_DATABASE_URL",
+		});
+
+		expect(result.config).not.toHaveProperty("migrationConnectionStringEnv");
+		expect(result.migrations).toEqual({
+			entrypoint: "@emdash-cms/cloudflare/db/hyperdrive-migrations",
+			manifestConfig: {
+				binding: "PRIMARY_DB",
+				connectionStringEnv: "DEPLOYMENT_DATABASE_URL",
+			},
+		});
+		expect(JSON.stringify(result.migrations)).not.toContain("CACHED_DB");
+	});
+
+	it("derives the default direct-origin environment variable from the primary binding", () => {
+		const result = hyperdrive({ binding: "CONTENT_DB" });
+
+		expect(result.migrations?.manifestConfig).toEqual({
+			binding: "CONTENT_DB",
+			connectionStringEnv: "CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_CONTENT_DB",
+		});
+	});
+
+	it("keeps JavaScript bindings containing dollar signs backwards compatible", () => {
+		const result = hyperdrive({ binding: "$CONTENT_DB" });
+
+		expect(result.config).toMatchObject({ binding: "$CONTENT_DB" });
+		expect(result.migrations?.manifestConfig).toEqual({
+			binding: "$CONTENT_DB",
+			connectionStringEnv: "CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING__CONTENT_DB",
+		});
+	});
+
+	it("rejects an invalid migration environment variable name", () => {
+		expect(() => hyperdrive({ migrationConnectionStringEnv: "DEPLOYMENT-DATABASE-URL" })).toThrow(
+			/valid environment variable name/i,
+		);
 	});
 });

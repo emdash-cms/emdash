@@ -14,6 +14,7 @@ import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
+import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
 	PluginContextFactory,
 	createContentAccess,
@@ -147,6 +148,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await db.destroy();
 		sqliteDb.close();
 	});
@@ -438,6 +440,64 @@ describe("Capability Enforcement Integration (v2)", () => {
 				// Verify it was created
 				const found = await access.get("posts", created.id);
 				expect(found).not.toBeNull();
+			});
+
+			it("persists an explicit locale using the configured casing", async () => {
+				setI18nConfig({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "繁體中文" }, { locale: "zh-tw" });
+
+				expect(created.locale).toBe("zh-TW");
+				await expect(access.list("posts", { where: { locale: "zh-TW" } })).resolves.toMatchObject({
+					items: [expect.objectContaining({ id: created.id, locale: "zh-TW" })],
+				});
+			});
+
+			it("uses the configured default locale when locale is omitted", async () => {
+				setI18nConfig({ defaultLocale: "ja", locales: ["ja", "en"] });
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "日本語" });
+
+				expect(created.locale).toBe("ja");
+			});
+
+			it("uses a non-English default on single-locale sites", async () => {
+				setI18nConfig({ defaultLocale: "fr", locales: ["fr"] });
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "Français" });
+
+				expect(created.locale).toBe("fr");
+			});
+
+			it("retains the en fallback when i18n is not configured", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "English" });
+
+				expect(created.locale).toBe("en");
+			});
+
+			it("persists a valid explicit locale when i18n is not configured", async () => {
+				const access = createContentAccessWithWrite(db);
+
+				const created = await access.create("posts", { title: "日本語" }, { locale: "ja" });
+
+				expect(created.locale).toBe("ja");
+			});
+
+			it("rejects malformed and unconfigured explicit locales", async () => {
+				setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+				const access = createContentAccessWithWrite(db);
+
+				await expect(
+					access.create("posts", { title: "Malformed" }, { locale: "en_US" }),
+				).rejects.toThrow(/invalid locale code/i);
+				await expect(
+					access.create("posts", { title: "Unknown" }, { locale: "de" }),
+				).rejects.toThrow(/not configured/i);
 			});
 		});
 

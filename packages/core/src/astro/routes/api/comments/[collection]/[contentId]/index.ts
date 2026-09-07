@@ -302,7 +302,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		// isolate terminates after the response).
 		if (result.comment.status === "approved" && emdash.email && contentAuthor) {
 			try {
-				const adminBaseUrl = await getSiteBaseUrl(emdash.db, request);
+				const adminBaseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
 				await sendCommentNotification({
 					email: emdash.email,
 					comment: result.comment,

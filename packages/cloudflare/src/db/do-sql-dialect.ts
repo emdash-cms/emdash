@@ -29,7 +29,7 @@ import type {
 import { SqliteAdapter, SqliteQueryCompiler } from "kysely";
 
 import { D1Introspector } from "./d1-introspector.js";
-import type { EmDashDBStub } from "./do-sql-types.js";
+import type { DOQueryOptions, EmDashDBStub } from "./do-sql-types.js";
 import { isReadStatement } from "./do-sql-types.js";
 
 /** Mutable holder for the latest write bookmark, read by the request `commit()`. */
@@ -65,6 +65,8 @@ export interface DOSqlDialectConfig {
 	 * rather than imported so the dialect stays decoupled from core.
 	 */
 	onRpc?: () => void;
+	/** Route reads through the primary for mutation and maintenance scopes. */
+	forcePrimary?: boolean;
 }
 
 export class DOSqlDialect implements Dialect {
@@ -153,10 +155,14 @@ class DOSqlConnection implements DatabaseConnection {
 		// read-after-write (e.g. create() then findById()) on a replica would
 		// miss the just-written row. Writes always proxy to the primary and mint
 		// a fresh bookmark, so they don't carry one inbound.
-		let opts: { bookmark: string } | undefined;
+		let opts: DOQueryOptions | undefined;
 		if (isReadStatement(sqlText)) {
 			const bookmark = this.#config.bookmarkSink?.latest ?? this.#config.readBookmark;
-			if (bookmark) opts = { bookmark };
+			if (bookmark || this.#config.forcePrimary) {
+				opts = {};
+				if (bookmark) opts.bookmark = bookmark;
+				if (this.#config.forcePrimary) opts.primary = true;
+			}
 		}
 
 		this.#config.onRpc?.();

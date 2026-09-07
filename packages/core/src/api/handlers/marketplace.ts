@@ -24,6 +24,10 @@ import {
 } from "../../plugins/marketplace.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
+import {
+	removeAllPluginIndexes,
+	syncDeclaredStorageIndexes,
+} from "../../plugins/storage-indexes.js";
 import { normalizeCapabilities } from "../../plugins/types.js";
 import type { PluginManifest } from "../../plugins/types.js";
 import { EmDashStorageError } from "../../storage/types.js";
@@ -475,6 +479,8 @@ export async function handleMarketplaceInstall(
 			description: pluginDetail.description ?? undefined,
 		});
 
+		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
+
 		// Fire-and-forget install stat
 		client.reportInstall(pluginId, version).catch(() => {
 			// Intentional: never fails the install
@@ -713,6 +719,8 @@ export async function handleMarketplaceUpdate(
 			mcpToolsConsent: null,
 		});
 
+		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
+
 		// Clean up old bundle from R2 (best-effort)
 		deleteBundleFromR2(storage, pluginId, oldVersion).catch(() => {});
 
@@ -784,6 +792,12 @@ export async function handleMarketplaceUninstall(
 			} catch {
 				// Plugin storage table may not have data for this plugin
 			}
+		}
+
+		try {
+			await removeAllPluginIndexes(db, pluginId);
+		} catch {
+			// Nothing to drop, or tracking table predates the feature
 		}
 
 		// Delete state row

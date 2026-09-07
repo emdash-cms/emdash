@@ -513,7 +513,7 @@ describe("WXR import: WPML translations (#1080)", () => {
 		expect(arCategories.map((t) => t.slug)).toEqual(["news"]);
 	});
 
-	it("attaches different per-translation taxonomy assignments correctly", async () => {
+	it("applies translated taxonomy assignments to the shared content group", async () => {
 		// WPML lets translators pick different categories per translation.
 		// English gets `news`, Arabic gets `events`. The pivot stores both,
 		// and per-locale lookups return the right thing for each row.
@@ -575,9 +575,6 @@ describe("WXR import: WPML translations (#1080)", () => {
 			.select(["id"])
 			.where("locale", "=", "en")
 			.executeTakeFirstOrThrow();
-		// Resolve the English row in its own locale -- the whole point of
-		// the fix is per-locale term lookups (see HIGH #3 in the review).
-		// Querying Arabic on the English row would mask the regression.
 		const enTerms = await repo.getTermsForEntry("post", enRow.id, "category", "en");
 		const enTermSlugs = enTerms.map((t) => t.slug);
 
@@ -589,12 +586,8 @@ describe("WXR import: WPML translations (#1080)", () => {
 		const arTerms = await repo.getTermsForEntry("post", arRow.id, "category", "ar");
 		const arTermSlugs = arTerms.map((t) => t.slug);
 
-		// English row carries `news`; Arabic row carries `events`. Per-
-		// translation assignments must NOT bleed across.
-		expect(enTermSlugs).toContain("news");
-		expect(enTermSlugs).not.toContain("events");
-		expect(arTermSlugs).toContain("events");
-		expect(arTermSlugs).not.toContain("news");
+		expect(enTermSlugs).toEqual(["events"]);
+		expect(arTermSlugs).toEqual(["events"]);
 	});
 });
 

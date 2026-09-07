@@ -60,6 +60,27 @@ import pluginModule from "sandbox-plugin.js";
 const hooks = pluginModule?.hooks || pluginModule?.default?.hooks || {};
 const routes = pluginModule?.routes || pluginModule?.default?.routes || {};
 
+function sandboxRouteErrorDetails(value) {
+	if (!value || typeof value !== "object") return null;
+	const code =
+		value.code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
+		value.code === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
+			? value.code
+			: value.name === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS" ||
+				  value.name === "MEDIA_USAGE_ACTIVATION_CHECK_FAILED"
+				? value.name
+				: null;
+	if (!code || (value.status !== undefined && value.status !== 503)) return null;
+	return {
+		code,
+		message:
+			code === "MEDIA_USAGE_ACTIVATION_IN_PROGRESS"
+				? "Media usage activation is in progress"
+				: "Unable to verify media usage activation state",
+		status: 503,
+	};
+}
+
 // -----------------------------------------------------------------------------
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
@@ -103,7 +124,7 @@ function createContext(env) {
 	const content = {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
-		create: (collection, data) => bridge.contentCreate(collection, data),
+		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
 		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
 		delete: (collection, id) => bridge.contentDelete(collection, id)
 	};
@@ -237,8 +258,25 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 			throw new Error(\`Route \${routeName} handler is not a function\`);
 		}
 		
-		// Execute the route handler with input, request metadata, and context
-		return handler({ input, request: serializedRequest, requestMeta: serializedRequest.meta }, ctx);
+		// Execute the route handler with input, request metadata, the
+		// authenticated caller (private routes only), and context
+		try {
+			return await handler(
+				{
+					input,
+					request: serializedRequest,
+					requestMeta: serializedRequest.meta,
+					user: serializedRequest.user,
+				},
+				ctx,
+			);
+		} catch (error) {
+			const details = sandboxRouteErrorDetails(error);
+			if (details) {
+				return { __emdashSandboxRouteError: true, error: details };
+			}
+			throw error;
+		}
 	}
 }
 `;

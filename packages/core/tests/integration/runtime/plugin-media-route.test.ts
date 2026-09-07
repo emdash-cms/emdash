@@ -16,6 +16,7 @@ import { describe, expect, it, vi } from "vitest";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
+import type { RouteCallerInput } from "../../../src/plugins/routes.js";
 import type { Storage } from "../../../src/storage/types.js";
 
 /** Minimal in-memory Storage backend that records uploaded keys. */
@@ -119,15 +120,24 @@ describe("EmDashRuntime.handlePluginMcpTool", () => {
 		const { storage } = createFakeStorage();
 		const runtime = await EmDashRuntime.create(createDeps(storage));
 		let capturedRequest: Request | undefined;
+		let capturedCaller: RouteCallerInput | null | undefined;
 		vi.spyOn(runtime, "handlePluginApiRoute").mockImplementation(
-			async (_pluginId, _method, _route, request) => {
+			async (_pluginId, _method, _route, request, caller) => {
 				capturedRequest = request;
+				capturedCaller = caller;
 				return { success: true, data: { ok: true } };
 			},
 		);
 
 		try {
 			const input = { message: "short" };
+			const caller: RouteCallerInput = {
+				id: "test-actor",
+				email: "actor@example.com",
+				name: "Test Actor",
+				role: 1,
+				createdAt: "2026-01-01T00:00:00.000Z",
+			};
 			await runtime.handlePluginMcpTool(
 				"media-uploader",
 				"echo",
@@ -143,12 +153,14 @@ describe("EmDashRuntime.handlePluginMcpTool", () => {
 					},
 					body: JSON.stringify({ jsonrpc: "2.0", method: "tools/call", params: input }),
 				}),
+				caller,
 			);
 
 			expect(capturedRequest).toBeDefined();
 			expect(capturedRequest!.headers.get("content-length")).toBeNull();
 			expect(capturedRequest!.headers.get("content-encoding")).toBeNull();
 			expect(await capturedRequest!.json()).toEqual(input);
+			expect(capturedCaller).toBe(caller);
 		} finally {
 			await runtime.stopCron();
 		}

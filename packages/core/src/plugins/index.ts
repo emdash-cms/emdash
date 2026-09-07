@@ -44,6 +44,7 @@ export type { PluginContextFactoryOptions } from "./context.js";
 // Hooks
 export { HookPipeline, createHookPipeline } from "./hooks.js";
 export type { HookResult } from "./hooks.js";
+export { ContentSaveRejectedError, isContentSaveRejection } from "./save-rejection.js";
 
 // Email pipeline
 export { EmailPipeline, EmailNotConfiguredError, EmailRecursionError } from "./email.js";
@@ -73,6 +74,13 @@ export {
 	NoopSandboxRunner,
 	SandboxNotAvailableError,
 	SandboxUnavailableError,
+	createSandboxRouteError,
+	createSandboxRouteErrorEnvelope,
+	getSandboxRouteErrorDetails,
+	getSandboxRouteErrorEnvelope,
+	MAX_SANDBOX_SAVE_REJECTION_REASON_LENGTH,
+	SANDBOX_HOOK_RESULT_VERSION,
+	inspectSandboxHookResult,
 	createNoopSandboxRunner,
 } from "./sandbox/index.js";
 export type {
@@ -85,6 +93,12 @@ export type {
 	ResourceLimits,
 	PluginCodeStorage,
 	SerializedRequest,
+	SandboxRouteErrorCode,
+	SandboxRouteErrorDetails,
+	SandboxRouteErrorEnvelope,
+	SandboxHookErrorEnvelope,
+	SandboxHookResultInspection,
+	SandboxSaveRejectedError,
 } from "./sandbox/index.js";
 
 // Types
@@ -115,6 +129,8 @@ export type {
 	UserInfo,
 	UserAccess,
 	ContentItem,
+	ContentCreateOptions,
+	ContentWriteInput,
 	MediaItem,
 	ContentListOptions,
 	MediaListOptions,

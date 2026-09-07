@@ -1,0 +1,148 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-labeler",
+	"main": "./src/index.ts",
+	"compatibility_date": "2026-08-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"routes": [{ "pattern": "labels.emdashcms.com", "custom_domain": true }],
+	"assets": {
+		"binding": "ASSETS",
+		"html_handling": "none",
+		"run_worker_first": [
+			"/",
+			"/_admin",
+			"/_admin/*",
+			"/index.html",
+			"/health",
+			"/.well-known/*",
+			"/xrpc/*",
+		],
+	},
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-labeler",
+			"migrations_dir": "./migrations",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA_QUARANTINE",
+			"bucket_name": "emdash-labeler-media-quarantine",
+		},
+		{
+			"binding": "EVAL_DATASETS",
+			"bucket_name": "emdash-labeler-eval-datasets",
+		},
+		{
+			"binding": "EVAL_ARTIFACTS",
+			"bucket_name": "emdash-labeler-eval-artifacts",
+		},
+	],
+	"version_metadata": { "binding": "VERSION_METADATA" },
+	"images": {
+		"binding": "IMAGES",
+		"remote": true,
+	},
+	"ai": {
+		"binding": "AI",
+		"remote": true,
+	},
+	"services": [
+		{
+			"binding": "AGGREGATOR_RECONCILIATION",
+			"service": "emdash-aggregator",
+		},
+	],
+	"vars": {
+		"LABELER_DID": "did:web:labels.emdashcms.com",
+		"LABELER_SERVICE_URL": "https://labels.emdashcms.com",
+		"LABELER_POLICY_VERSION": "listing-metadata-v1",
+		"LABELER_PARSER_VERSION": "canonical-listing-input-v1",
+		"LABELER_TEXT_MODEL_ID": "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
+		"LABELER_IMAGE_MODEL_ID": "@cf/qwen/qwen3.8-27b",
+		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
+		"EVAL_TEXT_CONFIGURED_UNITS": "1",
+		"EVAL_IMAGE_CONFIGURED_UNITS": "1",
+	},
+	"secrets": {
+		"required": [
+			"LABEL_SIGNING_PRIVATE_KEY",
+			"LABEL_SIGNING_PUBLIC_KEY",
+			"OPERATOR_ACCESS_CONFIG",
+			"RECONCILIATION_TOKEN",
+		],
+	},
+	"workflows": [
+		{
+			"binding": "ASSESSMENT_WORKFLOW",
+			"name": "emdash-labeler-assessment",
+			"class_name": "AssessmentWorkflow",
+		},
+		{
+			"binding": "LIVE_EVALUATION_WORKFLOW",
+			"name": "emdash-labeler-live-evaluation",
+			"class_name": "LiveEvaluationWorkflow",
+		},
+	],
+	"queues": {
+		"producers": [
+			{
+				"binding": "DISCOVERY_QUEUE",
+				"queue": "emdash-labeler-discovery",
+			},
+		],
+		"consumers": [
+			{
+				"queue": "emdash-labeler-discovery",
+				"max_batch_size": 25,
+				"max_batch_timeout": 5,
+				"max_retries": 5,
+				"max_concurrency": 1,
+				"dead_letter_queue": "emdash-labeler-discovery-dlq",
+			},
+			{
+				"queue": "emdash-labeler-discovery-dlq",
+				"max_batch_size": 25,
+				"max_batch_timeout": 30,
+				"max_retries": 3,
+			},
+		],
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "LABEL_SUBSCRIPTION_DO",
+				"class_name": "LabelSubscriptionDO",
+			},
+			{
+				"name": "LABELER_DISCOVERY_DO",
+				"class_name": "LabelerDiscoveryDO",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["LabelSubscriptionDO"],
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["LabelerDiscoveryDO"],
+		},
+	],
+	"triggers": {
+		"crons": ["*/5 * * * *"],
+	},
+	"observability": {
+		"enabled": true,
+		"logs": {
+			"enabled": true,
+			"head_sampling_rate": 1,
+		},
+		"traces": {
+			"enabled": true,
+			"head_sampling_rate": 0.1,
+		},
+	},
+}

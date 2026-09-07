@@ -13,6 +13,11 @@ export * from "./lib/api";
 // Utilities
 export { cn } from "./lib/utils";
 
+export {
+	type ContentEditorPanelContext,
+	type ContentEditorPanelExtension,
+} from "./lib/content-editor-panels";
+
 // Plugin admin context (for accessing plugin components)
 export {
 	PluginAdminProvider,
@@ -25,6 +30,12 @@ export {
 	type PluginAdminModule,
 	type PluginAdmins,
 } from "./lib/plugin-context";
+
+export type {
+	ContentListColumnHeaderContext,
+	ContentListColumnCellContext,
+	ContentListColumnExtension,
+} from "./lib/content-list-columns.js";
 
 // Auth provider context (for accessing pluggable auth provider components)
 export {

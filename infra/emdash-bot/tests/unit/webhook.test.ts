@@ -12,6 +12,7 @@ import { describe, expect, test } from "vitest";
 import {
 	classifyActor,
 	normalizeWebhook,
+	resolvePullRequestWebhook,
 	type IssueCommentEvent,
 	type IssuesEvent,
 	type PullRequestEvent,
@@ -95,6 +96,7 @@ describe("normalizeWebhook", () => {
 			action: "created",
 			issue: { number: 42, user: { login: "alice" }, labels: [{ name: "bot:bug" }] },
 			comment: {
+				id: 123,
 				body: "@emdashbot please retry",
 				author_association: "MEMBER",
 				user: { login: "alice" },
@@ -119,6 +121,13 @@ describe("normalizeWebhook", () => {
 			expect(r.event.needsClassify).toBe(true);
 			expect(r.event.classifyText).toBe("please retry");
 			expect(r.event.deliveryId).toBe("del-1");
+			expect(r.event.triggeringComment).toEqual({
+				id: 123,
+				body: "@emdashbot please retry",
+				authorLogin: "alice",
+				authorAssociation: "MEMBER",
+				actor: "maintainer",
+			});
 		});
 
 		test("dispatches a bare verb as a deterministic event (no classifier)", () => {
@@ -219,13 +228,41 @@ describe("normalizeWebhook", () => {
 			const r = normalizeWebhook({ eventType: "issues", payload });
 			expect(r.kind).toBe("skip");
 		});
+
+		test("closed reaps the fix-loop branches for that issue", () => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" } },
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r.kind).toBe("cleanup");
+			if (r.kind === "cleanup") {
+				expect(r.anchor).toBe("issue-7");
+				expect(r.anchorNumber).toBe(7);
+			}
+		});
+
+		test("closed on a PR-as-issue is skipped (handled by pull_request)", () => {
+			const payload: IssuesEvent = {
+				action: "closed",
+				issue: { number: 7, user: { login: "alice" }, pull_request: {} },
+				sender: { login: "alice" },
+			};
+			const r = normalizeWebhook({ eventType: "issues", payload });
+			expect(r.kind).toBe("skip");
+		});
 	});
 
 	describe("pull_request", () => {
 		test("opened by a bot dispatches pr.opened", () => {
 			const payload: PullRequestEvent = {
 				action: "opened",
-				pull_request: { number: 99, user: { login: "emdashbot[bot]" } },
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: "bot/fix-99" },
+				},
 				sender: { login: "emdashbot[bot]" },
 			};
 			const r = normalizeWebhook({ eventType: "pull_request", payload });
@@ -262,6 +299,7 @@ describe("normalizeWebhook", () => {
 				pull_request: {
 					number: 99,
 					user: { login: "emdashbot[bot]" },
+					head: { ref: "bot/fix-99" },
 					merged: true,
 				},
 				sender: { login: "emdashbot[bot]" },
@@ -278,6 +316,7 @@ describe("normalizeWebhook", () => {
 				pull_request: {
 					number: 99,
 					user: { login: "emdashbot[bot]" },
+					head: { ref: "bot/fix-99" },
 					merged: false,
 				},
 				sender: { login: "emdashbot[bot]" },
@@ -294,7 +333,11 @@ describe("normalizeWebhook", () => {
 			const payload: PullRequestReviewEvent = {
 				action: "submitted",
 				review: { state: "approved", author_association: "MEMBER", user: { login: "alice" } },
-				pull_request: { number: 99, user: { login: "emdashbot[bot]" } },
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: "bot/fix-99" },
+				},
 				sender: { login: "alice" },
 			};
 			const r = normalizeWebhook({ eventType: "pull_request_review", payload });
@@ -306,21 +349,26 @@ describe("normalizeWebhook", () => {
 			expect(r.event.actor).toBe("system");
 		});
 
-		test("changes_requested → pr.changes_requested", () => {
+		test("changes_requested starts a revision", () => {
 			const payload: PullRequestReviewEvent = {
 				action: "submitted",
 				review: {
+					id: 77,
 					state: "changes_requested",
 					author_association: "MEMBER",
 					user: { login: "alice" },
 				},
-				pull_request: { number: 99, user: { login: "emdashbot[bot]" } },
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: "bot/fix-99" },
+				},
 				sender: { login: "alice" },
 			};
 			const r = normalizeWebhook({ eventType: "pull_request_review", payload });
 			expect(r.kind).toBe("dispatch");
 			if (r.kind !== "dispatch") return;
-			expect(r.event.event).toBe("pr.changes_requested");
+			expect(r.event.event).toBe("revise");
 		});
 
 		test("commented (no approval signal) is skipped", () => {
@@ -336,7 +384,7 @@ describe("normalizeWebhook", () => {
 	});
 
 	describe("pull_request_review_comment", () => {
-		test("created with mention dispatches via classifier", () => {
+		test("created with mention dispatches revision feedback", () => {
 			const payload: PullRequestReviewCommentEvent = {
 				action: "created",
 				comment: {
@@ -344,15 +392,20 @@ describe("normalizeWebhook", () => {
 					author_association: "MEMBER",
 					user: { login: "alice" },
 				},
-				pull_request: { number: 99, user: { login: "emdashbot[bot]" } },
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: "bot/fix-99" },
+				},
 				sender: { login: "alice" },
 			};
 			const r = normalizeWebhook({ eventType: "pull_request_review_comment", payload });
 			expect(r.kind).toBe("dispatch");
 			if (r.kind !== "dispatch") return;
 			expect(r.anchor).toBe("issue-99");
-			expect(r.event.needsClassify).toBe(true);
-			expect(r.event.classifyText).toBe("please fix this loop");
+			expect(r.event.needsClassify).toBe(false);
+			expect(r.event.event).toBe("revise");
+			expect(r.event.arg).toBe("please fix this loop");
 			expect(r.event.actor).toBe("maintainer");
 		});
 
@@ -370,5 +423,219 @@ describe("normalizeWebhook", () => {
 			const r = normalizeWebhook({ eventType: "pull_request_review_comment", payload });
 			expect(r.kind).toBe("skip");
 		});
+	});
+});
+
+describe("bot pull request anchoring", () => {
+	test("routes lifecycle and review events to the issue encoded in the trusted head branch", () => {
+		const pullRequest = {
+			number: 99,
+			user: { login: "emdashbot[bot]" },
+			head: { ref: "bot/fix-42" },
+		};
+		const opened = normalizeWebhook({
+			eventType: "pull_request",
+			payload: { action: "opened", pull_request: pullRequest },
+		});
+		const approved = normalizeWebhook({
+			eventType: "pull_request_review",
+			payload: {
+				action: "submitted",
+				pull_request: pullRequest,
+				review: { state: "approved", author_association: "MEMBER", user: { login: "alice" } },
+			},
+		});
+
+		expect(opened).toMatchObject({
+			kind: "dispatch",
+			anchor: "issue-42",
+			event: { anchorNumber: 42, event: "pr.opened" },
+		});
+		expect(approved).toMatchObject({
+			kind: "dispatch",
+			anchor: "issue-42",
+			event: { anchorNumber: 42, event: "pr.approved" },
+		});
+	});
+
+	test("routes bot PR feedback directly to revise on the originating issue", () => {
+		const result = normalizeWebhook({
+			eventType: "pull_request_review_comment",
+			payload: {
+				action: "created",
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: "bot/fix-42" },
+				},
+				comment: {
+					body: "@emdashbot make the regression test cover adapters",
+					author_association: "MEMBER",
+					user: { login: "alice" },
+				},
+				sender: { login: "alice" },
+			},
+		});
+
+		expect(result).toMatchObject({
+			kind: "dispatch",
+			anchor: "issue-42",
+			event: {
+				anchorNumber: 42,
+				event: "revise",
+				arg: "make the regression test cover adapters",
+				needsClassify: false,
+			},
+		});
+	});
+
+	test("resolves top-level bot PR comments through the fetched head branch", () => {
+		const unresolved = normalizeWebhook({
+			eventType: "issue_comment",
+			payload: {
+				action: "created",
+				issue: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					pull_request: {},
+				},
+				comment: {
+					body: "@emdashbot simplify the adapter test",
+					author_association: "MEMBER",
+					user: { login: "alice" },
+				},
+				sender: { login: "alice" },
+			},
+		});
+
+		expect(unresolved.kind).toBe("pull_request");
+		if (unresolved.kind !== "pull_request") return;
+		expect(resolvePullRequestWebhook(unresolved, "bot/fix-42")).toMatchObject({
+			kind: "dispatch",
+			anchor: "issue-42",
+			event: { event: "revise", arg: "simplify the adapter test", anchorNumber: 42 },
+		});
+		expect(resolvePullRequestWebhook(unresolved, "feature/unrelated")).toMatchObject({
+			kind: "skip",
+		});
+	});
+
+	test("does not trust a bot-looking author without an issue-scoped head branch", () => {
+		const result = normalizeWebhook({
+			eventType: "pull_request",
+			payload: {
+				action: "opened",
+				pull_request: {
+					number: 99,
+					user: { login: "emdashbot[bot]" },
+					head: { ref: "feature/unrelated" },
+				},
+			},
+		});
+
+		expect(result.kind).toBe("skip");
+	});
+});
+
+describe("maintainer review revisions", () => {
+	const pullRequest = {
+		number: 99,
+		user: { login: "emdashbot[bot]" },
+		head: { ref: "bot/fix-42" },
+	};
+	test.each(["changes_requested", "commented"])(
+		"%s carries the whole review without a mention",
+		(state) => {
+			const result = normalizeWebhook({
+				eventType: "pull_request_review",
+				deliveryId: "review-delivery",
+				payload: {
+					action: "submitted",
+					pull_request: pullRequest,
+					review: {
+						id: 77,
+						state,
+						body: "Cover the adapter case",
+						author_association: "MEMBER",
+						user: { login: "alice" },
+					},
+				},
+			});
+			expect(result).toMatchObject({
+				kind: "dispatch",
+				anchor: "issue-42",
+				event: {
+					event: "revise",
+					actor: "maintainer",
+					pullRequestNumber: 99,
+					reviewId: 77,
+					triggeringComment: {
+						body: "Cover the adapter case",
+						authorLogin: "alice",
+						actor: "maintainer",
+					},
+					deliveryId: "review-delivery",
+					needsClassify: false,
+				},
+			});
+		},
+	);
+	test.each(["NONE", "CONTRIBUTOR", undefined])(
+		"does not accept reviews from %s",
+		(association) => {
+			for (const state of ["approved", "changes_requested", "commented"]) {
+				expect(
+					normalizeWebhook({
+						eventType: "pull_request_review",
+						payload: {
+							action: "submitted",
+							pull_request: pullRequest,
+							review: {
+								id: 77,
+								state,
+								body: "change this",
+								author_association: association,
+								user: { login: "outsider" },
+							},
+						},
+					}).kind,
+				).toBe("skip");
+			}
+		},
+	);
+	test("an inline-only submitted review is collected as one revision", () => {
+		expect(
+			normalizeWebhook({
+				eventType: "pull_request_review",
+				payload: {
+					action: "submitted",
+					pull_request: pullRequest,
+					review: {
+						id: 77,
+						state: "commented",
+						body: "",
+						author_association: "OWNER",
+						user: { login: "alice" },
+					},
+				},
+			}),
+		).toMatchObject({ kind: "dispatch", event: { event: "revise", reviewId: 77 } });
+	});
+	test("bot reviews cannot trigger another run", () => {
+		expect(
+			normalizeWebhook({
+				eventType: "pull_request_review",
+				payload: {
+					action: "submitted",
+					pull_request: pullRequest,
+					review: {
+						id: 77,
+						state: "changes_requested",
+						author_association: "MEMBER",
+						user: { login: "reviewer[bot]" },
+					},
+				},
+			}).kind,
+		).toBe("skip");
 	});
 });

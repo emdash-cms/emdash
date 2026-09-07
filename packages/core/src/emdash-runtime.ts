@@ -14,6 +14,8 @@ import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
 import { buildManifestCollections } from "./api/handlers/manifest.js";
+import { ErrorCode } from "./api/errors.js";
+import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
 	EmDashConfig,
@@ -23,12 +25,17 @@ import type {
 import type { EmDashManifest } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
+import type { ContentFieldFilters } from "./content-list-query.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
 import {
+	enforceRuntimeMigrationPolicy,
+	PendingMigrationsError,
+	type RuntimeMigrationMode,
+} from "./database/migrations/policy.js";
+import {
 	ConcurrentMigrationTimeoutError,
 	MIGRATION_RACE_WAIT_MS,
-	runMigrations,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
 import { ContentRepository } from "./database/repositories/content.js";
@@ -38,17 +45,23 @@ import type {
 	ContentItem as ContentItemInternal,
 	ContentDateField,
 } from "./database/repositories/types.js";
+import type { ImageValue } from "./fields/types.js";
 import { getI18nConfig } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
+import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
+import { activateMediaUsageCapture } from "./media/usage/activation.js";
 import {
 	deleteContentMediaUsage,
 	findNonTranslatableSiblingContentIds,
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
+import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
+import { inspectSandboxHookResult } from "./plugins/sandbox/hook-result.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
+import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
 import type {
 	SandboxedPluginInstance,
 	SandboxRunner,
@@ -67,7 +80,10 @@ import type {
 	PortableTextBlockConfig,
 	FieldWidgetConfig,
 	SettingField,
+	UserInfo,
 } from "./plugins/types.js";
+import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
+import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
 import { createSingleFlightCache, singleFlightCached } from "./utils/single-flight-cache.js";
@@ -174,6 +190,7 @@ import {
 	handleMediaGet,
 	handleMediaCreate,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
 	handleRevisionList,
 	handleRevisionGet,
@@ -183,6 +200,7 @@ import {
 	type Storage,
 } from "./index.js";
 import { getDb } from "./loader.js";
+import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
@@ -194,9 +212,18 @@ import {
 } from "./plugins/hooks.js";
 import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
-import { buildRouteMeta, PluginRouteRegistry, type RouteMeta } from "./plugins/routes.js";
+import {
+	buildRouteMeta,
+	parseRouteInput,
+	PluginRouteRegistry,
+	toRouteCallerInfo,
+	type RouteCallerInput,
+	type RouteMeta,
+} from "./plugins/routes.js";
+import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
+import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
 import { normalizeRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
@@ -223,6 +250,10 @@ export interface SandboxedPluginEntry {
 	storage: PluginStorageConfig;
 	/** Serialized MCP declarations emitted at plugin build time. */
 	mcp?: PluginMcpManifestConfig;
+	/** Route declarations (name + public/permission/cacheControl), used for route auth decisions */
+	routes?: PluginManifest["routes"];
+	/** Hook declarations this plugin implements */
+	hooks?: PluginManifest["hooks"];
 	/** Admin pages */
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
@@ -283,6 +314,8 @@ export type CreateSchedulerFn = (executor: CronExecutor) => CronScheduler;
  */
 export interface RuntimeDependencies {
 	config: EmDashConfig;
+	/** Effective migration mode, resolved once by the runtime entrypoint. */
+	migrationMode?: RuntimeMigrationMode;
 	plugins: ResolvedPlugin[];
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	createDialect: (config: any) => Dialect;
@@ -350,6 +383,7 @@ export interface EmDashRuntimeParts {
 	pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
+		beforeContentWrite?: () => Promise<void>;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -360,6 +394,28 @@ export interface EmDashRuntimeParts {
 	};
 	runtimeDeps: RuntimeDependencies;
 	pipelineRef: { current: HookPipeline };
+}
+
+/**
+ * A `ContentSaveRejectedError` carries a message the plugin wrote for the
+ * editor; every other exception stays internal and is replaced by a generic
+ * message so hook internals cannot leak through the API.
+ */
+function beforeSaveFailure(error: unknown) {
+	if (isContentSaveRejection(error)) {
+		return {
+			success: false as const,
+			error: { code: ErrorCode.SAVE_REJECTED, message: error.message },
+		};
+	}
+	console.error("EmDash: content:beforeSave hook failed:", error);
+	return {
+		success: false as const,
+		error: {
+			code: ErrorCode.CONTENT_HOOK_ERROR,
+			message: "A plugin hook failed while saving content",
+		},
+	};
 }
 
 /**
@@ -474,6 +530,7 @@ const marketplaceManifestCache = new Map<
 			settingsSchema?: Record<string, SettingField>;
 		};
 		mcp?: PluginMcpManifestConfig;
+		storage?: PluginManifest["storage"];
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -535,10 +592,13 @@ export class EmDashRuntime {
 	/** All plugins eligible for the hook pipeline (includes built-in plugins).
 	 *  Stored so we can rebuild the pipeline when plugins are enabled/disabled. */
 	private allPipelinePlugins: ResolvedPlugin[];
+	/** Guards the once-per-process plugin storage-index sync. */
+	private storageIndexesSynced = false;
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
+		beforeContentWrite?: () => Promise<void>;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -611,8 +671,16 @@ export class EmDashRuntime {
 	 * Returns the items promoted so callers can invalidate their cache tags.
 	 */
 	async publishScheduled(): Promise<PublishedRef[]> {
+		return this.publishScheduledWithFence();
+	}
+
+	private async publishScheduledWithFence(
+		onPublished?: (refs: PublishedRef[]) => Promise<void>,
+	): Promise<PublishedRef[]> {
+		await assertMediaUsageActivationWriteAllowed(this.db);
 		return publishDueContent(this.db, {
 			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+			onPublished,
 		});
 	}
 
@@ -650,11 +718,7 @@ export class EmDashRuntime {
 
 		let published: PublishedRef[] = [];
 		try {
-			// Route through the runtime wrapper so content:afterPublish hooks fire.
-			published = await publishDueContent(this.db, {
-				publish: (collection, id, opts) => this.handleContentPublish(collection, id, opts),
-				onPublished: options.onPublished,
-			});
+			published = await this.publishScheduledWithFence(options.onPublished);
 		} catch (error) {
 			console.error("[scheduled-publish] Sweep failed:", error);
 		}
@@ -665,10 +729,35 @@ export class EmDashRuntime {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
 
+		try {
+			await this.syncPluginStorageIndexesOnce();
+		} catch (error) {
+			console.error("[plugins] Storage index sync failed:", error);
+		}
+
 		// Never throws; no-op unless scheduled backups are enabled and due.
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
+		await recordSchedulerHeartbeatSafely(this.db);
 
 		return { published };
+	}
+
+	/**
+	 * Materialize plugin-declared storage indexes, once per process.
+	 *
+	 * Called from the scheduler path, not from request handlers — configured
+	 * plugins have no install handler, so the tick is their only sync moment.
+	 */
+	async syncPluginStorageIndexesOnce(): Promise<void> {
+		if (this.storageIndexesSynced) return;
+		this.storageIndexesSynced = true;
+		// Sandboxed marketplace/registry plugins never join allPipelinePlugins;
+		// their manifests are cached at bundle load. Without them, plugins
+		// installed before this feature shipped would never get their indexes.
+		await syncDeclaredStorageIndexes(this.db, [
+			...this.allPipelinePlugins,
+			...marketplaceManifestCache.values(),
+		]);
 	}
 
 	/**
@@ -878,6 +967,7 @@ export class EmDashRuntime {
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -993,6 +1083,7 @@ export class EmDashRuntime {
 					version: bundle.manifest.version,
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
+					storage: bundle.manifest.storage,
 				});
 				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
@@ -1087,8 +1178,10 @@ export class EmDashRuntime {
 			}
 		};
 
-		// Initialize database (connects, runs migrations if needed)
-		const db = await phase("rt.db", "DB init + migrations", () => EmDashRuntime.getDatabase(deps));
+		// Initialize the database and enforce its configured migration policy.
+		const db = await phase("rt.db", "DB init + migration policy", () =>
+			EmDashRuntime.getDatabase(deps),
+		);
 
 		// Resolver for the live connection, mirroring the `get db()` getter
 		// below (which can't be used here — the runtime instance doesn't exist
@@ -1151,6 +1244,16 @@ export class EmDashRuntime {
 		// fall back to the singleton, where serialization costs nothing.
 		let readDb = db;
 		let readDbDisposable: Kysely<Database> | undefined;
+		const disposeReadDb = async () => {
+			const disposable = readDbDisposable;
+			readDbDisposable = undefined;
+			if (!disposable) return;
+			try {
+				await disposable.destroy();
+			} catch {
+				// Non-fatal — the underlying binding is shared and needs no teardown.
+			}
+		};
 		if (ownsConfiguredDb && deps.createCoalescingDialect && deps.config.database) {
 			try {
 				const dialect = deps.createCoalescingDialect(deps.config.database.config);
@@ -1163,6 +1266,12 @@ export class EmDashRuntime {
 			}
 		}
 		const optionsRepo = new OptionsRepository(readDb);
+		let missingManualSchemaError: unknown;
+		const captureMissingManualSchema = (error: unknown) => {
+			if ((deps.migrationMode ?? "auto") === "manual" && isMissingTableError(error)) {
+				missingManualSchemaError ??= error;
+			}
+		};
 
 		const readSiteInfo = async () => {
 			const siteOpts = await optionsRepo.getMany<string>([
@@ -1191,14 +1300,16 @@ export class EmDashRuntime {
 						.select(["plugin_id", "status"])
 						.execute();
 					pluginStates = new Map(states.map((s) => [s.plugin_id, s.status]));
-				} catch {
+				} catch (error) {
+					captureMissingManualSchema(error);
 					// _plugin_state may not exist yet on a pre-migration db.
 				}
 			}),
 			phase("rt.site", "Site info options", async () => {
 				try {
 					siteInfo = await readSiteInfo();
-				} catch {
+				} catch (error) {
+					captureMissingManualSchema(error);
 					// options may not exist yet on a pre-migration db.
 				}
 			}),
@@ -1227,7 +1338,8 @@ export class EmDashRuntime {
 							}
 						})();
 						seedGate = { collectionCount: collectionCount.count, setupDone };
-					} catch {
+					} catch (error) {
+						captureMissingManualSchema(error);
 						// Leave the "already set up" default so a read failure never
 						// triggers a seed onto a half-built db.
 					}
@@ -1236,6 +1348,10 @@ export class EmDashRuntime {
 		}
 
 		await Promise.all(coldStartReads);
+		if (missingManualSchemaError) {
+			await disposeReadDb();
+			throw missingManualSchemaError;
+		}
 
 		if (
 			localeCasingRepairVersion &&
@@ -1256,6 +1372,15 @@ export class EmDashRuntime {
 		// per-isolate lock keyed by the configured db so a reclaimed-and-rerun
 		// create() can't apply the seed a second time concurrently.
 		if (seedGate.collectionCount === 0 && !seedGate.setupDone) {
+			try {
+				const activation = await activateMediaUsageCapture(db, { writersDrained: true });
+				if (activation.outcome !== "active") {
+					throw new Error("Fresh-site media usage activation did not complete");
+				}
+			} catch (error) {
+				await disposeReadDb();
+				throw error;
+			}
 			const seedKey = deps.config.database?.entrypoint ?? "default";
 			const seedHolder = getSeedHolder();
 			try {
@@ -1292,13 +1417,7 @@ export class EmDashRuntime {
 		}
 
 		// The read connection is single-use; everything below uses the singleton.
-		if (readDbDisposable) {
-			try {
-				await readDbDisposable.destroy();
-			} catch {
-				// Non-fatal — the underlying binding is shared and needs no teardown.
-			}
-		}
+		await disposeReadDb();
 
 		const enabledPlugins = new Set<string>();
 		for (const plugin of deps.plugins) {
@@ -1424,6 +1543,7 @@ export class EmDashRuntime {
 		const pipelineFactoryOptions = {
 			db,
 			getDb: resolveDb,
+			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
 			storage: storage ?? undefined,
 			siteInfo,
 		};
@@ -1578,12 +1698,12 @@ export class EmDashRuntime {
 							// Falls back to the raw handler if (improbably) the tick beats
 							// the post-construction ref assignment.
 							const runtime = runtimeRef.current;
-							await publishDueContent(db, {
-								publish: runtime
-									? (collection, id, options) =>
-											runtime.handleContentPublish(collection, id, options)
-									: undefined,
-							});
+							if (runtime) {
+								await runtime.publishScheduled();
+							} else {
+								await assertMediaUsageActivationWriteAllowed(db);
+								await publishDueContent(db);
+							}
 						} catch (error) {
 							console.error("[scheduled-publish] Sweep failed:", error);
 						}
@@ -1594,10 +1714,15 @@ export class EmDashRuntime {
 							// by runSystemCleanup. This catches unexpected errors.
 							console.error("[cleanup] System cleanup failed:", error);
 						}
+						try {
+							await runtimeRef.current?.syncPluginStorageIndexesOnce();
+						} catch (error) {
+							console.error("[plugins] Storage index sync failed:", error);
+						}
 						// Never throws; no-op unless scheduled backups are enabled and due.
 						await maybeRunScheduledBackup(db, storage ?? undefined);
+						await recordSchedulerHeartbeatSafely(db);
 					});
-
 					// start() is void on the timer scheduler but the interface
 					// allows a promise (alarm-backed schedulers); we don't block on it.
 					void scheduler.start();
@@ -1728,13 +1853,16 @@ export class EmDashRuntime {
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
 
 				try {
-					await runMigrations(db);
+					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto");
 				} catch (error) {
 					// Timing out behind another instance's in-flight migrations
 					// is not a failure of OUR migration — the holder may just be
 					// slow. Don't back off for it: the next request waits again
 					// and init recovers the moment the holder finishes.
-					if (!(error instanceof ConcurrentMigrationTimeoutError)) {
+					if (
+						!(error instanceof ConcurrentMigrationTimeoutError) &&
+						!(error instanceof PendingMigrationsError)
+					) {
 						holder.failures.set(cacheKey, {
 							at: Date.now(),
 							message: error instanceof Error ? error.message : String(error),
@@ -1900,6 +2028,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
 						mediaStorage: mediaStorage
 							? {
 									upload: (opts) =>
@@ -1959,8 +2088,8 @@ export class EmDashRuntime {
 					capabilities: entry.capabilities ?? [],
 					allowedHosts: entry.allowedHosts ?? [],
 					storage: entry.storage ?? {},
-					hooks: [],
-					routes: [],
+					hooks: entry.hooks ?? [],
+					routes: entry.routes ?? [],
 					admin: {},
 					mcp: entry.mcp,
 				};
@@ -1970,6 +2099,17 @@ export class EmDashRuntime {
 				console.log(
 					`EmDash: Loaded sandboxed plugin ${pluginKey} with capabilities: [${manifest.capabilities.join(", ")}]`,
 				);
+
+				if (manifest.routes.length > 0) {
+					const routeMetaMap = new Map<string, RouteMeta>();
+					for (const routeEntry of manifest.routes) {
+						const normalized = normalizeManifestRoute(routeEntry);
+						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
+					}
+					sandboxedRouteMetaCache.set(entry.id, routeMetaMap);
+				} else {
+					sandboxedRouteMetaCache.delete(entry.id);
+				}
 			} catch (error) {
 				console.error(`EmDash: Failed to load sandboxed plugin ${entry.id}:`, error);
 			}
@@ -2012,6 +2152,7 @@ export class EmDashRuntime {
 				createSandboxRunnerOptions(
 					{
 						db,
+						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
 						mediaStorage: {
 							upload: (opts) =>
 								storage.upload({
@@ -2072,6 +2213,7 @@ export class EmDashRuntime {
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2144,6 +2286,7 @@ export class EmDashRuntime {
 						version: bundle.manifest.version,
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
 					});
 					if (bundle.manifest.routes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
@@ -2391,27 +2534,46 @@ export class EmDashRuntime {
 
 		// Build taxonomies from database
 		let manifestTaxonomies: Array<{
+			id: string;
 			name: string;
 			label: string;
 			labelSingular?: string;
 			hierarchical: boolean;
 			collections: string[];
+			locale: string;
+			translationGroup: string;
 		}> = [];
+		let taxonomyDefinitionLocales: string[] = [];
 		try {
 			const rows = await this.db
 				.selectFrom("_emdash_taxonomy_defs")
 				.selectAll()
 				.orderBy("name")
 				.execute();
+			taxonomyDefinitionLocales = rows.map((row) => row.locale);
 			manifestTaxonomies = rows.map((row) => ({
+				id: row.id,
 				name: row.name,
 				label: row.label,
 				labelSingular: row.label_singular ?? undefined,
 				hierarchical: row.hierarchical === 1,
 				collections: parseStringArray(row.collections).toSorted(),
+				locale: row.locale,
+				translationGroup: row.translation_group ?? row.id,
 			}));
 		} catch (error) {
 			console.debug("EmDash: Could not load taxonomy definitions:", error);
+		}
+
+		try {
+			const configuredLocales = virtualConfig?.i18n?.locales ?? getI18nConfig()?.locales ?? [];
+			await warnAboutUnconfiguredTaxonomyLocales(
+				this.db,
+				configuredLocales,
+				taxonomyDefinitionLocales,
+			);
+		} catch (error) {
+			console.warn("[i18n] taxonomy locale diagnostic failed:", error);
 		}
 
 		// Build manifest hash
@@ -2426,7 +2588,7 @@ export class EmDashRuntime {
 		const authModeValue = authMode.type === "external" ? authMode.providerType : "passkey";
 
 		// Include i18n config if enabled (read from virtual module to avoid SSR module singleton mismatch)
-		const i18nConfig = virtualConfig?.i18n;
+		const i18nConfig = virtualConfig?.i18n ?? getI18nConfig();
 		const i18n =
 			i18nConfig && i18nConfig.locales && i18nConfig.locales.length > 1
 				? { defaultLocale: i18nConfig.defaultLocale, locales: i18nConfig.locales }
@@ -2448,6 +2610,10 @@ export class EmDashRuntime {
 			taxonomies: manifestTaxonomies,
 			authMode: authModeValue,
 			i18n,
+			contentLocale: {
+				defaultLocale: i18nConfig?.defaultLocale ?? "en",
+				implicit: i18nConfig === null,
+			},
 			marketplace: !!this.config.marketplace,
 			registry,
 		};
@@ -2525,6 +2691,10 @@ export class EmDashRuntime {
 			dateField?: ContentDateField;
 			dateFrom?: string;
 			dateTo?: string;
+			bylines?: string[];
+			bylinesNone?: boolean;
+			includeInferredBylines?: boolean;
+			fieldFilters?: ContentFieldFilters;
 		},
 	) {
 		return handleContentList(this.db, collection, params);
@@ -2610,7 +2780,7 @@ export class EmDashRuntime {
 		collection: string,
 		body: {
 			data: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
@@ -2622,12 +2792,18 @@ export class EmDashRuntime {
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (this.hooks.hasHooks("content:beforeSave")) {
-			const hookResult = await this.hooks.runContentBeforeSave(body.data, collection, true);
-			processedData = hookResult.content;
+			try {
+				const hookResult = await this.hooks.runContentBeforeSave(body.data, collection, true);
+				processedData = hookResult.content;
+			} catch (error) {
+				return beforeSaveFailure(error);
+			}
 		}
 
 		// Run beforeSave hooks (sandboxed plugins)
-		processedData = await this.runSandboxedBeforeSave(processedData, collection, true);
+		const sandboxResult = await this.runSandboxedBeforeSave(processedData, collection, true);
+		if (!sandboxResult.success) return sandboxResult;
+		processedData = sandboxResult.data;
 
 		// Normalize media fields (fill dimensions, storageKey, etc.)
 		processedData = await this.normalizeMediaFields(collection, processedData);
@@ -2670,7 +2846,7 @@ export class EmDashRuntime {
 		id: string,
 		body: {
 			data?: Record<string, unknown>;
-			slug?: string;
+			slug?: string | null;
 			status?: string;
 			authorId?: string | null;
 			bylines?: Array<{ bylineId: string; roleLabel?: string | null }>;
@@ -2718,16 +2894,22 @@ export class EmDashRuntime {
 		let processedData = bodyWithoutRev.data;
 		if (bodyWithoutRev.data) {
 			if (this.hooks.hasHooks("content:beforeSave")) {
-				const hookResult = await this.hooks.runContentBeforeSave(
-					bodyWithoutRev.data,
-					collection,
-					false,
-				);
-				processedData = hookResult.content;
+				try {
+					const hookResult = await this.hooks.runContentBeforeSave(
+						bodyWithoutRev.data,
+						collection,
+						false,
+					);
+					processedData = hookResult.content;
+				} catch (error) {
+					return beforeSaveFailure(error);
+				}
 			}
 
 			// Run sandboxed beforeSave hooks
-			processedData = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			const sandboxResult = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			if (!sandboxResult.success) return sandboxResult;
+			processedData = sandboxResult.data;
 
 			// Normalize media fields (fill dimensions, storageKey, etc.)
 			processedData = await this.normalizeMediaFields(collection, processedData);
@@ -2830,7 +3012,16 @@ export class EmDashRuntime {
 							);
 						}
 					} else {
-						void revisionRepo.pruneOldRevisions(collection, resolvedId, 50).catch(() => {});
+						after(async () => {
+							try {
+								await revisionRepo.pruneQueuedEntry(collection, resolvedId, revision.id, 50);
+							} catch (error) {
+								console.error(
+									`[revisions] Failed to prune revisions for ${collection}/${resolvedId}:`,
+									error,
+								);
+							}
+						});
 					}
 					break;
 				}
@@ -3017,6 +3208,7 @@ export class EmDashRuntime {
 			publishedAt?: string;
 			requireScheduledDue?: boolean;
 			expectedScheduledAt?: string;
+			_rev?: string;
 		} = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
@@ -3032,8 +3224,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentUnpublish(collection: string, id: string) {
-		const result = await handleContentUnpublish(this.db, collection, id);
+	async handleContentUnpublish(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentUnpublish(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3078,8 +3270,8 @@ export class EmDashRuntime {
 		return handleContentCountScheduled(this.db, collection);
 	}
 
-	async handleContentDiscardDraft(collection: string, id: string) {
-		const result = await handleContentDiscardDraft(this.db, collection, id);
+	async handleContentDiscardDraft(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentDiscardDraft(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3100,9 +3292,11 @@ export class EmDashRuntime {
 
 	async handleMediaList(params: {
 		cursor?: string;
+		page?: number;
 		limit?: number;
 		mimeType?: string | readonly string[];
 		q?: string;
+		folderId?: string | null;
 	}) {
 		return handleMediaList(this.db, params);
 	}
@@ -3122,6 +3316,7 @@ export class EmDashRuntime {
 		blurhash?: string;
 		dominantColor?: string;
 		authorId?: string;
+		folderId?: string | null;
 	}) {
 		// Run beforeUpload hooks
 		let processedInput = input;
@@ -3163,7 +3358,15 @@ export class EmDashRuntime {
 
 	async handleMediaUpdate(
 		id: string,
-		input: { alt?: string; caption?: string; width?: number; height?: number },
+		input: {
+			alt?: string;
+			caption?: string;
+			width?: number;
+			height?: number;
+			folderId?: string | null;
+			focalX?: number | null;
+			focalY?: number | null;
+		},
 	) {
 		const result = await handleMediaUpdate(this.db, id, input);
 		// Resolved media references in site settings (`logo`, `favicon`,
@@ -3172,6 +3375,18 @@ export class EmDashRuntime {
 		// for every entry point: REST routes, MCP tools, plugin code, and
 		// any future caller of `handleMediaUpdate`. Cross-isolate staleness
 		// remains bounded by isolate lifetime.
+		if (result.success) {
+			invalidateSiteSettingsCache();
+		}
+		return result;
+	}
+
+	async handleMediaReplaceMetadata(
+		id: string,
+		expectedStorageKey: string,
+		input: { size: number; width: number; height: number; contentHash: string },
+	) {
+		const result = await handleMediaReplaceMetadata(this.db, id, expectedStorageKey, input);
 		if (result.success) {
 			invalidateSiteSettingsCache();
 		}
@@ -3283,10 +3498,21 @@ export class EmDashRuntime {
 				throw error;
 			}
 
-			// Fire-and-forget: prune old revisions to prevent unbounded growth
-			void revisionRepo
-				.pruneOldRevisions(revision.collection, revision.entryId, 50)
-				.catch(() => {});
+			after(async () => {
+				try {
+					await revisionRepo.pruneQueuedEntry(
+						revision.collection,
+						revision.entryId,
+						newDraft.id,
+						50,
+					);
+				} catch (error) {
+					console.error(
+						`[revisions] Failed to prune revisions for ${revision.collection}/${revision.entryId}:`,
+						error,
+					);
+				}
+			});
 
 			// Return the freshly-fetched item with the new draft hydrated
 			// onto `data`. Without this the response would echo the live
@@ -3322,12 +3548,15 @@ export class EmDashRuntime {
 	): Promise<void> {
 		for (const contentId of new Set(contentIds)) {
 			try {
+				const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
+				if (work.outcome !== "inactive") continue;
 				await refreshContentMediaUsageAfterWrite(this.db, collection, contentId);
 			} catch (error) {
 				console.error(
 					`[media-usage] Failed after content write ${collection}/${contentId}:`,
 					error,
 				);
+				continue;
 			}
 		}
 	}
@@ -3337,6 +3566,8 @@ export class EmDashRuntime {
 		contentId: string,
 	): Promise<void> {
 		try {
+			const work = await processMediaUsageWorkAfterWrite(this.db, collection, contentId);
+			if (work.outcome !== "inactive") return;
 			const result = await deleteContentMediaUsage(this.db, collection, contentId);
 			if (!result.success) {
 				console.error(
@@ -3416,13 +3647,24 @@ export class EmDashRuntime {
 		return meta.admin?.settingsSchema ?? {};
 	}
 
-	async handlePluginApiRoute(pluginId: string, _method: string, path: string, request: Request) {
+	async handlePluginApiRoute(
+		pluginId: string,
+		_method: string,
+		path: string,
+		request: Request,
+		user?: RouteCallerInput | null,
+	) {
 		if (!this.isPluginEnabled(pluginId)) {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: `Plugin not enabled: ${pluginId}` },
 			};
 		}
+
+		// Authenticated caller for `ctx.user`. Undefined for public routes
+		// (the catch-all only forwards the caller after private-route auth)
+		// and for machine tokens with no bound user.
+		const caller = user ? toRouteCallerInfo(user) : undefined;
 
 		// Check trusted (configured) plugins first — this must match the
 		// resolution order in getPluginRouteMeta to avoid auth/execution mismatches.
@@ -3438,20 +3680,16 @@ export class EmDashRuntime {
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
-			let body: unknown = undefined;
-			try {
-				body = await request.json();
-			} catch {
-				// No body or not JSON
-			}
+			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
+			const body = await parseRouteInput(request);
 
-			return routeRegistry.invoke(pluginId, routeKey, { request, body });
+			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
 		}
 
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			return this.handleSandboxedRoute(sandboxedPlugin, path, request);
+			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
 		}
 
 		return {
@@ -3578,6 +3816,7 @@ export class EmDashRuntime {
 		input: unknown,
 		actorId: string,
 		request: Request,
+		caller?: RouteCallerInput | null,
 	) {
 		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
 		const audit = new AuditRepository(this.db);
@@ -3589,7 +3828,13 @@ export class EmDashRuntime {
 			headers,
 			body: JSON.stringify(input),
 		});
-		const result = await this.handlePluginApiRoute(pluginId, "POST", route, internalRequest);
+		const result = await this.handlePluginApiRoute(
+			pluginId,
+			"POST",
+			route,
+			internalRequest,
+			caller,
+		);
 		await audit.log({
 			actorId,
 			actorIp: requestMeta.ip ?? undefined,
@@ -3654,7 +3899,13 @@ export class EmDashRuntime {
 		const imageFields = collectionInfo.fields.filter(
 			(f) => f.type === "image" || f.type === "file",
 		);
-		if (imageFields.length === 0) return data;
+		// Repeater fields can contain image sub-fields, whose values need the same normalization
+		// (a bare media id posted inside a repeater item would otherwise be stored verbatim and
+		// render as "Image not found" in the admin).
+		const repeaterFields = collectionInfo.fields.filter(
+			(f) => f.type === "repeater" && Array.isArray(f.validation?.subFields),
+		);
+		if (imageFields.length === 0 && repeaterFields.length === 0) return data;
 
 		const getProvider = (id: string) => this.getMediaProvider(id);
 		const result = { ...data };
@@ -3664,13 +3915,48 @@ export class EmDashRuntime {
 			if (value == null) continue;
 
 			try {
-				const normalized = await normalizeMediaValue(value, getProvider);
+				// Only image fields carry a dark variant.
+				const normalized =
+					field.type === "image"
+						? await normalizeImageValue(value, getProvider)
+						: await normalizeMediaValue(value, getProvider);
 				if (normalized) {
 					result[field.slug] = normalized;
 				}
 			} catch {
 				// Don't fail the save if normalization fails for a single field
 			}
+		}
+
+		for (const field of repeaterFields) {
+			const value = result[field.slug];
+			if (!Array.isArray(value)) continue;
+
+			const mediaSubFieldSlugs = (field.validation?.subFields ?? [])
+				.filter((sub) => sub.type === "image")
+				.map((sub) => sub.slug);
+			if (mediaSubFieldSlugs.length === 0) continue;
+
+			const items: unknown[] = value;
+			result[field.slug] = await Promise.all(
+				items.map(async (item) => {
+					if (!isRecord(item)) return item;
+					const normalizedItem: Record<string, unknown> = { ...item };
+					for (const slug of mediaSubFieldSlugs) {
+						const subValue = normalizedItem[slug];
+						if (subValue == null) continue;
+						try {
+							const normalized = await normalizeImageValue(subValue, getProvider);
+							if (normalized) {
+								normalizedItem[slug] = normalized;
+							}
+						} catch {
+							// Don't fail the save if normalization fails for a single sub-field
+						}
+					}
+					return normalizedItem;
+				}),
+			);
 		}
 
 		return result;
@@ -3680,7 +3966,7 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
-	): Promise<Record<string, unknown>> {
+	) {
 		let result = content;
 
 		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
@@ -3693,6 +3979,27 @@ export class EmDashRuntime {
 					collection,
 					isNew,
 				});
+				const inspection = inspectSandboxHookResult(hookResult);
+				if (inspection.kind === "error") {
+					return {
+						success: false as const,
+						error: {
+							code: ErrorCode.SAVE_REJECTED,
+							message: "Save rejected by a sandboxed plugin",
+							details: { pluginId: id, reason: inspection.error.reason },
+						},
+					};
+				}
+				if (inspection.kind === "malformed") {
+					console.error(`EmDash: Sandboxed plugin ${id} returned an invalid hook result`);
+					return {
+						success: false as const,
+						error: {
+							code: ErrorCode.CONTENT_HOOK_ERROR,
+							message: "A plugin hook failed while saving content",
+						},
+					};
+				}
 				if (hookResult && typeof hookResult === "object" && !Array.isArray(hookResult)) {
 					// Sandbox returns unknown; convert to record by iterating own properties
 					const record: Record<string, unknown> = {};
@@ -3702,11 +4009,18 @@ export class EmDashRuntime {
 					result = record;
 				}
 			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook error:`, error);
+				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook failed:`, error);
+				return {
+					success: false as const,
+					error: {
+						code: ErrorCode.CONTENT_HOOK_ERROR,
+						message: "A plugin hook failed while saving content",
+					},
+				};
 			}
 		}
 
-		return result;
+		return { success: true as const, data: result };
 	}
 
 	private async runSandboxedBeforeDelete(id: string, collection: string): Promise<boolean> {
@@ -3878,19 +4192,17 @@ export class EmDashRuntime {
 		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
+		user?: UserInfo,
 	): Promise<{
 		success: boolean;
 		data?: unknown;
 		error?: { code: string; message: string };
+		status?: number;
 	}> {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
 
-		let body: unknown = undefined;
-		try {
-			body = await request.json();
-		} catch {
-			// No body or not JSON
-		}
+		// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
+		const body = await parseRouteInput(request);
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);
@@ -3900,10 +4212,22 @@ export class EmDashRuntime {
 				method: request.method,
 				headers,
 				meta,
+				user,
 			});
 			return { success: true, data: result };
 		} catch (error) {
 			console.error(`EmDash: Sandboxed plugin route error:`, error);
+			const sandboxRouteError = getSandboxRouteErrorDetails(error);
+			if (sandboxRouteError) {
+				return {
+					success: false,
+					status: sandboxRouteError.status,
+					error: {
+						code: sandboxRouteError.code,
+						message: sandboxRouteError.message,
+					},
+				};
+			}
 			return {
 				success: false,
 				error: {
@@ -4003,4 +4327,38 @@ export class EmDashRuntime {
 		const status = this.pluginStates.get(pluginId);
 		return status === undefined || status === "active";
 	}
+}
+
+/**
+ * Normalize an image field value together with its `darkVariant`. The media
+ * normalizer only keeps the media item's own keys, so the variant is normalized
+ * separately and reattached.
+ */
+async function normalizeImageValue(
+	value: unknown,
+	getProvider: (id: string) => MediaProvider | undefined,
+): Promise<ImageValue | null> {
+	const primary = await normalizePrimaryImageValue(value, getProvider);
+	if (!primary || !isRecord(value) || value.darkVariant == null) return primary;
+	const darkVariant = await normalizeMediaValue(value.darkVariant, getProvider);
+	return darkVariant ? { ...primary, darkVariant } : primary;
+}
+
+/**
+ * Normalize the primary image of an image field value.
+ *
+ * A legacy string URL that the admin upgraded to `{ id: "", src: url }` so it
+ * can carry a dark variant still has to normalize as a string: as an object it
+ * counts as local media, which strips `src` and leaves nothing behind. The
+ * upgrade outlives the variant — an editor can add one and remove it again —
+ * so the shape decides, not the presence of `darkVariant`.
+ */
+async function normalizePrimaryImageValue(
+	value: unknown,
+	getProvider: (id: string) => MediaProvider | undefined,
+): Promise<ImageValue | null> {
+	if (isRecord(value) && !value.id && typeof value.src === "string" && !value.provider) {
+		return normalizeMediaValue(value.src, getProvider);
+	}
+	return normalizeMediaValue(value, getProvider);
 }

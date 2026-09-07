@@ -6,6 +6,7 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import { SchemaRegistry } from "../../schema/registry.js";
+import { MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
 import type { Field, FieldType } from "../../schema/types.js";
 import { hashString } from "../../utils/hash.js";
 import type {
@@ -22,6 +23,17 @@ const FIRST_CHAR_PATTERN = /^./;
 /**
  * Map schema field types to editor field kinds.
  */
+/** Field types that can be surfaced as list columns in the admin. */
+const LIST_COLUMN_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"string",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"multiSelect",
+]);
+
 const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
 	string: "string",
 	slug: "string",
@@ -51,6 +63,7 @@ interface CollectionDefinition {
 		label: string;
 		labelSingular?: string;
 		supports?: string[];
+		routable?: boolean;
 	};
 }
 type CollectionMap = Record<string, CollectionDefinition>;
@@ -108,6 +121,7 @@ export async function buildManifestCollections(
 			labelSingular: definition.admin.labelSingular || definition.admin.label,
 			supports: definition.admin.supports || [],
 			hasSeo: (definition.admin.supports || []).includes("seo"),
+			routable: definition.admin.routable ?? true,
 			fields,
 		};
 	}
@@ -125,12 +139,38 @@ export async function buildManifestCollections(
 				fields[field.slug] = dbFieldDescriptor(field);
 			}
 
+			const configuredListColumns = collection.admin?.listColumns ?? [];
+			const fieldTypes = new Map(collection.fields.map((field) => [field.slug, field.type]));
+			const listColumns: string[] = [];
+			for (const slug of configuredListColumns) {
+				if (listColumns.includes(slug)) continue;
+				const fieldType = fieldTypes.get(slug);
+				if (!fieldType || !LIST_COLUMN_FIELD_TYPES.has(fieldType)) {
+					console.warn(
+						`EmDash: Ignoring unsupported or unknown list column "${slug}" in collection "${collection.slug}".`,
+					);
+					continue;
+				}
+				if (listColumns.length >= MAX_COLLECTION_LIST_COLUMNS) {
+					console.warn(
+						`EmDash: Collection "${collection.slug}" declares more than ${MAX_COLLECTION_LIST_COLUMNS} list columns; extra columns are ignored.`,
+					);
+					break;
+				}
+				listColumns.push(slug);
+			}
+
 			manifestCollections[collection.slug] = {
 				label: collection.label,
 				labelSingular: collection.labelSingular || collection.label,
 				supports: collection.supports || [],
 				hasSeo: collection.hasSeo,
 				urlPattern: collection.urlPattern,
+				routable: collection.routable !== false,
+				titleField: collection.titleField,
+				dateField: collection.dateField,
+				...(collection.hidden ? { hidden: true } : {}),
+				listColumns: listColumns.length > 0 ? listColumns : undefined,
 				fields,
 			};
 		}
@@ -252,7 +292,7 @@ function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
 		(field.type === "repeater" || field.type === "file" || field.type === "image") &&
 		field.validation
 	) {
-		entry.validation = { ...field.validation } as Record<string, unknown>;
+		entry.validation = { ...field.validation };
 	}
 
 	return entry;

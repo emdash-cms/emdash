@@ -17,6 +17,7 @@ import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxo
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
+import { resolveContentCreateLocale } from "../i18n/config.js";
 import {
 	resolveAndValidateExternalUrl,
 	SsrfError,
@@ -46,6 +47,7 @@ import type {
 	UserAccess,
 	UserInfo,
 	ContentItem,
+	ContentCreateOptions,
 	ContentItemSeoInput,
 	ContentWriteInput,
 	MediaItem,
@@ -367,13 +369,22 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
  * the content write. The returned `ContentItem.seo` reflects the resulting
  * SEO state for SEO-enabled collections.
  */
-export function createContentAccessWithWrite(db: Kysely<Database>): ContentAccessWithWrite {
+export function createContentAccessWithWrite(
+	db: Kysely<Database>,
+	beforeContentWrite?: () => Promise<void>,
+): ContentAccessWithWrite {
 	const readAccess = createContentAccess(db);
 
 	return {
 		...readAccess,
 
-		async create(collection: string, data: ContentWriteInput): Promise<ContentItem> {
+		async create(
+			collection: string,
+			data: ContentWriteInput,
+			options?: ContentCreateOptions,
+		): Promise<ContentItem> {
+			const locale = resolveContentCreateLocale(options?.locale);
+			await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			let contentMutated = false;
 
@@ -387,6 +398,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 					const item = await trxContentRepo.create({
 						type: collection,
 						data: fields,
+						locale,
 					});
 					contentMutated = true;
 
@@ -423,6 +435,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 		},
 
 		async update(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem> {
+			await beforeContentWrite?.();
 			const { fields, seo } = splitSeoFromInput(data);
 			const hasFieldUpdates = Object.keys(fields).length > 0;
 			let contentMutated = false;
@@ -434,13 +447,13 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 
 					const hasSeo = await assertSeoEnabled(trxSeoRepo, collection, seo);
 
-					// Pass the `data` payload to ContentRepository.update only when
+					// Pass the `data` payload to ContentRepository.updateDraftAware only when
 					// there are field updates — passing an empty object would still
 					// bump updated_at/version, but we want a seo-only call to touch
-					// only the SEO table. ContentRepository.update handles the no-op
-					// path by returning the current row.
+					// only the SEO table. updateDraftAware delegates no-op writes to
+					// ContentRepository.update.
 					const item = hasFieldUpdates
-						? await trxContentRepo.update(collection, id, { data: fields })
+						? await trxContentRepo.updateDraftAware(collection, id, { data: fields })
 						: await (async () => {
 								const existing = await trxContentRepo.findById(collection, id);
 								if (!existing) throw new Error("Content not found");
@@ -483,6 +496,7 @@ export function createContentAccessWithWrite(db: Kysely<Database>): ContentAcces
 		},
 
 		async delete(collection: string, id: string): Promise<boolean> {
+			await beforeContentWrite?.();
 			const contentRepo = new ContentRepository(db);
 			const deleted = await contentRepo.delete(collection, id);
 			if (deleted) {
@@ -990,6 +1004,7 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
+	beforeContentWrite?: () => Promise<void>;
 	/**
 	 * Resolver for the database connection, preferred over `db` when present.
 	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
@@ -1044,6 +1059,7 @@ export interface PluginContextFactoryOptions {
  */
 export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
+	private beforeContentWrite?: () => Promise<void>;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -1063,6 +1079,7 @@ export class PluginContextFactory {
 	constructor(options: PluginContextFactoryOptions) {
 		const fixedDb = options.db;
 		this.resolveDb = options.getDb ?? (() => fixedDb);
+		this.beforeContentWrite = options.beforeContentWrite;
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -1095,7 +1112,7 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(db);
+			content = createContentAccessWithWrite(db, this.beforeContentWrite);
 		} else if (capabilities.has("content:read")) {
 			content = createContentAccess(db);
 		}

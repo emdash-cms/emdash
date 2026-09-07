@@ -41,6 +41,7 @@
 import type { Permission } from "@emdash-cms/auth";
 import type { ZodType } from "zod";
 
+import type { SandboxHookErrorEnvelope } from "./plugins/sandbox/hook-result.js";
 import type {
 	CommentAfterCreateEvent,
 	CommentAfterCreateHandler,
@@ -86,6 +87,7 @@ import type {
 	PluginContext,
 	UninstallEvent,
 	UninstallHandler,
+	UserInfo,
 } from "./plugins/types.js";
 
 /**
@@ -178,6 +180,13 @@ export interface SandboxedRouteContext {
 	input: unknown;
 	request: SandboxedRequest;
 	requestMeta?: unknown;
+	/**
+	 * Authenticated caller, if the route is private. Resolved and
+	 * authorized by the host before dispatch — trust it over any user id
+	 * in the request body. `undefined` for public routes and for machine
+	 * tokens with no bound user.
+	 */
+	user?: UserInfo;
 }
 
 /**
@@ -232,11 +241,27 @@ export interface SandboxedMcpTool {
  */
 export interface SandboxedPlugin {
 	hooks?: {
-		[K in keyof HookHandlers]?: HookEntry<K>;
+		[K in keyof HookHandlers]?: K extends "content:beforeSave"
+			? SandboxedContentBeforeSaveHandler | SandboxedContentBeforeSaveConfig
+			: HookEntry<K>;
 	};
 	routes?: Record<string, RouteEntry>;
 	mcp?: { tools: Record<string, SandboxedMcpTool> };
 }
+
+export type SandboxedContentBeforeSaveHandler = (
+	event: ContentHookEvent,
+	ctx: PluginContext,
+) => Promise<Record<string, unknown> | SandboxHookErrorEnvelope | void>;
+
+export interface SandboxedContentBeforeSaveConfig extends Omit<
+	HookConfig<"content:beforeSave">,
+	"handler"
+> {
+	handler: SandboxedContentBeforeSaveHandler;
+}
+
+export type { SandboxHookErrorEnvelope };
 
 /**
  * Re-export of event types so plugin authors can reference them

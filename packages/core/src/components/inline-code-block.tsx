@@ -2,19 +2,48 @@
  * Code block node view for the inline (visual editing) Portable Text editor.
  *
  * Mirrors the admin editor's `CodeBlockNode` but with no Kumo/Lingui deps,
- * so it can ship as part of the SSR runtime. Wraps the base
- * `@tiptap/extension-code-block` and overlays a small inline language picker
- * in the top-right corner of each code block.
+ * so it can ship as part of the SSR runtime. Wraps the Lowlight code block and
+ * overlays a small inline language picker in the top-right corner of each code
+ * block.
  *
  * Keep the language list in sync with
  * `packages/admin/src/components/editor/codeBlockLanguages.ts`. Duplicated
  * here so packages/core stays independent of the admin package.
  */
 
-import CodeBlock from "@tiptap/extension-code-block";
+import { CodeBlockLowlight } from "@tiptap/extension-code-block-lowlight";
 import type { NodeViewProps } from "@tiptap/react";
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react";
+import dockerfile from "highlight.js/lib/languages/dockerfile";
+import { common, createLowlight } from "lowlight";
 import * as React from "react";
+
+const INLINE_CODE_BLOCK_LOWLIGHT_KEY = Symbol.for("emdash:inline-code-block-lowlight");
+const globalStore = globalThis as Record<symbol, unknown>;
+const lowlight =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+	(globalStore[INLINE_CODE_BLOCK_LOWLIGHT_KEY] as ReturnType<typeof createLowlight> | undefined) ??
+	(() => {
+		const instance = createLowlight(common);
+		instance.register({ dockerfile });
+		globalStore[INLINE_CODE_BLOCK_LOWLIGHT_KEY] = instance;
+		return instance;
+	})();
+
+const editorLowlight = {
+	highlight(language: string, value: string) {
+		return lowlight.highlight(lowlight.registered(language) ? language : "plaintext", value);
+	},
+	highlightAuto(value: string) {
+		return lowlight.highlight("plaintext", value);
+	},
+	listLanguages() {
+		return lowlight.listLanguages();
+	},
+	registered(language: string) {
+		return lowlight.registered(language);
+	},
+};
 
 interface CodeBlockLanguage {
 	id: string;
@@ -40,6 +69,7 @@ const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
 	{ id: "json", label: "JSON" },
 	{ id: "jsx", label: "JSX" },
 	{ id: "kotlin", label: "Kotlin", aliases: ["kt"] },
+	{ id: "lua", label: "Lua" },
 	{ id: "markdown", label: "Markdown", aliases: ["md"] },
 	{ id: "mdx", label: "MDX" },
 	{ id: "php", label: "PHP" },
@@ -56,6 +86,7 @@ const CODE_BLOCK_LANGUAGES: readonly CodeBlockLanguage[] = [
 	{ id: "vue", label: "Vue" },
 	{ id: "xml", label: "XML" },
 	{ id: "yaml", label: "YAML", aliases: ["yml"] },
+	{ id: "zig", label: "Zig" },
 ];
 
 function findLanguage(value: string | null | undefined): CodeBlockLanguage | null {
@@ -96,6 +127,36 @@ function languageLabel(value: string | null | undefined): string {
 	return value;
 }
 
+async function copyTextToClipboard(text: string, shouldUseFallback: () => boolean): Promise<void> {
+	if (navigator.clipboard?.writeText) {
+		try {
+			await navigator.clipboard.writeText(text);
+			return;
+		} catch {}
+	}
+	if (!shouldUseFallback()) return;
+	const activeElement = document.activeElement;
+	const selection = document.getSelection();
+	const previousRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+	const textarea = document.createElement("textarea");
+	textarea.value = text;
+	textarea.readOnly = true;
+	textarea.dataset.emdashClipboardFallback = "";
+	textarea.style.position = "fixed";
+	textarea.style.opacity = "0";
+	document.body.append(textarea);
+	textarea.select();
+	try {
+		if (!document.execCommand("copy")) throw new Error("Clipboard copy failed");
+	} finally {
+		textarea.remove();
+		if (activeElement instanceof HTMLElement && activeElement.isConnected) activeElement.focus();
+		if (previousRange) {
+			selection?.removeAllRanges();
+			selection?.addRange(previousRange);
+		}
+	}
+}
 function CodeBlockLanguageDatalist({ id }: { id: string }) {
 	return (
 		<datalist id={id}>
@@ -156,13 +217,15 @@ function XIcon() {
 	);
 }
 
-function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewProps) {
+function InlineCodeBlockNodeView({ node, updateAttributes }: NodeViewProps) {
 	const [isEditing, setIsEditing] = React.useState(false);
-	const [isHovered, setIsHovered] = React.useState(false);
+	const [copyStatus, setCopyStatus] = React.useState<"idle" | "copied" | "failed">("idle");
 	const storedLanguage = typeof node.attrs.language === "string" ? node.attrs.language : "";
 	const [draft, setDraft] = React.useState(storedLanguage);
 	const inputRef = React.useRef<HTMLInputElement>(null);
 	const popoverRef = React.useRef<HTMLDivElement>(null);
+	const copyResetTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+	const copyRequestId = React.useRef(0);
 	// Per-instance datalist id so multiple code blocks (or multiple inline
 	// editors) on the same page don't create duplicate DOM ids.
 	const datalistId = React.useId();
@@ -211,17 +274,37 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 		document.addEventListener("mousedown", onMouseDown);
 		return () => document.removeEventListener("mousedown", onMouseDown);
 	}, [isEditing, closePicker]);
+	React.useEffect(
+		() => () => {
+			copyRequestId.current += 1;
+			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+		},
+		[],
+	);
+	const copyCode = React.useCallback(async () => {
+		const requestId = ++copyRequestId.current;
+		setCopyStatus("idle");
+		try {
+			await copyTextToClipboard(node.textContent, () => requestId === copyRequestId.current);
+			if (requestId !== copyRequestId.current) return;
+			setCopyStatus("copied");
+			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+			copyResetTimer.current = setTimeout(setCopyStatus, 1500, "idle");
+		} catch {
+			if (requestId !== copyRequestId.current) return;
+			if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+			setCopyStatus("failed");
+		}
+	}, [node.textContent]);
 
 	const label = languageLabel(storedLanguage);
-	const chipVisible = isHovered || selected || isEditing || Boolean(storedLanguage);
+	const copied = copyStatus === "copied";
+	const copyFailed = copyStatus === "failed";
 
 	return (
 		<NodeViewWrapper
 			className="emdash-inline-code-block"
 			data-language={storedLanguage || undefined}
-			style={{ position: "relative", margin: "1rem 0" }}
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
 		>
 			<CodeBlockLanguageDatalist id={datalistId} />
 			<pre className="emdash-code-block">
@@ -229,35 +312,20 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 			</pre>
 
 			<div
+				className="emdash-inline-code-block-controls-wrap"
+				data-persistent={isEditing || copyStatus !== "idle" ? "true" : "false"}
 				contentEditable={false}
-				style={{
-					position: "absolute",
-					top: "0.5rem",
-					insetInlineEnd: "0.5rem",
-					userSelect: "none",
-					zIndex: 1,
-					opacity: chipVisible ? 1 : 0,
-					pointerEvents: chipVisible ? "auto" : "none",
-					transition: "opacity 0.15s",
-				}}
-				// When the chip is hidden, also remove it from the tab order so
-				// keyboard users don't land on an invisible focus target.
-				// `inert` would be cleaner but isn't available on JSX HTMLDivElement
-				// types yet; aria-hidden + tabIndex on the button below cover the
-				// same need.
-				aria-hidden={chipVisible ? undefined : true}
 			>
 				{isEditing ? (
 					<div
 						ref={popoverRef}
+						className="emdash-inline-code-block-popover"
 						style={{
 							display: "flex",
 							alignItems: "center",
 							gap: "0.25rem",
 							padding: "0.25rem",
 							borderRadius: "0.375rem",
-							border: "1px solid rgba(0,0,0,0.1)",
-							background: "var(--emdash-inline-bg, #ffffff)",
 							boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
 						}}
 					>
@@ -268,17 +336,14 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 							value={draft}
 							onChange={(e) => setDraft(e.target.value)}
 							onKeyDown={handleKeyDown}
+							className="emdash-inline-code-block-language-input"
 							placeholder="Language"
 							aria-label="Language"
 							style={{
 								height: "1.75rem",
-								width: "10rem",
 								fontSize: "0.75rem",
 								padding: "0 0.5rem",
-								border: "1px solid rgba(0,0,0,0.15)",
 								borderRadius: "0.25rem",
-								background: "transparent",
-								color: "inherit",
 							}}
 						/>
 						<button
@@ -303,27 +368,74 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
 						</button>
 					</div>
 				) : (
-					<button
-						type="button"
-						tabIndex={chipVisible ? 0 : -1}
-						onMouseDown={(e) => e.preventDefault()}
-						onClick={openPicker}
-						title="Set language"
-						aria-label={`Set language (current: ${label})`}
+					<div
 						className="emdash-inline-code-block-chip"
 						style={{
-							padding: "0.125rem 0.5rem",
-							fontSize: "0.75rem",
-							borderRadius: "0.375rem",
-							border: "1px solid rgba(0,0,0,0.1)",
-							background: "rgba(255,255,255,0.9)",
-							color: "rgba(0,0,0,0.6)",
-							cursor: "pointer",
+							display: "inline-flex",
+							maxWidth: "min(100%, calc(100vw - 1rem))",
+							height: "26px",
+							fontSize: "13px",
 						}}
 					>
-						{storedLanguage ? label : "Set language"}
-					</button>
+						<button
+							type="button"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={openPicker}
+							title="Set language"
+							aria-label={`Set language (current: ${label})`}
+							style={{
+								minWidth: 0,
+								flexShrink: 1,
+								display: "inline-flex",
+								alignItems: "center",
+								gap: "0.25rem",
+								padding: "0 0.5rem",
+								border: 0,
+								background: "transparent",
+								color: "inherit",
+								font: "inherit",
+							}}
+						>
+							<span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+								{storedLanguage ? label : "Set language"}
+							</span>
+							<span style={{ flexShrink: 0 }} aria-hidden="true">
+								⌄
+							</span>
+						</button>
+						<button
+							type="button"
+							onMouseDown={(event) => event.preventDefault()}
+							onClick={copyCode}
+							title={copyFailed ? "Retry copy" : copied ? "Copied" : "Copy code"}
+							aria-label={copyFailed ? "Retry copy" : "Copy code"}
+							style={{
+								...iconButtonStyle,
+								height: "26px",
+								width: "26px",
+								flexShrink: 0,
+								borderInlineStart: "1px solid var(--emdash-code-border)",
+							}}
+						>
+							<span aria-hidden="true">
+								{copied ? <CheckIcon /> : copyFailed ? <XIcon /> : "⧉"}
+							</span>
+						</button>
+					</div>
 				)}
+				<span
+					role="status"
+					aria-live="polite"
+					style={{
+						position: "absolute",
+						width: 1,
+						height: 1,
+						overflow: "hidden",
+						clipPath: "inset(50%)",
+					}}
+				>
+					{copyFailed ? "Copy failed" : copied ? "Copied" : ""}
+				</span>
 			</div>
 		</NodeViewWrapper>
 	);
@@ -336,8 +448,27 @@ function InlineCodeBlockNodeView({ node, updateAttributes, selected }: NodeViewP
  * configure `StarterKit.configure({ codeBlock: false })` and add this
  * extension to the editor.
  */
-export const InlineCodeBlockExtension = CodeBlock.extend({
+export const InlineCodeBlockExtension = CodeBlockLowlight.extend({
+	addKeyboardShortcuts() {
+		const shortcuts = this.parent?.() ?? {};
+		const selectionIsInCodeBlock = () => {
+			const { $from, $to } = this.editor.state.selection;
+			return $from.parent.type === this.type && $from.sameParent($to);
+		};
+
+		return {
+			...shortcuts,
+			Tab: (props) => (selectionIsInCodeBlock() ? (shortcuts.Tab?.(props) ?? false) : false),
+			"Shift-Tab": (props) =>
+				selectionIsInCodeBlock() ? (shortcuts["Shift-Tab"]?.(props) ?? false) : false,
+		};
+	},
 	addNodeView() {
 		return ReactNodeViewRenderer(InlineCodeBlockNodeView);
 	},
+}).configure({
+	lowlight: editorLowlight,
+	defaultLanguage: "plaintext",
+	enableTabIndentation: true,
+	tabSize: 4,
 });

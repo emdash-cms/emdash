@@ -29,16 +29,23 @@ import {
 	Trophy,
 	ClockCounterClockwise,
 	IdentificationCard,
+	SquaresFour,
 } from "@phosphor-icons/react";
 import * as React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect } from "vitest";
 
 import {
 	BYLINE_SCHEMA_NAV_ITEM,
 	filterNavItemsByRole,
+	getSidebarTaxonomies,
+	isItemActive,
+	NavIcon,
+	resolveItemPath,
 	resolveNavIcon,
 	resolvePluginPageLabel,
 	toPhosphorIconName,
+	visibleCollectionEntries,
 } from "../../src/components/Sidebar";
 import { render } from "../utils/render.tsx";
 
@@ -49,6 +56,64 @@ const ROLE_CONTRIBUTOR = 20;
 const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 const ROLE_ADMIN = 50;
+
+describe("getSidebarTaxonomies", () => {
+	const taxonomies = [
+		{ id: "course-en", name: "course", label: "Courses", locale: "en", translationGroup: "course" },
+		{ id: "course-de", name: "course", label: "Gänge", locale: "de", translationGroup: "course" },
+		{
+			id: "course-fr",
+			name: "course",
+			label: "Types de plats",
+			locale: "fr",
+			translationGroup: "course",
+		},
+	];
+
+	it("renders one logical taxonomy using the active route locale", () => {
+		expect(getSidebarTaxonomies(taxonomies, "de").map((taxonomy) => taxonomy.label)).toEqual([
+			"Gänge",
+		]);
+	});
+
+	it("falls back to the configured default locale, then deterministically", () => {
+		expect(getSidebarTaxonomies(taxonomies, "it", "fr")[0]?.label).toBe("Types de plats");
+		expect(getSidebarTaxonomies(taxonomies, "it")[0]?.label).toBe("Gänge");
+	});
+});
+
+describe("resolveItemPath", () => {
+	it("preserves the active locale on taxonomy-management links", () => {
+		expect(
+			resolveItemPath({
+				to: "/taxonomies/$taxonomy",
+				label: "Gänge",
+				icon: Gear,
+				params: { taxonomy: "course" },
+				search: { locale: "de" },
+			}),
+		).toBe("/taxonomies/course?locale=de");
+	});
+});
+
+describe("isItemActive", () => {
+	it("matches taxonomy links independently of their locale query", () => {
+		expect(isItemActive("/taxonomies/course?locale=de", "/taxonomies/course")).toBe(true);
+	});
+});
+
+describe("NavIcon", () => {
+	it("uses Phosphor's filled variant while its navigation item is active", () => {
+		const inactiveIcon = renderToStaticMarkup(<NavIcon icon={SquaresFour} isActive={false} />);
+		const activeIcon = renderToStaticMarkup(<NavIcon icon={SquaresFour} isActive />);
+
+		expect(inactiveIcon).toBe(
+			renderToStaticMarkup(<SquaresFour weight="regular" aria-hidden="true" />),
+		);
+		expect(activeIcon).toBe(renderToStaticMarkup(<SquaresFour weight="fill" aria-hidden="true" />));
+		expect(activeIcon).not.toBe(inactiveIcon);
+	});
+});
 
 describe("BYLINE_SCHEMA_NAV_ITEM invariants", () => {
 	it("points to the /byline-schema route", () => {
@@ -102,6 +167,30 @@ describe("filterNavItemsByRole", () => {
 		// must strip every gated entry at role=0.
 		const visible = filterNavItemsByRole(items, 0).map((i) => i.to);
 		expect(visible).toEqual(["/"]);
+	});
+});
+
+describe("visibleCollectionEntries", () => {
+	const collections = {
+		posts: { label: "Posts" },
+		contact_submissions: { label: "Contact Submissions", hidden: true },
+		lead_notes: { label: "Lead Notes", hidden: true },
+		pages: { label: "Pages", hidden: false },
+	};
+
+	it("drops collections flagged hidden", () => {
+		expect(visibleCollectionEntries(collections).map(([slug]) => slug)).toEqual(["posts", "pages"]);
+	});
+
+	it("keeps manifest order for visible collections", () => {
+		expect(visibleCollectionEntries({ b: { label: "B" }, a: { label: "A" } })).toEqual([
+			["b", { label: "B" }],
+			["a", { label: "A" }],
+		]);
+	});
+
+	it("treats a missing hidden flag as visible", () => {
+		expect(visibleCollectionEntries({ posts: { label: "Posts" } })).toHaveLength(1);
 	});
 });
 

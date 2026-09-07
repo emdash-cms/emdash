@@ -13,7 +13,6 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { setupBody } from "#api/schemas.js";
 import { getAuthMode } from "#auth/mode.js";
-import { runMigrations } from "#db/migrations/runner.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 import { applySeed } from "#seed/apply.js";
 import { loadSeed } from "#seed/load.js";
@@ -45,24 +44,17 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 		const body = await parseBody(request, setupBody);
 		if (isParseError(body)) return body;
 
-		// 1. Run core migrations
-		try {
-			await runMigrations(emdash.db);
-		} catch (error) {
-			return handleError(error, "Failed to run database migrations", "MIGRATION_ERROR");
-		}
-
-		// 2. Load seed file (user seed or built-in default)
+		// Load seed file (user seed or built-in default)
 		const seed = await loadSeed();
 
-		// 3. Override seed settings with form values
+		// Override seed settings with form values
 		seed.settings = {
 			...seed.settings,
 			title: body.title,
 			tagline: body.tagline,
 		};
 
-		// 4. Apply seed
+		// Apply seed
 		const validation = validateSeed(seed);
 		if (!validation.valid) {
 			return apiError("INVALID_SEED", `Invalid seed file: ${validation.errors.join(", ")}`, 400);
@@ -79,7 +71,7 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 			return handleError(error, "Failed to apply seed", "SEED_ERROR");
 		}
 
-		// 5. Store setup state
+		// Store setup state
 		// In external auth mode, mark setup complete immediately (first user to login becomes admin)
 		// Otherwise, setup_complete is set after admin user is created (passkey or auth provider)
 		const authMode = getAuthMode(emdash.config);
@@ -117,7 +109,7 @@ export const POST: APIRoute = async ({ request, url, locals }) => {
 			// Non-fatal - continue anyway
 		}
 
-		// 6. Return success with result
+		// Return success with result
 		return apiSuccess({
 			success: true,
 			// In external auth mode, setup is complete - redirect to admin

@@ -8,9 +8,10 @@
  *
  */
 
+import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
-import type { ResolvedPlugin, RouteContext, PluginRoute } from "./types.js";
+import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./types.js";
 
 /**
  * Body-reading methods on `Request`. EmDash parses the request body once before
@@ -83,6 +84,40 @@ export function buildRouteMeta(route: {
 }
 
 /**
+ * HTTP methods that carry a request body. Everything else (GET, HEAD, DELETE)
+ * takes its route input from the URL query string.
+ */
+const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
+
+/**
+ * Parse a plugin route's input from the request, by method.
+ *
+ * Body methods (POST/PUT/PATCH) parse the JSON body as before. Bodyless
+ * methods (GET/HEAD/DELETE) have no body, so `request.json()` resolves to
+ * undefined and fails schema validation (#2146) — parse the query string into
+ * an object instead. Repeated keys (`?tag=a&tag=b`) become an array so array
+ * schemas work; a single key stays a scalar.
+ */
+export async function parseRouteInput(request: Request): Promise<unknown> {
+	if (BODY_METHODS.has(request.method.toUpperCase())) {
+		try {
+			return await request.json();
+		} catch {
+			// No body or not JSON
+			return undefined;
+		}
+	}
+
+	const params = new URL(request.url).searchParams;
+	const input: Record<string, string | string[]> = {};
+	for (const key of new Set(params.keys())) {
+		const values = params.getAll(key);
+		input[key] = values.length > 1 ? values : values[0];
+	}
+	return input;
+}
+
+/**
  * Result from a route invocation
  */
 export interface RouteResult<T = unknown> {
@@ -97,6 +132,34 @@ export interface RouteResult<T = unknown> {
 }
 
 /**
+ * Host-side user shape accepted when dispatching a plugin route. Structurally
+ * matches `User` from `@emdash-cms/auth` so hosts can pass `locals.user`
+ * directly without the plugin layer depending on the auth package.
+ */
+export interface RouteCallerInput {
+	id: string;
+	email: string;
+	name: string | null;
+	role: number;
+	createdAt: Date | string;
+}
+
+/**
+ * Convert the host's authenticated user into the read-only `UserInfo` shape
+ * exposed to plugins as `ctx.user`. Strips sensitive/irrelevant fields and
+ * keeps the value structured-clone-safe for sandboxed plugins.
+ */
+export function toRouteCallerInfo(user: RouteCallerInput): UserInfo {
+	return {
+		id: user.id,
+		email: user.email,
+		name: user.name,
+		role: user.role,
+		createdAt: typeof user.createdAt === "string" ? user.createdAt : user.createdAt.toISOString(),
+	};
+}
+
+/**
  * Route invocation options
  */
 export interface InvokeRouteOptions {
@@ -104,6 +167,11 @@ export interface InvokeRouteOptions {
 	request: Request;
 	/** Request body (already parsed) */
 	body?: unknown;
+	/**
+	 * Authenticated caller resolved by the host, exposed to the handler as
+	 * `ctx.user`. Undefined for public routes and unbound machine tokens.
+	 */
+	user?: UserInfo;
 }
 
 /**
@@ -167,6 +235,7 @@ export class PluginRouteHandler {
 			// (#1293). Metadata extraction uses the original request (headers only).
 			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
+			user: options.user,
 		};
 
 		// Execute handler
@@ -178,6 +247,13 @@ export class PluginRouteHandler {
 				status: 200,
 			};
 		} catch (error) {
+			if (error instanceof MediaUsageActivationWriteBlockedError) {
+				return {
+					success: false,
+					error: { code: error.code, message: error.message },
+					status: error.status,
+				};
+			}
 			// Handle known error types
 			if (error instanceof PluginRouteError) {
 				return {

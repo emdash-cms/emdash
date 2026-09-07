@@ -40,6 +40,39 @@ describe("isBlockedInPlayground", () => {
 		});
 	});
 
+	it.each([
+		["POST", "/_emdash/api/media"],
+		["POST", "/_emdash/api/import/wordpress/media"],
+		["POST", "/_emdash/api/media/upload-url"],
+		["PUT", "/_emdash/api/media/media-id/upload"],
+		["POST", "/_emdash/api/media/media-id/confirm"],
+		["DELETE", "/_emdash/api/media/media-id"],
+		["POST", "/_emdash/api/media/providers/local"],
+		["DELETE", "/_emdash/api/media/providers/local/media-id"],
+		["DELETE", "/_emdash/api/media/media-id/"],
+		["DELETE", "/_emdash/api/media/providers/local/media-id/"],
+	])("blocks %s %s", (method, path) => {
+		expect(isBlockedInPlayground(path, method)).toBe(true);
+	});
+
+	it.each([
+		["GET", "/_emdash/api/media"],
+		["GET", "/_emdash/api/media/media-id"],
+		["PUT", "/_emdash/api/media/media-id"],
+		["GET", "/_emdash/api/media/providers/local"],
+		["GET", "/_emdash/api/media/providers/local/media-id"],
+	])("allows %s %s", (method, path) => {
+		expect(isBlockedInPlayground(path, method)).toBe(false);
+	});
+
+	it("normalizes slash-heavy paths without excessive backtracking", () => {
+		const pathname = `${"/".repeat(64_000)}x`;
+		const startedAt = performance.now();
+
+		expect(isBlockedInPlayground(pathname)).toBe(false);
+		expect(performance.now() - startedAt).toBeLessThan(250);
+	});
+
 	describe("allowed routes", () => {
 		it.each([
 			// Site pages

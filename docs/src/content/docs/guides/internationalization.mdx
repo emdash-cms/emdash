@@ -168,6 +168,34 @@ Translating a piece of content automatically inherits the source's term
 assignments — you only need to translate the *terms themselves* once, and every
 post that uses them resolves to the right locale at read time.
 
+#### Repairing taxonomy locale mismatches
+
+When the admin loads its site manifest, EmDash warns in the server logs when
+taxonomy definitions or terms use a locale that is not in the site's configured
+`i18n.locales`. Without an `i18n` configuration, `en` is the effective locale.
+These rows are left unchanged because EmDash cannot infer which configured
+locale the existing content was meant to use.
+
+Back up the database, then inspect the affected rows named in the warning:
+
+```sql
+SELECT id, name, locale FROM _emdash_taxonomy_defs ORDER BY name, locale;
+SELECT id, name, slug, locale FROM taxonomies ORDER BY name, slug, locale;
+```
+
+After confirming the intended locale for each row, update it by `id`:
+
+```sql
+UPDATE _emdash_taxonomy_defs SET locale = 'ja' WHERE id = '<definition-id>';
+UPDATE taxonomies SET locale = 'ja' WHERE id = '<term-id>';
+```
+
+Use the exact casing from `i18n.locales`. Before updating, check for a row with
+the same taxonomy name and target locale, or the same term name, slug, and target
+locale. Those combinations are unique; if a target row already exists, reconcile
+the translations instead of applying a bulk locale update. Restart EmDash and
+confirm that the warning no longer appears.
+
 ### Collection listing
 
 Filter a collection by locale:

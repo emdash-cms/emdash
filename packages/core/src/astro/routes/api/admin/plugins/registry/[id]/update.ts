@@ -16,6 +16,7 @@ import { z } from "zod";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleRegistryUpdate } from "#api/index.js";
+import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 
 import { VERSION } from "../../../../../../../version.js";
@@ -37,6 +38,8 @@ const updateBodySchema = z.object({
 	 */
 	confirmRouteVisibilityChanges: z.boolean().optional(),
 	confirmMcpTools: z.boolean().optional(),
+	acknowledgedProfileCid: z.string().min(1).max(256).optional(),
+	acknowledgedReleaseCid: z.string().min(1).max(256).optional(),
 });
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
@@ -50,6 +53,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 		const denied = requirePerm(user, "plugins:manage");
 		if (denied) return denied;
+
+		const activationFence = await checkMediaUsageActivationWriteFence(emdash.db);
+		if (activationFence) return activationFence;
 
 		if (!id) {
 			return apiError("INVALID_REQUEST", "Plugin ID required", 400);
@@ -69,6 +75,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				confirmCapabilityChanges: body.confirmCapabilityChanges,
 				confirmRouteVisibilityChanges: body.confirmRouteVisibilityChanges,
 				confirmMcpTools: body.confirmMcpTools,
+				acknowledgedProfileCid: body.acknowledgedProfileCid,
+				acknowledgedReleaseCid: body.acknowledgedReleaseCid,
 				hostEnv: hostEnvFromVersions(VERSION, emdash.config.astroVersion),
 			},
 		);

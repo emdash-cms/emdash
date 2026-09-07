@@ -15,6 +15,52 @@ describe("OpenAPI spec validation", () => {
 		expect(validated.info.title).toBe("EmDash CMS API");
 	});
 
+	it("documents media replacement and deduplication controls", async () => {
+		const dereferenced = await SwaggerParser.dereference(
+			structuredClone(generateOpenApiDocument()),
+		);
+		const paths = (dereferenced as { paths?: Record<string, Record<string, unknown>> }).paths ?? {};
+		const requestSchema = (
+			path: string,
+			method: string,
+			contentType: string,
+		): { properties?: Record<string, Record<string, unknown>>; required?: string[] } => {
+			const operation = paths[path]?.[method] as
+				| {
+						requestBody?: {
+							content?: Record<
+								string,
+								{
+									schema?: {
+										properties?: Record<string, Record<string, unknown>>;
+										required?: string[];
+									};
+								}
+							>;
+						};
+				  }
+				| undefined;
+			return operation?.requestBody?.content?.[contentType]?.schema ?? {};
+		};
+
+		const replacement = requestSchema(
+			"/_emdash/api/media/{id}/replace",
+			"put",
+			"multipart/form-data",
+		);
+		expect(replacement.required).toEqual(expect.arrayContaining(["file", "width", "height"]));
+		expect(replacement.properties?.file).toMatchObject({ type: "string", format: "binary" });
+
+		const signedUpload = requestSchema("/_emdash/api/media/upload-url", "post", "application/json");
+		expect(signedUpload.properties?.deduplicate).toMatchObject({ type: "boolean" });
+
+		const directUpload = requestSchema("/_emdash/api/media", "post", "multipart/form-data");
+		expect(directUpload.properties?.deduplicate).toMatchObject({
+			type: "string",
+			enum: ["true", "false"],
+		});
+	});
+
 	it("resolves all $ref pointers without errors", async () => {
 		const doc = generateOpenApiDocument();
 

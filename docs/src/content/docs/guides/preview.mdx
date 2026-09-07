@@ -315,7 +315,7 @@ if (!entry) {
           {entry.data.publishedAt.toLocaleDateString()}
         </time>
       )}
-      {isPreview && !entry.data.publishedAt && (
+      {isPreview && entry.data.status === "draft" && (
         <span class="draft-indicator">Draft</span>
       )}
     </header>

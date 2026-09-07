@@ -50,6 +50,7 @@ export interface ContentItem {
 		byline: BylineSummary;
 		sortOrder: number;
 		roleLabel: string | null;
+		source?: "explicit" | "inferred";
 	}>;
 	createdAt: string;
 	updatedAt: string;
@@ -58,11 +59,17 @@ export interface ContentItem {
 	liveRevisionId: string | null;
 	draftRevisionId: string | null;
 	seo?: ContentSeo;
+	/**
+	 * Opaque optimistic-concurrency token returned by the content API on
+	 * reads. Echo it back on writes so the server can reject a save that is
+	 * based on a stale read (#2121). Undefined if the server didn't send one.
+	 */
+	_rev?: string;
 }
 
 export interface CreateContentInput {
 	type: string;
-	slug?: string;
+	slug?: string | null;
 	data: Record<string, unknown>;
 	status?: string;
 	bylines?: BylineCreditInput[];
@@ -105,7 +112,7 @@ export interface ContentSeoInput {
 
 export interface UpdateContentInput {
 	data?: Record<string, unknown>;
-	slug?: string;
+	slug?: string | null;
 	status?: string;
 	publishedAt?: string | null;
 	authorId?: string | null;
@@ -113,6 +120,13 @@ export interface UpdateContentInput {
 	/** Skip revision creation (used by autosave) */
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
+	/**
+	 * Optimistic-concurrency token from the last read. When present, the
+	 * server rejects the write with 409 if the entry changed since that read,
+	 * preventing a stale editor from silently overwriting a newer draft
+	 * (#2121). Omit for a blind write (backwards-compatible).
+	 */
+	_rev?: string;
 }
 
 /**
@@ -147,7 +161,7 @@ export async function fetchContentList(
 		orderBy?: string;
 		/** Sort direction; defaults to "desc" on the server. */
 		order?: "asc" | "desc";
-		/** Case-insensitive substring search across title/name/slug. */
+		/** Search across display fields, slug, and searchable custom fields. */
 		search?: string;
 		/** Filter to entries authored by this user (the `author_id` column). */
 		authorId?: string;
@@ -157,6 +171,18 @@ export async function fetchContentList(
 		dateFrom?: string;
 		/** Inclusive upper bound (ISO date or datetime). Requires `dateField`. */
 		dateTo?: string;
+		/**
+		 * Byline ids (translation groups) to match; an entry matches if it is
+		 * credited to any of them. Ignored when `bylinesNone` is set.
+		 */
+		bylines?: string[];
+		/** Match entries with no byline instead of a specific one. */
+		bylinesNone?: boolean;
+		/**
+		 * Count the byline inferred from an entry's author when it has no
+		 * explicit credit. Off by default: the filter matches real credits.
+		 */
+		includeInferredBylines?: boolean;
 	},
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
@@ -174,6 +200,16 @@ export async function fetchContentList(
 		params.set("dateField", options.dateField);
 		if (options.dateFrom) params.set("dateFrom", options.dateFrom);
 		if (options.dateTo) params.set("dateTo", options.dateTo);
+	}
+	// `none` is the server's sentinel for "no byline assigned"; it takes
+	// precedence over a stale selection so the two can't be sent together.
+	if (options?.bylinesNone) {
+		params.set("bylines", "none");
+	} else if (options?.bylines && options.bylines.length > 0) {
+		params.set("bylines", options.bylines.join(","));
+	}
+	if (options?.includeInferredBylines && (options.bylinesNone || options.bylines?.length)) {
+		params.set("includeInferredBylines", "1");
 	}
 
 	const url = `${API_BASE}/content/${collection}${params.toString() ? `?${params}` : ""}`;
@@ -215,8 +251,13 @@ export async function fetchContent(
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString() ? `?${params}` : "";
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}${query}`);
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to fetch content");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to fetch content",
+	);
+	// The server returns `_rev` at the envelope level, not inside `item`.
+	// Lift it onto the item so the editor can echo it back on save (#2121).
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -238,8 +279,11 @@ export async function createContent(
 			translationOf: input.translationOf,
 		}),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to create content");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to create content",
+	);
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -259,8 +303,11 @@ export async function updateContent(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(input),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to update content");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to update content",
+	);
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -354,11 +401,11 @@ export async function scheduleContent(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ scheduledAt }),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to schedule content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -375,11 +422,11 @@ export async function unscheduleContent(
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/schedule${query}`, {
 		method: "DELETE",
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to unschedule content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -440,16 +487,21 @@ export async function getPreviewUrl(
 export async function publishContent(
 	collection: string,
 	id: string,
-	options?: { locale?: string },
+	options?: { locale?: string; _rev?: string },
 ): Promise<ContentItem> {
 	const params = new URLSearchParams();
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString() ? `?${params}` : "";
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/publish${query}`, {
 		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ _rev: options?._rev }),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to publish content");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to publish content",
+	);
+	return { ...data.item, _rev: data._rev };
 }
 
 /**

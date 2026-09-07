@@ -64,10 +64,10 @@ Write `seed/seed.json` with collections, fields, taxonomies, menus, widgets, and
 ### 6. Run and verify
 
 ```bash
-npx emdash dev          # Start dev server (runs migrations + seeds, and generates types)
+pnpm dev                # Start the Astro dev server
 ```
 
-The admin UI is at `http://localhost:4321/_emdash/admin`.
+The runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts. The admin UI is at `http://localhost:4321/_emdash/admin`.
 
 ## Quick API Cheat Sheet
 
@@ -102,13 +102,12 @@ import { getByline, getBylineBySlug } from "emdash";
 import {
 	PortableText,
 	Image,
-	Comments,
-	CommentForm,
 	WidgetArea,
 	EmDashHead,
 	EmDashBodyStart,
 	EmDashBodyEnd,
 } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
 import LiveSearch from "emdash/ui/search";
 
 // Page context (for plugin contributions)

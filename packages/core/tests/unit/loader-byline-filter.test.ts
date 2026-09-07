@@ -4,7 +4,7 @@ import { it, expect, beforeEach, afterEach } from "vitest";
 import { handleContentCreate } from "../../src/api/index.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader } from "../../src/loader.js";
+import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import {
@@ -24,6 +24,12 @@ describeEachDialect("Loader byline credit filter", (dialectName: DialectName) =>
 		ctx = await setupForDialectWithCollections(dialectName);
 		db = ctx.db;
 		creditSeq = 0;
+		await db
+			.updateTable("_emdash_taxonomy_defs")
+			.set({ collections: JSON.stringify(["post"]) })
+			.where("name", "in", ["category", "tag"])
+			.execute();
+		resetTaxonomyNamesCache();
 		// Add a 'series' field so we can test byline + field combinations.
 		const registry = new SchemaRegistry(db);
 		await registry.createField("post", {

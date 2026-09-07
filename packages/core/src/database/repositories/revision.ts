@@ -51,6 +51,26 @@ export class RevisionRepository {
 		if (!revision) {
 			throw new Error("Failed to create revision");
 		}
+
+		try {
+			await this.db
+				.insertInto("_emdash_revision_prune_queue")
+				.values({
+					collection: input.collection,
+					entry_id: input.entryId,
+					revision_id: id,
+				})
+				.onConflict((conflict) =>
+					conflict.columns(["collection", "entry_id"]).doUpdateSet({ revision_id: id }),
+				)
+				.execute();
+		} catch (error) {
+			console.error(
+				`[revisions] Failed to queue revision pruning for ${input.collection}/${input.entryId}:`,
+				error,
+			);
+		}
+
 		return revision;
 	}
 
@@ -133,34 +153,58 @@ export class RevisionRepository {
 			.where("entry_id", "=", entryId)
 			.executeTakeFirst();
 
+		try {
+			await this.db
+				.deleteFrom("_emdash_revision_prune_queue")
+				.where("collection", "=", collection)
+				.where("entry_id", "=", entryId)
+				.execute();
+		} catch (error) {
+			console.error(
+				`[revisions] Failed to clear queued revision pruning for ${collection}/${entryId}:`,
+				error,
+			);
+		}
+
 		return Number(result.numDeletedRows ?? 0);
 	}
 
 	/**
 	 * Delete old revisions, keeping the most recent N
 	 */
-	async pruneOldRevisions(collection: string, entryId: string, keepCount: number): Promise<number> {
+	async pruneOldRevisions(
+		collection: string,
+		entryId: string,
+		keepCount: number,
+		throughRevisionId?: string,
+	): Promise<number> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
-		// Get IDs of revisions to keep
-		const keep = await this.db
+		let keepQuery = this.db
 			.selectFrom("revisions")
 			.select("id")
 			.where("collection", "=", collection)
 			.where("entry_id", "=", entryId)
 			.orderBy("created_at", "desc")
 			.orderBy("id", "desc") // ULID tiebreaker
-			.limit(keepCount)
-			.execute();
+			.limit(keepCount);
+
+		if (throughRevisionId) {
+			keepQuery = keepQuery.where("id", "<=", throughRevisionId);
+		}
+
+		const keep = await keepQuery.execute();
 
 		const keepIds = keep.map((r) => r.id);
 
 		if (keepIds.length === 0) return 0;
+		const revisionBoundary = throughRevisionId ? sql`AND id <= ${throughRevisionId}` : sql``;
 
 		const result = await sql`
 			DELETE FROM revisions
 			WHERE collection = ${collection}
 			AND entry_id = ${entryId}
+			${revisionBoundary}
 			AND id NOT IN (${sql.join(keepIds.map((id) => sql`${id}`))})
 			AND NOT EXISTS (
 				SELECT 1 FROM ${sql.ref(tableName)} AS content
@@ -170,6 +214,22 @@ export class RevisionRepository {
 		`.execute(this.db);
 
 		return Number(result.numAffectedRows ?? 0);
+	}
+
+	async pruneQueuedEntry(
+		collection: string,
+		entryId: string,
+		queuedRevisionId: string,
+		keepCount: number,
+	): Promise<number> {
+		const pruned = await this.pruneOldRevisions(collection, entryId, keepCount, queuedRevisionId);
+		await this.db
+			.deleteFrom("_emdash_revision_prune_queue")
+			.where("collection", "=", collection)
+			.where("entry_id", "=", entryId)
+			.where("revision_id", "=", queuedRevisionId)
+			.execute();
+		return pruned;
 	}
 
 	async deleteIfUnreferenced(

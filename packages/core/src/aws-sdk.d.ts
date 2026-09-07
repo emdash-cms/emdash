@@ -64,6 +64,7 @@ declare module "@aws-sdk/client-s3" {
 			Body?: unknown;
 			ContentType?: string;
 			ContentLength?: number;
+			CacheControl?: string;
 		});
 	}
 

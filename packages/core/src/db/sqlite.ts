@@ -1,14 +1,14 @@
 /**
  * SQLite runtime adapter
  *
- * Creates a Kysely dialect for better-sqlite3.
+ * Creates a Kysely dialect for Node's built-in SQLite driver.
  * Loaded at runtime via virtual module.
  */
 
-import BetterSqlite3 from "better-sqlite3";
 import { type Dialect, SqliteDialect } from "kysely";
 
 import type { SqliteConfig } from "./adapters.js";
+import { openNodeSqliteDatabase } from "./node-sqlite-compat.js";
 
 /**
  * Create a SQLite dialect from config
@@ -18,7 +18,7 @@ export function createDialect(config: SqliteConfig): Dialect {
 	const url = config.url;
 	const filePath = url.startsWith("file:") ? url.slice(5) : url;
 
-	const database = new BetterSqlite3(filePath);
+	const database = openNodeSqliteDatabase(filePath);
 
 	return new SqliteDialect({ database });
 }

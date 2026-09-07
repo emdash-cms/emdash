@@ -85,7 +85,7 @@ function EditorThenSettings() {
 	const [settingsOpen, setSettingsOpen] = React.useState(false);
 	return (
 		<>
-			<TaxonomySidebar collection="posts" />
+			<TaxonomySidebar collection="posts" canManageTaxonomies />
 			<button type="button" onClick={() => setSettingsOpen(true)}>
 				Open settings
 			</button>

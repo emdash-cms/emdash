@@ -3,7 +3,7 @@
  *
  * API correctness:
  *   1. Media metadata updates (alt text, dimensions) save and persist
- *   2. Upload success toast only appears after upload completes
+ *   2. Upload success feedback only appears after upload completes
  *   3. Taxonomy term deletion shows ConfirmDialog (not browser confirm)
  *
  * Content editor performance:
@@ -12,6 +12,8 @@
 
 import { writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+
+import type { Page } from "@playwright/test";
 
 import { test, expect } from "../fixtures";
 
@@ -23,6 +25,8 @@ const MEDIA_PUT_PATTERN = /\/api\/media\//;
 const TAXONOMY_DELETE_PATTERN = /\/api\/taxonomies\//;
 const ALT_LABEL_PATTERN = /alt/i;
 const SAVE_BUTTON_PATTERN = /save/i;
+const UPLOAD_BUTTON_PATTERN = /Upload/;
+const BROWSE_FILES_LABEL = "Browse files to upload";
 // ---------- helpers ----------
 
 const TEST_ASSETS_DIR = join(process.cwd(), "e2e/fixtures/assets");
@@ -53,6 +57,25 @@ function apiHeaders(token: string, baseUrl: string) {
 	};
 }
 
+async function uploadTestImage(page: Page, testImagePath: string) {
+	await page.getByRole("button", { name: UPLOAD_BUTTON_PATTERN }).first().click();
+	const dialog = page.getByRole("dialog");
+	await expect(dialog).toBeVisible();
+
+	const uploadResponse = page.waitForResponse(
+		(res) =>
+			MEDIA_API_PATTERN.test(res.url()) &&
+			res.request().method() === "POST" &&
+			res.status() === 200,
+		{ timeout: 10000 },
+	);
+	await dialog.getByLabel(BROWSE_FILES_LABEL).setInputFiles(testImagePath);
+	await uploadResponse;
+	await expect(dialog.getByText("Complete", { exact: true })).toBeVisible();
+	await dialog.getByRole("button", { name: "Done" }).click();
+	await expect(dialog).not.toBeVisible();
+}
+
 // ==========================================================================
 // Media metadata updates save and persist (updateMedia return path fix)
 // ==========================================================================
@@ -69,15 +92,11 @@ test.describe("Media metadata updates", () => {
 		await admin.goToMedia();
 		await admin.waitForLoading();
 
-		const fileInput = page.locator('input[type="file"]');
-		await fileInput.setInputFiles(testImagePath);
-		await page.waitForResponse((res) => MEDIA_API_PATTERN.test(res.url()) && res.status() === 200, {
-			timeout: 10000,
-		});
+		await uploadTestImage(page, testImagePath);
 		await admin.waitForLoading();
 
 		// Wait for the image to appear in the grid
-		const mediaGrid = page.locator(".grid.gap-4");
+		const mediaGrid = page.locator("[data-media-grid]");
 		await expect(mediaGrid.locator("img").first()).toBeVisible({ timeout: 5000 });
 
 		// Click the image to open the detail panel
@@ -128,6 +147,9 @@ test.describe("Upload completion timing", () => {
 		const testImagePath = ensureTestImage();
 		await admin.goToMedia();
 		await admin.waitForLoading();
+		await page.getByRole("button", { name: UPLOAD_BUTTON_PATTERN }).first().click();
+		const dialog = page.getByRole("dialog");
+		await expect(dialog).toBeVisible();
 
 		// Set up response listener BEFORE triggering upload
 		const uploadResponse = page.waitForResponse(
@@ -139,15 +161,14 @@ test.describe("Upload completion timing", () => {
 		);
 
 		// Trigger upload
-		const fileInput = page.locator('input[type="file"]');
-		await fileInput.setInputFiles(testImagePath);
+		await dialog.getByLabel(BROWSE_FILES_LABEL).setInputFiles(testImagePath);
 
 		// Should see uploading state (or at least no success yet while request is pending)
 		// Wait for the response to come back
 		await uploadResponse;
 
 		// Now success feedback should appear
-		const successIndicator = page.locator('text="File uploaded"');
+		const successIndicator = dialog.getByText("Complete", { exact: true });
 		await expect(successIndicator).toBeVisible({ timeout: 5000 });
 	});
 });

@@ -17,6 +17,8 @@ npm install emdash
 
 Run commands with `npx emdash` or add scripts to `package.json`. The binary is also available as `em` for brevity.
 
+Start your site with its package script, such as `pnpm dev`. The package script starts Astro; the EmDash integration generates `emdash-env.d.ts`, while the runtime runs pending migrations on the first request and applies the bundled seed when the database is empty and setup has not been completed.
+
 ## Authentication
 
 Commands using the shared remote client resolve authentication in this order:
@@ -41,45 +43,62 @@ These flags are available on commands using the shared remote client:
 
 ## Output
 
-When stdout is a TTY, the CLI pretty-prints results with consola. When piped or when `--json` is set, it outputs raw JSON to stdout — suitable for `jq` or other tools.
+For commands using the shared remote client, stdout is pretty-printed with consola when it is a TTY and becomes raw JSON when piped or when `--json` is set. `emdash migrate` emits JSON only with its explicit `--json` option.
 
 ## Commands
 
-### `emdash dev`
+### `emdash migrate`
 
-Start the development server with automatic database setup.
+Check or apply the core migration set emitted by an Astro build.
 
 ```bash
-npx emdash dev [options]
+npx emdash migrate [options]
+npx emdash migrate --check [options]
+npx emdash migrate --status --json [options]
 ```
+
+By default the command discovers the project root and reads `.emdash/migrations.json`. It validates the manifest against the project's installed EmDash package, resolves the adapter's project-local executor, and prints the immutable target before any SQL.
 
 #### Options
 
-| Option       | Alias | Description                              | Default           |
-| ------------ | ----- | ---------------------------------------- | ----------------- |
-| `--database` | `-d`  | Database file path                       | `./data.db`       |
-| `--types`    | `-t`  | Generate types from remote before starting | `false`         |
-| `--port`     | `-p`  | Dev server port                          | `4321`            |
-| `--cwd`      |       | Working directory                        | Current directory  |
+| Option | Description |
+| --- | --- |
+| `--check` | Apply nothing; exit non-zero for pending or unknown migration records |
+| `--status` | Report exact status without applying; exit zero after a successful report |
+| `--json` | Emit the stable migration report as JSON |
+| `--manifest <path>` | Read a non-standard manifest path |
+| `--from-config` | Explicitly evaluate trusted Astro configuration instead of a manifest |
+| `--config <path>` | Astro config path used with `--from-config` |
+| `--expected-target-fingerprint <sha256>` | Required guard for non-interactive apply |
+| `--database <path>` | Override a SQLite path |
+| `--database-url-env <name>` | Override a PostgreSQL connection-variable name |
+| `--d1 <uuid-or-name>` | Select a D1 database explicitly |
+| `--account-id <id>` | Select a Cloudflare account explicitly |
+| `--wrangler-config <path>` | Read D1 binding metadata from an explicit Wrangler config |
+| `--wrangler-env <name>` | Select an environment; requires `--wrangler-config` |
 
-#### Examples
+Interactive human-readable apply asks for confirmation. Non-interactive apply and every apply using `--json` require the exact fingerprint printed for the target. There is no `down` or `--dry-run`; use `--check` to determine whether work is required.
 
-```bash
-# Start dev server
-npx emdash dev
+#### Exit codes
 
-# Custom port
-npx emdash dev --port 3000
+| Code | Meaning |
+| --- | --- |
+| `0` | Success, including a successful `--status` report |
+| `1` | Validation, configuration, target, migration, or cleanup error |
+| `2` | `--check` found pending known migrations |
+| `3` | `--check` found unknown applied records (takes precedence over pending) |
+| `4` | Confirmation missing, declined, or target fingerprint mismatch |
+| `130` | Interrupted after bounded executor cleanup |
 
-# Generate types from remote before starting
-npx emdash dev --types
-```
+See [Manage Core Database Migrations](/deployment/core-migrations/) for deployment order, target credentials, and D1 serialization.
 
-#### Behavior
+### `emdash dev` (deprecated)
 
-1. Checks for and runs pending database migrations
-2. If `--types` is set, generates TypeScript types from a remote instance (URL from `EMDASH_URL` env or `emdash.url` in `package.json`)
-3. Starts Astro dev server with `EMDASH_DATABASE_URL` set
+<Aside type="caution" title="Deprecated command">
+	`emdash dev` remains available for backwards compatibility but is hidden from CLI help. Start the site with its package script, such as `pnpm dev`, or run `astro dev` directly.
+</Aside>
+
+The legacy command initializes and migrates a local SQLite database before starting Astro. That behavior does not use the database adapter configured by the site and is incompatible with Cloudflare D1 development. Existing invocations now print a deprecation warning before doing any database work.
 
 ### `emdash types`
 
@@ -577,7 +596,7 @@ The command also writes a raw schema export for tooling:
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
-| `EMDASH_DATABASE_URL`     | Database URL (set automatically by `dev`) |
+| `EMDASH_DATABASE_URL`     | Override database URL                      |
 | `EMDASH_TOKEN`            | Auth token for remote operations          |
 | `EMDASH_URL`              | Default URL for commands using the shared remote client |
 | `EMDASH_HEADERS`          | Newline-separated custom request headers for the shared remote client and `login` |
@@ -588,12 +607,12 @@ The command also writes a raw schema export for tooling:
 
 ## Package scripts
 
-Add the CLI commands as `package.json` scripts for convenience:
+Add common commands as `package.json` scripts for convenience:
 
 ```json title="package.json"
 {
 	"scripts": {
-		"dev": "emdash dev",
+		"dev": "astro dev",
 		"types": "emdash types",
 		"export-seed": "emdash export-seed",
 		"db:reset": "rm -f data.db"

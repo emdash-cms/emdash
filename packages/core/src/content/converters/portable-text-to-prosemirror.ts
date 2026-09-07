@@ -6,6 +6,10 @@
 
 import { sanitizeGalleryImages } from "./gallery.js";
 import {
+	UnsupportedPortableTextMarksError,
+	assertPortableTextMarksSupported,
+} from "./mark-safety.js";
+import {
 	deriveLegacyListId,
 	normalizeProseMirrorOrderedListJson,
 	normalizeListId,
@@ -34,6 +38,7 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 			content: [{ type: "paragraph" }],
 		};
 	}
+	assertPortableTextMarksSupported(blocks);
 
 	const content: ProseMirrorNode[] = [];
 	let i = 0;
@@ -466,6 +471,14 @@ function convertMarks(
 				pmMarks.push({ type: "strike" });
 				break;
 
+			case "subscript":
+				pmMarks.push({ type: "subscript" });
+				break;
+
+			case "superscript":
+				pmMarks.push({ type: "superscript" });
+				break;
+
 			case "code":
 				pmMarks.push({ type: "code" });
 				break;
@@ -473,22 +486,18 @@ function convertMarks(
 			default: {
 				// Check if it's a mark definition reference
 				const markDef = markDefs.get(mark);
-				if (markDef) {
-					if (markDef._type === "link") {
-						pmMarks.push({
-							type: "link",
-							attrs: {
-								href: markDef.href,
-								target: markDef.blank ? "_blank" : null,
-							},
-						});
-					} else {
-						// Unknown mark def type - preserve attrs
-						pmMarks.push({
-							type: markDef._type,
-							attrs: markDef,
-						});
-					}
+				if (markDef?._type === "link") {
+					pmMarks.push({
+						type: "link",
+						attrs: {
+							href: markDef.href,
+							target: markDef.blank ? "_blank" : null,
+						},
+					});
+				} else {
+					throw new UnsupportedPortableTextMarksError([
+						typeof markDef?._type === "string" ? markDef._type : mark,
+					]);
 				}
 				break;
 			}

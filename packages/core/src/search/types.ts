@@ -7,11 +7,19 @@
 /**
  * Search configuration for a collection
  */
+export const SEARCH_TOKENIZERS = ["porter unicode61", "unicode61", "trigram"] as const;
+
+export type SearchTokenizer = (typeof SEARCH_TOKENIZERS)[number];
+
 export interface SearchConfig {
 	/** Whether search is enabled for this collection */
 	enabled: boolean;
 	/** Field weights for ranking (higher = more important) */
 	weights?: Record<string, number>;
+	/** Field slug used as the result title, from the collection's titleField. */
+	titleField?: string;
+	/** FTS5 tokenizer configuration (defaults to English Porter stemming) */
+	tokenize?: SearchTokenizer;
 }
 
 /**

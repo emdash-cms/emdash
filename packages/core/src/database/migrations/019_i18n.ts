@@ -223,7 +223,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		const tmp = `${t}_i18n_tmp`;
 
 		// Note: no transaction wrapper — D1 doesn't support transactions,
-		// and SQLite/better-sqlite3 is single-writer so crash-safety is
+		// and file-backed SQLite is single-writer so crash-safety is
 		// handled by the journal mode. The tmp table approach is already
 		// crash-recoverable (orphaned tmp tables are harmless).
 		{

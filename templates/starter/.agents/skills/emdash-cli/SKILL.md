@@ -70,14 +70,11 @@ npx emdash login --url https://example.com -H "X-API-Key: secret123"
 
 ### Database Setup
 
-Migrations and seed application happen automatically inside the runtime — there's no separate init/seed step. Just start the dev server (or deploy) and the first request runs pending migrations and applies the bundled seed if the database is empty.
+For normal site startup, use the project's package script. The first request runs pending migrations and applies the bundled seed when the database is empty and setup has not been completed. The Astro integration generates `emdash-env.d.ts` when the server starts.
 
 ```bash
-# Start dev server (runs migrations, applies seed on empty DB, starts Astro)
-npx emdash dev
-
-# Start dev server and generate types from remote
-npx emdash dev --types
+# Start the site with its package script
+pnpm dev
 
 # Export an existing database as a seed file
 # (the runtime auto-discovers .emdash/seed.json on first boot;

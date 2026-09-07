@@ -2,7 +2,7 @@ name: Preview Releases
 
 on:
   push:
-    # `bot/fix-*` branches are pushed by .github/workflows/investigate.yml
+    # `bot/fix-*` branches are pushed by the emdash-bot worker's fix loop
     # before the bot asks the reporter to verify a candidate fix. The
     # ask comment includes an `npm i https://pkg.pr.new/emdash@bot/fix-<n>`
     # install URL (the full branch name -- pkg.pr.new resolves branches by

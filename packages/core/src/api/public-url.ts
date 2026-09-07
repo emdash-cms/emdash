@@ -10,7 +10,7 @@
  */
 
 /** Minimal config shape — avoids importing the full EmDashConfig type tree. */
-interface SiteUrlConfig {
+export interface SiteUrlConfig {
 	siteUrl?: string;
 }
 
@@ -74,7 +74,19 @@ function getEnvSiteUrl(): string | undefined {
  * @returns Origin string, e.g. `"https://mysite.example.com"`
  */
 export function getPublicOrigin(url: URL, config?: SiteUrlConfig): string {
-	return config?.siteUrl || getEnvSiteUrl() || url.origin;
+	return getConfiguredOrigin(config) || url.origin;
+}
+
+/**
+ * Return the operator-configured public origin, if any.
+ *
+ * The first two steps of {@link getPublicOrigin}'s resolution —
+ * `config.siteUrl`, then the `EMDASH_SITE_URL`/`SITE_URL` env vars — without
+ * the request-URL fallback. For callers that have a more trustworthy fallback
+ * than the request (e.g. the stored setup origin used for outbound emails).
+ */
+export function getConfiguredOrigin(config?: SiteUrlConfig): string | undefined {
+	return config?.siteUrl || getEnvSiteUrl() || undefined;
 }
 
 /**

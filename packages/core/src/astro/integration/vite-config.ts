@@ -48,10 +48,13 @@ import {
 	RESOLVED_VIRTUAL_SCHEDULER_ID,
 	VIRTUAL_ENV_ID,
 	RESOLVED_VIRTUAL_ENV_ID,
+	VIRTUAL_BUILD_ID,
+	RESOLVED_VIRTUAL_BUILD_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
 	generateEnvModule,
+	generateBuildModule,
 	generateConfigModule,
 	generateDialectModule,
 	generateStorageModule,
@@ -179,6 +182,11 @@ export function createVirtualModulesPlugin(
 
 	let viteCommand: "build" | "serve" | undefined;
 
+	// Captured once per plugin instance rather than inside load(): Vite may load
+	// the module more than once (client and server passes, dev reloads), and a
+	// validator that moved between those loads would invalidate at random.
+	const buildTime = Date.now();
+
 	return {
 		name: "emdash-virtual-modules",
 		configResolved(config) {
@@ -233,6 +241,9 @@ export function createVirtualModulesPlugin(
 			if (id === VIRTUAL_ENV_ID) {
 				return RESOLVED_VIRTUAL_ENV_ID;
 			}
+			if (id === VIRTUAL_BUILD_ID) {
+				return RESOLVED_VIRTUAL_BUILD_ID;
+			}
 		},
 		load(id: string) {
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
@@ -246,6 +257,8 @@ export function createVirtualModulesPlugin(
 					type: resolvedConfig.database?.type,
 					supportsRequestScope: resolvedConfig.database?.supportsRequestScope ?? false,
 					supportsCoalescing: resolvedConfig.database?.supportsCoalescing ?? false,
+					supportsCollectionDeletionGuard:
+						resolvedConfig.database?.supportsCollectionDeletionGuard ?? false,
 				});
 			}
 			// Generate a module that statically imports the configured storage
@@ -333,6 +346,9 @@ export function createVirtualModulesPlugin(
 			if (id === RESOLVED_VIRTUAL_ENV_ID) {
 				return generateEnvModule(astroConfig.adapter?.name);
 			}
+			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
+				return generateBuildModule(buildTime);
+			}
 		},
 	};
 }
@@ -347,19 +363,22 @@ export function createVirtualModulesPlugin(
 // `?url`), so both forms resolve to dist rather than the source alias.
 const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 
-const NODE_NATIVE_EXTERNALS = [
-	"better-sqlite3",
-	"bindings",
-	"file-uri-to-path",
-	"@libsql/kysely-libsql",
-	"pg",
-];
+const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
 
 /**
  * Detect whether the Cloudflare adapter is being used.
  */
 function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 	return astroConfig.adapter?.name === "@astrojs/cloudflare";
+}
+
+function canResolveProjectDependency(projectRoot: string, specifier: string): boolean {
+	try {
+		createRequire(resolve(projectRoot, "package.json")).resolve(specifier);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -373,6 +392,7 @@ export function createViteConfig(
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
 	const isDev = command === "dev";
 	const projectRoot = fileURLToPath(options.astroConfig.root);
+	const hasAstroConsoleLogger = canResolveProjectDependency(projectRoot, "astro/logger/console");
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
@@ -478,7 +498,6 @@ export function createViteConfig(
 							"emdash > @unpic/placeholder",
 							"emdash > blurhash",
 							"emdash > croner",
-							"emdash > image-size",
 							"emdash > jose",
 							"emdash > jpeg-js",
 							"emdash > kysely",
@@ -531,6 +550,8 @@ export function createViteConfig(
 							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
+							"astro/app/manifest",
+							...(hasAstroConsoleLogger ? ["astro/logger/console"] : []),
 							"astro/virtual-modules/middleware.js",
 							"astro/virtual-modules/live-config",
 							"astro/content/runtime",
@@ -551,9 +572,17 @@ export function createViteConfig(
 		optimizeDeps: {
 			// When using source, don't pre-bundle JS — let Vite transform on the fly for HMR.
 			// When using dist, pre-bundle to avoid re-optimization on first hydration.
+			// lowlight pulls in a CommonJS highlight.js entry, so the inline Portable
+			// Text editor requires these to be pre-bundled with ESM interop in dev.
 			include: useSource
-				? ["@astrojs/react/client.js"]
-				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
+				? ["@astrojs/react/client.js", "lowlight", "highlight.js", "highlight.js/lib/core"]
+				: [
+						"@emdash-cms/admin",
+						"@astrojs/react/client.js",
+						"lowlight",
+						"highlight.js",
+						"highlight.js/lib/core",
+					],
 			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
 		},
 	};

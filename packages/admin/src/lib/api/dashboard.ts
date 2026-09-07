@@ -14,6 +14,7 @@ export interface CollectionStats {
 	published: number;
 	draft: number;
 	scheduled: number;
+	overdueScheduled?: number;
 }
 
 export interface RecentItem {
@@ -32,6 +33,10 @@ export interface DashboardStats {
 	mediaCount: number;
 	userCount: number;
 	recentItems: RecentItem[];
+	schedulerHealth?: {
+		status: "healthy" | "stale" | "unknown";
+		lastCompletedAt: string | null;
+	};
 }
 
 /**

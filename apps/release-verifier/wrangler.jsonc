@@ -1,0 +1,11 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-release-verifier",
+	"main": "./src/index.ts",
+	"workers_dev": false,
+	"compatibility_date": "2026-05-14",
+	"compatibility_flags": ["nodejs_compat"],
+	"observability": {
+		"enabled": true,
+	},
+}

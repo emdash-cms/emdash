@@ -8,6 +8,7 @@ import {
 	createStorageIndexes,
 	removeOrphanedIndexes,
 	syncStorageIndexes,
+	syncDeclaredStorageIndexes,
 	removeAllPluginIndexes,
 	getPluginIndexStatus,
 } from "../../../src/plugins/storage-indexes.js";
@@ -66,6 +67,23 @@ describe("Plugin Storage Indexes Integration", () => {
 			expect(indexes).toHaveLength(2);
 			expect(indexes.map((i) => JSON.parse(i.fields))).toContainEqual(["eventType"]);
 			expect(indexes.map((i) => JSON.parse(i.fields))).toContainEqual(["userId"]);
+		});
+
+		it("accepts collection names that are not SQL identifiers", async () => {
+			// The manifest schema allows arbitrary collection keys and the
+			// repository stores collection as opaque text — kebab-case names
+			// like "form-submissions" must index too.
+			const result = await createStorageIndexes(db, "forms", "form-submissions", ["slug"]);
+
+			expect(result.errors).toHaveLength(0);
+			expect(result.created).toContain("idx_plugin_forms_form-submissions_slug");
+
+			const indexes = await db
+				.selectFrom("_plugin_indexes")
+				.select("index_name")
+				.where("plugin_id", "=", "forms")
+				.execute();
+			expect(indexes).toHaveLength(1);
 		});
 
 		it("should be idempotent", async () => {
@@ -375,6 +393,57 @@ describe("Plugin Storage Indexes Integration", () => {
 			const result = await repo.query({ where: { slug: "contact" } });
 			expect(result.items).toHaveLength(1);
 			expect(result.items[0].data.slug).toBe("contact");
+		});
+	});
+
+	describe("syncDeclaredStorageIndexes", () => {
+		it("materializes indexes for every declared collection and is idempotent", async () => {
+			const plugins = [
+				{ id: "audit-log", storage: { entries: { indexes: ["timestamp"] } } },
+				{
+					id: "forms",
+					storage: { submissions: { indexes: ["formId"], uniqueIndexes: ["token"] } },
+				},
+			];
+
+			await syncDeclaredStorageIndexes(db, plugins);
+			await syncDeclaredStorageIndexes(db, plugins);
+
+			const tracked = await db.selectFrom("_plugin_indexes").select("index_name").execute();
+			expect(tracked.map((r) => r.index_name).toSorted()).toEqual([
+				"idx_plugin_audit-log_entries_timestamp",
+				"idx_plugin_forms_submissions_formId",
+				"uidx_plugin_forms_submissions_token",
+			]);
+		});
+	});
+
+	describe("query plan", () => {
+		it("serves the repository's ORDER BY from the declared index without a temp B-tree", async () => {
+			await createStorageIndexes(db, "audit-log", "entries", ["timestamp"]);
+
+			const repo = new PluginStorageRepository<{ timestamp: string }>(db, "audit-log", "entries", [
+				"timestamp",
+			]);
+			for (let i = 1; i <= 5; i++) {
+				await repo.put(`key-${i}`, { timestamp: `2026-07-0${i}T00:00:00.000Z` });
+			}
+
+			// Mirror the repository's compiled query() shape: bound parameters for
+			// plugin_id/collection (the production reality — D1 never runs ANALYZE,
+			// and SQLite won't pick a partial index under bound parameters without
+			// statistics).
+			const plan = await sql<{ detail: string }>`
+				EXPLAIN QUERY PLAN
+				SELECT id, data, created_at FROM _plugin_storage
+				WHERE plugin_id = ${"audit-log"} AND collection = ${"entries"}
+				ORDER BY json_extract(data, '$.timestamp') DESC
+				LIMIT 6
+			`.execute(db);
+
+			const details = plan.rows.map((r) => r.detail).join("\n");
+			expect(details).toContain("idx_plugin_audit-log_entries_timestamp");
+			expect(details).not.toContain("USE TEMP B-TREE FOR ORDER BY");
 		});
 	});
 });

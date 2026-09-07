@@ -9,6 +9,7 @@
  */
 
 import Database from "better-sqlite3";
+import { createSandboxRouteError } from "emdash";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
@@ -106,6 +107,29 @@ export default {
 };
 `;
 
+const CONTENT_WRITE_PLUGIN = `
+export default {
+	hooks: {},
+	routes: {
+		"write": {
+			handler: async (_routeCtx, ctx) => ctx.content.create("posts", { slug: "blocked" })
+		}
+	}
+};
+`;
+
+const SAVE_REJECTION_PLUGIN = `
+export default {
+	hooks: {
+		"content:beforeSave": async () => ({
+			__emdashSandboxHookResult: true,
+			version: 1,
+			error: { code: "SAVE_REJECTED", reason: "Add a summary" }
+		})
+	}
+};
+`;
+
 describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	let db: Kysely<any>;
 	let sqlite: Database.Database;
@@ -184,6 +208,25 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(kvResult.kvValue).toBeTruthy();
 		const parsed = JSON.parse(kvResult.kvValue);
 		expect(parsed.hook).toBe("content:beforeSave");
+	}, 30_000);
+
+	it("preserves a versioned hook error result over the workerd HTTP transport", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-save-rejection",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+			},
+			SAVE_REJECTION_PLUGIN,
+		);
+
+		await expect(plugin.invokeHook("content:beforeSave", {})).resolves.toEqual({
+			__emdashSandboxHookResult: true,
+			version: 1,
+			error: { code: "SAVE_REJECTED", reason: "Add a summary" },
+		});
 	}, 30_000);
 
 	it("enforces KV isolation between plugins via routes", async () => {
@@ -293,6 +336,46 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 			).rejects.toThrow(/exceeded wall-time limit/);
 		} finally {
 			await slowRunner.terminateAll();
+		}
+	}, 30_000);
+
+	it("preserves a content-write fence through the sandbox route transport", async () => {
+		const fencedRunner = new WorkerdSandboxRunner({
+			db,
+			beforeContentWrite: async () => {
+				throw createSandboxRouteError("MEDIA_USAGE_ACTIVATION_IN_PROGRESS");
+			},
+		});
+
+		try {
+			const plugin = await fencedRunner.load(
+				{
+					id: "test-content-write",
+					version: "1.0.0",
+					capabilities: ["write:content"],
+					allowedHosts: [],
+					storage: {},
+				},
+				CONTENT_WRITE_PLUGIN,
+			);
+
+			await expect(
+				plugin.invokeRoute(
+					"write",
+					{},
+					{
+						method: "POST",
+						url: "/api/test",
+						headers: {},
+					},
+				),
+			).rejects.toMatchObject({
+				code: "MEDIA_USAGE_ACTIVATION_IN_PROGRESS",
+				message: "Media usage activation is in progress",
+				status: 503,
+			});
+		} finally {
+			await fencedRunner.terminateAll();
 		}
 	}, 30_000);
 

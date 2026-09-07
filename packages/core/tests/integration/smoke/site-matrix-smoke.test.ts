@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -23,12 +23,12 @@ interface SiteCase {
 
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const execAsync = promisify(execFile);
-const FONT_FETCH_RETRY_IMPORT = pathToFileURL(
-	resolve(import.meta.dirname, "retry-font-fetch.mjs"),
+const SMOKE_FONT_PROVIDER_IMPORT = pathToFileURL(
+	resolve(import.meta.dirname, "smoke-font-provider.mjs"),
 ).href;
 
-function nodeOptionsWithFontFetchRetry(): string {
-	return [process.env.NODE_OPTIONS, `--import=${FONT_FETCH_RETRY_IMPORT}`]
+function nodeOptionsWithSmokeFontProvider(): string {
+	return [process.env.NODE_OPTIONS, `--import=${SMOKE_FONT_PROVIDER_IMPORT}`]
 		.filter(Boolean)
 		.join(" ");
 }
@@ -132,9 +132,9 @@ async function fetchWithRetry(url: string, retries = 10, delayMs = 1500): Promis
 
 // ---------------------------------------------------------------------------
 // Build verification — runs a single recursive `pnpm build` across templates
-// and the playground demo in parallel. The child process imports a test-only
-// fetch retry shim for Astro's remote Google font-file downloads so transient
-// network errors don't make smoke tests flaky.
+// and the playground demo in parallel. The child process replaces Astro's
+// Google provider with a local font so the smoke suite exercises the font
+// pipeline without depending on Google's CSS and asset rollouts being in sync.
 // ---------------------------------------------------------------------------
 
 describe("Site build verification", () => {
@@ -159,7 +159,7 @@ describe("Site build verification", () => {
 					env: {
 						...process.env,
 						CI: "true",
-						NODE_OPTIONS: nodeOptionsWithFontFetchRetry(),
+						NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(),
 					},
 				},
 			);
@@ -199,7 +199,7 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 		env: {
 			...process.env,
 			CI: "true",
-			NODE_OPTIONS: nodeOptionsWithFontFetchRetry(),
+			NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(),
 		},
 		stdio: "pipe",
 	});
@@ -282,6 +282,54 @@ describe.sequential("Site runtime verification", () => {
 			},
 		);
 	}
+});
+
+const CLOUDFLARE_OPTIMIZER_SITE: SiteCase = {
+	name: "e2e/fixture-cloudflare",
+	dir: resolve(WORKSPACE_ROOT, "e2e/fixture-cloudflare"),
+	port: 4621,
+	startupTimeoutMs: 120_000,
+	waitPath: "/_emdash/api/setup/status",
+};
+
+const LATE_MANIFEST_OPTIMIZATION =
+	/(?:new )?dependenc(?:y|ies) (?:found|optimized):.*astro\/app\/manifest/;
+
+describe.sequential("Cloudflare dependency optimizer", () => {
+	it(
+		"pre-bundles dependencies imported by transformed server modules",
+		{ timeout: CLOUDFLARE_OPTIMIZER_SITE.startupTimeoutMs + 120_000 },
+		async () => {
+			rmSync(join(CLOUDFLARE_OPTIMIZER_SITE.dir, "node_modules/.vite"), {
+				recursive: true,
+				force: true,
+			});
+			const devLogPath = join(CLOUDFLARE_OPTIMIZER_SITE.dir, ".astro/dev.log");
+			rmSync(devLogPath, { force: true });
+			const server = await bootSite(CLOUDFLARE_OPTIMIZER_SITE);
+
+			try {
+				const frontendRes = await fetchWithRetry(`${server.baseUrl}/`);
+				expect([200, 302, 307, 308]).toContain(frontendRes.status);
+				await frontendRes.text();
+				const readOptimizerOutput = () =>
+					[server.output, existsSync(devLogPath) ? readFileSync(devLogPath, "utf8") : ""].join(
+						"\n",
+					);
+				const observationDeadline = Date.now() + 5_000;
+				while (Date.now() < observationDeadline) {
+					expect(readOptimizerOutput()).not.toMatch(LATE_MANIFEST_OPTIMIZATION);
+					await new Promise((resolveSleep) => setTimeout(resolveSleep, 100));
+				}
+				expect(readOptimizerOutput()).not.toMatch(LATE_MANIFEST_OPTIMIZATION);
+			} finally {
+				await killServer(server.process);
+				await execAsync("pnpm", ["exec", "astro", "dev", "stop"], {
+					cwd: CLOUDFLARE_OPTIMIZER_SITE.dir,
+				});
+			}
+		},
+	);
 });
 
 // ---------------------------------------------------------------------------

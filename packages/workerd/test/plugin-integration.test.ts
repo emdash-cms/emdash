@@ -16,7 +16,7 @@
  */
 
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely, SqliteDialect, sql } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
@@ -34,6 +34,36 @@ function createTestDb() {
 }
 
 async function runMigrations(db: Kysely<any>) {
+	await db.schema
+		.createTable("_emdash_collections")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("slug", "text", (col) => col.notNull().unique())
+		.addColumn("supports", "text")
+		.execute();
+	await db.schema
+		.createTable("_emdash_fields")
+		.addColumn("collection_id", "text", (col) => col.notNull())
+		.addColumn("slug", "text", (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable("revisions")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("entry_id", "text", (col) => col.notNull())
+		.addColumn("data", "text", (col) => col.notNull())
+		.addColumn("author_id", "text")
+		.addColumn("created_at", "text", (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+		.execute();
+
+	await db.schema
+		.createTable("_emdash_revision_prune_queue")
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("entry_id", "text", (col) => col.notNull())
+		.addColumn("revision_id", "text", (col) => col.notNull())
+		.addPrimaryKeyConstraint("pk_revision_prune_queue", ["collection", "entry_id"])
+		.execute();
+
 	// Plugin storage (migration 004)
 	await db.schema
 		.createTable("_plugin_storage")
@@ -75,13 +105,31 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("slug", "text")
 		.addColumn("status", "text", (col) => col.notNull().defaultTo("draft"))
 		.addColumn("author_id", "text")
+		.addColumn("primary_byline_id", "text")
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.addColumn("updated_at", "text", (col) => col.notNull())
 		.addColumn("published_at", "text")
+		.addColumn("scheduled_at", "text")
 		.addColumn("deleted_at", "text")
 		.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+		.addColumn("live_revision_id", "text")
+		.addColumn("draft_revision_id", "text")
+		.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+		.addColumn("translation_group", "text")
 		.addColumn("title", "text")
 		.addColumn("body", "text")
+		.execute();
+
+	await db
+		.insertInto("_emdash_collections" as any)
+		.values({ id: "posts", slug: "posts", supports: "[]" })
+		.execute();
+	await db
+		.insertInto("_emdash_fields" as any)
+		.values([
+			{ collection_id: "posts", slug: "title" },
+			{ collection_id: "posts", slug: "body" },
+		])
 		.execute();
 }
 
@@ -236,7 +284,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 	// ── Content lifecycle: create, read, update, soft-delete ─────────────
 
 	describe("content lifecycle (requires read:content + write:content)", () => {
-		function makeWriteHandler() {
+		function makeWriteHandler(i18nConfig?: { defaultLocale: string; locales: string[] } | null) {
 			// Bridge enforces capabilities strictly: write:content does NOT
 			// imply read:content. Plugins that need both must declare both.
 			return createBridgeHandler({
@@ -245,6 +293,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				capabilities: ["read:content", "write:content"],
 				allowedHosts: [],
 				storageCollections: [],
+				i18nConfig,
 				db,
 				emailSend: () => null,
 			});
@@ -263,10 +312,19 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: string;
 				type: string;
 				data: Record<string, unknown>;
+				locale: string;
 			};
 			expect(created.type).toBe("posts");
 			expect(created.data.title).toBe("New Post");
+			expect(created.locale).toBe("en");
 			expect(created.id).toBeTruthy();
+			await expect(
+				db
+					.selectFrom("ec_posts" as any)
+					.select("translation_group" as any)
+					.where("id", "=", created.id)
+					.executeTakeFirstOrThrow(),
+			).resolves.toEqual({ translation_group: created.id });
 
 			// Read
 			const readResult = await call(handler, "content/get", {
@@ -274,8 +332,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: created.id,
 			});
 			expect(readResult.error).toBeUndefined();
-			const read = readResult.result as { id: string; data: Record<string, unknown> };
+			const read = readResult.result as {
+				id: string;
+				data: Record<string, unknown>;
+				locale: string;
+			};
 			expect(read.data.title).toBe("New Post");
+			expect(read.locale).toBe("en");
 
 			// Update
 			const updateResult = await call(handler, "content/update", {
@@ -284,8 +347,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				data: { title: "Updated Post" },
 			});
 			expect(updateResult.error).toBeUndefined();
-			const updated = updateResult.result as { id: string; data: Record<string, unknown> };
+			const updated = updateResult.result as {
+				id: string;
+				data: Record<string, unknown>;
+				locale: string;
+			};
 			expect(updated.data.title).toBe("Updated Post");
+			expect(updated.locale).toBe("en");
 
 			// Delete (soft-delete)
 			const deleteResult = await call(handler, "content/delete", {
@@ -300,6 +368,152 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				id: created.id,
 			});
 			expect(afterDelete.result).toBeNull();
+		});
+
+		it("stages revision-enabled updates and returns the effective draft", async () => {
+			await db
+				.updateTable("_emdash_collections" as any)
+				.set({ supports: '["revisions"]' })
+				.where("slug", "=", "posts")
+				.execute();
+			const now = new Date().toISOString();
+			await db
+				.insertInto("revisions" as any)
+				.values({
+					id: "live-revision",
+					collection: "posts",
+					entry_id: "published-post",
+					data: JSON.stringify({ title: "Live title", body: "Live body" }),
+					author_id: null,
+					created_at: now,
+				})
+				.execute();
+			await db
+				.insertInto("ec_posts" as any)
+				.values({
+					id: "published-post",
+					slug: "published-post",
+					status: "published",
+					title: "Live title",
+					body: "Live body",
+					created_at: now,
+					updated_at: now,
+					version: 1,
+					live_revision_id: "live-revision",
+				})
+				.execute();
+			const handler = makeWriteHandler();
+
+			const updateResult = await call(handler, "content/update", {
+				collection: "posts",
+				id: "published-post",
+				data: { title: "Plugin title" },
+			});
+
+			expect(updateResult.error).toBeUndefined();
+			expect(updateResult.result).toMatchObject({
+				id: "published-post",
+				data: { title: "Plugin title", body: "Live body" },
+			});
+			const row = await db
+				.selectFrom("ec_posts" as any)
+				.selectAll()
+				.where("id", "=", "published-post")
+				.executeTakeFirstOrThrow();
+			expect(row).toMatchObject({
+				title: "Live title",
+				body: "Live body",
+				live_revision_id: "live-revision",
+				version: 2,
+			});
+			expect(row.draft_revision_id).toEqual(expect.any(String));
+			const draft = await db
+				.selectFrom("revisions" as any)
+				.select("data")
+				.where("id", "=", row.draft_revision_id)
+				.executeTakeFirstOrThrow();
+			expect(JSON.parse(draft.data)).toEqual({ title: "Plugin title", body: "Live body" });
+		});
+
+		it("forwards and normalizes an explicit locale", async () => {
+			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "zh-TW"] });
+
+			const result = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "繁體中文" },
+				options: { locale: "zh-tw" },
+			});
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toMatchObject({ locale: "zh-TW" });
+			const row = await db
+				.selectFrom("ec_posts" as any)
+				.select("locale" as any)
+				.where("id", "=", (result.result as { id: string }).id)
+				.executeTakeFirstOrThrow();
+			expect(row.locale).toBe("zh-TW");
+		});
+
+		it("uses configured and no-i18n fallbacks when locale is omitted", async () => {
+			const configured = await call(
+				makeWriteHandler({ defaultLocale: "ja", locales: ["ja"] }),
+				"content/create",
+				{ collection: "posts", data: { title: "日本語" } },
+			);
+			const legacy = await call(makeWriteHandler(null), "content/create", {
+				collection: "posts",
+				data: { title: "English" },
+			});
+
+			expect(configured.result).toMatchObject({ locale: "ja" });
+			expect(legacy.result).toMatchObject({ locale: "en" });
+		});
+
+		it("uses the configured default locale for batch creates", async () => {
+			const result = await call(
+				makeWriteHandler({ defaultLocale: "ja", locales: ["ja"] }),
+				"content/createMany",
+				{
+					collection: "posts",
+					items: [{ title: "一" }, { title: "二" }],
+				},
+			);
+
+			expect(result.error).toBeUndefined();
+			expect(result.result).toEqual([
+				expect.objectContaining({ locale: "ja" }),
+				expect.objectContaining({ locale: "ja" }),
+			]);
+			expect(
+				await db
+					.selectFrom("ec_posts" as any)
+					.select("locale" as any)
+					.execute(),
+			).toEqual([{ locale: "ja" }, { locale: "ja" }]);
+		});
+
+		it("rejects invalid locale options before inserting", async () => {
+			const handler = makeWriteHandler({ defaultLocale: "en", locales: ["en", "fr"] });
+
+			const malformed = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "Malformed" },
+				options: { locale: "en_US" },
+			});
+			const unknown = await call(handler, "content/create", {
+				collection: "posts",
+				data: { title: "Unknown" },
+				options: { locale: "de" },
+			});
+
+			expect(malformed.error).toMatch(/invalid locale code/i);
+			expect(unknown.error).toMatch(/not configured/i);
+			expect(
+				await db
+					.selectFrom("ec_posts" as any)
+					.selectAll()
+					.execute(),
+			).toHaveLength(0);
 		});
 	});
 
@@ -329,6 +543,8 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			.addColumn("updated_at", "text", (col) => col.notNull())
 			.addColumn("deleted_at", "text")
 			.addColumn("version", "integer", (col) => col.notNull().defaultTo(1))
+			.addColumn("locale", "text", (col) => col.notNull().defaultTo("en"))
+			.addColumn("translation_group", "text")
 			.addColumn("title", "text")
 			.execute();
 

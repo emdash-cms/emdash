@@ -5,7 +5,7 @@
  */
 
 import { spawn } from "node:child_process";
-import { readFile, access } from "node:fs/promises";
+import { access, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
 import { defineCommand } from "citty";
@@ -42,10 +42,15 @@ async function fileExists(path: string): Promise<boolean> {
 	}
 }
 
+export const DEV_DEPRECATION_MESSAGE =
+	"`emdash dev` is deprecated and will be removed in a future release.\n\n" +
+	"Use your project's dev script instead (for example, `pnpm dev`), or run `astro dev` directly.";
+
 export const devCommand = defineCommand({
 	meta: {
 		name: "dev",
 		description: "Start dev server with local database",
+		hidden: true,
 	},
 	args: {
 		database: {
@@ -73,6 +78,11 @@ export const devCommand = defineCommand({
 		},
 	},
 	async run({ args }) {
+		consola.box({
+			title: "DEPRECATED COMMAND",
+			message: DEV_DEPRECATION_MESSAGE,
+		});
+
 		const cwd = resolve(args.cwd);
 		const pkg = await readPackageJson(cwd);
 
@@ -119,8 +129,8 @@ export const devCommand = defineCommand({
 					const schema = await client.schemaExport();
 					const types = await client.schemaTypes();
 
-					const { writeFile, mkdir } = await import("node:fs/promises");
-					const { resolve: resolvePath, dirname } = await import("node:path");
+					const { mkdir, writeFile } = await import("node:fs/promises");
+					const { dirname, resolve: resolvePath } = await import("node:path");
 					const outputPath = resolvePath(cwd, ".emdash/types.ts");
 					await mkdir(dirname(outputPath), { recursive: true });
 					await writeFile(outputPath, types, "utf-8");

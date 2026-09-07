@@ -13,6 +13,7 @@ import { MediaRepository } from "../../database/repositories/media.js";
 import { UserRepository } from "../../database/repositories/user.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
+import { getSchedulerHealth, type SchedulerHealth } from "../../scheduler-health.js";
 import type { ApiResult } from "../types.js";
 
 export interface CollectionStats {
@@ -22,6 +23,7 @@ export interface CollectionStats {
 	published: number;
 	draft: number;
 	scheduled: number;
+	overdueScheduled: number;
 }
 
 export interface RecentItem {
@@ -40,6 +42,7 @@ export interface DashboardStats {
 	mediaCount: number;
 	userCount: number;
 	recentItems: RecentItem[];
+	schedulerHealth: SchedulerHealth;
 }
 
 /**
@@ -50,6 +53,7 @@ export interface DashboardStats {
  */
 export async function handleDashboardStats(
 	db: Kysely<Database>,
+	now = new Date(),
 ): Promise<ApiResult<DashboardStats>> {
 	try {
 		// Discover collections from the system table
@@ -63,7 +67,7 @@ export async function handleDashboardStats(
 		const contentRepo = new ContentRepository(db);
 		const collectionStats: CollectionStats[] = await Promise.all(
 			collections.map(async (col) => {
-				const stats = await contentRepo.getStats(col.slug);
+				const stats = await contentRepo.getStats(col.slug, now);
 				return {
 					slug: col.slug,
 					label: col.label,
@@ -71,6 +75,7 @@ export async function handleDashboardStats(
 					published: stats.published,
 					draft: stats.draft,
 					scheduled: stats.scheduled,
+					overdueScheduled: stats.overdueScheduled,
 				};
 			}),
 		);
@@ -78,7 +83,11 @@ export async function handleDashboardStats(
 		// Media and user counts
 		const mediaRepo = new MediaRepository(db);
 		const userRepo = new UserRepository(db);
-		const [mediaCount, userCount] = await Promise.all([mediaRepo.count(), userRepo.count()]);
+		const [mediaCount, userCount, schedulerHealth] = await Promise.all([
+			mediaRepo.count(),
+			userRepo.count(),
+			getSchedulerHealth(db, now),
+		]);
 
 		// Recent items across all collections (last 10 updated, any status)
 		const recentItems = await fetchRecentItems(db, collections);
@@ -90,6 +99,7 @@ export async function handleDashboardStats(
 				mediaCount,
 				userCount,
 				recentItems,
+				schedulerHealth,
 			},
 		};
 	} catch (error) {

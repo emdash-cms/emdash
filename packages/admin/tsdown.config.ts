@@ -24,7 +24,7 @@ function linguiMacroPlugin(): Plugin {
 }
 
 export default defineConfig({
-	entry: ["src/index.ts", "src/locales/index.ts"],
+	entry: ["src/index.ts", "src/locales/index.ts", "src/slugify.ts"],
 	format: ["esm"],
 	dts: true,
 	clean: true,

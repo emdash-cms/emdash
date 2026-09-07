@@ -429,6 +429,101 @@ describe("ContentRepository", () => {
 		});
 
 		describe("orderBy", () => {
+			it("paginates indexed custom fields with stable null ordering", async () => {
+				await registry.createField("post", {
+					slug: "priority",
+					label: "Priority",
+					type: "number",
+					indexed: true,
+				});
+
+				const seeded = await repo.findMany("post");
+				const priorities = [null, 2, 1, 2, null];
+				for (const [index, item] of seeded.items.entries()) {
+					await repo.update("post", item.id, { data: { priority: priorities[index] } });
+				}
+
+				const collect = async (direction: "asc" | "desc") => {
+					const items = [];
+					let cursor: string | undefined;
+					do {
+						const page = await repo.findMany("post", {
+							limit: 2,
+							cursor,
+							orderBy: { field: "priority", direction },
+						});
+						items.push(...page.items);
+						cursor = page.nextCursor;
+					} while (cursor);
+					return items;
+				};
+
+				const ascending = await collect("asc");
+				const descending = await collect("desc");
+				const values = (items: typeof ascending) => items.map((item) => item.data.priority ?? null);
+
+				expect(values(ascending)).toEqual([null, null, 1, 2, 2]);
+				expect(values(descending)).toEqual([2, 2, 1, null, null]);
+				expect(new Set(ascending.map((item) => item.id)).size).toBe(5);
+				expect(new Set(descending.map((item) => item.id)).size).toBe(5);
+			});
+
+			it("paginates indexed datetime fields without skipping equal values", async () => {
+				await registry.createField("post", {
+					slug: "starts_at",
+					label: "Starts at",
+					type: "datetime",
+					indexed: true,
+				});
+
+				const seeded = await repo.findMany("post");
+				const startsAt = [
+					null,
+					"2026-08-02T12:00:00.000Z",
+					"2026-07-01T08:30:00.000Z",
+					"2026-08-02T12:00:00.000Z",
+					null,
+				];
+				for (const [index, item] of seeded.items.entries()) {
+					await repo.update("post", item.id, { data: { starts_at: startsAt[index] } });
+				}
+
+				const items = [];
+				let cursor: string | undefined;
+				do {
+					const page = await repo.findMany("post", {
+						limit: 2,
+						cursor,
+						orderBy: { field: "starts_at", direction: "asc" },
+					});
+					items.push(...page.items);
+					cursor = page.nextCursor;
+				} while (cursor);
+
+				expect(items.map((item) => item.data.starts_at ?? null)).toEqual([
+					null,
+					null,
+					"2026-07-01T08:30:00.000Z",
+					"2026-08-02T12:00:00.000Z",
+					"2026-08-02T12:00:00.000Z",
+				]);
+				expect(new Set(items.map((item) => item.id)).size).toBe(5);
+			});
+
+			it("rejects unindexed custom order fields", async () => {
+				await registry.createField("post", {
+					slug: "priority",
+					label: "Priority",
+					type: "number",
+				});
+
+				await expect(
+					repo.findMany("post", {
+						orderBy: { field: "priority", direction: "asc" },
+					}),
+				).rejects.toThrow(EmDashValidationError);
+			});
+
 			// Regression guard for "table headers aren't sort controls": the
 			// admin now sends orderBy={field,direction} — the repo must accept
 			// the columns the UI wants to expose, not just dates.
@@ -454,6 +549,238 @@ describe("ContentRepository", () => {
 						orderBy: { field: "password", direction: "asc" },
 					}),
 				).rejects.toThrow(EmDashValidationError);
+			});
+		});
+
+		describe("indexed field filters", () => {
+			async function seedIndexedFields() {
+				await registry.createField("post", {
+					slug: "score",
+					label: "Score",
+					type: "number",
+					indexed: true,
+				});
+				await registry.createField("post", {
+					slug: "queue",
+					label: "Queue",
+					type: "string",
+					indexed: true,
+				});
+				await registry.createField("post", {
+					slug: "resolved",
+					label: "Resolved",
+					type: "boolean",
+					indexed: true,
+				});
+				await registry.createField("post", {
+					slug: "starts_at",
+					label: "Starts at",
+					type: "datetime",
+					indexed: true,
+				});
+
+				const seeded = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+				});
+				const values = [
+					{
+						score: null,
+						queue: "urgent",
+						resolved: false,
+						starts_at: "2026-01-01T00:00:00.000Z",
+					},
+					{
+						score: 50,
+						queue: "normal",
+						resolved: false,
+						starts_at: "2026-02-01T00:00:00.000Z",
+					},
+					{
+						score: 80,
+						queue: "urgent",
+						resolved: true,
+						starts_at: "2026-03-01T00:00:00.000Z",
+					},
+					{
+						score: 90,
+						queue: "high",
+						resolved: false,
+						starts_at: "2026-04-01T00:00:00.000Z",
+					},
+					{ score: null, queue: "normal", resolved: false, starts_at: null },
+				];
+				for (const [index, item] of seeded.items.entries()) {
+					await repo.update("post", item.id, { data: values[index] });
+				}
+			}
+
+			it("combines exact, membership, and range filters without changing total semantics", async () => {
+				await seedIndexedFields();
+
+				const result = await repo.findMany("post", {
+					where: {
+						fieldFilters: {
+							queue: { in: ["urgent", "high"] },
+							score: { gte: 80 },
+							resolved: false,
+						},
+					},
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-3"]);
+				expect(result.total).toBe(1);
+			});
+
+			it("supports exact boolean and datetime range filters with AND semantics", async () => {
+				await seedIndexedFields();
+
+				const result = await repo.findMany("post", {
+					orderBy: { field: "slug", direction: "asc" },
+					where: {
+						fieldFilters: {
+							queue: "urgent",
+							resolved: true,
+							starts_at: {
+								gte: "2026-02-01T00:00:00.000Z",
+								lte: "2026-03-01T00:00:00.000Z",
+							},
+						},
+					},
+				});
+
+				expect(result.items.map((item) => item.slug)).toEqual(["post-2"]);
+				expect(result.total).toBe(1);
+			});
+
+			it("paginates null matches while keeping the filtered total stable", async () => {
+				await seedIndexedFields();
+
+				const page1 = await repo.findMany("post", {
+					limit: 1,
+					orderBy: { field: "slug", direction: "asc" },
+					where: { fieldFilters: { score: null } },
+				});
+				const page2 = await repo.findMany("post", {
+					limit: 1,
+					cursor: page1.nextCursor,
+					orderBy: { field: "slug", direction: "asc" },
+					where: { fieldFilters: { score: null } },
+				});
+
+				expect(page1.items.map((item) => item.slug)).toEqual(["post-0"]);
+				expect(page2.items.map((item) => item.slug)).toEqual(["post-4"]);
+				expect(page1.total).toBe(2);
+				expect(page2.total).toBe(2);
+			});
+
+			it("combines filtering and indexed sorting across cursor pages without duplicates", async () => {
+				await seedIndexedFields();
+
+				const items = [];
+				const totals = [];
+				let cursor: string | undefined;
+				do {
+					const page = await repo.findMany("post", {
+						limit: 1,
+						cursor,
+						orderBy: { field: "score", direction: "asc" },
+						where: { fieldFilters: { resolved: false } },
+					});
+					items.push(...page.items);
+					totals.push(page.total);
+					cursor = page.nextCursor;
+				} while (cursor);
+
+				expect(items.map((item) => item.data.score ?? null)).toEqual([null, null, 50, 90]);
+				expect(new Set(items.map((item) => item.id)).size).toBe(4);
+				expect(totals).toEqual([4, 4, 4, 4]);
+				expect(await repo.count("post", { fieldFilters: { resolved: false } })).toBe(4);
+			});
+
+			it("parameterizes exact filter values", async () => {
+				await seedIndexedFields();
+				const injectedValue = "urgent' OR 1=1 --";
+				const target = (
+					await repo.findMany("post", {
+						orderBy: { field: "slug", direction: "asc" },
+					})
+				).items[1]!;
+				await repo.update("post", target.id, { data: { queue: injectedValue } });
+
+				const result = await repo.findMany("post", {
+					where: { fieldFilters: { queue: injectedValue } },
+				});
+
+				expect(result.items.map((item) => item.id)).toEqual([target.id]);
+				expect(result.total).toBe(1);
+			});
+
+			it("enforces direct repository filter boundaries", async () => {
+				await seedIndexedFields();
+				const fiftyValues = [
+					...Array.from({ length: 49 }, (_, index) => `queue-${index}`),
+					"urgent",
+				];
+
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { queue: { in: fiftyValues } } },
+					}),
+				).resolves.toMatchObject({ total: 2 });
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { queue: { in: [...fiftyValues, "overflow"] } } },
+					}),
+				).rejects.toThrow(/exceeds 50 values/);
+				await expect(
+					repo.findMany("post", {
+						where: {
+							fieldFilters: {
+								queue: { in: Array.from({ length: 30 }, (_, index) => `queue-${index}`) },
+								resolved: { in: Array.from({ length: 21 }, (_, index) => index % 2 === 0) },
+							},
+						},
+					}),
+				).rejects.toThrow(/total operand budget of 50/);
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { queue: "x".repeat(2049) } },
+					}),
+				).rejects.toThrow(/exceeds 2048 characters/);
+				await expect(
+					repo.findMany("post", {
+						where: {
+							fieldFilters: Object.fromEntries(
+								Array.from({ length: 21 }, (_, index) => [`field_${index}`, index]),
+							),
+						},
+					}),
+				).rejects.toThrow(/at most 20 indexed field filters/);
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { "queue;drop": "urgent" } },
+					}),
+				).rejects.toThrow(/Invalid content filter field/);
+			});
+
+			it("rejects unindexed fields and values that do not match the field type", async () => {
+				await seedIndexedFields();
+				await registry.createField("post", {
+					slug: "internal_note",
+					label: "Internal note",
+					type: "string",
+				});
+
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { internal_note: "review" } },
+					}),
+				).rejects.toThrow(/must be indexed/);
+				await expect(
+					repo.findMany("post", {
+						where: { fieldFilters: { score: "high" } },
+					}),
+				).rejects.toThrow(/finite number/);
 			});
 		});
 

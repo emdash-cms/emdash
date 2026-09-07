@@ -1,19 +1,27 @@
 /**
  * Redirect rule cache.
  *
- * Module-level cache for enabled redirect rules. The middleware populates this
- * on first request; route handlers invalidate it on writes.
+ * Worker-isolate cache for enabled redirect rules. The middleware populates
+ * this on first request; route handlers invalidate it on writes. Cached rules
+ * expire so writes handled by another isolate become visible here too.
  *
  * Both exact-match and pattern rules are loaded from one query and cached
  * together: exact rules indexed by source path in a Map, pattern rules
  * pre-compiled into an array. A single warm request issues zero database
- * queries; a cold isolate issues one.
+ * queries; a cold or expired isolate issues one.
  *
  * This module deliberately has NO Astro imports so it can be safely imported
  * from handlers, seed, CLI, and tests without dragging in `astro:middleware`.
  */
 
+import { after } from "../after.js";
 import type { Redirect } from "../database/repositories/redirect.js";
+import {
+	createSingleFlightCache,
+	type SingleFlightCache,
+	invalidateSingleFlightCache,
+	singleFlightCached,
+} from "../utils/single-flight-cache.js";
 import type { CompiledPattern } from "./patterns.js";
 import { compilePattern, interpolateDestination, matchPattern } from "./patterns.js";
 
@@ -29,33 +37,54 @@ export interface CachedRedirects {
 	patterns: CachedRedirectRule[];
 }
 
-/**
- * Cached enabled redirects.
- * null = not yet populated, object = cached.
- */
-let cachedRedirects: CachedRedirects | null = null;
+interface RedirectCacheState {
+	redirects: CachedRedirects | null;
+	expiresAt: number;
+	generation: number;
+	refresh: SingleFlightCache<CachedRedirects>;
+}
+
+const REDIRECT_CACHE_TTL_MS = 30_000;
+const REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS = 3;
+const REDIRECT_CACHE_KEY = Symbol.for("emdash:redirect-cache");
+const g = globalThis as Record<symbol, unknown>;
+const cacheState: RedirectCacheState =
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern (see request-context.ts)
+	(g[REDIRECT_CACHE_KEY] as RedirectCacheState | undefined) ??
+	(() => {
+		const state: RedirectCacheState = {
+			redirects: null,
+			expiresAt: 0,
+			generation: 0,
+			refresh: createSingleFlightCache<CachedRedirects>(),
+		};
+		g[REDIRECT_CACHE_KEY] = state;
+		return state;
+	})();
 
 /**
  * Invalidate the cached redirects (both exact and pattern).
  * Call when redirects are created, updated, or deleted.
  */
 export function invalidateRedirectCache(): void {
-	cachedRedirects = null;
+	cacheState.generation++;
+	cacheState.redirects = null;
+	cacheState.expiresAt = 0;
+	invalidateSingleFlightCache(cacheState.refresh);
 }
 
 /**
  * Get the cached redirects, or null if the cache is cold.
  */
-export function getCachedRedirects(): CachedRedirects | null {
-	return cachedRedirects;
+function getCachedRedirects(): CachedRedirects | null {
+	if (cacheState.redirects && Date.now() >= cacheState.expiresAt) {
+		invalidateRedirectCache();
+	}
+	return cacheState.redirects;
 }
 
-/**
- * Populate the cache from a list of enabled redirects (both exact and
- * pattern). The caller is responsible for passing only enabled rows — the
- * cache stores them as-is.
- */
-export function setCachedRedirects(redirects: Redirect[]): CachedRedirects {
+/** Compile enabled database rows into the in-memory lookup structures. */
+function compileRedirects(redirects: Redirect[]): CachedRedirects {
 	const exact = new Map<string, Redirect>();
 	const patterns: CachedRedirectRule[] = [];
 	for (const r of redirects) {
@@ -65,8 +94,39 @@ export function setCachedRedirects(redirects: Redirect[]): CachedRedirects {
 			exact.set(r.source, r);
 		}
 	}
-	cachedRedirects = { exact, patterns };
-	return cachedRedirects;
+	return { exact, patterns };
+}
+
+function installCachedRedirects(redirects: CachedRedirects): CachedRedirects {
+	cacheState.redirects = redirects;
+	cacheState.expiresAt = Date.now() + REDIRECT_CACHE_TTL_MS;
+	return cacheState.redirects;
+}
+
+export async function loadCachedRedirects(
+	load: () => Promise<Redirect[]>,
+): Promise<CachedRedirects> {
+	for (let attempt = 0; attempt < REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS; attempt++) {
+		const cached = getCachedRedirects();
+		if (cached) return cached;
+
+		const generation = cacheState.generation;
+		const loaded = await singleFlightCached(
+			cacheState.refresh,
+			async () => compileRedirects(await load()),
+			{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
+		);
+
+		if (generation === cacheState.generation) {
+			return installCachedRedirects(loaded);
+		}
+
+		if (attempt === REDIRECT_CACHE_MAX_REFRESH_ATTEMPTS - 1) {
+			return loaded;
+		}
+	}
+
+	throw new Error("Redirect cache refresh exhausted without loading rules");
 }
 
 /**

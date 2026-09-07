@@ -93,7 +93,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		// Send notification when a comment is newly approved
 		if (newStatus === "approved" && previousStatus !== "approved" && emdash.email) {
 			try {
-				const adminBaseUrl = await getSiteBaseUrl(emdash.db, request);
+				const adminBaseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
 				const content = await lookupContentAuthor(emdash.db, updated.collection, updated.contentId);
 				if (content?.author) {
 					await sendCommentNotification({

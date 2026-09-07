@@ -187,6 +187,16 @@ describe("taxonomyTerms", () => {
 		expect(recorded[1]?.sql).toContain("AND locale = ?");
 		expect(recorded[1]?.params).toEqual(["category", "fr"]);
 	});
+
+	// Terms carry a manual order, so a plugin reading through the bridge has to
+	// get the same order core's TaxonomyRepository.findByName returns. The clause
+	// is a raw string here, so assert it rather than trusting it.
+	it("orders by the manual position ahead of the label", async () => {
+		const { bridge, recorded } = makeBridge(["taxonomies:read"]);
+		await bridge.taxonomyTerms("category");
+
+		expect(recorded[0]?.sql).toContain("ORDER BY sort_order ASC, label ASC, id ASC");
+	});
 });
 
 describe("taxonomyEntryTerms", () => {

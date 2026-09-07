@@ -9,7 +9,7 @@ import {
 import { render } from "../utils/render";
 
 const statuses: Array<{ state: ContentStatusState; label: string }> = [
-	{ state: "published", label: "Publish" },
+	{ state: "published", label: "Published" },
 	{ state: "draft", label: "Draft" },
 	{ state: "scheduled", label: "Scheduled" },
 	{ state: "archived", label: "Archived" },

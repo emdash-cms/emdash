@@ -127,4 +127,40 @@ test.describe("Autosave", () => {
 		const latestRevision = data2.data.items?.[0];
 		expect(latestRevision?.data?.title).toBe("Edit Two");
 	});
+
+	test("does not resend a rejected autosave until the content changes", async ({ admin }) => {
+		await fetch(`${baseUrl}/_emdash/api/schema/collections/${collectionSlug}/fields`, {
+			method: "POST",
+			headers,
+			body: JSON.stringify({
+				slug: "summary",
+				type: "string",
+				label: "Summary",
+				validation: { maxLength: 10 },
+			}),
+		});
+
+		const contentUrl = `/_emdash/api/content/${collectionSlug}/${postId}`;
+		const isPut = (res: any) => res.url().includes(contentUrl) && res.request().method() === "PUT";
+		const putStatuses: number[] = [];
+		admin.page.on("response", (res) => {
+			if (isPut(res)) putStatuses.push(res.status());
+		});
+
+		await admin.goToEditContent(collectionSlug, postId);
+		await admin.waitForLoading();
+
+		const summaryInput = admin.page.locator("#field-summary");
+		const rejectedPut = admin.page.waitForResponse(isPut, { timeout: 10000 });
+		await summaryInput.fill("well over ten characters");
+		expect((await rejectedPut).status()).toBe(400);
+
+		await admin.page.waitForTimeout(7000);
+		expect(putStatuses).toEqual([400]);
+		await expect(summaryInput).toHaveValue("well over ten characters");
+
+		const acceptedPut = admin.page.waitForResponse(isPut, { timeout: 10000 });
+		await summaryInput.fill("short");
+		expect((await acceptedPut).status()).toBe(200);
+	});
 });

@@ -142,6 +142,67 @@ describe("publishRelease", () => {
 			expect(value.artifacts.package.contentType).toBe("application/gzip");
 		});
 
+		it("publishes a blob-only package artifact and derives its checksum from the CID", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			const blob = {
+				$type: "blob" as const,
+				ref: { $link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q" },
+				mimeType: "application/gzip",
+				size: 6,
+			};
+			await publishRelease(buildOptions(pds, { url: undefined, checksum: undefined, blob }));
+
+			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
+			expect(release?.value).toMatchObject({
+				artifacts: {
+					package: {
+						blob,
+						checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
+					},
+				},
+			});
+		});
+
+		it("publishes both artifact sources when their checksum matches", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			const blob = {
+				$type: "blob" as const,
+				ref: { $link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q" },
+				mimeType: "application/gzip",
+				size: 6,
+			};
+			await publishRelease(
+				buildOptions(pds, {
+					blob,
+					checksum: "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a",
+				}),
+			);
+
+			const release = pds.records.get(`at://${TEST_DID}/${NSID.packageRelease}/test-plugin:1.0.0`);
+			expect(release?.value).toMatchObject({
+				artifacts: { package: { blob, url: "https://example.com/test-plugin-1.0.0.tar.gz" } },
+			});
+		});
+
+		it("rejects both artifact sources when the URL bytes checksum disagrees with the blob CID", async () => {
+			const pds = new MockPds({ did: TEST_DID });
+			await expect(
+				publishRelease(
+					buildOptions(pds, {
+						blob: {
+							$type: "blob",
+							ref: {
+								$link: "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q",
+							},
+							mimeType: "application/gzip",
+							size: 6,
+						},
+					}),
+				),
+			).rejects.toMatchObject({ code: "ARTIFACT_CHECKSUM_MISMATCH" });
+			expect(pds.calls).toHaveLength(0);
+		});
+
 		it("writes release-level requires into the release record when provided", async () => {
 			const pds = new MockPds({ did: TEST_DID });
 			await publishRelease(

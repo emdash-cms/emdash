@@ -2,7 +2,8 @@ import { i18n } from "@lingui/core";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import type { ContentEditorProps } from "../../src/components/ContentEditor";
 import {
@@ -12,7 +13,13 @@ import {
 	type SettingsActionBarProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
-import type { ContentItem } from "../../src/lib/api";
+import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
+import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
+import {
+	publishingInstantToLocalFields,
+	resolvePublishingLocalDateTime,
+} from "../../src/lib/publishing-datetime.js";
 import { render } from "../utils/render.tsx";
 
 // Mock child components with their own data fetching so the panel tests
@@ -22,7 +29,11 @@ vi.mock("../../src/components/RevisionHistory", () => ({
 }));
 
 vi.mock("../../src/components/TaxonomySidebar", () => ({
-	TaxonomySidebar: () => <div data-testid="taxonomy-sidebar">Taxonomy</div>,
+	TaxonomySidebar: ({ canManageTaxonomies }: { canManageTaxonomies: boolean }) => (
+		<div data-testid="taxonomy-sidebar" data-can-manage={String(canManageTaxonomies)}>
+			Taxonomy
+		</div>
+	),
 	useHasApplicableTaxonomies: () => true,
 }));
 
@@ -73,11 +84,86 @@ function makeItem(overrides: Partial<ContentItem> = {}): ContentItem {
 	};
 }
 
+async function setPublishingTime(
+	screen: Awaited<ReturnType<typeof render>>,
+	time: `${string}:${string}`,
+) {
+	const [hour = "", minute = ""] = time.split(":");
+	const hour24 = Number(hour);
+	const hourCycle = new Intl.DateTimeFormat(i18n.locale, { hour: "numeric" }).resolvedOptions()
+		.hourCycle;
+	const use12HourClock = hourCycle === "h11" || hourCycle === "h12";
+	const displayHour = String(use12HourClock ? hour24 % 12 || 12 : hour24).padStart(2, "0");
+	await screen.getByRole("textbox", { name: "Hour" }).fill(displayHour);
+	await screen.getByRole("textbox", { name: "Minute" }).fill(minute);
+	if (use12HourClock) {
+		const periodLabel =
+			new Intl.DateTimeFormat(i18n.locale, { hour: "numeric", hour12: true })
+				.formatToParts(new Date(2020, 0, 1, hour24))
+				.find(({ type }) => type === "dayPeriod")?.value ?? (hour24 >= 12 ? "PM" : "AM");
+		const period = screen.getByRole("combobox", { name: "Period" });
+		if (!period.element().textContent?.includes(periodLabel)) {
+			fireEvent.click(period.element());
+			const option = screen.getByRole("option", { name: periodLabel, exact: true });
+			await expect.element(option).toBeInTheDocument();
+			fireEvent.click(option.element());
+		}
+	}
+}
+
+function displayedHour(time: string): string {
+	const hour = Number(time.slice(0, 2));
+	const hourCycle = new Intl.DateTimeFormat(i18n.locale, { hour: "numeric" }).resolvedOptions()
+		.hourCycle;
+	return String(hourCycle === "h11" || hourCycle === "h12" ? hour % 12 || 12 : hour).padStart(
+		2,
+		"0",
+	);
+}
+
+function makeByline(): BylineSummary {
+	return {
+		id: "byline-1",
+		slug: "mina-patel",
+		displayName: "Mina Patel",
+		bio: null,
+		avatarMediaId: null,
+		websiteUrl: null,
+		userId: null,
+		isGuest: true,
+		createdAt: "2026-08-26T12:00:00Z",
+		updatedAt: "2026-08-26T12:00:00Z",
+		locale: "en",
+		translationGroup: null,
+	};
+}
+
 const EDITOR_ROLE: NonNullable<ContentEditorProps["currentUser"]> = { id: "u1", role: 40 };
 const AUTHOR_ROLE: NonNullable<ContentEditorProps["currentUser"]> = { id: "u2", role: 20 };
 const USERS = [
 	{ id: "u1", name: "Editor One", email: "editor@example.com", role: 40 },
 ] as ContentSettingsPanelProps["users"];
+
+const TEST_MANIFEST: AdminManifest = {
+	version: "0.30.0",
+	hash: "test",
+	collections: {},
+	plugins: { insights: { enabled: true } },
+};
+
+function InsightsPanel({ entry, locale }: ContentEditorPanelContext) {
+	return (
+		<div data-testid="insights-panel">
+			Insights for {entry.slug} ({locale})
+		</div>
+	);
+}
+
+function pluginWrapper(pluginAdmins: PluginAdmins) {
+	return function PluginWrapper({ children }: React.PropsWithChildren) {
+		return <PluginAdminProvider pluginAdmins={pluginAdmins}>{children}</PluginAdminProvider>;
+	};
+}
 
 function makePanelProps(
 	overrides: Partial<ContentSettingsPanelProps> = {},
@@ -92,7 +178,6 @@ function makePanelProps(
 		supportsDrafts: true,
 		isLive: false,
 		hasPendingChanges: false,
-		hasSchedule: false,
 		supportsRevisions: true,
 		canSchedule: false,
 		onDelete: vi.fn(),
@@ -120,6 +205,9 @@ describe("ContentSettingsPanel", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 	});
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
 
 	it("renders all eight sections when every capability is enabled", async () => {
 		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
@@ -135,42 +223,530 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
 	});
 
-	it("shows the normalized pending changes label", async () => {
+	it("moves byline ordering guidance into help beside the heading", async () => {
+		const byline = makeByline();
 		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ isLive: true, hasPendingChanges: true })} />,
+			<ContentSettingsPanel
+				{...makePanelProps({
+					activeBylines: [{ bylineId: byline.id, roleLabel: null }],
+					availableBylines: [byline],
+				})}
+			/>,
 		);
-
-		await expect.element(screen.getByText("Pending changes")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Add another byline" })).toBeVisible();
+		const trigger = screen.getByRole("button", { name: "Why are bylines shown in this order?" });
+		trigger.element().focus();
+		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
 	});
 
-	it("shows Scheduled without a Draft companion", async () => {
+	it("omits the redundant lifecycle badge and distinguishes live and draft versions", async () => {
 		const screen = await render(
-			<ContentSettingsPanel {...makePanelProps({ hasSchedule: true })} />,
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						liveRevisionId: "rev-live",
+						draftRevisionId: "rev-draft",
+					}),
+					status: "published",
+					isLive: true,
+					hasPendingChanges: true,
+					onDiscardDraft: vi.fn(),
+				})}
+			/>,
 		);
 
-		await expect.element(screen.getByText("Scheduled", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText("Published", { exact: true }).query()).toBeNull();
+		const summary = screen.getByRole("group", { name: "Publishing summary" });
+		await expect.element(summary.getByText("Live version", { exact: true })).toBeInTheDocument();
+		await expect.element(summary.getByText("Draft changes", { exact: true })).toBeInTheDocument();
+		await expect
+			.element(summary.getByText("Visitors still see the published version"))
+			.toBeInTheDocument();
+		await expect
+			.element(summary.getByText("Ready to publish now or schedule for later"))
+			.toBeInTheDocument();
+		expect(screen.getByText("Live", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Ready", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Status", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Pending changes", { exact: true }).query()).toBeNull();
+		await expect.element(summary.getByRole("button", { name: "Discard changes" })).toBeVisible();
+	});
+
+	it("keeps publication date primary and discloses created and updated dates on request", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						publishedAt: "2025-01-15T10:30:00.000Z",
+						liveRevisionId: "rev-live",
+						draftRevisionId: "rev-live",
+					}),
+					status: "published",
+					isLive: true,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Publication date", { exact: true })).toBeVisible();
+		const history = screen.getByRole("button", { name: "Created and updated" });
+		await expect.element(history).toHaveAttribute("aria-expanded", "false");
+		expect(screen.getByText("Created", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Updated", { exact: true }).query()).toBeNull();
+
+		fireEvent.click(history.element());
+		await expect.element(history).toHaveAttribute("aria-expanded", "true");
+		await expect.element(screen.getByText("Created", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Updated", { exact: true })).toBeVisible();
+		fireEvent.click(history.element());
+		await expect.element(history).toHaveAttribute("aria-expanded", "false");
+		await vi.waitFor(() => {
+			expect(screen.getByText("Created", { exact: true }).query()).toBeNull();
+		});
+		history.element().blur();
+		await screen.unmount();
+	});
+
+	it("only grants inline taxonomy management to editors", async () => {
+		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
+		await expect
+			.element(screen.getByTestId("taxonomy-sidebar"))
+			.toHaveAttribute("data-can-manage", "true");
+
+		await screen.rerender(
+			<ContentSettingsPanel {...makePanelProps({ currentUser: AUTHOR_ROLE })} />,
+		);
+		await expect
+			.element(screen.getByTestId("taxonomy-sidebar"))
+			.toHaveAttribute("data-can-manage", "false");
+	});
+
+	it("shows the stored content locale separately from the admin language", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ locale: "ja" }),
+					manifest: {
+						...TEST_MANIFEST,
+						contentLocale: { defaultLocale: "ja", implicit: false },
+					},
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Content locale")).toBeInTheDocument();
+		await expect.element(screen.getByText("JA", { exact: true })).toBeInTheDocument();
+		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Why English is used" }).query()).toBeNull();
+	});
+
+	it("keeps implicit English visible through compact help without a persistent warning", async () => {
+		const manifest = { ...TEST_MANIFEST, contentLocale: { defaultLocale: "en", implicit: true } };
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: makeItem({ locale: "en" }), i18n: undefined, manifest })}
+			/>,
+		);
+
+		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Why English is used" }).query()).not.toBeNull();
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, i18n: undefined, manifest })}
+			/>,
+		);
+		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
+		const trigger = screen.getByRole("button", { name: "Why English is used" });
+		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
+		const explanation =
+			"English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language.";
+		const help = screen.getByText(explanation);
+		await userEvent.hover(trigger.element());
+		await expect.element(help).toBeVisible();
+		await userEvent.hover(document.body);
+		await vi.waitFor(() => expect(help.query()).toBeNull());
+		trigger.element().focus();
+		await expect.element(help).toBeVisible();
+		expect(screen.getByRole("alert").query()).toBeNull();
+		await userEvent.tab();
+		await vi.waitFor(() => expect(help.query()).toBeNull());
+	});
+
+	it("shows the scheduled summary without redundant status badges", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ scheduledAt: "2027-06-01T12:00:00.000Z" }),
+				})}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByText("First publication", { exact: true }))
+			.toBeInTheDocument();
+		expect(screen.getByText("Scheduled", { exact: true }).query()).toBeNull();
+		await expect.element(screen.getByText(/Scheduled for/)).toBeVisible();
+		expect(
+			screen.container.querySelector('time[datetime="2027-06-01T12:00:00.000Z"]')?.textContent,
+		).toContain("(EDT)");
 		expect(screen.container.textContent).not.toContain("Draft");
 	});
 
-	it("normalizes recognized statuses for collections without draft support", async () => {
+	it("shows scheduled draft changes while the published version stays live", async () => {
+		const scheduledAt = "2027-06-01T12:00:00.000Z";
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						liveRevisionId: "rev-live",
+						draftRevisionId: "rev-draft",
+						scheduledAt,
+					}),
+					status: "published",
+					isLive: true,
+					hasPendingChanges: true,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Live version", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Draft changes", { exact: true })).toBeVisible();
+		await expect
+			.element(screen.getByText("Visitors see the published version until the scheduled update"))
+			.toBeVisible();
+		expect(screen.container.querySelector(`time[datetime="${scheduledAt}"]`)).not.toBeNull();
+	});
+
+	it("does not claim draft changes for a live item with only a persisted schedule", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({
+						status: "published",
+						liveRevisionId: "rev-live",
+						draftRevisionId: "rev-live",
+						scheduledAt: "2027-06-01T12:00:00.000Z",
+					}),
+					status: "published",
+					isLive: true,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Live version", { exact: true })).toBeVisible();
+		await expect.element(screen.getByText("Scheduled publication", { exact: true })).toBeVisible();
+		expect(screen.getByText("Draft changes", { exact: true }).query()).toBeNull();
+	});
+
+	it("omits header lifecycle badges when drafts are unsupported", async () => {
 		const screen = await render(
 			<ContentSettingsPanel {...makePanelProps({ status: "published", supportsDrafts: false })} />,
 		);
-		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+		expect(screen.getByText("Published", { exact: true }).query()).toBeNull();
 
-		expect(statusRow.textContent).toContain("Publish");
-		expect(statusRow.textContent).not.toContain("Published");
-		expect(statusRow.querySelector("svg")).not.toBeNull();
-	});
-
-	it("preserves custom statuses for collections without draft support", async () => {
-		const screen = await render(
+		await screen.rerender(
 			<ContentSettingsPanel {...makePanelProps({ status: "reviewing", supportsDrafts: false })} />,
 		);
-		const statusRow = screen.getByText("Status", { exact: true }).element().parentElement!;
+		expect(screen.getByText("Reviewing", { exact: true }).query()).toBeNull();
+	});
 
-		expect(statusRow.textContent).toContain("Reviewing");
-		expect(statusRow.querySelector("svg")).toBeNull();
+	it("shows a persisted schedule without live-and-draft language when drafts are unsupported", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ scheduledAt: "2027-06-01T12:00:00.000Z" }),
+					status: "reviewing",
+					supportsDrafts: false,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Scheduled publication", { exact: true })).toBeVisible();
+		expect(screen.getByText("Live version", { exact: true }).query()).toBeNull();
+		expect(screen.getByText("Draft version", { exact: true }).query()).toBeNull();
+	});
+
+	it("renders applicable trusted plugin panels in host-owned sections", async () => {
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "summary",
+						title: "Content insights",
+						component: InsightsPanel,
+						collections: ["posts"],
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					manifest: TEST_MANIFEST,
+					entryLocale: "en",
+				})}
+			/>,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect
+			.element(screen.getByRole("heading", { name: "Content insights" }))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByTestId("insights-panel"))
+			.toHaveTextContent("Insights for my-post (en)");
+	});
+
+	it("localizes trusted plugin panel titles in host-owned UI", async () => {
+		const previousLocale = i18n.locale;
+		i18n.load("nl", { "Content insights": "Inhoudsinzichten" });
+		i18n.activate("nl");
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{
+						id: "summary",
+						title: "Content insights",
+						component: InsightsPanel,
+					},
+				],
+			},
+		};
+
+		try {
+			const screen = await render(
+				<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+				{ wrapper: pluginWrapper(pluginAdmins) },
+			);
+
+			await expect
+				.element(screen.getByRole("heading", { name: "Inhoudsinzichten" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Drag to reorder Inhoudsinzichten" }))
+				.toBeInTheDocument();
+		} finally {
+			i18n.activate(previousLocale);
+		}
+	});
+
+	it("omits panels when their plugin is disabled or the entry is new", async () => {
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{ id: "summary", title: "Content insights", component: InsightsPanel },
+				],
+			},
+		};
+		const disabledManifest: AdminManifest = {
+			...TEST_MANIFEST,
+			plugins: { insights: { enabled: false } },
+		};
+		const disabledScreen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: disabledManifest })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+		expect(disabledScreen.container.querySelector('[data-testid="insights-panel"]')).toBeNull();
+
+		const newScreen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, manifest: TEST_MANIFEST })}
+			/>,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+		expect(newScreen.container.querySelector('[data-testid="insights-panel"]')).toBeNull();
+	});
+
+	it("contains plugin panel render failures", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		function BrokenPanel(): React.ReactNode {
+			throw new Error("render failed");
+		}
+		function HealthyPanel(): React.ReactNode {
+			return <div data-testid="healthy-panel">Healthy panel</div>;
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{ id: "broken", title: "Broken insights", component: BrokenPanel },
+					{ id: "healthy", title: "Healthy insights", component: HealthyPanel },
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Plugin panel unavailable.");
+		await expect.element(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+		await expect.element(screen.getByTestId("healthy-panel")).toHaveTextContent("Healthy panel");
+		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
+		expect(errorSpy).toHaveBeenCalled();
+	});
+
+	it("recovers a failed plugin panel when Retry is pressed", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		let failPanel: (() => void) | undefined;
+		let mountCount = 0;
+		function FlakyPanel(): React.ReactNode {
+			const [failed, setFailed] = React.useState(false);
+			React.useEffect(() => {
+				mountCount += 1;
+			}, []);
+			failPanel = () => setFailed(true);
+			if (failed) throw new Error("panel failed");
+			return <div data-testid="flaky-panel">Recovered</div>;
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [{ id: "flaky", title: "Flaky insights", component: FlakyPanel }],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByTestId("flaky-panel")).toBeInTheDocument();
+		await act(async () => failPanel?.());
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Plugin panel unavailable.");
+
+		await screen.getByRole("button", { name: "Retry" }).click();
+
+		await expect.element(screen.getByTestId("flaky-panel")).toBeInTheDocument();
+		expect(screen.getByRole("alert").query()).toBeNull();
+		expect(mountCount).toBe(2);
+		expect(errorSpy).toHaveBeenCalled();
+	});
+
+	it("remounts plugin panels when the content identity changes", async () => {
+		let nextMount = 0;
+		function IdentityPanel({ entry }: ContentEditorPanelContext) {
+			const [mount] = React.useState(() => ++nextMount);
+			return (
+				<div data-testid="identity-panel">
+					{entry.id}:mount-{mount}
+				</div>
+			);
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [{ id: "identity", title: "Identity", component: IdentityPanel }],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByTestId("identity-panel")).toHaveTextContent("item-1:mount-1");
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ id: "item-2", slug: "second-post" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByTestId("identity-panel")).toHaveTextContent("item-2:mount-2");
+	});
+
+	it("remounts plugin panels when the collection changes", async () => {
+		let nextMount = 0;
+		function CollectionPanel({ collection }: ContentEditorPanelContext) {
+			const [mount] = React.useState(() => ++nextMount);
+			return (
+				<div data-testid="collection-panel">
+					{collection}:mount-{mount}
+				</div>
+			);
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [
+					{ id: "collection", title: "Collection", component: CollectionPanel },
+				],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect.element(screen.getByTestId("collection-panel")).toHaveTextContent("posts:mount-1");
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					collection: "pages",
+					item: makeItem({ type: "pages" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByTestId("collection-panel")).toHaveTextContent("pages:mount-2");
+	});
+
+	it("resets failed plugin panels when their content context changes", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		let nextMount = 0;
+		function ContextPanel({ collection, entry }: ContentEditorPanelContext) {
+			const [failed, setFailed] = React.useState(false);
+			const [mount] = React.useState(() => ++nextMount);
+			if (failed) throw new Error("context panel failed");
+			return (
+				<button type="button" data-testid="context-panel" onClick={() => setFailed(true)}>
+					{collection}:{entry.id}:mount-{mount}
+				</button>
+			);
+		}
+		const pluginAdmins: PluginAdmins = {
+			insights: {
+				contentEditorPanels: [{ id: "context", title: "Context", component: ContextPanel }],
+			},
+		};
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ manifest: TEST_MANIFEST })} />,
+			{ wrapper: pluginWrapper(pluginAdmins) },
+		);
+
+		await expect
+			.element(screen.getByTestId("context-panel"))
+			.toHaveTextContent("posts:item-1:mount-1");
+		await screen.getByTestId("context-panel").click();
+		await expect.element(screen.getByRole("alert")).toBeInTheDocument();
+
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ id: "item-2", slug: "second-post" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+		await expect
+			.element(screen.getByTestId("context-panel"))
+			.toHaveTextContent("posts:item-2:mount-2");
+
+		await screen.getByTestId("context-panel").click();
+		await expect.element(screen.getByRole("alert")).toBeInTheDocument();
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					collection: "pages",
+					item: makeItem({ id: "item-2", slug: "second-page", type: "pages" }),
+					manifest: TEST_MANIFEST,
+				})}
+			/>,
+		);
+		await expect
+			.element(screen.getByTestId("context-panel"))
+			.toHaveTextContent("pages:item-2:mount-3");
+		expect(errorSpy).toHaveBeenCalled();
 	});
 
 	it("hides Ownership and Bylines for users below the editor role", async () => {
@@ -185,6 +761,8 @@ describe("ContentSettingsPanel", () => {
 
 	it("lets editors update the publish date of published content", async () => {
 		const onPublishedAtChange = vi.fn();
+		const publishedAt = "2025-01-15T10:30:45.123Z";
+		const initial = publishingInstantToLocalFields(publishedAt);
 		const previousLocale = i18n.locale;
 		i18n.load("ar", {});
 		i18n.activate("ar");
@@ -195,7 +773,7 @@ describe("ContentSettingsPanel", () => {
 						{...makePanelProps({
 							item: makeItem({
 								status: "published",
-								publishedAt: "2025-01-15T10:30:00.000Z",
+								publishedAt,
 							}),
 							isLive: true,
 							onPublishedAtChange,
@@ -204,15 +782,133 @@ describe("ContentSettingsPanel", () => {
 				</div>,
 			);
 
-			const input = screen.getByLabelText("Publish date");
-			await expect.element(input).toHaveValue("2025-01-15T10:30");
-			await input.fill("2020-06-01T08:45");
-			await screen.getByRole("button", { name: "Update publish date" }).click();
+			const trigger = screen.getByRole("button", { name: /Change publication date:/ });
+			await expect.element(trigger).toBeVisible();
+			expect(screen.container.querySelector('input[type="time"]')).toBeNull();
+			await trigger.getByText("Publication date", { exact: true }).click();
+			const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+			expect(dialog.getByText("Change the recorded date for the live version.").query()).toBeNull();
+			expect(dialog.getByText("Date", { exact: true }).query()).toBeNull();
+			await expect
+				.element(screen.getByRole("textbox", { name: "Hour" }))
+				.toHaveValue(displayedHour(initial.time));
+			await expect
+				.element(screen.getByRole("textbox", { name: "Minute" }))
+				.toHaveValue(initial.time.slice(3));
+			await expect.element(dialog.getByRole("button", { name: "Save date" })).toBeDisabled();
+			fireEvent.click(screen.getByRole("button", { name: "Cancel", exact: true }).element());
+			expect(onPublishedAtChange).not.toHaveBeenCalled();
 
-			expect(onPublishedAtChange).toHaveBeenCalledWith("2020-06-01T08:45:00.000Z");
+			await trigger.click();
+			await setPublishingTime(screen, "08:45");
+			const resolved = resolvePublishingLocalDateTime(initial.date, "08:45");
+			expect(resolved.success).toBe(true);
+			await userEvent.keyboard("{Enter}");
+
+			expect(onPublishedAtChange).toHaveBeenCalledWith(
+				resolved.success ? resolved.value : undefined,
+			);
+			await expect.element(dialog).not.toBeInTheDocument();
 		} finally {
 			i18n.activate(previousLocale);
 		}
+	});
+
+	it("keeps publication-date values available after an update is rejected", async () => {
+		const onPublishedAtChange = vi.fn().mockRejectedValue(new Error("Date update failed"));
+		const publishedAt = "2025-01-15T10:30:00.000Z";
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ status: "published", publishedAt }),
+					isLive: true,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: /Change publication date:/ }).click();
+		await setPublishingTime(screen, "08:45");
+		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Date update failed");
+		await expect.element(screen.getByRole("textbox", { name: "Hour" })).toHaveValue("08");
+		await expect.element(screen.getByRole("textbox", { name: "Minute" })).toHaveValue("45");
+		expect(onPublishedAtChange).toHaveBeenCalledOnce();
+	});
+
+	it("closes and resets the publication-date editor when the entry changes", async () => {
+		let rejectUpdate: (reason?: unknown) => void = () => {};
+		const pendingUpdate = new Promise<void>((_resolve, reject) => {
+			rejectUpdate = reject;
+		});
+		const onPublishedAtChange = vi.fn(() => pendingUpdate);
+		const firstPublishedAt = "2025-01-15T10:30:00.000Z";
+		const secondPublishedAt = "2025-02-20T17:15:00.000Z";
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ id: "item-1", status: "published", publishedAt: firstPublishedAt }),
+					isLive: true,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: /Change publication date:/ }).click();
+		await setPublishingTime(screen, "08:45");
+		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
+		await expect.element(screen.getByRole("button", { name: "Save date" })).toBeDisabled();
+
+		await screen.rerender(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ id: "item-2", status: "published", publishedAt: secondPublishedAt }),
+					isLive: true,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+		await vi.waitFor(() => {
+			expect(screen.getByText("Change publication date", { exact: true }).query()).toBeNull();
+		});
+		await act(async () => {
+			rejectUpdate(new Error("Stale update failed"));
+			await Promise.resolve();
+		});
+		expect(screen.getByRole("alert").query()).toBeNull();
+
+		await screen.getByRole("button", { name: /Change publication date:/ }).click();
+		const resetTime = publishingInstantToLocalFields(secondPublishedAt).time;
+		await expect
+			.element(screen.getByRole("textbox", { name: "Hour" }))
+			.toHaveValue(displayedHour(resetTime));
+		await expect
+			.element(screen.getByRole("textbox", { name: "Minute" }))
+			.toHaveValue(resetTime.slice(3));
+	});
+
+	it("lets editors update a retained publication date while content is unpublished", async () => {
+		const onPublishedAtChange = vi.fn();
+		const publishedAt = "2025-01-15T10:30:00.000Z";
+		const initial = publishingInstantToLocalFields(publishedAt);
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ status: "draft", publishedAt, liveRevisionId: null }),
+					isLive: false,
+					onPublishedAtChange,
+				})}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: /Change publication date:/ }).click();
+		await setPublishingTime(screen, "08:45");
+		const resolved = resolvePublishingLocalDateTime(initial.date, "08:45");
+		expect(resolved.success).toBe(true);
+		fireEvent.click(screen.getByRole("button", { name: "Save date" }).element());
+
+		expect(onPublishedAtChange).toHaveBeenCalledWith(resolved.success ? resolved.value : undefined);
 	});
 
 	it("does not expose publish-date editing below the editor role", async () => {
@@ -230,8 +926,14 @@ describe("ContentSettingsPanel", () => {
 			/>,
 		);
 
-		expect(screen.container.querySelector('input[type="datetime-local"]')).toBeNull();
-		expect(screen.container.textContent).not.toContain("Update publish date");
+		await expect.element(screen.getByText("Publication date", { exact: true })).toBeVisible();
+		expect(screen.getByRole("button", { name: /Change publication date:/ }).query()).toBeNull();
+		expect(screen.container.querySelector('input[type="time"]')).toBeNull();
+		const timestamps = screen.getByTestId("content-timestamps").element();
+		expect(timestamps.querySelectorAll("time")).toHaveLength(1);
+		expect(timestamps.querySelector('time[datetime="2025-01-15T10:30:00.000Z"]')).not.toBeNull();
+		await screen.getByRole("button", { name: "Created and updated" }).click();
+		expect(timestamps.querySelectorAll("time")).toHaveLength(3);
 	});
 
 	it("hides capability-gated sections when their flags are off", async () => {
@@ -265,6 +967,16 @@ describe("ContentSettingsPanel", () => {
 		expect(screen.container.querySelector('[data-testid="taxonomy-sidebar"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="seo-panel"]')).toBeNull();
 		expect(screen.container.querySelector('[data-testid="revision-history"]')).toBeNull();
+	});
+
+	it("does not render an empty publishing summary for a new collection without drafts", async () => {
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({ item: null, isNew: true, supportsDrafts: false })}
+			/>,
+		);
+
+		expect(screen.getByRole("group", { name: "Publishing summary" }).query()).toBeNull();
 	});
 
 	it("renders the block detail panel instead of settings when a block requests the sidebar", async () => {
@@ -360,11 +1072,14 @@ describe("SettingsActionBar", () => {
 			.toBeInTheDocument();
 	});
 
-	it("shows Publish for a live item with edits", async () => {
+	it("shows Publish changes now for a live item with edits and no schedule option", async () => {
 		const props = makeBarProps({ isLive: true, hasPendingChanges: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
-		const publishChanges = screen.getByRole("button", { name: "Publish", exact: true });
+		const publishChanges = screen.getByRole("button", {
+			name: "Publish changes now",
+			exact: true,
+		});
 		await expect.element(publishChanges).toBeInTheDocument();
 		expect(publishChanges.element().className).toContain("button-emphasis-bg");
 
@@ -418,7 +1133,7 @@ describe("SettingsActionBar", () => {
 			screen.getByRole("button", { name: "Saved" }).element(),
 			screen.getByRole("link", { name: "Live View" }).element(),
 			screen.getByRole("button", { name: "Preview draft" }).element(),
-			screen.getByRole("button", { name: "Publish", exact: true }).element(),
+			screen.getByRole("button", { name: "Publish changes now", exact: true }).element(),
 		];
 		const slots = actions.map((action) => action.parentElement);
 

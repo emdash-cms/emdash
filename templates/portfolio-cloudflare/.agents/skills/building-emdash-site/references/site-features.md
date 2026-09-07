@@ -288,7 +288,7 @@ Built-in comments system:
 
 ```astro
 ---
-import { Comments, CommentForm } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
 ---
 <Comments collection="posts" contentId={post.data.id} threaded />
 <CommentForm collection="posts" contentId={post.data.id} />

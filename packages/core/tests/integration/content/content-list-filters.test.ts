@@ -6,6 +6,7 @@ import {
 	handleContentList,
 } from "../../../src/api/handlers/content.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
+import { createContentAccess } from "../../../src/plugins/context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
@@ -28,6 +29,12 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		const registry = new SchemaRegistry(ctx.db);
 		await registry.createCollection({ slug: "posts", label: "Posts", labelSingular: "Post" });
 		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("posts", {
+			slug: "priority",
+			label: "Priority",
+			type: "string",
+			indexed: true,
+		});
 
 		const users = new UserRepository(ctx.db);
 		const alice = await users.create({ email: "alice@example.com", name: "Alice" });
@@ -37,14 +44,32 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 
 		// Three posts across 2023/2024/2025, two by Alice and one by Bob.
 		const seed = [
-			{ slug: "y2023", title: "Old", authorId: aliceId, createdAt: "2023-06-01T12:00:00.000Z" },
-			{ slug: "y2024", title: "Mid", authorId: bobId, createdAt: "2024-06-01T12:00:00.000Z" },
-			{ slug: "y2025", title: "New", authorId: aliceId, createdAt: "2025-06-01T12:00:00.000Z" },
+			{
+				slug: "y2023",
+				title: "Old",
+				priority: "normal",
+				authorId: aliceId,
+				createdAt: "2023-06-01T12:00:00.000Z",
+			},
+			{
+				slug: "y2024",
+				title: "Mid",
+				priority: "urgent",
+				authorId: bobId,
+				createdAt: "2024-06-01T12:00:00.000Z",
+			},
+			{
+				slug: "y2025",
+				title: "New",
+				priority: "high",
+				authorId: aliceId,
+				createdAt: "2025-06-01T12:00:00.000Z",
+			},
 		];
 		for (const s of seed) {
 			const created = await handleContentCreate(ctx.db, "posts", {
 				slug: s.slug,
-				data: { title: s.title },
+				data: { title: s.title, priority: s.priority },
 				authorId: s.authorId,
 				createdAt: s.createdAt,
 			});
@@ -71,6 +96,81 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		if (!result.success) throw new Error("list failed");
 		// total must reflect the filter, not the full collection.
 		expect(result.data.total).toBe(2);
+	});
+
+	it("passes indexed custom-field filters through the list handler", async () => {
+		const result = await handleContentList(ctx.db, "posts", {
+			fieldFilters: { priority: { in: ["urgent", "high"] } },
+		});
+
+		expect(slugsOf(result).toSorted()).toEqual(["y2024", "y2025"]);
+		if (!result.success) throw new Error("list failed");
+		expect(result.data.total).toBe(2);
+	});
+
+	it("reports a missing collection the same way with and without field filters", async () => {
+		const withFilters = await handleContentList(ctx.db, "ghosts", {
+			fieldFilters: { priority: "urgent" },
+		});
+		const withoutFilters = await handleContentList(ctx.db, "ghosts", {});
+
+		expect(withFilters.success).toBe(false);
+		expect(withoutFilters.success).toBe(false);
+		if (withFilters.success || withoutFilters.success) throw new Error("expected failures");
+		expect(withFilters.error.code).toBe("COLLECTION_NOT_FOUND");
+		expect(withFilters.error.code).toBe(withoutFilters.error.code);
+	});
+
+	it("reports a missing collection ahead of an invalid field filter name", async () => {
+		const result = await handleContentList(ctx.db, "ghosts", {
+			fieldFilters: { "not a field": "urgent" },
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("expected a failure");
+		expect(result.error.code).toBe("COLLECTION_NOT_FOUND");
+	});
+
+	it("reports a missing collection ahead of an oversized filter set", async () => {
+		const fieldFilters = Object.fromEntries(
+			Array.from({ length: 21 }, (_, index) => [`field_${index}`, "value"]),
+		);
+		const result = await handleContentList(ctx.db, "ghosts", { fieldFilters });
+
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("expected a failure");
+		expect(result.error.code).toBe("COLLECTION_NOT_FOUND");
+	});
+
+	it("rejects an oversized filter set on a collection that exists", async () => {
+		const fieldFilters = Object.fromEntries(
+			Array.from({ length: 21 }, (_, index) => [`field_${index}`, "value"]),
+		);
+		const result = await handleContentList(ctx.db, "posts", { fieldFilters });
+
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("expected a failure");
+		expect(result.error.code).toBe("VALIDATION_ERROR");
+	});
+
+	it("rejects an invalid field filter name on a collection that exists", async () => {
+		const result = await handleContentList(ctx.db, "posts", {
+			fieldFilters: { "not a field": "urgent" },
+		});
+
+		expect(result.success).toBe(false);
+		if (result.success) throw new Error("expected a failure");
+		expect(result.error.code).toBe("VALIDATION_ERROR");
+	});
+
+	it("passes indexed custom-field filters through plugin content access", async () => {
+		const content = createContentAccess(ctx.db);
+		const result = await content.list("posts", {
+			where: { fieldFilters: { priority: "urgent" } },
+		});
+
+		expect(result.items.map((item) => item.slug)).toEqual(["y2024"]);
+		expect(result.hasMore).toBe(false);
 	});
 
 	it("filters by an inclusive createdAt date range", async () => {

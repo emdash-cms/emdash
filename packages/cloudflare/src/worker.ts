@@ -1,18 +1,9 @@
 /**
  * Cloudflare Worker entry for EmDash sites.
  *
- * Wraps the Astro Cloudflare server handler with a `scheduled()` handler so a
- * Cron Trigger drives scheduled publishing, plugin cron, and system cleanup
- * without any request side effects. Re-exports the `PluginBridge` Durable
- * Object so the sandbox binding resolves against the entry module.
- *
- * Templates use this as their entire `src/worker.ts`:
- *
- *   export { default, PluginBridge } from "@emdash-cms/cloudflare/worker";
- *
- * and add a Cron Trigger to wrangler.jsonc:
- *
- *   "triggers": { "crons": ["* * * * *"] }
+ * Wraps the Astro Cloudflare server handler with a `scheduled()` handler for
+ * general maintenance. Re-exports the `PluginBridge` Durable Object so the
+ * sandbox binding resolves against the entry module.
  *
  * The `@astrojs/cloudflare/entrypoints/server` import is resolved by the
  * consuming app's Astro build (it pulls the build-time `virtual:astro:app`
@@ -48,29 +39,44 @@ async function invalidatePublishedTags(
 }
 
 /**
- * Build a Worker `scheduled()` handler that runs EmDash's scheduled
- * maintenance batch and purges edge-cache tags for anything it published.
- * Exported for sites that assemble their own Worker object; most sites get it
- * via this module's default export.
+ * Build a Worker `scheduled()` handler for general maintenance.
  */
-export function createScheduledHandler(): ExportedHandlerScheduledHandler {
-	return (_controller, _env, ctx) => {
+export interface ScheduledHandlerOptions {
+	generalCron?: string;
+}
+
+export function createScheduledHandler(
+	options?: ScheduledHandlerOptions,
+): ExportedHandlerScheduledHandler {
+	const generalCron = options?.generalCron?.trim();
+	if (options?.generalCron !== undefined && !generalCron) {
+		throw new Error("Configured scheduled-handler expressions must be non-empty");
+	}
+
+	return (controller, _env, ctx) => {
+		if (generalCron !== undefined && controller.cron !== generalCron) {
+			console.warn(`[scheduled] Ignoring unexpected Cron expression: ${controller.cron}`);
+			return;
+		}
+
 		ctx.waitUntil(
-			// Invalidate incrementally as each collection batch publishes, so a
-			// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a
-			// large backlog) still purged the cache tags for everything it managed
-			// to publish — not just whatever completed before a single end-of-sweep
-			// purge that may never run.
-			runScheduledTasks({ onPublished: invalidatePublishedTags })
-				.then(({ published }) => {
+			(async () => {
+				try {
+					// Invalidate incrementally as each collection batch publishes, so a
+					// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a
+					// large backlog) still purged the cache tags for everything it managed
+					// to publish — not just whatever completed before a single end-of-sweep
+					// purge that may never run.
+					const { published } = await runScheduledTasks({
+						onPublished: invalidatePublishedTags,
+					});
 					if (published.length > 0) {
 						console.log(`[scheduled] Published ${published.length} scheduled item(s)`);
 					}
-					return undefined;
-				})
-				.catch((error: unknown) => {
+				} catch (error) {
 					console.error("[scheduled] runScheduledTasks failed:", error);
-				}),
+				}
+			})(),
 		);
 	};
 }

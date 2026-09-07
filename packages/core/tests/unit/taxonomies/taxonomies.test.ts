@@ -240,16 +240,19 @@ describe("TaxonomyRepository", () => {
 			expect(roots).toHaveLength(2); // tech and design
 		});
 
-		it("should return terms ordered by label", async () => {
+		it("should return terms in their manual order, not by label", async () => {
 			await repo.create({ name: "tags", slug: "z", label: "Zebra" });
 			await repo.create({ name: "tags", slug: "a", label: "Apple" });
 			await repo.create({ name: "tags", slug: "m", label: "Mango" });
 
-			const tags = await repo.findByName("tags");
-
-			expect(tags[0].label).toBe("Apple");
-			expect(tags[1].label).toBe("Mango");
-			expect(tags[2].label).toBe("Zebra");
+			// Each term appends, so the group reads back in creation order rather
+			// than alphabetically. Reordering itself is covered through the handler
+			// in term-reorder.test.ts.
+			expect((await repo.findByName("tags")).map((tag) => tag.label)).toEqual([
+				"Zebra",
+				"Apple",
+				"Mango",
+			]);
 		});
 	});
 

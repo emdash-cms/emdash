@@ -10,8 +10,15 @@
 		"noImplicitOverride": true,
 		"verbatimModuleSyntax": true,
 		"resolveJsonModule": true,
+		"allowImportingTsExtensions": true,
 		"skipLibCheck": true,
 		"noEmit": true
 	},
-	"include": [".flue/**/*.ts", "tests/**/*.ts", "worker-configuration.d.ts"]
+	"include": [
+		".flue/**/*.ts",
+		"scripts/**/*.ts",
+		"tests/**/*.ts",
+		"evals/**/*.ts",
+		"worker-configuration.d.ts"
+	]
 }

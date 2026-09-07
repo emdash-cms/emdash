@@ -6,6 +6,8 @@ import { decode, encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
 	cachedQuery,
+	getLastContentWriteAt,
+	invalidateCollectionCache,
 	invalidateObjectCache,
 	type ObjectCacheBackend,
 } from "../../src/object-cache/index.js";
@@ -438,5 +440,75 @@ describe("cachedQuery", () => {
 		await cachedQuery({ namespace: "posts", key: "k", load });
 		// The second post-recovery call is served from cache (load not re-run).
 		expect(load.mock.calls.length).toBe(calls);
+	});
+});
+
+describe("last content write stamp", () => {
+	beforeEach(() => {
+		__setObjectCacheBackendForTests(spyBackend(), { revalidate: 1000, defaultTtl: 3600 });
+	});
+	afterEach(() => {
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("stamps lastContentWriteAt when invalidating a content: namespace", async () => {
+		expect(await getLastContentWriteAt()).toBe(0);
+		const before = Date.now();
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		expect(local).toBeGreaterThanOrEqual(before);
+		await flush();
+	});
+
+	it("stamps via invalidateCollectionCache", async () => {
+		invalidateCollectionCache("posts");
+		expect(await getLastContentWriteAt()).toBeGreaterThan(0);
+	});
+
+	it("does not stamp on non-content namespaces", async () => {
+		invalidateObjectCache("settings");
+		invalidateObjectCache("menus");
+		invalidateObjectCache("bylines");
+		invalidateObjectCache("taxonomies");
+		invalidateObjectCache("schema");
+		invalidateObjectCache("comments");
+		expect(await getLastContentWriteAt()).toBe(0);
+	});
+
+	it("persists the stamp to the backend under a stable key", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		await flush();
+		const setKeys = vi.mocked(backend.set).mock.calls.map((c) => c[0]);
+		expect(setKeys).toContain("em:last-content-write-at");
+		expect(backend.store.get("em:last-content-write-at")).toBe(String(local));
+	});
+
+	it("caches a confirmed zero marker within the revalidate window", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 60_000, defaultTtl: 3600 });
+		expect(await getLastContentWriteAt()).toBe(0);
+		expect(backend.get).toHaveBeenCalledTimes(1);
+		expect(await getLastContentWriteAt()).toBe(0);
+		expect(backend.get).toHaveBeenCalledTimes(1);
+	});
+
+	it("merges a fresher backend stamp on cold isolate read", async () => {
+		const backend = spyBackend();
+		backend.store.set("em:last-content-write-at", "1700000000000");
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const got = await getLastContentWriteAt();
+		expect(got).toBe(1_700_000_000_000);
+	});
+
+	it("does not let a stale backend read lower a fresher local stamp", async () => {
+		const backend = spyBackend();
+		backend.store.set("em:last-content-write-at", "100");
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		invalidateObjectCache("content:posts");
+		const local = await getLastContentWriteAt();
+		expect(local).toBeGreaterThan(100);
 	});
 });

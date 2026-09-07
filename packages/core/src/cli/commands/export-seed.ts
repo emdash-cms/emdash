@@ -314,8 +314,12 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 			labelSingular: collection.labelSingular || undefined,
 			description: collection.description || undefined,
 			icon: collection.icon || undefined,
+			admin: collection.admin,
 			supports: collection.supports.length > 0 ? collection.supports : undefined,
 			urlPattern: collection.urlPattern || undefined,
+			routable: collection.routable === false ? false : undefined,
+			hidden: collection.hidden || undefined,
+			sortOrder: collection.sortOrder,
 			fields: fields.map(
 				(field): SeedField => ({
 					slug: field.slug,
@@ -324,6 +328,7 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 					required: field.required || undefined,
 					unique: field.unique || undefined,
 					searchable: field.searchable || undefined,
+					indexed: field.indexed || undefined,
 					defaultValue: field.defaultValue,
 					validation: field.validation ? { ...field.validation } : undefined,
 					widget: field.widget || undefined,
@@ -744,7 +749,7 @@ async function exportContent(
 
 				const entry: SeedContentEntry = {
 					id: seedId,
-					slug: item.slug || item.id,
+					slug: item.slug?.trim() ? item.slug : collection.routable === false ? undefined : item.id,
 					status: item.status === "published" || item.status === "draft" ? item.status : undefined,
 					data: processedData,
 				};

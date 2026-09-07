@@ -10,13 +10,14 @@
 
 import { it, expect, beforeEach, afterEach } from "vitest";
 
-import { MIGRATION_COUNT } from "../../../src/database/migrations/runner.js";
+import { MIGRATION_COUNT, MIGRATION_NAMES } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	createForDialect,
 	describeEachDialect,
+	getExactMigrationStatusForDialect,
 	getMigrationStatusForDialect,
 	runMigrationsForDialect,
 	setupForDialect,
@@ -103,6 +104,33 @@ describeEachDialect("Migrations", (dialect) => {
 		const after = await getMigrationStatusForDialect(ctx);
 		expect(after.applied).toContain("001_initial");
 		expect(after.pending).toHaveLength(0);
+	});
+
+	it("reports exact fresh, current, pending, and database-ahead states", async () => {
+		await expect(getExactMigrationStatusForDialect(ctx)).resolves.toEqual({
+			knownApplied: [],
+			pending: MIGRATION_NAMES,
+			unknownApplied: [],
+		});
+
+		await runMigrationsForDialect(ctx);
+		await expect(getExactMigrationStatusForDialect(ctx)).resolves.toEqual({
+			knownApplied: MIGRATION_NAMES,
+			pending: [],
+			unknownApplied: [],
+		});
+
+		const pendingName = MIGRATION_NAMES.at(-1)!;
+		await ctx.db.deleteFrom("_emdash_migrations").where("name", "=", pendingName).execute();
+		await ctx.db
+			.insertInto("_emdash_migrations")
+			.values({ name: "999_future", timestamp: new Date().toISOString() })
+			.execute();
+
+		const status = await getExactMigrationStatusForDialect(ctx);
+		expect(status.knownApplied).toEqual(MIGRATION_NAMES.slice(0, -1));
+		expect(status.pending).toEqual([pendingName]);
+		expect(status.unknownApplied).toEqual(["999_future"]);
 	});
 });
 

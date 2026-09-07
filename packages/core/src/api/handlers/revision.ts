@@ -4,6 +4,7 @@
 
 import type { Kysely } from "kysely";
 
+import { after } from "../../after.js";
 import { ContentRepository } from "../../database/repositories/content.js";
 import { RevisionRepository, type Revision } from "../../database/repositories/revision.js";
 import { withTransaction } from "../../database/transaction.js";
@@ -115,7 +116,7 @@ export async function handleRevisionRestore(
 		// Atomically update content and create a new revision to record the restore.
 		// If either operation fails, neither is committed (on engines that support
 		// transactions; on D1, withTransaction falls back to sequential execution).
-		const item = await withTransaction(db, async (trx) => {
+		const { item, queuedRevisionId } = await withTransaction(db, async (trx) => {
 			const trxContentRepo = new ContentRepository(trx);
 			const trxRevisionRepo = new RevisionRepository(trx);
 
@@ -124,19 +125,32 @@ export async function handleRevisionRestore(
 				slug: typeof _slug === "string" ? _slug : undefined,
 			});
 
-			await trxRevisionRepo.create({
+			const queuedRevision = await trxRevisionRepo.create({
 				collection: revision.collection,
 				entryId: revision.entryId,
 				data: revision.data,
 				authorId: callerUserId,
 			});
 
-			return updated;
+			return { item: updated, queuedRevisionId: queuedRevision.id };
 		});
 
-		// Fire-and-forget: prune old revisions to prevent unbounded growth
 		const pruneRepo = new RevisionRepository(db);
-		void pruneRepo.pruneOldRevisions(revision.collection, revision.entryId, 50).catch(() => {});
+		after(async () => {
+			try {
+				await pruneRepo.pruneQueuedEntry(
+					revision.collection,
+					revision.entryId,
+					queuedRevisionId,
+					50,
+				);
+			} catch (error) {
+				console.error(
+					`[revisions] Failed to prune revisions for ${revision.collection}/${revision.entryId}:`,
+					error,
+				);
+			}
+		});
 
 		return {
 			success: true,

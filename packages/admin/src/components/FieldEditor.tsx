@@ -32,6 +32,32 @@ import { AllowedTypesEditor } from "./AllowedTypesEditor";
 
 const SLUG_INVALID_CHARS_REGEX = /[^a-z0-9]+/g;
 const SLUG_LEADING_TRAILING_REGEX = /^_|_$/g;
+const SEARCHABLE_FIELD_TYPES = new Set<FieldType>([
+	"string",
+	"text",
+	"portableText",
+	"slug",
+	"url",
+]);
+const INDEXABLE_FIELD_TYPES = new Set<FieldType>([
+	"string",
+	"url",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"reference",
+	"slug",
+]);
+
+function isSearchableFieldType(type: FieldType | null): type is FieldType {
+	return type !== null && SEARCHABLE_FIELD_TYPES.has(type);
+}
+
+function isIndexableFieldType(type: FieldType | null): type is FieldType {
+	return type !== null && INDEXABLE_FIELD_TYPES.has(type);
+}
 
 // ============================================================================
 // Types
@@ -67,6 +93,7 @@ interface FieldFormState {
 	required: boolean;
 	unique: boolean;
 	searchable: boolean;
+	indexed: boolean;
 	minLength: string;
 	maxLength: string;
 	min: string;
@@ -77,6 +104,7 @@ interface FieldFormState {
 	minItems: string;
 	maxItems: string;
 	allowedMimeTypes: string[];
+	darkVariant: boolean;
 }
 
 function getInitialFormState(field?: SchemaField): FieldFormState {
@@ -89,6 +117,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			required: field.required,
 			unique: field.unique,
 			searchable: field.searchable,
+			indexed: field.indexed ?? false,
 			minLength: field.validation?.minLength?.toString() ?? "",
 			maxLength: field.validation?.maxLength?.toString() ?? "",
 			min: field.validation?.min?.toString() ?? "",
@@ -101,6 +130,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			minItems: (field.validation as Record<string, unknown>)?.minItems?.toString() ?? "",
 			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
 			allowedMimeTypes: field.validation?.allowedMimeTypes ?? [],
+			darkVariant: field.options?.darkVariant === true,
 		};
 	}
 	return {
@@ -111,6 +141,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		required: false,
 		unique: false,
 		searchable: false,
+		indexed: false,
 		minLength: "",
 		maxLength: "",
 		min: "",
@@ -121,6 +152,7 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 		minItems: "",
 		maxItems: "",
 		allowedMimeTypes: [],
+		darkVariant: false,
 	};
 }
 
@@ -138,7 +170,7 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 		}
 	}, [open, field]);
 
-	const { step, selectedType, slug, label, required, unique, searchable } = formState;
+	const { step, selectedType, slug, label, required, unique, searchable, indexed } = formState;
 	const { minLength, maxLength, min, max, pattern, options } = formState;
 	const setField = <K extends keyof FieldFormState>(key: K, value: FieldFormState[K]) =>
 		setFormState((prev) => ({ ...prev, [key]: value }));
@@ -312,12 +344,8 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 		}
 
 		// Only include searchable for text-based fields
-		const isSearchableType =
-			selectedType === "string" ||
-			selectedType === "text" ||
-			selectedType === "portableText" ||
-			selectedType === "slug" ||
-			selectedType === "url";
+		const isSearchableType = isSearchableFieldType(selectedType);
+		const isIndexableType = isIndexableFieldType(selectedType);
 
 		const input: CreateFieldInput = {
 			slug,
@@ -326,8 +354,16 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 			required,
 			unique,
 			searchable: isSearchableType ? searchable : undefined,
+			indexed: isIndexableType ? indexed : false,
 			validation: Object.keys(validation).length > 0 ? validation : null,
 		};
+
+		if (selectedType === "image") {
+			const widgetOptions: Record<string, unknown> = { ...field?.options };
+			delete widgetOptions.darkVariant;
+			if (formState.darkVariant) widgetOptions.darkVariant = true;
+			input.options = widgetOptions;
+		}
 
 		onSave(input);
 	};
@@ -441,15 +477,18 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								onCheckedChange={(checked) => setField("unique", checked)}
 								label={<span className="text-sm">{t`Unique`}</span>}
 							/>
-							{(selectedType === "string" ||
-								selectedType === "text" ||
-								selectedType === "portableText" ||
-								selectedType === "slug" ||
-								selectedType === "url") && (
+							{isSearchableFieldType(selectedType) && (
 								<Switch
 									checked={searchable}
 									onCheckedChange={(checked) => setField("searchable", checked)}
 									label={<span className="text-sm">{t`Searchable`}</span>}
+								/>
+							)}
+							{isIndexableFieldType(selectedType) && (
+								<Switch
+									checked={indexed}
+									onCheckedChange={(checked) => setField("indexed", checked)}
+									label={<span className="text-sm">{t`Indexed`}</span>}
 								/>
 							)}
 						</div>
@@ -639,6 +678,19 @@ export function FieldEditor({ open, onOpenChange, field, onSave, isSaving }: Fie
 								value={formState.allowedMimeTypes}
 								onChange={(next) => setField("allowedMimeTypes", next)}
 							/>
+						)}
+
+						{selectedType === "image" && (
+							<div className="grid gap-1">
+								<Switch
+									checked={formState.darkVariant}
+									onCheckedChange={(checked) => setField("darkVariant", checked)}
+									label={<span className="text-sm">{t`Dark mode variant`}</span>}
+								/>
+								<p className="text-xs text-kumo-subtle">
+									{t`Editors can select a second image that the site shows in dark mode.`}
+								</p>
+							</div>
 						)}
 					</div>
 				)}

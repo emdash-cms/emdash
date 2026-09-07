@@ -21,7 +21,6 @@
     "@tanstack/react-query": "catalog:",
     "@tanstack/react-router": "catalog:",
     "astro": "catalog:",
-    "better-sqlite3": "catalog:",
     "emdash": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"

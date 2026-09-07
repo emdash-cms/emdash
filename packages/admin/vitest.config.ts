@@ -3,6 +3,8 @@ import { playwright } from "@vitest/browser-playwright";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+	resolve: { dedupe: ["react", "react-dom"] },
+	optimizeDeps: { include: ["@cloudflare/kumo/primitives/scroll-area", "react-image-crop"] },
 	plugins: [
 		react({
 			babel: {
@@ -19,7 +21,10 @@ export default defineConfig({
 		setupFiles: ["./tests/setup.ts"],
 		browser: {
 			enabled: true,
-			provider: playwright(),
+			// Pin a non-UTC timezone so timestamp-parsing tests catch local-vs-UTC bugs.
+			provider: playwright({
+				contextOptions: { timezoneId: "America/New_York" },
+			}),
 			instances: [{ browser: "chromium" }],
 			headless: true,
 			// Desktop-width viewport: the content editor's settings panel is a

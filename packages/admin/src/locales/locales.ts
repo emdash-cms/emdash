@@ -37,11 +37,13 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "ca", label: "Català", enabled: true }, // Catalan
 	{ code: "zh-CN", label: "简体中文", enabled: true }, // Chinese (Simplified)
 	{ code: "zh-TW", label: "繁體中文", enabled: true }, // Chinese (Traditional)
+	{ code: "cs", label: "Čeština", enabled: true }, // Czech
 	{ code: "nl", label: "Nederlands", enabled: true }, // Dutch
 	{ code: "en-GB", label: "English (UK)", enabled: true }, // English (United Kingdom)
 	{ code: "fa", label: "فارسی", enabled: true, dir: "rtl" }, // Farsi (also known as Persian)
 	{ code: "fr", label: "Français", enabled: true }, // French
 	{ code: "de", label: "Deutsch", enabled: true }, // German
+	{ code: "hi", label: "हिन्दी", enabled: true }, // Hindi
 	{ code: "hu", label: "Magyar", enabled: true }, // Hungarian
 	{ code: "id", label: "Bahasa Indonesia", enabled: true }, // Indonesian
 	{ code: "ja", label: "日本語", enabled: true }, // Japanese

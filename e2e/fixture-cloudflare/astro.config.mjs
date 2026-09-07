@@ -14,6 +14,17 @@ import emdash from "emdash/astro";
 
 const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;
 
+// Mirrors a server dependency introduced by Astro after the initial dependency scan.
+const lateManifestImport = {
+	name: "late-manifest-import",
+	apply: "serve",
+	enforce: "post",
+	transform(code, id) {
+		if (!id.endsWith("/src/pages/index.astro")) return undefined;
+		return `import * as manifest from "astro/app/manifest";\nvoid manifest;\n${code}`;
+	},
+};
+
 export default defineConfig({
 	output: "server",
 	adapter: cloudflare(),
@@ -21,6 +32,7 @@ export default defineConfig({
 		react(),
 		emdash({
 			database: d1({ binding: "DB" }),
+			middleware: { outer: "./src/outer-middleware.ts" },
 			storage: r2({ binding: "MEDIA" }),
 			plugins: [colorPlugin()],
 			marketplace: marketplaceUrl,
@@ -34,6 +46,7 @@ export default defineConfig({
 	},
 	devToolbar: { enabled: false },
 	vite: {
+		plugins: [lateManifestImport],
 		server: {
 			fs: { strict: false },
 		},

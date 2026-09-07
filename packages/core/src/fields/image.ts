@@ -2,18 +2,31 @@ import { z } from "astro/zod";
 
 import type { FieldDefinition, ImageValue } from "./types.js";
 
-const imageSchema = z.object({
+const mediaSchema = z.object({
 	id: z.string(),
-	src: z.string(),
+	src: z.string().optional(),
 	alt: z.string().optional(),
 	width: z.number().optional(),
 	height: z.number().optional(),
+	filename: z.string().optional(),
+	mimeType: z.string().optional(),
+	blurhash: z.string().optional(),
+	dominantColor: z.string().optional(),
+	provider: z.string().optional(),
+	previewUrl: z.string().optional(),
+	meta: z.record(z.string(), z.unknown()).optional(),
+});
+
+const imageSchema = mediaSchema.extend({
+	darkVariant: mediaSchema.optional(),
 });
 
 export interface ImageOptions {
 	required?: boolean;
 	maxSize?: number; // in bytes
 	allowedTypes?: string[]; // MIME types — exact or prefix
+	/** Offer editors a second slot for a dark-color-scheme counterpart of the image. */
+	darkVariant?: boolean;
 }
 
 export function image(options: ImageOptions = {}): FieldDefinition<ImageValue | undefined> {
