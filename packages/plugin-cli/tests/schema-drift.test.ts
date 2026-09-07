@@ -8,9 +8,10 @@
  * If a contributor changes the Zod schema and forgets to regenerate, this
  * test fails with a clear "run pnpm gen-schema" instruction.
  *
- * We assert byte-for-byte equality after re-running the same `toJSONSchema`
- * call the generator script uses. The generator's wrapping fields (`$id`,
- * `title`, `description`) are added on top so we replicate them here.
+ * We compare the schema contents after normalizing line endings to LF, then
+ * re-running the same `toJSONSchema` call the generator script uses. The
+ * generator's wrapping fields (`$id`, `title`, `description`) are added on
+ * top so we replicate them here.
  */
 
 import { readFile } from "node:fs/promises";

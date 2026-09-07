@@ -10,7 +10,7 @@
  *
  * Drift between the Zod schema and the committed JSON Schema is caught by
  * `tests/schema-drift.test.ts`, which compares the committed file against a
- * freshly generated one byte for byte.
+ * freshly generated one after normalizing line endings to LF.
  *
  * Why a separate script rather than emitting on build:
  *
