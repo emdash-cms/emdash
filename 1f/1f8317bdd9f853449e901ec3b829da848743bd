@@ -1,0 +1,19 @@
+packages/admin/tests/components/settings/SocialSettings.test.tsx
+  s_669e4e36f3cd5c::t_a44574ba0892d3 98-102,109-113,115,124-128,139,150-151,166,170-174
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1f1f8317bdd9f853449e901ec3b829da848743bd",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
