@@ -1284,19 +1284,8 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 
 		case "gallery": {
 			const galleryBlock = block as { _type: "gallery"; _key: string; [key: string]: unknown };
-			// A gallery without an images array is malformed — keep the visible
-			// placeholder rather than silently rendering an empty grid.
 			if (!Array.isArray(galleryBlock.images)) {
-				return {
-					type: "paragraph",
-					content: [
-						{
-							type: "text",
-							text: `[Unknown block type: ${block._type}]`,
-							marks: [{ type: "code" }],
-						},
-					],
-				};
+				return convertCustomBlock(block);
 			}
 			return {
 				type: "gallery",
@@ -1382,22 +1371,23 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		}
 
 		default: {
-			// Treat unknown block types as plugin blocks (embeds)
-			// These have an id field (or url for backwards compat) for the embed source,
-			// OR Block Kit field data stored as top-level keys (e.g., formId for forms plugin)
-			const record = block as Record<string, unknown>;
-			return {
-				type: "pluginBlock",
-				attrs: {
-					blockType: block._type,
-					id: attrStr(record.id) ?? attrStr(record.url) ?? "",
-					data: customBlockData(block),
-					[PORTABLE_TEXT_KEY_ATTR]: block._key,
-					[PORTABLE_TEXT_BLOCK_ATTR]: block,
-				},
-			};
+			return convertCustomBlock(block);
 		}
 	}
+}
+
+function convertCustomBlock(block: PortableTextBlock): unknown {
+	const record = block as Record<string, unknown>;
+	return {
+		type: "pluginBlock",
+		attrs: {
+			blockType: block._type,
+			id: attrStr(record.id) ?? attrStr(record.url) ?? "",
+			data: customBlockData(block),
+			[PORTABLE_TEXT_KEY_ATTR]: block._key,
+			[PORTABLE_TEXT_BLOCK_ATTR]: block,
+		},
+	};
 }
 
 function convertPTList(

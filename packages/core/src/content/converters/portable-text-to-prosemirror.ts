@@ -263,6 +263,12 @@ function convertBlock(block: PortableTextBlock, preserveIdentity: boolean): Pros
 		};
 	}
 	if (block._type === "gallery") {
+		if (preserveIdentity) {
+			return {
+				type: PORTABLE_TEXT_BLOCK_NODE,
+				attrs: { [PORTABLE_TEXT_BLOCK_ATTR]: block },
+			};
+		}
 		return {
 			type: "paragraph",
 			content: [

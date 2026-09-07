@@ -205,6 +205,14 @@ describe("Plugin block round-trip", () => {
 		expect(roundTripped).toEqual(original);
 	});
 
+	it("preserves a gallery block that has no images array", () => {
+		const original = [{ _type: "gallery", _key: "gallery-1", legacySource: "import" }];
+
+		const roundTripped = prosemirrorToPortableText(portableTextToProsemirror(original));
+
+		expect(roundTripped).toEqual(original);
+	});
+
 	it("persists an identity added while editing a payload-less custom block", () => {
 		const document = portableTextToProsemirror([{ _type: "test.embed", _key: "embed-1" }]);
 		const node = document.content?.[0] as {

@@ -76,6 +76,16 @@ describe("Portable Text converter identity preservation", () => {
 		expect(roundTripped).toEqual(blocks);
 	});
 
+	it("preserves a gallery block that has no images array in identity mode", () => {
+		const blocks: PortableTextBlock[] = [
+			{ _type: "gallery", _key: "gallery-1", legacySource: "import" },
+		];
+
+		const roundTripped = prosemirrorToPortableText(portableTextToIdentityDocument(blocks));
+
+		expect(roundTripped).toEqual(blocks);
+	});
+
 	it("preserves existing keys and supported link mark definitions", () => {
 		const blocks: PortableTextBlock[] = [
 			{
