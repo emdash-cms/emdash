@@ -478,10 +478,12 @@ describe("MediaDetailPanel", () => {
 		const detailsPane = screen.getByTestId("media-detail-dialog-details-column").element();
 
 		screen.getByRole("tab", { name: "Edit image" }).element().click();
-		await vi.waitFor(() => expect(dialog.style.height).toBe(""));
-		expect(body.style.overflowY).toBe("");
-		expect(previewPane.style.overflowY).toBe("");
-		expect(detailsPane.style.overflowY).toBe("");
+		await vi.waitFor(() => {
+			expect(dialog.style.height).toBe("");
+			expect(body.style.overflowY).toBe("");
+			expect(previewPane.style.overflowY).toBe("");
+			expect(detailsPane.style.overflowY).toBe("");
+		});
 
 		screen.getByRole("tab", { name: "Details" }).element().click();
 		expect(body.style.overflowY).toBe("hidden");
