@@ -205,8 +205,8 @@ function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock
 }
 
 /**
- * Type guard for gallery blocks. Requires an `images` array — a gallery
- * without one is malformed and falls through to the unknown-block path.
+ * Type guard for gallery blocks that carry a usable `images` array.
+ * Galleries without one are handled separately in `convertBlock`.
  */
 function isGalleryBlock(block: PortableTextBlock): block is PortableTextGalleryBlock {
 	return block._type === "gallery" && "images" in block && Array.isArray(block.images);
