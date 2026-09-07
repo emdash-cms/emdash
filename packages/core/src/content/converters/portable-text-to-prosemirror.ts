@@ -15,6 +15,12 @@ import {
 	normalizeListId,
 	normalizeListStart,
 } from "./numbered-list.js";
+import {
+	PORTABLE_TEXT_BLOCK_ATTR,
+	PORTABLE_TEXT_BLOCK_NODE,
+	PORTABLE_TEXT_MARK_DEF_ATTR,
+	attrsWithPortableTextKey,
+} from "./portable-text-identity.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -108,6 +114,7 @@ export function portableTextToProsemirror(blocks: PortableTextBlock[]): ProseMir
 					const paragraph = convertSpans(quoteBlock.children, quoteBlock.markDefs || []);
 					return {
 						type: "paragraph",
+						attrs: attrsWithPortableTextKey(undefined, quoteBlock._key),
 						content: paragraph.length > 0 ? paragraph : undefined,
 					};
 				}),
@@ -207,10 +214,13 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
 	if (isGalleryBlock(block)) {
 		return {
 			type: "gallery",
-			attrs: {
-				images: sanitizeGalleryImages(block.images),
-				columns: typeof block.columns === "number" ? block.columns : undefined,
-			},
+			attrs: attrsWithPortableTextKey(
+				{
+					images: sanitizeGalleryImages(block.images),
+					columns: typeof block.columns === "number" ? block.columns : undefined,
+				},
+				block._key,
+			),
 		};
 	}
 	if (isCodeBlock(block)) {
@@ -220,22 +230,29 @@ function convertBlock(block: PortableTextBlock): ProseMirrorNode | null {
 		const hb = block as PortableTextBlock & { html?: string };
 		return {
 			type: "htmlBlock",
-			attrs: { html: hb.html || "" },
+			attrs: attrsWithPortableTextKey({ html: hb.html || "" }, block._key),
 		};
 	}
 	if (block._type === "break") {
-		return { type: "horizontalRule" };
+		return { type: "horizontalRule", attrs: attrsWithPortableTextKey(undefined, block._key) };
 	}
-	// Unknown block - wrap in a div or preserve as placeholder
+	if (block._type === "gallery") {
+		return {
+			type: "paragraph",
+			content: [
+				{
+					type: "text",
+					text: `[Unknown block type: ${block._type}]`,
+					marks: [{ type: "code" }],
+				},
+			],
+		};
+	}
+	// Keep custom blocks opaque so fields that this converter does not understand
+	// can pass through an editor round-trip unchanged.
 	return {
-		type: "paragraph",
-		content: [
-			{
-				type: "text",
-				text: `[Unknown block type: ${block._type}]`,
-				marks: [{ type: "code" }],
-			},
-		],
+		type: PORTABLE_TEXT_BLOCK_NODE,
+		attrs: { [PORTABLE_TEXT_BLOCK_ATTR]: block },
 	};
 }
 
@@ -259,10 +276,13 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 			const level = parseInt(style.substring(1), 10);
 			return {
 				type: "heading",
-				attrs: {
-					level,
-					...(block.textAlign ? { textAlign: block.textAlign } : {}),
-				},
+				attrs: attrsWithPortableTextKey(
+					{
+						level,
+						...(block.textAlign ? { textAlign: block.textAlign } : {}),
+					},
+					block._key,
+				),
 				content: content.length > 0 ? content : undefined,
 			};
 		}
@@ -270,6 +290,7 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 		case "blockquote":
 			return {
 				type: "blockquote",
+				attrs: attrsWithPortableTextKey(undefined, block._key),
 				content: [
 					{
 						type: "paragraph",
@@ -282,7 +303,10 @@ function convertTextBlock(block: PortableTextTextBlock): ProseMirrorNode | null 
 		default:
 			return {
 				type: "paragraph",
-				attrs: block.textAlign ? { textAlign: block.textAlign } : undefined,
+				attrs: attrsWithPortableTextKey(
+					block.textAlign ? { textAlign: block.textAlign } : undefined,
+					block._key,
+				),
 				content: content.length > 0 ? content : undefined,
 			};
 	}
@@ -349,6 +373,7 @@ function convertListItem(
 	const spans = convertSpans(item.children, item.markDefs || []);
 	content.push({
 		type: "paragraph",
+		attrs: attrsWithPortableTextKey(undefined, item._key),
 		content: spans.length > 0 ? spans : undefined,
 	});
 
@@ -427,16 +452,18 @@ function convertSpans(
 				const node: ProseMirrorNode = {
 					type: "text",
 					text,
+					attrs: attrsWithPortableTextKey(undefined, span._key),
 				};
-				if (marks.length > 0) {
-					node.marks = marks;
-				}
+				if (marks.length > 0) node.marks = marks;
 				nodes.push(node);
 			}
 
 			// Add hard break between parts (not after last)
 			if (i < parts.length - 1) {
-				nodes.push({ type: "hardBreak" });
+				nodes.push({
+					type: "hardBreak",
+					attrs: attrsWithPortableTextKey(undefined, span._key),
+				});
 			}
 		}
 	}
@@ -492,6 +519,7 @@ function convertMarks(
 						attrs: {
 							href: markDef.href,
 							target: markDef.blank ? "_blank" : null,
+							[PORTABLE_TEXT_MARK_DEF_ATTR]: markDef,
 						},
 					});
 				} else {
@@ -523,18 +551,21 @@ function imageAlignment(value: unknown): PortableTextImageBlock["alignment"] {
 function convertImage(block: PortableTextImageBlock): ProseMirrorNode {
 	return {
 		type: "image",
-		attrs: {
-			src: block.asset.url || block.asset._ref,
-			alt: block.alt || "",
-			title: block.caption || "",
-			mediaId: block.asset._ref,
-			provider: block.asset.provider,
-			width: block.width,
-			height: block.height,
-			displayWidth: block.displayWidth,
-			displayHeight: block.displayHeight,
-			alignment: imageAlignment(block.alignment),
-		},
+		attrs: attrsWithPortableTextKey(
+			{
+				src: block.asset.url || block.asset._ref,
+				alt: block.alt || "",
+				title: block.caption || "",
+				mediaId: block.asset._ref,
+				provider: block.asset.provider,
+				width: block.width,
+				height: block.height,
+				displayWidth: block.displayWidth,
+				displayHeight: block.displayHeight,
+				alignment: imageAlignment(block.alignment),
+			},
+			block._key,
+		),
 	};
 }
 
@@ -560,18 +591,21 @@ function convertMalformedImage(block: PortableTextBlock): ProseMirrorNode {
 			: undefined;
 	return {
 		type: "image",
-		attrs: {
-			src: url,
-			alt,
-			title: caption,
-			mediaId: undefined,
-			provider: undefined,
-			width,
-			height,
-			displayWidth,
-			displayHeight,
-			alignment: imageAlignment("alignment" in block ? block.alignment : undefined),
-		},
+		attrs: attrsWithPortableTextKey(
+			{
+				src: url,
+				alt,
+				title: caption,
+				mediaId: undefined,
+				provider: undefined,
+				width,
+				height,
+				displayWidth,
+				displayHeight,
+				alignment: imageAlignment("alignment" in block ? block.alignment : undefined),
+			},
+			block._key,
+		),
 	};
 }
 
@@ -581,9 +615,12 @@ function convertMalformedImage(block: PortableTextBlock): ProseMirrorNode {
 function convertCodeBlock(block: PortableTextCodeBlock): ProseMirrorNode {
 	return {
 		type: "codeBlock",
-		attrs: {
-			language: block.language || null,
-		},
+		attrs: attrsWithPortableTextKey(
+			{
+				language: block.language || null,
+			},
+			block._key,
+		),
 		content: block.code ? [{ type: "text", text: block.code }] : undefined,
 	};
 }
