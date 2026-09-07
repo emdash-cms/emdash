@@ -115,6 +115,12 @@ body {
 	background-size: 20px 20px;
 }
 
+@media (max-width: 639px) {
+	.emdash-featured-image-preview {
+		aspect-ratio: 4 / 3 !important;
+	}
+}
+
 /*
  * Mirrors the pre-React EmDash boot loader exactly. Keep these values in sync
  * with packages/core/src/astro/routes/admin.astro so the two loading stages do

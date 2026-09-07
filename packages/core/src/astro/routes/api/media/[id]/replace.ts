@@ -11,17 +11,6 @@ export const prerender = false;
 
 const REPLACEABLE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-function preservesAspectRatio(
-	width: number,
-	height: number,
-	sourceWidth: number,
-	sourceHeight: number,
-): boolean {
-	return (
-		Math.abs(width * sourceHeight - height * sourceWidth) <= Math.max(sourceWidth, sourceHeight)
-	);
-}
-
 export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const { id } = params;
@@ -91,19 +80,6 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			});
 		}
 		const { width, height } = metadataResult.data;
-		if (
-			(media.width !== null && width > media.width) ||
-			(media.height !== null && height > media.height)
-		) {
-			return apiError("VALIDATION_ERROR", "Replacement dimensions cannot exceed the source", 400);
-		}
-		if (
-			media.width !== null &&
-			media.height !== null &&
-			!preservesAspectRatio(width, height, media.width, media.height)
-		) {
-			return apiError("VALIDATION_ERROR", "Replacement aspect ratio must match the source", 400);
-		}
 
 		const bytes = new Uint8Array(await file.arrayBuffer());
 		const contentHash = await computeContentHash(bytes);

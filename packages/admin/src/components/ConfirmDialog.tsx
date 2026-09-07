@@ -74,6 +74,7 @@ export function ConfirmDialog({
 			<Dialog className={compact ? "max-w-md px-5 pt-6 pb-4" : "p-6"} size="sm">
 				<div className={compact ? "grid gap-1" : undefined}>
 					<Dialog.Title
+						dir="auto"
 						className={
 							titleClassName ??
 							(compact ? "text-lg font-semibold leading-6" : "text-lg font-semibold")
@@ -82,6 +83,7 @@ export function ConfirmDialog({
 						{title}
 					</Dialog.Title>
 					<Dialog.Description
+						dir="auto"
 						className={
 							descriptionClassName ??
 							(compact ? "text-sm leading-5 text-pretty text-kumo-subtle" : "text-kumo-subtle")

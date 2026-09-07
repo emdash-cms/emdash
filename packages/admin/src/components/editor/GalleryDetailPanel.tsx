@@ -8,19 +8,33 @@
  */
 
 import { Button, Input, Label, Select } from "@cloudflare/kumo";
-import { DndContext, PointerSensor, closestCenter, useSensor, useSensors } from "@dnd-kit/core";
+import {
+	DndContext,
+	KeyboardSensor,
+	PointerSensor,
+	closestCenter,
+	useSensor,
+	useSensors,
+} from "@dnd-kit/core";
 import type { DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, rectSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import {
+	SortableContext,
+	arrayMove,
+	rectSortingStrategy,
+	sortableKeyboardCoordinates,
+	useSortable,
+} from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useLingui } from "@lingui/react/macro";
-import { X, Plus, Trash, ImageSquare } from "@phosphor-icons/react";
+import { X, Plus, Trash, ImageSquare, PencilSimple } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../../lib/api";
-import { getMediaObjectPosition, metaString } from "../../lib/media-utils";
+import { canonicalMediaProviderId, metaString } from "../../lib/media-utils";
 import { cn } from "../../lib/utils";
+import { useMediaAssetEditor } from "../media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "../MediaPickerModal";
-import { galleryImageUrl, type GalleryAttributes, type GalleryImage } from "./GalleryNode";
+import { GalleryPreviewImage, type GalleryAttributes, type GalleryImage } from "./GalleryNode";
 
 export interface GalleryDetailPanelProps {
 	attributes: GalleryAttributes;
@@ -35,27 +49,30 @@ function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
 }
 
+function mediaItemAssetFields(item: MediaItem) {
+	return {
+		asset: {
+			_type: "reference" as const,
+			_ref: item.id,
+			url: item.url,
+			provider: item.provider && item.provider !== "local" ? item.provider : undefined,
+		},
+		width: item.width,
+		height: item.height,
+		focalX: item.focalX ?? undefined,
+		focalY: item.focalY ?? undefined,
+		blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
+		dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
+	};
+}
+
 /** Map a picked MediaItem to the gallery's Portable Text image shape. */
 export function mediaItemToGalleryImage(item: MediaItem): GalleryImage {
 	return {
 		_type: "image",
 		_key: generateKey(),
-		asset: {
-			_type: "reference",
-			_ref: item.id,
-			url: item.url,
-			provider: item.provider && item.provider !== "local" ? item.provider : undefined,
-		},
 		alt: item.alt || "",
-		width: item.width,
-		height: item.height,
-		focalX: item.focalX ?? undefined,
-		focalY: item.focalY ?? undefined,
-		// Cache LQIP alongside dimensions so the gallery renders a placeholder
-		// without a runtime lookup. Fall back to `meta` for providers that
-		// stash it there — mirrors ImageFieldRenderer's handleSelect.
-		blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
-		dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
+		...mediaItemAssetFields(item),
 	};
 }
 
@@ -70,8 +87,12 @@ export function GalleryDetailPanel({
 	// A distance-based activation constraint lets a plain pointerdown+pointerup
 	// (a click) pass through to the thumbnail button's onClick instead of the
 	// sensor immediately claiming the pointer and starting drag tracking.
-	const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+	const sensors = useSensors(
+		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+		useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+	);
 	const [showMediaPicker, setShowMediaPicker] = React.useState(false);
+	const [assetEditorActive, setAssetEditorActive] = React.useState(false);
 	// `selectedImageKey` and `nodeKey` are transient UI state passed in via
 	// `attributes` when the gallery node view opens the sidebar (e.g. clicking
 	// an image in the canvas grid) — neither is ever persisted to node attrs.
@@ -113,6 +134,53 @@ export function GalleryDetailPanel({
 	const selectedImage = selectedKey
 		? (images.find((image) => image._key === selectedKey) ?? null)
 		: null;
+	const dragAccessibility = React.useMemo(
+		() => ({
+			announcements: {
+				onDragStart: ({ active }: { active: { id: string | number } }) => {
+					const index = images.findIndex((image) => image._key === active.id);
+					const label = images[index]?.alt || t`Image ${index + 1}`;
+					return t`Picked up ${label}.`;
+				},
+				onDragOver: ({
+					active,
+					over,
+				}: {
+					active: { id: string | number };
+					over: { id: string | number } | null;
+				}) => {
+					const oldIndex = images.findIndex((image) => image._key === active.id);
+					const newIndex = images.findIndex((image) => image._key === over?.id);
+					if (newIndex < 0) return "";
+					const label = images[oldIndex]?.alt || t`Image ${oldIndex + 1}`;
+					return t`Moving ${label} to position ${newIndex + 1} of ${images.length}.`;
+				},
+				onDragEnd: ({
+					active,
+					over,
+				}: {
+					active: { id: string | number };
+					over: { id: string | number } | null;
+				}) => {
+					const oldIndex = images.findIndex((image) => image._key === active.id);
+					const newIndex = images.findIndex((image) => image._key === over?.id);
+					const label = images[oldIndex]?.alt || t`Image ${oldIndex + 1}`;
+					return newIndex < 0
+						? t`Moving ${label} was cancelled.`
+						: t`${label} moved to position ${newIndex + 1} of ${images.length}.`;
+				},
+				onDragCancel: ({ active }: { active: { id: string | number } }) => {
+					const index = images.findIndex((image) => image._key === active.id);
+					const label = images[index]?.alt || t`Image ${index + 1}`;
+					return t`Moving ${label} was cancelled.`;
+				},
+			},
+			screenReaderInstructions: {
+				draggable: t`Press Space to pick up an image. Use the Arrow keys to move it, then press Space to drop it.`,
+			},
+		}),
+		[images, t],
+	);
 
 	const apply = (patch: Partial<GalleryAttributes>) => {
 		setGallery((prev) => ({ ...prev, ...patch }));
@@ -139,23 +207,15 @@ export function GalleryDetailPanel({
 		apply({
 			images: images.map((image) =>
 				image._key === key
-					? {
-							...image,
-							asset: {
-								_type: "reference",
-								_ref: item.id,
-								url: item.url,
-								provider: item.provider && item.provider !== "local" ? item.provider : undefined,
-							},
-							alt: item.alt || "",
-							width: item.width,
-							height: item.height,
-							focalX: item.focalX ?? undefined,
-							focalY: item.focalY ?? undefined,
-							blurhash: item.blurhash ?? metaString(item.meta, "blurhash"),
-							dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
-						}
+					? { ...image, ...mediaItemAssetFields(item), alt: item.alt || "" }
 					: image,
+			),
+		});
+	};
+	const handleAssetChange = (key: string, item: MediaItem) => {
+		apply({
+			images: images.map((image) =>
+				image._key === key ? { ...image, ...mediaItemAssetFields(item) } : image,
 			),
 		});
 	};
@@ -200,6 +260,7 @@ export function GalleryDetailPanel({
 					size="sm"
 					icon={<Plus />}
 					onClick={() => setShowMediaPicker(true)}
+					disabled={assetEditorActive}
 				>
 					{t`Add Images`}
 				</Button>
@@ -208,7 +269,12 @@ export function GalleryDetailPanel({
 			{images.length === 0 ? (
 				<p className="text-sm text-kumo-subtle text-center py-4">{t`No images in this gallery yet.`}</p>
 			) : (
-				<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+				<DndContext
+					sensors={sensors}
+					collisionDetection={closestCenter}
+					accessibility={dragAccessibility}
+					onDragEnd={handleDragEnd}
+				>
 					<SortableContext items={images.map((image) => image._key)} strategy={rectSortingStrategy}>
 						<div className="grid grid-cols-3 gap-2">
 							{images.map((image, index) => (
@@ -234,9 +300,11 @@ export function GalleryDetailPanel({
 					image={selectedImage}
 					onChange={(patch) => handleImageChange(selectedImage._key, patch)}
 					onReplace={(item) => handleReplace(selectedImage._key, item)}
+					onAssetChange={(item) => handleAssetChange(selectedImage._key, item)}
+					onAssetEditorActiveChange={setAssetEditorActive}
+					onRemove={() => handleRemove(selectedImage._key)}
 				/>
 			)}
-
 			<Button type="button" variant="destructive" className="w-full" onClick={onDelete}>
 				{t`Delete gallery`}
 			</Button>
@@ -304,19 +372,16 @@ function SortableGalleryThumb({
 				{...attributes}
 				{...listeners}
 			>
-				<img
-					src={galleryImageUrl(image)}
-					alt={image.alt || ""}
+				<GalleryPreviewImage
+					image={image}
 					className="emdash-media-transparency-grid h-full w-full object-cover"
-					style={{ objectPosition: getMediaObjectPosition(image) }}
-					draggable={false}
 				/>
 			</Button>
 			<Button
 				type="button"
 				variant="destructive"
 				shape="square"
-				className="absolute top-1 end-1 h-6 w-6 opacity-0 group-hover:opacity-100 focus:opacity-100"
+				className="absolute end-1 top-1 h-6 w-6 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus:opacity-100"
 				onClick={(e) => {
 					e.stopPropagation();
 					onRemove();
@@ -324,7 +389,7 @@ function SortableGalleryThumb({
 				onPointerDown={(e) => e.stopPropagation()}
 				aria-label={t`Remove image ${index + 1}`}
 			>
-				<Trash className="h-3 w-3" />
+				<Trash className="h-3 w-3" aria-hidden="true" />
 			</Button>
 			<span
 				className="absolute bottom-1 start-1 text-[10px] bg-black/60 text-white rounded px-1"
@@ -340,34 +405,71 @@ interface GalleryImageSettingsProps {
 	image: GalleryImage;
 	onChange: (patch: Partial<GalleryImage>) => void;
 	onReplace: (item: MediaItem) => void;
+	onAssetChange: (item: MediaItem) => void;
+	onAssetEditorActiveChange: (active: boolean) => void;
+	onRemove: () => void;
 }
 
-function GalleryImageSettings({ image, onChange, onReplace }: GalleryImageSettingsProps) {
+function GalleryImageSettings({
+	image,
+	onChange,
+	onReplace,
+	onAssetChange,
+	onAssetEditorActiveChange,
+	onRemove,
+}: GalleryImageSettingsProps) {
 	const { t } = useLingui();
 	const [showReplacePicker, setShowReplacePicker] = React.useState(false);
+	const assetEditor = useMediaAssetEditor(onAssetChange);
+	React.useEffect(() => {
+		onAssetEditorActiveChange(assetEditor.isActive);
+		return () => onAssetEditorActiveChange(false);
+	}, [assetEditor.isActive, onAssetEditorActiveChange]);
+	const canEditAsset =
+		Boolean(image.asset._ref) && canonicalMediaProviderId(image.asset.provider) === "local";
 
 	const hasOriginalSize = typeof image.width === "number" && typeof image.height === "number";
 
 	return (
 		<div className="border rounded-lg p-3 space-y-3">
-			<div className="emdash-media-transparency-grid group relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
-				<img
-					src={galleryImageUrl(image)}
-					alt={image.alt || ""}
-					className="max-h-full max-w-full object-contain"
-					draggable={false}
-				/>
-				<div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+			<div className="emdash-media-transparency-grid relative flex aspect-video items-center justify-center overflow-hidden rounded-lg">
+				<GalleryPreviewImage image={image} className="max-h-full max-w-full object-contain" />
+			</div>
+			<div className="flex flex-wrap items-center gap-2">
+				<Button
+					type="button"
+					variant="outline"
+					size="sm"
+					icon={<ImageSquare aria-hidden="true" />}
+					onClick={() => setShowReplacePicker(true)}
+					disabled={assetEditor.isActive}
+				>
+					{t`Replace`}
+				</Button>
+				{canEditAsset && (
 					<Button
 						type="button"
 						variant="outline"
 						size="sm"
-						icon={<ImageSquare />}
-						onClick={() => setShowReplacePicker(true)}
+						icon={<PencilSimple aria-hidden="true" />}
+						loading={assetEditor.isOpening}
+						onClick={(event) =>
+							void assetEditor.openAssetEditor(image.asset._ref, event.currentTarget)
+						}
 					>
-						{t`Replace image`}
+						{t`Edit asset`}
 					</Button>
-				</div>
+				)}
+				<Button
+					type="button"
+					variant="secondary-destructive"
+					size="sm"
+					icon={<Trash aria-hidden="true" />}
+					onClick={onRemove}
+					disabled={assetEditor.isActive}
+				>
+					{t`Remove`}
+				</Button>
 			</div>
 			{hasOriginalSize && (
 				<div className="flex items-center gap-2 text-sm">
@@ -399,7 +501,14 @@ function GalleryImageSettings({ image, onChange, onReplace }: GalleryImageSettin
 				}}
 				mimeTypeFilters={["image/"]}
 				title={t`Replace image`}
+				confirmLabel={t`Replace`}
 			/>
+			{assetEditor.dialog}
+			{assetEditor.error && (
+				<p role="alert" className="text-sm text-kumo-danger">
+					{assetEditor.error}
+				</p>
+			)}
 		</div>
 	);
 }

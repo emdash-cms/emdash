@@ -134,7 +134,12 @@ describe("PUT /media/:id/replace", () => {
 		const croppedBytes = new Uint8Array([9, 8, 7, 6]);
 
 		const response = await putReplace(
-			buildContext({ db, request: replaceRequest({ bytes: croppedBytes }), storage, user }),
+			buildContext({
+				db,
+				request: replaceRequest({ bytes: croppedBytes, width: "1800", height: "900" }),
+				storage,
+				user,
+			}),
 		);
 
 		expect(response.status).toBe(200);
@@ -146,8 +151,8 @@ describe("PUT /media/:id/replace", () => {
 			storageKey: original.storageKey,
 			url: `/_emdash/api/media/file/${original.storageKey}`,
 			size: croppedBytes.byteLength,
-			width: 600,
-			height: 400,
+			width: 1800,
+			height: 900,
 			contentHash: await computeContentHash(croppedBytes),
 			blurhash: null,
 			dominantColor: null,
@@ -250,18 +255,6 @@ describe("PUT /media/:id/replace", () => {
 			label: "unsafe dimensions",
 			source: {},
 			request: { width: "9007199254740992" },
-			status: 400,
-		},
-		{
-			label: "enlargement",
-			source: {},
-			request: { width: "1800", height: "1200" },
-			status: 400,
-		},
-		{
-			label: "aspect ratio change",
-			source: {},
-			request: { width: "600", height: "600" },
 			status: 400,
 		},
 	])("rejects $label before storage mutation", async (testCase) => {

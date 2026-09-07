@@ -342,6 +342,8 @@ export interface TrashedContentItem {
 	type: string;
 	slug: string | null;
 	status: string;
+	locale: string | null;
+	translationGroup: string | null;
 	data: Record<string, unknown>;
 	authorId: string | null;
 	createdAt: string;
@@ -1419,13 +1421,14 @@ export async function handleContentPermanentDelete(
 export async function handleContentListTrashed(
 	db: Kysely<Database>,
 	collection: string,
-	options: { limit?: number; cursor?: string } = {},
+	options: { limit?: number; cursor?: string; locale?: string } = {},
 ): Promise<ApiResult<{ items: TrashedContentItem[]; nextCursor?: string }>> {
 	try {
 		const repo = new ContentRepository(db);
 		const result = await repo.findTrashed(collection, {
 			limit: options.limit,
 			cursor: options.cursor,
+			where: { locale: options.locale },
 		});
 
 		return {
@@ -1436,6 +1439,8 @@ export async function handleContentListTrashed(
 					type: item.type,
 					slug: item.slug,
 					status: item.status,
+					locale: item.locale,
+					translationGroup: item.translationGroup,
 					data: item.data,
 					authorId: item.authorId,
 					createdAt: item.createdAt,
@@ -1470,10 +1475,11 @@ export async function handleContentListTrashed(
 export async function handleContentCountTrashed(
 	db: Kysely<Database>,
 	collection: string,
+	options: { locale?: string } = {},
 ): Promise<ApiResult<{ count: number }>> {
 	try {
 		const repo = new ContentRepository(db);
-		const count = await repo.countTrashed(collection);
+		const count = await repo.countTrashed(collection, { locale: options.locale });
 
 		return {
 			success: true,
@@ -1517,7 +1523,7 @@ export async function handleContentSchedule(
 
 		return {
 			success: true,
-			data: { item },
+			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
 		if (error instanceof EmDashValidationError) {
@@ -1560,7 +1566,7 @@ export async function handleContentUnschedule(
 
 		return {
 			success: true,
-			data: { item },
+			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
 		if (error instanceof EmDashValidationError) {

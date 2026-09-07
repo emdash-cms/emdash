@@ -2891,7 +2891,7 @@ export function PortableTextEditor({
 		() => ({
 			attributes: {
 				class:
-					"prose prose-sm sm:prose-base dark:prose-invert w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
+					"prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			},
 		}),
@@ -3450,7 +3450,8 @@ export function PortableTextEditor({
 					}}
 					onSelect={handleImageSelect}
 					mimeTypeFilter="image/"
-					title={t`Select Image`}
+					title={t`Select image`}
+					confirmLabel={t`Insert image`}
 				/>
 
 				{/* Multi-select media picker for gallery insertion */}
@@ -3464,7 +3465,7 @@ export function PortableTextEditor({
 					onSelect={() => {}}
 					onSelectMany={handleGallerySelect}
 					mimeTypeFilter="image/"
-					title={t`Select Gallery Images`}
+					title={t`Select gallery images`}
 				/>
 
 				{/* Plugin block insertion/editing modal */}

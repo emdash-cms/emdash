@@ -214,7 +214,12 @@ describe("MCP error envelope — content_update (bug #3)", () => {
 	it("update on missing id returns a NOT_FOUND-style error", async () => {
 		const result = await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id: "01NEVEREXISTED", data: { title: "x" } },
+			arguments: {
+				collection: "post",
+				id: "01NEVEREXISTED",
+				data: { title: "x" },
+				_rev: "c3R1Yi1yZXY=",
+			},
 		});
 
 		expect(result.isError).toBe(true);

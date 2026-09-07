@@ -1,5 +1,6 @@
 import {
 	Badge,
+	Banner,
 	Button,
 	Checkbox,
 	Input,
@@ -32,6 +33,7 @@ import type {
 	TranslationSummary,
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
@@ -51,6 +53,7 @@ import {
 } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton.js";
@@ -157,8 +160,14 @@ export interface ContentEditorProps {
 	isAutosaveFeedbackActive?: boolean;
 	/** Entry-scoped token advanced after a successful autosave. */
 	autosaveCompletionToken?: number;
-	/** Entry-scoped token advanced after the server rejected an autosave payload. */
+	/**
+	 * Entry-scoped token advanced after the server rejected an autosave payload in
+	 * a way that resending cannot fix. A conflict does not count: it recovers
+	 * through `hasSaveConflict`.
+	 */
 	autosaveRejectionToken?: number;
+	/** Whether the server refused the last save because it was based on a stale read. */
+	hasSaveConflict?: boolean;
 	onPublish?: (payload: {
 		data: Record<string, unknown>;
 		slug?: string;
@@ -168,13 +177,26 @@ export interface ContentEditorProps {
 	/** Callback to discard draft changes (revert to published version) */
 	onDiscardDraft?: () => void;
 	/** Callback to schedule for future publishing */
-	onSchedule?: (scheduledAt: string) => void;
+	onSchedule?: (
+		scheduledAt: string,
+		payload?: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		},
+	) => void | Promise<void>;
 	/** Callback to cancel scheduling (revert to draft) */
-	onUnschedule?: () => void;
+	onUnschedule?: (payload?: {
+		data: Record<string, unknown>;
+		slug?: string;
+		bylines?: BylineCreditInput[];
+	}) => void | Promise<void>;
 	/** Whether scheduling is in progress */
 	isScheduling?: boolean;
+	/** Whether schedule removal is in progress */
+	isUnscheduling?: boolean;
 	/** Callback to change the timestamp of published content */
-	onPublishedAtChange?: (publishedAt: string) => void;
+	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	/** Whether the publish timestamp is being updated */
 	isUpdatingPublishedAt?: boolean;
 	/** Whether this collection supports drafts */
@@ -242,12 +264,14 @@ export function ContentEditor({
 	isAutosaveFeedbackActive,
 	autosaveCompletionToken,
 	autosaveRejectionToken,
+	hasSaveConflict,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
 	onSchedule,
 	onUnschedule,
 	isScheduling,
+	isUnscheduling,
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	supportsDrafts = false,
@@ -526,6 +550,12 @@ export function ContentEditor({
 			return;
 		}
 
+		// Autosaving through a conflict would put the writer's copy over the other
+		// version without them ever choosing to.
+		if (hasSaveConflict) {
+			return;
+		}
+
 		// Clear any pending autosave
 		if (autosaveTimeoutRef.current) {
 			clearTimeout(autosaveTimeoutRef.current);
@@ -563,11 +593,11 @@ export function ContentEditor({
 		hasUnsupportedPortableTextMarks,
 		isPublishing,
 		rejectedAutosaveState,
+		hasSaveConflict,
 	]);
 
 	// Cancel pending autosave on manual save
-	const handleSubmit = (e: React.FormEvent) => {
-		e.preventDefault();
+	const submitSave = () => {
 		if (
 			isContentSaveBlocked ||
 			isPublishingRef.current ||
@@ -577,6 +607,10 @@ export function ContentEditor({
 			return;
 		cancelPendingAutosave();
 		onSave?.(createSavePayload());
+	};
+	const handleSubmit = (e: React.FormEvent) => {
+		e.preventDefault();
+		submitSave();
 	};
 	const handlePublish = React.useCallback(() => {
 		if (
@@ -622,6 +656,66 @@ export function ContentEditor({
 		hasUnsupportedPortableTextMarks,
 		onPublish,
 	]);
+	const runScheduleChange = React.useCallback(
+		(
+			action: (payload?: {
+				data: Record<string, unknown>;
+				slug?: string;
+				bylines?: BylineCreditInput[];
+			}) => void | Promise<void>,
+		) => {
+			if (isPublishingRef.current) {
+				return Promise.reject(new Error(t`A publishing action is already in progress`));
+			}
+			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
+				return Promise.reject(new Error(t`Fix invalid fields before changing the schedule`));
+			}
+
+			cancelPendingAutosave();
+			const payload =
+				isDirty || saveFeedbackActive || autosaveFeedbackActive ? createSavePayload() : undefined;
+			isPublishingRef.current = true;
+			setIsPublishing(true);
+
+			let result: void | Promise<void>;
+			try {
+				result = action(payload);
+			} catch (error) {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				throw error;
+			}
+			if (!result) {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				return;
+			}
+
+			return result.finally(() => {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+			});
+		},
+		[
+			cancelPendingAutosave,
+			createSavePayload,
+			hasInvalidUrls,
+			hasUnsupportedPortableTextMarks,
+			autosaveFeedbackActive,
+			isDirty,
+			saveFeedbackActive,
+			t,
+		],
+	);
+	const handleSchedule = React.useCallback(
+		(scheduledAt: string) =>
+			onSchedule ? runScheduleChange((payload) => onSchedule(scheduledAt, payload)) : undefined,
+		[onSchedule, runScheduleChange],
+	);
+	const handleUnschedule = React.useCallback(
+		() => (onUnschedule ? runScheduleChange((payload) => onUnschedule(payload)) : undefined),
+		[onUnschedule, runScheduleChange],
+	);
 
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
@@ -688,6 +782,19 @@ export function ContentEditor({
 	const hasSchedule = Boolean(item?.scheduledAt);
 	const canSchedule =
 		!isNew && !hasSchedule && Boolean(onSchedule) && (!isPublished || hasPendingChanges);
+	const publishingState = getContentPublishingState({
+		isLive,
+		hasPendingChanges,
+		scheduledAt: item?.scheduledAt,
+	});
+	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
+	const [publishingMenuOpen, setPublishingMenuOpen] = React.useState(false);
+	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
+	const handleOpenSchedule = React.useCallback(() => setScheduleDialogOpen(true), []);
+
+	React.useEffect(() => {
+		setScheduleDialogOpen(false);
+	}, [item?.id, item?.locale, item?.scheduledAt]);
 
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
@@ -698,6 +805,7 @@ export function ContentEditor({
 
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
+				if (scheduleDialogOpen || publishingMenuOpen) return;
 				e.preventDefault();
 				e.stopPropagation();
 				setIsDistractionFree(false);
@@ -706,7 +814,7 @@ export function ContentEditor({
 
 		document.addEventListener("keydown", handleKeyDown, { capture: true });
 		return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
-	}, [isDistractionFree]);
+	}, [isDistractionFree, publishingMenuOpen, scheduleDialogOpen]);
 
 	return (
 		<form
@@ -736,7 +844,7 @@ export function ContentEditor({
 				style={
 					{
 						"--sidebar-bg": "var(--color-kumo-elevated)",
-						...(isBelowLg ? { "--sidebar-width": "20rem" } : {}),
+						...(isBelowLg ? { "--sidebar-width": "min(20rem, 100vw)" } : {}),
 					} as React.CSSProperties
 				}
 			>
@@ -808,8 +916,15 @@ export function ContentEditor({
 												isNew={isNew}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
+												publishingState={publishingState}
+												canSchedule={canSchedule}
+												isScheduling={isScheduling}
+												isUnscheduling={isUnscheduling}
 												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
+												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+												onUnschedule={onUnschedule ? handleUnschedule : undefined}
+												onMenuOpenChange={setPublishingMenuOpen}
 											/>
 											<MobileSettingsButton />
 										</div>
@@ -867,8 +982,15 @@ export function ContentEditor({
 												collectionLabel={collectionLabel}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
+												publishingState={publishingState}
+												canSchedule={canSchedule}
+												isScheduling={isScheduling}
+												isUnscheduling={isUnscheduling}
 												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
+												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+												onUnschedule={onUnschedule ? handleUnschedule : undefined}
+												onMenuOpenChange={setPublishingMenuOpen}
 												size="sm"
 											/>
 										</>
@@ -892,6 +1014,19 @@ export function ContentEditor({
 							isDistractionFree ? "mx-auto max-w-3xl pt-16" : "mx-auto max-w-3xl space-y-6",
 						)}
 					>
+						{hasSaveConflict && (
+							<Banner
+								variant="error"
+								role="alert"
+								title={t`This entry changed somewhere else after you opened it.`}
+								description={t`What you typed is still here. Saving replaces the newer version.`}
+								action={
+									<Button size="sm" variant="secondary" type="button" onClick={submitSave}>
+										{t`Save anyway`}
+									</Button>
+								}
+							/>
+						)}
 						<div className="space-y-6">
 							{Object.entries(fields).map(([name, field]) => {
 								// Key by item id so all field editors remount cleanly when the
@@ -949,12 +1084,19 @@ export function ContentEditor({
 							saveDisabled={isContentSaveBlocked}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
+							publishingState={publishingState}
+							canSchedule={canSchedule}
+							isScheduling={isScheduling}
+							isUnscheduling={isUnscheduling}
 							liveViewUrl={liveViewUrl}
 							supportsPreview={supportsPreview}
 							isLoadingPreview={isLoadingPreview}
 							onPreview={handlePreview}
 							onPublish={handlePublish}
 							onUnpublish={onUnpublish}
+							onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+							onUnschedule={onUnschedule ? handleUnschedule : undefined}
+							onMenuOpenChange={setPublishingMenuOpen}
 							announceSaveStatus={!isDistractionFree}
 						/>
 					)}
@@ -962,7 +1104,7 @@ export function ContentEditor({
 						className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
 						style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
 					>
-						{isBelowLg && (
+						{isBelowLg && blockSidebarPanel?.type !== "image" && (
 							<div className="flex justify-end px-4 pt-3">
 								<MobileSettingsCloseButton />
 							</div>
@@ -979,12 +1121,8 @@ export function ContentEditor({
 							supportsDrafts={supportsDrafts}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
-							hasSchedule={hasSchedule}
+							publishingState={publishingState}
 							supportsRevisions={supportsRevisions}
-							canSchedule={canSchedule}
-							onSchedule={onSchedule}
-							onUnschedule={onUnschedule}
-							isScheduling={isScheduling}
 							onPublishedAtChange={onPublishedAtChange}
 							isUpdatingPublishedAt={isUpdatingPublishedAt}
 							onDiscardDraft={onDiscardDraft}
@@ -1020,6 +1158,15 @@ export function ContentEditor({
 				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
 				<MobileSidebarPortalGuard />
 			</Sidebar.Provider>
+			<PublishingScheduleDialog
+				open={scheduleDialogOpen}
+				entryKey={scheduleEntryKey}
+				scheduledAt={item?.scheduledAt}
+				isLive={isLive}
+				isPending={isScheduling}
+				onOpenChange={setScheduleDialogOpen}
+				onSchedule={onSchedule ? handleSchedule : undefined}
+			/>
 		</form>
 	);
 }
@@ -1858,19 +2005,19 @@ function FileFieldRenderer({
 							</p>
 						)}
 					</div>
-					<div className="flex gap-1">
+					<div className="flex flex-wrap gap-2">
 						<Button type="button" size="sm" variant="secondary" onClick={() => setPickerOpen(true)}>
-							{t`Change`}
+							{t`Replace`}
 						</Button>
 						<Button
 							type="button"
-							shape="square"
-							variant="destructive"
-							className="h-8 w-8"
+							size="sm"
+							variant="secondary-destructive"
+							icon={<X aria-hidden="true" />}
 							onClick={handleRemove}
 							aria-label={t`Remove ${label}`}
 						>
-							<X className="h-4 w-4" />
+							{t`Remove`}
 						</Button>
 					</div>
 				</div>
@@ -1896,7 +2043,8 @@ function FileFieldRenderer({
 				fieldId={fieldId}
 				hideUrlInput
 				mediaKind="file"
-				title={t`Select ${label}`}
+				title={normalized ? t`Replace ${label}` : t`Select ${label}`}
+				confirmLabel={normalized ? t`Replace` : undefined}
 			/>
 			{required && !normalized && (
 				<p className="-mt-1 text-sm text-kumo-danger">{t`This field is required`}</p>
