@@ -1,0 +1,31 @@
+packages/core/tests/repro/portable-text-table.render.test.ts
+  s_669e4e36f3cd5c::t_74a2bb3732b8c9 7,9-19,27-35
+.changeset/polished-portable-text-tables.md
+  s_669e4e36f3cd5c::t_ff631e571a0400 11-12
+docs/src/content/docs/guides/querying-content.mdx
+  s_669e4e36f3cd5c::t_471d0fa7f5dbcb 297-298
+packages/core/src/components/InlineEditor.astro
+  s_669e4e36f3cd5c::t_c8d750058c8301 16,19,28
+packages/core/src/components/InlinePortableTextEditor.tsx
+  s_669e4e36f3cd5c::t_f3c529b732285a 1118,1125-1128,1183,2088,2096,2274
+packages/core/src/components/PortableText.astro
+  s_669e4e36f3cd5c::t_011c62f724f960 33-34,41,74
+packages/core/tests/unit/components/inline-portable-text-table.test.ts
+  s_669e4e36f3cd5c::t_1c57e7841738fb 5-7,10,51,67,73-90
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "99da1ec79e9e7690bb6216803511056c2924e0aa",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
