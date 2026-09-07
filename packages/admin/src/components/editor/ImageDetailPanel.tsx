@@ -95,12 +95,6 @@ export function ImageDetailPanel({
 	const [asset, setAsset] = React.useState(attributes);
 	const handleAssetItemChanged = React.useCallback(
 		(item: MediaItem) => {
-			setDisplayWidth((current) =>
-				attributes.displayWidth === undefined && current === asset.width ? item.width : current,
-			);
-			setDisplayHeight((current) =>
-				attributes.displayHeight === undefined && current === asset.height ? item.height : current,
-			);
 			setAsset((current) => ({
 				...current,
 				src: item.url,
@@ -121,16 +115,18 @@ export function ImageDetailPanel({
 				dominantColor: item.dominantColor ?? metaString(item.meta, "dominantColor"),
 			});
 		},
-		[asset.height, asset.width, attributes.displayHeight, attributes.displayWidth, onUpdate],
+		[onUpdate],
 	);
 	const assetEditor = useMediaAssetEditor(handleAssetItemChanged);
 
-	// Dimension state - default to display dimensions, fall back to original
+	const [hasCustomSize, setHasCustomSize] = React.useState(
+		attributes.displayWidth != null || attributes.displayHeight != null,
+	);
 	const [displayWidth, setDisplayWidth] = React.useState<number | undefined>(
-		attributes.displayWidth ?? attributes.width,
+		attributes.displayWidth ?? undefined,
 	);
 	const [displayHeight, setDisplayHeight] = React.useState<number | undefined>(
-		attributes.displayHeight ?? attributes.height,
+		attributes.displayHeight ?? undefined,
 	);
 	const [lockAspectRatio, setLockAspectRatio] = React.useState(true);
 	const [alignment, setAlignment] = React.useState<ImageAttributes["alignment"]>(
@@ -143,8 +139,9 @@ export function ImageDetailPanel({
 		setCaption(attributes.caption ?? "");
 		setTitle(attributes.title ?? "");
 		setAsset(attributes);
-		setDisplayWidth(attributes.displayWidth ?? attributes.width);
-		setDisplayHeight(attributes.displayHeight ?? attributes.height);
+		setHasCustomSize(attributes.displayWidth != null || attributes.displayHeight != null);
+		setDisplayWidth(attributes.displayWidth ?? undefined);
+		setDisplayHeight(attributes.displayHeight ?? undefined);
 		setLockAspectRatio(true);
 		setAlignment(attributes.alignment);
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- the node token identifies a new attribute snapshot
@@ -154,24 +151,31 @@ export function ImageDetailPanel({
 	const aspectRatio = asset.width && asset.height ? asset.width / asset.height : undefined;
 
 	const handleWidthChange = (value: string) => {
+		setHasCustomSize(true);
 		const newWidth = value ? parseInt(value, 10) : undefined;
 		setDisplayWidth(newWidth);
 		if (lockAspectRatio && aspectRatio && newWidth) {
 			setDisplayHeight(Math.round(newWidth / aspectRatio));
+		} else if (!hasCustomSize) {
+			setDisplayHeight(asset.height);
 		}
 	};
 
 	const handleHeightChange = (value: string) => {
+		setHasCustomSize(true);
 		const newHeight = value ? parseInt(value, 10) : undefined;
 		setDisplayHeight(newHeight);
 		if (lockAspectRatio && aspectRatio && newHeight) {
 			setDisplayWidth(Math.round(newHeight * aspectRatio));
+		} else if (!hasCustomSize) {
+			setDisplayWidth(asset.width);
 		}
 	};
 
 	const handleResetDimensions = () => {
-		setDisplayWidth(asset.width);
-		setDisplayHeight(asset.height);
+		setHasCustomSize(false);
+		setDisplayWidth(undefined);
+		setDisplayHeight(undefined);
 	};
 
 	const handleMediaSelect = (item: MediaItem) => {
@@ -194,8 +198,8 @@ export function ImageDetailPanel({
 
 	// Track if form has unsaved changes
 	const hasChanges = React.useMemo(() => {
-		const originalDisplayWidth = attributes.displayWidth ?? asset.width;
-		const originalDisplayHeight = attributes.displayHeight ?? asset.height;
+		const originalDisplayWidth = attributes.displayWidth ?? undefined;
+		const originalDisplayHeight = attributes.displayHeight ?? undefined;
 		return (
 			alt !== (attributes.alt ?? "") ||
 			caption !== (attributes.caption ?? "") ||
@@ -204,17 +208,7 @@ export function ImageDetailPanel({
 			displayHeight !== originalDisplayHeight ||
 			alignment !== attributes.alignment
 		);
-	}, [
-		asset.height,
-		asset.width,
-		attributes,
-		alt,
-		caption,
-		title,
-		displayWidth,
-		displayHeight,
-		alignment,
-	]);
+	}, [attributes, alt, caption, title, displayWidth, displayHeight, alignment]);
 
 	const handleSave = () => {
 		onUpdate({
@@ -385,7 +379,7 @@ export function ImageDetailPanel({
 							<FieldHelpLabel
 								help={
 									<span className="block max-w-64 text-pretty">
-										{t`Set a custom width and height for this image in the document. The original media file is unchanged.`}
+										{t`Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged.`}
 									</span>
 								}
 								helpLabel={t`More information about Display size`}
@@ -403,7 +397,7 @@ export function ImageDetailPanel({
 								<Input
 									label={t`Width`}
 									type="number"
-									value={displayWidth ?? ""}
+									value={(hasCustomSize ? displayWidth : asset.width) ?? ""}
 									onChange={(e) => handleWidthChange(e.target.value)}
 									className="w-full min-w-0"
 								/>
@@ -428,7 +422,7 @@ export function ImageDetailPanel({
 								<Input
 									label={t`Height`}
 									type="number"
-									value={displayHeight ?? ""}
+									value={(hasCustomSize ? displayHeight : asset.height) ?? ""}
 									onChange={(e) => handleHeightChange(e.target.value)}
 									className="w-full min-w-0"
 								/>
@@ -617,7 +611,7 @@ export function ImageDetailPanel({
 								<Input
 									label={t`Width`}
 									type="number"
-									value={displayWidth ?? ""}
+									value={(hasCustomSize ? displayWidth : asset.width) ?? ""}
 									onChange={(e) => handleWidthChange(e.target.value)}
 									className="w-full min-w-0"
 								/>
@@ -641,7 +635,7 @@ export function ImageDetailPanel({
 								<Input
 									label={t`Height`}
 									type="number"
-									value={displayHeight ?? ""}
+									value={(hasCustomSize ? displayHeight : asset.height) ?? ""}
 									onChange={(e) => handleHeightChange(e.target.value)}
 									className="w-full min-w-0"
 								/>

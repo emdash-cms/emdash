@@ -68,7 +68,7 @@ test.describe("Editor image panel", () => {
 			.poll(() => removeImage.evaluate((element) => getComputedStyle(element).backgroundColor))
 			.not.toBe(restingBackground);
 
-		const replaceImage = settings.getByRole("button", { name: "Replace image" });
+		const replaceImage = settings.getByRole("button", { name: "Replace", exact: true });
 		await replaceImage.focus();
 		await expect(replaceImage).toBeFocused();
 		await expect

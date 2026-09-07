@@ -186,31 +186,46 @@ function ImageNodeView({
 	// Mirror the published <Image> layout so the editor is WYSIWYG: left/right
 	// float (text wraps), center/wide/full size the block.
 	const alignmentStyle: React.CSSProperties =
-		alignment === "left"
-			? { float: "left", width: "fit-content", maxWidth: "50%", marginInlineEnd: "1.5rem" }
-			: alignment === "right"
-				? { float: "right", width: "fit-content", maxWidth: "50%", marginInlineStart: "1.5rem" }
-				: alignment === "center"
-					? { width: "fit-content", marginInline: "auto" }
-					: alignment === "wide" || alignment === "full"
-						? { width: "100%" }
-						: {};
+		alignment === "center" ? { width: "fit-content", marginInline: "auto" } : {};
+	const { width, height, displayWidth, displayHeight } = node.attrs as ImageAttributes;
+	const aspectRatio = width && height ? width / height : undefined;
+	let renderWidth = width;
+	let renderHeight = height;
+	if (displayWidth && displayHeight) {
+		renderWidth = displayWidth;
+		renderHeight = displayHeight;
+	} else if (displayWidth && aspectRatio) {
+		renderWidth = displayWidth;
+		renderHeight = Math.round(displayWidth / aspectRatio);
+	} else if (displayHeight && aspectRatio) {
+		renderWidth = Math.round(displayHeight * aspectRatio);
+		renderHeight = displayHeight;
+	}
 
 	return (
 		<NodeViewWrapper
 			style={alignmentStyle}
 			onPointerDown={handlePointerDown}
-			className={cn("relative my-4", selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg")}
+			className={cn(
+				"relative my-4 max-w-full",
+				(alignment === "left" || alignment === "right") &&
+					"w-full min-[641px]:w-fit min-[641px]:max-w-1/2",
+				alignment === "left" && "min-[641px]:[float:left] min-[641px]:me-6",
+				alignment === "right" && "min-[641px]:[float:right] min-[641px]:ms-6",
+				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
+			)}
 		>
 			<figure className="relative">
 				<img
 					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
-					className="rounded-lg max-w-full mx-auto"
+					className="rounded-lg max-w-full h-auto"
+					width={renderWidth}
+					height={renderHeight}
 					style={{
-						width: node.attrs.displayWidth ? `${node.attrs.displayWidth}px` : undefined,
-						height: node.attrs.displayHeight ? `${node.attrs.displayHeight}px` : undefined,
+						aspectRatio:
+							renderWidth && renderHeight ? `${renderWidth} / ${renderHeight}` : undefined,
 					}}
 					draggable={false}
 				/>

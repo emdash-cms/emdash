@@ -179,7 +179,7 @@ describe("ImageDetailPanel", () => {
 		await vi.waitFor(() => expect(altHelp.query()).toBeNull());
 
 		const sizeHelp = screen.getByText(
-			"Set a custom width and height for this image in the document. The original media file is unchanged.",
+			"Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged.",
 		);
 		screen.getByRole("button", { name: "More information about Display size" }).element().focus();
 		await expect.element(sizeHelp).toBeVisible();
@@ -193,6 +193,82 @@ describe("ImageDetailPanel", () => {
 		await screen.getByRole("button", { name: "Apply" }).click();
 
 		expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ alignment: "wide" }));
+	});
+
+	it.each([undefined, null])(
+		"preserves %s display overrides on alignment-only Apply",
+		async (absent) => {
+			const { screen, onUpdate } = await renderPanel({
+				...baseAttributes,
+				displayWidth: absent,
+				displayHeight: absent,
+			} as ImageAttributes);
+			await screen.getByRole("combobox", { name: "Alignment" }).click();
+			await screen.getByRole("option", { name: "Left" }).click();
+			await screen.getByRole("button", { name: "Apply" }).click();
+			expect(onUpdate).toHaveBeenCalledWith(
+				expect.objectContaining({
+					alignment: "left",
+					displayWidth: undefined,
+					displayHeight: undefined,
+				}),
+			);
+		},
+	);
+
+	it.each([
+		{ displayWidth: undefined, displayHeight: undefined },
+		{ displayWidth: 600, displayHeight: undefined },
+		{ displayWidth: undefined, displayHeight: 300 },
+	])(
+		"preserves existing overrides $displayWidth × $displayHeight on text-only Apply",
+		async (size) => {
+			const { screen, onUpdate } = await renderPanel({ ...baseAttributes, ...size });
+			await screen.getByRole("textbox", { name: "Alt text" }).fill("New description");
+			await screen.getByRole("button", { name: "Apply" }).click();
+			expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining(size));
+		},
+	);
+
+	it("clears custom overrides with Reset, even when they match the original size", async () => {
+		const { screen, onUpdate } = await renderPanel({
+			...baseAttributes,
+			displayWidth: 1200,
+			displayHeight: 800,
+		});
+		await screen.getByRole("button", { name: "Reset", exact: true }).click();
+		await expect.element(screen.getByRole("button", { name: "Apply" })).toBeEnabled();
+		await screen.getByRole("button", { name: "Apply" }).click();
+		expect(onUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				displayWidth: undefined,
+				displayHeight: undefined,
+			}),
+		);
+	});
+
+	it("saves edited dimensions and allows either dimension to be cleared", async () => {
+		const { screen, onUpdate } = await renderPanel();
+		await screen.getByLabelText("Width").fill("600");
+		await expect.element(screen.getByLabelText("Height")).toHaveValue(400);
+		await screen.getByLabelText("Height").fill("");
+		await screen.getByRole("button", { name: "Apply" }).click();
+		expect(onUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({
+				displayWidth: 600,
+				displayHeight: undefined,
+			}),
+		);
+	});
+
+	it("retains the other original dimension when the first resize is unlocked", async () => {
+		const { screen, onUpdate } = await renderPanel();
+		await screen.getByRole("button", { name: "Keep aspect ratio" }).click();
+		await screen.getByLabelText("Width").fill("600");
+		await screen.getByRole("button", { name: "Apply" }).click();
+		expect(onUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({ displayWidth: 600, displayHeight: 800 }),
+		);
 	});
 
 	it("maps the None alignment option back to an omitted attribute", async () => {
@@ -507,38 +583,74 @@ describe("ImageDetailPanel", () => {
 		});
 	});
 
-	it("keeps implicit display dimensions aligned with the cropped asset", async () => {
-		const screen = await render(
-			<ImageDetailPanel
-				attributes={{
-					src: "/_emdash/api/media/file/old.jpg",
-					provider: "local",
-					mediaId: "old-image",
-					width: 1200,
-					height: 800,
-				}}
-				onUpdate={vi.fn()}
-				onReplace={vi.fn()}
-				onDelete={vi.fn()}
-				onClose={vi.fn()}
-				inline
-			/>,
-		);
+	it.each([undefined, null])(
+		"keeps %s implicit display dimensions aligned with the cropped asset",
+		async (absent) => {
+			const screen = await render(
+				<ImageDetailPanel
+					attributes={{
+						src: "/_emdash/api/media/file/old.jpg",
+						provider: "local",
+						mediaId: "old-image",
+						width: 1200,
+						height: 800,
+						displayWidth: absent as number | undefined,
+						displayHeight: absent as number | undefined,
+					}}
+					onUpdate={vi.fn()}
+					onReplace={vi.fn()}
+					onDelete={vi.fn()}
+					onClose={vi.fn()}
+					inline
+				/>,
+			);
 
-		await screen.getByRole("button", { name: "Edit asset" }).click();
-		await screen.getByRole("button", { name: "Use cropped asset" }).click();
+			await screen.getByRole("button", { name: "Edit asset" }).click();
+			await screen.getByRole("button", { name: "Use cropped asset" }).click();
 
-		await expect.element(screen.getByLabelText("Width")).toHaveValue(640);
-		await expect.element(screen.getByLabelText("Height")).toHaveValue(480);
-		await expect.element(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
+			await expect.element(screen.getByLabelText("Width")).toHaveValue(640);
+			await expect.element(screen.getByLabelText("Height")).toHaveValue(480);
+			await expect.element(screen.getByRole("button", { name: "Apply" })).toBeDisabled();
 
-		await screen.getByRole("button", { name: "Edit asset" }).click();
-		await vi.waitFor(() =>
-			expect(fetchMediaItem).toHaveBeenLastCalledWith("cropped-image", {
-				signal: expect.any(AbortSignal),
-			}),
-		);
-	});
+			await screen.getByRole("button", { name: "Edit asset" }).click();
+			await vi.waitFor(() =>
+				expect(fetchMediaItem).toHaveBeenLastCalledWith("cropped-image", {
+					signal: expect.any(AbortSignal),
+				}),
+			);
+		},
+	);
+
+	it.each(["custom", "reset"])(
+		"retains the %s sizing choice after editing the asset",
+		async (choice) => {
+			const { screen, onUpdate } = await renderPanel({
+				...baseAttributes,
+				provider: "local",
+				mediaId: "old-image",
+				displayWidth: 600,
+				displayHeight: 400,
+			});
+			if (choice === "reset")
+				await screen.getByRole("button", { name: "Reset", exact: true }).click();
+			await screen.getByRole("button", { name: "Edit asset" }).click();
+			await screen.getByRole("button", { name: "Use cropped asset" }).click();
+			await expect
+				.element(screen.getByLabelText("Width"))
+				.toHaveValue(choice === "reset" ? 640 : 600);
+			await expect
+				.element(screen.getByLabelText("Height"))
+				.toHaveValue(choice === "reset" ? 480 : 400);
+			await screen.getByRole("textbox", { name: "Alt text" }).fill("Edited asset");
+			await screen.getByRole("button", { name: "Apply" }).click();
+			expect(onUpdate).toHaveBeenLastCalledWith(
+				expect.objectContaining({
+					displayWidth: choice === "reset" ? undefined : 600,
+					displayHeight: choice === "reset" ? undefined : 400,
+				}),
+			);
+		},
+	);
 
 	it("resyncs the complete form when the sidebar switches image nodes", async () => {
 		const firstNode = {};
@@ -616,8 +728,6 @@ describe("ImageDetailPanel", () => {
 					alt: "Third alt",
 					caption: "Third caption",
 					title: "Third title",
-					displayWidth: 300,
-					displayHeight: 200,
 					alignment: "full",
 				},
 				onThirdUpdate,
@@ -635,8 +745,8 @@ describe("ImageDetailPanel", () => {
 			alt: "Updated third alt",
 			caption: "Third caption",
 			title: "Third title",
-			displayWidth: 300,
-			displayHeight: 200,
+			displayWidth: undefined,
+			displayHeight: undefined,
 			alignment: "full",
 		});
 	});
