@@ -1,0 +1,43 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_669e4e36f3cd5c::t_96b803483f0b5e 141,143-151,161,1299,1443-1444,1453,1472-1478,1499,1509,1563-1566,1591-1592,1598-1599,1698-1754,2593-2610,2631,2836,2842-2845,2925,2954,2967-2970,2995-3000,3301-3352,3445-3451,3455-3457,3514-3523,3539,3544,3554-3565,3828,3831,3834,3837,3840-3843,3877,3879-3883,3885-3887,3889,3892-3893,3898,3906,3912,3921-3924,3926,4099,4104,4108,4113,4376-4380
+packages/admin/src/components/editor/TableControls.tsx
+  s_669e4e36f3cd5c::t_0019af0bd8cd04 1-399
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_669e4e36f3cd5c::t_fa7da9107f6814 9,546-585,1512-1515,1523,1525,1559-1561,1568,1570,1575
+packages/admin/tests/editor/table-clipboard.test.tsx
+  s_669e4e36f3cd5c::t_1f8b57c7b2862f 1-372
+packages/admin/tests/editor/table-controls.test.tsx
+  s_669e4e36f3cd5c::t_211e00324d73a3 1-486
+packages/admin/tests/editor/table-resize.test.tsx
+  s_669e4e36f3cd5c::t_c84a812602c977 11,107,124,244-253
+packages/admin/tests/editor/toolbar.test.tsx
+  s_669e4e36f3cd5c::t_387ba558fbeb0f 3,341,347-356,360-602,665-678
+packages/admin/src/components/editor/TableActions.ts
+  s_669e4e36f3cd5c::t_0468861365fbf3 1-423
+packages/admin/src/components/editor/TableCellSafety.ts
+  s_669e4e36f3cd5c::t_037ae1e6e982ec 16,304,342-347
+packages/admin/src/components/editor/TableResize.ts
+  s_669e4e36f3cd5c::t_9691808f70821d 218,336,392-399
+packages/admin/src/styles.css
+  s_669e4e36f3cd5c::t_45bbb99ce78d7a 503-513,515-519
+packages/admin/tests/editor/bubble-menu.test.tsx
+  s_669e4e36f3cd5c::t_e61cafc0ee8a57 453,456,458-466,474,480-481,484-498
+packages/admin/tests/editor/slash-menu.test.tsx
+  s_669e4e36f3cd5c::t_1be02d6eb6a652 12,487-541
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "00b1cc01200d58bab5c85da4e7b41d085504b188",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}

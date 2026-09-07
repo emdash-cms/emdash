@@ -1,0 +1,71 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_669e4e36f3cd5c::t_e98a5f4f8b15e8 120-125,144-150,608-612,614-615,617-622,866,908,1037-1041,1043-1046,2556-2557,2559,2722-2737,2779,2783-2786,2826,2843-2846,3027,3034,3247-3252,3258,3272-3289,3322,3330-3338,3345-3348
+packages/admin/src/components/editor/TableExtensions.ts
+  s_669e4e36f3cd5c::t_af472ebd08e368 1-162
+packages/admin/src/portable-text-table.ts
+  s_669e4e36f3cd5c::t_8217c1b4631720 1-774
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_669e4e36f3cd5c::t_3d2bf5c855feb1 430-476,1497-1608
+packages/admin/tests/lib/portable-text-table.test.ts
+  s_669e4e36f3cd5c::t_32014525333007 1-534
+packages/core/tests/repro/portable-text-table.render.test.ts
+  s_669e4e36f3cd5c::t_36ae3a85d2255d 1-241
+packages/admin/package.json
+  s_c66ecb7dc7a7f8::t_fa3ff168ba4861 24-27
+packages/admin/tests/components/PortableTextEditor.table.test.ts
+  s_669e4e36f3cd5c::t_3c3b0d4f8fe899 479-584
+packages/admin/tsdown.config.ts
+  s_c66ecb7dc7a7f8::t_6ea02132e0248c 27
+packages/core/src/components/InlinePortableTextEditor.tsx
+  s_b1ec064717149a::t_25f83a269c94ca 21,69-71,78-81,294-298,615-620,625,1118-1172,2257,2645
+packages/core/src/content/converters/portable-text-to-prosemirror.ts
+  s_3239e0b54c0e1f::t_5a736dafcf290c 7-11,36-39,125,205,238-248
+packages/core/src/content/converters/prosemirror-to-portable-text.ts
+  s_3239e0b54c0e1f::t_735969abd79649 7-11,99-113,387-390,417
+packages/core/src/content/converters/types.ts
+  s_3239e0b54c0e1f::t_b1e71e518ec0fd 7-15,159
+packages/core/src/index.ts
+  s_3239e0b54c0e1f::t_4334cccef66590 119-122
+packages/core/tests/unit/components/inline-portable-text-table.test.ts
+  s_b1ec064717149a::t_e26abd26e579e5 1-143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "665e0279d79082ed06d303f1366fe8cdf9f0281a",
+  "prompts": {},
+  "sessions": {
+    "s_3239e0b54c0e1f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078aa-24b7-7292-819b-f3d5baae6813",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_b1ec064717149a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078aa-4f63-7f03-9d9b-ba8bcac8fa5b",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c66ecb7dc7a7f8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078aa-38e8-7520-b07c-e777bffca35e",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
