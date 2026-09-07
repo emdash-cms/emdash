@@ -29,6 +29,7 @@ import type { Database } from "../../../src/database/types.js";
 import {
 	connectMcpHarness,
 	extractJson,
+	currentRev,
 	extractText,
 	isErrorResult,
 	type McpHarness,
@@ -66,7 +67,12 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 		const PAST = "2020-01-15T10:00:00.000Z";
 		const result = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id, publishedAt: PAST },
+			arguments: {
+				collection: "post",
+				id,
+				publishedAt: PAST,
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
 
@@ -86,7 +92,7 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 
 		const first = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		const firstTs = extractJson<{ item: { publishedAt: string } }>(first).item.publishedAt;
 		expect(firstTs).toBeTruthy();
@@ -95,7 +101,12 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 		const PAST = "2019-06-01T00:00:00.000Z";
 		const second = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id, publishedAt: PAST },
+			arguments: {
+				collection: "post",
+				id,
+				publishedAt: PAST,
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		const secondItem = extractJson<{ item: { publishedAt: string | null } }>(second).item;
 		expect(new Date(secondItem.publishedAt!).toISOString()).toBe(PAST);
@@ -111,7 +122,12 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 
 		const result = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id, publishedAt: "yesterday" },
+			arguments: {
+				collection: "post",
+				id,
+				publishedAt: "yesterday",
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		// Schema validation produces an isError envelope. We assert the schema's
 		// own message wording — not just that the field name appears anywhere
@@ -136,6 +152,7 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 				collection: "post",
 				id,
 				publishedAt: "2020-01-15T10:00:00+05:30",
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
@@ -160,7 +177,7 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 		// Plain publish (no publishedAt) — AUTHOR can do this for their own item.
 		const ok = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		expect(ok.isError, extractText(ok)).toBeFalsy();
 
@@ -168,7 +185,12 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 		// own item, because backdating overwrites historical record.
 		const denied = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id, publishedAt: "2020-01-01T00:00:00.000Z" },
+			arguments: {
+				collection: "post",
+				id,
+				publishedAt: "2020-01-01T00:00:00.000Z",
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		expect(isErrorResult(denied)).toBe(true);
 		expect(extractText(denied)).toContain("INSUFFICIENT_PERMISSIONS");
@@ -189,7 +211,12 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 
 		const denied = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id, publishedAt: "2020-01-01T00:00:00.000Z" },
+			arguments: {
+				collection: "post",
+				id,
+				publishedAt: "2020-01-01T00:00:00.000Z",
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		// Whichever check fires first (ownership or publishedAt gate), the
 		// denial is the correct outcome. We pin the structural failure shape,
@@ -210,7 +237,7 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 
 		const first = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		const firstTs = extractJson<{ item: { publishedAt: string } }>(first).item.publishedAt;
 
@@ -219,7 +246,7 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 
 		const second = await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 		const secondTs = extractJson<{ item: { publishedAt: string } }>(second).item.publishedAt;
 		expect(secondTs).toBe(firstTs);
@@ -287,6 +314,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 				collection: "post",
 				id,
 				seo: { canonical: "javascript:alert(1)" },
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		expect(isErrorResult(result)).toBe(true);
@@ -309,6 +337,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 					description: "SEO description goes here.",
 					noIndex: true,
 				},
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		expect(updated.isError, extractText(updated)).toBeFalsy();
@@ -349,6 +378,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 					{ bylineId, roleLabel: "Author" },
 					{ bylineId: bylineId2, roleLabel: "Editor" },
 				],
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		expect(updated.isError, extractText(updated)).toBeFalsy();
@@ -386,13 +416,18 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 
 		const PAST = "2018-03-15T12:00:00.000Z";
 		const updated = await harness.client.callTool({
 			name: "content_update",
-			arguments: { collection: "post", id, publishedAt: PAST },
+			arguments: {
+				collection: "post",
+				id,
+				publishedAt: PAST,
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		expect(updated.isError, extractText(updated)).toBeFalsy();
 
@@ -424,6 +459,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 				collection: "post",
 				id,
 				publishedAt: "2020-01-01T00:00:00.000Z",
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		expect(isErrorResult(denied)).toBe(true);
@@ -449,6 +485,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 				collection: "post",
 				id,
 				publishedAt: "2020-01-01T00:00:00.000Z",
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		// Either ownership or the publishedAt gate denies — whichever fires
@@ -472,6 +509,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 				collection: "page",
 				id,
 				seo: { title: "Should fail" },
+				_rev: await currentRev(harness.client, "page", id),
 			},
 		});
 		expect(isErrorResult(result)).toBe(true);
@@ -498,6 +536,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 				id,
 				status: "published",
 				publishedAt: PAST,
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
@@ -521,7 +560,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 
 		const PAST = "2021-06-01T00:00:00.000Z";
@@ -534,6 +573,7 @@ describe("MCP content_update — seo / bylines / publishedAt (#621)", () => {
 				seo: { title: "SEO" },
 				bylines: [{ bylineId }],
 				publishedAt: PAST,
+				_rev: await currentRev(harness.client, "post", id),
 			},
 		});
 		expect(updated.isError, extractText(updated)).toBeFalsy();

@@ -11,6 +11,7 @@ import {
 	rmSync,
 	writeFileSync,
 } from "node:fs";
+import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { basename, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
@@ -45,6 +46,8 @@ const execAsync = promisify(execFile);
 const WORKSPACE_ROOT = resolve(import.meta.dirname, "../../../../..");
 const STARTUP_TIMEOUT_MS = 180_000;
 const INSTALL_TIMEOUT_MS = 600_000;
+const INJECTED_ROUTE_TIMEOUT_MS = 30_000;
+const INJECTED_ROUTE_REQUEST_TIMEOUT_MS = 5_000;
 const PLATFORM_CASES: PlatformCase[] = [
 	{
 		id: "node",
@@ -329,20 +332,70 @@ async function waitForReady(
 	);
 }
 
-async function waitForInjectedRoute(url: string, readOutput: () => string): Promise<Response> {
-	const deadline = Date.now() + 15_000;
+async function waitForInjectedRoute(
+	url: string,
+	readOutput: () => string,
+	timeoutMs = INJECTED_ROUTE_TIMEOUT_MS,
+	requestTimeoutMs = INJECTED_ROUTE_REQUEST_TIMEOUT_MS,
+): Promise<Response> {
+	const deadline = Date.now() + timeoutMs;
 	let lastBody = "";
+	let lastError: unknown;
 	while (Date.now() < deadline) {
-		const response = await fetch(url, {
-			redirect: "manual",
-			signal: AbortSignal.timeout(15_000),
-		});
-		if (response.status !== 404) return response;
-		lastBody = await response.text();
+		try {
+			const response = await fetch(url, {
+				redirect: "manual",
+				signal: AbortSignal.timeout(Math.max(1, Math.min(requestTimeoutMs, deadline - Date.now()))),
+			});
+			if (response.status !== 404) return response;
+			lastBody = await response.text();
+			lastError = undefined;
+		} catch (error) {
+			const isTransient =
+				error instanceof TypeError ||
+				(error instanceof DOMException &&
+					(error.name === "AbortError" || error.name === "TimeoutError"));
+			if (!isTransient) throw error;
+			lastError = error;
+		}
 		await new Promise((resolveSleep) => setTimeout(resolveSleep, 250));
 	}
-	throw new Error(`Injected route was not ready:\n${readOutput()}\n${lastBody}`);
+	const lastErrorMessage =
+		lastError instanceof Error ? `${lastError.name}: ${lastError.message}` : "";
+	throw new Error(
+		`Injected route was not ready:\n${readOutput()}\n${lastBody}\n${lastErrorMessage}`,
+	);
 }
+
+it("retries when an injected route request times out during startup", async () => {
+	let requestCount = 0;
+	const server = createServer((_request, response) => {
+		requestCount++;
+		if (requestCount === 1) return;
+		response.writeHead(302, { location: "/" });
+		response.end();
+	});
+	server.listen(0, "127.0.0.1");
+	await once(server, "listening");
+	const address = server.address();
+	if (!address || typeof address === "string") throw new Error("Test server did not bind to TCP");
+
+	try {
+		const response = await waitForInjectedRoute(
+			`http://127.0.0.1:${address.port}/`,
+			() => "test output",
+			1000,
+			25,
+		);
+		expect(response.status).toBe(302);
+		expect(requestCount).toBe(2);
+	} finally {
+		const closed = once(server, "close");
+		server.closeAllConnections();
+		server.close();
+		await closed;
+	}
+});
 
 async function stopServer(serverProcess: ReturnType<typeof spawn>): Promise<void> {
 	if (serverProcess.exitCode !== null || serverProcess.signalCode !== null) return;

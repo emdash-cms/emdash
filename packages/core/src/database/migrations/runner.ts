@@ -213,7 +213,7 @@ export interface MigrationOptions {
 	raceWaitMs?: number;
 }
 
-function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
+export function createMigrator(db: Kysely<Database>, options?: MigrationOptions): Migrator {
 	return new Migrator({
 		db,
 		provider: new StaticMigrationProvider(),

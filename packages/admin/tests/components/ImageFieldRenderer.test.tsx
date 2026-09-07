@@ -58,6 +58,81 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 		) : null,
 }));
 
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({ data: { id: "editor-1", role: 40 } }),
+}));
+
+vi.mock("../../src/components/MediaDetailPanel.js", () => ({
+	MediaDetailPanel: ({
+		open,
+		onClose,
+		onClosed,
+		onItemRefreshed,
+		onCroppedCopyCreated,
+	}: {
+		open: boolean;
+		onClose: () => void;
+		onClosed?: () => void;
+		onItemRefreshed?: (item: LocalMediaItem) => void;
+		onCroppedCopyCreated?: (item: LocalMediaItem) => void;
+	}) =>
+		open ? (
+			<>
+				<button
+					type="button"
+					onClick={() =>
+						onItemRefreshed?.({
+							id: "featured-image",
+							filename: "notes-on-simplicity.jpg",
+							mimeType: "image/jpeg",
+							url: "/_emdash/api/media/file/featured-image.jpg",
+							storageKey: "featured-image.jpg",
+							size: 30_000,
+							width: 1200,
+							height: 800,
+							contentHash: "sha256:replaced-original",
+							status: "ready",
+							authorId: "editor-1",
+							folderId: null,
+							createdAt: "2026-01-01T00:00:00.000Z",
+						})
+					}
+				>
+					Refresh original asset
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onCroppedCopyCreated?.({
+							id: "cropped-image",
+							filename: "cropped.webp",
+							mimeType: "image/webp",
+							url: "/_emdash/api/media/file/cropped.webp",
+							storageKey: "cropped.webp",
+							size: 24_000,
+							width: 900,
+							height: 600,
+							contentHash: "sha256:cropped-copy",
+							alt: "Cropped asset alt",
+							focalX: 0.4,
+							focalY: 0.6,
+							blurhash: "cropped-hash",
+							dominantColor: "#aabbcc",
+							status: "ready",
+							authorId: "editor-1",
+							folderId: null,
+							createdAt: "2026-01-02T00:00:00.000Z",
+						});
+						onClose();
+						onClosed?.();
+					}}
+				>
+					Use cropped asset
+				</button>
+			</>
+		) : null,
+}));
+
 const selectedImage: ImageFieldValue = {
 	id: "featured-image",
 	provider: "local",
@@ -104,9 +179,10 @@ describe("ImageFieldRenderer", () => {
 		const metadata = screen.getByText("1200 × 800 · image/jpeg");
 		await expect.element(metadata).toBeVisible();
 		expect(metadata.element()).toHaveAttribute("dir", "ltr");
-		const replaceButton = screen.getByRole("button", { name: "Replace" });
-		await expect.element(replaceButton).toBeVisible();
-		expect(replaceButton.element().querySelector("svg")).not.toBeNull();
+		const chooseAnotherButton = screen.getByRole("button", { name: "Replace" });
+		await expect.element(chooseAnotherButton).toBeVisible();
+		expect(chooseAnotherButton.element().querySelector("svg")).not.toBeNull();
+		await expect.element(screen.getByRole("button", { name: "Edit asset" })).toBeVisible();
 		const removeButton = screen.getByRole("button", { name: "Remove image" });
 		await expect.element(removeButton).toBeVisible();
 		expect(removeButton.element()).toHaveTextContent("Remove");
@@ -114,6 +190,7 @@ describe("ImageFieldRenderer", () => {
 		const image = screen.container.querySelector("img");
 		expect(image).toHaveAttribute("src", "/_emdash/api/media/file/featured-image.jpg");
 		expect(image?.style.objectPosition).toBe("25% 75%");
+		expect(getComputedStyle(image!.parentElement!).aspectRatio).toBe("16 / 9");
 	});
 
 	it("refreshes a featured local preview from the current media item", async () => {
@@ -291,6 +368,29 @@ describe("ImageFieldRenderer", () => {
 		expect(onChange.mock.calls[0]?.[0].previewUrl).toBeUndefined();
 	});
 
+	it("does not offer asset editing in mobile actions for an external featured image", async () => {
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Featured image"
+				value={{
+					id: "",
+					provider: "external",
+					src: "https://media.example/external.jpg",
+					filename: "external.jpg",
+					mimeType: "image/jpeg",
+				}}
+				onChange={vi.fn()}
+				variant="featured"
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Image actions" }).click();
+
+		await expect.element(screen.getByRole("menuitem", { name: "Replace" })).toBeVisible();
+		expect(screen.getByRole("menuitem", { name: "Edit asset" }).query()).toBeNull();
+		await expect.element(screen.getByRole("menuitem", { name: "Remove" })).toBeVisible();
+	});
+
 	it("removes the featured image immediately", async () => {
 		const onChange = vi.fn();
 		const screen = await render(
@@ -323,6 +423,7 @@ describe("ImageFieldRenderer", () => {
 		await expect.element(screen.getByText("Image not found")).toBeVisible();
 		await expect.element(screen.getByText("notes-on-simplicity.jpg")).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Replace" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Edit asset" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Remove image" })).toBeVisible();
 	});
 
@@ -472,7 +573,7 @@ describe("ImageFieldRenderer", () => {
 			/>,
 		);
 
-		await screen.getByRole("button", { name: "Change", exact: true }).click();
+		await screen.getByRole("button", { name: "Replace", exact: true }).click();
 		await screen.getByRole("button", { name: "Choose replacement" }).click();
 
 		expect(onChange).toHaveBeenCalledWith(
@@ -487,5 +588,120 @@ describe("ImageFieldRenderer", () => {
 
 		expect(screen.getByText("notes-on-simplicity.jpg").query()).toBeNull();
 		expect(screen.getByText("1200 × 800 · image/jpeg").query()).toBeNull();
+	});
+
+	it("uses a cropped copy for the field without dropping its dark mode variant", async () => {
+		const darkVariant: ImageFieldValue = { id: "dark-image", provider: "local" };
+		const onChange = vi.fn();
+		const screen = await render(
+			<ImageFieldRenderer
+				label="Featured image"
+				value={{ ...selectedImage, darkVariant }}
+				onChange={onChange}
+				variant="featured"
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Edit asset" }).click();
+		await screen.getByRole("button", { name: "Use cropped asset" }).click();
+
+		expect(onChange).toHaveBeenCalledWith({
+			id: "cropped-image",
+			provider: "local",
+			src: undefined,
+			previewUrl: undefined,
+			alt: "Cropped asset alt",
+			width: 900,
+			height: 600,
+			focalX: 0.4,
+			focalY: 0.6,
+			filename: "cropped.webp",
+			mimeType: "image/webp",
+			blurhash: "cropped-hash",
+			dominantColor: "#aabbcc",
+			meta: { storageKey: "cropped.webp" },
+			darkVariant,
+		});
+	});
+
+	it("refreshes a custom field preview from the edited item without persisting its content hash", async () => {
+		let persistedValue: ImageFieldValue | null | undefined;
+		function Harness() {
+			const [value, setValue] = React.useState<ImageFieldValue | null>(selectedImage);
+			return (
+				<ImageFieldRenderer
+					label="Image"
+					value={value ?? undefined}
+					onChange={(next) => {
+						persistedValue = next;
+						setValue(next);
+					}}
+				/>
+			);
+		}
+		const screen = await render(<Harness />);
+		const sources: string[] = [];
+		const observer = new MutationObserver(() => {
+			for (const image of screen.container.querySelectorAll("img")) sources.push(image.src);
+		});
+		observer.observe(screen.container, {
+			attributes: true,
+			attributeFilter: ["src"],
+			childList: true,
+			subtree: true,
+		});
+
+		await screen.getByRole("button", { name: "Edit asset" }).click();
+		await screen.getByRole("button", { name: "Use cropped asset" }).click();
+
+		await vi.waitFor(() => {
+			expect(
+				sources.some((source) =>
+					source.endsWith(
+						"/_emdash/api/media/file/cropped.webp?_emdash_media=sha256%3Acropped-copy",
+					),
+				),
+			).toBe(true);
+		});
+		observer.disconnect();
+		expect(persistedValue).not.toHaveProperty("contentHash");
+	});
+
+	it("refreshes both previews when light and dark variants share one replaced asset", async () => {
+		function Harness() {
+			const [value, setValue] = React.useState<ImageFieldValue>({
+				...selectedImage,
+				darkVariant: { ...selectedImage },
+			});
+			return (
+				<ImageFieldRenderer
+					label="Image"
+					value={value}
+					onChange={(next) => next && setValue(next)}
+					darkVariant
+				/>
+			);
+		}
+		const screen = await render(<Harness />);
+		const refreshedSource =
+			"/_emdash/api/media/file/featured-image.jpg?_emdash_media=sha256%3Areplaced-original";
+		const sources: string[] = [];
+		const observer = new MutationObserver(() => {
+			for (const image of screen.container.querySelectorAll("img")) sources.push(image.src);
+		});
+		observer.observe(screen.container, {
+			attributes: true,
+			attributeFilter: ["src"],
+			childList: true,
+			subtree: true,
+		});
+
+		await screen.getByRole("button", { name: "Edit asset" }).click();
+		await screen.getByRole("button", { name: "Refresh original asset" }).click();
+
+		await vi.waitFor(() => {
+			expect(sources.filter((source) => source.endsWith(refreshedSource))).toHaveLength(2);
+		});
+		observer.disconnect();
 	});
 });
