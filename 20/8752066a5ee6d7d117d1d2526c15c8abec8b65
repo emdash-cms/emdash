@@ -1,0 +1,35 @@
+docs/technical-specs/editor-image-panel-ui.md
+  s_669e4e36f3cd5c::t_31f52bfd6ae430 5,11,39,171,175,390,394,398,404,406
+e2e/tests/editor-image-panel.spec.ts
+  s_669e4e36f3cd5c::t_792048a5e4449f 92
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_669e4e36f3cd5c::t_133b8da3f00d85 233-235,445-446,659
+.changeset/calm-images-fit.md
+  s_6a4faa61744b31::t_3906e6daa2432d 10
+packages/admin/tests/components/ImageDetailPanel.test.tsx
+  s_6a4faa61744b31::t_4d59b33bbfa7b3 133,145,199,208-210,218-224
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "208752066a5ee6d7d117d1d2526c15c8abec8b65",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a4faa61744b31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07886-e73b-7de1-a8d8-ce170d5daee1",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
