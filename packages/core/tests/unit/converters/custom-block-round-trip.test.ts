@@ -1,14 +1,77 @@
+import { getSchema } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
 import { describe, expect, it } from "vitest";
 
+import { portableTextIdentityExtensions } from "../../../src/content/converters/portable-text-identity.js";
 import { portableTextToProsemirror } from "../../../src/content/converters/portable-text-to-prosemirror.js";
 import { prosemirrorToPortableText } from "../../../src/content/converters/prosemirror-to-portable-text.js";
 import type { PortableTextBlock } from "../../../src/content/converters/types.js";
 
+function portableTextToIdentityDocument(blocks: PortableTextBlock[]) {
+	return portableTextToProsemirror(blocks, { preserveIdentity: true });
+}
+
 describe("Portable Text converter identity preservation", () => {
+	it("emits text JSON that survives a standard ProseMirror schema", () => {
+		const document = portableTextToProsemirror([
+			{
+				_type: "block",
+				_key: "block-1",
+				style: "normal",
+				children: [{ _type: "span", _key: "span-1", text: "Hello world" }],
+			},
+		]);
+		const schema = getSchema([StarterKit]);
+
+		const parsed = schema.nodeFromJSON(document);
+
+		expect(parsed.toJSON()).toEqual(JSON.parse(JSON.stringify(document)));
+	});
+
+	it("uses standard-schema nodes for custom blocks by default", () => {
+		const document = portableTextToProsemirror([{ _type: "test.divider", _key: "divider-1" }]);
+		const schema = getSchema([StarterKit]);
+
+		expect(() => schema.nodeFromJSON(document)).not.toThrow();
+	});
+
+	it("preserves identities through the matching ProseMirror extensions", () => {
+		const blocks: PortableTextBlock[] = [
+			{
+				_type: "block",
+				_key: "block-1",
+				style: "normal",
+				children: [
+					{
+						_type: "span",
+						_key: "span-1",
+						text: "Hello world",
+						marks: ["link-1"],
+					},
+				],
+				markDefs: [
+					{
+						_type: "link",
+						_key: "link-1",
+						href: "https://example.com",
+					},
+				],
+			},
+			{ _type: "test.divider", _key: "divider-1" },
+		];
+		const schema = getSchema([StarterKit, ...portableTextIdentityExtensions]);
+		const document = portableTextToIdentityDocument(blocks);
+
+		const parsed = schema.nodeFromJSON(document);
+		const roundTripped = prosemirrorToPortableText(parsed.toJSON());
+
+		expect(roundTripped).toEqual(blocks);
+	});
+
 	it("preserves a payload-less custom block unchanged", () => {
 		const blocks: PortableTextBlock[] = [{ _type: "test.divider", _key: "divider-1" }];
 
-		const roundTripped = prosemirrorToPortableText(portableTextToProsemirror(blocks));
+		const roundTripped = prosemirrorToPortableText(portableTextToIdentityDocument(blocks));
 
 		expect(roundTripped).toEqual(blocks);
 	});
@@ -38,7 +101,7 @@ describe("Portable Text converter identity preservation", () => {
 			},
 		];
 
-		const roundTripped = prosemirrorToPortableText(portableTextToProsemirror(blocks));
+		const roundTripped = prosemirrorToPortableText(portableTextToIdentityDocument(blocks));
 
 		expect(roundTripped).toEqual(blocks);
 	});
@@ -60,13 +123,13 @@ describe("Portable Text converter identity preservation", () => {
 			},
 		];
 
-		const roundTripped = prosemirrorToPortableText(portableTextToProsemirror(blocks));
+		const roundTripped = prosemirrorToPortableText(portableTextToIdentityDocument(blocks));
 
 		expect(roundTripped).toEqual(blocks);
 	});
 
 	it("assigns a new key when ProseMirror splits a keyed block", () => {
-		const document = portableTextToProsemirror([
+		const document = portableTextToIdentityDocument([
 			{
 				_type: "block",
 				_key: "block-1",

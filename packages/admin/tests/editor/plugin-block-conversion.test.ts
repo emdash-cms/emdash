@@ -205,6 +205,24 @@ describe("Plugin block round-trip", () => {
 		expect(roundTripped).toEqual(original);
 	});
 
+	it("persists an identity added while editing a payload-less custom block", () => {
+		const document = portableTextToProsemirror([{ _type: "test.embed", _key: "embed-1" }]);
+		const node = document.content?.[0] as {
+			attrs: { id: string };
+		};
+		node.attrs.id = "https://example.com/embed";
+
+		const roundTripped = prosemirrorToPortableText(document);
+
+		expect(roundTripped).toEqual([
+			{
+				_type: "test.embed",
+				_key: "embed-1",
+				id: "https://example.com/embed",
+			},
+		]);
+	});
+
 	it("basic plugin block survives round-trip", () => {
 		const original = [ptPluginBlock("youtube", "https://youtu.be/abc")];
 		const pm = portableTextToProsemirror(original);

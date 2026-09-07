@@ -12,9 +12,11 @@ import {
 import { readOrderedListMetadata, type OrderedListMetadata } from "./numbered-list.js";
 import {
 	PORTABLE_TEXT_BLOCK_NODE,
+	PORTABLE_TEXT_SPAN_MARK,
 	portableTextBlockFromAttrs,
 	portableTextKeyFromAttrs,
-	portableTextMarkDefFromAttrs,
+	portableTextMarkDefsFromMarks,
+	portableTextSpanKeyFromMarks,
 } from "./portable-text-identity.js";
 import type {
 	ProseMirrorDocument,
@@ -417,15 +419,17 @@ function convertInlineContent(nodes: ProseMirrorNode[]): {
 	for (const node of nodes) {
 		if (node.type === "text" && node.text) {
 			const marks: string[] = [];
+			const originalMarkDefs = portableTextMarkDefsFromMarks(node.marks);
 
 			for (const mark of node.marks || []) {
-				const markType = convertMark(mark, markDefs, markDefMap);
+				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs);
 				if (markType) {
 					marks.push(markType);
 				}
 			}
 
-			const preferredKey = portableTextKeyFromAttrs(node.attrs);
+			const preferredKey =
+				portableTextSpanKeyFromMarks(node.marks) ?? portableTextKeyFromAttrs(node.attrs);
 			const normalizedMarks = marks.length > 0 ? marks : undefined;
 			const previous = children.at(-1);
 			if (
@@ -451,7 +455,9 @@ function convertInlineContent(nodes: ProseMirrorNode[]): {
 			} else {
 				children.push({
 					_type: "span",
-					_key: claimSpanKey(portableTextKeyFromAttrs(node.attrs)),
+					_key: claimSpanKey(
+						portableTextSpanKeyFromMarks(node.marks) ?? portableTextKeyFromAttrs(node.attrs),
+					),
 					text: "\n",
 				});
 			}
@@ -477,6 +483,7 @@ function convertMark(
 	mark: ProseMirrorMark,
 	markDefs: PortableTextMarkDef[],
 	markDefMap: Map<string, string>,
+	originalMarkDefs: PortableTextMarkDef[],
 ): string | null {
 	switch (mark.type) {
 		case "bold":
@@ -503,9 +510,12 @@ function convertMark(
 		case "code":
 			return "code";
 
+		case PORTABLE_TEXT_SPAN_MARK:
+			return null;
+
 		case "link": {
 			const href = (typeof mark.attrs?.href === "string" ? mark.attrs.href : "") || "";
-			const originalMarkDef = portableTextMarkDefFromAttrs(mark.attrs);
+			const originalMarkDef = originalMarkDefs.find((markDef) => markDef._type === "link");
 			const mapKey = originalMarkDef ? `key:${originalMarkDef._key}` : `href:${href}`;
 
 			// Check if we already have a mark def for this link
