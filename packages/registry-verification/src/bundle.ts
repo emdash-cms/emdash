@@ -17,7 +17,7 @@ const TAR_BLOCK_BYTES = 512;
 const TAR_END_BYTES = TAR_BLOCK_BYTES * 2;
 const OCTAL_PATTERN = /^[0-7]+$/;
 const WINDOWS_DRIVE_PATTERN = /^[a-zA-Z]:/;
-const decoder = new TextDecoder("utf-8", { fatal: true });
+const decoder = new TextDecoder("utf-8", { fatal: true, ignoreBOM: false });
 
 export interface ValidatePluginBundleOptions {
 	expectedSlug?: string;

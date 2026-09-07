@@ -1,0 +1,28 @@
+{
+	"name": "@emdash-cms/release-verifier",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Isolated Cloudflare Worker for delegated release artifact verification.",
+	"type": "module",
+	"scripts": {
+		"dev": "vite dev",
+		"build": "vite build",
+		"deploy": "vite build && wrangler deploy",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"types": "wrangler types"
+	},
+	"dependencies": {
+		"@emdash-cms/registry-verification": "workspace:*"
+	},
+	"devDependencies": {
+		"@cloudflare/vite-plugin": "catalog:",
+		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@types/node": "catalog:",
+		"modern-tar": "^0.7.6",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"vitest": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

@@ -21,12 +21,20 @@
  */
 
 import { InvalidRequestError, json } from "@atcute/xrpc-server";
-import {
-	type AggregatorDefs,
-	NSID,
-	type AggregatorSearchPackages,
-} from "@emdash-cms/registry-lexicons";
+import { type AggregatorDefs, type AggregatorSearchPackages } from "@emdash-cms/registry-lexicons";
 
+import {
+	ACTIVE_PROJECTION_JOINS_SQL,
+	ACTIVE_PROJECTION_POLICY_SQL,
+	ACTIVE_PROFILE_REDACTION_SQL,
+	ACTIVE_PROFILE_SQL,
+	ACTIVE_PUBLIC_PACKAGE_SQL,
+	ALLOWLIST_PROFILE_SQL,
+	activeProjectionPolicyBindings,
+	activePublicSubjectBindings,
+	getListingPolicy,
+	type ListingPolicyConfig,
+} from "../../listing-policy.js";
 import { decodeOffsetCursor, encodeOffsetCursor, InvalidCursorError } from "./cursor.js";
 import { type PackageRow, packageColumns, packageView } from "./views.js";
 
@@ -48,6 +56,7 @@ export async function searchPackages(
 		throw err;
 	}
 	const session = env.DB.withSession("first-primary");
+	const policy = await getListingPolicy(env);
 
 	const hasQuery = typeof params.q === "string" && params.q.trim().length > 0;
 	const hasCapability = typeof params.capability === "string" && params.capability.length > 0;
@@ -56,10 +65,12 @@ export async function searchPackages(
 	if (hasQuery) {
 		const ftsQuery = quoteFtsQuery(params.q!);
 		const result = await session
-			.prepare(buildFtsSearchSql(hasCapability))
+			.prepare(buildFtsSearchSql(policy, hasCapability))
 			.bind(
 				...buildFtsBindings(
+					policy,
 					ftsQuery,
+					policy.mode === "allowlist" ? policy.allowlistJson : undefined,
 					hasCapability ? params.capability : undefined,
 					limit + 1,
 					offset,
@@ -71,9 +82,15 @@ export async function searchPackages(
 		// No query → ordered list of all packages, label-filtered. last_updated
 		// DESC keeps the "what's new" view sensible for an empty search box.
 		const result = await session
-			.prepare(buildBrowseSql(hasCapability))
+			.prepare(buildBrowseSql(policy, hasCapability))
 			.bind(
-				...buildBrowseBindings(hasCapability ? params.capability : undefined, limit + 1, offset),
+				...buildBrowseBindings(
+					policy,
+					policy.mode === "allowlist" ? policy.allowlistJson : undefined,
+					hasCapability ? params.capability : undefined,
+					limit + 1,
+					offset,
+				),
 			)
 			.all<PackageRow>();
 		rows = result.results ?? [];
@@ -92,13 +109,31 @@ export async function searchPackages(
 	return json(response);
 }
 
-function buildFtsSearchSql(hasCapability: boolean): string {
+function buildFtsSearchSql(policy: ListingPolicyConfig, hasCapability: boolean): string {
+	if (policy.mode === "projection") {
+		return `
+			SELECT ${packageColumns("p.")}, p.labels_json
+			FROM public_projection_state projection_state
+			${ACTIVE_PROJECTION_JOINS_SQL}
+			JOIN public_packages p ON p.generation = projection_state.active_generation
+			JOIN public_packages_fts ON p.rowid = public_packages_fts.rowid
+			WHERE projection_state.id = 1
+			AND ${ACTIVE_PROJECTION_POLICY_SQL}
+			AND ${ACTIVE_PUBLIC_PACKAGE_SQL}
+			AND public_packages_fts MATCH ?
+			${hasCapability ? CAPABILITY_FILTER_SQL : ""}
+			ORDER BY bm25(public_packages_fts), p.last_updated DESC, p.did ASC, p.slug ASC
+			LIMIT ? OFFSET ?
+		`;
+	}
 	return `
 		SELECT ${packageColumns("p.")}
 		FROM packages_fts
 		JOIN packages p ON p.rowid = packages_fts.rowid
 		WHERE packages_fts MATCH ?
-		${ENFORCEMENT_FILTER_SQL}
+		AND ${ACTIVE_PROFILE_SQL}
+		${policy.mode === "allowlist" ? `AND ${ALLOWLIST_PROFILE_SQL}` : ""}
+		AND ${ACTIVE_PROFILE_REDACTION_SQL}
 		${hasCapability ? CAPABILITY_FILTER_SQL : ""}
 		ORDER BY bm25(packages_fts), p.last_updated DESC, p.did ASC, p.slug ASC
 		LIMIT ? OFFSET ?
@@ -106,28 +141,49 @@ function buildFtsSearchSql(hasCapability: boolean): string {
 }
 
 function buildFtsBindings(
+	policy: ListingPolicyConfig,
 	ftsQuery: string,
+	allowlistJson: string | undefined,
 	capability: string | undefined,
 	limit: number,
 	offset: number,
 ): unknown[] {
-	const out: unknown[] = [ftsQuery];
+	const out: unknown[] = [];
+	if (policy.mode === "projection") out.push(...activeProjectionPolicyBindings(policy));
+	if (policy.mode === "projection") out.push(...activePublicSubjectBindings(policy));
+	out.push(ftsQuery);
+	if (allowlistJson !== undefined) out.push(allowlistJson);
 	if (capability !== undefined) out.push(capability);
 	out.push(limit, offset);
 	return out;
 }
 
-function buildBrowseSql(hasCapability: boolean): string {
+function buildBrowseSql(policy: ListingPolicyConfig, hasCapability: boolean): string {
 	// Stable tiebreakers (did, slug) so offset pagination doesn't shuffle
 	// rows across pages when many packages share `last_updated` (or it's
 	// NULL — `last_updated` comes from the optional record.lastUpdated
 	// field). NULLS LAST keeps NULL `last_updated` rows out of the way
 	// of the freshness sort but still reachable via pagination.
+	if (policy.mode === "projection") {
+		return `
+			SELECT ${packageColumns("p.")}, p.labels_json
+			FROM public_projection_state projection_state
+			${ACTIVE_PROJECTION_JOINS_SQL}
+			JOIN public_packages p ON p.generation = projection_state.active_generation
+			WHERE projection_state.id = 1
+			AND ${ACTIVE_PROJECTION_POLICY_SQL}
+			AND ${ACTIVE_PUBLIC_PACKAGE_SQL}
+			${hasCapability ? CAPABILITY_FILTER_SQL : ""}
+			ORDER BY p.last_updated IS NULL, p.last_updated DESC, p.did ASC, p.slug ASC
+			LIMIT ? OFFSET ?
+		`;
+	}
 	return `
 		SELECT ${packageColumns("p.")}
 		FROM packages p
-		WHERE 1=1
-		${ENFORCEMENT_FILTER_SQL}
+		WHERE ${ACTIVE_PROFILE_SQL}
+		${policy.mode === "allowlist" ? `AND ${ALLOWLIST_PROFILE_SQL}` : ""}
+		AND ${ACTIVE_PROFILE_REDACTION_SQL}
 		${hasCapability ? CAPABILITY_FILTER_SQL : ""}
 		ORDER BY p.last_updated IS NULL, p.last_updated DESC, p.did ASC, p.slug ASC
 		LIMIT ? OFFSET ?
@@ -135,31 +191,20 @@ function buildBrowseSql(hasCapability: boolean): string {
 }
 
 function buildBrowseBindings(
+	policy: ListingPolicyConfig,
+	allowlistJson: string | undefined,
 	capability: string | undefined,
 	limit: number,
 	offset: number,
 ): unknown[] {
 	const out: unknown[] = [];
+	if (policy.mode === "projection") out.push(...activeProjectionPolicyBindings(policy));
+	if (policy.mode === "projection") out.push(...activePublicSubjectBindings(policy));
+	if (allowlistJson !== undefined) out.push(allowlistJson);
 	if (capability !== undefined) out.push(capability);
 	out.push(limit, offset);
 	return out;
 }
-
-/** Hard-enforcement label filter. The Slice 2 labeller writes to
- * `label_state`; until then the table is empty so this clause is a no-op
- * (the NOT EXISTS short-circuits). The plan calls for shipping the filter
- * now to lock the contract — adding it later would be a behaviour change
- * for cached clients. */
-const ENFORCEMENT_FILTER_SQL = `
-	AND NOT EXISTS (
-		SELECT 1 FROM label_state ls
-		WHERE ls.uri = 'at://' || p.did || '/${NSID.packageProfile}/' || p.slug
-		  AND ls.val IN ('!takedown', 'security:yanked')
-		  AND ls.trusted = 1
-		  AND ls.neg = 0
-		  AND (ls.exp IS NULL OR ls.exp > strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
-	)
-`;
 
 const CAPABILITY_FILTER_SQL = `
 	AND p.capabilities IS NOT NULL

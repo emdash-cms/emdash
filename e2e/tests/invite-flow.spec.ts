@@ -24,7 +24,7 @@ import { expect, test } from "../fixtures";
 import { addVirtualWebAuthnAuthenticator } from "../fixtures/virtual-authenticator";
 
 // Regex patterns
-const ADMIN_URL_PATTERN = /\/_emdash\/admin/;
+const ADMIN_URL_PATTERN = /\/_emdash\/admin\/?$/;
 const INVITE_URL_REGEX = /https?:\/\/[^\s]+\/admin\/invite\/accept\?token=[^\s]+/;
 const URL_IN_TEXT_REGEX = /https?:\/\/[^\s]+/;
 
@@ -184,13 +184,12 @@ test.describe("Invite creation via API", () => {
 });
 
 test.describe("Full invite flow with passkey registration", () => {
-	test.describe.configure({ mode: "serial" });
-
 	test("completes invite registration with virtual authenticator", async ({ admin, page }) => {
 		test.setTimeout(120_000);
 
 		// Step 1: Create invite via server-side API
-		const inviteUrl = await createInviteViaApi("invited-user@example.com", 30);
+		const inviteEmail = `invited-user-${crypto.randomUUID()}@example.com`;
+		const inviteUrl = await createInviteViaApi(inviteEmail, 30);
 		const inviteToken = new URL(inviteUrl).searchParams.get("token")!;
 
 		// Step 2: Set up virtual authenticator
@@ -204,17 +203,29 @@ test.describe("Full invite flow with passkey registration", () => {
 			// Step 4: Verify the registration form renders
 			await expect(page.locator("h1")).toContainText("Accept Invite", { timeout: 15000 });
 			await expect(page.locator("text=You've been invited!")).toBeVisible();
-			await expect(page.getByLabel("Email")).toHaveValue("invited-user@example.com");
+			await expect(page.getByLabel("Email")).toHaveValue(inviteEmail);
 			await expect(page.locator("text=AUTHOR")).toBeVisible();
 
 			// Step 5: Fill in name and click Create Account
 			const nameInput = page.getByLabel("Your name (optional)");
 			await nameInput.fill("Invited User");
 
+			const completionResponsePromise = page
+				.waitForResponse((response) => {
+					return new URL(response.url()).pathname === "/_emdash/api/auth/invite/complete";
+				})
+				.then((response) => response.status());
 			await page.getByRole("button", { name: "Create Account" }).click();
+			expect(await completionResponsePromise).toBe(200);
 
 			// Step 6: Wait for passkey flow to complete and redirect
 			await expect(page).toHaveURL(ADMIN_URL_PATTERN, { timeout: 60_000 });
+			const welcomeDialog = page.getByRole("dialog", { name: /Welcome to EmDash/ });
+			await expect(welcomeDialog).toBeVisible({ timeout: 15_000 });
+			await welcomeDialog.getByRole("button", { name: "Get Started" }).click();
+			await expect(welcomeDialog).not.toBeVisible();
+			await admin.waitForShell();
+			await expect(page.getByRole("button", { name: /Invited User/ })).toBeVisible();
 
 			// Verify no passkey errors appeared
 			await expect(page.locator("text=Registration was cancelled or timed out")).toHaveCount(0);
@@ -222,31 +233,5 @@ test.describe("Full invite flow with passkey registration", () => {
 		} finally {
 			await removeAuth();
 		}
-	});
-
-	test("invited user appears in the users list", async ({ admin, page }) => {
-		// FIXME(cloudflare): on the Cloudflare/workerd target the invited user is
-		// not visible in the users list after the passkey-invite registration
-		// above — reproducible in isolation, passes on Node. The registration
-		// ceremony completes (redirects to admin, no errors) but the user row
-		// isn't read back. NOT a consistency artifact: miniflare D1 is a local
-		// SQLite file (strongly consistent), so if the read misses a committed
-		// write it's a real code bug — likely a SQLite-vs-D1-dialect difference in
-		// the invite-registration write or the user-list read. Needs a
-		// browser-driven repro (passkey-gated) to confirm backend vs front-end.
-		// Flagged for maintainers as possibly a real Cloudflare bug; skipped so
-		// the CF lane stays green.
-		test.skip(
-			process.env.EMDASH_E2E_TARGET === "cloudflare",
-			"CF: invited user not read back after passkey-invite registration (possible real bug, under investigation)",
-		);
-		await admin.devBypassAuth();
-		await admin.goto("/users");
-		await admin.waitForShell();
-		await admin.waitForLoading();
-
-		await expect(page.locator("text=invited-user@example.com")).toBeVisible({
-			timeout: 15000,
-		});
 	});
 });

@@ -111,6 +111,7 @@
 				"confirm",
 				"reject",
 				"retry",
+				"revise",
 				"take_over"
 			]
 		},
@@ -177,6 +178,7 @@
 				"implement",
 				"repro",
 				"investigate",
+				"revise",
 				"decline"
 			]
 		},
@@ -436,6 +438,12 @@
 				"system"
 			]
 		},
+		"agent.revised": {
+			"description": "Review feedback is addressed and the PR branch is updated.",
+			"actors": [
+				"system"
+			]
+		},
 		"agent.fix_ready": {
 			"description": "A candidate change is published on bot/fix-<n>.",
 			"actors": [
@@ -468,12 +476,6 @@
 		},
 		"pr.closed": {
 			"description": "The bot PR was closed without merging.",
-			"actors": [
-				"system"
-			]
-		},
-		"pr.changes_requested": {
-			"description": "A reviewer requested changes (review sub-state).",
 			"actors": [
 				"system"
 			]
@@ -594,6 +596,11 @@
 		},
 		{
 			"from": "working",
+			"event": "agent.revised",
+			"to": "in_review"
+		},
+		{
+			"from": "working",
 			"event": "agent.failed",
 			"to": "failed"
 		},
@@ -656,6 +663,18 @@
 			"to": "human_owned"
 		},
 		{
+			"from": "failed",
+			"event": "revise",
+			"to": "working",
+			"action": "investigate.revise"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "revise",
+			"to": "working",
+			"action": "investigate.revise"
+		},
+		{
 			"from": "in_review",
 			"event": "pr.opened",
 			"to": "in_review",
@@ -664,12 +683,6 @@
 		{
 			"from": "in_review",
 			"event": "pr.approved",
-			"to": "in_review",
-			"note": "review sub-state only"
-		},
-		{
-			"from": "in_review",
-			"event": "pr.changes_requested",
 			"to": "in_review",
 			"note": "review sub-state only"
 		},

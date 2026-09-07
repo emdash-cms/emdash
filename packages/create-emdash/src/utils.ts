@@ -23,12 +23,6 @@ export function runCommand(command: string, args: string[], cwd: string): Promis
 			const reason = signal ? `signal ${signal}` : `code ${code ?? "unknown"}`;
 			reject(new Error(`${command} ${args.join(" ")} exited with ${reason}`));
 		});
-			if (code === 0) {
-				resolvePromise();
-				return;
-			}
-			reject(new Error(`${command} ${args.join(" ")} exited with code ${code ?? "unknown"}`));
-		});
 	});
 }
 

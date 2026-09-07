@@ -414,6 +414,63 @@ describe("FieldEditor", () => {
 		});
 	});
 
+	describe("dark mode variant option (image field)", () => {
+		const imageField = makeField({
+			slug: "cover",
+			label: "Cover",
+			type: "image",
+			required: false,
+			unique: false,
+			searchable: false,
+		});
+
+		const save = async (screen: Awaited<ReturnType<typeof render>>) => {
+			const button = screen.getByRole("button", { name: "Update Field" });
+			await expect.element(button).toBeEnabled();
+			button.element().click();
+		};
+
+		it("is absent for file fields", async () => {
+			const fileField = makeField({ ...imageField, slug: "attachment", type: "file" });
+			const screen = await render(<FieldEditor {...defaultProps} field={fileField} />);
+
+			expect(screen.getByRole("switch", { name: "Dark mode variant" }).query()).toBeNull();
+		});
+
+		it("saves the option when switched on", async () => {
+			const onSave = vi.fn();
+			const screen = await render(
+				<FieldEditor {...defaultProps} field={imageField} onSave={onSave} />,
+			);
+
+			const toggle = screen.getByRole("switch", { name: "Dark mode variant" });
+			await expect.element(toggle).not.toBeChecked();
+			toggle.element().click();
+			await expect.element(toggle).toBeChecked();
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({ options: { darkVariant: true } }),
+			);
+		});
+
+		it("removes only the option when switched off and keeps other widget options", async () => {
+			const onSave = vi.fn();
+			const field = makeField({ ...imageField, options: { showPreview: true, darkVariant: true } });
+			const screen = await render(<FieldEditor {...defaultProps} field={field} onSave={onSave} />);
+
+			const toggle = screen.getByRole("switch", { name: "Dark mode variant" });
+			await expect.element(toggle).toBeChecked();
+			toggle.element().click();
+			await expect.element(toggle).not.toBeChecked();
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({ options: { showPreview: true } }),
+			);
+		});
+	});
+
 	describe("dialog closed", () => {
 		it("renders nothing visible when open is false", async () => {
 			const screen = await render(<FieldEditor {...defaultProps} open={false} />);

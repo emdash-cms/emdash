@@ -58,6 +58,7 @@ test.describe("Setup Wizard", () => {
 	test("shows validation error when title is empty", async ({ admin }) => {
 		await admin.goToSetup();
 
+		await admin.page.getByLabel("Site Title").fill("");
 		await admin.page.getByRole("button", { name: "Continue" }).click();
 
 		await expect(admin.page.locator("text=Site title is required")).toBeVisible();

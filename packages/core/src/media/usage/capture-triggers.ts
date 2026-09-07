@@ -8,6 +8,7 @@ const POSTGRES_TRIGGER_FUNCTION = "emdash_media_usage_capture_work";
 const POSTGRES_IDENTIFIER_LIMIT = 63;
 const CAPTURE_TRIGGER_VERSION = 1;
 const OWNED_TRIGGER_PREFIX = "emdash_mu_";
+const MAX_OWNED_CAPTURE_TRIGGERS = 100;
 const WHITESPACE_PATTERN = /\s+/g;
 const TRAILING_SEMICOLON_PATTERN = /;$/;
 
@@ -25,7 +26,14 @@ export async function installMediaUsageCaptureTriggers(
 ): Promise<void> {
 	const identifiers = await captureIdentifiers(identity);
 	if (isPostgres(db)) await installPostgresFunction(db);
-	const installedNames = await listOwnedCaptureTriggers(db, identifiers.tableName);
+	const installedNames = await listOwnedCaptureTriggers(
+		db,
+		identifiers.tableName,
+		MAX_OWNED_CAPTURE_TRIGGERS + 1,
+	);
+	if (installedNames.length > MAX_OWNED_CAPTURE_TRIGGERS) {
+		throw new Error("Media usage capture trigger set exceeds the activation limit");
+	}
 	if (await hasExactCaptureTriggers(db, identifiers, identity, installedNames)) {
 		return;
 	}
@@ -77,7 +85,7 @@ export async function verifyMediaUsageCaptureTriggers(
 		db,
 		identifiers,
 		identity,
-		await listOwnedCaptureTriggers(db, identifiers.tableName),
+		await listOwnedCaptureTriggers(db, identifiers.tableName, MAX_OWNED_CAPTURE_TRIGGERS + 1),
 	);
 }
 
@@ -150,7 +158,9 @@ async function removeCaptureTriggers(
 async function listOwnedCaptureTriggers(
 	db: Kysely<Database>,
 	tableName: string,
+	limit?: number,
 ): Promise<string[]> {
+	const limitClause = limit === undefined ? sql`` : sql`LIMIT ${limit}`;
 	if (isPostgres(db)) {
 		const result = await sql<{ name: string }>`
 			SELECT trigger.tgname AS name
@@ -161,6 +171,7 @@ async function listOwnedCaptureTriggers(
 				AND relation.relname = ${tableName}
 				AND NOT trigger.tgisinternal
 				AND left(trigger.tgname, 10) = ${OWNED_TRIGGER_PREFIX}
+			${limitClause}
 		`.execute(db);
 		return result.rows.map((row) => row.name);
 	}
@@ -171,6 +182,7 @@ async function listOwnedCaptureTriggers(
 		WHERE type = 'trigger'
 			AND tbl_name = ${tableName}
 			AND substr(name, 1, 10) = ${OWNED_TRIGGER_PREFIX}
+		${limitClause}
 	`.execute(db);
 	return result.rows.map((row) => row.name);
 }
@@ -307,7 +319,11 @@ async function assertExpectedTriggerSet(
 	},
 	identity: MediaUsageCaptureIdentity,
 ): Promise<void> {
-	const actual = await listOwnedCaptureTriggers(db, identifiers.tableName);
+	const actual = await listOwnedCaptureTriggers(
+		db,
+		identifiers.tableName,
+		MAX_OWNED_CAPTURE_TRIGGERS + 1,
+	);
 	if (!(await hasExactCaptureTriggers(db, identifiers, identity, actual))) {
 		throw new Error("Media usage capture trigger installation is incomplete");
 	}

@@ -4,9 +4,9 @@ Atproto-aware client for the EmDash plugin registry.
 
 > EXPERIMENTAL: targets `com.emdashcms.experimental.*` and the experimental aggregator. Pin to an exact version while RFC 0001 is in flight.
 
-## Layers
+## Public surfaces
 
-This package is split into three independent surfaces. Import only the one you need.
+Import the smallest subpath that covers your task.
 
 ### Credentials (`@emdash-cms/registry-client/credentials`)
 
@@ -28,7 +28,19 @@ The interactive OAuth flow lives in the CLI, not here. This module accepts a pre
 
 Read-only XRPC client over an aggregator. No authentication. Used by the CLI (`emdash-plugin search`, `emdash-plugin info`) and the EmDash admin UI's install flow.
 
-The `acceptLabelers` option threads the `atproto-accept-labelers` request header through every call so callers can configure which labellers' hard-takedown labels the aggregator should apply.
+The `acceptLabelers` option sends a comma-separated declaration of bare labeller DIDs with every request. The client includes the declaration in its stable policy cache identity. The aggregator validates it, but its configured approval, block, takedown, and withdrawal policy remains authoritative.
+
+### Listing policy (`@emdash-cms/registry-client/listing-policy`)
+
+Creates the required listing-policy value used by official clients, maps `ListingUnavailable` responses to a safe status result, and provides a stable cache key that includes the accepted-labeller declaration.
+
+### Withdrawal (`@emdash-cms/registry-client/withdrawal`)
+
+Evaluates hydrated release-withdrawal labels through the shared moderation policy. Malformed label data fails closed.
+
+### Environment compatibility (`@emdash-cms/registry-client/env`)
+
+Parses release environment requirements and compares them with the host's EmDash and Astro versions.
 
 ## Stability
 

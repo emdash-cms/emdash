@@ -12,11 +12,14 @@
 import { Button, Input } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import { Trash, Pencil, X, Check, SlidersHorizontal } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import type { NodeViewProps } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/react";
 import { ReactNodeViewRenderer, NodeViewWrapper } from "@tiptap/react";
 import * as React from "react";
 
+import { fetchMediaItem } from "../../lib/api/media.js";
+import { canonicalMediaProviderId, getMediaPreviewUrl } from "../../lib/media-utils.js";
 import { cn } from "../../lib/utils";
 import type { ImageAttributes } from "./ImageDetailPanel";
 
@@ -47,10 +50,30 @@ declare module "@tiptap/react" {
 }
 
 // React component for the image node view
-function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }: NodeViewProps) {
+function ImageNodeView({
+	node,
+	updateAttributes,
+	selected,
+	deleteNode,
+	editor,
+	getPos,
+}: NodeViewProps) {
 	const { t } = useLingui();
 	const [isEditingAlt, setIsEditingAlt] = React.useState(false);
 	const [altText, setAltText] = React.useState(node.attrs.alt || "");
+	const mediaId =
+		typeof node.attrs.mediaId === "string" &&
+		node.attrs.mediaId &&
+		canonicalMediaProviderId(node.attrs.provider) === "local"
+			? node.attrs.mediaId
+			: null;
+	const { data: currentMedia } = useQuery({
+		queryKey: ["media", mediaId],
+		queryFn: ({ signal }) => fetchMediaItem(mediaId!, { signal }),
+		enabled: mediaId !== null,
+	});
+	const storedSrc = typeof node.attrs.src === "string" ? node.attrs.src : "";
+	const displaySrc = getMediaPreviewUrl(currentMedia?.url || storedSrc, currentMedia?.contentHash);
 
 	/** Whether this node currently has its sidebar panel open */
 	const sidebarOpenRef = React.useRef(false);
@@ -75,12 +98,21 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 		setAltText(node.attrs.alt || "");
 	}, [node.attrs.alt]);
 
+	const handlePointerDown = (event: React.PointerEvent) => {
+		if (!editor.isEditable || !event.isPrimary || event.button !== 0) return;
+		const position = getPos();
+		if (typeof position === "number") {
+			editor.commands.setNodeSelection(position);
+		}
+	};
+
 	const getImageAttrs = (): ImageAttributes => ({
 		src: node.attrs.src,
 		alt: node.attrs.alt,
 		title: node.attrs.title,
 		caption: node.attrs.caption,
 		mediaId: node.attrs.mediaId,
+		provider: node.attrs.provider,
 		width: node.attrs.width,
 		height: node.attrs.height,
 		blurhash: node.attrs.blurhash,
@@ -165,14 +197,12 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 	return (
 		<NodeViewWrapper
 			style={alignmentStyle}
-			className={cn(
-				"relative my-4 group",
-				selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg",
-			)}
+			onPointerDown={handlePointerDown}
+			className={cn("relative my-4", selected && "ring-2 ring-kumo-brand ring-offset-2 rounded-lg")}
 		>
 			<figure className="relative">
 				<img
-					src={node.attrs.src}
+					src={displaySrc}
 					alt={node.attrs.alt || ""}
 					title={node.attrs.title || ""}
 					className="rounded-lg max-w-full mx-auto"
@@ -185,7 +215,7 @@ function ImageNodeView({ node, updateAttributes, selected, deleteNode, editor }:
 
 				{/* Selection overlay with actions */}
 				{selected && (
-					<div className="absolute top-2 end-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+					<div className="absolute top-2 end-2 flex gap-1">
 						<Button
 							type="button"
 							variant="secondary"

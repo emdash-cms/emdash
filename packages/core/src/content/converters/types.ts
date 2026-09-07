@@ -91,6 +91,8 @@ export interface PortableTextGalleryImage {
 	caption?: string;
 	width?: number;
 	height?: number;
+	focalX?: number;
+	focalY?: number;
 	/** LQIP blurhash placeholder (images only) */
 	blurhash?: string;
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */

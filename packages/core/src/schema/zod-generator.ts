@@ -135,8 +135,8 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 					.passthrough(),
 			);
 
-		case "image":
-			return z.object({
+		case "image": {
+			const mediaSchema = z.object({
 				id: z.string(),
 				src: z.string().optional(),
 				alt: z.string().optional(),
@@ -153,6 +153,11 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 				/** Provider-specific metadata; for local media this carries storageKey */
 				meta: z.record(z.string(), z.unknown()).optional(),
 			});
+			return mediaSchema.extend({
+				/** Counterpart shown when the page renders in a dark color scheme */
+				darkVariant: mediaSchema.optional(),
+			});
+		}
 
 		case "file":
 			return z.object({
@@ -483,8 +488,11 @@ function fieldTypeToTypeScript(field: {
 		case "portableText":
 			return "PortableTextBlock[]";
 
-		case "image":
-			return "{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+		case "image": {
+			const media =
+				"{ id: string; src?: string; alt?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; provider?: string; previewUrl?: string; meta?: Record<string, unknown> }";
+			return `${media.slice(0, -2)}; darkVariant?: ${media} }`;
+		}
 
 		case "file":
 			return "{ id: string; url?: string; src?: string; filename?: string; mimeType?: string; size?: number; provider?: string; meta?: Record<string, unknown> }";

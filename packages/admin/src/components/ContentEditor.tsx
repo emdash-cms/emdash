@@ -32,6 +32,7 @@ import type {
 	TranslationSummary,
 } from "../lib/api";
 import { getPreviewUrl, getDraftStatus } from "../lib/api";
+import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
@@ -51,6 +52,7 @@ import {
 } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
 import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
+import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton.js";
@@ -59,6 +61,10 @@ import { SaveButton } from "./SaveButton.js";
 const AUTOSAVE_DELAY = 2000;
 // Mirrors Header.tsx's h-[58px]; the fixed mobile sheet offsets its body by it.
 const ADMIN_HEADER_HEIGHT_PX = 58;
+const EDITOR_SETTINGS_MIN_WIDTH_PX = 320;
+const EDITOR_SETTINGS_DEFAULT_WIDTH_PX = 368;
+const EDITOR_SETTINGS_MAX_WIDTH_PX = 480;
+const EDITOR_SETTINGS_KEYBOARD_STEP_PX = 10;
 
 function serializeEditorState(input: {
 	data: Record<string, unknown>;
@@ -70,6 +76,24 @@ function serializeEditorState(input: {
 		slug: input.slug,
 		bylines: input.bylines,
 	});
+}
+
+function resolveEditorBylines(item?: ContentItem | null): {
+	explicitCredits: BylineCreditInput[];
+	inferredByline: BylineSummary | null;
+} {
+	const entries = item?.bylines ?? [];
+	const explicitEntries = entries.filter((entry) => entry.source !== "inferred");
+	return {
+		explicitCredits: explicitEntries.map((entry) => ({
+			bylineId: entry.byline.id,
+			roleLabel: entry.roleLabel,
+		})),
+		inferredByline:
+			explicitEntries.length === 0
+				? (entries.find((entry) => entry.source === "inferred")?.byline ?? null)
+				: null,
+	};
 }
 
 import type { ContentSeoInput } from "../lib/api";
@@ -135,18 +159,37 @@ export interface ContentEditorProps {
 	isAutosaveFeedbackActive?: boolean;
 	/** Entry-scoped token advanced after a successful autosave. */
 	autosaveCompletionToken?: number;
-	onPublish?: () => void;
+	/** Entry-scoped token advanced after the server rejected an autosave payload. */
+	autosaveRejectionToken?: number;
+	onPublish?: (payload: {
+		data: Record<string, unknown>;
+		slug?: string;
+		bylines?: BylineCreditInput[];
+	}) => void | Promise<void>;
 	onUnpublish?: () => void;
 	/** Callback to discard draft changes (revert to published version) */
 	onDiscardDraft?: () => void;
 	/** Callback to schedule for future publishing */
-	onSchedule?: (scheduledAt: string) => void;
+	onSchedule?: (
+		scheduledAt: string,
+		payload?: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		},
+	) => void | Promise<void>;
 	/** Callback to cancel scheduling (revert to draft) */
-	onUnschedule?: () => void;
+	onUnschedule?: (payload?: {
+		data: Record<string, unknown>;
+		slug?: string;
+		bylines?: BylineCreditInput[];
+	}) => void | Promise<void>;
 	/** Whether scheduling is in progress */
 	isScheduling?: boolean;
+	/** Whether schedule removal is in progress */
+	isUnscheduling?: boolean;
 	/** Callback to change the timestamp of published content */
-	onPublishedAtChange?: (publishedAt: string) => void;
+	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	/** Whether the publish timestamp is being updated */
 	isUpdatingPublishedAt?: boolean;
 	/** Whether this collection supports drafts */
@@ -213,12 +256,14 @@ export function ContentEditor({
 	isAutosaving,
 	isAutosaveFeedbackActive,
 	autosaveCompletionToken,
+	autosaveRejectionToken,
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
 	onSchedule,
 	onUnschedule,
 	isScheduling,
+	isUnscheduling,
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	supportsDrafts = false,
@@ -246,6 +291,7 @@ export function ContentEditor({
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
 	const itemLabel = collectionLabel;
+	const settingsPanelId = React.useId();
 	// Kumo Sidebar's `side` is physical, not logical.
 	const panelSide = getLocaleDir(uiLocale) === "rtl" ? "left" : "right";
 	// Mirrors the Sidebar's mobileBreakpoint; `contained` flips with it.
@@ -262,9 +308,9 @@ export function ContentEditor({
 	const [slug, setSlug] = React.useState(item?.slug || "");
 	const [slugTouched, setSlugTouched] = React.useState(!!item?.slug);
 	const [status, setStatus] = React.useState(item?.status || "draft");
+	const resolvedItemBylines = resolveEditorBylines(item);
 	const [internalBylines, setInternalBylines] = React.useState<BylineCreditInput[]>(
-		item?.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-			[],
+		resolvedItemBylines.explicitCredits,
 	);
 	// Gates whether `bylines` is included in the save payload. Untouched
 	// edits must not ship `[]` — strict per-locale hydration can return
@@ -309,14 +355,13 @@ export function ContentEditor({
 		serializeEditorState({
 			data: item?.data || {},
 			slug: item?.slug || "",
-			bylines:
-				item?.bylines?.map((entry) => ({
-					bylineId: entry.byline.id,
-					roleLabel: entry.roleLabel,
-				})) ?? [],
+			bylines: resolvedItemBylines.explicitCredits,
 		}),
 	);
 	const pendingAutosaveStateRef = React.useRef<string | null>(null);
+	const [rejectedAutosaveState, setRejectedAutosaveState] = React.useState<string | null>(null);
+	const [isPublishing, setIsPublishing] = React.useState(false);
+	const isPublishingRef = React.useRef(false);
 
 	// Synchronously reset form state when the underlying item changes (e.g. a
 	// translation switch where TanStack Router keeps ContentEditor mounted but
@@ -337,9 +382,7 @@ export function ContentEditor({
 		setSlug(item.slug || "");
 		setSlugTouched(!!item.slug);
 		setStatus(item.status);
-		const nextBylines =
-			item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-			[];
+		const nextBylines = resolveEditorBylines(item).explicitCredits;
 		setInternalBylines(nextBylines);
 		setLastSavedData(
 			serializeEditorState({
@@ -349,37 +392,39 @@ export function ContentEditor({
 			}),
 		);
 		pendingAutosaveStateRef.current = null;
+		setRejectedAutosaveState(null);
 		setBylinesTouched(false);
 	}
 
 	// Update form and last saved state when item changes (e.g., after save or restore)
 	// Stringify the data for comparison since objects are compared by reference
 	const itemDataString = React.useMemo(() => (item ? JSON.stringify(item.data) : ""), [item?.data]);
+	const itemBylinesString = React.useMemo(
+		() => (item ? JSON.stringify(item.bylines ?? []) : ""),
+		[item?.bylines],
+	);
 	React.useEffect(() => {
 		if (item) {
-			setFormData(item.data);
-			setSlug(item.slug || "");
-			setSlugTouched(!!item.slug);
+			const nextBylines = resolveEditorBylines(item).explicitCredits;
+			if (!isPublishingRef.current) {
+				setFormData(item.data);
+				setSlug(item.slug || "");
+				setSlugTouched(!!item.slug);
+				setInternalBylines(nextBylines);
+				setBylinesTouched(false);
+			}
 			setStatus(item.status);
-			setInternalBylines(
-				item.bylines?.map((entry) => ({ bylineId: entry.byline.id, roleLabel: entry.roleLabel })) ??
-					[],
-			);
 			setLastSavedData(
 				serializeEditorState({
 					data: item.data,
 					slug: item.slug || "",
-					bylines:
-						item.bylines?.map((entry) => ({
-							bylineId: entry.byline.id,
-							roleLabel: entry.roleLabel,
-						})) ?? [],
+					bylines: nextBylines,
 				}),
 			);
 			pendingAutosaveStateRef.current = null;
-			setBylinesTouched(false);
+			setRejectedAutosaveState(null);
 		}
-	}, [item?.updatedAt, itemDataString, item?.slug, item?.status]);
+	}, [item?.updatedAt, itemDataString, itemBylinesString, item?.slug, item?.status]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 	const unsupportedPortableTextMarks = React.useMemo(() => {
@@ -442,6 +487,15 @@ export function ContentEditor({
 		pendingAutosaveStateRef.current = null;
 	}, [autosaveCompletionToken]);
 
+	React.useEffect(() => {
+		if (!autosaveRejectionToken || !pendingAutosaveStateRef.current) {
+			return;
+		}
+
+		setRejectedAutosaveState(pendingAutosaveStateRef.current);
+		pendingAutosaveStateRef.current = null;
+	}, [autosaveRejectionToken]);
+
 	const hasInvalidUrls = React.useCallback(
 		(data: Record<string, unknown>) => {
 			for (const [name, field] of Object.entries(fields)) {
@@ -454,15 +508,37 @@ export function ContentEditor({
 		},
 		[fields],
 	);
+	const createSavePayload = React.useCallback(() => {
+		const payload: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		} = {
+			data: formDataRef.current,
+			slug: slugRef.current || undefined,
+		};
+		if (isNew || bylinesTouched) payload.bylines = activeBylines;
+		return payload;
+	}, [activeBylines, bylinesTouched, isNew]);
+	const cancelPendingAutosave = React.useCallback(() => {
+		if (autosaveTimeoutRef.current) {
+			clearTimeout(autosaveTimeoutRef.current);
+			autosaveTimeoutRef.current = null;
+		}
+	}, []);
 
 	React.useEffect(() => {
 		// Don't autosave for new items (no ID yet) or if autosave isn't configured
-		if (isNew || !onAutosave || !item?.id || hasUnsupportedPortableTextMarks) {
+		if (isNew || !onAutosave || !item?.id || hasUnsupportedPortableTextMarks || isPublishing) {
 			return;
 		}
 
 		// Don't autosave if not dirty or already saving
 		if (!isDirty || isSaving || isAutosaving) {
+			return;
+		}
+
+		if (currentData === rejectedAutosaveState) {
 			return;
 		}
 
@@ -474,15 +550,7 @@ export function ContentEditor({
 		// Schedule autosave
 		autosaveTimeoutRef.current = setTimeout(() => {
 			if (hasInvalidUrls(formDataRef.current)) return;
-			const payload: {
-				data: Record<string, unknown>;
-				slug?: string;
-				bylines?: BylineCreditInput[];
-			} = {
-				data: formDataRef.current,
-				slug: slugRef.current || undefined,
-			};
-			if (bylinesTouched) payload.bylines = activeBylines;
+			const payload = createSavePayload();
 			pendingAutosaveStateRef.current = serializeEditorState({
 				data: payload.data,
 				slug: payload.slug || "",
@@ -506,30 +574,130 @@ export function ContentEditor({
 		isAutosaving,
 		activeBylines,
 		bylinesTouched,
+		createSavePayload,
 		hasInvalidUrls,
 		hasUnsupportedPortableTextMarks,
+		isPublishing,
+		rejectedAutosaveState,
 	]);
 
 	// Cancel pending autosave on manual save
 	const handleSubmit = (e: React.FormEvent) => {
 		e.preventDefault();
-		if (hasInvalidUrls(formData) || hasUnsupportedPortableTextMarks) return;
-		// Cancel pending autosave
-		if (autosaveTimeoutRef.current) {
-			clearTimeout(autosaveTimeoutRef.current);
-			autosaveTimeoutRef.current = null;
-		}
-		const payload: {
-			data: Record<string, unknown>;
-			slug?: string;
-			bylines?: BylineCreditInput[];
-		} = {
-			data: formData,
-			slug: slug || undefined,
-		};
-		if (isNew || bylinesTouched) payload.bylines = activeBylines;
-		onSave?.(payload);
+		if (
+			isContentSaveBlocked ||
+			isPublishingRef.current ||
+			hasInvalidUrls(formData) ||
+			hasUnsupportedPortableTextMarks
+		)
+			return;
+		cancelPendingAutosave();
+		onSave?.(createSavePayload());
 	};
+	const handlePublish = React.useCallback(() => {
+		if (
+			isPublishingRef.current ||
+			!onPublish ||
+			hasInvalidUrls(formDataRef.current) ||
+			hasUnsupportedPortableTextMarks
+		)
+			return;
+		cancelPendingAutosave();
+		const payload = createSavePayload();
+		const savedState = serializeEditorState({
+			data: payload.data,
+			slug: payload.slug || "",
+			bylines: activeBylines,
+		});
+		isPublishingRef.current = true;
+		setIsPublishing(true);
+		const result = onPublish(payload);
+		if (!result) {
+			isPublishingRef.current = false;
+			setIsPublishing(false);
+			return;
+		}
+		void result.then(
+			() => {
+				setLastSavedData(savedState);
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				return undefined;
+			},
+			() => {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				return undefined;
+			},
+		);
+	}, [
+		activeBylines,
+		cancelPendingAutosave,
+		createSavePayload,
+		hasInvalidUrls,
+		hasUnsupportedPortableTextMarks,
+		onPublish,
+	]);
+	const runScheduleChange = React.useCallback(
+		(
+			action: (payload?: {
+				data: Record<string, unknown>;
+				slug?: string;
+				bylines?: BylineCreditInput[];
+			}) => void | Promise<void>,
+		) => {
+			if (isPublishingRef.current) {
+				return Promise.reject(new Error(t`A publishing action is already in progress`));
+			}
+			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
+				return Promise.reject(new Error(t`Fix invalid fields before changing the schedule`));
+			}
+
+			cancelPendingAutosave();
+			const payload =
+				isDirty || saveFeedbackActive || autosaveFeedbackActive ? createSavePayload() : undefined;
+			isPublishingRef.current = true;
+			setIsPublishing(true);
+
+			let result: void | Promise<void>;
+			try {
+				result = action(payload);
+			} catch (error) {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				throw error;
+			}
+			if (!result) {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+				return;
+			}
+
+			return result.finally(() => {
+				isPublishingRef.current = false;
+				setIsPublishing(false);
+			});
+		},
+		[
+			cancelPendingAutosave,
+			createSavePayload,
+			hasInvalidUrls,
+			hasUnsupportedPortableTextMarks,
+			autosaveFeedbackActive,
+			isDirty,
+			saveFeedbackActive,
+			t,
+		],
+	);
+	const handleSchedule = React.useCallback(
+		(scheduledAt: string) =>
+			onSchedule ? runScheduleChange((payload) => onSchedule(scheduledAt, payload)) : undefined,
+		[onSchedule, runScheduleChange],
+	);
+	const handleUnschedule = React.useCallback(
+		() => (onUnschedule ? runScheduleChange((payload) => onUnschedule(payload)) : undefined),
+		[onUnschedule, runScheduleChange],
+	);
 
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
@@ -596,6 +764,19 @@ export function ContentEditor({
 	const hasSchedule = Boolean(item?.scheduledAt);
 	const canSchedule =
 		!isNew && !hasSchedule && Boolean(onSchedule) && (!isPublished || hasPendingChanges);
+	const publishingState = getContentPublishingState({
+		isLive,
+		hasPendingChanges,
+		scheduledAt: item?.scheduledAt,
+	});
+	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
+	const [publishingMenuOpen, setPublishingMenuOpen] = React.useState(false);
+	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
+	const handleOpenSchedule = React.useCallback(() => setScheduleDialogOpen(true), []);
+
+	React.useEffect(() => {
+		setScheduleDialogOpen(false);
+	}, [item?.id, item?.locale, item?.scheduledAt]);
 
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
@@ -606,6 +787,7 @@ export function ContentEditor({
 
 		const handleKeyDown = (e: KeyboardEvent) => {
 			if (e.key === "Escape") {
+				if (scheduleDialogOpen || publishingMenuOpen) return;
 				e.preventDefault();
 				e.stopPropagation();
 				setIsDistractionFree(false);
@@ -614,7 +796,7 @@ export function ContentEditor({
 
 		document.addEventListener("keydown", handleKeyDown, { capture: true });
 		return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
-	}, [isDistractionFree]);
+	}, [isDistractionFree, publishingMenuOpen, scheduleDialogOpen]);
 
 	return (
 		<form
@@ -632,14 +814,19 @@ export function ContentEditor({
 			<Sidebar.Provider
 				contained={!isBelowLg}
 				defaultOpen
+				open={isBelowLg ? undefined : true}
 				side={panelSide}
 				collapsible="offcanvas"
+				resizable
+				defaultWidth={EDITOR_SETTINGS_DEFAULT_WIDTH_PX}
+				minWidth={EDITOR_SETTINGS_MIN_WIDTH_PX}
+				maxWidth={EDITOR_SETTINGS_MAX_WIDTH_PX}
 				mobileBreakpoint={1024}
 				className={cn(!isDistractionFree && "h-full min-h-0")}
 				style={
 					{
-						"--sidebar-width": isBelowLg ? "20rem" : "23rem",
 						"--sidebar-bg": "var(--color-kumo-elevated)",
+						...(isBelowLg ? { "--sidebar-width": "20rem" } : {}),
 					} as React.CSSProperties
 				}
 			>
@@ -711,8 +898,15 @@ export function ContentEditor({
 												isNew={isNew}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
-												onPublish={onPublish}
+												publishingState={publishingState}
+												canSchedule={canSchedule}
+												isScheduling={isScheduling}
+												isUnscheduling={isUnscheduling}
+												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
+												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+												onUnschedule={onUnschedule ? handleUnschedule : undefined}
+												onMenuOpenChange={setPublishingMenuOpen}
 											/>
 											<MobileSettingsButton />
 										</div>
@@ -770,8 +964,15 @@ export function ContentEditor({
 												collectionLabel={collectionLabel}
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
-												onPublish={onPublish}
+												publishingState={publishingState}
+												canSchedule={canSchedule}
+												isScheduling={isScheduling}
+												isUnscheduling={isUnscheduling}
+												onPublish={handlePublish}
 												onUnpublish={onUnpublish}
+												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+												onUnschedule={onUnschedule ? handleUnschedule : undefined}
+												onMenuOpenChange={setPublishingMenuOpen}
 												size="sm"
 											/>
 										</>
@@ -835,7 +1036,11 @@ export function ContentEditor({
 				{/* Hidden (not unmounted) in distraction-free mode so panel-local
 			    state survives the round trip; `hidden` on the pane's own layout
 			    element leaves no gap. */}
-				<Sidebar aria-label={t`Settings`} className={cn(isDistractionFree && "hidden")}>
+				<Sidebar
+					id={settingsPanelId}
+					aria-label={t`Settings`}
+					className={cn(isDistractionFree && "hidden")}
+				>
 					{/* The action bar absorbs the high-frequency props (isDirty,
 					    isSaving, isAutosaving) so they never reach the memoized panel. */}
 					{!isBelowLg && (
@@ -848,17 +1053,24 @@ export function ContentEditor({
 							saveDisabled={isContentSaveBlocked}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
+							publishingState={publishingState}
+							canSchedule={canSchedule}
+							isScheduling={isScheduling}
+							isUnscheduling={isUnscheduling}
 							liveViewUrl={liveViewUrl}
 							supportsPreview={supportsPreview}
 							isLoadingPreview={isLoadingPreview}
 							onPreview={handlePreview}
-							onPublish={onPublish}
+							onPublish={handlePublish}
 							onUnpublish={onUnpublish}
+							onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+							onUnschedule={onUnschedule ? handleUnschedule : undefined}
+							onMenuOpenChange={setPublishingMenuOpen}
 							announceSaveStatus={!isDistractionFree}
 						/>
 					)}
 					<div
-						className="flex-1 overflow-y-auto overflow-x-hidden"
+						className="flex-1 overflow-y-auto overflow-x-hidden bg-kumo-base"
 						style={isBelowLg ? { paddingTop: ADMIN_HEADER_HEIGHT_PX } : undefined}
 					>
 						{isBelowLg && (
@@ -878,12 +1090,8 @@ export function ContentEditor({
 							supportsDrafts={supportsDrafts}
 							isLive={isLive}
 							hasPendingChanges={hasPendingChanges}
-							hasSchedule={hasSchedule}
+							publishingState={publishingState}
 							supportsRevisions={supportsRevisions}
-							canSchedule={canSchedule}
-							onSchedule={onSchedule}
-							onUnschedule={onUnschedule}
-							isScheduling={isScheduling}
 							onPublishedAtChange={onPublishedAtChange}
 							isUpdatingPublishedAt={isUpdatingPublishedAt}
 							onDiscardDraft={onDiscardDraft}
@@ -893,6 +1101,7 @@ export function ContentEditor({
 							users={users}
 							onAuthorChange={onAuthorChange}
 							activeBylines={activeBylines}
+							inferredByline={resolvedItemBylines.inferredByline}
 							availableBylines={availableBylines}
 							availableBylinesLoaded={availableBylinesLoaded}
 							onBylinesChange={handleBylinesChange}
@@ -909,6 +1118,7 @@ export function ContentEditor({
 							onBlockSidebarDelete={handleBlockSidebarDelete}
 						/>
 					</div>
+					{!isBelowLg && <ContentEditorSettingsResizeHandle panelId={settingsPanelId} />}
 				</Sidebar>
 
 				{/* Below lg, opening a block detail panel must open the sheet.
@@ -917,7 +1127,58 @@ export function ContentEditor({
 				<MobileBlockSidebarSync active={!!blockSidebarPanel} suspended={isDistractionFree} />
 				<MobileSidebarPortalGuard />
 			</Sidebar.Provider>
+			<PublishingScheduleDialog
+				open={scheduleDialogOpen}
+				entryKey={scheduleEntryKey}
+				scheduledAt={item?.scheduledAt}
+				isLive={isLive}
+				isPending={isScheduling}
+				onOpenChange={setScheduleDialogOpen}
+				onSchedule={onSchedule ? handleSchedule : undefined}
+			/>
 		</form>
+	);
+}
+
+function ContentEditorSettingsResizeHandle({ panelId }: { panelId: string }) {
+	const { t } = useLingui();
+	const { side, width, minWidth, maxWidth, setWidth } = useSidebar();
+
+	const handleKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>) => {
+		let nextWidth: number;
+		switch (event.key) {
+			case "ArrowLeft":
+				nextWidth = width + (side === "right" ? 1 : -1) * EDITOR_SETTINGS_KEYBOARD_STEP_PX;
+				break;
+			case "ArrowRight":
+				nextWidth = width + (side === "left" ? 1 : -1) * EDITOR_SETTINGS_KEYBOARD_STEP_PX;
+				break;
+			case "Home":
+				nextWidth = minWidth;
+				break;
+			case "End":
+				nextWidth = maxWidth;
+				break;
+			default:
+				return;
+		}
+
+		event.preventDefault();
+		setWidth(nextWidth);
+	};
+
+	return (
+		<Sidebar.ResizeHandle
+			role="separator"
+			aria-label={t`Resize settings panel`}
+			aria-orientation="vertical"
+			aria-controls={panelId}
+			aria-valuemin={minWidth}
+			aria-valuemax={maxWidth}
+			aria-valuenow={width}
+			className="touch-none"
+			onKeyDown={handleKeyDown}
+		/>
 	);
 }
 
@@ -1004,6 +1265,11 @@ function MobileSidebarPortalGuard() {
 			// sheet and closes it before focus is restored. Keep this transient
 			// sortable-handle blur inside the mobile settings interaction.
 			if (source.closest("[data-sortable-handle]") && destination === null) {
+				event.stopPropagation();
+				keepSheetOpen();
+				return;
+			}
+			if (source.closest("[data-keep-mobile-sidebar-open]") && destination === null) {
 				event.stopPropagation();
 				keepSheetOpen();
 				return;
@@ -1353,6 +1619,7 @@ function FieldRenderer({
 					}
 					fieldId={field.id}
 					variant={name === "featured_image" ? "featured" : "default"}
+					darkVariant={!Array.isArray(field.options) && field.options?.darkVariant === true}
 				/>
 			);
 		}

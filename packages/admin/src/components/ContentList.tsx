@@ -2,13 +2,15 @@ import {
 	Badge,
 	Button,
 	Checkbox,
+	DatePicker,
 	Dialog,
-	Input,
 	LinkButton,
 	Loader,
+	Popover,
 	Select,
 	Tabs,
 } from "@cloudflare/kumo";
+import type { DateRange } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
@@ -17,8 +19,8 @@ import {
 	Trash,
 	ArrowCounterClockwise,
 	ArrowSquareOut,
+	Calendar,
 	Copy,
-	MagnifyingGlass,
 	CaretUp,
 	CaretDown,
 	CaretUpDown,
@@ -45,6 +47,8 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
 import { cn, parseTimestamp } from "../lib/utils";
+import { getLocaleDir } from "../locales/config.js";
+import { getDayPickerLocale } from "../locales/day-picker.js";
 import { CaretNext, CaretPrev } from "./ArrowIcons.js";
 import {
 	BylineFilter,
@@ -59,6 +63,7 @@ import {
 } from "./ContentStatusBadge.js";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 /**
  * Sortable content list columns. The named values map to the server's system
@@ -201,6 +206,24 @@ function parseListDate(value: unknown): Date | null {
 	const normalized = DATE_ONLY_RE.test(value) ? `${value}T00:00:00` : value;
 	const parsed = new Date(normalized);
 	return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function parseDateOnly(value: string): Date | undefined {
+	if (!DATE_ONLY_RE.test(value)) return undefined;
+	const [year, month, day] = value.split("-").map(Number);
+	if (year === undefined || month === undefined || day === undefined) return undefined;
+	const date = new Date(year, month - 1, day);
+	return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+		? date
+		: undefined;
+}
+
+function formatDateOnly(date: Date | undefined): string {
+	if (!date) return "";
+	const year = date.getFullYear();
+	const month = String(date.getMonth() + 1).padStart(2, "0");
+	const day = String(date.getDate()).padStart(2, "0");
+	return `${year}-${month}-${day}`;
 }
 
 /**
@@ -409,21 +432,6 @@ export function ContentList({
 				</RouterLinkButton>
 			</div>
 
-			{/* Search */}
-			{(serverSearch || items.length > 0) && (
-				<div className="relative max-w-sm">
-					<MagnifyingGlass className="absolute start-3 top-1/2 -translate-y-1/2 h-4 w-4 text-kumo-subtle" />
-					<Input
-						type="search"
-						placeholder={t`Search ${collectionLabel.toLowerCase()}...`}
-						aria-label={t`Search ${collectionLabel.toLowerCase()}`}
-						value={searchQuery}
-						onChange={handleSearchChange}
-						className="ps-9"
-					/>
-				</div>
-			)}
-
 			{/* Tabs */}
 			<Tabs
 				variant="underline"
@@ -449,20 +457,31 @@ export function ContentList({
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
 				<>
-					{/* Filters */}
-					{onStatusFilterChange && (
-						<FilterBar
-							statusFilter={statusFilter}
-							onStatusFilterChange={onStatusFilterChange}
-							authors={authors}
-							authorFilter={authorFilter}
-							onAuthorFilterChange={onAuthorFilterChange}
-							dateFilter={dateFilter}
-							onDateFilterChange={onDateFilterChange}
-							bylineFilter={bylineFilter}
-							onBylineFilterChange={onBylineFilterChange}
-							locale={activeLocale ?? undefined}
-						/>
+					{(serverSearch || items.length > 0 || onStatusFilterChange) && (
+						<TableToolbar>
+							{(serverSearch || items.length > 0) && (
+								<TableToolbarSearch
+									placeholder={t`Search ${collectionLabel.toLowerCase()}...`}
+									aria-label={t`Search ${collectionLabel.toLowerCase()}`}
+									value={searchQuery}
+									onChange={handleSearchChange}
+								/>
+							)}
+							{onStatusFilterChange && (
+								<FilterBar
+									statusFilter={statusFilter}
+									onStatusFilterChange={onStatusFilterChange}
+									authors={authors}
+									authorFilter={authorFilter}
+									onAuthorFilterChange={onAuthorFilterChange}
+									dateFilter={dateFilter}
+									onDateFilterChange={onDateFilterChange}
+									bylineFilter={bylineFilter}
+									onBylineFilterChange={onBylineFilterChange}
+									locale={activeLocale ?? undefined}
+								/>
+							)}
+						</TableToolbar>
 					)}
 
 					{/* Bulk action toolbar — appears once one or more rows are selected */}
@@ -863,9 +882,10 @@ function FilterBar({
 	};
 
 	return (
-		<div className="flex flex-wrap items-end gap-3">
+		<>
 			<Select
 				size="sm"
+				className="emdash-status-filter-trigger min-w-32 ps-3.5"
 				aria-label={t`Filter by status`}
 				value={statusFilter}
 				onValueChange={(v) => onStatusFilterChange((v as ContentStatusFilter) ?? "all")}
@@ -875,7 +895,7 @@ function FilterBar({
 				items={statusItems}
 			>
 				{Object.entries(statusItems).map(([value]) => (
-					<Select.Option key={value} value={value}>
+					<Select.Option key={value} value={value} className="emdash-compact-select-option text-xs">
 						{renderStatusLabel(value as ContentStatusFilter)}
 					</Select.Option>
 				))}
@@ -906,9 +926,10 @@ function FilterBar({
 			)}
 
 			{showDateFilter && (
-				<div className="flex flex-wrap items-end gap-2">
+				<>
 					<Select
 						size="sm"
+						className="emdash-date-field-filter-trigger min-w-28 ps-3.5"
 						aria-label={t`Date field to filter on`}
 						value={dateFilter.field}
 						onValueChange={(v) =>
@@ -917,29 +938,17 @@ function FilterBar({
 						items={dateFieldItems}
 					>
 						{Object.entries(dateFieldItems).map(([value, label]) => (
-							<Select.Option key={value} value={value}>
+							<Select.Option
+								key={value}
+								value={value}
+								className="emdash-compact-select-option text-xs"
+							>
 								{label}
 							</Select.Option>
 						))}
 					</Select>
-					<Input
-						type="date"
-						size="sm"
-						aria-label={t`From date`}
-						value={dateFilter.from}
-						max={dateFilter.to || undefined}
-						onChange={(e) => onDateFilterChange?.({ ...dateFilter, from: e.target.value })}
-					/>
-					<span className="pb-2 text-sm text-kumo-subtle">{t`to`}</span>
-					<Input
-						type="date"
-						size="sm"
-						aria-label={t`To date`}
-						value={dateFilter.to}
-						min={dateFilter.from || undefined}
-						onChange={(e) => onDateFilterChange?.({ ...dateFilter, to: e.target.value })}
-					/>
-				</div>
+					<DateRangeFilter value={dateFilter} onChange={onDateFilterChange} />
+				</>
 			)}
 
 			{hasActiveFilter && (
@@ -947,7 +956,110 @@ function FilterBar({
 					{t`Clear filters`}
 				</Button>
 			)}
-		</div>
+		</>
+	);
+}
+
+function DateRangeFilter({
+	value,
+	onChange,
+}: {
+	value: ContentDateFilter;
+	onChange: (filter: ContentDateFilter) => void;
+}) {
+	const { i18n, t } = useLingui();
+	const from = parseDateOnly(value.from);
+	const to = parseDateOnly(value.to);
+	const formatter = React.useMemo(
+		() => new Intl.DateTimeFormat(i18n.locale, { dateStyle: "medium" }),
+		[i18n.locale],
+	);
+	const rangeLabel = from
+		? to
+			? formatter.formatRange(from, to)
+			: t`From ${formatter.format(from)}`
+		: to
+			? t`Until ${formatter.format(to)}`
+			: t`Date range`;
+	const selected: DateRange | undefined = from ? { from, to } : to ? { from: to, to } : undefined;
+	const dayPickerLocale = getDayPickerLocale(i18n.locale);
+	const direction = getLocaleDir(i18n.locale);
+	const isUpperBoundOnly = !from && !!to;
+	const canUseAsEndDate = !!from && (!to || value.from === value.to);
+
+	const handleChange = (range: DateRange | undefined, triggerDate?: Date) => {
+		if (isUpperBoundOnly && triggerDate) {
+			onChange({
+				...value,
+				from: "",
+				to: formatDateOnly(triggerDate),
+			});
+			return;
+		}
+		onChange({
+			...value,
+			from: formatDateOnly(range?.from),
+			to: formatDateOnly(range?.to),
+		});
+	};
+	const handleUseAsEndDate = () => {
+		if (!from || !canUseAsEndDate) return;
+		onChange({
+			...value,
+			from: "",
+			to: formatDateOnly(from),
+		});
+	};
+
+	return (
+		<Popover>
+			<Popover.Trigger
+				render={
+					<Button
+						variant="secondary"
+						size="sm"
+						icon={
+							<span
+								className="emdash-date-range-icon flex size-3 shrink-0 items-center justify-center"
+								aria-hidden="true"
+							>
+								<Calendar className="size-3" />
+							</span>
+						}
+						aria-label={t`Filter by date range: ${rangeLabel}`}
+						className="emdash-date-range-trigger px-3.5 font-normal"
+					/>
+				}
+			>
+				<span className="emdash-date-range-label">{rangeLabel}</span>
+			</Popover.Trigger>
+			<Popover.Content align="start" className="w-auto px-3 py-2.5">
+				<Popover.Title className="text-sm font-medium">{t`Choose a date range`}</Popover.Title>
+				<DatePicker
+					mode="range"
+					selected={selected}
+					defaultMonth={from ?? to}
+					onChange={handleChange}
+					aria-label={t`Choose a date range`}
+					className="mt-1"
+					locale={dayPickerLocale}
+					dir={direction}
+				/>
+				<div className="mt-1 flex flex-wrap items-center justify-end gap-2 border-t border-kumo-line pt-2">
+					{(from || to) && (
+						<Button size="sm" variant="ghost" onClick={() => handleChange(undefined)}>
+							{t`Clear`}
+						</Button>
+					)}
+					{canUseAsEndDate && (
+						<Button size="sm" variant="ghost" onClick={handleUseAsEndDate}>
+							{t`Use as end date`}
+						</Button>
+					)}
+					<Popover.Close render={<Button size="sm" variant="secondary" />}>{t`Done`}</Popover.Close>
+				</div>
+			</Popover.Content>
+		</Popover>
 	);
 }
 

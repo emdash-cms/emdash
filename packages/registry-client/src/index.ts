@@ -1,7 +1,7 @@
 /**
  * @emdash-cms/registry-client
  *
- * Atproto-aware client for the EmDash plugin registry. Three layers:
+ * Atproto-aware client for the EmDash plugin registry. Public surfaces:
  *
  *   - **Credentials** (`./credentials`): persisting the publisher's atproto
  *     session between CLI invocations. Three implementations: filesystem,
@@ -12,10 +12,15 @@
  *   - **Discovery** (`./discovery`): read-only XRPC client over an aggregator.
  *     No authentication. Used by both the CLI (`emdash-plugin search` /
  *     `emdash-plugin info`) and the EmDash admin UI's install flow.
+ *   - **Listing policy** (`./listing-policy`): required listing enforcement,
+ *     status mapping, and stable cache identity.
+ *   - **Withdrawal** (`./withdrawal`): fail-closed evaluation of hydrated
+ *     release-withdrawal labels.
+ *   - **Environment compatibility** (`./env`): parsing and evaluation of
+ *     release requirements against an EmDash host.
  *
- * The two halves are deliberately decoupled so consumers that only need
- * discovery (most notably the admin UI) don't have to pull in the publishing
- * surface or its OAuth dependencies.
+ * Each subpath can be imported independently, so discovery consumers do not
+ * load publishing or OAuth dependencies.
  *
  * EXPERIMENTAL: this client targets the experimental aggregator and
  * `com.emdashcms.experimental.*` lexicons. NSIDs and shapes will change while
@@ -44,6 +49,60 @@ export {
 export { type PublishingClientFromHandlerOptions, PublishingClient } from "./publishing/index.js";
 
 export { type DiscoveryClientOptions, DiscoveryClient } from "./discovery/index.js";
+
+export {
+	type ApprovedListing,
+	type ListingStatusResult,
+	type RegistryLabelerPolicy,
+	type UnavailableListing,
+	registryLabelerPolicy,
+	registryLabelerPolicyKey,
+} from "./listing-policy.js";
+
+export {
+	type RegistryReleaseWithdrawalOptions,
+	type RegistryReleaseWithdrawalResult,
+	evaluateRegistryReleaseWithdrawal,
+} from "./withdrawal.js";
+
+export {
+	type DirectPdsClientOptions,
+	type DirectPdsDidDocumentResolver,
+	type DirectPdsProfileRecord,
+	type DirectPdsReadErrorCode,
+	type DirectPdsReleaseRecord,
+	DirectPdsClient,
+	DirectPdsReadError,
+} from "./direct-pds/index.js";
+
+export {
+	type CursorPage,
+	type DelegationResource,
+	type MutationOptions as ReleaseServiceMutationOptions,
+	type MutationResult,
+	type OperatorClientOptions,
+	type OperatorPublisherResource,
+	type PublisherControlResource,
+	type PublisherResource,
+	type PutWorkloadPolicyInput,
+	type ReleaseIntentResource,
+	type ReleaseIntentResult,
+	type ReleaseIntentState,
+	type ReleaseServiceApiErrorCode,
+	type ReleaseServiceClientErrorCode,
+	type ReleaseServiceClientOptions,
+	type RequestOptions as ReleaseServiceRequestOptions,
+	type ServiceControlState,
+	type SubmitReleaseIntentInput,
+	type SubmitReleaseIntentResult,
+	type WaitForIntentOptions,
+	type WorkloadPolicyResource,
+	ReleaseServiceClient,
+	ReleaseServiceError,
+	ReleaseServiceOperatorClient,
+	TERMINAL_RELEASE_INTENT_STATES,
+	createReleaseIdempotencyKey,
+} from "./release-service/index.js";
 
 export {
 	type EnvMismatch,

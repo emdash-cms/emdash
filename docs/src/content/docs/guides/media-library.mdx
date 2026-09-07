@@ -6,47 +6,77 @@ description: Upload and manage images and files in EmDash.
 import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 import mediaLibraryImg from "../../../assets/screenshots/admin-media-library.png";
 
-EmDash includes a media library for managing images, documents, and other files. This guide covers uploading, organizing, and using media in your content.
+EmDash includes a media library for managing images, documents, and other files. This guide covers uploading, finding, and using media in your content.
 
 ## Accessing the Media Library
 
-Open the media library from the admin sidebar by clicking **Media**. The library displays all uploaded files with previews, filenames, and upload dates.
+Open the media library from the admin sidebar by clicking **Media**. The Main library shows folders
+and files that are not assigned to a folder. Open a folder to see its files.
 
 <img src={mediaLibraryImg.src} alt="EmDash media library showing image grid with upload button" />
 
-## Uploading Files
+## Used in
+
+Open a file in EmDash's media library to see the content entries that reference it. While EmDash scans existing content, the list includes the references found so far and may be incomplete.
+
+### Turn on media usage tracking
+
+If media usage tracking is off, an administrator can turn it on:
+
+1. Finish any content edits. If another application writes directly to the content database, pause it and wait for any writes in progress to finish.
+2. Open **Settings → Media usage tracking**, select **Enable tracking**, then confirm.
+3. When the page shows **Indexing existing content**, editing and other database writes can resume.
+4. Keep the page open until it shows **Ready**. If you leave, return to continue from saved progress.
+
+Once media usage tracking is on, it cannot be turned off.
+
+<Aside type="caution">
+	The **Used in** list checks supported references in EmDash content. It does not inspect custom code
+	or external sites, so an empty list does not prove that a file is safe to delete.
+</Aside>
+
+## Uploading files
 
 ### From the Media Library
 
 1. Open **Media** in the admin sidebar.
 
-2. Select **Upload to Library**, then **Browse files** to choose one or more files. You can also drag files anywhere onto the media library.
+2. Select **Upload Files**, then **Browse files** to choose one or more files. You can also drag files anywhere onto the media library.
 
 3. Uploads start automatically. The dialog shows each file's status and lets you cancel or retry individual files.
 
-### From the Content Editor
+### From the content editor
 
-1. In the rich text editor, click the image button
+1. Open an image, file, or gallery field in the content editor.
 
-2. Click **Upload** in the media picker
+2. Search, filter by type, browse a folder, or switch between the available media sources.
 
-3. Select a file from your computer
+3. Select existing media, or select **Upload files** and choose files from your computer. You can
+   also drop files onto the picker. Each upload appears in the results with its current status.
 
-4. Add alt text and click **Insert**
+4. If an upload fails, select **Retry** or **Remove** on that item. A successful upload becomes a
+   selected media card.
+
+5. For a gallery, use the arrow controls under **Selected media** to set the returned order.
+
+6. Select the picker action, such as **Select**, **Insert image**, or **Add 3 images**.
 
 ## Supported File Types
 
-EmDash supports common web file types:
+EmDash accepts these file types by default:
 
 | Category  | Extensions                                      |
 | --------- | ----------------------------------------------- |
-| Images    | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`        |
+| Images    | `.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`, `.avif` |
 | Documents | `.pdf`                                         |
 | Video     | `.mp4`, `.webm`, `.mov`                         |
 | Audio     | `.mp3`, `.wav`, `.ogg`                          |
 
+Image and file fields can allow other MIME types, including `image/svg+xml` for SVG files.
+
 <Aside type="caution">
-	Maximum file size depends on your storage configuration. The default limit is 10MB per file.
+	The default limit is 50 MB per file. Set
+	[`maxUploadSize`](/reference/configuration/#maxuploadsize) to change it.
 </Aside>
 
 ## Storage Backends
@@ -134,64 +164,67 @@ Works with Cloudflare R2 (via S3 API), MinIO, and other S3-compatible services.
 
 ## How Uploads Work
 
-EmDash uses signed URLs for secure uploads:
+The admin uses the [upload target flow](/reference/rest-api/#upload-target-flow):
 
-1. Client requests an upload URL from the API
+1. The client requests an upload target, and EmDash creates a pending media item.
 
-2. Server generates a signed URL with expiration
+2. The client uploads the file to the returned target.
 
-3. Client uploads directly to storage using the signed URL
+3. The client confirms the upload.
 
-4. Server records the file metadata in the database
+4. EmDash validates the stored file and marks the media item as ready.
 
-This approach keeps large files off your application server and enables direct uploads to cloud storage.
+S3-compatible storage returns a signed URL so the file can bypass the application runtime. Local
+storage and native R2 return a same-origin streaming endpoint instead.
 
 <Aside>
 	R2 bindings do not support pre-signed URLs. When using the R2 binding adapter, uploads go through
 	your Worker.
 </Aside>
 
-## Organizing Media
-
-### Folders
-
-Create folders to organize your media:
-
-1. Click **New Folder** in the media library
-
-2. Enter a folder name
-
-3. Click **Create**
-
-4. Drag files into folders to organize them
+## Finding Media
 
 ### Search
 
 Use the search box to find files by name. Search matches partial filenames.
 
-### Filters
+### Filter by type
 
-Filter media by:
+Use the type filter to show images, documents, video, or audio files.
 
-- **Type** - Images, Documents, Video, Audio
-- **Date** - Upload date range
-- **Folder** - Specific folder
+## Organizing media in folders
 
-## Using Media in Content
+Editors can select **Add new folder** from the Main library. Open a folder by selecting its name.
+Without a search term, folder pages show only the media assigned to that folder. Filename searches
+cover the whole library, including other folders and the Main library.
 
-### In the Rich Text Editor
+To move a local file into a visible folder, drag its grid card or list row onto the folder. You can
+also open **Media Details**, choose a **Location**, and select **Save**. Use **Location** to return a
+file to the Main library or to move it without dragging.
+
+Authors can move local files they uploaded. Editors can move any local file. Files from external
+providers cannot be assigned to folders.
+
+Uploads enter the Main library. Move them into a folder after upload using either method above.
+
+Deleting a folder returns its media to the Main library. The media files, URLs, and content
+references remain unchanged.
+
+## Using media in content
+
+### In the rich text editor
 
 1. Place your cursor where you want the image
 
 2. Click the image button in the toolbar
 
-3. Select an image from the media library or upload a new one
+3. Find an image in the picker or upload a new one.
 
-4. Enter alt text
+4. Select **Insert image**.
 
-5. Click **Insert**
+5. Add alt text in the image settings.
 
-### As a Featured Image
+### As a featured image
 
 1. Open a content entry in the editor
 
@@ -199,13 +232,82 @@ Filter media by:
 
 3. Click **Select Image**
 
-4. Choose from the media library or upload
+4. Choose an image from the picker or upload one.
 
-5. Click **Save**
+5. Select **Select**, then select **Save**.
 
-### In Custom Fields
+### In custom fields
 
-For fields configured as image or file types, click the field to open the media picker.
+For fields configured as image or file types, select the field action to open the same media
+picker. The field's MIME type rules limit the sources and files you can choose.
+
+## Replacing an image
+
+Use **Replace image** to update the file behind an existing local media item. Authors can replace
+images they uploaded, and editors can replace any local image. The action is available for JPEG,
+PNG, and WebP images stored on local disk, Cloudflare R2, or S3-compatible storage.
+
+1. Open **Media**, then select an image from the local library.
+2. Stay on **Details**, then select **Replace image**.
+3. Choose a non-empty image in the same format as the existing file.
+4. Review the warning, then select **Replace image** to confirm.
+
+The replacement can use different dimensions or an aspect ratio from the existing image. EmDash
+keeps the media ID, filename, URL, alt text, caption, and location, so every existing reference uses
+the replacement. Replacing the file clears its focal point.
+
+**Replace image** uploads another file from your computer. To trim the current image, select
+**Replace original** from the **Crop** editor.
+
+<Aside type="caution">
+	Replacing an image cannot be undone. EmDash does not keep the previous file. A browser or content
+	delivery network may briefly show cached bytes from the previous image until the cached response
+	refreshes.
+</Aside>
+
+## Setting a focal point
+
+A focal point keeps the important part of a local image visible when a card, gallery, or other
+layout crops it to fill a fixed shape.
+
+1. Open **Media**, then select an image from the local library.
+2. Select **Edit image**, then **Focal point**.
+3. Click or drag the marker onto the important part of the image. You can also use the Arrow keys.
+4. Check the square, landscape, and portrait previews, then select **Save**.
+
+Select **Reset** to remove a custom focal point. The saved point is copied when you select
+the image for a content field or gallery. Content that already uses the image keeps its stored point
+until you select the image again.
+
+## Cropping an image
+
+Cropping is available for JPEG, PNG, and WebP images uploaded to EmDash. It works with local
+storage, Cloudflare R2, and S3-compatible storage. Images from external media providers cannot be
+cropped in the Media Library.
+
+1. Open **Media**, then select an image from the local library.
+2. Select **Edit image**, then **Crop**.
+3. Select **Original**, **Freeform**, or a common aspect ratio. Fixed ratios stay locked while you
+   resize. **Freeform** lets you change the width and height independently.
+4. Move the crop frame over the image. For a fixed ratio, drag a corner to resize it. **Freeform**
+	also provides four edge handles. The rule-of-thirds grid remains visible. You can focus the frame
+	or a handle and use the Arrow keys. Hold Shift for larger steps.
+5. Select one of the crop actions:
+	- **Create cropped copy** creates a separate media item and leaves the original unchanged. Select
+		the cropped copy in each content entry where you want to use it.
+	- **Replace original** replaces the image everywhere the media item is used. Existing content
+		entries keep the same media reference and are not rewritten or republished.
+
+<Aside type="caution">
+	**Replace original** cannot be undone. EmDash does not keep the uncropped bytes or a crop history.
+	It is available only with the **Original** aspect ratio. Use **Create cropped copy** for Freeform
+	or a common aspect ratio.
+	The media URL stays the same, so browsers or content delivery networks may show cached uncropped
+	bytes until that cached response expires or is purged separately.
+</Aside>
+
+Cropping a WebP file produces a still WebP image. If the source is animated, the cropped result
+does not retain the animation.
 
 ## Displaying Media in Templates
 
@@ -250,6 +352,8 @@ const { entry: post } = await getEmDashEntry("posts", Astro.params.slug);
 
 `priority` is for the primary above-the-fold image. It sets `loading="eager"` and `fetchpriority="high"`: `loading` controls whether loading is deferred, and `fetchpriority` gives the browser a priority hint for the request.
 
+When the field value carries a dark counterpart, `Image` renders both and shows the one matching the visitor's color scheme. [Dark Mode](/guides/dark-mode/) covers enabling the slot on a field and the `<html>` class convention the component relies on.
+
 EmDash installs an image endpoint that produces the resized variants on request. On Cloudflare Workers that endpoint uses the `IMAGES` binding. [Image Transformation](/deployment/cloudflare/#image-transformation) covers where the binding comes from and what happens when it is absent.
 
 ## Deleting Media
@@ -267,55 +371,10 @@ EmDash installs an image endpoint that produces the resized variants on request.
 
 ## Media API
 
-Access media programmatically using the admin API.
-
-### Upload a File
-
-Upload media as multipart form data:
-
-```bash
-POST /_emdash/api/media
-Content-Type: multipart/form-data
-Authorization: Bearer YOUR_API_TOKEN
-
-file=<binary file data>
-```
-
-A successful upload returns the stored media item:
-
-```json
-{
-	"success": true,
-	"data": {
-		"item": {
-			"id": "01ABC123",
-			"filename": "hero-image.jpg",
-			"mime_type": "image/jpeg",
-			"storage_key": "media/abc123/hero-image.jpg",
-			"width": 1200,
-			"height": 800
-		}
-	}
-}
-```
-
-### List Media
-
-The following request lists media under a prefix:
-
-```bash
-GET /_emdash/api/media?prefix=images/&limit=20
-Authorization: Bearer YOUR_API_TOKEN
-```
-
-### Delete Media
-
-The following request deletes a stored file:
-
-```bash
-DELETE /_emdash/api/media/images/hero.jpg
-Authorization: Bearer YOUR_API_TOKEN
-```
+Use the REST API to upload, list, update, delete, and organize local media. The
+[media endpoint reference](/reference/rest-api/#media-endpoints) documents the direct multipart
+upload and upload target flows, request parameters, response shapes, permissions, and folder
+operations.
 
 ## Media Providers
 
@@ -517,6 +576,8 @@ interface MediaValue {
   mimeType?: string;    // MIME type
   width?: number;       // Image/video width
   height?: number;      // Image/video height
+  focalX?: number;      // Horizontal focal position from 0 to 1
+  focalY?: number;      // Vertical focal position from 0 to 1
   alt?: string;         // Alt text
   meta?: Record<string, unknown>; // Provider-specific metadata
 }
