@@ -399,6 +399,156 @@ test.describe("Media Library", () => {
 		).toBe(true);
 	});
 
+	test("edits a selected content image and uses a cropped copy without leaving the editor", async ({
+		admin,
+		page,
+		serverInfo,
+	}) => {
+		test.setTimeout(90_000);
+		const marker = Date.now();
+		const filename = `editor-asset-${marker}.png`;
+		const duplicateFilename = `editor-asset-${marker}-square.png`;
+		await admin.goToMedia();
+		await admin.waitForLoading();
+		await uploadCropTestImage(page, filename);
+		const original = await findMediaByFilename(serverInfo, filename);
+
+		await admin.goto("/content/posts/new");
+		await admin.waitForShell();
+		await admin.waitForLoading();
+		const editorUrl = page.url();
+		await page.getByRole("button", { name: "Select image" }).click();
+		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
+		const workspaceElement = await picker.elementHandle();
+		expect(workspaceElement).not.toBeNull();
+		const workspaceWidth = await picker.evaluate((dialog) => dialog.clientWidth);
+		await picker.getByRole("searchbox", { name: "Search media" }).fill(filename);
+		await picker.getByRole("button", { name: filename, exact: true }).click();
+		await picker.getByRole("button", { name: "Edit asset" }).click();
+		const pickerDetails = page.getByRole("dialog", { name: "Media details" });
+		await expect(pickerDetails).toBeVisible();
+		expect(await pickerDetails.evaluate((dialog) => dialog.clientWidth)).toBe(workspaceWidth);
+		expect(
+			await pickerDetails.evaluate(
+				(dialog, originalDialog) => dialog === originalDialog,
+				workspaceElement,
+			),
+		).toBe(true);
+		await expect(page.getByRole("dialog")).toHaveCount(1);
+		await expect(pickerDetails.getByRole("searchbox", { name: "Search media" })).toHaveCount(0);
+		await pickerDetails.getByRole("button", { name: "Back" }).click();
+		await expect(picker).toBeVisible();
+		await expect(picker.getByRole("button", { name: "Edit asset" })).toBeFocused();
+		expect(
+			await picker.evaluate(
+				(dialog, originalDialog) => dialog === originalDialog,
+				workspaceElement,
+			),
+		).toBe(true);
+		await expect(picker.getByRole("button", { name: filename, exact: true })).toHaveAttribute(
+			"aria-pressed",
+			"true",
+		);
+		await picker.getByRole("button", { name: "Select", exact: true }).click();
+		const featuredImageField = page.locator("#field-featured_image");
+		await expect(featuredImageField.getByText(filename, { exact: true })).toBeVisible();
+
+		await featuredImageField.getByRole("button", { name: "Edit asset" }).click();
+		const details = page.getByRole("dialog", { name: "Media details" });
+		await expect(details).toBeVisible();
+		await expect(picker).not.toBeVisible();
+		await expect(details.getByRole("tab", { name: "Used in" })).toHaveCount(0);
+		await expect(details.getByRole("button", { name: "Delete" })).toHaveCount(0);
+		expect(page.url()).toBe(editorUrl);
+
+		await details.getByRole("tab", { name: "Edit image" }).click();
+		const aspectRatio = details.getByRole("combobox", { name: "Aspect ratio" });
+		await aspectRatio.click();
+		await page.getByRole("option", { name: "Square (1:1)" }).click();
+		const duplicateResponse = page.waitForResponse(
+			(response) =>
+				response.request().method() === "POST" &&
+				new URL(response.url()).pathname.endsWith("/confirm") &&
+				response.status() === 200,
+		);
+		await details.getByRole("button", { name: "Create cropped copy" }).click();
+		await duplicateResponse;
+
+		await expect(details).not.toBeVisible();
+		await expect(featuredImageField.getByText(duplicateFilename, { exact: true })).toBeVisible();
+		expect(page.url()).toBe(editorUrl);
+		const duplicate = await findMediaByFilename(serverInfo, duplicateFilename);
+		expect(duplicate.id).not.toBe(original.id);
+	});
+
+	test("keeps featured image actions compact and reachable on mobile", async ({ admin, page }) => {
+		test.setTimeout(60_000);
+		await admin.goto("/content/posts/new");
+		await admin.waitForShell();
+		await admin.waitForLoading();
+		await page.setViewportSize({ width: 320, height: 800 });
+		await page.getByRole("button", { name: "Select image" }).click();
+		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
+		await picker.getByRole("button", { name: "test-image.png", exact: true }).click();
+		await picker.getByRole("button", { name: "Select", exact: true }).click();
+
+		const featuredImageField = page.locator("#field-featured_image");
+		await expect(featuredImageField.getByText("test-image.png", { exact: true })).toBeVisible();
+		const featuredPreview = featuredImageField.locator(".emdash-featured-image-preview");
+		const featuredCard = featuredPreview.locator("..");
+		expect(
+			await featuredPreview.evaluate((element) => element.getBoundingClientRect().height),
+		).toBeLessThan(80);
+		expect(
+			await featuredCard.evaluate((element) => element.getBoundingClientRect().height),
+		).toBeLessThan(120);
+		const imageActions = featuredImageField.getByRole("button", { name: "Image actions" });
+		await expect(imageActions).toBeVisible();
+		await expect(featuredImageField.getByRole("button", { name: "Replace" })).toHaveCount(0);
+		await expect(featuredImageField.getByRole("button", { name: "Edit asset" })).toHaveCount(0);
+		await expect(featuredImageField.getByRole("button", { name: "Remove image" })).toHaveCount(0);
+
+		await imageActions.click();
+		await expect(imageActions).toHaveAttribute("aria-expanded", "true");
+		await expect(page.getByRole("menuitem", { name: "Replace" })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: "Edit asset" })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: "Remove" })).toBeVisible();
+		await page.setViewportSize({ width: 640, height: 800 });
+		await expect(page.getByRole("menu", { name: "Image actions" })).not.toBeVisible();
+		await expect(featuredImageField.getByRole("button", { name: "Replace" })).toBeVisible();
+		await page.setViewportSize({ width: 320, height: 800 });
+		await expect(imageActions).toHaveAttribute("aria-expanded", "false");
+		await imageActions.click();
+		await page.getByRole("menuitem", { name: "Replace" }).click();
+		const replacePicker = page.getByRole("dialog", { name: "Replace Featured Image" });
+		await expect(replacePicker).toBeVisible();
+		await replacePicker.getByRole("button", { name: "Close" }).click();
+
+		await imageActions.click();
+		await page.getByRole("menuitem", { name: "Edit asset" }).click();
+		const details = page.getByRole("dialog", { name: "Media details" });
+		await expect(details).toBeVisible();
+		await details.getByRole("button", { name: "Close" }).click();
+		await expect(details).not.toBeVisible();
+		await expect(imageActions).toBeFocused();
+		await featuredPreview.locator("img").dispatchEvent("error");
+		await expect(featuredPreview.getByText("Image not found")).toHaveCount(1);
+		expect(
+			await featuredCard.evaluate((element) => element.getBoundingClientRect().height),
+		).toBeLessThan(120);
+		await expect(imageActions).toBeVisible();
+
+		await imageActions.click();
+		await page.getByRole("menuitem", { name: "Remove" }).click();
+		await expect(featuredImageField.getByRole("button", { name: "Select image" })).toBeVisible();
+		expect(
+			await featuredImageField.evaluate((element) => element.scrollWidth <= element.clientWidth),
+		).toBe(true);
+		expect(
+			await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+		).toBe(true);
+	});
+
 	test.describe("List View", () => {
 		test("shows file details in list view", async ({ admin, page }) => {
 			// Upload a file first so there's something to show

@@ -20,6 +20,7 @@ import {
 	List,
 	LinkSimple,
 	Paperclip,
+	PencilSimple,
 	SquaresFour,
 	Upload,
 	X,
@@ -32,6 +33,7 @@ import {
 	useQueryClient,
 } from "@tanstack/react-query";
 import * as React from "react";
+import { flushSync } from "react-dom";
 
 import {
 	ApiResponseError,
@@ -45,8 +47,10 @@ import {
 	uploadToProvider,
 	updateMedia,
 	type MediaItem,
+	type LocalMediaItem,
 	type MediaProviderItem,
 } from "../lib/api.js";
+import { useCurrentUser } from "../lib/api/current-user.js";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { canonicalMediaProviderId, providerItemToMediaItem } from "../lib/media-utils.js";
 import { matchesMimeAllowlist, mimeFromUrl } from "../lib/mime-utils.js";
@@ -58,10 +62,25 @@ import {
 	mimeForMediaTypeFilter,
 } from "./media/MediaBrowserItems.js";
 import { useMediaUploadQueue } from "./media/useMediaUploadQueue.js";
+import { MediaDetailPanel } from "./MediaDetailPanel.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
 
 const URL_SOURCE = "__url";
 const PICKER_PAGE_SIZE = 12;
+const WORKSPACE_RESIZE_DURATION_MS = 340;
+const WORKSPACE_RESIZE_EASING = "cubic-bezier(0.22, 1, 0.36, 1)";
+const ROLE_CONTRIBUTOR = 20;
+const ROLE_AUTHOR = 30;
+const ROLE_EDITOR = 40;
+const EMPTY_DETAIL_ITEM: MediaItem = {
+	id: "",
+	filename: "",
+	mimeType: "application/octet-stream",
+	url: "",
+	size: 0,
+	createdAt: "",
+	provider: "picker-placeholder",
+};
 
 interface SelectedMedia {
 	key: string;
@@ -198,6 +217,7 @@ export function MediaPickerModal({
 }: MediaPickerModalProps) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const currentUser = useCurrentUser().data;
 	const isFileKind = mediaKind === "file";
 	const filters = React.useMemo(() => {
 		if (mimeTypeFilters !== undefined) {
@@ -229,11 +249,18 @@ export function MediaPickerModal({
 	const [providerDimensions, setProviderDimensions] = React.useState<
 		Record<string, { width: number; height: number }>
 	>({});
+	const [assetOpen, setAssetOpen] = React.useState(false);
+	const [assetItem, setAssetItem] = React.useState<MediaItem>(EMPTY_DETAIL_ITEM);
 	const fileInputRef = React.useRef<HTMLInputElement>(null);
+	const editAssetButtonRef = React.useRef<HTMLButtonElement>(null);
+	const mediaDetailPanelRef = React.useRef<(() => void) | null>(null);
+	const workspaceResizeAnimationRef = React.useRef<Animation | null>(null);
+	const workspaceResizeTimerRef = React.useRef<number | null>(null);
 	const updatedDimensionsRef = React.useRef(new Set<string>());
 	const urlProbeIdRef = React.useRef(0);
 	const uploadTargetsRef = React.useRef(new Map<number, string>());
 	const selectionOrderEditedRef = React.useRef(false);
+	const restoreEditFocusRef = React.useRef(false);
 	const invalidateUrlProbe = React.useCallback(() => {
 		urlProbeIdRef.current += 1;
 		setIsProbing(false);
@@ -259,6 +286,39 @@ export function MediaPickerModal({
 		[fieldId],
 	);
 	const uploadQueue = useMediaUploadQueue<UploadedMedia>({ upload: uploadFile });
+
+	React.useEffect(() => {
+		if (open) return;
+		workspaceResizeAnimationRef.current?.cancel();
+		workspaceResizeAnimationRef.current = null;
+		if (workspaceResizeTimerRef.current !== null) {
+			window.clearTimeout(workspaceResizeTimerRef.current);
+			workspaceResizeTimerRef.current = null;
+		}
+		const dialog = editAssetButtonRef.current?.closest<HTMLDivElement>('[role="dialog"]');
+		if (dialog) {
+			dialog.style.height = "";
+			dialog.style.maxHeight = "";
+		}
+		restoreEditFocusRef.current = false;
+		setAssetOpen(false);
+	}, [open]);
+
+	React.useEffect(
+		() => () => {
+			workspaceResizeAnimationRef.current?.cancel();
+			if (workspaceResizeTimerRef.current !== null) {
+				window.clearTimeout(workspaceResizeTimerRef.current);
+			}
+		},
+		[],
+	);
+
+	React.useEffect(() => {
+		if (!open || assetOpen || !restoreEditFocusRef.current) return;
+		restoreEditFocusRef.current = false;
+		editAssetButtonRef.current?.focus({ preventScroll: true });
+	}, [assetOpen, open]);
 
 	React.useEffect(() => {
 		if (!open) return;
@@ -637,6 +697,160 @@ export function MediaPickerModal({
 		setSelectedItems((current) => current.filter((item) => item.key !== selected.key));
 		setLiveMessage(t`Removed ${selected.item.filename} from selection.`);
 	};
+	const editableSelection = React.useMemo(() => {
+		if (selectedItems.length !== 1 || !currentUser) return null;
+		const selected = selectedItems[0]!;
+		if (selected.providerId !== "local" || !selected.item.mimeType.startsWith("image/")) {
+			return null;
+		}
+		const item = selected.item as LocalMediaItem;
+		const canEdit =
+			currentUser.role >= ROLE_EDITOR ||
+			(currentUser.role >= ROLE_AUTHOR && item.authorId === currentUser.id);
+		return canEdit ? item : null;
+	}, [currentUser, selectedItems]);
+	const replaceSelectedLocalItem = React.useCallback((item: LocalMediaItem) => {
+		setSelectedItems((current) =>
+			current.map((selected) =>
+				selected.providerId === "local" && selected.item.id === item.id
+					? { ...selected, item }
+					: selected,
+			),
+		);
+		setPinnedItems((current) =>
+			current.map((selected) =>
+				selected.providerId === "local" && selected.item.id === item.id
+					? { ...selected, item }
+					: selected,
+			),
+		);
+	}, []);
+	const cacheLocalItem = React.useCallback(
+		(item: LocalMediaItem) => {
+			queryClient.setQueryData(["media", item.id], item);
+			queryClient.setQueriesData<{ items: LocalMediaItem[] }>({ queryKey: ["media"] }, (current) =>
+				current && Array.isArray(current.items)
+					? {
+							...current,
+							items: current.items.map((entry) => (entry.id === item.id ? item : entry)),
+						}
+					: current,
+			);
+		},
+		[queryClient],
+	);
+	const handleAssetRefreshed = React.useCallback(
+		(item: LocalMediaItem) => {
+			setAssetItem(item);
+			replaceSelectedLocalItem(item);
+			cacheLocalItem(item);
+		},
+		[cacheLocalItem, replaceSelectedLocalItem],
+	);
+	const handleCroppedCopyCreated = React.useCallback(
+		(item: LocalMediaItem) => {
+			const selected: SelectedMedia = {
+				key: selectionKey("local", item),
+				providerId: "local",
+				item,
+			};
+			setAssetItem(item);
+			setPinnedItems((current) => appendUniqueSelections(current, [selected]));
+			setSelectedItems((current) => {
+				if (!multiple) return [selected];
+				const sourceId = assetItem.id;
+				const sourceIndex = current.findIndex(
+					(entry) => entry.providerId === "local" && entry.item.id === sourceId,
+				);
+				if (sourceIndex === -1) return appendUniqueSelections(current, [selected]);
+				const next = [...current];
+				next[sourceIndex] = selected;
+				return next;
+			});
+			cacheLocalItem(item);
+			void queryClient.invalidateQueries({ queryKey: ["media"] });
+		},
+		[assetItem.id, cacheLocalItem, multiple, queryClient],
+	);
+	const handleAssetUnavailable = React.useCallback(
+		(id: string) => {
+			setSelectedItems((current) =>
+				current.filter((selected) => selected.providerId !== "local" || selected.item.id !== id),
+			);
+			setPinnedItems((current) =>
+				current.filter((selected) => selected.providerId !== "local" || selected.item.id !== id),
+			);
+			queryClient.removeQueries({ queryKey: ["media", id], exact: true });
+			void queryClient.invalidateQueries({ queryKey: ["media"] });
+		},
+		[queryClient],
+	);
+	const transitionWorkspaceLayout = (nextAssetOpen: boolean) => {
+		const dialog = editAssetButtonRef.current?.closest<HTMLDivElement>('[role="dialog"]') ?? null;
+		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+		if (!dialog || reduceMotion || typeof dialog.animate !== "function") {
+			setAssetOpen(nextAssetOpen);
+			return;
+		}
+
+		const startHeight = dialog.getBoundingClientRect().height;
+		workspaceResizeAnimationRef.current?.cancel();
+		workspaceResizeAnimationRef.current = null;
+		if (workspaceResizeTimerRef.current !== null) {
+			window.clearTimeout(workspaceResizeTimerRef.current);
+			workspaceResizeTimerRef.current = null;
+		}
+		dialog.style.height = `${startHeight}px`;
+		dialog.style.maxHeight = "none";
+		flushSync(() => setAssetOpen(nextAssetOpen));
+		dialog.style.maxHeight = "none";
+		dialog.style.height = "";
+		const naturalEndHeight = dialog.getBoundingClientRect().height;
+		const rootFontSize =
+			Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+		const detailMaxHeight = Math.min(window.innerHeight * 0.88, rootFontSize * 43.5);
+		const endHeight = nextAssetOpen
+			? Math.min(naturalEndHeight, detailMaxHeight)
+			: naturalEndHeight;
+		const finalMaxHeight = nextAssetOpen ? "min(88dvh, 43.5rem)" : "";
+		if (Math.abs(endHeight - startHeight) < 1) {
+			dialog.style.maxHeight = finalMaxHeight;
+			return;
+		}
+
+		dialog.style.height = `${startHeight}px`;
+		const animation = dialog.animate(
+			[{ height: `${startHeight}px` }, { height: `${endHeight}px` }],
+			{
+				duration: WORKSPACE_RESIZE_DURATION_MS,
+				easing: WORKSPACE_RESIZE_EASING,
+				fill: "forwards",
+			},
+		);
+		workspaceResizeAnimationRef.current = animation;
+		const finish = () => {
+			if (workspaceResizeAnimationRef.current !== animation) return;
+			workspaceResizeAnimationRef.current = null;
+			if (workspaceResizeTimerRef.current !== null) {
+				window.clearTimeout(workspaceResizeTimerRef.current);
+				workspaceResizeTimerRef.current = null;
+			}
+			dialog.style.height = "";
+			dialog.style.maxHeight = finalMaxHeight;
+			animation.cancel();
+		};
+		animation.addEventListener("finish", finish, { once: true });
+		workspaceResizeTimerRef.current = window.setTimeout(finish, WORKSPACE_RESIZE_DURATION_MS + 100);
+	};
+	const openAssetEditor = () => {
+		if (!editableSelection || uploadQueue.hasUnfinished) return;
+		setAssetItem(editableSelection);
+		transitionWorkspaceLayout(true);
+	};
+	const closeAssetEditor = () => {
+		restoreEditFocusRef.current = true;
+		transitionWorkspaceLayout(false);
+	};
 	const confirmText =
 		confirmLabel ??
 		(multiple
@@ -738,40 +952,69 @@ export function MediaPickerModal({
 			</section>
 		) : null;
 
-	return (
+	const browseDialog = (
 		<Dialog.Root
 			open={open}
 			onOpenChange={(nextOpen) => {
-				if (!nextOpen) handleClose();
+				if (nextOpen) return;
+				if (assetOpen && mediaDetailPanelRef.current) {
+					mediaDetailPanelRef.current();
+					return;
+				}
+				handleClose();
 			}}
 		>
 			<Dialog
 				size="xl"
-				className="flex h-[min(48rem,calc(100dvh-1rem))] w-[calc(100vw-2rem)] min-h-0 min-w-0 max-w-[48rem] flex-col overflow-hidden p-0 sm:w-[min(48rem,calc(100vw-2rem))]"
+				className={`flex w-full min-h-0 min-w-0 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 ${assetOpen ? "" : "h-[min(48rem,calc(100dvh-1rem))]"}`}
+				style={{
+					width: "min(94vw, 68rem)",
+					maxHeight: assetOpen ? "min(88dvh, 43.5rem)" : undefined,
+				}}
 			>
-				<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-7">
-					<div className="min-w-0">
-						<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
-						<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
-							{description}
-						</Dialog.Description>
-					</div>
-					<Dialog.Close
-						aria-label={t`Close`}
-						render={(props) => (
-							<Button
-								{...props}
-								variant="ghost"
-								shape="square"
-								size="base"
-								aria-label={t`Close`}
-								icon={<X aria-hidden="true" />}
-							/>
-						)}
+				{assetOpen ? (
+					<MediaDetailPanel
+						open={open}
+						item={assetItem}
+						embedded
+						context="content"
+						canCropOriginal={Boolean(editableSelection)}
+						canDuplicateCrop={(currentUser?.role ?? 0) >= ROLE_CONTRIBUTOR}
+						requestExitRef={mediaDetailPanelRef}
+						restoreFocusTargetRef={editAssetButtonRef}
+						onClose={closeAssetEditor}
+						onExit={handleClose}
+						onItemRefreshed={handleAssetRefreshed}
+						onCroppedCopyCreated={handleCroppedCopyCreated}
+						onUnavailable={handleAssetUnavailable}
 					/>
-				</header>
+				) : null}
+				{!assetOpen ? (
+					<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-7">
+						<div className="min-w-0">
+							<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
+							<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
+								{description}
+							</Dialog.Description>
+						</div>
+						<Dialog.Close
+							aria-label={t`Close`}
+							render={(props) => (
+								<Button
+									{...props}
+									variant="ghost"
+									shape="square"
+									size="base"
+									aria-label={t`Close`}
+									icon={<X aria-hidden="true" />}
+								/>
+							)}
+						/>
+					</header>
+				) : null}
 
 				<div
+					hidden={assetOpen}
 					className="flex min-h-0 flex-1 flex-col overflow-hidden"
 					onDragOver={(event) => {
 						if (!event.dataTransfer.types.includes("Files")) return;
@@ -1196,7 +1439,11 @@ export function MediaPickerModal({
 														const item =
 															activeSource === "local"
 																? (rawItem as MediaItem)
-																: toMediaItem({ key, providerId: activeSource, item: rawItem });
+																: toMediaItem({
+																		key,
+																		providerId: activeSource,
+																		item: rawItem,
+																	});
 														return (
 															<MediaBrowserItem
 																key={key}
@@ -1238,7 +1485,11 @@ export function MediaPickerModal({
 														const item =
 															activeSource === "local"
 																? (rawItem as MediaItem)
-																: toMediaItem({ key, providerId: activeSource, item: rawItem });
+																: toMediaItem({
+																		key,
+																		providerId: activeSource,
+																		item: rawItem,
+																	});
 														return (
 															<MediaBrowserItem
 																key={key}
@@ -1317,10 +1568,22 @@ export function MediaPickerModal({
 				</div>
 
 				<footer
+					hidden={assetOpen}
 					className="flex shrink-0 justify-end border-t border-kumo-line px-5 py-3 sm:px-7"
 					data-media-actions
 				>
 					<div className="flex flex-wrap items-center justify-end gap-2">
+						{editableSelection && (
+							<Button
+								ref={editAssetButtonRef}
+								variant="outline"
+								onClick={openAssetEditor}
+								disabled={uploadQueue.hasUnfinished}
+								icon={<PencilSimple aria-hidden="true" />}
+							>
+								{t`Edit asset`}
+							</Button>
+						)}
 						<Button variant="outline" onClick={handleClose}>
 							{t`Cancel`}
 						</Button>
@@ -1333,7 +1596,13 @@ export function MediaPickerModal({
 						</Button>
 					</div>
 				</footer>
-				<span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
+				<span
+					hidden={assetOpen}
+					className="sr-only"
+					role="status"
+					aria-live="polite"
+					aria-atomic="true"
+				>
 					{uploadQueue.hasUnfinished
 						? plural(
 								uploadQueue.jobs.filter(
@@ -1351,6 +1620,8 @@ export function MediaPickerModal({
 			</Dialog>
 		</Dialog.Root>
 	);
+
+	return browseDialog;
 }
 
 export default MediaPickerModal;

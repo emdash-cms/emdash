@@ -195,6 +195,33 @@ test.describe("Accessibility Audit", () => {
 			expect(results.violations).toEqual([]);
 		});
 
+		test("content publishing overlays should have no WCAG 2.x AA violations", async ({
+			admin,
+			serverInfo,
+		}) => {
+			const analyze = () =>
+				new AxeBuilder({ page: admin.page })
+					.withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+					.exclude(".ProseMirror")
+					// Base UI uses hidden tab-focus sentinels to contain focus in Kumo overlays.
+					.exclude("[data-base-ui-focus-guard]")
+					.disableRules(KNOWN_A11Y_EXCLUSIONS)
+					.analyze();
+
+			await admin.goToEditContent("posts", serverInfo.contentIds.posts[0]!);
+			await admin.waitForLoading();
+			await admin.page.getByRole("button", { name: /Change publication date:/ }).click();
+			expect((await analyze()).violations).toEqual([]);
+			await admin.page.getByRole("button", { name: "Cancel", exact: true }).click();
+
+			await admin.goToEditContent("posts", serverInfo.contentIds.posts[2]!);
+			await admin.waitForLoading();
+			await admin.page.getByRole("button", { name: "Publish", exact: true }).click();
+			expect((await analyze()).violations).toEqual([]);
+			await admin.page.getByRole("menuitem", { name: /Schedule publication/ }).click();
+			expect((await analyze()).violations).toEqual([]);
+		});
+
 		test("media library should have no WCAG 2.x AA violations", async ({ admin }) => {
 			await admin.goToMedia();
 			await admin.waitForLoading();

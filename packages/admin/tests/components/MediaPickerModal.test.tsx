@@ -13,6 +13,9 @@ import { render } from "../utils/render.tsx";
 // matches the hidden file `<input aria-label="Upload file">` and trips
 // playwright's strict-mode "resolved to N elements" guard.
 const UPLOAD_BUTTON_REGEX = /^Upload files$/;
+const pickerTestState = vi.hoisted(() => ({
+	currentUser: { id: "user-1", role: 40 },
+}));
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -30,6 +33,10 @@ vi.mock("../../src/lib/api", async () => {
 					height: 600,
 					focalX: 0.2,
 					focalY: 0.8,
+					storageKey: "photo.jpg",
+					status: "ready",
+					authorId: "user-1",
+					folderId: null,
 					createdAt: "2024-01-01",
 				},
 				{
@@ -56,6 +63,120 @@ vi.mock("../../src/lib/api", async () => {
 		updateMedia: vi.fn().mockResolvedValue({}),
 	};
 });
+
+vi.mock("../../src/lib/api/current-user.js", () => ({
+	useCurrentUser: () => ({ data: pickerTestState.currentUser }),
+}));
+
+vi.mock("../../src/components/MediaDetailPanel", () => ({
+	MediaDetailPanel: ({
+		open,
+		item,
+		context,
+		embedded,
+		onClose,
+		onExit,
+		onClosed,
+		onItemRefreshed,
+		onCroppedCopyCreated,
+		onUnavailable,
+	}: {
+		open: boolean;
+		item: { filename: string };
+		context?: string;
+		embedded?: boolean;
+		onClose: () => void;
+		onExit?: () => void;
+		onClosed?: () => void;
+		onItemRefreshed?: (item: unknown) => void;
+		onCroppedCopyCreated?: (item: unknown) => void;
+		onUnavailable?: (id: string) => void;
+	}) =>
+		open ? (
+			<div
+				role={embedded ? "region" : "dialog"}
+				aria-label="Asset details"
+				data-context={context}
+				data-embedded={embedded || undefined}
+			>
+				<span>{item.filename}</span>
+				<button
+					type="button"
+					onClick={() => {
+						onClose();
+						onClosed?.();
+					}}
+				>
+					Back
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						(onExit ?? onClose)();
+						onClosed?.();
+					}}
+				>
+					Close workspace
+				</button>
+				<button
+					type="button"
+					onClick={() =>
+						onItemRefreshed?.({
+							id: "m1",
+							filename: "photo.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/photo.jpg",
+							storageKey: "photo.jpg",
+							size: 700,
+							width: 320,
+							height: 240,
+							focalX: 0.5,
+							focalY: 0.4,
+							status: "ready",
+							authorId: "user-1",
+							folderId: null,
+							createdAt: "2024-01-01",
+						})
+					}
+				>
+					Save updated asset
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onCroppedCopyCreated?.({
+							id: "media-copy",
+							filename: "photo-cropped.jpg",
+							mimeType: "image/jpeg",
+							url: "/media/photo-cropped.jpg",
+							storageKey: "photo-cropped.jpg",
+							size: 800,
+							width: 400,
+							height: 300,
+							status: "ready",
+							authorId: "user-1",
+							folderId: null,
+							createdAt: "2024-01-03",
+						});
+						onClose();
+						onClosed?.();
+					}}
+				>
+					Create cropped copy
+				</button>
+				<button
+					type="button"
+					onClick={() => {
+						onUnavailable?.("m1");
+						onClose();
+						onClosed?.();
+					}}
+				>
+					Report asset missing
+				</button>
+			</div>
+		) : null,
+}));
 
 function QueryWrapper({ children }: { children: React.ReactNode }) {
 	const qc = new QueryClient({
@@ -85,6 +206,7 @@ async function openUrlSource(screen: Awaited<ReturnType<typeof renderModal>>) {
 describe("MediaPickerModal", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		pickerTestState.currentUser = { id: "user-1", role: 40 };
 	});
 	afterEach(() => vi.unstubAllGlobals());
 
@@ -161,6 +283,150 @@ describe("MediaPickerModal", () => {
 			expect(onSelect).toHaveBeenCalledWith(
 				expect.objectContaining({ id: "m1", filename: "photo.jpg" }),
 			);
+		});
+
+		it("edits a selected local image and returns to the preserved picker state", async () => {
+			const screen = await renderModal();
+			const workspace = screen.getByRole("dialog", { name: "Select image" }).element();
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+
+			const editAsset = screen.getByRole("button", { name: "Edit asset" });
+			await expect.element(editAsset).toBeEnabled();
+			editAsset.element().click();
+
+			const details = screen.getByRole("region", { name: "Asset details" });
+			await expect.element(details).toBeVisible();
+			expect(details.element()).toHaveAttribute("data-context", "content");
+			expect(details.element()).toHaveAttribute("data-embedded", "true");
+			expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+			expect(document.querySelector('[role="dialog"]')).toBe(workspace);
+			expect(screen.getByRole("button", { name: "Select" }).query()).toBeNull();
+
+			screen.getByRole("button", { name: "Back" }).element().click();
+
+			const returnedItem = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(returnedItem).toBeVisible();
+			await expect.element(returnedItem).toHaveAttribute("aria-pressed", "true");
+			await expect.element(screen.getByRole("button", { name: "Edit asset" })).toHaveFocus();
+		});
+
+		it("closes the complete workspace from asset details without returning to browse", async () => {
+			const onOpenChange = vi.fn();
+			const screen = await renderModal({ onOpenChange });
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+			const editAsset = screen.getByRole("button", { name: "Edit asset" });
+			await expect.element(editAsset).toBeEnabled();
+			editAsset.element().click();
+			await expect.element(screen.getByRole("button", { name: "Close workspace" })).toBeVisible();
+
+			screen.getByRole("button", { name: "Close workspace" }).element().click();
+
+			expect(onOpenChange).toHaveBeenCalledWith(false);
+			expect(screen.getByRole("button", { name: "photo.jpg" }).query()).toBeNull();
+		});
+
+		it("does not reopen either dialog when the parent closes during the handoff", async () => {
+			const onOpenChange = vi.fn();
+			const screen = await renderModal({ onOpenChange });
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+			const editAsset = screen.getByRole("button", { name: "Edit asset" });
+			await expect.element(editAsset).toBeEnabled();
+			editAsset.element().click();
+
+			await screen.rerender(
+				<QueryWrapper>
+					<MediaPickerModal open={false} onOpenChange={onOpenChange} onSelect={vi.fn()} />
+				</QueryWrapper>,
+			);
+
+			await new Promise((resolve) => window.setTimeout(resolve, 250));
+			expect(screen.getByRole("dialog", { name: "Asset details" }).query()).toBeNull();
+			expect(screen.getByRole("dialog", { name: "Select image" }).query()).toBeNull();
+			expect(onOpenChange).not.toHaveBeenCalled();
+		});
+
+		it("returns from asset editing with a cropped copy selected", async () => {
+			const onSelect = vi.fn();
+			const screen = await renderModal({ onSelect });
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+			const editAsset = screen.getByRole("button", { name: "Edit asset" });
+			await expect.element(editAsset).toBeEnabled();
+			editAsset.element().click();
+			await expect
+				.element(screen.getByRole("button", { name: "Create cropped copy" }))
+				.toBeVisible();
+
+			screen.getByRole("button", { name: "Create cropped copy" }).element().click();
+
+			const copy = screen.getByRole("button", { name: "photo-cropped.jpg" });
+			await expect.element(copy).toBeVisible();
+			await expect.element(copy).toHaveAttribute("aria-pressed", "true");
+			screen.getByRole("button", { name: "Select" }).element().click();
+			expect(onSelect).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "media-copy", filename: "photo-cropped.jpg" }),
+			);
+		});
+
+		it("confirms the refreshed local item after editing its asset metadata", async () => {
+			const onSelect = vi.fn();
+			const screen = await renderModal({ onSelect });
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+			const editAsset = screen.getByRole("button", { name: "Edit asset" });
+			await expect.element(editAsset).toBeEnabled();
+			editAsset.element().click();
+
+			await expect
+				.element(screen.getByRole("button", { name: "Save updated asset" }))
+				.toBeVisible();
+			screen.getByRole("button", { name: "Save updated asset" }).element().click();
+			screen.getByRole("button", { name: "Back" }).element().click();
+
+			await expect.element(screen.getByRole("button", { name: "Select" })).toBeEnabled();
+			screen.getByRole("button", { name: "Select" }).element().click();
+			expect(onSelect).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "m1", width: 320, height: 240, focalX: 0.5, focalY: 0.4 }),
+			);
+		});
+
+		it("does not offer asset editing to an author who does not own the image", async () => {
+			pickerTestState.currentUser = { id: "other-user", role: 30 };
+			const screen = await renderModal();
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+
+			await expect.element(item).toHaveAttribute("aria-pressed", "true");
+			expect(screen.getByRole("button", { name: "Edit asset" }).query()).toBeNull();
+		});
+
+		it("removes a missing edited asset from the picker selection", async () => {
+			const screen = await renderModal();
+			const item = screen.getByRole("button", { name: "photo.jpg" });
+			await expect.element(item).toBeVisible();
+			item.element().click();
+			const editAsset = screen.getByRole("button", { name: "Edit asset" });
+			await expect.element(editAsset).toBeEnabled();
+			editAsset.element().click();
+			await expect
+				.element(screen.getByRole("button", { name: "Report asset missing" }))
+				.toBeVisible();
+
+			screen.getByRole("button", { name: "Report asset missing" }).element().click();
+
+			await expect.element(screen.getByRole("button", { name: "Select" })).toBeDisabled();
+			await expect
+				.element(screen.getByRole("button", { name: "photo.jpg" }))
+				.toHaveAttribute("aria-pressed", "false");
 		});
 	});
 
