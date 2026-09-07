@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Fixes `content.schedule()` so it always stores `scheduledAt` in UTC. Previously, a caller-supplied timezone offset such as `+09:00` was stored verbatim and compared incorrectly against the UTC clock used by the scheduled-publishing sweep, causing entries to publish up to several hours late or early. The same normalization now applies to every path that writes `scheduled_at`, including plain content updates.
+Fixes `content.schedule()` and content updates so offset dates are stored as canonical UTC ISO 8601 timestamps. Positive and negative offsets now publish at the represented instant instead of several hours late or early.

@@ -847,15 +847,6 @@ export class ContentRepository {
 		return mappedResult;
 	}
 
-	/**
-	 * Normalizes a scheduledAt value to UTC before it's persisted.
-	 *
-	 * findReadyToPublish() compares scheduled_at against new Date().toISOString()
-	 * (always UTC/"Z") using plain string ordering, so any write path that stores
-	 * a caller-supplied offset (e.g. "+09:00") verbatim reproduces the late/early
-	 * publish bug fixed in schedule(). Every write path must normalize through
-	 * here rather than storing the raw input.
-	 */
 	private normalizeScheduledAt(value: string | null): string | null {
 		if (value === null) return null;
 		const scheduledDate = new Date(value);
@@ -1564,10 +1555,7 @@ export class ContentRepository {
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
-		// Normalize to UTC before storing. findReadyToPublish() compares
-		// scheduled_at against new Date().toISOString() (always UTC/"Z") using
-		// plain string ordering, so a caller-supplied offset like "+09:00"
-		// would sort wrong and publish up to that many hours late/early.
+		// The due query compares ISO strings, so every stored schedule uses the same UTC form.
 		await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},

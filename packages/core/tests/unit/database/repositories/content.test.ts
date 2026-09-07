@@ -1,5 +1,5 @@
 import type { Kysely } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../../../src/database/repositories/revision.js";
@@ -21,6 +21,7 @@ describe("ContentRepository", () => {
 	});
 
 	afterEach(async () => {
+		vi.useRealTimers();
 		await teardownTestDatabase(db);
 	});
 
@@ -319,24 +320,27 @@ describe("ContentRepository", () => {
 			expect(updated.updatedAt).not.toBe(created.updatedAt);
 		});
 
-		it("should normalize a non-UTC scheduledAt offset to 'Z', same as schedule()", async () => {
+		it("should normalize a non-UTC scheduledAt offset", async () => {
 			const input = createPostFixture();
 			const created = await repo.create(input);
 
-			// A fixed instant safely in the future, pinned to a UTC hour where
-			// adding the +09:00 offset below can't roll over into the next day.
-			const future = new Date(Date.now() + 2 * 86_400_000);
-			future.setUTCHours(3, 44, 0, 0);
-
-			const pad = (n: number) => String(n).padStart(2, "0");
-			const localHour = pad(future.getUTCHours() + 9);
-			const scheduledAtWithOffset = `${future.getUTCFullYear()}-${pad(future.getUTCMonth() + 1)}-${pad(future.getUTCDate())}T${localHour}:44:00+09:00`;
-
 			const updated = await repo.update("post", created.id, {
-				scheduledAt: scheduledAtWithOffset,
+				scheduledAt: "2099-01-01T21:00:00+09:00",
 			});
 
-			expect(updated.scheduledAt).toBe(future.toISOString());
+			expect(updated.scheduledAt).toBe("2099-01-01T12:00:00.000Z");
+		});
+
+		it("should normalize scheduledAt when staging a draft-aware update", async () => {
+			const created = await repo.create(createPostFixture());
+
+			const updated = await repo.updateDraftAware("post", created.id, {
+				data: { title: "Scheduled revision" },
+				scheduledAt: "2099-01-01T07:00:00-05:00",
+			});
+
+			expect(updated.draftRevisionId).not.toBeNull();
+			expect(updated.scheduledAt).toBe("2099-01-01T12:00:00.000Z");
 		});
 
 		it("should clear scheduledAt when set to null", async () => {
@@ -491,28 +495,20 @@ describe("ContentRepository", () => {
 			);
 		});
 
-		it("should normalize non-UTC offsets to a 'Z' timestamp", async () => {
+		it.each([
+			["positive", "2030-01-01T21:00:00+09:00"],
+			["negative", "2030-01-01T07:00:00-05:00"],
+		])("should publish a %s offset at the represented instant", async (_offset, scheduledAt) => {
+			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
 			const post = await repo.create(createPostFixture());
+			const updated = await repo.schedule("post", post.id, scheduledAt);
+			expect(updated.scheduledAt).toBe("2030-01-01T12:00:00.000Z");
 
-			// A fixed instant safely in the future, pinned to a UTC hour where
-			// adding the +09:00 offset below can't roll over into the next day.
-			const future = new Date(Date.now() + 2 * 86_400_000);
-			future.setUTCHours(3, 44, 0, 0);
+			vi.setSystemTime(new Date("2030-01-01T11:59:59.999Z"));
+			expect(await repo.findReadyToPublish("post")).toEqual([]);
 
-			// Same instant as `future`, but expressed with a non-UTC offset —
-			// this is what a naive caller sends when composing a local wall-clock
-			// time by hand (e.g. "12:44 JST" -> "...T12:44:00+09:00").
-			const pad = (n: number) => String(n).padStart(2, "0");
-			const localHour = pad(future.getUTCHours() + 9);
-			const scheduledAtWithOffset = `${future.getUTCFullYear()}-${pad(future.getUTCMonth() + 1)}-${pad(future.getUTCDate())}T${localHour}:44:00+09:00`;
-
-			const updated = await repo.schedule("post", post.id, scheduledAtWithOffset);
-
-			// Stored value must be the UTC equivalent, not the raw offset string,
-			// so the plain string comparison in findReadyToPublish() lines up
-			// with `new Date().toISOString()`.
-			expect(updated.scheduledAt).toBe(future.toISOString());
-			expect(updated.scheduledAt?.endsWith("Z")).toBe(true);
+			vi.setSystemTime(new Date("2030-01-01T12:00:00.000Z"));
+			expect((await repo.findReadyToPublish("post")).map((item) => item.id)).toEqual([post.id]);
 		});
 	});
 
