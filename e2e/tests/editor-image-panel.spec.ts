@@ -89,14 +89,7 @@ test.describe("Editor image panel", () => {
 
 		await settings.getByRole("textbox", { name: "Alt text" }).fill("Updated diagram");
 		await settings.getByRole("combobox", { name: "Alignment" }).click();
-		await expect(page.getByRole("option", { name: "Wide" })).toHaveAttribute(
-			"aria-disabled",
-			"true",
-		);
-		await expect(page.getByRole("option", { name: "Full" })).toHaveAttribute(
-			"aria-disabled",
-			"true",
-		);
+		await expect(page.getByRole("option")).toHaveText(["None", "Left", "Center", "Right"]);
 		await page.getByRole("option", { name: "Left" }).click();
 		await settings.getByRole("button", { name: "Apply" }).click();
 

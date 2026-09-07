@@ -2,13 +2,13 @@
 
 Status: Implemented locally with Option A. Automated checks pass; manual verification coverage and remaining checks are recorded below.
 
-Delivery: one pull request from `fix/editor-edit-image-panel`, with four panel commits and two follow-up commits for responsive sizing and converter compatibility.
+Delivery: one pull request from `fix/editor-edit-image-panel`, with four panel commits, two follow-up commits for responsive sizing and converter compatibility, and a final cleanup that removes Wide and Full from the options menu.
 
 Base: `8c414791f`. The authorized rebase is complete and includes in-context media asset editing from `main`.
 
 The rebase retains this specification's sidebar UI and `main`'s Edit asset flow, `nodeKey` state reset, local asset snapshot, error state, and nested-overlay shortcut ownership.
 
-Authority: the user approved Option A, local implementation with `$feat-implement`, and the rebase. Pushing and GitHub changes require separate authorization.
+Authority: the user approved Option A, local implementation with `$feat-implement`, the rebase, and publication of this worktree as a pull request to `main`. Merging is not authorized.
 
 ## User outcome
 
@@ -36,6 +36,7 @@ The panel retains the approved Option 1 information architecture and normal edit
 - Do not add a database migration, API route, query, cache entry, background task, or logged-out-route query.
 - Do not edit extracted `messages.po` catalogs.
 - Do not create a shared layout framework for unrelated Portable Text blocks.
+- Keep the existing Left and Right text-wrapping behavior. Separate position and wrapping controls are deferred to a future change.
 
 ## Audit findings before implementation
 
@@ -167,11 +168,11 @@ The supported authoring choices have the following meanings:
 
 Option A is approved. Option B is retained below as the rejected alternative.
 
-#### Option A: disable unsupported authoring choices (approved)
+#### Option A: omit unsupported authoring choices (approved)
 
 - Remove Wide and Full from the normal panel choices because EmDash has no parent layout contract that can distinguish them safely in articles, columns, widgets, and user-defined Portable Text hosts.
 - Preserve existing `wide` and `full` values through all converters and rendering hooks. Do not normalize or delete imported content.
-- Render Wide and Full as disabled compound `Select.Option` entries. Kumo supports disabled options. Add a focused component case proving that a controlled imported Wide or Full value remains visible and preserved while the editor can select one of the four supported values to change away from it.
+- Omit Wide and Full from the dropdown and fixed-panel alignment buttons. Keep the imported value visible in the dropdown's selected-value display and preserve it on text-only edits. Test that an editor can select one of the four supported values to change away from it.
 - Keep the public alignment class hooks so a site theme that already defines Wide or Full behavior continues to work.
 - Defer a new container-aware Wide and Full authoring contract to a separate feature proposal.
 
@@ -386,23 +387,23 @@ Exclusions: no generalized Portable Text layout system unless a separate specifi
 - The approved Wide and Full policy is implemented and tested without data loss or host-layout overflow.
 - Local, direct-URL, and configured-provider images retain their source and provider identity.
 - English, Arabic, 200% zoom, light and dark appearance, reduced motion, keyboard, and touch checks pass.
-- The complete work remains one pull request with the existing four commits and two reviewed follow-up commits.
+- The complete work remains one pull request with the existing four commits, two reviewed follow-up commits, and the final options-menu cleanup.
 
 ## Approved product decision
 
-Option A disables Wide and Full for new selections and preserves imported values and theme hooks. Imported Wide and Full values retain their existing default rendering. A container-aware breakout layout contract is outside this pull request.
+Option A omits Wide and Full from the alignment choices and preserves imported values and theme hooks. Imported Wide and Full values retain their existing default rendering. A container-aware breakout layout contract is outside this pull request.
 
 ## Implementation authorization
 
-The user has authorized the six local commits in this worktree and approved the rebase onto `main`. This implementation does not include pushing, opening or modifying a pull request, or merging.
+The user has authorized the local implementation, the final options-menu cleanup, and publication as one pull request to `main`. The wrapping redesign is deferred. Merging is not authorized.
 
 ## Implementation verification
 
 The final implementation was checked on September 7, 2026, in `/private/tmp/emdash-editor-edit-image-panel`, with the simple demo served on port 4321.
 
-- All 117 focused admin tests pass across the panel, Portable Text editor, image rendering, and image selection suites.
+- All 118 focused admin tests pass across the panel, Portable Text editor, image rendering, and image selection suites.
 - All 64 core converter tests pass, including valid alignment round-trips, malformed-image recovery, and invalid runtime values.
-- The Playwright image-panel scenario passes against the running demo. It checks containment at 200px, image proportions, disabled options, keyboard-visible replacement, Remove image hover styling, Apply, Cancel, and saved/reloaded alignment without display overrides. Its scratch draft is moved to Trash.
+- The Playwright image-panel scenario passes against the running demo. It checks containment at 200px, image proportions, the four supported alignment choices, keyboard-visible replacement, Remove image hover styling, Apply, Cancel, and saved/reloaded alignment without display overrides. Its scratch draft is moved to Trash.
 - The corrected float-containment test targets the editable root, not TipTap's non-editable node wrapper. Removing `flow-root` reproduces the failure; restoring it makes the same test pass.
 - Full workspace typecheck, type-aware lint with zero diagnostics, admin/core/simple-demo builds, targeted formatting, changeset validation, and diff whitespace checks pass.
 - Visual inspection covers English and Arabic, light and dark appearance, and the narrow Arabic panel. Arabic at 320px and 480px remains contained with reduced motion enabled. Focused browser tests cover keyboard help, save/cancel shortcuts, and nested-overlay ownership.

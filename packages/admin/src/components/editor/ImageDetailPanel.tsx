@@ -230,6 +230,9 @@ export function ImageDetailPanel({
 		{ value: "wide", label: t`Wide` },
 		{ value: "full", label: t`Full` },
 	];
+	const selectableAlignmentOptions = alignmentOptions.filter(
+		(option) => option.value !== "wide" && option.value !== "full",
+	);
 
 	const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
 	const canEditAsset = Boolean(
@@ -439,12 +442,8 @@ export function ImageDetailPanel({
 							}
 							className="w-full"
 						>
-							{alignmentOptions.map((option) => (
-								<Select.Option
-									key={option.value ?? "none"}
-									value={option.value ?? "none"}
-									disabled={option.value === "wide" || option.value === "full"}
-								>
+							{selectableAlignmentOptions.map((option) => (
+								<Select.Option key={option.value ?? "none"} value={option.value ?? "none"}>
 									{option.label}
 								</Select.Option>
 							))}
@@ -657,14 +656,13 @@ export function ImageDetailPanel({
 					<div className="p-4 border-b space-y-3">
 						<Label>{t`Alignment`}</Label>
 						<div className="flex flex-wrap gap-1">
-							{alignmentOptions.map((opt) => (
+							{selectableAlignmentOptions.map((opt) => (
 								<Button
 									key={opt.value ?? "none"}
 									type="button"
 									size="sm"
 									variant={alignment === opt.value ? "primary" : "secondary"}
 									onClick={() => setAlignment(opt.value)}
-									disabled={opt.value === "wide" || opt.value === "full"}
 								>
 									{opt.label}
 								</Button>

@@ -130,7 +130,7 @@ const baseAttributes: ImageAttributes = {
 	height: 800,
 };
 
-async function renderPanel(attributes: ImagePanelAttributes = baseAttributes) {
+async function renderPanel(attributes: ImagePanelAttributes = baseAttributes, inline = true) {
 	const onUpdate = vi.fn();
 	const onReplace = vi.fn();
 	const onDelete = vi.fn();
@@ -142,7 +142,7 @@ async function renderPanel(attributes: ImagePanelAttributes = baseAttributes) {
 			onReplace={onReplace}
 			onDelete={onDelete}
 			onClose={onClose}
-			inline
+			inline={inline}
 		/>,
 	);
 
@@ -196,7 +196,7 @@ describe("ImageDetailPanel", () => {
 	});
 
 	it.each(["wide", "full"] as const)(
-		"preserves imported %s while disabling unsupported authoring choices",
+		"preserves imported %s without showing unsupported authoring choices",
 		async (alignment) => {
 			const { screen, onUpdate } = await renderPanel({ ...baseAttributes, alignment });
 			const select = screen.getByRole("combobox", { name: "Alignment" });
@@ -205,20 +205,22 @@ describe("ImageDetailPanel", () => {
 			await screen.getByRole("button", { name: "Apply" }).click();
 			expect(onUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ alignment }));
 			await select.click();
-			await expect
-				.element(screen.getByRole("option", { name: "Wide" }))
-				.toHaveAttribute("aria-disabled", "true");
-			await expect
-				.element(screen.getByRole("option", { name: "Full" }))
-				.toHaveAttribute("aria-disabled", "true");
+			await expect.element(screen.getByRole("option", { name: "None" })).toBeVisible();
+			expect(screen.getByRole("option", { name: "Wide" }).query()).toBeNull();
+			expect(screen.getByRole("option", { name: "Full" }).query()).toBeNull();
 			await userEvent.keyboard("{End}{Enter}");
-			await expect.element(select).toHaveTextContent(alignment === "wide" ? "Wide" : "Full");
-			await screen.getByRole("option", { name: "Right" }).click();
 			await expect.element(select).toHaveTextContent("Right");
 			await screen.getByRole("button", { name: "Apply" }).click();
 			expect(onUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ alignment: "right" }));
 		},
 	);
+
+	it("omits unsupported alignment buttons from the fixed panel", async () => {
+		const { screen } = await renderPanel({ ...baseAttributes, mediaId: "image-1" }, false);
+		await expect.element(screen.getByRole("button", { name: "Right", exact: true })).toBeVisible();
+		expect(screen.getByRole("button", { name: "Wide", exact: true }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Full", exact: true }).query()).toBeNull();
+	});
 
 	it.each([undefined, null])(
 		"preserves %s display overrides on alignment-only Apply",
