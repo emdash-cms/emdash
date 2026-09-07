@@ -1,0 +1,19 @@
+packages/admin/tests/publish-autosave-race.test.tsx
+  s_0135e5d9216639::t_360c81f1d4a009 552,563-566,571,573
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ebb079cc1d78e1c6ee18af3d4abfa3444447759d",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
