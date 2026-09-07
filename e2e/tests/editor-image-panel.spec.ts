@@ -58,7 +58,7 @@ test.describe("Editor image panel", () => {
 		const restingBackground = await removeImage.evaluate(
 			(element) => getComputedStyle(element).backgroundColor,
 		);
-		expect(restingBackground).toBe(
+		expect(restingBackground).not.toBe(
 			await removeImage.evaluate(
 				(element) => getComputedStyle(element.parentElement!).backgroundColor,
 			),
