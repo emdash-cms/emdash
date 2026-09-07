@@ -54,6 +54,20 @@ test.describe("Editor image panel", () => {
 		);
 
 		await page.setViewportSize({ width: 368, height: 800 });
+		const removeImage = settings.getByRole("button", { name: "Remove image" });
+		const restingBackground = await removeImage.evaluate(
+			(element) => getComputedStyle(element).backgroundColor,
+		);
+		expect(restingBackground).toBe(
+			await removeImage.evaluate(
+				(element) => getComputedStyle(element.parentElement!).backgroundColor,
+			),
+		);
+		await removeImage.hover();
+		await expect
+			.poll(() => removeImage.evaluate((element) => getComputedStyle(element).backgroundColor))
+			.not.toBe(restingBackground);
+
 		const replaceImage = settings.getByRole("button", { name: "Replace image" });
 		await replaceImage.focus();
 		await expect(replaceImage).toBeFocused();

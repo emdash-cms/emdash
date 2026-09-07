@@ -523,7 +523,7 @@ export function ImageDetailPanel({
 				<div className="p-4">
 					<Button
 						variant="ghost"
-						className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
+						className="w-full text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
 						onClick={handleDelete}
 						disabled={assetEditor.isActive}
 					>
