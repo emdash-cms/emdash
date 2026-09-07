@@ -2,7 +2,10 @@ import { getSchema } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { describe, expect, it } from "vitest";
 
-import { portableTextIdentityExtensions } from "../../../src/content/converters/portable-text-identity.js";
+import {
+	attrsWithPortableTextKey,
+	portableTextIdentityExtensions,
+} from "../../../src/content/converters/portable-text-identity.js";
 import { portableTextToProsemirror } from "../../../src/content/converters/portable-text-to-prosemirror.js";
 import { prosemirrorToPortableText } from "../../../src/content/converters/prosemirror-to-portable-text.js";
 import type { PortableTextBlock } from "../../../src/content/converters/types.js";
@@ -136,6 +139,26 @@ describe("Portable Text converter identity preservation", () => {
 		const roundTripped = prosemirrorToPortableText(portableTextToIdentityDocument(blocks));
 
 		expect(roundTripped).toEqual(blocks);
+	});
+
+	it("reads a block key from a blockquote wrapper", () => {
+		const blocks = prosemirrorToPortableText({
+			type: "doc",
+			content: [
+				{
+					type: "blockquote",
+					attrs: attrsWithPortableTextKey(undefined, "quote-1"),
+					content: [
+						{
+							type: "paragraph",
+							content: [{ type: "text", text: "Quoted text" }],
+						},
+					],
+				},
+			],
+		});
+
+		expect(blocks[0]).toMatchObject({ _type: "block", _key: "quote-1", style: "blockquote" });
 	});
 
 	it("assigns a new key when ProseMirror splits a keyed block", () => {

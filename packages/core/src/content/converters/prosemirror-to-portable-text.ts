@@ -297,7 +297,10 @@ function convertBlockquote(
 			if (children.length > 0) {
 				blocks.push({
 					_type: "block",
-					_key: portableTextKeyFromAttrs(child.attrs) ?? generateKey(),
+					_key:
+						portableTextKeyFromAttrs(child.attrs) ??
+						portableTextKeyFromAttrs(node.attrs) ??
+						generateKey(),
 					style: "blockquote",
 					children,
 					markDefs: markDefs.length > 0 ? markDefs : undefined,
