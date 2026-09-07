@@ -1455,11 +1455,9 @@ function convertPTListItem(
 		// item's nested subtree. A new sub-list only starts when we hit
 		// another block at that root level with a different `listItem` type;
 		// deeper blocks (level > minLevel) belong to the current group as
-		// descendants regardless of their own `listItem`. The previous
-		// grouping broke on any type change at any depth, so a deep mixed
-		// tree like `bullet L1 → number L2 → bullet L3 → number L2` would
-		// emit C(L3) as a sibling list under A(L1) instead of nesting it
-		// under B(L2), then degrade C to L2 on round-trip.
+		// descendants regardless of their own `listItem`. A deep mixed tree
+		// like `bullet L1 → number L2 → bullet L3 → number L2` stays nested
+		// under B(L2) and preserves its original level on round-trip.
 		let minLevel = Infinity;
 		for (const ni of nestedItems) {
 			const level = ni.level || 2;
