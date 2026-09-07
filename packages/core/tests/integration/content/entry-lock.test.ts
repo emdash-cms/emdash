@@ -16,6 +16,7 @@ import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { EntryLockRepository } from "../../../src/database/repositories/entry-locks.js";
 import type { Database } from "../../../src/database/types.js";
+import { createContentAccessWithWrite } from "../../../src/plugins/context.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 
 const ADA = "user-ada";
@@ -234,6 +235,19 @@ describe("entry edit lock", () => {
 		await handleEntryLockAcquire(db, "post", entryId, ADA);
 
 		expect(await handleContentDelete(db, "post", entryId)).toMatchObject({ success: true });
+		expect(
+			await db
+				.selectFrom("_emdash_entry_locks")
+				.selectAll()
+				.where("entry_id", "=", entryId)
+				.execute(),
+		).toEqual([]);
+	});
+
+	it("drops the lock when a plugin trashes the entry", async () => {
+		await handleEntryLockAcquire(db, "post", entryId, ADA);
+
+		expect(await createContentAccessWithWrite(db).delete("post", entryId)).toBe(true);
 		expect(
 			await db
 				.selectFrom("_emdash_entry_locks")

@@ -9,6 +9,7 @@ import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import { ContentRepository } from "../database/repositories/content.js";
+import { EntryLockRepository } from "../database/repositories/entry-locks.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
@@ -500,6 +501,9 @@ export function createContentAccessWithWrite(
 			const contentRepo = new ContentRepository(db);
 			const deleted = await contentRepo.delete(collection, id);
 			if (deleted) {
+				// A trashed entry can no longer be opened, so its holder can never
+				// release the lease itself. Mirrors handleContentDelete.
+				await new EntryLockRepository(db).releaseEntry(collection, id);
 				await markContentMediaUsageCollectionStaleSafely(db, collection, "CONTENT_USAGE_STALE");
 			}
 			return deleted;
