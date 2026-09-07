@@ -1,0 +1,19 @@
+e2e/tests/editor-image-panel.spec.ts
+  s_119ad910f3005b::t_76a3a7042611bc 124
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2638c7ed2155a64c0d1317c4a99e02d0be54544e",
+  "prompts": {},
+  "sessions": {
+    "s_119ad910f3005b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07be4-9f21-7973-a50b-1199346e12b1",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
