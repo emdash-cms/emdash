@@ -1,0 +1,61 @@
+demos/simple/astro.config.mjs
+  s_0135e5d9216639::t_735f09ba4824eb 1-2,11-12,15-16,27,29
+demos/simple/emdash-env.d.ts
+  s_0135e5d9216639::t_27a7fd7b87edfb 26
+demos/simple/presentation/demo.mjs
+  s_0135e5d9216639::t_c473d44d276d2d 1-223
+demos/simple/presentation/fixture.mjs
+  s_0135e5d9216639::t_df53e280af0f4b 1-370
+demos/simple/presentation/fixture.test.ts
+  s_0135e5d9216639::t_f8f2f41982d506 1-73
+demos/simple/presentation/schema.json
+  s_0135e5d9216639::t_ce1382860a952b 1-90
+demos/simple/presentation/state.mjs
+  s_c59ba05919fac1::t_8f01484ba0aff9 1-162
+demos/simple/presentation/state.test.ts
+  s_0135e5d9216639::t_b0307793f46c4f 1-120
+demos/simple/src/layouts/Base.astro
+  s_0135e5d9216639::t_c6a2217319d59a 43-45,109-118,159-168,218-220,311,1022
+demos/simple/.gitignore
+  s_20baffdc2d088d::t_328f364e1e3d6b 6
+demos/simple/package.json
+  s_20baffdc2d088d::t_e3df9b30d14772 7,14-19,36-43
+demos/simple/presentation/assets.json
+  s_20baffdc2d088d::t_a59950abde2c1e 1-168
+demos/simple/presentation/stories.mjs
+  s_20baffdc2d088d::t_f426755911cc68 1-220
+demos/simple/src/styles/theme.css
+  s_20baffdc2d088d::t_f5d5199ea34c29 18-20,112-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2bbe3c5fc43287f6039726bde9bb786da474ba20",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c59ba05919fac1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07e20-f8ae-7692-9f43-a0b7841a0461",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
