@@ -1284,10 +1284,11 @@ export async function handleContentDelete(
 		const result = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return {
-				id: resolvedId,
-				deleted: await repo.delete(collection, resolvedId),
-			};
+			const deleted = await repo.delete(collection, resolvedId);
+			if (deleted) {
+				await new EntryLockRepository(trx).releaseEntry(collection, resolvedId);
+			}
+			return { id: resolvedId, deleted };
 		});
 
 		if (!result.deleted) {

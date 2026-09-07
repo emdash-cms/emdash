@@ -1,7 +1,10 @@
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
-import { handleContentPermanentDelete } from "../../../src/api/handlers/content.js";
+import {
+	handleContentDelete,
+	handleContentPermanentDelete,
+} from "../../../src/api/handlers/content.js";
 import {
 	claimEntryLockForWrite,
 	handleEntryLockAcquire,
@@ -225,6 +228,19 @@ describe("entry edit lock", () => {
 
 			expect(await claimEntryLockForWrite(db, "post", entryId, LINUS)).toBeNull();
 		});
+	});
+
+	it("drops the lock when the entry is moved to the trash", async () => {
+		await handleEntryLockAcquire(db, "post", entryId, ADA);
+
+		expect(await handleContentDelete(db, "post", entryId)).toMatchObject({ success: true });
+		expect(
+			await db
+				.selectFrom("_emdash_entry_locks")
+				.selectAll()
+				.where("entry_id", "=", entryId)
+				.execute(),
+		).toEqual([]);
 	});
 
 	it("drops the lock when the entry is permanently deleted", async () => {
