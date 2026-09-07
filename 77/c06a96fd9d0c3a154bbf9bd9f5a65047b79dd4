@@ -1,0 +1,29 @@
+e2e/tests/editor-image-panel.spec.ts
+  s_669e4e36f3cd5c::t_4cb2488cc54d51 57-70
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_6a4faa61744b31::t_1c6e17ae527bae 526
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "77c06a96fd9d0c3a154bbf9bd9f5a65047b79dd4",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a4faa61744b31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07886-e73b-7de1-a8d8-ce170d5daee1",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
