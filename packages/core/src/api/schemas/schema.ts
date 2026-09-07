@@ -270,8 +270,8 @@ export const collectionSchema = z
 		sortOrder: z.number().int().nullable(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
-		titleField: z.string().nullable(),
-		dateField: z.string().nullable(),
+		titleField: z.string().nullish(),
+		dateField: z.string().nullish(),
 	})
 	.meta({ id: "Collection" });
 

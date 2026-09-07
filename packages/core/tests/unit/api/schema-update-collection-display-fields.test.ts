@@ -75,4 +75,26 @@ describe("collectionSchema display fields", () => {
 		expect(result.titleField).toBeNull();
 		expect(result.dateField).toBeNull();
 	});
+
+	it("allows legacy response objects that omit titleField and dateField", () => {
+		const result = collectionSchema.parse({
+			id: "col_1",
+			slug: "import_runs",
+			label: "Import runs",
+			labelSingular: null,
+			description: null,
+			icon: null,
+			supports: ["drafts"],
+			source: null,
+			urlPattern: null,
+			routable: true,
+			hasSeo: false,
+			hidden: false,
+			sortOrder: null,
+			createdAt: "2026-08-20T00:00:00Z",
+			updatedAt: "2026-08-20T00:00:00Z",
+		});
+		expect(result.titleField).toBeUndefined();
+		expect(result.dateField).toBeUndefined();
+	});
 });
