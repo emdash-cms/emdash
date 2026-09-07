@@ -118,6 +118,7 @@ test.describe("i18n", () => {
 			});
 
 			await page.goto(`/fr/posts/${slug}/`);
+			await expect(page.locator("#title")).toHaveText("Canonical translation");
 
 			await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
 				"href",
