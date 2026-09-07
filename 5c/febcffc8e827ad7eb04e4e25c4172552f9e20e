@@ -1,0 +1,33 @@
+.changeset/archives-published-at-dates.md
+  s_669e4e36f3cd5c::t_c35614467ae161 1-5
+.github/codeql-config.yml
+  s_669e4e36f3cd5c::t_f3090e2a43f346 1-4
+.github/workflows/codeql.yml
+  s_669e4e36f3cd5c::t_435a79a352fc34 90
+infra/emdash-bot/.flue/lib/github-proxy.ts
+  s_669e4e36f3cd5c::t_213670539f22a0 324-333,338
+infra/emdash-bot/tests/unit/github-proxy.test.ts
+  s_669e4e36f3cd5c::t_3633e373b8c4bf 195-223
+packages/core/src/components/widgets/Archives.astro
+  s_669e4e36f3cd5c::t_b07e068955ae5d 3,16
+packages/core/src/widgets/archives.ts
+  s_669e4e36f3cd5c::t_b2ecec4211cf68 1-67
+packages/core/tests/unit/widgets/archives.test.ts
+  s_669e4e36f3cd5c::t_83709b6f0c0104 1-83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5cfebcffc8e827ad7eb04e4e25c4172552f9e20e",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
