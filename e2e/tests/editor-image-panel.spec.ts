@@ -121,7 +121,7 @@ test.describe("Editor image panel", () => {
 		await admin.clickSave();
 		const response = await savedResponse;
 		expect(response.ok(), await response.text()).toBe(true);
-		const content = response.request().postDataJSON().data.content as Record<string, unknown>[];
+		const content = response.request().postDataJSON().data.body as Record<string, unknown>[];
 		const savedImage = content.find((block) => block._type === "image")!;
 		expect(savedImage).toMatchObject({ alignment: "left", width: 1200, height: 800 });
 		expect(savedImage.displayWidth).toBeUndefined();
