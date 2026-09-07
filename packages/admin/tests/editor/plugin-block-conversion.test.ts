@@ -289,12 +289,12 @@ describe("Plugin block round-trip", () => {
 			pmPluginBlock("youtube", "vid-1", { _type: "evil", _key: "evil", caption: "test" }),
 		);
 
-		// PM → PT: fix 5 ensures _type/_key are set after data spread
+		// _type and _key are reassigned after data fields are spread, so data cannot overwrite identity.
 		const pt = prosemirrorToPortableText(doc);
 		expect(pt[0]!._type).toBe("youtube");
 		expect(pt[0]!._key).not.toBe("evil");
 
-		// PT → PM → PT: fix 6 strips _-prefixed keys, so they don't persist
+		// _-prefixed data keys are stripped on the next round-trip, so they cannot restore forged identity.
 		const pm2 = portableTextToProsemirror(pt);
 		const rt = prosemirrorToPortableText(pm2);
 		expect(rt[0]!._type).toBe("youtube");
