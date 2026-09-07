@@ -1,0 +1,43 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_669e4e36f3cd5c::t_bd74131bab980b 121,145,152-153,155,1493-1494,2566-2570,2792-2793,2795,2800-2804,3338-3346,3349-3366,3839-3856,3858-3870,3875-3892,3925-3934,3937-3991,4022-4023,4025,4027,4039-4042,4211,4219,4245,4253,4258-4262,4265-4269,4279-4281,4287-4289,4295-4297,4437,4455-4456
+packages/admin/src/components/editor/HeadingDropdownMenu.tsx
+  s_669e4e36f3cd5c::t_2c71578d316c9e 21,60
+packages/admin/src/components/editor/TableCellSafety.ts
+  s_669e4e36f3cd5c::t_d33f89d42586c8 1-369
+packages/admin/src/components/editor/TableExtensions.ts
+  s_669e4e36f3cd5c::t_d96fe738405d36 6-8,66-94,127,132-172,181,199-205,213-222,224,226,228-237,240-242
+packages/admin/src/components/editor/TableResize.ts
+  s_669e4e36f3cd5c::t_7688bda54af551 1-396
+packages/admin/src/portable-text-table.ts
+  s_669e4e36f3cd5c::t_f7619330d4404c 5-6,425-427
+packages/admin/src/styles.css
+  s_669e4e36f3cd5c::t_f5dcfd43cd08e0 351,421-431,434-435,443-453,463-467,472-485,493-521
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_669e4e36f3cd5c::t_e5dde46d90cc66 477-605
+packages/admin/tests/editor/table-cell-safety.test.tsx
+  s_669e4e36f3cd5c::t_3294a831281930 1-925
+packages/admin/tests/editor/table-resize.test.tsx
+  s_669e4e36f3cd5c::t_485a968378699c 1-609
+packages/admin/tests/editor/toolbar.test.tsx
+  s_669e4e36f3cd5c::t_3a69416f823452 2,235-246,958,965,975-1156
+packages/admin/tests/lib/portable-text-table.test.ts
+  s_669e4e36f3cd5c::t_ed2837d836ebdb 216-234
+packages/core/tests/repro/portable-text-table.render.test.ts
+  s_669e4e36f3cd5c::t_2ed1a5089e9b3f 96-120
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9fe695b2c0cf5082251a7304bd586add397943e8",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
