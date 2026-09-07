@@ -1,0 +1,23 @@
+e2e/tests/portable-text-table.spec.ts
+  s_669e4e36f3cd5c::t_2288b0408f6f12 237-282
+packages/admin/src/components/PortableTextEditor.tsx
+  s_669e4e36f3cd5c::t_142d1a82613080 3868-3874
+packages/admin/tests/editor/bubble-menu.test.tsx
+  s_669e4e36f3cd5c::t_cf57b93dc2b0f9 501-523
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "be3c20e69bbb71dd7615b3a39e719828f5d10e4e",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
