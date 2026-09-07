@@ -1,0 +1,31 @@
+packages/admin/tests/components/ImageDetailPanel.test.tsx
+  s_4eed2e91a3ce2d::t_af401bdb123d85 211
+packages/admin/tests/components/MediaDetailPanel.test.tsx
+  s_a71d11afe67ebc::t_e9d8bc2b01bdf3 481-486
+packages/admin/tests/components/MediaDetailPanelNavigation.test.tsx
+  s_4eed2e91a3ce2d::t_21df8e333deecd 151,155
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "908f83b2cbb923381fcd06c6c8ee2b8088ee0bbf",
+  "prompts": {},
+  "sessions": {
+    "s_4eed2e91a3ce2d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07db1-0d8b-7d41-aa51-dab65dc0760e",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_a71d11afe67ebc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07dac-c5ec-7543-b7fd-03093b3ad4c8",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
