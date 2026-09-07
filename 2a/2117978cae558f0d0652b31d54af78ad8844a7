@@ -1,0 +1,35 @@
+e2e/tests/editor-image-panel.spec.ts
+  s_669e4e36f3cd5c::t_d8c0674792bd06 71
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_669e4e36f3cd5c::t_2cbba119ba47b2 118,122-124,126,129,142-144,154,159-160,165,170-171,176-178,201-202,211,382,400,425,614,638
+packages/admin/src/components/editor/ImageNode.tsx
+  s_669e4e36f3cd5c::t_bbed0f34cb1e66 189-203,209-216,223-225,227-228
+packages/admin/tests/components/ImageDetailPanel.test.tsx
+  s_669e4e36f3cd5c::t_5e1b0477c46996 182,198-273,586-622,624-653,748-749
+packages/admin/tests/editor/image-alignment.test.tsx
+  s_6a4faa61744b31::t_d7fe6aea53a6d9 1-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2a2117978cae558f0d0652b31d54af78ad8844a7",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_6a4faa61744b31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07886-e73b-7de1-a8d8-ce170d5daee1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
