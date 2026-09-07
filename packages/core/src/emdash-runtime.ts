@@ -13,8 +13,8 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
-import { buildManifestCollections } from "./api/handlers/manifest.js";
 import { ErrorCode } from "./api/errors.js";
+import { buildManifestCollections } from "./api/handlers/manifest.js";
 import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
