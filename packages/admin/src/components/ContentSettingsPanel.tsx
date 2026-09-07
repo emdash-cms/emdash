@@ -1,9 +1,12 @@
 import {
 	Badge,
 	Button,
+	Collapsible,
 	Dialog,
+	DropdownMenu,
 	Input,
 	Label,
+	LayerCard,
 	LinkButton,
 	Loader,
 	Select,
@@ -11,7 +14,20 @@ import {
 	Tooltip,
 } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { ArrowSquareOut, Eye, EyeSlash, Info, Trash, Upload, X } from "@phosphor-icons/react";
+import {
+	ArrowSquareOut,
+	CalendarDots,
+	CalendarPlus,
+	CalendarX,
+	CaretDown,
+	Eye,
+	EyeSlash,
+	Info,
+	Trash,
+	Upload,
+	X,
+	type Icon,
+} from "@phosphor-icons/react";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
@@ -29,18 +45,26 @@ import {
 	ContentEditorPanelBoundary,
 	resolveContentEditorPanels,
 } from "../lib/content-editor-panels";
-import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
+import {
+	getContentPublishingState,
+	type ContentPublishingState,
+} from "../lib/content-publishing-state.js";
 import { usePluginAdmins } from "../lib/plugin-context";
-import { cn, parseTimestamp } from "../lib/utils";
+import {
+	formatPublishingInstant,
+	formatPublishingInstantWithZone,
+} from "../lib/publishing-datetime.js";
+import { cn } from "../lib/utils";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
-import { ContentStatusBadge, isContentStatusState } from "./ContentStatusBadge.js";
+import { ContentStatusIcon } from "./ContentStatusBadge.js";
 import { DocumentOutline } from "./editor/DocumentOutline";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
+import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
 import { SaveButton } from "./SaveButton";
 import { SeoPanel } from "./SeoPanel";
@@ -54,11 +78,203 @@ import { TranslationsPanel } from "./TranslationsPanel.js";
 // Editor role level (40) from @emdash-cms/auth
 const ROLE_EDITOR = 40;
 
-/** Format scheduled date for display */
-function formatScheduledDate(dateStr: string | null) {
-	if (!dateStr) return null;
-	const date = parseTimestamp(dateStr);
-	return date.toLocaleString();
+function PublishingVersionRow({
+	iconState,
+	title,
+	description,
+	action,
+	connectToNext,
+}: {
+	iconState: "published" | "draft" | "scheduled" | "pendingChanges";
+	title: string;
+	description: React.ReactNode;
+	action?: React.ReactNode;
+	connectToNext?: boolean;
+}) {
+	return (
+		<div className="flex items-start gap-3">
+			<span className="relative flex w-3.5 shrink-0 self-stretch justify-center">
+				{connectToNext ? (
+					<span className="absolute top-6 -bottom-3 w-px bg-kumo-line" aria-hidden="true" />
+				) : null}
+				<span className="relative z-10 flex h-5 items-center bg-kumo-base">
+					<ContentStatusIcon state={iconState} decorative />
+				</span>
+			</span>
+			<div className="min-w-0 flex-1">
+				<Text as="p" bold>
+					{title}
+				</Text>
+				<Text as="p" variant="secondary" DANGEROUS_className="mt-0.5 text-pretty">
+					{description}
+				</Text>
+				{action ? <div className="-ms-2 mt-1">{action}</div> : null}
+			</div>
+		</div>
+	);
+}
+
+function PublishingVersionRelationship({
+	publishingState,
+	supportsDrafts,
+	scheduledAt,
+	locale,
+	onDiscardDraft,
+}: {
+	publishingState: ContentPublishingState;
+	supportsDrafts: boolean;
+	scheduledAt?: string | null;
+	locale: string;
+	onDiscardDraft?: () => void;
+}) {
+	const { t } = useLingui();
+	const formattedSchedule = scheduledAt
+		? formatPublishingInstantWithZone(scheduledAt, locale)
+		: null;
+	const scheduledSummary =
+		scheduledAt && formattedSchedule ? (
+			<time dateTime={scheduledAt}>{t`Scheduled for ${formattedSchedule}`}</time>
+		) : null;
+
+	if (!supportsDrafts) {
+		return scheduledSummary ? (
+			<div className="grid gap-4 px-3 py-3">
+				<PublishingVersionRow
+					iconState="scheduled"
+					title={t`Scheduled publication`}
+					description={scheduledSummary}
+				/>
+			</div>
+		) : null;
+	}
+
+	let rows: React.ReactNode;
+	switch (publishingState) {
+		case "draft":
+			rows = (
+				<PublishingVersionRow
+					iconState="draft"
+					title={t`Draft version`}
+					description={t`This version is not visible on the site`}
+				/>
+			);
+			break;
+		case "scheduled":
+			rows = (
+				<PublishingVersionRow
+					iconState="scheduled"
+					title={t`First publication`}
+					description={scheduledSummary ?? t`A publication time has not been selected`}
+				/>
+			);
+			break;
+		case "published":
+			rows = (
+				<PublishingVersionRow
+					iconState="published"
+					title={t`Live version`}
+					description={t`Visitors see this published version`}
+				/>
+			);
+			break;
+		case "published-with-changes":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						description={t`Visitors still see the published version`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="pendingChanges"
+						title={t`Draft changes`}
+						description={t`Ready to publish now or schedule for later`}
+						action={
+							onDiscardDraft ? (
+								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
+							) : undefined
+						}
+					/>
+				</>
+			);
+			break;
+		case "update-scheduled":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						description={t`Visitors see the published version until the scheduled update`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="scheduled"
+						title={t`Draft changes`}
+						description={scheduledSummary ?? t`A publication time has not been selected`}
+						action={
+							onDiscardDraft ? (
+								<DiscardDraftDialog onDiscard={onDiscardDraft} triggerSize="sm" />
+							) : undefined
+						}
+					/>
+				</>
+			);
+			break;
+		case "published-scheduled":
+			rows = (
+				<>
+					<PublishingVersionRow
+						iconState="published"
+						title={t`Live version`}
+						description={t`Visitors see this published version`}
+						connectToNext
+					/>
+					<PublishingVersionRow
+						iconState="scheduled"
+						title={t`Scheduled publication`}
+						description={scheduledSummary ?? t`A publication time has not been selected`}
+					/>
+				</>
+			);
+	}
+
+	return <div className="grid gap-4 px-3 py-3">{rows}</div>;
+}
+
+function TimestampValue({
+	value,
+	locale,
+	size = "base",
+}: {
+	value: string;
+	locale: string;
+	size?: "sm" | "base";
+}) {
+	return (
+		<time dateTime={value}>
+			<Text as="span" size={size}>
+				{formatPublishingInstant(value, locale)}
+			</Text>
+		</time>
+	);
+}
+
+function TimestampRow({
+	label,
+	children,
+	size = "base",
+}: React.PropsWithChildren<{ label: string; size?: "sm" | "base" }>) {
+	return (
+		<div className="flex items-center justify-between gap-2 whitespace-nowrap">
+			<dt className="min-w-0 flex-1">
+				<Text as="span" variant="secondary" size={size} truncate>
+					{label}
+				</Text>
+			</dt>
+			<dd className="shrink-0 text-end">{children}</dd>
+		</div>
+	);
 }
 
 /**
@@ -121,12 +337,19 @@ export interface SettingsActionBarProps {
 	saveDisabled?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
+	publishingState?: ContentPublishingState;
+	canSchedule?: boolean;
+	isScheduling?: boolean;
+	isUnscheduling?: boolean;
 	liveViewUrl?: string | null;
 	supportsPreview?: boolean;
 	isLoadingPreview?: boolean;
 	onPreview?: () => void;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
+	onOpenSchedule?: () => void;
+	onUnschedule?: () => void | Promise<void>;
+	onMenuOpenChange?: (open: boolean) => void;
 	announceSaveStatus?: boolean;
 }
 
@@ -171,9 +394,24 @@ export interface PublishActionsProps {
 	isNew?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
+	publishingState?: ContentPublishingState;
+	canSchedule?: boolean;
+	isScheduling?: boolean;
+	isUnscheduling?: boolean;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
+	onOpenSchedule?: () => void;
+	onUnschedule?: () => void | Promise<void>;
+	onMenuOpenChange?: (open: boolean) => void;
 	size?: "sm";
+	fullWidth?: boolean;
+}
+
+interface PublishingAction {
+	kind: "publish" | "schedule" | "unschedule";
+	label: string;
+	Icon: Icon;
+	onSelect: () => void;
 }
 
 export function PublishActions({
@@ -181,32 +419,185 @@ export function PublishActions({
 	isNew,
 	isLive,
 	hasPendingChanges,
+	publishingState,
+	canSchedule,
+	isScheduling,
+	isUnscheduling,
 	onPublish,
 	onUnpublish,
+	onOpenSchedule,
+	onUnschedule,
+	onMenuOpenChange,
 	size,
+	fullWidth,
 }: PublishActionsProps) {
 	const { t } = useLingui();
 	const itemLabel = collectionLabel ?? t`content`;
+	const [open, setOpen] = React.useState(false);
+	const openRef = React.useRef(open);
+	openRef.current = open;
+	React.useEffect(
+		() => () => {
+			if (openRef.current) onMenuOpenChange?.(false);
+		},
+		[onMenuOpenChange],
+	);
+	const state =
+		publishingState ??
+		(isLive ? (hasPendingChanges ? "published-with-changes" : "published") : "draft");
+	const hasDraftChanges = state === "published-with-changes" || state === "update-scheduled";
+	const closeMenu = () => {
+		setOpen(false);
+		onMenuOpenChange?.(false);
+	};
+	const openSchedule = () => {
+		closeMenu();
+		onOpenSchedule?.();
+	};
+	const removeSchedule = () => {
+		closeMenu();
+		void Promise.resolve(onUnschedule?.()).catch(() => undefined);
+	};
+	const publish = () => {
+		closeMenu();
+		onPublish?.();
+	};
 
 	if (isNew) return null;
-	if (!isLive) {
+	if (state === "published") {
+		return onUnpublish ? (
+			<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
+				{t`Unpublish ${itemLabel}`}
+			</Button>
+		) : null;
+	}
+
+	const actions: PublishingAction[] = [];
+	if (onPublish) {
+		actions.push({
+			kind: "publish",
+			label: hasDraftChanges ? t`Publish changes now` : t`Publish now`,
+			Icon: Upload,
+			onSelect: publish,
+		});
+	}
+	if (state === "draft" && canSchedule && onOpenSchedule) {
+		actions.push({
+			kind: "schedule",
+			label: t`Schedule publication`,
+			Icon: CalendarPlus,
+			onSelect: openSchedule,
+		});
+	}
+	if (state === "published-with-changes" && canSchedule && onOpenSchedule) {
+		actions.push({
+			kind: "schedule",
+			label: t`Schedule changes`,
+			Icon: CalendarPlus,
+			onSelect: openSchedule,
+		});
+	}
+	if (
+		(state === "scheduled" || state === "update-scheduled" || state === "published-scheduled") &&
+		onOpenSchedule
+	) {
+		actions.push({
+			kind: "schedule",
+			label: t`Change schedule`,
+			Icon: CalendarDots,
+			onSelect: openSchedule,
+		});
+	}
+	if (
+		(state === "scheduled" || state === "update-scheduled" || state === "published-scheduled") &&
+		onUnschedule
+	) {
+		actions.push({
+			kind: "unschedule",
+			label: t`Remove schedule`,
+			Icon: CalendarX,
+			onSelect: removeSchedule,
+		});
+	}
+
+	if (actions.length === 0) return null;
+	if (actions.length === 1) {
+		const action = actions[0]!;
+		const label = state === "draft" && action.kind === "publish" ? t`Publish` : action.label;
 		return (
-			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish`}
+			<Button
+				type="button"
+				variant="primary"
+				size={size}
+				onClick={action.onSelect}
+				icon={<action.Icon aria-hidden="true" />}
+				loading={isScheduling || isUnscheduling}
+			>
+				{label}
 			</Button>
 		);
 	}
-	if (hasPendingChanges) {
-		return (
-			<Button type="button" variant="primary" size={size} onClick={onPublish} icon={<Upload />}>
-				{t`Publish`}
-			</Button>
-		);
-	}
+
+	const triggerLabel =
+		state === "published-with-changes"
+			? t`Publish changes`
+			: state === "scheduled"
+				? t`Scheduled`
+				: state === "update-scheduled"
+					? t`Scheduled update`
+					: state === "published-scheduled"
+						? t`Scheduled publication`
+						: t`Publish`;
+
 	return (
-		<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
-			{t`Unpublish ${itemLabel}`}
-		</Button>
+		<DropdownMenu
+			open={open}
+			onOpenChange={(nextOpen) => {
+				setOpen(nextOpen);
+				onMenuOpenChange?.(nextOpen);
+			}}
+		>
+			<DropdownMenu.Trigger
+				render={
+					<Button
+						type="button"
+						variant="primary"
+						size={size}
+						className={cn(fullWidth && "w-full", "[&>span:last-child]:w-full")}
+						loading={isScheduling || isUnscheduling}
+						aria-haspopup="menu"
+						aria-expanded={open}
+					>
+						<span className="relative flex w-full min-w-0 items-center justify-center">
+							<span className="max-w-full truncate px-5 text-center">{triggerLabel}</span>
+							<CaretDown className="absolute end-0 size-3 shrink-0" aria-hidden="true" />
+						</span>
+					</Button>
+				}
+			/>
+			<DropdownMenu.Content
+				align="end"
+				className="w-80 max-w-[calc(100vw-2rem)] origin-[var(--transform-origin)] p-1.5 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none"
+			>
+				{actions.map(({ kind, label, Icon: ActionIcon, onSelect }) => (
+					<DropdownMenu.Item
+						key={kind}
+						icon={
+							<span className="me-2 flex h-lh shrink-0 items-center">
+								<ActionIcon className="size-4" aria-hidden="true" />
+							</span>
+						}
+						disabled={isScheduling || isUnscheduling}
+						onClick={onSelect}
+						className="px-2.5 py-1.5"
+					>
+						<Text as="span" bold>
+							{label}
+						</Text>
+					</DropdownMenu.Item>
+				))}
+			</DropdownMenu.Content>
+		</DropdownMenu>
 	);
 }
 
@@ -228,12 +619,19 @@ export function SettingsActionBar({
 	saveDisabled,
 	isLive,
 	hasPendingChanges,
+	publishingState,
+	canSchedule,
+	isScheduling,
+	isUnscheduling,
 	liveViewUrl,
 	supportsPreview,
 	isLoadingPreview,
 	onPreview,
 	onPublish,
 	onUnpublish,
+	onOpenSchedule,
+	onUnschedule,
+	onMenuOpenChange,
 	announceSaveStatus,
 }: SettingsActionBarProps) {
 	const { t } = useLingui();
@@ -280,9 +678,17 @@ export function SettingsActionBar({
 						isNew={isNew}
 						isLive={isLive}
 						hasPendingChanges={hasPendingChanges}
+						publishingState={publishingState}
+						canSchedule={canSchedule}
+						isScheduling={isScheduling}
+						isUnscheduling={isUnscheduling}
 						onPublish={onPublish}
 						onUnpublish={onUnpublish}
+						onOpenSchedule={onOpenSchedule}
+						onUnschedule={onUnschedule}
+						onMenuOpenChange={onMenuOpenChange}
 						size="sm"
+						fullWidth
 					/>
 				</SettingsActionSlot>
 			)}
@@ -303,13 +709,9 @@ export interface ContentSettingsPanelProps {
 	supportsDrafts: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
-	hasSchedule: boolean;
+	publishingState?: ContentPublishingState;
 	supportsRevisions: boolean;
-	canSchedule: boolean;
-	onSchedule?: (scheduledAt: string) => void;
-	onUnschedule?: () => void;
-	isScheduling?: boolean;
-	onPublishedAtChange?: (publishedAt: string) => void;
+	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
 	onDiscardDraft?: () => void;
 	onDelete?: () => void;
@@ -356,16 +758,11 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	entryLocale,
 	slug,
 	onSlugChange,
-	status,
 	supportsDrafts,
 	isLive,
 	hasPendingChanges,
-	hasSchedule,
+	publishingState,
 	supportsRevisions,
-	canSchedule,
-	onSchedule,
-	onUnschedule,
-	isScheduling,
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	onDiscardDraft,
@@ -407,13 +804,13 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		[collection, currentUser?.role, isNew, item, manifest?.plugins, pluginAdmins],
 	);
 
-	const [scheduleDate, setScheduleDate] = React.useState<string>("");
-	const [showScheduler, setShowScheduler] = React.useState(false);
-	const storedPublishedDate = toDatetimeLocalInputValue(item?.publishedAt);
-	const [publishedDate, setPublishedDate] = React.useState(storedPublishedDate);
 	const [isReorderingSections, setIsReorderingSections] = React.useState(false);
+	const [datesOpen, setDatesOpen] = React.useState(false);
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
+	const resolvedPublishingState =
+		publishingState ??
+		getContentPublishingState({ isLive, hasPendingChanges, scheduledAt: item?.scheduledAt });
 	const hasApplicableTaxonomies = useHasApplicableTaxonomies(
 		collection,
 		activeEntryLocale,
@@ -423,25 +820,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		item?.publishedAt != null && (currentUser?.role ?? 0) >= ROLE_EDITOR && !!onPublishedAtChange;
 	const contentLocale = item?.locale ?? entryLocale ?? manifest?.contentLocale?.defaultLocale;
 	const usesImplicitEnglish = manifest?.contentLocale?.implicit === true && contentLocale === "en";
-
-	React.useEffect(() => {
-		setPublishedDate(storedPublishedDate);
-	}, [item?.id, storedPublishedDate]);
-
-	const handleScheduleSubmit = () => {
-		if (scheduleDate && onSchedule) {
-			const date = new Date(scheduleDate);
-			onSchedule(date.toISOString());
-			setShowScheduler(false);
-			setScheduleDate("");
-		}
-	};
-
-	const handlePublishedDateSubmit = () => {
-		if (publishedDate && onPublishedAtChange) {
-			onPublishedAtChange(fromDatetimeLocalInputValue(publishedDate));
-		}
-	};
+	const publicationEntryKey = `${item?.id ?? "new"}:${activeEntryLocale ?? ""}`;
+	const showPublishingRelationship = supportsDrafts || Boolean(item?.scheduledAt);
+	React.useEffect(() => setDatesOpen(false), [item?.id, item?.locale]);
 
 	if (blockSidebarPanel) {
 		// A block requesting the sidebar replaces the default sections.
@@ -520,133 +901,114 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									) : null}
 								</div>
 							) : null}
-							<div>
-								<div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-									<Label>{t`Status`}</Label>
-									{supportsDrafts ? (
-										<>
-											{isLive && <ContentStatusBadge state="published" />}
-											{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
-											{!isLive && !hasSchedule && <ContentStatusBadge state="draft" />}
-											{hasSchedule && <ContentStatusBadge state="scheduled" />}
-										</>
-									) : isContentStatusState(status) ? (
-										<ContentStatusBadge state={status} />
-									) : (
-										<Badge variant="secondary">
-											{status.charAt(0).toUpperCase() + status.slice(1)}
-										</Badge>
-									)}
-								</div>
-								{showDiscard && (
-									<div className="mt-2">
-										<DiscardDraftDialog
-											onDiscard={onDiscardDraft}
-											triggerVariant="outline"
-											triggerSize="sm"
-										/>
-									</div>
-								)}
-							</div>
-							{item?.scheduledAt && (
-								<div className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
-									<p className="text-xs text-kumo-subtle">{t`Scheduled for: ${formatScheduledDate(item.scheduledAt)}`}</p>
-									<Button type="button" variant="outline" size="sm" onClick={onUnschedule}>
-										{t`Unschedule`}
-									</Button>
-								</div>
-							)}
-
-							{canSchedule && (
-								<div className="pt-2">
-									{showScheduler ? (
-										<div className="space-y-2">
-											<Input
-												label={t`Schedule for`}
-												type="datetime-local"
-												value={scheduleDate}
-												onChange={(e) => setScheduleDate(e.target.value)}
-												min={new Date().toISOString().slice(0, 16)}
-											/>
-											<div className="flex gap-2">
-												<Button
-													type="button"
-													size="sm"
-													onClick={handleScheduleSubmit}
-													disabled={!scheduleDate || isScheduling}
-													icon={isScheduling ? <Loader size="sm" /> : undefined}
-												>
-													{t`Schedule`}
-												</Button>
-												<Button
-													type="button"
-													variant="outline"
-													size="sm"
-													onClick={() => {
-														setShowScheduler(false);
-														setScheduleDate("");
-													}}
-												>
-													{t`Cancel`}
-												</Button>
-											</div>
-										</div>
-									) : (
-										<Button
-											type="button"
-											variant="outline"
-											size="sm"
-											className="w-full"
-											onClick={() => setShowScheduler(true)}
-										>
-											{t`Schedule for later`}
-										</Button>
-									)}
-								</div>
-							)}
-
-							{canUpdatePublishedDate && (
-								<div className="space-y-2 pt-2">
-									<Input
-										label={t`Publish date`}
-										type="datetime-local"
-										value={publishedDate}
-										onChange={(event) => setPublishedDate(event.target.value)}
-										disabled={isUpdatingPublishedAt}
-									/>
-									<Button
-										type="button"
-										variant="outline"
-										size="sm"
-										onClick={handlePublishedDateSubmit}
-										disabled={
-											!publishedDate ||
-											publishedDate === storedPublishedDate ||
-											isUpdatingPublishedAt
-										}
-										icon={isUpdatingPublishedAt ? <Loader size="sm" /> : undefined}
-									>
-										{t`Update publish date`}
-									</Button>
-								</div>
-							)}
 						</div>
 
-						{item && (
-							<dl
-								data-testid="content-timestamps"
-								className="mt-4 border-t pt-4 space-y-1 text-xs text-kumo-subtle"
+						{showPublishingRelationship || item ? (
+							<LayerCard
+								render={<div role="group" aria-label={t`Publishing summary`} />}
+								className="mt-5 overflow-hidden p-0"
 							>
-								<div className="flex items-center justify-between gap-2">
-									<dt>{t`Created`}</dt>
-									<dd>{parseTimestamp(item.createdAt).toLocaleString()}</dd>
-								</div>
-								<div className="flex items-center justify-between gap-2">
-									<dt>{t`Updated`}</dt>
-									<dd>{parseTimestamp(item.updatedAt).toLocaleString()}</dd>
-								</div>
-							</dl>
-						)}
+								{showPublishingRelationship ? (
+									<PublishingVersionRelationship
+										publishingState={resolvedPublishingState}
+										supportsDrafts={supportsDrafts}
+										scheduledAt={item?.scheduledAt}
+										locale={lingui.locale}
+										onDiscardDraft={showDiscard ? onDiscardDraft : undefined}
+									/>
+								) : null}
+
+								{item ? (
+									<div
+										data-testid="content-timestamps"
+										className={cn(
+											"px-3 py-1.5",
+											showPublishingRelationship && "border-t border-kumo-line",
+										)}
+									>
+										{item.publishedAt ? (
+											<dl>
+												{canUpdatePublishedDate && onPublishedAtChange ? (
+													<div>
+														<dt className="sr-only">{t`Publication date`}</dt>
+														<dd>
+															<PublicationDateDialog
+																entryKey={publicationEntryKey}
+																publishedAt={item.publishedAt}
+																label={t`Publication date`}
+																formattedValue={formatPublishingInstant(
+																	item.publishedAt,
+																	lingui.locale,
+																)}
+																isPending={isUpdatingPublishedAt}
+																onPublishedAtChange={onPublishedAtChange}
+															/>
+														</dd>
+													</div>
+												) : (
+													<TimestampRow label={t`Publication date`}>
+														<TimestampValue value={item.publishedAt} locale={lingui.locale} />
+													</TimestampRow>
+												)}
+											</dl>
+										) : null}
+
+										<Collapsible.Root open={datesOpen} onOpenChange={setDatesOpen}>
+											<Collapsible.Trigger
+												render={
+													<Button
+														type="button"
+														variant="ghost"
+														className={cn(
+															"-mx-2 h-9 w-[calc(100%+1rem)] min-w-0 justify-between overflow-hidden whitespace-nowrap px-2 py-1.5 font-normal",
+															item.publishedAt && "mt-1",
+														)}
+													/>
+												}
+											>
+												<Text as="span" variant="secondary" size="sm">
+													{t`Created and updated`}
+												</Text>
+												<CaretDown
+													className={cn(
+														"size-3 transition-transform duration-150 ease-out motion-reduce:transition-none",
+														datesOpen && "rotate-180",
+													)}
+													aria-hidden="true"
+												/>
+											</Collapsible.Trigger>
+											<Collapsible.Panel
+												className="overflow-hidden duration-150 ease-out [&[hidden]:not([hidden='until-found'])]:hidden motion-reduce:transition-none"
+												style={({ transitionStatus }) => ({
+													height:
+														transitionStatus === "starting" || transitionStatus === "ending"
+															? 0
+															: "var(--collapsible-panel-height)",
+													transitionProperty: "height",
+												})}
+											>
+												<dl className="grid gap-1.5 px-0 pt-1.5 pb-0.5">
+													<TimestampRow label={t`Created`} size="sm">
+														<TimestampValue
+															value={item.createdAt}
+															locale={lingui.locale}
+															size="sm"
+														/>
+													</TimestampRow>
+													<TimestampRow label={t`Updated`} size="sm">
+														<TimestampValue
+															value={item.updatedAt}
+															locale={lingui.locale}
+															size="sm"
+														/>
+													</TimestampRow>
+												</dl>
+											</Collapsible.Panel>
+										</Collapsible.Root>
+									</div>
+								) : null}
+							</LayerCard>
+						) : null}
 					</div>
 				</SortableContentSettingsSection>
 

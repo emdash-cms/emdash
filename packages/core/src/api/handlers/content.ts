@@ -1517,7 +1517,7 @@ export async function handleContentSchedule(
 
 		return {
 			success: true,
-			data: { item },
+			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
 		if (error instanceof EmDashValidationError) {
@@ -1560,7 +1560,7 @@ export async function handleContentUnschedule(
 
 		return {
 			success: true,
-			data: { item },
+			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
 		if (error instanceof EmDashValidationError) {

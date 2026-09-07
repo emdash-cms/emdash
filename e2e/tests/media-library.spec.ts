@@ -713,7 +713,9 @@ test.describe("Media Library", () => {
 			.boundingBox();
 		const viewModeBox = await page.getByRole("group", { name: "View mode" }).boundingBox();
 		const mediaGridBox = await page.locator("[data-media-grid]").boundingBox();
-		const mediaCardBox = await page.locator("[data-media-grid] > button").first().boundingBox();
+		const mediaCard = page.locator('[data-media-grid] [data-media-layout="grid"]').first();
+		await expect(mediaCard).toBeVisible();
+		const mediaCardBox = await mediaCard.boundingBox();
 		expect(mediaTitleBox).not.toBeNull();
 		expect(addFolderBox).not.toBeNull();
 		expect(uploadFilesBox).not.toBeNull();

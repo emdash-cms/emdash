@@ -399,6 +399,7 @@ function GalleryImageSettings({ image, onChange, onReplace }: GalleryImageSettin
 				}}
 				mimeTypeFilters={["image/"]}
 				title={t`Replace image`}
+				confirmLabel={t`Replace image`}
 			/>
 		</div>
 	);
