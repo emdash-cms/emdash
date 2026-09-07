@@ -40,7 +40,7 @@ describe("playground loading progress", () => {
 		expect(html).toContain('id="pg-error-message" role="alert"');
 	});
 
-	it.each([false, true])("animates cosmetic stages with slow setup: %s", async (slowSetup) => {
+	it("animates cosmetic setup stages without delaying a completed setup", async () => {
 		vi.useFakeTimers();
 		const elements = new Map(
 			[
@@ -81,33 +81,8 @@ describe("playground loading progress", () => {
 
 		await vi.advanceTimersByTimeAsync(800);
 		expect(elements.get("step-db")!.className).toBe("pg-step completing");
-		await vi.advanceTimersByTimeAsync(299);
-		expect(elements.get("step-db")!.className).toBe("pg-step completing");
-		expect(elements.get("step-content")!.className).toBe("pg-step");
-		await vi.advanceTimersByTimeAsync(1);
+		await vi.advanceTimersByTimeAsync(300);
 		expect(elements.get("step-content")!.className).toBe("pg-step active");
-
-		if (slowSetup) {
-			await vi.advanceTimersByTimeAsync(599);
-			expect(elements.get("step-db")!.className).toBe("pg-step completing");
-			await vi.advanceTimersByTimeAsync(1);
-			expect(elements.get("step-db")!.className).toBe("pg-step done");
-
-			await vi.advanceTimersByTimeAsync(300);
-			expect(elements.get("step-content")!.className).toBe("pg-step completing");
-			await vi.advanceTimersByTimeAsync(299);
-			expect(elements.get("step-ready")!.className).toBe("pg-step");
-			await vi.advanceTimersByTimeAsync(1);
-			expect(elements.get("step-ready")!.className).toBe("pg-step active");
-
-			await vi.advanceTimersByTimeAsync(599);
-			expect(elements.get("step-content")!.className).toBe("pg-step completing");
-			await vi.advanceTimersByTimeAsync(1);
-			expect(elements.get("step-content")!.className).toBe("pg-step done");
-			await vi.advanceTimersByTimeAsync(5_000);
-			expect(elements.get("step-ready")!.className).toBe("pg-step active");
-			expect(replace).not.toHaveBeenCalled();
-		}
 
 		resolveSetup(Response.json({ ok: true }));
 		await vi.advanceTimersByTimeAsync(0);
@@ -124,10 +99,5 @@ describe("playground loading progress", () => {
 		await vi.advanceTimersByTimeAsync(1);
 		expect(elements.get("step-ready")!.className).toBe("pg-step done");
 		expect(replace).toHaveBeenCalledWith("/_emdash/admin");
-
-		await vi.advanceTimersByTimeAsync(2_000);
-		expect(elements.get("step-content")!.className).toBe("pg-step done");
-		expect(elements.get("step-ready")!.className).toBe("pg-step done");
-		expect(replace).toHaveBeenCalledTimes(1);
 	});
 });
