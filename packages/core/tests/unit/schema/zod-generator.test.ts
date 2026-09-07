@@ -705,7 +705,9 @@ describe("Zod Generator", () => {
 		it("includes BylineSummary in generated interface imports and byline property", () => {
 			const ts = generateTypesFile([makeCollection("posts")]);
 
-			expect(ts).toContain('import type { BylineSummary, ContentBylineCredit, TaxonomyTerm } from "emdash";');
+			expect(ts).toContain(
+				'import type { BylineSummary, ContentBylineCredit, TaxonomyTerm } from "emdash";',
+			);
 			expect(ts).toContain("byline?: BylineSummary | null;");
 		});
 	});
