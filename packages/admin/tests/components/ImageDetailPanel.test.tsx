@@ -189,11 +189,36 @@ describe("ImageDetailPanel", () => {
 		const { screen, onUpdate } = await renderPanel();
 
 		await screen.getByRole("combobox", { name: "Alignment" }).click();
-		await screen.getByRole("option", { name: "Wide" }).click();
+		await screen.getByRole("option", { name: "Left" }).click();
 		await screen.getByRole("button", { name: "Apply" }).click();
 
-		expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ alignment: "wide" }));
+		expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ alignment: "left" }));
 	});
+
+	it.each(["wide", "full"] as const)(
+		"preserves imported %s while disabling unsupported authoring choices",
+		async (alignment) => {
+			const { screen, onUpdate } = await renderPanel({ ...baseAttributes, alignment });
+			const select = screen.getByRole("combobox", { name: "Alignment" });
+			await expect.element(select).toHaveTextContent(alignment === "wide" ? "Wide" : "Full");
+			await screen.getByRole("textbox", { name: "Alt text" }).fill("Updated description");
+			await screen.getByRole("button", { name: "Apply" }).click();
+			expect(onUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ alignment }));
+			await select.click();
+			await expect
+				.element(screen.getByRole("option", { name: "Wide" }))
+				.toHaveAttribute("aria-disabled", "true");
+			await expect
+				.element(screen.getByRole("option", { name: "Full" }))
+				.toHaveAttribute("aria-disabled", "true");
+			await userEvent.keyboard("{End}{Enter}");
+			await expect.element(select).toHaveTextContent(alignment === "wide" ? "Wide" : "Full");
+			await screen.getByRole("option", { name: "Right" }).click();
+			await expect.element(select).toHaveTextContent("Right");
+			await screen.getByRole("button", { name: "Apply" }).click();
+			expect(onUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ alignment: "right" }));
+		},
+	);
 
 	it.each([undefined, null])(
 		"preserves %s display overrides on alignment-only Apply",

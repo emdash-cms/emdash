@@ -1,63 +1,80 @@
-# Editor image panel strict-parity refinement
+# Editor image panel UI and alignment correctness
 
-Status: Implemented locally
+Status: Implemented locally with Option A. Automated checks pass; manual verification coverage and remaining checks are recorded below.
 
-Dependency: the local `fix/editor-edit-image-panel` overflow fix based on `603062902` must land first. That change keeps the mobile settings sheet inside the viewport, removes the nested card from the content editor host, and lets image fields shrink without horizontal overflow.
+Delivery: one pull request from `fix/editor-edit-image-panel`, with four panel commits and two follow-up commits for responsive sizing and converter compatibility.
 
-Intended stack position: one focused follow-up commit after the overflow fix.
+Base: `8c414791f`. The authorized rebase is complete and includes in-context media asset editing from `main`.
 
-Authority: design only. This document does not authorize source-code changes, commits, pushes, pull requests, rebases, merges, or other Git or GitHub mutation.
+The rebase retains this specification's sidebar UI and `main`'s Edit asset flow, `nodeKey` state reset, local asset snapshot, error state, and nested-overlay shortcut ownership.
 
-## Summary
+Authority: the user approved Option A, local implementation with `$feat-implement`, and the rebase. Pushing and GitHub changes require separate authorization.
 
-Refine the inline rich-text image settings panel to match the normal content editor sidebar while keeping all image controls visible. The panel will use the sidebar's existing Kumo typography, 16px content gutter, section separators, native help tooltip, sentence-case copy, and explicit action hierarchy.
+## User outcome
 
-The refinement preserves the current staged form model. Editors change image fields locally, choose **Apply** to update the Portable Text image node, or choose **Cancel** to close the panel without applying those local field changes. Replacing or removing the image keeps its existing behavior.
+Editors can change an image's alignment without changing its display dimensions or aspect ratio. None, Left, Center, and Right produce visibly different layouts in the editor. Image alignment survives both the admin's private Portable Text conversion and the exported core converters.
 
-## Goals
+The panel retains the approved Option 1 information architecture and normal editor-sidebar styling: all fields stay visible, help uses the existing information tooltip, Remove image uses the Kumo secondary-destructive resting surface, and Cancel and Apply remain in the action footer.
 
-- Make the image settings panel read as part of the normal content editor sidebar rather than a separate embedded form.
-- Keep the complete Option 1 field set visible without progressive disclosure.
-- Use Kumo components and existing EmDash sidebar patterns for headings, labels, inputs, selection, help, and actions.
-- Make the Replace image action available to pointer, keyboard, and touch users.
-- Keep the panel usable in light and dark appearance, Arabic and right-to-left layouts, 200% zoom, and widths from 200px through the desktop maximum of 480px.
-- Preserve the existing image attribute, provider, replacement, removal, and save contracts.
+## Included scope
 
-## Non-goals
+- Preserve absent `displayWidth` and `displayHeight` when Apply changes only alignment or text fields.
+- Make Reset remove custom display overrides instead of persisting the original dimensions as overrides.
+- Keep implicit display dimensions synchronized when Edit asset changes the original media dimensions on current `main`.
+- Render editor images responsively so container shrinkage does not stretch the image vertically.
+- Give None and Center distinct rendered positions.
+- Resolve the misleading Wide and Full choices according to the approved product decision in [Wide and Full](#wide-and-full).
+- Add `alignment` to the exported core Portable Text image contract and preserve it in both conversion directions.
+- Deliver the existing panel refinement and these fixes in one pull request.
 
-- Do not add asset editing, crop, focal-point, rendition, upload, or media metadata capabilities.
-- Do not add Instance and Asset tabs or adopt the asset-inspector direction.
-- Do not add progressive disclosure or collapse any field.
-- Do not change `ImageAttributes`, Portable Text serialization, image rendering, alignment semantics, or provider normalization.
-- Do not change `GalleryDetailPanel`, the inline image toolbar, or featured-image fields.
-- Do not restyle the fixed `ImageDetailPanel` presentation used by Widgets.
-- Do not change database, API, authorization, query, cache, or logged-out-route behavior.
-- Do not edit extracted `messages.po` catalogs in this pull request.
+## Excluded scope
 
-## Verified current behavior
+- Do not add crop, focal-point, rendition, upload, or media metadata capabilities.
+- Do not change asset-editor behavior introduced on `main` except where its updated original dimensions interact with implicit display size.
+- Do not change provider normalization, replacement identity, media URLs, or saved asset references.
+- Do not change Gallery, featured-image fields, Widgets' fixed panel presentation, text alignment, or non-image blocks.
+- Do not add a database migration, API route, query, cache entry, background task, or logged-out-route query.
+- Do not edit extracted `messages.po` catalogs.
+- Do not create a shared layout framework for unrelated Portable Text blocks.
 
-- `ImageNode` opens an `ImageDetailPanel` through the existing block-sidebar callbacks. `ContentSettingsPanel` replaces the normal settings sections while that block panel is active.
-- `ContentEditor` renders the block panel inside the resizable desktop sidebar and auto-opens the Kumo mobile settings sheet below 1024px.
-- The inline image panel is also used by `SectionEditor`. Its outer card surface must remain intact there; only the content editor host supplies the unframed sidebar surface.
-- Widgets use the fixed `ImageDetailPanel` branch. That branch has separate markup and remains outside this refinement.
-- Alt text, caption, tooltip text, display width, display height, and alignment live in local React state. `handleSave` sends one `onUpdate` patch and closes the panel.
-- Media replacement calls `onReplace` with the selected media identity, dimensions, placeholder metadata, and canonical provider, then closes the panel.
-- Image removal uses the existing `ConfirmDialog` before calling `onDelete` and closing the panel.
-- The preview's Replace Image button is currently hidden behind a hover-only opacity layer.
-- Alignment currently uses six wrapping buttons. The normal settings sidebar uses Kumo `Select` for comparable single-choice fields.
-- `FieldHelpLabel` is the existing label-and-help pattern. It uses Kumo `Tooltip` with `delay={0}`, `closeDelay={0}`, an `xs` square ghost information button, a 6px label gap, and an accessible trigger name.
-- The dependency already includes a behavioral Playwright regression that opens the panel at 200px and checks the settings sheet and panel for horizontal containment.
+## Audit findings before implementation
 
-## Information architecture
+### Panel and image state
 
-The inline panel keeps every setting visible in this order:
+- `ImageDetailPanel` initializes each displayed dimension from `displayWidth ?? width` and `displayHeight ?? height`.
+- `handleSave` always sends the displayed dimension values. A 1200 by 800 image with no custom display size therefore receives `displayWidth: 1200` and `displayHeight: 800` when an editor changes only Alignment.
+- `ImageNode` applies custom width and height as independent pixel styles while also limiting only width with `max-w-full`. When the editor column narrows, the browser shrinks the width but retains the fixed height. The measured 1200 by 800 image became 237 by 800 after Left was applied.
+- Reset currently copies the original dimensions into the same state that is persisted as a custom override.
+- TipTap can supply absent optional attributes as `null` even though the TypeScript panel interface represents them as optional. The fix must treat both `null` and `undefined` as absent at this boundary.
+- Current `main` keeps a local asset snapshot and attempts to update implicit dimensions after Edit asset while preserving custom instance dimensions. Its check recognizes only `undefined`, so TipTap's `null` form can prevent an implicit size from following the edited asset. The semantic-state fix covers both forms.
+
+### Alignment rendering
+
+- The editor image always has `mx-auto`. None and Center therefore look the same for an image narrower than the text column.
+- Center already places the node wrapper at the center. The unconditional image auto-margin duplicates that behavior and affects None.
+- Left and Right float the node wrapper and limit it to half of the text column. The public renderer removes the float below 640px, but the editor does not currently match that narrow behavior.
+- Wide and Full both set the wrapper to `width: 100%` in the editor.
+- The public renderer also maps Wide and Full to the same `width: 100%` figure rule. Its default figure is already a block that spans the containing column, and its image keeps its intrinsic width, so either option can produce no visible change.
+- `Image.astro` is used in top-level articles and bounded Portable Text hosts such as Widgets, and consumers can render it inside custom containers. A viewport-width Full rule inside the image component can escape its host and overlap adjacent content.
+
+### Portable Text conversion
+
+- The admin's private converters in `PortableTextEditor.tsx` already preserve `alignment` in both directions.
+- The exported `PortableTextImageBlock` in core omits `alignment`.
+- The exported ProseMirror-to-Portable-Text and Portable-Text-to-ProseMirror converters omit `alignment`.
+- The core converters are re-exported from the public `emdash` package, so adding the optional field is an additive public type and behavior change.
+- The Gutenberg importer already emits `left`, `center`, `right`, `wide`, and `full`. Existing imported content may therefore contain either unresolved Wide or Full value.
+
+## Panel information architecture
+
+The implemented inline panel keeps every setting visible in this order:
 
 ```text
 Image settings                                      Close
 ---------------------------------------------------------
 Image preview
-                                    Replace image action
-Original: 1200 × 800
+                               Replace / Edit asset actions
+Original: 1200 x 800
 ---------------------------------------------------------
 Display size [help]                         Reset
 Width                 [aspect ratio]              Height
@@ -73,186 +90,325 @@ Remove image
                                       Cancel      Apply
 ```
 
-The preview, display controls, text fields, destructive action, and footer are separate sections. Section borders provide structure; individual fields use spacing rather than additional dividers or cards.
+The rebase must retain the implemented header, 16px content gutter, section separators, label and tooltip patterns, responsive rows, secondary-destructive Remove image button, and content-editor-only sticky action footer. It must incorporate `main`'s Replace and Edit asset action row without restoring the old nested card or hover-only action.
 
-## Visual contract
+### Sidebar parity preservation
 
-### Sidebar surface
+- Keep the content editor's panel unframed and full width. Keep Section editor's outer card and Widgets' fixed panel presentation unchanged.
+- Use one 16px inline gutter. Keep `px-4 py-3` on the header and footer, `p-4` on content sections, `space-y-4` between full fields, and `gap-2` within compact rows.
+- Keep the Kumo `Text` heading, one square ghost close button, structural section borders, and no decorative header icon.
+- Keep the transparency-grid preview, quiet Kumo line ring, contained image fit, original-dimensions row, and tabular dimension numerals.
+- Reconcile `main` by showing Replace and Edit asset as always-visible Kumo secondary buttons beneath the preview. Do not make pointer hover a prerequisite for either action.
+- Keep `FieldHelpLabel` for Display size and Alt text, Kumo number inputs in the shrink-safe dimension row, the named display-size group, and the pressed aspect-ratio button.
+- Keep the full-width Kumo Alignment Select, Alt text, Caption, Tooltip text, and conditional read-only Source row in the approved order.
+- Keep Remove image as a full-width Kumo secondary-destructive button with its normal surfaced resting state and pale danger hover treatment.
+- Keep the end-aligned Cancel and Apply footer sticky only in the content editor. Apply remains disabled when the semantic draft has not changed.
+- Use Kumo semantic tokens only. Do not add raw colors, `dark:` variants, custom tracking, shadows, or nested decorative cards.
 
-- Keep `ContentSettingsPanel`'s unframed, full-width image-panel integration from the overflow dependency.
-- Add one optional internal host flag for the content editor's sticky action footer. `ContentSettingsPanel` enables it; `SectionEditor` leaves it disabled.
-- Keep the `SectionEditor` inline card surface unchanged.
-- Use `bg-kumo-base` for the panel and `border-kumo-line` through the repository's inherited border token.
-- Use one 16px inline gutter for the header and every section. Do not introduce nested content gutters.
-- Use `px-4 py-3` for the header and footer. Use `p-4` for content sections.
-- Use `space-y-4` between full fields and `gap-2` within compact control rows.
-- Do not add shadows, decorative cards, raw Tailwind colors, `dark:` variants, or custom letter spacing.
+## Display-size state
 
-### Header
+Keep the width and height input values separate from whether the image has a custom display size. This can remain local React state; no shared abstraction is required.
 
-- Render `Image settings` with Kumo `Text` as an `h3` using the normal bold heading treatment from `ContentSettingsPanel`.
-- Remove the `SlidersHorizontal` decoration from the inline header. The heading already names the surface.
-- Keep one square ghost close button at the inline end with the accessible name `Close image settings`.
-- When the image panel is active below 1024px, suppress the generic `MobileSettingsCloseButton`. The panel close button clears the block panel, and `MobileBlockSidebarSync` closes the sheet. Normal settings and gallery panels keep their existing mobile close behavior.
+Initialize the state as follows:
 
-### Preview and replacement
+- Normalize each incoming display dimension to a number or absent. Treat `null` and `undefined` as absent.
+- For an implicit size, show the current asset's original dimensions as editable fallbacks. For a custom size, show the saved overrides and leave an omitted axis blank so it remains derived by the renderer.
+- Mark the draft as custom when at least one normalized display dimension exists.
 
-- Keep the existing transparency grid, contained image fit, and `rounded-lg` preview.
-- Add a quiet `ring-1 ring-kumo-line` to separate light or transparent media from the panel background without changing layout.
-- Keep Replace image as a Kumo secondary button over the preview.
-- Show the replacement control on pointer hover and `focus-within`. Keep it visible when the device has no hover capability so touch users never depend on a hidden affordance.
-- Use `motion-safe:transition-opacity`; reduced-motion users receive the immediate state.
-- Keep replacement selection, provider normalization, and panel-close behavior unchanged.
-- Render original dimensions beneath the preview in one Kumo text row. Mark the ruler icon decorative and apply `tabular-nums` to the numeric value.
+Update the state as follows:
 
-### Display size and alignment
+- Changing either dimension marks the draft as custom. Aspect-ratio locking continues to update the paired field when the original ratio is known.
+- Reset shows the latest asset dimensions and marks the draft as not custom.
+- If Edit asset changes the original width or height while the draft is not custom, update the displayed fallback values to the edited asset's dimensions.
+- If Edit asset changes the original width or height while the draft is custom, preserve the custom values.
+- Switching to another image node through `nodeKey` rebuilds all dimension state from that node. Do not carry a custom-state flag between nodes.
 
-- Use `FieldHelpLabel` for `Display size`.
-- Use this localized tooltip copy: `Set a custom width and height for this image in the document. The original media file is unchanged.`
-- Keep Reset at the inline end as a small ghost Kumo button. Use the sentence-case label `Reset`.
-- Keep Width and Height as Kumo number inputs in the existing shrink-safe row from the overflow dependency.
-- Wrap Width, Height, and the aspect-ratio toggle in one `role="group"` with the localized accessible name `Display size`. Keep the visible `FieldHelpLabel` outside the control row so it is not duplicated as an input label.
-- Render the aspect-ratio control as a square ghost Kumo button wrapped in a native Kumo tooltip. Expose `aria-pressed={lockAspectRatio}` with the stable accessible name `Keep aspect ratio`; use the existing link and broken-link icons for the visual state.
-- Replace the six alignment buttons with one full-width Kumo `Select` labeled `Alignment`. Use the localized options None, Left, Center, Right, Wide, and Full. Map the UI sentinel `none` back to `undefined` when applying image attributes.
+Apply uses the semantic state:
 
-### Text fields and help
+- When the draft is custom, send its numeric display dimensions. An intentionally cleared dimension remains absent so the renderer can derive it from the original aspect ratio.
+- When the draft is not custom, send `displayWidth: undefined` and `displayHeight: undefined` even though the inputs show the original dimensions.
+- Alignment-only and text-only Apply therefore preserve the absence of display overrides.
+- Reset on an image that has custom dimensions is a meaningful change and enables Apply.
+- The unchanged initial state keeps Apply disabled.
 
-- Keep Alt text, Caption, Tooltip text, and the conditional external Source field visible.
-- Use `FieldHelpLabel` for `Alt text` with this localized tooltip copy: `Describe the image's purpose and relevant details for people who cannot see it.`
-- Generate the Alt text input ID with `React.useId`, pass it to both `FieldHelpLabel.htmlFor` and the Kumo `Input`, and keep the input's accessible name equal to its visible label. Do not render a second Kumo input label.
-- Wrap both help messages in `<span className="block max-w-64 text-pretty">` so native tooltip collision handling receives a bounded text measure.
-- Rename the visible source label `Title (Tooltip)` to `Tooltip text`. Continue reading and writing the existing `title` image attribute.
-- Use the concise placeholders `Describe the image`, `Optional caption`, and `Optional hover text`.
-- Remove the three persistent description paragraphs. The alt-text requirement belongs in its tooltip; Caption and Tooltip text are already explained by their labels and placeholders.
-- Keep the external Source input read-only and shrink-safe. Keep `LinkButton` for Open in new tab and give its icon `aria-hidden="true"`.
+Update the Display size tooltip to state both behaviors: `Set a custom width and height for this image in the document. Reset uses the original media dimensions. The original media file is unchanged.`
 
-### Destructive and apply actions
+## Responsive editor rendering
 
-- Move Remove image into its own final content section, matching the normal sidebar's placement of Move to Trash after editable settings.
-- Keep the existing `ConfirmDialog`, but use sentence-case copy: `Remove image?`, `Remove this image from the document?`, `Remove`, and `Removing...`.
-- Add a sticky footer with a structural top border, `bg-kumo-base`, and end-aligned Kumo buttons.
-- Make the footer sticky only when the content editor hosts the panel. The Section editor footer remains in normal flow, and the excluded fixed Widgets branch is unchanged.
-- Use an outline Cancel button and the default primary Apply button. Apply remains disabled until `hasChanges` is true.
-- Cancel, the panel close button, and Escape close the panel without calling `onUpdate`. They discard only the panel's staged local field state.
-- Apply sends the existing single `onUpdate` patch and closes the panel. Cmd/Ctrl+S performs the same action.
-- When `hasChanges` is false, Cmd/Ctrl+S prevents the browser Save dialog but leaves the panel open and does not call `onUpdate`, matching the disabled Apply button.
-- While the media picker or removal confirmation is open, the nested overlay owns Escape and keyboard input. The panel shortcut handler must not close or apply the parent panel.
+Calculate the editor's effective render dimensions with the same cases as `Image.astro`:
 
-## Compatibility and data flow
+1. Use both custom dimensions when both exist.
+2. Derive height from the original aspect ratio when only custom width exists.
+3. Derive width from the original aspect ratio when only custom height exists.
+4. Otherwise, use the original dimensions.
 
-- The change is internal to `@emdash-cms/admin`; it does not add or change a public API.
-- Any host-only footer flag is optional and remains inside non-exported admin component wiring.
-- `ImageAttributes` and every stored value keep their current meaning.
-- `onUpdate`, `onReplace`, `onDelete`, and `onClose` retain their current signatures and ownership.
-- Provider IDs continue through `canonicalMediaProviderId` during replacement.
-- Existing image nodes, external images, migrated images without original dimensions, and images without optional text remain valid.
-- The refinement performs no fetches, database queries, writes, background work, retries, or new logged-out-route work.
-- Update the existing `.changeset/calm-images-fit.md` entry instead of creating a second changeset. The entry must describe both horizontal containment and the aligned image-settings layout.
+Expose the effective values as image width and height attributes for intrinsic sizing. When both effective values exist, expose their ratio through CSS `aspect-ratio`. Keep the rendered image at a maximum inline size of 100% and an automatic block size so a narrow editor scales both axes together while preserving the effective ratio. Do not apply an independent fixed pixel height after the inline size has been clamped.
 
-## Accessibility, localization, and responsive behavior
+Remove the unconditional auto margin from the image. None uses the normal inline-start position. Center continues to center the node wrapper. Left and Right retain their existing imported physical alignment semantics and match the public renderer's narrow-screen unfloat behavior.
 
-- Localize every visible string, tooltip, placeholder, title, and accessible name through Lingui.
-- Use sentence case. Do not include extracted catalog changes.
-- Use Kumo controls so focus, disabled, hover, dark appearance, and forced-color behavior remain consistent with the admin.
-- Keep the DOM order equal to the visual order: preview, display settings, text fields, removal, footer.
-- Every icon-only control needs a specific accessible name; decorative icons use `aria-hidden="true"`.
-- Tooltip triggers must work by hover and keyboard focus. Test visible tooltip copy instead of relying on `role="tooltip"`.
-- At 200% zoom and widths of 200px, 320px, 368px, and 480px, the sheet and panel must remain inside the viewport with no horizontal scrolling. Labels may wrap; controls may not overlap or clip.
-- Use logical Tailwind properties only. Verify the header, dimension row, Select, source row, destructive action, and footer in Arabic with `dir="rtl"`.
-- The sticky footer must remain reachable without covering the final content section.
+The inline selection actions and caption stay attached to the figure. Selection rings must follow the visible image block without causing horizontal overflow.
 
-## Test plan
+The editor root establishes a block formatting context with `flow-root`. Final browser review reproduced a floated image being clipped below the editor footer when it ended a document; the root must include the float in its height.
 
-Add behavior-level coverage that can fail when the editor experience regresses.
+## Alignment contract
 
-### Browser component tests
+The supported authoring choices have the following meanings:
 
-Extend `packages/admin/tests/components/ImageDetailPanel.test.tsx` to cover:
+| Value  | Editor behavior                                                       | Public behavior                                       |
+| ------ | --------------------------------------------------------------------- | ----------------------------------------------------- |
+| None   | Natural or custom size at inline start                                | Natural or custom size in normal document flow        |
+| Left   | Physical left float, at most half-column above the narrow breakpoint  | Existing physical left float and narrow-screen block  |
+| Center | Natural or custom size centered in the text column                    | Natural or custom size centered in the text column    |
+| Right  | Physical right float, at most half-column above the narrow breakpoint | Existing physical right float and narrow-screen block |
 
-- Alt-text and display-size help copy becomes visible from the existing Kumo tooltip trigger by pointer and keyboard focus.
-- Changing Alignment through the Kumo Select and choosing Apply sends the expected `alignment` value in the existing `onUpdate` patch.
-- None maps to `alignment: undefined`.
-- Apply is disabled for the initial state and enabled after a meaningful text, dimension, or alignment change.
-- Cancel and the specific close button call `onClose` without calling `onUpdate`.
-- The aspect-ratio control exposes the correct stable name and `aria-pressed` state while preserving width-height synchronization.
-- The display-size controls expose one named group containing the two inputs and aspect-ratio toggle.
-- Remove image still requires confirmation before `onDelete`.
-- Cmd/Ctrl+S applies changed staged values, does nothing to an unchanged panel, Escape cancels, and neither parent shortcut runs while the media picker or confirmation dialog is open.
-- Existing local and external replacement-provider cases remain green with sentence-case button names.
+`ImageAttributes` and the core `PortableTextImageBlock` retain the existing string values. The panel's None sentinel maps to an absent value. Unknown runtime values are not emitted by the exported ProseMirror converter.
 
-Do not assert Tailwind class strings, exact pixels, tooltip roles, or implementation-only component calls.
+### Wide and Full
 
-### End-to-end behavior
+Option A is approved. Option B is retained below as the rejected alternative.
 
-Extend `e2e/tests/editor-image-panel.spec.ts` to cover the rendered admin CSS:
+#### Option A: disable unsupported authoring choices (approved)
 
-- The panel opens on a new post, keeps one visible `Close image settings` control, and hides the generic Close settings control while active on mobile.
-- The settings sheet and panel remain horizontally contained at 200px.
-- Keyboard focus reveals Replace image and can open the media picker without pointer hover.
-- Editing alt text, choosing an alignment, and applying updates the image node; reopening the panel shows the applied values.
-- Cancel closes the panel without applying a staged field change.
+- Remove Wide and Full from the normal panel choices because EmDash has no parent layout contract that can distinguish them safely in articles, columns, widgets, and user-defined Portable Text hosts.
+- Preserve existing `wide` and `full` values through all converters and rendering hooks. Do not normalize or delete imported content.
+- Render Wide and Full as disabled compound `Select.Option` entries. Kumo supports disabled options. Add a focused component case proving that a controlled imported Wide or Full value remains visible and preserved while the editor can select one of the four supported values to change away from it.
+- Keep the public alignment class hooks so a site theme that already defines Wide or Full behavior continues to work.
+- Defer a new container-aware Wide and Full authoring contract to a separate feature proposal.
 
-Keep the test independent of shared seed content and avoid screenshot, exact geometry, scroll-offset, or animation-duration assertions.
+This option gives the panel four selectable choices. Existing Wide and Full values remain visible and preserved until an editor chooses a supported alignment.
+
+#### Option B: define real default breakout behavior (not selected)
+
+- Wide scales the image to the full text-column width.
+- Full breaks out beyond the text column. In the admin it fills the known editor surface, including the editor's inline padding. In public rendering it uses a defined full-bleed rule.
+- Wide and Full take precedence over custom display dimensions while selected. Keep the custom values stored so switching back to None, Left, Center, or Right restores the instance size.
+- Add narrow viewport and right-to-left containment behavior.
+- Add public browser coverage in a top-level article and a nested Portable Text host before accepting the CSS.
+
+This option preserves all six choices and makes them visibly different, but it changes existing public rendering. A viewport-based Full rule is not acceptable unless the nested-host test proves it cannot overlap Columns, Widgets, or another bounded host. If that proof requires a new Portable Text layout wrapper or public host contract, stop and move the breakout work to a separate specification rather than expanding this pull request.
+
+## Converter compatibility
+
+- Add optional `alignment?: "left" | "center" | "right" | "wide" | "full"` to core's exported `PortableTextImageBlock`.
+- Preserve a valid ProseMirror image alignment when converting to Portable Text.
+- Preserve `block.alignment` when converting a valid Portable Text image to ProseMirror.
+- Preserve a valid alignment on the existing malformed-image recovery path so recovery does not discard the field.
+- Omit unknown alignment strings in both conversion directions rather than widening the public union or carrying invalid values into a renderer class.
+- Do not change keys, media references, provider IDs, source URLs, captions, original dimensions, or display dimensions.
+- Do not migrate stored content. The optional field is backward compatible with images that omit it.
+
+Because core's exported contract changes, update `.changeset/calm-images-fit.md` to include patch entries for both `@emdash-cms/admin` and `emdash`. The text must describe the observable alignment and sizing corrections without promising Wide or Full behavior beyond the approved option.
+
+## Accessibility, localization, RTL, and responsive behavior
+
+- Localize every new visible string, help message, and accessible name through Lingui. Do not commit extracted catalogs.
+- Keep the visible Alignment label and full-width Kumo Select.
+- Preserve one mobile close control, keyboard-operable help, Replace, Edit asset, Cancel, Apply, and Remove image confirmation.
+- While the media picker, asset editor, or removal confirmation is open, the nested overlay owns Escape and Cmd/Ctrl+S.
+- Keep DOM and focus order equal to visual order.
+- Use logical Tailwind properties for panel and editor layout. Left and Right image values remain physical only because that is their stored WordPress-compatible meaning.
+- At widths of 200px, 320px, 368px, and 480px and at 200% zoom, the panel and rendered image stay inside their available surfaces.
+- Verify English, pseudo-localization, Arabic, light and dark appearance, reduced motion, keyboard-only use, and touch-visible media actions.
+
+## Behavioral tests
+
+### Panel component tests
+
+Extend `packages/admin/tests/components/ImageDetailPanel.test.tsx` after reconciling the tests added on `main`:
+
+- Given original dimensions and absent display overrides, changing only Alignment and applying sends absent display dimensions.
+- Changing text only also leaves display dimensions absent.
+- Editing a dimension sends a custom override and keeps aspect-ratio synchronization.
+- Resetting an existing custom size sends absent display dimensions and enables Apply.
+- `null` and `undefined` optional dimensions both behave as absent.
+- Edit asset updates displayed fallback dimensions when no override exists and preserves custom instance dimensions when one exists.
+- Switching `nodeKey` does not carry the previous image's custom-size state.
+- Existing Apply, Cancel, shortcut, nested-overlay, replacement, provider, Edit asset, and Remove image cases remain green.
+
+These tests assert the `onUpdate` behavior seen by the editor. They do not assert local state variable names or Tailwind classes.
+
+### Editor browser tests
+
+Add `packages/admin/tests/editor/image-alignment.test.tsx` or another narrowly named browser test:
+
+- Apply an alignment-only update to a 1200 by 800 image in a narrower editor and assert that the rendered aspect ratio remains 3:2 and the node retains absent display overrides.
+- Render a small image with None and Center and assert their positions differ: None begins at the available inline start and Center is centered.
+- Verify Left and Right wrapping behavior above the breakpoint and full-width block behavior below it.
+- For Option A, verify Wide and Full are not offered as normal choices and an existing imported value round-trips unchanged.
+- For Option B, verify the ordered visible widths `None < Wide < Full` in the editor without exact pixel snapshots.
+
+Use an image fixture with known intrinsic dimensions. Geometry assertions compare relationships and containment, not exact design pixels.
+
+### Core converter tests
+
+Extend the focused converter coverage under `packages/core/tests/unit/converters/`:
+
+- Portable Text to ProseMirror to Portable Text preserves each valid alignment.
+- ProseMirror to Portable Text to ProseMirror preserves each valid alignment.
+- An image without alignment remains without alignment.
+- The malformed-image recovery path preserves a valid alignment.
+- Unknown alignment input is omitted in both conversion directions.
+- Existing dimension round-trip behavior remains green.
+
+### End-to-end and public rendering
+
+Extend `e2e/tests/editor-image-panel.spec.ts`:
+
+- Insert an image with known original dimensions, change only alignment, apply, and confirm the editor image remains proportional and contained.
+- Reopen the panel and confirm the original fallback dimensions are shown without becoming custom overrides.
+- Save and reload the post and confirm the alignment remains selected.
+- Keep the existing narrow panel, focus-visible media action, destructive-button, and Cancel coverage.
+
+For Option B, create isolated published content and compare Wide and Full layout in the public post route. Do not mutate shared seed content. Verify a bounded nested host as required by the option's stop condition. Do not use screenshot equality or exact pixel values.
 
 ### Manual verification
 
-- Compare the image panel with Publish, Ownership, Bylines, and SEO in the normal sidebar at 368px and 480px.
-- Verify light and dark appearance.
-- Verify English, pseudo-localization, and Arabic at 200px and 320px.
-- Complete the panel with keyboard only, including help, Select, Replace image, Cancel, Apply, and Remove image confirmation.
-- Verify 200% browser zoom and reduced motion.
-- Verify the Section editor retains its card surface and Widgets retains its fixed panel presentation.
-- Capture before-and-after screenshots with useful alt text for the pull request.
+- Reproduce the original 1200 by 800 image case for None, Left, Center, and Right.
+- Resize the desktop editor sidebar and the browser while each alignment is active.
+- Edit the underlying local asset with and without custom display dimensions.
+- Verify alignment and sizing after Save, reload, and public rendering.
+- Verify the chosen Wide and Full behavior or absence in both a top-level post and a nested host.
+- Repeat the panel checks in Arabic, dark appearance, reduced motion, keyboard-only use, touch emulation, and 200% zoom.
 
 ## Expected files and line estimates
 
 Expected production files:
 
-- `packages/admin/src/components/editor/ImageDetailPanel.tsx`: 70-120 changed lines.
-- `packages/admin/src/components/ContentEditor.tsx`: 2-8 changed lines for the duplicate mobile-close suppression.
-- `packages/admin/src/components/ContentSettingsPanel.tsx`: 1-4 changed lines to select the content-sidebar footer behavior.
+- `packages/admin/src/components/editor/ImageDetailPanel.tsx`: 30-65 changed lines after rebase conflict resolution.
+- `packages/admin/src/components/editor/ImageNode.tsx`: 20-45 changed lines.
+- `packages/admin/src/components/PortableTextEditor.tsx`: one class addition for the float-containment defect reproduced during final browser review.
+- `packages/core/src/content/converters/types.ts`: 2-6 changed lines.
+- `packages/core/src/content/converters/prosemirror-to-portable-text.ts`: 8-18 changed lines.
+- `packages/core/src/content/converters/portable-text-to-prosemirror.ts`: 4-12 changed lines.
+- `packages/core/src/components/Image.astro`: 0-30 changed lines, depending on the Wide and Full decision.
 
-Expected test and release-note files:
+Expected test, specification, and release-note files:
 
-- `packages/admin/tests/components/ImageDetailPanel.test.tsx`: 60-110 changed lines.
-- `e2e/tests/editor-image-panel.spec.ts`: 25-60 changed lines.
-- `.changeset/calm-images-fit.md`: 1-3 changed lines.
+- `packages/admin/tests/components/ImageDetailPanel.test.tsx`: 50-100 changed lines after reconciling `main`.
+- `packages/admin/tests/editor/image-alignment.test.tsx`: 60-120 new lines.
+- `e2e/tests/editor-image-panel.spec.ts`: 25-70 changed lines.
+- `packages/core/tests/unit/converters/image-dimensions.test.ts` or a focused alignment sibling: 35-70 changed lines.
+- `packages/core/tests/repro/image-render.render.test.ts`: 0-35 changed lines, depending on the Wide and Full decision.
+- `.changeset/calm-images-fit.md`: 4-8 changed lines.
+- `docs/technical-specs/editor-image-panel-ui.md`: this specification update, approximately 340 additions and 200 removals from the earlier panel-only plan.
 
-No other production file is expected. The warning threshold is 150 changed production lines. The implementation must stop for review above 220 changed production lines, when a fourth production component becomes necessary, or when the fixed panel, Gallery panel, image node schema, media APIs, public rendering, or locale catalogs would need changes.
+The expected additional production change is 65-145 lines. Stop for scope review above 170 production lines, if a seventh production file is required, or if the solution needs a new Portable Text wrapper, page-layout API, database/API work, Gallery changes, or locale catalog edits. Test lines may exceed the estimate only when required to cover `main`'s asset-editor integration without duplicating its existing cases.
 
-## Implementation sequence
+## Sequential commit plan
 
-The follow-up uses one local commit:
+The existing local commits remain part of the same pull request:
 
-Before implementation, verify that the overflow dependency is committed and the worktree contains no unrelated tracked changes. If the dependency is still uncommitted, stop instead of folding it into this follow-up commit.
+1. `fix(admin): contain image settings in editor sidebar`
+2. `refine(admin): align image settings with the editor sidebar`
+3. `fix(admin): reserve image danger tint for hover`
+4. `fix(admin): use a surfaced image removal action`
 
-1. **`refine(admin): align image settings with the editor sidebar`**
-   - Add meaningful failing component and end-to-end tests.
-   - Refine only the inline `ImageDetailPanel` branch and the content editor's mobile close row.
-   - Reuse `FieldHelpLabel`, Kumo `Text`, `Select`, `Tooltip`, `Button`, `Input`, `InputArea`, and `LinkButton`.
-   - Update the existing changeset.
-   - Run the default implementation rhythm: plan, failing tests, implementation, adversarial review, patch, re-review, checks, scope audit, then local commit.
+The rebase is complete. Each follow-up commit uses the sequence `plan -> failing tests -> implementation -> adversarial review -> patch -> re-review -> checks -> scope audit -> local commit`.
 
-Required checks are the focused browser tests, the focused Playwright scenario, `pnpm --filter @emdash-cms/admin typecheck`, `pnpm lint:quick` after each edit, targeted formatting, `git diff --check`, and a final `pnpm lint:json | jq '.diagnostics | length'` result of zero.
+### Commit 5: preserve responsive image instance sizing
+
+Responsibility: fix semantic display-size state, alignment-only Apply, Reset, asset-edit dimension updates, responsive editor sizing, and the None versus Center rendering difference.
+
+Production files:
+
+- `packages/admin/src/components/editor/ImageDetailPanel.tsx`
+- `packages/admin/src/components/editor/ImageNode.tsx`
+
+Tests:
+
+- `packages/admin/tests/components/ImageDetailPanel.test.tsx`
+- `packages/admin/tests/editor/image-alignment.test.tsx`
+- The focused alignment portion of `e2e/tests/editor-image-panel.spec.ts`
+
+Acceptance: an alignment-only update cannot create display overrides; editor images remain proportional when constrained; None and Center are visibly distinct; current `main`'s Edit asset behavior remains intact.
+
+Exclusions: no exported core converter or public renderer change.
+
+### Commit 6: preserve image alignment across public contracts
+
+Responsibility: add the optional exported field, preserve it through both core converter directions and malformed recovery, implement the approved Wide and Full decision, and update the shared changeset.
+
+Production files:
+
+- `packages/core/src/content/converters/types.ts`
+- `packages/core/src/content/converters/prosemirror-to-portable-text.ts`
+- `packages/core/src/content/converters/portable-text-to-prosemirror.ts`
+- `packages/admin/src/components/editor/ImageDetailPanel.tsx` or `ImageNode.tsx` only if the approved Wide and Full option requires it
+- `packages/core/src/components/Image.astro` only if the approved option changes public rendering
+- `packages/admin/src/components/PortableTextEditor.tsx`: contain floated images at the end of the document, covered by the saved-content browser regression.
+
+Documentation:
+
+- `docs/technical-specs/editor-image-panel-ui.md`
+- `.changeset/calm-images-fit.md`
+
+Tests:
+
+- Focused core converter tests
+- Wide and Full editor or public browser behavior required by the approved option
+- Remaining `e2e/tests/editor-image-panel.spec.ts` persistence coverage
+
+Acceptance: valid alignment survives the exported round-trip, invalid runtime values are omitted, existing content remains readable, and Wide and Full follow the approved contract.
+
+Exclusions: no generalized Portable Text layout system unless a separate specification is approved.
+
+## Required checks
+
+- Run `pnpm lint:quick` after every edit.
+- Run the focused admin browser component tests after each admin round.
+- Run the focused core converter tests and `pnpm --filter emdash test:repro` when `Image.astro` changes.
+- Run the focused Playwright scenario against this worktree's available local port.
+- Run `pnpm --filter @emdash-cms/admin typecheck` and the core package typecheck.
+- Build admin, core, and the simple demo after the rebase and final implementation.
+- Run targeted formatting, `git diff --check`, and `pnpm lint:json | jq '.diagnostics | length'`; the final diagnostic count must be zero.
+- Confirm no extracted locale catalogs, unrelated generated files, or unrelated changes enter the diff.
+
+## Review gates
+
+- Reject any fix that tests only a class string, local state name, or callback echo instead of rendered or serialized behavior.
+- Reject any fix that writes original dimensions as display overrides.
+- Reject any image sizing rule that clamps one axis while retaining an independent fixed size on the other.
+- Reject any converter change that drops provider, source, media identity, captions, LQIP data, or dimensions.
+- Reject a conflict resolution that removes `main`'s Edit asset action, asset refresh, node reset, error state, or nested-overlay shortcut handling.
+- Reject viewport Full CSS without passing the nested-host containment scenario.
+- Stop if the Wide and Full decision is still unresolved.
 
 ## Acceptance criteria
 
-- The inline image panel matches the normal content editor sidebar's surface, gutter, heading, field, separator, and action patterns.
-- All Option 1 fields remain visible in the specified order.
-- Replace image is discoverable and operable with pointer, keyboard, and touch input.
-- Display size and Alt text use the native EmDash `FieldHelpLabel` tooltip pattern with the specified localized copy.
-- Alignment uses one Kumo Select and persists the same existing attribute values.
-- The panel has one close control on mobile, one destructive section, and a stable Cancel/Apply footer.
-- Apply, Cancel, replacement, removal, aspect-ratio locking, keyboard shortcuts, and provider preservation behave as specified.
-- The panel remains contained and operable in English and Arabic from 200px through 480px and at 200% zoom.
-- SectionEditor and Widgets retain their existing outer presentation.
-- No database, API, public rendering, query-count, or stored-content contract changes.
-- Tests, typecheck, lint, formatting, changeset validation, and manual visual checks pass.
+- The existing inline panel retains normal editor-sidebar spacing, typography, Kumo controls, tooltips, responsive containment, action hierarchy, and Remove image styling.
+- Alignment-only and text-only Apply preserve absent display overrides.
+- Reset removes existing display overrides and uses the latest original media dimensions.
+- Edit asset updates implicit dimensions and preserves explicit instance dimensions.
+- Editor images preserve their configured aspect ratio when the available width shrinks.
+- None and Center render differently for images narrower than the text column.
+- Left and Right match public narrow-screen behavior.
+- Valid alignment survives both exported core conversion directions and malformed-image recovery.
+- The approved Wide and Full policy is implemented and tested without data loss or host-layout overflow.
+- Local, direct-URL, and configured-provider images retain their source and provider identity.
+- English, Arabic, 200% zoom, light and dark appearance, reduced motion, keyboard, and touch checks pass.
+- The complete work remains one pull request with the existing four commits and two reviewed follow-up commits.
 
-## Unresolved decisions
+## Approved product decision
 
-None. Selecting Option 1 fixes the information architecture, preserves the staged Apply model, and excludes the progressive and asset-inspector directions.
+Option A disables Wide and Full for new selections and preserves imported values and theme hooks. Imported Wide and Full values retain their existing default rendering. A container-aware breakout layout contract is outside this pull request.
 
 ## Implementation authorization
 
-This specification authorizes no implementation or Git/GitHub mutation. Implementation requires explicit approval and a later `$feat-implement` request.
+The user has authorized the six local commits in this worktree and approved the rebase onto `main`. This implementation does not include pushing, opening or modifying a pull request, or merging.
+
+## Implementation verification
+
+The final implementation was checked on September 7, 2026, in `/private/tmp/emdash-editor-edit-image-panel`, with the simple demo served on port 4321.
+
+- All 117 focused admin tests pass across the panel, Portable Text editor, image rendering, and image selection suites.
+- All 64 core converter tests pass, including valid alignment round-trips, malformed-image recovery, and invalid runtime values.
+- The Playwright image-panel scenario passes against the running demo. It checks containment at 200px, image proportions, disabled options, keyboard-visible replacement, Remove image hover styling, Apply, Cancel, and saved/reloaded alignment without display overrides. Its scratch draft is moved to Trash.
+- The corrected float-containment test targets the editable root, not TipTap's non-editable node wrapper. Removing `flow-root` reproduces the failure; restoring it makes the same test pass.
+- Full workspace typecheck, type-aware lint with zero diagnostics, admin/core/simple-demo builds, targeted formatting, changeset validation, and diff whitespace checks pass.
+- Visual inspection covers English and Arabic, light and dark appearance, and the narrow Arabic panel. Arabic at 320px and 480px remains contained with reduced motion enabled. Focused browser tests cover keyboard help, save/cancel shortcuts, and nested-overlay ownership.
+
+Review also found and corrected an unlocked first resize losing the untouched original dimension. The existing full-width None selection surface remains so small images retain reachable action buttons. No further material in-scope findings remain after re-review.
+
+The alignment follow-up changes 149 production lines across six files, below the 170-line and seventh-file stop gates. There are no public breakout CSS, database/API, Gallery, dependency, or locale-catalog changes.
+
+Actual browser 200% zoom, touch-device emulation, and pseudo-localization have not been verified. The focused checks do not replace the full repository test suite or remote CI. Vitest reports the existing mixed-version warning (4.1.5 and browser 4.1.10); the passing runs do not require dependency changes.

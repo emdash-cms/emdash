@@ -22,7 +22,7 @@ import * as React from "react";
 import type { MediaItem } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
 import { canonicalMediaProviderId, metaString } from "../../lib/media-utils.js";
-import { cn } from "../../lib/utils";
+import { cn } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { FieldHelpLabel } from "../FieldHelpLabel.js";
 import { useMediaAssetEditor } from "../media/useMediaAssetEditor.js";
@@ -434,16 +434,21 @@ export function ImageDetailPanel({
 							onValueChange={(value) =>
 								setAlignment(value === "none" ? undefined : (value as ImageAttributes["alignment"]))
 							}
-							items={{
-								none: t`None`,
-								left: t`Left`,
-								center: t`Center`,
-								right: t`Right`,
-								wide: t`Wide`,
-								full: t`Full`,
-							}}
+							renderValue={(value) =>
+								alignmentOptions.find((option) => (option.value ?? "none") === value)?.label
+							}
 							className="w-full"
-						/>
+						>
+							{alignmentOptions.map((option) => (
+								<Select.Option
+									key={option.value ?? "none"}
+									value={option.value ?? "none"}
+									disabled={option.value === "wide" || option.value === "full"}
+								>
+									{option.label}
+								</Select.Option>
+							))}
+						</Select>
 					</div>
 				)}
 
@@ -659,6 +664,7 @@ export function ImageDetailPanel({
 									size="sm"
 									variant={alignment === opt.value ? "primary" : "secondary"}
 									onClick={() => setAlignment(opt.value)}
+									disabled={opt.value === "wide" || opt.value === "full"}
 								>
 									{opt.label}
 								</Button>

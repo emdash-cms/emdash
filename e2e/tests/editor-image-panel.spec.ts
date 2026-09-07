@@ -1,5 +1,3 @@
-import { resolve } from "node:path";
-
 import { test, expect } from "../fixtures";
 
 const EXTERNAL_IMAGE_URL = "http://media.example.test/editor-panel.png";
@@ -12,8 +10,8 @@ test.describe("Editor image panel", () => {
 	test("keeps image settings within the mobile sidebar", async ({ admin, page }) => {
 		await page.route(EXTERNAL_IMAGE_URL, (route) =>
 			route.fulfill({
-				path: resolve("e2e/fixtures/assets/test-image.png"),
-				contentType: "image/png",
+				body: '<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800"><rect width="1200" height="800" fill="gray"/></svg>',
+				contentType: "image/svg+xml",
 			}),
 		);
 		await admin.goToNewContent("posts");
@@ -30,9 +28,10 @@ test.describe("Editor image panel", () => {
 
 		const image = page.getByRole("img", { name: "editor-panel.png" });
 		await expect(image).toBeVisible();
-		await page.setViewportSize({ width: 200, height: 800 });
 		await image.click();
+		await page.setViewportSize({ width: 368, height: 800 });
 		await page.getByRole("button", { name: "Image settings" }).click();
+		await page.setViewportSize({ width: 200, height: 800 });
 
 		const settings = page.getByRole("navigation", { name: "Settings" });
 		await expect(settings).toBeVisible();
@@ -90,16 +89,26 @@ test.describe("Editor image panel", () => {
 
 		await settings.getByRole("textbox", { name: "Alt text" }).fill("Updated diagram");
 		await settings.getByRole("combobox", { name: "Alignment" }).click();
-		await page.getByRole("option", { name: "Wide" }).click();
+		await expect(page.getByRole("option", { name: "Wide" })).toHaveAttribute(
+			"aria-disabled",
+			"true",
+		);
+		await expect(page.getByRole("option", { name: "Full" })).toHaveAttribute(
+			"aria-disabled",
+			"true",
+		);
+		await page.getByRole("option", { name: "Left" }).click();
 		await settings.getByRole("button", { name: "Apply" }).click();
 
 		const updatedImage = page.getByRole("img", { name: "Updated diagram" });
+		const imageBounds = await updatedImage.boundingBox();
+		expect(imageBounds!.width / imageBounds!.height).toBeCloseTo(1.5, 2);
 		await updatedImage.click();
 		await page.getByRole("button", { name: "Image settings" }).click();
 		await expect(settings.getByRole("textbox", { name: "Alt text" })).toHaveValue(
 			"Updated diagram",
 		);
-		await expect(settings.getByRole("combobox", { name: "Alignment" })).toContainText("Wide");
+		await expect(settings.getByRole("combobox", { name: "Alignment" })).toContainText("Left");
 
 		await settings.getByRole("textbox", { name: "Alt text" }).fill("Discarded change");
 		await settings.getByRole("button", { name: "Cancel" }).click();
@@ -108,5 +117,47 @@ test.describe("Editor image panel", () => {
 		await expect(settings.getByRole("textbox", { name: "Alt text" })).toHaveValue(
 			"Updated diagram",
 		);
+		await settings.getByRole("button", { name: "Cancel" }).click();
+		await page.setViewportSize({ width: 1440, height: 1000 });
+		await admin.fillField("title", `Image alignment regression ${Date.now()}`);
+		const savedResponse = page.waitForResponse(
+			(response) =>
+				response.request().method() === "POST" &&
+				new URL(response.url()).pathname === "/_emdash/api/content/posts",
+		);
+		await admin.clickSave();
+		const response = await savedResponse;
+		expect(response.ok(), await response.text()).toBe(true);
+		const content = response.request().postDataJSON().data.content as Record<string, unknown>[];
+		const savedImage = content.find((block) => block._type === "image")!;
+		expect(savedImage).toMatchObject({ alignment: "left", width: 1200, height: 800 });
+		expect(savedImage.displayWidth).toBeUndefined();
+		expect(savedImage.displayHeight).toBeUndefined();
+		const {
+			data: {
+				item: { id },
+			},
+		} = await response.json();
+		try {
+			await page.waitForURL((url) => url.pathname.endsWith(`/posts/${id}`));
+			await page.reload();
+			await expect(updatedImage).toBeVisible();
+			expect(
+				await updatedImage.evaluate(
+					(element) =>
+						element.getBoundingClientRect().bottom <=
+						element.closest('[contenteditable="true"]')!.getBoundingClientRect().bottom,
+				),
+			).toBe(true);
+			await updatedImage.click();
+			await page.getByRole("button", { name: "Image settings" }).click();
+			await expect(page.getByRole("combobox", { name: "Alignment" })).toContainText("Left");
+			await expect(page.getByRole("spinbutton", { name: "Width" })).toHaveValue("1200");
+			await expect(page.getByRole("spinbutton", { name: "Height" })).toHaveValue("800");
+		} finally {
+			await page.request.delete(`/_emdash/api/content/posts/${id}?locale=en`, {
+				headers: { "X-EmDash-Request": "1" },
+			});
+		}
 	});
 });
