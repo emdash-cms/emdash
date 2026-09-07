@@ -1,0 +1,27 @@
+scripts/query-counts.queries.d1.json
+  s_669e4e36f3cd5c::t_2b5608ff23e146 127,138,183,202
+scripts/query-counts.queries.sqlite.json
+  s_669e4e36f3cd5c::t_85d2485848cb41 85,93,123,139
+.changeset/wide-d1-entry-loading.md
+  s_669e4e36f3cd5c::t_ae1b494635ab07 1-5
+packages/core/src/loader.ts
+  s_669e4e36f3cd5c::t_7dcbcba8777a6d 1550-1558,1561,1568,1580-1588
+packages/core/tests/workerd/loader-wide-collection-d1.test.ts
+  s_669e4e36f3cd5c::t_062d0bbf86b5cd 36,39-44,59,75,77-78,80-81,84-91,117-123,125,127,131-132,150
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "56f418316f76567f8bd6eb17593a7be55246d4d9",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
