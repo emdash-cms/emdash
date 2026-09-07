@@ -1,0 +1,41 @@
+docs/technical-specs/editor-image-panel-ui.md
+  s_669e4e36f3cd5c::t_b0763f3c69b754 1,3,5,7,9,11,13,15,17,19,21-28,30,32-38,40,42,44-70,76-77,93-262,266-271,277-304,306,308,310,312,314-315,317,319-321,323-374,378-389,391,393,397-414
+e2e/tests/editor-image-panel.spec.ts
+  s_669e4e36f3cd5c::t_7841aa106af312 13-14,32,34,92-100,104-105,111,120-161
+packages/admin/src/components/editor/ImageDetailPanel.tsx
+  s_669e4e36f3cd5c::t_98054e9e37b041 25,437-439,441-451,667
+packages/core/src/content/converters/portable-text-to-prosemirror.ts
+  s_669e4e36f3cd5c::t_e95ccdbedae6d8 510-519,536,573
+packages/core/src/content/converters/prosemirror-to-portable-text.ts
+  s_669e4e36f3cd5c::t_a65c9fad83277c 330,349-356
+packages/core/tests/unit/converters/image-alignment.test.ts
+  s_669e4e36f3cd5c::t_1390187251fc08 1-83
+packages/admin/tests/components/ImageDetailPanel.test.tsx
+  s_5b62df774d93d1::t_1b9641c99347b9 192,195,198-222
+packages/core/src/content/converters/types.ts
+  s_669e4e36f3cd5c::t_e2175fabf9a502 73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a08463bfdb0c13acc3b4933c6fcb782daa1696b1",
+  "prompts": {},
+  "sessions": {
+    "s_5b62df774d93d1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07b6b-2cdb-7e80-a83d-c1d58cbe0e30",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
