@@ -192,12 +192,12 @@ test.describe("Content CRUD", () => {
 			expect(count).toBeGreaterThan(0);
 		});
 
-		test("publish action changes status", async ({ admin }) => {
+		test("publish action changes status", async ({ admin }, testInfo) => {
 			// Create a new draft post first
 			await admin.goToNewContent("posts");
 			await admin.waitForLoading();
 
-			await admin.fillField("title", "Draft to Publish Test");
+			await admin.fillField("title", `Draft to Publish Test ${testInfo.retry}`);
 			await admin.clickSave();
 
 			// Wait for redirect to edit page (confirms save succeeded)
@@ -212,13 +212,11 @@ test.describe("Content CRUD", () => {
 			});
 			await expect(publishButton).toBeVisible();
 			await publishButton.click();
-			await admin.waitForLoading();
+			await admin.page.getByRole("menuitem", { name: "Publish now", exact: true }).click();
 
-			// Once live with no pending changes, the action flips to "Unpublish Post",
-			// confirming the status actually changed.
-			await expect(
-				admin.page.getByRole("button", { name: "Unpublish Post", exact: true }),
-			).toBeVisible({ timeout: 10000 });
+			await expect(admin.page.getByText("Live version", { exact: true })).toBeVisible({
+				timeout: 10000,
+			});
 		});
 	});
 });

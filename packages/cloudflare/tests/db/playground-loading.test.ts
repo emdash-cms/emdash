@@ -81,7 +81,7 @@ describe("playground loading progress", () => {
 
 		await vi.advanceTimersByTimeAsync(800);
 		expect(elements.get("step-db")!.className).toBe("pg-step completing");
-		await vi.advanceTimersByTimeAsync(150);
+		await vi.advanceTimersByTimeAsync(300);
 		expect(elements.get("step-content")!.className).toBe("pg-step active");
 
 		resolveSetup(Response.json({ ok: true }));
@@ -92,7 +92,7 @@ describe("playground loading progress", () => {
 		expect(elements.get("pg-message")!.textContent).toBe("Ready!");
 		expect(replace).not.toHaveBeenCalled();
 
-		await vi.advanceTimersByTimeAsync(399);
+		await vi.advanceTimersByTimeAsync(899);
 		expect(elements.get("step-ready")!.className).toBe("pg-step completing");
 		expect(replace).not.toHaveBeenCalled();
 
