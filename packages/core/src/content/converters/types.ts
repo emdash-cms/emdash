@@ -62,6 +62,7 @@ export interface PortableTextImageBlock {
 	};
 	alt?: string;
 	caption?: string;
+	title?: string;
 	/** Original image width */
 	width?: number;
 	/** Original image height */

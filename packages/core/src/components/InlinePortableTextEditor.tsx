@@ -259,6 +259,10 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			const provider = attrStrOpt(node.attrs, "provider");
 			const blurhash = attrStrOpt(node.attrs, "blurhash");
 			const dominantColor = attrStrOpt(node.attrs, "dominantColor");
+			const title = attrStrOpt(node.attrs, "title");
+			const caption = Object.hasOwn(node.attrs ?? {}, "caption")
+				? (attrStrOpt(node.attrs, "caption") ?? (title ? "" : undefined))
+				: title;
 			// Persist LQIP as first-class block fields (matching the image-field
 			// MediaValue path) rather than nesting in `asset.meta`, so read sites
 			// and normalize don't need a dual-shape fallback. `asset.meta` is left
@@ -273,7 +277,8 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 					provider: provider && provider !== "local" ? provider : undefined,
 				},
 				alt: attrStrOpt(node.attrs, "alt"),
-				caption: attrStrOpt(node.attrs, "caption") ?? attrStrOpt(node.attrs, "title"),
+				caption,
+				title,
 				width: attrNum(node.attrs, "width"),
 				height: attrNum(node.attrs, "height"),
 				...(blurhash ? { blurhash } : {}),
@@ -559,6 +564,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			url?: string;
 			alt?: string;
 			caption?: string;
+			title?: string;
 			width?: number;
 			height?: number;
 			/** LQIP — first-class field (legacy snapshots keep it in `asset.meta`). */
@@ -587,8 +593,8 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			attrs: {
 				src: asset?.url || ib.url || (asset?._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
 				alt: ib.alt || "",
-				title: ib.caption || "",
-				caption: ib.caption || "",
+				title: ib.title || "",
+				caption: Object.hasOwn(ib, "caption") ? ib.caption || "" : ib.title || "",
 				mediaId: asset?._ref,
 				provider: canonicalMediaProviderId(asset?.provider),
 				width: ib.width,
@@ -2158,6 +2164,7 @@ export function InlinePortableTextEditor({
 						provider: { default: null },
 						width: { default: null },
 						height: { default: null },
+						caption: { default: null },
 						blurhash: { default: null },
 						dominantColor: { default: null },
 					};

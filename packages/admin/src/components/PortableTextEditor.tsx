@@ -185,6 +185,7 @@ interface PortableTextImageBlock {
 	asset: { _ref: string; url?: string; provider?: string; meta?: Record<string, unknown> };
 	alt?: string;
 	caption?: string;
+	title?: string;
 	width?: number;
 	height?: number;
 	/** LQIP blurhash — first-class field (legacy snapshots store it in `asset.meta`). */
@@ -553,6 +554,10 @@ function convertPMNode(
 			const provider = attrStr(attrs.provider);
 			const blurhash = attrStr(attrs.blurhash);
 			const dominantColor = attrStr(attrs.dominantColor);
+			const title = attrStr(attrs.title);
+			const caption = Object.hasOwn(attrs, "caption")
+				? (attrStr(attrs.caption) ?? (title ? "" : undefined))
+				: title;
 			// Persist LQIP as first-class block fields, matching the image-field
 			// path (MediaValue.blurhash/dominantColor) so read sites and normalize
 			// don't need a `asset.meta` dual-shape. `asset.meta` is left to carry
@@ -567,7 +572,8 @@ function convertPMNode(
 					provider: provider && provider !== "local" ? provider : undefined,
 				},
 				alt: attrStr(attrs.alt),
-				caption: attrStr(attrs.caption) ?? attrStr(attrs.title),
+				caption,
+				title,
 				width: attrNum(attrs.width),
 				height: attrNum(attrs.height),
 				...(blurhash ? { blurhash } : {}),
@@ -852,7 +858,8 @@ function isTextBlock(block: PortableTextBlock): block is PortableTextTextBlock {
 }
 
 function isImageBlock(block: PortableTextBlock): block is PortableTextImageBlock {
-	return block._type === "image";
+	const asset = "asset" in block ? block.asset : undefined;
+	return block._type === "image" && typeof asset === "object" && asset !== null;
 }
 
 function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
@@ -990,7 +997,23 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 		}
 
 		case "image": {
-			if (!isImageBlock(block)) return null;
+			if (!isImageBlock(block)) {
+				const malformed = block as unknown as Record<string, unknown>;
+				const title = typeof malformed.title === "string" ? malformed.title : "";
+				return {
+					type: "image",
+					attrs: {
+						src: typeof malformed.url === "string" ? malformed.url : "",
+						alt: typeof malformed.alt === "string" ? malformed.alt : "",
+						title,
+						caption: Object.hasOwn(malformed, "caption")
+							? typeof malformed.caption === "string"
+								? malformed.caption
+								: ""
+							: title,
+					},
+				};
+			}
 			const imageBlock = block;
 			const meta = imageBlock.asset.meta;
 			// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy
@@ -1012,8 +1035,10 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 				attrs: {
 					src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
 					alt: imageBlock.alt || "",
-					title: imageBlock.caption || "",
-					caption: imageBlock.caption || "",
+					title: imageBlock.title || "",
+					caption: Object.hasOwn(imageBlock, "caption")
+						? imageBlock.caption || ""
+						: imageBlock.title || "",
 					mediaId: imageBlock.asset._ref,
 					provider: canonicalMediaProviderId(imageBlock.asset.provider),
 					width: imageBlock.width,
