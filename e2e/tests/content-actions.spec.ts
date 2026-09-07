@@ -11,6 +11,8 @@
  * Uses the seeded "posts" collection which supports drafts and revisions.
  */
 
+import type { Locator, Page } from "@playwright/test";
+
 import { test, expect } from "../fixtures";
 
 // ---------- regex patterns ----------
@@ -35,6 +37,34 @@ function apiHeaders(token: string, baseUrl: string) {
 		"X-EmDash-Request": "1",
 		Origin: baseUrl,
 	};
+}
+
+function localDateKey(date: Date): string {
+	return [
+		date.getFullYear(),
+		String(date.getMonth() + 1).padStart(2, "0"),
+		String(date.getDate()).padStart(2, "0"),
+	].join("-");
+}
+
+async function selectTomorrow(dialog: Locator) {
+	const tomorrow = new Date();
+	tomorrow.setDate(tomorrow.getDate() + 1);
+	await dialog.locator(`[data-day="${localDateKey(tomorrow)}"] button`).click();
+}
+
+async function fillTime(page: Page, dialog: Locator, value: `${string}:${string}`) {
+	const [hour = "", minute = ""] = value.split(":");
+	const hour24 = Number(hour);
+	const displayHour = String(hour24 % 12 || 12).padStart(2, "0");
+	await dialog.getByRole("textbox", { name: "Hour" }).fill(displayHour);
+	await dialog.getByRole("textbox", { name: "Minute" }).fill(minute);
+	const desiredPeriod = hour24 >= 12 ? "PM" : "AM";
+	const period = dialog.getByRole("combobox", { name: "Period" });
+	if (!(await period.textContent())?.includes(desiredPeriod)) {
+		await period.click();
+		await page.getByRole("option", { name: desiredPeriod, exact: true }).click();
+	}
 }
 
 /** Create a post via API and return its ID */
@@ -102,6 +132,7 @@ test.describe("Schedule content", () => {
 	let headers: Record<string, string>;
 	let baseUrl: string;
 	let postId: string;
+	let postSlug: string;
 
 	test.beforeEach(async ({ admin, serverInfo }) => {
 		await admin.devBypassAuth();
@@ -109,12 +140,8 @@ test.describe("Schedule content", () => {
 		headers = apiHeaders(serverInfo.token, baseUrl);
 
 		// Create a fresh draft post for scheduling tests
-		postId = await createPost(
-			baseUrl,
-			headers,
-			"Schedule Test Post",
-			`schedule-test-${Date.now()}`,
-		);
+		postSlug = `schedule-test-${Date.now()}`;
+		postId = await createPost(baseUrl, headers, "Schedule Test Post", postSlug);
 	});
 
 	test.afterEach(async () => {
@@ -128,23 +155,19 @@ test.describe("Schedule content", () => {
 		// Verify we're on the edit page with our post
 		await expect(page.locator("#field-title")).toHaveValue("Schedule Test Post");
 
-		// The "Schedule for later" button should be visible in the sidebar
-		const scheduleButton = page.getByRole("button", { name: "Schedule for later" });
-		await expect(scheduleButton).toBeVisible({ timeout: 5000 });
-		await scheduleButton.click();
+		const publishButton = page.getByRole("button", { name: "Publish", exact: true });
+		await expect(publishButton).toBeVisible({ timeout: 5000 });
+		await publishButton.click();
+		await page.getByRole("menuitem", { name: /Schedule publication/ }).click();
 
-		// A datetime input should appear
-		const dateInput = page.getByLabel("Schedule for");
-		await expect(dateInput).toBeVisible({ timeout: 5000 });
+		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
+		await expect(dialog).toBeVisible({ timeout: 5000 });
+		await selectTomorrow(dialog);
+		await fillTime(page, dialog, "14:43");
+		const minuteInput = dialog.getByRole("textbox", { name: "Minute" });
+		await expect(minuteInput).toHaveValue("43");
 
-		// Set a future date (tomorrow)
-		const tomorrow = new Date();
-		tomorrow.setDate(tomorrow.getDate() + 1);
-		tomorrow.setHours(9, 0, 0, 0);
-		const dateValue = tomorrow.toISOString().slice(0, 16); // datetime-local format
-		await dateInput.fill(dateValue);
-
-		// Click the "Schedule" confirm button and wait for the API response
+		// Submit from the time field and wait for the API response.
 		const scheduleResponse = page.waitForResponse(
 			(res) =>
 				SCHEDULE_API_PATTERN.test(res.url()) &&
@@ -152,17 +175,72 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await page.getByRole("button", { name: "Schedule", exact: true }).click();
+		await minuteInput.press("Enter");
 		await scheduleResponse;
 
 		// A toast confirming scheduling should appear
 		await expect(page.getByRole("heading", { name: "Scheduled" })).toBeVisible({ timeout: 5000 });
 
-		// The scheduled date info should be visible
-		await expect(page.locator("text=Scheduled for:")).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText("First publication", { exact: true })).toBeVisible({
+			timeout: 5000,
+		});
+		const scheduledButton = page.getByRole("button", { name: "Scheduled", exact: true });
+		await expect(scheduledButton).toBeVisible();
+		await scheduledButton.click();
+		await expect(page.getByRole("menuitem", { name: /Change schedule/ })).toBeVisible();
+		await expect(page.getByRole("menuitem", { name: /Remove schedule/ })).toBeVisible();
+	});
 
-		// An "Unschedule" button should be visible
-		await expect(page.getByRole("button", { name: "Unschedule" })).toBeVisible();
+	test("keeps publishing choices usable in a 320-pixel viewport", async ({ admin, page }) => {
+		await admin.goToEditContent("posts", postId);
+		await admin.waitForLoading();
+		await page.setViewportSize({ width: 320, height: 576 });
+
+		const publishButton = page.getByRole("button", { name: "Publish", exact: true });
+		await publishButton.focus();
+		await page.keyboard.press("Enter");
+		await page.keyboard.press("ArrowDown");
+		await expect(page.locator('[role="menuitem"][data-highlighted]')).toHaveCount(1);
+		await expect(page.getByText("Choose when this draft goes live", { exact: true })).toHaveCount(
+			0,
+		);
+		await page.keyboard.press("Escape");
+		await expect(publishButton).toBeFocused();
+		await publishButton.click();
+		const menu = page.getByRole("menu", { name: "Publish" });
+		const menuBox = await menu.boundingBox();
+		expect(menuBox).not.toBeNull();
+		expect(menuBox!.x).toBeGreaterThanOrEqual(0);
+		expect(menuBox!.x + menuBox!.width).toBeLessThanOrEqual(320);
+
+		await page.getByRole("menuitem", { name: /Schedule publication/ }).click();
+		const dialog = page.getByRole("dialog", { name: "Schedule publication" });
+		const dialogBox = await dialog.boundingBox();
+		expect(dialogBox).not.toBeNull();
+		expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
+		expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(320);
+		expect(dialogBox!.y).toBeGreaterThanOrEqual(0);
+		expect(dialogBox!.y + dialogBox!.height).toBeLessThanOrEqual(576);
+		const timeSpacing = await dialog.getByRole("group", { name: "Time" }).evaluate((fieldset) => {
+			const legend = fieldset.querySelector("legend")!;
+			const picker = legend.nextElementSibling!;
+			return picker.getBoundingClientRect().top - legend.getBoundingClientRect().bottom;
+		});
+		expect(timeSpacing).toBeGreaterThanOrEqual(7);
+		expect(timeSpacing).toBeLessThanOrEqual(9);
+		const calendarBox = await dialog.locator(".rdp-root").boundingBox();
+		expect(calendarBox).not.toBeNull();
+		const calendarStart = calendarBox!.x - dialogBox!.x;
+		const calendarEnd = dialogBox!.x + dialogBox!.width - (calendarBox!.x + calendarBox!.width);
+		expect(Math.abs(calendarStart - calendarEnd)).toBeLessThan(2);
+		await expect(dialog.getByRole("button", { name: /Tomorrow at/ })).toHaveCount(0);
+		await expect(dialog.getByRole("button", { name: /Next .* at/ })).toHaveCount(0);
+		expect(await dialog.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(
+			true,
+		);
+		expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+			320,
+		);
 	});
 
 	test("unschedule a scheduled post", async ({ admin, page }) => {
@@ -178,8 +256,9 @@ test.describe("Schedule content", () => {
 		await admin.goToEditContent("posts", postId);
 		await admin.waitForLoading();
 
-		// Verify scheduled state is shown
-		await expect(page.locator("text=Scheduled for:")).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText("First publication", { exact: true })).toBeVisible({
+			timeout: 5000,
+		});
 
 		// Click unschedule and wait for API response
 		const unscheduleResponse = page.waitForResponse(
@@ -189,16 +268,167 @@ test.describe("Schedule content", () => {
 				res.status() === 200,
 			{ timeout: 10000 },
 		);
-		await page.getByRole("button", { name: "Unschedule" }).click();
+		await page.getByRole("button", { name: "Scheduled", exact: true }).click();
+		await page.getByRole("menuitem", { name: /Remove schedule/ }).click();
 		await unscheduleResponse;
 
-		// The scheduled info should disappear
-		await expect(page.locator("text=Scheduled for:")).not.toBeVisible({ timeout: 5000 });
-
-		// The "Schedule for later" button should reappear
-		await expect(page.getByRole("button", { name: "Schedule for later" })).toBeVisible({
+		await expect(page.getByText("Draft version", { exact: true })).toBeVisible({
 			timeout: 5000,
 		});
+		await expect(page.getByRole("button", { name: "Publish", exact: true })).toBeVisible();
+	});
+
+	test("keeps the live version public while a draft update is scheduled and removed", async ({
+		admin,
+		page,
+	}) => {
+		await publishPost(baseUrl, headers, postId);
+		await admin.goToEditContent("posts", postId);
+		await admin.waitForLoading();
+
+		const title = page.locator("#field-title");
+		await expect(title).toHaveValue("Schedule Test Post");
+		await title.fill("Scheduled Draft Update");
+		await admin.clickSave();
+		await admin.waitForSaveComplete();
+
+		await expect(page.getByText("Live version", { exact: true })).toBeVisible();
+		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible();
+		let publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
+		expect(publicResponse.ok).toBe(true);
+		let publicHtml = await publicResponse.text();
+		expect(publicHtml).toContain("Schedule Test Post");
+		expect(publicHtml).not.toContain("Scheduled Draft Update");
+
+		const publicationDateTrigger = page.getByRole("button", {
+			name: /Change publication date:/,
+		});
+		const publishingSummary = page.getByRole("group", { name: "Publishing summary" });
+		const createdAndUpdatedTrigger = publishingSummary.getByRole("button", {
+			name: "Created and updated",
+		});
+		const statusIconBox = await publishingSummary.locator("svg").first().boundingBox();
+		const publicationLabelBox = await publicationDateTrigger
+			.getByText("Publication date", { exact: true })
+			.boundingBox();
+		const createdAndUpdatedLabelBox = await createdAndUpdatedTrigger
+			.locator("span")
+			.filter({ hasText: /^Created and updated$/ })
+			.last()
+			.boundingBox();
+		const publicationButtonBox = await publicationDateTrigger.boundingBox();
+		const createdAndUpdatedButtonBox = await createdAndUpdatedTrigger.boundingBox();
+		for (const box of [
+			statusIconBox,
+			publicationLabelBox,
+			createdAndUpdatedLabelBox,
+			publicationButtonBox,
+			createdAndUpdatedButtonBox,
+		]) {
+			expect(box).not.toBeNull();
+		}
+		expect(Math.abs(publicationLabelBox!.x - statusIconBox!.x)).toBeLessThanOrEqual(1);
+		expect(Math.abs(createdAndUpdatedLabelBox!.x - statusIconBox!.x)).toBeLessThanOrEqual(1);
+		expect(statusIconBox!.x - publicationButtonBox!.x).toBeGreaterThanOrEqual(7);
+		expect(statusIconBox!.x - createdAndUpdatedButtonBox!.x).toBeGreaterThanOrEqual(7);
+		const publicationDateLayout = await publicationDateTrigger.evaluate((element) => {
+			(element as HTMLElement).style.width = "296px";
+			const label = element.querySelector(".text-kumo-subtle")!;
+			const value = element.querySelector("time")!;
+			const lineCount = (target: Element) => {
+				const range = document.createRange();
+				range.selectNodeContents(target);
+				return range.getClientRects().length;
+			};
+			return {
+				height: element.getBoundingClientRect().height,
+				labelLines: lineCount(label),
+				valueLines: lineCount(value),
+			};
+		});
+		expect(publicationDateLayout).toEqual({ height: 36, labelLines: 1, valueLines: 1 });
+		await publicationDateTrigger.click();
+		const publicationDateDialog = page.getByRole("dialog", {
+			name: "Change publication date",
+		});
+		await expect(
+			publicationDateDialog.getByText("Change the recorded date for the live version.", {
+				exact: true,
+			}),
+		).toHaveCount(0);
+		await expect(publicationDateDialog.getByRole("textbox", { name: "Hour" })).toBeVisible();
+		await expect(publicationDateDialog.getByRole("textbox", { name: "Minute" })).toBeVisible();
+		expect(await publicationDateDialog.locator('input[type="time"]').count()).toBe(0);
+		await publicationDateDialog.getByRole("button", { name: "Cancel", exact: true }).click();
+		await expect(publicationDateTrigger).toBeFocused();
+
+		const publishChanges = page.getByRole("button", { name: "Publish changes", exact: true });
+		const publishChangesLayout = await publishChanges.evaluate((element) => {
+			const button = element.getBoundingClientRect();
+			const caret = element.querySelector("svg")!.getBoundingClientRect();
+			const label = element.querySelector("span.truncate")!.getBoundingClientRect();
+			return {
+				labelCenterOffset: Math.abs(
+					button.left + button.width / 2 - (label.left + label.width / 2),
+				),
+				trailingGap: button.right - caret.right,
+			};
+		});
+		expect(publishChangesLayout.labelCenterOffset).toBeLessThanOrEqual(1);
+		expect(publishChangesLayout.trailingGap).toBeLessThanOrEqual(16);
+		await publishChanges.click();
+		await page.getByRole("menuitem", { name: /Schedule changes/ }).click();
+		const dialog = page.getByRole("dialog", { name: "Schedule changes" });
+		await expect(
+			dialog.getByText("Choose when these changes replace the live version.", { exact: true }),
+		).toBeVisible();
+		await selectTomorrow(dialog);
+		await fillTime(page, dialog, "09:00");
+		const scheduleResponse = page.waitForResponse(
+			(res) =>
+				SCHEDULE_API_PATTERN.test(res.url()) &&
+				res.request().method() === "POST" &&
+				res.status() === 200,
+			{ timeout: 10000 },
+		);
+		await dialog.getByRole("button", { name: "Schedule changes", exact: true }).click();
+		await scheduleResponse;
+
+		await expect(page.getByRole("button", { name: "Scheduled update", exact: true })).toBeVisible({
+			timeout: 5000,
+		});
+		await expect(
+			page.getByText("Visitors see the published version until the scheduled update", {
+				exact: true,
+			}),
+		).toBeVisible();
+		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible();
+		publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
+		publicHtml = await publicResponse.text();
+		expect(publicHtml).toContain("Schedule Test Post");
+		expect(publicHtml).not.toContain("Scheduled Draft Update");
+
+		await page.getByRole("button", { name: "Scheduled update", exact: true }).click();
+		const unscheduleResponse = page.waitForResponse(
+			(res) =>
+				SCHEDULE_API_PATTERN.test(res.url()) &&
+				res.request().method() === "DELETE" &&
+				res.status() === 200,
+			{ timeout: 10000 },
+		);
+		await page.getByRole("menuitem", { name: /Remove schedule/ }).click();
+		await unscheduleResponse;
+
+		await expect(page.getByRole("button", { name: "Publish changes", exact: true })).toBeVisible({
+			timeout: 5000,
+		});
+		await expect(
+			page.getByText("Ready to publish now or schedule for later", { exact: true }),
+		).toBeVisible();
+		publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
+		publicHtml = await publicResponse.text();
+		expect(publicHtml).toContain("Schedule Test Post");
+		expect(publicHtml).not.toContain("Scheduled Draft Update");
 	});
 });
 
@@ -482,8 +712,7 @@ test.describe("Discard draft changes", () => {
 		await admin.clickSave();
 		await admin.waitForSaveComplete();
 
-		// The "Pending changes" badge should appear
-		await expect(page.locator("text=Pending changes")).toBeVisible({ timeout: 5000 });
+		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible({ timeout: 5000 });
 
 		// The "Discard changes" button should be visible
 		const discardButton = page.getByRole("button", { name: "Discard changes" });
@@ -511,8 +740,9 @@ test.describe("Discard draft changes", () => {
 		// The title should revert to the published version
 		await expect(titleInput).toHaveValue("Published Original Title", { timeout: 10000 });
 
-		// The "Pending changes" badge should be gone
-		await expect(page.locator("text=Pending changes")).not.toBeVisible({ timeout: 5000 });
+		await expect(page.getByText("Draft changes", { exact: true })).not.toBeVisible({
+			timeout: 5000,
+		});
 
 		// The "Discard changes" button should also be gone
 		await expect(discardButton).not.toBeVisible({ timeout: 5000 });

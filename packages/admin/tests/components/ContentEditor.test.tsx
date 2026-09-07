@@ -1109,7 +1109,7 @@ describe("ContentEditor", () => {
 			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
 			await screen.getByRole("menuitem", { name: "Remove from post" }).click();
 
-			await expect.element(screen.getByText("No byline is shown on this post.")).toBeVisible();
+			await expect.element(screen.getByRole("button", { name: "Choose bylines" })).toBeVisible();
 			await expect.element(screen.getByText("Owner Profile")).not.toBeInTheDocument();
 			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
 		});
@@ -1674,7 +1674,12 @@ describe("ContentEditor", () => {
 			const media = installMatchMedia(true);
 			try {
 				const item = makeItem({ status: "draft" });
-				const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
+				const screen = await renderEditor({
+					isNew: false,
+					item,
+					supportsPreview: true,
+					onPublish: vi.fn(),
+				});
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect
@@ -1774,6 +1779,7 @@ describe("ContentEditor", () => {
 				item,
 				supportsDrafts: true,
 				supportsPreview: true,
+				onUnpublish: vi.fn(),
 			});
 
 			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
@@ -1864,88 +1870,192 @@ describe("ContentEditor", () => {
 			// second Live View link rather than replacing the panel's copy.
 			expect(screen.getByRole("link", { name: "Live View" }).all()).toHaveLength(2);
 		});
-
-		it("preserves settings panel state across a distraction-free round trip", async () => {
-			// The panel is hidden, not unmounted, in distraction-free mode —
-			// otherwise panel-local state (an open scheduler, a typed date)
-			// is silently destroyed by the toggle.
-			const item = makeItem({ status: "draft" });
-			const screen = await renderEditor({ isNew: false, item, onSchedule: vi.fn() });
-
-			await screen.getByRole("button", { name: "Schedule for later" }).click();
-			const scheduleInput = screen.getByLabelText("Schedule for");
-			await scheduleInput.fill("2026-08-01T10:00");
-
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-			// Hidden while writing. Stylesheets aren't loaded in vitest browser
-			// mode, so assert the class hook (like the other DF tests) rather
-			// than computed visibility.
-			await vi.waitFor(() => {
-				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.contains("hidden")).toBe(true);
-			});
-
-			await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
-			// …and still open with the typed date after exiting.
-			await vi.waitFor(() => {
-				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.contains("hidden")).toBe(false);
-			});
-			await expect.element(screen.getByLabelText("Schedule for")).toHaveValue("2026-08-01T10:00");
-		});
 	});
 
 	describe("scheduler", () => {
-		it("shows scheduler when Schedule for later is clicked", async () => {
+		it("groups draft publish timing without publishing on menu open", async () => {
+			const onPublish = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "draft" }),
+				onPublish,
+				onSchedule: vi.fn(),
+			});
+
+			const publishTrigger = screen.getByRole("button", { name: "Publish", exact: true });
+			await expect.element(publishTrigger).toHaveAttribute("aria-expanded", "false");
+			await publishTrigger.click();
+
+			expect(onPublish).not.toHaveBeenCalled();
+			await expect.element(publishTrigger).toHaveAttribute("aria-expanded", "true");
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Schedule publication/ }))
+				.toBeInTheDocument();
+		});
+
+		it("labels live draft actions without nested menu tooltips", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					status: "published",
+					liveRevisionId: "rev-live",
+					draftRevisionId: "rev-draft",
+				}),
+				supportsDrafts: true,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Publish changes now/ }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Schedule changes/ }))
+				.toBeInTheDocument();
+			expect(
+				screen.getByText("Make draft changes visible now", { exact: true }).query(),
+			).toBeNull();
+			expect(screen.getByText("Choose when changes go live", { exact: true }).query()).toBeNull();
+
+			await userEvent.hover(
+				screen.getByRole("menuitem", { name: /Publish changes now/ }).element(),
+			);
+			expect(
+				screen.getByText("Make draft changes visible now", { exact: true }).query(),
+			).toBeNull();
+
+			await screen.getByRole("menuitem", { name: /Schedule changes/ }).click();
+			const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+			await expect
+				.element(dialog.getByText("Choose when these changes replace the live version."))
+				.toBeVisible();
+		});
+
+		it("groups immediate publish and schedule management for scheduled content", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					status: "scheduled",
+					scheduledAt: "2027-06-01T12:00:00.000Z",
+				}),
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+				onUnschedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Change schedule/ }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Remove schedule/ }))
+				.toBeInTheDocument();
+		});
+
+		it("opens scheduling in a dialog with segmented date and time fields", async () => {
+			const item = makeItem({ status: "draft" });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
+
+			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
+			await expect.element(dialog).toBeVisible();
+			await expect.element(dialog.getByLabelText("Schedule date")).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Hour" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Minute" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("combobox", { name: "Period" })).toBeInTheDocument();
+			expect(dialog.element().querySelector('input[type="time"]')).toBeNull();
+			await expect.element(dialog.getByText(/America\/New_York/)).toBeInTheDocument();
+		});
+
+		it("omits schedule shortcuts", async () => {
 			const item = makeItem({ status: "draft" });
 			const onSchedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onSchedule });
+			const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn(), onSchedule });
 
-			const scheduleBtn = screen.getByRole("button", { name: "Schedule for later" });
-			await scheduleBtn.click();
-
-			// Should now show the datetime input
-			await expect.element(screen.getByLabelText("Schedule for")).toBeInTheDocument();
-			// And a Schedule submit button
-			await expect.element(screen.getByRole("button", { name: "Schedule" })).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
+			expect(screen.getByRole("button", { name: /Tomorrow at/ }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: /Next .* at/ }).query()).toBeNull();
+			expect(onSchedule).not.toHaveBeenCalled();
 		});
 
-		it("shows Publish button for scheduled items", async () => {
+		it("shows Publish now for scheduled items", async () => {
 			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
 			const onPublish = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onPublish });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish,
+				onSchedule: vi.fn(),
+			});
 
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
-			await expect.element(publishBtn).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
+				.toBeInTheDocument();
 		});
 
-		it("publish button on scheduled item calls onPublish", async () => {
+		it("Publish now on a scheduled item calls onPublish", async () => {
 			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
 			const onPublish = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onPublish });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish,
+				onSchedule: vi.fn(),
+			});
 
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
-			await publishBtn.click();
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await screen.getByRole("menuitem", { name: /Publish now/ }).click();
 			expect(onPublish).toHaveBeenCalled();
 		});
 
-		it("shows Unschedule button in sidebar for scheduled items", async () => {
+		it("shows Remove schedule in the scheduled action menu", async () => {
 			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
-			const onUnschedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onUnschedule });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+				onUnschedule: vi.fn(),
+			});
 
-			// Unschedule should be in the sidebar, not in the header
-			const unscheduleBtn = screen.getByRole("button", { name: "Unschedule" });
-			await expect.element(unscheduleBtn).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Remove schedule/ }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Unschedule" }).query()).toBeNull();
 		});
 
-		it("unschedule button calls onUnschedule", async () => {
+		it("Remove schedule calls onUnschedule", async () => {
 			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
 			const onUnschedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onUnschedule });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+				onUnschedule,
+			});
 
-			const unscheduleBtn = screen.getByRole("button", { name: "Unschedule" });
-			await unscheduleBtn.click();
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await screen.getByRole("menuitem", { name: /Remove schedule/ }).click();
 			expect(onUnschedule).toHaveBeenCalled();
 		});
 	});

@@ -386,7 +386,7 @@ export function BylineCreditsEditor({
 		isMultiLocale && bylinesLoaded && bylines.length === 0 && !!entryLocale;
 
 	return (
-		<div className="space-y-4">
+		<div>
 			<Popover
 				open={chooserOpen}
 				onOpenChange={(open) => (open ? openChooser() : closeChooser(false))}
@@ -665,27 +665,23 @@ export function BylineCreditsEditor({
 							/>
 						</div>
 					) : (
-						<div className="space-y-3">
-							<Text variant="secondary">{t`People shown publicly on this post.`}</Text>
-							<Text variant="secondary">{t`No byline is shown on this post.`}</Text>
-							<Popover.Trigger
-								render={
-									<Button
-										ref={chooserTriggerRef}
-										type="button"
-										variant="secondary"
-										className="w-full"
-										data-keep-mobile-sidebar-open
-									>
-										{t`Choose bylines`}
-									</Button>
-								}
-							/>
-						</div>
+						<Popover.Trigger
+							render={
+								<Button
+									ref={chooserTriggerRef}
+									type="button"
+									variant="secondary"
+									className="w-full"
+									data-keep-mobile-sidebar-open
+								>
+									{t`Choose bylines`}
+								</Button>
+							}
+						/>
 					)}
 
 					{showLocaleEmptyState ? (
-						<div className="space-y-2 rounded-lg border border-dashed p-3">
+						<div className="mt-4 space-y-2 rounded-lg border border-dashed p-3">
 							<Text variant="secondary">
 								{t`No bylines available in ${entryLocale}. Create a variant from the Bylines page before crediting one on this entry.`}
 							</Text>
@@ -859,7 +855,7 @@ function SortableBylineRow({
 						/>
 					}
 				/>
-				<DropdownMenu.Content className="p-1">
+				<DropdownMenu.Content className="origin-[var(--transform-origin)] p-1 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none">
 					<DropdownMenu.Item
 						className="py-1 data-highlighted:bg-kumo-fill"
 						icon={<Tag className="me-1.5 size-3.5" aria-hidden="true" />}

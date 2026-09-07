@@ -86,7 +86,7 @@ export function SeoImageField({ seo, onChange }: SeoImageFieldProps) {
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
 				mimeTypeFilter="image/"
-				title={t`Select OG Image`}
+				title={t`Select OG image`}
 			/>
 		</div>
 	);

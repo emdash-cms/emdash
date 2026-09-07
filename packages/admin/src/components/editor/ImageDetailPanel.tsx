@@ -213,7 +213,8 @@ export function ImageDetailPanel({
 				onOpenChange={setShowMediaPicker}
 				onSelect={handleMediaSelect}
 				mimeTypeFilter="image/"
-				title={t`Replace Image`}
+				title={t`Replace image`}
+				confirmLabel={t`Replace image`}
 			/>
 		</>
 	);

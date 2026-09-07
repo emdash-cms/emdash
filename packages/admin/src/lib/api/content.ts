@@ -403,11 +403,11 @@ export async function scheduleContent(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ scheduledAt }),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to schedule content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -424,11 +424,11 @@ export async function unscheduleContent(
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/schedule${query}`, {
 		method: "DELETE",
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to unschedule content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
