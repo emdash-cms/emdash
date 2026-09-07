@@ -572,3 +572,44 @@ export async function hasIssueCommentMarker(
 		if (comments.length < 100) return false;
 	}
 }
+
+export async function getPullRequestReviewComments(
+	token: string,
+	ctx: RepoContext,
+	prNumber: number,
+	reviewId: number,
+	signal?: AbortSignal,
+): Promise<string[]> {
+	const result: string[] = [];
+	for (let page = 1; ; page += 1) {
+		const res = await githubFetch(
+			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}/reviews/${reviewId}/comments?per_page=100&page=${page}`,
+			{ headers: authHeaders(token), signal },
+		);
+		if (!res.ok)
+			throw new Error(`getPullRequestReviewComments failed: ${res.status} ${await res.text()}`);
+		const comments = await res.json<
+			Array<{
+				body?: string | null;
+				path?: string;
+				line?: number | null;
+				original_line?: number | null;
+				diff_hunk?: string;
+			}>
+		>();
+		for (const comment of comments) {
+			if (!comment.body?.trim()) continue;
+			const line = comment.line ?? comment.original_line;
+			result.push(
+				[
+					`File: ${comment.path ?? "unknown"}${line ? `:${line}` : ""}`,
+					comment.diff_hunk ?? "",
+					comment.body,
+				]
+					.filter(Boolean)
+					.join("\n\n"),
+			);
+		}
+		if (comments.length < 100) return result;
+	}
+}
