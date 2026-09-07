@@ -115,6 +115,8 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/search/suggest",
 ]);
 
+const DEV_PUBLIC_API_EXACT = new Set(["/_emdash/api/typegen", "/_emdash/api/dev/scheduled-tasks"]);
+
 // Build merged public routes at module load from auth provider descriptors.
 // Routes ending with "/" are treated as prefixes; all others are exact matches.
 const { exact: _providerExactRoutes, prefixes: _providerPrefixRoutes } = (() => {
@@ -160,7 +162,7 @@ function isPublicEmDashRoute(pathname: string): boolean {
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
 	if (_providerExactRoutes.has(pathname)) return true;
 	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
-	if (import.meta.env.DEV && pathname === "/_emdash/api/typegen") return true;
+	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(pathname)) return true;
 	return false;
 }
 
