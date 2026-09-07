@@ -2448,6 +2448,27 @@ describe("ContentEditor", () => {
 			await expect.element(exit).not.toBeDisabled();
 		});
 
+		it("does not offer to save over a newer version while the entry is read-only", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				hasSaveConflict: true,
+				readOnly: true,
+			});
+
+			await expect.element(screen.getByRole("button", { name: "Save anyway" })).toBeDisabled();
+		});
+
+		it("offers to save over a newer version when the entry is not locked", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				hasSaveConflict: true,
+			});
+
+			await expect.element(screen.getByRole("button", { name: "Save anyway" })).not.toBeDisabled();
+		});
+
 		it("leaves the rich text editor writable when the entry is not locked", async () => {
 			await renderEditor({
 				isNew: false,
