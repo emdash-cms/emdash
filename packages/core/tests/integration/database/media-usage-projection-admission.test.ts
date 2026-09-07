@@ -54,24 +54,34 @@ describeEachDialect("content media usage projection admission", (dialect) => {
 		await teardownForDialect(ctx);
 	});
 
-	it("admits a whole entry only when the combined variant plan fits", async () => {
+	it("admits 500 occurrences across both variants and rejects the next occurrence", async () => {
 		const withinBudget = await plan([
-			await snapshot("combined-12", "columns", 6),
-			await snapshot("combined-12", "draft_overlay", 6),
+			await snapshot("combined-500", "columns", 250),
+			await snapshot("combined-500", "draft_overlay", 250),
 		]);
 		const overBudget = await plan([
-			await snapshot("combined-13", "columns", 6),
-			await snapshot("combined-13", "draft_overlay", 7),
+			await snapshot("combined-501", "columns", 250),
+			await snapshot("combined-501", "draft_overlay", 251),
 		]);
 
 		expect(withinBudget.outcome).toBe("admitted");
 		expect(overBudget.outcome).toBe("intrinsic_resource_limit");
 	});
 
+	it("rejects one oversized variant before the whole claim can be admitted", async () => {
+		const atBoundary = await snapshot("bytes-at-boundary", "columns", 0);
+		atBoundary.projectionByteLength = 2_000_000;
+		const aboveBoundary = await snapshot("bytes-above-boundary", "columns", 0);
+		aboveBoundary.projectionByteLength = 2_000_001;
+
+		expect((await plan([atBoundary])).outcome).toBe("admitted");
+		expect((await plan([aboveBoundary])).outcome).toBe("intrinsic_resource_limit");
+	});
+
 	it("recomputes an oversized mixed plan after proving its replacement is unchanged", async () => {
 		const contentId = "mixed-no-op-delete";
 		await insertContentIdentity(ctx, contentId, true);
-		const unchangedColumns = await snapshot(contentId, "columns", 0, "é".repeat(270_000));
+		const unchangedColumns = await snapshot(contentId, "columns", 0, "é".repeat(1_050_000));
 		const absentDraft = await snapshot(contentId, "draft_overlay", 1, "Small draft");
 		await repo.replaceSource(unchangedColumns.source, unchangedColumns.occurrences);
 		await repo.replaceSource(absentDraft.source, absentDraft.occurrences);
@@ -101,7 +111,7 @@ describeEachDialect("content media usage projection admission", (dialect) => {
 	it("rejects deletion when the stored source row alone exceeds the byte limit", async () => {
 		const contentId = "oversized-source-delete";
 		await insertContentIdentity(ctx, contentId, true);
-		const absentDraft = await snapshot(contentId, "draft_overlay", 0, "é".repeat(300_000));
+		const absentDraft = await snapshot(contentId, "draft_overlay", 0, "é".repeat(1_050_000));
 		await repo.replaceSource(absentDraft.source, []);
 		const observedSources = await repo.findSources(canonicalSourceKeys(contentId));
 		const budget = createContentMediaUsageAdmissionBudget();
@@ -127,7 +137,7 @@ describeEachDialect("content media usage projection admission", (dialect) => {
 			canonicalSourceKeys("reserved-small"),
 			budget,
 		);
-		const oversized = [await snapshot("reserved-large", "columns", 13)];
+		const oversized = [await snapshot("reserved-large", "columns", 501)];
 		const deferred = await planContentMediaUsageProjectionAdmission(
 			repo,
 			oversized,
@@ -145,7 +155,7 @@ describeEachDialect("content media usage projection admission", (dialect) => {
 
 		expect(first.outcome).toBe("admitted");
 		expect(budget.hasReservedMutation).toBe(true);
-		expect(budget.remainingOccurrenceMutationUnits).toBe(11);
+		expect(budget.remainingOccurrenceMutationUnits).toBe(499);
 		expect(deferred.outcome).toBe("claim_budget_deferred");
 		expect(freshClaim.outcome).toBe("intrinsic_resource_limit");
 	});

@@ -619,7 +619,7 @@
 			],
 			"additionalProperties": false,
 			"title": "Artifact file reference",
-			"description": "A media file (PNG / JPEG / WebP / GIF / AVIF) bundled into a release as an icon, screenshot, or banner."
+			"description": "A PNG, JPEG, or WebP file published as an icon, screenshot, or banner."
 		},
 		"__schema60": {
 			"type": "string",

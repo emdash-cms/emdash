@@ -1,3 +1,4 @@
+import { i18n } from "@lingui/core";
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
@@ -150,6 +151,31 @@ function renderEditor(props: Partial<ContentEditorProps> = {}) {
 	return render(<ContentEditor {...defaultProps} />);
 }
 
+type SavedBylineCredit = NonNullable<ContentItem["bylines"]>[number];
+
+function savedCredit(
+	byline: BylineSummary,
+	source?: SavedBylineCredit["source"],
+	roleLabel: string | null = null,
+	sortOrder = 0,
+): SavedBylineCredit {
+	return { byline, sortOrder, roleLabel, ...(source ? { source } : {}) };
+}
+
+function renderBylineContent(
+	bylines: SavedBylineCredit[],
+	props: Partial<ContentEditorProps> = {},
+) {
+	return renderEditor({
+		isNew: false,
+		item: makeItem({ data: { title: "Hello", body: "" }, bylines }),
+		currentUser: { id: "u-1", role: 50 },
+		availableBylines: [],
+		availableBylinesLoaded: true,
+		...props,
+	});
+}
+
 function installMatchMedia(initialMatches: boolean) {
 	let matches = initialMatches;
 	const listeners = new Set<(event: MediaQueryListEvent) => void>();
@@ -201,6 +227,15 @@ function installMatchMedia(initialMatches: boolean) {
 			matches = nextMatches;
 			const event = { matches, media: mediaQuery.media } as MediaQueryListEvent;
 			for (const listener of listeners) listener(event);
+		},
+		async setMatchesSequentially(nextMatches: boolean) {
+			matches = nextMatches;
+			const event = { matches, media: mediaQuery.media } as MediaQueryListEvent;
+			const callbacks = [...listeners];
+			for (const listener of callbacks) {
+				listener(event);
+				await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+			}
 		},
 		restore() {
 			spy.mockRestore();
@@ -363,9 +398,7 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 
 				// Closing the block panel restores the sheet's prior (closed) state.
 				close();
@@ -408,9 +441,7 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 			} finally {
 				media.restore();
 			}
@@ -434,9 +465,7 @@ describe("ContentEditor", () => {
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.not.toBeInTheDocument();
-				await expect
-					.element(screen.getByRole("button", { name: "Remove Image" }))
-					.toBeInTheDocument();
+				await expect.element(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
 			} finally {
 				media.restore();
 			}
@@ -664,8 +693,10 @@ describe("ContentEditor", () => {
 
 			// Filename should be visible
 			await expect.element(screen.getByText("report.pdf")).toBeInTheDocument();
-			// Change button present (picker is wired up)
-			await expect.element(screen.getByRole("button", { name: "Change" })).toBeInTheDocument();
+			await expect.element(screen.getByRole("button", { name: "Replace" })).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "Remove Attachment" }))
+				.toHaveTextContent("Remove");
 		});
 
 		it("renders 0-byte file size instead of hiding it", async () => {
@@ -1049,6 +1080,71 @@ describe("ContentEditor", () => {
 			expect(payload).not.toHaveProperty("bylines");
 		});
 
+		it("shows an owner-inferred byline as an automatic credit", async () => {
+			const screen = await renderBylineContent([
+				savedCredit(makeByline({ id: "inferred", displayName: "Owner Profile" }), "inferred"),
+			]);
+
+			await expect.element(screen.getByText("Automatic", { exact: true })).toBeInTheDocument();
+			await expect.element(screen.getByText("From the post owner")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Role label")).not.toBeInTheDocument();
+		});
+
+		it("does not reveal an inferred credit from a malformed mixed response", async () => {
+			const explicit = makeByline({
+				id: "explicit",
+				slug: "mina-patel",
+				displayName: "Mina Patel",
+			});
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
+			const screen = await renderBylineContent(
+				[savedCredit(explicit, "explicit"), savedCredit(inferred, "inferred", null, 1)],
+				{ availableBylines: [explicit] },
+			);
+
+			await screen.getByRole("button", { name: "More actions for Mina Patel" }).click();
+			await screen.getByRole("menuitem", { name: "Remove from post" }).click();
+
+			await expect.element(screen.getByRole("button", { name: "Choose bylines" })).toBeVisible();
+			await expect.element(screen.getByText("Owner Profile")).not.toBeInTheDocument();
+			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
+		});
+
+		it("never saves an inferred byline as an explicit credit", async () => {
+			const onSave = vi.fn();
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
+			const explicit = makeByline({
+				id: "explicit",
+				slug: "mina-patel",
+				displayName: "Mina Patel",
+			});
+			const screen = await renderBylineContent([savedCredit(inferred, "inferred")], {
+				availableBylines: [explicit],
+				onSave,
+			});
+
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
+			await screen.getByRole("button", { name: "Add Mina Patel" }).click();
+			await screen.getByRole("button", { name: "Save" }).first().click();
+
+			expect(onSave).toHaveBeenCalledWith(
+				expect.objectContaining({
+					bylines: [{ bylineId: "explicit", roleLabel: null }],
+				}),
+			);
+		});
+
+		it("keeps a credit without a source editable for backwards compatibility", async () => {
+			const legacy = makeByline({ id: "legacy", displayName: "Legacy Credit" });
+			const screen = await renderBylineContent([savedCredit(legacy)]);
+
+			await expect.element(screen.getByText("Legacy Credit")).toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("button", { name: "More actions for Legacy Credit" }))
+				.toBeInTheDocument();
+			await expect.element(screen.getByText("Automatic", { exact: true })).not.toBeInTheDocument();
+		});
+
 		it("suppresses the locale empty-state CTA until the picker query resolves", async () => {
 			const item = makeItem({ data: { title: "Hello", body: "" }, locale: "fr-fr" });
 			const screen = await renderEditor({
@@ -1140,6 +1236,55 @@ describe("ContentEditor", () => {
 				vi.useRealTimers();
 			}
 		});
+
+		it("does not resend a rejected autosave payload until the content changes", async () => {
+			vi.useFakeTimers();
+
+			try {
+				const item = makeItem();
+				const onAutosave = vi.fn();
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item,
+					onSave: vi.fn(),
+					onAutosave,
+					isAutosaving: false,
+					autosaveCompletionToken: 0,
+					autosaveRejectionToken: 0,
+				};
+
+				const screen = await render(<ContentEditor {...props} />);
+				const titleInput = screen.getByLabelText("Title");
+				await titleInput.fill("Too long");
+
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+
+				await screen.rerender(<ContentEditor {...props} isAutosaving={true} />);
+				await screen.rerender(
+					<ContentEditor {...props} isAutosaving={false} autosaveRejectionToken={1} />,
+				);
+
+				await vi.advanceTimersByTimeAsync(10_000);
+				expect(onAutosave).toHaveBeenCalledTimes(1);
+				await expect.element(screen.getByLabelText("Title")).toHaveValue("Too long");
+				await expect
+					.element(screen.getByRole("button", { name: "Save", exact: true }).first())
+					.toBeEnabled();
+
+				await titleInput.fill("Short");
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledTimes(2);
+				expect(onAutosave).toHaveBeenLastCalledWith(
+					expect.objectContaining({ data: expect.objectContaining({ title: "Short" }) }),
+				);
+			} finally {
+				vi.useRealTimers();
+			}
+		});
 	});
 
 	describe("delete", () => {
@@ -1184,6 +1329,93 @@ describe("ContentEditor", () => {
 	});
 
 	describe("publish actions", () => {
+		describe("settings panel resizing", () => {
+			it("resizes through its bounded keyboard separator without collapsing", async () => {
+				const screen = await renderEditor({ isNew: false, item: makeItem() });
+				const panel = screen.getByRole("complementary", { name: "Settings" }).element();
+				const separator = screen.getByRole("separator", { name: "Settings" }).element();
+
+				expect(panel.getBoundingClientRect().width).toBeCloseTo(368);
+				expect(separator).toHaveAttribute("aria-valuemin", "320");
+				expect(separator).toHaveAttribute("aria-valuemax", "480");
+				expect(separator).toHaveAttribute("aria-valuenow", "368");
+				expect(separator).toHaveAttribute("aria-controls", panel.id);
+
+				separator.focus();
+				await userEvent.keyboard("{End}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(480));
+				expect(separator).toHaveAttribute("aria-valuenow", "480");
+
+				await userEvent.keyboard("{ArrowLeft}");
+				expect(panel.getBoundingClientRect().width).toBeCloseTo(480);
+
+				await userEvent.keyboard("{Home}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(320));
+				expect(separator).toHaveAttribute("aria-valuenow", "320");
+				await userEvent.keyboard("{ArrowLeft}");
+				await vi.waitFor(() => expect(panel.getBoundingClientRect().width).toBeCloseTo(330));
+			});
+
+			it.each([
+				{ locale: "en", dir: "ltr", growKey: "ArrowLeft", shrinkKey: "ArrowRight" },
+				{ locale: "ar", dir: "rtl", growKey: "ArrowRight", shrinkKey: "ArrowLeft" },
+			])("uses the physical growth key for $dir", async (testCase) => {
+				const previousLocale = i18n.locale;
+				const previousDir = document.documentElement.dir;
+				i18n.load(testCase.locale, {});
+				i18n.activate(testCase.locale);
+				document.documentElement.dir = testCase.dir;
+
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					const panel = screen.getByRole("complementary", { name: "Settings" }).element();
+					const separator = screen.getByRole("separator", { name: "Settings" }).element();
+					const before = panel.getBoundingClientRect();
+
+					separator.focus();
+					await userEvent.keyboard(`{${testCase.growKey}}`);
+					await vi.waitFor(() =>
+						expect(panel.getBoundingClientRect().width).toBeCloseTo(before.width + 10),
+					);
+					await userEvent.keyboard(`{${testCase.shrinkKey}}`);
+					await vi.waitFor(() =>
+						expect(panel.getBoundingClientRect().width).toBeCloseTo(before.width),
+					);
+				} finally {
+					document.documentElement.dir = previousDir;
+					i18n.activate(previousLocale);
+				}
+			});
+
+			it("hides resizing across a mobile round trip without losing the desktop width", async () => {
+				const media = installMatchMedia(false);
+				try {
+					const screen = await renderEditor({ isNew: false, item: makeItem() });
+					const separator = screen.getByRole("separator", { name: "Settings" });
+					separator.element().focus();
+					await userEvent.keyboard("{ArrowLeft}");
+					await expect.element(separator).toHaveAttribute("aria-valuenow", "378");
+
+					await media.setMatchesSequentially(true);
+					await expect
+						.element(screen.getByRole("separator", { name: "Settings" }))
+						.not.toBeInTheDocument();
+					await screen.getByRole("button", { name: "Settings" }).click();
+					await expect
+						.element(screen.getByRole("navigation", { name: "Settings" }))
+						.toBeInTheDocument();
+					await screen.getByRole("button", { name: "Close settings" }).click();
+
+					await media.setMatchesSequentially(false);
+					await expect
+						.element(screen.getByRole("separator", { name: "Settings" }))
+						.toHaveAttribute("aria-valuenow", "378");
+				} finally {
+					media.restore();
+				}
+			});
+		});
+
 		it("uses the elevated surface for the full-bleed canvas and settings panel", async () => {
 			await renderEditor({ isNew: false, item: makeItem() });
 			const form = document.querySelector("form");
@@ -1277,6 +1509,25 @@ describe("ContentEditor", () => {
 				handle.focus();
 				handle.dispatchEvent(new FocusEvent("focusout", { bubbles: true, relatedTarget: null }));
 
+				await vi.waitFor(() => {
+					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
+					expect(sheet?.getAttribute("data-state")).toBe("expanded");
+				});
+			} finally {
+				media.restore();
+			}
+		});
+
+		it("keeps the settings sheet open when the byline chooser replaces its trigger", async () => {
+			const media = installMatchMedia(true);
+			try {
+				const byline = makeByline({ id: "credited", displayName: "Mina Patel" });
+				const screen = await renderBylineContent([savedCredit(byline)]);
+
+				await screen.getByRole("button", { name: "Settings" }).click();
+				await screen.getByRole("button", { name: "Add another byline" }).click();
+
+				await expect.element(screen.getByLabelText("Search bylines")).toBeInTheDocument();
 				await vi.waitFor(() => {
 					const sheet = document.querySelector('nav[data-sidebar="sidebar"][data-mobile="true"]');
 					expect(sheet?.getAttribute("data-state")).toBe("expanded");
@@ -1419,7 +1670,12 @@ describe("ContentEditor", () => {
 			const media = installMatchMedia(true);
 			try {
 				const item = makeItem({ status: "draft" });
-				const screen = await renderEditor({ isNew: false, item, supportsPreview: true });
+				const screen = await renderEditor({
+					isNew: false,
+					item,
+					supportsPreview: true,
+					onPublish: vi.fn(),
+				});
 
 				await expect.element(screen.getByRole("button", { name: "Settings" })).toBeInTheDocument();
 				await expect
@@ -1519,6 +1775,7 @@ describe("ContentEditor", () => {
 				item,
 				supportsDrafts: true,
 				supportsPreview: true,
+				onUnpublish: vi.fn(),
 			});
 
 			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
@@ -1609,88 +1866,192 @@ describe("ContentEditor", () => {
 			// second Live View link rather than replacing the panel's copy.
 			expect(screen.getByRole("link", { name: "Live View" }).all()).toHaveLength(2);
 		});
-
-		it("preserves settings panel state across a distraction-free round trip", async () => {
-			// The panel is hidden, not unmounted, in distraction-free mode —
-			// otherwise panel-local state (an open scheduler, a typed date)
-			// is silently destroyed by the toggle.
-			const item = makeItem({ status: "draft" });
-			const screen = await renderEditor({ isNew: false, item, onSchedule: vi.fn() });
-
-			await screen.getByRole("button", { name: "Schedule for later" }).click();
-			const scheduleInput = screen.getByLabelText("Schedule for");
-			await scheduleInput.fill("2026-08-01T10:00");
-
-			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-			// Hidden while writing. Stylesheets aren't loaded in vitest browser
-			// mode, so assert the class hook (like the other DF tests) rather
-			// than computed visibility.
-			await vi.waitFor(() => {
-				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.contains("hidden")).toBe(true);
-			});
-
-			await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
-			// …and still open with the typed date after exiting.
-			await vi.waitFor(() => {
-				const aside = document.querySelector('aside[data-sidebar="sidebar"]');
-				expect(aside?.classList.contains("hidden")).toBe(false);
-			});
-			await expect.element(screen.getByLabelText("Schedule for")).toHaveValue("2026-08-01T10:00");
-		});
 	});
 
 	describe("scheduler", () => {
-		it("shows scheduler when Schedule for later is clicked", async () => {
+		it("groups draft publish timing without publishing on menu open", async () => {
+			const onPublish = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "draft" }),
+				onPublish,
+				onSchedule: vi.fn(),
+			});
+
+			const publishTrigger = screen.getByRole("button", { name: "Publish", exact: true });
+			await expect.element(publishTrigger).toHaveAttribute("aria-expanded", "false");
+			await publishTrigger.click();
+
+			expect(onPublish).not.toHaveBeenCalled();
+			await expect.element(publishTrigger).toHaveAttribute("aria-expanded", "true");
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Schedule publication/ }))
+				.toBeInTheDocument();
+		});
+
+		it("labels live draft actions without nested menu tooltips", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					status: "published",
+					liveRevisionId: "rev-live",
+					draftRevisionId: "rev-draft",
+				}),
+				supportsDrafts: true,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Publish changes now/ }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Schedule changes/ }))
+				.toBeInTheDocument();
+			expect(
+				screen.getByText("Make draft changes visible now", { exact: true }).query(),
+			).toBeNull();
+			expect(screen.getByText("Choose when changes go live", { exact: true }).query()).toBeNull();
+
+			await userEvent.hover(
+				screen.getByRole("menuitem", { name: /Publish changes now/ }).element(),
+			);
+			expect(
+				screen.getByText("Make draft changes visible now", { exact: true }).query(),
+			).toBeNull();
+
+			await screen.getByRole("menuitem", { name: /Schedule changes/ }).click();
+			const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+			await expect
+				.element(dialog.getByText("Choose when these changes replace the live version."))
+				.toBeVisible();
+		});
+
+		it("groups immediate publish and schedule management for scheduled content", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({
+					status: "scheduled",
+					scheduledAt: "2027-06-01T12:00:00.000Z",
+				}),
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+				onUnschedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Change schedule/ }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Remove schedule/ }))
+				.toBeInTheDocument();
+		});
+
+		it("opens scheduling in a dialog with segmented date and time fields", async () => {
+			const item = makeItem({ status: "draft" });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
+
+			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
+			await expect.element(dialog).toBeVisible();
+			await expect.element(dialog.getByLabelText("Schedule date")).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Hour" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("textbox", { name: "Minute" })).toBeInTheDocument();
+			await expect.element(dialog.getByRole("combobox", { name: "Period" })).toBeInTheDocument();
+			expect(dialog.element().querySelector('input[type="time"]')).toBeNull();
+			await expect.element(dialog.getByText(/America\/New_York/)).toBeInTheDocument();
+		});
+
+		it("omits schedule shortcuts", async () => {
 			const item = makeItem({ status: "draft" });
 			const onSchedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onSchedule });
+			const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn(), onSchedule });
 
-			const scheduleBtn = screen.getByRole("button", { name: "Schedule for later" });
-			await scheduleBtn.click();
-
-			// Should now show the datetime input
-			await expect.element(screen.getByLabelText("Schedule for")).toBeInTheDocument();
-			// And a Schedule submit button
-			await expect.element(screen.getByRole("button", { name: "Schedule" })).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
+			expect(screen.getByRole("button", { name: /Tomorrow at/ }).query()).toBeNull();
+			expect(screen.getByRole("button", { name: /Next .* at/ }).query()).toBeNull();
+			expect(onSchedule).not.toHaveBeenCalled();
 		});
 
-		it("shows Publish button for scheduled items", async () => {
+		it("shows Publish now for scheduled items", async () => {
 			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
 			const onPublish = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onPublish });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish,
+				onSchedule: vi.fn(),
+			});
 
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
-			await expect.element(publishBtn).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
+				.toBeInTheDocument();
 		});
 
-		it("publish button on scheduled item calls onPublish", async () => {
+		it("Publish now on a scheduled item calls onPublish", async () => {
 			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
 			const onPublish = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onPublish });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish,
+				onSchedule: vi.fn(),
+			});
 
-			const publishBtn = screen.getByRole("button", { name: "Publish", exact: true });
-			await publishBtn.click();
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await screen.getByRole("menuitem", { name: /Publish now/ }).click();
 			expect(onPublish).toHaveBeenCalled();
 		});
 
-		it("shows Unschedule button in sidebar for scheduled items", async () => {
+		it("shows Remove schedule in the scheduled action menu", async () => {
 			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
-			const onUnschedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onUnschedule });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+				onUnschedule: vi.fn(),
+			});
 
-			// Unschedule should be in the sidebar, not in the header
-			const unscheduleBtn = screen.getByRole("button", { name: "Unschedule" });
-			await expect.element(unscheduleBtn).toBeInTheDocument();
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await expect
+				.element(screen.getByRole("menuitem", { name: /Remove schedule/ }))
+				.toBeInTheDocument();
+			expect(screen.getByRole("button", { name: "Unschedule" }).query()).toBeNull();
 		});
 
-		it("unschedule button calls onUnschedule", async () => {
+		it("Remove schedule calls onUnschedule", async () => {
 			const item = makeItem({ status: "scheduled", scheduledAt: "2026-06-01T12:00:00Z" });
 			const onUnschedule = vi.fn();
-			const screen = await renderEditor({ isNew: false, item, onUnschedule });
+			const screen = await renderEditor({
+				isNew: false,
+				item,
+				onPublish: vi.fn(),
+				onSchedule: vi.fn(),
+				onUnschedule,
+			});
 
-			const unscheduleBtn = screen.getByRole("button", { name: "Unschedule" });
-			await unscheduleBtn.click();
+			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await screen.getByRole("menuitem", { name: /Remove schedule/ }).click();
 			expect(onUnschedule).toHaveBeenCalled();
 		});
 	});
@@ -1906,6 +2267,17 @@ describe("ContentEditor", () => {
 	// searches the server and resolves credited bylines from the saved entry.
 	// ---------------------------------------------------------------------------
 	describe("byline picker search (#1217)", () => {
+		it("keeps search behind one choose action for an automatic credit", async () => {
+			const inferred = makeByline({ id: "inferred", displayName: "Owner Profile" });
+			const screen = await renderBylineContent([savedCredit(inferred, "inferred")], {
+				availableBylines: [makeByline()],
+			});
+
+			await expect.element(screen.getByLabelText("Search bylines")).not.toBeInTheDocument();
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
+			await expect.element(screen.getByLabelText("Search bylines")).toBeInTheDocument();
+		});
+
 		it("searches the server and adds a byline from outside the initial list", async () => {
 			vi.mocked(fetchBylines).mockResolvedValue({
 				items: [makeByline({ id: "b-far", slug: "zoe-far", displayName: "Zoe Far" })],
@@ -1922,6 +2294,7 @@ describe("ContentEditor", () => {
 				availableBylinesLoaded: true,
 			});
 
+			await screen.getByRole("button", { name: "Choose bylines" }).click();
 			const searchInput = screen.getByLabelText("Search bylines");
 			await searchInput.fill("Zoe");
 
@@ -1933,10 +2306,11 @@ describe("ContentEditor", () => {
 				);
 			});
 
-			// Clicking the result credits the byline; it now renders with its
-			// Role label editor and leaves the results list.
-			await screen.getByRole("button", { name: /Zoe Far/ }).click();
-			await expect.element(screen.getByLabelText("Role label")).toBeInTheDocument();
+			// Clicking the result credits the byline and leaves the results list.
+			await screen.getByRole("button", { name: "Add Zoe Far" }).click();
+			await expect
+				.element(screen.getByRole("button", { name: "More actions for Zoe Far" }))
+				.toBeInTheDocument();
 		});
 
 		it("renders a credited byline that is not in the initial picker list", async () => {

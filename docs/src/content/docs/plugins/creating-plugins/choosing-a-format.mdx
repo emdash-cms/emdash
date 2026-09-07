@@ -67,9 +67,9 @@ If you're not sure, go sandboxed. You can always migrate to native later — but
 
 The sandbox itself is pluggable. EmDash exposes a `sandboxRunner` config option and the runner decides how plugin code is isolated — there's nothing Cloudflare-specific in the plugin format itself.
 
-The runner most sites use today is `sandbox()` from `@emdash-cms/cloudflare`, which uses Cloudflare Workers' [Dynamic Worker Loader](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/). Worker Loader caches the V8 isolate per plugin id so the isolate cold-start cost is only paid once; the runner constructs a fresh worker stub and bridge bindings on each invocation, since stubs and bindings are tied to the calling request's I/O context. Runners for other platforms (Node.js via workerd, and potentially Deno) are in development.
+Two runners ship with EmDash: `sandbox()` from `@emdash-cms/cloudflare`, which runs each plugin as a Dynamic Worker through Cloudflare's Worker Loader, and `@emdash-cms/sandbox-workerd/sandbox`, which runs plugins in a `workerd` child process on Node.js. [Plugin Sandbox](/deployment/plugin-sandbox/) covers the setup of each runner, the resource limits it enforces, and the differences between the two.
 
-If no runner is configured, or if the configured runner reports as unavailable on the current platform, plugins listed under `sandboxed: []` are skipped at startup with a debug-level log.
+If no runner is configured, plugins listed under `sandboxed: []` are not loaded. If the configured runner is unavailable on the current platform, they are not loaded either, and EmDash logs a warning at startup.
 
 If you want a sandboxed plugin to run on a platform without a sandbox runner, move it from `sandboxed: []` into the `plugins: []` array — it'll execute in-process. Capability declarations are still honoured (the same `PluginContext` factory gates `ctx.content`, `ctx.http`, and friends), but there is no isolation boundary, no resource limits, and a buggy or malicious plugin can call `fetch()` directly, read environment variables, or block the event loop. Without a sandbox runner active, treat every plugin as a native plugin for trust purposes.
 

@@ -22,8 +22,8 @@
 			"binding": "LOADER",
 		},
 	],
-	// General maintenance plus the bounded Media Usage lane (see src/worker.ts)
+	// General maintenance cron trigger
 	"triggers": {
-		"crons": ["* * * * *", "*/2 * * * *"],
+		"crons": ["* * * * *"],
 	},
 }

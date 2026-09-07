@@ -1,0 +1,55 @@
+{
+	"name": "@emdash-cms/registry-moderation",
+	"version": "0.1.0",
+	"description": "Shared listing-label reduction, visibility policy, and metadata moderation contracts for the EmDash plugin registry.",
+	"type": "module",
+	"main": "dist/index.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./fixtures": {
+			"types": "./dist/fixtures/index.d.ts",
+			"default": "./dist/fixtures/index.js"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"dev": "tsdown --watch",
+		"prepublishOnly": "node --run build",
+		"typecheck": "tsgo --noEmit",
+		"test": "vitest run",
+		"check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	},
+	"dependencies": {
+		"@atcute/cbor": "catalog:",
+		"@atcute/cid": "catalog:",
+		"@atcute/crypto": "catalog:",
+		"@atcute/multibase": "catalog:"
+	},
+	"keywords": [
+		"emdash",
+		"plugin-registry",
+		"atproto",
+		"moderation"
+	],
+	"author": "Matt Kane",
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/registry-moderation"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash"
+}

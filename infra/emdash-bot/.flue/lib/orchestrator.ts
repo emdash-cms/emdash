@@ -10,8 +10,10 @@ import { DurableObject } from "cloudflare:workers";
 import { Investigate } from "../agents/investigate.js";
 import { classifyComment, type ClassifierInput, type ClassifyResult } from "./classifier-client.js";
 import {
+	type PullRequestCopy,
 	type PreviewScreenshot,
 	renderAgentComment,
+	renderCommandFeedback,
 	renderDraftPrBody,
 	renderPullRequestTitle,
 	renderPreviewReadyAsk,
@@ -145,6 +147,8 @@ export interface NormalizedEvent {
 	readonly classifyText?: string | null;
 	/** Exact human comment that caused this event, retained for agent context. */
 	readonly triggeringComment?: TriggeringComment;
+	readonly pullRequestNumber?: number;
+	readonly reviewId?: number;
 	/** True only on a bot-authored PR (enables the in_review default). */
 	readonly allowDefault?: boolean;
 	/** Webhook delivery id; the DO dedupes by this. */
@@ -164,6 +168,8 @@ export interface NormalizedEvent {
 	readonly agentFailureStage?: string;
 	/** Reproduction screenshots the fix run pushed, carried into the ask comment. */
 	readonly agentScreenshots?: readonly PreviewScreenshot[];
+	/** Reviewer-facing copy carried through preview confirmation into the draft PR. */
+	readonly agentPullRequest?: PullRequestCopy;
 	/**
 	 * Precomposed comment body that replaces the default `renderComment` output
 	 * for this transition. Used for the preview-ready ask, whose body needs data
@@ -194,6 +200,7 @@ export interface AgentResult {
 	readonly implemented?: boolean;
 	readonly verdict?: string;
 	readonly summary?: string;
+	readonly pullRequest?: PullRequestCopy;
 	readonly failureStage?: string;
 	readonly screenshots?: readonly PreviewScreenshot[];
 	readonly [key: string]: unknown;
@@ -288,6 +295,7 @@ const STORAGE = {
 	previewPollNextAt: "o:previewPollNextAt",
 	previewNotes: "o:previewNotes",
 	previewScreenshots: "o:previewScreenshots",
+	candidatePullRequest: "o:candidatePullRequest",
 	lastDiagnosis: "o:lastDiagnosis",
 	deadlineWarningSentRunId: "o:deadlineWarningSentRunId",
 	deadlineWarningRetryAt: "o:deadlineWarningRetryAt",
@@ -314,6 +322,16 @@ const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
 const CLASSIFIER_MAX_ATTEMPTS = 3;
 const CLASSIFIER_TEXT_LIMIT = 16_000;
+
+function normalizePullRequestCopy(value: unknown): PullRequestCopy | undefined {
+	if (!value || typeof value !== "object") return undefined;
+	const { title, description } = value as { title?: unknown; description?: unknown };
+	if (typeof title !== "string" || typeof description !== "string") return undefined;
+	const normalizedTitle = title.trim().replaceAll(/\s+/g, " ");
+	const normalizedDescription = description.trim();
+	if (!normalizedTitle || !normalizedDescription) return undefined;
+	return { title: normalizedTitle, description: normalizedDescription };
+}
 
 interface CachedToken {
 	token: string;
@@ -367,6 +385,7 @@ interface PendingSideEffect {
 	readonly addLabels: readonly string[];
 	readonly removeLabels: readonly string[];
 	readonly commentBody: string;
+	readonly commentTargetNumber?: number;
 	readonly commentMarker: string;
 	readonly commentMayExist: boolean;
 	/** Post the comment before flipping labels (fix-loop ask ordering). */
@@ -473,6 +492,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.recordDelivery(input.deliveryId);
 			return { kind: "recovered" };
 		}
+		if (input.deliveryId && (await this.isDeliverySeen(input.deliveryId))) {
+			return { kind: "recovered" };
+		}
 		if (await this.hasPendingSideEffects()) {
 			throw new Error("an earlier GitHub projection is still pending");
 		}
@@ -488,6 +510,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				throw new ClassifierProcessingError(classifyResult.reason);
 			}
 			if (classifyResult.kind === "noop") {
+				await this.postCommandFeedback(input);
 				if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 				return classifyResult;
 			}
@@ -524,6 +547,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 
 		if (decision.kind === "noop") {
+			await this.postCommandFeedback({ ...input, event: resolvedEvent }, decision.from);
 			if (input.deliveryId) await this.recordDelivery(input.deliveryId);
 			return { kind: "noop", reason: decision.reason };
 		}
@@ -812,7 +836,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 				? { ...existing, body, pending: true }
 				: {
 						runId: input.runId,
-						anchorNumber,
+						anchorNumber:
+							run.mode === "revise"
+								? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+								: anchorNumber,
 						marker,
 						body,
 						commentId: null,
@@ -875,7 +902,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 					? { ...existing, body, pending: true }
 					: {
 							runId: input.runId,
-							anchorNumber,
+							anchorNumber:
+								run.mode === "revise"
+									? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+									: anchorNumber,
 							marker,
 							body,
 							commentId: null,
@@ -940,7 +970,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 				? { ...existing, body, pending: true }
 				: {
 						runId: input.runId,
-						anchorNumber,
+						anchorNumber:
+							run.mode === "revise"
+								? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+								: anchorNumber,
 						marker,
 						body,
 						commentId: null,
@@ -1001,12 +1034,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.persistSuccessfulDiagnosis(input.runId, currentRunMode, input.result);
 		}
 
-		const event = outcomeFromResult({
+		let event = outcomeFromResult({
 			ok: input.ok,
 			result: input.result,
 			pushed: input.pushed,
 			mode: currentRunMode,
 		});
+		if (
+			event === "agent.fix_ready" &&
+			currentRunMode === "revise" &&
+			(await this.ctx.storage.get<number>(STORAGE.prNumber))
+		) {
+			event = "agent.revised";
+		}
 		const resumedAttempt = savedRun?.runId === input.runId || (run?.attempt ?? 1) > 1;
 		if (event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state) {
 			await this.ctx.storage.put<ResumableRunCheckpoint>(STORAGE.resumableRun, {
@@ -1025,6 +1065,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const labels = await this.projectLabels();
 		const agentSummary =
 			typeof input.result?.summary === "string" ? input.result.summary : undefined;
+		const agentPullRequest = normalizePullRequestCopy(input.result.pullRequest);
 		const runStatus: Exclude<WorkCommentStatus, "running"> =
 			event === "agent.failed"
 				? input.result.failureStage === "timeout"
@@ -1054,6 +1095,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			settlesRunId: input.runId,
 			agentRunId: input.runId,
 			...(agentSummary ? { agentSummary } : {}),
+			...(agentPullRequest ? { agentPullRequest } : {}),
 			...(finalizedWorkComment ? { commentBodyOverride: "" } : {}),
 			...(failureStage ? { agentFailureStage: failureStage } : {}),
 			...(agentScreenshots ? { agentScreenshots } : {}),
@@ -1304,7 +1346,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 	private async processInboxHead(): Promise<boolean> {
 		const inbox = (await this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-		const entry = inbox[0];
+		const [state, runId] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<string>(STORAGE.currentRunId),
+		]);
+		const entry = inbox.find(
+			(candidate) =>
+				!(
+					state === "working" &&
+					runId &&
+					candidate.input.event === "revise" &&
+					candidate.input.pullRequestNumber
+				),
+		);
 		if (!entry) return false;
 
 		try {
@@ -1314,9 +1368,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const attempts = (entry.attempts ?? 0) + 1;
 			await this.ctx.storage.transaction(async (transaction) => {
 				const current = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-				if (current[0]?.id !== entry.id) return;
+				if (!current.some((candidate) => candidate.id === entry.id)) return;
 				if (attempts < CLASSIFIER_MAX_ATTEMPTS) {
-					await transaction.put(STORAGE.inbox, [{ ...entry, attempts }, ...current.slice(1)]);
+					await transaction.put(
+						STORAGE.inbox,
+						current.map((candidate) =>
+							candidate.id === entry.id ? { ...entry, attempts } : candidate,
+						),
+					);
 					return;
 				}
 				if (entry.input.deliveryId) {
@@ -1329,7 +1388,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 					}
 				}
 				if (current.length === 1) await transaction.delete(STORAGE.inbox);
-				else await transaction.put(STORAGE.inbox, current.slice(1));
+				else
+					await transaction.put(
+						STORAGE.inbox,
+						current.filter((candidate) => candidate.id !== entry.id),
+					);
 			});
 			if (attempts >= CLASSIFIER_MAX_ATTEMPTS) {
 				console.error("[orchestrator] discarded classifier entry after retry limit", {
@@ -1342,9 +1405,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		await this.ctx.storage.transaction(async (transaction) => {
 			const current = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-			if (current[0]?.id !== entry.id) return;
+			if (!current.some((candidate) => candidate.id === entry.id)) return;
 			if (current.length === 1) await transaction.delete(STORAGE.inbox);
-			else await transaction.put(STORAGE.inbox, current.slice(1));
+			else
+				await transaction.put(
+					STORAGE.inbox,
+					current.filter((candidate) => candidate.id !== entry.id),
+				);
 		});
 		return true;
 	}
@@ -1838,7 +1905,6 @@ export class OrchestratorDO extends DurableObject<Env> {
 				this.ctx.storage.get<StoredDiagnosis>(STORAGE.lastDiagnosis),
 			]);
 			const comments = await getIssueComments(token, repo, anchorNumber, {
-				...(lastDiagnosis ? { since: lastDiagnosis.completedAt } : {}),
 				commentCount: issue.commentCount,
 			});
 			const trigger = input.triggeringComment ?? {
@@ -2145,15 +2211,25 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const token = await this.getInstallationToken(creds);
 		const headBranch = `bot/fix-${anchorNumber}`;
 		const kind = (await this.ctx.storage.get<Kind>(STORAGE.kind)) ?? "bug";
+		const pullRequestCopy = draft
+			? await this.ctx.storage.get<PullRequestCopy>(STORAGE.candidatePullRequest)
+			: undefined;
 		try {
 			const created =
 				(await getOpenPullRequest(token, repo, headBranch)) ??
 				(await createPullRequest(token, repo, {
 					headBranch,
 					baseBranch: "main",
-					title: renderPullRequestTitle(anchorNumber, kind),
+					title: pullRequestCopy?.title || renderPullRequestTitle(anchorNumber, kind),
 					body: draft
-						? renderDraftPrBody(anchorNumber, this.env.PREVIEW_PACKAGE)
+						? renderDraftPrBody({
+								issueNumber: anchorNumber,
+								kind,
+								description:
+									pullRequestCopy?.description ||
+									`Automated candidate change for issue #${anchorNumber}.`,
+								previewPackage: this.env.PREVIEW_PACKAGE,
+							})
 						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
 					draft,
 				}));
@@ -2218,15 +2294,47 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
 		const state = decision.state ?? persistedState ?? null;
+		const replyEvent = decision.event === "help" ? "help" : "status";
 		const id = await this.persistStandaloneSideEffect({
 			anchorNumber,
-			commentBody: renderReadonlyReply(state),
+			commentBody: renderReadonlyReply(
+				state,
+				replyEvent,
+				input.actor === "reporter" ? "reporter" : "maintainer",
+			),
 			...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
 		});
 		await this.armAlarm();
 		await this.drainPendingSideEffects();
 		if (await this.hasPendingSideEffect(id)) {
 			throw new Error("readonly reply is queued behind an earlier GitHub projection");
+		}
+	}
+
+	private async postCommandFeedback(
+		input: NormalizedEvent,
+		resolvedState?: StateId | null,
+	): Promise<void> {
+		if (input.dryRun === true || (input.actor !== "maintainer" && input.actor !== "reporter")) {
+			return;
+		}
+		const anchorNumber =
+			input.anchorNumber ?? (await this.ctx.storage.get<number>(STORAGE.anchorNumber));
+		if (anchorNumber === undefined) {
+			if (import.meta.env.DEV) return;
+			throw new Error("no anchor number for command feedback");
+		}
+		const persistedState = await this.ctx.storage.get<StateId>(STORAGE.state);
+		const state = resolvedState ?? persistedState ?? currentState(input.labels);
+		const id = await this.persistStandaloneSideEffect({
+			anchorNumber,
+			commentBody: renderCommandFeedback(state, input.event, input.actor),
+			...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
+		});
+		await this.armAlarm();
+		await this.drainPendingSideEffects();
+		if (await this.hasPendingSideEffect(id)) {
+			throw new Error("command feedback is queued behind an earlier GitHub projection");
 		}
 	}
 
@@ -2390,7 +2498,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			exists = await hasIssueCommentMarker(
 				token,
 				repo,
-				pending.anchorNumber,
+				pending.commentTargetNumber ?? pending.anchorNumber,
 				pending.commentMarker,
 			);
 		} else {
@@ -2401,7 +2509,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await postIssueComment(
 				token,
 				repo,
-				pending.anchorNumber,
+				pending.commentTargetNumber ?? pending.anchorNumber,
 				`${pending.commentBody}\n\n${pending.commentMarker}`,
 			);
 		}
@@ -2487,6 +2595,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 					input.agentScreenshots?.length
 						? transaction.put(STORAGE.previewScreenshots, input.agentScreenshots)
 						: transaction.delete(STORAGE.previewScreenshots),
+					transaction.put<PullRequestCopy>(
+						STORAGE.candidatePullRequest,
+						input.agentPullRequest ?? {
+							title: "",
+							description: input.agentSummary ?? "",
+						},
+					),
 				);
 			} else {
 				puts.push(
@@ -2494,6 +2609,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 					transaction.delete(STORAGE.previewPollNextAt),
 					transaction.delete(STORAGE.previewNotes),
 					transaction.delete(STORAGE.previewScreenshots),
+					...(decision.to === "awaiting_reporter"
+						? []
+						: [transaction.delete(STORAGE.candidatePullRequest)]),
 				);
 			}
 			const kindLabel = decision.addLabels.find(
@@ -2503,6 +2621,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 				const kind = parseKind(kindLabel.slice("bot:".length));
 				if (kind) puts.push(transaction.put(STORAGE.kind, kind));
 			}
+			if (input.pullRequestNumber)
+				puts.push(transaction.put(STORAGE.prNumber, input.pullRequestNumber));
 			if (preparedInvestigation) {
 				const run = startRunLifecycle({
 					runId: preparedInvestigation.runId,
@@ -2568,8 +2688,26 @@ export class OrchestratorDO extends DurableObject<Env> {
 						: []),
 				);
 			}
+			if (decision.event === "pr.closed" || decision.event === "pr.merged") {
+				const inbox = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
+				const kept = inbox.filter(
+					(candidate) => !(candidate.input.event === "revise" && candidate.input.pullRequestNumber),
+				);
+				if (kept.length !== inbox.length) {
+					puts.push(
+						kept.length === 0
+							? transaction.delete(STORAGE.inbox)
+							: transaction.put(STORAGE.inbox, kept),
+					);
+				}
+			}
 			const anchorNumber =
 				input.anchorNumber ?? (await transaction.get<number>(STORAGE.anchorNumber));
+			const commentTargetNumber =
+				input.pullRequestNumber ??
+				((await transaction.get<InvestigationMode>(STORAGE.currentRunMode)) === "revise"
+					? await transaction.get<number>(STORAGE.prNumber)
+					: undefined);
 			const effectRunId =
 				preparedInvestigation?.runId ?? preparedResume?.checkpoint.runId ?? input.settlesRunId;
 			const effectDeliveryId = input.settlesDeliveryId ?? input.deliveryId;
@@ -2587,6 +2725,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 							anchorNumber,
 							addLabels: decision.addLabels,
 							removeLabels: decision.removeLabels,
+							...(commentTargetNumber ? { commentTargetNumber } : {}),
 							commentBody:
 								input.commentBodyOverride ??
 								renderComment(

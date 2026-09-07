@@ -9,6 +9,10 @@ import { MediaRepository } from "../../database/repositories/media.js";
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import {
+	getMediaUsageActivationStatus,
+	MediaUsageActivationVersionMismatchError,
+} from "../../media/usage/activation.js";
+import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 } from "../../media/usage/content-refresh.js";
@@ -19,6 +23,10 @@ import {
 	type ContentMediaUsageRepairCollectionResult,
 } from "../../media/usage/content-repair.js";
 import { CONTENT_SOURCE_SCHEMA_VERSION } from "../../media/usage/content-snapshots.js";
+import {
+	runMediaUsageMaintenanceStep,
+	type MediaUsageMaintenanceContinuation,
+} from "../../media/usage/maintenance-engine.js";
 import { ErrorCode } from "../errors.js";
 import type {
 	MediaUsageCoverage,
@@ -26,6 +34,8 @@ import type {
 	MediaUsageDetailsResponse,
 	MediaUsageEntryDetail,
 	MediaUsageOccurrenceDetail,
+	MediaUsageProgress,
+	MediaUsageProgressAdvanceResponse,
 	MediaUsageRepairRequest,
 	MediaUsageRepairResponse,
 	MediaUsageSummary,
@@ -38,6 +48,8 @@ export type {
 	MediaUsageDetailsResponse,
 	MediaUsageEntryDetail,
 	MediaUsageOccurrenceDetail,
+	MediaUsageProgress,
+	MediaUsageProgressAdvanceResponse,
 	MediaUsageSourceDetail,
 	MediaUsageRepairRequest,
 	MediaUsageRepairResponse,
@@ -47,6 +59,102 @@ export type {
 type ContentMediaUsageRepairResult =
 	| ContentMediaUsageRepairCollectionResult
 	| ContentMediaUsageRepairAllResult;
+
+export async function handleMediaUsageProgress(
+	db: Kysely<Database>,
+): Promise<ApiResult<MediaUsageProgress>> {
+	try {
+		const progress = await new MediaUsageRepository(db).findCollectionProgress();
+		if (!progress) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_PROGRESS_NOT_ACTIVE,
+					message: "Media Usage is not active",
+				},
+			};
+		}
+		return { success: true, data: progress };
+	} catch (error) {
+		if (error instanceof MediaUsageActivationVersionMismatchError) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH,
+					message: "Media Usage activation version does not match this runtime",
+				},
+			};
+		}
+		console.error("[media-usage] progress read failed:", error);
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.MEDIA_USAGE_PROGRESS_READ_ERROR,
+				message: "Failed to read media usage progress",
+			},
+		};
+	}
+}
+
+export async function handleMediaUsageProgressAdvance(
+	db: Kysely<Database>,
+): Promise<ApiResult<MediaUsageProgressAdvanceResponse>> {
+	try {
+		const step = await runMediaUsageMaintenanceStep(db);
+		const activation = await getMediaUsageActivationStatus(db);
+		if (activation.state === "expanded") {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_PROGRESS_NOT_ACTIVE,
+					message: "Media Usage activation has not started",
+				},
+			};
+		}
+
+		const progress =
+			activation.state === "active"
+				? await new MediaUsageRepository(db).findCollectionProgress()
+				: null;
+		return {
+			success: true,
+			data: {
+				activation,
+				progress,
+				nextRequestInMs: continuationDelayMs(step.continuation, progress),
+			},
+		};
+	} catch (error) {
+		if (error instanceof MediaUsageActivationVersionMismatchError) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH,
+					message: "Media Usage activation version does not match this runtime",
+				},
+			};
+		}
+		console.error("[media-usage] progress advance failed:", error);
+		return {
+			success: false,
+			error: {
+				code: ErrorCode.MEDIA_USAGE_PROGRESS_ADVANCE_ERROR,
+				message: "Failed to advance media usage progress",
+			},
+		};
+	}
+}
+
+function continuationDelayMs(
+	continuation: MediaUsageMaintenanceContinuation,
+	progress: MediaUsageProgress | null,
+): 0 | 30_000 | null {
+	if (progress?.status === "needs_attention") return null;
+	if (continuation.kind === "immediate") return 0;
+	if (continuation.kind === "delayed") return 30_000;
+	if (progress?.status === "indexing") return 0;
+	return null;
+}
 
 export function aggregateMediaUsageCoverageStatus(
 	scopes: readonly MediaUsageCollectionIndexStatusScope[],

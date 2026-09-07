@@ -389,6 +389,22 @@ export async function resolveAndValidateExternalUrl(
 	url: string,
 	options?: { resolver?: DnsResolver },
 ): Promise<URL> {
+	return (await resolveAndValidateExternalUrlTarget(url, options)).url;
+}
+
+export interface ResolvedExternalUrlTarget {
+	url: URL;
+	addresses: readonly string[];
+}
+
+/**
+ * Validate a URL and return the exact public addresses approved for the
+ * subsequent connection.
+ */
+export async function resolveAndValidateExternalUrlTarget(
+	url: string,
+	options?: { resolver?: DnsResolver },
+): Promise<ResolvedExternalUrlTarget> {
 	const parsed = validateExternalUrl(url);
 
 	// Strip brackets from IPv6 hostnames
@@ -397,7 +413,7 @@ export async function resolveAndValidateExternalUrl(
 	// If the hostname is already an IP literal, validateExternalUrl has
 	// already checked it against the private-range list. Skip DNS.
 	if (isIpLiteral(hostname)) {
-		return parsed;
+		return { url: parsed, addresses: [hostname] };
 	}
 
 	const resolver = options?.resolver ?? defaultResolver ?? cloudflareDohResolver;
@@ -416,12 +432,15 @@ export async function resolveAndValidateExternalUrl(
 	}
 
 	for (const ip of addresses) {
+		if (!isIpLiteral(ip)) {
+			throw new SsrfError("Hostname resolver returned a non-IP address");
+		}
 		if (isPrivateIp(ip)) {
 			throw new SsrfError("Hostname resolves to a private IP address");
 		}
 	}
 
-	return parsed;
+	return { url: parsed, addresses };
 }
 
 /** True when a string looks like an IPv4 or IPv6 literal. */
@@ -448,13 +467,16 @@ const CREDENTIAL_HEADERS = ["authorization", "cookie", "proxy-authorization"];
 export async function ssrfSafeFetch(
 	url: string,
 	init?: RequestInit,
-	options?: { resolver?: DnsResolver },
+	options?: { resolver?: DnsResolver; httpsOnly?: boolean },
 ): Promise<Response> {
 	let currentUrl = url;
 	let currentInit = init;
 
 	for (let i = 0; i <= MAX_REDIRECTS; i++) {
-		await resolveAndValidateExternalUrl(currentUrl, options);
+		const validated = await resolveAndValidateExternalUrl(currentUrl, options);
+		if (options?.httpsOnly === true && validated.protocol !== "https:") {
+			throw new SsrfError("Only HTTPS URLs are allowed");
+		}
 
 		const response = await globalThis.fetch(currentUrl, {
 			...currentInit,

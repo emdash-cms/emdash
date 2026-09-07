@@ -105,6 +105,16 @@ describe("SetupWizard", () => {
 		await expect.element(screen.getByText("Create your account")).toBeInTheDocument();
 	});
 
+	it("does not present media usage tracking as an onboarding choice", async () => {
+		const screen = await render(
+			<QueryWrapper>
+				<SetupWizard />
+			</QueryWrapper>,
+		);
+		await expect.element(screen.getByText("Set up your site")).toBeInTheDocument();
+		expect(screen.getByRole("checkbox", { name: /Track where media is used/ }).query()).toBeNull();
+	});
+
 	it("admin step shows email input", async () => {
 		const screen = await render(
 			<QueryWrapper>

@@ -213,8 +213,8 @@ export function SortableContentSettingsSection({
 				{...listeners}
 				className={cn(
 					"absolute z-10 grid size-7 touch-none cursor-grab place-items-center rounded-md text-kumo-subtle hover:bg-kumo-tint hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-accent active:cursor-grabbing",
-					isSorting ? "end-3 top-1/2 -translate-y-1/2" : "top-3",
-					!isSorting && "end-3",
+					"end-5",
+					isSorting ? "top-1/2 -translate-y-1/2" : disclosure ? "top-5" : "top-3",
 				)}
 				aria-label={t`Drag to reorder ${label}`}
 				title={t`Drag to reorder ${label}`}

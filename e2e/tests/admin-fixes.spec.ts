@@ -96,7 +96,7 @@ test.describe("Media metadata updates", () => {
 		await admin.waitForLoading();
 
 		// Wait for the image to appear in the grid
-		const mediaGrid = page.locator(".grid.gap-4");
+		const mediaGrid = page.locator("[data-media-grid]");
 		await expect(mediaGrid.locator("img").first()).toBeVisible({ timeout: 5000 });
 
 		// Click the image to open the detail panel

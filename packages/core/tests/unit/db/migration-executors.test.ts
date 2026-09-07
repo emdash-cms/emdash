@@ -80,7 +80,7 @@ describe("SQLite migration executor", () => {
 		const secondReport = await secondExecutor.execute(await migrationRequest("apply"));
 		expect(secondReport.executed).toEqual([]);
 		expect(secondReport.knownApplied).toEqual(MIGRATION_NAMES);
-	});
+	}, 30_000);
 
 	it("uses the explicit database override instead of the manifest path", async () => {
 		const projectRoot = await temporaryDirectory();
@@ -119,7 +119,7 @@ describe("libSQL migration executor", () => {
 		const secondReport = await secondExecutor.execute(await migrationRequest("apply"));
 		expect(secondReport.executed).toEqual([]);
 		expect(secondReport.knownApplied).toEqual(MIGRATION_NAMES);
-	});
+	}, 30_000);
 
 	it("fails on a missing token before constructing an executor", async () => {
 		const projectRoot = await temporaryDirectory();

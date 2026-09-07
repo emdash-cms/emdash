@@ -19,7 +19,7 @@ The registry's discovery side is a public, read-only API. The `@emdash-cms/regis
 The `discovery` subpath carries no authentication or OAuth dependencies. Install the client and pin it to an exact version:
 
 ```sh
-npm install @emdash-cms/registry-client@0.3.1
+npm install @emdash-cms/registry-client@0.3.4
 ```
 
 ## List and resolve packages
@@ -81,7 +81,12 @@ The client exposes one method per aggregator query:
 - **`resolvePackage({ handle, slug })`** — resolve a package from a handle and slug.
 - **`getPackage({ did, slug })`** — fetch a package by its DID and slug.
 - **`listReleases({ did, package, limit?, cursor? })`** — every release for a package, newest version first.
-- **`getLatestRelease({ did, package })`** — the highest non-yanked release version.
+- **`getLatestRelease({ did, package })`** — the highest approved, non-withdrawn release version.
+
+`getPackageStatus()` and `resolvePackageStatus()` wrap their corresponding package queries and
+map the safe `ListingUnavailable` response to `{ status: "unavailable" }`. Use these methods in
+a user interface that needs to distinguish an indexed but unapproved listing from a missing
+package without rendering publisher-controlled error content.
 
 ## Handling untrusted records
 
@@ -90,7 +95,7 @@ The aggregator is an untrusted index that relays records it did not author, so t
 - **The `profile` and `release` fields can be `null`.** When a relayed record fails validation, the client surfaces it as `null` rather than failing the whole call, so one malformed record does not blank a search page. Always null-check before reading `pkg.profile?.name` or `latest.release?.artifacts.package`.
 - **Validate URL schemes yourself before rendering.** Validation checks structure, not URL safety — a `uri` field can carry a `javascript:` scheme. Apply your own `http`/`https` allow-list before putting any registry-supplied URL into an `href` or `src`.
 
-A non-2xx response throws `ClientResponseError` (re-exported from the package), carrying `.error`, `.description`, `.status`, and `.headers`.
+A non-2xx response throws `ClientResponseError` (re-exported from the package), carrying `.error`, `.description`, `.status`, and `.headers`. The reference aggregator returns only exact-CID revisions approved by every required positive-label source. An `atproto-accept-labelers` header declares bare configured DIDs for request and cache identity. The aggregator validates the declaration, but its configured policy remains authoritative.
 
 ## Filtering by host compatibility
 

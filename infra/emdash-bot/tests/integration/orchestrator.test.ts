@@ -65,6 +65,159 @@ describe("OrchestratorDO (workers-pool)", () => {
 		vi.unstubAllGlobals();
 	});
 
+	test("review revisions publish progress and completion on the PR and remain reviewable", async () => {
+		const requests: Array<{ method: string; url: string; body: string }> = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = init?.method ?? "GET";
+			requests.push({ method, url, body: typeof init?.body === "string" ? init.body : "" });
+			return Promise.resolve(
+				new Response(
+					JSON.stringify(method === "POST" && url.endsWith("/comments") ? { id: 776 } : {}),
+					{ status: 200 },
+				),
+			);
+		});
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": 42,
+				"o:prNumber": 99,
+				"o:state": "working",
+				"o:kind": "bug",
+			});
+		});
+		await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+		await stub.prepareWorkPlanComment({ runId: "review-run", summary: "Address adapter review" });
+		await stub.updateWorkPlan({
+			runId: "review-run",
+			summary: "Address adapter review",
+			steps: [{ id: "fix", title: "Test and fix the adapter", status: "completed" }],
+		});
+		await stub.applyAgentResult({
+			runId: "review-run",
+			result: { fixed: true, summary: "Covered the adapter case." },
+			pushed: true,
+			ok: true,
+		});
+		const posts = requests.filter(
+			(request) => request.method === "POST" && request.url.endsWith("/comments"),
+		);
+		expect(posts).toHaveLength(1);
+		expect(posts[0]?.url).toContain("/issues/99/comments");
+		expect(posts[0]?.body).toContain("Preparing workspace");
+		expect(requests.findLast((request) => request.method === "PATCH")?.body).toContain(
+			"Covered the adapter case.",
+		);
+		expect((await stub.getPersistedState()).state).toBe("in_review");
+	});
+
+	test.each([
+		["pr.closed", "blocked"],
+		["pr.merged", "done"],
+	] as const)(
+		"queues review feedback during a revision, then discards it when %s arrives",
+		async (event, expectedState) => {
+			const calls: string[] = [];
+			const comments: string[] = [];
+			testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+			vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:state": "working",
+					"o:kind": "bug",
+				});
+			});
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+			await stub.enqueue(
+				makeEvent({
+					event: "revise",
+					arg: "Also cover null",
+					anchorNumber: 42,
+					pullRequestNumber: 99,
+					deliveryId: "another-review",
+					dryRun: false,
+				}),
+			);
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(1);
+			await stub.enqueue(
+				makeEvent({
+					event,
+					arg: null,
+					actor: "system",
+					anchorNumber: 42,
+					deliveryId: "closed-pr",
+					dryRun: false,
+				}),
+			);
+			await stub.tick();
+			expect((await stub.getPersistedState()).state).toBe(expectedState);
+			expect(await stub.getInboxDepth()).toBe(0);
+			expect(comments.some((comment) => comment.includes("isn't available"))).toBe(false);
+		},
+	);
+
+	test.each([true, false])(
+		"processes queued feedback after the revision settles (success=%s)",
+		async (ok) => {
+			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+			await runInDurableObject(stub, async (_instance, state) => {
+				await state.storage.put({
+					"o:anchorNumber": 42,
+					"o:prNumber": 99,
+					"o:state": "working",
+					"o:kind": "bug",
+				});
+			});
+			await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+			await stub.enqueue(
+				makeEvent({
+					event: "revise",
+					arg: "Also cover null",
+					anchorNumber: 42,
+					pullRequestNumber: 99,
+					deliveryId: "another-review",
+				}),
+			);
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(1);
+			await stub.applyAgentResult({
+				runId: "review-run",
+				result: { fixed: ok, summary: "Review outcome" },
+				pushed: ok,
+				ok,
+			});
+			await stub.tick();
+			expect(await stub.getInboxDepth()).toBe(0);
+			expect((await stub.getPersistedState()).state).toBe("working");
+			expect(
+				await stub.enqueue(makeEvent({ event: "revise", deliveryId: "another-review" })),
+			).toMatchObject({ kind: "duplicate" });
+		},
+	);
+
+	test("a revision before a PR exists still asks for reporter confirmation", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({ "o:anchorNumber": 42, "o:state": "working", "o:kind": "bug" });
+		});
+		await stub.debugSetStaleRun("review-run", Date.now(), "investigate-review", "revise");
+		await stub.applyAgentResult({
+			runId: "review-run",
+			result: { fixed: true },
+			pushed: true,
+			ok: true,
+		});
+		expect((await stub.getPersistedState()).state).toBe("awaiting_feedback");
+	});
+
 	test("fresh instance starts with no persisted state", async () => {
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
 		const state = await stub.getPersistedState();
@@ -90,6 +243,50 @@ describe("OrchestratorDO (workers-pool)", () => {
 		// machine.ts's implement event sets defaultKind: "enhancement"
 		// (verified separately in router tests).
 		expect(persisted.kind).toBe("enhancement");
+	});
+
+	test("direct fix persists the bug kind without requiring a diagnosis", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		const outcome = await stub.event(
+			makeEvent({ event: "fix", arg: "unwrap the media response envelope" }),
+		);
+		expect(outcome.kind).toBe("transition");
+		if (outcome.kind === "transition") {
+			expect(outcome.decision.action).toBe("investigate.implement");
+		}
+
+		const persisted = await stub.getPersistedState();
+		expect(persisted.state).toBe("fixing");
+		expect(persisted.kind).toBe("bug");
+	});
+
+	test("a successful legacy repro retains its diagnosis for implement", async () => {
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.event(makeEvent({ event: "repro", arg: null, anchorNumber: 42 }));
+		await stub.debugSetStaleRun("repro-run", Date.now(), undefined, "repro");
+		await stub.applyAgentResult({
+			runId: "repro-run",
+			result: {
+				reproduced: true,
+				summary: "The image field reads the wrapped response at the wrong level.",
+			},
+			pushed: false,
+			ok: true,
+		});
+
+		expect((await stub.getPersistedState()).state).toBe("reproduced");
+		expect(await stub.debugGetLastDiagnosis()).toMatchObject({
+			runId: "repro-run",
+			result: { reproduced: true },
+		});
+
+		const implement = await stub.event(
+			makeEvent({ event: "implement", arg: "apply that fix", anchorNumber: 42 }),
+		);
+		expect(implement.kind).toBe("transition");
+		if (implement.kind === "transition") {
+			expect(implement.decision.action).toBe("investigate.fix");
+		}
 	});
 
 	test("event() appends an entry to the event log", async () => {
@@ -281,15 +478,104 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(log.length).toBe(1);
 	});
 
-	test("noop event() does not advance state", async () => {
+	test("an invalid maintainer command comments with valid alternatives without advancing state", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
 		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
-		// `confirm` from unmanaged has no transition (router resolves to noop).
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
 		const outcome = await stub.event(
-			makeEvent({ event: "confirm", arg: null, actor: "maintainer" }),
+			makeEvent({
+				event: "confirm",
+				arg: null,
+				actor: "maintainer",
+				anchorNumber: 42,
+				deliveryId: "invalid-confirm",
+				dryRun: false,
+			}),
 		);
 		expect(outcome.kind).toBe("noop");
 		const persisted = await stub.getPersistedState();
 		expect(persisted.state).toBe(null);
+		expect(comments).toHaveLength(1);
+		expect(comments[0]).toContain("`@emdashbot confirm` isn't available");
+		expect(comments[0]).toContain("`@emdashbot fix <directive>`");
+	});
+
+	test("invalid classified commands name the resolved command in feedback", async () => {
+		const calls: string[] = [];
+		const comments: string[] = [];
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal("fetch", githubCallRecorder(calls, 201, comments));
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+
+		const outcome = await stub.event(
+			makeEvent({
+				event: null,
+				needsClassify: true,
+				classifyText: "classified-confirm",
+				labels: ["bot:bug", "bot:working"],
+				anchorNumber: 42,
+				deliveryId: "classified-invalid-confirm",
+				dryRun: false,
+			}),
+		);
+
+		expect(outcome.kind).toBe("noop");
+		expect(comments).toHaveLength(1);
+		expect(comments[0]).toContain("`@emdashbot confirm` isn't available");
+		expect(comments[0]).not.toContain("I couldn't map that request");
+	});
+
+	test("a failed command-feedback comment recovers without posting a duplicate", async () => {
+		let commentPosts = 0;
+		let allowSuccess = false;
+		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
+		vi.stubGlobal(
+			"fetch",
+			(input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
+				const url =
+					typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+				const method = (init?.method ?? "GET").toUpperCase();
+				if (method === "GET" && url.includes("/comments")) {
+					return Promise.resolve(new Response("[]", { status: 200 }));
+				}
+				if (method === "POST" && url.endsWith("/comments")) {
+					commentPosts += 1;
+					return Promise.resolve(new Response("{}", { status: allowSuccess ? 201 : 500 }));
+				}
+				return Promise.resolve(new Response("{}", { status: 200 }));
+			},
+		);
+		const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		const event = makeEvent({
+			event: "confirm",
+			arg: null,
+			actor: "maintainer",
+			anchorNumber: 42,
+			deliveryId: "recover-invalid-confirm",
+			dryRun: false,
+		});
+
+		expect(await stub.enqueue(event)).toMatchObject({ kind: "admitted" });
+		const failedTick = await stub.tick();
+		expect(failedTick.inboxError).toContain("postIssueComment failed: 500");
+		expect(await stub.getPendingSideEffectCount()).toBe(1);
+		expect(await stub.getInboxDepth()).toBe(1);
+		const failedPosts = commentPosts;
+
+		allowSuccess = true;
+		const recoveredTick = await stub.tick();
+		expect(recoveredTick.inboxError).toBeNull();
+		expect(commentPosts).toBe(failedPosts + 1);
+		expect(await stub.getPendingSideEffectCount()).toBe(0);
+		expect(await stub.getInboxDepth()).toBe(0);
+
+		await stub.tick();
+		expect(commentPosts).toBe(failedPosts + 1);
 	});
 
 	test("applyAgentResult drops stale runId silently", async () => {
@@ -1508,7 +1794,7 @@ describe("OrchestratorDO (workers-pool)", () => {
 		expect(await stub.getPendingSideEffectCount()).toBe(1);
 	});
 
-	test("draft PR titles distinguish bug fixes from directed implementations", async () => {
+	test("draft PRs use agent-authored copy with a legacy fallback", async () => {
 		const pullRequests: unknown[] = [];
 		let pullNumber = 100;
 		testEnv.GITHUB_APP_PRIVATE_KEY = "test-key-present";
@@ -1540,22 +1826,56 @@ describe("OrchestratorDO (workers-pool)", () => {
 			},
 		);
 
-		for (const [anchorNumber, kind] of [
-			[42, "bug"],
-			[43, "enhancement"],
-		] as const) {
-			const stub = testEnv.Orchestrator.getByName(uniqueIssueName());
-			await stub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
-			await stub.debugPrimePreviewBuilding(anchorNumber, "Candidate notes.", kind);
-			await stub.event(
-				makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber }),
-			);
-			await stub.event(makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber }));
-		}
+		const customCopyStub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await customCopyStub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await customCopyStub.debugPrimeFixing(42);
+		await customCopyStub.debugSetStaleRun(
+			"implement-run",
+			Date.now(),
+			"investigate-42-implement-run",
+			"implement",
+		);
+		await customCopyStub.applyAgentResult({
+			runId: "implement-run",
+			result: {
+				implemented: true,
+				summary: "Keeps the selected locale when loading content.",
+				pullRequest: {
+					title: "fix(core): preserve the requested locale",
+					description: "Keeps the selected locale when loading content.",
+				},
+			},
+			pushed: true,
+			ok: true,
+		});
+		await customCopyStub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 42 }),
+		);
+		await customCopyStub.event(
+			makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber: 42 }),
+		);
+
+		const legacyStub = testEnv.Orchestrator.getByName(uniqueIssueName());
+		await legacyStub.debugSetTokenCache("cached-token", Date.now() + 60 * 60 * 1000);
+		await legacyStub.debugPrimePreviewBuilding(43, "Candidate notes.", "enhancement");
+		await legacyStub.event(
+			makeEvent({ event: "preview.ready", arg: null, actor: "system", anchorNumber: 43 }),
+		);
+		await legacyStub.event(
+			makeEvent({ event: "confirm", arg: null, actor: "reporter", anchorNumber: 43 }),
+		);
 
 		expect(pullRequests).toMatchObject([
-			{ title: "Fix #42", draft: true },
-			{ title: "Implement #43", draft: true },
+			{
+				title: "fix(core): preserve the requested locale",
+				body: expect.stringContaining("Keeps the selected locale when loading content."),
+				draft: true,
+			},
+			{
+				title: "Implement #43",
+				body: expect.stringContaining("## What does this PR do?"),
+				draft: true,
+			},
 		]);
 	});
 

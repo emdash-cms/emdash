@@ -315,9 +315,7 @@ it into \`emdash({ sandboxed: [${importBinding}] })\`.
 
 \`\`\`sh
 emdash-plugin login        # if you're not already logged in
-emdash-plugin bundle       # produces dist/${title}-<version>.tar.gz
-# upload that tarball to a public URL, then:
-emdash-plugin publish --url https://your-host/...
+emdash-plugin publish      # builds and uploads artifacts to your PDS
 \`\`\`
 
 ## Version bumps

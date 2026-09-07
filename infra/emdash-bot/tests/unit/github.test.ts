@@ -4,6 +4,7 @@ import {
 	createIssueComment,
 	findIssueCommentByMarker,
 	getIssueComments,
+	getPullRequestReviewComments,
 	getPullRequestHeadBranch,
 	listOpenManagedIssues,
 	updateIssueComment,
@@ -216,5 +217,37 @@ describe("GitHub dashboard requests", () => {
 			expect.stringContaining("labels=bot%3Aenhancement"),
 			expect.stringContaining("labels=bot%3Atask"),
 		]);
+	});
+});
+
+describe("GitHub submitted review comments", () => {
+	afterEach(() => vi.unstubAllGlobals());
+	test("collects every page with inline location and diff context", async () => {
+		const comment = {
+			body: "Check the empty case",
+			path: "src/adapter.ts",
+			line: 42,
+			diff_hunk: "@@ -1 +1 @@\n+read()",
+		};
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(jsonResponse(Array.from({ length: 100 }, () => ({ ...comment }))))
+			.mockResolvedValueOnce(
+				jsonResponse([{ ...comment, body: "Also test null", line: null, original_line: 12 }]),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+		const comments = await getPullRequestReviewComments("token", repo, 99, 77);
+		expect(comments).toHaveLength(101);
+		expect(comments[0]).toContain("src/adapter.ts:42");
+		expect(comments[0]).toContain("+read()");
+		expect(comments[100]).toContain("src/adapter.ts:12");
+		expect(comments[100]).toContain("Also test null");
+		expect(fetchMock.mock.calls[1]?.[0]).toContain(
+			"pulls/99/reviews/77/comments?per_page=100&page=2",
+		);
+	});
+	test("fails rather than omitting unavailable review comments", async () => {
+		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 403)));
+		await expect(getPullRequestReviewComments("token", repo, 99, 77)).rejects.toThrow("403");
 	});
 });

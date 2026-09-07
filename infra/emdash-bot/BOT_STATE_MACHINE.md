@@ -25,19 +25,19 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 
 | State | Phase | Label | Board column | Terminal | Transient | Offered commands |
 | --- | --- | --- | --- | --- | --- | --- |
-| `unmanaged` | `intake` | — | (none) | no | no | `investigate`, `repro`, `implement`, `decline` |
-| `triage` | `intake` | `bot:triage` | Triage | no | no | `investigate`, `repro`, `implement`, `decline` |
+| `unmanaged` | `intake` | — | (none) | no | no | `investigate`, `repro`, `fix`, `implement`, `decline` |
+| `triage` | `intake` | `bot:triage` | Triage | no | no | `investigate`, `repro`, `fix`, `implement`, `decline` |
 | `working` | `evidence` | `bot:working` | Working | no | yes | `status` |
-| `blocked` | `candidate` | `bot:blocked` | Blocked | no | no | `investigate`, `implement`, `repro`, `retry`, `decline`, `take_over` |
-| `awaiting_feedback` | `confirmation` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `take_over` |
+| `blocked` | `candidate` | `bot:blocked` | Blocked | no | no | `investigate`, `fix`, `implement`, `repro`, `retry`, `decline`, `take_over` |
+| `awaiting_feedback` | `confirmation` | `bot:awaiting-feedback` | Awaiting feedback | no | no | `confirm`, `reject`, `retry`, `revise`, `take_over` |
 | `in_review` | `review` | `bot:in-review` | In review | no | no | `revise`, `decline`, `take_over` |
 | `human_owned` | `review` | `bot:human-owned` | Human owned | no | no | `hand_back` |
 | `done` | `complete` | `bot:done` | Done | yes | no | `reopen` |
 | `declined` | `complete` | `bot:declined` | Declined | yes | no | `reopen` |
-| `failed` | `candidate` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `decline` |
+| `failed` | `candidate` | `bot:failed` | Failed | no | no | `resume`, `retry`, `implement`, `repro`, `investigate`, `revise`, `decline` |
 | `investigating` | `evidence` | `bot:investigating` | Investigating | no | yes | `status` |
-| `reproduced` | `verdict` | `bot:reproduced` | Reproduced | no | no | `fix`, `investigate`, `decline`, `take_over` |
-| `diagnosed` | `verdict` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `investigate`, `decline`, `take_over` |
+| `reproduced` | `verdict` | `bot:reproduced` | Reproduced | no | no | `fix`, `implement`, `investigate`, `decline`, `take_over` |
+| `diagnosed` | `verdict` | `bot:diagnosed` | Diagnosed | no | no | `fix`, `implement`, `investigate`, `decline`, `take_over` |
 | `not_reproduced` | `verdict` | `bot:not-reproduced` | Not reproduced | no | no | `investigate`, `decline`, `take_over` |
 | `needs_info` | `verdict` | `bot:needs-info` | Needs info | no | no | `investigate`, `decline`, `take_over` |
 | `fixing` | `candidate` | `bot:fixing` | Fixing | no | yes | `status` |
@@ -51,7 +51,7 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `repro` | command | maintainer | — | Reproduce the issue as a bug and attempt a fix. |
 | `investigate` | command | maintainer | `directive` | Reproduce and diagnose the issue as a bug, with evidence. Does not attempt a fix. |
 | `implement` | command | maintainer | `directive` | Build the described change (feature or directed fix), skipping the bug-repro gate. |
-| `fix` | command | maintainer | `directive` | Build a candidate fix on a bot branch and post a preview for the reporter to try. |
+| `fix` | command | maintainer | `directive` | Build a candidate bug fix and post a preview for the reporter to try. |
 | `retry` | command | maintainer | — | Re-run the bug reproduction pipeline. |
 | `resume` | command | maintainer | `directive` | Continue the saved conversation and workspace from a timed-out run. |
 | `revise` | command | maintainer | `feedback` | Send review feedback back into the agent to update the open PR branch. |
@@ -69,13 +69,13 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `agent.by_design` | agent result | system | — | Agent verified the behaviour as intended. |
 | `agent.reproduced` | agent result | system | — | Reproduced, but the fix needs a human decision. |
 | `agent.diagnosed` | agent result | system | — | Root cause identified without a confirming reproduction. |
+| `agent.revised` | agent result | system | — | Review feedback is addressed and the PR branch is updated. |
 | `agent.fix_ready` | agent result | system | — | A candidate change is published on bot/fix-<n>. |
 | `agent.needs_info` | agent result | system | — | Investigation is blocked on information only the reporter can supply. |
 | `agent.failed` | agent result | system | — | Agent run errored or produced no usable result. |
 | `pr.opened` | pr lifecycle | system | — | A bot PR was opened for this item. |
 | `pr.merged` | pr lifecycle | system | — | The bot PR was merged. |
 | `pr.closed` | pr lifecycle | system | — | The bot PR was closed without merging. |
-| `pr.changes_requested` | pr lifecycle | system | — | A reviewer requested changes (review sub-state). |
 | `pr.approved` | pr lifecycle | system | — | A reviewer approved the PR (review sub-state). |
 | `preview.ready` | preview | system | — | The preview deploy for the candidate change is live; link ready to post. |
 | `preview.failed` | preview | system | — | The preview deploy failed to build. |
@@ -86,17 +86,23 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | From | Event | To | Action |
 | --- | --- | --- | --- |
 | `unmanaged` | `repro` | `working` | `investigate.repro` |
+| `unmanaged` | `fix` | `fixing` | `investigate.implement` |
 | `unmanaged` | `implement` | `fixing` | `investigate.implement` |
 | `unmanaged` | `decline` | `declined` | — |
 | `triage` | `repro` | `working` | `investigate.repro` |
+| `triage` | `fix` | `fixing` | `investigate.implement` |
 | `triage` | `implement` | `fixing` | `investigate.implement` |
 | `triage` | `decline` | `declined` | — |
 | `working` | `agent.skipped` | `blocked` | — |
-| `working` | `agent.not_reproduced` | `blocked` | — |
+| `working` | `agent.not_reproduced` | `not_reproduced` | — |
 | `working` | `agent.by_design` | `blocked` | — |
-| `working` | `agent.reproduced` | `blocked` | — |
+| `working` | `agent.reproduced` | `reproduced` | — |
+| `working` | `agent.diagnosed` | `diagnosed` | — |
+| `working` | `agent.needs_info` | `needs_info` | — |
 | `working` | `agent.fix_ready` | `awaiting_feedback` | — |
+| `working` | `agent.revised` | `in_review` | — |
 | `working` | `agent.failed` | `failed` | — |
+| `blocked` | `fix` | `fixing` | `investigate.implement` |
 | `blocked` | `implement` | `fixing` | `investigate.implement` |
 | `blocked` | `repro` | `working` | `investigate.repro` |
 | `blocked` | `retry` | `working` | `investigate.repro` |
@@ -106,9 +112,10 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `awaiting_feedback` | `reject` | `working` | `investigate.revise` |
 | `awaiting_feedback` | `retry` | `working` | `investigate.repro` |
 | `awaiting_feedback` | `take_over` | `human_owned` | — |
+| `failed` | `revise` | `working` | `investigate.revise` |
+| `awaiting_feedback` | `revise` | `working` | `investigate.revise` |
 | `in_review` | `pr.opened` | `in_review` | — |
 | `in_review` | `pr.approved` | `in_review` | — |
-| `in_review` | `pr.changes_requested` | `in_review` | — |
 | `in_review` | `revise` | `working` | `investigate.revise` |
 | `in_review` | `pr.merged` | `done` | — |
 | `working` | `pr.merged` | `done` | — |
@@ -151,9 +158,11 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `investigating` | `agent.skipped` | `blocked` | — |
 | `investigating` | `agent.failed` | `failed` | — |
 | `reproduced` | `fix` | `fixing` | `investigate.fix` |
+| `reproduced` | `implement` | `fixing` | `investigate.fix` |
 | `reproduced` | `decline` | `declined` | — |
 | `reproduced` | `take_over` | `human_owned` | — |
 | `diagnosed` | `fix` | `fixing` | `investigate.fix` |
+| `diagnosed` | `implement` | `fixing` | `investigate.fix` |
 | `diagnosed` | `decline` | `declined` | — |
 | `diagnosed` | `take_over` | `human_owned` | — |
 | `diagnosed` | `investigate` | `investigating` | `investigate.diagnose` |
@@ -186,17 +195,23 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 stateDiagram-v2
     [*] --> unmanaged
     unmanaged --> working: repro / investigate.repro
+    unmanaged --> fixing: fix / investigate.implement
     unmanaged --> fixing: implement / investigate.implement
     unmanaged --> declined: decline
     triage --> working: repro / investigate.repro
+    triage --> fixing: fix / investigate.implement
     triage --> fixing: implement / investigate.implement
     triage --> declined: decline
     working --> blocked: agent.skipped
-    working --> blocked: agent.not_reproduced
+    working --> not_reproduced: agent.not_reproduced
     working --> blocked: agent.by_design
-    working --> blocked: agent.reproduced
+    working --> reproduced: agent.reproduced
+    working --> diagnosed: agent.diagnosed
+    working --> needs_info: agent.needs_info
     working --> awaiting_feedback: agent.fix_ready
+    working --> in_review: agent.revised
     working --> failed: agent.failed
+    blocked --> fixing: fix / investigate.implement
     blocked --> fixing: implement / investigate.implement
     blocked --> working: repro / investigate.repro
     blocked --> working: retry / investigate.repro
@@ -206,9 +221,10 @@ stateDiagram-v2
     awaiting_feedback --> working: reject / investigate.revise
     awaiting_feedback --> working: retry / investigate.repro
     awaiting_feedback --> human_owned: take_over
+    failed --> working: revise / investigate.revise
+    awaiting_feedback --> working: revise / investigate.revise
     in_review --> in_review: pr.opened
     in_review --> in_review: pr.approved
-    in_review --> in_review: pr.changes_requested
     in_review --> working: revise / investigate.revise
     in_review --> done: pr.merged
     working --> done: pr.merged
@@ -253,9 +269,11 @@ stateDiagram-v2
     investigating --> blocked: agent.skipped
     investigating --> failed: agent.failed
     reproduced --> fixing: fix / investigate.fix
+    reproduced --> fixing: implement / investigate.fix
     reproduced --> declined: decline
     reproduced --> human_owned: take_over
     diagnosed --> fixing: fix / investigate.fix
+    diagnosed --> fixing: implement / investigate.fix
     diagnosed --> declined: decline
     diagnosed --> human_owned: take_over
     diagnosed --> investigating: investigate / investigate.diagnose

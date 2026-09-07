@@ -150,6 +150,7 @@ describe("originalMediaHeaders", () => {
 	it("renders safe raster types inline with a sandbox CSP", () => {
 		const h = originalMediaHeaders("image/png");
 		expect(h["Content-Type"]).toBe("image/png");
+		expect(h["Cache-Control"]).toBe("public, max-age=0, must-revalidate");
 		expect(h["Content-Disposition"]).toBe("inline");
 		expect(h["X-Content-Type-Options"]).toBe("nosniff");
 		expect(h["Content-Security-Policy"]).toContain("sandbox");

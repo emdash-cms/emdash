@@ -201,10 +201,8 @@ export function SeoPanel({
 				<InputArea
 					id={descriptionId}
 					aria-label={t`Meta Description`}
+					aria-describedby={`${descriptionId}-count`}
 					className="w-full"
-					description={
-						draft.description ? t`${draft.description.length}/160 characters` : undefined
-					}
 					value={draft.description}
 					placeholder={defaultDescription ?? undefined}
 					onChange={(e) => {
@@ -213,6 +211,9 @@ export function SeoPanel({
 					rows={3}
 					dir="auto"
 				/>
+				<p id={`${descriptionId}-count`} className="text-sm leading-snug text-kumo-subtle">
+					{t`${draft.description.length}/160 characters`}
+				</p>
 			</div>
 
 			<div className="space-y-2">

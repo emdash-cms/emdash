@@ -12,13 +12,18 @@
  * a new column to the schema means updating both the writer (in
  * `records-consumer.ts`) and the relevant mapper here, in lock-step.
  *
- * Mirrors and labels: the lexicon allows them on both views; v1 always
- * returns empty arrays. Mirror integration ships in Slice 3; label
- * hydration ships in Slice 2. The contract is in place so adding either
- * later doesn't change the response shape.
+ * Release views advertise record-scoped blob cache services. Labels are
+ * hydrated from the materialized listing projection.
  */
 
-import { type AggregatorDefs, NSID } from "@emdash-cms/registry-lexicons";
+import * as ComAtprotoLabelDefs from "@atcute/atproto/types/label/defs";
+import { safeParse } from "@atcute/lexicons/validations";
+import {
+	type AggregatorDefs,
+	NSID,
+	RECORD_SCOPED_BLOB_CACHE_TYPE,
+	REGISTRY_CUMULUS_ORIGIN,
+} from "@emdash-cms/registry-lexicons";
 
 import { isPlainObject, parseSignatureMetadataCid } from "../../utils.js";
 
@@ -40,6 +45,7 @@ export interface PackageRow {
 	signature_metadata: string | null;
 	verified_at: string;
 	indexed_at: string | null;
+	labels_json?: string;
 }
 
 /** Subset of columns from `releases` we read for `releaseView`. */
@@ -56,6 +62,7 @@ export interface ReleaseRow {
 	signature_metadata: string | null;
 	verified_at: string;
 	indexed_at: string | null;
+	labels_json?: string;
 }
 
 /** Column list backing `PackageRow`. Single source of truth so a column
@@ -120,9 +127,7 @@ export function releaseColumns(prefix = ""): string {
 export function packageView(row: PackageRow): AggregatorDefs.PackageView {
 	const uri = `at://${row.did}/${NSID.packageProfile}/${row.slug}` as const;
 	const cid = parseSignatureMetadataCid(row.signature_metadata) ?? "";
-	// `mirrors` is on releaseView, not packageView — packages aren't
-	// mirrored, releases are. Don't add it here even though they share the
-	// "envelope" idiom in plan-doc shorthand.
+	// Artifact cache services apply to release blobs, not package profiles.
 	const view: AggregatorDefs.PackageView = {
 		uri,
 		cid,
@@ -131,7 +136,7 @@ export function packageView(row: PackageRow): AggregatorDefs.PackageView {
 		slug: row.slug,
 		profile: synthesizePackageProfile(row, uri),
 		indexedAt: row.indexed_at ?? row.verified_at,
-		labels: [],
+		labels: parseHydratedLabels(row.labels_json ?? "[]"),
 	};
 	if (row.latest_version !== null) {
 		view.latestVersion = row.latest_version;
@@ -142,9 +147,8 @@ export function packageView(row: PackageRow): AggregatorDefs.PackageView {
 /**
  * Map a `releases` row to the lexicon's `releaseView`. The synthesized
  * `release` field reconstructs the package.release record JSON from the
- * normalised columns. `mirrors: []` is intentional — the artifact mirror
- * worker (Slice 3) is what populates real mirror URLs; until then the
- * field is the empty contract.
+ * normalised columns. The cache descriptor applies to every public blob ref
+ * carried by this exact release record revision.
  */
 export function releaseView(row: ReleaseRow): AggregatorDefs.ReleaseView {
 	const uri = `at://${row.did}/${NSID.packageRelease}/${row.rkey}` as const;
@@ -157,9 +161,14 @@ export function releaseView(row: ReleaseRow): AggregatorDefs.ReleaseView {
 		package: row.package,
 		version: row.version,
 		release: synthesizePackageRelease(row),
-		mirrors: [],
+		artifactCaches: [
+			{
+				$type: RECORD_SCOPED_BLOB_CACHE_TYPE,
+				serviceEndpoint: REGISTRY_CUMULUS_ORIGIN,
+			},
+		],
 		indexedAt: row.indexed_at ?? row.verified_at,
-		labels: [],
+		labels: parseHydratedLabels(row.labels_json ?? "[]"),
 	};
 }
 
@@ -235,6 +244,17 @@ function parseJsonArray(json: string): unknown[] {
 	} catch {
 		return [];
 	}
+}
+
+function parseHydratedLabels(json: string): AggregatorDefs.ReleaseView["labels"] {
+	const values = parseJsonArray(json);
+	const labels: AggregatorDefs.ReleaseView["labels"] = [];
+	for (const value of values) {
+		const parsed = safeParse(ComAtprotoLabelDefs.labelSchema, value);
+		if (!parsed.ok) throw new Error("stored hydrated label failed AT Protocol validation");
+		labels.push(parsed.value);
+	}
+	return labels;
 }
 
 function parseJsonObject(json: string): Record<string, unknown> | null {

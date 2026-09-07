@@ -75,16 +75,16 @@ export interface TestServerContext {
 // ---------------------------------------------------------------------------
 
 /**
- * Astro requires Node.js >= 22.12.0. Call from a `beforeAll` to fail the
+ * EmDash requires Node.js >= 22.16.0. Call from a `beforeAll` to fail the
  * suite immediately when the environment is misconfigured rather than
  * silently skipping.
  */
 export function assertNodeVersion(): void {
 	const [major, minor] = process.versions.node.split(".").map(Number) as [number, number];
-	const ok = major! > 22 || (major === 22 && minor! >= 12);
+	const ok = major! > 22 || (major === 22 && minor! >= 16);
 	if (!ok) {
 		throw new Error(
-			`Integration tests require Node.js >= 22.12.0 (running ${process.versions.node}). ` +
+			`Integration tests require Node.js >= 22.16.0 (running ${process.versions.node}). ` +
 				`Update your Node version instead of skipping tests.`,
 		);
 	}

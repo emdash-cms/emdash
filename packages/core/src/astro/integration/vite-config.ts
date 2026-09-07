@@ -363,19 +363,22 @@ export function createVirtualModulesPlugin(
 // `?url`), so both forms resolve to dist rather than the source alias.
 const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 
-const NODE_NATIVE_EXTERNALS = [
-	"better-sqlite3",
-	"bindings",
-	"file-uri-to-path",
-	"@libsql/kysely-libsql",
-	"pg",
-];
+const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
 
 /**
  * Detect whether the Cloudflare adapter is being used.
  */
 function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
 	return astroConfig.adapter?.name === "@astrojs/cloudflare";
+}
+
+function canResolveProjectDependency(projectRoot: string, specifier: string): boolean {
+	try {
+		createRequire(resolve(projectRoot, "package.json")).resolve(specifier);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 /**
@@ -389,6 +392,7 @@ export function createViteConfig(
 	const cloudflare = isCloudflareAdapter(options.astroConfig);
 	const isDev = command === "dev";
 	const projectRoot = fileURLToPath(options.astroConfig.root);
+	const hasAstroConsoleLogger = canResolveProjectDependency(projectRoot, "astro/logger/console");
 
 	const adminSourcePath = isDev ? resolveAdminSource(projectRoot) : undefined;
 	const useSource = adminSourcePath !== undefined;
@@ -546,6 +550,8 @@ export function createViteConfig(
 							"emdash > zod",
 							"@emdash-cms/cloudflare > kysely-d1",
 							// Astro internal deps not covered by @astrojs/cloudflare adapter
+							"astro/app/manifest",
+							...(hasAstroConsoleLogger ? ["astro/logger/console"] : []),
 							"astro/virtual-modules/middleware.js",
 							"astro/virtual-modules/live-config",
 							"astro/content/runtime",
@@ -566,9 +572,17 @@ export function createViteConfig(
 		optimizeDeps: {
 			// When using source, don't pre-bundle JS — let Vite transform on the fly for HMR.
 			// When using dist, pre-bundle to avoid re-optimization on first hydration.
+			// lowlight pulls in a CommonJS highlight.js entry, so the inline Portable
+			// Text editor requires these to be pre-bundled with ESM interop in dev.
 			include: useSource
-				? ["@astrojs/react/client.js"]
-				: ["@emdash-cms/admin", "@astrojs/react/client.js"],
+				? ["@astrojs/react/client.js", "lowlight", "highlight.js", "highlight.js/lib/core"]
+				: [
+						"@emdash-cms/admin",
+						"@astrojs/react/client.js",
+						"lowlight",
+						"highlight.js",
+						"highlight.js/lib/core",
+					],
 			exclude: cloudflare ? ["virtual:emdash"] : [...NODE_NATIVE_EXTERNALS, "virtual:emdash"],
 		},
 	};

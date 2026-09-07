@@ -51,9 +51,13 @@ export type { MediaValue } from "../media/types.js";
 import type { MediaValue } from "../media/types.js";
 
 /**
- * @deprecated Use MediaValue instead. ImageValue is an alias for backwards compatibility.
+ * Persisted image field value: the media item shown by default, plus an
+ * optional counterpart for dark color schemes.
  */
-export type ImageValue = MediaValue;
+export interface ImageValue extends MediaValue {
+	/** Media item shown instead of the primary one when the page renders in a dark color scheme. */
+	darkVariant?: MediaValue;
+}
 
 /**
  * Persisted file field value.

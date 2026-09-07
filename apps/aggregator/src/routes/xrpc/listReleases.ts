@@ -10,10 +10,21 @@
  * (did, package)".
  */
 
-import { InvalidRequestError, json, XRPCError } from "@atcute/xrpc-server";
+import { InvalidRequestError, json } from "@atcute/xrpc-server";
 import { type AggregatorDefs, type AggregatorListReleases } from "@emdash-cms/registry-lexicons";
 
+import {
+	ACTIVE_PROJECTION_JOINS_SQL,
+	ACTIVE_PROJECTION_POLICY_SQL,
+	ACTIVE_PUBLIC_RELEASE_SQL,
+	ACTIVE_RELEASE_REDACTION_SQL,
+	activeProjectionPolicyBindings,
+	activePublicSubjectBindings,
+	getListingPolicy,
+	type ListingPolicyConfig,
+} from "../../listing-policy.js";
 import { decodeListCursor, encodeListCursor, InvalidCursorError } from "./cursor.js";
+import { lookupPackage, throwPackageLookupError } from "./listing-query.js";
 import { type ReleaseRow, releaseColumns, releaseView } from "./views.js";
 
 const DEFAULT_LIMIT = 25;
@@ -26,22 +37,9 @@ export async function listReleases(
 	const limit = clampLimit(params.limit);
 	const session = env.DB.withSession("first-primary");
 
-	// Confirm parent package exists. One extra D1 read per request — could be
-	// folded into a JOIN, but the explicit existence check keeps the NotFound
-	// signal cheap and unambiguous (the empty-list response shape would
-	// otherwise mean "package exists, no releases" or "package doesn't exist"
-	// indistinguishably).
-	const parentExists = await session
-		.prepare(`SELECT 1 AS hit FROM packages WHERE did = ? AND slug = ?`)
-		.bind(params.did, params.package)
-		.first<{ hit: number }>();
-	if (!parentExists) {
-		throw new XRPCError({
-			status: 404,
-			error: "NotFound",
-			message: `No package indexed under (${params.did}, ${params.package}).`,
-		});
-	}
+	const packageResult = await lookupPackage(session, env, params.did, params.package);
+	if (packageResult.state !== "visible") throwPackageLookupError(packageResult);
+	const policy = await getListingPolicy(env);
 
 	// Cursor encodes the LAST seen (version_sort, version) on the previous
 	// page so the next page picks up below it in DESC order. `WHERE`
@@ -58,15 +56,10 @@ export async function listReleases(
 		throw err;
 	}
 	const rows = await session
-		.prepare(
-			`SELECT ${releaseColumns()}, version_sort
-			 FROM releases
-			 WHERE did = ? AND package = ? AND tombstoned_at IS NULL
-			 ${cursor ? "AND (version_sort < ? OR (version_sort = ? AND version < ?))" : ""}
-			 ORDER BY version_sort DESC, version DESC
-			 LIMIT ?`,
-		)
+		.prepare(listReleasesSql(policy, cursor !== null))
 		.bind(
+			...(policy.mode === "projection" ? activeProjectionPolicyBindings(policy) : []),
+			...(policy.mode === "projection" ? activePublicSubjectBindings(policy) : []),
 			...(cursor
 				? [
 						params.did,
@@ -102,6 +95,32 @@ export async function listReleases(
 		response.cursor = encodeListCursor({ versionSort: last.version_sort, version: last.version });
 	}
 	return json(response);
+}
+
+function listReleasesSql(policy: ListingPolicyConfig, hasCursor: boolean): string {
+	if (policy.mode === "projection") {
+		return `SELECT ${releaseColumns("r.")}, r.labels_json, r.version_sort
+			FROM public_projection_state projection_state
+			${ACTIVE_PROJECTION_JOINS_SQL}
+			JOIN public_releases r ON r.generation = projection_state.active_generation
+			JOIN public_packages p
+			  ON p.generation = r.generation AND p.did = r.did AND p.slug = r.package
+			WHERE projection_state.id = 1
+			  AND ${ACTIVE_PROJECTION_POLICY_SQL}
+			  AND ${ACTIVE_PUBLIC_RELEASE_SQL}
+			  AND ${ACTIVE_RELEASE_REDACTION_SQL}
+			  AND r.did = ? AND r.package = ?
+			${hasCursor ? "AND (r.version_sort < ? OR (r.version_sort = ? AND r.version < ?))" : ""}
+			ORDER BY r.version_sort DESC, r.version DESC
+			LIMIT ?`;
+	}
+	return `SELECT ${releaseColumns("r.")}, r.version_sort
+		FROM releases r
+		WHERE r.did = ? AND r.package = ? AND r.tombstoned_at IS NULL
+		  AND ${ACTIVE_RELEASE_REDACTION_SQL}
+		${hasCursor ? "AND (r.version_sort < ? OR (r.version_sort = ? AND r.version < ?))" : ""}
+		ORDER BY r.version_sort DESC, r.version DESC
+		LIMIT ?`;
 }
 
 function clampLimit(raw: number | undefined): number {

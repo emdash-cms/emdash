@@ -8,9 +8,11 @@
 // durable workflow run, and returns. The review and the GitHub post happen
 // inside the workflow's Durable Object, which is not bound by that budget.
 
-import { getRun, listRuns } from "@flue/runtime";
+import { getRun, listRuns, registerProvider } from "@flue/runtime";
+import { env } from "cloudflare:workers";
 import { Hono } from "hono";
 
+import { createAiPayloadGuard } from "./lib/ai-payload-budget.js";
 import {
 	completeReviewCheck,
 	createReviewCheck,
@@ -25,6 +27,11 @@ import {
 	getWebhookDeliveryId,
 } from "./lib/webhook.js";
 import { admitReviewWorkflow } from "./lib/workflow-admission.js";
+
+registerProvider("cloudflare", {
+	api: "cloudflare-ai-binding",
+	binding: createAiPayloadGuard(env.AI),
+});
 
 // Extract a short, displayable message from an unknown run error without
 // risking an "[object Object]" stringification.

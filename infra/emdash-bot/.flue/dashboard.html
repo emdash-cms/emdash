@@ -1126,6 +1126,702 @@
 					transition: none;
 				}
 			}
+
+			:root {
+				--canvas: light-dark(#efede7, #101210);
+				--paper: light-dark(#fbfaf6, #191b19);
+				--paper-muted: light-dark(#f5f3ed, #141614);
+				--ink: light-dark(#202321, #eeece5);
+				--muted: light-dark(#676b66, #a4a69f);
+				--faint: light-dark(#898c86, #777b75);
+				--line: light-dark(#d1cec5, #343733);
+				--line-strong: light-dark(#96968f, #686b65);
+				--accent: light-dark(#9c4d32, #d08366);
+				--accent-soft: light-dark(#efe0d8, #35241f);
+				--success: light-dark(#376b59, #72a28f);
+				--warning: light-dark(#83602b, #b69460);
+				--danger: light-dark(#944741, #c77b74);
+				font-family: Arial, ui-sans-serif, system-ui, sans-serif;
+				color: var(--ink);
+				background: var(--canvas);
+			}
+
+			body {
+				background: var(--canvas);
+				background-image: none;
+			}
+
+			a:focus-visible,
+			button:focus-visible,
+			select:focus-visible,
+			summary:focus-visible {
+				outline-color: var(--accent);
+			}
+
+			.topbar {
+				position: sticky;
+				top: 0;
+				z-index: 20;
+				min-height: 64px;
+				padding: 0 max(30px, calc((100vw - 1400px) / 2));
+				color: #f3f1ea;
+				background: light-dark(#1c1f1d, #0b0d0c);
+				border-bottom: 0;
+				box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1);
+				backdrop-filter: none;
+			}
+
+			.brand {
+				gap: 10px;
+				color: #f3f1ea;
+			}
+
+			.brand-logo {
+				width: 25px;
+				height: 25px;
+				filter: grayscale(1) brightness(2.7);
+			}
+
+			.brand-name {
+				font-size: 15px;
+				font-weight: 700;
+				letter-spacing: -0.02em;
+			}
+
+			.brand-bot {
+				color: #aaa9a3;
+				font-size: 10px;
+				letter-spacing: 0.12em;
+				text-transform: uppercase;
+			}
+
+			.nav {
+				display: none;
+			}
+
+			.live,
+			.github-link {
+				color: #c4c3bd;
+				font-size: 11px;
+				letter-spacing: 0.03em;
+			}
+
+			.github-link:hover {
+				color: #fff;
+			}
+
+			.live-dot {
+				width: 6px;
+				height: 6px;
+				background: #79a493;
+				box-shadow: none;
+			}
+
+			main {
+				max-width: 1400px;
+				padding: 44px 30px 80px;
+			}
+
+			.intro {
+				align-items: end;
+				margin-bottom: 28px;
+			}
+
+			.intro h1 {
+				margin: 0 0 10px;
+				font-size: clamp(30px, 4vw, 48px);
+				font-weight: 650;
+				letter-spacing: -0.055em;
+				line-height: 0.98;
+			}
+
+			.eyebrow {
+				margin-bottom: 14px;
+				color: var(--faint);
+				font-size: 10px;
+				letter-spacing: 0.16em;
+			}
+
+			.subtitle {
+				max-width: 620px;
+				color: var(--muted);
+				font-size: 14px;
+				line-height: 1.5;
+			}
+
+			.counts {
+				gap: 8px;
+				padding: 0 0 3px 26px;
+				border-inline-start: 1px solid var(--line);
+				color: var(--muted);
+				font-size: 10px;
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+			}
+
+			.counts strong {
+				font-size: 26px;
+				font-weight: 500;
+				color: var(--ink);
+				letter-spacing: -0.05em;
+			}
+
+			.count-divider {
+				height: 32px;
+				margin: 0 11px;
+				background: var(--line);
+			}
+
+			.surface {
+				background: var(--paper);
+				border-color: var(--line);
+				border-radius: 4px;
+				box-shadow: none;
+			}
+
+			.workflow-shell {
+				padding: 27px 30px 22px;
+				margin-bottom: 18px;
+				border-top: 3px solid var(--ink);
+			}
+
+			.section-head {
+				margin-bottom: 28px;
+			}
+
+			.section-head h2,
+			.panel-head h2 {
+				font-size: 15px;
+				font-weight: 700;
+				letter-spacing: -0.02em;
+			}
+
+			.section-head p,
+			.machine-heading p {
+				color: var(--muted);
+				font-size: 11px;
+			}
+
+			.route-key {
+				color: var(--muted);
+				font-size: 10px;
+			}
+
+			.route-line {
+				background: var(--line-strong);
+			}
+
+			.route-line.selected,
+			.workflow-progress {
+				background: var(--accent);
+			}
+
+			.machine-stack {
+				gap: 26px;
+			}
+
+			.machine-block + .machine-block {
+				padding-top: 26px;
+				border-top-color: var(--line);
+			}
+
+			.machine-heading {
+				margin-bottom: 18px;
+			}
+
+			.machine-heading h3 {
+				font-size: 13px;
+				font-weight: 700;
+			}
+
+			.machine-badge,
+			.detour,
+			.state-label {
+				border-radius: 2px;
+			}
+
+			.machine-badge {
+				min-height: 23px;
+				padding: 4px 7px;
+				border-color: var(--line-strong);
+				background: transparent;
+				color: var(--muted);
+				font-size: 9px;
+				letter-spacing: 0.04em;
+				text-transform: uppercase;
+			}
+
+			.machine-badge.attention,
+			.machine-badge.cancelled,
+			.machine-badge.failed,
+			.machine-badge.timed_out {
+				border-color: var(--warning);
+				background: transparent;
+				color: var(--warning);
+			}
+
+			.machine-badge.succeeded {
+				border-color: var(--success);
+				background: transparent;
+				color: var(--success);
+			}
+
+			.workflow::before {
+				background: var(--line);
+			}
+
+			.phase-marker {
+				width: 29px;
+				height: 29px;
+				border: 1px solid var(--line-strong);
+				border-radius: 3px;
+				background: var(--paper);
+				color: var(--muted);
+				font-size: 9px;
+			}
+
+			.phase.passed .phase-marker {
+				border-color: var(--accent);
+				background: var(--paper);
+				color: var(--accent);
+			}
+
+			.phase.current .phase-marker {
+				border-color: var(--accent);
+				background: var(--accent);
+				color: #fff;
+				box-shadow: none;
+				transform: none;
+			}
+
+			.phase.skipped .phase-marker {
+				background: var(--paper-muted);
+				color: var(--faint);
+			}
+
+			.phase.current.attention .phase-marker,
+			.phase.current.cancelled .phase-marker,
+			.phase.current.failed .phase-marker,
+			.phase.current.timed_out .phase-marker {
+				border-color: var(--warning);
+				background: var(--warning);
+				color: #fff;
+				box-shadow: none;
+			}
+
+			.phase-label {
+				color: var(--muted);
+				font-size: 10px;
+			}
+
+			.phase.passed .phase-label,
+			.phase.current .phase-label {
+				color: var(--ink);
+			}
+
+			.phase-state {
+				color: var(--accent);
+				font-size: 8px;
+				letter-spacing: 0.05em;
+				text-transform: uppercase;
+			}
+
+			.detours {
+				border-top-color: var(--line);
+			}
+
+			.detour-label,
+			.panel-meta,
+			.detail-kicker,
+			.fact-label {
+				color: var(--faint);
+				font-size: 9px;
+				letter-spacing: 0.11em;
+			}
+
+			.detour {
+				padding: 3px 7px;
+				background: transparent;
+				color: var(--muted);
+				box-shadow: inset 0 0 0 1px var(--line);
+			}
+
+			.detour.current {
+				background: var(--accent-soft);
+				color: var(--accent);
+				box-shadow: inset 0 0 0 1px var(--accent);
+			}
+
+			.workspace {
+				grid-template-columns: minmax(310px, 360px) minmax(0, 1fr);
+				gap: 18px;
+			}
+
+			.panel-head {
+				min-height: 68px;
+				padding: 17px 20px;
+				border-bottom-color: var(--line);
+			}
+
+			.issue {
+				grid-template-columns: 8px minmax(0, 1fr);
+				gap: 12px;
+				padding: 17px 19px;
+				border-bottom-color: var(--line);
+			}
+
+			.issue:hover {
+				background: var(--paper-muted);
+			}
+
+			.issue[aria-pressed="true"] {
+				background: var(--accent-soft);
+			}
+
+			.issue[aria-pressed="true"]::after {
+				inset-block: 0;
+				width: 3px;
+				border-radius: 0;
+				background: var(--accent);
+			}
+
+			.status-dot {
+				width: 7px;
+				height: 7px;
+				background: var(--accent);
+				box-shadow: none;
+			}
+
+			.issue.waiting .status-dot {
+				background: var(--warning);
+				box-shadow: none;
+			}
+
+			.issue.attention .status-dot {
+				background: var(--danger);
+				box-shadow: none;
+			}
+
+			.issue-title {
+				font-size: 13px;
+				line-height: 1.45;
+			}
+
+			.issue-number,
+			.issue-foot {
+				color: var(--faint);
+			}
+
+			.state-label {
+				padding: 0;
+				background: transparent;
+				color: var(--muted);
+				letter-spacing: 0.06em;
+				text-transform: uppercase;
+			}
+
+			.detail-title {
+				font-size: 16px;
+				line-height: 1.3;
+			}
+
+			.detail-link {
+				color: var(--muted);
+				font-size: 11px;
+			}
+
+			.detail-link:hover {
+				color: var(--accent);
+			}
+
+			.facts {
+				border-bottom-color: var(--line);
+				background: var(--paper-muted);
+			}
+
+			.fact {
+				padding: 14px 17px;
+				border-inline-end-color: var(--line);
+			}
+
+			.fact-value {
+				color: var(--ink);
+				font-size: 11px;
+			}
+
+			.work-plan {
+				padding: 18px 20px 20px;
+				border-bottom-color: var(--line);
+			}
+
+			.work-plan-head {
+				font-size: 12px;
+			}
+
+			.work-plan-summary,
+			.work-plan-step {
+				font-size: 11px;
+				line-height: 1.5;
+			}
+
+			.work-plan-step.in_progress {
+				color: var(--accent);
+			}
+
+			.work-plan-step.completed .work-plan-mark {
+				color: var(--success);
+			}
+
+			.trace-section {
+				padding: 22px 20px 24px;
+				border-bottom-color: var(--line);
+				background: var(--paper);
+			}
+
+			.trace-head {
+				margin-bottom: 14px;
+				font-size: 13px;
+				font-weight: 700;
+			}
+
+			.trace-controls {
+				margin-bottom: 12px;
+			}
+
+			.trace-select,
+			.trace-load {
+				min-height: 34px;
+				border-color: var(--line-strong);
+				border-radius: 2px;
+				background: var(--paper);
+				color: var(--ink);
+				font-size: 10px;
+			}
+
+			.trace-load:hover {
+				background: var(--paper-muted);
+			}
+
+			.trace-list {
+				display: block;
+				max-height: min(70vh, 720px);
+				overflow-y: auto;
+				overscroll-behavior: contain;
+				padding-inline-end: 8px;
+				border-block: 1px solid var(--line);
+				scrollbar-color: var(--line-strong) transparent;
+				scrollbar-gutter: stable;
+			}
+
+			.trace-event {
+				border: 0;
+				border-bottom: 1px solid var(--line);
+				border-inline-start: 3px solid var(--line-strong);
+				border-radius: 0;
+				background: transparent;
+			}
+
+			.trace-event:last-child {
+				border-bottom: 0;
+			}
+
+			.trace-event.active {
+				border-inline-start-color: var(--accent);
+			}
+
+			.trace-event.success {
+				border-inline-start-color: var(--success);
+			}
+
+			.trace-event.failed {
+				border-inline-start-color: var(--danger);
+			}
+
+			.trace-event[open] {
+				background: var(--paper-muted);
+			}
+
+			.trace-summary {
+				grid-template-columns: 68px minmax(0, 1fr) auto 14px;
+				gap: 12px;
+				padding: 13px 14px;
+			}
+
+			.trace-summary:hover {
+				background: var(--paper-muted);
+			}
+
+			.trace-summary::after {
+				content: "›";
+				color: var(--faint);
+				font-size: 16px;
+				line-height: 1;
+			}
+
+			.trace-event[open] .trace-summary::after {
+				content: "⌄";
+			}
+
+			.trace-time,
+			.trace-kind,
+			.trace-duration,
+			.trace-block-label {
+				color: var(--faint);
+				font-size: 9px;
+				letter-spacing: 0.07em;
+			}
+
+			.trace-time {
+				padding-top: 2px;
+			}
+
+			.trace-title {
+				gap: 9px;
+				font-size: 12px;
+				font-weight: 700;
+			}
+
+			.trace-detail,
+			.trace-preview {
+				margin-top: 5px;
+				color: var(--muted);
+				font-size: 11px;
+				line-height: 1.5;
+			}
+
+			.trace-preview {
+				-webkit-line-clamp: 3;
+			}
+
+			.trace-body {
+				gap: 14px;
+				padding: 2px 14px 16px 94px;
+			}
+
+			.trace-body pre {
+				max-height: 340px;
+				padding: 12px 13px;
+				border: 1px solid var(--line);
+				border-radius: 2px;
+				background: var(--canvas);
+				color: var(--ink);
+				font-size: 10px;
+				line-height: 1.6;
+			}
+
+			.trace-empty {
+				color: var(--muted);
+				font-size: 11px;
+			}
+
+			.log-head {
+				padding: 20px 20px 12px;
+				font-size: 12px;
+			}
+
+			.log-safe {
+				color: var(--faint);
+			}
+
+			.log {
+				padding: 4px 20px 22px;
+			}
+
+			.log-row {
+				min-height: 44px;
+				font-size: 11px;
+			}
+
+			.log-row:not(:last-child)::after {
+				background: var(--line);
+			}
+
+			.log-mark {
+				background: var(--line-strong);
+				box-shadow: 0 0 0 4px var(--paper);
+			}
+
+			.log-row.active .log-mark {
+				background: var(--accent);
+			}
+
+			.log-row.success .log-mark {
+				background: var(--success);
+			}
+
+			.log-row.failed .log-mark {
+				background: var(--danger);
+			}
+
+			.log-message {
+				color: var(--muted);
+			}
+
+			.log-message strong {
+				color: var(--ink);
+			}
+
+			@media (max-width: 900px) {
+				.workspace {
+					grid-template-columns: 1fr;
+				}
+			}
+
+			@media (max-width: 760px) {
+				.topbar {
+					padding-inline: 20px;
+				}
+
+				main {
+					padding: 34px 20px 52px;
+				}
+
+				.intro {
+					align-items: start;
+				}
+
+				.counts {
+					padding: 18px 0 0;
+					border-top: 1px solid var(--line);
+					border-inline-start: 0;
+				}
+
+				.mobile-step.passed::before,
+				.mobile-step.current::before {
+					background: var(--accent);
+				}
+			}
+
+			@media (max-width: 480px) {
+				.workflow-shell {
+					padding: 20px 17px;
+				}
+
+				.trace-section {
+					padding-inline: 14px;
+				}
+
+				.trace-head {
+					align-items: start;
+					flex-direction: column;
+					gap: 5px;
+				}
+
+				.trace-list {
+					max-height: 560px;
+					padding-inline-end: 4px;
+				}
+
+				.trace-summary {
+					grid-template-columns: 52px minmax(0, 1fr) auto 12px;
+					gap: 8px;
+					padding: 12px 9px;
+				}
+
+				.trace-body {
+					padding: 2px 9px 13px;
+				}
+			}
 		</style>
 	</head>
 	<body>
@@ -1179,7 +1875,6 @@
 				<span class="brand-name">EmDash</span>
 				<span class="brand-bot">bot</span>
 			</a>
-			<nav class="nav" aria-label="Dashboard sections"><span>Overview</span></nav>
 			<div class="top-actions">
 				<span class="live"
 					><span class="live-dot" aria-hidden="true"></span
@@ -1201,10 +1896,9 @@
 			<section class="intro">
 				<div>
 					<p class="eyebrow">Public workbench</p>
-					<h1 class="sr-only">EmDash bot public workbench</h1>
+					<h1>Live bot operations</h1>
 					<p class="subtitle">
-						A live, inspectable view of automated investigation—from first look to verified pull
-						request.
+						Open issues, state transitions, and agent runs, updated as they happen.
 					</p>
 				</div>
 				<div class="counts" id="counts" aria-label="Issue counts"></div>
@@ -1213,8 +1907,8 @@
 			<section class="surface workflow-shell" aria-labelledby="workflow-title">
 				<div class="section-head">
 					<div>
-						<h2 id="workflow-title">Two state machines, one delivery path</h2>
-						<p>Select an issue to see durable coordination separately from agent execution.</p>
+						<h2 id="workflow-title">Operational state</h2>
+						<p>Issue coordination and the selected agent run, shown independently.</p>
 					</div>
 					<div class="route-key" aria-label="Workflow legend">
 						<span><i class="route-line selected" aria-hidden="true"></i> selected route</span>
@@ -1617,9 +2311,9 @@
 				const section = element("section", "trace-section");
 				section.setAttribute("aria-labelledby", "run-trace-title");
 				const head = element("div", "trace-head");
-				const title = element("span", "", "Run trace");
+				const title = element("span", "", "Run trace — turn by turn");
 				title.id = "run-trace-title";
-				head.append(title, element("span", "panel-meta", "turns · tools · results"));
+				head.append(title, element("span", "panel-meta", "model turns · tool calls · outputs"));
 				section.append(head);
 
 				if (traceState.issueNumber !== issue.number || traceState.loading) {
@@ -1672,6 +2366,9 @@
 				}
 				section.append(controls);
 				const list = element("div", "trace-list");
+				list.setAttribute("role", "region");
+				list.setAttribute("aria-label", "Turn-by-turn run trace");
+				list.tabIndex = 0;
 				if (!page.events.length) {
 					list.append(element("div", "trace-empty", "This run has no recorded trace events."));
 				} else {

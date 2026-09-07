@@ -5,7 +5,7 @@
 	"defs": {
 		"packageView": {
 			"type": "object",
-			"description": "An aggregator's view of a package, hydrating a profile record with denormalised metadata, mirror URLs for the latest release's primary artifact, and any labels applied by trusted labellers the aggregator hydrates.",
+			"description": "An aggregator's view of a package, hydrating a profile record with denormalised metadata and any labels applied by trusted labellers the aggregator hydrates.",
 			"required": ["uri", "cid", "did", "slug", "profile", "indexedAt"],
 			"properties": {
 				"uri": {
@@ -50,7 +50,7 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Hydrated labels applying to this package, per the labellers the request asked for via the atproto-accept-labelers header.",
+					"description": "Hydrated trusted label state attached by the aggregator's configured policy.",
 					"maxLength": 64,
 					"items": {
 						"type": "ref",
@@ -61,7 +61,7 @@
 		},
 		"releaseView": {
 			"type": "object",
-			"description": "An aggregator's view of a release: the signed record verbatim, the mirror URLs the aggregator is currently serving the primary artifact from, and any hydrated labels.",
+			"description": "An aggregator's view of a release: the signed record verbatim, record-scoped blob cache services, and any hydrated labels.",
 			"required": ["uri", "cid", "did", "package", "version", "release", "indexedAt"],
 			"properties": {
 				"uri": {
@@ -95,15 +95,15 @@
 					"type": "unknown",
 					"description": "The signed release record verbatim from the publisher's repo (carrying its $type and all fields)."
 				},
-				"mirrors": {
+				"artifactCaches": {
 					"type": "array",
-					"description": "URLs the aggregator currently serves the primary `package` artifact from. Empty if the aggregator did not mirror this release (e.g. license is non-redistributable). The URL shape is opaque per the aggregator; clients treat them as-is and verify checksums on download.",
+					"description": "Blob cache services the aggregator advertises for this release. Clients ignore unrecognised service variants and derive artifact URLs only for public blob refs.",
 					"items": {
-						"type": "string",
-						"format": "uri",
-						"maxLength": 2048
+						"type": "union",
+						"refs": ["#recordScopedBlobCache"],
+						"closed": false
 					},
-					"maxLength": 16
+					"maxLength": 4
 				},
 				"indexedAt": {
 					"type": "string",
@@ -112,12 +112,25 @@
 				},
 				"labels": {
 					"type": "array",
-					"description": "Hydrated labels applying to this release, per the labellers the request asked for.",
+					"description": "Hydrated trusted label state attached by the aggregator's configured policy.",
 					"maxLength": 64,
 					"items": {
 						"type": "ref",
 						"ref": "com.atproto.label.defs#label"
 					}
+				}
+			}
+		},
+		"recordScopedBlobCache": {
+			"type": "object",
+			"description": "A cache that admits a blob only when an exact repository record revision references its CID. Raw URLs use /r/{did}/{collection}/{rkey}/{recordCid}/{blobCid}; image representations use /img/{preset}/r/{did}/{collection}/{rkey}/{recordCid}/{blobCid}.",
+			"required": ["serviceEndpoint"],
+			"properties": {
+				"serviceEndpoint": {
+					"type": "string",
+					"format": "uri",
+					"maxLength": 2048,
+					"description": "HTTPS origin of the record-scoped blob cache."
 				}
 			}
 		}

@@ -1,6 +1,5 @@
 import { randomUUID } from "node:crypto";
 
-import Database from "better-sqlite3";
 import type { SqliteDialectConfig } from "kysely";
 import { Kysely, SqliteAdapter, SqliteDialect } from "kysely";
 import { Pool } from "pg";
@@ -17,6 +16,7 @@ import type {
 } from "../../src/database/migrations/runner.js";
 import { FailFastPostgresDialect } from "../../src/database/pg-migration-lock.js";
 import type { Database as DatabaseSchema } from "../../src/database/types.js";
+import { openNodeSqliteDatabase } from "../../src/db/node-sqlite-compat.js";
 import { waitForDeferredTasks } from "../../src/deferred-tasks.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import { resetTaxonomyDefsCacheForTests } from "../../src/taxonomies/index.js";
@@ -60,7 +60,7 @@ export const hasPgTestDatabase = PG_CONNECTION_STRING.length > 0;
  */
 export function createTestDatabase(): Kysely<DatabaseSchema> {
 	resetSchemaCachesForTests();
-	const sqlite = new Database(":memory:");
+	const sqlite = openNodeSqliteDatabase(":memory:");
 
 	return new Kysely<DatabaseSchema>({
 		dialect: new SqliteDialect({
@@ -167,18 +167,17 @@ export interface CompoundSelectTestDatabase {
  * Test database standing in for a backend with — or without — a
  * compound-SELECT ceiling.
  *
- * better-sqlite3 uses SQLite's upstream default of 500 and offers no way to
- * lower it, so query shapes that D1 rejects run happily in tests. Pass a
- * number and the dialect declares the ceiling the way the D1 dialect does,
- * while prepare() rejects statements past it — where SQLite itself raises the
- * error — with D1's error text, so code that inspects the message behaves the
- * same. Pass null for a backend that imposes no ceiling.
+ * SQLite's upstream default is 500, so query shapes that D1 rejects run
+ * happily in tests. Pass a number and the dialect declares the ceiling the way
+ * the D1 dialect does, while prepare() rejects statements past it — where SQLite
+ * itself raises the error — with D1's error text, so code that inspects the
+ * message behaves the same. Pass null for a backend that imposes no ceiling.
  */
 export async function setupTestDatabaseWithCompoundSelectLimit(
 	limit: number | null = D1_COMPOUND_SELECT_LIMIT,
 ): Promise<CompoundSelectTestDatabase> {
 	resetSchemaCachesForTests();
-	const sqlite = new Database(":memory:");
+	const sqlite = openNodeSqliteDatabase(":memory:");
 	const statements: string[] = [];
 	const prepare = sqlite.prepare.bind(sqlite);
 	sqlite.prepare = ((source: string) => {

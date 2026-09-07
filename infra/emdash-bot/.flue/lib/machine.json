@@ -50,6 +50,7 @@
 			"offeredCommands": [
 				"investigate",
 				"repro",
+				"fix",
 				"implement",
 				"decline"
 			]
@@ -64,6 +65,7 @@
 			"offeredCommands": [
 				"investigate",
 				"repro",
+				"fix",
 				"implement",
 				"decline"
 			]
@@ -86,10 +88,11 @@
 			"tone": "attention",
 			"detour": true,
 			"boardColumn": "Blocked",
-			"description": "The bot stopped and needs a human decision. Covers the old skipped / not-reproduced / reproduced-no-fix / by-design outcomes; the reason is in the bot's comment.",
+			"description": "The bot stopped without a first-class verdict and needs a human decision. Covers skipped, by-design, closed-PR, and legacy infrastructure outcomes; the reason is in the bot's comment.",
 			"terminal": false,
 			"offeredCommands": [
 				"investigate",
+				"fix",
 				"implement",
 				"repro",
 				"retry",
@@ -108,6 +111,7 @@
 				"confirm",
 				"reject",
 				"retry",
+				"revise",
 				"take_over"
 			]
 		},
@@ -174,6 +178,7 @@
 				"implement",
 				"repro",
 				"investigate",
+				"revise",
 				"decline"
 			]
 		},
@@ -198,6 +203,7 @@
 			"terminal": false,
 			"offeredCommands": [
 				"fix",
+				"implement",
 				"investigate",
 				"decline",
 				"take_over"
@@ -212,6 +218,7 @@
 			"terminal": false,
 			"offeredCommands": [
 				"fix",
+				"implement",
 				"investigate",
 				"decline",
 				"take_over"
@@ -309,11 +316,12 @@
 			"defaultKind": "enhancement"
 		},
 		"fix": {
-			"description": "Build a candidate fix on a bot branch and post a preview for the reporter to try.",
+			"description": "Build a candidate bug fix and post a preview for the reporter to try.",
 			"actors": [
 				"maintainer"
 			],
-			"arg": "directive"
+			"arg": "directive",
+			"defaultKind": "bug"
 		},
 		"retry": {
 			"description": "Re-run the bug reproduction pipeline.",
@@ -430,6 +438,12 @@
 				"system"
 			]
 		},
+		"agent.revised": {
+			"description": "Review feedback is addressed and the PR branch is updated.",
+			"actors": [
+				"system"
+			]
+		},
 		"agent.fix_ready": {
 			"description": "A candidate change is published on bot/fix-<n>.",
 			"actors": [
@@ -462,12 +476,6 @@
 		},
 		"pr.closed": {
 			"description": "The bot PR was closed without merging.",
-			"actors": [
-				"system"
-			]
-		},
-		"pr.changes_requested": {
-			"description": "A reviewer requested changes (review sub-state).",
 			"actors": [
 				"system"
 			]
@@ -506,6 +514,13 @@
 		},
 		{
 			"from": "unmanaged",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.implement",
+			"note": "direct bug delivery from an untriaged issue; no stored diagnosis required"
+		},
+		{
+			"from": "unmanaged",
 			"event": "implement",
 			"to": "fixing",
 			"action": "investigate.implement",
@@ -521,6 +536,13 @@
 			"event": "repro",
 			"to": "working",
 			"action": "investigate.repro"
+		},
+		{
+			"from": "triage",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.implement",
+			"note": "direct bug delivery; no stored diagnosis required"
 		},
 		{
 			"from": "triage",
@@ -543,8 +565,7 @@
 		{
 			"from": "working",
 			"event": "agent.not_reproduced",
-			"to": "blocked",
-			"note": "reason: not-reproduced (was a sink)"
+			"to": "not_reproduced"
 		},
 		{
 			"from": "working",
@@ -555,8 +576,17 @@
 		{
 			"from": "working",
 			"event": "agent.reproduced",
-			"to": "blocked",
-			"note": "reason: fix needs a decision"
+			"to": "reproduced"
+		},
+		{
+			"from": "working",
+			"event": "agent.diagnosed",
+			"to": "diagnosed"
+		},
+		{
+			"from": "working",
+			"event": "agent.needs_info",
+			"to": "needs_info"
 		},
 		{
 			"from": "working",
@@ -566,8 +596,19 @@
 		},
 		{
 			"from": "working",
+			"event": "agent.revised",
+			"to": "in_review"
+		},
+		{
+			"from": "working",
 			"event": "agent.failed",
 			"to": "failed"
+		},
+		{
+			"from": "blocked",
+			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.implement"
 		},
 		{
 			"from": "blocked",
@@ -622,6 +663,18 @@
 			"to": "human_owned"
 		},
 		{
+			"from": "failed",
+			"event": "revise",
+			"to": "working",
+			"action": "investigate.revise"
+		},
+		{
+			"from": "awaiting_feedback",
+			"event": "revise",
+			"to": "working",
+			"action": "investigate.revise"
+		},
+		{
 			"from": "in_review",
 			"event": "pr.opened",
 			"to": "in_review",
@@ -630,12 +683,6 @@
 		{
 			"from": "in_review",
 			"event": "pr.approved",
-			"to": "in_review",
-			"note": "review sub-state only"
-		},
-		{
-			"from": "in_review",
-			"event": "pr.changes_requested",
 			"to": "in_review",
 			"note": "review sub-state only"
 		},
@@ -878,6 +925,12 @@
 		},
 		{
 			"from": "reproduced",
+			"event": "implement",
+			"to": "fixing",
+			"action": "investigate.fix"
+		},
+		{
+			"from": "reproduced",
 			"event": "decline",
 			"to": "declined"
 		},
@@ -889,6 +942,12 @@
 		{
 			"from": "diagnosed",
 			"event": "fix",
+			"to": "fixing",
+			"action": "investigate.fix"
+		},
+		{
+			"from": "diagnosed",
+			"event": "implement",
 			"to": "fixing",
 			"action": "investigate.fix"
 		},
