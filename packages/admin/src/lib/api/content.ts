@@ -335,11 +335,13 @@ export async function fetchTrashedContent(
 	options?: {
 		cursor?: string;
 		limit?: number;
+		locale?: string;
 	},
 ): Promise<FindManyResult<TrashedContentItem>> {
 	const params = new URLSearchParams();
 	if (options?.cursor) params.set("cursor", options.cursor);
 	if (options?.limit) params.set("limit", String(options.limit));
+	if (options?.locale) params.set("locale", options.locale);
 
 	const url = `${API_BASE}/content/${collection}/trash${params.toString() ? `?${params}` : ""}`;
 	const response = await apiFetch(url);
@@ -401,11 +403,11 @@ export async function scheduleContent(
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ scheduledAt }),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to schedule content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -422,11 +424,11 @@ export async function unscheduleContent(
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/schedule${query}`, {
 		method: "DELETE",
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to unschedule content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**

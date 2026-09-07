@@ -35,7 +35,7 @@ Once media usage tracking is on, it cannot be turned off.
 	or external sites, so an empty list does not prove that a file is safe to delete.
 </Aside>
 
-## Uploading Files
+## Uploading files
 
 ### From the Media Library
 
@@ -45,15 +45,21 @@ Once media usage tracking is on, it cannot be turned off.
 
 3. Uploads start automatically. The dialog shows each file's status and lets you cancel or retry individual files.
 
-### From the Content Editor
+### From the content editor
 
-1. In the rich text editor, click the image button
+1. Open an image, file, or gallery field in the content editor.
 
-2. Click **Upload** in the media picker
+2. Search, filter by type, browse a folder, or switch between the available media sources.
 
-3. Select a file from your computer
+3. Select existing media, or select **Upload files** and choose files from your computer. You can
+   also drop files onto the picker. Each upload appears in the results with its current status.
 
-4. Add alt text and click **Insert**
+4. If an upload fails, select **Retry** or **Remove** on that item. A successful upload becomes a
+   selected media card.
+
+5. For a gallery, use the arrow controls under **Selected media** to set the returned order.
+
+6. Select the picker action, such as **Select**, **Insert image**, or **Add 3 images**.
 
 ## Supported File Types
 
@@ -204,21 +210,21 @@ Uploads enter the Main library. Move them into a folder after upload using eithe
 Deleting a folder returns its media to the Main library. The media files, URLs, and content
 references remain unchanged.
 
-## Using Media in Content
+## Using media in content
 
-### In the Rich Text Editor
+### In the rich text editor
 
 1. Place your cursor where you want the image
 
 2. Click the image button in the toolbar
 
-3. Select an image from the media library or upload a new one
+3. Find an image in the picker or upload a new one.
 
-4. Enter alt text
+4. Select **Insert image**.
 
-5. Click **Insert**
+5. Add alt text in the image settings.
 
-### As a Featured Image
+### As a featured image
 
 1. Open a content entry in the editor
 
@@ -226,13 +232,29 @@ references remain unchanged.
 
 3. Click **Select Image**
 
-4. Choose from the media library or upload
+4. Choose an image from the picker or upload one.
 
-5. Click **Save**
+5. Select **Select**, then select **Save**.
 
-### In Custom Fields
+### In custom fields
 
-For fields configured as image or file types, click the field to open the media picker.
+For fields configured as image or file types, select the field action to open the same media
+picker. The field's MIME type rules limit the sources and files you can choose.
+
+### Edit a selected image asset
+
+Local image fields, rich text images, and gallery images provide three actions:
+
+- **Replace** changes the image used in the current field, block, or gallery position.
+- **Edit asset** opens Media Details for the selected Media Library item. You can update its alt
+  text, caption, focal point, or crop while staying in the content editor.
+- **Remove** clears the current content reference. The Media Library item remains available.
+
+**Create cropped copy** selects the new copy for the current usage. Rich text and gallery images
+keep their per-use alt text, caption, layout, and position. **Replace original** keeps the same media
+reference and changes the image anywhere that asset is used.
+
+External-provider images and file fields provide **Replace** and **Remove**, but not **Edit asset**.
 
 ## Replacing an image
 
@@ -263,14 +285,16 @@ the replacement. Replacing the file clears its focal point.
 A focal point keeps the important part of a local image visible when a card, gallery, or other
 layout crops it to fill a fixed shape.
 
-1. Open **Media**, then select an image from the local library.
+1. Open **Media** and select an image from the local library, or select **Edit asset** for a local
+   image in the content editor.
 2. Select **Edit image**, then **Focal point**.
 3. Click or drag the marker onto the important part of the image. You can also use the Arrow keys.
 4. Check the square, landscape, and portrait previews, then select **Save**.
 
 Select **Reset** to remove a custom focal point. The saved point is copied when you select
-the image for a content field or gallery. Content that already uses the image keeps its stored point
-until you select the image again.
+the image for a content field or gallery. Other content already using the image keeps its stored point
+until you select the image again. When you edit an asset from a content field or gallery, that current
+usage refreshes with the saved focal point.
 
 ## Cropping an image
 
