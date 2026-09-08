@@ -1,0 +1,27 @@
+demos/simple/presentation/README.md
+  s_c59ba05919fac1::t_5512a27343972f 93
+demos/simple/presentation/SOURCES.md
+  s_c59ba05919fac1::t_90e78733f97b95 3
+demos/simple/presentation/schema.json
+  s_c59ba05919fac1::t_85d6d3310c1b98 6-7
+demos/simple/presentation/stories.mjs
+  s_c59ba05919fac1::t_bc3d81d2944aef 217
+demos/simple/src/layouts/Base.astro
+  s_c59ba05919fac1::t_c77685fc71e9b3 475
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ab66c2bf8d0af6ded5eccd73697c3422a527c672",
+  "prompts": {},
+  "sessions": {
+    "s_c59ba05919fac1": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07e20-f8ae-7692-9f43-a0b7841a0461",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
