@@ -1,0 +1,27 @@
+demos/simple/presentation/README.md
+  s_0135e5d9216639::t_f99d68515378cf 5
+demos/simple/presentation/VERIFICATION.md
+  s_0135e5d9216639::t_43fed695fbc1ed 3-17,21-22,24-26
+demos/simple/presentation/assets.json
+  s_0135e5d9216639::t_b55edc95049c8d 3
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_0135e5d9216639::t_1e3071fd14a311 15
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_0135e5d9216639::t_6331426a3c0742 198
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5d228dd7d14603ef02cdcf2d67ab312151544c8d",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
