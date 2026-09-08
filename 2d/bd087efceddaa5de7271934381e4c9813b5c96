@@ -1,0 +1,37 @@
+demos/simple/presentation/README.md
+  s_0135e5d9216639::t_0808f62a2b746a 54
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_0135e5d9216639::t_fcdd1a683e8362 9,112-127,223-225
+demos/simple/presentation/VERIFICATION.md
+  s_20baffdc2d088d::t_4dd4eece573a65 3-14
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_20baffdc2d088d::t_20e3d8dec41022 2-1206
+demos/simple/presentation/talk/lisbon-slides.js
+  s_20baffdc2d088d::t_143a27ac5f9c67 9,11,17-18,90,94,100,126-149,164,173,180,190-192,203-204,243,264,266,279,283,307-309,384-387,395,450
+demos/simple/presentation/talk/polished-lisbon.css
+  s_20baffdc2d088d::t_785ca7eb977115 7-26,29-57,61,66,69-106,108-127,133-136,139-141,143-151,153-156,158-161,173-174,176-177,184-186,188-193,195-202,204-210,212-218,220-223,225-230,232-233,235-242,244-251,253-256,258-265,267-290,292-311,313-317,319,321-322,324-325,327-328,330-335,337-358,360-383,386-390,392-419,421-425,427-435,437,439-464,467-484,486-491,493,495-502,504-509,511-552,555-557,559-560,562-573,575-578,580-586,588-592,594-596,598-600,602-605,607,610-618,620-662,665-670,672,674-676,678-689,691-721,723-779,782-783,785-786,789-791,794-798,802-810,812-830,832-849,853-893,895-897,899-905,907-908,910-920,923-924,926-930,932-1002
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2dbd087efceddaa5de7271934381e4c9813b5c96",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
