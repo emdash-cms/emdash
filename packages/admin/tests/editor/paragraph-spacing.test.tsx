@@ -39,7 +39,7 @@ function TestEditor({
 		},
 	});
 	return (
-		<div style={{ width: showPlaceholder ? 160 : 480, maxWidth: "100%" }}>
+		<div style={{ width: showPlaceholder ? 80 : 480, maxWidth: "100%" }}>
 			<EditorContent editor={editor} />
 		</div>
 	);
@@ -57,6 +57,7 @@ describe("Editor paragraph spacing", () => {
 			await vi.waitFor(() => {
 				expect(screen.container.querySelector("p.is-empty")).not.toBeNull();
 			});
+			await document.fonts.ready;
 			const empty = screen.container.querySelector<HTMLElement>("p.is-empty")!;
 			const following = empty.nextElementSibling!;
 			const hintHeight = following.getBoundingClientRect().height;
