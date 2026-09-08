@@ -5,7 +5,7 @@
  * Wraps astro-embed's Tweet component, extracting props from the PT block node.
  * astro-portabletext passes `node` (not `value`) for custom type components.
  */
-import { Tweet as AstroTweet } from "astro-embed";
+import { Tweet as AstroTweet } from "@astro-community/astro-embed-twitter";
 import type { TweetBlock } from "../schemas.js";
 
 interface Props {
