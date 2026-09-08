@@ -39,6 +39,15 @@ const COLLECTION_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 const HTTP_SCHEME_PATTERN = /^https?:\/\//i;
 const TAXONOMY_CURSOR_VERSION = 2;
 const MAX_TAXONOMY_CURSOR_LENGTH = 2048;
+const contentDateTimeInputSchema = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.or(
+		z.iso.datetime({
+			offset: true,
+			precision: -1,
+			message: "must be an ISO 8601 datetime",
+		}),
+	);
 
 // ---------------------------------------------------------------------------
 // Shared schemas — kept in sync with `api/schemas/settings.ts` (which the
@@ -1043,8 +1052,7 @@ export function createMcpServer(
 					.describe(
 						"Replace taxonomy term assignments as { taxonomyName: [termSlug, ...] }. Term slugs are resolved in the entry's locale. Only named taxonomies are touched; other taxonomies are left unchanged. Pass an empty array to clear a taxonomy.",
 					),
-				publishedAt: z.iso
-					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+				publishedAt: contentDateTimeInputSchema
 					.nullish()
 					.describe(
 						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Pass null to clear. Useful for content migrations.",
@@ -1264,8 +1272,7 @@ export function createMcpServer(
 					.string()
 					.optional()
 					.describe("Revision token from content_get for conflict detection"),
-				publishedAt: z.iso
-					.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+				publishedAt: contentDateTimeInputSchema
 					.optional()
 					.describe(
 						"Override publication timestamp (ISO 8601). Requires content:publish_any permission. Useful when importing content with original publish dates.",

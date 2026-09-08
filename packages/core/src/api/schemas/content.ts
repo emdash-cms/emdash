@@ -8,6 +8,16 @@ import { cursorPaginationQuery, httpUrl, localeCode } from "./common.js";
 // Content: Input schemas
 // ---------------------------------------------------------------------------
 
+const contentDateTime = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.or(
+		z.iso.datetime({
+			offset: true,
+			precision: -1,
+			message: "must be an ISO 8601 datetime",
+		}),
+	);
+
 /** SEO input — per-content meta fields */
 export const contentSeoInput = z
 	.object({
@@ -21,10 +31,7 @@ export const contentSeoInput = z
 
 /** ISO 8601 date or datetime bound for the content-list date range filter. */
 const contentDateBound = z
-	.union([
-		z.iso.datetime({ offset: true, message: "must be an ISO 8601 datetime" }),
-		z.iso.date({ message: "must be an ISO 8601 date" }),
-	])
+	.union([contentDateTime, z.iso.date({ message: "must be an ISO 8601 date" })])
 	.optional();
 
 /**
@@ -167,9 +174,7 @@ export const contentListQuery = cursorPaginationQuery
 	.meta({ id: "ContentListQuery" });
 
 /** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */
-const contentDateOverride = z.iso
-	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
-	.nullish();
+const contentDateOverride = contentDateTime.nullish();
 
 export const contentCreateBody = z
 	.object({
@@ -236,13 +241,10 @@ export const contentPublishBody = contentRevisionConditionBody
 		// publishing). Tightening the schema here means callers either
 		// pass a valid datetime or omit the field, and the route doesn't
 		// have to silently drop a null that snuck through.
-		publishedAt: z.iso
-			.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
-			.optional()
-			.meta({
-				description:
-					"Optional ISO 8601 datetime to backdate the publish (e.g. when migrating content). Requires content:publish_any permission. Without this, existing published_at is preserved on re-publish.",
-			}),
+		publishedAt: contentDateTime.optional().meta({
+			description:
+				"Optional ISO 8601 datetime to backdate the publish (e.g. when migrating content). Requires content:publish_any permission. Without this, existing published_at is preserved on re-publish.",
+		}),
 	})
 	.meta({ id: "ContentPublishBody" });
 

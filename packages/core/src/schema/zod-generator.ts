@@ -61,7 +61,7 @@ export function generateFieldSchema(field: Field): ZodType {
 function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodType {
 	switch (type) {
 		case "url":
-			return z.url();
+			return z.string().check(z.url());
 
 		case "string":
 		case "text":
@@ -94,7 +94,10 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 			// validate or the entry becomes unsavable through its own editor
 			// (#1368; same class as #867). `z.iso.*` retains semantic validation,
 			// so impossible dates are still rejected.
-			return z.iso.datetime({ offset: true, local: true }).or(z.iso.date());
+			return z.iso
+				.datetime({ offset: true, local: true })
+				.or(z.iso.datetime({ offset: true, local: true, precision: -1 }))
+				.or(z.iso.date());
 
 		case "select": {
 			const options = field.validation?.options;

@@ -9,6 +9,7 @@ const HTTP_SCHEME_RE = /^https?:\/\//i;
 
 /** Validates that a URL string uses http or https scheme. Rejects javascript:/data: URI XSS vectors. */
 const httpUrl = z.url().refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
+const isoDateTime = z.iso.datetime().or(z.iso.datetime({ precision: -1 }));
 
 // ─── Field Schemas ───────────────────────────────────────────────
 
@@ -194,8 +195,8 @@ export const exportSchema = z.object({
 	formId: z.string().min(1),
 	format: z.enum(["csv", "json"]).default("csv"),
 	status: z.enum(["new", "read", "archived"]).optional(),
-	from: z.iso.datetime().optional(),
-	to: z.iso.datetime().optional(),
+	from: isoDateTime.optional(),
+	to: isoDateTime.optional(),
 });
 
 // ─── Type Exports ────────────────────────────────────────────────
