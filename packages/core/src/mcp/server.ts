@@ -21,8 +21,10 @@ import {
 	contentBylineInputSchema,
 	contentSeoInput,
 	createCollectionBody,
+	createTaxonomyDefBody,
 	updateCollectionBody,
 	updateFieldBody,
+	updateTaxonomyDefBody,
 } from "#api/schemas.js";
 
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
@@ -2460,6 +2462,158 @@ export function createMcpServer(
 				return unwrap(await handleTaxonomyList(ec.db, { locale: args.locale }));
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_LIST_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_get",
+		{
+			title: "Get Taxonomy Definition",
+			description:
+				"Get a single taxonomy definition by name. Taxonomy definitions describe " +
+				"a classification system (e.g. categories or tags), which collections " +
+				"it applies to, and whether it is hierarchical. Pass `locale` to resolve " +
+				"a specific translation; otherwise the lowest matching locale is returned.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name (e.g. 'categories', 'tags')"),
+				locale: z.string().optional().describe("Locale to resolve the definition for"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyGet } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTaxonomyGet(ec.db, args.name, { locale: args.locale }));
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_GET_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_create",
+		{
+			title: "Create Taxonomy Definition",
+			description:
+				"Create a new taxonomy definition. Definitions are per-locale; pass " +
+				"`locale` when the same taxonomy name exists in multiple translations. " +
+				"`collections` names which content types the taxonomy applies to. " +
+				"If `translationOf` is set, the new definition joins the source's " +
+				"translation group and inherits `hierarchical` and `collections` from " +
+				"the source when those fields are omitted.",
+			inputSchema: z.object({
+				name: createTaxonomyDefBody.shape.name.describe(
+					"Taxonomy name (lowercase letters, numbers, underscores)",
+				),
+				label: createTaxonomyDefBody.shape.label.describe("Display name"),
+				labelSingular: createTaxonomyDefBody.shape.labelSingular.describe(
+					"Singular form of the display name",
+				),
+				hierarchical: createTaxonomyDefBody.shape.hierarchical.describe(
+					"Whether the taxonomy supports parent/child terms (defaults to false, or inherited from translationOf)",
+				),
+				collections: createTaxonomyDefBody.shape.collections.describe(
+					"Collection slugs this taxonomy applies to (defaults to [], or inherited from translationOf)",
+				),
+				locale: z.string().optional().describe("Locale for this definition (e.g. 'fr-fr')"),
+				translationOf: z
+					.string()
+					.optional()
+					.describe("Existing taxonomy definition id to create this locale variant from"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyCreate } = await import("../api/handlers/taxonomies.js");
+				return unwrap(
+					await handleTaxonomyCreate(ec.db, {
+						name: args.name,
+						label: args.label,
+						labelSingular: args.labelSingular,
+						hierarchical: args.hierarchical,
+						collections: args.collections,
+						locale: args.locale,
+						translationOf: args.translationOf,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_CREATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_update",
+		{
+			title: "Update Taxonomy Definition",
+			description:
+				"Update an existing taxonomy definition. The taxonomy `name` cannot be " +
+				"changed. Pass `locale` to update a specific translation; otherwise the " +
+				"lowest matching locale is updated. Any field may be omitted to leave it " +
+				"unchanged.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name to update"),
+				label: updateTaxonomyDefBody.shape.label.describe("New display name"),
+				labelSingular: updateTaxonomyDefBody.shape.labelSingular.describe(
+					"New singular display name; pass null to clear",
+				),
+				hierarchical: updateTaxonomyDefBody.shape.hierarchical.describe(
+					"Whether the taxonomy supports parent/child terms",
+				),
+				collections: updateTaxonomyDefBody.shape.collections.describe(
+					"Collection slugs this taxonomy applies to",
+				),
+				locale: z.string().optional().describe("Locale of the definition to update"),
+			}),
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyUpdate } = await import("../api/handlers/taxonomies.js");
+				return unwrap(
+					await handleTaxonomyUpdate(ec.db, args.name, {
+						label: args.label,
+						labelSingular: args.labelSingular,
+						hierarchical: args.hierarchical,
+						collections: args.collections,
+						locale: args.locale,
+					}),
+				);
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_UPDATE_ERROR");
+			}
+		},
+	);
+
+	server.registerTool(
+		"taxonomy_delete",
+		{
+			title: "Delete Taxonomy Definition",
+			description:
+				"Delete a taxonomy definition and all of its terms in every locale, " +
+				"along with any content assignments those terms hold. This cannot be undone.",
+			inputSchema: z.object({
+				name: z.string().describe("Taxonomy name to delete"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "taxonomies:manage");
+			requireRole(extra, Role.EDITOR);
+			const ec = getEmDash(extra);
+			try {
+				const { handleTaxonomyDelete } = await import("../api/handlers/taxonomies.js");
+				return unwrap(await handleTaxonomyDelete(ec.db, args.name));
+			} catch (error) {
+				return respondHandlerError(error, "TAXONOMY_DELETE_ERROR");
 			}
 		},
 	);

@@ -107,8 +107,13 @@ export type {
 } from "./api/index.js";
 
 // Content converters (Portable Text <-> ProseMirror)
-export { prosemirrorToPortableText, portableTextToProsemirror } from "./content/index.js";
+export {
+	portableTextIdentityExtensions,
+	prosemirrorToPortableText,
+	portableTextToProsemirror,
+} from "./content/index.js";
 export type {
+	PortableTextToProsemirrorOptions,
 	PortableTextSpan,
 	PortableTextMarkDef,
 	PortableTextLinkMark,
