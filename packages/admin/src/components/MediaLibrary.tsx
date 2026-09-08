@@ -257,7 +257,7 @@ export function MediaLibrary({
 	const detailOpenFrameRef = React.useRef<number | null>(null);
 	const paginationRequestedRef = React.useRef(false);
 	const paginationWasPendingRef = React.useRef(false);
-	const paginationRootRef = React.useRef<HTMLDivElement>(null);
+	const paginationRootRef = React.useRef<HTMLElement>(null);
 	const paginationFocusTargetRef = React.useRef<HTMLElement | null>(null);
 	const paginationFocusFallbackRef = React.useRef<"page" | "page-size">("page");
 	// Debounced filename search reported up for the local library's server query.
@@ -770,7 +770,13 @@ export function MediaLibrary({
 			onDragCancel: handleMediaDragCancel,
 		},
 		<div
-			className="space-y-4"
+			className={cn(
+				"space-y-4",
+				activeProvider === "local" &&
+					pagination &&
+					pagination.totalCount > 0 &&
+					"[&_[data-media-layout]]:scroll-mb-48",
+			)}
 			data-media-library
 			aria-busy={currentLoading || moveMutation.isPending || undefined}
 			onClickCapture={handleRootClickCapture}
@@ -1295,7 +1301,10 @@ export function MediaLibrary({
 			)}
 
 			{activeProvider === "local" && pagination && pagination.totalCount > 0 && (
-				<div ref={paginationRootRef} className="min-w-0">
+				<footer
+					ref={paginationRootRef}
+					className="sticky -bottom-6 z-10 -mx-6 -mb-6 min-w-0 border-t border-kumo-line bg-kumo-elevated px-6 py-3"
+				>
 					<Pagination
 						page={pagination.page}
 						setPage={requestPage}
@@ -1336,7 +1345,7 @@ export function MediaLibrary({
 							/>
 						</div>
 					</Pagination>
-				</div>
+				</footer>
 			)}
 
 			{activeProvider === "local" && !pagination && hasMore && onLoadMore && (
