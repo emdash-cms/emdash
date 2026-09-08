@@ -1,0 +1,21 @@
+demos/simple/src/pages/posts/[slug].astro
+  s_20baffdc2d088d::t_d2462ee7acafb7 200,213
+demos/simple/src/styles/theme.css
+  s_20baffdc2d088d::t_2853b0cb1886f0 20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "22c1f34a741274b990671d6dc4aca95c0cf80887",
+  "prompts": {},
+  "sessions": {
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
