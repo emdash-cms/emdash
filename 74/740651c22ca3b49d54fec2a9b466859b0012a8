@@ -1,0 +1,23 @@
+.changeset/tidy-editor-image-spacing.md
+  s_c3f41c9ee09877::t_fb41d50bb1bbe0 1-5
+packages/admin/tests/editor/image-alignment.test.tsx
+  s_c3f41c9ee09877::t_62ced1d643c82a 23,70-101
+packages/admin/src/components/editor/ImageNode.tsx
+  s_c3f41c9ee09877::t_b7c753a4d31ef6 218
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "74740651c22ca3b49d54fec2a9b466859b0012a8",
+  "prompts": {},
+  "sessions": {
+    "s_c3f41c9ee09877": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08315-6774-7332-ab0a-6a5974389f24",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
