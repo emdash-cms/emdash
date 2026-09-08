@@ -1,0 +1,21 @@
+demos/simple/presentation/talk/assets/research/npm-downloads-daily.json
+  s_20baffdc2d088d::t_fe365ff4b7c4b4 1-643
+demos/simple/presentation/talk/assets/research/traction.json
+  s_20baffdc2d088d::t_9aed886f42aed8 1-158
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ccd7e320c17a1368054e58f93260a6e64fe802b7",
+  "prompts": {},
+  "sessions": {
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
