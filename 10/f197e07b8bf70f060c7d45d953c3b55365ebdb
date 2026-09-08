@@ -1,0 +1,29 @@
+.changeset/editor-image-drop-targets.md
+  s_c3f41c9ee09877::t_96d71f94d680b3 1-5
+e2e/tests/editor-image-drop.spec.ts
+  s_c3f41c9ee09877::t_da0e3ce7754a25 1-153
+packages/admin/src/components/ImageFieldRenderer.tsx
+  s_c3f41c9ee09877::t_d611600bac3db8 33,223,225-226,228,230,233,535-542
+packages/admin/src/components/SeoImageField.tsx
+  s_c3f41c9ee09877::t_bd67fe23624e45 11,16,73-78
+packages/admin/tests/components/ImageFieldRenderer.test.tsx
+  s_c3f41c9ee09877::t_06fe15b32b0270 441
+packages/admin/tests/components/SeoPanel.test.tsx
+  s_c3f41c9ee09877::t_f92ba02ea3727c 43
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "10f197e07b8bf70f060c7d45d953c3b55365ebdb",
+  "prompts": {},
+  "sessions": {
+    "s_c3f41c9ee09877": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08315-6774-7332-ab0a-6a5974389f24",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
