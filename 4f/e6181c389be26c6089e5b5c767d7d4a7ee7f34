@@ -1,0 +1,39 @@
+demos/simple/src/components/PostCard.astro
+  s_0135e5d9216639::t_d4ff9799859120 13,21-23,30,37-39,41-44,47-48,52-57,59,65,70-73,76-77,80,82,86-87,91-92,95,97-99,105-107,110,113-117,119,121-125,127,130-133,136-137
+demos/simple/src/layouts/Base.astro
+  s_0135e5d9216639::t_fc8e2cc0bb867c 2-3,35,38,50,66-77,81,84-86,88-99,101,103-106,108,110-113,115-117,120-122,124-133,138,140-168,170,173-174,176-177,182-529
+demos/simple/src/pages/index.astro
+  s_0135e5d9216639::t_6e34a23afb5934 14,18-28,32-37,39-107,110-115,117-119,121-138,140,142-144,147,149,152,155,157-158,160-161,163-168,170-171,173,177-180,183,186-189,191-196,198-199,201-208,212-213,215-217,219-222,224,226-232,234-245,247-248,250,252,254-255,257,259-260
+demos/simple/src/pages/posts/[slug].astro
+  s_0135e5d9216639::t_dd2776d9a6a2ad 10,22-26,109-136,139-142,145-146,148-159,163-179,188,190-197,199-210,212-217,219,221,223,225-227,230-231,233,235-237,239-246,248-252,256-261,264,266,268-273,275-276,278-279,283,285-286,288,290-291,293-294,296-312,314-316,318-321,323,325-326,328-334,336,339,342-344,346-348,351-354,356-358,360-362,364-365,367-369,371,373-376
+demos/simple/src/styles/theme.css
+  s_0135e5d9216639::t_e0b553641416eb 1,3-13,15-25,27-39,43-128
+demos/simple/presentation/SOURCES.md
+  s_20baffdc2d088d::t_1f11e5bf7ffc63 3,13-19
+demos/simple/presentation/stories.mjs
+  s_20baffdc2d088d::t_0f1131e44acb80 193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "4fe6181c389be26c6089e5b5c767d7d4a7ee7f34",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
