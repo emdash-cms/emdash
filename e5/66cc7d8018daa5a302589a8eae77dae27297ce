@@ -1,0 +1,37 @@
+demos/simple/presentation/README.md
+  s_c3f41c9ee09877::t_965c4ada8cdf76 54
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_0135e5d9216639::t_823b607085a081 15,18,66,69-70,87-133,135,278,281-282,299-302,311,317,335,337-377,386,392,411-424,426,429-430,447,449-502,505-506,523,525-573,575,578-583,600-643,645,648-649,680,686,702-711,793-795,931,935,960,963-974,982-993,996,998,1001-1003,1036-1037,1039,1042-1045,1054
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_c3f41c9ee09877::t_9de0a8db96cfb5 3,5,19,21-31,33,37,45,47,51,53,55,57,59,61,63,65,67,69,71,73,75,77,79-87,89,91,93,95,97,99,101,103,105,107,113,155,176,202,206,208
+demos/simple/presentation/talk/assets/README.md
+  s_c3f41c9ee09877::t_0ae94f3f6211db 24-29
+demos/simple/presentation/talk/assets/emdash-logo.svg
+  s_c3f41c9ee09877::t_a27a867b40858f 1-39
+demos/simple/presentation/talk/workflow-slides.css
+  s_c3f41c9ee09877::t_76fa76ae0f6be4 1-59,63,65-66,72-145,148,150-151,157,159,163,166,169,174,179,185,188,191,202-204,207,215,223,225,227,229-230,233,235,237-238,240-243,245-246,250,252,255,260-292,294-299,301-314,316-333,335-343,345-363,366-373,377-378,380-381,383-384,386,389-395,398-402,404-439,441-442,444-456,458-475,477,479-486,488-489,491,493-506,508,510-542,566,570,573,578
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e566cc7d8018daa5a302589a8eae77dae27297ce",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c3f41c9ee09877": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08315-6774-7332-ab0a-6a5974389f24",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
