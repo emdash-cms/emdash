@@ -1,0 +1,19 @@
+packages/admin/tests/editor/paragraph-spacing.test.tsx
+  s_c3f41c9ee09877::t_ca34f41dde79cd 42,60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "20ecb6251677519d27e920d27717415369b8bb91",
+  "prompts": {},
+  "sessions": {
+    "s_c3f41c9ee09877": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08315-6774-7332-ab0a-6a5974389f24",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
