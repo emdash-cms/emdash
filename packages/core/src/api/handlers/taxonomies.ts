@@ -354,12 +354,8 @@ export async function handleTaxonomyCreate(
 			};
 		}
 
-		const collections = [...new Set(input.collections ?? [])];
-		const collectionError = await validateCollections(db, collections);
-		if (collectionError) {
-			return { success: false, error: collectionError };
-		}
-
+		let hierarchical = input.hierarchical ?? false;
+		let collections = [...new Set(input.collections ?? [])];
 		let translationGroup: string | null = null;
 		if (input.translationOf) {
 			const source = await db
@@ -374,6 +370,17 @@ export async function handleTaxonomyCreate(
 				};
 			}
 			translationGroup = source.translation_group ?? source.id;
+			if (input.hierarchical === undefined) {
+				hierarchical = source.hierarchical === 1;
+			}
+			if (input.collections === undefined) {
+				collections = [...new Set(defCollections(source))];
+			}
+		}
+
+		const collectionError = await validateCollections(db, collections);
+		if (collectionError) {
+			return { success: false, error: collectionError };
 		}
 
 		// Duplicate guard scoped to locale (so the same name can exist in ES
@@ -402,7 +409,7 @@ export async function handleTaxonomyCreate(
 				name: input.name,
 				label: input.label,
 				label_singular: input.labelSingular ?? null,
-				hierarchical: input.hierarchical ? 1 : 0,
+				hierarchical: hierarchical ? 1 : 0,
 				collections: JSON.stringify(collections),
 				locale,
 				translation_group: translationGroup ?? id,

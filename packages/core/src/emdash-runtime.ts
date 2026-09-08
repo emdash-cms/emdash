@@ -67,6 +67,7 @@ import type {
 	SandboxRunnerFactory,
 } from "./plugins/sandbox/types.js";
 import type {
+	ContentHookEvent,
 	ResolvedPlugin,
 	MediaItem,
 	PluginManifest,
@@ -3024,6 +3025,7 @@ export class EmDashRuntime {
 						bodyWithoutRev.data,
 						collection,
 						false,
+						resolvedItem?.id,
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -3032,7 +3034,12 @@ export class EmDashRuntime {
 			}
 
 			// Run sandboxed beforeSave hooks
-			const sandboxResult = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			const sandboxResult = await this.runSandboxedBeforeSave(
+				processedData!,
+				collection,
+				false,
+				resolvedItem?.id,
+			);
 			if (!sandboxResult.success) return sandboxResult;
 			processedData = sandboxResult.data;
 
@@ -4091,6 +4098,7 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		contentId?: string,
 	) {
 		let result = content;
 
@@ -4099,11 +4107,9 @@ export class EmDashRuntime {
 			if (!id || !this.isPluginEnabled(id)) continue;
 
 			try {
-				const hookResult = await plugin.invokeHook("content:beforeSave", {
-					content: result,
-					collection,
-					isNew,
-				});
+				const event: ContentHookEvent = { content: result, collection, isNew };
+				if (contentId !== undefined) event.id = contentId;
+				const hookResult = await plugin.invokeHook("content:beforeSave", event);
 				const inspection = inspectSandboxHookResult(hookResult);
 				if (inspection.kind === "error") {
 					return {

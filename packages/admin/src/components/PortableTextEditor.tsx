@@ -90,7 +90,7 @@ import {
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
-import { Extension, type Range } from "@tiptap/core";
+import { Extension, Mark, type Range } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Focus from "@tiptap/extension-focus";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -261,6 +261,153 @@ function sanitizeGalleryImages(value: unknown, withKeys = false): GalleryImage[]
 // Helpers for safely extracting typed values from ProseMirror attrs (Record<string, any>)
 const attrStr = (v: unknown): string | undefined => (typeof v === "string" && v ? v : undefined);
 const attrNum = (v: unknown): number | undefined => (typeof v === "number" && v ? v : undefined);
+
+const PORTABLE_TEXT_BLOCK_ATTR = "emdashPortableTextBlock";
+const PORTABLE_TEXT_KEY_ATTR = "emdashPortableTextKey";
+const PORTABLE_TEXT_SPAN_MARK = "emdashPortableTextSpan";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function attrsWithPortableTextKey(
+	attrs: Record<string, unknown> | undefined,
+	key: string,
+): Record<string, unknown> {
+	return { ...attrs, [PORTABLE_TEXT_KEY_ATTR]: key };
+}
+
+function portableTextKeyFromAttrs(attrs: Record<string, unknown> | undefined): string | undefined {
+	return attrStr(attrs?.[PORTABLE_TEXT_KEY_ATTR]);
+}
+
+function portableTextSpanKeyFromMarks(marks: unknown[] | undefined): string | undefined {
+	for (const mark of marks ?? []) {
+		if (!isRecord(mark) || mark.type !== PORTABLE_TEXT_SPAN_MARK || !isRecord(mark.attrs)) continue;
+		const key = attrStr(mark.attrs.key);
+		if (key) return key;
+	}
+	return undefined;
+}
+
+function portableTextMarkDefsFromMarks(marks: unknown[] | undefined): PortableTextMarkDef[] {
+	const identity = (marks ?? []).find(
+		(mark) => isRecord(mark) && mark.type === PORTABLE_TEXT_SPAN_MARK && isRecord(mark.attrs),
+	);
+	if (!isRecord(identity) || !isRecord(identity.attrs) || !Array.isArray(identity.attrs.markDefs)) {
+		return [];
+	}
+	return identity.attrs.markDefs.filter(
+		(markDef): markDef is PortableTextMarkDef =>
+			isRecord(markDef) && typeof markDef._type === "string" && typeof markDef._key === "string",
+	);
+}
+
+function portableTextBlockFromAttrs(
+	attrs: Record<string, unknown> | undefined,
+): PortableTextBlock | undefined {
+	const block = attrs?.[PORTABLE_TEXT_BLOCK_ATTR];
+	if (!isRecord(block) || typeof block._type !== "string" || typeof block._key !== "string") {
+		return undefined;
+	}
+	return block as PortableTextBlock;
+}
+
+function customBlockData(block: PortableTextBlock): Record<string, unknown> {
+	const {
+		_type: _blockType,
+		_key: _blockKey,
+		id: _id,
+		url: _url,
+		...rest
+	} = block as Record<string, unknown>;
+	return Object.fromEntries(Object.entries(rest).filter(([key]) => !key.startsWith("_")));
+}
+
+function customBlockIdentity(block: PortableTextBlock): string {
+	const record = block as Record<string, unknown>;
+	return attrStr(record.id) ?? attrStr(record.url) ?? "";
+}
+
+function customBlockIdentityField(block: PortableTextBlock): "id" | "url" | undefined {
+	if (Object.hasOwn(block, "id")) return "id";
+	if (Object.hasOwn(block, "url")) return "url";
+	return undefined;
+}
+
+function equalJsonValues(left: unknown, right: unknown): boolean {
+	if (Object.is(left, right)) return true;
+	if (Array.isArray(left) || Array.isArray(right)) {
+		return (
+			Array.isArray(left) &&
+			Array.isArray(right) &&
+			left.length === right.length &&
+			left.every((value, index) => equalJsonValues(value, right[index]))
+		);
+	}
+	if (!isRecord(left) || !isRecord(right)) return false;
+	const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined);
+	const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined);
+	return (
+		leftKeys.length === rightKeys.length &&
+		leftKeys.every((key) => Object.hasOwn(right, key) && equalJsonValues(left[key], right[key]))
+	);
+}
+
+const PortableTextIdentityExtension = Extension.create({
+	name: "emdashPortableTextIdentity",
+
+	addGlobalAttributes() {
+		const hiddenAttribute = { default: null, rendered: false };
+		return [
+			{
+				types: [
+					"paragraph",
+					"heading",
+					"blockquote",
+					"codeBlock",
+					"htmlBlock",
+					"image",
+					"horizontalRule",
+					"gallery",
+					"table",
+					"tableRow",
+					"tableCell",
+					"tableHeader",
+					"pluginBlock",
+				],
+				attributes: { [PORTABLE_TEXT_KEY_ATTR]: hiddenAttribute },
+			},
+			{
+				types: ["pluginBlock"],
+				attributes: { [PORTABLE_TEXT_BLOCK_ATTR]: hiddenAttribute },
+			},
+		];
+	},
+});
+
+// ProseMirror text nodes cannot carry schema attributes, so a non-rendered mark
+// keeps each Portable Text span's key and referenced mark definitions attached.
+const PortableTextSpanIdentity = Mark.create({
+	name: PORTABLE_TEXT_SPAN_MARK,
+	inclusive: false,
+	spanning: false,
+
+	addAttributes() {
+		return {
+			key: { default: null, rendered: false },
+			markDefs: { default: [], rendered: false },
+		};
+	},
+
+	parseHTML() {
+		return [];
+	},
+
+	renderHTML() {
+		return ["span", 0];
+	},
+});
 
 const MAX_ORDERED_LIST_START = 2_147_483_647;
 
@@ -433,19 +580,36 @@ function prosemirrorToPortableText(doc: {
 	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
+	const usedBlockKeys = new Set<string>();
 
 	for (let i = 0; i < doc.content.length; i++) {
-		const converted = convertPMNode(doc.content[i]!, `root:${i}`);
-		if (converted) {
-			if (Array.isArray(converted)) {
-				blocks.push(...converted);
-			} else {
-				blocks.push(converted);
+		const node = doc.content[i]!;
+		if (i === doc.content.length - 1 && isUnkeyedEmptyParagraph(node)) continue;
+		const converted = convertPMNode(node, `root:${i}`);
+		for (const block of converted ? (Array.isArray(converted) ? converted : [converted]) : []) {
+			let key = block._key;
+			if (usedBlockKeys.has(key)) {
+				do key = generateKey();
+				while (usedBlockKeys.has(key));
 			}
+			usedBlockKeys.add(key);
+			blocks.push(key === block._key ? block : { ...block, _key: key });
 		}
 	}
 
 	return blocks;
+}
+
+function isUnkeyedEmptyParagraph(node: {
+	type: string;
+	attrs?: Record<string, unknown>;
+	content?: unknown[];
+}): boolean {
+	return (
+		node.type === "paragraph" &&
+		(node.content?.length ?? 0) === 0 &&
+		portableTextKeyFromAttrs(node.attrs) === undefined
+	);
 }
 
 function convertPMNode(
@@ -466,10 +630,10 @@ function convertPMNode(
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: "normal",
 				children,
-				markDefs: markDefs.length > 0 ? markDefs : undefined,
+				...(markDefs.length > 0 ? { markDefs } : {}),
 				...(textAlign ? { textAlign } : {}),
 			};
 		}
@@ -487,7 +651,7 @@ function convertPMNode(
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -505,6 +669,7 @@ function convertPMNode(
 			const blocks: PortableTextTextBlock[] = [];
 			const blockquoteContent = (node.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: unknown[];
 			}>;
 			for (const child of blockquoteContent) {
@@ -513,7 +678,10 @@ function convertPMNode(
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: generateKey(),
+							_key:
+								portableTextKeyFromAttrs(child.attrs) ??
+								portableTextKeyFromAttrs(node.attrs) ??
+								generateKey(),
 							style: "blockquote",
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -533,7 +701,7 @@ function convertPMNode(
 			const rawLanguage = node.attrs?.language;
 			return {
 				_type: "code",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				code,
 				language: typeof rawLanguage === "string" ? rawLanguage : undefined,
 			};
@@ -543,7 +711,7 @@ function convertPMNode(
 			const rawHtml = node.attrs?.html;
 			return {
 				_type: "htmlBlock",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				html: typeof rawHtml === "string" ? rawHtml : "",
 			};
 		}
@@ -560,7 +728,7 @@ function convertPMNode(
 			// non-LQIP meta keys are never silently dropped on editor round-trip).
 			return {
 				_type: "image",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				asset: {
 					_ref: attrStr(attrs.mediaId) ?? "",
 					url: attrStr(attrs.src) ?? "",
@@ -581,7 +749,7 @@ function convertPMNode(
 		case "horizontalRule":
 			return {
 				_type: "break",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: "lineBreak",
 			};
 
@@ -589,18 +757,20 @@ function convertPMNode(
 			const columns = node.attrs?.columns;
 			return {
 				_type: "gallery",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				images: sanitizeGalleryImages(node.attrs?.images, true),
 				...(typeof columns === "number" ? { columns } : {}),
 			};
 		}
 
 		case "table": {
-			const tableKey = generateKey();
+			const tableKey = portableTextKeyFromAttrs(node.attrs) ?? generateKey();
 			const tableContent = (node.content || []) as Array<{
 				type: string;
+				attrs?: Record<string, unknown>;
 				content?: Array<{
 					type: string;
+					attrs?: Record<string, unknown>;
 					content?: unknown[];
 				}>;
 			}>;
@@ -644,7 +814,8 @@ function convertPMNode(
 
 						return {
 							_type: "tableCell" as const,
-							_key: `${tableKey}_r${rowIndex}_c${cellIndex}`,
+							_key:
+								portableTextKeyFromAttrs(cell.attrs) ?? `${tableKey}_r${rowIndex}_c${cellIndex}`,
 							content: contentSpans,
 							isHeader,
 							markDefs: cellMarkDefs.length > 0 ? cellMarkDefs : undefined,
@@ -653,7 +824,7 @@ function convertPMNode(
 
 					return {
 						_type: "tableRow" as const,
-						_key: `${tableKey}_r${rowIndex}`,
+						_key: portableTextKeyFromAttrs(row.attrs) ?? `${tableKey}_r${rowIndex}`,
 						cells,
 					};
 				});
@@ -667,13 +838,38 @@ function convertPMNode(
 		}
 
 		case "pluginBlock": {
-			const { blockType, id: pluginId, data } = node.attrs ?? {};
-			return {
-				...(data && typeof data === "object" ? data : {}),
-				_type: typeof blockType === "string" ? blockType : "embed",
-				_key: generateKey(),
-				id: typeof pluginId === "string" ? pluginId : "",
+			const attrs = node.attrs ?? {};
+			const blockType = typeof attrs.blockType === "string" ? attrs.blockType : "embed";
+			const pluginId = typeof attrs.id === "string" ? attrs.id : "";
+			const data = isRecord(attrs.data) ? attrs.data : {};
+			const originalBlock = portableTextBlockFromAttrs(attrs);
+
+			if (
+				originalBlock &&
+				originalBlock._type === blockType &&
+				customBlockIdentity(originalBlock) === pluginId &&
+				equalJsonValues(customBlockData(originalBlock), data)
+			) {
+				return { ...originalBlock };
+			}
+
+			const result: Record<string, unknown> = {
+				...(originalBlock
+					? Object.fromEntries(
+							Object.entries(originalBlock).filter(
+								([key]) => key.startsWith("_") && key !== "_type" && key !== "_key",
+							),
+						)
+					: {}),
+				...data,
+				_type: blockType,
+				_key: portableTextKeyFromAttrs(attrs) ?? originalBlock?._key ?? generateKey(),
 			};
+			const identityField = originalBlock
+				? (customBlockIdentityField(originalBlock) ?? (pluginId ? "id" : undefined))
+				: "id";
+			if (identityField) result[identityField] = pluginId;
+			return result as PortableTextBlock;
 		}
 
 		default:
@@ -707,7 +903,7 @@ function convertList(
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: generateKey(),
+							_key: portableTextKeyFromAttrs(child.attrs) ?? generateKey(),
 							style: "normal",
 							listItem,
 							level,
@@ -754,6 +950,18 @@ function convertInlineContent(
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
 	const markDefMap = new Map<string, string>();
+	const usedSpanKeys = new Set<string>();
+	const claimSpanKey = (preferred?: string) => {
+		if (preferred && !usedSpanKeys.has(preferred)) {
+			usedSpanKeys.add(preferred);
+			return preferred;
+		}
+		let key: string;
+		do key = generateKey();
+		while (usedSpanKeys.has(key));
+		usedSpanKeys.add(key);
+		return key;
+	};
 
 	const typedNodes = nodes as Array<{
 		type: string;
@@ -763,19 +971,32 @@ function convertInlineContent(
 	for (const node of typedNodes) {
 		if (node.type === "text" && node.text) {
 			const marks: string[] = [];
+			const originalMarkDefs = portableTextMarkDefsFromMarks(node.marks);
 
 			for (const mark of node.marks || []) {
-				const markType = convertMark(mark, markDefs, markDefMap);
+				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs);
 				if (markType) {
 					marks.push(markType);
 				}
 			}
 
+			const preferredKey = portableTextSpanKeyFromMarks(node.marks);
+			const normalizedMarks = marks.length > 0 ? marks : undefined;
+			const previous = children.at(-1);
+			if (
+				preferredKey &&
+				previous?._key === preferredKey &&
+				equalJsonValues(previous.marks, normalizedMarks)
+			) {
+				previous.text += node.text;
+				continue;
+			}
+
 			children.push({
 				_type: "span",
-				_key: generateKey(),
+				_key: claimSpanKey(preferredKey),
 				text: node.text,
-				marks: marks.length > 0 ? marks : undefined,
+				marks: normalizedMarks,
 			});
 		} else if (node.type === "hardBreak") {
 			if (children.length > 0 && !preserveHardBreakBoundary) {
@@ -784,7 +1005,7 @@ function convertInlineContent(
 			} else {
 				children.push({
 					_type: "span",
-					_key: generateKey(),
+					_key: claimSpanKey(portableTextSpanKeyFromMarks(node.marks)),
 					text: "\n",
 				});
 			}
@@ -794,7 +1015,7 @@ function convertInlineContent(
 	if (children.length === 0) {
 		children.push({
 			_type: "span",
-			_key: generateKey(),
+			_key: claimSpanKey(),
 			text: "",
 		});
 	}
@@ -806,6 +1027,7 @@ function convertMark(
 	mark: { type: string; attrs?: Record<string, unknown> },
 	markDefs: PortableTextMarkDef[],
 	markDefMap: Map<string, string>,
+	originalMarkDefs: PortableTextMarkDef[],
 ): string | null {
 	switch (mark.type) {
 		case "bold":
@@ -825,20 +1047,26 @@ function convertMark(
 			return "superscript";
 		case "code":
 			return "code";
+		case PORTABLE_TEXT_SPAN_MARK:
+			return null;
 		case "link": {
 			const rawHref = mark.attrs?.href;
 			const href = typeof rawHref === "string" ? rawHref : "";
-			if (markDefMap.has(href)) {
-				return markDefMap.get(href)!;
+			const originalMarkDef = originalMarkDefs.find((markDef) => markDef._type === "link");
+			const mapKey = originalMarkDef ? `key:${originalMarkDef._key}` : `href:${href}`;
+			if (markDefMap.has(mapKey)) {
+				return markDefMap.get(mapKey)!;
 			}
-			const key = generateKey();
+			const key = originalMarkDef?._key || generateKey();
+			const blank = mark.attrs?.target === "_blank";
 			markDefs.push({
+				...originalMarkDef,
 				_type: "link",
 				_key: key,
 				href,
-				blank: mark.attrs?.target === "_blank",
+				...(blank || (originalMarkDef && Object.hasOwn(originalMarkDef, "blank")) ? { blank } : {}),
 			});
-			markDefMap.set(href, key);
+			markDefMap.set(mapKey, key);
 			return key;
 		}
 		default:
@@ -966,13 +1194,17 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					const level = parseInt(style.substring(1), 10);
 					return {
 						type: "heading",
-						attrs: { level, ...(textAlign ? { textAlign } : {}) },
+						attrs: attrsWithPortableTextKey(
+							{ level, ...(textAlign ? { textAlign } : {}) },
+							block._key,
+						),
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 				}
 				case "blockquote":
 					return {
 						type: "blockquote",
+						attrs: attrsWithPortableTextKey(undefined, block._key),
 						content: [
 							{
 								type: "paragraph",
@@ -983,7 +1215,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 				default:
 					return {
 						type: "paragraph",
-						attrs: textAlign ? { textAlign } : undefined,
+						attrs: attrsWithPortableTextKey(textAlign ? { textAlign } : undefined, block._key),
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 			}
@@ -1009,21 +1241,24 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 						: null;
 			return {
 				type: "image",
-				attrs: {
-					src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
-					alt: imageBlock.alt || "",
-					title: imageBlock.caption || "",
-					caption: imageBlock.caption || "",
-					mediaId: imageBlock.asset._ref,
-					provider: canonicalMediaProviderId(imageBlock.asset.provider),
-					width: imageBlock.width,
-					height: imageBlock.height,
-					blurhash,
-					dominantColor,
-					displayWidth: imageBlock.displayWidth,
-					displayHeight: imageBlock.displayHeight,
-					alignment: imageBlock.alignment,
-				},
+				attrs: attrsWithPortableTextKey(
+					{
+						src: imageBlock.asset.url || `/_emdash/api/media/file/${imageBlock.asset._ref}`,
+						alt: imageBlock.alt || "",
+						title: imageBlock.caption || "",
+						caption: imageBlock.caption || "",
+						mediaId: imageBlock.asset._ref,
+						provider: canonicalMediaProviderId(imageBlock.asset.provider),
+						width: imageBlock.width,
+						height: imageBlock.height,
+						blurhash,
+						dominantColor,
+						displayWidth: imageBlock.displayWidth,
+						displayHeight: imageBlock.displayHeight,
+						alignment: imageBlock.alignment,
+					},
+					block._key,
+				),
 			};
 		}
 
@@ -1036,36 +1271,31 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 					: null;
 			return {
 				type: "codeBlock",
-				attrs: { language },
+				attrs: attrsWithPortableTextKey({ language }, block._key),
 				content: codeBlock.code ? [{ type: "text", text: codeBlock.code }] : undefined,
 			};
 		}
 
 		case "break":
-			return { type: "horizontalRule" };
+			return {
+				type: "horizontalRule",
+				attrs: attrsWithPortableTextKey(undefined, block._key),
+			};
 
 		case "gallery": {
 			const galleryBlock = block as { _type: "gallery"; _key: string; [key: string]: unknown };
-			// A gallery without an images array is malformed — keep the visible
-			// placeholder rather than silently rendering an empty grid.
 			if (!Array.isArray(galleryBlock.images)) {
-				return {
-					type: "paragraph",
-					content: [
-						{
-							type: "text",
-							text: `[Unknown block type: ${block._type}]`,
-							marks: [{ type: "code" }],
-						},
-					],
-				};
+				return convertCustomBlock(block);
 			}
 			return {
 				type: "gallery",
-				attrs: {
-					images: sanitizeGalleryImages(galleryBlock.images),
-					columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
-				},
+				attrs: attrsWithPortableTextKey(
+					{
+						images: sanitizeGalleryImages(galleryBlock.images),
+						columns: typeof galleryBlock.columns === "number" ? galleryBlock.columns : undefined,
+					},
+					galleryBlock._key,
+				),
 			};
 		}
 
@@ -1073,7 +1303,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 			const htmlBlock = block as { _type: "htmlBlock"; _key: string; html?: string };
 			return {
 				type: "htmlBlock",
-				attrs: { html: htmlBlock.html || "" },
+				attrs: attrsWithPortableTextKey({ html: htmlBlock.html || "" }, htmlBlock._key),
 			};
 		}
 
@@ -1116,6 +1346,7 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 
 					return {
 						type: cellType,
+						attrs: attrsWithPortableTextKey(undefined, cell._key),
 						content: [
 							{
 								type: "paragraph",
@@ -1127,47 +1358,36 @@ function convertPTBlock(block: PortableTextBlock): unknown {
 
 				return {
 					type: "tableRow",
+					attrs: attrsWithPortableTextKey(undefined, row._key),
 					content: cells,
 				};
 			});
 
 			return {
 				type: "table",
+				attrs: attrsWithPortableTextKey(undefined, tableBlock._key),
 				content: rows,
 			};
 		}
 
 		default: {
-			// Treat unknown block types as plugin blocks (embeds)
-			// These have an id field (or url for backwards compat) for the embed source,
-			// OR Block Kit field data stored as top-level keys (e.g., formId for forms plugin)
-			const { _type, _key, id, url, ...rest } = block as Record<string, unknown>;
-			// Filter out _-prefixed keys to prevent accumulation across edit cycles
-			const data = Object.fromEntries(Object.entries(rest).filter(([k]) => !k.startsWith("_")));
-			const hasFieldData = Object.keys(data).length > 0;
-			if (id || url || hasFieldData) {
-				return {
-					type: "pluginBlock",
-					attrs: {
-						blockType: _type,
-						id: id || url || "",
-						data,
-					},
-				};
-			}
-			// Truly unknown blocks with no data at all
-			return {
-				type: "paragraph",
-				content: [
-					{
-						type: "text",
-						text: `[Unknown block type: ${block._type}]`,
-						marks: [{ type: "code" }],
-					},
-				],
-			};
+			return convertCustomBlock(block);
 		}
 	}
+}
+
+function convertCustomBlock(block: PortableTextBlock): unknown {
+	const record = block as Record<string, unknown>;
+	return {
+		type: "pluginBlock",
+		attrs: {
+			blockType: block._type,
+			id: attrStr(record.id) ?? attrStr(record.url) ?? "",
+			data: customBlockData(block),
+			[PORTABLE_TEXT_KEY_ATTR]: block._key,
+			[PORTABLE_TEXT_BLOCK_ATTR]: block,
+		},
+	};
 }
 
 function convertPTList(
@@ -1226,6 +1446,7 @@ function convertPTListItem(
 	const pmContent = convertPTSpans(item.children, item.markDefs || []);
 	content.push({
 		type: "paragraph",
+		attrs: attrsWithPortableTextKey(undefined, item._key),
 		content: pmContent.length > 0 ? pmContent : undefined,
 	});
 
@@ -1234,11 +1455,9 @@ function convertPTListItem(
 		// item's nested subtree. A new sub-list only starts when we hit
 		// another block at that root level with a different `listItem` type;
 		// deeper blocks (level > minLevel) belong to the current group as
-		// descendants regardless of their own `listItem`. The previous
-		// grouping broke on any type change at any depth, so a deep mixed
-		// tree like `bullet L1 → number L2 → bullet L3 → number L2` would
-		// emit C(L3) as a sibling list under A(L1) instead of nesting it
-		// under B(L2), then degrade C to L2 on round-trip.
+		// descendants regardless of their own `listItem`. A deep mixed tree
+		// like `bullet L1 → number L2 → bullet L3 → number L2` stays nested
+		// under B(L2) and preserves its original level on round-trip.
 		let minLevel = Infinity;
 		for (const ni of nestedItems) {
 			const level = ni.level || 2;
@@ -1284,6 +1503,7 @@ function convertPTSpans(spans: PortableTextSpan[], markDefs: PortableTextMarkDef
 
 	for (const span of spans) {
 		if (span._type !== "span") continue;
+		const referencedMarkDefs = markDefs.filter((markDef) => span.marks?.includes(markDef._key));
 
 		const parts = span.text.split("\n");
 
@@ -1291,19 +1511,31 @@ function convertPTSpans(spans: PortableTextSpan[], markDefs: PortableTextMarkDef
 			const text = parts[i]!;
 
 			if (text.length > 0) {
-				const marks = convertPTMarks(span.marks || [], markDefsMap);
+				const marks = [
+					...convertPTMarks(span.marks || [], markDefsMap),
+					{
+						type: PORTABLE_TEXT_SPAN_MARK,
+						attrs: { key: span._key, markDefs: referencedMarkDefs },
+					},
+				];
 				const node: { type: string; text: string; marks?: unknown[] } = {
 					type: "text",
 					text,
 				};
-				if (marks.length > 0) {
-					node.marks = marks;
-				}
+				node.marks = marks;
 				nodes.push(node);
 			}
 
 			if (i < parts.length - 1) {
-				nodes.push({ type: "hardBreak" });
+				nodes.push({
+					type: "hardBreak",
+					marks: [
+						{
+							type: PORTABLE_TEXT_SPAN_MARK,
+							attrs: { key: span._key, markDefs: referencedMarkDefs },
+						},
+					],
+				});
 			}
 		}
 	}
@@ -2623,6 +2855,7 @@ export function PortableTextEditor({
 
 	// Use a ref for onChange to avoid recreating the editor when the callback changes
 	const onChangeRef = React.useRef(onChange);
+	const lastPortableTextValueRef = React.useRef(value || []);
 	React.useEffect(() => {
 		onChangeRef.current = onChange;
 	}, [onChange]);
@@ -2822,6 +3055,8 @@ export function PortableTextEditor({
 	// All mutable state (filterCommands, onChange) is accessed via refs.
 	const extensions = React.useMemo(
 		() => [
+			PortableTextIdentityExtension,
+			PortableTextSpanIdentity,
 			StarterKit.configure({
 				heading: {
 					levels: [1, 2, 3, 4, 5, 6],
@@ -2912,6 +3147,8 @@ export function PortableTextEditor({
 				const pmDoc = doc as Parameters<typeof prosemirrorToPortableText>[0];
 				try {
 					const portableText = prosemirrorToPortableText(pmDoc);
+					if (equalJsonValues(portableText, lastPortableTextValueRef.current)) return;
+					lastPortableTextValueRef.current = portableText;
 					cb(portableText);
 				} catch (error) {
 					if (error instanceof UnsupportedPortableTextMarksError) {
