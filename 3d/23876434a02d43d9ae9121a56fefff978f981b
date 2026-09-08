@@ -1,0 +1,21 @@
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_20baffdc2d088d::t_83d7dcf3c1884b 931-1030
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_20baffdc2d088d::t_50c086f9a65988 5,38,48,60,62,68,76,84,90,96
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3d23876434a02d43d9ae9121a56fefff978f981b",
+  "prompts": {},
+  "sessions": {
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
