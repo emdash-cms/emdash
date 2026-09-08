@@ -15,7 +15,14 @@ import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/media-allowlist.js";
 import { handleMediaUsageSummaries } from "#api/handlers/media-usage.js";
 import { isParseError, parseQuery } from "#api/parse.js";
-import { DEFAULT_MAX_UPLOAD_SIZE, formatFileSize, mediaListQuery } from "#api/schemas.js";
+import {
+	DEFAULT_MAX_UPLOAD_SIZE,
+	formatFileSize,
+	mediaFolderIdSchema,
+	mediaListQuery,
+	mediaUploadDeduplicateForm,
+	mediaUploadEnsureUniqueFilenameForm,
+} from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
 import { matchesMimeAllowlist, normalizeMime } from "#media/mime.js";
@@ -138,6 +145,40 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return apiError("NO_FILE", "No file provided", 400);
 		}
 
+		const deduplicateResult = mediaUploadDeduplicateForm.safeParse(
+			formData.get("deduplicate") ?? undefined,
+		);
+		if (!deduplicateResult.success) {
+			return apiError("VALIDATION_ERROR", "Invalid request data", 400, {
+				issues: deduplicateResult.error.issues.map((issue) => ({
+					path: "deduplicate",
+					message: issue.message,
+				})),
+			});
+		}
+		const ensureUniqueFilenameResult = mediaUploadEnsureUniqueFilenameForm.safeParse(
+			formData.get("ensureUniqueFilename") ?? undefined,
+		);
+		if (!ensureUniqueFilenameResult.success) {
+			return apiError("VALIDATION_ERROR", "Invalid request data", 400);
+		}
+		const folderEntry = formData.get("folderId");
+		let folderId: string | null | undefined;
+		if (folderEntry !== null) {
+			if (typeof folderEntry !== "string") {
+				return apiError("VALIDATION_ERROR", "Invalid request data", 400);
+			}
+			if (folderEntry === "unfiled") {
+				folderId = null;
+			} else {
+				const folderResult = mediaFolderIdSchema.safeParse(folderEntry);
+				if (!folderResult.success) {
+					return apiError("VALIDATION_ERROR", "Invalid request data", 400);
+				}
+				folderId = folderResult.data;
+			}
+		}
+
 		// Validate file type — widen the allowlist when a field-specific list is configured
 		const fieldIdEntry = formData.get("fieldId");
 		const fieldId =
@@ -165,16 +206,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Check for existing media with same content hash (deduplication)
 		const repo = new MediaRepository(emdash.db);
-		const existing = await repo.findByContentHash(contentHash);
-		if (existing) {
-			// Same content already exists - return existing item
-			const itemWithUrl = addUrlToMedia(existing);
-			return apiSuccess({ item: itemWithUrl, deduplicated: true });
+		if (deduplicateResult.data) {
+			const existing = await repo.findByContentHash(contentHash);
+			if (existing) {
+				const itemWithUrl = addUrlToMedia(existing);
+				return apiSuccess({ item: itemWithUrl, deduplicated: true });
+			}
 		}
+		const filename = ensureUniqueFilenameResult.data
+			? await repo.findAvailableFilename(file.name)
+			: file.name;
 
 		// Generate unique storage key
 		const id = ulid();
-		const ext = path.extname(file.name) || "";
+		const ext = path.extname(filename) || "";
 		const storageKey = `${id}${ext}`;
 
 		// Upload to storage using the configured adapter
@@ -206,7 +251,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Create media record
 		const result = await emdash.handleMediaCreate({
-			filename: file.name,
+			filename,
 			mimeType: normalizeMime(file.type),
 			size: file.size,
 			// Client dimensions win over server header dimensions: the browser's
@@ -219,6 +264,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			blurhash: enriched.blurhash,
 			dominantColor: enriched.dominantColor,
 			authorId: user?.id,
+			folderId,
 		});
 
 		if (!result.success) {

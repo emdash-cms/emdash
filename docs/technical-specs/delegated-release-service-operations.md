@@ -1,6 +1,6 @@
 # Delegated release service operations
 
-This runbook covers self-host deployment, routine maintenance, and incident recovery for the delegated release service. The service is experimental and must not be deployed until the complete implementation stack and conformance gates have been accepted.
+This runbook covers self-host deployment, routine maintenance, and incident recovery for the delegated release service. Read the [release-service README](../../apps/release-service/README.md) for the component boundary and local development commands. The service is experimental; validate the complete deployment artifact and every claimed PDS implementation before production changes.
 
 ## Operational invariants
 
@@ -126,13 +126,14 @@ After deployment, `GET /health` must return `200` without loading configuration.
 
 Test the account and workflow connection journey against the deployed origin:
 
-1. Sign in once with a test Atmosphere account and confirm the account dashboard loads publishing state, connected workflows, recent releases, activity, and any existing approval passkeys.
-2. Create a connection invitation for the test plugin and store it as the `EMDASH_CONNECTION_INVITATION` GitHub Actions secret.
-3. Run the permanent release Action in a test GitHub Actions job with `id-token: write` and no existing workload policy.
-4. Confirm the job summary contains the workflow approval URL and the Action remains waiting.
-5. Confirm the browser shows the expected repository, workflow file, branch or tag, and environment. Verify no workload policy exists before browser confirmation.
-6. Confirm the connection and verify the resulting workload policy contains the immutable GitHub repository and owner IDs plus the selected ref scope and environment.
-7. Confirm the waiting Action requests fresh OIDC, creates the release intent, and continues normally.
+1. Run `emdash-plugin profile setup` from the test plugin with the test publisher's local CLI session. Confirm the signed profile extension names the canonical GitHub repository and the intended approval policy.
+2. Sign in once with the same test [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) and confirm the account dashboard loads publishing state, connected workflows, recent releases, activity, and any existing approval passkeys.
+3. Create a connection invitation for the test plugin and store it as the `EMDASH_CONNECTION_INVITATION` GitHub Actions secret.
+4. Run the permanent release Action in a test GitHub Actions job with `id-token: write` and no existing workload policy.
+5. Confirm the job summary contains the workflow approval URL and the Action remains waiting without accepting bundle or provenance uploads.
+6. Confirm the browser shows the expected package, repository, workflow file, branch or tag, and environment. Verify no workload policy exists before browser confirmation.
+7. Confirm the connection and verify the resulting workload policy contains the immutable GitHub repository and owner IDs plus the selected ref scope and environment.
+8. Confirm the waiting Action requests fresh OIDC, rechecks the signed profile, uploads the exact bundle and provenance files, creates the release intent, and continues normally.
 
 List the staging lifecycle rules and confirm that `expire-publication-staging` and `expire-workload-staging` target their respective prefixes with a seven-day expiry:
 

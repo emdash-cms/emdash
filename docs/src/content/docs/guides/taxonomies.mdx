@@ -145,6 +145,13 @@ const category = await getTerm("category", "news");
 // Returns TaxonomyTerm or null
 ```
 
+`getTerm()` computes `count` the same way and takes the same option. A term page
+that only needs the label can skip the aggregate — `count` is then omitted:
+
+```ts
+const category = await getTerm("category", "news", { includeCounts: false });
+```
+
 ### Get Terms for an Entry
 
 The following example retrieves the categories and tags assigned to a single entry:

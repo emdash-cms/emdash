@@ -43,7 +43,7 @@ vi.mock("../../../src/components/MediaPickerModal", () => ({
 	}) => {
 		if (!open) return null;
 		const modalTitle = typeof title === "string" ? title : "";
-		const isLogo = modalTitle === "Select Logo";
+		const isLogo = modalTitle === "Select logo";
 		return (
 			<div role="dialog" aria-label={modalTitle}>
 				<button
