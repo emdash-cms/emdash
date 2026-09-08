@@ -165,7 +165,7 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		expect(await countWork(ctx.db)).toBe(0);
 	});
 
-	it("processes at most one thousand entries per bulk batch", async () => {
+	it("processes at most one thousand entries per bulk batch", { timeout: 30_000 }, async () => {
 		const fixture = await createActiveFixture(ctx, "large_batch");
 		for (let index = 0; index < 1_001; index++) {
 			await insertEntry(

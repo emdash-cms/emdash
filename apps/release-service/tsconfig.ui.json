@@ -1,0 +1,11 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["vite/client", "node", "react", "react-dom"],
+		"lib": ["ES2024", "DOM", "DOM.Iterable"],
+		"jsx": "react-jsx",
+		"verbatimModuleSyntax": true,
+		"noEmit": true
+	},
+	"include": ["src/ui/**/*"]
+}

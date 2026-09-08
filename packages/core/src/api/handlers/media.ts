@@ -149,6 +149,7 @@ export async function handleMediaCreate(
 		blurhash?: string;
 		dominantColor?: string;
 		authorId?: string;
+		folderId?: string | null;
 	},
 ): Promise<ApiResult<MediaResponse>> {
 	try {
@@ -223,6 +224,35 @@ export async function handleMediaUpdate(
 			error: {
 				code: "MEDIA_UPDATE_ERROR",
 				message: "Failed to update media",
+			},
+		};
+	}
+}
+
+export async function handleMediaReplaceMetadata(
+	db: Kysely<Database>,
+	id: string,
+	expectedStorageKey: string,
+	input: { size: number; width: number; height: number; contentHash: string },
+): Promise<ApiResult<MediaResponse>> {
+	try {
+		const item = await new MediaRepository(db).replaceReadyFile(id, expectedStorageKey, input);
+		if (!item) {
+			return {
+				success: false,
+				error: {
+					code: "MEDIA_REPLACE_METADATA_ERROR",
+					message: "Failed to update replaced media metadata",
+				},
+			};
+		}
+		return { success: true, data: { item } };
+	} catch {
+		return {
+			success: false,
+			error: {
+				code: "MEDIA_REPLACE_METADATA_ERROR",
+				message: "Failed to update replaced media metadata",
 			},
 		};
 	}

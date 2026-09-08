@@ -153,12 +153,29 @@ AI-assisted contributions are welcome and held to the same quality bar as any ot
 - AI-generated PRs must pass CI, follow project patterns, and include tests.
 - Check the PR template's AI disclosure box and name the model/tool (e.g. Claude Opus 4.7, GPT-5.5, Cursor + Sonnet 4.6). This isn't punitive -- it helps reviewers focus on edge cases that AI tools tend to miss and run the review pass with a different model family.
 
+### Interface screenshots
+
+An issue that refers to the interface must include a screenshot showing the reported state. A PR that changes the UI must include screenshots of the rendered result. Include before-and-after images when the result alone does not make the change clear. Describe the behavior in text as well, and use alt text that identifies the screen and relevant state.
+
+In the GitHub web interface, drag or paste the images into the issue or PR body. From GitHub CLI 2.99.0 or later, use the repeatable `--attach` flag with issue and PR create, edit, or comment commands. CLI `--attach` uploads require write access to the repository; web interface uploads do not.
+
+The following command attaches two screenshots to a PR body:
+
+```bash
+gh pr create --body-file /tmp/emdash-pr.md \
+	--attach './before.png#Settings screen before the change' \
+	--attach './after.png#Settings screen after the change'
+```
+
+If the body contains `![Settings screen after the change](./after.png)`, pass `--attach ./after.png` to upload the image and replace the local path in place. GitHub appends attached files that are not referenced in the body. See [Attaching files with GitHub CLI](https://docs.github.com/en/github-cli/github-cli/attaching-files-with-github-cli) for the supported formats and size limits.
+
 ### PR rules
 
 - Branch from `main`.
 - Fill out the PR template completely. **PRs with an empty or missing template will be closed automatically.** The template is loaded by the GitHub UI; if you create a PR via API/CLI, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body.
 - `pnpm typecheck` and `pnpm lint` must pass before pushing.
 - Run relevant tests.
+- Include screenshots for every UI change.
 - Commit messages describe _why_, not just _what_.
 
 ## Changesets

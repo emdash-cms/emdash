@@ -1,7 +1,7 @@
 /**
  * `com.emdashcms.experimental.aggregator.getPackage` — single package by
  * (did, slug). Returns the lexicon's `packageView` envelope (decoded
- * record + cid + indexedAt + empty mirrors/labels).
+ * record + cid + indexedAt + labels).
  *
  * Throws `XRPCError("NotFound")` when no row matches. Tombstone is not a
  * separate state on `packages` (deletes hard-delete the row), so a NotFound

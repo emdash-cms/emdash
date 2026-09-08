@@ -6,9 +6,9 @@
  * resolves the *declared* URL from the validated release record fetched from
  * the aggregator, then fetches it. So the route must:
  *   - validate the coordinate params (400 on bad input),
- *   - resolve only the publisher-declared URL (never a caller-supplied one),
+ *   - resolve only publisher-declared blob or URL sources,
  *   - reject private / loopback / link-local hosts on the resolved URL (SSRF),
- *   - reject non-image content types, including SVG (allowlist), allow AVIF,
+ *   - reject image types outside PNG, JPEG, and WebP,
  *   - cap the body size, and serve image bytes with hardened headers.
  *
  * We drive the route's `GET` directly with a fabricated context, mock the
@@ -34,31 +34,38 @@ const PNG_1x1 = Uint8Array.from(
 );
 const PNG_SHA256 = "4e25b424165e2da0783d555132372a957c289f3fe074b2da17e93dd443c97379";
 const RELEASE_CID = `bafyrei${"a".repeat(52)}`;
+const BLOB_BYTES = new TextEncoder().encode("bundle");
+const BLOB_CID = "bafkreia6n3lf256wgzhov3k2orn2lreyllrloag5qxl467ycpppsssrt7q";
+const BLOB_CHECKSUM = "bciqb43wwlv35mnso5lwvu5c3uxcjqwxcw4an3boxz57qe667fffdh7a";
 
 // The release record the mocked DiscoveryClient resolves. Tests mutate
 // `mockArtifacts` per case to point the declared URL where they need it.
 let mockArtifacts: unknown;
+let mockArtifactCaches: unknown[];
+let mockPublisherDid = "did:plc:abc123";
 let mockReleaseVersion = "1.0.0";
 let mockReleaseLabels: unknown[] = [];
 
 const getPackage = vi.fn(async () => ({ profile: {} }));
 const getLatestRelease = vi.fn(async () => ({
-	uri: `at://did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:${mockReleaseVersion}`,
+	uri: `at://${mockPublisherDid}/com.emdashcms.experimental.package.release/myplugin:${mockReleaseVersion}`,
 	cid: RELEASE_CID,
-	did: "did:plc:abc123",
+	did: mockPublisherDid,
 	package: "myplugin",
 	version: mockReleaseVersion,
+	artifactCaches: mockArtifactCaches,
 	labels: mockReleaseLabels,
 	release: { package: "myplugin", version: mockReleaseVersion, artifacts: mockArtifacts },
 }));
 const listReleases = vi.fn(async () => ({
 	releases: [
 		{
-			uri: `at://did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:${mockReleaseVersion}`,
+			uri: `at://${mockPublisherDid}/com.emdashcms.experimental.package.release/myplugin:${mockReleaseVersion}`,
 			cid: RELEASE_CID,
-			did: "did:plc:abc123",
+			did: mockPublisherDid,
 			package: "myplugin",
 			version: mockReleaseVersion,
+			artifactCaches: mockArtifactCaches,
 			labels: mockReleaseLabels,
 			release: { package: "myplugin", version: mockReleaseVersion, artifacts: mockArtifacts },
 		},
@@ -142,6 +149,13 @@ describe("registry artifact proxy", () => {
 				{ url: "https://cdn.example.com/s1.png", checksum: PNG_SHA256 },
 			],
 		};
+		mockArtifactCaches = [
+			{
+				$type: "com.emdashcms.experimental.aggregator.defs#recordScopedBlobCache",
+				serviceEndpoint: "https://cdn.em-da.sh",
+			},
+		];
+		mockPublisherDid = "did:plc:abc123";
 		mockReleaseVersion = "1.0.0";
 		mockReleaseLabels = [];
 		getPackage.mockClear();
@@ -265,7 +279,7 @@ describe("registry artifact proxy", () => {
 		expect(res.status).toBe(400);
 	});
 
-	// ── resolution → declared URL is proxied ───────────────────────────
+	// ── resolution → declared source is proxied ────────────────────────
 
 	it("resolves the declared icon URL and proxies it", async () => {
 		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
@@ -309,6 +323,120 @@ describe("registry artifact proxy", () => {
 		expect(fetched).toBe("https://cdn.example.com/s1.png");
 	});
 
+	it("resolves an image blob through the record-scoped Cumulus deployment", async () => {
+		const blobCid = "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe";
+		mockArtifacts = {
+			icon: {
+				blob: {
+					$type: "blob",
+					ref: { $link: blobCid },
+					mimeType: "image/png",
+					size: PNG_1x1.byteLength,
+				},
+				checksum: "bciqe4jnueqlf4lnapa6vkujsg4vjk7bit476a5fs3il6spouipexg6i",
+			},
+		};
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+
+		const response = await GET(makeContext(DEFAULT_PARAMS));
+
+		expect(response.status).toBe(200);
+		const fetched = (fetchMock as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]?.[0];
+		expect(fetched).toBe(
+			`https://cdn.em-da.sh/img/avatar/r/did:plc:abc123/com.emdashcms.experimental.package.release/myplugin:1.0.0/${RELEASE_CID}/${blobCid}`,
+		);
+	});
+
+	it("verifies external fallback bytes for a blob-backed image", async () => {
+		mockArtifactCaches = [];
+		mockArtifacts = {
+			icon: {
+				blob: {
+					$type: "blob",
+					ref: { $link: BLOB_CID },
+					mimeType: "image/png",
+					size: BLOB_BYTES.byteLength,
+				},
+				url: "https://publisher.example/icon.png",
+				checksum: BLOB_CHECKSUM,
+			},
+		};
+		globalThis.fetch = vi.fn(async () =>
+			imageResponse(new TextEncoder().encode("substituted")),
+		) as typeof globalThis.fetch;
+
+		const response = await GET(makeContext(DEFAULT_PARAMS));
+
+		expect(response.status).toBe(502);
+		expect(await response.text()).toContain("ARTIFACT_CHECKSUM_MISMATCH");
+	});
+
+	it("falls back from an unavailable image cache to the publisher PDS", async () => {
+		mockPublisherDid = "did:plc:abcdefghijklmnopqrstuvwx";
+		mockArtifacts = {
+			icon: {
+				blob: {
+					$type: "blob",
+					ref: { $link: BLOB_CID },
+					mimeType: "image/png",
+					size: BLOB_BYTES.byteLength,
+				},
+				checksum: BLOB_CHECKSUM,
+			},
+		};
+		const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+			const url = new URL(input instanceof Request ? input.url : input.toString());
+			if (url.hostname === "cdn.em-da.sh") return new Response(null, { status: 503 });
+			if (url.hostname === "plc.directory") {
+				return Response.json({
+					id: mockPublisherDid,
+					service: [
+						{
+							id: `${mockPublisherDid}#atproto_pds`,
+							type: "AtprotoPersonalDataServer",
+							serviceEndpoint: "https://pds.example",
+						},
+					],
+				});
+			}
+			if (url.hostname === "pds.example") return imageResponse(BLOB_BYTES);
+			return new Response(null, { status: 500 });
+		}) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+
+		const response = await GET(makeContext({ ...DEFAULT_PARAMS, did: mockPublisherDid }));
+
+		expect(response.status).toBe(200);
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(BLOB_BYTES);
+		expect(
+			fetchMock.mock.calls.some(([input]) => new URL(input.toString()).hostname === "pds.example"),
+		).toBe(true);
+	});
+
+	it("rejects an image blob whose checksum does not match its CID", async () => {
+		mockArtifacts = {
+			icon: {
+				blob: {
+					$type: "blob",
+					ref: {
+						$link: "bafkreicoew2cifs6fwqhqpkvkezdokuvpquj6p7aosznuf7jhxkehsltpe",
+					},
+					mimeType: "image/png",
+					size: PNG_1x1.byteLength,
+				},
+				checksum: "bciqinvalid",
+			},
+		};
+		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
+		globalThis.fetch = fetchMock;
+
+		const response = await GET(makeContext(DEFAULT_PARAMS));
+
+		expect(response.status).toBe(404);
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it("paginates listReleases for an explicit version", async () => {
 		mockReleaseVersion = "2.0.0";
 		const fetchMock = vi.fn(async () => imageResponse(PNG_1x1)) as typeof globalThis.fetch;
@@ -332,7 +460,7 @@ describe("registry artifact proxy", () => {
 		expect(res.status).toBe(404);
 	});
 
-	it("returns 404 when the artifact entry has no usable url", async () => {
+	it("returns 404 when the artifact entry has no usable source", async () => {
 		mockArtifacts = { icon: { checksum: PNG_SHA256, width: 64 } };
 		const res = await GET(makeContext(DEFAULT_PARAMS));
 		expect(res.status).toBe(404);
@@ -383,13 +511,12 @@ describe("registry artifact proxy", () => {
 
 	// ── content-type allowlist ─────────────────────────────────────────
 
-	it("allows AVIF", async () => {
+	it("rejects AVIF", async () => {
 		globalThis.fetch = vi.fn(async () =>
 			imageResponse(PNG_1x1, "image/avif"),
 		) as typeof globalThis.fetch;
 		const res = await GET(makeContext(DEFAULT_PARAMS));
-		expect(res.status).toBe(200);
-		expect(res.headers.get("content-type")).toBe("image/avif");
+		expect(res.status).toBe(415);
 	});
 
 	it("rejects SVG (active content removed from the allowlist)", async () => {
@@ -494,7 +621,7 @@ describe("registry artifact proxy", () => {
 
 	it("rejects an oversized declared content-length", async () => {
 		globalThis.fetch = vi.fn(async () =>
-			imageResponse(PNG_1x1, "image/png", { "content-length": String(10 * 1024 * 1024) }),
+			imageResponse(PNG_1x1, "image/png", { "content-length": String(1024 * 1024 + 1) }),
 		) as typeof globalThis.fetch;
 		const res = await GET(makeContext(DEFAULT_PARAMS));
 		expect(res.status).toBe(413);
@@ -505,7 +632,7 @@ describe("registry artifact proxy", () => {
 		let emitted = 0;
 		const body = new ReadableStream<Uint8Array>({
 			pull(controller) {
-				if (emitted >= 6) {
+				if (emitted >= 2) {
 					controller.close();
 					return;
 				}

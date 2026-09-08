@@ -10,7 +10,7 @@ import PostCard from "../../components/PostCard.astro";
 import { getReadingTime } from "../../utils/reading-time";
 
 const slug = decodeSlug(Astro.params.slug);
-const term = slug ? await getTerm("tag", slug) : null;
+const term = slug ? await getTerm("tag", slug, { includeCounts: false }) : null;
 
 if (!term) {
 	return Astro.redirect("/404");

@@ -13,6 +13,7 @@ import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
 
+import { ErrorCode } from "./api/errors.js";
 import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
@@ -43,6 +44,7 @@ import type {
 	ContentItem as ContentItemInternal,
 	ContentDateField,
 } from "./database/repositories/types.js";
+import type { ImageValue } from "./fields/types.js";
 import { getI18nConfig } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
@@ -56,6 +58,7 @@ import {
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
+import { inspectSandboxHookResult } from "./plugins/sandbox/hook-result.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
 import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
 import type {
@@ -64,6 +67,7 @@ import type {
 	SandboxRunnerFactory,
 } from "./plugins/sandbox/types.js";
 import type {
+	ContentHookEvent,
 	ResolvedPlugin,
 	MediaItem,
 	PluginManifest,
@@ -187,6 +191,7 @@ import {
 	handleMediaGet,
 	handleMediaCreate,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
 	handleRevisionList,
 	handleRevisionGet,
@@ -216,6 +221,7 @@ import {
 	type RouteCallerInput,
 	type RouteMeta,
 } from "./plugins/routes.js";
+import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
@@ -421,6 +427,28 @@ export interface EmDashRuntimeParts {
 	};
 	runtimeDeps: RuntimeDependencies;
 	pipelineRef: { current: HookPipeline };
+}
+
+/**
+ * A `ContentSaveRejectedError` carries a message the plugin wrote for the
+ * editor; every other exception stays internal and is replaced by a generic
+ * message so hook internals cannot leak through the API.
+ */
+function beforeSaveFailure(error: unknown) {
+	if (isContentSaveRejection(error)) {
+		return {
+			success: false as const,
+			error: { code: ErrorCode.SAVE_REJECTED, message: error.message },
+		};
+	}
+	console.error("EmDash: content:beforeSave hook failed:", error);
+	return {
+		success: false as const,
+		error: {
+			code: ErrorCode.CONTENT_HOOK_ERROR,
+			message: "A plugin hook failed while saving content",
+		},
+	};
 }
 
 /**
@@ -2890,12 +2918,18 @@ export class EmDashRuntime {
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (this.hooks.hasHooks("content:beforeSave")) {
-			const hookResult = await this.hooks.runContentBeforeSave(body.data, collection, true);
-			processedData = hookResult.content;
+			try {
+				const hookResult = await this.hooks.runContentBeforeSave(body.data, collection, true);
+				processedData = hookResult.content;
+			} catch (error) {
+				return beforeSaveFailure(error);
+			}
 		}
 
 		// Run beforeSave hooks (sandboxed plugins)
-		processedData = await this.runSandboxedBeforeSave(processedData, collection, true);
+		const sandboxResult = await this.runSandboxedBeforeSave(processedData, collection, true);
+		if (!sandboxResult.success) return sandboxResult;
+		processedData = sandboxResult.data;
 
 		// Normalize media fields (fill dimensions, storageKey, etc.)
 		processedData = await this.normalizeMediaFields(collection, processedData);
@@ -2986,16 +3020,28 @@ export class EmDashRuntime {
 		let processedData = bodyWithoutRev.data;
 		if (bodyWithoutRev.data) {
 			if (this.hooks.hasHooks("content:beforeSave")) {
-				const hookResult = await this.hooks.runContentBeforeSave(
-					bodyWithoutRev.data,
-					collection,
-					false,
-				);
-				processedData = hookResult.content;
+				try {
+					const hookResult = await this.hooks.runContentBeforeSave(
+						bodyWithoutRev.data,
+						collection,
+						false,
+						resolvedItem?.id,
+					);
+					processedData = hookResult.content;
+				} catch (error) {
+					return beforeSaveFailure(error);
+				}
 			}
 
 			// Run sandboxed beforeSave hooks
-			processedData = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			const sandboxResult = await this.runSandboxedBeforeSave(
+				processedData!,
+				collection,
+				false,
+				resolvedItem?.id,
+			);
+			if (!sandboxResult.success) return sandboxResult;
+			processedData = sandboxResult.data;
 
 			// Normalize media fields (fill dimensions, storageKey, etc.)
 			processedData = await this.normalizeMediaFields(collection, processedData);
@@ -3238,7 +3284,7 @@ export class EmDashRuntime {
 
 	async handleContentListTrashed(
 		collection: string,
-		params: { cursor?: string; limit?: number } = {},
+		params: { cursor?: string; limit?: number; locale?: string } = {},
 	) {
 		return handleContentListTrashed(this.db, collection, params);
 	}
@@ -3271,8 +3317,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentCountTrashed(collection: string) {
-		return handleContentCountTrashed(this.db, collection);
+	async handleContentCountTrashed(collection: string, params: { locale?: string } = {}) {
+		return handleContentCountTrashed(this.db, collection, params);
 	}
 
 	async handleContentDuplicate(collection: string, id: string, authorId?: string) {
@@ -3294,6 +3340,7 @@ export class EmDashRuntime {
 			publishedAt?: string;
 			requireScheduledDue?: boolean;
 			expectedScheduledAt?: string;
+			_rev?: string;
 		} = {},
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
@@ -3309,8 +3356,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentUnpublish(collection: string, id: string) {
-		const result = await handleContentUnpublish(this.db, collection, id);
+	async handleContentUnpublish(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentUnpublish(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3355,8 +3402,8 @@ export class EmDashRuntime {
 		return handleContentCountScheduled(this.db, collection);
 	}
 
-	async handleContentDiscardDraft(collection: string, id: string) {
-		const result = await handleContentDiscardDraft(this.db, collection, id);
+	async handleContentDiscardDraft(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentDiscardDraft(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3401,6 +3448,7 @@ export class EmDashRuntime {
 		blurhash?: string;
 		dominantColor?: string;
 		authorId?: string;
+		folderId?: string | null;
 	}) {
 		// Run beforeUpload hooks
 		let processedInput = input;
@@ -3459,6 +3507,18 @@ export class EmDashRuntime {
 		// for every entry point: REST routes, MCP tools, plugin code, and
 		// any future caller of `handleMediaUpdate`. Cross-isolate staleness
 		// remains bounded by isolate lifetime.
+		if (result.success) {
+			invalidateSiteSettingsCache();
+		}
+		return result;
+	}
+
+	async handleMediaReplaceMetadata(
+		id: string,
+		expectedStorageKey: string,
+		input: { size: number; width: number; height: number; contentHash: string },
+	) {
+		const result = await handleMediaReplaceMetadata(this.db, id, expectedStorageKey, input);
 		if (result.success) {
 			invalidateSiteSettingsCache();
 		}
@@ -3987,7 +4047,11 @@ export class EmDashRuntime {
 			if (value == null) continue;
 
 			try {
-				const normalized = await normalizeMediaValue(value, getProvider);
+				// Only image fields carry a dark variant.
+				const normalized =
+					field.type === "image"
+						? await normalizeImageValue(value, getProvider)
+						: await normalizeMediaValue(value, getProvider);
 				if (normalized) {
 					result[field.slug] = normalized;
 				}
@@ -4014,7 +4078,7 @@ export class EmDashRuntime {
 						const subValue = normalizedItem[slug];
 						if (subValue == null) continue;
 						try {
-							const normalized = await normalizeMediaValue(subValue, getProvider);
+							const normalized = await normalizeImageValue(subValue, getProvider);
 							if (normalized) {
 								normalizedItem[slug] = normalized;
 							}
@@ -4034,7 +4098,8 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
-	): Promise<Record<string, unknown>> {
+		contentId?: string,
+	) {
 		let result = content;
 
 		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
@@ -4042,11 +4107,30 @@ export class EmDashRuntime {
 			if (!id || !this.isPluginEnabled(id)) continue;
 
 			try {
-				const hookResult = await plugin.invokeHook("content:beforeSave", {
-					content: result,
-					collection,
-					isNew,
-				});
+				const event: ContentHookEvent = { content: result, collection, isNew };
+				if (contentId !== undefined) event.id = contentId;
+				const hookResult = await plugin.invokeHook("content:beforeSave", event);
+				const inspection = inspectSandboxHookResult(hookResult);
+				if (inspection.kind === "error") {
+					return {
+						success: false as const,
+						error: {
+							code: ErrorCode.SAVE_REJECTED,
+							message: "Save rejected by a sandboxed plugin",
+							details: { pluginId: id, reason: inspection.error.reason },
+						},
+					};
+				}
+				if (inspection.kind === "malformed") {
+					console.error(`EmDash: Sandboxed plugin ${id} returned an invalid hook result`);
+					return {
+						success: false as const,
+						error: {
+							code: ErrorCode.CONTENT_HOOK_ERROR,
+							message: "A plugin hook failed while saving content",
+						},
+					};
+				}
 				if (hookResult && typeof hookResult === "object" && !Array.isArray(hookResult)) {
 					// Sandbox returns unknown; convert to record by iterating own properties
 					const record: Record<string, unknown> = {};
@@ -4056,11 +4140,18 @@ export class EmDashRuntime {
 					result = record;
 				}
 			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook error:`, error);
+				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook failed:`, error);
+				return {
+					success: false as const,
+					error: {
+						code: ErrorCode.CONTENT_HOOK_ERROR,
+						message: "A plugin hook failed while saving content",
+					},
+				};
 			}
 		}
 
-		return result;
+		return { success: true as const, data: result };
 	}
 
 	private async runSandboxedBeforeDelete(id: string, collection: string): Promise<boolean> {
@@ -4367,4 +4458,38 @@ export class EmDashRuntime {
 		const status = this.pluginStates.get(pluginId);
 		return status === undefined || status === "active";
 	}
+}
+
+/**
+ * Normalize an image field value together with its `darkVariant`. The media
+ * normalizer only keeps the media item's own keys, so the variant is normalized
+ * separately and reattached.
+ */
+async function normalizeImageValue(
+	value: unknown,
+	getProvider: (id: string) => MediaProvider | undefined,
+): Promise<ImageValue | null> {
+	const primary = await normalizePrimaryImageValue(value, getProvider);
+	if (!primary || !isRecord(value) || value.darkVariant == null) return primary;
+	const darkVariant = await normalizeMediaValue(value.darkVariant, getProvider);
+	return darkVariant ? { ...primary, darkVariant } : primary;
+}
+
+/**
+ * Normalize the primary image of an image field value.
+ *
+ * A legacy string URL that the admin upgraded to `{ id: "", src: url }` so it
+ * can carry a dark variant still has to normalize as a string: as an object it
+ * counts as local media, which strips `src` and leaves nothing behind. The
+ * upgrade outlives the variant — an editor can add one and remove it again —
+ * so the shape decides, not the presence of `darkVariant`.
+ */
+async function normalizePrimaryImageValue(
+	value: unknown,
+	getProvider: (id: string) => MediaProvider | undefined,
+): Promise<ImageValue | null> {
+	if (isRecord(value) && !value.id && typeof value.src === "string" && !value.provider) {
+		return normalizeMediaValue(value.src, getProvider);
+	}
+	return normalizeMediaValue(value, getProvider);
 }

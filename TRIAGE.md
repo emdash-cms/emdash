@@ -134,7 +134,8 @@ Useful details to ask for on bug reports:
 - Relevant collection schema, field config, or plugin config.
 - Exact steps to reproduce from a fresh project when possible.
 - Expected behavior and actual behavior.
-- Error logs, screenshots, or network response details.
+- Error logs or network response details.
+- A screenshot for every report that refers to the interface.
 
 Do not ask for everything by default. Ask for the smallest missing piece that would unblock the next person.
 
@@ -149,7 +150,7 @@ For issues, priority is often the best thing a human triager can add — it's a 
 
 Use priority labels when you have enough context to make a reasonable call. If you are unsure, leave priority unset and explain what information would help judge impact.
 
-For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used. Where the bug is visual or interactive — admin UI glitches, editor behavior, layout problems — a screenshot or short screen recording is extra useful: it shows exactly what you saw, and often settles "works for me" threads instantly. You can drag media straight into a GitHub comment.
+For bugs, a confirmed reproduction is the most useful evidence for priority. If you reproduce something, leave the exact environment and steps you used. A report that refers to the interface must include a screenshot showing the reported state. If it is missing, ask the author to add one. A short screen recording can supplement the screenshot when the bug depends on an interaction. You can drag or paste media into a GitHub comment, or attach a local file with `gh issue comment --attach './screenshot.png#Description of the reported state'` when using GitHub CLI 2.99.0 or later.
 
 ### The Investigation Bot and `bot:*` Labels
 
@@ -222,6 +223,7 @@ The bot does code-level review and is good at it, but it's not perfect. The most
 - For bug fixes, is there a test that would fail without the fix?
 - For user-facing package behavior changes, is there a changeset, and is it well written? (See [Checking Changesets](#checking-changesets).)
 - For admin UI changes, are user-facing strings localized and does the layout use RTL-safe classes?
+- For UI changes, does the PR include screenshots of the rendered result?
 - For feature/refactor/performance PRs, has a maintainer approved the idea — a linked Discussion labeled `Approved for PR`, or approval in a PR or issue comment?
 - Are unrelated files changed, such as generated translation catalogs in a non-translation PR?
 - Is the AI disclosure filled in, and has a human author understood and tested the change? (See [AI-Assisted Contributions](#ai-assisted-contributions).)

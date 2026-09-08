@@ -47,6 +47,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 		item,
 		onSave,
 		onAutosave,
+		onAuthorChange,
 		onSeoChange,
 		onPublishedAtChange,
 		isSaving,
@@ -54,17 +55,20 @@ vi.mock("../src/components/ContentEditor", () => ({
 		isSaveFeedbackActive,
 		isUpdatingPublishedAt,
 		autosaveCompletionToken,
+		autosaveRejectionToken,
 	}: {
 		item?: { data?: { title?: string }; slug?: string | null };
 		onSave?: (payload: { data: Record<string, unknown> }) => void;
 		onAutosave?: (payload: { data: Record<string, unknown>; slug?: string }) => void;
+		onAuthorChange?: (authorId: string | null) => void;
 		onSeoChange?: (seo: { title: string }) => void;
-		onPublishedAtChange?: (publishedAt: string) => void;
+		onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 		isSaving?: boolean;
 		isAutosaving?: boolean;
 		isSaveFeedbackActive?: boolean;
 		isUpdatingPublishedAt?: boolean;
 		autosaveCompletionToken?: number;
+		autosaveRejectionToken?: number;
 	}) => (
 		<div data-testid="content-editor">
 			<div data-testid="mock-title">{item?.data?.title ?? ""}</div>
@@ -73,6 +77,7 @@ vi.mock("../src/components/ContentEditor", () => ({
 			<div data-testid="manual-save-blocked">{isSaving ? "blocked" : "ready"}</div>
 			<div data-testid="autosave-blocked">{isSaving || isAutosaving ? "blocked" : "ready"}</div>
 			<div data-testid="autosave-completion-token">{autosaveCompletionToken ?? 0}</div>
+			<div data-testid="autosave-rejection-token">{autosaveRejectionToken ?? 0}</div>
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
@@ -98,10 +103,17 @@ vi.mock("../src/components/ContentEditor", () => ({
 			<button type="button" onClick={() => onSeoChange?.({ title: "Search title" })}>
 				Trigger SEO Sync
 			</button>
+			<button type="button" onClick={() => onAuthorChange?.("user_02")}>
+				Trigger Author Sync
+			</button>
 			<button
 				type="button"
 				disabled={isUpdatingPublishedAt}
-				onClick={() => onPublishedAtChange?.("2020-06-01T08:45:00.000Z")}
+				onClick={(event) => {
+					const result = onPublishedAtChange?.("2020-06-01T08:45:00.000Z");
+					event.currentTarget.dataset.returnsPromise = String(result instanceof Promise);
+					if (result instanceof Promise) void result.catch(() => undefined);
+				}}
 			>
 				Trigger Publish Date Sync
 			</button>
@@ -1264,6 +1276,7 @@ describe("ContentEditPage – autosave cache patching", () => {
 			.on("GET", "/_emdash/api/bylines", { data: { items: [] } })
 			.on("GET", "/_emdash/api/content/posts/post_1", {
 				data: {
+					_rev: "revision-token",
 					item: {
 						id: "post_1",
 						type: "posts",
@@ -1366,6 +1379,60 @@ describe("ContentEditPage – autosave cache patching", () => {
 		});
 	});
 
+	it("echoes the current revision token in editor and auxiliary writes", async () => {
+		const { router, TestApp } = buildRouter();
+
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		const fetchWithMocks = globalThis.fetch;
+		const putBodies: Record<string, unknown>[] = [];
+		globalThis.fetch = (async (input: string | URL | Request, init?: RequestInit) => {
+			const url =
+				typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+			if (init?.method === "PUT" && url.includes("/content/posts/post_1")) {
+				if (typeof init.body !== "string") throw new TypeError("Expected a JSON request body");
+				putBodies.push(JSON.parse(init.body) as Record<string, unknown>);
+			}
+			return fetchWithMocks(input, init);
+		}) as typeof fetch;
+
+		try {
+			await screen.getByRole("button", { name: "Save", exact: true }).click();
+			await waitFor(() => expect(putBodies).toHaveLength(1));
+
+			await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+			await waitFor(() => expect(putBodies).toHaveLength(2));
+
+			await screen.getByRole("button", { name: "Trigger Author Sync" }).click();
+			await waitFor(() => expect(putBodies).toHaveLength(3));
+
+			await screen.getByRole("button", { name: "Trigger SEO Sync" }).click();
+			await waitFor(() => expect(putBodies).toHaveLength(4));
+
+			expect(putBodies).toEqual([
+				{ data: { title: "Test Post" }, _rev: "revision-token" },
+				{
+					data: { title: "Autosaved Title" },
+					slug: "autosaved-title",
+					_rev: "revision-token",
+					skipRevision: true,
+				},
+				{ authorId: "user_02", _rev: "revision-token" },
+				{ seo: { title: "Search title" }, _rev: "revision-token" },
+			]);
+		} finally {
+			globalThis.fetch = fetchWithMocks;
+		}
+	});
+
 	it("sends publish-date changes through the auxiliary update payload", async () => {
 		const fetchWithMocks = globalThis.fetch;
 		let updateBody: Record<string, unknown> | undefined;
@@ -1390,7 +1457,9 @@ describe("ContentEditPage – autosave cache patching", () => {
 				expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
 			});
 
-			await screen.getByRole("button", { name: "Trigger Publish Date Sync" }).click();
+			const trigger = screen.getByRole("button", { name: "Trigger Publish Date Sync" });
+			await trigger.click();
+			await expect.element(trigger).toHaveAttribute("data-returns-promise", "true");
 
 			await waitFor(() => {
 				expect(updateBody).toEqual({ publishedAt: "2020-06-01T08:45:00.000Z" });
@@ -1664,5 +1733,57 @@ describe("ContentEditPage – autosave cache patching", () => {
 		} finally {
 			globalThis.fetch = fetchWithMocks;
 		}
+	});
+
+	it("signals a rejected autosave to the editor", async () => {
+		mockFetch.on(
+			"PUT",
+			"/_emdash/api/content/posts/post_1?locale=en",
+			{ error: { code: "VALIDATION_ERROR", message: "title: Too big" } },
+			400,
+		);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+
+		await waitFor(() => {
+			expect(screen.getByTestId("autosave-rejection-token").element().textContent).toBe("1");
+		});
+		expect(screen.getByTestId("autosave-completion-token").element().textContent).toBe("0");
+		expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+	});
+
+	it("does not signal a rejection for a server error", async () => {
+		mockFetch.on(
+			"PUT",
+			"/_emdash/api/content/posts/post_1?locale=en",
+			{ error: { code: "INTERNAL_ERROR", message: "boom" } },
+			500,
+		);
+		const { router, TestApp } = buildRouter();
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+		});
+		const screen = await render(<TestApp />);
+		await waitFor(() => {
+			expect(screen.getByTestId("mock-title").element().textContent).toBe("Draft Title");
+		});
+
+		await screen.getByRole("button", { name: "Trigger Draft Sync" }).click();
+
+		await expect.element(screen.getByText("Autosave failed")).toBeInTheDocument();
+		await waitFor(() => {
+			expect(screen.getByTestId("autosave-blocked").element().textContent).toBe("ready");
+		});
+		expect(screen.getByTestId("autosave-rejection-token").element().textContent).toBe("0");
 	});
 });

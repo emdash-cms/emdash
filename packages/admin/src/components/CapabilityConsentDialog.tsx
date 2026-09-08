@@ -13,6 +13,7 @@ import * as React from "react";
 
 import { describeCapability } from "../lib/api/marketplace.js";
 import type { PluginMcpConsentTool } from "../lib/api/marketplace.js";
+import type { RegistryRecordVerificationSummary } from "../lib/api/registry.js";
 import { cn } from "../lib/utils.js";
 import { DialogError } from "./DialogError.js";
 
@@ -33,6 +34,8 @@ export interface CapabilityConsentDialogProps {
 	mcpTools?: PluginMcpConsentTool[];
 	/** Audit verdict badge */
 	auditVerdict?: "pass" | "warn" | "fail";
+	/** Independent signed-record and provenance evidence for registry plugins. */
+	verification?: RegistryRecordVerificationSummary;
 	/** Whether the action is in progress */
 	isPending?: boolean;
 	/** Error message to display inline */
@@ -52,6 +55,7 @@ export function CapabilityConsentDialog({
 	newlyPublicRoutes = [],
 	mcpTools = [],
 	auditVerdict,
+	verification,
 	isPending = false,
 	error,
 	onConfirm,
@@ -72,21 +76,81 @@ export function CapabilityConsentDialog({
 			<div className="absolute inset-0 bg-black/50" onClick={() => !isPending && onCancel()} />
 
 			{/* Dialog */}
-			<div className="relative w-full max-w-md rounded-lg border bg-kumo-base shadow-lg">
+			<div className="relative w-full max-w-lg rounded-lg border bg-kumo-base shadow-lg">
 				{/* Header */}
 				<div className="border-b px-6 py-4">
 					<h2 className="text-lg font-semibold">
-						{isUpdate ? t`Review New Permissions` : t`Plugin Permissions`}
+						{verification
+							? isUpdate
+								? t`Review Verified Update`
+								: t`Review Verified Plugin`
+							: isUpdate
+								? t`Review New Permissions`
+								: t`Plugin Permissions`}
 					</h2>
 					<p className="mt-1 text-sm text-kumo-subtle">
-						{isUpdate
-							? t`${pluginName} is requesting additional permissions:`
-							: t`${pluginName} requires the following permissions:`}
+						{verification
+							? t`Review the independently verified release evidence and permissions for ${pluginName} before continuing.`
+							: isUpdate
+								? t`${pluginName} is requesting additional permissions:`
+								: t`${pluginName} requires the following permissions:`}
 					</p>
 				</div>
 
 				{/* Capabilities list */}
-				<div className="px-6 py-4 space-y-3">
+				<div className="max-h-[70vh] space-y-3 overflow-y-auto px-6 py-4">
+					{verification ? (
+						<div className="rounded-md border border-kumo-success/30 bg-kumo-success/10 p-3 text-sm">
+							<div className="flex items-start gap-2">
+								<ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-kumo-success" />
+								<div>
+									<div className="font-medium">{t`Independent verification`}</div>
+									<p className="mt-1 text-xs text-kumo-subtle">
+										{verification.provenance === "verified"
+											? t`Provenance is verified against the signed release and artifact.`
+											: t`No provenance was supplied; the signed publisher policy permits this.`}
+									</p>
+								</div>
+							</div>
+							<dl className="mt-3 space-y-2 text-xs">
+								<div>
+									<dt className="font-medium text-kumo-subtle">{t`Profile CID`}</dt>
+									<dd className="break-all font-mono">
+										<bdi dir="ltr">{verification.profileCid}</bdi>
+									</dd>
+								</div>
+								<div>
+									<dt className="font-medium text-kumo-subtle">{t`Release CID`}</dt>
+									<dd className="break-all font-mono">
+										<bdi dir="ltr">{verification.releaseCid}</bdi>
+									</dd>
+								</div>
+								<div>
+									<dt className="font-medium text-kumo-subtle">{t`Publisher release policy`}</dt>
+									<dd>
+										{verification.policy.requireProvenance
+											? t`Provenance required`
+											: t`Provenance optional`}
+										{" · "}
+										{verification.policy.confirmation === "always"
+											? t`Publisher approval required for every delegated release`
+											: t`Publisher approval required only for permission escalation`}
+									</dd>
+								</div>
+								{verification.policy.approvers.length > 0 ? (
+									<div>
+										<dt className="font-medium text-kumo-subtle">{t`Authorized approvers`}</dt>
+										{verification.policy.approvers.map((approver) => (
+											<dd key={approver} className="break-all font-mono">
+												<bdi dir="ltr">{approver}</bdi>
+											</dd>
+										))}
+									</div>
+								) : null}
+							</dl>
+						</div>
+					) : null}
+
 					{capabilities.map((cap) => {
 						const isNew = newSet.has(cap);
 						return (

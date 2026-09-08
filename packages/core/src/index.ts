@@ -83,7 +83,11 @@ export {
 	handleMediaGet,
 	handleMediaCreate,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
+	handleMediaUsageActivationAdvance,
+	handleMediaUsageProgress,
+	handleMediaUsageRepair,
 	handleRevisionList,
 	handleRevisionGet,
 	handleRevisionRestore,
@@ -103,8 +107,13 @@ export type {
 } from "./api/index.js";
 
 // Content converters (Portable Text <-> ProseMirror)
-export { prosemirrorToPortableText, portableTextToProsemirror } from "./content/index.js";
+export {
+	portableTextIdentityExtensions,
+	prosemirrorToPortableText,
+	portableTextToProsemirror,
+} from "./content/index.js";
 export type {
+	PortableTextToProsemirrorOptions,
 	PortableTextSpan,
 	PortableTextMarkDef,
 	PortableTextLinkMark,
@@ -243,6 +252,8 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	ContentSaveRejectedError,
+	isContentSaveRejection,
 	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
 	NodeCronScheduler,
 	// Sandbox
@@ -253,6 +264,9 @@ export {
 	createSandboxRouteErrorEnvelope,
 	getSandboxRouteErrorDetails,
 	getSandboxRouteErrorEnvelope,
+	MAX_SANDBOX_SAVE_REJECTION_REASON_LENGTH,
+	SANDBOX_HOOK_RESULT_VERSION,
+	inspectSandboxHookResult,
 	createNoopSandboxRunner,
 	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
 	createHttpAccess,
@@ -326,6 +340,9 @@ export type {
 	SandboxRouteErrorCode,
 	SandboxRouteErrorDetails,
 	SandboxRouteErrorEnvelope,
+	SandboxHookErrorEnvelope,
+	SandboxHookResultInspection,
+	SandboxSaveRejectedError,
 } from "./plugins/index.js";
 
 // Capability normalization (legacy → canonical alias layer)
