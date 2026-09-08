@@ -1,0 +1,31 @@
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_0135e5d9216639::t_08b71f3dfb4fe3 16-59,139-157,161-168,366-375,444-450,453-459,462-468
+demos/simple/presentation/talk/assets/PHOSPHOR-LICENSE.txt
+  s_c3f41c9ee09877::t_e2862cd4783646 1-21
+demos/simple/presentation/talk/workflow-slides.css
+  s_c3f41c9ee09877::t_fff9ce519d246b 7-21,226,244,253,299-301,304-309,317-318,340-344,348,351-357,359-363,373,375,620-622,643,652,655,661,670-721
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "356e0549453794a6c8948c3f0a4b8fb5cf81e71a",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_c3f41c9ee09877": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08315-6774-7332-ab0a-6a5974389f24",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
