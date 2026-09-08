@@ -20,6 +20,26 @@ describe("elideLargeDiffSections", () => {
 		expect(elideLargeDiffSections(diff)).toBe(diff);
 	});
 
+	it.each([
+		"worker-configuration.d.ts",
+		"infra/emdash-bot/worker-configuration.d.ts",
+		"packages/plugins/example/generated/worker-configuration.d.ts",
+	])("always omits generated Worker types at %s", (path) => {
+		const generated = fileSection(path, 2, "+declare const generatedSecret: string;");
+		const source = fileSection("src/a.ts", 2);
+		const out = elideLargeDiffSections(generated + source);
+
+		expect(out).toContain(`diff --git a/${path} b/${path}`);
+		expect(out).toContain("generated Worker types omitted from model review context");
+		expect(out).not.toContain("generatedSecret");
+		expect(out).toContain(source);
+	});
+
+	it("does not omit a similarly named source file", () => {
+		const diff = fileSection("src/worker-configuration.d.ts.template", 2);
+		expect(elideLargeDiffSections(diff)).toBe(diff);
+	});
+
 	it("elides a section over the per-file budget, keeping its header", () => {
 		const big = fileSection("types.d.ts", 2_000);
 		const small = fileSection("src/a.ts", 5);

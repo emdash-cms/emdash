@@ -5,9 +5,9 @@ description: Implement diagnose's proposed fix when verify says bug, the cause i
 
 # Fix
 
-You are here because a maintainer issued a **fix** directive, verify returned `bug`, diagnose pinned the cause with at least `medium` confidence, and diagnose rated the fix `mechanical` or `clear-best-option`. Diagnose handed you a **proposed fix** -- a concrete plan naming the file and the change. Implement that plan, prove it works, and leave the change verified. The hard reasoning is done; do not re-litigate the diagnosis unless reading the code convinces you it is wrong (then abandon -- see below).
+You are here because a work run established a change it can implement safely. For a bug, verify returned `bug`, diagnose pinned the cause with at least `medium` confidence, and diagnose rated the fix `mechanical` or `clear-best-option`. Implement the proposed change, prove it works, and leave the candidate verified.
 
-**What your output is, and is not.** You are not merging and not opening a PR. The trusted `publish_candidate` tool commits and pushes your change to the issue's `bot/fix-<n>` candidate branch through an issue-scoped Git proxy; that triggers a **preview build** the workflow posts to the issue. **Only after the reporter confirms** does a draft PR open, and a maintainer reviews before anything reaches `main`. The target is a correct, conventions-respecting change that makes the repro test pass. Publish a useful candidate even when a check remains failing, and report the failure accurately so CI and the maintainer can assess it. Do not gold-plate, expand scope, or refactor beyond the diagnosed bug.
+**What your output is, and is not.** You are not merging and not opening a PR. The trusted `publish_candidate` tool commits and pushes the durable candidate from a separate publisher sandbox. The model-controlled workspace has no push capability. Publication triggers a preview build; a draft PR opens only after the reporter or a maintainer accepts the candidate.
 
 ## Delivery priorities
 
@@ -21,12 +21,13 @@ The working candidate is the deliverable; the regression test is focused evidenc
 
 ## Environment
 
-- **Edit in the VFS** with the `edit_file` / `write_file` tools; read surrounding code with `read_file` and `grep`. Every VFS edit is replayed onto the container checkout before each container command.
-- **Run tests, lint, typecheck, and format checks with `exec`** -- none of the toolchain exists in the VFS. Run each planned final check once and report its real exit status.
+- **Edit with the VFS tools or normal shell commands.** `exec` runs in a credential-free writable container and checkpoints tracked changes back into the durable workspace, including partial output from a failed formatter or generator.
+- **Use local Git when it helps resolve conflicts or inspect history.** Local refs and commits have no publication authority. Never push from `exec`.
+- **Run tests, lint, typecheck, formatting, and generators with `exec`.** Run each planned final check once and report its real exit status.
 
 ## Do not
 
-- No `git commit`, `git push`, `git tag`, or PR creation. `publish_candidate` owns the issue's candidate branch. The workflow owns the preview and the PR.
+- No `git push`, `git tag`, or PR creation. Local Git operations are allowed; `publish_candidate` alone owns the issue's candidate branch.
 - No GitHub writes. Read-only API GETs only.
 - No network beyond the clone, the proxy-signed GitHub API, and the npm registry.
 - No `pnpm publish` / `npm publish`.
@@ -52,7 +53,7 @@ The working candidate is the deliverable; the regression test is focused evidenc
    - `import.meta.env.DEV`, never `process.env.NODE_ENV`.
    - Migrations are forward-only and additive; register in `runner.ts` via `StaticMigrationProvider`.
    - Prefer additive changes. A breaking change needs an explicit changeset -- do not introduce one for an automated fix without compelling justification.
-6. **Finish the candidate tree.** Apply formatting and add the changeset now, when a published package changed. Follow `.changeset/README.md`: write public CHANGELOG documentation with detail proportional to the impact, not a diff summary.
+6. **Finish the candidate tree.** Run the formatter through `exec` and add the changeset when a published package changed. If formatting fails after changing files, inspect the checkpointed partial result, repair it manually, and retry.
 7. **Run one final verification pass with `exec`.** Run the focused repro test first, then the remaining planned checks. Run each check once on the final tree; do not repeat a passing check on an unchanged tree or hide a failure with a shell fallback.
 8. **Respond to relevant failures only.** Fix a regression in touched behavior or abandon the change. If you edit the candidate, rerun the planned set once on the new tree. Never edit unrelated files to make a broad lint, typecheck, or test command pass.
 9. **Publish with `publish_candidate` after the final checks, including when a check remains failing.** Do not reproduce its work with shell commands. Report `fixed: true` only after publication succeeds, and include every remaining verification failure in the summary.
@@ -63,7 +64,7 @@ The working candidate is the deliverable; the regression test is focused evidenc
 - Treat install and the initial workspace build as bootstrap, not verification. Reuse them for the whole run and across resume when the saved container is still available.
 - Prefer affected package checks. Run a broader root check once only when the change crosses its surface or `AGENTS.md` explicitly requires it.
 - If an affected package suite is known to exceed the remaining budget or has already timed out, do not repeat it. Run the focused relevant subsets, report the omitted suite, and preserve time to publish and report.
-- Verification commands must not modify source files. Apply formatting before the final pass, then use a check-only formatter command.
+- A command counts as verification only when it leaves the candidate tree unchanged. Apply source-writing transformations before the final pass.
 
 ## Finalization and resume
 

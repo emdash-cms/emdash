@@ -32,7 +32,7 @@ export function number(options: NumberOptions = {}): FieldDefinition<number> {
 	}
 
 	// Optional vs required
-	const schema: z.ZodTypeAny = options.required ? numberSchema : numberSchema.optional();
+	const schema: z.ZodType = options.required ? numberSchema : numberSchema.optional();
 
 	const ui: FieldUIHints = {
 		widget: "number",

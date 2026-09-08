@@ -11,9 +11,11 @@ import {
 function fakeState(initial?: Record<string, string>): {
 	state: IsolateState;
 	files: Map<string, string>;
+	symlinks: Map<string, string>;
 	hangReads: () => void;
 } {
 	const files = new Map<string, string>(Object.entries(initial ?? {}));
+	const symlinks = new Map<string, string>();
 	let hang = false;
 	const state: IsolateState = {
 		readFile: async (path) => {
@@ -22,8 +24,32 @@ function fakeState(initial?: Record<string, string>): {
 			if (value === undefined) throw new Error(`no such file ${path}`);
 			return value;
 		},
+		readFileBytes: async (path) => {
+			const value = files.get(path);
+			if (value === undefined) throw new Error(`no such file ${path}`);
+			return new TextEncoder().encode(value);
+		},
 		writeFile: async (path, content) => {
+			symlinks.delete(path);
 			files.set(path, content);
+		},
+		writeFileBytes: async (path, content) => {
+			symlinks.delete(path);
+			files.set(path, new TextDecoder().decode(content));
+		},
+		lstat: async (path) => {
+			if (symlinks.has(path)) return { type: "symlink" };
+			if (files.has(path)) return { type: "file" };
+			return null;
+		},
+		symlink: async (target, linkPath) => {
+			files.delete(linkPath);
+			symlinks.set(linkPath, target);
+		},
+		readlink: async (path) => {
+			const target = symlinks.get(path);
+			if (target === undefined) throw new Error(`not a symlink ${path}`);
+			return target;
 		},
 		mkdir: async () => {},
 		readdirWithFileTypes: async (path) => {
@@ -39,15 +65,18 @@ function fakeState(initial?: Record<string, string>): {
 			return Array.from(names.entries(), ([name, type]) => ({ name, type }));
 		},
 		exists: async (path) => {
-			if (files.has(path)) return true;
+			if (files.has(path) || symlinks.has(path)) return true;
 			const prefix = `${path.replace(/\/+$/, "")}/`;
-			return [...files.keys()].some((key) => key.startsWith(prefix));
+			return [...files.keys(), ...symlinks.keys()].some((key) => key.startsWith(prefix));
 		},
 		rm: async (path) => {
 			const prefix = `${path.replace(/\/+$/, "")}/`;
 			const keys = [...files.keys()];
 			for (const key of keys) {
 				if (key === path || key.startsWith(prefix)) files.delete(key);
+			}
+			for (const key of symlinks.keys()) {
+				if (key === path || key.startsWith(prefix)) symlinks.delete(key);
 			}
 		},
 		searchFiles: async (pattern, query) => {
@@ -67,6 +96,7 @@ function fakeState(initial?: Record<string, string>): {
 	return {
 		state,
 		files,
+		symlinks,
 		hangReads: () => {
 			hang = true;
 		},
@@ -76,7 +106,7 @@ function fakeState(initial?: Record<string, string>): {
 function fakeContainer(): {
 	container: ContainerBackend;
 	execs: string[];
-	writes: Array<{ path: string; content: string }>;
+	writes: Array<{ path: string; content: string | Uint8Array }>;
 	setExecResult: (result: { exitCode: number; stdout: string; stderr: string }) => void;
 	queueExecResults: (
 		...results: Array<{ exitCode: number; stdout: string; stderr: string }>
@@ -86,7 +116,7 @@ function fakeContainer(): {
 	hangExec: () => void;
 } {
 	const execs: string[] = [];
-	const writes: Array<{ path: string; content: string }> = [];
+	const writes: Array<{ path: string; content: string | Uint8Array }> = [];
 	let execResult = { exitCode: 0, stdout: "container-ran", stderr: "" };
 	const queuedExecResults: Array<{ exitCode: number; stdout: string; stderr: string }> = [];
 	let readFileBytes: (path: string) => Uint8Array = (_path) => new Uint8Array([1, 2, 3]);
@@ -104,7 +134,10 @@ function fakeContainer(): {
 			return queuedExecResults.shift() ?? execResult;
 		},
 		writeFile: async (path, content) => {
-			writes.push({ path, content });
+			writes.push({
+				path,
+				content: content instanceof Uint8Array ? new TextDecoder().decode(content) : content,
+			});
 		},
 		readFileBytes: async (path) => readFileBytes(path),
 	};
@@ -138,12 +171,16 @@ function makeEnv(overrides?: {
 	container?: ContainerBackend;
 	hydrateRepo?: (dir: string, ref: string) => Promise<void>;
 	attachContainer?: () => Promise<ContainerBackend>;
+	attachPublisherContainer?: () => Promise<ContainerBackend>;
 	deadlines?: { defaultTimeoutMs: number; attachTimeoutMs: number; execGraceMs: number };
 }): ExecEnv {
 	return new ExecEnv({
 		state: overrides?.state ?? fakeState().state,
 		attachContainer:
 			overrides?.attachContainer ?? (async () => overrides?.container ?? fakeContainer().container),
+		...(overrides?.attachPublisherContainer
+			? { attachPublisherContainer: overrides.attachPublisherContainer }
+			: {}),
 		hydrateRepo: overrides?.hydrateRepo ?? noHydrate,
 		deadlines: overrides?.deadlines ?? deadlines,
 		repoDir: "/repo",
@@ -185,9 +222,56 @@ describe("Sandbox container adapter", () => {
 
 		expect(bytes).toEqual(new TextEncoder().encode(content));
 	});
+
+	test("writes exact bytes over the HTTP transport without using a file stream", async () => {
+		const writeFile = vi.fn();
+		const sandbox = { writeFile } as unknown as Sandbox;
+		const bytes = new Uint8Array([0, 255, 1, 128]);
+
+		await fromSandbox(sandbox).writeFile("/tmp/candidate", bytes);
+
+		expect(writeFile).toHaveBeenCalledWith("/tmp/candidate", "AP8BgA==", {
+			encoding: "base64",
+		});
+	});
 });
 
 describe("ExecEnv container exec", () => {
+	test("checkpoints source writes from a failed shell command", async () => {
+		const fs = fakeState({ "/repo/src/a.ts": "before\n" });
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 1, stdout: "", stderr: "format failed" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/a.ts\0")}\n`, stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("file\0")}\n`, stderr: "" },
+		);
+		con.setReadFileBytes(() => new TextEncoder().encode("partially formatted\n"));
+		const env = makeEnv({ state: fs.state, container: con.container });
+		await env.ensureRepo({ dir: "/repo", ref: "base-sha" });
+
+		await expect(env.execWritable("pnpm format")).resolves.toMatchObject({ exitCode: 1 });
+
+		expect(fs.files.get("/repo/src/a.ts")).toBe("partially formatted\n");
+		expect(fs.files.get("/.emdash-bot/changes.json")).toBe('["/repo/src/a.ts"]');
+	});
+
+	test("rejects a shell-created symlink that escapes the repository", async () => {
+		const fs = fakeState();
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("link\0")}\n`, stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("symlink\0../../outside")}\n`, stderr: "" },
+		);
+		const env = makeEnv({ state: fs.state, container: con.container });
+		await env.ensureRepo({ dir: "/repo", ref: "base-sha" });
+
+		await expect(env.execWritable("ln -s ../../outside link")).rejects.toThrow(
+			/symlink target escapes/,
+		);
+		expect(fs.symlinks.size).toBe(0);
+	});
+
 	test("runs the command in the container with the repo cwd", async () => {
 		const con = fakeContainer();
 		const env = makeEnv({ container: con.container });
@@ -207,7 +291,10 @@ describe("ExecEnv container exec", () => {
 		await env.exec("pnpm test");
 
 		expect(con.writes).toEqual([{ path: "/repo/src/x.ts", content: "v2" }]);
-		expect(con.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
+		expect(con.execs).toEqual([
+			"if test -L '/repo/src/x.ts'; then rm -f -- '/repo/src/x.ts'; fi",
+			"bash -o pipefail -c 'pnpm test'",
+		]);
 	});
 
 	test("runs pipelines with pipefail so a failed producer cannot look successful", async () => {
@@ -344,6 +431,39 @@ describe("ExecEnv container exec", () => {
 });
 
 describe("ExecEnv candidate publication", () => {
+	test("keeps publication authority out of the execution container", async () => {
+		const execution = fakeContainer();
+		const publisher = fakeContainer();
+		publisher.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "base-commit\n", stderr: "" },
+			{ exitCode: 0, stdout: "candidate-tree\n", stderr: "" },
+			{ exitCode: 0, stdout: `${base64Utf8("src/base-url.ts\0")}\n`, stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "committed", stderr: "" },
+			{ exitCode: 0, stdout: "commit-sha\n", stderr: "" },
+			{ exitCode: 0, stdout: "pushed", stderr: "" },
+			{ exitCode: 0, stdout: "commit-sha\trefs/heads/bot/fix-2482\n", stderr: "" },
+		);
+		const env = makeEnv({
+			state: fakeState({ "/repo/src/base-url.ts": "export {};\n" }).state,
+			container: execution.container,
+			attachPublisherContainer: async () => publisher.container,
+		});
+
+		await env.publishCandidate({
+			branch: "bot/fix-2482",
+			runId: "run-2482",
+			commitMessage: "Fix base URLs",
+			baseRef: "base-commit",
+			expectedPreviousSha: null,
+		});
+
+		expect(execution.execs.some((command) => command.includes("git push"))).toBe(false);
+		expect(publisher.execs.some((command) => command.includes("git push"))).toBe(true);
+	});
+
 	test("commits and pushes the durable candidate through the scoped git proxy", async () => {
 		const con = fakeContainer();
 		con.queueExecResults(
@@ -601,7 +721,10 @@ describe("ExecEnv container lifecycle", () => {
 		expect(attach).toHaveBeenCalledTimes(2);
 		expect(first.execs).toEqual(["bash -o pipefail -c 'pnpm install'"]);
 		expect(replacement.writes).toEqual([{ path: "/repo/src/x.ts", content: "new" }]);
-		expect(replacement.execs).toEqual(["bash -o pipefail -c 'pnpm test'"]);
+		expect(replacement.execs).toEqual([
+			"if test -L '/repo/src/x.ts'; then rm -f -- '/repo/src/x.ts'; fi",
+			"bash -o pipefail -c 'pnpm test'",
+		]);
 	});
 
 	test("shares one reattachment across concurrent commands", async () => {
@@ -823,5 +946,33 @@ describe("ExecEnv artifact egress", () => {
 		const env = makeEnv({ container: con.container });
 
 		await expect(env.readArtifact("link.png")).rejects.toThrow("artifact is not a regular file");
+	});
+
+	test("rejects an artifact push when the remote branch does not match the local commit", async () => {
+		const con = fakeContainer();
+		con.queueExecResults(
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "committed", stderr: "" },
+			{ exitCode: 0, stdout: "artifact-sha\n", stderr: "" },
+			{ exitCode: 0, stdout: "", stderr: "" },
+			{ exitCode: 0, stdout: "pushed", stderr: "" },
+			{
+				exitCode: 0,
+				stdout: "other-sha\trefs/heads/bot/artifacts-42\n",
+				stderr: "",
+			},
+		);
+		const env = makeEnv({ container: con.container });
+
+		await expect(
+			env.publishArtifacts({
+				branch: "bot/artifacts-42",
+				runId: "run-42",
+				baseRef: "base-sha",
+				files: ["shot.png"],
+			}),
+		).rejects.toThrow(/artifact branch verification failed/);
 	});
 });

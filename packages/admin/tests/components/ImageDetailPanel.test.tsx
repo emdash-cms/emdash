@@ -208,7 +208,7 @@ describe("ImageDetailPanel", () => {
 			await expect.element(screen.getByRole("option", { name: "None" })).toBeVisible();
 			expect(screen.getByRole("option", { name: "Wide" }).query()).toBeNull();
 			expect(screen.getByRole("option", { name: "Full" }).query()).toBeNull();
-			await userEvent.keyboard("{End}{Enter}");
+			await screen.getByRole("option", { name: "Right" }).click();
 			await expect.element(select).toHaveTextContent("Right");
 			await screen.getByRole("button", { name: "Apply" }).click();
 			expect(onUpdate).toHaveBeenLastCalledWith(expect.objectContaining({ alignment: "right" }));

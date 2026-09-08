@@ -5,6 +5,7 @@ import {
 	findIssueCommentByMarker,
 	getIssueComments,
 	getPullRequestReviewComments,
+	getPullRequestStatus,
 	getPullRequestHeadBranch,
 	listOpenManagedIssues,
 	updateIssueComment,
@@ -152,6 +153,84 @@ describe("GitHub pull request lookup", () => {
 				headers: expect.objectContaining({ authorization: "Bearer token" }),
 			}),
 		);
+	});
+
+	test("combines PR, review, and check state for monitoring", async () => {
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(
+				jsonResponse({
+					number: 99,
+					html_url: "https://github.com/emdash-cms/emdash/pull/99",
+					state: "open",
+					draft: true,
+					merged: false,
+					mergeable: true,
+					head: { sha: "abc123" },
+				}),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse([
+					{ state: "APPROVED", user: { login: "alice" }, submitted_at: "2026-09-08T10:00:00Z" },
+				]),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse({
+					check_runs: [
+						{
+							name: "Typecheck",
+							status: "completed",
+							conclusion: "success",
+							details_url: "https://checks/1",
+						},
+						{
+							name: "Tests",
+							status: "completed",
+							conclusion: "failure",
+							details_url: "https://checks/2",
+						},
+					],
+				}),
+			)
+			.mockResolvedValueOnce(jsonResponse({ state: "failure", statuses: [] }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
+			number: 99,
+			url: "https://github.com/emdash-cms/emdash/pull/99",
+			state: "open",
+			draft: true,
+			headSha: "abc123",
+			mergeability: "mergeable",
+			review: "approved",
+			checks: "failing",
+			failingChecks: [{ name: "Tests", url: "https://checks/2" }],
+		});
+	});
+
+	test("keeps PR monitoring available when the app cannot read check runs", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(
+					jsonResponse({
+						number: 99,
+						state: "open",
+						draft: true,
+						mergeable: true,
+						head: { sha: "abc123" },
+					}),
+				)
+				.mockResolvedValueOnce(jsonResponse([]))
+				.mockResolvedValueOnce(jsonResponse({}, 403))
+				.mockResolvedValueOnce(jsonResponse({ state: "pending", statuses: [] })),
+		);
+
+		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
+			checks: "pending",
+			failingChecks: [],
+		});
 	});
 });
 

@@ -8,10 +8,9 @@
  * naive datetime failed validation and the entry became unsavable. Same class
  * of autosave-round-trip bug as #867.
  *
- * The fix validates with `z.iso.datetime({ offset: true, local: true })` (which
- * accepts `Z`, timezone offsets, and naive datetimes) unioned with
- * `z.iso.date()` for date-only values — while still rejecting garbage and
- * impossible dates.
+ * The fix validates standard and minute-precision ISO datetimes with `Z`,
+ * timezone offsets, or no offset, plus `z.iso.date()` for date-only values —
+ * while still rejecting garbage and impossible dates.
  */
 import { describe, it, expect, beforeEach } from "vitest";
 
@@ -42,7 +41,9 @@ describe("zod-generator datetime validation (issue #1368)", () => {
 	const accepted = [
 		["ISO with milliseconds and Z (admin-edited)", "2024-01-15T14:30:00.000Z"],
 		["ISO with Z, no milliseconds", "2024-01-15T14:30:00Z"],
+		["minute-precision ISO with Z", "2024-01-15T14:30Z"],
 		["ISO with timezone offset", "2024-01-15T14:30:00+00:00"],
+		["minute-precision ISO with timezone offset", "2024-01-15T14:30+00:00"],
 		["naive datetime with seconds (seeded value -- the bug)", "2026-06-04T18:30:00"],
 		["naive datetime without seconds (datetime-local default)", "2024-01-15T14:30"],
 		["date only", "2024-01-15"],

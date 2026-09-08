@@ -22,7 +22,7 @@ const createClientSchema = z.object({
 		.max(255, "Client ID must be at most 255 characters"),
 	name: z.string().min(1, "Name is required").max(255, "Name must be at most 255 characters"),
 	redirectUris: z
-		.array(z.string().url("Each redirect URI must be a valid URL"))
+		.array(z.url("Each redirect URI must be a valid URL"))
 		.min(1, "At least one redirect URI is required"),
 	scopes: z.array(z.string()).optional(),
 });

@@ -57,30 +57,35 @@ describe("MCP content_publish — publishedAt override (#622)", () => {
 		await teardownTestDatabase(db);
 	});
 
-	it("backdates publishedAt when caller passes an explicit ISO timestamp", async () => {
-		const created = await harness.client.callTool({
-			name: "content_create",
-			arguments: { collection: "post", data: { title: "Imported post" } },
-		});
-		const id = extractJson<{ item: { id: string } }>(created).item.id;
+	it.each(["2020-01-15T10:00:00.000Z", "2020-01-15T10:00Z", "2020-01-15T11:00+01:00"])(
+		"backdates publishedAt from %s",
+		async (publishedAt) => {
+			const created = await harness.client.callTool({
+				name: "content_create",
+				arguments: { collection: "post", data: { title: "Imported post" } },
+			});
+			const id = extractJson<{ item: { id: string } }>(created).item.id;
 
-		const PAST = "2020-01-15T10:00:00.000Z";
-		const result = await harness.client.callTool({
-			name: "content_publish",
-			arguments: {
-				collection: "post",
-				id,
-				publishedAt: PAST,
-				_rev: await currentRev(harness.client, "post", id),
-			},
-		});
-		expect(result.isError, extractText(result)).toBeFalsy();
+			const PAST = "2020-01-15T10:00:00.000Z";
+			const result = await harness.client.callTool({
+				name: "content_publish",
+				arguments: {
+					collection: "post",
+					id,
+					publishedAt,
+					_rev: await currentRev(harness.client, "post", id),
+				},
+			});
+			expect(result.isError, extractText(result)).toBeFalsy();
 
-		const item = extractJson<{ item: { publishedAt: string | null; status: string } }>(result).item;
-		expect(item.status).toBe("published");
-		// Repository normalizes to ISO so we compare via Date round-trip.
-		expect(new Date(item.publishedAt!).toISOString()).toBe(PAST);
-	});
+			const item = extractJson<{ item: { publishedAt: string | null; status: string } }>(
+				result,
+			).item;
+			expect(item.status).toBe("published");
+			// Repository normalizes to ISO so we compare via Date round-trip.
+			expect(new Date(item.publishedAt!).toISOString()).toBe(PAST);
+		},
+	);
 
 	it("re-publishing with a new publishedAt overwrites the previous timestamp", async () => {
 		// First publish without an override — gets a current timestamp.

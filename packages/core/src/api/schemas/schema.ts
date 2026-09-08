@@ -178,6 +178,8 @@ export const updateCollectionBody = z
 		commentsClosedAfterDays: z.number().int().min(0).optional(),
 		commentsAutoApproveUsers: z.boolean().optional(),
 		editLocking: z.boolean().optional(),
+		titleField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
+		dateField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
 	})
 	.meta({ id: "UpdateCollectionBody" });
 
@@ -271,6 +273,8 @@ export const collectionSchema = z
 		editLocking: z.boolean(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
+		titleField: z.string().nullish(),
+		dateField: z.string().nullish(),
 	})
 	.meta({ id: "Collection" });
 

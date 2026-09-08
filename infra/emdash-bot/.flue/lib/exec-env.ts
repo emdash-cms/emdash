@@ -6,12 +6,11 @@
 //   - Container: @cloudflare/sandbox. Runs the toolchain (git, pnpm, astro,
 //     vitest, agent-browser) against its own native checkout.
 //
-// The VFS is authoritative for source. Every agent write goes through this
-// seam and is recorded in a durable change log next to the workspace; before
-// each container exec the logged paths are replayed onto the container
-// checkout. Container-only files (node_modules, build output) are never
-// touched. The one-time checkout that seeds the container is owned by the
-// injected `attachContainer`, which runs once.
+// The VFS is authoritative for source. Direct edits are recorded immediately;
+// shell-produced candidate changes are checkpointed back into the same VFS
+// after each command. Before another container attaches, those paths and
+// deletions are replayed onto its clean checkout. Container-only files such as
+// node_modules and build output remain disposable.
 
 import type { Sandbox } from "@cloudflare/sandbox";
 
@@ -56,7 +55,12 @@ export interface ExecEnvDeadlines {
  */
 export interface IsolateState {
 	readFile(path: string): Promise<string>;
+	readFileBytes(path: string): Promise<Uint8Array>;
 	writeFile(path: string, content: string): Promise<void>;
+	writeFileBytes(path: string, content: Uint8Array): Promise<void>;
+	lstat(path: string): Promise<{ type: string } | null>;
+	symlink(target: string, linkPath: string): Promise<void>;
+	readlink(path: string): Promise<string>;
 	mkdir(path: string, options?: { recursive?: boolean }): Promise<void>;
 	readdirWithFileTypes(path: string): Promise<Array<{ name: string; type: string }>>;
 	exists(path: string): Promise<boolean>;
@@ -78,7 +82,7 @@ export interface ContainerBackend {
 		command: string,
 		options?: { cwd?: string; timeoutMs?: number },
 	): Promise<{ exitCode: number; stdout: string; stderr: string }>;
-	writeFile(path: string, content: string): Promise<void>;
+	writeFile(path: string, content: string | Uint8Array): Promise<void>;
 	readFileBytes(path: string): Promise<Uint8Array>;
 }
 
@@ -86,6 +90,8 @@ export interface ExecEnvOptions {
 	readonly state: IsolateState;
 	/** Lazily attaches the container; called at most once, result reused. */
 	readonly attachContainer: () => Promise<ContainerBackend>;
+	/** Separate credentialed checkout used only by trusted publication code. */
+	readonly attachPublisherContainer?: () => Promise<ContainerBackend>;
 	/**
 	 * Streams the repo source tree for `ref` into the VFS at `dir`.
 	 * `ensureRepo` records the hydration marker and change log around it.
@@ -100,26 +106,33 @@ export interface ExecEnvOptions {
 const META_DIR = "/.emdash-bot";
 const HYDRATED_MARKER = `${META_DIR}/hydrated`;
 const CHANGE_LOG = `${META_DIR}/changes.json`;
+const DELETED_LOG = `${META_DIR}/deleted.json`;
+const MODE_LOG = `${META_DIR}/modes.json`;
 const GREP_MATCH_LIMIT = 200;
 const CANDIDATE_FILE_LIMIT = 200;
 const DISALLOWED_CANDIDATE_PATHS = [".git/", ".github/workflows/", ".bot-artifacts/"];
 const CANDIDATE_BRANCH = /^bot\/fix-\d+$/;
+const ARTIFACT_BRANCH = /^bot\/artifacts-\d+$/;
 const LINE_BREAK = /\r?\n/;
 const WHITESPACE_SEQUENCE = /\s+/;
 
 export class ExecEnv {
 	readonly #state: IsolateState;
 	readonly #attachContainer: () => Promise<ContainerBackend>;
+	readonly #attachPublisherContainer: () => Promise<ContainerBackend>;
 	readonly #hydrateRepo: (dir: string, ref: string) => Promise<void>;
 	readonly #deadlines: ExecEnvDeadlines;
 	readonly #repoDir: string;
 	#containerPromise: Promise<ContainerBackend> | undefined;
+	#publisherPromise: Promise<ContainerBackend> | undefined;
 	#containerRecoveryPromise: Promise<ContainerBackend> | undefined;
+	#snapshotBaseRef: string | undefined;
 	#mutationTail: Promise<void> = Promise.resolve();
 
 	constructor(options: ExecEnvOptions) {
 		this.#state = options.state;
 		this.#attachContainer = options.attachContainer;
+		this.#attachPublisherContainer = options.attachPublisherContainer ?? options.attachContainer;
 		this.#hydrateRepo = options.hydrateRepo;
 		this.#deadlines = options.deadlines;
 		this.#repoDir = options.repoDir;
@@ -132,11 +145,14 @@ export class ExecEnv {
 	 */
 	async ensureRepo(options: RepoOptions): Promise<void> {
 		const ref = options.ref ?? "main";
+		this.#snapshotBaseRef = ref;
 		if ((await this.#readMarker()) === ref) return;
 		await this.#bounded(this.#state.rm(options.dir, { recursive: true, force: true }), "rm");
 		await this.#bounded(this.#hydrateRepo(options.dir, ref), "hydrateRepo");
 		await this.#bounded(this.#state.mkdir(META_DIR, { recursive: true }), "mkdir");
 		await this.#bounded(this.#state.writeFile(CHANGE_LOG, "[]"), "writeFile");
+		await this.#bounded(this.#state.writeFile(DELETED_LOG, "[]"), "writeFile");
+		await this.#bounded(this.#state.writeFile(MODE_LOG, "{}"), "writeFile");
 		await this.#bounded(this.#state.writeFile(HYDRATED_MARKER, ref), "writeFile");
 	}
 
@@ -212,6 +228,110 @@ export class ExecEnv {
 		);
 	}
 
+	async execWritable(command: string, options: ExecOptions = {}): Promise<ExecResult> {
+		const result = await this.exec(command, options);
+		await this.checkpointContainer();
+		return result;
+	}
+
+	async checkpointContainer(): Promise<void> {
+		const baseRef = this.#snapshotBaseRef;
+		if (!baseRef) throw new Error("workspace snapshot base is not initialized");
+		const container = await this.container();
+		const pathsResult = await this.#bounded(
+			container.exec(
+				pipefailCommand(
+					`{ git diff --name-only -z ${quote(baseRef)} --; git ls-files --others --exclude-standard -z; } | sort -zu | base64 -w0`,
+				),
+				{ cwd: this.#repoDir },
+			),
+			"candidate checkpoint paths",
+		);
+		if (pathsResult.exitCode !== 0) {
+			throw new Error(`candidate checkpoint failed: ${lastOutput(pathsResult)}`);
+		}
+		const paths = parseCandidatePaths(
+			decodeBase64Utf8(pathsResult.stdout, "candidate checkpoint paths"),
+		);
+		if (paths.length > CANDIDATE_FILE_LIMIT) {
+			throw new Error(`candidate changes ${paths.length} files; limit is ${CANDIDATE_FILE_LIMIT}`);
+		}
+		const previousPaths = new Set([
+			...(await this.#readChangeLog()),
+			...(await this.#readDeletedLog()),
+			...Object.keys(await this.#readModeLog()),
+		]);
+		const currentPaths = new Set(paths.map((path) => `${this.#repoDir}/${path}`));
+		for (const path of previousPaths) {
+			if (currentPaths.has(path)) continue;
+			await this.#checkpointPath(container, path);
+		}
+		const changed: string[] = [];
+		const deleted: string[] = [];
+		const modes: Record<string, "100644" | "100755"> = {};
+		for (const relativePath of paths) {
+			assertCandidatePath(relativePath);
+			const path = `${this.#repoDir}/${relativePath}`;
+			const state = await this.#checkpointPath(container, path);
+			if (state.kind !== "missing") {
+				changed.push(path);
+				if (state.kind === "file") modes[path] = state.executable ? "100755" : "100644";
+			} else {
+				deleted.push(path);
+			}
+		}
+		await this.#bounded(this.#state.mkdir(META_DIR, { recursive: true }), "mkdir");
+		await Promise.all([
+			this.#bounded(this.#state.writeFile(CHANGE_LOG, JSON.stringify(changed)), "writeFile"),
+			this.#bounded(this.#state.writeFile(DELETED_LOG, JSON.stringify(deleted)), "writeFile"),
+			this.#bounded(this.#state.writeFile(MODE_LOG, JSON.stringify(modes)), "writeFile"),
+		]);
+	}
+
+	async #checkpointPath(container: ContainerBackend, path: string): Promise<CandidatePathState> {
+		const state = await this.#containerPathState(container, path);
+		await this.#bounded(this.#state.rm(path, { force: true }), "rm");
+		if (state.kind === "symlink") {
+			assertSafeSymlinkTarget(path.slice(`${this.#repoDir}/`.length), state.target);
+			await this.#bounded(this.#state.symlink(state.target, path), "symlink");
+		} else if (state.kind === "file") {
+			const bytes = await this.#bounded(container.readFileBytes(path), "candidate checkpoint read");
+			await this.#bounded(this.#state.writeFileBytes(path, bytes), "writeFileBytes");
+		}
+		return state;
+	}
+
+	async #containerPathState(
+		container: ContainerBackend,
+		path: string,
+	): Promise<CandidatePathState> {
+		const result = await this.#bounded(
+			container.exec(
+				pipefailCommand(
+					`if test -L ${quote(path)}; then printf 'symlink\\0'; readlink -n -- ${quote(path)}; elif test -f ${quote(path)}; then if test -x ${quote(path)}; then printf 'executable\\0'; else printf 'file\\0'; fi; else printf 'missing\\0'; fi | base64 -w0`,
+				),
+				{ cwd: this.#repoDir },
+			),
+			"candidate checkpoint path",
+		);
+		if (result.exitCode !== 0) {
+			throw new Error(`candidate checkpoint path inspection failed: ${lastOutput(result)}`);
+		}
+		const raw = decodeBase64Utf8(result.stdout, "candidate checkpoint path");
+		const [kind, value, ...extra] = raw.split("\0");
+		if (kind === "symlink" && value !== undefined && value !== "" && extra.length === 0) {
+			return { kind, target: value };
+		}
+		if (
+			(kind === "file" || kind === "executable" || kind === "missing") &&
+			value === "" &&
+			extra.length === 0
+		) {
+			return kind === "missing" ? { kind } : { kind: "file", executable: kind === "executable" };
+		}
+		throw new Error("candidate checkpoint path returned an invalid entry");
+	}
+
 	async execReadOnly(command: string, options: ExecOptions = {}): Promise<ExecResult> {
 		const timeoutMs = options.timeoutMs;
 		const deadlineMs = timeoutMs
@@ -248,7 +368,7 @@ export class ExecEnv {
 		}
 		const commitMessage = input.commitMessage.trim();
 		if (commitMessage === "") throw new Error("candidate commit message is empty");
-		const container = await this.container();
+		const container = await this.publisherContainer();
 		await this.#restoreContainerBase(container, input.baseRef);
 		await this.#materializeChanges(container);
 		await this.#stageCandidate(container);
@@ -354,6 +474,80 @@ export class ExecEnv {
 			);
 		}
 		return { branch: input.branch, commitSha, files };
+	}
+
+	async publishArtifacts(input: {
+		branch: string;
+		runId: string;
+		baseRef: string;
+		files: readonly string[];
+	}): Promise<{ branch: string; files: string[] }> {
+		if (!ARTIFACT_BRANCH.test(input.branch)) {
+			throw new Error(`invalid artifact branch: ${input.branch}`);
+		}
+		const files = [...new Set(input.files)];
+		if (files.length === 0) throw new Error("artifact publication has no files");
+		if (files.length > 20) throw new Error("artifact publication exceeds 20 files");
+		const contents = await Promise.all(
+			files.map(async (name) => ({ name, content: await this.readArtifact(name) })),
+		);
+		const container = await this.publisherContainer();
+		await this.#restoreContainerBase(container, input.baseRef);
+		const prepare = await this.#bounded(
+			container.exec(
+				pipefailCommand(
+					`git checkout --orphan ${quote(`emdash-artifacts-${input.runId}`)} && git rm -rf --ignore-unmatch -- . && git clean -fd -- .`,
+				),
+				{ cwd: this.#repoDir },
+			),
+			"artifact branch prepare",
+		);
+		if (prepare.exitCode !== 0) {
+			throw new Error(`artifact branch prepare failed: ${lastOutput(prepare)}`);
+		}
+		for (const artifact of contents) {
+			await container.writeFile(
+				`${this.#repoDir}/.bot-artifacts/${artifact.name}`,
+				artifact.content,
+			);
+		}
+		const commit = await this.#bounded(
+			container.exec(
+				pipefailCommand(
+					`git add -- .bot-artifacts && git commit --no-verify -m ${quote(`chore: store bot artifacts (${input.runId})`)}`,
+				),
+				{ cwd: this.#repoDir },
+			),
+			"artifact commit",
+		);
+		if (commit.exitCode !== 0) throw new Error(`artifact commit failed: ${lastOutput(commit)}`);
+		const committed = await this.#bounded(
+			container.exec(pipefailCommand("git rev-parse HEAD"), { cwd: this.#repoDir }),
+			"artifact commit lookup",
+		);
+		if (committed.exitCode !== 0) {
+			throw new Error(`artifact commit lookup failed: ${lastOutput(committed)}`);
+		}
+		const commitSha = committed.stdout.trim();
+		const liveBefore = await this.#remoteBranchSha(container, input.branch);
+		const lease = `--force-with-lease=refs/heads/${input.branch}:${liveBefore ?? ""}`;
+		const push = await this.#bounded(
+			container.exec(
+				pipefailCommand(
+					`git push --porcelain ${quote(lease)} origin ${quote(`HEAD:refs/heads/${input.branch}`)}`,
+				),
+				{ cwd: this.#repoDir },
+			),
+			"artifact push",
+		);
+		if (push.exitCode !== 0) throw new Error(`artifact push failed: ${lastOutput(push)}`);
+		const publishedSha = await this.#remoteBranchSha(container, input.branch);
+		if (publishedSha !== commitSha) {
+			throw new Error(
+				`artifact branch verification failed (expected ${commitSha}, found ${publishedSha ?? "absent"})`,
+			);
+		}
+		return { branch: input.branch, files };
 	}
 
 	async #candidateTreeSha(container: ContainerBackend): Promise<string> {
@@ -463,6 +657,21 @@ export class ExecEnv {
 		return this.#recoverContainer();
 	}
 
+	async publisherContainer(): Promise<ContainerBackend> {
+		const promise = (this.#publisherPromise ??= withDeadline(
+			this.#attachPublisherContainer(),
+			this.#deadlines.attachTimeoutMs,
+			"publisher container attach",
+		).catch((error: unknown) => {
+			this.#publisherPromise = undefined;
+			throw error;
+		}));
+		const container = await promise;
+		if (await this.#containerReady(container)) return container;
+		this.#publisherPromise = undefined;
+		throw new Error("publisher container checkout is unavailable");
+	}
+
 	#attachedContainer(): Promise<ContainerBackend> {
 		return (this.#containerPromise ??= withDeadline(
 			this.#attachContainer(),
@@ -506,6 +715,16 @@ export class ExecEnv {
 		changed.push(path);
 		await this.#bounded(this.#state.mkdir(META_DIR, { recursive: true }), "mkdir");
 		await this.#bounded(this.#state.writeFile(CHANGE_LOG, JSON.stringify(changed)), "writeFile");
+		const deleted = await this.#readDeletedLog();
+		if (deleted.includes(path)) {
+			await this.#bounded(
+				this.#state.writeFile(
+					DELETED_LOG,
+					JSON.stringify(deleted.filter((entry) => entry !== path)),
+				),
+				"writeFile",
+			);
+		}
 	}
 
 	async #writeFile(path: string, content: string): Promise<void> {
@@ -534,8 +753,30 @@ export class ExecEnv {
 	}
 
 	async #readChangeLog(): Promise<string[]> {
-		if (!(await this.#bounded(this.#state.exists(CHANGE_LOG), "exists"))) return [];
-		const raw = await this.#bounded(this.#state.readFile(CHANGE_LOG), "readFile");
+		return this.#readPathLog(CHANGE_LOG);
+	}
+
+	async #readDeletedLog(): Promise<string[]> {
+		return this.#readPathLog(DELETED_LOG);
+	}
+
+	async #readModeLog(): Promise<Record<string, "100644" | "100755">> {
+		if (!(await this.#bounded(this.#state.exists(MODE_LOG), "exists"))) return {};
+		const raw = await this.#bounded(this.#state.readFile(MODE_LOG), "readFile");
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(raw);
+		} catch (error) {
+			throw new Error("invalid VFS mode log: malformed JSON", { cause: error });
+		}
+		if (!isCandidateModeLog(parsed)) throw new Error("invalid VFS mode log");
+		for (const path of Object.keys(parsed)) this.#assertLoggedPath(path);
+		return parsed;
+	}
+
+	async #readPathLog(logPath: string): Promise<string[]> {
+		if (!(await this.#bounded(this.#state.exists(logPath), "exists"))) return [];
+		const raw = await this.#bounded(this.#state.readFile(logPath), "readFile");
 		let parsed: unknown;
 		try {
 			parsed = JSON.parse(raw);
@@ -543,12 +784,22 @@ export class ExecEnv {
 			throw new Error("invalid VFS change log: malformed JSON", { cause: error });
 		}
 		if (!Array.isArray(parsed) || parsed.some((path) => typeof path !== "string")) {
-			throw new Error("invalid VFS change log: expected an array of paths");
+			throw new Error("invalid VFS path log: expected an array of paths");
 		}
-		if (parsed.some((path) => !path.startsWith(`${this.#repoDir}/`))) {
+		for (const path of parsed) this.#assertLoggedPath(path);
+		return parsed;
+	}
+
+	#assertLoggedPath(path: string): void {
+		const prefix = `${this.#repoDir}/`;
+		if (!path.startsWith(prefix)) {
 			throw new Error("invalid VFS change log: path outside repository");
 		}
-		return parsed;
+		try {
+			assertCandidatePath(path.slice(prefix.length));
+		} catch (error) {
+			throw new Error("invalid VFS change log: forbidden repository path", { cause: error });
+		}
 	}
 
 	/**
@@ -557,8 +808,56 @@ export class ExecEnv {
 	 * current content no matter which isolate recorded the change.
 	 */
 	async #materializeChanges(container: ContainerBackend): Promise<void> {
+		const modes = await this.#readModeLog();
+		for (const path of await this.#readDeletedLog()) {
+			const result = await this.#bounded(
+				container.exec(`rm -f -- ${quote(path)}`),
+				"materialize deletion",
+			);
+			if (result.exitCode !== 0) {
+				throw new Error(`candidate deletion replay failed: ${lastOutput(result)}`);
+			}
+		}
 		for (const path of await this.#readChangeLog()) {
-			await container.writeFile(path, await this.readFile(path));
+			const entry = await this.#bounded(this.#state.lstat(path), "lstat");
+			if (entry?.type === "symlink") {
+				const target = await this.#bounded(this.#state.readlink(path), "readlink");
+				assertSafeSymlinkTarget(path.slice(`${this.#repoDir}/`.length), target);
+				const result = await this.#bounded(
+					container.exec(`rm -f -- ${quote(path)} && ln -s -- ${quote(target)} ${quote(path)}`),
+					"materialize symlink",
+				);
+				if (result.exitCode !== 0) {
+					throw new Error(`candidate symlink replay failed: ${lastOutput(result)}`);
+				}
+				continue;
+			}
+			if (entry?.type !== "file") throw new Error(`candidate change is not a file: ${path}`);
+			const mode = modes[path];
+			const prepare = await this.#bounded(
+				container.exec(
+					mode
+						? `rm -f -- ${quote(path)}`
+						: `if test -L ${quote(path)}; then rm -f -- ${quote(path)}; fi`,
+				),
+				"materialize file",
+			);
+			if (prepare.exitCode !== 0) {
+				throw new Error(`candidate file replay failed: ${lastOutput(prepare)}`);
+			}
+			await container.writeFile(
+				path,
+				await this.#bounded(this.#state.readFileBytes(path), "readFileBytes"),
+			);
+			if (mode) {
+				const chmod = await this.#bounded(
+					container.exec(`chmod ${mode === "100755" ? "755" : "644"} ${quote(path)}`),
+					"materialize mode",
+				);
+				if (chmod.exitCode !== 0) {
+					throw new Error(`candidate mode replay failed: ${lastOutput(chmod)}`);
+				}
+			}
 		}
 	}
 
@@ -569,6 +868,40 @@ export class ExecEnv {
 
 const TRAILING_SLASH = /\/+$/;
 const PATH_SEPARATOR = /[/\\]/;
+
+type CandidatePathState =
+	| { kind: "missing" }
+	| { kind: "file"; executable: boolean }
+	| { kind: "symlink"; target: string };
+
+function isCandidateModeLog(value: unknown): value is Record<string, "100644" | "100755"> {
+	return (
+		typeof value === "object" &&
+		value !== null &&
+		!Array.isArray(value) &&
+		Object.values(value).every((mode) => mode === "100644" || mode === "100755")
+	);
+}
+
+function assertSafeSymlinkTarget(linkPath: string, target: string): void {
+	if (target.startsWith("/") || target === "") {
+		throw new Error(`candidate symlink target escapes the repository: ${linkPath} -> ${target}`);
+	}
+	const resolved = linkPath.split("/").slice(0, -1);
+	for (const segment of target.split("/")) {
+		if (segment === "" || segment === ".") continue;
+		if (segment === "..") {
+			if (resolved.length === 0) {
+				throw new Error(
+					`candidate symlink target escapes the repository: ${linkPath} -> ${target}`,
+				);
+			}
+			resolved.pop();
+		} else {
+			resolved.push(segment);
+		}
+	}
+}
 
 function decodeBase64Utf8(encoded: string, label: string): string {
 	const value = encoded.trim();
@@ -589,6 +922,15 @@ function decodeBase64Bytes(encoded: string): Uint8Array {
 		bytes[index] = binary.charCodeAt(index);
 	}
 	return bytes;
+}
+
+function encodeBase64Bytes(bytes: Uint8Array): string {
+	const chunks: string[] = [];
+	const chunkSize = 32_768;
+	for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+		chunks.push(String.fromCharCode(...bytes.subarray(offset, offset + chunkSize)));
+	}
+	return btoa(chunks.join(""));
 }
 
 function parseCandidatePaths(raw: string): string[] {
@@ -643,7 +985,11 @@ export function fromSandbox(sandbox: Sandbox): ContainerBackend {
 			return { exitCode: result.exitCode, stdout: result.stdout, stderr: result.stderr };
 		},
 		async writeFile(path, content) {
-			await sandbox.writeFile(path, content);
+			if (typeof content === "string") {
+				await sandbox.writeFile(path, content);
+				return;
+			}
+			await sandbox.writeFile(path, encodeBase64Bytes(content), { encoding: "base64" });
 		},
 		async readFileBytes(path) {
 			const { content } = await sandbox.readFile(path, { encoding: "base64" });
