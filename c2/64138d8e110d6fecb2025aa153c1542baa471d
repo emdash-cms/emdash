@@ -1,0 +1,23 @@
+.changeset/clear-editor-paragraph-spacing.md
+  s_c3f41c9ee09877::t_bb30d958896319 1-5
+packages/admin/tests/editor/paragraph-spacing.test.tsx
+  s_c3f41c9ee09877::t_9630e24f5e83ab 1-68
+packages/admin/src/styles.css
+  s_c3f41c9ee09877::t_e6fe176d14fef9 398,418,420-422,429-432
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c264138d8e110d6fecb2025aa153c1542baa471d",
+  "prompts": {},
+  "sessions": {
+    "s_c3f41c9ee09877": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08315-6774-7332-ab0a-6a5974389f24",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
