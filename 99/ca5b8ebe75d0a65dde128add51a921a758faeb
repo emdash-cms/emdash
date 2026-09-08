@@ -1,0 +1,35 @@
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_0135e5d9216639::t_29603e1208f829 12,17,102,105-106,141-147,265,268-270,286,288-290,327,333,336,339-341,398,401-403,515,518,521-522,524,659,662-664,680,745,748-750,781,787,879,882,886,922,932-933,935,938-940,944-945,947,951-953,958,966-967,972,980-981,997-998,1009,1017
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_0135e5d9216639::t_1bc7e0ee82c98e 3,5,9,23,27-34,36,38,42,46,50,52,54,56,58,64,66,72,74,80,82,86,88,92,94,100-111,113,115,123,130,140,153,211
+demos/simple/presentation/talk/lisbon-slides.js
+  s_0135e5d9216639::t_f8de323db88412 34,166-167,169-170,234,283-287,430
+demos/simple/presentation/README.md
+  s_20baffdc2d088d::t_132a13906aabaf 54
+demos/simple/presentation/talk/polished-lisbon.css
+  s_20baffdc2d088d::t_7124bcc00fcea8 328-330,400
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "99ca5b8ebe75d0a65dde128add51a921a758faeb",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
