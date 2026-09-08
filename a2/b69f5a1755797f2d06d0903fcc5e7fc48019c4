@@ -1,0 +1,29 @@
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_0135e5d9216639::t_bca8205110e2f5 67-72,138-143,149-154,201-206,243-248,317-322,324-329,331-336,390-395,459-464,466-471,473-478,480-485,503-508,524-529,546-551,609-614,668-673
+demos/simple/presentation/talk/polished-lisbon.css
+  s_20baffdc2d088d::t_1d0aa3cf9e126e 1061-1072,1087-1099
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a2b69f5a1755797f2d06d0903fcc5e7fc48019c4",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
