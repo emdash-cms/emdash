@@ -1,4 +1,4 @@
-import { Toasty } from "@cloudflare/kumo";
+import { Sidebar, Toasty } from "@cloudflare/kumo";
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
@@ -31,6 +31,52 @@ afterEach(async () => {
 });
 
 describe("Media Library pagination layout", () => {
+	it("aligns a short library with the sidebar footer as the viewport expands and contracts", async () => {
+		const screen = await render(
+			<Toasty>
+				<div style={{ display: "flex", height: "100vh" }}>
+					<aside style={{ display: "flex", flexDirection: "column", width: 260, flexShrink: 0 }}>
+						<div style={{ flex: 1 }} />
+						<Sidebar.Footer data-testid="sidebar-footer">My Blog</Sidebar.Footer>
+					</aside>
+					<main style={{ flex: 1, minWidth: 0, overflowY: "auto", padding: 24 }}>
+						<MediaLibrary
+							items={items.slice(0, 7)}
+							pagination={{
+								page: 1,
+								perPage: 35,
+								totalCount: 7,
+								isPending: false,
+								onPageChange: vi.fn(),
+								onPageSizeChange: vi.fn(),
+							}}
+						/>
+					</main>
+				</div>
+			</Toasty>,
+		);
+		const main = screen.getByRole("main").element();
+		const footer = screen.getByRole("combobox", { name: "Page size" }).element().closest("footer")!;
+		const sidebarFooter = screen.getByTestId("sidebar-footer").element();
+		for (const [width, height] of [
+			[1280, 800],
+			[1920, 1200],
+			[2560, 1600],
+			[1280, 800],
+		] as const) {
+			await page.viewport(width, height);
+			for (const view of ["Grid view", "List view"]) {
+				await screen.getByRole("tab", { name: view }).click();
+				const bounds = footer.getBoundingClientRect();
+				const reference = sidebarFooter.getBoundingClientRect();
+				expect(main.scrollHeight).toBe(main.clientHeight);
+				expect(bounds.bottom).toBeCloseTo(reference.bottom, 0);
+				expect(bounds.top).toBeCloseTo(reference.top, 0);
+				expect(bounds.height).toBeCloseTo(reference.height, 0);
+			}
+		}
+	});
+
 	it.each([
 		{ width: 1280, direction: "ltr" },
 		{ width: 320, direction: "rtl" },

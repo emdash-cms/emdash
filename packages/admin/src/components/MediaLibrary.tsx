@@ -770,13 +770,11 @@ export function MediaLibrary({
 			onDragCancel: handleMediaDragCancel,
 		},
 		<div
-			className={cn(
-				"space-y-4",
-				activeProvider === "local" &&
-					pagination &&
-					pagination.totalCount > 0 &&
-					"[&_[data-media-layout]]:scroll-mb-48",
-			)}
+			className={
+				activeProvider === "local" && pagination && pagination.totalCount > 0
+					? "flex min-h-full flex-col gap-4 [&_[data-media-layout]]:scroll-mb-48"
+					: "space-y-4"
+			}
 			data-media-library
 			aria-busy={currentLoading || moveMutation.isPending || undefined}
 			onClickCapture={handleRootClickCapture}
@@ -1303,7 +1301,7 @@ export function MediaLibrary({
 			{activeProvider === "local" && pagination && pagination.totalCount > 0 && (
 				<footer
 					ref={paginationRootRef}
-					className="sticky -bottom-6 z-10 -mx-6 -mb-6 min-w-0 border-t border-kumo-line bg-kumo-elevated px-6 py-3"
+					className="sticky -bottom-6 z-10 -mx-6 mt-auto -mb-6 flex min-h-12 min-w-0 shrink-0 items-center border-t border-kumo-line bg-kumo-elevated px-6 py-1"
 				>
 					<Pagination
 						page={pagination.page}
