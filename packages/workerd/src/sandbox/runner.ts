@@ -362,6 +362,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	private shuttingDown = false;
 
 	/**
+	 * True once the crash budget is spent and scheduleRestart() stopped
+	 * scheduling retries. Giving up leaves needsRestart false, which at the
+	 * invocation site looks identical to a runner that has not started yet.
+	 */
+	private gaveUp = false;
+
+	/**
 	 * True when stopWorkerd() is intentionally tearing down the child
 	 * (e.g., on intentional restart() to reload plugins). The exit handler
 	 * uses this to skip crash recovery for intentional stops, otherwise
@@ -447,6 +454,21 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	}
 
 	/**
+	 * Why an invocation cannot reach workerd, for the message carried by
+	 * SandboxUnavailableError.
+	 *
+	 * Giving up is the one state no invocation retries out of: needsRestart
+	 * stays false, so ensureRunning() returns without starting anything and
+	 * workerd waits for a server restart or a plugin (re)load.
+	 */
+	unavailableReason(): string {
+		if (this.gaveUp) {
+			return "workerd crashed 5 times in 60 seconds and the runner stopped retrying; restart the server";
+		}
+		return "workerd is not running";
+	}
+
+	/**
 	 * Ensure workerd is running. Called before first invocation.
 	 * Batches plugin loading: all plugins are registered via load(),
 	 * then workerd starts once on the first hook/route call.
@@ -467,6 +489,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		try {
 			await this.startupPromise;
 			this.needsRestart = false;
+			// load() and unloadPlugin() reach this after the crash budget was
+			// spent, which is the only way back out of the give-up state.
+			this.gaveUp = false;
 		} finally {
 			// Always clear startupPromise so a failed start doesn't block
 			// subsequent retries. needsRestart stays true on failure (set above
@@ -594,9 +619,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.crashCount++;
 
 		if (this.crashCount > 5) {
+			this.gaveUp = true;
 			console.error(
 				"[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up. " +
-					"Plugins will run unsandboxed. Restart the server to retry.",
+					"Sandboxed plugin hooks and routes now fail with SandboxUnavailableError. " +
+					"Restart the server to retry.",
 			);
 			return;
 		}
@@ -944,7 +971,7 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	private async ensureReady(): Promise<void> {
 		await this.runner.ensureRunning();
 		if (!this.runner.isHealthy()) {
-			throw new SandboxUnavailableError(this.id, "workerd is not running");
+			throw new SandboxUnavailableError(this.id, this.runner.unavailableReason());
 		}
 	}
 
