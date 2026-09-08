@@ -9,6 +9,7 @@ import type {
 import { sql } from "kysely";
 import { ulid } from "ulidx";
 
+import { refreshDevTypes } from "../astro/dev-typegen.js";
 import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
@@ -243,6 +244,13 @@ export class SchemaError extends Error {
  */
 export class SchemaRegistry {
 	constructor(private db: Kysely<Database>) {}
+
+	/**
+	 * Notify the dev typegen hook that the schema has changed.
+	 */
+	private notifyTypegen(): void {
+		refreshDevTypes(this.db);
+	}
 
 	// ============================================
 	// Collection Operations
@@ -496,6 +504,7 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to create collection", "CREATE_FAILED");
 		}
 
+		this.notifyTypegen();
 		return collection;
 	}
 
@@ -671,6 +680,7 @@ export class SchemaRegistry {
 			}
 			throw error;
 		}
+		this.notifyTypegen();
 	}
 
 	private async assertSeedFieldDefinitions(
@@ -719,7 +729,7 @@ export class SchemaRegistry {
 	 * Update a collection
 	 */
 	async updateCollection(slug: string, input: UpdateCollectionInput): Promise<Collection> {
-		return withTransaction(this.db, async (trx) => {
+		const updated = await withTransaction(this.db, async (trx) => {
 			const existingRow = await trx
 				.selectFrom("_emdash_collections")
 				.where("slug", "=", slug)
@@ -798,6 +808,8 @@ export class SchemaRegistry {
 
 			return this.mapCollectionRow(row);
 		});
+		this.notifyTypegen();
+		return updated;
 	}
 
 	/**
@@ -852,6 +864,7 @@ export class SchemaRegistry {
 			}
 			throw error;
 		}
+		this.notifyTypegen();
 	}
 
 	// ============================================
@@ -1005,6 +1018,7 @@ export class SchemaRegistry {
 					"CONTENT_USAGE_STALE",
 				);
 			}
+			this.notifyTypegen();
 			return created;
 		} catch (error) {
 			if (schemaMutated) {
@@ -1185,6 +1199,7 @@ export class SchemaRegistry {
 					);
 				}
 			}
+			this.notifyTypegen();
 			return updatedField;
 		} catch (error) {
 			if (schemaMutated) {
@@ -1326,6 +1341,7 @@ export class SchemaRegistry {
 			}
 			throw error;
 		}
+		this.notifyTypegen();
 	}
 
 	/**
@@ -1380,6 +1396,7 @@ export class SchemaRegistry {
 					.execute();
 			}
 		});
+		this.notifyTypegen();
 	}
 
 	/**
@@ -1400,6 +1417,7 @@ export class SchemaRegistry {
 				.where("slug", "=", fieldSlugs[i])
 				.execute();
 		}
+		this.notifyTypegen();
 	}
 
 	// ============================================
@@ -1996,6 +2014,7 @@ export class SchemaRegistry {
 				throw new SchemaError("Failed to register orphaned table", "REGISTER_FAILED");
 			}
 			await markContentMediaUsageCollectionStaleSafely(this.db, slug, "CONTENT_USAGE_STALE");
+			this.notifyTypegen();
 
 			return collection;
 		} catch (error) {

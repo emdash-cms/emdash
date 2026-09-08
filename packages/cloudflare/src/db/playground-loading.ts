@@ -156,8 +156,8 @@ export function renderPlaygroundLoadingPage(): string {
     stroke: var(--step-green-ring);
     stroke-dasharray: 100 0;
     transition:
-      stroke 400ms ease,
-      stroke-dasharray 400ms cubic-bezier(0.22, 1, 0.36, 1);
+      stroke 900ms ease,
+      stroke-dasharray 900ms cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   .pg-step.done .pg-ring-progress {
@@ -182,7 +182,7 @@ export function renderPlaygroundLoadingPage(): string {
 
   .pg-step.completing .pg-step-core {
     background: var(--step-green);
-    transition-duration: 400ms;
+    transition-duration: 900ms;
   }
 
   .pg-step.done .pg-step-core {
@@ -200,8 +200,8 @@ export function renderPlaygroundLoadingPage(): string {
     opacity: 0;
     transform: scale(0.35);
     transition:
-      opacity 400ms cubic-bezier(0.16, 1, 0.3, 1),
-      transform 400ms cubic-bezier(0.16, 1, 0.3, 1);
+      opacity 900ms cubic-bezier(0.16, 1, 0.3, 1),
+      transform 900ms cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .pg-step.completing .pg-check,
@@ -234,7 +234,7 @@ export function renderPlaygroundLoadingPage(): string {
 
   .pg-step.completing .pg-connector-fill {
     transform: scaleY(1);
-    transition: transform 300ms cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 750ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .pg-step.done .pg-connector-fill {
@@ -256,7 +256,7 @@ export function renderPlaygroundLoadingPage(): string {
   .pg-step.completing .pg-step-label,
   .pg-step.done .pg-step-label {
     color: var(--label-complete);
-    transition-duration: 400ms;
+    transition-duration: 900ms;
   }
 
   @keyframes pg-ring-spin {
@@ -382,8 +382,8 @@ export function renderPlaygroundLoadingPage(): string {
 (function() {
   var steps = ["step-db", "step-content", "step-ready"];
   var stepTimers = [];
-  var completionDuration = 400;
-  var nextStepDelay = 150;
+  var completionDuration = 900;
+  var nextStepDelay = 300;
 
   function setStepState(index, state) {
     var step = document.getElementById(steps[index]);

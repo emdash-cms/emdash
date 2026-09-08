@@ -1,5 +1,5 @@
 import type { Kysely } from "kysely";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../../../src/database/repositories/revision.js";
@@ -21,6 +21,7 @@ describe("ContentRepository", () => {
 	});
 
 	afterEach(async () => {
+		vi.useRealTimers();
 		await teardownTestDatabase(db);
 	});
 
@@ -319,6 +320,51 @@ describe("ContentRepository", () => {
 			expect(updated.updatedAt).not.toBe(created.updatedAt);
 		});
 
+		it("should normalize a non-UTC scheduledAt offset", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+
+			const updated = await repo.update("post", created.id, {
+				scheduledAt: "2099-01-01T21:00:00+09:00",
+			});
+
+			expect(updated.scheduledAt).toBe("2099-01-01T12:00:00.000Z");
+		});
+
+		it("should normalize scheduledAt when staging a draft-aware update", async () => {
+			const created = await repo.create(createPostFixture());
+
+			const updated = await repo.updateDraftAware("post", created.id, {
+				data: { title: "Scheduled revision" },
+				scheduledAt: "2099-01-01T07:00:00-05:00",
+			});
+
+			expect(updated.draftRevisionId).not.toBeNull();
+			expect(updated.scheduledAt).toBe("2099-01-01T12:00:00.000Z");
+		});
+
+		it("should clear scheduledAt when set to null", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+			const future = new Date(Date.now() + 86_400_000).toISOString();
+			await repo.update("post", created.id, { scheduledAt: future });
+
+			const updated = await repo.update("post", created.id, {
+				scheduledAt: null,
+			});
+
+			expect(updated.scheduledAt).toBeNull();
+		});
+
+		it("should reject an invalid scheduledAt string", async () => {
+			const input = createPostFixture();
+			const created = await repo.create(input);
+
+			await expect(repo.update("post", created.id, { scheduledAt: "not-a-date" })).rejects.toThrow(
+				EmDashValidationError,
+			);
+		});
+
 		it("should throw error for non-existent content", async () => {
 			await expect(repo.update("post", "01J9FAKE0000000000000000", { data: {} })).rejects.toThrow(
 				"Content not found",
@@ -447,6 +493,22 @@ describe("ContentRepository", () => {
 			await expect(repo.schedule("post", post.id, "not-a-date")).rejects.toThrow(
 				EmDashValidationError,
 			);
+		});
+
+		it.each([
+			["positive", "2030-01-01T21:00:00+09:00"],
+			["negative", "2030-01-01T07:00:00-05:00"],
+		])("should publish a %s offset at the represented instant", async (_offset, scheduledAt) => {
+			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
+			const post = await repo.create(createPostFixture());
+			const updated = await repo.schedule("post", post.id, scheduledAt);
+			expect(updated.scheduledAt).toBe("2030-01-01T12:00:00.000Z");
+
+			vi.setSystemTime(new Date("2030-01-01T11:59:59.999Z"));
+			expect(await repo.findReadyToPublish("post")).toEqual([]);
+
+			vi.setSystemTime(new Date("2030-01-01T12:00:00.000Z"));
+			expect((await repo.findReadyToPublish("post")).map((item) => item.id)).toEqual([post.id]);
 		});
 	});
 

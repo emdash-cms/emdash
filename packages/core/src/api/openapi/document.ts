@@ -914,7 +914,7 @@ function buildMediaPaths(maxUploadSize: number) {
 				operationId: "replaceMediaImage",
 				summary: "Replace a media image",
 				description:
-					"Overwrites a ready local image under its existing storage key and refreshes its file metadata.",
+					"Overwrites a ready local image under its existing storage key and refreshes its file metadata while preserving its media ID, filename, and URL. The replacement may use different dimensions or an aspect ratio from the original.",
 				tags: ["Media"],
 				requestParams: {
 					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),

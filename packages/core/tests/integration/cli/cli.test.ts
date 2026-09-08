@@ -275,11 +275,11 @@ describe("CLI Integration", () => {
 			);
 
 			// Schedule does not produce JSON output, just a success message
-			await cli("content", "schedule", "posts", item.id, "--at", "2027-06-01T09:00:00Z");
+			await cli("content", "schedule", "posts", item.id, "--at", "2027-06-01T04:00:00-05:00");
 
 			// Verify via get
 			const fetched = await cliJson<{ scheduledAt: string }>("content", "get", "posts", item.id);
-			expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00Z");
+			expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00.000Z");
 
 			// Clean up
 			await cli("content", "delete", "posts", item.id);

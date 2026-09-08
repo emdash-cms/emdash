@@ -1,6 +1,35 @@
 import { describe, it, expect } from "vitest";
 
-import { sanitizeRedirectUrl } from "../../src/lib/url";
+import { contentUrl, sanitizeRedirectUrl } from "../../src/lib/url";
+
+describe("contentUrl", () => {
+	it("prefixes published links with the entry's non-default locale", () => {
+		expect(
+			contentUrl("posts", "polski-test", "/posts/{slug}", {
+				locale: "pl",
+				i18n: { defaultLocale: "en", locales: ["en", "pl"], prefixDefaultLocale: false },
+			}),
+		).toBe("/pl/posts/polski-test");
+	});
+
+	it("leaves the default locale unprefixed when configured", () => {
+		expect(
+			contentUrl("posts", "english-test", "/posts/{slug}", {
+				locale: "en",
+				i18n: { defaultLocale: "en", locales: ["en", "pl"], prefixDefaultLocale: false },
+			}),
+		).toBe("/posts/english-test");
+	});
+
+	it("prefixes the default locale when configured", () => {
+		expect(
+			contentUrl("posts", "english-test", "/posts/{slug}", {
+				locale: "en",
+				i18n: { defaultLocale: "en", locales: ["en", "pl"], prefixDefaultLocale: true },
+			}),
+		).toBe("/en/posts/english-test");
+	});
+});
 
 describe("sanitizeRedirectUrl", () => {
 	it("allows simple relative paths", () => {

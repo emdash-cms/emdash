@@ -9,12 +9,8 @@
  * Usage: npm create emdash@latest [name] [options]
  */
 
-import { exec } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
-import { promisify } from "node:util";
-
-const execAsync = promisify(exec);
 
 import * as p from "@clack/prompts";
 import { downloadTemplate } from "giget";
@@ -31,7 +27,7 @@ import {
 	validateProjectName,
 	wantsHelp,
 } from "./flags.js";
-import { isDirNonEmpty, sanitizePackageName, writeEncryptionKey } from "./utils.js";
+import { isDirNonEmpty, runCommand, sanitizePackageName, writeEncryptionKey } from "./utils.js";
 
 const GITHUB_REPO = "emdash-cms/templates";
 
@@ -410,17 +406,17 @@ async function main() {
 		}
 
 		if (shouldInstall) {
-			s.start(`Installing dependencies with ${pc.cyan(pm)}...`);
+			p.log.info(`Installing dependencies with ${pc.cyan(pm)}...`);
 			try {
-				await execAsync(installCmd, { cwd: projectDir });
-				s.stop("Dependencies installed!");
-			} catch {
-				s.stop("Failed to install dependencies");
-				p.log.warn(
-					isCurrentDir
-						? `Run ${pc.cyan(installCmd)} manually`
-						: `Run ${pc.cyan(`cd ${projectName} && ${installCmd}`)} manually`,
-				);
+				await runCommand(pm, ["install"], projectDir);
+				p.log.success("Dependencies installed!");
+			} catch (error) {
+				p.log.error(error instanceof Error ? error.message : String(error));
+				const retry = isCurrentDir ? installCmd : `cd ${projectName} && ${installCmd}`;
+				p.note(retry, "Dependency installation failed");
+				p.outro("Project files were created, but dependencies were not installed");
+				process.exitCode = 1;
+				return;
 			}
 		}
 

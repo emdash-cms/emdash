@@ -192,6 +192,35 @@ describe("gateGithubRequest", () => {
 		).resolves.toMatch(/current issue/);
 	});
 
+	test("allows Git's authenticated large-request probe without accepting trailing data", async () => {
+		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
+		const probe = new Request(url, { method: "POST", body: "0000" });
+
+		await expect(inspectGithubRequest(probe.clone(), url, OWNER, REPO)).resolves.toMatchObject({
+			allowed: false,
+			stage: "capability",
+		});
+		await expect(inspectGithubRequest(probe.clone(), url, OWNER, REPO, 123)).resolves.toMatchObject(
+			{
+				allowed: true,
+				authentication: "installation",
+				refs: [],
+			},
+		);
+		await expect(
+			inspectGithubRequest(
+				new Request(url, { method: "POST", body: "0000PACKpayload" }),
+				url,
+				OWNER,
+				REPO,
+				123,
+			),
+		).resolves.toMatchObject({
+			allowed: false,
+			stage: "receive-pack",
+		});
+	});
+
 	test("inspects gzip-compressed receive-pack commands before allowing a push", async () => {
 		const url = new URL("https://github.com/emdash-cms/emdash.git/git-receive-pack");
 		const body = gzipSync(

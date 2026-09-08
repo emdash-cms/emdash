@@ -322,11 +322,11 @@ describe("EmDashClient Integration", () => {
 		});
 
 		// Schedule for a future date
-		await ctx.client.schedule("posts", item.id, { at: "2027-06-01T09:00:00Z" });
+		await ctx.client.schedule("posts", item.id, { at: "2027-06-01T18:00:00+09:00" });
 
 		// Verify via get
 		const fetched = await ctx.client.get("posts", item.id);
-		expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00Z");
+		expect(fetched.scheduledAt).toBe("2027-06-01T09:00:00.000Z");
 
 		// Trash and restore
 		await ctx.client.delete("posts", item.id);

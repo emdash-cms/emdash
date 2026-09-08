@@ -67,6 +67,7 @@ import type {
 	SandboxRunnerFactory,
 } from "./plugins/sandbox/types.js";
 import type {
+	ContentHookEvent,
 	ResolvedPlugin,
 	MediaItem,
 	PluginManifest,
@@ -2716,7 +2717,11 @@ export class EmDashRuntime {
 		const i18nConfig = virtualConfig?.i18n ?? getI18nConfig();
 		const i18n =
 			i18nConfig && i18nConfig.locales && i18nConfig.locales.length > 1
-				? { defaultLocale: i18nConfig.defaultLocale, locales: i18nConfig.locales }
+				? {
+						defaultLocale: i18nConfig.defaultLocale,
+						locales: i18nConfig.locales,
+						prefixDefaultLocale: i18nConfig.prefixDefaultLocale,
+					}
 				: undefined;
 
 		// Normalize the experimental registry config for browser consumption.
@@ -3024,6 +3029,7 @@ export class EmDashRuntime {
 						bodyWithoutRev.data,
 						collection,
 						false,
+						resolvedItem?.id,
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -3032,7 +3038,12 @@ export class EmDashRuntime {
 			}
 
 			// Run sandboxed beforeSave hooks
-			const sandboxResult = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			const sandboxResult = await this.runSandboxedBeforeSave(
+				processedData!,
+				collection,
+				false,
+				resolvedItem?.id,
+			);
 			if (!sandboxResult.success) return sandboxResult;
 			processedData = sandboxResult.data;
 
@@ -3277,7 +3288,7 @@ export class EmDashRuntime {
 
 	async handleContentListTrashed(
 		collection: string,
-		params: { cursor?: string; limit?: number } = {},
+		params: { cursor?: string; limit?: number; locale?: string } = {},
 	) {
 		return handleContentListTrashed(this.db, collection, params);
 	}
@@ -3310,8 +3321,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentCountTrashed(collection: string) {
-		return handleContentCountTrashed(this.db, collection);
+	async handleContentCountTrashed(collection: string, params: { locale?: string } = {}) {
+		return handleContentCountTrashed(this.db, collection, params);
 	}
 
 	async handleContentDuplicate(collection: string, id: string, authorId?: string) {
@@ -4091,6 +4102,7 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		contentId?: string,
 	) {
 		let result = content;
 
@@ -4099,11 +4111,9 @@ export class EmDashRuntime {
 			if (!id || !this.isPluginEnabled(id)) continue;
 
 			try {
-				const hookResult = await plugin.invokeHook("content:beforeSave", {
-					content: result,
-					collection,
-					isNew,
-				});
+				const event: ContentHookEvent = { content: result, collection, isNew };
+				if (contentId !== undefined) event.id = contentId;
+				const hookResult = await plugin.invokeHook("content:beforeSave", event);
 				const inspection = inspectSandboxHookResult(hookResult);
 				if (inspection.kind === "error") {
 					return {

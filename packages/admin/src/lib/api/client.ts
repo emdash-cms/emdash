@@ -229,6 +229,7 @@ export interface AdminManifest {
 	i18n?: {
 		defaultLocale: string;
 		locales: string[];
+		prefixDefaultLocale?: boolean;
 	};
 	/** Stored-content locale policy, independent from the admin UI language. */
 	contentLocale?: {
