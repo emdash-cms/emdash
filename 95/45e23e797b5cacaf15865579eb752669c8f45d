@@ -1,0 +1,41 @@
+demos/simple/presentation/VERIFICATION.md
+  s_a5546e654e1f61::t_e6d396f755e651 3-12
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_0135e5d9216639::t_d65ea4bf5f3da4 660,676,678-690,692,827,830,881,883,893,901,906,915,920,929,934,946,948,951-952,957
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_0135e5d9216639::t_ba8656aaeb78a3 5,23,28-34,36,38,42,52,54,58,66,74,82,88,90,94,100,102-111,113,115-121,129,146,148-153,159,221-222
+demos/simple/presentation/README.md
+  s_20baffdc2d088d::t_e3aaffcbfd8eba 54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9545e23e797b5cacaf15865579eb752669c8f45d",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
