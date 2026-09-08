@@ -29,6 +29,7 @@ import {
 	requireCandidatePublication,
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
+import { applyCandidateForRevision } from "../lib/candidate-revision.js";
 import { contextRegistry } from "../lib/context-registry.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
@@ -946,7 +947,7 @@ async function attachContainerAttempt(
 		},
 	});
 	if (input.mode === "revise" && input.previousBranchSha) {
-		await applyCandidateForRevision(container, input.previousBranchSha);
+		await applyCandidateForRevision(container, input.previousBranchSha, cloneRef(input));
 	}
 	return {
 		...container,
@@ -958,39 +959,6 @@ async function attachContainerAttempt(
 			return result.exitCode === 0 && result.stdout.trim() === "true";
 		},
 	};
-}
-
-async function applyCandidateForRevision(
-	container: ContainerBackend,
-	candidateSha: string,
-): Promise<void> {
-	const fetch = await container.exec(
-		`git fetch --depth ${CLONE_DEPTH} origin ${quote(candidateSha)}`,
-		{
-			cwd: REPO_DIR,
-			timeoutMs: 5 * 60_000,
-		},
-	);
-	if (fetch.exitCode !== 0) {
-		throw new Error(`candidate fetch failed (${fetch.exitCode}): ${fetch.stderr.slice(-500)}`);
-	}
-	const apply = await container.exec(
-		[
-			"candidate=FETCH_HEAD",
-			'base="$(git merge-base HEAD "$candidate")"',
-			'test -n "$base"',
-			'git diff --binary "$base" "$candidate" -- > /tmp/emdash-candidate.patch',
-			"git apply --3way --whitespace=nowarn /tmp/emdash-candidate.patch",
-		].join(" && "),
-		{ cwd: REPO_DIR, timeoutMs: 5 * 60_000 },
-	);
-	if (apply.exitCode === 0) return;
-	const conflicts = await container.exec("git ls-files -u", {
-		cwd: REPO_DIR,
-		timeoutMs: DEFAULT_RPC_TIMEOUT_MS,
-	});
-	if (conflicts.exitCode === 0 && conflicts.stdout.trim() !== "") return;
-	throw new Error(`candidate rebase setup failed (${apply.exitCode}): ${apply.stderr.slice(-500)}`);
 }
 
 async function attachPublisherContainer(
