@@ -128,4 +128,30 @@ describe("maintainer-facing lifecycle", () => {
 		expect(parseCommand("@emdashbot reject")).toEqual({ event: "needs_changes", arg: null });
 		expect(parseCommand("@emdashbot resume")).toEqual({ event: "retry", arg: null });
 	});
+
+	test("keeps rejection feedback deterministic after the candidate expires", () => {
+		expect(parseCommand("@emdashbot reject look at the comments and try again")).toEqual({
+			event: "needs_changes",
+			arg: "look at the comments and try again",
+		});
+		expect(parseCommand("@emdashbot needs changes account for dense bylines")).toEqual({
+			event: "needs_changes",
+			arg: "account for dense bylines",
+		});
+
+		for (const state of ["reproduced", "diagnosed"] as const) {
+			const decision = resolve({
+				labels: ["bot:bug", `bot:${state}`],
+				event: "needs_changes",
+				arg: "account for dense bylines",
+				actor: "maintainer",
+			});
+			expect(decision).toMatchObject({
+				kind: "transition",
+				to: "working",
+				action: "investigate.work",
+				arg: "account for dense bylines",
+			});
+		}
+	});
 });

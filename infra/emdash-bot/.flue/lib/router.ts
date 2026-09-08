@@ -52,6 +52,7 @@ function isMachineActor(value: string): value is Actor {
 const MENTION_RE = /^[ \t]*@emdashbot(?=\s|$)([\s\S]*)/m;
 const WS_RE = /\s+/g;
 const UNDERSCORE_RE = /_/g;
+const NEEDS_CHANGES_WITH_FEEDBACK_RE = /^(?:reject|needs[ _]changes)\s+([\s\S]+)$/i;
 
 /**
  * The state id encoded in a label set.
@@ -124,6 +125,10 @@ export interface ParsedCommand {
 export function parseCommand(body: string | null | undefined): ParsedCommand | null {
 	const text = parseMention(body);
 	if (text === null) return null;
+	const needsChanges = NEEDS_CHANGES_WITH_FEEDBACK_RE.exec(text);
+	if (needsChanges?.[1]) {
+		return { event: "needs_changes", arg: needsChanges[1].trim() };
+	}
 	const normalized = text.trim().toLowerCase().replace(WS_RE, " ");
 	const aliased = VERB_ALIASES[normalized];
 	const event = aliased ?? (isKnownEvent(normalized) ? normalized : null);

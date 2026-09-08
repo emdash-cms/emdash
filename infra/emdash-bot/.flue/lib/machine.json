@@ -1310,6 +1310,13 @@
 		},
 		{
 			"from": "reproduced",
+			"event": "needs_changes",
+			"to": "working",
+			"action": "investigate.work",
+			"note": "late candidate feedback starts a new work run after the candidate expired"
+		},
+		{
+			"from": "reproduced",
 			"event": "fix",
 			"to": "fixing",
 			"action": "investigate.fix"
@@ -1335,6 +1342,13 @@
 			"event": "work",
 			"to": "working",
 			"action": "investigate.work"
+		},
+		{
+			"from": "diagnosed",
+			"event": "needs_changes",
+			"to": "working",
+			"action": "investigate.work",
+			"note": "candidate feedback remains actionable after a diagnosis-only run"
 		},
 		{
 			"from": "diagnosed",
