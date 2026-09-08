@@ -67,6 +67,7 @@ import type {
 	SandboxRunnerFactory,
 } from "./plugins/sandbox/types.js";
 import type {
+	ContentHookEvent,
 	ResolvedPlugin,
 	MediaItem,
 	PluginManifest,
@@ -190,6 +191,7 @@ import {
 	handleMediaGet,
 	handleMediaCreate,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
 	handleRevisionList,
 	handleRevisionGet,
@@ -3023,6 +3025,7 @@ export class EmDashRuntime {
 						bodyWithoutRev.data,
 						collection,
 						false,
+						resolvedItem?.id,
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -3031,7 +3034,12 @@ export class EmDashRuntime {
 			}
 
 			// Run sandboxed beforeSave hooks
-			const sandboxResult = await this.runSandboxedBeforeSave(processedData!, collection, false);
+			const sandboxResult = await this.runSandboxedBeforeSave(
+				processedData!,
+				collection,
+				false,
+				resolvedItem?.id,
+			);
 			if (!sandboxResult.success) return sandboxResult;
 			processedData = sandboxResult.data;
 
@@ -3276,7 +3284,7 @@ export class EmDashRuntime {
 
 	async handleContentListTrashed(
 		collection: string,
-		params: { cursor?: string; limit?: number } = {},
+		params: { cursor?: string; limit?: number; locale?: string } = {},
 	) {
 		return handleContentListTrashed(this.db, collection, params);
 	}
@@ -3309,8 +3317,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentCountTrashed(collection: string) {
-		return handleContentCountTrashed(this.db, collection);
+	async handleContentCountTrashed(collection: string, params: { locale?: string } = {}) {
+		return handleContentCountTrashed(this.db, collection, params);
 	}
 
 	async handleContentDuplicate(collection: string, id: string, authorId?: string) {
@@ -3440,6 +3448,7 @@ export class EmDashRuntime {
 		blurhash?: string;
 		dominantColor?: string;
 		authorId?: string;
+		folderId?: string | null;
 	}) {
 		// Run beforeUpload hooks
 		let processedInput = input;
@@ -3498,6 +3507,18 @@ export class EmDashRuntime {
 		// for every entry point: REST routes, MCP tools, plugin code, and
 		// any future caller of `handleMediaUpdate`. Cross-isolate staleness
 		// remains bounded by isolate lifetime.
+		if (result.success) {
+			invalidateSiteSettingsCache();
+		}
+		return result;
+	}
+
+	async handleMediaReplaceMetadata(
+		id: string,
+		expectedStorageKey: string,
+		input: { size: number; width: number; height: number; contentHash: string },
+	) {
+		const result = await handleMediaReplaceMetadata(this.db, id, expectedStorageKey, input);
 		if (result.success) {
 			invalidateSiteSettingsCache();
 		}
@@ -4077,6 +4098,7 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		contentId?: string,
 	) {
 		let result = content;
 
@@ -4085,11 +4107,9 @@ export class EmDashRuntime {
 			if (!id || !this.isPluginEnabled(id)) continue;
 
 			try {
-				const hookResult = await plugin.invokeHook("content:beforeSave", {
-					content: result,
-					collection,
-					isNew,
-				});
+				const event: ContentHookEvent = { content: result, collection, isNew };
+				if (contentId !== undefined) event.id = contentId;
+				const hookResult = await plugin.invokeHook("content:beforeSave", event);
 				const inspection = inspectSandboxHookResult(hookResult);
 				if (inspection.kind === "error") {
 					return {

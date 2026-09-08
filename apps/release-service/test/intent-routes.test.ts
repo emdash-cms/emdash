@@ -293,6 +293,90 @@ describe("release intent API", () => {
 		).resolves.toEqual({ count: 0 });
 	});
 
+	it("does not reveal publisher suspension before workload authorization", async () => {
+		await env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME).setPublisherControl({
+			actor: {
+				realm: "access",
+				identity: "admin@example.com",
+				email: "admin@example.com",
+				role: "admin",
+			},
+			idempotencyKey: "suspend-unrelated-workload",
+			requestDigest: "S".repeat(43),
+			publisherDid: PUBLISHER_DID,
+			status: "suspended",
+			reasonCode: "SECURITY_REVIEW",
+			now: NOW,
+		});
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const body = {
+			publisherDid: PUBLISHER_DID,
+			packageSlug: "gallery",
+			version: "1.2.3",
+			release: release(),
+		};
+		const dryRun = await handleDryRunReleaseIntent(
+			request("/v1/release-intents/dry-run", await token(), { method: "POST", body }),
+			"request-suspension-probe-dry-run",
+			configuration,
+			{ keyResolver },
+		);
+		const submission = await handleSubmitReleaseIntent(
+			request("/v1/release-intents", await token(), {
+				method: "POST",
+				body,
+				idempotencyKey: "suspension-probe-submit",
+			}),
+			"request-suspension-probe-submit",
+			configuration,
+			submitDependencies,
+		);
+
+		for (const response of [dryRun, submission]) {
+			expect(response.status).toBe(403);
+			await expect(response.json()).resolves.toMatchObject({
+				error: { code: "WORKLOAD_NOT_ALLOWED" },
+			});
+		}
+	});
+
+	it("reports publisher suspension to an authorized workload", async () => {
+		await putPolicy();
+		await env.SERVICE_CONTROL_DO.getByName(SERVICE_CONTROL_OBJECT_NAME).setPublisherControl({
+			actor: {
+				realm: "access",
+				identity: "admin@example.com",
+				email: "admin@example.com",
+				role: "admin",
+			},
+			idempotencyKey: "suspend-authorized-workload",
+			requestDigest: "S".repeat(43),
+			publisherDid: PUBLISHER_DID,
+			status: "suspended",
+			reasonCode: "SECURITY_REVIEW",
+			now: NOW,
+		});
+		const response = await handleDryRunReleaseIntent(
+			request("/v1/release-intents/dry-run", await token(), {
+				method: "POST",
+				body: {
+					publisherDid: PUBLISHER_DID,
+					packageSlug: "gallery",
+					version: "1.2.3",
+					release: release(),
+				},
+			}),
+			"request-authorized-suspended",
+			await loadConfiguration(TEST_BINDINGS),
+			{ keyResolver },
+		);
+
+		expect(response.status).toBe(503);
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "PUBLISHER_SUSPENDED" },
+		});
+	});
+
 	it("rejects a failed-start replay after the workload is disabled and never stores the token", async () => {
 		await putPolicy();
 		const configuration = await loadConfiguration(TEST_BINDINGS);
@@ -449,7 +533,8 @@ describe("release intent API", () => {
 			{ intentId: INTENT_ID },
 			keyResolver,
 		);
-		expect(denied.status).toBe(403);
+		expect(denied.status).toBe(404);
+		await expect(denied.json()).resolves.toMatchObject({ error: { code: "NOT_FOUND" } });
 
 		const cancelled = await handleCancelReleaseIntent(
 			request(
@@ -466,6 +551,73 @@ describe("release intent API", () => {
 		expect(await cancelled.json()).toMatchObject({
 			data: { intent: { state: "cancelled", reasonCode: "CANCELLED" } },
 		});
+		const stored = await env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(
+			PUBLISHER_DID,
+			INTENT_ID,
+		);
+		const transitions = await env.PUBLISHER_DO.getByName(PUBLISHER_DID).listIntentTransitions(
+			PUBLISHER_DID,
+			INTENT_ID,
+		);
+		expect(transitions.at(-1)).toMatchObject({
+			actorRealm: "oidc",
+			actorIdentity: stored?.workloadIdentityDigest,
+		});
+	});
+
+	it("authenticates bearer requests before looking up intent state", async () => {
+		const publisherDid = "did:x:unauthenticated";
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const getResponse = await handleGetReleaseIntent(
+			request(
+				`/v1/release-intents/${INTENT_ID}?publisher=${encodeURIComponent(publisherDid)}`,
+				"invalid-token",
+			),
+			"request-unauthenticated-get",
+			configuration,
+			{ intentId: INTENT_ID },
+			keyResolver,
+		);
+		const cancelResponse = await handleCancelReleaseIntent(
+			request(
+				`/v1/release-intents/${INTENT_ID}/cancel?publisher=${encodeURIComponent(publisherDid)}`,
+				"invalid-token",
+				{ method: "POST", body: {}, idempotencyKey: "cancel-unauthenticated" },
+			),
+			"request-unauthenticated-cancel",
+			configuration,
+			{ intentId: INTENT_ID },
+			keyResolver,
+		);
+
+		expect(getResponse.status).toBe(401);
+		expect(cancelResponse.status).toBe(401);
+		await expect(
+			runInDurableObject(env.PUBLISHER_DO.getByName(publisherDid), (_instance, state) =>
+				state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM publisher").one(),
+			),
+		).resolves.toEqual({ count: 0 });
+	});
+
+	it("does not claim an absent publisher identity while looking up an intent", async () => {
+		const publisherDid = "did:x:absent-intent";
+		const response = await handleGetReleaseIntent(
+			request(
+				`/v1/release-intents/${INTENT_ID}?publisher=${encodeURIComponent(publisherDid)}`,
+				await token(),
+			),
+			"request-absent-intent",
+			await loadConfiguration(TEST_BINDINGS),
+			{ intentId: INTENT_ID },
+			keyResolver,
+		);
+
+		expect(response.status).toBe(404);
+		await expect(
+			runInDurableObject(env.PUBLISHER_DO.getByName(publisherDid), (_instance, state) =>
+				state.storage.sql.exec<{ count: number }>("SELECT COUNT(*) AS count FROM publisher").one(),
+			),
+		).resolves.toEqual({ count: 0 });
 	});
 
 	it("fails closed when admission is paused", async () => {

@@ -21,6 +21,7 @@ import { useT } from "./i18n.js";
 const GIT_REF_PREFIX_PATTERN = /^refs\/(?:heads|tags)\//;
 const WORKFLOW_CONNECTION_POLL_INTERVAL_MS = 5_000;
 const RELEASE_SETUP_COMMAND = "pnpm exec emdash-plugin release setup";
+const PROFILE_SETUP_COMMAND = "pnpm exec emdash-plugin profile setup";
 
 interface PublisherData {
 	publisher: PublisherResource;
@@ -570,7 +571,7 @@ export function PublisherPage() {
 			<Surface className="rounded-xl border bg-kumo-base p-6">
 				<h2 className="text-xl font-semibold text-kumo-strong">
 					{data.workloads.length === 0
-						? t("publisher.workload.setupTitle", "2. Run your release workflow")
+						? t("publisher.workload.setupTitle", "2. Prepare your plugin")
 						: t("publisher.workload.addTitle", "Connect another GitHub Actions workflow")}
 				</h2>
 				{publishingEnabled ? (
@@ -624,7 +625,10 @@ export function PublisherPage() {
 				) : (
 					<div className="mt-3 grid gap-3 text-sm">
 						<p className="text-kumo-subtle">
-							{t("publisher.workload.setupCommand", "Run this once from your plugin project:")}
+							{t(
+								"publisher.workload.setupCommand",
+								"Run this once from your plugin project. It creates or updates its signed package profile before creating the GitHub workflow:",
+							)}
 						</p>
 						<div className="overflow-x-auto rounded-lg bg-kumo-tint px-4 py-3">
 							<code className="whitespace-nowrap font-mono text-sm text-kumo-strong">
@@ -634,7 +638,7 @@ export function PublisherPage() {
 						<p className="text-kumo-subtle">
 							{t(
 								"publisher.workload.setupResult",
-								"It creates .github/workflows/emdash-release.yml. Review and commit the file, then push a version tag or start it from GitHub Actions.",
+								"Review and commit .github/workflows/emdash-release.yml, then push a version tag or start it from GitHub Actions.",
 							)}
 						</p>
 						<p className="text-kumo-subtle">
@@ -679,6 +683,15 @@ export function PublisherPage() {
 													"Approve only if you recognise this repository and workflow.",
 												)}
 											</p>
+											<p className="mt-2 text-sm text-kumo-subtle">
+												{t(
+													"publisher.connection.profileCheck",
+													"The package profile must link this plugin to the same repository. If setup is required, run this in the plugin project, then approve again:",
+												)}
+											</p>
+											<code className="mt-2 block font-mono text-sm text-kumo-strong">
+												{PROFILE_SETUP_COMMAND}
+											</code>
 										</div>
 										<Badge variant="warning">
 											{t("publisher.connection.waiting", "Waiting for approval")}

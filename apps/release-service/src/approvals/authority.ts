@@ -25,7 +25,9 @@ export type ApprovalAuthorityErrorCode =
 	| "APPROVER_NOT_AUTHORIZED"
 	| "INTENT_NOT_APPROVABLE"
 	| "PROFILE_CHANGED"
-	| "PROFILE_FETCH_FAILED";
+	| "PROFILE_FETCH_FAILED"
+	| "PROFILE_NOT_FOUND"
+	| "PROFILE_SETUP_REQUIRED";
 
 export class ApprovalAuthorityError extends Error {
 	constructor(readonly code: ApprovalAuthorityErrorCode) {
@@ -53,10 +55,19 @@ export interface VerifyCurrentApproverOptions {
 export interface CurrentApprovalPolicy {
 	profileCid: string;
 	approverDids: readonly string[];
+	repository: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function directPdsErrorCode(error: unknown): string | null {
+	if (error instanceof DirectPdsReadError) return error.code;
+	if (!(error instanceof Error) || error.name !== "DirectPdsReadError" || !isRecord(error)) {
+		return null;
+	}
+	return typeof error["code"] === "string" ? error["code"] : null;
 }
 
 function findApprovalTransition(transitions: readonly IntentTransition[]): IntentTransition | null {
@@ -213,6 +224,7 @@ function createGuardedIdentityFetch(fetchImplementation: typeof fetch): typeof f
 					...(headers === undefined ? {} : { headers }),
 				}),
 			resolveHostname: (hostname) => resolvePublicHostname(hostname, fetchImplementation),
+			allowedStatuses: [404],
 			headerTimeoutMs: 10_000,
 			totalTimeoutMs: 30_000,
 			maxBytes: MAX_PROFILE_RESPONSE_BYTES,
@@ -274,8 +286,11 @@ export async function loadCurrentApprovalPolicy(
 			maxResponseBytes: MAX_PROFILE_RESPONSE_BYTES,
 		}).getPackageProfile(packageSlug);
 	} catch (error) {
-		if (error instanceof DirectPdsReadError || error instanceof TypeError) {
-			throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
+		const code = directPdsErrorCode(error);
+		if (code) {
+			throw new ApprovalAuthorityError(
+				code === "RECORD_NOT_FOUND" ? "PROFILE_NOT_FOUND" : "PROFILE_FETCH_FAILED",
+			);
 		}
 		throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
 	}
@@ -285,7 +300,7 @@ export async function loadCurrentApprovalPolicy(
 	}
 	const rawExtension = record.value.extensions?.[NSID.packageProfileExtension];
 	const extension = safeParse(PackageProfileExtension.mainSchema, rawExtension);
-	if (!extension.ok) throw new ApprovalAuthorityError("PROFILE_FETCH_FAILED");
+	if (!extension.ok) throw new ApprovalAuthorityError("PROFILE_SETUP_REQUIRED");
 	const approverDids = extension.value.releasePolicy?.approvers ?? [];
 	if (
 		new Set(approverDids).size !== approverDids.length ||
@@ -296,5 +311,6 @@ export async function loadCurrentApprovalPolicy(
 	return {
 		profileCid: record.cid,
 		approverDids: [...approverDids].toSorted(),
+		repository: extension.value.repository,
 	};
 }

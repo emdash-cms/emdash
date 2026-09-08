@@ -487,12 +487,14 @@ export class HookPipeline {
 
 	/**
 	 * Run content:beforeSave hooks
-	 * Returns modified content from the pipeline
+	 * Returns modified content from the pipeline. `id` is the existing item's
+	 * ID when updating.
 	 */
 	async runContentBeforeSave(
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		id?: string,
 	): Promise<{
 		content: Record<string, unknown>;
 		results: HookResult<Record<string, unknown>>[];
@@ -508,6 +510,7 @@ export class HookPipeline {
 				collection,
 				isNew,
 			};
+			if (id !== undefined) event.id = id;
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 

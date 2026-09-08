@@ -176,6 +176,16 @@ describe("fetchVerifiedResource", () => {
 		});
 		expect(status).toMatchObject({ success: false, error: { code: "RESOURCE_STATUS_ERROR" } });
 
+		const allowedStatus = await fetchVerifiedResource("https://example.test/file", {
+			allowedStatuses: [404],
+			fetch: vi.fn().mockResolvedValue(new Response("missing", { status: 404 })),
+			resolveHostname: resolvePublicHostname,
+		});
+		expect(allowedStatus).toMatchObject({
+			success: true,
+			value: { status: 404, bytes: new TextEncoder().encode("missing") },
+		});
+
 		let signal: AbortSignal | undefined;
 		const timeout = await fetchVerifiedResource("https://example.test/file", {
 			fetch: vi.fn((_, init) => {

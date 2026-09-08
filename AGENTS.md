@@ -175,7 +175,7 @@ Test representative upgrades from existing data, retry after partial completion,
 
 ## Indexes
 
-Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `scheduled_at` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
+Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `(deleted_at, scheduled_at)` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
 
 Naming: `idx_{table}_{column}` for single-column, `idx_{table}_{purpose}` for multi-column.
 

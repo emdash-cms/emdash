@@ -897,6 +897,15 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return this.#workflowConnections.listPending(limit, now);
 	}
 
+	getWorkflowConnectionRequest(
+		publisherDid: string,
+		requestId: string,
+		now = Date.now(),
+	): StoredWorkflowConnectionRequest | null {
+		this.#assertPublisherDid(publisherDid);
+		return this.#workflowConnections.get(requestId, now);
+	}
+
 	async rejectWorkflowConnection(
 		publisherDid: string,
 		requestId: string,
@@ -995,6 +1004,18 @@ export class PublisherDurableObject extends DurableObject<Env> {
 
 	getIntent(publisherDid: string, intentId: string): StoredIntent | null {
 		this.#assertPublisherDid(publisherDid);
+		return this.#intents.get(intentId);
+	}
+
+	getIntentIfInitialized(publisherDid: string, intentId: string): StoredIntent | null {
+		this.#assertPublisherObjectName(publisherDid);
+		const owner = this.ctx.storage.sql
+			.exec<PublisherRow>("SELECT did FROM publisher WHERE id = 1")
+			.toArray()[0];
+		if (!owner) return null;
+		if (owner.did !== publisherDid) {
+			throw new PublisherStateError("PUBLISHER_DID_MISMATCH");
+		}
 		return this.#intents.get(intentId);
 	}
 

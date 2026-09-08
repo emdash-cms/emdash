@@ -27,6 +27,7 @@ import {
 } from "../verification/evaluate.js";
 import {
 	findProofVerifiedRelease,
+	publisherSnapshotErrorCode,
 	readPublisherVerificationSnapshot,
 } from "../verification/pds.js";
 import { verifyReleaseEvidence } from "../verification/staged-input.js";
@@ -53,6 +54,17 @@ interface AuthoritativeSummary {
 	proposedRkey: string;
 	releaseAbsent: boolean;
 }
+
+type AuthoritativeStepResult =
+	| { success: true; value: AuthoritativeSummary }
+	| {
+			success: false;
+			code:
+				| "PROFILE_INVALID"
+				| "RELEASE_EXISTS"
+				| "RELEASE_LIST_INVALID"
+				| "RELEASE_RECORD_INVALID";
+	  };
 
 interface WorkflowDecision {
 	requiresApproval: boolean;
@@ -424,72 +436,111 @@ export class ReleaseIntentWorkflow extends WorkflowEntrypoint<
 				decision.approvalEvidence,
 			);
 		}
-		const authoritative = await step.do<AuthoritativeSummary>("authoritative-records", async () => {
-			const snapshot = await readPublisherVerificationSnapshot(
-				params.publisherDid,
-				intent.packageSlug,
-				intent.version,
+		const authoritativeResult = await step.do<AuthoritativeStepResult>(
+			"authoritative-records",
+			async () => {
+				let snapshot;
+				try {
+					snapshot = await readPublisherVerificationSnapshot(
+						params.publisherDid,
+						intent.packageSlug,
+						intent.version,
+					);
+				} catch (error) {
+					const code = publisherSnapshotErrorCode(error);
+					if (
+						code === "PROFILE_INVALID" ||
+						code === "RELEASE_EXISTS" ||
+						code === "RELEASE_LIST_INVALID" ||
+						code === "RELEASE_RECORD_INVALID"
+					) {
+						return { success: false, code };
+					}
+					throw error;
+				}
+				const result: AuthoritativeSummary = {
+					profileCid: snapshot.profile.cid,
+					baselineCid: snapshot.baseline?.cid ?? null,
+					baselineVersion: snapshot.baselineVersion,
+					proposedRkey: snapshot.proposedRkey,
+					releaseAbsent: snapshot.proposedReleaseAbsent,
+				};
+				const baseDigest = await digest([
+					params.publisherDid,
+					params.intentId,
+					intent.requestDigest,
+					intent.workloadIdentityDigest,
+				]);
+				const storedProfile = await publisher.putVerificationStep({
+					publisherDid: params.publisherDid,
+					intentId: params.intentId,
+					name: "authoritative-profile",
+					inputDigest: baseDigest,
+					resultJson: JSON.stringify({ profileCid: result.profileCid }),
+				});
+				if (!storedProfile.ok) {
+					if (storedProfile.code === "VERIFICATION_STEP_CONFLICT") {
+						await failVerifyingIntent(publisher, params, intent, storedProfile.code);
+					}
+					throw new NonRetryableError(storedProfile.code);
+				}
+				const storedAbsence = await publisher.putVerificationStep({
+					publisherDid: params.publisherDid,
+					intentId: params.intentId,
+					name: "release-absence",
+					inputDigest: await digest([baseDigest, result.proposedRkey]),
+					resultJson: JSON.stringify({
+						proposedRkey: result.proposedRkey,
+						absent: result.releaseAbsent,
+					}),
+				});
+				if (!storedAbsence.ok) {
+					if (storedAbsence.code === "VERIFICATION_STEP_CONFLICT") {
+						await failVerifyingIntent(publisher, params, intent, storedAbsence.code);
+					}
+					throw new NonRetryableError(storedAbsence.code);
+				}
+				const storedBaseline = await publisher.putVerificationStep({
+					publisherDid: params.publisherDid,
+					intentId: params.intentId,
+					name: "access-baseline",
+					inputDigest: await digest([baseDigest, result.baselineCid, result.baselineVersion]),
+					resultJson: JSON.stringify({
+						baselineCid: result.baselineCid,
+						baselineVersion: result.baselineVersion,
+					}),
+				});
+				if (!storedBaseline.ok) {
+					if (storedBaseline.code === "VERIFICATION_STEP_CONFLICT") {
+						await failVerifyingIntent(publisher, params, intent, storedBaseline.code);
+					}
+					throw new NonRetryableError(storedBaseline.code);
+				}
+				return { success: true, value: result };
+			},
+		);
+		if (!authoritativeResult.success) {
+			const code = authoritativeResult.code;
+			const state = code === "PROFILE_INVALID" || code === "RELEASE_EXISTS" ? "invalid" : "failed";
+			const reasonCode = code === "PROFILE_INVALID" ? "PACKAGE_PROFILE_REQUIRED" : code;
+			const transitioned = await step.do<TransitionSummary>("mark-snapshot-failed", async () =>
+				transitionIntent(publisher, {
+					publisherDid: params.publisherDid,
+					intentId: params.intentId,
+					expectedState: "verifying",
+					expectedGeneration: intent.stateGeneration,
+					toState: state,
+					transitionDigest: await digest(["snapshot-failed", code]),
+					actorRealm: "system",
+					actorIdentity: WORKFLOW_ACTOR,
+					reasonCode,
+					stateDataJson: JSON.stringify({ code }),
+				}),
 			);
-			const result: AuthoritativeSummary = {
-				profileCid: snapshot.profile.cid,
-				baselineCid: snapshot.baseline?.cid ?? null,
-				baselineVersion: snapshot.baselineVersion,
-				proposedRkey: snapshot.proposedRkey,
-				releaseAbsent: snapshot.proposedReleaseAbsent,
-			};
-			const baseDigest = await digest([
-				params.publisherDid,
-				params.intentId,
-				intent.requestDigest,
-				intent.workloadIdentityDigest,
-			]);
-			const storedProfile = await publisher.putVerificationStep({
-				publisherDid: params.publisherDid,
-				intentId: params.intentId,
-				name: "authoritative-profile",
-				inputDigest: baseDigest,
-				resultJson: JSON.stringify({ profileCid: result.profileCid }),
-			});
-			if (!storedProfile.ok) {
-				if (storedProfile.code === "VERIFICATION_STEP_CONFLICT") {
-					await failVerifyingIntent(publisher, params, intent, storedProfile.code);
-				}
-				throw new NonRetryableError(storedProfile.code);
-			}
-			const storedAbsence = await publisher.putVerificationStep({
-				publisherDid: params.publisherDid,
-				intentId: params.intentId,
-				name: "release-absence",
-				inputDigest: await digest([baseDigest, result.proposedRkey]),
-				resultJson: JSON.stringify({
-					proposedRkey: result.proposedRkey,
-					absent: result.releaseAbsent,
-				}),
-			});
-			if (!storedAbsence.ok) {
-				if (storedAbsence.code === "VERIFICATION_STEP_CONFLICT") {
-					await failVerifyingIntent(publisher, params, intent, storedAbsence.code);
-				}
-				throw new NonRetryableError(storedAbsence.code);
-			}
-			const storedBaseline = await publisher.putVerificationStep({
-				publisherDid: params.publisherDid,
-				intentId: params.intentId,
-				name: "access-baseline",
-				inputDigest: await digest([baseDigest, result.baselineCid, result.baselineVersion]),
-				resultJson: JSON.stringify({
-					baselineCid: result.baselineCid,
-					baselineVersion: result.baselineVersion,
-				}),
-			});
-			if (!storedBaseline.ok) {
-				if (storedBaseline.code === "VERIFICATION_STEP_CONFLICT") {
-					await failVerifyingIntent(publisher, params, intent, storedBaseline.code);
-				}
-				throw new NonRetryableError(storedBaseline.code);
-			}
-			return result;
-		});
+			if (!transitioned.ok) throw new NonRetryableError(transitioned.code);
+			return { intentId: params.intentId, state, reasonCode };
+		}
+		const authoritative = authoritativeResult.value;
 		const verifierJson = await step.do<string>("isolated-verifier", async () => {
 			const snapshot = await readPublisherVerificationSnapshot(
 				params.publisherDid,

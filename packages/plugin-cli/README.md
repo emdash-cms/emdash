@@ -25,6 +25,7 @@ emdash-plugin build                          Build dist/ artifacts (plugin.mjs, 
 emdash-plugin dev                            Watch sources and rebuild on change
 emdash-plugin bundle                         Pack dist/ + assets into a registry tarball
 emdash-plugin publish                        Build, upload, and publish a release
+emdash-plugin profile setup                  Create or prepare the signed package profile
 emdash-plugin release setup                  Create the permanent GitHub release workflow
 emdash-plugin release delegate               Print a publisher delegation browser handoff
 emdash-plugin release revoke                 Print an authority revocation browser handoff
@@ -98,13 +99,22 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 ## Delegated releases
 
+See [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the complete publisher journey, including release-service authorisation, workflow invitations, first-run approval, passkeys, and troubleshooting.
+
 Run the setup command from a public GitHub repository containing an EmDash plugin:
 
 ```sh
+emdash-plugin login <handle-or-did>
 emdash-plugin release setup
 ```
 
-The command reads the plugin publisher from `emdash-plugin.jsonc` and creates `.github/workflows/emdash-release.yml`. Review and commit that file. The command does not push or change an existing workflow; pass `--force` to replace one deliberately.
+The command reads the plugin metadata and publisher from `emdash-plugin.jsonc`. If the package profile does not exist, it offers to create it. If the profile predates delegated releases, it offers to add the signed repository and release policy while preserving the existing package metadata. The default policy requires the publisher's [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) to approve releases when plugin permissions increase. Choose the every-release option to require approval each time.
+
+Set `repo` in `emdash-plugin.jsonc`, or enter the canonical GitHub repository URL when prompted. The standalone `emdash-plugin profile setup` command prepares only the package profile.
+
+Both setup commands accept `--repository <url>`, `--confirmation escalation-only|always`, and `--yes`. `release setup` also accepts `--service-url`, `--action-ref`, and `--force` for the generated workflow. The default hosted service is `https://releases.emdashcms.com`.
+
+After preparing the profile, `release setup` creates `.github/workflows/emdash-release.yml`. Review and commit that file. The command does not push or change an existing workflow; pass `--force` to replace one deliberately. In a non-interactive environment, pass `--yes` to accept the default approval policy. The command fails rather than creating or changing a profile when it cannot prompt and `--yes` is absent.
 
 The generated workflow builds the plugin, creates signed GitHub build provenance, and publishes on version tags or a manual run. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
 
@@ -115,6 +125,8 @@ Start the workflow within 30 minutes by pushing a version tag such as `v1.2.3`. 
 For a release started from a tag, the dashboard can authorize all version tags or only the current tag. Repository and workflow paths remain exact in both cases.
 
 The workflow uploads the bundle and raw Sigstore attestation to private, transient service storage with a fresh GitHub Actions OpenID Connect (OIDC) token for each request. The service verifies the exact bytes, uploads the plugin bundle to the publisher's personal data server (PDS), and publishes a release record containing the PDS blob. The published provenance URL points to the immutable verified attestation.
+
+The service checks that the package profile exists, contains delegated-release settings, and links the same GitHub repository before accepting artifact uploads. A missing or incompatible profile fails with `PACKAGE_PROFILE_REQUIRED`; run `emdash-plugin profile setup` locally, then start the workflow again. The release service cannot create or edit package profiles because its retained authorization is limited to creating release records and uploading their files.
 
 The lower-level automation commands (`dry-run`, `submit`, `status`, and `cancel`) remain available for custom workflows. They authenticate with the current GitHub Actions OIDC identity and accept a hand-authored URL-source release record.
 

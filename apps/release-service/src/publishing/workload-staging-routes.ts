@@ -1,10 +1,12 @@
 import { isDid } from "@atcute/lexicons/syntax";
 import { env } from "cloudflare:workers";
-import type { JWTVerifyGetKey } from "jose";
+import { base64url, type JWTVerifyGetKey } from "jose";
 
 import { ApiError } from "../api/errors.js";
 import { apiFailure, apiSuccess } from "../api/response.js";
 import type { ServiceConfiguration } from "../config.js";
+import { SERVICE_CONTROL_OBJECT_NAME } from "../control-do/service-control-do.js";
+import { writeOperationsMetric } from "../observability/metrics.js";
 import { verifyGitHubActionsToken } from "../workload/github-oidc.js";
 import { evaluateWorkloadPolicy, digestWorkloadIdempotencyIdentity } from "../workload/policy.js";
 import { WorkloadIdentityError } from "../workload/types.js";
@@ -22,9 +24,11 @@ const CHECKSUM_PATTERN = /^b[a-z2-7]{10,255}$/;
 const POSITIVE_INTEGER_PATTERN = /^[1-9][0-9]*$/;
 const SCREENSHOT_SLOT_PATTERN = /^screenshots\[([0-7])\]$/;
 const MAX_AUTHORIZATION_CHARS = 16 * 1024;
+const RATE_LIMIT_IDEMPOTENCY_MS = 24 * 60 * 60_000;
 
 export interface WorkloadStagingRouteDependencies {
 	keyResolver?: JWTVerifyGetKey;
+	now?: () => number;
 }
 
 function requireHeader(request: Request, name: string): string {
@@ -48,11 +52,20 @@ function requireBearerToken(request: Request): string {
 	return value.slice(7);
 }
 
-function requireIdempotencyKey(request: Request): void {
+function requireIdempotencyKey(request: Request): string {
 	const value = request.headers.get("idempotency-key");
 	if (!value || !IDEMPOTENCY_KEY_PATTERN.test(value)) {
 		throw new ApiError("IDEMPOTENCY_KEY_INVALID", 400, "Valid idempotency key required");
 	}
+	return value;
+}
+
+async function digest(value: unknown): Promise<string> {
+	return base64url.encode(
+		new Uint8Array(
+			await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value))),
+		),
+	);
 }
 
 function requireSlot(value: string): WorkloadArtifactSlot {
@@ -93,7 +106,7 @@ export async function handleUploadWorkloadArtifact(
 	dependencies: WorkloadStagingRouteDependencies = {},
 ): Promise<Response> {
 	try {
-		requireIdempotencyKey(request);
+		const idempotencyKey = requireIdempotencyKey(request);
 		const identity = await verifyGitHubActionsToken(
 			requireBearerToken(request),
 			configuration.publicOrigin,
@@ -121,9 +134,64 @@ export async function handleUploadWorkloadArtifact(
 			throw new ApiError("INVALID_REQUEST", 400, "Valid artifact metadata required");
 		}
 		const publisher = env.PUBLISHER_DO.getByName(publisherDid);
-		const policy = await publisher.getWorkloadPolicy(publisherDid, packageSlug);
+		const policy = await publisher.getWorkloadPolicyIfInitialized(publisherDid, packageSlug);
 		if (!policy || !evaluateWorkloadPolicy(identity, policy).ok) {
 			throw new ApiError("WORKLOAD_NOT_ALLOWED", 403, "Workload is not authorized");
+		}
+		const admission = await env.SERVICE_CONTROL_DO.getByName(
+			SERVICE_CONTROL_OBJECT_NAME,
+		).getAdmissionDecision(publisherDid);
+		if (!admission.allowed) {
+			throw new ApiError(
+				admission.code === "PUBLISHER_SUSPENDED" ? "PUBLISHER_SUSPENDED" : "SERVICE_PAUSED",
+				503,
+				admission.code === "PUBLISHER_SUSPENDED"
+					? "Publisher is suspended"
+					: "Release admission is paused",
+			);
+		}
+		const now = dependencies.now?.() ?? Date.now();
+		const workloadRateKey = await digest([
+			"staged-artifact-rate-limit",
+			1,
+			identity.repository.id,
+			identity.workflow.ref,
+			packageSlug,
+		]);
+		const rateLimitIdempotencyKey = `r:${await digest([
+			"staged-artifact-rate-idempotency",
+			1,
+			idempotencyKey,
+			identity.run.id,
+			version,
+			slot,
+			checksum,
+			contentType,
+			contentLength,
+		])}`;
+		const rateLimit = await publisher.consumeIntentRateLimit({
+			publisherDid,
+			repositoryId: identity.repository.id,
+			workloadKey: workloadRateKey,
+			idempotencyKey: rateLimitIdempotencyKey,
+			expiresAt: now + RATE_LIMIT_IDEMPOTENCY_MS,
+			now,
+		});
+		if (!rateLimit.ok) {
+			writeOperationsMetric({
+				event: "staged_artifact_rate_limited",
+				ownerHash: workloadRateKey,
+				outcome: "denied",
+				scope: rateLimit.scope,
+				requestId,
+			});
+			const response = apiFailure(
+				new ApiError("WORKLOAD_RATE_LIMITED", 429, "Release artifact upload rate limit exceeded"),
+				requestId,
+			);
+			const headers = new Headers(response.headers);
+			headers.set("retry-after", String(Math.max(1, Math.ceil((rateLimit.retryAt - now) / 1000))));
+			return new Response(response.body, { status: response.status, headers });
 		}
 		const workloadDigest = await digestWorkloadIdempotencyIdentity(
 			identity,

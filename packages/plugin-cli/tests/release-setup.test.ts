@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	DEFAULT_RELEASE_ACTION_REF,
 	DEFAULT_RELEASE_SERVICE_URL,
+	RELEASE_WORKFLOW_PATH,
 	setupReleaseWorkflow,
 } from "../src/release-setup.js";
 
@@ -119,6 +120,33 @@ describe("setupReleaseWorkflow", () => {
 		);
 	});
 
+	it("prepares the package profile before writing the workflow", async () => {
+		const beforeWrite = vi.fn(async () => undefined);
+		const result = await setupReleaseWorkflow({
+			dir,
+			resolvePublisherDid: async () => PUBLISHER_DID,
+			beforeWrite,
+		});
+
+		expect(beforeWrite).toHaveBeenCalledWith({ publisherDid: PUBLISHER_DID, pluginDir: dir });
+		await expect(readFile(result.path, "utf8")).resolves.toContain('name: "Publish EmDash plugin"');
+	});
+
+	it("does not write the workflow when package profile setup fails", async () => {
+		await expect(
+			setupReleaseWorkflow({
+				dir,
+				resolvePublisherDid: async () => PUBLISHER_DID,
+				beforeWrite: async () => {
+					throw new Error("profile setup failed");
+				},
+			}),
+		).rejects.toThrow("profile setup failed");
+		await expect(readFile(join(dir, RELEASE_WORKFLOW_PATH))).rejects.toMatchObject({
+			code: "ENOENT",
+		});
+	});
+
 	it("supports an alternate service origin and Action ref", async () => {
 		const result = await setupReleaseWorkflow({
 			dir,
@@ -138,13 +166,19 @@ describe("setupReleaseWorkflow", () => {
 			resolvePublisherDid: async () => PUBLISHER_DID,
 		});
 		await writeFile(first.path, "keep me\n", "utf8");
+		const beforeWrite = vi.fn(async () => undefined);
 
 		await expect(
-			setupReleaseWorkflow({ dir, resolvePublisherDid: async () => PUBLISHER_DID }),
+			setupReleaseWorkflow({
+				dir,
+				resolvePublisherDid: async () => PUBLISHER_DID,
+				beforeWrite,
+			}),
 		).rejects.toMatchObject({
 			name: "ReleaseSetupError",
 			code: "WORKFLOW_EXISTS",
 		});
+		expect(beforeWrite).not.toHaveBeenCalled();
 		expect(await readFile(first.path, "utf8")).toBe("keep me\n");
 	});
 

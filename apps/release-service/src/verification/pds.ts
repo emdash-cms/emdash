@@ -57,6 +57,25 @@ export class PublisherSnapshotError extends Error {
 	}
 }
 
+const PUBLISHER_SNAPSHOT_ERROR_CODES: readonly PublisherSnapshotError["code"][] = [
+	"PUBLISHER_IDENTITY_INVALID",
+	"PUBLISHER_PDS_INVALID",
+	"PROFILE_INVALID",
+	"RELEASE_EXISTS",
+	"RELEASE_RECORD_INVALID",
+	"RELEASE_LIST_INVALID",
+];
+
+export function publisherSnapshotErrorCode(error: unknown): PublisherSnapshotError["code"] | null {
+	if (error instanceof PublisherSnapshotError) return error.code;
+	if (!(error instanceof Error)) return null;
+	return (
+		PUBLISHER_SNAPSHOT_ERROR_CODES.find(
+			(code) => error.message === `PublisherSnapshotError: ${code}`,
+		) ?? null
+	);
+}
+
 export function samePdsOrigin(left: string, right: string): boolean {
 	return new URL(left).origin === new URL(right).origin;
 }

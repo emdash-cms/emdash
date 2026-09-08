@@ -194,24 +194,15 @@ export class DirectPdsClient {
 		}
 		const carBytes = new Uint8Array(await response.arrayBuffer());
 		try {
-			const verifiedProfile = await verifyRecord({
-				did: this.did,
-				collection: NSID.packageProfile,
-				rkey: packageSlug,
-				publicKey: publisher.publicKey,
-				carBytes,
-			});
-			const parsedProfile = safeParse(PackageProfile.mainSchema, verifiedProfile.record);
-			if (!parsedProfile.ok) {
-				throw new DirectPdsReadError(
-					"PROFILE_LEXICON_INVALID",
-					"The publisher repository contains a malformed package profile.",
-				);
-			}
+			let profilePresent = false;
 			const releases: DirectPdsReleaseRecord[] = [];
 			const stream = new Response(carBytes).body;
 			if (stream === null) throw new Error("Repository export is empty");
 			for await (const entry of fromStream(stream)) {
+				if (entry.collection === NSID.packageProfile && entry.rkey === packageSlug) {
+					profilePresent = true;
+					continue;
+				}
 				if (entry.collection !== NSID.packageRelease) continue;
 				const prefix = `${packageSlug}:`;
 				if (!entry.rkey.startsWith(prefix)) continue;
@@ -232,6 +223,26 @@ export class DirectPdsClient {
 					rkey: entry.rkey,
 					value: parsedRelease.value,
 				});
+			}
+			if (!profilePresent) {
+				throw new DirectPdsReadError(
+					"RECORD_NOT_FOUND",
+					"The publisher repository does not contain the requested package profile.",
+				);
+			}
+			const verifiedProfile = await verifyRecord({
+				did: this.did,
+				collection: NSID.packageProfile,
+				rkey: packageSlug,
+				publicKey: publisher.publicKey,
+				carBytes,
+			});
+			const parsedProfile = safeParse(PackageProfile.mainSchema, verifiedProfile.record);
+			if (!parsedProfile.ok) {
+				throw new DirectPdsReadError(
+					"PROFILE_LEXICON_INVALID",
+					"The publisher repository contains a malformed package profile.",
+				);
 			}
 			return {
 				profile: {

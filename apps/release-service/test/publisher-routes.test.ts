@@ -207,6 +207,7 @@ describe("publisher API", () => {
 				loadCurrentApprovalPolicy: async () => ({
 					profileCid: "bafyprofile",
 					approverDids: [enrolledDid, missingDid, revokedDid],
+					repository: "https://github.com/example/gallery",
 				}),
 				actorResolver: {
 					async resolve(identifier) {

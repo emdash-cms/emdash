@@ -163,6 +163,16 @@ describe("MediaUsedIn", () => {
 		expect(screen.getByText("Archived notes").element().closest("a")).toBeNull();
 	});
 
+	it("leaves enough scroll clearance for the first usage card ring", async () => {
+		vi.mocked(fetchMediaUsageDetails).mockResolvedValue(usageResponse([usageEntry()]));
+
+		const screen = await renderUsedIn();
+		const list = screen.getByRole("list");
+		await expect.element(list.getByRole("link")).toBeVisible();
+
+		expect(list.element()).toHaveClass("p-0.5");
+	});
+
 	it("mirrors the Open icon in right-to-left layouts", async () => {
 		const previousDirection = document.documentElement.dir;
 		document.documentElement.dir = "rtl";

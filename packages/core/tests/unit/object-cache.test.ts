@@ -5,6 +5,7 @@ vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual
 import { decode, encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
+	__setObjectCacheBackendInitForTests,
 	cachedQuery,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
@@ -17,6 +18,18 @@ import { runWithContext } from "../../src/request-context.js";
 /** Flush the microtask + macrotask queue so deferred `after()` writes land. */
 async function flush(): Promise<void> {
 	await new Promise((r) => setTimeout(r, 0));
+}
+
+function neverSettles<T>(): Promise<T> {
+	return new Promise(() => {});
+}
+
+function withTestDeadline<T>(promise: Promise<T>, ms = 200): Promise<T> {
+	let timer: ReturnType<typeof setTimeout>;
+	const timeout = new Promise<never>((_resolve, reject) => {
+		timer = setTimeout(() => reject(new Error("test deadline exceeded")), ms);
+	});
+	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
 /** A simple in-memory backend with call spies, isolated per test. */
@@ -440,6 +453,40 @@ describe("cachedQuery", () => {
 		await cachedQuery({ namespace: "posts", key: "k", load });
 		// The second post-recovery call is served from cache (load not re-run).
 		expect(load.mock.calls.length).toBe(calls);
+	});
+
+	it("reclaims a dead backend initialization after its deadline", async () => {
+		__setObjectCacheBackendForTests(null, { timeout: 20 });
+		vi.spyOn(Date, "now").mockReturnValue(10_000);
+		__setObjectCacheBackendInitForTests(neverSettles(), 8_979);
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+		try {
+			const load = vi.fn(() => Promise.resolve({ n: 1 }));
+			await expect(
+				withTestDeadline(cachedQuery({ namespace: "t", key: "k", load })),
+			).resolves.toEqual({ n: 1 });
+			expect(load).toHaveBeenCalledTimes(1);
+		} finally {
+			warnSpy.mockRestore();
+			vi.restoreAllMocks();
+		}
+	});
+
+	it("bounds a waiter on another request's backend initialization", async () => {
+		__setObjectCacheBackendForTests(null, { timeout: 20 });
+		vi.spyOn(Date, "now").mockReturnValue(10_000);
+		__setObjectCacheBackendInitForTests(neverSettles(), 8_990);
+
+		try {
+			const load = vi.fn(() => Promise.resolve({ n: 1 }));
+			await expect(
+				withTestDeadline(cachedQuery({ namespace: "t", key: "k", load })),
+			).resolves.toEqual({ n: 1 });
+			expect(load).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.restoreAllMocks();
+		}
 	});
 });
 
