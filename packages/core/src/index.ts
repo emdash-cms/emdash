@@ -442,6 +442,7 @@ export {
 	getPluginSettings,
 	getSiteSetting,
 	getSiteSettings,
+	getSiteSettingsWithCacheHint,
 	setSiteSettings,
 } from "./settings/index.js";
 export type {
@@ -473,7 +474,7 @@ export { getComments, getCommentCount } from "./comments/query.js";
 export type { GetCommentsOptions, GetCommentsResult } from "./comments/query.js";
 
 // Menus
-export { getMenu, getMenus } from "./menus/index.js";
+export { getMenu, getMenuWithCacheHint, getMenus } from "./menus/index.js";
 export type {
 	Menu,
 	MenuItem,
@@ -494,6 +495,7 @@ export {
 	getTaxonomyDefs,
 	getTaxonomyDef,
 	getTaxonomyTerms,
+	getTaxonomyTermsWithCacheHint,
 	getTerm,
 	getEntryTerms,
 	getTermsForEntries,
@@ -510,7 +512,12 @@ export type {
 } from "./taxonomies/types.js";
 
 // Widgets
-export { getWidgetArea, getWidgetAreas, getWidgetComponents } from "./widgets/index.js";
+export {
+	getWidgetArea,
+	getWidgetAreaWithCacheHint,
+	getWidgetAreas,
+	getWidgetComponents,
+} from "./widgets/index.js";
 export type {
 	Widget,
 	WidgetArea,

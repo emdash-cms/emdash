@@ -12,6 +12,7 @@
 
 import { sql, type Kysely } from "kysely";
 
+import { taxonomyTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getI18nConfig } from "../i18n/config.js";
@@ -24,6 +25,7 @@ import {
 	invalidateTaxonomyObjectCache,
 	isObjectCacheActive,
 } from "../object-cache/index.js";
+import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached, setRequestCacheEntry } from "../request-cache.js";
 import { getRequestContext } from "../request-context.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
@@ -316,6 +318,20 @@ export async function getTaxonomyTerms(
 		getVisibleTermCounts(def.name, def.collections, locale),
 	]);
 	return withCounts(terms, counts);
+}
+
+/**
+ * Get all terms of a taxonomy with a Workers edge-cache hint.
+ *
+ * Use the returned `cacheHint` with `Astro.cache.set()` so pages that render
+ * a taxonomy facet can be purged automatically when taxonomy terms change.
+ */
+export async function getTaxonomyTermsWithCacheHint(
+	taxonomyName: string,
+	options: TaxonomyTermsOptions = {},
+): Promise<{ data: TaxonomyTerm[]; cacheHint: CacheHint }> {
+	const data = await getTaxonomyTerms(taxonomyName, options);
+	return { data, cacheHint: { tags: [taxonomyTag(taxonomyName)] } };
 }
 
 /** Terms without counts, under the cache keys the layout prefetch warms. */

@@ -193,6 +193,7 @@
     "#config/*": "./src/config/*",
     "#db/*": "./src/database/*",
     "#auth/*": "./src/auth/*",
+    "#cache/*": "./src/cache/*",
     "#schema/*": "./src/schema/*",
     "#search/*": "./src/search/*",
     "#sections/*": "./src/sections/*",

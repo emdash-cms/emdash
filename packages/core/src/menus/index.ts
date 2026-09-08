@@ -11,11 +11,13 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
+import type { CacheHint } from "../query.js";
 import { requestCached } from "../request-cache.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 import { sanitizeHref } from "../utils/url.js";
@@ -124,6 +126,20 @@ export async function getMenusWithDb(
 		.orderBy("name", "asc");
 	if (locale !== undefined) query = query.where("locale", "=", locale);
 	return query.execute();
+}
+
+/**
+ * Get a menu by name with a Workers edge-cache hint.
+ *
+ * Use the returned `cacheHint` with `Astro.cache.set()` so pages that render
+ * this menu can be purged automatically when the menu is edited.
+ */
+export async function getMenuWithCacheHint(
+	name: string,
+	options: MenuQueryOptions = {},
+): Promise<{ data: Menu | null; cacheHint: CacheHint }> {
+	const data = await getMenu(name, options);
+	return { data, cacheHint: { tags: [menuTag(name)] } };
 }
 
 /**
