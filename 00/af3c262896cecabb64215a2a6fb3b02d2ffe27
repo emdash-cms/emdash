@@ -1,0 +1,35 @@
+demos/simple/presentation/talk/lisbon-slides.js
+  s_0135e5d9216639::t_589b17b8ae3290 52-58,101-111,146
+demos/simple/presentation/README.md
+  s_20baffdc2d088d::t_327a88f9b257d4 54
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_20baffdc2d088d::t_24334bedd4ea70 12-13,15,59-64,69-71,74-75,78-79,84-85,87-96,99-255,258-259,262-266,268-272,275-276,281,284,288-295,297-301,303-307,310-311,316,319,323,325,328-330,333-334,337-338,343-344,346-354,358,364,367,370-372,375-376,379-380,385-386,388-396,400,406,412-413,446-481,538,540-543,546-552,555-558,561-563,565,568-570,574-581,584-586,589-591,593-600,603-604,607-610,612-729,744-745,756,759-760,766-767,772-870
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_20baffdc2d088d::t_8b0ee2f0c254b4 7,60,150,180,197,199
+demos/simple/presentation/talk/workflow-slides.css
+  s_20baffdc2d088d::t_bdf81e3d3a3e45 1-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "00af3c262896cecabb64215a2a6fb3b02d2ffe27",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
