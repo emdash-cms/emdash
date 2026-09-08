@@ -1,0 +1,19 @@
+demos/simple/presentation/VERIFICATION.md
+  s_20baffdc2d088d::t_844d7f113e12f4 15-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2962144da36774f537243d1547aeb77b23aab7ee",
+  "prompts": {},
+  "sessions": {
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
