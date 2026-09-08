@@ -438,7 +438,7 @@ describe("ImageFieldRenderer", () => {
 			/>,
 		);
 
-		const selectButton = screen.getByRole("button", { name: "Select image" });
+		const selectButton = screen.getByRole("button", { name: /browse for Featured image/i });
 		await expect.element(selectButton).toBeVisible();
 		await expect.element(screen.getByText("This field is required")).toBeVisible();
 

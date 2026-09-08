@@ -30,6 +30,7 @@ import {
 	metaString,
 } from "../lib/media-utils.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
+import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 
@@ -219,14 +220,17 @@ export function ImageFieldRenderer({
 		setPickerOpen(true);
 	};
 
-	const handleSelect = (item: MediaItem) => {
+	const handlePrimarySelect = (item: MediaItem) => {
 		const selected = mediaItemToImageFieldValue(item);
+		onChange(darkValue ? { ...selected, darkVariant: darkValue } : selected);
+	};
 
+	const handleSelect = (item: MediaItem) => {
 		if (pickerTarget === "darkVariant") {
-			if (objectValue) onChange({ ...objectValue, darkVariant: selected });
+			if (objectValue) onChange({ ...objectValue, darkVariant: mediaItemToImageFieldValue(item) });
 			return;
 		}
-		onChange(darkValue ? { ...selected, darkVariant: darkValue } : selected);
+		handlePrimarySelect(item);
 	};
 
 	const handleRemove = () => {
@@ -528,6 +532,14 @@ export function ImageFieldRenderer({
 						{primaryActions}
 					</div>
 				)
+			) : isFeatured ? (
+				<ImageDropTarget
+					label={label}
+					onSelect={() => openPicker("image")}
+					onUploaded={handlePrimarySelect}
+					allowedMimeTypes={allowedMimeTypes}
+					fieldId={fieldId}
+				/>
 			) : (
 				<Button
 					type="button"
