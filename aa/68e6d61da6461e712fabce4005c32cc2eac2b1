@@ -1,0 +1,23 @@
+.changeset/sticky-media-pagination.md
+  s_a5546e654e1f61::t_44c973d0d9c342 1-5
+packages/admin/tests/components/MediaLibrary.layout.test.tsx
+  s_a5546e654e1f61::t_5cd2f4e138973b 1-103
+packages/admin/src/components/MediaLibrary.tsx
+  s_a5546e654e1f61::t_731099bcb50eb3 260,773-779,1304-1307,1348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "aa68e6d61da6461e712fabce4005c32cc2eac2b1",
+  "prompts": {},
+  "sessions": {
+    "s_a5546e654e1f61": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06808-7f42-7fe2-a5ba-d41f69e9d30e",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
