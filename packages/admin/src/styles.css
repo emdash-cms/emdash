@@ -351,11 +351,17 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 /**
  * TipTap placeholder styles
  */
+.tiptap p.is-empty {
+	display: flow-root;
+}
+
 .tiptap p.is-empty::before {
-	color: var(--text-color-kumo-subtle);
+	color: var(--text-color-kumo-inactive);
 	content: attr(data-placeholder);
-	float: left;
-	height: 0;
+	float: inline-start;
+	/* Leave room for the text caret alongside the full-width placeholder. */
+	width: 100%;
+	margin-inline-end: -100%;
 	pointer-events: none;
 }
 
