@@ -1,0 +1,23 @@
+pnpm-lock.yaml
+  s_5dc87260d7ef58::t_f49db627eeb502 310,11031-11032,21865,22891
+packages/admin/tests/components/settings/GeneralSettings.test.tsx
+  s_5dc87260d7ef58::t_5c933a32451237 170,182,200
+pnpm-workspace.yaml
+  s_5dc87260d7ef58::t_812064c43bcacb 50-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "be1bfe8e1be82ceefb85eac0b30212830e105ea5",
+  "prompts": {},
+  "sessions": {
+    "s_5dc87260d7ef58": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06279-20ee-79e1-847c-2457f31d267f",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Cameron <cclark@cloudflare.com>"
+    }
+  }
+}

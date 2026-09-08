@@ -1,0 +1,45 @@
+packages/core/src/api/schemas/content.ts
+  s_5dc87260d7ef58::t_f23e4f4b87031e 11-20,34,177,244-247
+packages/core/src/api/schemas/redirects.ts
+  s_5dc87260d7ef58::t_a6fcb464722b14 101-106
+packages/core/src/astro/routes/api/admin/api-tokens/index.ts
+  s_5dc87260d7ef58::t_37ba964b60ccdf 22-25
+packages/core/tests/unit/api/schemas.test.ts
+  s_2f42622099816f::t_155ba35c5f17a9 53-60
+packages/core/src/mcp/server.ts
+  s_5dc87260d7ef58::t_9fe77d25dce51e 42-50,1055,1275
+packages/core/src/schema/zod-generator.ts
+  s_5dc87260d7ef58::t_4593edf14ec550 64,97-100
+packages/core/tests/unit/schema/zod-generator.test.ts
+  s_5dc87260d7ef58::t_cf53bb811edf57 208-231
+packages/core/tests/unit/schemas/redirects.test.ts
+  s_5dc87260d7ef58::t_a25df3368b9b72 3,35-41
+packages/plugins/forms/src/schemas.ts
+  s_5dc87260d7ef58::t_4140e9aa3158f8 12,198-199
+packages/plugins/forms/tests/schemas.test.ts
+  s_5dc87260d7ef58::t_bddc61e9e71f4b 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8b23e6d5085457bc101643c84703a91b84dce56f",
+  "prompts": {},
+  "sessions": {
+    "s_2f42622099816f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08026-d5be-7d92-95ab-885d5dd1d827",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Cameron <cclark@cloudflare.com>"
+    },
+    "s_5dc87260d7ef58": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06279-20ee-79e1-847c-2457f31d267f",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Cameron <cclark@cloudflare.com>"
+    }
+  }
+}

@@ -1,0 +1,21 @@
+apps/release-action/dist/index.js
+  s_5dc87260d7ef58::t_9d92e240a66ca8 1546
+apps/release-service/src/ui/App.test.tsx
+  s_5dc87260d7ef58::t_bc800c7b7ef422 727-774
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d4e6f3ddb535140a64c83dda2d2082edb1ca40c1",
+  "prompts": {},
+  "sessions": {
+    "s_5dc87260d7ef58": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06279-20ee-79e1-847c-2457f31d267f",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Cameron <cclark@cloudflare.com>"
+    }
+  }
+}

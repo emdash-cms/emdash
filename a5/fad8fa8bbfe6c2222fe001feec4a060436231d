@@ -1,0 +1,19 @@
+apps/release-action/dist/index.js
+  s_5dc87260d7ef58::t_9d92e240a66ca8 1546
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a5fad8fa8bbfe6c2222fe001feec4a060436231d",
+  "prompts": {},
+  "sessions": {
+    "s_5dc87260d7ef58": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06279-20ee-79e1-847c-2457f31d267f",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Cameron <cclark@cloudflare.com>"
+    }
+  }
+}
