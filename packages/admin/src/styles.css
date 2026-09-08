@@ -395,7 +395,7 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 }
 
 /*
- * Reduce margins in editor to minimize drag preview offset.
+ * Keep heading margins compact to minimize drag preview offset.
  */
 .ProseMirror.prose > h1 {
 	margin-top: 0.5em !important;
@@ -415,13 +415,19 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	margin-bottom: 0.3em !important;
 }
 
+/* Top margins add blank space above the text in block drag previews. */
 .ProseMirror.prose > p {
-	margin-top: 0.25em !important;
-	margin-bottom: 0.25em !important;
+	font-size: 1rem;
+	line-height: 1.5;
+	margin-block: 0 1em !important;
 }
 
 .ProseMirror.prose > *:first-child {
 	margin-top: 0 !important;
+}
+
+.ProseMirror.prose > p:last-child {
+	margin-bottom: 0 !important;
 }
 
 /* TipTap table styles */
