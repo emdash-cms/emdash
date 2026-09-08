@@ -15,11 +15,13 @@ const SERVICE = "https://release.example.com";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
+const CONNECTION_INVITATION = `ewci1_${"I".repeat(43)}`;
 const ENVIRONMENT = {
 	ACTIONS_ID_TOKEN_REQUEST_URL: "https://token.actions.example/id-token?api-version=1",
 	ACTIONS_ID_TOKEN_REQUEST_TOKEN: "runner-request-token",
 	GITHUB_RUN_ID: "10000000001",
 	GITHUB_RUN_ATTEMPT: "2",
+	EMDASH_CONNECTION_INVITATION: CONNECTION_INVITATION,
 };
 
 function sourceRelease(): PackageRelease.Main {
@@ -184,6 +186,11 @@ describe("delegated release CLI operations", () => {
 		expect(serviceRequests[0]?.headers.get("idempotency-key")).toBe(
 			"github-connection-10000000001-gallery",
 		);
+		await expect(serviceRequests[0]?.json()).resolves.toEqual({
+			publisherDid: PUBLISHER_DID,
+			packageSlug: "gallery",
+			invitationToken: CONNECTION_INVITATION,
+		});
 		expect(serviceRequests[1]?.headers.get("idempotency-key")).toBe("github-run-10000000001");
 		expect(serviceRequests[1]?.headers.get("authorization")).toBe(
 			"Bearer header.payload.signature",

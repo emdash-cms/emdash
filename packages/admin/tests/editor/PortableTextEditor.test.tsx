@@ -304,6 +304,144 @@ describe("plugin block helpers", () => {
 // =============================================================================
 
 describe("Portable Text ↔ ProseMirror conversion", () => {
+	it("preserves existing keys and supported link mark definitions", () => {
+		const blocks = [
+			{
+				_type: "block" as const,
+				_key: "block-1",
+				style: "normal" as const,
+				children: [
+					{
+						_type: "span" as const,
+						_key: "span-1",
+						text: "Linked text",
+						marks: ["strong", "link-1"],
+					},
+				],
+				markDefs: [
+					{
+						_type: "link",
+						_key: "link-1",
+						href: "https://example.com",
+						blank: true,
+					},
+				],
+			},
+		];
+
+		const roundTripped = _prosemirrorToPortableText(_portableTextToProsemirror(blocks));
+
+		expect(roundTripped).toEqual(blocks);
+	});
+
+	it("keeps a no-op editor update lossless", async () => {
+		const onChange = vi.fn();
+		const blocks = [
+			{
+				_type: "block" as const,
+				_key: "block-1",
+				style: "normal" as const,
+				children: [
+					{
+						_type: "span" as const,
+						_key: "span-1",
+						text: "Linked text",
+						marks: ["link-1"],
+					},
+				],
+				markDefs: [
+					{
+						_type: "link",
+						_key: "link-1",
+						href: "https://example.com",
+					},
+				],
+			},
+			{ _type: "test.divider", _key: "divider-1" },
+		];
+		const { editor } = await renderAndGetEditor({
+			value: blocks,
+			onChange,
+			pluginBlocks: [
+				{
+					type: "test.divider",
+					pluginId: "test-blocks",
+					label: "Divider",
+					fields: [],
+				},
+			],
+		});
+
+		const roundTripped = _prosemirrorToPortableText(
+			editor.getJSON() as Parameters<typeof _prosemirrorToPortableText>[0],
+		);
+
+		expect(roundTripped).toEqual(blocks);
+
+		await React.act(async () => {
+			editor.commands.setContent(editor.getJSON(), { emitUpdate: true });
+		});
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("keeps span keys unique when an edit splits existing text", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "block-1",
+					style: "normal",
+					children: [
+						{
+							_type: "span",
+							_key: "span-1",
+							text: "Hello world",
+						},
+					],
+				},
+			],
+			onChange,
+		});
+
+		editor.chain().focus().setTextSelection({ from: 1, to: 6 }).toggleBold().run();
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+
+		const block = onChange.mock.lastCall?.[0][0] as { children: Array<{ _key: string }> };
+		const keys = block.children.map((span) => span._key);
+		expect(keys).toContain("span-1");
+		expect(new Set(keys).size).toBe(keys.length);
+	});
+
+	it("keeps block keys unique when an edit splits a paragraph", async () => {
+		const onChange = vi.fn();
+		const { editor } = await renderAndGetEditor({
+			value: [
+				{
+					_type: "block",
+					_key: "block-1",
+					style: "normal",
+					children: [
+						{
+							_type: "span",
+							_key: "span-1",
+							text: "Hello world",
+						},
+					],
+				},
+			],
+			onChange,
+		});
+
+		editor.chain().focus().setTextSelection(6).splitBlock().run();
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+
+		const blocks = onChange.mock.lastCall?.[0] ?? [];
+		const keys = blocks.map((block) => block._key);
+		expect(keys).toContain("block-1");
+		expect(new Set(keys).size).toBe(keys.length);
+	});
+
 	it("rejects mixed unsupported decorators across nested and spanning text", () => {
 		const blocks = [
 			{
@@ -433,6 +571,27 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		const p = pm.querySelector("p");
 		expect(p).toBeTruthy();
 		expect(p!.textContent).toBe("Hello world");
+	});
+
+	it("does not report a change when mounting a payload-less registered block", async () => {
+		const onChange = vi.fn();
+		await render(
+			<PortableTextEditor
+				value={[{ _type: "test.divider", _key: "divider-1" }]}
+				onChange={onChange}
+				pluginBlocks={[
+					{
+						type: "test.divider",
+						pluginId: "test-blocks",
+						label: "Divider",
+						fields: [],
+					},
+				]}
+			/>,
+		);
+		await waitForEditor();
+
+		expect(onChange).not.toHaveBeenCalled();
 	});
 
 	it("renders an h1 heading", async () => {

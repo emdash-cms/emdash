@@ -388,6 +388,7 @@ describe("publisher publication operations", () => {
 	it.each([
 		["inactive version", "UPDATE workload_policies SET active = 0, state_version = 2"],
 		["narrowed current rules", `UPDATE workload_policies SET allowed_refs = '["refs/tags/*"]'`],
+		["stored identity digest", `UPDATE intents SET workload_identity_digest = '${"A".repeat(43)}'`],
 		[
 			"canonical stored identity",
 			`UPDATE intents SET workload_identity_json = '{"issuer":"github-actions"}'`,

@@ -941,3 +941,155 @@ describe("taxonomy_delete_term (bug #13 / F12)", () => {
 		expect(afterSlugs).not.toContain("leaf");
 	});
 });
+
+// ---------------------------------------------------------------------------
+// Taxonomy definition mutations (bug #2798)
+// ---------------------------------------------------------------------------
+
+describe("taxonomy definition mutations (bug #2798)", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "post", label: "Posts" });
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("MCP exposes taxonomy_get, taxonomy_create, taxonomy_update, taxonomy_delete", async () => {
+		const tools = await harness.client.listTools();
+		const names = new Set(tools.tools.map((t) => t.name));
+		expect(names.has("taxonomy_get")).toBe(true);
+		expect(names.has("taxonomy_create")).toBe(true);
+		expect(names.has("taxonomy_update")).toBe(true);
+		expect(names.has("taxonomy_delete")).toBe(true);
+	});
+
+	it("taxonomy_create + taxonomy_get round-trip", async () => {
+		const create = await harness.client.callTool({
+			name: "taxonomy_create",
+			arguments: {
+				name: "genre",
+				label: "Genres",
+				labelSingular: "Genre",
+				hierarchical: true,
+				collections: ["post"],
+			},
+		});
+		expect(create.isError, extractText(create)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "taxonomy_get",
+			arguments: { name: "genre" },
+		});
+		expect(get.isError, extractText(get)).toBeFalsy();
+		const taxonomy = extractJson<{
+			taxonomy: { name: string; label: string; hierarchical: boolean; collections: string[] };
+		}>(get).taxonomy;
+		expect(taxonomy.name).toBe("genre");
+		expect(taxonomy.label).toBe("Genres");
+		expect(taxonomy.hierarchical).toBe(true);
+		expect(taxonomy.collections).toEqual(["post"]);
+	});
+
+	it("taxonomy_create with translationOf inherits hierarchical and collections (#2525)", async () => {
+		const source = await handleTaxonomyCreate(db, {
+			name: "genre",
+			label: "Genres",
+			labelSingular: "Genre",
+			hierarchical: true,
+			collections: ["post"],
+		});
+		expect(source.success).toBe(true);
+		if (!source.success) return;
+
+		const create = await harness.client.callTool({
+			name: "taxonomy_create",
+			arguments: {
+				name: "genre",
+				label: "Genres",
+				locale: "es",
+				translationOf: source.data.taxonomy.id,
+			},
+		});
+		expect(create.isError, extractText(create)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "taxonomy_get",
+			arguments: { name: "genre", locale: "es" },
+		});
+		expect(get.isError, extractText(get)).toBeFalsy();
+		const taxonomy = extractJson<{ taxonomy: { hierarchical: boolean; collections: string[] } }>(
+			get,
+		).taxonomy;
+		expect(taxonomy.hierarchical).toBe(true);
+		expect(taxonomy.collections).toEqual(["post"]);
+	});
+
+	it("taxonomy_update changes label, collections and hierarchical flag", async () => {
+		await handleTaxonomyCreate(db, {
+			name: "genre",
+			label: "Genres",
+			hierarchical: true,
+			collections: ["post"],
+		});
+
+		const update = await harness.client.callTool({
+			name: "taxonomy_update",
+			arguments: {
+				name: "genre",
+				label: "Kinds",
+				labelSingular: "Kind",
+				hierarchical: false,
+				collections: [],
+			},
+		});
+		expect(update.isError, extractText(update)).toBeFalsy();
+
+		const get = await harness.client.callTool({
+			name: "taxonomy_get",
+			arguments: { name: "genre" },
+		});
+		const taxonomy = extractJson<{
+			taxonomy: {
+				label: string;
+				labelSingular?: string;
+				hierarchical: boolean;
+				collections: string[];
+			};
+		}>(get).taxonomy;
+		expect(taxonomy.label).toBe("Kinds");
+		expect(taxonomy.labelSingular).toBe("Kind");
+		expect(taxonomy.hierarchical).toBe(false);
+		expect(taxonomy.collections).toEqual([]);
+	});
+
+	it("taxonomy_delete removes the definition, its terms, and their assignments", async () => {
+		await handleTaxonomyCreate(db, { name: "genre", label: "Genres", collections: ["post"] });
+		await harness.client.callTool({
+			name: "taxonomy_create_term",
+			arguments: { taxonomy: "genre", slug: "noir", label: "Noir" },
+		});
+
+		const del = await harness.client.callTool({
+			name: "taxonomy_delete",
+			arguments: { name: "genre" },
+		});
+		expect(del.isError, extractText(del)).toBeFalsy();
+		const body = extractJson<{ deleted: boolean }>(del);
+		expect(body.deleted).toBe(true);
+
+		const get = await harness.client.callTool({
+			name: "taxonomy_get",
+			arguments: { name: "genre" },
+		});
+		expect(get.isError).toBe(true);
+		expect(extractText(get)).toMatch(/\bNOT_FOUND\b|\bnot found\b/i);
+	});
+});

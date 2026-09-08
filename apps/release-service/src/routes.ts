@@ -92,9 +92,12 @@ import {
 import { handleUploadWorkloadArtifact } from "./publishing/workload-staging-routes.js";
 import {
 	handleConfirmWorkflowConnection,
+	handleCreateWorkflowConnectionInvitation,
 	handleListWorkflowConnections,
+	handleRejectWorkflowConnection,
 	handleRequestWorkflowConnection,
 	matchWorkflowConnectionConfirmPath,
+	matchWorkflowConnectionPath,
 } from "./workflow-connection/routes.js";
 
 export interface RouteDefinition {
@@ -199,10 +202,23 @@ export const ROUTES = Object.freeze([
 	},
 	{
 		method: "POST",
+		path: "/v1/publisher/workflow-connection-invitations",
+		handler: (request, requestId, configuration) =>
+			handleCreateWorkflowConnectionInvitation(request, requestId, configuration),
+	},
+	{
+		method: "POST",
 		path: "/v1/publisher/workflow-connections/{requestId}/confirm",
 		match: matchWorkflowConnectionConfirmPath,
 		handler: (request, requestId, configuration, params) =>
 			handleConfirmWorkflowConnection(request, requestId, configuration, params),
+	},
+	{
+		method: "DELETE",
+		path: "/v1/publisher/workflow-connections/{requestId}",
+		match: matchWorkflowConnectionPath,
+		handler: (request, requestId, configuration, params) =>
+			handleRejectWorkflowConnection(request, requestId, configuration, params),
 	},
 	{
 		method: "POST",

@@ -13,6 +13,7 @@ const CREATED_URI = `at://${PUBLISHER_DID}/com.emdashcms.experimental.package.re
 const CREATED_CID = "bafyreigh2akiscaildc4mscz4uzpcbap5jxg26eecmrf6cmnvkzkjmoixe";
 const CHECKSUM = "bciqcz4snxjp3biyoe3udwkwfxhrj4gywdzob7j2clzzqim3csofzqja";
 const PROVENANCE_CHECKSUM = "bciqaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const CONNECTION_INVITATION = `ewci1_${"I".repeat(43)}`;
 
 function sourceRelease(): PackageRelease.Main {
 	const release = structuredClone(releaseFixture) as PackageRelease.Main;
@@ -113,6 +114,10 @@ function success(data: unknown, status = 200): Response {
 	return Response.json({ data, requestId: "request-1" }, { status });
 }
 
+function failure(code: string, message: string, status: number): Response {
+	return Response.json({ error: { code, message }, requestId: "request-1" }, { status });
+}
+
 function policy() {
 	return {
 		packageSlug: "gallery",
@@ -179,6 +184,7 @@ function preparedFiles(): PreparedReleaseFiles {
 describe("delegated release Action", () => {
 	it("requests a fresh OIDC token, publishes, and emits stable outputs", async () => {
 		const runtime = new FakeRuntime();
+		runtime.inputs.set("connection-invitation", CONNECTION_INVITATION);
 		const responses = sequenceFetch([
 			success({ status: "connected", policy: policy() }),
 			success({ intent: intent("received"), replayed: false }, 202),
@@ -188,9 +194,9 @@ describe("delegated release Action", () => {
 				}),
 			}),
 		]);
-		const requests: RequestInit[] = [];
+		const requests: Request[] = [];
 		const fetch: typeof globalThis.fetch = async (input, init) => {
-			requests.push(init ?? {});
+			requests.push(new Request(input, init));
 			return responses(input, init);
 		};
 		const result = await runAction(runtime, { ...dependencies, fetch });
@@ -198,6 +204,7 @@ describe("delegated release Action", () => {
 		expect(result.state).toBe("published");
 		expect(runtime.tokenCount).toBe(3);
 		expect(runtime.masks).toEqual([
+			CONNECTION_INVITATION,
 			"header.payload.signature-1",
 			"header.payload.signature-2",
 			"header.payload.signature-3",
@@ -214,10 +221,15 @@ describe("delegated release Action", () => {
 			]),
 		);
 		expect(runtime.messages.at(-1)).toContain(CREATED_URI);
-		expect(new Headers(requests[0]?.headers).get("idempotency-key")).toBe(
+		expect(requests[0]?.headers.get("idempotency-key")).toBe(
 			"github-connection-10000000001-gallery",
 		);
-		expect(new Headers(requests[1]?.headers).get("idempotency-key")).toBe("github-run-10000000001");
+		expect(await requests[0]?.json()).toEqual({
+			publisherDid: PUBLISHER_DID,
+			packageSlug: "gallery",
+			invitationToken: CONNECTION_INVITATION,
+		});
+		expect(requests[1]?.headers.get("idempotency-key")).toBe("github-run-10000000001");
 	});
 
 	it("uploads a built bundle and attestation without a hand-authored release record", async () => {
@@ -296,6 +308,39 @@ describe("delegated release Action", () => {
 				},
 			},
 		});
+	});
+
+	it("fails before uploading when the package profile needs setup", async () => {
+		const runtime = new FakeRuntime();
+		runtime.inputs.delete("release-file");
+		runtime.inputs.set("bundle-file", ".emdash-release/gallery.tar.gz");
+		runtime.inputs.set("provenance-file", "/runner/temp/attestation.json");
+		runtime.environment.set("RUNNER_TEMP", "/runner/temp");
+		runtime.environment.set("GITHUB_REPOSITORY", "example/gallery");
+		runtime.environment.set(
+			"GITHUB_WORKFLOW_REF",
+			"example/gallery/.github/workflows/emdash-release.yml@refs/heads/main",
+		);
+		runtime.environment.set("GITHUB_REPOSITORY_VISIBILITY", "public");
+		const requests: Request[] = [];
+		await executeAction(runtime, {
+			prepareReleaseFiles: async () => preparedFiles(),
+			fetch: async (input, init) => {
+				requests.push(new Request(input, init));
+				return failure(
+					"PACKAGE_PROFILE_REQUIRED",
+					"Create this plugin's package profile with `emdash-plugin profile setup`, then try again",
+					409,
+				);
+			},
+		});
+
+		expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+			"/v1/workflow-connections",
+		]);
+		expect(runtime.failures).toEqual([
+			"PACKAGE_PROFILE_REQUIRED: Create this plugin's package profile with `emdash-plugin profile setup`, then try again",
+		]);
 	});
 
 	it("puts first-run workflow approval in the job summary and continues after confirmation", async () => {

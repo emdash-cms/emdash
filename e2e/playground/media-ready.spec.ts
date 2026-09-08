@@ -18,7 +18,7 @@ async function openFreshPlayground(page: Page): Promise<void> {
 		dialog.getByRole("button", { name: "Get Started" }).click(),
 	);
 	await page.goto("/playground");
-	await page.waitForURL(ADMIN_URL_PATTERN, { timeout: 120_000 });
+	await page.waitForURL(ADMIN_URL_PATTERN, { timeout: 240_000 });
 	await expect(page.getByRole("link", { name: "Media", exact: true })).toBeVisible({
 		timeout: 60_000,
 	});

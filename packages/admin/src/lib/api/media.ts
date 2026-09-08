@@ -21,6 +21,9 @@ export interface MediaUploadOptions {
 
 export interface UploadMediaOptions extends MediaUploadOptions {
 	fieldId?: string;
+	deduplicate?: boolean;
+	ensureUniqueFilename?: boolean;
+	folderId?: string | null;
 }
 
 /** Trim and clamp a search term to the server-accepted range. */
@@ -86,6 +89,7 @@ export interface MediaItem {
 	url: string;
 	/** Storage key for local media (e.g., "01ABC.jpg"). Not present for external URLs. */
 	storageKey?: string;
+	contentHash?: string | null;
 	size: number;
 	width?: number;
 	height?: number;
@@ -98,6 +102,7 @@ export interface MediaItem {
 	alt?: string;
 	caption?: string;
 	createdAt: string;
+	status?: "pending" | "ready" | "failed";
 	/** Provider ID for external media (e.g., "cloudflare-images") */
 	provider?: string;
 	/** Provider-specific metadata */
@@ -308,7 +313,8 @@ async function getUploadUrl(
 	opts?: UploadMediaOptions,
 ): Promise<UploadUrlResponse | ExistingMediaResponse | null> {
 	try {
-		const contentHash = await computeContentHash(file, opts?.signal);
+		const contentHash =
+			opts?.deduplicate === false ? undefined : await computeContentHash(file, opts?.signal);
 		const response = await apiFetch(`${API_BASE}/media/upload-url`, {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -319,6 +325,9 @@ async function getUploadUrl(
 				size: file.size,
 				...(contentHash ? { contentHash } : {}),
 				...(opts?.fieldId ? { fieldId: opts.fieldId } : {}),
+				...(opts?.deduplicate === false ? { deduplicate: false } : {}),
+				...(opts?.ensureUniqueFilename ? { ensureUniqueFilename: true } : {}),
+				...(opts?.folderId !== undefined ? { folderId: opts.folderId } : {}),
 			}),
 		});
 
@@ -348,14 +357,14 @@ async function confirmUpload(
 	mediaId: string,
 	metadata?: { width?: number; height?: number; size?: number },
 	options?: MediaUploadOptions,
-): Promise<MediaItem> {
+): Promise<LocalMediaItem> {
 	const response = await apiFetch(`${API_BASE}/media/${mediaId}/confirm`, {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify(metadata || {}),
 		signal: options?.signal,
 	});
-	const data = await parseApiResponse<{ item: MediaItem }>(
+	const data = await parseApiResponse<{ item: LocalMediaItem }>(
 		response,
 		i18n._(msg`Failed to confirm upload`),
 	);
@@ -386,7 +395,7 @@ async function uploadToSignedUrl(
 /**
  * Get image dimensions from a file
  */
-async function getImageDimensions(
+export async function getImageDimensions(
 	file: File,
 	options?: MediaUploadOptions,
 ): Promise<{ width: number; height: number } | null> {
@@ -429,7 +438,7 @@ async function getImageDimensions(
 /**
  * Upload media file via direct upload (legacy/local storage)
  */
-async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise<MediaItem> {
+async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise<LocalMediaItem> {
 	// Get image dimensions before upload
 	const dimensions = await getImageDimensions(file, opts);
 
@@ -439,13 +448,17 @@ async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise
 	if (dimensions?.width) formData.append("width", String(dimensions.width));
 	if (dimensions?.height) formData.append("height", String(dimensions.height));
 	if (opts?.fieldId) formData.append("fieldId", opts.fieldId);
+	if (opts?.deduplicate === false) formData.append("deduplicate", "false");
+	if (opts?.ensureUniqueFilename) formData.append("ensureUniqueFilename", "true");
+	if (opts?.folderId === null) formData.append("folderId", "unfiled");
+	else if (opts?.folderId !== undefined) formData.append("folderId", opts.folderId);
 
 	const response = await apiFetch(`${API_BASE}/media`, {
 		method: "POST",
 		body: formData,
 		signal: opts?.signal,
 	});
-	const data = await parseApiResponse<{ item: MediaItem }>(
+	const data = await parseApiResponse<{ item: LocalMediaItem }>(
 		response,
 		i18n._(msg`Failed to upload media`),
 	);
@@ -458,7 +471,7 @@ async function uploadMediaDirect(file: File, opts?: UploadMediaOptions): Promise
  * Tries signed URL upload first (for S3/R2 storage), falls back to direct upload
  * (for local storage) if signed URLs are not supported.
  */
-export async function uploadMedia(file: File, opts?: UploadMediaOptions): Promise<MediaItem> {
+export async function uploadMedia(file: File, opts?: UploadMediaOptions): Promise<LocalMediaItem> {
 	opts?.signal?.throwIfAborted();
 	// Try to get a signed upload URL
 	const uploadInfo = await getUploadUrl(file, opts);
@@ -487,6 +500,28 @@ export async function uploadMedia(file: File, opts?: UploadMediaOptions): Promis
 		},
 		opts,
 	);
+}
+
+export async function replaceMediaImage(
+	id: string,
+	file: File,
+	dimensions: { width: number; height: number },
+	options?: MediaUploadOptions,
+): Promise<LocalMediaItem> {
+	const formData = new FormData();
+	formData.append("file", file);
+	formData.append("width", String(dimensions.width));
+	formData.append("height", String(dimensions.height));
+	const response = await apiFetch(`${API_BASE}/media/${encodeURIComponent(id)}/replace`, {
+		method: "PUT",
+		body: formData,
+		signal: options?.signal,
+	});
+	const data = await parseApiResponse<{ item: LocalMediaItem }>(
+		response,
+		i18n._(msg`Failed to replace media image`),
+	);
+	return data.item;
 }
 
 /**

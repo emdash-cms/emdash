@@ -2,11 +2,11 @@
 
 Status: Implemented locally; deployment conformance pending
 
-Related design: [RFC PR #1870](https://github.com/emdash-cms/emdash/pull/1870)
-
 ## Summary
 
 The delegated release service lets a plugin publisher authorize automated releases without placing an AT Protocol account credential in continuous integration. The publisher grants the service create-only access to the package-release collection and bounded blob-upload access. A GitHub Actions workflow authenticates to the service with OpenID Connect (OIDC), uploads its bundle and provenance to private staging, and submits the checksum-bound release. The service verifies those bytes, uploads the bundle to the publisher's PDS, and creates a blob-only release record. The workflow receives either the published release or an intent waiting for passkey approval.
+
+The publisher task guide is [Automated plugin releases](../src/content/docs/plugins/creating-plugins/delegated-releases.mdx). Contributor setup and component boundaries are documented in the [release-service README](../../apps/release-service/README.md).
 
 The service is a delegated writer, not a registry or trust authority. It cannot edit package profiles, overwrite releases, serve public or long-lived artifacts, moderate listings, or make an invalid release installable. EmDash installers independently verify the publisher's records, artifact, manifest, provenance, and signed package policy.
 
@@ -40,11 +40,11 @@ Canonical service state is sharded across SQLite-backed Durable Objects. A `Publ
 
 The service has three external authentication mechanisms. Credentials from one mechanism never authorize another.
 
-| Actor                     | Authentication                                         | Authority                                                                                         |
-| ------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
-| GitHub Actions workflow   | GitHub Actions OIDC                                    | Request publisher approval for its identity, then submit release intents                          |
-| Atmosphere account holder | AT Protocol OAuth plus an enrolled passkey when needed | Establish or revoke delegation, confirm a GitHub workflow, and approve or reject an exact release |
-| Service operator          | Cloudflare Access                                      | Observe, pause, suspend, revoke, retry, and recover the service                                   |
+| Actor                                                                                                                | Authentication                                         | Authority                                                                                         |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| GitHub Actions workflow                                                                                              | GitHub Actions OIDC                                    | Request publisher approval for its identity, then submit release intents                          |
+| [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) holder | AT Protocol OAuth plus an enrolled passkey when needed | Establish or revoke delegation, confirm a GitHub workflow, and approve or reject an exact release |
+| Service operator                                                                                                     | Cloudflare Access                                      | Observe, pause, suspend, revoke, retry, and recover the service                                   |
 
 Cloudflare Access protects `/admin/*` and the operator API. The Worker verifies the `Cf-Access-Jwt-Assertion` signature, team issuer, role-specific audience, time claims, token type, and human identity. Access-injected identity headers and the browser cookie are not sufficient by themselves. Operator mutations retain CSRF and idempotency protection.
 
@@ -131,6 +131,8 @@ interface PackageProfileExtension {
 ```
 
 The service normalizes omitted values to the protocol defaults. It validates the repository as a canonical HTTPS source URL and every approver as a DID. The release service can display this policy but cannot change it.
+
+`emdash-plugin release setup` creates a missing package profile or adds the extension to an existing valid profile through the publisher's local CLI session. It asks for confirmation in an interactive terminal and preserves existing package metadata. The service checks the signed extension before confirming a workflow and again before accepting that workflow's artifact uploads. A missing profile, missing extension, or repository mismatch returns `PACKAGE_PROFILE_REQUIRED` with the local setup command.
 
 The delegated path always requires supported provenance, even when `requireProvenance` is absent. The profile field communicates the publisher's requirement to every installer and non-delegated publisher. A supplied unsupported predicate is present-but-unverifiable and fails delegated publication.
 
@@ -337,6 +339,8 @@ The following schemas describe required data and constraints. Exact SQL belongs 
 | `operations`                        | Kind, generation, attempt key, token hash, intent ID, phase, materialization digest, start/deadline, completion state                                 |
 | `audit_events`                      | Monotonic sequence, event type, actor realm, actor identity, subject, public-safe payload, timestamp                                                  |
 | `deadlines`                         | Kind, subject ID, scheduled time, generation                                                                                                          |
+| `workflow_connection_invitations`   | One-time SHA-256 token hash, package slug, expiry, creation time                                                                                      |
+| `workflow_connection_requests`      | ULID, mutation key, connection key, package slug, normalized OIDC claims, state, ref scope, expected policy version, expiry and timestamps            |
 
 Sensitive values are encrypted individually with associated data binding the publisher DID, table, row identity, and key version. The database never stores an encryption master key.
 
@@ -388,12 +392,13 @@ Allowed transitions are explicit. Compare-and-set transition methods take the ex
 3. Hosted-service admission policy permits or rejects the publisher.
 4. The publisher authorizes the exact delegated release scope for create-only release records and gzip-package and image-blob uploads.
 5. The service verifies the returned grant and stores the encrypted session in the publisher object.
-6. The permanent release Action runs in the intended GitHub Actions workflow. Its audience-bound OIDC token supplies the immutable repository and owner IDs, workflow file, ref, and environment.
-7. When no matching workload policy exists, the publisher object stores a short-lived workflow connection request and returns a browser approval URL. The Action writes that URL to the job summary and waits.
-8. The browser displays the human-readable repository, workflow file, branch or tag, and environment. For a tag-triggered release, the publisher chooses the current tag or all version tags. Confirmation creates the package-to-GitHub-workload policy; the OIDC request cannot create authority by itself.
-9. The service fetches and validates the signed package profile.
-10. Profile-listed approvers use the same Atmosphere login and enrol passkeys before approving a release.
-11. A dry-run submission verifies OIDC identity, request shape, service admission, and workload policy without reserving, rate-limiting, starting verification, or publishing a version. It does not fetch or validate the artifact or provenance document.
+6. The publisher creates a 30-minute workflow connection invitation for the plugin and stores the one-time value as the `EMDASH_CONNECTION_INVITATION` GitHub Actions secret.
+7. The permanent release Action runs in the intended GitHub Actions workflow. Its audience-bound OIDC token supplies the immutable repository and owner IDs, workflow file, ref, and environment.
+8. When no matching workload policy exists, the publisher object atomically consumes the package-bound invitation, stores a short-lived workflow connection request, and returns a browser approval URL. The Action writes that URL to the job summary and waits.
+9. The browser displays the human-readable repository, workflow file, branch or tag, and environment. For a tag-triggered release, the publisher chooses the current tag or all version tags. Confirmation creates the package-to-GitHub-workload policy; the OIDC request cannot create authority by itself. The publisher can reject a request without granting authority.
+10. The service fetches and validates the signed package profile.
+11. Profile-listed approvers use the same Atmosphere login and enrol passkeys before approving a release.
+12. A dry-run submission verifies OIDC identity, request shape, service admission, and workload policy without reserving, rate-limiting, starting verification, or publishing a version. It does not fetch or validate the artifact or provenance document.
 
 The publisher can revoke the delegation from the service or directly through the authorization server. The service treats refresh failure after revocation as terminal authority loss, not as a retry loop.
 
@@ -401,7 +406,7 @@ The publisher can revoke the delegation from the service or directly through the
 
 1. GitHub Actions builds and bundles the plugin.
 2. GitHub Actions creates SLSA provenance for the exact bundle.
-3. The Action requests or verifies its workflow connection with an OIDC token whose audience is the release service. A missing policy creates a pending request; a matching policy lets the run continue.
+3. The Action requests or verifies its workflow connection with an OIDC token whose audience is the release service. A missing policy requires and consumes a publisher-created invitation before creating a pending request; a matching policy lets the run continue without an invitation.
 4. After browser confirmation, the Action uploads the bundle and raw Sigstore file to private staging with fresh OIDC tokens. Each object is checksum-bound to the publisher, workload, package, version, and slot.
 5. The Action submits the package, version, staged source references, checksums, and idempotency key. Artifact descriptors contain internal HTTPS references and no PDS blobs.
 6. The Worker verifies request shape, OIDC signature and claims, and routes to the publisher object.
@@ -491,6 +496,7 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 | -------------------------------------- | ----------------------------------------------------------------- |
 | `POST /v1/release-intents`             | Submit or replay an OIDC-authenticated intent                     |
 | `POST /v1/release-intents/dry-run`     | Check OIDC and admission policy without creating an intent        |
+| `POST /v1/workflow-connections`        | Request a connection using OIDC and a one-time invitation         |
 | `GET /v1/release-intents/{id}`         | Read status using matching workload identity or publisher session |
 | `POST /v1/release-intents/{id}/cancel` | Cancel before publication                                         |
 
@@ -504,14 +510,16 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 | `DELETE /v1/publisher/delegation`                             | Revoke retained authority                                 |
 | `GET /v1/publisher/workloads`                                 | List package workload policies                            |
 | `POST /v1/publisher/workloads`                                | Create or replace an authorized policy                    |
+| `POST /v1/publisher/workflow-connection-invitations`          | Create a package-bound, 30-minute connection invitation   |
 | `GET /v1/publisher/workflow-connections`                      | List pending workflow connection requests                 |
 | `POST /v1/publisher/workflow-connections/{requestId}/confirm` | Confirm a request and create its workload policy          |
+| `DELETE /v1/publisher/workflow-connections/{requestId}`       | Reject and clear a pending connection request             |
 | `DELETE /v1/publisher/workloads/{packageSlug}`                | Disable a policy                                          |
 | `GET /v1/publisher/workloads/{packageSlug}/approvers`         | Read approval readiness for DIDs in the signed profile    |
 | `GET /v1/publisher/intents`                                   | List publisher intents with cursor pagination             |
 | `GET /v1/publisher/audit`                                     | List publisher-scoped audit events with cursor pagination |
 
-`POST /v1/workflow-connections` is the GitHub OIDC-authenticated endpoint used by the permanent Action and `release submit`. It returns an existing matching policy or records a pending request in the publisher shard. It cannot create a workload policy.
+`POST /v1/workflow-connections` is the GitHub OIDC-authenticated endpoint used by the permanent Action and `release submit`. It returns an existing matching policy without requiring an invitation. For an unmatched workflow, it atomically consumes a valid package-bound invitation and records a pending request in the publisher shard. It cannot create a workload policy.
 
 ### Approver API
 
@@ -558,28 +566,29 @@ State-changing requests require content-type validation, CSRF where cookies are 
 
 At minimum, the API and Workflow use these error classes:
 
-| Code                   | Meaning                                                     | Retry behavior                   |
-| ---------------------- | ----------------------------------------------------------- | -------------------------------- |
-| `AUTH_INVALID`         | Authentication or session proof failed                      | Permanent for request            |
-| `ACCESS_DENIED`        | Verified actor lacks required role or ownership             | Permanent                        |
-| `PUBLISHER_SUSPENDED`  | Hosted service or operator blocked the publisher            | Retry after state change         |
-| `SERVICE_PAUSED`       | Admission or publication is paused                          | Retry after state change         |
-| `DELEGATION_REQUIRED`  | No usable exact-scope session exists                        | Publisher must reauthorize       |
-| `WORKLOAD_NOT_ALLOWED` | OIDC claims do not match active policy                      | Permanent until policy changes   |
-| `IDEMPOTENCY_CONFLICT` | Same key was used with a different request                  | Permanent                        |
-| `VERSION_RESERVED`     | Package/version belongs to another intent                   | Permanent or return owner intent |
-| `RELEASE_EXISTS`       | Proposed deterministic key already exists                   | Permanent unless exact replay    |
-| `PROFILE_CHANGED`      | Authoritative policy changed after verification or approval | Reverify and possibly reapprove  |
-| `BASELINE_CHANGED`     | Access baseline changed                                     | Reverify and possibly reapprove  |
-| `ARTIFACT_INVALID`     | Fetch, checksum, bundle, or manifest failed                 | Permanent for supplied input     |
-| `PROVENANCE_INVALID`   | Provenance or workload binding failed                       | Permanent for supplied input     |
-| `APPROVAL_REQUIRED`    | Valid release awaits human decision                         | Not an error state               |
-| `APPROVAL_INVALID`     | DID, credential, challenge, digest, or UV failed            | Permanent for attempt            |
-| `DELEGATION_REVOKED`   | Session was revoked or cannot refresh                       | Publisher must reauthorize       |
-| `PDS_TRANSIENT`        | PDS result is retryable                                     | Workflow retry                   |
-| `PDS_AMBIGUOUS`        | Create outcome is unknown                                   | Reconciliation                   |
-| `RELEASE_CONFLICT`     | Deterministic key contains different data                   | Terminal conflict                |
-| `INTERNAL_ERROR`       | Public-safe catch-all                                       | Operator-visible correlation ID  |
+| Code                       | Meaning                                                     | Retry behavior                   |
+| -------------------------- | ----------------------------------------------------------- | -------------------------------- |
+| `AUTH_INVALID`             | Authentication or session proof failed                      | Permanent for request            |
+| `ACCESS_DENIED`            | Verified actor lacks required role or ownership             | Permanent                        |
+| `PUBLISHER_SUSPENDED`      | Hosted service or operator blocked the publisher            | Retry after state change         |
+| `SERVICE_PAUSED`           | Admission or publication is paused                          | Retry after state change         |
+| `DELEGATION_REQUIRED`      | No usable exact-scope session exists                        | Publisher must reauthorize       |
+| `WORKLOAD_NOT_ALLOWED`     | OIDC claims do not match active policy                      | Permanent until policy changes   |
+| `IDEMPOTENCY_CONFLICT`     | Same key was used with a different request                  | Permanent                        |
+| `VERSION_RESERVED`         | Package/version belongs to another intent                   | Permanent or return owner intent |
+| `RELEASE_EXISTS`           | Proposed deterministic key already exists                   | Permanent unless exact replay    |
+| `PACKAGE_PROFILE_REQUIRED` | Signed profile is missing, incomplete, or linked elsewhere  | Run local profile setup          |
+| `PROFILE_CHANGED`          | Authoritative policy changed after verification or approval | Reverify and possibly reapprove  |
+| `BASELINE_CHANGED`         | Access baseline changed                                     | Reverify and possibly reapprove  |
+| `ARTIFACT_INVALID`         | Fetch, checksum, bundle, or manifest failed                 | Permanent for supplied input     |
+| `PROVENANCE_INVALID`       | Provenance or workload binding failed                       | Permanent for supplied input     |
+| `APPROVAL_REQUIRED`        | Valid release awaits human decision                         | Not an error state               |
+| `APPROVAL_INVALID`         | DID, credential, challenge, digest, or UV failed            | Permanent for attempt            |
+| `DELEGATION_REVOKED`       | Session was revoked or cannot refresh                       | Publisher must reauthorize       |
+| `PDS_TRANSIENT`            | PDS result is retryable                                     | Workflow retry                   |
+| `PDS_AMBIGUOUS`            | Create outcome is unknown                                   | Reconciliation                   |
+| `RELEASE_CONFLICT`         | Deterministic key contains different data                   | Terminal conflict                |
+| `INTERNAL_ERROR`           | Public-safe catch-all                                       | Operator-visible correlation ID  |
 
 Provider payloads, tokens, secrets, raw assertions, private evidence, and stack traces never enter public errors or persistent generic error strings.
 

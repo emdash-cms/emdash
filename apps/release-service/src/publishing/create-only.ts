@@ -2,12 +2,11 @@
 import type {} from "@atcute/atproto";
 import { Client, ok, type FetchHandlerObject } from "@atcute/client";
 import type { Blob } from "@atcute/lexicons/interfaces";
-import { isDid } from "@atcute/lexicons/syntax";
+import { isCid, isDid } from "@atcute/lexicons/syntax";
 import { NSID, type PackageRelease } from "@emdash-cms/registry-lexicons";
 
 const DID_PATTERN = /^did:[a-z0-9]+:[A-Za-z0-9._:%-]+$/;
 const RKEY_PATTERN = /^[A-Za-z0-9._:~-]{1,512}$/;
-const CID_PATTERN = /^[A-Za-z0-9]+$/;
 
 export interface CreateReleaseInput {
 	publisherDid: string;
@@ -55,11 +54,7 @@ export async function createReleaseRecord(
 		}),
 	);
 	const expectedUri = `at://${input.publisherDid}/${NSID.packageRelease}/${input.rkey}`;
-	if (
-		result.uri !== expectedUri ||
-		typeof result.cid !== "string" ||
-		!CID_PATTERN.test(result.cid)
-	) {
+	if (result.uri !== expectedUri || typeof result.cid !== "string" || !isCid(result.cid)) {
 		throw new CreateReleaseError("CREATE_RESPONSE_INVALID");
 	}
 	return { uri: result.uri, cid: result.cid };

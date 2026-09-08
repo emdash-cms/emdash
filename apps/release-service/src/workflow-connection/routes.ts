@@ -1,4 +1,5 @@
 import { isDid } from "@atcute/lexicons/syntax";
+import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification";
 import { env } from "cloudflare:workers";
 import { base64url, type JWTVerifyGetKey } from "jose";
 import { ulid } from "ulidx";
@@ -6,6 +7,7 @@ import { ulid } from "ulidx";
 import { readJsonObject } from "../api/body.js";
 import { ApiError } from "../api/errors.js";
 import { apiFailure, apiSuccess } from "../api/response.js";
+import { ApprovalAuthorityError, loadCurrentApprovalPolicy } from "../approvals/authority.js";
 import type { ServiceConfiguration } from "../config.js";
 import {
 	WorkflowConnectionError,
@@ -20,15 +22,24 @@ import { WorkloadIdentityError } from "../workload/types.js";
 
 const CONFIRM_PATH_PATTERN =
 	/^\/v1\/publisher\/workflow-connections\/([0-9A-HJKMNP-TV-Z]{26})\/confirm$/;
+const CONNECTION_PATH_PATTERN = /^\/v1\/publisher\/workflow-connections\/([0-9A-HJKMNP-TV-Z]{26})$/;
 const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
+const INVITATION_TOKEN_PATTERN = /^ewci1_[A-Za-z0-9_-]{43}$/;
 const REQUEST_LIFETIME_MS = 30 * 60_000;
+const INVITATION_LIFETIME_MS = 30 * 60_000;
 const MAX_AUTHORIZATION_CHARS = 16 * 1024;
 
 export interface WorkflowConnectionRouteDependencies {
 	keyResolver?: JWTVerifyGetKey;
 	now?: () => number;
 	requestId?: (now: number) => string;
+	invitationToken?: () => string;
+	loadCurrentApprovalPolicy?: typeof loadCurrentApprovalPolicy;
+}
+
+function createInvitationToken(): string {
+	return `ewci1_${base64url.encode(crypto.getRandomValues(new Uint8Array(32)))}`;
 }
 
 function hasExactKeys(value: Record<string, unknown>, expected: readonly string[]): boolean {
@@ -93,6 +104,27 @@ function connectionFailure(code: string, requestId: string): Response {
 	if (code === "WORKFLOW_CONNECTION_LIMIT_REACHED") {
 		return apiFailure(new ApiError(code, 429, "Too many pending workflow connections"), requestId);
 	}
+	if (code === "WORKFLOW_CONNECTION_INVITATION_LIMIT_REACHED") {
+		return apiFailure(
+			new ApiError(code, 429, "Too many active workflow connection invitations"),
+			requestId,
+		);
+	}
+	if (code === "WORKFLOW_CONNECTION_INVITATION_REQUIRED") {
+		return apiFailure(
+			new ApiError(code, 403, "Workflow connection invitation required"),
+			requestId,
+		);
+	}
+	if (code === "WORKFLOW_CONNECTION_INVITATION_INVALID") {
+		return apiFailure(
+			new ApiError(code, 403, "Workflow connection invitation is not valid"),
+			requestId,
+		);
+	}
+	if (code === "WORKFLOW_CONNECTION_INVITATION_EXPIRED") {
+		return apiFailure(new ApiError(code, 410, "Workflow connection invitation expired"), requestId);
+	}
 	if (code === "WORKFLOW_CONNECTION_EXPIRED") {
 		return apiFailure(new ApiError(code, 410, "Workflow connection expired"), requestId);
 	}
@@ -130,6 +162,22 @@ function routeFailure(error: unknown, requestId: string): Response {
 			requestId,
 		);
 	}
+	if (error instanceof ApprovalAuthorityError) {
+		if (error.code === "PROFILE_NOT_FOUND" || error.code === "PROFILE_SETUP_REQUIRED") {
+			return apiFailure(
+				new ApiError(
+					"PACKAGE_PROFILE_REQUIRED",
+					409,
+					"Create this plugin's package profile with `emdash-plugin profile setup`, then try again",
+				),
+				requestId,
+			);
+		}
+		return apiFailure(
+			new ApiError("PROFILE_FETCH_FAILED", 503, "Package profile could not be verified"),
+			requestId,
+		);
+	}
 	throw error;
 }
 
@@ -138,6 +186,29 @@ function connectionRequestId(params: Readonly<Record<string, string>>): string {
 	if (!value)
 		throw new ApiError("WORKFLOW_CONNECTION_NOT_FOUND", 404, "Workflow connection not found");
 	return value;
+}
+
+async function requirePackageProfile(
+	publisherDid: string,
+	packageSlug: string,
+	repository: string,
+	dependencies: Pick<WorkflowConnectionRouteDependencies, "loadCurrentApprovalPolicy">,
+): Promise<void> {
+	const profilePolicy = await (dependencies.loadCurrentApprovalPolicy ?? loadCurrentApprovalPolicy)(
+		publisherDid,
+		packageSlug,
+	);
+	const canonicalRepository = canonicalizeRepositoryUrl(profilePolicy.repository);
+	if (
+		canonicalRepository !== profilePolicy.repository ||
+		canonicalRepository !== `https://github.com/${repository}`
+	) {
+		throw new ApiError(
+			"PACKAGE_PROFILE_REQUIRED",
+			409,
+			"Update this plugin's package profile with `emdash-plugin profile setup`, then try again",
+		);
+	}
 }
 
 async function publisherSession(request: Request, configuration: ServiceConfiguration) {
@@ -155,6 +226,61 @@ export function matchWorkflowConnectionConfirmPath(
 	return match?.[1] ? { requestId: match[1] } : null;
 }
 
+export function matchWorkflowConnectionPath(
+	pathname: string,
+): Readonly<Record<string, string>> | null {
+	const match = CONNECTION_PATH_PATTERN.exec(pathname);
+	return match?.[1] ? { requestId: match[1] } : null;
+}
+
+export async function handleCreateWorkflowConnectionInvitation(
+	request: Request,
+	requestId: string,
+	configuration: ServiceConfiguration,
+	dependencies: Pick<WorkflowConnectionRouteDependencies, "invitationToken" | "now"> = {},
+): Promise<Response> {
+	try {
+		requireIdempotencyKey(request);
+		const session = await requirePublisherApplicationSession(
+			request,
+			env.PUBLISHER_DO,
+			configuration.publicOrigin,
+			{ requireCsrf: true },
+		);
+		const body = await readJsonObject(request);
+		if (
+			!hasExactKeys(body, ["packageSlug"]) ||
+			typeof body["packageSlug"] !== "string" ||
+			!PACKAGE_SLUG_PATTERN.test(body["packageSlug"])
+		) {
+			throw new ApiError("INVALID_REQUEST", 400, "Valid plugin package required");
+		}
+		const invitationToken = dependencies.invitationToken?.() ?? createInvitationToken();
+		if (!INVITATION_TOKEN_PATTERN.test(invitationToken)) {
+			throw new ApiError("INVALID_REQUEST", 400, "Workflow connection invitation is not valid");
+		}
+		const now = dependencies.now?.() ?? Date.now();
+		const packageSlug = body["packageSlug"];
+		const result = await env.PUBLISHER_DO.getByName(
+			session.publisherDid,
+		).createWorkflowConnectionInvitation({
+			publisherDid: session.publisherDid,
+			tokenHash: await digest(["workflow-connection-invitation", 1, invitationToken]),
+			packageSlug,
+			expiresAt: now + INVITATION_LIFETIME_MS,
+			now,
+		});
+		if (!result.ok) return connectionFailure(result.code, requestId);
+		return apiSuccess(
+			{ invitationToken, packageSlug: result.packageSlug, expiresAt: result.expiresAt },
+			requestId,
+			201,
+		);
+	} catch (error) {
+		return routeFailure(error, requestId);
+	}
+}
+
 export async function handleRequestWorkflowConnection(
 	request: Request,
 	requestId: string,
@@ -169,12 +295,19 @@ export async function handleRequestWorkflowConnection(
 			dependencies.keyResolver,
 		);
 		const body = await readJsonObject(request);
+		const expectedKeys =
+			body["invitationToken"] === undefined
+				? ["publisherDid", "packageSlug"]
+				: ["publisherDid", "packageSlug", "invitationToken"];
 		if (
-			!hasExactKeys(body, ["publisherDid", "packageSlug"]) ||
+			!hasExactKeys(body, expectedKeys) ||
 			typeof body["publisherDid"] !== "string" ||
 			!isDid(body["publisherDid"]) ||
 			typeof body["packageSlug"] !== "string" ||
-			!PACKAGE_SLUG_PATTERN.test(body["packageSlug"])
+			!PACKAGE_SLUG_PATTERN.test(body["packageSlug"]) ||
+			(body["invitationToken"] !== undefined &&
+				(typeof body["invitationToken"] !== "string" ||
+					!INVITATION_TOKEN_PATTERN.test(body["invitationToken"])))
 		) {
 			throw new ApiError("INVALID_REQUEST", 400, "Valid publisher and plugin package required");
 		}
@@ -206,6 +339,10 @@ export async function handleRequestWorkflowConnection(
 				claim.ref,
 				claim.environment,
 			]),
+			invitationTokenHash:
+				typeof body["invitationToken"] === "string"
+					? await digest(["workflow-connection-invitation", 1, body["invitationToken"]])
+					: null,
 			packageSlug,
 			claim,
 			expiresAt: now + REQUEST_LIFETIME_MS,
@@ -213,6 +350,7 @@ export async function handleRequestWorkflowConnection(
 		});
 		if (!result.ok) return connectionFailure(result.code, requestId);
 		if (result.status === "connected") {
+			await requirePackageProfile(publisherDid, packageSlug, claim.repository, dependencies);
 			return apiSuccess({ status: "connected", policy: result.policy }, requestId);
 		}
 		return apiSuccess(
@@ -225,6 +363,33 @@ export async function handleRequestWorkflowConnection(
 			requestId,
 			202,
 		);
+	} catch (error) {
+		return routeFailure(error, requestId);
+	}
+}
+
+export async function handleRejectWorkflowConnection(
+	request: Request,
+	requestId: string,
+	configuration: ServiceConfiguration,
+	params: Readonly<Record<string, string>>,
+	dependencies: Pick<WorkflowConnectionRouteDependencies, "now"> = {},
+): Promise<Response> {
+	try {
+		requireIdempotencyKey(request);
+		const session = await requirePublisherApplicationSession(
+			request,
+			env.PUBLISHER_DO,
+			configuration.publicOrigin,
+			{ requireCsrf: true },
+		);
+		const result = await env.PUBLISHER_DO.getByName(session.publisherDid).rejectWorkflowConnection(
+			session.publisherDid,
+			connectionRequestId(params),
+			dependencies.now?.() ?? Date.now(),
+		);
+		if (!result.ok) return connectionFailure(result.code, requestId);
+		return apiSuccess({ rejected: true }, requestId);
 	} catch (error) {
 		return routeFailure(error, requestId);
 	}
@@ -252,7 +417,7 @@ export async function handleConfirmWorkflowConnection(
 	requestId: string,
 	configuration: ServiceConfiguration,
 	params: Readonly<Record<string, string>>,
-	dependencies: Pick<WorkflowConnectionRouteDependencies, "now"> = {},
+	dependencies: Pick<WorkflowConnectionRouteDependencies, "loadCurrentApprovalPolicy" | "now"> = {},
 ): Promise<Response> {
 	try {
 		requireIdempotencyKey(request);
@@ -269,11 +434,25 @@ export async function handleConfirmWorkflowConnection(
 		) {
 			throw new ApiError("INVALID_REQUEST", 400, "Valid workflow release scope required");
 		}
-		const result = await env.PUBLISHER_DO.getByName(session.publisherDid).confirmWorkflowConnection(
+		const publisher = env.PUBLISHER_DO.getByName(session.publisherDid);
+		const now = dependencies.now?.() ?? Date.now();
+		const connection = await publisher.getWorkflowConnectionRequest(
+			session.publisherDid,
+			connectionRequestId(params),
+			now,
+		);
+		if (!connection) return connectionFailure("WORKFLOW_CONNECTION_NOT_FOUND", requestId);
+		await requirePackageProfile(
+			session.publisherDid,
+			connection.packageSlug,
+			connection.claim.repository,
+			dependencies,
+		);
+		const result = await publisher.confirmWorkflowConnection(
 			session.publisherDid,
 			connectionRequestId(params),
 			body["refScope"],
-			dependencies.now?.() ?? Date.now(),
+			now,
 		);
 		if (!result.ok) return connectionFailure(result.code, requestId);
 		return apiSuccess(

@@ -7,6 +7,26 @@ import releaseFixture from "../../../packages/registry-verification/fixtures/rec
 import { createReleaseRecord, uploadReleaseBlob } from "../src/publishing/create-only.js";
 
 describe("create-only release client", () => {
+	it("rejects a create receipt whose CID is not a valid CID", async () => {
+		const handle = vi.fn(async () =>
+			Response.json({
+				uri: `at://did:plc:publisher/${NSID.packageRelease}/gallery:1.2.3`,
+				cid: "bafyfakecid",
+			}),
+		);
+
+		await expect(
+			createReleaseRecord(
+				{ handle },
+				{
+					publisherDid: "did:plc:publisher",
+					rkey: "gallery:1.2.3",
+					record: structuredClone(releaseFixture) as PackageRelease.Main,
+				},
+			),
+		).rejects.toMatchObject({ code: "CREATE_RESPONSE_INVALID" });
+	});
+
 	it("calls only createRecord with validation enabled", async () => {
 		const handle = vi.fn(async (_pathname: string, _init: RequestInit) =>
 			Response.json({

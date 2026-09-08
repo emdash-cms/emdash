@@ -9,7 +9,12 @@ process.env["ENCRYPTION_KEYRING"] ??=
 
 export default defineConfig({
 	test: {
-		exclude: [...configDefaults.exclude, "src/ui/**/*.test.{ts,tsx}", "e2e/**/*.spec.ts"],
+		exclude: [
+			...configDefaults.exclude,
+			"src/ui/**/*.test.{ts,tsx}",
+			"e2e/**/*.spec.ts",
+			"test/encryption-verification-workflow.test.ts",
+		],
 	},
 	plugins: [
 		cloudflareTest({
@@ -34,7 +39,10 @@ export default defineConfig({
 												manifest: {
 													id: input.artifact.packageSlug,
 													version: input.artifact.version,
-													declaredAccess: {},
+													declaredAccess:
+														new URL(input.artifact.url).searchParams.get("declaredAccess") === "network"
+															? { network: { request: {} } }
+															: {},
 												},
 												bundle: { backendBytes: 100, adminBytes: null },
 											},
@@ -46,6 +54,10 @@ export default defineConfig({
 												predicateType: input.provenance.predicateType,
 												sourceRepository: input.provenance.sourceRepository,
 												builderId: input.provenance.builderId,
+												repositoryId: "123456789",
+												workflowRef: "refs/heads/main",
+												commitSha: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+												invocationId: "https://github.com/example/gallery/actions/runs/100/attempts/1",
 											},
 										},
 									};

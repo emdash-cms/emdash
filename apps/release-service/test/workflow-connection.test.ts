@@ -56,7 +56,8 @@ function identity(ref: string): VerifiedWorkloadIdentity {
 }
 
 async function enablePublishing() {
-	await env.PUBLISHER_DO.getByName(PUBLISHER_DID).putDelegation({
+	const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+	await publisher.putDelegation({
 		publisherDid: PUBLISHER_DID,
 		releaseNsid: "com.emdashcms.experimental.package.release",
 		scope:
@@ -70,6 +71,13 @@ async function enablePublishing() {
 		refreshBefore: null,
 		expectedVersion: null,
 	});
+	await publisher.createWorkflowConnectionInvitation({
+		publisherDid: PUBLISHER_DID,
+		tokenHash: "I".repeat(43),
+		packageSlug: "gallery",
+		expiresAt: NOW + 30 * 60_000,
+		now: NOW,
+	});
 }
 
 function requestInput(overrides: Record<string, unknown> = {}) {
@@ -78,6 +86,7 @@ function requestInput(overrides: Record<string, unknown> = {}) {
 		requestId: REQUEST_ID,
 		mutationKey: "workflow-connection-request-0001",
 		connectionKey: "K".repeat(43),
+		invitationTokenHash: "I".repeat(43),
 		packageSlug: "gallery",
 		claim: CLAIM,
 		expiresAt: NOW + 30 * 60_000,

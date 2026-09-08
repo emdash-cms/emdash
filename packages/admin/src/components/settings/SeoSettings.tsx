@@ -281,7 +281,7 @@ export function SeoSettings() {
 				onSelect={handleDefaultOgImageSelect}
 				mimeTypeFilters={["image/jpeg", "image/png", "image/webp", "image/gif"]}
 				localOnly
-				title={t`Select Default Social Image`}
+				title={t`Select default social image`}
 			/>
 		</SettingsFrame>
 	);

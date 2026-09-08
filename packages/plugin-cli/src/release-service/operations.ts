@@ -211,7 +211,13 @@ export async function submitDelegatedRelease(
 	const environment = dependencies.environment ?? process.env;
 	const client = releaseClient(options, dependencies);
 	await client.waitForWorkflowConnection(
-		{ publisherDid: options.publisherDid, packageSlug: release.package },
+		{
+			publisherDid: options.publisherDid,
+			packageSlug: release.package,
+			...(environment["EMDASH_CONNECTION_INVITATION"]
+				? { invitationToken: environment["EMDASH_CONNECTION_INVITATION"] }
+				: {}),
+		},
 		{
 			idempotencyKey: defaultConnectionIdempotencyKey(environment, release.package),
 			pollIntervalMs: options.pollIntervalMs,

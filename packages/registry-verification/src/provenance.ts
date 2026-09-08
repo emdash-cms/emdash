@@ -57,6 +57,13 @@ export interface VerifiedProvenance {
 	builderId: string;
 }
 
+export interface VerifiedGitHubProvenance extends VerifiedProvenance {
+	repositoryId: string;
+	workflowRef: string;
+	commitSha: string;
+	invocationId: string;
+}
+
 export interface ProvenanceVerifier {
 	verify(input: ProvenanceVerificationInput): Promise<VerificationResult<VerifiedProvenance>>;
 }
@@ -64,7 +71,7 @@ export interface ProvenanceVerifier {
 export class GitHubProvenanceVerifier implements ProvenanceVerifier {
 	async verify(
 		input: ProvenanceVerificationInput,
-	): Promise<VerificationResult<VerifiedProvenance>> {
+	): Promise<VerificationResult<VerifiedGitHubProvenance>> {
 		try {
 			const snapshot = snapshotInput(input);
 			const checksum = await verifyMultihash(snapshot.document, snapshot.reference.checksum);
@@ -87,6 +94,10 @@ export class GitHubProvenanceVerifier implements ProvenanceVerifier {
 					artifactDigest: expected.artifactDigest,
 					sourceRepository: expected.repository,
 					builderId: expected.builderId,
+					repositoryId: expected.repositoryId,
+					workflowRef: expected.workflowRef,
+					commitSha: expected.commitSha,
+					invocationId: expected.invocationId,
 				},
 			};
 		} catch {

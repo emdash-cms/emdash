@@ -6,8 +6,7 @@ import type {
 	EncryptionRecordReplacement,
 } from "../operations/encryption-records.js";
 import { MAX_ENCRYPTION_RECORD_PAGE } from "../operations/encryption-records.js";
-import { digestWorkloadIdentity } from "../workload/policy.js";
-import { parseStoredWorkloadIdentity } from "../workload/types.js";
+import { parseStoredWorkloadIdentity } from "../workload/stored-identity.js";
 import {
 	initializeIntentStateSchema,
 	IntentStateStore,
@@ -25,6 +24,15 @@ import {
 	type ApplyPublisherRestorePageInput,
 	type ApplyPublisherRestorePageResult,
 } from "./operations-restore.js";
+import {
+	initializePublicationCoordinationSchema,
+	PublicationCoordinationStore,
+	type AcquirePublicationCoordinationResult,
+	type ReleasePublicationCoordinationInput,
+	type ReleasePublicationCoordinationResult,
+	type RenewPublicationCoordinationInput,
+	type RenewPublicationCoordinationResult,
+} from "./publication-coordination.js";
 import {
 	initializePublicationMaterializationSchema,
 	PublicationMaterializationStore,
@@ -60,7 +68,10 @@ import {
 import {
 	initializeWorkflowConnectionSchema,
 	WorkflowConnectionStore,
+	type CreateWorkflowConnectionInvitationInput,
+	type CreateWorkflowConnectionInvitationResult as StoreWorkflowConnectionInvitationResult,
 	type CreateWorkflowConnectionRequestInput,
+	type RejectWorkflowConnectionRequestResult as StoreRejectWorkflowConnectionRequestResult,
 	type StoredWorkflowConnectionRequest,
 	type WorkflowConnectionRefScope,
 	workflowConnectionPolicy,
@@ -89,6 +100,14 @@ export type {
 	TransitionIntentInput,
 	TransitionIntentResult,
 } from "./intent-state.js";
+export type {
+	AcquirePublicationCoordinationResult,
+	PublicationCoordinationLease,
+	ReleasePublicationCoordinationInput,
+	ReleasePublicationCoordinationResult,
+	RenewPublicationCoordinationInput,
+	RenewPublicationCoordinationResult,
+} from "./publication-coordination.js";
 export type {
 	CompletePublicationMaterializationInput,
 	PublicationArtifactSlot,
@@ -122,6 +141,7 @@ export type {
 } from "./operations-restore.js";
 export type { ConsumeIntentRateLimitInput, ConsumeIntentRateLimitResult } from "./rate-limit.js";
 export type {
+	CreateWorkflowConnectionInvitationInput,
 	CreateWorkflowConnectionRequestInput,
 	CreateWorkflowConnectionRequestResult,
 	StoredWorkflowConnectionRequest,
@@ -373,8 +393,19 @@ export type RequestWorkflowConnectionResult =
 				| "DELEGATION_REQUIRED"
 				| "PUBLISHER_SUSPENDED"
 				| "WORKFLOW_CONNECTION_CONFLICT"
+				| "WORKFLOW_CONNECTION_INVITATION_EXPIRED"
+				| "WORKFLOW_CONNECTION_INVITATION_INVALID"
+				| "WORKFLOW_CONNECTION_INVITATION_REQUIRED"
 				| "WORKFLOW_CONNECTION_LIMIT_REACHED";
 	  };
+
+export type CreateWorkflowConnectionInvitationResult =
+	| StoreWorkflowConnectionInvitationResult
+	| { ok: false; code: "DELEGATION_REQUIRED" | "PUBLISHER_SUSPENDED" };
+
+export type RejectWorkflowConnectionRequestResult =
+	| StoreRejectWorkflowConnectionRequestResult
+	| { ok: false; code: "PUBLISHER_SUSPENDED" };
 
 export type ConfirmWorkflowConnectionResult =
 	| {
@@ -539,6 +570,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	readonly #objectName: string | undefined;
 	readonly #workloadPolicies: WorkloadPolicyStore;
 	readonly #intents: IntentStateStore;
+	readonly #publicationCoordinations: PublicationCoordinationStore;
 	readonly #publicationMaterializations: PublicationMaterializationStore;
 	readonly #publicationOperations: PublicationOperationStore;
 	readonly #verificationSteps: VerificationStepStore;
@@ -551,6 +583,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		this.#objectName = ctx.id.name;
 		this.#workloadPolicies = new WorkloadPolicyStore(ctx.storage);
 		this.#intents = new IntentStateStore(ctx.storage);
+		this.#publicationCoordinations = new PublicationCoordinationStore(ctx.storage);
 		this.#publicationMaterializations = new PublicationMaterializationStore(ctx.storage);
 		this.#publicationOperations = new PublicationOperationStore(ctx.storage);
 		this.#verificationSteps = new VerificationStepStore(ctx.storage);
@@ -638,6 +671,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		`);
 		initializeWorkloadPolicySchema(this.ctx.storage);
 		initializeIntentStateSchema(this.ctx.storage);
+		initializePublicationCoordinationSchema(this.ctx.storage);
 		initializePublicationMaterializationSchema(this.ctx.storage);
 		initializePublicationOperationSchema(this.ctx.storage);
 		initializeVerificationStepSchema(this.ctx.storage);
@@ -824,6 +858,36 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			: result;
 	}
 
+	async createWorkflowConnectionInvitation(
+		input: CreateWorkflowConnectionInvitationInput,
+	): Promise<CreateWorkflowConnectionInvitationResult> {
+		this.#assertPublisherObjectName(input.publisherDid);
+		const owner = this.ctx.storage.sql
+			.exec<PublisherSessionOwnerRow>(
+				"SELECT did, status, session_epoch FROM publisher WHERE id = 1",
+			)
+			.toArray()[0];
+		if (!owner || this.#readDelegation()?.status !== "active") {
+			return { ok: false, code: "DELEGATION_REQUIRED" };
+		}
+		if (owner.did !== input.publisherDid) {
+			throw new PublisherStateError("PUBLISHER_DID_MISMATCH");
+		}
+		if (owner.status === "suspended") return { ok: false, code: "PUBLISHER_SUSPENDED" };
+		const result = this.#workflowConnections.createInvitation(input);
+		if (result.ok) {
+			this.#appendAudit(
+				"workflow-connection-invitation-created",
+				"publisher",
+				input.publisherDid,
+				input.packageSlug,
+				input.now ?? Date.now(),
+			);
+			await this.#scheduleNextAlarm(input.now ?? Date.now());
+		}
+		return result;
+	}
+
 	listWorkflowConnectionRequests(
 		publisherDid: string,
 		limit: number,
@@ -831,6 +895,31 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	): readonly StoredWorkflowConnectionRequest[] {
 		this.#assertPublisherDid(publisherDid);
 		return this.#workflowConnections.listPending(limit, now);
+	}
+
+	getWorkflowConnectionRequest(
+		publisherDid: string,
+		requestId: string,
+		now = Date.now(),
+	): StoredWorkflowConnectionRequest | null {
+		this.#assertPublisherDid(publisherDid);
+		return this.#workflowConnections.get(requestId, now);
+	}
+
+	async rejectWorkflowConnection(
+		publisherDid: string,
+		requestId: string,
+		now = Date.now(),
+	): Promise<RejectWorkflowConnectionRequestResult> {
+		this.#assertPublisherDid(publisherDid);
+		const owner = this.#readPublisherSessionOwner();
+		if (owner?.status === "suspended") return { ok: false, code: "PUBLISHER_SUSPENDED" };
+		const result = this.#workflowConnections.reject(requestId, now);
+		if (result.ok) {
+			this.#appendAudit("workflow-connection-rejected", "publisher", publisherDid, requestId, now);
+			await this.#scheduleNextAlarm(now);
+		}
+		return result;
 	}
 
 	async confirmWorkflowConnection(
@@ -918,6 +1007,18 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return this.#intents.get(intentId);
 	}
 
+	getIntentIfInitialized(publisherDid: string, intentId: string): StoredIntent | null {
+		this.#assertPublisherObjectName(publisherDid);
+		const owner = this.ctx.storage.sql
+			.exec<PublisherRow>("SELECT did FROM publisher WHERE id = 1")
+			.toArray()[0];
+		if (!owner) return null;
+		if (owner.did !== publisherDid) {
+			throw new PublisherStateError("PUBLISHER_DID_MISMATCH");
+		}
+		return this.#intents.get(intentId);
+	}
+
 	listIntents(
 		publisherDid: string,
 		afterIntentId: string | null,
@@ -974,6 +1075,45 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return result;
 	}
 
+	async acquirePublicationCoordination(
+		publisherDid: string,
+		packageSlug: string,
+		intentId: string,
+		leaseMs: number,
+		token: string,
+		now = Date.now(),
+	): Promise<AcquirePublicationCoordinationResult> {
+		this.#assertPublisherDid(publisherDid);
+		const result = await this.#publicationCoordinations.acquire(
+			publisherDid,
+			packageSlug,
+			intentId,
+			leaseMs,
+			token,
+			now,
+		);
+		await this.#scheduleNextAlarm(now);
+		return result;
+	}
+
+	async renewPublicationCoordination(
+		input: RenewPublicationCoordinationInput,
+	): Promise<RenewPublicationCoordinationResult> {
+		this.#assertPublisherDid(input.publisherDid);
+		const result = await this.#publicationCoordinations.renew(input);
+		await this.#scheduleNextAlarm(input.now ?? Date.now());
+		return result;
+	}
+
+	async releasePublicationCoordination(
+		input: ReleasePublicationCoordinationInput,
+	): Promise<ReleasePublicationCoordinationResult> {
+		this.#assertPublisherDid(input.publisherDid);
+		const result = await this.#publicationCoordinations.release(input);
+		await this.#scheduleNextAlarm(input.now ?? Date.now());
+		return result;
+	}
+
 	async completePublicationOperation(
 		input: CompletePublicationOperationInput,
 	): Promise<CompletePublicationOperationResult> {
@@ -988,12 +1128,17 @@ export class PublisherDurableObject extends DurableObject<Env> {
 	): Promise<AdvancePublicationOperationPhaseResult> {
 		this.#assertPublisherDid(input.publisherDid);
 		const intent = input.phase === "creating" ? this.#intents.get(input.intentId) : null;
-		const identity = intent ? parseStoredWorkloadIdentity(intent.workloadIdentityJson) : null;
+		const identity = intent
+			? await parseStoredWorkloadIdentity(
+					intent.workloadIdentityJson,
+					intent.workloadIdentityDigest,
+				)
+			: null;
 		const authorization =
 			intent && identity
 				? {
 						identity,
-						identityDigest: await digestWorkloadIdentity(identity),
+						identityDigest: intent.workloadIdentityDigest,
 						identityJson: intent.workloadIdentityJson,
 					}
 				: null;
@@ -1478,10 +1623,12 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			this.ctx.storage.sql.exec("DELETE FROM release_reservations");
 			this.ctx.storage.sql.exec("DELETE FROM intent_idempotency");
 			this.ctx.storage.sql.exec("DELETE FROM publication_operations");
+			this.ctx.storage.sql.exec("DELETE FROM publication_coordinations");
 			this.ctx.storage.sql.exec("DELETE FROM deadlines");
 			this.ctx.storage.sql.exec("DELETE FROM intents");
 			this.ctx.storage.sql.exec("DELETE FROM workload_policies");
 			this.ctx.storage.sql.exec("DELETE FROM workflow_connection_requests");
+			this.ctx.storage.sql.exec("DELETE FROM workflow_connection_invitations");
 			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions");
 			this.ctx.storage.sql.exec("DELETE FROM oauth_states");
 			this.ctx.storage.sql.exec("DELETE FROM delegation");
@@ -2047,15 +2194,18 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		const candidates = this.ctx.storage.sql
 			.exec<{
 				operation_deadline: number | null;
+				coordination_deadline: number | null;
 				oauth_expiry: number | null;
 				session_expiry: number | null;
 				idempotency_expiry: number | null;
 				rate_expiry: number | null;
 				intent_expiry: number | null;
 				connection_expiry: number | null;
+				invitation_expiry: number | null;
 			}>(
 				`SELECT
 					(SELECT MIN(scheduled_at) FROM deadlines) AS operation_deadline,
+					(SELECT MIN(expires_at) FROM publication_coordinations) AS coordination_deadline,
 					(SELECT MIN(expires_at) FROM oauth_states) AS oauth_expiry,
 					(SELECT MIN(expires_at) FROM publisher_sessions) AS session_expiry,
 					(SELECT MIN(expires_at) FROM intent_idempotency) AS idempotency_expiry,
@@ -2065,7 +2215,9 @@ export class PublisherDurableObject extends DurableObject<Env> {
 					   'received', 'verifying', 'verified', 'awaiting_approval', 'ready'
 					 )) AS intent_expiry,
 					(SELECT MIN(expires_at) FROM workflow_connection_requests
-					 WHERE state = 'pending') AS connection_expiry`,
+					 WHERE state = 'pending') AS connection_expiry,
+					(SELECT MIN(expires_at) FROM workflow_connection_invitations)
+					 AS invitation_expiry`,
 			)
 			.one();
 		const deadlines = Object.values(candidates).filter(
@@ -2081,6 +2233,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 
 	override async alarm(): Promise<void> {
 		const now = Date.now();
+		this.#publicationCoordinations.recoverExpired(now);
 		this.#publicationOperations.recoverExpired(now);
 		const publisherDid = this.#objectName;
 		if (publisherDid !== undefined) {

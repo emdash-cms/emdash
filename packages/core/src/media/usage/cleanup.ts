@@ -81,14 +81,15 @@ export async function cleanupMediaUsage(db: Kysely<Database>): Promise<MediaUsag
 			);
 		}
 
-		if (canIssueStatement()) {
-			const cutoff = claim.scanBeforeAt;
-			const candidates = await repo.findMediaUsageCleanupCandidates({
-				cutoff,
-				cursor: claim.cursor,
-				limit: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
-				cleanupLease: cleanupLease(leaseToken),
-			});
+		const cutoff = claim.scanBeforeAt;
+		const candidates = await repo.findMediaUsageCleanupCandidates({
+			cutoff,
+			cursor: claim.cursor,
+			limit: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
+			cleanupLease: cleanupLease(leaseToken),
+			canIssueStatement,
+		});
+		if (candidates) {
 			candidateRows = candidates.length;
 			scanHasMore = candidates.length === MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT;
 

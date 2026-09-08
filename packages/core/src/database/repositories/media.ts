@@ -83,6 +83,7 @@ export interface CreateMediaInput {
 	dominantColor?: string;
 	status?: MediaStatus;
 	authorId?: string;
+	folderId?: string | null;
 }
 
 export interface FindManyMediaOptions {
@@ -103,6 +104,13 @@ export interface UpdateMediaInput extends FocalPointUpdate {
 	width?: number;
 	height?: number;
 	folderId?: string | null;
+}
+
+export interface ReplaceReadyMediaInput {
+	size: number;
+	width: number;
+	height: number;
+	contentHash: string;
 }
 
 export interface FindMediaPageOptions extends Omit<FindManyMediaOptions, "cursor"> {
@@ -148,7 +156,7 @@ export class MediaRepository {
 			status: input.status ?? "ready",
 			created_at: now,
 			author_id: input.authorId ?? null,
-			folder_id: null,
+			folder_id: input.folderId ?? null,
 		};
 
 		await this.db.insertInto("media").values(row).execute();
@@ -166,6 +174,7 @@ export class MediaRepository {
 		storageKey: string;
 		contentHash?: string;
 		authorId?: string;
+		folderId?: string | null;
 	}): Promise<MediaItem> {
 		return this.create({
 			...input,
@@ -375,6 +384,30 @@ export class MediaRepository {
 		return row ? this.rowToItem(row) : null;
 	}
 
+	async findAvailableFilename(filename: string): Promise<string> {
+		const exists = async (candidate: string) =>
+			Boolean(
+				await this.db
+					.selectFrom("media")
+					.select("id")
+					.where(sql<string>`lower(filename)`, "=", candidate.toLowerCase())
+					.executeTakeFirst(),
+			);
+		if (!(await exists(filename))) return filename;
+
+		const extensionIndex = filename.lastIndexOf(".");
+		const hasExtension = extensionIndex > 0;
+		const extension = hasExtension ? filename.slice(extensionIndex) : "";
+		const stem = hasExtension ? filename.slice(0, extensionIndex) : filename;
+		let copyNumber = 2;
+		let candidate = `${stem}-${copyNumber}${extension}`;
+		while (await exists(candidate)) {
+			copyNumber += 1;
+			candidate = `${stem}-${copyNumber}${extension}`;
+		}
+		return candidate;
+	}
+
 	/**
 	 * Find media by content hash
 	 * Used for deduplication - same content = same hash
@@ -478,6 +511,32 @@ export class MediaRepository {
 		}
 
 		return this.findById(id);
+	}
+
+	async replaceReadyFile(
+		id: string,
+		expectedStorageKey: string,
+		input: ReplaceReadyMediaInput,
+	): Promise<MediaItem | null> {
+		const row = await this.db
+			.updateTable("media")
+			.set({
+				size: input.size,
+				width: input.width,
+				height: input.height,
+				content_hash: input.contentHash,
+				blurhash: null,
+				dominant_color: null,
+				focal_x: null,
+				focal_y: null,
+			})
+			.where("id", "=", id)
+			.where("status", "=", "ready")
+			.where("storage_key", "=", expectedStorageKey)
+			.returningAll()
+			.executeTakeFirst();
+
+		return row ? this.rowToItem(row) : null;
 	}
 
 	/**
