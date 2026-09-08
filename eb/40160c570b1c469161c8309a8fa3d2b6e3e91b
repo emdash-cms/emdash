@@ -1,0 +1,23 @@
+demos/simple/presentation/SOURCES.md
+  s_20baffdc2d088d::t_e64e775ccdb18f 1-33
+demos/simple/presentation/schema.json
+  s_20baffdc2d088d::t_6e62142a19d31a 11
+demos/simple/presentation/stories.mjs
+  s_20baffdc2d088d::t_0b210769d095b6 51,73,78,80,82,85,87,90,99,104,107,109,111,113,117,126,131,137,139,141,143,146,155,160,169,173,176,191,193,196,204,207
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "eb40160c570b1c469161c8309a8fa3d2b6e3e91b",
+  "prompts": {},
+  "sessions": {
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
