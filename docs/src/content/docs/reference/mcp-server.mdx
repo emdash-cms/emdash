@@ -543,9 +543,63 @@ Full-text search across content collections. Collections must have `search` in t
 
 List all taxonomy definitions (e.g. categories, tags). Returns name, label, whether hierarchical, and associated collections.
 
-**No parameters.**
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `locale` | `string` | No | Filter by locale (omit for all locale variants) |
 
 **Scope:** `content:read` | **Read-only:** Yes
+
+#### `taxonomy_get`
+
+Get a single taxonomy definition by name. Returns name, label, singular label, whether hierarchical, associated collections, locale, and translation group. Pass `locale` to resolve a specific translation.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Taxonomy name (e.g. `categories`, `tags`) |
+| `locale` | `string` | No | Locale to resolve the definition for |
+
+**Scope:** `content:read` | **Read-only:** Yes
+
+#### `taxonomy_create`
+
+Create a new taxonomy definition. Definitions are per-locale; pass `locale` when the same taxonomy name exists in multiple translations. `collections` names which content types the taxonomy applies to. If `translationOf` is set, the new definition joins the source's translation group and inherits `hierarchical` and `collections` from the source when those fields are omitted.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Taxonomy name (`/^[a-z][a-z0-9_]*$/`) |
+| `label` | `string` | Yes | Display name |
+| `labelSingular` | `string` | No | Singular display name |
+| `hierarchical` | `boolean` | No | Whether terms support parent/child relationships |
+| `collections` | `string[]` | No | Collection slugs this taxonomy applies to |
+| `locale` | `string` | No | Locale for this definition (e.g. `fr-fr`) |
+| `translationOf` | `string` | No | Existing taxonomy id to create this locale variant from |
+
+**Scope:** `taxonomies:manage` | **Minimum role:** Editor
+
+#### `taxonomy_update`
+
+Update an existing taxonomy definition. The taxonomy `name` cannot be changed. Pass `locale` to update a specific translation; otherwise the lowest matching locale is updated. Any field may be omitted to leave it unchanged.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Taxonomy name to update |
+| `label` | `string` | No | New display name |
+| `labelSingular` | `string \| null` | No | New singular display name; `null` to clear |
+| `hierarchical` | `boolean` | No | Whether terms support parent/child relationships |
+| `collections` | `string[]` | No | Collection slugs this taxonomy applies to |
+| `locale` | `string` | No | Locale of the definition to update |
+
+**Scope:** `taxonomies:manage` | **Minimum role:** Editor
+
+#### `taxonomy_delete`
+
+Delete a taxonomy definition and all of its terms in every locale, along with any content assignments those terms hold. This cannot be undone.
+
+| Parameter | Type | Required | Description |
+| --- | --- | --- | --- |
+| `name` | `string` | Yes | Taxonomy name to delete |
+
+**Scope:** `taxonomies:manage` | **Minimum role:** Editor | **Destructive:** Yes
 
 #### `taxonomy_list_terms`
 
