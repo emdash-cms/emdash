@@ -145,51 +145,10 @@ describe("Database Migrations (Integration)", () => {
 		await db.destroy();
 		db = await setupTestDatabaseWithCollections();
 
-		// Kysely only re-runs trailing entries; include the latest migrations.
-		const trailing = [
-			"034_published_at_index",
-			"035_bounded_404_log",
-			"036_i18n_menus_and_taxonomies",
-			"037_credential_algorithm",
-			"038_registry_plugin_state",
-			"039_fix_fts5_triggers",
-			"040_byline_i18n",
-			"041_content_locale_list_index",
-			"042_byline_fields",
-			"043_content_references",
-			"044_comment_reactions",
-			"045_taxonomy_parent_group",
-			"046_media_usage_index",
-			"047_restore_taxonomy_parent_index",
-			"048_restore_content_taxonomies_term_index",
-			"049_taxonomies_name_locale_index",
-			"050_media_usage_index_status",
-			"051_content_taxonomies_denorm",
-			"052_media_usage_read_index",
-			"053_plugin_mcp_tools",
-			"054_media_upload_attempts",
-			"055_content_translation_group_locale_index",
-			"056_taxonomy_term_sort_order",
-			"057_collection_hidden",
-			"058_collection_sort_order",
-			"059_revision_prune_queue",
-			"060_collection_admin_config",
-			"061_media_usage_cleanup",
-			"062_media_usage_cleanup_fence",
-			"063_media_usage_incremental_work",
-			"064_fts_plain_text",
-			"065_media_usage_collection_deletion",
-			"066_media_usage_reconciliation",
-			"067_indexed_content_fields",
-			"068_content_taxonomy_entry_groups",
-			"069_collection_title_date_fields",
-			"070_collection_routable",
-			"071_restore_content_bylines_table",
-			"072_media_folders",
-			"073_media_focal_point",
-			"074_content_deleted_scheduled_index",
-			"075_entry_edit_locks",
-		];
+		// Kysely requires the retained migration records to form a contiguous prefix.
+		const start = MIGRATION_NAMES.indexOf("034_published_at_index");
+		expect(start).toBeGreaterThanOrEqual(0);
+		const trailing = MIGRATION_NAMES.slice(start);
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();
 
