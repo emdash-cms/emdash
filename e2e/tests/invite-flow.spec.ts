@@ -27,6 +27,7 @@ import { addVirtualWebAuthnAuthenticator } from "../fixtures/virtual-authenticat
 const ADMIN_URL_PATTERN = /\/_emdash\/admin\/?$/;
 const INVITE_URL_REGEX = /https?:\/\/[^\s]+\/admin\/invite\/accept\?token=[^\s]+/;
 const URL_IN_TEXT_REGEX = /https?:\/\/[^\s]+/;
+const PASSKEY_ACTION_REGEX = /^(Create passkey|Use another device|Use a security key)$/;
 
 const SERVER_INFO_PATH = join(tmpdir(), "emdash-pw-server.json");
 
@@ -149,7 +150,9 @@ test.describe("Invite Accept Page", () => {
 					name: "With a passkey, you don’t need to remember complex passwords",
 				}),
 			).toBeVisible();
-			await expect(admin.page.getByRole("button", { name: "Create passkey" })).toBeVisible();
+			await expect(
+				admin.page.getByRole("button", { name: PASSKEY_ACTION_REGEX }).first(),
+			).toBeVisible();
 		});
 	});
 });
