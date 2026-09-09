@@ -273,11 +273,11 @@ export class SandboxUnavailableError extends Error {
 
 /**
  * Factory function type for creating sandbox runners.
- * Exported by platform adapters (e.g., @emdash-cms/adapter-cloudflare/sandbox).
+ * Exported by platform adapters (e.g., @emdash-cms/cloudflare/sandbox).
  *
  * @example
  * ```typescript
- * // In @emdash-cms/adapter-cloudflare/sandbox.ts
+ * // In @emdash-cms/cloudflare/sandbox
  * export const createSandboxRunner: SandboxRunnerFactory = (options) => {
  *   return new CloudflareSandboxRunner(options);
  * };
