@@ -25,7 +25,7 @@ interface WorkspaceRetry extends WorkspaceAttempt {
 	readonly error: unknown;
 }
 
-export async function attachWorkspaceWithRetry<T>(options: {
+interface WorkspaceAttachmentOptions<T> {
 	readonly agentId: string;
 	readonly startAttempt: number;
 	readonly attach: (attempt: WorkspaceAttempt) => Promise<T>;
@@ -35,7 +35,22 @@ export async function attachWorkspaceWithRetry<T>(options: {
 	readonly onDiscardFailure?: (
 		failure: WorkspaceAttemptFailure & { readonly discardError: unknown },
 	) => Promise<void>;
-}): Promise<T> {
+}
+
+export function attachPublisherWorkspaceWithRetry<T>(
+	options: Omit<WorkspaceAttachmentOptions<T>, "startAttempt">,
+): Promise<T> {
+	const { agentId, ...callbacks } = options;
+	return attachWorkspaceWithRetry({
+		...callbacks,
+		agentId: `${agentId}-publisher`,
+		startAttempt: 0,
+	});
+}
+
+export async function attachWorkspaceWithRetry<T>(
+	options: WorkspaceAttachmentOptions<T>,
+): Promise<T> {
 	if (
 		!Number.isSafeInteger(options.startAttempt) ||
 		options.startAttempt < 0 ||

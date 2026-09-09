@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from "vitest";
 
 import {
+	attachPublisherWorkspaceWithRetry,
 	attachWorkspaceWithRetry,
 	prepareWorkspaceBeforeModel,
 } from "../../.flue/lib/workspace-attachment.js";
@@ -87,6 +88,33 @@ describe("workspace attachment", () => {
 
 		expect(attach).toHaveBeenCalledTimes(2);
 		expect(discard).toHaveBeenCalledOnce();
+	});
+
+	test("retries a publisher GitHub 429 on a fresh publisher sandbox", async () => {
+		const attached: string[] = [];
+		const discarded: string[] = [];
+
+		await expect(
+			attachPublisherWorkspaceWithRetry({
+				agentId: "investigate-2973-run",
+				attach: async ({ sandboxId }) => {
+					attached.push(sandboxId);
+					if (attached.length === 1) {
+						throw new Error("container setup failed (128): The requested URL returned error: 429");
+					}
+					return "ready";
+				},
+				discard: async ({ sandboxId }) => {
+					discarded.push(sandboxId);
+				},
+			}),
+		).resolves.toBe("ready");
+
+		expect(attached).toEqual([
+			"investigate-2973-run-publisher",
+			"investigate-2973-run-publisher-r1",
+		]);
+		expect(discarded).toEqual(["investigate-2973-run-publisher"]);
 	});
 
 	test("continues on a fresh sandbox when failed-sandbox cleanup also fails", async () => {

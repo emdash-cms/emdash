@@ -56,6 +56,7 @@ import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/time
 import { untarInto } from "../lib/untar.js";
 import { updateWorkPlan, type WorkPlan } from "../lib/work-plan.js";
 import {
+	attachPublisherWorkspaceWithRetry,
 	attachWorkspaceWithRetry,
 	prepareWorkspaceBeforeModel,
 	WORKSPACE_SANDBOX_ATTEMPT_LIMIT,
@@ -965,7 +966,37 @@ async function attachPublisherContainer(
 	id: string,
 	input: InvestigateData,
 ): Promise<ContainerBackend> {
-	const container = fromSandbox(workspaceSandbox(`${id}-publisher`));
+	return attachPublisherWorkspaceWithRetry({
+		agentId: id,
+		attach: ({ sandboxId }) => attachPublisherContainerAttempt(sandboxId, input),
+		discard: async ({ sandboxId }) => {
+			await withDeadline(
+				workspaceSandbox(sandboxId).destroy(),
+				DEFAULT_RPC_TIMEOUT_MS,
+				"failed publisher sandbox cleanup",
+			);
+		},
+		onRetry: async ({ attempt, error }) => {
+			console.warn("[investigate] retrying publisher on a fresh sandbox", {
+				runId: input.runId,
+				attempt: attempt + 1,
+				error: errorMessage(error),
+			});
+		},
+		onDiscardFailure: async ({ sandboxId, discardError }) => {
+			console.warn("[investigate] failed publisher sandbox cleanup", {
+				sandboxId,
+				error: errorMessage(discardError),
+			});
+		},
+	});
+}
+
+async function attachPublisherContainerAttempt(
+	id: string,
+	input: InvestigateData,
+): Promise<ContainerBackend> {
+	const container = fromSandbox(workspaceSandbox(id));
 	await prepareContainer(container, input, true);
 	return container;
 }
