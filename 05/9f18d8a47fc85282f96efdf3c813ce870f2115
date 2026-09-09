@@ -1,0 +1,21 @@
+demos/simple/presentation/talk/Media-in-EmDash-Intern-Presentation.html
+  s_0135e5d9216639::t_a1473a6769944d 1073,1076,1084-1085,1099,1111,1123,1136-1138,1152,1165
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_0135e5d9216639::t_39a485046c4c72 3,5,32,42,44,50,52,60,68,76,84,86,88,96,104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "059f18d8a47fc85282f96efdf3c813ce870f2115",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
