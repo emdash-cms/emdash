@@ -90,7 +90,12 @@ test.describe("Setup Wizard", () => {
 		await admin.page.getByRole("button", { name: "Continue" }).click();
 
 		await expect(admin.page.locator("text=Secure your account")).toBeVisible();
-		await expect(admin.page.locator("text=Choose how to sign in")).toBeVisible();
+		await expect(
+			admin.page.getByRole("heading", {
+				name: "With a passkey, you don’t need to remember complex passwords",
+			}),
+		).toBeVisible();
+		await expect(admin.page.getByRole("button", { name: "Create passkey" })).toBeVisible();
 	});
 
 	test("setup wizard not accessible after setup complete", async ({ admin }) => {

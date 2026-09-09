@@ -106,7 +106,7 @@ export interface PasskeyRegistrationProps {
 	additionalData?: Record<string, unknown>;
 	/** Show researched onboarding guidance before browser-owned passkey UI */
 	showEducation?: boolean;
-	/** Keep the success confirmation visible until the user continues */
+	/** Keep the educational flow's success confirmation visible until the user continues. Requires showEducation. */
 	showSuccessStep?: boolean;
 	/** Button shown after a successful educational flow */
 	successButtonText?: string;
@@ -495,7 +495,7 @@ export function PasskeyRegistration({
 		);
 	}
 
-	if (showEducation && state.status === "success") {
+	if (showEducation && showSuccessStep && state.status === "success") {
 		return (
 			<div className="space-y-5 text-center">
 				<div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-kumo-success/10 text-kumo-success">
@@ -538,6 +538,7 @@ export function PasskeyRegistration({
 				</div>
 				<LinkButton
 					href="ms-settings:signinoptions"
+					external
 					icon={<WindowsLogo />}
 					className="w-full justify-center"
 				>
