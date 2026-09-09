@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/release-verifier",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"private": true,
 	"description": "Isolated Cloudflare Worker for delegated release artifact verification.",
 	"type": "module",
