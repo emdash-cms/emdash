@@ -1063,11 +1063,25 @@ export const TRANSITIONS: Transition[] = [
 
 	// --- verdict disposal edges (maintainer disposes; humans dispose) ---
 	{ from: "reproduced", event: "work", to: "working", action: "investigate.work" },
+	{
+		from: "reproduced",
+		event: "needs_changes",
+		to: "working",
+		action: "investigate.work",
+		note: "late candidate feedback starts a new work run after the candidate expired",
+	},
 	{ from: "reproduced", event: "fix", to: "fixing", action: "investigate.fix" },
 	{ from: "reproduced", event: "implement", to: "fixing", action: "investigate.fix" },
 	{ from: "reproduced", event: "decline", to: "declined" },
 	{ from: "reproduced", event: "take_over", to: "human_owned" },
 	{ from: "diagnosed", event: "work", to: "working", action: "investigate.work" },
+	{
+		from: "diagnosed",
+		event: "needs_changes",
+		to: "working",
+		action: "investigate.work",
+		note: "candidate feedback remains actionable after a diagnosis-only run",
+	},
 	{ from: "diagnosed", event: "fix", to: "fixing", action: "investigate.fix" },
 	{ from: "diagnosed", event: "implement", to: "fixing", action: "investigate.fix" },
 	{ from: "diagnosed", event: "decline", to: "declined" },

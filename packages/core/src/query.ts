@@ -398,8 +398,21 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 	// Cursor-paginated calls are exempt: their limit is part of the
 	// pagination contract.
 	const bucketed = bucketFilter(filter);
+
+	// Preview and edit-mode requests skip `loadCollectionCached`. That path
+	// reduces every entry to a JSON snapshot (`entrySnapshot`) and rebuilds it
+	// with `reviveEntry`, which cannot carry the `edit` proxy and re-attaches
+	// the no-op — so annotations spread as `{...entry.edit.title}` would render
+	// nothing on list pages. `getEmDashEntry` has the same bypass for the same
+	// reason (see its `serveDrafts` branch). The request-scoped cache still
+	// collapses duplicate queries within the render.
+	const ctx = getRequestContext();
+	const serveDrafts = ctx?.editMode === true || ctx?.preview !== undefined;
+
 	const cached = await requestCached(collectionCacheKey(type, bucketed.fetchFilter), () =>
-		loadCollectionCached<T, D>(type, bucketed.fetchFilter),
+		serveDrafts
+			? getEmDashCollectionUncached<T, D>(type, bucketed.fetchFilter)
+			: loadCollectionCached<T, D>(type, bucketed.fetchFilter),
 	);
 	return bucketed.requestedLimit === undefined
 		? cached

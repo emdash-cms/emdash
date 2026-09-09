@@ -417,7 +417,7 @@ test.describe("Media Library", () => {
 		await admin.waitForShell();
 		await admin.waitForLoading();
 		const editorUrl = page.url();
-		await page.getByRole("button", { name: "Select image" }).click();
+		await page.getByRole("button", { name: /browse for Featured Image/i }).click();
 		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
 		const workspaceElement = await picker.elementHandle();
 		expect(workspaceElement).not.toBeNull();
@@ -487,7 +487,7 @@ test.describe("Media Library", () => {
 		await admin.waitForShell();
 		await admin.waitForLoading();
 		await page.setViewportSize({ width: 320, height: 800 });
-		await page.getByRole("button", { name: "Select image" }).click();
+		await page.getByRole("button", { name: /browse for Featured Image/i }).click();
 		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
 		await picker.getByRole("button", { name: "test-image.png", exact: true }).click();
 		await picker.getByRole("button", { name: "Select", exact: true }).click();
@@ -540,7 +540,9 @@ test.describe("Media Library", () => {
 
 		await imageActions.click();
 		await page.getByRole("menuitem", { name: "Remove" }).click();
-		await expect(featuredImageField.getByRole("button", { name: "Select image" })).toBeVisible();
+		await expect(
+			featuredImageField.getByRole("button", { name: /browse for Featured Image/i }),
+		).toBeVisible();
 		expect(
 			await featuredImageField.evaluate((element) => element.scrollWidth <= element.clientWidth),
 		).toBe(true);
