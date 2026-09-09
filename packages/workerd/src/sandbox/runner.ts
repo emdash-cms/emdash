@@ -489,9 +489,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		try {
 			await this.startupPromise;
 			this.needsRestart = false;
-			// unloadPlugin() and a load() for a plugin id and version the runner
-			// has not seen are the only callers that get here: a repeat load
-			// returns the cached instance without marking a restart.
+			// A repeat load returns the cached instance without marking a
+			// restart, so it never drives the start that clears this.
 			this.gaveUp = false;
 		} finally {
 			// Always clear startupPromise so a failed start doesn't block
