@@ -459,7 +459,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 *
 	 * Giving up is the one state no invocation retries out of: needsRestart
 	 * stays false, so ensureRunning() returns without starting anything and
-	 * workerd waits for a server restart or a plugin (re)load.
+	 * workerd waits for a server restart, an install or an update.
 	 */
 	unavailableReason(): string {
 		if (this.gaveUp) {
@@ -489,8 +489,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		try {
 			await this.startupPromise;
 			this.needsRestart = false;
-			// load() and unloadPlugin() reach this after the crash budget was
-			// spent, which is the only way back out of the give-up state.
+			// unloadPlugin() and a load() for a plugin id and version the runner
+			// has not seen are the only callers that get here: a repeat load
+			// returns the cached instance without marking a restart.
 			this.gaveUp = false;
 		} finally {
 			// Always clear startupPromise so a failed start doesn't block
