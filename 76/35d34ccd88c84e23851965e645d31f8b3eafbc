@@ -1,0 +1,31 @@
+demos/simple/presentation/VERIFICATION.md
+  s_0135e5d9216639::t_502b2cddf3ff7b 3-16
+demos/simple/presentation/README.md
+  s_20baffdc2d088d::t_2884fa19d625d5 3,16,22,36,38-43,45,51-57,73,109-110
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_20baffdc2d088d::t_61db8348f3b2db 7,182,185-186,193
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7635d34ccd88c84e23851965e645d31f8b3eafbc",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
