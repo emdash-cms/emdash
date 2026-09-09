@@ -261,9 +261,18 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 		// Execute the route handler with input, request metadata, the
 		// authenticated caller (private routes only), and context
 		try {
+			let validatedInput = input;
+			if (route.input) {
+				const parsed = route.input.safeParse(input);
+				if (!parsed.success) {
+					const error = { __emdashSandboxRouteError: true, error: { code: "VALIDATION_ERROR", message: "Invalid request body", status: 400 } };
+					return error;
+				}
+				validatedInput = parsed.data;
+			}
 			return await handler(
 				{
-					input,
+					input: validatedInput,
 					request: serializedRequest,
 					requestMeta: serializedRequest.meta,
 					user: serializedRequest.user,

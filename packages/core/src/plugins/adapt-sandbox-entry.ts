@@ -111,6 +111,8 @@ function normalizeRouteEntry(
 	if (typeof entry === "function") return { handler: entry };
 	return {
 		...entry,
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- decoding and schema validation establish the handler input before invocation
+		handler: entry.handler as RouteHandler,
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- sandbox schemas are validated when the route is invoked
 		input: entry.input as PluginRoute["input"],
 	};

@@ -281,6 +281,32 @@ return { id: "abc", count: 42 };  // wrapped to { success: true, data: { id, cou
 return [1, 2, 3];                 // wrapped to { success: true, data: [1, 2, 3] }
 ```
 
+### Raw responses
+
+Return a Web API `Response` to send XML, plain text, binary data, or a redirect. EmDash preserves its body, status, and headers and skips the JSON envelope. This works for native and sandboxed plugins. The Node sandbox buffers the response body for transport.
+
+The following route serves XML at `/_emdash/api/plugins/<slug>/sitemap`:
+
+```typescript title="src/plugin.ts"
+import type { SandboxedPlugin } from "emdash/plugin";
+
+export default {
+	routes: {
+		sitemap: {
+			public: true,
+			handler: async () => new Response(
+				'<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://example.com/</loc></url></urlset>',
+				{ headers: { "Content-Type": "application/xml; charset=utf-8" } },
+			),
+		},
+	},
+} satisfies SandboxedPlugin;
+```
+
+Route names remain under the plugin API prefix. To expose a conventional root URL such as `/sitemap.xml`, add an Astro route that forwards the public plugin route's response.
+
+For successful public GET and HEAD requests, a route's `cacheControl` option overrides the response's `Cache-Control` header. When neither is set, the default is `private, no-store`. Private routes, error responses, and other methods always use `private, no-store`.
+
 ## Errors
 
 Throw when a sandboxed route cannot complete. EmDash logs the exception and returns a `ROUTE_ERROR`. The thrown message may be included in that response, so never put credentials, personal data, internal paths, or stack traces in an exception message:
@@ -296,9 +322,20 @@ handler: async (_routeCtx, ctx) => {
 },
 ```
 
-Sandboxed plugin code cannot select an arbitrary HTTP status by throwing a `Response`; a `Response` does not cross every sandbox runner's boundary as a structured error. EmDash assigns statuses to authentication, authorization, CSRF, and missing-route failures before the handler runs. Return a JSON result for expected validation and domain outcomes, and reserve exceptions for unexpected failures.
+For a specific status code and body, return a `Response`:
 
-An expected error returned as JSON still uses the route's successful HTTP response and appears inside EmDash's outer `{ success: true, data: ... }` envelope. Include a stable application-level code so clients can distinguish that outcome.
+```typescript
+handler: async (routeCtx, ctx) => {
+	const item = await ctx.storage.items.get(routeCtx.input.id);
+	if (!item) {
+		return new Response(JSON.stringify({ error: "Not found" }), {
+			status: 404,
+			headers: { "Content-Type": "application/json" },
+		});
+	}
+	return item;
+},
+```
 
 ## HTTP methods
 
@@ -319,7 +356,7 @@ routes: {
 					await ctx.storage.items.delete(id);
 					return { deleted: true };
 				default:
-					return { error: "METHOD_NOT_ALLOWED", allowed: ["GET", "DELETE"] };
+					return new Response("Method not allowed", { status: 405 });
 			}
 		},
 	},
@@ -340,9 +377,61 @@ handler: async (routeCtx, ctx) => {
 
 	ctx.log.info("Request", { meta: requestMeta });
 
-	if (request.method !== "POST") return { error: "POST_REQUIRED" };
+	if (request.method !== "POST") {
+		return new Response("POST required", { status: 405 });
+	}
 },
 ```
+
+### Request body decoding
+
+Set `body` on a route to choose how EmDash decodes the request into `routeCtx.input`. Native handlers receive the value in `ctx.input`.
+
+| Route option | Input before schema validation |
+| --- | --- |
+| Omitted | JSON for POST, PUT, and PATCH; query parameters for other methods |
+| `body: "text"` | UTF-8 string |
+| `body: "bytes"` | `Uint8Array` containing the original body bytes |
+
+An optional `input` schema validates or transforms the decoded value before the handler runs. Invalid input returns HTTP 400 with `VALIDATION_ERROR`. This applies to native and sandboxed routes. Without a schema, text and byte routes infer `string` and `Uint8Array` handler input types respectively.
+
+Both body modes read the whole body into memory. An empty body produces `""` in text mode and an empty `Uint8Array` in bytes mode. Text mode uses `Request.text()`, which decodes UTF-8 and may remove a byte order mark or replace invalid sequences. Use bytes mode for webhook signatures: omit the input schema, verify the original bytes, then parse and validate the payload.
+
+The following route verifies a hex-encoded HMAC-SHA256 signature with a secret stored in plugin settings:
+
+```typescript title="src/plugin.ts"
+import type { SandboxedPlugin } from "emdash/plugin";
+
+export default {
+	routes: {
+		webhook: {
+			public: true,
+			body: "bytes",
+			handler: async (routeCtx, ctx) => {
+				const signature = routeCtx.request.headers["x-webhook-signature"] ?? "";
+				const secret = await ctx.kv.get<string>("settings:webhookSecret");
+				if (!secret || !/^[a-f0-9]{64}$/i.test(signature)) {
+					return new Response("Invalid signature", { status: 401 });
+				}
+				const encoder = new TextEncoder();
+				const key = await crypto.subtle.importKey(
+					"raw", encoder.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["verify"],
+				);
+				const signatureBytes = Uint8Array.from(
+					signature.match(/../g)!, (pair) => Number.parseInt(pair, 16),
+				);
+				const valid = await crypto.subtle.verify(
+					"HMAC", key, signatureBytes, routeCtx.input,
+				);
+				if (!valid) return new Response("Invalid signature", { status: 401 });
+				return { received: true };
+			},
+		},
+	},
+} satisfies SandboxedPlugin;
+```
+
+Store the webhook secret under `settings:webhookSecret` through the plugin's [settings UI](/plugins/creating-plugins/settings/). Match the signature format and signed message to the webhook provider's protocol; some providers include a timestamp or prefix in the signed message. Validate the payload after verifying its signature. Public routes skip EmDash authentication and CSRF checks, so the handler must verify each request before making changes.
 
 ## Common patterns
 
@@ -456,7 +545,7 @@ interface SandboxedRequest {
 }
 
 interface SandboxedRouteContext {
-	input: unknown; // validate inside the handler before use
+	input: unknown; // inferred as string or Uint8Array for a body mode without a schema
 	request: SandboxedRequest;
 	requestMeta?: unknown;
 	user?: UserInfo; // authenticated caller on private routes; undefined on public routes

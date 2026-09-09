@@ -6,6 +6,7 @@ import { extractManifest as extractCoreManifest } from "../../../src/cli/command
 import { pluginManifestSchema as coreManifestSchema } from "../../../src/plugins/manifest-schema.js";
 
 const options = {
+	body: "bytes" as const,
 	public: true,
 	permission: "content:create" as const,
 	cacheControl: "public, max-age=60",

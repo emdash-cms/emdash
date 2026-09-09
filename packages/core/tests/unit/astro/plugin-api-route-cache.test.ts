@@ -6,6 +6,7 @@
  * public routes — everything else keeps the API default `private, no-store`.
  */
 
+import { Role } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 import { describe, expect, it, vi } from "vitest";
 
@@ -79,4 +80,69 @@ describe("plugin API catch-all Cache-Control", () => {
 		expect(res.status).toBe(404);
 		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 	});
+});
+
+describe("plugin API raw responses", () => {
+	it("preserves custom HTTP output", async () => {
+		const { locals } = createLocals({
+			result: {
+				success: true,
+				data: new Response("<urlset/>", {
+					status: 201,
+					headers: { "Content-Type": "application/xml" },
+				}),
+			},
+		});
+		const res = await invoke(GET, "GET", locals);
+		expect(res.status).toBe(201);
+		expect(res.headers.get("Content-Type")).toBe("application/xml");
+		expect(await res.text()).toBe("<urlset/>");
+	});
+});
+
+it("keeps private raw responses uncacheable", async () => {
+	const response = await GET({
+		params: { pluginId: "demo", path: "export" },
+		request: new Request("https://example.com/_emdash/api/plugins/demo/export", {
+			headers: { "X-EmDash-Request": "1" },
+		}),
+		locals: {
+			user: { id: "admin", role: Role.ADMIN },
+			emdash: {
+				getPluginRouteMeta: () => ({ public: false, cacheControl: CACHE_VALUE }),
+				handlePluginApiRoute: async () => ({
+					success: true,
+					data: new Response("private export", {
+						headers: { "Cache-Control": CACHE_VALUE, "Content-Type": "text/csv" },
+					}),
+				}),
+			},
+		},
+	} as never);
+	expect(response.status).toBe(200);
+	expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+	expect(await response.text()).toBe("private export");
+});
+
+it.each(["GET", "HEAD"])("honors response caching on a public %s", async (method) => {
+	const { locals } = createLocals({
+		result: {
+			success: true,
+			data: new Response("feed", { headers: { "Cache-Control": CACHE_VALUE } }),
+		},
+	});
+	const response = await invoke(GET, method, locals);
+	expect(response.headers.get("Cache-Control")).toBe(CACHE_VALUE);
+});
+
+it("lets the route cache option override raw response headers", async () => {
+	const { locals } = createLocals({
+		cacheControl: CACHE_VALUE,
+		result: {
+			success: true,
+			data: new Response("feed", { headers: { "Cache-Control": "public, max-age=1" } }),
+		},
+	});
+	const response = await invoke(GET, "GET", locals);
+	expect(response.headers.get("Cache-Control")).toBe(CACHE_VALUE);
 });

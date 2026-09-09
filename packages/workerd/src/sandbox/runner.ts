@@ -47,6 +47,7 @@ import { createBackingServiceHandler } from "./backing-service.js";
 import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
+import { readRouteResponse } from "./route-response.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
 /** Replace non-alphanumeric chars for safe file/worker names */
@@ -1027,7 +1028,11 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
-				body: JSON.stringify({ input, request }),
+				body: JSON.stringify({
+					input: input instanceof Uint8Array ? [...input] : input,
+					inputEncoding: input instanceof Uint8Array ? "bytes" : undefined,
+					request,
+				}),
 			});
 			if (!res.ok) {
 				const text = await res.text();
@@ -1042,7 +1047,7 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 				}
 				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 			}
-			return res.json();
+			return readRouteResponse(res);
 		});
 	}
 

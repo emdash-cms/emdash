@@ -447,7 +447,8 @@ export default {
 		// Route invocation: POST /route/{routeName}
 		if (url.pathname.startsWith("/route/")) {
 			const routeName = url.pathname.slice(7); // Remove "/route/"
-			const { input, request: serializedRequest } = await request.json();
+			const { input: encodedInput, inputEncoding, request: serializedRequest } = await request.json();
+			const input = inputEncoding === "bytes" ? new Uint8Array(encodedInput) : encodedInput;
 			const ctx = createContext();
 
 			const route = routes[routeName];
@@ -461,17 +462,34 @@ export default {
 			}
 
 			try {
+				let validatedInput = input;
+				if (route.input) {
+					const parsed = route.input.safeParse(input);
+					if (!parsed.success) {
+						const error = { __emdashSandboxRouteError: true, error: { code: "VALIDATION_ERROR", message: "Invalid request body", status: 400 } };
+						return Response.json(error, { status: 400 });
+					}
+					validatedInput = parsed.data;
+				}
 				// user: authenticated caller for private routes, resolved by
 				// the host before dispatch.
 				const result = await handler(
 					{
-						input,
+						input: validatedInput,
 						request: serializedRequest,
 						requestMeta: serializedRequest?.meta,
 						user: serializedRequest?.user,
 					},
 					ctx,
 				);
+				if (result instanceof Response) {
+					return Response.json({
+						status: result.status,
+						statusText: result.statusText,
+						headers: [...result.headers.entries()],
+						body: result.body === null ? null : Array.from(new Uint8Array(await result.arrayBuffer())),
+					}, { headers: { "X-EmDash-Raw-Response": "1" } });
+				}
 				return Response.json(result);
 			} catch (err) {
 				const sandboxError = sandboxRouteErrorResponse(err);

@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const routeOptionsSchema = z.object({
+	/** Decode the request body as UTF-8 text or preserve its original bytes. */
+	body: z.enum(["text", "bytes"]).optional(),
 	/** Skip authentication and CSRF checks for this route. */
 	public: z.boolean().optional(),
 	/** RBAC permission required to invoke the route. */

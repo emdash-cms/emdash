@@ -63,13 +63,13 @@ describe("bundlePlugin", () => {
 		await writeFile(
 			join(dir, "src/plugin.ts"),
 			`export default { routes: {
-			catalog: { public: true, cacheControl: "public, max-age=60", handler: async () => ({ items: [] }) },
+			catalog: { body: "text", public: true, cacheControl: "public, max-age=60", handler: async () => ({ items: [] }) },
 			create: { permission: "content:create", handler: async () => ({ created: true }) },
 		} };`,
 		);
 		const result = await bundlePlugin({ dir, outDir: join(outDir, "bundle") });
 		expect(result.manifest.routes).toEqual([
-			{ name: "catalog", public: true, cacheControl: "public, max-age=60" },
+			{ name: "catalog", body: "text", public: true, cacheControl: "public, max-age=60" },
 			{ name: "create", permission: "content:create" },
 		]);
 	});

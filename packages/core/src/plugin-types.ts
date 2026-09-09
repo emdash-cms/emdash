@@ -175,11 +175,11 @@ export interface SandboxedRequest {
  * argument with the call-site input + the originating request, in
  * addition to the standard `PluginContext`.
  *
- * `input` is `unknown` because plugins validate it themselves — no
- * central schema for route payloads.
+ * Without a body mode or explicit type argument, input is unknown.
  */
-export interface SandboxedRouteContext {
-	input: unknown;
+export interface SandboxedRouteContext<TInput = unknown> {
+	/** Decoded request input, after applying the optional input schema. */
+	input: TInput;
 	request: SandboxedRequest;
 	requestMeta?: unknown;
 	/**
@@ -197,11 +197,11 @@ export interface SandboxedRouteContext {
  * native plugins, where routes take a single context with the input
  * merged in.
  *
- * Return type is `unknown` because routes serialise their return value
- * to JSON for the caller; authors define their own response shape.
+ * Return a Response for custom HTTP output, or a JSON-serializable value
+ * for the standard API envelope.
  */
-export type RouteHandler = (
-	routeCtx: SandboxedRouteContext,
+export type RouteHandler<TInput = unknown> = (
+	routeCtx: SandboxedRouteContext<TInput>,
 	ctx: PluginContext,
 ) => Promise<unknown>;
 
@@ -209,13 +209,24 @@ export type RouteHandler = (
  * Route entry — either a bare handler or the config form with
  * `public`, `input` schema, and so on. The build probe accepts both.
  */
-export type RouteEntry =
-	| RouteHandler
-	| (RouteOptions & {
-			handler: RouteHandler;
-			input?: unknown;
-			permission?: Permission;
-	  });
+interface RouteEntryOptions extends RouteOptions {
+	permission?: Permission;
+}
+
+export type RouteEntry<TInput = unknown> =
+	// Optional discriminants preserve contextual typing for object-route handlers.
+	| (RouteHandler<TInput> & { body?: undefined; input?: undefined })
+	| (RouteEntryOptions &
+			(
+				| { body?: undefined; input?: unknown; handler: RouteHandler<TInput> }
+				| { body: "text"; input?: undefined; handler: RouteHandler<string> }
+				| { body: "bytes"; input?: undefined; handler: RouteHandler<Uint8Array<ArrayBuffer>> }
+				| {
+						body: NonNullable<RouteOptions["body"]>;
+						input: ZodType<TInput>;
+						handler: RouteHandler<TInput>;
+				  }
+			));
 
 export interface SandboxedMcpTool {
 	description: string;

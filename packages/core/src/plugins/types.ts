@@ -1216,7 +1216,7 @@ export interface RequestMeta {
  * Route handler context extends plugin context with request-specific data
  */
 export interface RouteContext<TInput = unknown> extends PluginContext {
-	/** Validated input from request body */
+	/** Decoded request input, after applying the optional input schema. */
 	input: TInput;
 	/** Original request */
 	request: Request;
@@ -1240,12 +1240,21 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
  * Route definition
  */
 export interface PluginRoute<TInput = unknown> extends RouteOptions {
-	/** Zod schema for input validation */
-	input?: z.ZodType<TInput>;
 	permission?: Permission;
-	/** Route handler */
+	/** Validate or transform the decoded input before invoking the handler. */
+	input?: z.ZodType<TInput>;
+	/** Return a Response for custom HTTP output, or a value for the JSON envelope. */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }
+
+type PluginRouteDefinition<TInput = unknown> =
+	| (PluginRoute<TInput> & { body?: undefined })
+	| (PluginRoute<string> & { body: "text"; input?: undefined })
+	| (PluginRoute<Uint8Array<ArrayBuffer>> & { body: "bytes"; input?: undefined })
+	| (PluginRoute<TInput> & {
+			body: NonNullable<RouteOptions["body"]>;
+			input: z.ZodType<TInput>;
+	  });
 
 export interface PluginMcpToolDefinition {
 	description: string;
@@ -1438,7 +1447,7 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	hooks?: PluginHooks;
 
 	/** API routes */
-	routes?: Record<string, PluginRoute>;
+	routes?: Record<string, PluginRouteDefinition>;
 
 	/** Routes explicitly exposed as agent-callable MCP tools. */
 	mcp?: PluginMcpConfig;
