@@ -65,6 +65,30 @@ describe("workspace attachment", () => {
 		expect(discard).not.toHaveBeenCalled();
 	});
 
+	test("retries a GitHub 429 on a fresh sandbox", async () => {
+		const attach = vi
+			.fn<() => Promise<string>>()
+			.mockRejectedValueOnce(
+				new Error(
+					"container setup failed (128): fatal: unable to access repository: The requested URL returned error: 429",
+				),
+			)
+			.mockResolvedValueOnce("ready");
+		const discard = vi.fn(async () => {});
+
+		await expect(
+			attachWorkspaceWithRetry({
+				agentId: "investigate-2797-run",
+				startAttempt: 0,
+				attach,
+				discard,
+			}),
+		).resolves.toBe("ready");
+
+		expect(attach).toHaveBeenCalledTimes(2);
+		expect(discard).toHaveBeenCalledOnce();
+	});
+
 	test("continues on a fresh sandbox when failed-sandbox cleanup also fails", async () => {
 		const attached: string[] = [];
 		const cleanupFailures: unknown[] = [];

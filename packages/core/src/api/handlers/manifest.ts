@@ -2,12 +2,56 @@
  * Manifest generation handlers
  */
 
+import type { Kysely } from "kysely";
+
+import type { Database } from "../../database/types.js";
+import { SchemaRegistry } from "../../schema/registry.js";
+import { MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
+import type { Field, FieldType } from "../../schema/types.js";
 import { hashString } from "../../utils/hash.js";
-import type { ManifestResponse, FieldDescriptor } from "../types.js";
+import type {
+	FieldDescriptor,
+	ManifestCollectionMap,
+	ManifestFieldDescriptor,
+	ManifestResponse,
+} from "../types.js";
 
 /** Pattern to add spaces before capital letters */
 const CAMEL_CASE_PATTERN = /([A-Z])/g;
 const FIRST_CHAR_PATTERN = /^./;
+
+/**
+ * Map schema field types to editor field kinds.
+ */
+/** Field types that can be surfaced as list columns in the admin. */
+const LIST_COLUMN_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
+	"string",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"multiSelect",
+]);
+
+const FIELD_TYPE_TO_KIND: Record<FieldType, string> = {
+	string: "string",
+	slug: "string",
+	url: "url",
+	text: "richText",
+	number: "number",
+	integer: "number",
+	boolean: "boolean",
+	datetime: "datetime",
+	select: "select",
+	multiSelect: "multiSelect",
+	portableText: "portableText",
+	image: "image",
+	file: "file",
+	reference: "reference",
+	json: "json",
+	repeater: "repeater",
+};
 
 // Collection definition shape for manifest generation
 interface CollectionDefinition {
@@ -24,6 +68,10 @@ interface CollectionDefinition {
 }
 type CollectionMap = Record<string, CollectionDefinition>;
 
+interface GenerateManifestOptions {
+	db?: Kysely<Database> | null;
+}
+
 /**
  * Generate admin manifest from collections
  */
@@ -36,21 +84,9 @@ export async function generateManifest(
 			widgets?: string[];
 		}
 	> = {},
+	options: GenerateManifestOptions = {},
 ): Promise<ManifestResponse> {
-	const manifestCollections: ManifestResponse["collections"] = {};
-
-	for (const [name, definition] of Object.entries(collections)) {
-		// Extract field descriptors from Zod schema
-		const fields = extractFieldDescriptors(definition.schema);
-
-		manifestCollections[name] = {
-			label: definition.admin.label,
-			labelSingular: definition.admin.labelSingular || definition.admin.label,
-			supports: definition.admin.supports || [],
-			routable: definition.admin.routable ?? true,
-			fields,
-		};
-	}
+	const manifestCollections = await buildManifestCollections(collections, options.db);
 
 	// Generate hash from collections (for cache invalidation)
 	const hash = await hashString(JSON.stringify(manifestCollections));
@@ -64,14 +100,96 @@ export async function generateManifest(
 }
 
 /**
+ * Build collection descriptors from build-time config plus live database rows.
+ *
+ * Config collections are added first and win on slug conflicts. Runtime/manual
+ * collections have no Zod schema to inspect, so their field descriptors are
+ * synthesized from `_emdash_fields`.
+ */
+export async function buildManifestCollections(
+	collections: CollectionMap,
+	db?: Kysely<Database> | null,
+): Promise<ManifestCollectionMap> {
+	const manifestCollections: ManifestCollectionMap = {};
+
+	for (const [name, definition] of Object.entries(collections)) {
+		// Extract field descriptors from Zod schema
+		const fields = extractFieldDescriptors(definition.schema);
+
+		manifestCollections[name] = {
+			label: definition.admin.label,
+			labelSingular: definition.admin.labelSingular || definition.admin.label,
+			supports: definition.admin.supports || [],
+			hasSeo: (definition.admin.supports || []).includes("seo"),
+			routable: definition.admin.routable ?? true,
+			fields,
+		};
+	}
+
+	if (!db) return manifestCollections;
+
+	try {
+		const registry = new SchemaRegistry(db);
+		const dbCollections = await registry.listCollectionsWithFields();
+		for (const collection of dbCollections) {
+			if (manifestCollections[collection.slug]) continue;
+
+			const fields: Record<string, ManifestFieldDescriptor> = {};
+			for (const field of collection.fields) {
+				fields[field.slug] = dbFieldDescriptor(field);
+			}
+
+			const configuredListColumns = collection.admin?.listColumns ?? [];
+			const fieldTypes = new Map(collection.fields.map((field) => [field.slug, field.type]));
+			const listColumns: string[] = [];
+			for (const slug of configuredListColumns) {
+				if (listColumns.includes(slug)) continue;
+				const fieldType = fieldTypes.get(slug);
+				if (!fieldType || !LIST_COLUMN_FIELD_TYPES.has(fieldType)) {
+					console.warn(
+						`EmDash: Ignoring unsupported or unknown list column "${slug}" in collection "${collection.slug}".`,
+					);
+					continue;
+				}
+				if (listColumns.length >= MAX_COLLECTION_LIST_COLUMNS) {
+					console.warn(
+						`EmDash: Collection "${collection.slug}" declares more than ${MAX_COLLECTION_LIST_COLUMNS} list columns; extra columns are ignored.`,
+					);
+					break;
+				}
+				listColumns.push(slug);
+			}
+
+			manifestCollections[collection.slug] = {
+				label: collection.label,
+				labelSingular: collection.labelSingular || collection.label,
+				supports: collection.supports || [],
+				hasSeo: collection.hasSeo,
+				urlPattern: collection.urlPattern,
+				routable: collection.routable !== false,
+				titleField: collection.titleField,
+				dateField: collection.dateField,
+				...(collection.hidden ? { hidden: true } : {}),
+				listColumns: listColumns.length > 0 ? listColumns : undefined,
+				fields,
+			};
+		}
+	} catch (error) {
+		console.debug("EmDash: Could not load database collections for manifest:", error);
+	}
+
+	return manifestCollections;
+}
+
+/**
  * Extract field descriptors from Zod schema
  * Note: This is a simplified implementation that handles common types
  */
 function extractFieldDescriptors(schema: {
 	_def?: { shape?: () => Record<string, unknown> };
 	shape?: Record<string, unknown>;
-}): Record<string, FieldDescriptor> {
-	const fields: Record<string, FieldDescriptor> = {};
+}): Record<string, ManifestFieldDescriptor> {
+	const fields: Record<string, ManifestFieldDescriptor> = {};
 
 	// Handle Zod object schema
 	const shape = typeof schema._def?.shape === "function" ? schema._def.shape() : schema.shape || {};
@@ -147,6 +265,37 @@ function extractFieldType(name: string, schema: unknown): FieldDescriptor {
 		default:
 			return { kind: "string", label: formatLabel(name) };
 	}
+}
+
+function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
+	const entry: ManifestFieldDescriptor = {
+		kind: FIELD_TYPE_TO_KIND[field.type] ?? "string",
+		label: field.label,
+		required: field.required,
+		id: field.id,
+	};
+
+	if (field.widget) entry.widget = field.widget;
+	if (field.options) entry.options = field.options;
+
+	// Legacy: select/multiSelect enum options live on `field.validation.options`.
+	// They win over widget options to preserve existing select behavior.
+	if (field.validation?.options) {
+		entry.options = field.validation.options.map((value) => ({
+			value,
+			label: value.charAt(0).toUpperCase() + value.slice(1),
+		}));
+	}
+
+	// Include validation only for field widgets that need it client-side.
+	if (
+		(field.type === "repeater" || field.type === "file" || field.type === "image") &&
+		field.validation
+	) {
+		entry.validation = { ...field.validation };
+	}
+
+	return entry;
 }
 
 /**

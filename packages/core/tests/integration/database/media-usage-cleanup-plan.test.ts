@@ -1,5 +1,16 @@
 import Database from "better-sqlite3";
-import { Kysely, SqliteDialect, sql } from "kysely";
+import {
+	CompiledQuery,
+	Kysely,
+	SqliteDialect,
+	sql,
+	type KyselyPlugin,
+	type PluginTransformQueryArgs,
+	type PluginTransformResultArgs,
+	type QueryResult,
+	type RootOperationNode,
+	type UnknownRow,
+} from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
@@ -17,7 +28,7 @@ interface CapturedQuery {
 	parameters: readonly unknown[];
 }
 
-const MAX_CLEANUP_STATEMENTS_PER_TICK = 14;
+const MAX_CLEANUP_STATEMENTS_PER_TICK = 16;
 const MAX_BIND_PARAMETERS_PER_CLEANUP_STATEMENT = 52;
 const MAX_CLEANUP_ADMISSION_TIME_MS = 5_000;
 
@@ -90,6 +101,42 @@ it("uses an indexed, D1-compatible fixed statement and bind budget", async () =>
 	expect(candidateQuery).toBeDefined();
 	const plan = explain(candidateQuery!);
 	expect(plan).toContain("idx__emdash_media_usage_cleanup_scan");
+	expect(plan).not.toContain("USE TEMP B-TREE");
+});
+
+it("walks the cleanup scan in index order from a bound cursor", async () => {
+	const createdAt = "2026-02-01T18:00:00.000Z";
+	for (let index = 0; index < 40; index++) {
+		await insertOccurrence(db, {
+			id: `scan-${String(index).padStart(3, "0")}`,
+			sourceKey: `scan-source-${index}`,
+			generation: `scan-generation-${index}`,
+			mediaId: `media-scan-${index}`,
+			createdAt,
+		});
+	}
+	const recorder = new CompiledQueryRecorder(db);
+
+	const candidates = await new MediaUsageRepository(
+		db.withPlugin(recorder),
+	).findMediaUsageCleanupCandidates({
+		cutoff: "2026-02-01T19:00:00.000Z",
+		cursor: { createdAt, id: "scan-019" },
+		limit: 5,
+	});
+
+	expect(candidates?.map((candidate) => candidate.id)).toEqual([
+		"scan-020",
+		"scan-021",
+		"scan-022",
+		"scan-023",
+		"scan-024",
+	]);
+	const scan = recorder.queries.at(-1);
+	if (!scan) throw new Error("the candidate scan issued no statement");
+	const plan = explain({ sql: scan.sql, parameters: scan.parameters });
+	expect(plan).toContain("SEARCH u USING COVERING INDEX idx__emdash_media_usage_cleanup_scan");
+	expect(plan).not.toContain("MULTI-INDEX OR");
 	expect(plan).not.toContain("USE TEMP B-TREE");
 });
 
@@ -515,6 +562,22 @@ async function insertOccurrence(
 		.execute();
 }
 
+/** Compiles every statement a repository call issues, so a plan test can EXPLAIN the real query. */
+class CompiledQueryRecorder implements KyselyPlugin {
+	readonly queries: CompiledQuery[] = [];
+
+	constructor(private readonly target: Kysely<DatabaseSchema>) {}
+
+	transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+		this.queries.push(this.target.getExecutor().compileQuery(args.node, args.queryId));
+		return args.node;
+	}
+
+	async transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+		return args.result;
+	}
+}
+
 function explain(query: CapturedQuery): string {
 	const rows = sqlite.prepare(`EXPLAIN QUERY PLAN ${query.sql}`).all(...query.parameters) as {
 		detail: string;
@@ -522,10 +585,15 @@ function explain(query: CapturedQuery): string {
 	return rows.map((row) => row.detail).join("\n");
 }
 
-it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async () => {
+it.skipIf(!hasPgTestDatabase).each([
+	{ name: "from the start of the sweep", cursorIndex: null },
+	{ name: "from a bound cursor", cursorIndex: 3_000 },
+])("uses the cleanup scan index in PostgreSQL $name", async ({ cursorIndex }) => {
 	const context = await setupForDialect("postgres");
 	try {
 		const now = new Date();
+		const createdAtFor = (index: number) =>
+			new Date(now.getTime() - (index + 2) * 60_000).toISOString();
 		for (let batchStart = 0; batchStart < 6_000; batchStart += 1_000) {
 			await context.db
 				.insertInto("_emdash_media_usage")
@@ -545,7 +613,7 @@ it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async
 							provider_asset_id: `plan-media-${index}`,
 							media_kind: "image",
 							mime_type: null,
-							created_at: new Date(now.getTime() - (index + 2) * 60_000).toISOString(),
+							created_at: createdAtFor(index),
 						};
 					}),
 				)
@@ -553,40 +621,22 @@ it.skipIf(!hasPgTestDatabase)("uses the cleanup scan index in PostgreSQL", async
 		}
 
 		await sql`ANALYZE _emdash_media_usage`.execute(context.db);
-		await context.db
-			.updateTable("_emdash_media_usage_cleanup")
-			.set({
-				lease_token: "plan-cleanup-lease",
-				lease_expires_at: "2100-01-01T00:00:00.000Z",
-			})
-			.where("task_key", "=", "projection_gc")
-			.execute();
-		const result = await sql<{ "QUERY PLAN": string }>`
-			EXPLAIN (COSTS OFF)
-			SELECT
-				u.id,
-				u.source_key,
-				u.generation,
-				u.created_at,
-				s.current_generation,
-				s.indexed_at,
-				writer.expires_at AS write_lease_expires_at
-			FROM _emdash_media_usage AS u
-			LEFT JOIN _emdash_media_usage_sources AS s ON s.source_key = u.source_key
-			LEFT JOIN _emdash_media_usage_generation_writes AS writer
-				ON writer.source_key = u.source_key AND writer.generation = u.generation
-			WHERE u.created_at < ${now.toISOString()}
-				AND EXISTS (
-					SELECT 1
-					FROM _emdash_media_usage_cleanup AS cleanup
-					WHERE cleanup.task_key = 'projection_gc'
-						AND cleanup.lease_token = 'plan-cleanup-lease'
-						AND cleanup.lease_expires_at::timestamptz > clock_timestamp()
-					FOR UPDATE
-				)
-			ORDER BY u.created_at ASC, u.id ASC
-			LIMIT 250
-		`.execute(context.db);
+		const recorder = new CompiledQueryRecorder(context.db);
+		await new MediaUsageRepository(context.db.withPlugin(recorder)).findMediaUsageCleanupCandidates(
+			{
+				cutoff: now.toISOString(),
+				cursor:
+					cursorIndex === null
+						? null
+						: { createdAt: createdAtFor(cursorIndex), id: `plan-${cursorIndex}` },
+				limit: MEDIA_USAGE_CLEANUP_CANDIDATE_LIMIT,
+			},
+		);
+		const scan = recorder.queries.at(-1);
+		if (!scan) throw new Error("the candidate scan issued no statement");
+		const result = await context.db.executeQuery<{ "QUERY PLAN": string }>(
+			CompiledQuery.raw(`EXPLAIN (COSTS OFF) ${scan.sql}`, [...scan.parameters]),
+		);
 		const plan = result.rows.map((row) => row["QUERY PLAN"]).join("\n");
 
 		expect(plan).toMatch(/Index(?: Only)? Scan using idx__emdash_media_usage_cleanup_scan/);

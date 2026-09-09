@@ -29,6 +29,7 @@ import {
 	requireCandidatePublication,
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
+import { applyCandidateForRevision } from "../lib/candidate-revision.js";
 import { contextRegistry } from "../lib/context-registry.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
@@ -67,7 +68,9 @@ import investigateSkill from "../skills/investigate/SKILL.md";
 import reproAdminSkill from "../skills/repro-admin/SKILL.md";
 import reproApiSkill from "../skills/repro-api/SKILL.md";
 import reproPublicSkill from "../skills/repro-public/SKILL.md";
+import triageSkill from "../skills/triage/SKILL.md";
 import verifySkill from "../skills/verify/SKILL.md";
+import workSkill from "../skills/work/SKILL.md";
 
 const REPO_DIR = "/workspace/repo";
 const DEFAULT_RPC_TIMEOUT_MS = 2 * 60_000;
@@ -95,7 +98,16 @@ function truncateToolResult(text: string): string {
 const initialDataSchema = v.object({
 	runId: v.pipe(v.string(), v.minLength(1)),
 	issueNumber: v.number(),
-	mode: v.picklist(["repro", "implement", "revise", "diagnose", "fix"]),
+	mode: v.picklist([
+		"triage",
+		"investigate",
+		"work",
+		"revise",
+		"repro",
+		"implement",
+		"diagnose",
+		"fix",
+	]),
 	arg: v.optional(v.nullable(v.string())),
 	issueTitle: v.pipe(v.string(), v.minLength(1)),
 	issueBody: v.string(),
@@ -140,6 +152,7 @@ const resultSchema = v.pipe(
 		 */
 		rootCauseFound: v.optional(v.boolean(), false),
 		fixed: v.optional(v.boolean()),
+		implemented: v.optional(v.boolean()),
 		verdict: v.optional(v.picklist(["bug", "intended-behavior", "unclear"])),
 		summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
 		pullRequest: v.optional(pullRequestSchema),
@@ -154,8 +167,13 @@ const resultSchema = v.pipe(
 		"reproduced=true requires demonstration != 'none' and demonstratedReportedIssue=true. If you demonstrated something other than the reported issue, or nothing, set reproduced=false and describe the finding in summary.",
 	),
 	v.check(
-		(result) => result.fixed !== true || result.pullRequest !== undefined,
-		"fixed=true requires pullRequest with a reviewer-facing title and description.",
+		(result) =>
+			(result.fixed !== true && result.implemented !== true) || result.pullRequest !== undefined,
+		"fixed=true or implemented=true requires pullRequest with a reviewer-facing title and description.",
+	),
+	v.check(
+		(result) => result.fixed !== true || result.implemented !== true,
+		"Report a work result as either fixed or implemented, not both.",
 	),
 );
 
@@ -173,6 +191,16 @@ const implementationResultSchema = v.pipe(
 		"implemented=true requires pullRequest with a reviewer-facing title and description.",
 	),
 );
+
+const triageResultSchema = v.object({
+	disposition: v.picklist(["auto-work", "needs-info", "await-approval"]),
+	kind: v.picklist(["bug", "enhancement", "task"]),
+	labels: v.optional(
+		v.pipe(v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(80))), v.maxLength(8)),
+		[],
+	),
+	summary: v.pipe(v.string(), v.minLength(10), v.maxLength(RESULT_SUMMARY_LIMIT)),
+});
 
 const publicationSchema = v.object({
 	branch: v.string(),
@@ -204,7 +232,7 @@ const workPlanInputSchema = v.object({
 });
 
 const reportedResultSchema = v.object({
-	result: v.union([resultSchema, implementationResultSchema]),
+	result: v.union([triageResultSchema, implementationResultSchema, resultSchema]),
 	ok: v.boolean(),
 	pushed: v.boolean(),
 	runId: v.string(),
@@ -215,6 +243,7 @@ const reportedResultSchema = v.object({
 type InvestigateData = v.InferOutput<typeof initialDataSchema>;
 type InvestigationResult = v.InferOutput<typeof resultSchema>;
 type ImplementationResult = v.InferOutput<typeof implementationResultSchema>;
+type TriageResult = v.InferOutput<typeof triageResultSchema>;
 
 interface RunFailure {
 	stage: "workspace" | "verification" | "publication" | "reporting";
@@ -246,8 +275,17 @@ export function Investigate({ id }: AgentProps) {
 
 	const env = execEnvFor(id, input, workspaceSandboxAttempt, setWorkspaceSandboxAttempt);
 
-	if (input.mode === "implement") {
+	if (input.mode === "triage") {
+		useSkill(triageSkill);
+	} else if (input.mode === "implement") {
 		useSkill(implementSkill);
+	} else if (input.mode === "work") {
+		useSkill(workSkill);
+		useSkill(diagnoseSkill);
+		useSkill(verifySkill);
+		useSkill(reproApiSkill);
+		useSkill(reproAdminSkill);
+		useSkill(reproPublicSkill);
 	} else {
 		useSkill(investigateSkill);
 		useSkill(diagnoseSkill);
@@ -256,7 +294,12 @@ export function Investigate({ id }: AgentProps) {
 		useSkill(reproAdminSkill);
 		useSkill(reproPublicSkill);
 	}
-	if (input.mode !== "diagnose" && input.mode !== "implement") {
+	if (
+		input.mode !== "triage" &&
+		input.mode !== "diagnose" &&
+		input.mode !== "investigate" &&
+		input.mode !== "implement"
+	) {
 		useSkill(fixSkill);
 	}
 
@@ -266,7 +309,8 @@ export function Investigate({ id }: AgentProps) {
 			prepare: async () => {
 				await prepareWorkPlanComment(input);
 				await env.ensureRepo({ dir: REPO_DIR, ref: cloneRef(input) });
-				await env.ensureContainerReady();
+				if (input.mode !== "triage") await env.ensureContainerReady();
+				if (input.mode === "revise") await env.checkpointContainer();
 				setSetupComplete(true);
 				await recordInvestigationProgress(input, {
 					kind: "workspace_ready",
@@ -379,14 +423,14 @@ export function Investigate({ id }: AgentProps) {
 		defineTool({
 			name: "exec",
 			description:
-				"Run a read-only shell command in the Linux container (git, pnpm, astro, vitest, agent-browser). Attaching the container is slow; prefer the VFS tools and `code` for reads and searches. Commands that change tracked source are reverted and rejected; change source with edit_file/write_file.",
+				"Run a shell command in the credential-free Linux workspace (git, pnpm, astro, vitest, formatters, generators, agent-browser). Candidate file changes are checkpointed into the durable workspace after the command, including after a nonzero exit. GitHub publication is unavailable here and uses the separate publish_candidate tool.",
 			input: v.object({
 				command: v.string(),
 				cwd: v.optional(v.string()),
 				timeoutMs: v.optional(v.number()),
 			}),
 			async run({ data }) {
-				const result = await env.execReadOnly(data.command, {
+				const result = await env.execWritable(data.command, {
 					...(data.cwd ? { cwd: data.cwd } : {}),
 					...(data.timeoutMs ? { timeoutMs: data.timeoutMs } : {}),
 				});
@@ -436,7 +480,28 @@ export function Investigate({ id }: AgentProps) {
 		}),
 	);
 
-	if (input.mode !== "diagnose") {
+	if (input.mode !== "triage" && input.mode !== "diagnose" && input.mode !== "investigate") {
+		useTool(
+			defineTool({
+				name: "publish_artifacts",
+				description:
+					"Publish selected .bot-artifacts files through the separate trusted publisher. Use this after capturing screenshots and before reporting them.",
+				input: v.object({ files: v.pipe(v.array(v.string()), v.minLength(1), v.maxLength(20)) }),
+				output: v.object({ branch: v.string(), files: v.array(v.string()) }),
+				durable: true,
+				async run({ data, step }) {
+					const published = await step.do("publish-artifacts", () =>
+						env.publishArtifacts({
+							branch: `bot/artifacts-${input.issueNumber}`,
+							runId: input.runId,
+							baseRef: cloneRef(input),
+							files: data.files,
+						}),
+					);
+					return { output: published };
+				},
+			}),
+		);
 		useTool(
 			defineTool({
 				name: "publish_candidate",
@@ -480,7 +545,33 @@ export function Investigate({ id }: AgentProps) {
 		);
 	}
 
-	if (input.mode === "implement") {
+	if (input.mode === "triage") {
+		useTool(
+			defineTool({
+				name: "report_triage",
+				description:
+					"Report the triage disposition, issue kind, useful existing labels, and concise evidence. auto-work is only for an obvious, localized, low-risk change with no product or security decision.",
+				input: triageResultSchema,
+				output: reportedResultSchema,
+				durable: true,
+				async run({ data, step, log }) {
+					const result: TriageResult = data;
+					await step.do("apply-agent-result", () =>
+						applyInvestigationResult(input, result, true, false),
+					);
+					const reportedResult = reportPayload(input.runId, result, false, null);
+					writeResult(reportedResult);
+					setReported(true);
+					log.info("triage reported", {
+						runId: input.runId,
+						issueNumber: input.issueNumber,
+						disposition: result.disposition,
+					});
+					return { output: reportedResult };
+				},
+			}),
+		);
+	} else if (input.mode === "implement") {
 		useTool(
 			defineTool({
 				name: "report_implementation",
@@ -522,17 +613,18 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "report_result",
 				description:
-					"Report the final structured investigation result to the issue orchestrator. reproduced=true means you demonstrated the defect the reporter described, in this checkout. The demonstration does NOT need to copy their exact steps: a failing unit test that exercises the same defect a UI report describes is a full reproduction of the issue -- report it as one, without hedging. It must be the same defect, though: an adjacent or latent bug you demonstrated, an out-of-repo infrastructure symptom, or a root cause from reading code alone is not a reproduction. Three distinct non-reproduced outcomes -- pick the honest one: rootCauseFound=true when you identified the reporter's defect but could not confirm it with a demonstration (environment limits, browser-only path) -- this is a first-class 'diagnosed' verdict; plain reproduced=false when you investigated and found nothing wrong or a different/adjacent issue (describe findings in summary); verdict='unclear' when the issue lacks the information an attempt would need -- say what is missing. Fill demonstration and demonstratedReportedIssue truthfully. If demonstration attempts are not converging after a couple of angles, stop and report the diagnosis with rootCauseFound rather than grinding. When fixed=true, provide pullRequest with a concise reviewer-facing title and description.",
+					"Report the final structured work or investigation result to the issue orchestrator. For a work run, set fixed=true for a bug or implemented=true for an enhancement/task only after publish_candidate succeeds. For a bug investigation, reproduced=true means you demonstrated the defect the reporter described in this checkout. The demonstration does not need to copy their exact steps: a failing unit test that exercises the same defect as a UI report is a full reproduction. An adjacent bug, external infrastructure symptom, or static diagnosis alone is not a reproduction. Use rootCauseFound=true when you identified the reported defect but could not demonstrate it, plain reproduced=false for no defect or a different finding, and verdict='unclear' when reporter-only information blocks an attempt. When fixed=true or implemented=true, provide pullRequest with a concise reviewer-facing title and description.",
 				input: resultSchema,
 				output: reportedResultSchema,
 				durable: true,
 				async run({ data, step, log }) {
-					requireCandidatePublication(data.fixed === true, publication);
+					const delivered = data.fixed === true || data.implemented === true;
+					requireCandidatePublication(delivered, publication);
 					const pushed = await step.do("verify-publication", () =>
 						detectPublication(input.issueNumber, publication),
 					);
 					const failure =
-						data.fixed && !pushed
+						delivered && !pushed
 							? (lastFailure ?? {
 									stage: "publication" as const,
 									message: "The candidate branch could not be verified at its published commit.",
@@ -557,7 +649,12 @@ export function Investigate({ id }: AgentProps) {
 	}
 
 	useAgentFinish(async ({ response, append, log }) => {
-		const reportTool = input.mode === "implement" ? "report_implementation" : "report_result";
+		const reportTool =
+			input.mode === "triage"
+				? "report_triage"
+				: input.mode === "implement"
+					? "report_implementation"
+					: "report_result";
 		const reportCall = response.toolCalls.some((call) => call.tool === reportTool && !call.isError);
 		if (reported || reportCall) return;
 		if (!reminded) {
@@ -638,6 +735,7 @@ function execEnvFor(
 				sandboxAttempt.current = attempt;
 				setWorkspaceSandboxAttempt(attempt);
 			}),
+		attachPublisherContainer: () => attachPublisherContainer(id, input),
 		hydrateRepo: (dir, ref) => hydrateWorkspace(id, dir, ref),
 		deadlines: DEADLINES,
 		repoDir: REPO_DIR,
@@ -790,10 +888,10 @@ function buildCodeToolDescription(): string {
 }
 
 /**
- * Attach the container substrate and reproduce the base checkout the toolchain
- * runs against: git identity, a clone (or fetch) at the run's ref, and the
- * issue-scoped push capability the outbound proxy verifies. The harness then
- * installs dependencies when needed and creates the base workspace build.
+ * Attach the credential-free execution substrate and reproduce the base
+ * checkout the toolchain runs against. The harness installs dependencies when
+ * needed and creates the base workspace build. Publication attaches a separate
+ * container with the issue-scoped push capability.
  */
 async function attachContainer(
 	id: string,
@@ -841,13 +939,16 @@ async function attachContainerAttempt(
 	input: InvestigateData,
 ): Promise<ContainerBackend> {
 	const container = fromSandbox(workspaceSandbox(id));
-	await prepareContainer(container, input);
+	await prepareContainer(container, input, false);
 	await bootstrapWorkspace(container, {
 		repoDir: REPO_DIR,
 		onProgress: async (stage) => {
 			await recordBootstrapProgress(input, stage);
 		},
 	});
+	if (input.mode === "revise" && input.previousBranchSha) {
+		await applyCandidateForRevision(container, input.previousBranchSha, cloneRef(input));
+	}
 	return {
 		...container,
 		async isReady() {
@@ -860,8 +961,20 @@ async function attachContainerAttempt(
 	};
 }
 
+async function attachPublisherContainer(
+	id: string,
+	input: InvestigateData,
+): Promise<ContainerBackend> {
+	const container = fromSandbox(workspaceSandbox(`${id}-publisher`));
+	await prepareContainer(container, input, true);
+	return container;
+}
+
 function workspaceSandbox(id: string) {
-	return getSandbox(workerEnv.Sandbox, id, { sleepAfter: SANDBOX_SLEEP_AFTER_SECONDS });
+	return getSandbox(workerEnv.Sandbox, id, {
+		sleepAfter: SANDBOX_SLEEP_AFTER_SECONDS,
+		transport: "rpc",
+	});
 }
 
 async function recordBootstrapProgress(
@@ -881,21 +994,21 @@ async function recordBootstrapProgress(
 async function prepareContainer(
 	container: ContainerBackend,
 	input: InvestigateData,
+	allowPush: boolean,
 ): Promise<void> {
 	const repo = readRepoContext(workerEnv);
 	if (!repo) throw new Error("repository context is not configured");
 	const ref = cloneRef(input);
-	// Diagnose mode is investigation-only: no push capability enters the
-	// container, so a fix push is impossible rather than merely instructed against.
-	const pushCapability =
-		input.mode === "diagnose"
-			? null
-			: await createPushCapability(
-					workerEnv.GITHUB_WEBHOOK_SECRET,
-					repo.owner,
-					repo.repo,
-					input.issueNumber,
-				);
+	// Only the publisher sandbox receives this issue-scoped capability. The
+	// model-controlled execution sandbox can mutate local Git freely but cannot push.
+	const pushCapability = !allowPush
+		? null
+		: await createPushCapability(
+				workerEnv.GITHUB_WEBHOOK_SECRET,
+				repo.owner,
+				repo.repo,
+				input.issueNumber,
+			);
 	// Fetch the target ref and detach onto FETCH_HEAD. This resolves a branch,
 	// a tag, or a bare commit SHA the same way, so an eval run pinned to a
 	// fixing PR's pre-fix commit checks out just like a normal branch run.
@@ -982,7 +1095,7 @@ async function detectPublication(
 
 function reportPayload(
 	runId: string,
-	result: InvestigationResult | ImplementationResult,
+	result: InvestigationResult | ImplementationResult | TriageResult,
 	pushed: boolean,
 	publication: CandidatePublication | null,
 ) {
@@ -1017,38 +1130,64 @@ function safeFailureMessage(error: unknown): string {
 function buildPrompt(input: InvestigateData): string {
 	const argSection = input.arg ? ["", "## Directive", "", input.arg, ""].join("\n") : "";
 	const contextSection = input.context ? ["", input.context, ""].join("\n") : argSection;
-	const diagnose = input.mode === "diagnose";
+	const triage = input.mode === "triage";
+	const diagnose = input.mode === "diagnose" || input.mode === "investigate";
 	const implement = input.mode === "implement";
-	const method = diagnose
+	const work = input.mode === "work";
+	const method = triage
 		? [
-				"- Read AGENTS.md, find the relevant code, and attempt to reproduce the bug.",
-				"- Diagnose the root cause. Do NOT write or push a fix -- this is investigation only.",
-				"- Report `reproduced` and put the diagnosis in `summary`. Use verdict `unclear` only when you are blocked on information that only the reporter can supply.",
+				"- Read the issue, AGENTS.md, recent context, and the smallest relevant source area.",
+				"- Do not edit files, attach the container, run tests, or publish a candidate.",
+				"- Choose auto-work only for an obvious, localized, low-risk task. Otherwise ask for specific information or maintainer approval.",
+				"- Suggest only existing classification labels; lifecycle labels are controlled by the orchestrator.",
 			]
-		: implement
+		: diagnose
 			? [
-					"- Read AGENTS.md and implement the requested change directly; this mode has no bug-reproduction gate.",
-					"- The candidate is the deliverable. Use one focused test through existing infrastructure; do not build a custom test harness or inspect dependencies merely to improve test coverage.",
-					"- If a test approach fails three times or consumes about ten minutes, switch to a lower-level seam. Preserve the final fifteen minutes for metadata, checks, publication, and reporting.",
-					"- Edit with edit_file/write_file. Use exec to run the focused tests, affected typecheck, lint, and format check once on the final candidate.",
-					"- Fix relevant failures when practical. A remaining check failure does not block publication: call publish_candidate, then report the failure accurately so CI can confirm it.",
-					"- Call report_implementation exactly once. implemented=true is valid only after publish_candidate succeeds.",
+					"- Read AGENTS.md, find the relevant code, and attempt to reproduce the bug.",
+					"- Diagnose the root cause. Do NOT write or push a fix -- this is investigation only.",
+					"- Report `reproduced` and put the diagnosis in `summary`. Use verdict `unclear` only when you are blocked on information that only the reporter can supply.",
 				]
-			: [
-					"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
-					"- Follow the mode skill's test budget. Use existing test infrastructure and do not build a harness solely for verification.",
-					"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
-					"- Use exec to run focused verification once on the final candidate. Do not hide failures; fix relevant ones when practical and report any that remain.",
-					"- Call publish_candidate even when a check remains failing so the candidate and CI evidence are not lost. Do not run git commit or git push yourself.",
-					`- Reproduction screenshots may still be pushed only to \`bot/artifacts-${input.issueNumber}\`; keep \`.bot-artifacts/\` off the candidate branch and report each screenshot's basename and description.`,
-				];
-	const closing = diagnose
-		? "Call report_result exactly once when finished. Do not set fixed; report reproduced and your verdict with the diagnosis in summary."
-		: implement
-			? "Call report_implementation exactly once when finished."
-			: "Call report_result exactly once when finished. fixed may only be true after publish_candidate succeeds; report verification outcomes honestly in the summary.";
+			: work
+				? [
+						"- Classify the issue before editing. For a bug, reproduce and diagnose it before fixing it. For an approved enhancement or task, implement the requested behavior directly.",
+						"- Follow TDD for a bug and use the existing focused test infrastructure for every change. Do not invent bug evidence for an enhancement.",
+						"- Use fixed=true for a published bug fix or implemented=true for a published enhancement/task. Never set both.",
+						"- Use exec for source-writing transformations, focused tests, affected typechecks, lint, and formatting. Shell changes are durably checkpointed.",
+						"- Fix relevant verification failures when practical. Publish the candidate and report any remaining failure accurately so CI can confirm it.",
+					]
+				: implement
+					? [
+							"- Read AGENTS.md and implement the requested change directly; this mode has no bug-reproduction gate.",
+							"- The candidate is the deliverable. Use one focused test through existing infrastructure; do not build a custom test harness or inspect dependencies merely to improve test coverage.",
+							"- If a test approach fails three times or consumes about ten minutes, switch to a lower-level seam. Preserve the final fifteen minutes for metadata, checks, publication, and reporting.",
+							"- Edit with edit_file/write_file. Use exec to run the focused tests, affected typecheck, lint, and format check once on the final candidate.",
+							"- Fix relevant failures when practical. A remaining check failure does not block publication: call publish_candidate, then report the failure accurately so CI can confirm it.",
+							"- Call report_implementation exactly once. implemented=true is valid only after publish_candidate succeeds.",
+						]
+					: [
+							"- Read AGENTS.md, find the relevant code, attempt to reproduce, build, or revise.",
+							...(input.mode === "revise"
+								? [
+										"- The workspace is based on current main with the previous candidate applied as a three-way patch. Inspect git status, resolve any conflicts in the affected files, and preserve current-main changes.",
+									]
+								: []),
+							"- Follow the mode skill's test budget. Use existing test infrastructure and do not build a harness solely for verification.",
+							"- Touch only files relevant to the issue. Do not bulk-format or modify .github/workflows.",
+							"- Use exec for writable transformations and focused verification. Shell changes are checkpointed; a check counts as verification only when it leaves the candidate unchanged.",
+							"- Call publish_candidate even when a check remains failing so the candidate and CI evidence are not lost. Local Git operations are allowed, but the workspace has no push capability.",
+							"- Keep reproduction screenshots under .bot-artifacts/, publish them with publish_artifacts, and report each published basename and description. The trusted publication path keeps them off the candidate branch.",
+						];
+	const closing = triage
+		? "Call report_triage exactly once when finished."
+		: diagnose
+			? "Call report_result exactly once when finished. Do not set fixed; report reproduced and your verdict with the diagnosis in summary."
+			: work
+				? "Call report_result exactly once when finished. Set fixed or implemented only after publish_candidate succeeds, and report verification outcomes accurately."
+				: implement
+					? "Call report_implementation exactly once when finished."
+					: "Call report_result exactly once when finished. fixed may only be true after publish_candidate succeeds; report verification outcomes honestly in the summary.";
 	return [
-		`Investigate issue #${input.issueNumber} in mode: ${input.mode}.`,
+		`${triage ? "Triage" : "Investigate"} issue #${input.issueNumber} in mode: ${input.mode}.`,
 		"",
 		"The repo is cloned at /workspace/repo. Read AGENTS.md before making changes.",
 		"",

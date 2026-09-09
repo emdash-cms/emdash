@@ -43,10 +43,12 @@ import {
 	type PluginMcpConsentTool,
 } from "../lib/api/marketplace.js";
 import {
+	RegistryMcpConsentRequiredError,
 	RegistryUpdateEscalationError,
 	uninstallRegistryPlugin,
 	updateRegistryPlugin,
 	type RegistryUpdateOpts,
+	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
@@ -248,6 +250,8 @@ function PluginCard({
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
 	const [registryEscalation, setRegistryEscalation] =
 		React.useState<RegistryUpdateEscalationError | null>(null);
+	const [registryVerification, setRegistryVerification] =
+		React.useState<RegistryRecordVerificationSummary | null>(null);
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 
@@ -267,6 +271,7 @@ function PluginCard({
 		onSuccess: () => {
 			setShowUpdateConsent(false);
 			setRegistryEscalation(null);
+			setRegistryVerification(null);
 			setMcpUpdateTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
@@ -279,9 +284,14 @@ function PluginCard({
 		onError: (err) => {
 			if (err instanceof RegistryUpdateEscalationError) {
 				setRegistryEscalation(err);
+				setRegistryVerification(err.verification ?? null);
 				setShowUpdateConsent(true);
 			}
-			if (err instanceof PluginMcpConsentRequiredError) {
+			if (err instanceof RegistryMcpConsentRequiredError) {
+				setMcpUpdateTools(err.tools);
+				setRegistryVerification(err.verification ?? null);
+				setShowUpdateConsent(true);
+			} else if (err instanceof PluginMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
 			}
@@ -295,6 +305,7 @@ function PluginCard({
 			// is none); `onError` opens the consent dialog populated with
 			// the actual diff.
 			setRegistryEscalation(null);
+			setRegistryVerification(null);
 			updateMutation.mutate({});
 		} else {
 			setShowUpdateConsent(true);
@@ -306,6 +317,8 @@ function PluginCard({
 			const opts: RegistryUpdateOpts = {
 				confirmCapabilityChanges: true,
 				confirmMcpTools: mcpUpdateTools.length > 0,
+				acknowledgedProfileCid: registryVerification?.profileCid,
+				acknowledgedReleaseCid: registryVerification?.releaseCid,
 			};
 			if (registryEscalation?.code === "ROUTE_VISIBILITY_ESCALATION") {
 				opts.confirmRouteVisibilityChanges = true;
@@ -648,6 +661,7 @@ function PluginCard({
 					newCapabilities={registryEscalation?.capabilityChanges.added ?? []}
 					newlyPublicRoutes={registryEscalation?.routeVisibilityChanges?.newlyPublic ?? []}
 					mcpTools={mcpUpdateTools}
+					verification={registryVerification ?? undefined}
 					isPending={updateMutation.isPending}
 					error={
 						updateMutation.error instanceof RegistryUpdateEscalationError
@@ -658,6 +672,7 @@ function PluginCard({
 					onCancel={() => {
 						setShowUpdateConsent(false);
 						setRegistryEscalation(null);
+						setRegistryVerification(null);
 						setMcpUpdateTools([]);
 						updateMutation.reset();
 					}}

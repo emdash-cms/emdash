@@ -2,6 +2,7 @@ export const WORKSPACE_SANDBOX_ATTEMPT_LIMIT = 3;
 
 const TRANSIENT_FAILURE_PATTERNS = [
 	/^HTTP error! status: 5\d\d\b/i,
+	/\bHTTP 429\b|requested URL returned error: 429/i,
 	/^internal error; reference\s*=\s*[a-z0-9]+$/i,
 	/network connection lost/i,
 	/container suddenly disconnected/i,

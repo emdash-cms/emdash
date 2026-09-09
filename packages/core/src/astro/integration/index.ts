@@ -28,7 +28,9 @@ import { buildMigrationManifest } from "../../migrations/manifest-builder.js";
 import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
 import { VERSION } from "../../version.js";
+import { setDevTypegenRefresh } from "../dev-typegen.js";
 import { local } from "../storage/adapters.js";
+import { createDebouncedTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
 	injectCoreRoutes,
@@ -651,57 +653,20 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					});
 				}
 
-				// Generate types once the server is listening.
+				// Generate types once the server is listening, and register the
+				// refresh hook so schema mutations in dev update the file too.
 				// The endpoint returns the types content; we write the file here
 				// (in Node) because workerd has no real filesystem access.
-				server.httpServer?.once("listening", async () => {
-					const { writeFile, readFile } = await import("node:fs/promises");
-					const { resolve } = await import("node:path");
-
+				server.httpServer?.once("listening", () => {
 					const address = server.httpServer?.address();
 					if (!address || typeof address === "string") return;
 
 					const port = address.port;
-					const typegenUrl = `http://localhost:${port}/_emdash/api/typegen`;
-					const outputPath = resolve(process.cwd(), "emdash-env.d.ts");
+					const refreshDevTypes = createDebouncedTypegenRefresh(port, logger);
+					setDevTypegenRefresh(refreshDevTypes);
 
-					try {
-						const response = await fetch(typegenUrl, {
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-						});
-
-						if (!response.ok) {
-							const body = await response.text().catch(() => "");
-							logger.warn(`Typegen failed: ${response.status} ${body.slice(0, 200)}`);
-							return;
-						}
-
-						const { data: result } = (await response.json()) as {
-							data: {
-								types: string;
-								hash: string;
-								collections: number;
-							};
-						};
-
-						// Only write if content changed
-						let needsWrite = true;
-						try {
-							const existing = await readFile(outputPath, "utf-8");
-							if (existing === result.types) needsWrite = false;
-						} catch {
-							// File doesn't exist yet
-						}
-
-						if (needsWrite) {
-							await writeFile(outputPath, result.types, "utf-8");
-							logger.info(`Generated emdash-env.d.ts (${result.collections} collections)`);
-						}
-					} catch (error) {
-						const msg = error instanceof Error ? error.message : String(error);
-						logger.warn(`Typegen failed: ${msg}`);
-					}
+					// Initial generation now that the server is up.
+					refreshDevTypes();
 				});
 			},
 			"astro:build:done": ({ logger }) => {

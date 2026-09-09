@@ -8,6 +8,8 @@
  *
  */
 
+import { z } from "zod";
+
 import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
@@ -215,7 +217,7 @@ export class PluginRouteHandler {
 					error: {
 						code: "VALIDATION_ERROR",
 						message: "Invalid request body",
-						details: parseResult.error.format(),
+						details: z.formatError(parseResult.error),
 					},
 					status: 400,
 				};

@@ -187,6 +187,7 @@ describe("Database Migrations (Integration)", () => {
 			"071_restore_content_bylines_table",
 			"072_media_folders",
 			"073_media_focal_point",
+			"074_content_deleted_scheduled_index",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

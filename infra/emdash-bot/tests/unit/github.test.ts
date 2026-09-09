@@ -4,6 +4,8 @@ import {
 	createIssueComment,
 	findIssueCommentByMarker,
 	getIssueComments,
+	getPullRequestReviewComments,
+	getPullRequestStatus,
 	getPullRequestHeadBranch,
 	listOpenManagedIssues,
 	updateIssueComment,
@@ -152,6 +154,84 @@ describe("GitHub pull request lookup", () => {
 			}),
 		);
 	});
+
+	test("combines PR, review, and check state for monitoring", async () => {
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(
+				jsonResponse({
+					number: 99,
+					html_url: "https://github.com/emdash-cms/emdash/pull/99",
+					state: "open",
+					draft: true,
+					merged: false,
+					mergeable: true,
+					head: { sha: "abc123" },
+				}),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse([
+					{ state: "APPROVED", user: { login: "alice" }, submitted_at: "2026-09-08T10:00:00Z" },
+				]),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse({
+					check_runs: [
+						{
+							name: "Typecheck",
+							status: "completed",
+							conclusion: "success",
+							details_url: "https://checks/1",
+						},
+						{
+							name: "Tests",
+							status: "completed",
+							conclusion: "failure",
+							details_url: "https://checks/2",
+						},
+					],
+				}),
+			)
+			.mockResolvedValueOnce(jsonResponse({ state: "failure", statuses: [] }));
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
+			number: 99,
+			url: "https://github.com/emdash-cms/emdash/pull/99",
+			state: "open",
+			draft: true,
+			headSha: "abc123",
+			mergeability: "mergeable",
+			review: "approved",
+			checks: "failing",
+			failingChecks: [{ name: "Tests", url: "https://checks/2" }],
+		});
+	});
+
+	test("keeps PR monitoring available when the app cannot read check runs", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi
+				.fn<typeof fetch>()
+				.mockResolvedValueOnce(
+					jsonResponse({
+						number: 99,
+						state: "open",
+						draft: true,
+						mergeable: true,
+						head: { sha: "abc123" },
+					}),
+				)
+				.mockResolvedValueOnce(jsonResponse([]))
+				.mockResolvedValueOnce(jsonResponse({}, 403))
+				.mockResolvedValueOnce(jsonResponse({ state: "pending", statuses: [] })),
+		);
+
+		await expect(getPullRequestStatus("token", repo, 99)).resolves.toMatchObject({
+			checks: "pending",
+			failingChecks: [],
+		});
+	});
 });
 
 describe("GitHub dashboard requests", () => {
@@ -216,5 +296,37 @@ describe("GitHub dashboard requests", () => {
 			expect.stringContaining("labels=bot%3Aenhancement"),
 			expect.stringContaining("labels=bot%3Atask"),
 		]);
+	});
+});
+
+describe("GitHub submitted review comments", () => {
+	afterEach(() => vi.unstubAllGlobals());
+	test("collects every page with inline location and diff context", async () => {
+		const comment = {
+			body: "Check the empty case",
+			path: "src/adapter.ts",
+			line: 42,
+			diff_hunk: "@@ -1 +1 @@\n+read()",
+		};
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(jsonResponse(Array.from({ length: 100 }, () => ({ ...comment }))))
+			.mockResolvedValueOnce(
+				jsonResponse([{ ...comment, body: "Also test null", line: null, original_line: 12 }]),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+		const comments = await getPullRequestReviewComments("token", repo, 99, 77);
+		expect(comments).toHaveLength(101);
+		expect(comments[0]).toContain("src/adapter.ts:42");
+		expect(comments[0]).toContain("+read()");
+		expect(comments[100]).toContain("src/adapter.ts:12");
+		expect(comments[100]).toContain("Also test null");
+		expect(fetchMock.mock.calls[1]?.[0]).toContain(
+			"pulls/99/reviews/77/comments?per_page=100&page=2",
+		);
+	});
+	test("fails rather than omitting unavailable review comments", async () => {
+		vi.stubGlobal("fetch", vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({}, 403)));
+		await expect(getPullRequestReviewComments("token", repo, 99, 77)).rejects.toThrow("403");
 	});
 });

@@ -73,4 +73,29 @@ describe("Cloudflare sandbox route errors", () => {
 			status: 503,
 		});
 	});
+
+	it("preserves a versioned hook error result across Worker Loader RPC", async () => {
+		const rejection = {
+			__emdashSandboxHookResult: true,
+			version: 1,
+			error: { code: "SAVE_REJECTED", reason: "Add a summary" },
+		};
+		mocks.invokeHook.mockResolvedValue(rejection);
+		const runner = new CloudflareSandboxRunner({ db: null as never });
+		const plugin = await runner.load(
+			{
+				id: "content-writer",
+				version: "1.0.0",
+				capabilities: ["content:write"],
+				allowedHosts: [],
+				storage: {},
+				hooks: ["content:beforeSave"],
+				routes: [],
+				admin: {},
+			},
+			"export default {}",
+		);
+
+		await expect(plugin.invokeHook("content:beforeSave", {})).resolves.toEqual(rejection);
+	});
 });

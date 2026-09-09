@@ -14,7 +14,7 @@ export const DEADLINE_WARNING_MESSAGE =
 	"About 10 minutes remain. Stop broad investigation, finish the smallest correct change, run the required verification, and publish and report if possible. If completion is not possible, report a useful partial or failure outcome now. This warning does not extend the deadline.";
 
 export function isWriteMode(mode: InvestigationMode): boolean {
-	return mode === "implement" || mode === "fix" || mode === "revise";
+	return mode === "work" || mode === "implement" || mode === "fix" || mode === "revise";
 }
 
 export function runBudgetMs(mode: InvestigationMode): number {

@@ -188,7 +188,8 @@ test.describe("Full invite flow with passkey registration", () => {
 		test.setTimeout(120_000);
 
 		// Step 1: Create invite via server-side API
-		const inviteUrl = await createInviteViaApi("invited-user@example.com", 30);
+		const inviteEmail = `invited-user-${crypto.randomUUID()}@example.com`;
+		const inviteUrl = await createInviteViaApi(inviteEmail, 30);
 		const inviteToken = new URL(inviteUrl).searchParams.get("token")!;
 
 		// Step 2: Set up virtual authenticator
@@ -202,7 +203,7 @@ test.describe("Full invite flow with passkey registration", () => {
 			// Step 4: Verify the registration form renders
 			await expect(page.locator("h1")).toContainText("Accept Invite", { timeout: 15000 });
 			await expect(page.locator("text=You've been invited!")).toBeVisible();
-			await expect(page.getByLabel("Email")).toHaveValue("invited-user@example.com");
+			await expect(page.getByLabel("Email")).toHaveValue(inviteEmail);
 			await expect(page.locator("text=AUTHOR")).toBeVisible();
 
 			// Step 5: Fill in name and click Create Account
@@ -219,6 +220,10 @@ test.describe("Full invite flow with passkey registration", () => {
 
 			// Step 6: Wait for passkey flow to complete and redirect
 			await expect(page).toHaveURL(ADMIN_URL_PATTERN, { timeout: 60_000 });
+			const welcomeDialog = page.getByRole("dialog", { name: /Welcome to EmDash/ });
+			await expect(welcomeDialog).toBeVisible({ timeout: 15_000 });
+			await welcomeDialog.getByRole("button", { name: "Get Started" }).click();
+			await expect(welcomeDialog).not.toBeVisible();
 			await admin.waitForShell();
 			await expect(page.getByRole("button", { name: /Invited User/ })).toBeVisible();
 

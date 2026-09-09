@@ -69,6 +69,7 @@ function hexToBytes(hex: string): Uint8Array | null {
  * not maintainers. They may still be the reporter if they opened the issue.
  */
 const MAINTAINER_ASSOCIATIONS: ReadonlySet<string> = new Set(["OWNER", "MEMBER", "COLLABORATOR"]);
+const EMDASHBOT_LOGIN = "emdashbot[bot]";
 
 export type Actor = "maintainer" | "reporter" | "system" | "other";
 
@@ -86,10 +87,9 @@ export interface ActorInput {
  * if the issue opener is a maintainer, their action runs with full
  * maintainer authority, not the limited reporter set.
  *
- * A bot sender (`*[bot]`) is `system` only if it's our own app; we can't
- * distinguish here without the App ID, so we treat all bot senders as
- * `system` for now. The DO already drops `agent.*` events from non-system
- * actors via the router's actor list.
+ * Only the EmDashBot GitHub App account is `system`. Other bot accounts are
+ * untrusted callers and cannot emit the agent-only events accepted by the
+ * state machine.
  */
 export function classifyActor({
 	senderLogin,
@@ -97,7 +97,8 @@ export function classifyActor({
 	issueOpenerLogin,
 }: ActorInput): Actor {
 	if (!senderLogin) return "other";
-	if (senderLogin.endsWith("[bot]")) return "system";
+	if (senderLogin.toLowerCase() === EMDASHBOT_LOGIN) return "system";
+	if (senderLogin.endsWith("[bot]")) return "other";
 	if (authorAssociation && MAINTAINER_ASSOCIATIONS.has(authorAssociation)) return "maintainer";
 	if (issueOpenerLogin && senderLogin === issueOpenerLogin) return "reporter";
 	return "other";
@@ -167,7 +168,13 @@ export interface PullRequestEvent {
 
 export interface PullRequestReviewEvent {
 	action?: string;
-	review?: { body?: string | null; state?: string; user?: User; author_association?: string };
+	review?: {
+		id?: number;
+		body?: string | null;
+		state?: string;
+		user?: User;
+		author_association?: string;
+	};
 	pull_request?: PullRequest;
 	sender?: User;
 }
@@ -209,7 +216,7 @@ export interface NormalizeContext {
  * Skips return a reason for logging; they're not errors. Examples:
  *   - issue_comment.edited                (we only act on .created)
  *   - issues.labeled                       (label changes don't drive state)
- *   - pull_request.synchronize             (every push is noisy)
+ *   - pull_request.converted_to_draft      (not a lifecycle transition)
  *   - comment has no @emdashbot mention    (the deterministic gate)
  *
  * Skips happen FAST: no DO dispatch, no log spam beyond a single line.
@@ -234,9 +241,9 @@ export function normalizeWebhook(ctx: NormalizeContext): NormalizeResult {
 }
 
 /**
- * Issues events. We act on `opened` and `reopened` only -- both potential
- * entry points to the lifecycle, and only when the body carries an
- * `@emdashbot` mention (a pre-classification, mirrors the comment path).
+ * Issues events. New and reopened issues enter the bounded triage run
+ * automatically. Triage can ask for missing information, await approval, or
+ * start low-risk work without requiring the reporter to know command syntax.
  * `labeled` / `unlabeled` are skipped because the DO is the source of truth
  * for state; label drift is reconciled by the Orchestrator DO's periodic alarm
  * tick (`reconcileLabels`), not by webhooks.
@@ -266,16 +273,15 @@ function normalizeIssues(
 	const issue = asRecord(event?.issue);
 	const number = readNumber(issue?.number);
 	if (!number) return { kind: "skip", reason: "issues event missing issue.number" };
-	// Issues opening currently produces no event by itself -- the bot waits
-	// for a mention. This is intentional: we don't want every new issue to
-	// trigger a triage label and a status comment from a bot the reporter
-	// may not even know exists. Once the mention support for issue bodies
-	// lands, this branch will resolve a verb from `issue.body`.
-	return {
-		kind: "skip",
-		reason: `issues.${action} acknowledged; awaiting explicit mention`,
-		...(deliveryId ? {} : {}),
-	};
+	if (issue?.pull_request) return { kind: "skip", reason: "issues event is for a pull request" };
+	return dispatchFor(number, {
+		event: "triage",
+		arg: action === "reopened" ? "Re-triage this reopened issue." : null,
+		actor: "system",
+		labels: collectLabels(issue?.labels),
+		needsClassify: false,
+		...(deliveryId ? { deliveryId } : {}),
+	});
 }
 
 /**
@@ -299,7 +305,6 @@ function normalizeIssueComment(
 	const comment = asRecord(event?.comment);
 	const body = readString(comment?.body) ?? "";
 	const mentionText = parseMention(body);
-	if (mentionText === null) return { kind: "skip", reason: "no @emdashbot mention" };
 
 	const sender = asRecord(event?.sender);
 	const issueUser = asRecord(issue?.user);
@@ -325,8 +330,53 @@ function normalizeIssueComment(
 	}
 	const dispatch = (normalized: Omit<NormalizedEvent, "anchorNumber">): NormalizeResult =>
 		isPullRequest
-			? { kind: "pull_request", pullRequestNumber: number, event: normalized }
+			? {
+					kind: "pull_request",
+					pullRequestNumber: number,
+					event: { ...normalized, pullRequestNumber: number },
+				}
 			: dispatchFor(number, normalized);
+	if (mentionText === null) {
+		if (
+			!isPullRequest &&
+			(actor === "reporter" || actor === "maintainer") &&
+			labels.includes("bot:awaiting-reporter")
+		) {
+			return dispatch({
+				event: null,
+				arg: null,
+				actor,
+				labels,
+				needsClassify: true,
+				classifyText: body,
+				triggeringComment,
+				...(deliveryId ? { deliveryId } : {}),
+			});
+		}
+		if (!isPullRequest && actor === "reporter" && labels.includes("bot:needs-info")) {
+			return dispatch({
+				event: "triage",
+				arg: "The reporter supplied the requested information. Re-triage the issue.",
+				actor: "system",
+				labels,
+				needsClassify: false,
+				triggeringComment,
+				...(deliveryId ? { deliveryId } : {}),
+			});
+		}
+		if (!isPullRequest && actor === "reporter" && labels.includes("bot:in-review")) {
+			return dispatch({
+				event: "needs_changes",
+				arg: body,
+				actor,
+				labels,
+				needsClassify: false,
+				triggeringComment,
+				...(deliveryId ? { deliveryId } : {}),
+			});
+		}
+		return { kind: "skip", reason: "no @emdashbot mention" };
+	}
 
 	// Three-way grammar (mirrors router.resolveComment):
 	//   1. Bare verb (parseCommand returns a known event) -> deterministic.
@@ -396,6 +446,9 @@ function normalizePullRequest(
 		case "reopened":
 			machineEvent = "pr.opened";
 			break;
+		case "synchronize":
+			machineEvent = "pr.updated";
+			break;
 		case "closed":
 			// Same GitHub action for merge and close-without-merge; the payload
 			// field `pull_request.merged` distinguishes them.
@@ -407,6 +460,7 @@ function normalizePullRequest(
 
 	return dispatchFor(issueNumber, {
 		event: machineEvent,
+		pullRequestNumber: readNumber(pr?.number),
 		arg: null,
 		actor: "system",
 		labels: collectLabels(pr?.labels),
@@ -415,38 +469,51 @@ function normalizePullRequest(
 	});
 }
 
-/**
- * PR review submissions. `pr.*` events are machine-defined as
- * actors:["system"] (they represent "GitHub reported a review state change",
- * not "system pressed approve"), so we pass actor: "system" regardless of
- * who submitted on GitHub.
- */
 function normalizePullRequestReview(
 	event: Record<string, unknown> | undefined,
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action);
-	if (action !== "submitted") {
+	if (action !== "submitted")
 		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
-	}
 	const pr = asRecord(event?.pull_request);
 	const issueNumber = botFixIssueNumber(pr);
-	if (issueNumber === null) {
-		return { kind: "skip", reason: "pull_request_review is not on an emdashbot fix PR" };
+	const pullRequestNumber = readNumber(pr?.number);
+	if (issueNumber === null || !pullRequestNumber || pr?.state === "closed") {
+		return { kind: "skip", reason: "pull_request_review is not on an open emdashbot fix PR" };
 	}
-
-	const reviewState = (readString(asRecord(event?.review)?.state) ?? "").toLowerCase();
-	let machineEvent: NormalizedEvent["event"];
-	if (reviewState === "approved") machineEvent = "pr.approved";
-	else if (reviewState === "changes_requested") machineEvent = "pr.changes_requested";
-	else return { kind: "skip", reason: `review state "${reviewState}" not actionable` };
-
+	const review = asRecord(event?.review);
+	const authorLogin = readString(asRecord(review?.user)?.login) ?? null;
+	const authorAssociation = readString(review?.author_association) ?? null;
+	const actor = classifyActor({ senderLogin: authorLogin, authorAssociation });
+	if (actor !== "maintainer") return { kind: "skip", reason: "review author is not a maintainer" };
+	const state = (readString(review?.state) ?? "").toLowerCase();
+	if (state === "approved") {
+		return dispatchFor(issueNumber, {
+			event: "pr.approved",
+			arg: null,
+			actor: "system",
+			pullRequestNumber,
+			labels: collectLabels(pr?.labels),
+			needsClassify: false,
+			...(deliveryId ? { deliveryId } : {}),
+		});
+	}
+	if (state !== "changes_requested" && state !== "commented") {
+		return { kind: "skip", reason: `review state "${state}" not actionable` };
+	}
+	const reviewId = readNumber(review?.id);
+	if (!reviewId) return { kind: "skip", reason: "submitted review missing review.id" };
+	const body = readString(review?.body) ?? "";
 	return dispatchFor(issueNumber, {
-		event: machineEvent,
-		arg: null,
-		actor: "system",
+		event: "revise",
+		arg: body,
+		actor,
+		pullRequestNumber,
+		reviewId,
 		labels: collectLabels(pr?.labels),
 		needsClassify: false,
+		triggeringComment: { body, authorLogin, authorAssociation, actor },
 		...(deliveryId ? { deliveryId } : {}),
 	});
 }
@@ -472,7 +539,6 @@ function normalizePullRequestReviewComment(
 	const comment = asRecord(event?.comment);
 	const body = readString(comment?.body) ?? "";
 	const mentionText = parseMention(body);
-	if (mentionText === null) return { kind: "skip", reason: "no @emdashbot mention" };
 
 	const senderLogin =
 		readString(asRecord(event?.sender)?.login) ??
@@ -487,11 +553,19 @@ function normalizePullRequestReviewComment(
 	const labels = collectLabels(pr?.labels);
 	const triggeringComment = {
 		id: readNumber(comment?.id) ?? null,
-		body,
+		body: [readString(comment?.path), readString(comment?.diff_hunk), body]
+			.filter(Boolean)
+			.join("\n\n"),
 		authorLogin: senderLogin,
 		authorAssociation,
 		actor,
 	};
+	if (mentionText === null) {
+		return {
+			kind: "skip",
+			reason: "unmentioned inline feedback is collected with its submitted review",
+		};
+	}
 
 	const cmd = parseCommand(body);
 	if (cmd) {
@@ -501,6 +575,7 @@ function normalizePullRequestReviewComment(
 			actor,
 			labels,
 			needsClassify: false,
+			pullRequestNumber: readNumber(pr?.number),
 			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
@@ -512,6 +587,7 @@ function normalizePullRequestReviewComment(
 			actor,
 			labels,
 			needsClassify: false,
+			pullRequestNumber: readNumber(pr?.number),
 			triggeringComment,
 			...(deliveryId ? { deliveryId } : {}),
 		});
@@ -522,6 +598,7 @@ function normalizePullRequestReviewComment(
 		actor,
 		labels,
 		needsClassify: false,
+		pullRequestNumber: readNumber(pr?.number),
 		triggeringComment,
 		...(deliveryId ? { deliveryId } : {}),
 	});

@@ -1,0 +1,5 @@
+{
+	"description": "An unconfigured site for first-run setup and onboarding journeys.",
+	"setup": "none",
+	"startPath": "/_emdash/admin/"
+}

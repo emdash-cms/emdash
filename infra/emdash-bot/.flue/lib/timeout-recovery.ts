@@ -48,13 +48,18 @@ export function normalizeTimeoutSummary(text: string): string {
 
 export function resumeStateForMode(mode: InvestigationMode): StateId {
 	switch (mode) {
+		case "triage":
+			return "triaging";
+		case "investigate":
 		case "diagnose":
 			return "investigating";
 		case "implement":
 		case "fix":
 			return "fixing";
+		case "work":
 		case "repro":
-		case "revise":
 			return "working";
+		case "revise":
+			return "in_review";
 	}
 }

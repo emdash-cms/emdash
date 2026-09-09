@@ -2,23 +2,35 @@ import { screen } from "@testing-library/react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import * as React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 
 import { ImageExtension } from "../../src/components/editor/ImageNode.js";
 import { render } from "../utils/render.js";
 
-function TestEditor() {
+function TestEditor({ onSidebarOpen }: { onSidebarOpen?: (panel: unknown) => void } = {}) {
 	const editor = useEditor({
 		extensions: [StarterKit, ImageExtension],
 		content: {
 			type: "doc",
 			content: [
 				{ type: "paragraph", content: [{ type: "text", text: "Before" }] },
-				{ type: "image", attrs: { src: "/img.jpg", alt: "Example" } },
+				{
+					type: "image",
+					attrs: { src: "/img.jpg", alt: "Example", provider: "cloudflare-images" },
+				},
 			],
 		},
 		immediatelyRender: true,
 	});
+	React.useEffect(() => {
+		if (!editor || !onSidebarOpen) return;
+		const storage = (editor.storage as unknown as Record<string, Record<string, unknown>>).image;
+		if (!storage) return;
+		storage.onOpenBlockSidebar = onSidebarOpen;
+		return () => {
+			storage.onOpenBlockSidebar = null;
+		};
+	}, [editor, onSidebarOpen]);
 
 	if (!editor) return null;
 	return <EditorContent editor={editor} />;
@@ -58,5 +70,19 @@ describe("Editor image selection", () => {
 
 		const settings = await screen.findByRole("button", { name: "Image settings" });
 		expect(getComputedStyle(settings.parentElement!).opacity).toBe("1");
+	});
+
+	it("passes the image provider to the settings sidebar", async () => {
+		const onSidebarOpen = vi.fn();
+		void render(<TestEditor onSidebarOpen={onSidebarOpen} />);
+		const image = await screen.findByRole("img", { name: "Example" });
+
+		pressWithPointerDrift(image);
+		(await screen.findByRole("button", { name: "Image settings" })).click();
+
+		await vi.waitFor(() => expect(onSidebarOpen).toHaveBeenCalledOnce());
+		expect(onSidebarOpen.mock.calls[0]?.[0]).toMatchObject({
+			attrs: { provider: "cloudflare-images" },
+		});
 	});
 });

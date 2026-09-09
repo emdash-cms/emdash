@@ -102,7 +102,7 @@ jobs:
 
           # Regenerate the accepted-state baselines (the candidates the Apply
           # workflow commits verbatim on accept). These are Linux/chromium PNGs.
-          pnpm exec playwright test visual-regression --update-snapshots --reporter=line || true
+          EMDASH_VISUAL=1 pnpm exec playwright test visual-regression --update-snapshots --reporter=line || true
 
           # Real drift == the regeneration changed tracked baselines or added
           # new ones. Untracked new files count (bootstrap: a PR that adds a

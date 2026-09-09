@@ -32,6 +32,7 @@ import {
 	contentResponseSchema,
 	contentScheduleBody,
 	contentTermsBody,
+	contentTermsResponseSchema,
 	contentTrashQuery,
 	contentTranslationsResponseSchema,
 	contentUpdateBody,
@@ -62,6 +63,7 @@ import {
 	DEFAULT_MAX_UPLOAD_SIZE,
 	mediaConfirmBody,
 	mediaConfirmResponseSchema,
+	mediaDirectUploadBody,
 	mediaExistingResponseSchema,
 	mediaFolderBody,
 	mediaFolderIdSchema,
@@ -73,11 +75,14 @@ import {
 	mediaListReadResponseSchema,
 	mediaListResponseSchema,
 	mediaReadResponseSchema,
+	mediaReplaceBody,
+	mediaReplaceResponseSchema,
 	mediaResponseSchema,
 	mediaStreamUploadResponseSchema,
 	mediaUpdateBody,
 	mediaUploadUrlBody,
 	mediaUploadUrlResponseSchema,
+	mediaUploadResponseSchema,
 } from "../schemas/media.js";
 import {
 	createMenuBody,
@@ -170,6 +175,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const JSON_CONTENT = "application/json";
+const MULTIPART_CONTENT = "multipart/form-data";
 
 /** Standard error responses shared across all authenticated endpoints */
 function standardErrors(
@@ -189,6 +195,7 @@ function standardErrors(
 		404: "Not Found",
 		409: "Conflict",
 		413: "Payload Too Large",
+		422: "Unprocessable Entity",
 		500: "Internal Server Error",
 	};
 	for (const code of codes) {
@@ -216,7 +223,7 @@ const contentPaths = {
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
-					collection: z.string().meta({ description: "Collection slug", example: "posts" }),
+					collection: z.string().meta({ description: "Collection slug", examples: ["posts"] }),
 				}),
 				query: contentListQuery,
 			},
@@ -255,7 +262,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 500),
+				...standardErrors(400, 422, 500),
 			},
 		},
 	},
@@ -313,7 +320,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 404, 409, 500),
+				...standardErrors(400, 404, 409, 422, 500),
 			},
 		},
 		delete: {
@@ -607,15 +614,44 @@ const contentPaths = {
 		},
 	},
 
-	"/_emdash/api/content/{collection}/{id}/terms": {
-		put: {
-			operationId: "setContentTerms",
-			summary: "Set taxonomy terms on a content item",
+	"/_emdash/api/content/{collection}/{id}/terms/{taxonomy}": {
+		get: {
+			operationId: "getContentTerms",
+			summary: "Get taxonomy terms assigned to a content item",
+			description:
+				"Returns the terms of one taxonomy that are assigned to the content item, resolved to the item's locale with fallback to the site default.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
+					taxonomy: z.string().meta({ description: "Taxonomy name" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Terms assigned to the content item",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(contentTermsResponseSchema),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		post: {
+			operationId: "setContentTerms",
+			summary: "Set taxonomy terms on a content item",
+			description:
+				"Assign a set of terms to the content item for the named taxonomy, replacing any existing assignments for that taxonomy. Every term id must belong to the named taxonomy.",
+			tags: ["Content"],
+			requestParams: {
+				path: z.object({
+					collection: z.string().meta({ description: "Collection slug" }),
+					id: z.string().meta({ description: "Content ID or slug" }),
+					taxonomy: z.string().meta({ description: "Taxonomy name" }),
 				}),
 			},
 			requestBody: {
@@ -626,7 +662,7 @@ const contentPaths = {
 					description: "Terms updated",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ termIds: z.array(z.string()) })),
+							schema: successEnvelope(contentTermsResponseSchema),
 						},
 					},
 				},
@@ -710,6 +746,27 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 500),
+				},
+			},
+			post: {
+				operationId: "uploadMedia",
+				summary: "Upload a media item",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [MULTIPART_CONTENT]: { schema: mediaDirectUploadBody } },
+				},
+				responses: {
+					"200": {
+						description: "Existing deduplicated media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaUploadResponseSchema) } },
+					},
+					"201": {
+						description: "Created media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaUploadResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(400, 413, 500),
 				},
 			},
 		},
@@ -879,6 +936,30 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/{id}/replace": {
+			put: {
+				operationId: "replaceMediaImage",
+				summary: "Replace a media image",
+				description:
+					"Overwrites a ready local image under its existing storage key and refreshes its file metadata while preserving its media ID, filename, and URL. The replacement may use different dimensions or an aspect ratio from the original.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				requestBody: {
+					required: true,
+					content: { [MULTIPART_CONTENT]: { schema: mediaReplaceBody } },
+				},
+				responses: {
+					"200": {
+						description: "Replaced media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaReplaceResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(400, 404, 413, 500),
 				},
 			},
 		},
@@ -1647,7 +1728,7 @@ const taxonomyPaths = {
 			operationId: "getTaxonomy",
 			summary: "Get a taxonomy definition",
 			description:
-				"Definitions are per-locale; `locale` picks one, and without it the lowest-locale match is returned.",
+				"Definitions are per-locale; `locale` picks one. Without it the configured default locale is returned, falling back to the lowest locale code.",
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),
