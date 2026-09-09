@@ -32,6 +32,7 @@ import {
 	contentResponseSchema,
 	contentScheduleBody,
 	contentTermsBody,
+	contentTermsResponseSchema,
 	contentTrashQuery,
 	contentTranslationsResponseSchema,
 	contentUpdateBody,
@@ -613,15 +614,44 @@ const contentPaths = {
 		},
 	},
 
-	"/_emdash/api/content/{collection}/{id}/terms": {
-		put: {
-			operationId: "setContentTerms",
-			summary: "Set taxonomy terms on a content item",
+	"/_emdash/api/content/{collection}/{id}/terms/{taxonomy}": {
+		get: {
+			operationId: "getContentTerms",
+			summary: "Get taxonomy terms assigned to a content item",
+			description:
+				"Returns the terms of one taxonomy that are assigned to the content item, resolved to the item's locale with fallback to the site default.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
+					taxonomy: z.string().meta({ description: "Taxonomy name" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Terms assigned to the content item",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(contentTermsResponseSchema),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		post: {
+			operationId: "setContentTerms",
+			summary: "Set taxonomy terms on a content item",
+			description:
+				"Assign a set of terms to the content item for the named taxonomy, replacing any existing assignments for that taxonomy. Every term id must belong to the named taxonomy.",
+			tags: ["Content"],
+			requestParams: {
+				path: z.object({
+					collection: z.string().meta({ description: "Collection slug" }),
+					id: z.string().meta({ description: "Content ID or slug" }),
+					taxonomy: z.string().meta({ description: "Taxonomy name" }),
 				}),
 			},
 			requestBody: {
@@ -632,7 +662,7 @@ const contentPaths = {
 					description: "Terms updated",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ termIds: z.array(z.string()) })),
+							schema: successEnvelope(contentTermsResponseSchema),
 						},
 					},
 				},

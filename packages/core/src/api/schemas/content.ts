@@ -261,6 +261,42 @@ export const contentTermsBody = z
 	})
 	.meta({ id: "ContentTermsBody" });
 
+/** A single term variant returned as part of an entry's term assignments. */
+const contentEntryTermSchema = z
+	.object({
+		id: z.string(),
+		name: z.string().meta({ description: "Taxonomy name" }),
+		slug: z.string(),
+		label: z.string(),
+		parentId: z.string().nullable(),
+		locale: localeCode,
+		translationGroup: z.string().nullable(),
+	})
+	.meta({ id: "ContentEntryTerm" });
+
+/** Term assignments response for the content terms endpoint. */
+export const contentTermsResponseSchema = z
+	.object({
+		terms: z.array(contentEntryTermSchema),
+		unresolved: z.array(
+			z.object({
+				translationGroup: z.string(),
+				availableLocales: z.array(localeCode),
+				translations: z.array(
+					z.object({
+						id: z.string(),
+						slug: z.string(),
+						locale: localeCode,
+					}),
+				),
+			}),
+		),
+		entryLocale: localeCode,
+		defaultLocale: localeCode,
+		implicitDefaultLocale: z.boolean(),
+	})
+	.meta({ id: "ContentTermsResponse" });
+
 export const contentTrashQuery = cursorPaginationQuery
 	.extend({
 		locale: localeCode.optional().meta({
