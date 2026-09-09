@@ -482,6 +482,10 @@ export function ContentEditor({
 	const isDirty = isNew || currentData !== lastSavedData;
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
+	// Read at call time, not captured: a control that has not re-rendered since the
+	// last autosave settled would otherwise flush a payload that is already saved.
+	const hasPendingSaveRef = React.useRef(false);
+	hasPendingSaveRef.current = Boolean(isDirty || saveFeedbackActive || autosaveFeedbackActive);
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked = isContentOperationPending || hasUnsupportedPortableTextMarks;
 
@@ -682,8 +686,7 @@ export function ContentEditor({
 			}
 
 			cancelPendingAutosave();
-			const payload =
-				isDirty || saveFeedbackActive || autosaveFeedbackActive ? createSavePayload() : undefined;
+			const payload = hasPendingSaveRef.current ? createSavePayload() : undefined;
 			isPublishingRef.current = true;
 			setIsPublishing(true);
 
@@ -706,16 +709,7 @@ export function ContentEditor({
 				setIsPublishing(false);
 			});
 		},
-		[
-			cancelPendingAutosave,
-			createSavePayload,
-			hasInvalidUrls,
-			hasUnsupportedPortableTextMarks,
-			autosaveFeedbackActive,
-			isDirty,
-			saveFeedbackActive,
-			t,
-		],
+		[cancelPendingAutosave, createSavePayload, hasInvalidUrls, hasUnsupportedPortableTextMarks, t],
 	);
 	const handleSchedule = React.useCallback(
 		(scheduledAt: string) =>
