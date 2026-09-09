@@ -12,7 +12,7 @@
 
 import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
 import { applyD1Migrations, env, SELF } from "cloudflare:test";
-import { beforeAll, describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
 
 import { stageLabelSourceReplay } from "../src/label-source-health.js";
 import { getListingPolicy } from "../src/listing-policy.js";
@@ -30,7 +30,33 @@ beforeAll(async () => {
 });
 
 describe("aggregator scaffold smoke test", () => {
-	it("exposes public readiness without caching the result", async () => {
+	it("reuses a recent readiness snapshot across repeated probes", async () => {
+		let sessions = 0;
+		const db = new Proxy(env.DB, {
+			get(target, property, receiver) {
+				if (property !== "withSession") return Reflect.get(target, property, receiver);
+				return (...args: Parameters<D1Database["withSession"]>) => {
+					sessions++;
+					return target.withSession(...args);
+				};
+			},
+		});
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- tests override generated literal var bindings
+		const runtimeEnv = {
+			...env,
+			DB: db,
+			LISTING_POLICY_MODE: "open",
+			LISTING_ALLOWLIST: "[]",
+			LISTING_MODERATION_POLICY: JSON.stringify(INITIAL_LISTING_POLICY_FIXTURE),
+		} as unknown as Env;
+
+		await publicHealth(new Request("https://test/health"), runtimeEnv);
+		await publicHealth(new Request("https://test/health"), runtimeEnv);
+
+		expect(sessions).toBe(1);
+	});
+
+	it("exposes public readiness without cacheable response headers", async () => {
 		const response = await SELF.fetch("https://test/health");
 
 		expect(response.status).toBe(200);
@@ -43,9 +69,6 @@ describe("aggregator scaffold smoke test", () => {
 				ready: true,
 				packages: 0,
 				releases: 0,
-			},
-			labelSources: {
-				replayPending: 0,
 			},
 		});
 	});
@@ -115,18 +138,21 @@ describe("aggregator scaffold smoke test", () => {
 		)
 			.bind(generation, now)
 			.run();
+		const cacheTime = Date.now();
+		const dateNow = vi.spyOn(Date, "now").mockReturnValue(cacheTime);
 		expect((await publicHealth(new Request("https://test/health"), runtimeEnv)).status).toBe(200);
 
 		await stageLabelSourceReplay(testEnv.DB, source, observedAt);
+		dateNow.mockReturnValue(cacheTime + 5_001);
 
 		const response = await publicHealth(new Request("https://test/health"), runtimeEnv);
+		dateNow.mockRestore();
 
 		expect(response.status).toBe(503);
 		await expect(response.json()).resolves.toMatchObject({
 			status: "not-ready",
 			policyMode: "projection",
 			projection: { ready: false, packages: 0, releases: 0 },
-			labelSources: { replayPending: 1 },
 		});
 	});
 
