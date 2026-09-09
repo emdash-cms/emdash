@@ -196,7 +196,14 @@ export interface ContentEditorProps {
 	/** Whether schedule removal is in progress */
 	isUnscheduling?: boolean;
 	/** Callback to change the timestamp of published content */
-	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
+	onPublishedAtChange?: (
+		publishedAt: string,
+		payload?: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		},
+	) => void | Promise<void>;
 	/** Whether the publish timestamp is being updated */
 	isUpdatingPublishedAt?: boolean;
 	/** Whether this collection supports drafts */
@@ -716,6 +723,13 @@ export function ContentEditor({
 		() => (onUnschedule ? runScheduleChange((payload) => onUnschedule(payload)) : undefined),
 		[onUnschedule, runScheduleChange],
 	);
+	const handlePublishedAtChange = React.useCallback(
+		(publishedAt: string) =>
+			onPublishedAtChange
+				? runScheduleChange((payload) => onPublishedAtChange(publishedAt, payload))
+				: undefined,
+		[onPublishedAtChange, runScheduleChange],
+	);
 
 	// Preview URL state
 	const [isLoadingPreview, setIsLoadingPreview] = React.useState(false);
@@ -1135,7 +1149,7 @@ export function ContentEditor({
 							hasPendingChanges={hasPendingChanges}
 							publishingState={publishingState}
 							supportsRevisions={supportsRevisions}
-							onPublishedAtChange={onPublishedAtChange}
+							onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
 							isUpdatingPublishedAt={isUpdatingPublishedAt}
 							onDiscardDraft={onDiscardDraft}
 							onDelete={onDelete}

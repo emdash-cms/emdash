@@ -595,6 +595,47 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		});
 	});
 
+	it("flushes the current payload before saving a publication date", async () => {
+		server = createMockServer();
+		let queryClient: ReturnType<typeof createTestQueryClient> | undefined;
+		const screen = await renderEditPage("Publish changes", (client) => {
+			queryClient = client;
+		});
+
+		await screen.getByRole("textbox", { name: "Title" }).fill("Rescued title");
+		await screen.getByRole("button", { name: /Change publication date/ }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+		fireEvent.click(dialog.getByRole("button", { name: "Save date", exact: true }).element());
+
+		await vi.waitFor(() => {
+			expect(
+				server!.requests
+					.filter((request) => request.method === "PUT")
+					.map((request) => (request.body?.publishedAt ? "date" : "save")),
+			).toEqual(["save", "date"]);
+		});
+		const save = server.requests.find(
+			(request) => request.method === "PUT" && !request.body?.publishedAt,
+		);
+		expect(save?.body).toMatchObject({
+			data: { title: "Rescued title" },
+			_rev: "rev-initial",
+		});
+
+		await vi.waitFor(() => {
+			expect(
+				queryClient?.getQueryData<ContentItem>([
+					"content",
+					"posts",
+					"post_1",
+					{ locale: undefined },
+				])?.data,
+			).toMatchObject({ title: "Rescued title" });
+		});
+	});
+
 	it("keeps existing bylines after scheduling", async () => {
 		const byline = {
 			id: "byline-1",
