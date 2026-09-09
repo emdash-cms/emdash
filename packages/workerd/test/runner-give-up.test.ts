@@ -91,4 +91,16 @@ describe("crash budget diagnostics", () => {
 
 		expect(runner.unavailableReason()).toBe("workerd is not running");
 	});
+
+	it("stops naming a spent budget once the crash window reopens", () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		exhaustCrashBudget(runner);
+		expect(runner.unavailableReason()).toContain("crashed 5 times in 60 seconds");
+
+		// 60 quiet seconds reopen the window, so the next crash is retried again.
+		vi.advanceTimersByTime(60_001);
+		(runner as any).scheduleRestart();
+
+		expect(runner.unavailableReason()).toBe("workerd is not running");
+	});
 });

@@ -633,6 +633,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const delayMs = Math.min(1000 * 2 ** (this.crashCount - 1), 30_000);
 		console.warn(`[emdash:workerd] restarting in ${delayMs}ms (attempt ${this.crashCount}/5)`);
 
+		this.gaveUp = false;
 		this.restartTimer = setTimeout(() => {
 			this.restartTimer = null;
 			// Just mark as needing restart. The next plugin invocation will
