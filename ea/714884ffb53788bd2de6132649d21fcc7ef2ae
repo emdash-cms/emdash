@@ -1,0 +1,29 @@
+demos/simple/presentation/talk/PRESENTATION_OUTLINE_AND_SCRIPT.md
+  s_0135e5d9216639::t_91a8d2f46a54da 5,7,32,76,78,84,86,88,90-92,118-123,133,135-140
+demos/simple/presentation/RECORDING_GUIDE.md
+  s_20baffdc2d088d::t_b92296daaf4fb2 57,65-70,72,76-83,90-102,104-109,111,113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ea714884ffb53788bd2de6132649d21fcc7ef2ae",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
