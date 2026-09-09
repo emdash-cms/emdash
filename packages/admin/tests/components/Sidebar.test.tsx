@@ -100,6 +100,23 @@ describe("isItemActive", () => {
 	it("matches taxonomy links independently of their locale query", () => {
 		expect(isItemActive("/taxonomies/course?locale=de", "/taxonomies/course")).toBe(true);
 	});
+
+	it('matches a plugin page declared with path "/", whose target carries a trailing slash', () => {
+		expect(isItemActive("/plugins/emdash-forms/", "/plugins/emdash-forms")).toBe(true);
+	});
+
+	it("still matches nested routes under a plugin page", () => {
+		expect(isItemActive("/plugins/emdash-forms/", "/plugins/emdash-forms/submissions")).toBe(true);
+	});
+
+	it("does not match a different plugin whose id shares a prefix", () => {
+		expect(isItemActive("/plugins/emdash-forms/", "/plugins/emdash-forms-extra")).toBe(false);
+	});
+
+	it("keeps the admin root exact", () => {
+		expect(isItemActive("/", "/media")).toBe(false);
+		expect(isItemActive("/", "/")).toBe(true);
+	});
 });
 
 describe("NavIcon", () => {

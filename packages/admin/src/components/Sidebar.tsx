@@ -222,13 +222,31 @@ export function resolveItemPath(item: NavItem): string {
 	return path;
 }
 
-/** Checks if a nav item is active based on the current router path. */
+const TRAILING_SLASHES = /\/+$/;
+
+/**
+ * Drop trailing slashes so a target and the router's path compare equal.
+ * "/" keeps its meaning: it is the admin root, not an empty path.
+ */
+function stripTrailingSlash(value: string): string {
+	return value.length > 1 ? value.replace(TRAILING_SLASHES, "") : value;
+}
+
+/**
+ * Checks if a nav item is active based on the current router path.
+ *
+ * Both sides are normalized because a plugin page declared with `path: "/"`
+ * makes the target `/plugins/<id>/`, while the router navigates to the same
+ * URL without the trailing slash — an exact compare would never match.
+ */
 export function isItemActive(itemPath: string, currentPath: string): boolean {
 	const queryIndex = itemPath.indexOf("?");
-	const path = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
+	const raw = queryIndex === -1 ? itemPath : itemPath.slice(0, queryIndex);
+	const path = stripTrailingSlash(raw);
+	const current = stripTrailingSlash(currentPath);
 	return path === "/"
-		? currentPath === "/"
-		: currentPath === path || currentPath.startsWith(`${path}/`);
+		? current === "/"
+		: current === path || current.startsWith(`${path}/`);
 }
 
 /**
