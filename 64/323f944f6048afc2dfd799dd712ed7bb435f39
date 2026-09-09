@@ -1,0 +1,33 @@
+demos/simple/presentation/fixture.test.ts
+  s_0135e5d9216639::t_683539e125f277 5,17,26-28,37-48,63,69,83,85-89
+demos/simple/presentation/stories.mjs
+  s_0135e5d9216639::t_f3f9fde211a572 195-203
+demos/simple/presentation/fixture.mjs
+  s_20baffdc2d088d::t_31f150b00a7a4b 28-33,68,71,104-105,139-156,193-211,215,230-237,245-251,297,299-303,315-321,368,371,373,376,378-381,383-390,392-400,407,411,418-420,425
+demos/simple/presentation/library-assets.json
+  s_20baffdc2d088d::t_2b361dbba70cf3 1-119
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "64323f944f6048afc2dfd799dd712ed7bb435f39",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_20baffdc2d088d": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a07d99-6060-7561-a7d3-7d98646b9bf7",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
