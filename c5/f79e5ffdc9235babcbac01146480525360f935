@@ -1,0 +1,19 @@
+demos/simple/presentation/RECORDING_GUIDE.md
+  s_0135e5d9216639::t_d1d570219a324c 26-36,42-53,55,57,59,61,63,65-70,72
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "c5f79e5ffdc9235babcbac01146480525360f935",
+  "prompts": {},
+  "sessions": {
+    "s_0135e5d9216639": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03fe1-a722-7b93-a812-81ddc9e4f136",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
