@@ -3,7 +3,12 @@
  */
 
 import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
-import type { ContentCreateOptions } from "emdash";
+import type {
+	ConditionalDeleteResult,
+	ConditionalWriteResult,
+	ContentCreateOptions,
+	VersionedValue,
+} from "emdash";
 
 /**
  * Environment bindings required for sandbox runner.
@@ -159,11 +164,30 @@ export interface PluginBridgeBinding {
 	// KV
 	kvGet(key: string): Promise<unknown>;
 	kvSet(key: string, value: unknown): Promise<void>;
+	kvGetVersioned(key: string): Promise<VersionedValue | null>;
+	kvCompareAndSet(
+		key: string,
+		expectedRevision: string | null,
+		value: unknown,
+	): Promise<ConditionalWriteResult>;
+	kvCompareAndDelete(key: string, expectedRevision: string): Promise<ConditionalDeleteResult>;
 	kvDelete(key: string): Promise<boolean>;
 	kvList(prefix?: string): Promise<Array<{ key: string; value: unknown }>>;
 	// Storage
 	storageGet(collection: string, id: string): Promise<unknown>;
 	storagePut(collection: string, id: string, data: unknown): Promise<void>;
+	storageGetVersioned(collection: string, id: string): Promise<VersionedValue | null>;
+	storageCompareAndSet(
+		collection: string,
+		id: string,
+		expectedRevision: string | null,
+		data: unknown,
+	): Promise<ConditionalWriteResult>;
+	storageCompareAndDelete(
+		collection: string,
+		id: string,
+		expectedRevision: string,
+	): Promise<ConditionalDeleteResult>;
 	storageDelete(collection: string, id: string): Promise<boolean>;
 	storageQuery(
 		collection: string,

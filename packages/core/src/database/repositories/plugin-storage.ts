@@ -11,6 +11,11 @@ import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import {
+	assertStorageKey,
+	assertStorageRevision,
+	serializeConditionalValue,
+} from "../../plugins/conditional-storage.js";
+import {
 	buildWhereClause,
 	validateWhereClause,
 	validateOrderByClause,
@@ -23,6 +28,9 @@ import type {
 	QueryOptions,
 	PaginatedResult,
 	WhereClause,
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
 } from "../../plugins/types.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
@@ -101,6 +109,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	async put(id: string, data: T): Promise<void> {
 		const now = new Date().toISOString();
 		const jsonData = JSON.stringify(data);
+		const revision = crypto.randomUUID();
 
 		await this.db
 			.insertInto("_plugin_storage")
@@ -109,16 +118,83 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 				collection: this.collection,
 				id,
 				data: jsonData,
+				revision,
 				created_at: now,
 				updated_at: now,
 			})
 			.onConflict((oc) =>
 				oc.columns(["plugin_id", "collection", "id"]).doUpdateSet({
 					data: jsonData,
+					revision,
 					updated_at: now,
 				}),
 			)
 			.execute();
+	}
+
+	async getVersioned(id: string): Promise<VersionedValue<T> | null> {
+		assertStorageKey(id);
+		const row = await this.db
+			.selectFrom("_plugin_storage")
+			.select(["data", "revision"])
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id)
+			.executeTakeFirst();
+		if (!row) return null;
+		return { value: JSON.parse(row.data), revision: row.revision };
+	}
+
+	async compareAndSet(
+		id: string,
+		expectedRevision: string | null,
+		data: T,
+	): Promise<ConditionalWriteResult> {
+		assertStorageKey(id);
+		if (expectedRevision !== null) assertStorageRevision(expectedRevision);
+		const jsonData = serializeConditionalValue(data);
+		const revision = crypto.randomUUID();
+		const now = new Date().toISOString();
+		const row =
+			expectedRevision === null
+				? await this.db
+						.insertInto("_plugin_storage")
+						.values({
+							plugin_id: this.pluginId,
+							collection: this.collection,
+							id,
+							data: jsonData,
+							revision,
+							created_at: now,
+							updated_at: now,
+						})
+						.onConflict((oc) => oc.columns(["plugin_id", "collection", "id"]).doNothing())
+						.returning("revision")
+						.executeTakeFirst()
+				: await this.db
+						.updateTable("_plugin_storage")
+						.set({ data: jsonData, revision, updated_at: now })
+						.where("plugin_id", "=", this.pluginId)
+						.where("collection", "=", this.collection)
+						.where("id", "=", id)
+						.where("revision", "=", expectedRevision)
+						.returning("revision")
+						.executeTakeFirst();
+		return row ? { applied: true, revision: row.revision } : { applied: false };
+	}
+
+	async compareAndDelete(id: string, expectedRevision: string): Promise<ConditionalDeleteResult> {
+		assertStorageKey(id);
+		assertStorageRevision(expectedRevision);
+		const row = await this.db
+			.deleteFrom("_plugin_storage")
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id)
+			.where("revision", "=", expectedRevision)
+			.returning("id")
+			.executeTakeFirst();
+		return { applied: row !== undefined };
 	}
 
 	/**
@@ -185,6 +261,7 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		await withTransaction(this.db, async (trx) => {
 			for (const item of items) {
 				const jsonData = JSON.stringify(item.data);
+				const revision = crypto.randomUUID();
 				await trx
 					.insertInto("_plugin_storage")
 					.values({
@@ -192,12 +269,14 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 						collection: this.collection,
 						id: item.id,
 						data: jsonData,
+						revision,
 						created_at: now,
 						updated_at: now,
 					})
 					.onConflict((oc) =>
 						oc.columns(["plugin_id", "collection", "id"]).doUpdateSet({
 							data: jsonData,
+							revision,
 							updated_at: now,
 						}),
 					)

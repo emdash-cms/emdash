@@ -80,6 +80,10 @@ interface StorageCollection<T = unknown> {
 	put(id: string, data: T): Promise<void>;
 	delete(id: string): Promise<boolean>;
 	exists(id: string): Promise<boolean>;
+	getVersioned(id: string): Promise<{ value: T; revision: string } | null>;
+	compareAndSet(id: string, expectedRevision: string | null, data: T):
+		Promise<{ applied: true; revision: string } | { applied: false }>;
+	compareAndDelete(id: string, expectedRevision: string): Promise<{ applied: boolean }>;
 
 	// Batch operations
 	getMany(ids: string[]): Promise<Map<string, T>>;
@@ -91,6 +95,48 @@ interface StorageCollection<T = unknown> {
 	count(where?: WhereClause): Promise<number>;
 }
 ```
+
+## Conditional writes
+
+Use `getVersioned()` and `compareAndSet()` when concurrent requests can update the same record. These methods are available on declared `ctx.storage` collections and on `ctx.kv`, for native and sandboxed plugins. Each operation accesses one key in the calling plugin's namespace.
+
+The methods have the following behavior:
+
+| Method | Result |
+| --- | --- |
+| `getVersioned(key)` | The stored JSON value and an opaque revision, or `null` when the row is absent. A stored JSON `null` returns `{ value: null, revision }`. |
+| `compareAndSet(key, null, value)` | Creates the row only when it is absent. |
+| `compareAndSet(key, revision, value)` | Replaces the entire value only when the stored revision matches. |
+| `compareAndDelete(key, revision)` | Deletes the row only when the stored revision matches. |
+
+A successful `compareAndSet()` returns `{ applied: true, revision }`. A failed precondition returns `{ applied: false }`; invalid arguments, missing permissions and database failures reject the promise. `compareAndDelete()` returns `{ applied: boolean }`. An unrelated unique-index violation is an error, even when the requested key is absent.
+
+Pass revisions back unchanged and only for the key they came from. Every write changes the revision, including equal-value `set()`, `put()` and batch writes. Deleting and recreating a key invalidates its previous revision.
+
+The following helper adds a completed job to a plugin's counter, retrying up to three times when another request writes first.
+
+```typescript title="src/completed-jobs.ts"
+import type { PluginContext } from "emdash/plugin";
+
+export async function recordCompletedJob(ctx: PluginContext): Promise<number> {
+	const key = "state:completedJobs";
+	for (let attempt = 0; attempt < 3; attempt++) {
+		const current = await ctx.kv.getVersioned<number>(key);
+		const count = (current?.value ?? 0) + 1;
+		const result = await ctx.kv.compareAndSet(key, current?.revision ?? null, count);
+		if (result.applied) return count;
+	}
+	throw new Error("Job counter changed repeatedly; try again later");
+}
+```
+
+On a conflict, read the value again and recompute the proposed change. Keep retries bounded. A lost response can leave the outcome of a write unknown; these methods do not make external actions or retried job executions happen exactly once.
+
+Atomicity covers a single key. Reading a content item and writing a plugin record, or writing two plugin records, are separate operations. Put fields that must change together in one value. Enforce business rules such as job ownership or quantity limits when constructing that value.
+
+Conditional methods require a nonempty key of at most 1,024 JavaScript string characters and a JSON value of at most 1 MiB after UTF-8 encoding. A revision must be a nonempty string of at most 128 characters. Omitted revisions are invalid; only an explicit `null` requests creation. Existing unconditional methods retain their behavior.
+
+Deploy the matching core and sandbox adapter versions and apply the host database migrations before using these methods. The migration preserves stored values and makes writes from older host processes invalidate revisions during a rolling deployment.
 
 ## Querying
 
@@ -299,6 +345,7 @@ CREATE TABLE _plugin_storage (
 	collection TEXT NOT NULL,
 	id TEXT NOT NULL,
 	data JSON NOT NULL,
+	revision TEXT NOT NULL,
 	created_at TEXT,
 	updated_at TEXT,
 	PRIMARY KEY (plugin_id, collection, id)

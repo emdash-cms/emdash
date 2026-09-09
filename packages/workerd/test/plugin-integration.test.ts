@@ -71,6 +71,7 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("collection", "text", (col) => col.notNull())
 		.addColumn("id", "text", (col) => col.notNull())
 		.addColumn("data", "text", (col) => col.notNull())
+		.addColumn("revision", "text", (col) => col.notNull().defaultTo("0"))
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.addColumn("updated_at", "text", (col) => col.notNull())
 		.addPrimaryKeyConstraint("pk_plugin_storage", ["plugin_id", "collection", "id"])

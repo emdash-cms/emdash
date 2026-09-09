@@ -16,6 +16,10 @@ Every plugin gets a private key-value store accessible as `ctx.kv` in any hook o
 ```typescript
 interface KVAccess {
 	get<T>(key: string): Promise<T | null>;
+	getVersioned<T>(key: string): Promise<{ value: T; revision: string } | null>;
+	compareAndSet(key: string, expectedRevision: string | null, value: unknown):
+		Promise<{ applied: true; revision: string } | { applied: false }>;
+	compareAndDelete(key: string, expectedRevision: string): Promise<{ applied: boolean }>;
 	set(key: string, value: unknown): Promise<void>;
 	delete(key: string): Promise<boolean>;
 	list(prefix?: string): Promise<Array<{ key: string; value: unknown }>>;
@@ -23,6 +27,8 @@ interface KVAccess {
 ```
 
 KV is per-plugin — keys you write are stored under your plugin id and aren't visible to other plugins.
+
+When concurrent requests can change the same key, use [conditional writes](/plugins/creating-plugins/storage/#conditional-writes) to reject updates based on a stale revision. The same methods work in native plugins and sandboxed plugins.
 
 ### Reading and writing
 

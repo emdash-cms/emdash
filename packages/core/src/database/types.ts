@@ -396,6 +396,7 @@ export interface DeviceCodeTable {
 export interface OptionTable {
 	name: string;
 	value: string; // JSON
+	revision: Generated<string>;
 }
 
 export interface AuditLogTable {
@@ -483,6 +484,7 @@ export interface PluginStorageTable {
 	collection: string;
 	id: string;
 	data: string; // JSON
+	revision: Generated<string>;
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }

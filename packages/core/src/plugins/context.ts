@@ -28,6 +28,7 @@ import { enrichImageMetadata } from "../media/enrich.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
+import { assertStorageKey } from "./conditional-storage.js";
 import { CronAccessImpl } from "./cron.js";
 import type { EmailPipeline } from "./email.js";
 import type {
@@ -77,6 +78,18 @@ export function createKVAccess(optionsRepo: OptionsRepository, pluginId: string)
 		async get<T>(key: string): Promise<T | null> {
 			return optionsRepo.get<T>(`${prefix}${key}`);
 		},
+		async getVersioned<T>(key: string) {
+			assertStorageKey(key);
+			return optionsRepo.getVersioned<T>(`${prefix}${key}`);
+		},
+		async compareAndSet(key, expectedRevision, value) {
+			assertStorageKey(key);
+			return optionsRepo.compareAndSet(`${prefix}${key}`, expectedRevision, value);
+		},
+		async compareAndDelete(key, expectedRevision) {
+			assertStorageKey(key);
+			return optionsRepo.compareAndDelete(`${prefix}${key}`, expectedRevision);
+		},
 
 		async set(key: string, value: unknown): Promise<void> {
 			await optionsRepo.set(`${prefix}${key}`, value);
@@ -119,6 +132,9 @@ function createStorageCollection<T>(
 
 	return {
 		get: (id) => repo.get(id),
+		getVersioned: (id) => repo.getVersioned(id),
+		compareAndSet: (id, expectedRevision, data) => repo.compareAndSet(id, expectedRevision, data),
+		compareAndDelete: (id, expectedRevision) => repo.compareAndDelete(id, expectedRevision),
 		put: (id, data) => repo.put(id, data),
 		delete: (id) => repo.delete(id),
 		exists: (id) => repo.exists(id),
