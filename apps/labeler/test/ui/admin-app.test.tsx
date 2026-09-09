@@ -171,6 +171,7 @@ describe("labeler admin application", () => {
 		expect(screen.getByText("By Justin Thompson · @justin.example")).toBeTruthy();
 		expect(screen.getByText("Queue newly published EmDash posts to Buffer channels.")).toBeTruthy();
 		expect(screen.getByText("No model findings")).toBeTruthy();
+		expect(screen.getByText(/Review required ·/)).toBeTruthy();
 		expect(screen.queryByText(item.subject_uri)).toBeNull();
 
 		fireEvent.click(screen.getByRole("button", { name: "Approve and next" }));

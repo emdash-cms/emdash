@@ -204,6 +204,48 @@ describe("revision migration and ingest", () => {
 });
 
 describe("projection policy", () => {
+	it("materializes repeated signed deliveries as one semantic label", async () => {
+		await seedApprovedPackage({
+			did: DID_A,
+			slug: "demo",
+			profileCid: PROFILE_CID_1,
+			releaseCid: RELEASE_CID_1,
+		});
+		await seedLabelerRoles({ acceptedState: true, redaction: true, requiredPositive: true });
+		const uri = releaseUri(DID_A, "demo", "1.0.0");
+		const epoch = Math.floor(NOW.getTime() / 1_000);
+		for (const delivery of [1, 2]) {
+			await testEnv.DB.prepare(
+				`INSERT INTO listing_labels
+				   (digest, state_digest, src, uri, cid, val, neg, cts, cts_epoch,
+				    cts_fraction, exp, exp_epoch, sig, ver, received_at)
+				 VALUES (?, 'same-semantic-state', ?, ?, ?, 'listing-passed', 0, ?, ?, ?,
+				         NULL, NULL, ?, 1, ?)`,
+			)
+				.bind(
+					`delivery-${delivery}`,
+					LABELER_DID,
+					uri,
+					RELEASE_CID_1,
+					NOW.toISOString(),
+					epoch,
+					"0".repeat(32),
+					new Uint8Array([delivery]),
+					NOW.toISOString(),
+				)
+				.run();
+		}
+		await rebuild("projection");
+
+		const response = await xrpc(
+			"projection",
+			`${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+		);
+		const body = (await response.json()) as { labels: Array<{ val: string }> };
+
+		expect(body.labels.filter((label) => label.val === "listing-passed")).toHaveLength(1);
+	});
+
 	it("does not let the accepted-labelers header disable a required source", async () => {
 		const optionalSource = "did:plc:labeler000000000000000bb";
 		const policy: ListingModerationPolicy = {

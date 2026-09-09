@@ -55,6 +55,11 @@ const OPERATOR_ASSESSMENT_STATES = new Set([
 ]);
 const EFFECTIVE_OPERATOR_STATE_SQL = `CASE
 	WHEN assessment.state IN ('superseded', 'cancelled') THEN assessment.state
+	WHEN current_subject.uri IS NOT NULL AND current_subject.deleted_at IS NOT NULL THEN 'cancelled'
+	WHEN current_subject.uri IS NOT NULL
+	 AND current_subject.cid <> assessment.subject_cid THEN 'superseded'
+	WHEN current_assessment.assessment_id IS NOT NULL
+	 AND current_assessment.assessment_id <> assessment.run_key THEN 'superseded'
 	WHEN decision.action = 'approve' THEN 'passed'
 	WHEN decision.action = 'block' THEN 'blocked'
 	ELSE assessment.state
@@ -796,6 +801,11 @@ export async function readOperatorAssessmentPage(
 		   ORDER BY candidate.created_at DESC, candidate.id DESC
 		   LIMIT 1
 		 )
+		 LEFT JOIN current_assessments current_assessment
+		   ON current_assessment.subject_uri = assessment.subject_uri
+		  AND current_assessment.subject_cid = assessment.subject_cid
+		 LEFT JOIN current_subjects current_subject
+		   ON current_subject.uri = assessment.subject_uri
 		 WHERE ${EFFECTIVE_OPERATOR_STATE_SQL} = ?
 		   ${after}
 		 ORDER BY assessment.updated_at ASC, assessment.run_key ASC

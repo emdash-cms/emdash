@@ -367,7 +367,7 @@ function ReviewWorkspace({
 				/>
 			) : (
 				<LayerCard className="overflow-hidden p-0">
-					<div className="grid min-w-0 lg:grid-cols-[280px_minmax(0,1fr)]">
+					<div className="grid min-w-0 lg:grid-cols-[320px_minmax(0,1fr)]">
 						<aside
 							className="border-b bg-kumo-recessed lg:border-b-0 lg:border-e"
 							aria-label={t`Assessment queue`}
@@ -375,6 +375,8 @@ function ReviewWorkspace({
 							<div className="flex overflow-x-auto lg:block">
 								{items.map((item) => {
 									const identity = assessmentListIdentity(item);
+									const itemStatus =
+										item.state === "review" ? t`Review required` : stateLabel(t, item.state);
 									return (
 										<button
 											key={item.run_key}
@@ -391,6 +393,9 @@ function ReviewWorkspace({
 												{item.subject_kind === "release"
 													? t`Release ${identity.version ?? ""}`
 													: t`Profile`}
+											</span>
+											<span className="mt-1 block truncate text-xs text-kumo-subtle">
+												{itemStatus} · {formatDate(item.updated_at)}
 											</span>
 										</button>
 									);
