@@ -14,13 +14,10 @@ const api = vi.hoisted(() => ({
 	getAssessments: vi.fn(),
 	getAssessment: vi.fn(),
 	getIssuance: vi.fn(),
-	getEvaluations: vi.fn(),
-	getEvaluation: vi.fn(),
 	getActivity: vi.fn(),
 	assessmentAction: vi.fn(),
 	setIssuance: vi.fn(),
 	setTakedown: vi.fn(),
-	startEvaluation: vi.fn(),
 }));
 
 vi.mock("../../src/admin/api.js", () => api);
@@ -51,7 +48,6 @@ beforeEach(() => {
 	api.getAssessments.mockResolvedValue({ items: [] });
 	api.getIssuance.mockResolvedValue({ paused: false, updatedAt: null });
 	api.getActivity.mockResolvedValue({ items: [] });
-	api.getEvaluations.mockResolvedValue({ items: [] });
 	api.assessmentAction.mockResolvedValue({});
 });
 
@@ -74,6 +70,30 @@ describe("labeler admin application", () => {
 		expect(screen.getByText(/reviewer@example\.com/)).toBeTruthy();
 		expect(screen.getByRole("button", { name: "Review" })).toBeTruthy();
 		expect(screen.queryByRole("button", { name: "Takedowns" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Evaluations" })).toBeNull();
+	});
+
+	it("does not expose evaluation tooling to administrators", async () => {
+		window.history.replaceState(null, "", "/_admin/evaluations");
+		api.getSession.mockResolvedValue({
+			authenticated: true,
+			identity: {
+				kind: "human",
+				principal: "admin@example.com",
+				actorDid: "did:web:labels.emdashcms.com:operators:admin",
+				roles: ["admin"],
+			},
+		});
+
+		render(
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<App />
+				</Toasty>
+			</I18nProvider>,
+		);
+
+		expect(await screen.findByRole("heading", { name: "Overview" })).toBeTruthy();
 		expect(screen.queryByRole("button", { name: "Evaluations" })).toBeNull();
 	});
 

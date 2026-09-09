@@ -15,7 +15,7 @@ import {
 import type { MessageDescriptor } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
-import { ClipboardText, Flask, Pulse, WarningCircle } from "@phosphor-icons/react";
+import { ClipboardText, Pulse, WarningCircle } from "@phosphor-icons/react";
 import React from "react";
 
 import {
@@ -24,33 +24,23 @@ import {
 	getActivity,
 	getAssessment,
 	getAssessments,
-	getEvaluation,
-	getEvaluations,
 	getHealth,
 	getIssuance,
 	getSession,
 	setIssuance,
 	setTakedown,
-	startEvaluation,
 	type ActivityItem,
 	type AssessmentDetail,
 	type AssessmentListItem,
 	type AssessmentState,
-	type EvaluationListItem,
 	type HealthStatus,
 	type OperatorSession,
 	type Page as ApiPage,
 } from "./api.js";
 
-type View = "overview" | "assessments" | "takedowns" | "issuance" | "evaluations" | "activity";
-const ADMIN_VIEWS = new Set<View>(["takedowns", "issuance", "evaluations", "activity"]);
+type View = "overview" | "assessments" | "takedowns" | "issuance" | "activity";
+const ADMIN_VIEWS = new Set<View>(["takedowns", "issuance", "activity"]);
 const SLUG_SEPARATOR_RE = /[-_]/;
-const EVAL_CASES_RE = /Cases: ([0-9]+); repeats: ([0-9]+)/;
-const EVAL_UNSAFE_PASSES_RE = /Observed unsafe passes: ([0-9]+)/;
-const EVAL_MISMATCHES_RE = /Expected-outcome mismatches: ([0-9]+)/;
-const EVAL_INVALID_OUTPUTS_RE = /Invalid outputs: ([0-9]+)/;
-const EVAL_MODEL_ERRORS_RE = /model errors: ([0-9]+)/;
-const EVAL_P95_RE = /P95 latency: ([0-9]+ms)/;
 
 export function App() {
 	const { t } = useLingui();
@@ -85,7 +75,6 @@ export function App() {
 		{ view: "assessments", label: t`Review` },
 		{ view: "takedowns", label: t`Takedowns`, admin: true },
 		{ view: "issuance", label: t`Issuance`, admin: true },
-		{ view: "evaluations", label: t`Evaluations`, admin: true },
 		{ view: "activity", label: t`Activity`, admin: true },
 	];
 
@@ -140,14 +129,7 @@ function renderView(
 	if (ADMIN_VIEWS.has(view) && !session.identity.roles.includes("admin")) {
 		return <AdministratorRoleRequired />;
 	}
-	if (view === "overview")
-		return (
-			<Overview
-				health={health}
-				navigate={navigate}
-				isAdmin={session.identity.roles.includes("admin")}
-			/>
-		);
+	if (view === "overview") return <Overview health={health} navigate={navigate} />;
 	if (view === "assessments") {
 		const prefix = "/_admin/assessments/";
 		return (
@@ -161,7 +143,6 @@ function renderView(
 	}
 	if (view === "takedowns") return <TakedownsView />;
 	if (view === "issuance") return <IssuanceView />;
-	if (view === "evaluations") return <EvaluationsView />;
 	return <ActivityView session={session} />;
 }
 
@@ -179,21 +160,14 @@ function AdministratorRoleRequired() {
 function Overview({
 	health,
 	navigate,
-	isAdmin,
 }: {
 	health: Resource<HealthStatus>;
 	navigate: (path: string) => void;
-	isAdmin: boolean;
 }) {
 	const { t } = useLingui();
 	const reviews = useResource(() => getAssessments("review"), []);
 	const errors = useResource(() => getAssessments("error"), []);
-	const evaluations = useResource(
-		() => (isAdmin ? getEvaluations() : Promise.resolve({ items: [] })),
-		[isAdmin],
-	);
 	const issuance = useResource(getIssuance, []);
-	const latestEvaluation = evaluations.data?.items[0];
 	return (
 		<Page
 			title={t`Overview`}
@@ -217,23 +191,6 @@ function Overview({
 						value={pageCount(errors.data)}
 						onClick={() => navigate("/_admin/assessments?state=error")}
 					/>
-					{isAdmin && (
-						<AttentionRow
-							label={t`Latest evaluation`}
-							value={
-								latestEvaluation
-									? latestEvaluation.status === "failed"
-										? t`Run failed`
-										: latestEvaluation.status === "running"
-											? t`Running`
-											: latestEvaluation.budget_passed === 1
-												? t`Passed gates`
-												: t`Failed gates`
-									: t`None`
-							}
-							onClick={() => navigate("/_admin/evaluations")}
-						/>
-					)}
 				</LayerCard>
 				<LayerCard className="p-0">
 					<SectionHeading>
@@ -922,141 +879,6 @@ function IssuanceView() {
 	);
 }
 
-function EvaluationsView() {
-	const { t } = useLingui();
-	const resource = useResource(getEvaluations, []);
-	const [items, setItems] = React.useState<EvaluationListItem[]>([]);
-	const [nextCursor, setNextCursor] = React.useState<string | undefined>();
-	const [selected, setSelected] = React.useState<Record<string, unknown> | null>(null);
-	const [runOpen, setRunOpen] = React.useState(false);
-	const toast = useKumoToastManager();
-	React.useEffect(() => {
-		if (resource.data) {
-			setItems(resource.data.items);
-			setNextCursor(resource.data.nextCursor);
-		}
-	}, [resource.data]);
-	return (
-		<Page
-			title={t`Evaluations`}
-			description={t`Protected model runs and promotion evidence.`}
-			actions={
-				<ActionDialog
-					label={t`Start evaluation`}
-					title={t`Start protected evaluation`}
-					description={t`Run the protected suite against the current production model bundle.`}
-					variant="primary"
-					open={runOpen}
-					onOpenChange={setRunOpen}
-					onConfirm={startEvaluation}
-					onSuccess={() => {
-						resource.refresh();
-						toast.add({ title: t`Evaluation started`, variant: "success" });
-					}}
-				/>
-			}
-		>
-			{resource.error && (
-				<Banner
-					variant="error"
-					title={t`Evaluations unavailable`}
-					description={resource.error.message}
-				/>
-			)}
-			{resource.loading ? (
-				<CenteredLoader label={t`Loading evaluations`} />
-			) : items.length === 0 ? (
-				<Empty
-					title={t`No evaluations`}
-					description={t`No protected evaluation has been started.`}
-					icon={<Flask size={42} />}
-				/>
-			) : (
-				<LayerCard className="p-0">
-					{items.map((item) => (
-						<React.Fragment key={item.id}>
-							<ListRow
-								title={t`Run #${item.id}`}
-								meta={`${item.reason} · ${formatDate(item.created_at)}`}
-								status={<EvaluationStatus item={item} />}
-								action={
-									<Button
-										size="sm"
-										onClick={async () => {
-											try {
-												setSelected(await getEvaluation(item.id));
-											} catch (caught) {
-												toast.add({
-													title: t`Evaluation unavailable`,
-													content: toError(caught, t`Request failed`).message,
-													variant: "error",
-												});
-											}
-										}}
-									>
-										<Trans>View</Trans>
-									</Button>
-								}
-							/>
-							{selected && numberValue(selected, "runId") === item.id && (
-								<EvaluationDetail value={selected} />
-							)}
-						</React.Fragment>
-					))}
-				</LayerCard>
-			)}
-			{nextCursor && (
-				<LoadMore
-					onLoad={async () => {
-						const page = await getEvaluations(nextCursor);
-						setItems((current) => [...current, ...page.items]);
-						setNextCursor(page.nextCursor);
-					}}
-				/>
-			)}
-		</Page>
-	);
-}
-
-function EvaluationStatus({ item }: { item: EvaluationListItem }) {
-	const { t } = useLingui();
-	if (item.status === "failed")
-		return (
-			<Badge variant="error" appearance="dot">
-				<Trans>Run failed</Trans>
-			</Badge>
-		);
-	if (item.status === "running")
-		return (
-			<Badge variant="warning" appearance="dot">
-				<Trans>Running</Trans>
-			</Badge>
-		);
-	return (
-		<Badge variant={item.budget_passed === 1 ? "success" : "error"} appearance="dot">
-			{item.budget_passed === 1 ? t`Passed gates` : t`Failed gates`}
-		</Badge>
-	);
-}
-
-function EvaluationDetail({ value }: { value: Record<string, unknown> }) {
-	const { t } = useLingui();
-	const metrics = evaluationMetrics(value);
-	return (
-		<div className="grid gap-4 border-t bg-kumo-recessed p-4 sm:grid-cols-2 lg:grid-cols-5">
-			{metrics.map(([label, result]) => (
-				<div key={label}>
-					<p className="text-xs text-kumo-subtle">{evaluationMetricLabel(t, label)}</p>
-					<p className="mt-1 font-semibold">{result}</p>
-				</div>
-			))}
-			{metrics.length === 0 && (
-				<p className="text-sm text-kumo-subtle">{t`No completed evaluation metrics are available.`}</p>
-			)}
-		</div>
-	);
-}
-
 function ActivityView({ session }: { session: OperatorSession }) {
 	const { t } = useLingui();
 	const resource = useResource(getActivity, []);
@@ -1474,42 +1296,6 @@ function activeTakedowns(items: ActivityItem[]): ActivityItem[] {
 	return [...latest.values()].filter((item) => item.action === "takedown");
 }
 
-type EvaluationMetric =
-	| "cases"
-	| "unsafePasses"
-	| "outcomeMismatches"
-	| "invalidAndErrors"
-	| "p95Latency";
-
-function evaluationMetrics(value: Record<string, unknown>): Array<[EvaluationMetric, string]> {
-	const result = asRecord(value["result"]);
-	const report = stringValue(result?.["report"]);
-	if (!report) return [];
-	const read = (pattern: RegExp) => report.match(pattern)?.[1];
-	const cases = report.match(EVAL_CASES_RE);
-	return [
-		["cases", cases ? `${cases[1]} × ${cases[2]}` : "—"],
-		["unsafePasses", read(EVAL_UNSAFE_PASSES_RE) ?? "—"],
-		["outcomeMismatches", read(EVAL_MISMATCHES_RE) ?? "—"],
-		[
-			"invalidAndErrors",
-			`${read(EVAL_INVALID_OUTPUTS_RE) ?? "—"} / ${read(EVAL_MODEL_ERRORS_RE) ?? "—"}`,
-		],
-		["p95Latency", read(EVAL_P95_RE) ?? "—"],
-	];
-}
-
-function evaluationMetricLabel(
-	t: ReturnType<typeof useLingui>["t"],
-	metric: EvaluationMetric,
-): string {
-	if (metric === "cases") return t`Cases × repeats`;
-	if (metric === "unsafePasses") return t`Unsafe passes`;
-	if (metric === "outcomeMismatches") return t`Outcome mismatches`;
-	if (metric === "invalidAndErrors") return t`Invalid / model errors`;
-	return t`P95 latency`;
-}
-
 function coverageSummary(value: unknown): string {
 	const record = asRecord(value);
 	if (!record) return "—";
@@ -1616,7 +1402,6 @@ function viewFromPath(path: string): View {
 	if (path.startsWith("/_admin/assessments")) return "assessments";
 	if (path.startsWith("/_admin/takedowns")) return "takedowns";
 	if (path.startsWith("/_admin/issuance")) return "issuance";
-	if (path.startsWith("/_admin/evaluations")) return "evaluations";
 	if (path.startsWith("/_admin/activity")) return "activity";
 	return "overview";
 }
