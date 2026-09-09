@@ -1,0 +1,19 @@
+demos/simple/presentation/talk/PRESENTATION_SCRIPT_GROUP_6.md
+  s_e885f90c346370::t_181f012ec6b107 3,23,27,29,33,35,39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1f29d3e0e701a8777afeee4cfa75c7896b6f3132",
+  "prompts": {},
+  "sessions": {
+    "s_e885f90c346370": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a086d0-35bf-7c52-8141-5edf0b9d1a76",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
