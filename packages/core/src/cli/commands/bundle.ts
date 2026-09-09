@@ -17,6 +17,7 @@ import { createHash } from "node:crypto";
 import { readFile, stat, mkdir, writeFile, rm, copyFile, symlink, readdir } from "node:fs/promises";
 import { resolve, join, extname, basename } from "node:path";
 
+import { extractRouteOptions } from "@emdash-cms/plugin-types";
 import { defineCommand } from "citty";
 import consola from "consola";
 
@@ -305,8 +306,7 @@ export const bundleCommand = defineCommand({
 											const routeObj = route as Record<string, unknown>;
 											(resolvedPlugin.routes as Record<string, unknown>)[name] = {
 												handler: routeObj.handler,
-												public: routeObj.public,
-												cacheControl: routeObj.cacheControl,
+												...extractRouteOptions(routeObj),
 											};
 										}
 									}

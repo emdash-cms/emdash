@@ -11,6 +11,7 @@
 
 import type { Permission } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
+import type { RouteOptions } from "@emdash-cms/plugin-types";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
 // (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
@@ -1238,23 +1239,10 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 /**
  * Route definition
  */
-export interface PluginRoute<TInput = unknown> {
+export interface PluginRoute<TInput = unknown> extends RouteOptions {
 	/** Zod schema for input validation */
 	input?: z.ZodType<TInput>;
-	/**
-	 * Mark this route as publicly accessible (no authentication required).
-	 * Public routes skip session/token auth and CSRF checks.
-	 */
-	public?: boolean;
-	/** RBAC permission required to invoke the route. Legacy routes default to plugins:manage. */
 	permission?: Permission;
-	/**
-	 * `Cache-Control` header value for successful GET responses, e.g.
-	 * `"public, max-age=60, stale-while-revalidate=300"`. Only honored on
-	 * routes that are also `public: true` — authenticated responses always
-	 * keep the default `private, no-store`. Errors are never cached.
-	 */
-	cacheControl?: string;
 	/** Route handler */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }

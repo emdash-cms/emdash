@@ -9,6 +9,7 @@
  */
 
 import { z } from "zod";
+import type { RouteOptions } from "@emdash-cms/plugin-types";
 
 import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
@@ -55,14 +56,8 @@ function guardConsumedRequestBody(request: Request): Request {
  * Route metadata (public flag) without the handler.
  * Used by the catch-all route to decide auth before dispatch.
  */
-export interface RouteMeta {
+export interface RouteMeta extends RouteOptions {
 	public: boolean;
-	permission?: string;
-	/**
-	 * Cache-Control value for successful GET responses. Only ever set for
-	 * public routes — authenticated responses must stay `private, no-store`.
-	 */
-	cacheControl?: string;
 }
 
 /**
@@ -70,11 +65,7 @@ export interface RouteMeta {
  * of truth for the "cacheControl is only ever exposed on public routes"
  * invariant — used for trusted routes and manifest-declared sandboxed routes.
  */
-export function buildRouteMeta(route: {
-	public?: boolean;
-	permission?: string;
-	cacheControl?: string;
-}): RouteMeta {
+export function buildRouteMeta(route: RouteOptions): RouteMeta {
 	const meta: RouteMeta = { public: route.public === true };
 	if (route.permission !== undefined) meta.permission = route.permission;
 	// Private responses are per-user and must never become cacheable, even if

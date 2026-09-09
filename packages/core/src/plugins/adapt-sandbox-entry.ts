@@ -105,22 +105,13 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
  * The wider type flows through to the runtime which validates at
  * invocation time.
  */
-function normalizeRouteEntry(entry: RouteEntry): {
-	handler: RouteHandler;
-	public?: boolean;
-	cacheControl?: string;
-	input?: PluginRoute["input"];
-	permission?: PluginRoute["permission"];
-} {
-	if (typeof entry === "function") {
-		return { handler: entry };
-	}
+function normalizeRouteEntry(
+	entry: RouteEntry,
+): Omit<PluginRoute, "handler"> & { handler: RouteHandler } {
+	if (typeof entry === "function") return { handler: entry };
 	return {
-		handler: entry.handler,
-		public: entry.public,
-		permission: entry.permission,
-		cacheControl: entry.cacheControl,
-		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
+		...entry,
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- sandbox schemas are validated when the route is invoked
 		input: entry.input as PluginRoute["input"],
 	};
 }
@@ -211,18 +202,9 @@ export function adaptSandboxEntry(
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
 			const normalized = normalizeRouteEntry(rawEntry);
-			const {
-				handler,
-				public: publicFlag,
-				cacheControl,
-				input: inputSchema,
-				permission,
-			} = normalized;
+			const { handler, ...options } = normalized;
 			resolvedRoutes[routeName] = {
-				input: inputSchema,
-				public: publicFlag,
-				permission,
-				cacheControl,
+				...options,
 				handler: async (ctx) => {
 					if (usesPublicRouteContext) {
 						// The incoming ctx already IS the public RouteContext

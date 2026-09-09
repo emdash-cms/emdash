@@ -33,6 +33,7 @@ export {
 } from "@emdash-cms/plugin-types";
 
 import type {
+	RouteOptions,
 	PluginAdminConfig,
 	PluginCapability,
 	PluginStorageConfig,
@@ -71,14 +72,7 @@ export interface ResolvedPlugin {
 			pluginId?: string;
 		}
 	>;
-	routes: Record<
-		string,
-		{
-			handler?: unknown;
-			public?: boolean;
-			permission?: string;
-		}
-	>;
+	routes: Record<string, RouteOptions & { handler?: unknown }>;
 	mcp?: { tools: Record<string, ResolvedMcpTool> };
 	admin: PluginAdminConfig;
 }

@@ -39,6 +39,7 @@
  */
 
 import type { Permission } from "@emdash-cms/auth";
+import type { RouteOptions } from "@emdash-cms/plugin-types";
 import type { ZodType } from "zod";
 
 import type { SandboxHookErrorEnvelope } from "./plugins/sandbox/hook-result.js";
@@ -210,18 +211,11 @@ export type RouteHandler = (
  */
 export type RouteEntry =
 	| RouteHandler
-	| {
+	| (RouteOptions & {
 			handler: RouteHandler;
-			public?: boolean;
-			/**
-			 * Cache-Control value for successful GET responses. Only honored on
-			 * routes that are also `public: true` — authenticated responses
-			 * always keep `private, no-store`.
-			 */
-			cacheControl?: string;
 			input?: unknown;
 			permission?: Permission;
-	  };
+	  });
 
 export interface SandboxedMcpTool {
 	description: string;
