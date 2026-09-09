@@ -8,15 +8,15 @@ disabled because the protected evaluation did not meet the automatic-pass safety
 The current advisory bundle uses the following Workers AI catalog models:
 
 - Text: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
-- Images: `@cf/qwen/qwen3.8-27b`, with thinking disabled and a 512-pixel WebP derivative
+- Images: `@cf/zai-org/glm-5.3-flash`, with thinking disabled and a 512-pixel WebP derivative
 
-The text prompt is `listing-text-v7`, with content hash
-`6190ae294c1ffae4f7c5996b8836a128dd214d2a36ae18ab8e7ff3fe4492f076`. The image prompt is
-`listing-image-v5`, with content hash
-`3ffb045c3af8a5787387f21ced7375170000323a4c9557bf89d68079d77866f3`. The runtime computes
+The text prompt is `listing-text-v9`, with content hash
+`aee2551bd26b942ef2f67fa3137ad0d16eb5b502a376a2df410486d4fe37b1c5`. The image prompt is
+`listing-image-v7`, with content hash
+`7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0`. The runtime computes
 these hashes from the embedded prompts; operators do not configure separate prompt-hash values.
 
-## Moderation-manipulation candidate
+## Moderation-manipulation evaluation
 
 Text prompt `listing-text-v9`, with content hash
 `aee2551bd26b942ef2f67fa3137ad0d16eb5b502a376a2df410486d4fe37b1c5`, adds
@@ -25,7 +25,8 @@ moderation. Quoted or descriptive discussion remains benign. It also excludes un
 performance, testimonial, and other marketing claims unless the submitted content itself identifies
 fabrication, forgery, nonexistent evidence, or a contradiction. Image prompt `listing-image-v7`,
 with content hash `7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0`, applies the same
-distinctions. Neither candidate prompt is deployed.
+distinctions. These prompts are deployed for advisory assessment while automatic positive decisions
+remain disabled.
 
 A three-repeat run evaluated the 20-case public text corpus with the new category. No model passed
 the complete zero-error budget:
@@ -141,6 +142,46 @@ error. A later screen against 15 hard prohibited cases produced five unsafe pass
 errors, one invalid output, and three correct reviews. GLM 5.2 and GPT-OSS 120B each failed a
 clean case during the earlier screen, before the response-format correction. None replaced Llama.
 
+## Unanimous automatic-pass candidate
+
+The automatic-pass candidate runs Llama 3.3 and GLM 5.3 Flash in parallel over the same text and
+link evidence. It returns a clean result only when both models complete with no findings and cover
+every evidence reference. A finding, timeout, invalid output, missing reference, or provider error
+keeps the listing out of automatic discovery. The candidate does not issue automatic blocks.
+
+A paced one-repeat GLM screen evaluated all 321 public and protected text fixtures with the
+production 20-second deadline. It produced no unsafe pass. GLM sent one public unsupported
+marketing claim to review, omitted an evidence reference on two expected-review fixtures, and
+timed out on one expected-review fixture. All 50 protected expected-pass text fixtures passed. P95
+latency was 6.29 seconds. The artifact is stored at
+`development/2026-09-09/glm-full-sequential.json` in `emdash-labeler-eval-artifacts`; its SHA-256
+digest is `f888aa278f651ecd53575ec18c03f0525d3ef02aa83111142cf2bc1bd68fc132`.
+
+The production-equivalent unanimous adapter then evaluated the 21 public text fixtures. It
+produced no unsafe pass and no benign review. One benign claim and one prohibited confusable-login
+fixture failed closed because a member omitted an evidence reference. P95 latency was 5.82 seconds.
+The artifact is stored at `development/2026-09-09/unanimous-public.json`; its SHA-256 digest is
+`74314208c545046782bec23f39a4ae103772a8d6b4ec9693b88164c31faac5f9`.
+
+Alternative verifier screening did not displace GLM:
+
+- GPT-OSS 120B produced no unsafe pass on the phishing, manipulation, and benign-control subset,
+  but seven prohibited cases failed closed because of invalid output or provider errors.
+- DeepSeek V4 Flash returned well-formed output with 2.40-second P95 latency, but passed 23
+  prohibited phishing fixtures.
+- Kimi K2.6 calls took 28 to 79 seconds during the screen and exceeded the production deadline.
+
+The alternative artifact is stored at
+`development/2026-09-09/verifier-alternatives.json`; its SHA-256 digest is
+`7ebb2cd1ab1baf0ed4b92ca032b027cb7736a34ffb1eaba00e23e29953d40668`.
+
+These development runs select the unanimous Llama and GLM bundle for promotion testing. They do
+not authorize automatic passing. The protected holdout was used during selection and does not
+cover `moderation-manipulation`. Promotion requires a new sealed holdout with at least 30 protected
+manipulation fixtures and representative private images. Safe fallbacks on expected-pass fixtures
+must remain at or below five percent, and any automatic pass on an expected-review fixture rejects
+the candidate.
+
 ## Promotion evaluation
 
 The frozen three-repeat evaluation used promotion dataset
@@ -179,8 +220,13 @@ The promotion path requires all of the following evidence:
 - At least 300 protected expected-review fixtures and 100 protected expected-pass fixtures.
 - At least 100 protected image fixtures and 30 protected fixtures for every finding category.
 - No unsafe pass in any repeat.
-- No invalid output, model error, incomplete coverage, missing usage, or expected-outcome error.
-- No repeated-run disagreement and P95 latency within the configured budget.
+- At most five percent of expected-pass runs falling back to review or error.
+- P95 latency and configured usage within the committed budgets.
+
+An invalid output, model error, incomplete coverage result, or disagreement cannot produce an
+automatic pass. It is therefore a safe fallback, but it counts against the five-percent operational
+budget when the fixture is expected to pass. The same failure on an expected-review fixture remains
+hidden and does not reduce automatic-admission coverage.
 
 Zero unsafe passes across 300 independent expected-review cases gives a one-sided 95% binomial
 upper bound just below 1%. This calculation assumes representative independent cases; synthetic

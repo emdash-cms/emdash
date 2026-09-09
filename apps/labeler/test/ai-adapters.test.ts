@@ -14,6 +14,7 @@ import {
 	TEXT_SYSTEM_PROMPT,
 } from "../src/ai/prompts.js";
 import { ModelOutputError } from "../src/ai/types.js";
+import { createUnanimousTextModerationAdapter } from "../src/ai/unanimous.js";
 import {
 	createWorkersAiImageAdapter,
 	createWorkersAiTextAdapter,
@@ -395,5 +396,106 @@ describe("Workers AI production adapters", () => {
 		}[];
 		expect(messages[1]?.content[0]?.text).toContain("release.media.icon:0");
 		expect(messages[1]?.content[1]?.image_url?.url).toMatch(/^data:image\/png;base64,/);
+	});
+});
+
+describe("unanimous text moderation", () => {
+	it("returns findings from either model and only reports unanimously covered evidence", async () => {
+		const pass = vi.fn(async () => ({
+			findings: [],
+			coveredEvidenceRefs: ["profile.description", "profile.name"],
+			identity: {
+				adapterVersion: "listing-metadata-ai-v1",
+				modelId: "primary",
+				promptVersion: "listing-text-v1",
+				promptHash: "a".repeat(64),
+				parameters: {},
+			},
+			latencyMs: 7,
+			usage: { inputTokens: 10, outputTokens: 2, totalTokens: 12, configuredUnits: 1 },
+		}));
+		const review = vi.fn(async () => ({
+			findings: [
+				{
+					category: "phishing-or-credential-solicitation" as const,
+					recommendation: "review" as const,
+					confidence: 0.99,
+					summary: "Requests a password.",
+					evidenceRefs: ["profile.description"],
+				},
+			],
+			coveredEvidenceRefs: ["profile.description"],
+			identity: {
+				adapterVersion: "listing-metadata-ai-v1",
+				modelId: "verifier",
+				promptVersion: "listing-text-v1",
+				promptHash: "a".repeat(64),
+				parameters: {},
+			},
+			latencyMs: 11,
+			usage: { inputTokens: 9, outputTokens: 3, totalTokens: 12, configuredUnits: 1 },
+		}));
+		const adapter = createUnanimousTextModerationAdapter([
+			{ identity: (await pass()).identity, moderate: pass },
+			{ identity: (await review()).identity, moderate: review },
+		]);
+
+		await expect(
+			adapter.moderate({
+				subject: SUBJECT,
+				text: [
+					{ ref: "profile.name", value: "Gallery", format: "plain" },
+					{ ref: "profile.description", value: "Request a password", format: "plain" },
+				],
+				links: [],
+			}),
+		).resolves.toMatchObject({
+			findings: [{ category: "phishing-or-credential-solicitation" }],
+			coveredEvidenceRefs: ["profile.description"],
+			latencyMs: 11,
+			usage: { inputTokens: 19, outputTokens: 5, totalTokens: 24, configuredUnits: 2 },
+		});
+		expect(adapter.identity).toMatchObject({
+			adapterVersion: "listing-metadata-ai-unanimous-v1",
+			modelId: "unanimous:primary+verifier",
+			promptVersion: "listing-text-v1",
+			promptHash: "a".repeat(64),
+			parameters: { strategy: "unanimous-pass", members: 2 },
+		});
+	});
+
+	it("fails closed when either model is unavailable", async () => {
+		const error = new Error("verifier unavailable");
+		const identity = {
+			adapterVersion: "listing-metadata-ai-v1",
+			modelId: "model",
+			promptVersion: "listing-text-v1",
+			promptHash: "a".repeat(64),
+			parameters: {},
+		};
+		const adapter = createUnanimousTextModerationAdapter([
+			{
+				identity: { ...identity, modelId: "primary" },
+				moderate: async () => ({
+					findings: [],
+					coveredEvidenceRefs: ["profile.description"],
+					identity: { ...identity, modelId: "primary" },
+					latencyMs: 1,
+					usage: {},
+				}),
+			},
+			{
+				identity: { ...identity, modelId: "verifier" },
+				moderate: async () => Promise.reject(error),
+			},
+		]);
+
+		await expect(
+			adapter.moderate({
+				subject: SUBJECT,
+				text: [{ ref: "profile.description", value: "Gallery", format: "plain" }],
+				links: [],
+			}),
+		).rejects.toBe(error);
 	});
 });

@@ -63,6 +63,28 @@ describe("assessment policy resolution", () => {
 		});
 	});
 
+	it("passes clean metadata only when the exact model identity is promoted", () => {
+		const input = cleanInput();
+		input.policy = { ...input.policy, autoPass: "assisted" };
+		input.automaticPassPromotion = {
+			policyVersion: input.policy.policyVersion,
+			textIdentity: IDENTITY,
+		};
+		expect(resolveAssessmentPolicy(input)).toMatchObject({
+			outcome: "pass",
+			reasonCodes: ["model-promotion-approved"],
+		});
+
+		input.automaticPassPromotion = {
+			policyVersion: input.policy.policyVersion,
+			textIdentity: { ...IDENTITY, promptHash: "b".repeat(64) },
+		};
+		expect(resolveAssessmentPolicy(input)).toMatchObject({
+			outcome: "review",
+			reasonCodes: ["model-promotion-required"],
+		});
+	});
+
 	it("keeps assisted auto-pass unreachable during manual positive enforcement", () => {
 		const input = cleanInput();
 		input.policy = { ...input.policy, autoPass: "assisted" };

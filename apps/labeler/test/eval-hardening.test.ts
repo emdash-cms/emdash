@@ -28,6 +28,7 @@ import {
 	consumeAuthorizedPromotionReview,
 	createProtectedPromotionRunner,
 	createPromotionManifest,
+	evaluateAutomaticAdmissionReadiness,
 	evaluateAutoPassReadiness,
 	evaluatePromotionConfidence,
 	promotionReviewChallengeHash,
@@ -255,6 +256,43 @@ describe("promotion hardening", () => {
 		expect(unsafe.failures).toContain("expected-outcome budget exceeded");
 	});
 
+	it("allows bounded fail-closed fallbacks but never an unsafe automatic pass", () => {
+		const reviews = Array.from({ length: 10 }, (_, index) =>
+			confidenceCase({
+				id: `review-fallback-${index}`,
+				kind: "text",
+				category: "phishing-or-credential-solicitation",
+				outcome: "review",
+			}),
+		);
+		for (const run of reviews[0]!.runs) {
+			run.status = "model-error";
+			run.actualOutcome = "error";
+			run.errorCode = "provider-unavailable";
+		}
+		const passes = Array.from({ length: 20 }, (_, index) =>
+			confidenceCase({ id: `pass-fallback-${index}`, kind: "text", outcome: "pass" }),
+		);
+		passes[0]!.runs[0]!.status = "model-error";
+		passes[0]!.runs[0]!.actualOutcome = "error";
+		passes[0]!.runs[0]!.errorCode = "provider-unavailable";
+
+		expect(
+			evaluateAutomaticAdmissionReadiness([...reviews, ...passes], readinessBudgets()),
+		).toMatchObject({
+			passed: true,
+			evidence: { safeFallbackRuns: 1, expectedPassRuns: 60 },
+		});
+
+		reviews[1]!.runs[0]!.actualOutcome = "pass";
+		expect(
+			evaluateAutomaticAdmissionReadiness([...reviews, ...passes], readinessBudgets()),
+		).toMatchObject({
+			passed: false,
+			failures: expect.arrayContaining(["unsafe automatic pass observed"]),
+		});
+	});
+
 	it("requires identical fixture IDs and dataset hashes for comparisons", async () => {
 		const bundle = await recordedBundle();
 		const missingCandidate = cloneBundle(bundle);
@@ -348,11 +386,18 @@ describe("promotion hardening", () => {
 		const dataset = await loadEvalDataset({ readFile: readDatasetFile });
 		const input = {
 			dataset,
-			text: {
-				modelId: "@cf/test/text",
-				promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
-				configuredUnits: 1,
-			},
+			text: [
+				{
+					modelId: "@cf/test/text-primary",
+					promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
+					configuredUnits: 1,
+				},
+				{
+					modelId: "@cf/test/text-verifier",
+					promptHash: await sha256Hex(TEXT_SYSTEM_PROMPT),
+					configuredUnits: 1,
+				},
+			] as const,
 			image: {
 				modelId: "@cf/test/image",
 				promptHash: await sha256Hex(IMAGE_SYSTEM_PROMPT),

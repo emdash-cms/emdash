@@ -134,6 +134,7 @@ type PublicAssessmentConfigKey =
 	| "LABELER_POLICY_VERSION"
 	| "LABELER_PARSER_VERSION"
 	| "LABELER_TEXT_MODEL_ID"
+	| "LABELER_TEXT_VERIFIER_MODEL_ID"
 	| "LABELER_IMAGE_MODEL_ID";
 
 type PublicAssessmentEnv = Record<PublicAssessmentConfigKey, string> & {
@@ -314,7 +315,9 @@ function getPolicy(env: PublicAssessmentEnv, params: URLSearchParams): Response 
 		reasonCodes: PUBLIC_REASON_CODES,
 		labels: PUBLIC_LABEL_DEFINITIONS,
 		models: [
-			modelDescriptor("text", config.versions.textModelId, config.versions.textPromptHash),
+			...config.textModelIds.map((modelId) =>
+				modelDescriptor("text", modelId, config.versions.textPromptHash),
+			),
 			modelDescriptor("image", config.versions.imageModelId, config.versions.imagePromptHash),
 		],
 		publicApi: {

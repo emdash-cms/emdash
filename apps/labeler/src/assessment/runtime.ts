@@ -12,6 +12,7 @@ import {
 	createResizedImageModerationAdapter,
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 } from "../ai/image-resize.js";
+import { createUnanimousTextModerationAdapter } from "../ai/unanimous.js";
 import {
 	createWorkersAiImageAdapter,
 	createWorkersAiTextAdapter,
@@ -67,10 +68,17 @@ export async function createProductionAssessmentWorkflowDependencies(
 			decoder: createCloudflareImagesDecoder(env.IMAGES),
 		}),
 		mediaReader: createR2ModerationMediaReader(env.MEDIA_QUARANTINE),
-		textAdapter: createWorkersAiTextAdapter(ai, {
-			modelId: config.versions.textModelId,
-			promptHash: config.versions.textPromptHash,
-		}),
+		textAdapter: createUnanimousTextModerationAdapter([
+			createWorkersAiTextAdapter(ai, {
+				modelId: config.textModelIds[0],
+				promptHash: config.versions.textPromptHash,
+			}),
+			createWorkersAiTextAdapter(ai, {
+				modelId: config.textModelIds[1],
+				promptHash: config.versions.textPromptHash,
+				thinking: false,
+			}),
+		]),
 		imageAdapter: createResizedImageModerationAdapter(
 			createCloudflareImagesDerivativeTransformer(env.IMAGES),
 			createWorkersAiImageAdapter(ai, {
