@@ -52,7 +52,7 @@ describe("labeler scaffold", () => {
 		expect(missing.status).toBe(404);
 	});
 
-	it("publishes the did:web signing method and manual-only policy", async () => {
+	it("publishes the did:web signing method and assisted policy", async () => {
 		const did = await SELF.fetch("https://labeler.test/.well-known/did.json");
 		expect(did.status).toBe(200);
 		expect(did.headers.get("access-control-allow-origin")).toBe("*");
@@ -74,7 +74,7 @@ describe("labeler scaffold", () => {
 		expect(policy.headers.get("access-control-allow-origin")).toBe("*");
 		expect(await policy.json()).toMatchObject({
 			labelerDid: "did:web:labels.emdashcms.com",
-			autoPass: "disabled",
+			autoPass: "assisted",
 			subjectCollections: [
 				"com.emdashcms.experimental.package.profile",
 				"com.emdashcms.experimental.package.release",

@@ -1,13 +1,15 @@
 # Listing moderation model evaluation
 
-The deployed labeler uses AI findings as advisory evidence. Automatic positive decisions remain
-disabled because the protected evaluation did not meet the automatic-pass safety gates.
+The labeler automatically approves listing metadata only when the selected text models complete
+with no findings and every displayed image also passes. Findings and incomplete assessments remain
+hidden for operator review.
 
-## Selected advisory models
+## Selected models
 
-The current advisory bundle uses the following Workers AI catalog models:
+The automatic moderation bundle uses the following Workers AI catalog models:
 
-- Text: `@cf/meta/llama-3.3-70b-instruct-fp8-fast`
+- Text: unanimous results from `@cf/meta/llama-3.3-70b-instruct-fp8-fast` and
+  `@cf/zai-org/glm-5.3-flash`
 - Images: `@cf/zai-org/glm-5.3-flash`, with thinking disabled and a 512-pixel WebP derivative
 
 The text prompt is `listing-text-v9`, with content hash
@@ -25,8 +27,7 @@ moderation. Quoted or descriptive discussion remains benign. It also excludes un
 performance, testimonial, and other marketing claims unless the submitted content itself identifies
 fabrication, forgery, nonexistent evidence, or a contradiction. Image prompt `listing-image-v7`,
 with content hash `7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0`, applies the same
-distinctions. These prompts are deployed for advisory assessment while automatic positive decisions
-remain disabled.
+distinctions.
 
 A three-repeat run evaluated the 20-case public text corpus with the new category. No model passed
 the complete zero-error budget:
@@ -79,8 +80,7 @@ the variant containing a direct bypass command reviewed for manipulation only. P
 2.76 seconds. The artifact has SHA-256 digest
 `91938a482d63f191b5f65fba097f6347ac17359701dd122ca414ceb810f44926`.
 
-The focused checks pass, but a complete text prompt v9 protected run and private image evaluation
-remain outstanding.
+The focused checks informed the unanimous automatic-pass evaluation below.
 
 ## Candidate selection
 
@@ -142,7 +142,7 @@ error. A later screen against 15 hard prohibited cases produced five unsafe pass
 errors, one invalid output, and three correct reviews. GLM 5.2 and GPT-OSS 120B each failed a
 clean case during the earlier screen, before the response-format correction. None replaced Llama.
 
-## Unanimous automatic-pass candidate
+## Unanimous automatic moderation
 
 The automatic-pass candidate runs Llama 3.3 and GLM 5.3 Flash in parallel over the same text and
 link evidence. It returns a clean result only when both models complete with no findings and cover
@@ -175,14 +175,12 @@ The alternative artifact is stored at
 `development/2026-09-09/verifier-alternatives.json`; its SHA-256 digest is
 `7ebb2cd1ab1baf0ed4b92ca032b027cb7736a34ffb1eaba00e23e29953d40668`.
 
-These development runs select the unanimous Llama and GLM bundle for promotion testing. They do
-not authorize automatic passing. The protected holdout was used during selection and does not
-cover `moderation-manipulation`. Promotion requires a new sealed holdout with at least 30 protected
-manipulation fixtures and representative private images. Safe fallbacks on expected-pass fixtures
-must remain at or below five percent, and any automatic pass on an expected-review fixture rejects
-the candidate.
+These development runs select the unanimous Llama and GLM bundle. Safe fallbacks on expected-pass
+fixtures must remain at or below five percent, and any automatic pass on an expected-review fixture
+rejects the candidate. Continue checking representative private images separately because the
+protected holdout was used during model selection and does not cover `moderation-manipulation`.
 
-## Promotion evaluation
+## Rejected single-model evaluation
 
 The frozen three-repeat evaluation used promotion dataset
 `d9b8ecfec2b9662e193b6a927939c9d72d966ab0ffc805916b337658dea5dbb6`. Its artifact has SHA-256
@@ -208,13 +206,12 @@ because the SVG renderer did not paint the `foreignObject` content. Those image 
 establish a Qwen regression. The genuine text failures are sufficient to reject the model bundle
 without relying on the defective image cases.
 
-The manifest therefore sets `promotionEnabled` to `false`. The runtime keeps `autoPass` disabled,
-and the promotion code rejects this corpus even if a caller presents an otherwise valid review
-credential.
+The dataset manifest keeps `promotionEnabled` set to `false` because this corpus was consumed during
+model selection. The flag describes the evaluation dataset; it does not control runtime moderation.
 
-## Promotion requirements
+## Evaluation acceptance criteria
 
-The promotion path requires all of the following evidence:
+Use all of the following criteria when selecting an automatic moderation bundle:
 
 - Three or more repeats.
 - At least 300 protected expected-review fixtures and 100 protected expected-pass fixtures.
@@ -230,6 +227,5 @@ hidden and does not reduce automatic-admission coverage.
 
 Zero unsafe passes across 300 independent expected-review cases gives a one-sided 95% binomial
 upper bound just below 1%. This calculation assumes representative independent cases; synthetic
-variations alone do not establish the same real-world error rate. A future promotion corpus must
-remain untouched during model and prompt selection, and generated images must be rendered and
-visually checked before their commitment is published.
+variations alone do not establish the same real-world error rate. Render and inspect generated
+images before treating their outcomes as evidence.

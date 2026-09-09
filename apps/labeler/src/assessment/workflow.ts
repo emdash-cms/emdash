@@ -17,11 +17,7 @@ import {
 	type AssessmentFoundationDependencies,
 	type DurableAssessmentStep,
 } from "./foundation.js";
-import {
-	resolveAssessmentPolicy,
-	type AutomaticPassPromotion,
-	type ModerationStage,
-} from "./policy.js";
+import { resolveAssessmentPolicy, type ModerationStage } from "./policy.js";
 import { workflowParamsToIdentity } from "./run-key.js";
 import { createProductionAssessmentWorkflowDependencies } from "./runtime.js";
 import type { AssessmentWorkflowParams, AssessmentWorkflowResult } from "./types.js";
@@ -42,7 +38,6 @@ export interface AssessmentWorkflowDependencies extends AssessmentFoundationDepe
 	imageAdapter?: ImageModerationAdapter;
 	mediaReader?: ModerationMediaReader;
 	policy: ListingModerationPolicy;
-	automaticPassPromotion?: AutomaticPassPromotion;
 	finalizer: AssessmentFinalizationIssuer;
 }
 
@@ -145,9 +140,6 @@ export async function runBoundAssessmentWorkflow(
 	const resolution = await step.do("resolve assessment policy", async () =>
 		resolveAssessmentPolicy({
 			policy: dependencies.policy,
-			...(dependencies.automaticPassPromotion
-				? { automaticPassPromotion: dependencies.automaticPassPromotion }
-				: {}),
 			expectedTextRefs,
 			expectedLinkRefs,
 			expectedMediaRefs: foundation.canonicalInput.media.map(

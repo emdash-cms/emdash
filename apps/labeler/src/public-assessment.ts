@@ -11,9 +11,12 @@ import {
 	subjectKindFromUri,
 	type ListingLabelSigner,
 } from "@emdash-cms/registry-moderation";
-import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
 
-import { readLabelerRuntimeConfig, readPublicLabelerRuntimeConfig } from "./runtime-config.js";
+import {
+	LABELER_POLICY_EFFECTIVE_AT,
+	readLabelerRuntimeConfig,
+	readPublicLabelerRuntimeConfig,
+} from "./runtime-config.js";
 
 const GET_ASSESSMENT_PATH = `/xrpc/${NSID.labelerGetAssessment}`;
 const GET_CURRENT_ASSESSMENT_PATH = `/xrpc/${NSID.labelerGetCurrentAssessment}`;
@@ -27,7 +30,7 @@ const ASSESSMENT_PATHS = new Set([
 ]);
 
 const ASSESSMENT_SCHEMA_VERSION = 1;
-const PUBLIC_POLICY_VERSION = INITIAL_LISTING_POLICY_FIXTURE.policyVersion;
+const PUBLIC_POLICY_VERSION = "listing-metadata-v2";
 const PROVIDER_CATALOG_MODEL_VERSION = "provider-catalog-id";
 const DEFAULT_LIST_LIMIT = 50;
 const MAX_LIST_LIMIT = 100;
@@ -304,7 +307,7 @@ function getPolicy(env: PublicAssessmentEnv, params: URLSearchParams): Response 
 	const output = {
 		schemaVersion: 1,
 		policyVersion: config.versions.policyVersion,
-		effectiveAt: INITIAL_LISTING_POLICY_FIXTURE.effectiveAt,
+		effectiveAt: LABELER_POLICY_EFFECTIVE_AT,
 		labelerDid: config.labelerDid,
 		assessmentSchemaVersion: ASSESSMENT_SCHEMA_VERSION,
 		parserVersion: config.versions.parserVersion,
@@ -819,10 +822,7 @@ const PUBLIC_REASON_CODES = [
 		code: "manual-positive-required",
 		description: "An operator-issued positive label is required before the revision is eligible.",
 	},
-	{
-		code: "model-promotion-required",
-		description: "The configured model is not promoted for automated positive decisions.",
-	},
+	{ code: "automatic-pass", description: "Automated moderation approved this exact revision." },
 	{
 		code: "policy-finding",
 		description: "The metadata assessment produced a finding that requires review.",
@@ -850,7 +850,7 @@ const PUBLIC_LABEL_DEFINITIONS = [
 		value: "listing-passed",
 		officialEffect: "eligible",
 		subjectKinds: ["profile", "release"],
-		issuanceModes: ["reviewer", "admin"],
+		issuanceModes: ["automated", "reviewer", "admin"],
 	},
 	{
 		value: "listing-pending",

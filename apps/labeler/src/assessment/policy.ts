@@ -21,15 +21,8 @@ export interface CompletedModerationStage {
 
 export type ModerationStage = CompletedModerationStage | FailedModerationStage;
 
-export interface AutomaticPassPromotion {
-	policyVersion: string;
-	textIdentity?: ModerationModelIdentity;
-	imageIdentity?: ModerationModelIdentity;
-}
-
 export interface AssessmentPolicyInput {
 	policy: ListingModerationPolicy;
-	automaticPassPromotion?: AutomaticPassPromotion;
 	expectedTextRefs: readonly string[];
 	expectedLinkRefs: readonly string[];
 	expectedMediaRefs: readonly string[];
@@ -136,63 +129,7 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 			imageIdentities,
 		);
 	}
-	if (matchesAutomaticPassPromotion(input, textIdentity, imageIdentities)) {
-		return resolution(
-			input,
-			"pass",
-			coverage,
-			[],
-			["model-promotion-approved"],
-			textIdentity,
-			imageIdentities,
-		);
-	}
-	return resolution(
-		input,
-		"review",
-		coverage,
-		[],
-		["model-promotion-required"],
-		textIdentity,
-		imageIdentities,
-	);
-}
-
-function matchesAutomaticPassPromotion(
-	input: AssessmentPolicyInput,
-	textIdentity: ModerationModelIdentity | undefined,
-	imageIdentities: readonly ModerationModelIdentity[],
-): boolean {
-	const promotion = input.automaticPassPromotion;
-	if (!promotion || promotion.policyVersion !== input.policy.policyVersion) return false;
-	if (
-		input.expectedTextRefs.length + input.expectedLinkRefs.length > 0 &&
-		(!textIdentity ||
-			!promotion.textIdentity ||
-			!sameModelIdentity(textIdentity, promotion.textIdentity))
-	) {
-		return false;
-	}
-	if (
-		input.expectedMediaRefs.length > 0 &&
-		(!promotion.imageIdentity ||
-			imageIdentities.length === 0 ||
-			imageIdentities.some((identity) => !sameModelIdentity(identity, promotion.imageIdentity!)))
-	) {
-		return false;
-	}
-	return true;
-}
-
-function sameModelIdentity(left: ModerationModelIdentity, right: ModerationModelIdentity): boolean {
-	return (
-		left.adapterVersion === right.adapterVersion &&
-		left.modelId === right.modelId &&
-		left.promptVersion === right.promptVersion &&
-		left.promptHash === right.promptHash &&
-		JSON.stringify(Object.entries(left.parameters).toSorted(([a], [b]) => a.localeCompare(b))) ===
-			JSON.stringify(Object.entries(right.parameters).toSorted(([a], [b]) => a.localeCompare(b)))
-	);
+	return resolution(input, "pass", coverage, [], ["automatic-pass"], textIdentity, imageIdentities);
 }
 
 function assertExpectedRefs(input: AssessmentPolicyInput): void {

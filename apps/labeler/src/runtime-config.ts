@@ -5,6 +5,8 @@ import type { AssessmentVersionSet } from "./assessment/types.js";
 const DID_WEB_HOST_RE = /^did:web:([^:]+)$/;
 const VERSION_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 
+export const LABELER_POLICY_EFFECTIVE_AT = "2026-09-09T00:00:00.000Z";
+
 export interface LabelerRuntimeConfig {
 	labelerDid: string;
 	serviceUrl: string;

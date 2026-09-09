@@ -9,7 +9,7 @@ const ENV = {
 	LABELER_SERVICE_URL: "https://labels.emdashcms.com",
 	LABEL_SIGNING_PRIVATE_KEY: "private-key",
 	LABEL_SIGNING_PUBLIC_KEY: "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ",
-	LABELER_POLICY_VERSION: "listing-metadata-v1",
+	LABELER_POLICY_VERSION: "listing-metadata-v2",
 	LABELER_PARSER_VERSION: "canonical-listing-input-v1",
 	LABELER_TEXT_MODEL_ID: "@cf/text",
 	LABELER_TEXT_VERIFIER_MODEL_ID: "@cf/text-verifier",

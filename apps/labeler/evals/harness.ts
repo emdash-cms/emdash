@@ -625,7 +625,7 @@ function evalPolicy(): ListingModerationPolicy {
 }
 
 function evaluationOutcome(resolution: AssessmentPolicyResolution): EvalCaseRun["actualOutcome"] {
-	return resolution.reasonCodes.includes("model-promotion-required") ? "pass" : resolution.outcome;
+	return resolution.outcome;
 }
 
 function runSignature(run: EvalCaseRun): string {

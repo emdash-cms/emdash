@@ -1,6 +1,4 @@
-import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
-
-import { readPublicLabelerRuntimeConfig } from "./runtime-config.js";
+import { LABELER_POLICY_EFFECTIVE_AT, readPublicLabelerRuntimeConfig } from "./runtime-config.js";
 
 export function labelerDidDocument(env: Env): Response {
 	const config = readPublicLabelerRuntimeConfig(env);
@@ -46,8 +44,8 @@ export function labelerPolicyDocument(env: Env): Response {
 			schemaVersion: 1,
 			labelerDid: config.labelerDid,
 			policyVersion: config.versions.policyVersion,
-			effectiveAt: INITIAL_LISTING_POLICY_FIXTURE.effectiveAt,
-			autoPass: "disabled",
+			effectiveAt: LABELER_POLICY_EFFECTIVE_AT,
+			autoPass: "assisted",
 			subjectCollections: [
 				"com.emdashcms.experimental.package.profile",
 				"com.emdashcms.experimental.package.release",

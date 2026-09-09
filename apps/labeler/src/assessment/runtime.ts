@@ -19,7 +19,11 @@ import {
 	workersAiBindingFromEnv,
 } from "../ai/workers-ai.js";
 import { createD1ListingLabelIssuer, type ListingLabelIssuer } from "../labels/issuer.js";
-import { readLabelerRuntimeConfig, type LabelerRuntimeConfig } from "../runtime-config.js";
+import {
+	LABELER_POLICY_EFFECTIVE_AT,
+	readLabelerRuntimeConfig,
+	type LabelerRuntimeConfig,
+} from "../runtime-config.js";
 import { createDohHostnameResolver } from "../runtime-network.js";
 import { createLabelPublicationTarget } from "../subscriptions/publisher.js";
 import { createD1AssessmentLifecycleStore } from "./lifecycle.js";
@@ -43,6 +47,26 @@ export async function createProductionAssessmentWorkflowDependencies(
 	const ai = workersAiBindingFromEnv(env.AI);
 	const { connect } = await import("cloudflare:sockets");
 	const issuer = await createProductionListingLabelIssuer(env, config);
+	const textAdapter = createUnanimousTextModerationAdapter([
+		createWorkersAiTextAdapter(ai, {
+			modelId: config.textModelIds[0],
+			promptHash: config.versions.textPromptHash,
+		}),
+		createWorkersAiTextAdapter(ai, {
+			modelId: config.textModelIds[1],
+			promptHash: config.versions.textPromptHash,
+			thinking: false,
+		}),
+	]);
+	const imageAdapter = createResizedImageModerationAdapter(
+		createCloudflareImagesDerivativeTransformer(env.IMAGES),
+		createWorkersAiImageAdapter(ai, {
+			modelId: config.versions.imageModelId,
+			promptHash: config.versions.imagePromptHash,
+			thinking: false,
+		}),
+		DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
+	);
 	return {
 		lifecycle: createD1AssessmentLifecycleStore(env.DB),
 		recordVerifier: createAtprotoExactRecordVerifier({
@@ -68,33 +92,16 @@ export async function createProductionAssessmentWorkflowDependencies(
 			decoder: createCloudflareImagesDecoder(env.IMAGES),
 		}),
 		mediaReader: createR2ModerationMediaReader(env.MEDIA_QUARANTINE),
-		textAdapter: createUnanimousTextModerationAdapter([
-			createWorkersAiTextAdapter(ai, {
-				modelId: config.textModelIds[0],
-				promptHash: config.versions.textPromptHash,
-			}),
-			createWorkersAiTextAdapter(ai, {
-				modelId: config.textModelIds[1],
-				promptHash: config.versions.textPromptHash,
-				thinking: false,
-			}),
-		]),
-		imageAdapter: createResizedImageModerationAdapter(
-			createCloudflareImagesDerivativeTransformer(env.IMAGES),
-			createWorkersAiImageAdapter(ai, {
-				modelId: config.versions.imageModelId,
-				promptHash: config.versions.imagePromptHash,
-				thinking: false,
-			}),
-			DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
-		),
+		textAdapter,
+		imageAdapter,
 		policy: {
 			...INITIAL_LISTING_POLICY_FIXTURE,
 			policyVersion: config.versions.policyVersion,
+			effectiveAt: LABELER_POLICY_EFFECTIVE_AT,
 			requiredPositiveSources: [config.labelerDid],
 			acceptedStateSources: [config.labelerDid],
 			redactionSources: [config.labelerDid],
-			autoPass: "disabled",
+			autoPass: "assisted",
 		},
 		finalizer: issuer,
 	};
