@@ -10,8 +10,11 @@
  * of the suite assumes this passes.
  */
 
-import { applyD1Migrations, env } from "cloudflare:test";
+import { INITIAL_LISTING_POLICY_FIXTURE } from "@emdash-cms/registry-moderation/fixtures";
+import { applyD1Migrations, env, SELF } from "cloudflare:test";
 import { beforeAll, describe, expect, it } from "vitest";
+
+import { publicHealth } from "../src/public-health.js";
 
 interface TestEnv {
 	DB: D1Database;
@@ -25,6 +28,62 @@ beforeAll(async () => {
 });
 
 describe("aggregator scaffold smoke test", () => {
+	it("exposes public readiness without caching the result", async () => {
+		const response = await SELF.fetch("https://test/health");
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("cache-control")).toBe("no-store");
+		await expect(response.json()).resolves.toEqual({
+			service: "emdash-aggregator",
+			status: "ok",
+			policyMode: "open",
+			projection: {
+				ready: true,
+				packages: 0,
+				releases: 0,
+			},
+			labelSources: {
+				replayPending: 0,
+			},
+		});
+	});
+
+	it("fails readiness while an authoritative label source needs replay", async () => {
+		const now = new Date().toISOString();
+		await testEnv.DB.prepare(
+			`INSERT INTO labellers
+			   (did, endpoint, signing_key, signing_key_id, trusted, added_at, last_resolved_at,
+			    active, required_positive, accepted_state, redaction, policy_version,
+			    replay_pending)
+			 VALUES (?, ?, '', '', 0, ?, ?, 1, 1, 1, 1, ?, 1)`,
+		)
+			.bind(
+				"did:web:labels.emdashcms.com",
+				"https://labels.emdashcms.com",
+				now,
+				now,
+				INITIAL_LISTING_POLICY_FIXTURE.policyVersion,
+			)
+			.run();
+		const runtimeEnv = {
+			...env,
+			DB: testEnv.DB,
+			LISTING_POLICY_MODE: "projection",
+			LISTING_ALLOWLIST: "[]",
+			LISTING_MODERATION_POLICY: JSON.stringify(INITIAL_LISTING_POLICY_FIXTURE),
+		} as Env;
+
+		const response = await publicHealth(new Request("https://test/health"), runtimeEnv);
+
+		expect(response.status).toBe(503);
+		await expect(response.json()).resolves.toMatchObject({
+			status: "not-ready",
+			policyMode: "projection",
+			projection: { ready: false, packages: 0, releases: 0 },
+			labelSources: { replayPending: 1 },
+		});
+	});
+
 	it("applies the initial migration and round-trips a packages row", async () => {
 		const now = new Date().toISOString();
 		await testEnv.DB.prepare(

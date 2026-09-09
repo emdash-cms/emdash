@@ -1,6 +1,6 @@
 import { encode } from "@atcute/cbor";
 import { P256PrivateKeyExportable, P256PublicKey, parsePublicMultikey } from "@atcute/crypto";
-import { toBase64Url } from "@atcute/multibase";
+import { toBase64Pad, toBase64Url } from "@atcute/multibase";
 import {
 	createListingLabelSigner,
 	verifyListingLabel,
@@ -1057,6 +1057,41 @@ describe("subscription frame bounds", () => {
 });
 
 describe("query replay bounds", () => {
+	it("decodes padded standard base64 signatures returned by queryLabels", async () => {
+		const signature = new Uint8Array(64).fill(255);
+		const client = new RealLabelQueryClient(async () =>
+			Response.json({
+				labels: [
+					{
+						ver: 1,
+						src: SOURCE,
+						uri: URI,
+						cid: CID_A,
+						val: "listing-passed",
+						cts: NOW,
+						sig: { $bytes: toBase64Pad(signature) },
+					},
+				],
+				cursor: "1",
+			}),
+		);
+
+		await expect(client.query("https://labels.example", SOURCE, 0)).resolves.toEqual({
+			labels: [
+				{
+					ver: 1,
+					src: SOURCE,
+					uri: URI,
+					cid: CID_A,
+					val: "listing-passed",
+					cts: NOW,
+					sig: signature,
+				},
+			],
+			nextCursor: 1,
+		});
+	});
+
 	it("decodes base64url signatures returned by queryLabels", async () => {
 		const signature = new Uint8Array(64).fill(255);
 		const client = new RealLabelQueryClient(async () =>
