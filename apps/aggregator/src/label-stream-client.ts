@@ -1,4 +1,4 @@
-import { decodeFirst } from "@atcute/cbor";
+import { decodeFirst, fromBytes, isBytes } from "@atcute/cbor";
 import { fromBase64Pad, fromBase64Url } from "@atcute/multibase";
 import { parseSignedListingLabel, type SignedListingLabel } from "@emdash-cms/registry-moderation";
 
@@ -89,7 +89,15 @@ export function decodeLabelStreamFrame(bytes: Uint8Array): LabelStreamEvent | nu
 	if (!Array.isArray(labels) || labels.length < 1 || labels.length > MAX_LABELS_PER_FRAME) {
 		throw new TypeError("#labels labels count is invalid");
 	}
-	return { seq, labels };
+	return {
+		seq,
+		labels: labels.map((label) => {
+			if (!isPlainObject(label) || !isBytes(label["sig"])) {
+				throw new TypeError("subscribeLabels label signature is invalid");
+			}
+			return { ...label, sig: fromBytes(label["sig"]) };
+		}),
+	};
 }
 
 type Buffered = { value: LabelStreamEvent } | { error: unknown };
