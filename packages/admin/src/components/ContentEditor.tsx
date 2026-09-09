@@ -670,12 +670,15 @@ export function ContentEditor({
 				slug?: string;
 				bylines?: BylineCreditInput[];
 			}) => void | Promise<void>,
+			invalidFieldsMessage?: string,
 		) => {
 			if (isPublishingRef.current) {
 				return Promise.reject(new Error(t`A publishing action is already in progress`));
 			}
 			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
-				return Promise.reject(new Error(t`Fix invalid fields before changing the schedule`));
+				return Promise.reject(
+					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
+				);
 			}
 
 			cancelPendingAutosave();
@@ -726,9 +729,12 @@ export function ContentEditor({
 	const handlePublishedAtChange = React.useCallback(
 		(publishedAt: string) =>
 			onPublishedAtChange
-				? runScheduleChange((payload) => onPublishedAtChange(publishedAt, payload))
+				? runScheduleChange(
+						(payload) => onPublishedAtChange(publishedAt, payload),
+						t`Fix invalid fields before changing the publication date`,
+					)
 				: undefined,
-		[onPublishedAtChange, runScheduleChange],
+		[onPublishedAtChange, runScheduleChange, t],
 	);
 
 	// Preview URL state
