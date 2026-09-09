@@ -554,7 +554,19 @@ function selectReleases(
 
 function groupLabels(rows: readonly LabelStateRow[]): Map<string, ListingLabelEvent[]> {
 	const grouped = new Map<string, ListingLabelEvent[]>();
+	const seen = new Set<string>();
 	for (const row of rows) {
+		const semanticKey = JSON.stringify([
+			row.src,
+			row.uri,
+			row.val,
+			row.cid,
+			row.neg,
+			row.cts,
+			row.exp,
+		]);
+		if (seen.has(semanticKey)) continue;
+		seen.add(semanticKey);
 		const label: ListingLabelEvent = {
 			ver: 1,
 			src: row.src,
