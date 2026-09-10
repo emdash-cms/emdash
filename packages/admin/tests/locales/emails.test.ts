@@ -1,5 +1,5 @@
 /**
- * System email copy resolution tests (#915): the helpers resolve the
+ * System email copy resolution tests: the helpers resolve the
  * module-scope descriptors through the Lingui catalog for the requested
  * locale, interpolate the site name, and fall back to English for
  * unknown locales. (Whether individual strings are translated depends
@@ -9,6 +9,7 @@
 
 import { describe, expect, test } from "vitest";
 
+import { SUPPORTED_LOCALES } from "../../src/locales/config.js";
 import { getInviteEmailStrings, getMagicLinkEmailStrings } from "../../src/locales/emails.js";
 
 describe("getInviteEmailStrings", () => {
@@ -28,8 +29,8 @@ describe("getInviteEmailStrings", () => {
 	});
 
 	test("resolves every field to a non-empty string for all enabled locales", async () => {
-		for (const locale of ["de", "ja", "ar", "pt-BR"]) {
-			const strings = await getInviteEmailStrings(locale, "Acme");
+		for (const { code } of SUPPORTED_LOCALES) {
+			const strings = await getInviteEmailStrings(code, "Acme");
 			for (const value of Object.values(strings)) {
 				expect(value).toBeTruthy();
 			}

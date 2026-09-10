@@ -12,7 +12,7 @@ const TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 export type EmailSendFn = (message: EmailMessage) => Promise<void>;
 
 /**
- * Localized copy for the sign-in (magic link / recovery) email (#915).
+ * Localized copy for the sign-in (magic link / recovery) email.
  *
  * Final display strings, interpolated by the caller — same contract as
  * `InviteEmailStrings` in invite.ts. English fallback when omitted.
@@ -117,7 +117,7 @@ function defaultMagicLinkEmailStrings(siteName: string): MagicLinkEmailStrings {
 /**
  * Build the sign-in (magic link / recovery) email message.
  *
- * Exported for tests; localized copy is injected via `strings` (#915).
+ * Exported for tests; localized copy is injected via `strings`.
  */
 export function buildMagicLinkEmail(
 	linkUrl: string,
@@ -128,7 +128,7 @@ export function buildMagicLinkEmail(
 ): EmailMessage {
 	const s = strings ?? defaultMagicLinkEmailStrings(siteName);
 	// Localized copy may be RTL — set lang/dir on the root so RTL text renders
-	// correctly. Defaults to ltr when no locale is threaded through (#915).
+	// correctly. Defaults to ltr when no locale is threaded through.
 	const langAttr = locale ? ` lang="${escapeHtml(locale)}" dir="${localeDir(locale)}"` : "";
 	return {
 		to: email,

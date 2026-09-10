@@ -34,12 +34,12 @@ const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 export type EmailSendFn = (message: EmailMessage) => Promise<void>;
 
 /**
- * Localized copy for the invite email (#915).
+ * Localized copy for the invite email.
  *
  * All fields are final display strings — interpolation (site name) happens
  * in the caller, which owns the locale catalogs. When omitted, the builder
- * falls back to English. This package deliberately stays free of any i18n
- * machinery; EmDash core passes strings resolved from the admin catalogs.
+ * falls back to English. This package has no i18n machinery; EmDash core
+ * passes strings resolved from the admin catalogs.
  */
 export interface InviteEmailStrings {
 	/** Subject line, e.g. `You've been invited to Acme` */
@@ -131,7 +131,7 @@ function defaultInviteEmailStrings(siteName: string): InviteEmailStrings {
  * Build the invite email message.
  *
  * Exported for tests and for callers that render the message without
- * sending (localized copy is injected via `strings`, see #915).
+ * sending (localized copy is injected via `strings`).
  */
 export function buildInviteEmail(
 	inviteUrl: string,
@@ -142,7 +142,7 @@ export function buildInviteEmail(
 ): EmailMessage {
 	const s = strings ?? defaultInviteEmailStrings(siteName);
 	// Localized copy may be RTL — set lang/dir on the root so RTL text renders
-	// correctly. Defaults to ltr when no locale is threaded through (#915).
+	// correctly. Defaults to ltr when no locale is threaded through.
 	const langAttr = locale ? ` lang="${escapeHtml(locale)}" dir="${localeDir(locale)}"` : "";
 	return {
 		to: email,
