@@ -755,6 +755,7 @@ export function ContentEditor({
 					contentUrl(collection, slug || item.id, urlPattern, {
 						locale: item.locale,
 						i18n,
+						date: item.publishedAt,
 					}),
 					"_blank",
 					"noopener,noreferrer",
@@ -765,6 +766,7 @@ export function ContentEditor({
 				contentUrl(collection, slug || item?.id || "", urlPattern, {
 					locale: item?.locale,
 					i18n,
+					date: item?.publishedAt,
 				}),
 				"_blank",
 				"noopener,noreferrer",
@@ -800,6 +802,7 @@ export function ContentEditor({
 			? contentUrl(collection, item.slug, urlPattern, {
 					locale: item.locale,
 					i18n,
+					date: item.publishedAt,
 				})
 			: null;
 

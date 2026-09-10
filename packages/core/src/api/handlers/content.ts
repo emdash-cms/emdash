@@ -425,6 +425,8 @@ async function createSlugChangeRedirect(
 	oldSlug: string,
 	newSlug: string,
 	contentId: string,
+	oldPublishedAt: string | null,
+	newPublishedAt: string | null,
 ): Promise<void> {
 	// A URL pattern has no locale token, so every locale variant of an entry
 	// generates the same URL, and slugs are unique per (slug, locale) — a
@@ -448,6 +450,8 @@ async function createSlugChangeRedirect(
 		newSlug,
 		contentId,
 		collectionRow?.url_pattern ?? null,
+		oldPublishedAt,
+		newPublishedAt,
 	);
 	invalidateRedirectCache();
 }
@@ -1095,9 +1099,20 @@ export async function handleContentUpdate(
 				updated.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
-			// Create auto-redirect when slug changes
+			// Create auto-redirect when slug changes. Date tokens in the URL
+			// pattern resolve from the publish date, so the old URL uses the
+			// pre-update date (the URL that was actually live) and the new URL
+			// the post-update one.
 			if (oldSlug && body.slug) {
-				await createSlugChangeRedirect(trx, collection, oldSlug, body.slug, resolvedId);
+				await createSlugChangeRedirect(
+					trx,
+					collection,
+					oldSlug,
+					body.slug,
+					resolvedId,
+					existing?.publishedAt ?? null,
+					updated.publishedAt ?? null,
+				);
 			}
 
 			// Sync non-translatable fields to sibling locales in the same
@@ -1640,7 +1655,15 @@ export async function handleContentPublish(
 				published.slug &&
 				existing.slug !== published.slug
 			) {
-				await createSlugChangeRedirect(trx, collection, existing.slug, published.slug, resolvedId);
+				await createSlugChangeRedirect(
+					trx,
+					collection,
+					existing.slug,
+					published.slug,
+					resolvedId,
+					existing.publishedAt ?? null,
+					published.publishedAt ?? null,
+				);
 			}
 
 			return published;
