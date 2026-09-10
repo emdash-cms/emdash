@@ -97,11 +97,12 @@ export async function listColumns(db: Kysely<Database>, table: string): Promise<
 }
 
 /**
- * Create the collection table a site would have carried into migration 004.
+ * Seed the collection a site would have carried into migration 004.
  *
- * `SchemaRegistry` builds an `ec_*` table with the system columns listed in
- * `schema/registry.ts`. Six of them arrive later, from migrations 013, 014,
- * 019 and 031, so a collection that predates those carries the other nine.
+ * `SchemaRegistry` gives a content table the system columns listed in
+ * `schema/registry.ts` plus one per field. Six system columns arrive later,
+ * from migrations 013, 014, 019 and 031, so this carries the other nine plus
+ * two ordinary fields.
  */
 export async function seedLegacyCollection(db: Kysely<Database>): Promise<void> {
 	await sql`
