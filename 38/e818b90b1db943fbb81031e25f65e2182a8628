@@ -1,0 +1,25 @@
+templates/marketing-cloudflare/src/pages/404.astro
+  s_81c53493e8c532::t_48a3cb557e73cd 19-20,22-27,31-33,37,41,46-47,49-50,56-57,62
+templates/marketing-cloudflare/src/pages/contact.astro
+  s_81c53493e8c532::t_89dbf59fbd095c 78,87,96,183-184,189-191,193,197-202,206-207,209,225-229,232-237,244-246,254,258-260,271,288-289,292,294,302-305,307-309,324,333,338-339,342,345,350,355,360-363,365,370-387
+templates/marketing/src/pages/404.astro
+  s_81c53493e8c532::t_a01da83a026f1b 19-20,22-27,31-33,37,41,46-47,49-50,56-57,62
+templates/marketing/src/pages/contact.astro
+  s_81c53493e8c532::t_82c36a67915b0f 78,87,96,183-184,189-191,193,197-202,206-207,209,225-229,232-237,244-246,254,258-260,271,288-289,292,294,302-305,307-309,324,333,338-339,342,345,350,355,360-363,365,370-387
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "38e818b90b1db943fbb81031e25f65e2182a8628",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
