@@ -140,7 +140,7 @@ describe("object cache: content read-through", () => {
 		expect(result.entries[0]!.data).not.toHaveProperty("draftRevisionId");
 	});
 
-	it("primes the SEO panel cache when an entry is served from the object cache (#1518)", async () => {
+	it("primes the SEO panel cache when an entry is served from the object cache", async () => {
 		const [entry] = mockEntries();
 		(entry!.data as Record<string, unknown>).seo = { title: "Panel Title", noIndex: true };
 		vi.mocked(getLiveEntry).mockResolvedValue({

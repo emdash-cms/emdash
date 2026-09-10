@@ -173,7 +173,7 @@ const platforms = [
 
 <Aside>
 	On server-rendered content pages that include the `<EmDashHead>` component and fetch their entry
-	through `getEmDashEntry()` or `getEntry()` on a live content collection, values from the entry's
+	through `getEmDashEntry()` or Astro's `getLiveEntry()` on the EmDash collection, values from the entry's
 	SEO panel (description, image, canonical, noindex — and the title, which feeds
 	`og:title`/`twitter:title` but not the `<title>` element, which stays with the template) are
 	applied automatically. Editors' panel settings override whatever the template passed into the

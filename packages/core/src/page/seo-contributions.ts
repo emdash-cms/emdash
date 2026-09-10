@@ -156,7 +156,7 @@ export function generateBaseSeoContributions(
 
 /**
  * Resolve the page context for rendering: overlay the entry's SEO panel
- * values when they were primed for this request (#1518).
+ * values when they were primed for this request.
  *
  * Used by `<EmDashHead>`, `<EmDashBodyStart>`, and `<EmDashBodyEnd>` so
  * head tags, JSON-LD, and every plugin hook — head and body fragments
@@ -178,7 +178,7 @@ export async function resolveSeoPanelPage(
 }
 
 /**
- * Overlay a content entry's SEO panel data onto the page context (#1518).
+ * Overlay a content entry's SEO panel data onto the page context.
  *
  * `<EmDashHead>` applies this overlay before anything consumes the context:
  * editor-set panel values override whatever the template passed in, and

@@ -97,16 +97,12 @@ describe("generateSiteSeoContributions", () => {
 });
 
 /**
- * applySeoPanelToPageContext() — #1518.
- *
- * Bug context: values set in the admin SEO panel were silently ignored
- * unless the template manually wired getSeoMeta(). EmDashHead now fetches
- * the panel row for content pages and overlays it onto the page context
- * before base contributions and JSON-LD are generated, so editor-set
- * values apply by default and structured data stays consistent with the
- * head tags.
+ * applySeoPanelToPageContext() overlays admin SEO panel values onto the
+ * page context before base contributions and JSON-LD are generated, so
+ * editor-set values apply by default and structured data stays consistent
+ * with the head tags.
  */
-describe("applySeoPanelToPageContext (#1518)", () => {
+describe("applySeoPanelToPageContext", () => {
 	const emptySeo: ContentSeo = {
 		title: null,
 		description: null,

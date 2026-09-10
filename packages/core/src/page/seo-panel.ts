@@ -1,6 +1,6 @@
 /**
  * Request-scoped hand-off of SEO panel data from the entry query to the
- * render components (#1518).
+ * render components.
  *
  * The loader's single-entry path already folds the `_emdash_seo` row into
  * the entry query as a JSON subselect, so the panel data is in hand when an

@@ -1650,7 +1650,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				if (entrySeo) {
 					entryData.seo = entrySeo;
 					// Prime the request cache so <EmDashHead> can apply the panel
-					// values without its own _emdash_seo query (#1518). Keyed by the
+					// values without its own _emdash_seo query. Keyed by the
 					// content-row id — the same value templates pass as
 					// page.content.id.
 					primeSeoPanel(type, rowStr(row, "id"), entrySeo);

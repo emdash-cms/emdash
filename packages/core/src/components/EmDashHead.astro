@@ -7,7 +7,7 @@
  * a content entry (`page.content` is set) that was fetched through EmDash's
  * content APIs in this request (`getEmDashEntry()` or the live loader,
  * including warm object-cache hits), the entry's SEO panel values are overlaid
- * onto the page context automatically (#1518): the entry query folds the
+ * onto the page context automatically: the entry query folds the
  * `_emdash_seo` row in as a subselect and primes a request-scoped cache, so
  * the overlay costs zero additional queries. Editor-set values flow into the
  * base contributions, the JSON-LD builders, and plugin hooks — the body
@@ -69,7 +69,7 @@ if (runtime) {
 	const siteSettings = await getSiteSettings();
 	const siteUrl = page.siteUrl || siteSettings.url || new URL(page.url).origin;
 
-	// SEO panel values for the rendered content entry (#1518), primed by
+	// SEO panel values for the rendered content entry, primed by
 	// the entry query's folded _emdash_seo column — a request-cache read,
 	// never a database query. Overlaid onto the page context before
 	// anything consumes it, so editor-set description/image/canonical/

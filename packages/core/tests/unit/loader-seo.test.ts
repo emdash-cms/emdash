@@ -138,7 +138,7 @@ describeEachDialect("Loader SEO hydration (#1270)", (dialect) => {
 		expect((data.seo as Record<string, unknown>).noIndex).toBe(true);
 	});
 
-	it("primes the request-scoped SEO panel cache keyed by the content-row id (#1518)", async () => {
+	it("primes the request-scoped SEO panel cache keyed by the content-row id", async () => {
 		const post = await createPublishedPost("Primed Post");
 		await seoRepo.upsert("post", post.id, {
 			title: "Panel Title",
