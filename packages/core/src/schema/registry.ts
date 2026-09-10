@@ -32,6 +32,7 @@ import {
 } from "../media/usage/content-refresh.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { resetRegisteredCollectionsCache } from "./collection-slugs-cache.js";
 import {
 	type Collection,
 	type CollectionAdminConfig,
@@ -504,6 +505,7 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to create collection", "CREATE_FAILED");
 		}
 
+		resetRegisteredCollectionsCache();
 		this.notifyTypegen();
 		return collection;
 	}
@@ -679,6 +681,8 @@ export class SchemaRegistry {
 				);
 			}
 			throw error;
+		} finally {
+			if (schemaMutated) resetRegisteredCollectionsCache();
 		}
 		this.notifyTypegen();
 	}
@@ -863,6 +867,11 @@ export class SchemaRegistry {
 				await deleteContentMediaUsageCollection(this.db, slug);
 			}
 			throw error;
+		} finally {
+			// Even a failed delete may have dropped the ec_* table (D1 has no
+			// real transactions) — over-invalidation is harmless, a stale set
+			// is not.
+			if (contentTableDropped) resetRegisteredCollectionsCache();
 		}
 		this.notifyTypegen();
 	}
