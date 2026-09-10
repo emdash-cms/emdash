@@ -3,13 +3,13 @@ title: Internationalization (i18n)
 description: Translate content into multiple languages with per-locale publishing, slugs, and automatic fallback.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
 EmDash integrates with [Astro's built-in i18n routing](https://docs.astro.build/en/guides/internationalization/) to provide multilingual content management. Astro handles URL routing and locale detection; EmDash handles translated content storage and retrieval.
 
 Each translation is a full, independent content entry with its own slug, status, and revision history. The French version of a post can be in draft while the English version is published.
 
-## Configuration
+## Configure locales
 
 Enable i18n by adding an `i18n` block to your Astro config. EmDash reads this same configuration for its locale list, default locale, and fallback chain.
 
@@ -39,7 +39,7 @@ export default defineConfig({
 When `i18n` is not present in the Astro config, all i18n features are disabled and EmDash behaves as a single-language CMS.
 
 <Aside type="caution" title="Do not prefix the default locale">
-Any Astro routing strategy that prefixes the default locale breaks the EmDash admin — that includes `routing: { prefixDefaultLocale: true }` and `routing: "prefix-always"`. With either enabled, every page route — including routes injected by integrations — requires a locale prefix, so `/_emdash/admin` and all its sub-paths (`/setup`, `/login`, `/content`, …) return **404**. The locale-prefixed variant (`/es/_emdash/admin/...`) does not work either, because the admin's client-side router expects to live at `/_emdash/admin`. API routes under `/_emdash/api/*` are unaffected — only injected page routes with spread parameters break. This is an upstream Astro limitation in how i18n routing interacts with `injectRoute` (see [#369](https://github.com/emdash-cms/emdash/issues/369)).
+Any Astro routing strategy that prefixes the default locale breaks the EmDash admin. This includes `routing: { prefixDefaultLocale: true }` and `routing: "prefix-always"`. These strategies require a locale prefix on page routes injected by integrations, so `/_emdash/admin` and its setup, login, and content pages return **404**. A locale-prefixed path such as `/en/_emdash/admin` does not work because the admin router is mounted at `/_emdash/admin`. API routes under `/_emdash/api/*` are unaffected.
 
 Use Astro's default routing strategy (`prefix-other-locales`) instead, which serves the default locale unprefixed and works with the admin:
 
@@ -52,10 +52,10 @@ i18n: {
 },
 ```
 
-If you need the default locale prefixed for public pages, handle it with a redirect or rewrite in front of the site (e.g. `/` → `/en/` at the edge) rather than `prefixDefaultLocale`.
+If public URLs must include the default locale, add a redirect or rewrite in front of the site (for example, `/` to `/en/`) rather than enabling `prefixDefaultLocale`.
 </Aside>
 
-## How Translations Work
+## How translations work
 
 EmDash uses a **row-per-locale** model. Each translation is its own row in the database with its own ID, slug, and status, linked to other translations via a shared `translation_group` identifier. A posts table with three translations looks like this:
 
@@ -75,11 +75,20 @@ This design means:
 - **Per-locale revisions** — each translation has its own revision history
 - **Single-locale queries** — list queries return entries for one locale only
 
-## Querying Translated Content
+### Slugs, entry IDs, and database IDs
+
+An entry has two identifiers with different purposes:
+
+- `entry.id` is the entry's slug. Use it when building the public URL.
+- `entry.data.id` is the database ID. Use it for API operations and helpers that refer to a stored content row, including `getTranslations()` and `getEntryTerms()`.
+
+Translations have different database IDs because each locale is a separate row. Their shared `translation_group` records that the rows are translations of the same content. EmDash manages that group when you create a translation; templates normally only need the database ID of any row in the group.
+
+## Query translated content
 
 ### Single entry
 
-Pass `locale` to `getEmDashEntry` to retrieve a specific translation. When omitted, it defaults to the request's current locale (set by Astro's i18n middleware).
+Pass `Astro.currentLocale` to `getEmDashEntry` on a multilingual route. Astro knows the locale selected by its router, while EmDash needs the explicit value to disambiguate slugs that can exist in more than one locale. Do the same for collection queries.
 
 ```astro title="src/pages/[...slug].astro"
 ---
@@ -100,16 +109,18 @@ if (!post) return Astro.redirect("/404");
 
 ### Fallback chain
 
-When no content exists for the requested locale, EmDash follows the fallback chain defined in your Astro config. Given `fallback: { fr: "en" }`:
+When a matching published entry does not exist in the requested locale, `getEmDashEntry` follows the fallback chain from the Astro config. In preview or visual-editing mode, the same lookup can return a draft. Given `fallback: { fr: "en" }`:
 
 1. Try the requested locale (`fr`)
 2. Try the fallback locale (`en`)
-3. Try the default locale
+3. Try the default locale if it is not already in the chain
 
 Fallback only applies to single-entry queries. List queries return entries for the requested locale only.
 
+Each fallback lookup uses the same `id` argument. For example, a request for the slug `about` can fall back from French to an English entry whose slug is also `about`. A request for `a-propos` cannot discover an English entry whose slug is `about`; the two rows use different public identifiers. Use `getTranslations()` to find and link locale variants with different slugs.
+
 <Aside>
-  When a fallback is used, the response metadata includes `fallbackLocale` so your template can display a "this content is not yet translated" notice.
+  When a fallback is used, `fallbackLocale` contains the locale that supplied the entry. Use it to explain that the requested translation is unavailable.
 </Aside>
 
 ### Menus
@@ -158,7 +169,7 @@ import { getTaxonomyTerms, getEntryTerms } from "emdash";
 const categories = await getTaxonomyTerms("category", {
   locale: Astro.currentLocale,
 });
-const terms = await getEntryTerms("posts", post.id, undefined, {
+const terms = await getEntryTerms("posts", post.data.id, undefined, {
   locale: Astro.currentLocale,
 });
 ---
@@ -212,12 +223,12 @@ const { entries: posts } = await getEmDashCollection("posts", {
 
 <ul>
   {posts.map((post) => (
-    <li><a href={`/${post.data.slug}`}>{post.data.title}</a></li>
+    <li><a href={`/${post.id}`}>{post.data.title}</a></li>
   ))}
 </ul>
 ```
 
-## Language Switcher
+## Build a language switcher
 
 Use `getTranslations` to build a language switcher that links to existing translations of the current entry:
 
@@ -233,17 +244,21 @@ interface Props {
 
 const { collection, entryId } = Astro.props;
 const { translations } = await getTranslations(collection, entryId);
+const publishedTranslations = translations.filter(
+  (translation): translation is typeof translation & { slug: string } =>
+    translation.status === "published" && translation.slug !== null
+);
 ---
 
 <nav aria-label="Language">
   <ul>
-    {translations.map((t) => (
+    {publishedTranslations.map((translation) => (
       <li>
         <a
-          href={getRelativeLocaleUrl(t.locale, `/blog/${t.slug}`)}
-          aria-current={t.locale === Astro.currentLocale ? "page" : undefined}
+          href={getRelativeLocaleUrl(translation.locale, `/blog/${translation.slug}`)}
+          aria-current={translation.locale === Astro.currentLocale ? "page" : undefined}
         >
-          {t.locale.toUpperCase()}
+          {translation.locale.toUpperCase()}
         </a>
       </li>
     ))}
@@ -254,7 +269,7 @@ const { translations } = await getTranslations(collection, entryId);
 The `getTranslations` function returns all locale variants in the same translation group:
 
 ```ts
-const { translationGroup, translations } = await getTranslations("posts", post.entry.id);
+const { translationGroup, translations } = await getTranslations("posts", post.data.id);
 // translations: [
 //   { locale: "en", id: "01ABC...", slug: "my-post", status: "published" },
 //   { locale: "fr", id: "01DEF...", slug: "mon-article", status: "draft" },
@@ -262,10 +277,10 @@ const { translationGroup, translations } = await getTranslations("posts", post.e
 ```
 
 <Aside type="tip">
-  Use `getRelativeLocaleUrl` from `astro:i18n` to build locale-prefixed URLs. This respects your Astro routing strategy (`prefix-other-locales` or `prefix-always`).
+  `getTranslations()` returns draft and scheduled siblings as well as published ones. Filter the result before rendering a public language switcher so it does not link to an unpublished route.
 </Aside>
 
-## Managing Translations in the Admin
+## Manage translations in the admin
 
 ### Content list
 
@@ -288,18 +303,18 @@ When creating a translation, the new entry is pre-filled with data from the sour
 
 Each translation has its own status. Publish, unpublish, or schedule translations independently. The French version can be in draft while the English version is live.
 
-## Content API
+## Use the content API
 
 ### Locale parameter
 
-All content API routes accept an optional `locale` query parameter:
+Content API routes require an authenticated session or bearer token. List routes accept an optional `locale` query parameter. A single-entry route also accepts it when the path uses a slug; database IDs are globally unique and do not need locale disambiguation.
 
 ```http
 GET /_emdash/api/content/posts?locale=fr
 GET /_emdash/api/content/posts/my-post?locale=fr
 ```
 
-When omitted, defaults to the configured default locale.
+When a list request omits `locale`, it uses the configured default locale.
 
 ### Creating translations via API
 
@@ -308,18 +323,19 @@ Create a translation by passing `locale` and `translationOf` to the content crea
 ```http
 POST /_emdash/api/content/posts
 Content-Type: application/json
+X-EmDash-Request: 1
 
 {
   "locale": "fr",
   "translationOf": "01ABC...",
+  "slug": "mon-article",
   "data": {
-    "title": "Mon Article",
-    "slug": "mon-article"
+    "title": "Mon Article"
   }
 }
 ```
 
-The new entry shares the source entry's `translation_group` and starts as a draft.
+`translationOf` is the source row's database ID, such as `entry.data.id`. The new entry shares the source entry's `translation_group` and starts as a draft.
 
 ### Listing translations
 
@@ -331,9 +347,9 @@ GET /_emdash/api/content/posts/01ABC.../translations
 
 Returns the translation group ID and an array of locale variants with their IDs, slugs, and statuses.
 
-## CLI
+## Use the CLI
 
-The CLI supports `--locale` flags on content commands:
+After authenticating the CLI, use its `--locale` flags on content commands:
 
 ```bash
 # List French posts
@@ -342,11 +358,18 @@ emdash content list posts --locale fr
 # Get a specific entry in French
 emdash content get posts my-post --locale fr
 
-# Create a French translation of an existing entry
-emdash content create posts --locale fr --translation-of 01ABC...
+# Create a French translation as a draft
+emdash content create posts \
+  --locale fr \
+  --translation-of 01ABC... \
+  --slug mon-article \
+  --data '{"title":"Mon article"}' \
+  --draft
 ```
 
-## Seeding Multilingual Content
+`content create` requires input from `--data`, `--file`, or `--stdin`. It publishes after creation unless you pass `--draft`.
+
+## Seed multilingual content
 
 Seed files express translations using `locale` and `translationOf`:
 
@@ -376,7 +399,7 @@ Seed files express translations using `locale` and `translationOf`:
 
 The source locale entry must appear before its translations in the seed file so that `translationOf` references resolve correctly.
 
-## Field Translatability
+## Choose which fields are translatable
 
 Each field has a `translatable` setting (default: `true`). When creating a translation:
 
@@ -389,25 +412,21 @@ System fields like `status`, `published_at`, and `author_id` are always per-loca
   Non-translatable fields are useful for values that should stay consistent across locales, such as a product SKU or a sort order number.
 </Aside>
 
-## URL Strategy
+## Build locale URLs
 
-EmDash does not manage locale URLs — Astro handles routing. Common patterns:
+EmDash stores the locale; Astro handles public routing. The supported EmDash configuration leaves the default locale unprefixed:
 
 ```
 # prefix-other-locales (Astro default)
 /blog/my-post          → en (default locale, no prefix)
 /fr/blog/mon-article   → fr
-
-# prefix-always
-/en/blog/my-post       → en
-/fr/blog/mon-article   → fr
 ```
 
-Use `getRelativeLocaleUrl` from `astro:i18n` to build correct URLs regardless of routing mode.
+Use `getRelativeLocaleUrl` from `astro:i18n` to add the correct prefix and any custom locale path mapping. Do not enable a default-locale prefix; as described in [Configure locales](#configure-locales), that routing strategy prevents the injected admin pages from loading.
 
 ## Sitemaps
 
-The per-collection sitemap at `/sitemap-{collection}.xml` is locale-aware. When i18n is enabled, each translation is emitted as its own `<url>` entry, with the locale prefix resolved through Astro's `getRelativeLocaleUrl`. Your `prefixDefaultLocale` setting and any custom locale `path` mappings are honoured automatically.
+The per-collection sitemap at `/sitemap-{collection}.xml` is locale-aware. It includes published entries from routable, SEO-enabled collections. Deleted entries, entries without a slug, and entries marked `noindex` are excluded. Each included translation becomes its own `<url>` entry. EmDash builds its path from the collection's `urlPattern`, then applies Astro's locale prefix and any custom locale `path` mapping.
 
 Translation siblings are cross-linked with `xhtml:link` alternates so search engines can serve the correct language to each user:
 
@@ -421,9 +440,9 @@ Translation siblings are cross-linked with `xhtml:link` alternates so search eng
 </url>
 ```
 
-Siblings are grouped by `translation_group`, so a row added later (a new locale variant of an existing post) automatically appears as an alternate on every other variant. Sites with a single locale produce a plain sitemap with no `xhtml` namespace.
+Siblings are grouped by `translation_group`, so a published locale variant appears as an alternate on every other published, indexable variant. Locales missing from `i18n.locales` are omitted because Astro has no route for them. Sites with a single locale produce a plain sitemap with no `xhtml` namespace.
 
-## hreflang Alternates in the Page Head
+## Add `hreflang` links to the page head
 
 The same alternates belong in the `<head>` of every content page. If your layout uses [`<EmDashHead>`](/plugins/creating-plugins/hooks/#pagemetadata), this is automatic: when i18n is enabled and the page context includes `content`, it emits one `<link rel="alternate">` per published translation sibling — including a self-referencing link, as Google recommends — plus `x-default`:
 
@@ -439,7 +458,12 @@ For hand-rolled heads, resolve the alternates with `getHreflangAlternates`:
 ---
 import { getEmDashEntry, getHreflangAlternates } from "emdash";
 
-const { entry } = await getEmDashEntry("posts", Astro.params.slug);
+const { entry, error } = await getEmDashEntry("posts", Astro.params.slug, {
+	locale: Astro.currentLocale,
+});
+if (error) return new Response("Server error", { status: 500 });
+if (!entry) return Astro.redirect("/404");
+
 const alternates = await getHreflangAlternates("posts", entry.data.id, {
 	siteUrl: Astro.url.origin,
 });
@@ -450,29 +474,35 @@ const alternates = await getHreflangAlternates("posts", entry.data.id, {
 </head>
 ```
 
-Behaviour matches the sitemap exactly:
+Behaviour matches the sitemap:
 
 - **`x-default`** points at the default-locale variant. When the default locale has no published translation, it falls back to the first routable variant, so the set never lacks an `x-default`.
 - **Unpublished siblings are excluded** — draft translations never leak into alternates.
+- **`noindex` siblings are excluded.** If the current entry is `noindex`, no alternates are returned.
 - **Unroutable locales are dropped.** A row whose locale isn't in your configured `i18n.locales` can't be served, and linking search engines to a 404 is worse than no link.
 - **Untranslated entries** still get a self-referencing alternate and `x-default` when i18n is enabled, mirroring the sitemap.
 - With **i18n disabled**, the result is empty and no queries run.
 
-URLs are built from the collection's `urlPattern` and localized through your Astro i18n routing config (`prefixDefaultLocale`, custom locale `path` mappings), so head and sitemap always agree.
+URLs are built from the collection's `urlPattern` and localized through the Astro i18n configuration. `getHreflangAlternates()` needs an absolute site URL. It uses `siteUrl` from the call or the site settings URL; without either, it returns an empty array because `hreflang` links must be absolute.
 
-## Importing Multilingual Content
+## Import multilingual content
 
 Import WordPress content through the admin migration tool — see [Content Import](/migration/content-import/) and [Migrate from WordPress](/migration/from-wordpress/). A WXR export does not carry the locale and translation-group structure that WPML or Polylang add, so imported content lands in your default locale.
 
-To build translations from imported content, create the translated entry and link it to the original:
+To build translations from imported content, create the translated entry as a draft and link it to the original database ID:
 
 ```bash
-emdash content create posts --locale fr --translation-of 01ABC...
+emdash content create posts \
+  --locale fr \
+  --translation-of 01ABC... \
+  --slug mon-article \
+  --data '{"title":"Mon article"}' \
+  --draft
 ```
 
-This is the same `--locale` / `--translation-of` workflow shown in [Seeding multilingual content](#seeding-multilingual-content) above, applied after the import completes.
+This is the same `--locale` and `--translation-of` relationship used by [seed files](#seed-multilingual-content), applied after the import completes.
 
-## Next Steps
+## Next steps
 
 - [Querying Content](/guides/querying-content/) — Full query API reference
 - [Working with Content](/guides/working-with-content/) — Admin content management
