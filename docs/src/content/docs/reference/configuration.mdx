@@ -5,7 +5,7 @@ description: Complete reference for EmDash configuration options.
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash is configured through two files: `astro.config.mjs` for the integration and `src/live.config.ts` for content collections.
+The main EmDash configuration lives in `astro.config.mjs`, while `src/live.config.ts` registers the content loader. Deployment-specific values can also come from environment variables. A small `package.json` metadata block supports template labels and legacy local CLI flows.
 
 ## Astro integration
 
@@ -70,7 +70,7 @@ migrations: {
 
 ### `storage`
 
-**Required.** Media storage adapter configuration. Choose one adapter:
+**Optional.** Media storage adapter configuration. EmDash stores files in `./.emdash/uploads` and serves them through `/_emdash/api/media/file` when this option is omitted. Choose an adapter when the default local directory is not suitable:
 
 ```js
 // Local filesystem (development)
@@ -100,6 +100,34 @@ storage: s3({
 ```
 
 See [Storage Options](/deployment/storage/) for details.
+
+### `images`
+
+**Optional.** Controls whether EmDash integrates stored media with Astro's image optimization. The default is `true`.
+
+When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. This also works when the original media URL is behind Cloudflare Access. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
+
+```js
+emdash({
+	images: false,
+});
+```
+
+### `mediaProviders`
+
+**Optional.** Adds media services to the media library. The storage-backed local provider remains available automatically; each descriptor in this array adds another place editors can browse or upload media.
+
+The following example adds Cloudflare Images and Cloudflare Stream:
+
+```js title="astro.config.mjs"
+import { cloudflareImages, cloudflareStream } from "@emdash-cms/cloudflare";
+
+emdash({
+	mediaProviders: [cloudflareImages({}), cloudflareStream({})],
+});
+```
+
+Provider credentials are resolved at runtime. The empty configurations above use the default Cloudflare environment variables described in the [`cloudflareImages(config)`](#cloudflareimagesconfig) and [`cloudflareStream(config)`](#cloudflarestreamconfig) adapter sections. See [Media Library: Media providers](/guides/media-library/#media-providers) for binding and rendering setup.
 
 ### `objectCache`
 
@@ -167,15 +195,94 @@ export const onRequest = defineMiddleware(async ({ request }, next) => {
 
 On Node, use the same middleware shape with a Node-compatible cache such as Redis. Cache keys and bypass rules must include every request property that changes the rendered response.
 
+### `playground`
+
+**Optional.** Enables the middleware used by disposable, browser-based EmDash playgrounds. It creates a writable Durable Object database for each session, applies the configured seed, and signs the visitor in as an anonymous administrator before the normal EmDash middleware runs.
+
+```js title="astro.config.mjs"
+import { playgroundDatabase } from "@emdash-cms/cloudflare";
+
+emdash({
+	database: playgroundDatabase({ binding: "PLAYGROUND_DB" }),
+	playground: {
+		middlewareEntrypoint: "@emdash-cms/cloudflare/db/playground-middleware",
+	},
+});
+```
+
+This mode requires `@emdash-cms/cloudflare` and a Durable Object binding. It bypasses the normal setup and authentication middleware, so use it only for ephemeral demo sites rather than a production CMS.
+
 ### `plugins`
 
-**Optional.** Array of EmDash plugins. The following example registers one plugin:
+**Optional.** Array of plugins that run in the same process as the Astro site. Native plugins belong here. A sandbox-compatible plugin can also run here when you trust it with full process access and do not need isolation.
+
+The following example registers a native plugin:
 
 ```js
 import seoPlugin from "@emdash-cms/plugin-seo";
 
 plugins: [seoPlugin()];
 ```
+
+Native plugins can use server and framework APIs directly, so they cannot be moved to `sandboxed` unless the package also provides a sandbox-compatible plugin entry point. See [Choose a plugin format](/plugins/creating-plugins/choosing-a-format/) for the authoring and deployment differences.
+
+### `sandboxed`
+
+**Optional.** Array of sandbox-compatible plugins that use EmDash's declared plugin APIs and run in isolated runtimes. Do not place a native plugin here: native code can depend on process and framework access that the sandbox does not provide.
+
+```js title="astro.config.mjs"
+import thirdPartyPlugin from "third-party-emdash-plugin";
+import { sandbox } from "@emdash-cms/cloudflare";
+
+emdash({
+	sandboxed: [thirdPartyPlugin()],
+	sandboxRunner: sandbox(),
+});
+```
+
+Sandboxed plugins are skipped when no usable sandbox runner is configured. See [Plugin Sandbox](/deployment/plugin-sandbox/) for the Cloudflare and Node.js runner setup.
+
+### `sandboxRunner`
+
+**Optional.** Module specifier for the factory that starts isolated plugin runtimes. It is required for plugins in `sandboxed` and for marketplace or registry plugins.
+
+On Cloudflare Workers, use the `sandbox()` adapter:
+
+```js
+import { sandbox } from "@emdash-cms/cloudflare";
+
+emdash({
+	sandboxRunner: sandbox(),
+});
+```
+
+Node.js deployments use the workerd runner module documented in [Plugin Sandbox: Node.js](/deployment/plugin-sandbox/#nodejs).
+
+### `sandbox`
+
+**Optional.** Controls whether a configured sandbox runner isolates plugins. Sandboxing is enabled when `sandboxRunner` is configured. Set `sandbox: false` only to diagnose whether a problem comes from a plugin or its sandbox runtime:
+
+```js
+emdash({
+	sandboxRunner: sandbox(),
+	sandbox: false,
+});
+```
+
+With `false`, plugins declared in `sandboxed` and installed from the marketplace run in the main server process without isolation or resource limits. Restore sandboxing after the diagnosis.
+
+### `marketplace`
+
+**Optional.** Base URL for the plugin marketplace shown in the admin. Marketplace plugins require `sandboxRunner` because they always run sandboxed.
+
+```js
+emdash({
+	marketplace: "https://marketplace.emdashcms.com",
+	sandboxRunner: sandbox(),
+});
+```
+
+Production URLs must use HTTPS; HTTP is accepted only for `localhost` and `127.0.0.1` during development. When `experimental.registry` is also configured, the registry supplies new installs and updates while plugins already installed from the marketplace continue to run.
 
 ### `fonts`
 
@@ -264,6 +371,20 @@ Built-in providers:
 
 Third-party packages can register their own providers using the same `AuthProviderDescriptor` shape — see [Login Providers](/guides/authentication/#login-providers).
 
+### `mcp`
+
+**Optional.** Enables the Model Context Protocol (MCP) endpoint at `/_emdash/api/mcp`. The endpoint is enabled by default and requires a bearer token, so enabling it does not grant anonymous access.
+
+Set the option to `false` when the site must not expose an MCP endpoint:
+
+```js
+emdash({
+	mcp: false,
+});
+```
+
+See [MCP Server Reference](/reference/mcp-server/) for token creation and client configuration.
+
 ### `siteUrl`
 
 **Optional.** The public browser-facing origin for the site (scheme + host + optional port, **no path**).
@@ -304,7 +425,9 @@ On **Cloudflare Workers**, the env-var fallback reads `process.env`, which is em
 	canonical/OG URLs you build yourself.
 </Aside>
 
-#### Multi-origin passkey verification
+### `allowedOrigins`
+
+**Optional.** Additional browser origins accepted by passkey verification for a deployment available on more than one hostname.
 
 `siteUrl` defines a single canonical origin. When the same EmDash deployment is reachable under several hostnames that share a registrable parent domain (e.g. `https://example.com` and `https://preview.example.com`), passkey verification rejects assertions whose origin doesn't match `siteUrl` exactly -- even though WebAuthn allows passkeys to be valid across subdomains under the same `rpId`.
 
@@ -442,6 +565,26 @@ emdash({
 
 Uploads that exceed the configured limit are rejected with a `413 Payload Too Large` response on the direct upload path, or a `400 Validation Error` on the signed-URL path.
 
+### `admin`
+
+**Optional.** Replaces EmDash branding in the admin interface. These values do not change the public site's title, logo, or favicon.
+
+```js
+emdash({
+	admin: {
+		logo: "/images/agency-logo.webp",
+		siteName: "Agency CMS",
+		favicon: "/favicon.ico",
+	},
+});
+```
+
+| Option     | Type     | Description                                      |
+| ---------- | -------- | ------------------------------------------------ |
+| `logo`     | `string` | Logo URL or path for the login page and sidebar  |
+| `siteName` | `string` | Name shown in the sidebar and browser title      |
+| `favicon`  | `string` | Favicon URL or path for admin pages               |
+
 ### `toolbar`
 
 **Optional.** Controls how the editor toolbar (the floating pill on public pages) is delivered. Defaults to `"server"`.
@@ -479,9 +622,9 @@ In every mode, the toolbar can be dismissed in the browser via its × button (pe
 
 #### `experimental.registry`
 
-**Optional.** Point the admin dashboard's plugin browse and install flows at a federated [plugin registry](/plugins/registry/) instead of the central marketplace. Requires a [`sandboxRunner`](/deployment/plugin-sandbox/), because registry plugins run sandboxed.
+**Optional.** Use the experimental [plugin registry](/plugins/registry/) as the admin dashboard's source for browsing and installing plugins instead of the marketplace. Registry plugins run sandboxed, so this option requires a [`sandboxRunner`](/deployment/plugin-sandbox/).
 
-Pass a bare aggregator URL string, or an object when you need a labeller or a release-age policy. The following example uses the object form:
+Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
 
 ```js title="astro.config.mjs"
 import { sandbox } from "@emdash-cms/cloudflare";
@@ -503,10 +646,10 @@ emdash({
 
 | Option                            | Type                   | Description                                                                                   |
 | --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `aggregatorUrl`                   | `string`               | Aggregator origin where the registry's XRPC endpoints are mounted. HTTPS in production.        |
-| `acceptLabelers`                  | `string`               | Optional comma-separated bare labeller DIDs used as a validated request and cache declaration. It cannot override aggregator policy. |
+| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production.                                    |
+| `acceptLabelers`                  | `string`               | Optional comma-separated decentralized identifiers (DIDs) for moderation services accepted by the request. A DID is a stable Atmosphere account identifier. This setting cannot override the registry service's policy. |
 | `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
-| `policy.minimumReleaseAgeExclude` | `string[]`             | DIDs (or `<did>/<slug>` pairs) exempt from the holdback.                                        |
+| `policy.minimumReleaseAgeExclude` | `string[]`             | Publisher DIDs, or `<did>/<plugin-slug>` pairs, exempt from the holdback.                     |
 
 See [The plugin registry](/plugins/registry/) for the full workflow, trust model, and how to query the registry from your own site.
 
@@ -581,6 +724,7 @@ Cloudflare D1 database. Import from `@emdash-cms/cloudflare`.
 | `binding`        | `string` | —                    | D1 binding name from `wrangler.jsonc`               |
 | `session`        | `string` | `"disabled"`         | Read replication mode: `"disabled"`, `"auto"`, or `"primary-first"` |
 | `bookmarkCookie` | `string` | `"__em_d1_bookmark"` | Cookie name for session bookmarks                   |
+| `coalesce`       | `boolean` | `false`               | Batch concurrent reads in the same event-loop turn; requires a session mode other than `"disabled"` |
 
 The following example shows a basic binding and one with read replicas enabled:
 
@@ -599,6 +743,67 @@ When `session` is `"auto"` or `"primary-first"`, EmDash uses the D1 Sessions API
 	Provision the D1 database separately; see [Manage Core Database
 	Migrations](/deployment/core-migrations/).
 </Aside>
+
+### `hyperdrive(config?)`
+
+PostgreSQL through a Cloudflare Hyperdrive binding. Import this adapter from `@emdash-cms/cloudflare`.
+
+| Option                         | Type      | Default          | Description                                                                 |
+| ------------------------------ | --------- | ---------------- | --------------------------------------------------------------------------- |
+| `binding`                      | `string`  | `"HYPERDRIVE"`   | Primary Hyperdrive binding with query caching disabled                      |
+| `cachedBinding`                | `string`  | —                | Optional second, caching-enabled binding for anonymous public reads         |
+| `preferUncachedAfterWriteMs`   | `number`  | `60_000`         | How long public reads use the primary after a content write when `cachedBinding` is set |
+| `migrationConnectionStringEnv` | `string`  | Derived from the primary binding | Environment variable containing the direct PostgreSQL URL used by `emdash migrate` |
+| `max`                          | `number`  | `5`              | Maximum connections from one Worker isolate to Hyperdrive                   |
+
+The following example routes authenticated requests and writes through the uncached binding, while anonymous public reads can use the cached binding:
+
+```js
+hyperdrive({
+	binding: "HYPERDRIVE",
+	cachedBinding: "HYPERDRIVE_CACHED",
+	preferUncachedAfterWriteMs: 60_000,
+});
+```
+
+Both bindings must point to the same database. Install `pg` version 8.16.3 or later, enable the `nodejs_compat` compatibility flag, and configure a direct database URL for deployment migrations. See [Database Options: Hyperdrive](/deployment/database/#hyperdrive) for the complete Worker and migration setup.
+
+### `durableObjects(config)`
+
+Stores the CMS in one SQLite-backed Durable Object. Import this adapter from `@emdash-cms/cloudflare`.
+
+| Option           | Type     | Default             | Description                                                        |
+| ---------------- | -------- | ------------------- | ------------------------------------------------------------------ |
+| `binding`        | `string` | required            | Durable Object namespace binding for the `EmDashDB` class          |
+| `name`           | `string` | `"emdash"`          | Singleton object name; change it only to isolate multiple databases behind one binding |
+| `session`        | `string` | `"disabled"`        | `"auto"` routes anonymous reads to replicas and writes to the primary |
+| `bookmarkCookie` | `string` | `"__em_do_bookmark"` | Cookie used for read-your-writes consistency in `"auto"` mode      |
+
+```js
+durableObjects({ binding: "DB_DO", session: "auto" });
+```
+
+Replica routing requires the `experimental` and `replica_routing` compatibility flags plus the Durable Object class and migration entries in `wrangler.jsonc`.
+
+### `previewDatabase(config)`
+
+Creates one isolated snapshot database per preview session in a Durable Object. The only option is the required `binding` name:
+
+```js
+previewDatabase({ binding: "PREVIEW_DB" });
+```
+
+This adapter is for preview infrastructure, not a production site's primary database.
+
+### `playgroundDatabase(config)`
+
+Creates one writable seeded database per playground session in a Durable Object. Pair it with the [`playground`](#playground) integration option:
+
+```js
+playgroundDatabase({ binding: "PLAYGROUND_DB" });
+```
+
+The required `binding` identifies the playground Durable Object namespace. Use this adapter only for disposable demo sites.
 
 ## Storage adapters
 
@@ -646,6 +851,8 @@ r2({
 S3-compatible storage. All config fields are optional: any field omitted from
 `s3({...})` is resolved from the matching `S3_*` environment variable when the
 Node process starts. Explicit values always take precedence.
+
+After config and environment values are merged, `endpoint` and `bucket` are required. If either credential is set, both `accessKeyId` and `secretAccessKey` are required. Missing values fail startup with the `MISSING_S3_CONFIG` error code.
 
 **Prerequisite:** install `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`
 in your project. EmDash core does not bundle the AWS SDK. See
@@ -720,6 +927,111 @@ memoryCache({
 
 See [Object Cache](/deployment/object-cache/) for setup and behavior.
 
+## Authentication and sandbox adapters
+
+These adapters return values for the `auth` and `sandboxRunner` integration options.
+
+### `access(config)`
+
+Replaces the built-in passkey login with Cloudflare Access authentication. Import it from `@emdash-cms/cloudflare` and pass the result to [`auth`](#auth):
+
+```js
+import { access } from "@emdash-cms/cloudflare";
+
+emdash({
+	auth: access({
+		teamDomain: "myteam.cloudflareaccess.com",
+		audienceEnvVar: "CF_ACCESS_AUDIENCE",
+	}),
+});
+```
+
+`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, and `roleMapping`. The [`auth`](#auth) option documents their defaults and role behavior.
+
+### `sandbox()`
+
+Selects Cloudflare Worker Loader as the plugin sandbox runner. Import it from `@emdash-cms/cloudflare` and pass its return value to [`sandboxRunner`](#sandboxrunner):
+
+```js
+import { sandbox } from "@emdash-cms/cloudflare";
+
+emdash({
+	sandboxRunner: sandbox(),
+});
+```
+
+The site also needs a Worker Loader binding and the plugin bridge entry point. See [Plugin Sandbox: Cloudflare Workers](/deployment/plugin-sandbox/#cloudflare-workers) for those deployment settings.
+
+## Media provider adapters
+
+Pass media provider descriptors to [`mediaProviders`](#mediaproviders). Both built-in Cloudflare providers are imported from `@emdash-cms/cloudflare`.
+
+### `cloudflareImages(config)`
+
+Adds Cloudflare Images for browsing, uploading, deleting, and delivering image assets.
+
+| Option           | Type      | Default                  | Description                                      |
+| ---------------- | --------- | ------------------------ | ------------------------------------------------ |
+| `accountId`      | `string`  | From `CF_ACCOUNT_ID`     | Cloudflare account ID                            |
+| `accountIdEnvVar` | `string` | `"CF_ACCOUNT_ID"`        | Variable used when `accountId` is omitted        |
+| `accountHash`    | `string`  | From `CF_IMAGES_ACCOUNT_HASH` | Account hash used in delivery URLs           |
+| `accountHashEnvVar` | `string` | `"CF_IMAGES_ACCOUNT_HASH"` | Variable used when `accountHash` is omitted |
+| `apiToken`       | `string`  | From `CF_IMAGES_TOKEN`   | Token with Cloudflare Images read and edit permissions |
+| `apiTokenEnvVar` | `string`  | `"CF_IMAGES_TOKEN"`      | Variable used when `apiToken` is omitted         |
+| `deliveryDomain` | `string`  | `imagedelivery.net`      | Custom image delivery hostname                   |
+| `defaultVariant` | `string`  | `"public"`               | Image variant used for display                   |
+
+```js
+mediaProviders: [cloudflareImages({ defaultVariant: "public" })];
+```
+
+### `cloudflareStream(config)`
+
+Adds Cloudflare Stream for browsing, searching, uploading, deleting, and playing video assets.
+
+| Option              | Type      | Default                | Description                                      |
+| ------------------- | --------- | ---------------------- | ------------------------------------------------ |
+| `accountId`         | `string`  | From `CF_ACCOUNT_ID`   | Cloudflare account ID                            |
+| `accountIdEnvVar`   | `string`  | `"CF_ACCOUNT_ID"`      | Variable used when `accountId` is omitted        |
+| `apiToken`          | `string`  | From `CF_STREAM_TOKEN` | Token with Cloudflare Stream read and edit permissions |
+| `apiTokenEnvVar`    | `string`  | `"CF_STREAM_TOKEN"`    | Variable used when `apiToken` is omitted         |
+| `customerSubdomain` | `string`  | Cloudflare default     | Custom Stream delivery hostname                  |
+| `controls`          | `boolean` | `true`                 | Show player controls                             |
+| `autoplay`          | `boolean` | `false`                | Start playback automatically                     |
+| `loop`              | `boolean` | `false`                | Repeat playback                                  |
+| `muted`             | `boolean` | `false`, or `true` with autoplay | Mute playback                         |
+
+```js
+mediaProviders: [cloudflareStream({ controls: true })];
+```
+
+See [Media Library: Media providers](/guides/media-library/#media-providers) for the required bindings and rendering components.
+
+## Astro cache adapter
+
+### `cloudflareCache(config?)`
+
+<Aside type="caution" title="Deprecated adapter">
+	`cloudflareCache()` is retained for existing sites. New Cloudflare sites should enable native
+	Workers Caching in `wrangler.jsonc` and use `cacheCloudflare()` from
+	`@astrojs/cloudflare/cache`. The native provider invalidates through `cache.purge()` and does
+	not need zone credentials.
+</Aside>
+
+The legacy adapter returns an Astro `cache.provider` that stores responses in the Workers Cache API and purges cache tags through the Cloudflare REST API:
+
+```js title="astro.config.mjs"
+import { cloudflareCache } from "@emdash-cms/cloudflare";
+
+export default defineConfig({
+	cache: {
+		provider: cloudflareCache(),
+	},
+});
+```
+
+It accepts `cacheName` (default `"emdash"`) and `bookmarkCookie` (default `"__em_d1_bookmark"`), plus `zoneId` or `zoneIdEnvVar` and `apiToken` or `apiTokenEnvVar` for purge-by-tag requests. The default variable names are `CF_ZONE_ID` and `CF_CACHE_PURGE_TOKEN`.
+
 ## Live collections
 
 Configure the EmDash loader in `src/live.config.ts`:
@@ -773,6 +1085,7 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 {
 	"emdash": {
 		"label": "My Blog Template",
+		"schema": ".emdash/schema.sql",
 		"seed": ".emdash/seed.json",
 		"url": "https://my-site.pages.dev"
 	}
@@ -782,12 +1095,15 @@ Templates and sites can declare optional metadata under an `emdash` key in `pack
 | Option        | Description                        |
 | ------------- | ---------------------------------- |
 | `label`       | Template name for display          |
+| `schema`      | Optional SQL schema read by `emdash init` |
 | `seed`        | Path to seed JSON file             |
-| `url`         | Remote URL for schema sync         |
+| `url`         | Remote URL used by the deprecated `emdash dev --types` flow |
 
 ## TypeScript configuration
 
-EmDash generates types in `.emdash/types.ts`. Add a path alias to your `tsconfig.json`:
+During local development, the Astro integration generates `emdash-env.d.ts` in the project root and refreshes it after schema changes. The file augments the `emdash` module, so the standard `getEmDashCollection()` and `getEmDashEntry()` imports infer local collection fields without a path alias.
+
+The separate `emdash types` command fetches schema from a running local or remote instance and writes `.emdash/types.ts` by default. Add an alias only when application code imports that standalone output directly:
 
 ```json title="tsconfig.json"
 {
@@ -799,7 +1115,7 @@ EmDash generates types in `.emdash/types.ts`. Add a path alias to your `tsconfig
 }
 ```
 
-Generate types with the following command:
+Generate the standalone remote-schema types with the following command:
 
 ```bash
 npx emdash types
