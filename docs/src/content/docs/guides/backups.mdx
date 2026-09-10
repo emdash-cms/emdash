@@ -5,32 +5,43 @@ description: Download site backups, schedule automatic backups to storage, and r
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash gives you three layers of protection for your content, from zero-config point-in-time recovery on Cloudflare to downloadable archives you keep yourself.
+Use a JSON backup when you need an offline copy of selected content data. Use a raw database backup
+or point-in-time recovery when you need to restore the site.
 
 ## What's in a backup
 
-A backup contains everything needed to reconstruct your site's content:
+A JSON backup includes:
 
 - All content entries, including drafts, scheduled posts, and trashed items
-- Collection and field definitions (your content model)
-- Taxonomies and term assignments
-- Menus, widgets, sections, and SEO settings
-- Revisions and media metadata
-- Site settings (title, tagline, display preferences)
+- Collection and field definitions that make up the content model
+- Taxonomy definitions, terms, and the terms assigned to each entry
+- Menus and menu items, sections, widget areas and widgets, SEO records, revision history, media
+  metadata, and database migration history
+- Site settings such as the title, tagline, URL, locale, logo, display preferences, social profiles,
+  and SEO defaults. These come from the `site:`, `emdash:site_`, and `emdash:locale` setting groups.
 
-Backups deliberately **exclude**:
+It omits all other database tables, including:
 
-- User accounts, sessions, passkeys, and API tokens — auth data is neither portable nor safe in a downloadable file
-- Secrets (preview signing secret, plugin configuration)
-- Media binaries — the actual files live in your storage bucket (R2, S3, or local); a backup carries their metadata so references stay intact
+- User accounts, sessions, passkeys, OAuth data, API tokens, and other authentication data
+- Plugin storage and plugin settings, including plugin secrets
+- Comments and reactions, redirects and 404 logs, bylines, content relations and references, audit logs, rate limits, and scheduled-task state
+- Media folders, records of where media is used, incomplete or in-progress uploads, and the media
+  files themselves
+- Other site options, including the preview signing secret and backup schedule
 
 Backups are JSON files in the same snapshot format used by EmDash's preview system, versioned with the EmDash release that created them.
+
+<Aside type="caution">
+	EmDash does not implement restoring this JSON format. Do not rely on a JSON export as a recovery
+	point before a destructive operation. Use a raw database backup or point-in-time recovery instead.
+</Aside>
 
 ## One-click download
 
 Under **Settings → Backups** in the admin, the **Download backup** button generates a fresh backup and downloads it as a JSON file. Requires the admin role.
 
-This is the right tool before risky operations: bulk imports, schema changes, or major upgrades.
+The download is for inspection or custom migration tooling. Before bulk imports, schema changes, or
+major upgrades, create a restorable database backup using one of the options below.
 
 ## Automatic backups to storage
 
@@ -78,12 +89,6 @@ Time Travel keeps 30 days of history on the paid plan (7 days on free) with minu
 
 See the [D1 Time Travel documentation](https://developers.cloudflare.com/d1/reference/time-travel/) for details.
 
-<Aside type="tip">
-	Time Travel and EmDash backups complement each other: Time Travel is your disaster-recovery net
-	for the last 30 days; downloaded backups are user-holdable archives with no expiry that survive
-	account or database deletion.
-</Aside>
-
 ## Offsite database dumps
 
 For a complete SQL dump of the raw database (including users and auth tables), use Wrangler:
@@ -92,12 +97,15 @@ For a complete SQL dump of the raw database (including users and auth tables), u
 npx wrangler d1 export my-database --remote --output=backup.sql
 ```
 
+Restore that raw SQL dump with the following command:
+
+```bash
+npx wrangler d1 execute my-database --remote --file=backup.sql
+```
+
 On Node deployments, the database is a single SQLite file — copy it while the server is stopped, or use `sqlite3 emdash.db ".backup backup.db"` for a consistent online copy.
 
-## Restoring a backup
+## JSON restore
 
-Restoring from a backup JSON is intentionally not exposed as a one-click admin action yet — overwriting a live database deserves more friction than a button. Current options:
-
-- **Cloudflare:** use D1 Time Travel (above) for point-in-time restore.
-- **Full dumps:** import a `wrangler d1 export` dump with `npx wrangler d1 execute my-database --remote --file=backup.sql`.
-- **Backup JSON:** the format matches EmDash's snapshot format; a guided CLI restore is planned. Track [Discussion #142](https://github.com/emdash-cms/emdash/discussions/142).
+EmDash has no admin action, API endpoint, or CLI command for JSON restore. Use D1 Time Travel, a raw
+D1 SQL dump, or a copy of the SQLite database as described above.
