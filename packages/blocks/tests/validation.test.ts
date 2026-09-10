@@ -135,6 +135,28 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("checklist", () => {
+			const result = validateBlocks([
+				{
+					type: "checklist",
+					title: "Setup checklist",
+					description: "Finish these tasks before launch.",
+					items: [
+						{ label: "Create admin", status: "complete" },
+						{
+							label: "Configure storage",
+							status: "warning",
+							description: "R2 credentials are missing.",
+							action: { type: "button", action_id: "storage", label: "Configure" },
+						},
+						{ label: "Publish", status: "pending" },
+						{ label: "DNS", status: "error" },
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -499,6 +521,45 @@ describe("validateBlocks", () => {
 			]);
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].default_open");
+		});
+
+		it("checklist missing required fields", () => {
+			const result = validateBlocks([{ type: "checklist" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((e) => e.path)).toContain("blocks[0].items");
+		});
+
+		it("checklist item missing label or status", () => {
+			const result = validateBlocks([{ type: "checklist", items: [{}] }]);
+			expect(result.valid).toBe(false);
+			const paths = result.errors.map((e) => e.path);
+			expect(paths).toContain("blocks[0].items[0].label");
+			expect(paths).toContain("blocks[0].items[0].status");
+		});
+
+		it("checklist rejects invalid status", () => {
+			const result = validateBlocks([
+				{ type: "checklist", items: [{ label: "DNS", status: "blocked" }] },
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].items[0].status");
+		});
+
+		it("checklist action must be a button element", () => {
+			const result = validateBlocks([
+				{
+					type: "checklist",
+					items: [
+						{
+							label: "Storage",
+							status: "warning",
+							action: { type: "select", action_id: "storage", label: "Storage", options: [] },
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((e) => e.path)).toContain("blocks[0].items[0].action.type");
 		});
 
 		it("stats item missing label or value", () => {
