@@ -86,6 +86,7 @@ export {
 	renameMediaFolder,
 	deleteMediaFolder,
 	uploadMedia,
+	replaceMediaImage,
 	deleteMedia,
 	updateMedia,
 	fetchMediaProviders,
@@ -416,3 +417,12 @@ export {
 
 // Current user
 export { type CurrentUser, useCurrentUser } from "./current-user.js";
+
+// Entry edit locks
+export {
+	type EntryLockHolder,
+	type EntryLockStatus,
+	acquireEntryLock,
+	releaseEntryLock,
+	entryLockRefusal,
+} from "./entry-lock.js";

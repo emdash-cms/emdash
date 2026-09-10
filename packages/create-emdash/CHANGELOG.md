@@ -1,5 +1,11 @@
 # create-emdash
 
+## 0.37.0
+
+### Patch Changes
+
+- [#2627](https://github.com/emdash-cms/emdash/pull/2627) [`c841796`](https://github.com/emdash-cms/emdash/commit/c841796f90765ac1ebce72f8df42ae33a3a136ca) Thanks [@scottbuscemi](https://github.com/scottbuscemi)! - Fixes `create-emdash --install` failing for Cloudflare templates whose Wrangler version requires `@cloudflare/workers-types` 5. Package-manager output is streamed; any remaining install failure keeps the generated files, prints a retry command, and exits nonzero.
+
 ## 0.36.0
 
 ## 0.35.0

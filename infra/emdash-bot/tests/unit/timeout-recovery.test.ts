@@ -36,9 +36,12 @@ describe("timeout recovery", () => {
 	});
 
 	test("resume returns to the state owned by the saved run mode", () => {
+		expect(resumeStateForMode("triage")).toBe("triaging");
+		expect(resumeStateForMode("investigate")).toBe("investigating");
 		expect(resumeStateForMode("diagnose")).toBe("investigating");
+		expect(resumeStateForMode("work")).toBe("working");
 		expect(resumeStateForMode("repro")).toBe("working");
-		expect(resumeStateForMode("revise")).toBe("working");
+		expect(resumeStateForMode("revise")).toBe("in_review");
 		expect(resumeStateForMode("implement")).toBe("fixing");
 		expect(resumeStateForMode("fix")).toBe("fixing");
 	});

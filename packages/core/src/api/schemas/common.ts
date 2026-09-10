@@ -51,7 +51,6 @@ const HTTP_SCHEME_RE = /^https?:\/\//i;
 
 /** Validates that a URL string uses http or https scheme. Rejects javascript:/data: URI XSS vectors. */
 export const httpUrl = z
-	.string()
 	.url()
 	.refine((url) => HTTP_SCHEME_RE.test(url), "URL must use http or https");
 
@@ -78,7 +77,9 @@ export const apiErrorSchema = z
 	.object({
 		success: z.literal(false).meta({ description: "Discriminant: always false for errors" }),
 		error: z.object({
-			code: z.string().meta({ description: "Machine-readable error code", example: "NOT_FOUND" }),
+			code: z
+				.string()
+				.meta({ description: "Machine-readable error code", examples: ["NOT_FOUND"] }),
 			message: z.string().meta({ description: "Human-readable error message" }),
 		}),
 	})

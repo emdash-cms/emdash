@@ -80,6 +80,10 @@ export interface VerifiedReleaseReport {
 		predicateType: string;
 		sourceRepository: string;
 		builderId: string;
+		repositoryId: string;
+		workflowRef: string;
+		commitSha: string;
+		invocationId: string;
 		artifactDigest: Uint8Array;
 	};
 }
@@ -221,6 +225,18 @@ async function verifyLoadedRelease(
 		profileRepository: input.profileRepository,
 	});
 	if (!provenance.success) return provenance;
+	if (
+		!("repositoryId" in provenance.value) ||
+		typeof provenance.value.repositoryId !== "string" ||
+		!("workflowRef" in provenance.value) ||
+		typeof provenance.value.workflowRef !== "string" ||
+		!("commitSha" in provenance.value) ||
+		typeof provenance.value.commitSha !== "string" ||
+		!("invocationId" in provenance.value) ||
+		typeof provenance.value.invocationId !== "string"
+	) {
+		return internalError("Release verification failed");
+	}
 	return {
 		success: true,
 		value: {
@@ -233,6 +249,10 @@ async function verifyLoadedRelease(
 				predicateType: provenance.value.predicateType,
 				sourceRepository: provenance.value.sourceRepository,
 				builderId: provenance.value.builderId,
+				repositoryId: provenance.value.repositoryId,
+				workflowRef: provenance.value.workflowRef,
+				commitSha: provenance.value.commitSha,
+				invocationId: provenance.value.invocationId,
 				artifactDigest: provenance.value.artifactDigest.slice(),
 			},
 		},

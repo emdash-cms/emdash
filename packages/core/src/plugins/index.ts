@@ -78,6 +78,9 @@ export {
 	createSandboxRouteErrorEnvelope,
 	getSandboxRouteErrorDetails,
 	getSandboxRouteErrorEnvelope,
+	MAX_SANDBOX_SAVE_REJECTION_REASON_LENGTH,
+	SANDBOX_HOOK_RESULT_VERSION,
+	inspectSandboxHookResult,
 	createNoopSandboxRunner,
 } from "./sandbox/index.js";
 export type {
@@ -93,6 +96,9 @@ export type {
 	SandboxRouteErrorCode,
 	SandboxRouteErrorDetails,
 	SandboxRouteErrorEnvelope,
+	SandboxHookErrorEnvelope,
+	SandboxHookResultInspection,
+	SandboxSaveRejectedError,
 } from "./sandbox/index.js";
 
 // Types

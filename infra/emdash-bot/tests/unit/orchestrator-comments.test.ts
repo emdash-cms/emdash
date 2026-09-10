@@ -90,8 +90,8 @@ describe("renderPreviewReadyAsk", () => {
 		expect(body).toContain("@alice");
 		expect(body).toContain("`bot/fix-77`");
 		expect(body).toContain("`bot/artifacts-77`");
-		expect(body).toContain("`@emdashbot confirm`");
-		expect(body).toContain("`@emdashbot reject <details>`");
+		expect(body).toContain("Reply naturally");
+		expect(body).toContain("requested changes start another candidate revision");
 		expect(body).not.toContain('A simple "yes" or "no" is enough.');
 	});
 
@@ -160,6 +160,23 @@ describe("renderDraftPrBody", () => {
 		);
 	});
 
+	test("uses the matching pull request type for enhancements and tasks", () => {
+		const template = [
+			"## Type of change",
+			"",
+			"- [ ] Bug fix",
+			"- [ ] Feature (approved discussion required)",
+			"- [ ] Chore (dependencies, CI, tooling)",
+			"",
+			"## AI-generated code disclosure",
+			"",
+			"- [ ] This PR includes AI-generated code — model/tool:",
+		].join("\n");
+
+		expect(fillPullRequestTemplate(template, "enhancement")).toContain("- [x] Feature");
+		expect(fillPullRequestTemplate(template, "task")).toContain("- [x] Chore");
+	});
+
 	test("fills the GitHub PR template with the bot description and preview", () => {
 		const body = renderDraftPrBody({
 			issueNumber: 77,
@@ -197,9 +214,9 @@ describe("shouldPostReadonlyReply", () => {
 
 	test("help lists the commands available to the actor in the current state", () => {
 		const body = renderReadonlyReply("unmanaged", "help", "maintainer");
-		expect(body).toContain("`@emdashbot fix <directive>`");
-		expect(body).toContain("`@emdashbot implement <directive>`");
-		expect(body).toContain("Build a candidate bug fix");
+		expect(body).toContain("`@emdashbot triage <directive>`");
+		expect(body).toContain("`@emdashbot work <directive>`");
+		expect(body).toContain("verified candidate release");
 	});
 });
 
@@ -208,7 +225,7 @@ describe("renderCommandFeedback", () => {
 		const body = renderCommandFeedback("unmanaged", "confirm", "maintainer");
 		expect(body).toContain("`@emdashbot confirm` isn't available");
 		expect(body).toContain("`unmanaged`");
-		expect(body).toContain("`@emdashbot fix <directive>`");
+		expect(body).toContain("`@emdashbot work <directive>`");
 		expect(body).toContain("`@emdashbot investigate <directive>`");
 	});
 

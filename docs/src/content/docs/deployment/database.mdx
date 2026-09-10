@@ -202,18 +202,22 @@ database: postgres({
 });
 ```
 
-| Option             | Type      | Description                          |
-| ------------------ | --------- | ------------------------------------ |
-| `connectionString` | `string`  | PostgreSQL connection URL            |
-| `host`             | `string`  | Database host                        |
-| `port`             | `number`  | Database port                        |
-| `database`         | `string`  | Database name                        |
-| `user`             | `string`  | Database user                        |
-| `password`         | `string`  | Database password                    |
-| `ssl`              | `boolean` | Enable SSL                           |
-| `pool.min`         | `number`  | Minimum pool connections (default 0) |
-| `pool.max`         | `number`  | Maximum pool connections (default 10)|
+| Option                         | Type      | Description                                          |
+| ------------------------------ | --------- | ---------------------------------------------------- |
+| `connectionString`             | `string`  | PostgreSQL connection URL                            |
+| `host`                         | `string`  | Database host                                        |
+| `port`                         | `number`  | Database port                                        |
+| `database`                     | `string`  | Database name                                        |
+| `user`                         | `string`  | Database user                                        |
+| `password`                     | `string`  | Database password                                    |
+| `ssl`                          | `boolean` | Enable SSL                                           |
+| `pool.min`                     | `number`  | Minimum pool connections (default 0)                 |
+| `pool.max`                     | `number`  | Maximum pool connections (default 10)                |
+| `pool.connectionTimeoutMillis` | `number`  | Maximum connection wait (pg default: 0, no timeout)  |
+| `pool.idleTimeoutMillis`       | `number`  | Idle-client lifetime (pg default: 10,000 ms)         |
 | `migrationConnectionStringEnv` | `string` | Migration connection-string variable name (default `DATABASE_URL`) |
+
+Set `pool.connectionTimeoutMillis` to a nonzero value to bound how long a request waits when PostgreSQL is unreachable or no pooled connection becomes available. Set `pool.idleTimeoutMillis` to `0` to keep idle clients open until the pool closes. Omitting either option preserves the pg default.
 
 ### Database role requirements
 

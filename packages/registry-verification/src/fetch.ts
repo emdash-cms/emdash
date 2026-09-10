@@ -26,6 +26,8 @@ export interface FetchVerifiedResourceOptions {
 	fetch: FetchImplementation;
 	resolveHostname: HostnameResolver;
 	allowHttpLocalhost?: boolean;
+	/** Non-success statuses that the caller needs to inspect as bounded responses. */
+	allowedStatuses?: readonly number[];
 	headerTimeoutMs?: number;
 	totalTimeoutMs?: number;
 	maxBytes?: number;
@@ -104,7 +106,7 @@ export async function fetchVerifiedResource(
 			continue;
 		}
 
-		if (!response.value.ok) {
+		if (!response.value.ok && !options.allowedStatuses?.includes(response.value.status)) {
 			return verificationError(
 				"RESOURCE_STATUS_ERROR",
 				`The resource returned HTTP ${response.value.status}.`,

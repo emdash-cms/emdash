@@ -13,9 +13,12 @@ import { TEST_BINDINGS } from "./fixtures/oauth.js";
 const ORIGIN = "https://release.example.com";
 const PUBLISHER_DID = "did:web:publisher.example.com";
 const APPROVER_DID = "did:plc:approver";
+const ATTACKER_DID = "did:plc:attacker";
 const INTENT_ID = "01JABCDEFGHJKMNPQRSTVWXYZ0";
 const CREDENTIAL_ID = "approval-credential";
-const PROFILE_CID = "bafyreib3p6qexampleprofilecid";
+const PROFILE_CID = "bafyreielha65mr3o2wgupjyglbhdujvq3k7isfkz5uejbjnevnypmdk2wi";
+const PROFILE_PROOF =
+	"OqJlcm9vdHOB2CpYJQABcRIgR1ivuJdVA3NEw+prJcQhhJXHGT6zcyewmDKjkr37ZjtndmVyc2lvbgHdAQFxEiBHWK+4l1UDc0TD6mslxCGElccZPrNzJ7CYMqOSvftmO6ZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211amtzNW03ajIyNGNzaWdYQDTT+fQkfkx6l1l21oVamQWReNbzhS8P2OIbYdL2HmLqbDtCJ13YECxuhEtcDOB598dPFcWGruof+EgnC220ivBkZGF0YdgqWCUAAXESIPRNAAbvLpqyxQsY9xwRwEoJlpJUttI1VoLAT7F1PUGRZHByZXb2Z3ZlcnNpb24DkwEBcRIg9E0ABu8umrLFCxj3HBHASgmWklS20jVWgsBPsXU9QZGiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgizg91kdu1Y1HpwZYTjomsNq+iRVZ7QiQpaSrcPYNWrJhbPbGBAFxEiCLOD3WR27VjUenBlhOOiaw2r6JFVntCJClpKtw9g1asqdiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkdHlwZW1lbWRhc2gtcGx1Z2luZSR0eXBleCpjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGVnYXV0aG9yc4GhZG5hbWVpUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCVodHRwczovL2dpdGh1Yi5jb20vZW1kYXNoLWNtcy9nYWxsZXJ5bXJlbGVhc2VQb2xpY3mjZSR0eXBleEFjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGVFeHRlbnNpb24jcmVsZWFzZVBvbGljeWlhcHByb3ZlcnOBcGRpZDpwbGM6YXBwcm92ZXJsY29uZmlybWF0aW9uZmFsd2F5cw==";
 const NOW = 1_800_000_000_000;
 const WORKLOAD_IDENTITY = {
 	issuer: "github-actions",
@@ -117,8 +120,8 @@ function cookieValue(header: string): string {
 	return header.split(";", 1)[0] ?? "";
 }
 
-async function sessionHeaders() {
-	const session = await createApproverApplicationSession(env.APPROVER_DO, APPROVER_DID);
+async function sessionHeaders(approverDid: `did:${string}:${string}` = APPROVER_DID) {
+	const session = await createApproverApplicationSession(env.APPROVER_DO, approverDid);
 	const csrf = cookieValue(session.setCookieHeaders[1]).split("=", 2)[1] ?? "";
 	return {
 		cookie: session.setCookieHeaders.map(cookieValue).join("; "),
@@ -238,6 +241,14 @@ function approvalNetwork(state: { approvers: string[]; cid: string }) {
 		if (url.hostname === "publisher.example.com" && url.pathname === "/.well-known/did.json") {
 			return Response.json({
 				id: PUBLISHER_DID,
+				verificationMethod: [
+					{
+						id: `${PUBLISHER_DID}#atproto`,
+						type: "Multikey",
+						controller: PUBLISHER_DID,
+						publicKeyMultibase: "zDnaeeC67nTB5vVpkk4JhzBKcMpXzBQ6XrmihS6cd2wWBAmGK",
+					},
+				],
 				service: [
 					{
 						id: "#atproto_pds",
@@ -258,6 +269,12 @@ function approvalNetwork(state: { approvers: string[]; cid: string }) {
 				uri: `at://${PUBLISHER_DID}/${NSID.packageProfile}/gallery`,
 				cid: state.cid,
 				value: profileValue(state.approvers),
+			});
+		}
+		if (url.hostname === "pds.example" && url.pathname === "/xrpc/com.atproto.sync.getRecord") {
+			const bytes = Uint8Array.from(atob(PROFILE_PROOF), (character) => character.charCodeAt(0));
+			return new Response(bytes, {
+				headers: { "content-type": "application/vnd.ipld.car" },
 			});
 		}
 		throw new Error(`Unexpected request: ${url.toString()}`);
@@ -315,9 +332,9 @@ function assertion(
 	};
 }
 
-async function enrolCredential() {
+async function enrolCredential(approverDid: `did:${string}:${string}` = APPROVER_DID) {
 	const key = createCredential();
-	await env.APPROVER_DO.getByName(APPROVER_DID).enrolCredential(APPROVER_DID, {
+	await env.APPROVER_DO.getByName(approverDid).enrolCredential(approverDid, {
 		credentialId: CREDENTIAL_ID,
 		publicKey: key.publicKey,
 		algorithm: -7,
@@ -478,7 +495,7 @@ describe("approval decision routes", () => {
 		},
 	);
 
-	it("rejects an unlisted approver before creating a challenge", async () => {
+	it("ignores an unsigned profile envelope that omits an immutable approver", async () => {
 		await createAwaitingIntent();
 		await enrolCredential();
 		vi.stubGlobal("fetch", approvalNetwork({ approvers: ["did:plc:other"], cid: PROFILE_CID }));
@@ -491,11 +508,34 @@ describe("approval decision routes", () => {
 			}),
 			bindings(),
 		);
-		expect(response.status).toBe(404);
-		await expect(response.json()).resolves.toMatchObject({ error: { code: "NOT_FOUND" } });
+		expect(response.status).toBe(200);
 	});
 
-	it("rejects profile changes and non-user-verified assertions without transitioning", async () => {
+	it("rejects an attacker passkey even when an unsigned profile envelope substitutes their DID", async () => {
+		await createAwaitingIntent();
+		await enrolCredential(ATTACKER_DID);
+		vi.stubGlobal("fetch", approvalNetwork({ approvers: [ATTACKER_DID], cid: PROFILE_CID }));
+		const resource = `${ORIGIN}/v1/approvals/${INTENT_ID}/options?publisher=${encodeURIComponent(PUBLISHER_DID)}`;
+		const response = await handleRequest(
+			new Request(resource, {
+				method: "POST",
+				headers: {
+					...(await sessionHeaders(ATTACKER_DID)),
+					"content-type": "application/json",
+				},
+				body: JSON.stringify({ decision: "approve" }),
+			}),
+			bindings(),
+		);
+
+		expect(response.status).toBe(404);
+		await expect(response.json()).resolves.toMatchObject({ error: { code: "NOT_FOUND" } });
+		await expect(
+			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
+		).resolves.toMatchObject({ state: "awaiting_approval" });
+	});
+
+	it("rejects non-user-verified assertions without transitioning", async () => {
 		await createAwaitingIntent();
 		const key = await enrolCredential();
 		const network = { approvers: [APPROVER_DID], cid: PROFILE_CID };
@@ -526,17 +566,6 @@ describe("approval decision routes", () => {
 		);
 		expect(nonUv.status).toBe(400);
 
-		network.cid = "bafyreib3p6qchangedprofilecid";
-		const changed = await handleRequest(
-			new Request(optionsUrl, {
-				method: "POST",
-				headers: { ...headers, "content-type": "application/json" },
-				body: JSON.stringify({ decision: "approve" }),
-			}),
-			bindings(),
-		);
-		expect(changed.status).toBe(409);
-		await expect(changed.json()).resolves.toMatchObject({ error: { code: "PROFILE_CHANGED" } });
 		await expect(
 			env.PUBLISHER_DO.getByName(PUBLISHER_DID).getIntent(PUBLISHER_DID, INTENT_ID),
 		).resolves.toMatchObject({

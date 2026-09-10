@@ -9,20 +9,16 @@ import dashboardHtml from "./dashboard.html?raw";
 import { getDashboardPayload } from "./lib/dashboard.js";
 import {
 	getPullRequestHeadBranch,
+	getPullRequestReviewComments,
 	mintInstallationToken,
 	readAppCreds,
 	readRepoContext,
 } from "./lib/github.js";
-import type { OrchestratorDO } from "./lib/orchestrator.js";
 import {
 	normalizeWebhook,
 	resolvePullRequestWebhook,
 	verifyWebhookSignature,
 } from "./lib/webhook.js";
-
-interface TraceRouteEnv extends Env {
-	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
-}
 
 const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
 
@@ -57,8 +53,7 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.json({ error: "Invalid trace limit" }, 400);
 		}
 		try {
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer local DO RPC methods.
-			const { Orchestrator } = c.env as TraceRouteEnv;
+			const { Orchestrator } = c.env;
 			const runId = c.req.query("run");
 			const trace = await Orchestrator.getByName(`issue-${issueNumber}`).getPublicRunTrace({
 				...(runId ? { runId } : {}),
@@ -127,6 +122,43 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 				return c.text("pull request lookup failed", 503);
 			}
 		}
+		if (result.kind === "dispatch" && result.event.reviewId && result.event.pullRequestNumber) {
+			const creds = readAppCreds(c.env);
+			const repo = readRepoContext(c.env);
+			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
+			try {
+				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+				const token = await mintInstallationToken(creds, signal);
+				const comments = await getPullRequestReviewComments(
+					token,
+					repo,
+					result.event.pullRequestNumber,
+					result.event.reviewId,
+					signal,
+				);
+				const body = [result.event.triggeringComment?.body.trim(), ...comments]
+					.filter(Boolean)
+					.join("\n\n");
+				if (!body) return c.text("skipped: review has no feedback", 202);
+				result = {
+					...result,
+					event: {
+						...result.event,
+						arg: body,
+						...(result.event.triggeringComment
+							? { triggeringComment: { ...result.event.triggeringComment, body } }
+							: {}),
+					},
+				};
+			} catch (error) {
+				console.error("[webhook] review comments lookup failed", {
+					delivery: deliveryId,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return c.text("review comments lookup failed", 503);
+			}
+		}
+
 		if (result.kind === "skip") {
 			console.log("[webhook] skip", {
 				event: eventType,

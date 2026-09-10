@@ -9,6 +9,7 @@ import type {
 import { sql } from "kysely";
 import { ulid } from "ulidx";
 
+import { refreshDevTypes } from "../astro/dev-typegen.js";
 import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
@@ -31,6 +32,7 @@ import {
 } from "../media/usage/content-refresh.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
+import { resetRegisteredCollectionsCache } from "./collection-slugs-cache.js";
 import {
 	type Collection,
 	type CollectionAdminConfig,
@@ -196,6 +198,7 @@ export async function buildSeedCollectionCaptureFingerprint(
 				hidden: input.hidden ?? false,
 				sortOrder: input.sortOrder ?? null,
 				commentsEnabled: input.commentsEnabled ?? false,
+				...(input.editLocking === false ? { editLocking: false } : {}),
 				urlPattern: input.urlPattern ?? null,
 				routable: input.routable ?? true,
 			},
@@ -243,6 +246,13 @@ export class SchemaError extends Error {
  */
 export class SchemaRegistry {
 	constructor(private db: Kysely<Database>) {}
+
+	/**
+	 * Notify the dev typegen hook that the schema has changed.
+	 */
+	private notifyTypegen(): void {
+		refreshDevTypes(this.db);
+	}
 
 	// ============================================
 	// Collection Operations
@@ -462,6 +472,7 @@ export class SchemaRegistry {
 				hidden: input.hidden ? 1 : 0,
 				sort_order: input.sortOrder ?? null,
 				comments_enabled: input.commentsEnabled ? 1 : 0,
+				edit_locking: input.editLocking === false ? 0 : 1,
 				url_pattern: input.urlPattern ?? null,
 			};
 
@@ -496,6 +507,8 @@ export class SchemaRegistry {
 			throw new SchemaError("Failed to create collection", "CREATE_FAILED");
 		}
 
+		resetRegisteredCollectionsCache();
+		this.notifyTypegen();
 		return collection;
 	}
 
@@ -605,6 +618,7 @@ export class SchemaRegistry {
 					hidden: input.hidden ? 1 : 0,
 					sort_order: input.sortOrder ?? null,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
+					edit_locking: input.editLocking === false ? 0 : 1,
 					url_pattern: input.urlPattern ?? null,
 				};
 				const rows = fieldRows.map((row) => ({
@@ -670,7 +684,10 @@ export class SchemaRegistry {
 				);
 			}
 			throw error;
+		} finally {
+			if (schemaMutated) resetRegisteredCollectionsCache();
 		}
+		this.notifyTypegen();
 	}
 
 	private async assertSeedFieldDefinitions(
@@ -719,7 +736,7 @@ export class SchemaRegistry {
 	 * Update a collection
 	 */
 	async updateCollection(slug: string, input: UpdateCollectionInput): Promise<Collection> {
-		return withTransaction(this.db, async (trx) => {
+		const updated = await withTransaction(this.db, async (trx) => {
 			const existingRow = await trx
 				.selectFrom("_emdash_collections")
 				.where("slug", "=", slug)
@@ -769,6 +786,7 @@ export class SchemaRegistry {
 			if (input.commentsAutoApproveUsers !== undefined) {
 				updates.comments_auto_approve_users = input.commentsAutoApproveUsers ? 1 : 0;
 			}
+			if (input.editLocking !== undefined) updates.edit_locking = input.editLocking ? 1 : 0;
 
 			updates.updated_at = new Date().toISOString();
 			await trx
@@ -798,6 +816,8 @@ export class SchemaRegistry {
 
 			return this.mapCollectionRow(row);
 		});
+		this.notifyTypegen();
+		return updated;
 	}
 
 	/**
@@ -851,7 +871,13 @@ export class SchemaRegistry {
 				await deleteContentMediaUsageCollection(this.db, slug);
 			}
 			throw error;
+		} finally {
+			// Even a failed delete may have dropped the ec_* table (D1 has no
+			// real transactions) — over-invalidation is harmless, a stale set
+			// is not.
+			if (contentTableDropped) resetRegisteredCollectionsCache();
 		}
+		this.notifyTypegen();
 	}
 
 	// ============================================
@@ -1005,6 +1031,7 @@ export class SchemaRegistry {
 					"CONTENT_USAGE_STALE",
 				);
 			}
+			this.notifyTypegen();
 			return created;
 		} catch (error) {
 			if (schemaMutated) {
@@ -1185,6 +1212,7 @@ export class SchemaRegistry {
 					);
 				}
 			}
+			this.notifyTypegen();
 			return updatedField;
 		} catch (error) {
 			if (schemaMutated) {
@@ -1326,6 +1354,7 @@ export class SchemaRegistry {
 			}
 			throw error;
 		}
+		this.notifyTypegen();
 	}
 
 	/**
@@ -1380,6 +1409,7 @@ export class SchemaRegistry {
 					.execute();
 			}
 		});
+		this.notifyTypegen();
 	}
 
 	/**
@@ -1400,6 +1430,7 @@ export class SchemaRegistry {
 				.where("slug", "=", fieldSlugs[i])
 				.execute();
 		}
+		this.notifyTypegen();
 	}
 
 	// ============================================
@@ -1463,9 +1494,13 @@ export class SchemaRegistry {
 			ON ${sql.ref(tableName)} (slug)
 		`.execute(conn);
 
+		// Name must stay identical to migration 074. `deleted_at` leads so the
+		// scheduled-publishing sweep can seek it and walk `scheduled_at` for both
+		// its range and its ORDER BY; a `scheduled_at`-only index leaves a
+		// stats-blind planner reading every live row.
 		await sql`
-			${createIndex} ${sql.ref(`idx_${tableName}_scheduled`)}
-			ON ${sql.ref(tableName)} (scheduled_at)
+			${createIndex} ${sql.ref(`idx_${tableName}_del_sched`)}
+			ON ${sql.ref(tableName)} (deleted_at, scheduled_at)
 			WHERE scheduled_at IS NOT NULL
 		`.execute(conn);
 
@@ -1813,6 +1848,7 @@ export class SchemaRegistry {
 					: "first_time",
 			commentsClosedAfterDays: row.comments_closed_after_days ?? 90,
 			commentsAutoApproveUsers: row.comments_auto_approve_users === 1,
+			editLocking: row.edit_locking !== 0,
 			createdAt: row.created_at,
 			updatedAt: row.updated_at,
 		};
@@ -1992,6 +2028,7 @@ export class SchemaRegistry {
 				throw new SchemaError("Failed to register orphaned table", "REGISTER_FAILED");
 			}
 			await markContentMediaUsageCollectionStaleSafely(this.db, slug, "CONTENT_USAGE_STALE");
+			this.notifyTypegen();
 
 			return collection;
 		} catch (error) {

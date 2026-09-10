@@ -8,10 +8,13 @@ import type { APIRoute } from "astro";
 
 import { requireOwnerPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
+import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { contentRevisionConditionBody } from "#api/schemas.js";
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, locals, url, cache }) => {
+export const POST: APIRoute = async ({ params, request, locals, url, cache }) => {
 	const { emdash, user } = locals;
 	const collection = params.collection!;
 	const id = params.id!;
@@ -19,6 +22,8 @@ export const POST: APIRoute = async ({ params, locals, url, cache }) => {
 	if (!emdash?.handleContentDiscardDraft || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+	const body = await parseOptionalBody(request, contentRevisionConditionBody, {});
+	if (isParseError(body)) return body;
 
 	const locale = url.searchParams.get("locale") || undefined;
 
@@ -48,7 +53,18 @@ export const POST: APIRoute = async ({ params, locals, url, cache }) => {
 
 	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
 
-	const result = await emdash.handleContentDiscardDraft(collection, resolvedId);
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
+		override: body?.overrideLock,
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
+
+	const result = await emdash.handleContentDiscardDraft(collection, resolvedId, {
+		_rev: body?._rev,
+	});
 
 	if (!result.success) return unwrapResult(result);
 

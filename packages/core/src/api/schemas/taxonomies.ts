@@ -24,8 +24,8 @@ export const createTaxonomyDefBody = z
 			.regex(/^[a-z][a-z0-9_]*$/, "Name must be lowercase alphanumeric with underscores"),
 		label: z.string().min(1).max(200),
 		labelSingular: z.string().min(1).max(200).optional(),
-		hierarchical: z.boolean().optional().default(false),
-		collections: z.array(collectionSlug).max(100).optional().default([]),
+		hierarchical: z.boolean().optional(),
+		collections: z.array(collectionSlug).max(100).optional(),
 		locale: localeCode.optional(),
 		translationOf: z.string().min(1).optional(),
 	})

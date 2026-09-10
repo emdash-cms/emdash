@@ -43,7 +43,15 @@ export interface PublicRunTraceEvent extends RunTraceEventInput {
 
 export interface PublicRunTraceSummary {
 	readonly runId: string;
-	readonly mode: "repro" | "implement" | "revise" | "diagnose" | "fix";
+	readonly mode:
+		| "triage"
+		| "investigate"
+		| "work"
+		| "revise"
+		| "repro"
+		| "implement"
+		| "diagnose"
+		| "fix";
 	readonly startedAt: number;
 	readonly updatedAt: number;
 	readonly eventCount: number;

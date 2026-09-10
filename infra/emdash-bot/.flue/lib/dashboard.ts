@@ -6,7 +6,7 @@ import {
 	type ManagedIssueSummary,
 } from "./github.js";
 import { KINDS, machineSnapshot, type Kind, type StateId } from "./machine.js";
-import type { OrchestratorDO, PublicIssueSnapshot } from "./orchestrator.js";
+import type { PublicIssueSnapshot } from "./orchestrator.js";
 import { currentState } from "./router.js";
 import { runMachineSnapshot } from "./run-lifecycle.js";
 
@@ -20,10 +20,6 @@ interface DashboardCache {
 
 declare global {
 	var emdashBotDashboardCache: DashboardCache | undefined;
-}
-
-interface DashboardEnv extends Env {
-	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
 }
 
 export interface DashboardIssue extends ManagedIssueSummary, PublicIssueSnapshot {
@@ -60,11 +56,9 @@ export async function loadDashboardPayload(env: Env): Promise<DashboardPayload> 
 	if (!creds || !repo) throw new Error("GitHub credentials or repository context missing");
 	const token = await mintInstallationToken(creds);
 	const githubIssues = (await listOpenManagedIssues(token, repo)).slice(0, DASHBOARD_ISSUE_LIMIT);
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer local DO RPC methods.
-	const dashboardEnv = env as DashboardEnv;
 	const snapshots = await Promise.all(
 		githubIssues.map((issue) =>
-			dashboardEnv.Orchestrator.getByName(`issue-${issue.number}`).getPublicSnapshot(),
+			env.Orchestrator.getByName(`issue-${issue.number}`).getPublicSnapshot(),
 		),
 	);
 	const issues = githubIssues.flatMap((issue, index) => {

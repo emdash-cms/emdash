@@ -64,13 +64,14 @@ export interface BylineSummary {
 	avatarMediaId: string | null;
 	/**
 	 * The avatar media's storage key, folded in by a LEFT JOIN on the
-	 * `media` table during content byline hydration. Non-null only when the
-	 * byline has an avatar AND was loaded through the content-credit hydration
-	 * path (`getContentBylines` / `getContentBylinesMany`, i.e. the
-	 * `entry.data.bylines` populated by `getEmDashCollection` / `getEmDashEntry`).
-	 * The plain byline finders (`findById`, `findBySlug`, …) leave it null.
+	 * `media` table. Populated by the content-credit hydration path
+	 * (`getContentBylines` / `getContentBylinesMany`, i.e. the
+	 * `entry.data.bylines` populated by `getEmDashCollection` /
+	 * `getEmDashEntry`) and by the single-row finders (`findById`,
+	 * `findBySlug`, `findByUserId`, `findByUserIds`). `findMany` doesn't
+	 * join media, so it leaves this null.
 	 *
-	 * Lets list pages build a direct storage URL for an author avatar without a
+	 * Lets a page build a direct storage URL for an author avatar without a
 	 * per-byline `MediaRepository.findById`, avoiding an N+1 when many distinct
 	 * authors appear on one page.
 	 *
@@ -86,7 +87,7 @@ export interface BylineSummary {
 	 * same media join as `avatarStorageKey`. Lets a renderer paint a blurred
 	 * placeholder while the full avatar loads, with no extra media lookup.
 	 * Null when the byline has no avatar, the media row has no blurhash, or the
-	 * byline was loaded through a finder that doesn't join media.
+	 * byline came from `findMany`, which doesn't join media.
 	 */
 	avatarBlurhash?: string | null;
 	/**

@@ -1,5 +1,4 @@
 import {
-	Badge,
 	Banner,
 	Breadcrumbs,
 	Button,
@@ -70,33 +69,23 @@ import {
 	getFileIcon,
 	formatFileSize,
 	getMediaThumbnailUrl,
+	getMediaPreviewUrl,
 	getMediaObjectPosition,
 	fallbackToOriginalThumbnail,
-	MEDIA_THUMBNAIL_WIDTH,
 	metaNumber,
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
+import {
+	MAX_MEDIA_PAGE_DROPDOWN_ITEMS,
+	MEDIA_BROWSER_PAGE_SIZES,
+	MediaBrowserItem,
+	mimeForMediaTypeFilter,
+} from "./media/MediaBrowserItems.js";
 import { MediaDetailPanel } from "./MediaDetailPanel";
 import { MediaFolderDialog } from "./MediaFolderDialog.js";
 import { LOCAL_MEDIA_UPLOAD_ACCEPT, MediaUploadDialog } from "./MediaUploadDialog.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 import { TableToolbar, TableToolbarSearch } from "./TableToolbar.js";
-
-/** Maps a coarse type-filter choice to the media list's `mimeType` filter. */
-function mimeForTypeFilter(value: string): string | string[] | undefined {
-	switch (value) {
-		case "image":
-			return "image/";
-		case "video":
-			return "video/";
-		case "audio":
-			return "audio/";
-		case "document":
-			return ["application/", "text/"];
-		default:
-			return undefined;
-	}
-}
 
 export interface MediaLibraryProps {
 	items?: MediaItem[];
@@ -144,8 +133,6 @@ export interface MediaLibraryPagination {
 	onPageSizeChange: (perPage: number) => void;
 }
 
-const MEDIA_PAGE_SIZE_OPTIONS = [35, 70, 90];
-const MAX_DROPDOWN_PAGE_COUNT = 100;
 const MEDIA_DRAG_OVERLAY_MAX_WIDTH = 384;
 const MEDIA_DRAG_OVERLAY_HEIGHT = 36;
 let pendingMediaLibraryScrollTop: number | null = null;
@@ -226,7 +213,8 @@ export function MediaLibrary({
 	onMoveMedia,
 }: MediaLibraryProps) {
 	const { t } = useLingui();
-	const isAdmin = (useCurrentUser().data?.role ?? 0) >= 50;
+	const currentUser = useCurrentUser().data;
+	const isAdmin = (currentUser?.role ?? 0) >= 50;
 	const [activeProvider, setActiveProvider] = React.useState<string>("local");
 	const activationQuery = useQuery({
 		queryKey: MEDIA_USAGE_ACTIVATION_QUERY_KEY,
@@ -269,7 +257,7 @@ export function MediaLibrary({
 	const detailOpenFrameRef = React.useRef<number | null>(null);
 	const paginationRequestedRef = React.useRef(false);
 	const paginationWasPendingRef = React.useRef(false);
-	const paginationRootRef = React.useRef<HTMLDivElement>(null);
+	const paginationRootRef = React.useRef<HTMLElement>(null);
 	const paginationFocusTargetRef = React.useRef<HTMLElement | null>(null);
 	const paginationFocusFallbackRef = React.useRef<"page" | "page-size">("page");
 	// Debounced filename search reported up for the local library's server query.
@@ -360,7 +348,7 @@ export function MediaLibrary({
 	);
 	const requestPageSize = React.useCallback(
 		(nextPerPage: number) => {
-			if (!pagination || pagination.isPending || !MEDIA_PAGE_SIZE_OPTIONS.includes(nextPerPage)) {
+			if (!pagination || pagination.isPending || !MEDIA_BROWSER_PAGE_SIZES.includes(nextPerPage)) {
 				return;
 			}
 			paginationRequestedRef.current = true;
@@ -537,7 +525,7 @@ export function MediaLibrary({
 		setSearchQuery("");
 		onLocalSearchChange?.("");
 		setLocalTypeFilter("all");
-		onLocalMimeFilterChange?.(mimeForTypeFilter("all"));
+		onLocalMimeFilterChange?.(mimeForMediaTypeFilter("all"));
 	};
 	const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
 		const next = e.target.value;
@@ -782,12 +770,16 @@ export function MediaLibrary({
 			onDragCancel: handleMediaDragCancel,
 		},
 		<div
-			className="space-y-4"
+			className={
+				activeProvider === "local" && pagination && pagination.totalCount > 0
+					? "flex min-h-full flex-col gap-4 [&_[data-media-layout]]:scroll-mb-48"
+					: "space-y-4"
+			}
 			data-media-library
 			aria-busy={currentLoading || moveMutation.isPending || undefined}
 			onClickCapture={handleRootClickCapture}
 		>
-			{onMoveMedia && <Toasty toastManager={toastManager}>{null}</Toasty>}
+			<Toasty toastManager={toastManager}>{null}</Toasty>
 			{isFileDragActive && canUploadHere && (
 				<div
 					className="pointer-events-none fixed inset-0 z-50 bg-kumo-base/70 p-4 backdrop-blur-sm sm:p-8"
@@ -970,6 +962,7 @@ export function MediaLibrary({
 				>
 					{(canSearch || activeProvider === "local") && (
 						<TableToolbarSearch
+							size="base"
 							placeholder={activeProvider === "local" ? t`Search by filename...` : t`Search...`}
 							aria-label={t`Search media`}
 							value={searchQuery}
@@ -980,12 +973,12 @@ export function MediaLibrary({
 					)}
 					{activeProvider === "local" && (
 						<Select
-							size="sm"
+							size="base"
 							value={localTypeFilter}
 							onValueChange={(v) => {
 								const next = v ?? "all";
 								setLocalTypeFilter(next);
-								onLocalMimeFilterChange?.(mimeForTypeFilter(next));
+								onLocalMimeFilterChange?.(mimeForMediaTypeFilter(next));
 							}}
 							items={{
 								all: t`All types`,
@@ -1306,7 +1299,10 @@ export function MediaLibrary({
 			)}
 
 			{activeProvider === "local" && pagination && pagination.totalCount > 0 && (
-				<div ref={paginationRootRef} className="min-w-0">
+				<footer
+					ref={paginationRootRef}
+					className="sticky -bottom-6 z-10 -mx-6 mt-auto -mb-6 flex min-h-12 min-w-0 shrink-0 items-center border-t border-kumo-line bg-kumo-elevated px-6 py-1"
+				>
 					<Pagination
 						page={pagination.page}
 						setPage={requestPage}
@@ -1333,12 +1329,13 @@ export function MediaLibrary({
 							<Pagination.PageSize
 								value={pagination.perPage}
 								onChange={requestPageSize}
-								options={MEDIA_PAGE_SIZE_OPTIONS}
+								options={MEDIA_BROWSER_PAGE_SIZES}
 								label={t`Per page`}
 							/>
 							<Pagination.Controls
 								pageSelector={
-									Math.ceil(pagination.totalCount / pagination.perPage) <= MAX_DROPDOWN_PAGE_COUNT
+									Math.ceil(pagination.totalCount / pagination.perPage) <=
+									MAX_MEDIA_PAGE_DROPDOWN_ITEMS
 										? "dropdown"
 										: "input"
 								}
@@ -1346,7 +1343,7 @@ export function MediaLibrary({
 							/>
 						</div>
 					</Pagination>
-				</div>
+				</footer>
 			)}
 
 			{activeProvider === "local" && !pagination && hasMore && onLoadMore && (
@@ -1379,11 +1376,25 @@ export function MediaLibrary({
 					providerName={detailItem.provider ? activeProviderInfo?.name : undefined}
 					canDelete={detailItem.provider ? activeProviderInfo?.capabilities.delete : undefined}
 					canMoveLocation={isLocalMediaItem(detailItem) ? canMoveMedia?.(detailItem) : undefined}
+					canReplaceOriginal={Boolean(
+						isLocalMediaItem(detailItem) &&
+						currentUser &&
+						(currentUser.role >= 40 ||
+							(currentUser.role >= 30 && detailItem.authorId === currentUser.id)),
+					)}
+					canDuplicateCrop={Boolean(isLocalMediaItem(detailItem) && (currentUser?.role ?? 0) >= 20)}
 					restoreFocusTargetRef={mediaHeadingRef}
 					onClose={closeDetail}
 					onClosed={handleDetailClosed}
 					onUpdated={onItemUpdated}
 					onItemRefreshed={handleDetailItemRefreshed}
+					onCroppedCopyCreated={() => {
+						toastManager.add({
+							title: t`Cropped copy created.`,
+							variant: "success",
+							timeout: 3000,
+						});
+					}}
 					onDeleted={detailItem.provider ? undefined : onItemUpdated}
 				/>
 			)}
@@ -1595,10 +1606,6 @@ function isLocalMediaItem(item: MediaItem): item is LocalMediaItem {
 	);
 }
 
-function formatFileFormat(mimeType: string): string {
-	return (mimeType.split("/").at(-1)?.split("+")[0] || mimeType).toUpperCase();
-}
-
 function MediaDragOverlay({ item }: { item: LocalMediaItem }) {
 	return (
 		<div aria-hidden="true" className="max-w-[calc(100vw-2rem)]" data-media-drag-overlay>
@@ -1665,7 +1672,6 @@ interface MediaGridItemProps {
 }
 
 function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGridItemProps) {
-	const isImage = item.mimeType.startsWith("image/");
 	const localItem = isLocalMediaItem(item) ? item : null;
 	const { setNodeRef, listeners, isDragging } = useDraggable({
 		id: mediaDragId(item.id),
@@ -1676,52 +1682,25 @@ function MediaGridItem({ item, selected, draggable, isMoving, onClick }: MediaGr
 	});
 
 	return (
-		<LayerCard
+		<div
 			ref={setNodeRef}
 			{...listeners}
-			render={<button type="button" />}
-			onClick={onClick}
-			aria-label={item.filename}
 			aria-busy={isMoving || undefined}
 			data-media-draggable={draggable || undefined}
 			className={cn(
-				"group w-full min-w-0 text-start transition-opacity focus-visible:ring-2 focus-visible:ring-kumo-brand",
-				selected ? "ring-2 ring-kumo-brand" : "hover:ring-kumo-brand/50",
+				"min-w-0 transition-opacity",
 				draggable && "cursor-grab touch-manipulation active:cursor-grabbing",
 				(isDragging || isMoving) && "opacity-40",
 			)}
 		>
-			<LayerCard.Primary className="aspect-[4/3] p-0">
-				{isImage ? (
-					<img
-						src={getMediaThumbnailUrl(item.url, item.mimeType, MEDIA_THUMBNAIL_WIDTH)}
-						alt={item.alt || item.filename}
-						draggable={false}
-						className="emdash-media-transparency-grid h-full w-full object-cover"
-						style={{ objectPosition: getMediaObjectPosition(item) }}
-						onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
-					/>
-				) : (
-					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">
-						<span className="text-4xl">{getFileIcon(item.mimeType)}</span>
-					</div>
-				)}
-			</LayerCard.Primary>
-			<LayerCard.Secondary className="my-0 min-w-0 justify-between px-3 py-2.5 text-sm text-kumo-default">
-				<span
-					dir="auto"
-					title={item.filename}
-					className="min-w-0 flex-1 truncate font-medium leading-5"
-				>
-					{item.filename}
-				</span>
-				<Badge variant="secondary" className="h-5 min-w-11 justify-center rounded-md px-2 py-0">
-					<span className="text-[11px] leading-none text-kumo-default/75">
-						{formatFileFormat(item.mimeType)}
-					</span>
-				</Badge>
-			</LayerCard.Secondary>
-		</LayerCard>
+			<MediaBrowserItem
+				item={item}
+				layout="grid"
+				selected={selected}
+				onClick={onClick}
+				mediaDraggable={draggable}
+			/>
+		</div>
 	);
 }
 
@@ -1734,53 +1713,14 @@ interface ProviderGridItemProps {
 }
 
 function ProviderGridItem({ item, selected, onClick, onDimensionsLoaded }: ProviderGridItemProps) {
-	const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
-		const img = e.currentTarget;
-		// Only report if we don't already have dimensions
-		if (onDimensionsLoaded && (!item.width || !item.height)) {
-			onDimensionsLoaded(img.naturalWidth, img.naturalHeight);
-		}
-	};
-
 	return (
-		<LayerCard
-			render={<button type="button" />}
+		<MediaBrowserItem
+			item={providerItemToMediaItem("provider", item)}
+			layout="grid"
+			selected={selected}
 			onClick={onClick}
-			aria-label={item.filename}
-			className={cn(
-				"group w-full min-w-0 text-start focus-visible:ring-2 focus-visible:ring-kumo-brand",
-				selected ? "ring-2 ring-kumo-brand" : "hover:ring-kumo-brand/50",
-			)}
-		>
-			<LayerCard.Primary className="aspect-[4/3] p-0">
-				{item.previewUrl ? (
-					<img
-						src={item.previewUrl}
-						alt={item.alt || item.filename}
-						className="emdash-media-transparency-grid h-full w-full object-cover"
-						onLoad={handleImageLoad}
-					/>
-				) : (
-					<div className="flex h-full w-full items-center justify-center bg-kumo-tint">
-						<span className="text-4xl">{getFileIcon(item.mimeType)}</span>
-					</div>
-				)}
-			</LayerCard.Primary>
-			<LayerCard.Secondary className="my-0 min-w-0 justify-between px-3 py-2.5 text-sm text-kumo-default">
-				<span
-					dir="auto"
-					title={item.filename}
-					className="min-w-0 flex-1 truncate font-medium leading-5"
-				>
-					{item.filename}
-				</span>
-				<Badge variant="secondary" className="h-5 min-w-11 justify-center rounded-md px-2 py-0">
-					<span className="text-[11px] leading-none text-kumo-default/75">
-						{formatFileFormat(item.mimeType)}
-					</span>
-				</Badge>
-			</LayerCard.Secondary>
-		</LayerCard>
+			onDimensionsLoaded={onDimensionsLoaded}
+		/>
 	);
 }
 
@@ -1796,6 +1736,7 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 	const { t } = useLingui();
 	const isImage = item.mimeType.startsWith("image/");
 	const localItem = isLocalMediaItem(item) ? item : null;
+	const previewUrl = getMediaPreviewUrl(item.url, item.contentHash);
 	const { setNodeRef, listeners, isDragging } = useDraggable({
 		id: mediaDragId(item.id),
 		data: localItem
@@ -1822,12 +1763,12 @@ function MediaListItem({ item, selected, draggable, isMoving, onClick }: MediaLi
 				<div className="h-10 w-10 overflow-hidden rounded">
 					{isImage ? (
 						<img
-							src={getMediaThumbnailUrl(item.url, item.mimeType, 80)}
+							src={getMediaThumbnailUrl(item.url, item.mimeType, 80, item.contentHash)}
 							alt={item.alt || item.filename}
 							draggable={false}
 							className="emdash-media-transparency-grid h-full w-full object-cover"
 							style={{ objectPosition: getMediaObjectPosition(item) }}
-							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, item.url)}
+							onError={(e) => fallbackToOriginalThumbnail(e.currentTarget, previewUrl)}
 						/>
 					) : (
 						<div className="flex h-full w-full items-center justify-center bg-kumo-tint text-xl">

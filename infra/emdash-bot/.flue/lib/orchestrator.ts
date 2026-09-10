@@ -32,6 +32,7 @@ import {
 	getIssueComments,
 	getIssueLabels,
 	getOpenPullRequest,
+	getPullRequestStatus,
 	hasIssueCommentMarker,
 	mintInstallationToken,
 	postIssueComment,
@@ -40,6 +41,7 @@ import {
 	removeLabels,
 	updateIssueComment,
 	type RepoContext,
+	type PullRequestStatus,
 } from "./github.js";
 import { investigationBaseRef } from "./investigation-base-ref.js";
 import {
@@ -48,8 +50,9 @@ import {
 	type StoredDiagnosis,
 	type TriggeringComment,
 } from "./issue-context.js";
-import { STATES, type EventId, type Kind, type StateId } from "./machine.js";
+import { KINDS, STATES, type EventId, type Kind, type StateId } from "./machine.js";
 import { branchesToReap, previewUrl, probePreviewReady } from "./preview.js";
+import { assessPullRequest } from "./pull-request-monitor.js";
 import {
 	currentState,
 	type Decision,
@@ -147,6 +150,8 @@ export interface NormalizedEvent {
 	readonly classifyText?: string | null;
 	/** Exact human comment that caused this event, retained for agent context. */
 	readonly triggeringComment?: TriggeringComment;
+	readonly pullRequestNumber?: number;
+	readonly reviewId?: number;
 	/** True only on a bot-authored PR (enables the in_review default). */
 	readonly allowDefault?: boolean;
 	/** Webhook delivery id; the DO dedupes by this. */
@@ -164,6 +169,9 @@ export interface NormalizedEvent {
 	/** Durable run metadata appended to failed comments for operational lookup. */
 	readonly agentRunId?: string;
 	readonly agentFailureStage?: string;
+	/** Triage classification applied by the trusted GitHub projection. */
+	readonly agentKind?: Kind;
+	readonly agentLabels?: readonly string[];
 	/** Reproduction screenshots the fix run pushed, carried into the ask comment. */
 	readonly agentScreenshots?: readonly PreviewScreenshot[];
 	/** Reviewer-facing copy carried through preview confirmation into the draft PR. */
@@ -191,6 +199,9 @@ export interface NormalizedEvent {
  * actual mapping; this is just the structural contract.
  */
 export interface AgentResult {
+	readonly disposition?: "auto-work" | "needs-info" | "await-approval";
+	readonly kind?: Kind;
+	readonly labels?: readonly string[];
 	readonly skipped?: boolean;
 	readonly reproduced?: boolean;
 	readonly rootCauseFound?: boolean;
@@ -247,6 +258,7 @@ export interface PublicIssueSnapshot {
 	readonly workPlan: WorkPlan | null;
 	readonly currentRunStartedAt: number | null;
 	readonly prNumber: number | null;
+	readonly pullRequest: PullRequestStatus | null;
 	readonly transitions: ReadonlyArray<{
 		readonly t: number;
 		readonly event: EventId;
@@ -280,6 +292,10 @@ const STORAGE = {
 	currentDispatchAttempt: "o:currentDispatchAttempt",
 	abortConfirmedRunId: "o:abortConfirmedRunId",
 	prNumber: "o:prNumber",
+	prStatus: "o:prStatus",
+	prPollNextAt: "o:prPollNextAt",
+	prRepairFingerprint: "o:prRepairFingerprint",
+	prGreenHeadSha: "o:prGreenHeadSha",
 	eventLog: "o:eventLog",
 	seenDeliveries: "o:seenDeliveries",
 	anchorNumber: "o:anchorNumber",
@@ -315,11 +331,18 @@ const PREVIEW_BUILD_TIMEOUT_MS = 10 * 60 * 1000;
 /** First poll waits for the push→publish lag; later polls back off to this. */
 const PREVIEW_POLL_INITIAL_MS = 45 * 1000;
 const PREVIEW_POLL_INTERVAL_MS = 30 * 1000;
+const PR_POLL_INTERVAL_MS = 30 * 1000;
 const DISPATCH_TIMEOUT_MS = 30_000;
 const INBOX_RETRY_MS = 60_000;
 const INBOX_BATCH_LIMIT = 10;
 const CLASSIFIER_MAX_ATTEMPTS = 3;
 const CLASSIFIER_TEXT_LIMIT = 16_000;
+const PR_FEEDBACK_EVENTS: ReadonlySet<EventId | null> = new Set([
+	"revise",
+	"work",
+	"needs_changes",
+	"pr.problems",
+]);
 
 function normalizePullRequestCopy(value: unknown): PullRequestCopy | undefined {
 	if (!value || typeof value !== "object") return undefined;
@@ -383,6 +406,7 @@ interface PendingSideEffect {
 	readonly addLabels: readonly string[];
 	readonly removeLabels: readonly string[];
 	readonly commentBody: string;
+	readonly commentTargetNumber?: number;
 	readonly commentMarker: string;
 	readonly commentMayExist: boolean;
 	/** Post the comment before flipping labels (fix-loop ask ordering). */
@@ -521,7 +545,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const persistedLabels = await this.projectLabels();
 		const labels = persistedLabels.length > 0 ? persistedLabels : input.labels;
 		const [resumableRun, failedRunMode, previousRun] = await Promise.all([
-			resolvedEvent === "resume"
+			resolvedEvent === "resume" || resolvedEvent === "retry"
 				? this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun)
 				: null,
 			resolvedEvent === "retry"
@@ -533,6 +557,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			previousRun?.status === "failed" || previousRun?.status === "timed_out"
 				? previousRun.mode
 				: failedRunMode;
+		if (resolvedEvent === "retry" && resumableRun) resolvedEvent = "resume";
 
 		const decision = resolve({
 			labels,
@@ -816,7 +841,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 						steps: [
 							{
 								id: "prepare-workspace",
-								title: "Install dependencies and build the repository",
+								title:
+									run.mode === "triage"
+										? "Review the issue and relevant repository context"
+										: "Install dependencies and build the repository",
 								status: "in_progress",
 							},
 						],
@@ -833,7 +861,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 				? { ...existing, body, pending: true }
 				: {
 						runId: input.runId,
-						anchorNumber,
+						anchorNumber:
+							run.mode === "revise"
+								? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+								: anchorNumber,
 						marker,
 						body,
 						commentId: null,
@@ -896,7 +927,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 					? { ...existing, body, pending: true }
 					: {
 							runId: input.runId,
-							anchorNumber,
+							anchorNumber:
+								run.mode === "revise"
+									? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+									: anchorNumber,
 							marker,
 							body,
 							commentId: null,
@@ -961,7 +995,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 				? { ...existing, body, pending: true }
 				: {
 						runId: input.runId,
-						anchorNumber,
+						anchorNumber:
+							run.mode === "revise"
+								? ((await transaction.get<number>(STORAGE.prNumber)) ?? anchorNumber)
+								: anchorNumber,
 						marker,
 						body,
 						commentId: null,
@@ -1022,12 +1059,19 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await this.persistSuccessfulDiagnosis(input.runId, currentRunMode, input.result);
 		}
 
-		const event = outcomeFromResult({
+		let event = outcomeFromResult({
 			ok: input.ok,
 			result: input.result,
 			pushed: input.pushed,
 			mode: currentRunMode,
 		});
+		if (
+			event === "agent.fix_ready" &&
+			currentRunMode === "revise" &&
+			(await this.ctx.storage.get<number>(STORAGE.prNumber))
+		) {
+			event = "agent.revised";
+		}
 		const resumedAttempt = savedRun?.runId === input.runId || (run?.attempt ?? 1) > 1;
 		if (event === "agent.failed" && resumedAttempt && currentRunMode && currentAgentId && state) {
 			await this.ctx.storage.put<ResumableRunCheckpoint>(STORAGE.resumableRun, {
@@ -1067,6 +1111,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const agentScreenshots = Array.isArray(input.result?.screenshots)
 			? input.result.screenshots
 			: undefined;
+		const agentKind = parseKind(input.result.kind);
+		const agentLabels = sanitizeTriageLabels(input.result.labels);
 		const outcome = await this.processEvent({
 			event,
 			arg: null,
@@ -1080,6 +1126,8 @@ export class OrchestratorDO extends DurableObject<Env> {
 			...(finalizedWorkComment ? { commentBodyOverride: "" } : {}),
 			...(failureStage ? { agentFailureStage: failureStage } : {}),
 			...(agentScreenshots ? { agentScreenshots } : {}),
+			...(agentKind ? { agentKind } : {}),
+			...(agentLabels.length > 0 ? { agentLabels } : {}),
 		});
 		await this.clearRun(input.runId);
 		return outcome;
@@ -1094,6 +1142,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 	 */
 	cleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
 		return this.runExclusive(() => this.processCleanupOnClose(anchorNumber));
+	}
+
+	getInstallationTokenForGitProxy(): Promise<string> {
+		return this.runExclusive(async () => {
+			const creds = readAppCreds(this.env);
+			if (!creds) throw new Error("GitHub App credentials are not configured");
+			return this.getInstallationToken(creds);
+		});
 	}
 
 	private async processCleanupOnClose(anchorNumber: number): Promise<CleanupOutcome> {
@@ -1175,6 +1231,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 			recoveryError ??= message;
 			console.error("[orchestrator] preview poll failed", { error: message });
 		}
+		let pullRequestPoll: PullRequestPollOutcome = "idle";
+		try {
+			pullRequestPoll = await this.pollPullRequest(now);
+		} catch (error) {
+			const message = errorMessage(error);
+			recoveryError ??= message;
+			await this.ctx.storage.put(STORAGE.prPollNextAt, now + INBOX_RETRY_MS);
+			console.error("[orchestrator] pull request poll failed", { error: message });
+		}
 		const labelDrift = await this.reconcileLabels();
 
 		return {
@@ -1187,7 +1252,88 @@ export class OrchestratorDO extends DurableObject<Env> {
 			labelDrift,
 			expiredReporterWait,
 			previewPoll,
+			pullRequestPoll,
 		};
+	}
+
+	private async pollPullRequest(now: number): Promise<PullRequestPollOutcome> {
+		const [state, prNumber, nextAt, lastRepairFingerprint, greenHeadSha, run] = await Promise.all([
+			this.ctx.storage.get<StateId>(STORAGE.state),
+			this.ctx.storage.get<number>(STORAGE.prNumber),
+			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
+			this.ctx.storage.get<string>(STORAGE.prRepairFingerprint),
+			this.ctx.storage.get<string>(STORAGE.prGreenHeadSha),
+			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
+		]);
+		if (
+			prNumber === undefined ||
+			(state !== "in_review" && state !== "needs_attention") ||
+			(nextAt !== undefined && now < nextAt)
+		) {
+			return nextAt !== undefined && now < nextAt ? "waiting" : "idle";
+		}
+		const creds = readAppCreds(this.env);
+		const repo = readRepoContext(this.env);
+		if (!creds || !repo) return "idle";
+		const token = await this.getInstallationToken(creds);
+		const status = await getPullRequestStatus(token, repo, prNumber);
+		await this.ctx.storage.put(STORAGE.prStatus, status);
+		const assessment = assessPullRequest(status, lastRepairFingerprint ?? null);
+		if (assessment.kind === "merged" || assessment.kind === "closed") {
+			await this.ctx.storage.delete(STORAGE.prPollNextAt);
+			await this.processEvent({
+				event: assessment.kind === "merged" ? "pr.merged" : "pr.closed",
+				arg: null,
+				actor: "system",
+				labels: await this.projectLabels(),
+				needsClassify: false,
+				pullRequestNumber: prNumber,
+				commentBodyOverride: "",
+			});
+			return assessment.kind;
+		}
+		if (assessment.kind === "green") {
+			await Promise.all([
+				this.ctx.storage.delete(STORAGE.prPollNextAt),
+				this.ctx.storage.delete(STORAGE.prRepairFingerprint),
+				this.ctx.storage.put(STORAGE.prGreenHeadSha, status.headSha),
+			]);
+			if (state === "in_review" && greenHeadSha !== status.headSha) {
+				await this.processEvent({
+					event: "pr.green",
+					arg: null,
+					actor: "system",
+					labels: await this.projectLabels(),
+					needsClassify: false,
+					pullRequestNumber: prNumber,
+					commentBodyOverride: "",
+				});
+			}
+			return "green";
+		}
+		if (assessment.kind === "repair") {
+			if (run?.status === "running") {
+				await this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_POLL_INTERVAL_MS);
+				return "waiting";
+			}
+			await Promise.all([
+				this.ctx.storage.put(STORAGE.prRepairFingerprint, assessment.fingerprint),
+				this.ctx.storage.delete(STORAGE.prPollNextAt),
+				this.ctx.storage.delete(STORAGE.prGreenHeadSha),
+			]);
+			await this.processEvent({
+				event: "pr.problems",
+				arg: assessment.summary,
+				actor: "system",
+				labels: await this.projectLabels(),
+				needsClassify: false,
+				pullRequestNumber: prNumber,
+				commentBodyOverride: "",
+			});
+			return "repairing";
+		}
+		await this.ctx.storage.put(STORAGE.prPollNextAt, now + PR_POLL_INTERVAL_MS);
+		return "waiting";
 	}
 
 	/**
@@ -1327,7 +1473,15 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 	private async processInboxHead(): Promise<boolean> {
 		const inbox = (await this.ctx.storage.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-		const entry = inbox[0];
+		const runId = await this.ctx.storage.get<string>(STORAGE.currentRunId);
+		const entry = inbox.find(
+			(candidate) =>
+				!(
+					runId &&
+					PR_FEEDBACK_EVENTS.has(candidate.input.event) &&
+					(candidate.input.pullRequestNumber || candidate.input.event === "needs_changes")
+				),
+		);
 		if (!entry) return false;
 
 		try {
@@ -1337,9 +1491,14 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const attempts = (entry.attempts ?? 0) + 1;
 			await this.ctx.storage.transaction(async (transaction) => {
 				const current = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-				if (current[0]?.id !== entry.id) return;
+				if (!current.some((candidate) => candidate.id === entry.id)) return;
 				if (attempts < CLASSIFIER_MAX_ATTEMPTS) {
-					await transaction.put(STORAGE.inbox, [{ ...entry, attempts }, ...current.slice(1)]);
+					await transaction.put(
+						STORAGE.inbox,
+						current.map((candidate) =>
+							candidate.id === entry.id ? { ...entry, attempts } : candidate,
+						),
+					);
 					return;
 				}
 				if (entry.input.deliveryId) {
@@ -1352,7 +1511,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 					}
 				}
 				if (current.length === 1) await transaction.delete(STORAGE.inbox);
-				else await transaction.put(STORAGE.inbox, current.slice(1));
+				else
+					await transaction.put(
+						STORAGE.inbox,
+						current.filter((candidate) => candidate.id !== entry.id),
+					);
 			});
 			if (attempts >= CLASSIFIER_MAX_ATTEMPTS) {
 				console.error("[orchestrator] discarded classifier entry after retry limit", {
@@ -1365,9 +1528,13 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		await this.ctx.storage.transaction(async (transaction) => {
 			const current = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
-			if (current[0]?.id !== entry.id) return;
+			if (!current.some((candidate) => candidate.id === entry.id)) return;
 			if (current.length === 1) await transaction.delete(STORAGE.inbox);
-			else await transaction.put(STORAGE.inbox, current.slice(1));
+			else
+				await transaction.put(
+					STORAGE.inbox,
+					current.filter((candidate) => candidate.id !== entry.id),
+				);
 		});
 		return true;
 	}
@@ -1396,6 +1563,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			workComments,
 			pendingResume,
 			previewPollNextAt,
+			prPollNextAt,
 		] = await Promise.all([
 			this.ctx.storage.getAlarm(),
 			this.ctx.storage.get<RunLifecycle>(STORAGE.runLifecycle),
@@ -1409,6 +1577,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<WorkCommentProjection[]>(STORAGE.workComments),
 			this.ctx.storage.get<PendingResume>(STORAGE.pendingResume),
 			this.ctx.storage.get<number>(STORAGE.previewPollNextAt),
+			this.ctx.storage.get<number>(STORAGE.prPollNextAt),
 		]);
 		const now = Date.now();
 		const activeRun = run?.status === "running" ? run : null;
@@ -1435,6 +1604,9 @@ export class OrchestratorDO extends DurableObject<Env> {
 		}
 		if (previewPollNextAt !== undefined) {
 			desired = Math.min(desired, Math.max(now + 1_000, previewPollNextAt));
+		}
+		if (prPollNextAt !== undefined) {
+			desired = Math.min(desired, Math.max(now + 1_000, prPollNextAt));
 		}
 		if (force || current === null || current <= now || current > desired) {
 			await this.ctx.storage.setAlarm(desired);
@@ -1506,7 +1678,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 
 	private async persistSuccessfulDiagnosis(
 		runId: string,
-		mode: "diagnose" | "repro",
+		mode: "investigate" | "work" | "diagnose" | "repro",
 		result: AgentResult,
 	): Promise<void> {
 		await this.ctx.storage.transaction(async (transaction) => {
@@ -1609,7 +1781,11 @@ export class OrchestratorDO extends DurableObject<Env> {
 		await this.discardLaunchSideEffects(runId);
 		const effectiveMode = mode ?? "repro";
 		const resumeState =
-			state === "working" || state === "investigating" || state === "fixing"
+			state === "triaging" ||
+			state === "working" ||
+			state === "investigating" ||
+			state === "in_review" ||
+			state === "fixing"
 				? state
 				: resumeStateForMode(effectiveMode);
 		const existing = await this.ctx.storage.get<ResumableRunCheckpoint>(STORAGE.resumableRun);
@@ -1646,7 +1822,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		// Commit the failed transition before deleting retry evidence. If this
 		// throws, the run markers remain and the next alarm retries recovery.
 		const labels = await this.projectLabels();
-		const timeoutSummary = `${checkpoint.summary}\n\nThe conversation and workspace are saved. A maintainer can continue them with \`@emdashbot resume\`.`;
+		const timeoutSummary = `${checkpoint.summary}\n\nThe conversation and workspace are saved. A maintainer can continue with \`@emdashbot retry\`.`;
 		const finalizedWorkComment = await this.finalizeWorkPlanComment({
 			runId,
 			status: "timed_out",
@@ -2189,7 +2365,27 @@ export class OrchestratorDO extends DurableObject<Env> {
 						: `Fixes #${anchorNumber}.\n\nAutomated PR opened by emdashbot.`,
 					draft,
 				}));
-			await this.ctx.storage.put(STORAGE.prNumber, created.number);
+			const headSha = await getBranchSha(token, repo, headBranch);
+			await Promise.all([
+				this.ctx.storage.put(STORAGE.prNumber, created.number),
+				...(headSha
+					? [
+							this.ctx.storage.put(STORAGE.prStatus, {
+								number: created.number,
+								url: created.htmlUrl,
+								state: "open",
+								draft,
+								headSha,
+								mergeability: "unknown",
+								review: "review-required",
+								checks: "none",
+								failingChecks: [],
+								pendingChecks: [],
+								updatedAt: new Date().toISOString(),
+							} satisfies PullRequestStatus),
+						]
+					: []),
+			]);
 			return null;
 		} catch (err) {
 			return `openPr failed: ${errorMessage(err)}`;
@@ -2304,7 +2500,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const id = await this.persistStandaloneSideEffect({
 			anchorNumber,
 			commentBody:
-				"There isn't a saved timed-out run to resume. Start a fresh run with `@emdashbot retry`, `@emdashbot investigate`, or `@emdashbot implement <directive>`.",
+				"There isn't a saved timed-out run to resume. Start fresh with `@emdashbot retry`, `@emdashbot investigate`, or `@emdashbot work <directive>`.",
 			...(input.deliveryId ? { deliveryId: input.deliveryId } : {}),
 		});
 		await this.armAlarm();
@@ -2454,7 +2650,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			exists = await hasIssueCommentMarker(
 				token,
 				repo,
-				pending.anchorNumber,
+				pending.commentTargetNumber ?? pending.anchorNumber,
 				pending.commentMarker,
 			);
 		} else {
@@ -2465,7 +2661,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			await postIssueComment(
 				token,
 				repo,
-				pending.anchorNumber,
+				pending.commentTargetNumber ?? pending.anchorNumber,
 				`${pending.commentBody}\n\n${pending.commentMarker}`,
 			);
 		}
@@ -2522,7 +2718,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 					);
 				}
 			}
-			if (decision.event.startsWith("agent.") && input.settlesRunId) {
+			if (decision.event.startsWith("agent.") && input.settlesRunId && !preparedInvestigation) {
 				const run = await transaction.get<RunLifecycle>(STORAGE.runLifecycle);
 				if (run?.runId === input.settlesRunId) {
 					const status =
@@ -2576,6 +2772,33 @@ export class OrchestratorDO extends DurableObject<Env> {
 			if (kindLabel) {
 				const kind = parseKind(kindLabel.slice("bot:".length));
 				if (kind) puts.push(transaction.put(STORAGE.kind, kind));
+			}
+			if (input.agentKind) puts.push(transaction.put(STORAGE.kind, input.agentKind));
+			if (input.pullRequestNumber)
+				puts.push(transaction.put(STORAGE.prNumber, input.pullRequestNumber));
+			if (decision.to === "in_review" && decision.event !== "pr.green") {
+				puts.push(transaction.put(STORAGE.prPollNextAt, now));
+			}
+			if (decision.event === "pr.updated" || decision.event === "agent.revised") {
+				puts.push(
+					transaction.delete(STORAGE.prRepairFingerprint),
+					transaction.delete(STORAGE.prStatus),
+					transaction.delete(STORAGE.prGreenHeadSha),
+				);
+			}
+			if (decision.event === "pr.closed" || decision.event === "pr.merged") {
+				const pullRequest = await transaction.get<PullRequestStatus>(STORAGE.prStatus);
+				puts.push(transaction.delete(STORAGE.prPollNextAt));
+				puts.push(transaction.delete(STORAGE.prGreenHeadSha));
+				if (pullRequest) {
+					puts.push(
+						transaction.put(STORAGE.prStatus, {
+							...pullRequest,
+							state: decision.event === "pr.merged" ? "merged" : "closed",
+							updatedAt: new Date(now).toISOString(),
+						} satisfies PullRequestStatus),
+					);
+				}
 			}
 			if (preparedInvestigation) {
 				const run = startRunLifecycle({
@@ -2642,8 +2865,32 @@ export class OrchestratorDO extends DurableObject<Env> {
 						: []),
 				);
 			}
+			if (decision.event === "pr.closed" || decision.event === "pr.merged") {
+				const inbox = (await transaction.get<InboxEntry[]>(STORAGE.inbox)) ?? [];
+				const kept = inbox.filter(
+					(candidate) => !(candidate.input.event === "revise" && candidate.input.pullRequestNumber),
+				);
+				if (kept.length !== inbox.length) {
+					puts.push(
+						kept.length === 0
+							? transaction.delete(STORAGE.inbox)
+							: transaction.put(STORAGE.inbox, kept),
+					);
+				}
+			}
 			const anchorNumber =
 				input.anchorNumber ?? (await transaction.get<number>(STORAGE.anchorNumber));
+			const commentTargetNumber =
+				input.pullRequestNumber ??
+				((await transaction.get<InvestigationMode>(STORAGE.currentRunMode)) === "revise"
+					? await transaction.get<number>(STORAGE.prNumber)
+					: undefined);
+			const linkedPrNumber =
+				input.pullRequestNumber ?? (await transaction.get<number>(STORAGE.prNumber));
+			const handoffComment =
+				decision.action === "openDraftPr" && linkedPrNumber
+					? `Candidate accepted. I opened [draft PR #${linkedPrNumber}](https://github.com/${this.env.GITHUB_OWNER}/${this.env.GITHUB_REPO}/pull/${linkedPrNumber}). Further implementation and review updates will be posted on the PR.`
+					: undefined;
 			const effectRunId =
 				preparedInvestigation?.runId ?? preparedResume?.checkpoint.runId ?? input.settlesRunId;
 			const effectDeliveryId = input.settlesDeliveryId ?? input.deliveryId;
@@ -2657,12 +2904,27 @@ export class OrchestratorDO extends DurableObject<Env> {
 							id: sideEffectId,
 							...(effectDeliveryId ? { deliveryId: effectDeliveryId } : {}),
 							...(effectRunId ? { runId: effectRunId } : {}),
-							settlesRun: input.settlesRunId !== undefined,
+							settlesRun: input.settlesRunId !== undefined && !preparedInvestigation,
 							anchorNumber,
-							addLabels: decision.addLabels,
-							removeLabels: decision.removeLabels,
+							addLabels: [
+								...(input.agentKind
+									? decision.addLabels.filter(
+											(label) => !label.startsWith("bot:") || label === decision.addLabel,
+										)
+									: decision.addLabels),
+								...(input.agentKind ? [`bot:${input.agentKind}`] : []),
+								...(input.agentLabels ?? []),
+							],
+							removeLabels: [
+								...decision.removeLabels,
+								...(input.agentKind
+									? KINDS.filter((kind) => kind !== input.agentKind).map((kind) => `bot:${kind}`)
+									: []),
+							],
+							...(commentTargetNumber ? { commentTargetNumber } : {}),
 							commentBody:
 								input.commentBodyOverride ??
+								handoffComment ??
 								renderComment(
 									decision,
 									anchorNumber,
@@ -2812,7 +3074,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const matchesDispatch = pendingDispatch?.runId === runId;
 			const matchesResume = pendingResume?.checkpoint.runId === runId;
 			if (!matchesDispatch && !matchesResume) return;
-			const deliveryId = matchesDispatch ? pendingDispatch.deliveryId : pendingResume.deliveryId;
+			const deliveryId = matchesDispatch ? pendingDispatch?.deliveryId : pendingResume?.deliveryId;
 			if (deliveryId) {
 				const seen = (await transaction.get<string[]>(STORAGE.seenDeliveries)) ?? [];
 				if (!seen.includes(deliveryId)) {
@@ -2979,6 +3241,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			legacyMode,
 			currentRunStartedAt,
 			prNumber,
+			pullRequest,
 			transitions,
 			progress,
 		] = await Promise.all([
@@ -2989,6 +3252,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			this.ctx.storage.get<InvestigationMode>(STORAGE.currentRunMode),
 			this.ctx.storage.get<number>(STORAGE.currentRunStartedAt),
 			this.ctx.storage.get<number>(STORAGE.prNumber),
+			this.ctx.storage.get<PullRequestStatus>(STORAGE.prStatus),
 			this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog),
 			this.ctx.storage.get<PublicProgressEntry[]>(STORAGE.publicProgress),
 		]);
@@ -3010,6 +3274,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 			workPlan: storedWorkPlan?.plan ?? null,
 			currentRunStartedAt: currentRunStartedAt ?? null,
 			prNumber: prNumber ?? null,
+			pullRequest: pullRequest ?? null,
 			transitions: (transitions ?? []).map(({ t, event, from, to }) => ({
 				t,
 				event,
@@ -3274,6 +3539,13 @@ export type EnqueueOutcome =
 /** One preview poll's outcome: idle (not building), waiting (before next poll),
  * polling (probed, not yet published), ready, or failed (budget exhausted). */
 export type PreviewPollOutcome = "idle" | "waiting" | "polling" | "ready" | "failed";
+export type PullRequestPollOutcome =
+	| "idle"
+	| "waiting"
+	| "repairing"
+	| "green"
+	| "merged"
+	| "closed";
 
 export interface TickOutcome {
 	ranAt: number;
@@ -3285,6 +3557,7 @@ export interface TickOutcome {
 	labelDrift: { added: number; removed: number } | null;
 	expiredReporterWait: boolean;
 	previewPoll: PreviewPollOutcome;
+	pullRequestPoll: PullRequestPollOutcome;
 }
 
 export type CleanupOutcome =
@@ -3313,6 +3586,9 @@ function errorMessage(error: unknown): string {
 
 function parseInvestigateMode(value: string): InvestigationMode | null {
 	if (
+		value === "triage" ||
+		value === "investigate" ||
+		value === "work" ||
 		value === "repro" ||
 		value === "implement" ||
 		value === "revise" ||
@@ -3323,9 +3599,27 @@ function parseInvestigateMode(value: string): InvestigationMode | null {
 	return null;
 }
 
-function parseKind(value: string): Kind | null {
+function parseKind(value: unknown): Kind | null {
 	if (value === "bug" || value === "enhancement" || value === "task") return value;
 	return null;
+}
+
+const TRIAGE_LABELS: ReadonlySet<string> = new Set([
+	"area/admin",
+	"area/auth",
+	"area/cloudflare",
+	"area/ci",
+	"area/core",
+	"area/docs",
+	"area/plugins",
+	"area/templates",
+]);
+
+function sanitizeTriageLabels(value: readonly string[] | undefined): string[] {
+	if (!value) return [];
+	return [
+		...new Set(value.map((label) => label.trim()).filter((label) => TRIAGE_LABELS.has(label))),
+	];
 }
 
 function renderComment(

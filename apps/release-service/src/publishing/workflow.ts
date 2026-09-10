@@ -27,6 +27,7 @@ import type {
 	StoredPublicationMaterialization,
 } from "../publisher-do/publisher-do.js";
 import {
+	evaluateWorkloadAttestation,
 	evaluateVerifiedRelease,
 	normalizeVerifierReport,
 	parseNormalizedVerifierReport,
@@ -34,7 +35,7 @@ import {
 } from "../verification/evaluate.js";
 import {
 	findProofVerifiedRelease,
-	PublisherSnapshotError,
+	publisherSnapshotErrorCode,
 	readPublisherVerificationSnapshot,
 	resolvePublicHostname,
 	resolvePublisherPds,
@@ -150,25 +151,6 @@ type FinalVerificationResult =
 			verifierJson: string;
 	  }
 	| { ok: false; reasonCode: string; terminalState: "conflict" | "invalid" };
-
-const PUBLISHER_SNAPSHOT_ERROR_CODES: readonly PublisherSnapshotError["code"][] = [
-	"PUBLISHER_IDENTITY_INVALID",
-	"PUBLISHER_PDS_INVALID",
-	"PROFILE_INVALID",
-	"RELEASE_EXISTS",
-	"RELEASE_RECORD_INVALID",
-	"RELEASE_LIST_INVALID",
-];
-
-function publisherSnapshotErrorCode(error: unknown): PublisherSnapshotError["code"] | null {
-	if (error instanceof PublisherSnapshotError) return error.code;
-	if (!(error instanceof Error)) return null;
-	return (
-		PUBLISHER_SNAPSHOT_ERROR_CODES.find(
-			(code) => error.message === `PublisherSnapshotError: ${code}`,
-		) ?? null
-	);
-}
 
 function isRetryablePublicationBlock(code: string): boolean {
 	return (
@@ -754,6 +736,7 @@ export async function publishVerifiedIntent(
 						publisherDid,
 						originalIntent,
 						snapshot,
+						await publisher.getWorkloadPolicy(publisherDid, originalIntent.packageSlug),
 						verifier,
 					);
 					if (!evaluation.success) {
@@ -812,6 +795,13 @@ export async function publishVerifiedIntent(
 					intentId: originalIntent.id,
 					state: finalVerification.terminalState,
 					reasonCode: finalVerification.reasonCode,
+				};
+			}
+			if (current?.state === "expired") {
+				return {
+					intentId: originalIntent.id,
+					state: "expired",
+					reasonCode: "INTENT_EXPIRED",
 				};
 			}
 			if (current?.state !== "ready") {
@@ -1087,6 +1077,7 @@ export async function publishVerifiedIntent(
 						publisherDid,
 						originalIntent,
 						snapshot,
+						await publisher.getWorkloadPolicy(publisherDid, originalIntent.packageSlug),
 						verifier,
 					);
 					if (
@@ -1145,6 +1136,12 @@ export async function publishVerifiedIntent(
 						originalIntent.requestDigest,
 					);
 					if (!persistedRecord) return failBeforeWrite("MATERIALIZATION_UNAVAILABLE");
+					const workload = await evaluateWorkloadAttestation(
+						originalIntent,
+						await publisher.getWorkloadPolicy(publisherDid, originalIntent.packageSlug),
+						verifier.value.provenance,
+					);
+					if (!workload.ok) return failBeforeWrite(workload.reasonCode);
 					await requireCurrentPublicationAudience(publisher, publisherDid, restored);
 					const creatingPhase = await publisher.advancePublicationOperationPhase({
 						...completionBase,

@@ -3,6 +3,7 @@ import { env } from "cloudflare:workers";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTVerifyGetKey } from "jose";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
+import { ApprovalAuthorityError } from "../src/approvals/authority.js";
 import { loadConfiguration } from "../src/config.js";
 import { createPublisherApplicationSession } from "../src/publisher-session/session.js";
 import {
@@ -164,6 +165,78 @@ async function createInvitation(
 }
 
 describe("GitHub workflow connection routes", () => {
+	it("keeps a workflow pending when its package profile is missing", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		await publisherHeaders();
+		await enablePublishing();
+		const invitationToken = await createInvitation(configuration);
+		await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken(), { invitationToken }),
+			"request-create",
+			configuration,
+			{ keyResolver, now: () => NOW, requestId: () => REQUEST_ID },
+		);
+
+		const confirmed = await handleConfirmWorkflowConnection(
+			new Request(
+				`${TEST_BINDINGS.PUBLIC_ORIGIN}/v1/publisher/workflow-connections/${REQUEST_ID}/confirm`,
+				{
+					method: "POST",
+					headers: await publisherHeaders(),
+					body: JSON.stringify({ refScope: "version_tags" }),
+				},
+			),
+			"request-confirm",
+			configuration,
+			{ requestId: REQUEST_ID },
+			{
+				now: () => NOW + 1,
+				loadCurrentApprovalPolicy: async () => {
+					throw new ApprovalAuthorityError("PROFILE_NOT_FOUND");
+				},
+			},
+		);
+
+		expect(confirmed.status).toBe(409);
+		await expect(confirmed.json()).resolves.toMatchObject({
+			error: {
+				code: "PACKAGE_PROFILE_REQUIRED",
+				message: expect.stringContaining("emdash-plugin profile setup"),
+			},
+		});
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await expect(publisher.getWorkloadPolicy(PUBLISHER_DID, "gallery")).resolves.toBeNull();
+		await expect(
+			publisher.listWorkflowConnectionRequests(PUBLISHER_DID, 20, NOW + 2),
+		).resolves.toMatchObject([{ id: REQUEST_ID, state: "pending" }]);
+
+		const nonCanonical = await handleConfirmWorkflowConnection(
+			new Request(
+				`${TEST_BINDINGS.PUBLIC_ORIGIN}/v1/publisher/workflow-connections/${REQUEST_ID}/confirm`,
+				{
+					method: "POST",
+					headers: await publisherHeaders("workflow-connection-confirm-0002"),
+					body: JSON.stringify({ refScope: "version_tags" }),
+				},
+			),
+			"request-confirm-noncanonical",
+			configuration,
+			{ requestId: REQUEST_ID },
+			{
+				now: () => NOW + 2,
+				loadCurrentApprovalPolicy: async () => ({
+					profileCid: "bafyprofile",
+					approverDids: [PUBLISHER_DID],
+					repository: "https://github.com/example/gallery/",
+				}),
+			},
+		);
+		expect(nonCanonical.status).toBe(409);
+		await expect(nonCanonical.json()).resolves.toMatchObject({
+			error: { code: "PACKAGE_PROFILE_REQUIRED" },
+		});
+	});
+
 	it("does not initialize a publisher shard before the account authorizes publishing", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		const response = await handleRequestWorkflowConnection(
@@ -383,7 +456,14 @@ describe("GitHub workflow connection routes", () => {
 			"request-confirm",
 			configuration,
 			{ requestId: REQUEST_ID },
-			{ now: () => NOW + 2 },
+			{
+				now: () => NOW + 2,
+				loadCurrentApprovalPolicy: async () => ({
+					profileCid: "bafyprofile",
+					approverDids: [PUBLISHER_DID],
+					repository: "https://github.com/example/gallery",
+				}),
+			},
 		);
 		expect(await confirmed.json()).toMatchObject({
 			data: {
@@ -398,10 +478,39 @@ describe("GitHub workflow connection routes", () => {
 			}),
 			"request-connected",
 			configuration,
-			{ keyResolver, now: () => NOW + 3, requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ1" },
+			{
+				keyResolver,
+				now: () => NOW + 3,
+				requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ1",
+				loadCurrentApprovalPolicy: async () => ({
+					profileCid: "bafyprofile",
+					approverDids: [PUBLISHER_DID],
+					repository: "https://github.com/example/gallery",
+				}),
+			},
 		);
 		expect(await connected.json()).toMatchObject({
 			data: { status: "connected", policy: { allowedRefs: ["refs/tags/*"] } },
+		});
+
+		const missingProfile = await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken({ ref: "refs/tags/v2.0.0" }), {
+				mutationKey: "workflow-connection-request-0003",
+			}),
+			"request-profile-missing",
+			configuration,
+			{
+				keyResolver,
+				now: () => NOW + 4,
+				requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ2",
+				loadCurrentApprovalPolicy: async () => {
+					throw new ApprovalAuthorityError("PROFILE_NOT_FOUND");
+				},
+			},
+		);
+		expect(missingProfile.status).toBe(409);
+		await expect(missingProfile.json()).resolves.toMatchObject({
+			error: { code: "PACKAGE_PROFILE_REQUIRED" },
 		});
 	});
 });

@@ -89,6 +89,8 @@ export interface SeedCollection {
 	sortOrder?: number;
 	/** Enable comments on this collection */
 	commentsEnabled?: boolean;
+	/** Take an edit lock when an entry is opened (defaults to true) */
+	editLocking?: boolean;
 	/** Field slug powering the admin list Title column (defaults to title display) */
 	titleField?: string;
 	/** Field slug (a datetime field) powering the admin list Date column (defaults to last-updated) */

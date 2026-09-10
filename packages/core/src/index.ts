@@ -83,6 +83,7 @@ export {
 	handleMediaGet,
 	handleMediaCreate,
 	handleMediaUpdate,
+	handleMediaReplaceMetadata,
 	handleMediaDelete,
 	handleMediaUsageActivationAdvance,
 	handleMediaUsageProgress,
@@ -101,13 +102,21 @@ export type {
 	RevisionListResponse,
 	RevisionResponse,
 	ManifestResponse,
+	ManifestCollectionMap,
+	ManifestCollectionDescriptor,
+	ManifestFieldDescriptor,
 	FieldDescriptor,
 	ApiContext,
 } from "./api/index.js";
 
 // Content converters (Portable Text <-> ProseMirror)
-export { prosemirrorToPortableText, portableTextToProsemirror } from "./content/index.js";
+export {
+	portableTextIdentityExtensions,
+	prosemirrorToPortableText,
+	portableTextToProsemirror,
+} from "./content/index.js";
 export type {
+	PortableTextToProsemirrorOptions,
 	PortableTextSpan,
 	PortableTextMarkDef,
 	PortableTextLinkMark,
@@ -258,6 +267,9 @@ export {
 	createSandboxRouteErrorEnvelope,
 	getSandboxRouteErrorDetails,
 	getSandboxRouteErrorEnvelope,
+	MAX_SANDBOX_SAVE_REJECTION_REASON_LENGTH,
+	SANDBOX_HOOK_RESULT_VERSION,
+	inspectSandboxHookResult,
 	createNoopSandboxRunner,
 	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
 	createHttpAccess,
@@ -331,6 +343,9 @@ export type {
 	SandboxRouteErrorCode,
 	SandboxRouteErrorDetails,
 	SandboxRouteErrorEnvelope,
+	SandboxHookErrorEnvelope,
+	SandboxHookResultInspection,
+	SandboxSaveRejectedError,
 } from "./plugins/index.js";
 
 // Capability normalization (legacy → canonical alias layer)
@@ -430,6 +445,7 @@ export {
 	getPluginSettings,
 	getSiteSetting,
 	getSiteSettings,
+	getSiteSettingsWithCacheHint,
 	setSiteSettings,
 } from "./settings/index.js";
 export type {
@@ -461,7 +477,7 @@ export { getComments, getCommentCount } from "./comments/query.js";
 export type { GetCommentsOptions, GetCommentsResult } from "./comments/query.js";
 
 // Menus
-export { getMenu, getMenus } from "./menus/index.js";
+export { getMenu, getMenuWithCacheHint, getMenus } from "./menus/index.js";
 export type {
 	Menu,
 	MenuItem,
@@ -482,6 +498,7 @@ export {
 	getTaxonomyDefs,
 	getTaxonomyDef,
 	getTaxonomyTerms,
+	getTaxonomyTermsWithCacheHint,
 	getTerm,
 	getEntryTerms,
 	getTermsForEntries,
@@ -498,7 +515,12 @@ export type {
 } from "./taxonomies/types.js";
 
 // Widgets
-export { getWidgetArea, getWidgetAreas, getWidgetComponents } from "./widgets/index.js";
+export {
+	getWidgetArea,
+	getWidgetAreaWithCacheHint,
+	getWidgetAreas,
+	getWidgetComponents,
+} from "./widgets/index.js";
 export type {
 	Widget,
 	WidgetArea,

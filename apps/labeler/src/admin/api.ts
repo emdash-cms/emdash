@@ -65,25 +65,13 @@ export interface AssessmentDetail {
 		reason: string;
 		createdAt: string;
 	};
+	relatedProfile?: unknown;
+	publisherHandle?: string | null;
 }
 
 export interface IssuanceStatus {
 	paused: boolean;
 	updatedAt: string | null;
-}
-
-export interface EvaluationListItem {
-	id: number;
-	actor_did: string;
-	reason: string;
-	status: "running" | "succeeded" | "failed";
-	budget_passed: 0 | 1 | null;
-	baseline_run_id: number | null;
-	failure_code: string | null;
-	failure_summary: string | null;
-	created_at: string;
-	updated_at: string;
-	completed_at: string | null;
 }
 
 export interface ActivityItem {
@@ -136,20 +124,16 @@ export function getAssessment(runKey: string): Promise<AssessmentDetail> {
 	return requestJson(`/_admin/api/assessments/${encodeURIComponent(runKey)}`);
 }
 
+export function assessmentMediaUrl(runKey: string, kind: string, index: number): string {
+	return `/_admin/api/assessments/${encodeURIComponent(runKey)}/media/${encodeURIComponent(kind)}/${index}`;
+}
+
 export function getIssuance(): Promise<IssuanceStatus> {
 	return requestJson("/_admin/api/issuance");
 }
 
-export function getEvaluations(cursor?: string): Promise<Page<EvaluationListItem>> {
-	return requestPage("/_admin/api/evals", cursor);
-}
-
 export function getActivity(cursor?: string): Promise<Page<ActivityItem>> {
 	return requestPage("/_admin/api/activity", cursor);
-}
-
-export function getEvaluation(runId: number): Promise<Record<string, unknown>> {
-	return requestJson(`/_admin/api/evals/${runId}`);
 }
 
 export function assessmentAction(
@@ -170,10 +154,6 @@ export function setIssuance(paused: boolean, reason: string): Promise<{ paused: 
 
 export function setTakedown(uri: string, retract: boolean, reason: string): Promise<unknown> {
 	return mutate(`/_admin/api/takedown${retract ? "/retract" : ""}`, { uri, reason });
-}
-
-export function startEvaluation(reason: string): Promise<Record<string, unknown>> {
-	return mutate("/_admin/api/evals/run", { reason });
 }
 
 async function requestPage<T>(path: string, cursor?: string): Promise<Page<T>> {

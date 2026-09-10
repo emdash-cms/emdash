@@ -50,6 +50,14 @@ describe("contentCreateBody schema", () => {
 		expect(result.publishedAt).toBe("2019-03-15T10:30:00+00:00");
 	});
 
+	it("accepts minute-precision ISO datetimes", () => {
+		const result = contentCreateBody.parse({
+			data: { title: "Hi" },
+			publishedAt: "2019-03-15T10:30Z",
+		});
+		expect(result.publishedAt).toBe("2019-03-15T10:30Z");
+	});
+
 	it("rejects malformed datetime strings", () => {
 		expect(() =>
 			contentCreateBody.parse({ data: { title: "Hi" }, publishedAt: "yesterday" }),

@@ -8,11 +8,13 @@
 import type { Kysely } from "kysely";
 
 import { after } from "../after.js";
+import { siteSettingsTag } from "../cache/chrome-tags.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, invalidateObjectCache } from "../object-cache/index.js";
+import type { CacheHint } from "../query.js";
 import { peekRequestCache, requestCached } from "../request-cache.js";
 
 /** Object-cache namespace for site settings. */
@@ -234,6 +236,20 @@ export function getSiteSettings(): Promise<Partial<SiteSettings>> {
 			{ anchor: (promise) => after(() => promise), ownerTimeoutMs: 30_000 },
 		),
 	);
+}
+
+/**
+ * Get all site settings with a Workers edge-cache hint.
+ *
+ * Use the returned `cacheHint` with `Astro.cache.set()` so pages that render
+ * settings can be purged automatically when site settings change.
+ */
+export async function getSiteSettingsWithCacheHint(): Promise<{
+	data: Partial<SiteSettings>;
+	cacheHint: CacheHint;
+}> {
+	const data = await getSiteSettings();
+	return { data, cacheHint: { tags: [siteSettingsTag()] } };
 }
 
 /**

@@ -59,6 +59,9 @@ const SEO_ALIAS_COLUMNS = Object.values(SEO_COLUMN_ALIASES);
 /** Folded SEO JSON column name in the result set (expanded onto aliases in JS). */
 const SEO_FOLDED_COLUMN = "_emdash_seo";
 
+/** Folded boolean field slugs used to restore SQLite integer values. */
+const BOOLEAN_FIELDS_FOLDED_COLUMN = "_emdash_boolean_fields";
+
 /**
  * System columns excluded from entry.data
  * Note: slug is intentionally NOT excluded - it's useful as data.slug in templates
@@ -91,6 +94,7 @@ const SYSTEM_COLUMNS = new Set([
 	"_emdash_bylines",
 	"_emdash_bylines_exist",
 	SEO_FOLDED_COLUMN,
+	BOOLEAN_FIELDS_FOLDED_COLUMN,
 ]);
 
 /** Markers for byline/taxonomy hydration folded into the content query. */
@@ -183,6 +187,19 @@ function foldedSeoSelect(db: Kysely<any>, type: string, outer: string) {
 		"'seo_title', s.seo_title, 'seo_description', s.seo_description, 'seo_image', s.seo_image, 'seo_canonical', s.seo_canonical, 'seo_no_index', s.seo_no_index";
 	const obj = pg ? sql.raw(`json_build_object(${pairs})`) : sql.raw(`json_object(${pairs})`);
 	return sql`(SELECT ${obj} FROM ${sql.ref("_emdash_seo")} AS s WHERE s.collection = ${type} AND s.content_id = ${o}.id LIMIT 1) AS ${sql.ref(SEO_FOLDED_COLUMN)}`;
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- any Kysely instance
+function foldedBooleanFieldsSelect(db: Kysely<any>, type: string) {
+	const aggregate = isPostgres(db)
+		? sql`coalesce(json_agg(f.slug), '[]'::json)`
+		: sql`json_group_array(f.slug)`;
+	return sql`(
+		SELECT ${aggregate}
+		FROM ${sql.ref("_emdash_fields")} AS f
+		INNER JOIN ${sql.ref("_emdash_collections")} AS c ON c.id = f.collection_id
+		WHERE c.slug = ${type} AND f.type = ${"boolean"}
+	) AS ${sql.ref(BOOLEAN_FIELDS_FOLDED_COLUMN)}`;
 }
 
 /**
@@ -493,7 +510,10 @@ function normalizeLocalMediaValue(value: unknown): unknown {
  * Extracts content fields (non-system columns) and parses JSON where needed.
  * System columns needed for templates (id, status, dates) are included with camelCase names.
  */
-function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
+function mapRowToData(
+	row: Record<string, unknown>,
+	booleanFields: ReadonlySet<string>,
+): Record<string, unknown> {
 	const data: Record<string, unknown> = {};
 	const rawDateValues: Record<string, string> = {};
 
@@ -515,6 +535,11 @@ function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 		}
 
 		if (SYSTEM_COLUMNS.has(key)) continue;
+
+		if (booleanFields.has(key) && (typeof value === "boolean" || value === 0 || value === 1)) {
+			data[key] = Boolean(value);
+			continue;
+		}
 
 		// Try to parse JSON strings (for portableText, json fields, etc.)
 		if (typeof value === "string") {
@@ -543,14 +568,38 @@ function mapRowToData(row: Record<string, unknown>): Record<string, unknown> {
 	return data;
 }
 
+function parseFoldedBooleanFields(row: Record<string, unknown> | undefined): Set<string> {
+	const raw = row?.[BOOLEAN_FIELDS_FOLDED_COLUMN];
+	let values: unknown;
+	if (typeof raw === "string") {
+		try {
+			values = JSON.parse(raw);
+		} catch {
+			return new Set();
+		}
+	} else {
+		values = raw;
+	}
+
+	if (!Array.isArray(values)) return new Set();
+	return new Set(values.filter((value): value is string => typeof value === "string"));
+}
+
 /**
  * Map revision data (already-parsed JSON object) to entry data.
  * Strips _-prefixed metadata keys (e.g. _slug) used internally by revisions.
  */
-function mapRevisionData(data: Record<string, unknown>): Record<string, unknown> {
+function mapRevisionData(
+	data: Record<string, unknown>,
+	booleanFields: ReadonlySet<string>,
+): Record<string, unknown> {
 	const result: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(data)) {
 		if (key.startsWith("_")) continue; // revision metadata
+		if (booleanFields.has(key) && (typeof value === "boolean" || value === 0 || value === 1)) {
+			result[key] = Boolean(value);
+			continue;
+		}
 		result[key] = normalizeLocalMediaValue(value);
 	}
 	return result;
@@ -904,6 +953,7 @@ export function buildTaxonomyPivotQuery(
 		bylines: bylinesSelect,
 		bylinesExist: bylinesExistSelect,
 	} = foldedHydrationSelects(db, collection, "r");
+	const booleanFieldsSelect = foldedBooleanFieldsSelect(db, collection);
 
 	// Authoritative re-check on the joined `ec_*` row.
 	const deletedR = deletedIsNull ? sql`r.deleted_at IS NULL` : sql`r.deleted_at IS NOT NULL`;
@@ -945,7 +995,7 @@ export function buildTaxonomyPivotQuery(
 				ORDER BY sortval ${dir}, r.id ${dir}
 				${limitClause}
 			)
-			SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
+			SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
 			FROM picked JOIN ${sql.ref(tableName)} AS r ON r.id = picked.entry_id
 			WHERE ${deletedR} ${statusR} ${localeR}
 			ORDER BY picked.sortval ${dir}, picked.entry_id ${dir}
@@ -969,7 +1019,7 @@ export function buildTaxonomyPivotQuery(
 				${residual}
 				${bylineCt}
 		)
-		SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
+		SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
 		FROM picked JOIN ${sql.ref(tableName)} AS r ON r.id = picked.entry_id
 		WHERE ${deletedR} ${statusR} ${localeR}
 			${cursorCond}
@@ -1337,6 +1387,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						bylines: bylinesSelect,
 						bylinesExist: bylinesExistSelect,
 					} = foldedHydrationSelects(db, type, tableName);
+					const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
 
 					// LIMIT/OFFSET clause. SQLite only accepts OFFSET when a
 					// LIMIT is present, so a bare offset uses `LIMIT -1`
@@ -1352,7 +1403,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							: sql`LIMIT -1 OFFSET ${offset}`;
 					}
 					result = await sql<Record<string, unknown>>`
-						SELECT *, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect} FROM ${sql.ref(tableName)}
+						SELECT *, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect} FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}
@@ -1372,6 +1423,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				// Map rows to entries
 				const i18nConfig = virtualConfig?.i18n;
 				const i18nEnabled = i18nConfig && i18nConfig.locales.length > 1;
+				const booleanFields = parseFoldedBooleanFields(rows[0]);
 				const entries = rows.map((row) => {
 					const slug = rowStr(row, "slug") || rowStr(row, "id");
 					const rowLocale = rowStr(row, "locale");
@@ -1380,7 +1432,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						rowLocale !== "" &&
 						(rowLocale !== i18nConfig.defaultLocale || i18nConfig.prefixDefaultLocale);
 					const id = shouldPrefix ? `${rowLocale}/${slug}` : slug;
-					const data = mapRowToData(row);
+					const data = mapRowToData(row, booleanFields);
 					stashFolded(data, row);
 					return {
 						id,
@@ -1494,16 +1546,17 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					bylinesExist: bylinesExistSelect,
 				} = foldedHydrationSelects(db, type, "c");
 				const seoSelect = foldedSeoSelect(db, type, "c");
+				const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND (c.slug = ${id} OR c.id = ${id})
@@ -1568,7 +1621,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						const revEntryData: Record<string, unknown> = {
 							...systemData,
 							slug,
-							...mapRevisionData(parsed),
+							...mapRevisionData(parsed, parseFoldedBooleanFields(row)),
 						};
 						const revSeo = extractSeo(row);
 						if (revSeo) revEntryData.seo = revSeo;
@@ -1586,7 +1639,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 					}
 				}
 
-				const entryData = mapRowToData(row);
+				const entryData = mapRowToData(row, parseFoldedBooleanFields(row));
 				const entrySeo = extractSeo(row);
 				if (entrySeo) entryData.seo = entrySeo;
 				stashFolded(entryData, row);

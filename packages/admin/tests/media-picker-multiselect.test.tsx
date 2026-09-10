@@ -50,7 +50,10 @@ vi.mock("../src/lib/api", async () => {
 					createdAt: "2024-01-03",
 				},
 			],
+			totalCount: 3,
 		}),
+		fetchMediaFolders: vi.fn().mockResolvedValue({ items: [] }),
+		fetchMediaFolder: vi.fn().mockResolvedValue({ id: "folder-1", name: "Photography" }),
 		fetchMediaProviders: vi.fn().mockResolvedValue([]),
 		fetchProviderMedia: vi.fn().mockResolvedValue({ items: [] }),
 		uploadMedia: vi.fn().mockResolvedValue({ id: "m4", filename: "new.jpg" }),
@@ -81,14 +84,13 @@ function renderModal(props: Partial<React.ComponentProps<typeof MediaPickerModal
 }
 
 function optionButton(screen: Awaited<ReturnType<typeof renderModal>>, name: string) {
-	const option = screen.getByRole("option", { name });
-	return option.element().querySelector("button")!;
+	return screen.getByRole("button", { name, exact: true }).element() as HTMLButtonElement;
 }
 
-function footerInsertButton(): HTMLButtonElement {
-	const allInsertBtns = [...document.querySelectorAll("button")];
-	const insertBtns = allInsertBtns.filter((b) => b.textContent?.trim() === "Insert");
-	return insertBtns.at(-1) as HTMLButtonElement;
+function confirmationButton(): HTMLButtonElement {
+	return [...document.querySelectorAll("button")].find((button) =>
+		/^Add \d+ images?$/.test(button.textContent?.trim() ?? ""),
+	)!;
 }
 
 describe("MediaPickerModal — multi-select", () => {
@@ -100,29 +102,31 @@ describe("MediaPickerModal — multi-select", () => {
 		const onSelectMany = vi.fn();
 		const screen = await renderModal({ multiple: true, onSelectMany });
 
-		await expect.element(screen.getByRole("option", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 
 		// Click landscape, then photo, then portrait — order should be preserved
 		// as the gallery insertion order, not the grid's display order.
 		optionButton(screen, "landscape.png").click();
 		await expect
-			.element(screen.getByRole("option", { name: "landscape.png" }))
-			.toHaveAttribute("aria-selected", "true");
+			.element(screen.getByRole("button", { name: "landscape.png", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
 
 		optionButton(screen, "photo.jpg").click();
 		await expect
-			.element(screen.getByRole("option", { name: "photo.jpg" }))
-			.toHaveAttribute("aria-selected", "true");
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
 
 		optionButton(screen, "portrait.png").click();
 		await expect
-			.element(screen.getByRole("option", { name: "portrait.png" }))
-			.toHaveAttribute("aria-selected", "true");
+			.element(screen.getByRole("button", { name: "portrait.png", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
 
 		await vi.waitFor(() => {
-			expect(footerInsertButton().disabled).toBe(false);
+			expect(confirmationButton().disabled).toBe(false);
 		});
-		footerInsertButton().click();
+		confirmationButton().click();
 
 		expect(onSelectMany).toHaveBeenCalledTimes(1);
 		const selected = onSelectMany.mock.calls[0]![0] as Array<{ filename: string }>;
@@ -137,54 +141,58 @@ describe("MediaPickerModal — multi-select", () => {
 		const onSelectMany = vi.fn();
 		const screen = await renderModal({ multiple: true, onSelectMany });
 
-		await expect.element(screen.getByRole("option", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 
 		optionButton(screen, "photo.jpg").click();
 		await expect
-			.element(screen.getByRole("option", { name: "photo.jpg" }))
-			.toHaveAttribute("aria-selected", "true");
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
 
 		optionButton(screen, "landscape.png").click();
 		await expect
-			.element(screen.getByRole("option", { name: "landscape.png" }))
-			.toHaveAttribute("aria-selected", "true");
+			.element(screen.getByRole("button", { name: "landscape.png", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
 
 		// Deselect the first click
 		optionButton(screen, "photo.jpg").click();
 		await expect
-			.element(screen.getByRole("option", { name: "photo.jpg" }))
-			.toHaveAttribute("aria-selected", "false");
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toHaveAttribute("aria-pressed", "false");
 
 		await vi.waitFor(() => {
-			expect(footerInsertButton().disabled).toBe(false);
+			expect(confirmationButton().disabled).toBe(false);
 		});
-		footerInsertButton().click();
+		confirmationButton().click();
 
 		expect(onSelectMany).toHaveBeenCalledTimes(1);
 		const selected = onSelectMany.mock.calls[0]![0] as Array<{ filename: string }>;
 		expect(selected.map((item) => item.filename)).toEqual(["landscape.png"]);
 	});
 
-	it("Insert button is disabled at zero selections", async () => {
+	it("confirmation is disabled at zero selections", async () => {
 		await renderModal({ multiple: true });
 
 		await vi.waitFor(() => {
-			expect(footerInsertButton().disabled).toBe(true);
+			expect(confirmationButton().disabled).toBe(true);
 		});
 	});
 
-	it("Insert button becomes enabled after one selection and disabled again after deselecting it", async () => {
+	it("confirmation follows the current selection count", async () => {
 		const screen = await renderModal({ multiple: true });
-		await expect.element(screen.getByRole("option", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 
 		optionButton(screen, "photo.jpg").click();
 		await vi.waitFor(() => {
-			expect(footerInsertButton().disabled).toBe(false);
+			expect(confirmationButton().disabled).toBe(false);
 		});
 
 		optionButton(screen, "photo.jpg").click();
 		await vi.waitFor(() => {
-			expect(footerInsertButton().disabled).toBe(true);
+			expect(confirmationButton().disabled).toBe(true);
 		});
 	});
 
@@ -193,22 +201,67 @@ describe("MediaPickerModal — multi-select", () => {
 		const onSelectMany = vi.fn();
 		const screen = await renderModal({ onSelect, onSelectMany });
 
-		await expect.element(screen.getByRole("option", { name: "photo.jpg" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
 
 		optionButton(screen, "photo.jpg").click();
 		await expect
-			.element(screen.getByRole("option", { name: "photo.jpg" }))
-			.toHaveAttribute("aria-selected", "true");
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
 
-		await vi.waitFor(() => {
-			expect(footerInsertButton().disabled).toBe(false);
-		});
-		footerInsertButton().click();
+		screen.getByRole("button", { name: "Select" }).element().click();
 
 		expect(onSelect).toHaveBeenCalledTimes(1);
 		expect(onSelect).toHaveBeenCalledWith(
 			expect.objectContaining({ id: "m1", filename: "photo.jpg" }),
 		);
 		expect(onSelectMany).not.toHaveBeenCalled();
+	});
+
+	it("keeps selections when switching to a configured provider", async () => {
+		const api = await import("../src/lib/api");
+		(api.fetchMediaProviders as any).mockResolvedValueOnce([
+			{
+				id: "cloudflare-images",
+				name: "Cloudflare Images",
+				capabilities: { browse: true, search: false, upload: true, delete: false },
+			},
+		]);
+		(api.fetchProviderMedia as any).mockResolvedValueOnce({
+			items: [
+				{
+					id: "provider-1",
+					filename: "provider.jpg",
+					mimeType: "image/jpeg",
+					previewUrl: "https://example.com/provider.jpg",
+					width: 800,
+					height: 600,
+				},
+			],
+		});
+		const onSelectMany = vi.fn();
+		const screen = await renderModal({ multiple: true, onSelectMany });
+		await expect
+			.element(screen.getByRole("button", { name: "photo.jpg", exact: true }))
+			.toBeInTheDocument();
+		optionButton(screen, "photo.jpg").click();
+		screen.getByRole("tab", { name: "Cloudflare Images" }).element().click();
+		await expect
+			.element(screen.getByRole("button", { name: "provider.jpg", exact: true }))
+			.toBeInTheDocument();
+		optionButton(screen, "provider.jpg").click();
+		await expect
+			.element(screen.getByRole("button", { name: "provider.jpg", exact: true }))
+			.toHaveAttribute("aria-pressed", "true");
+		confirmationButton().click();
+
+		const selected = onSelectMany.mock.calls[0]![0] as Array<{
+			filename: string;
+			provider?: string;
+		}>;
+		expect(selected.map((item) => item.filename)).toEqual(["photo.jpg", "provider.jpg"]);
+		expect(selected[0]?.provider).toBeUndefined();
+		expect(selected[1]?.provider).toBe("cloudflare-images");
 	});
 });

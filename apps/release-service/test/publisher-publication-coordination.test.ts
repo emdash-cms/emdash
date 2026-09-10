@@ -109,14 +109,14 @@ describe("publisher publication coordination", () => {
 
 	it("expires abandoned leases and never persists their bearer token", async () => {
 		const stub = publisher();
-		const oldNow = Date.now() - 1_000;
+		const now = Date.now();
 		const acquired = await stub.acquirePublicationCoordination(
 			PUBLISHER_DID,
 			"gallery",
 			FIRST_INTENT,
-			1,
+			60_000,
 			FIRST_TOKEN,
-			oldNow,
+			now,
 		);
 		if (!acquired.ok) throw new Error("Expected publication coordination");
 		const stored = await runInDurableObject(stub, (_instance, state) =>
@@ -127,6 +127,13 @@ describe("publisher publication coordination", () => {
 				.one(),
 		);
 		expect(stored.token_hash).not.toBe(FIRST_TOKEN);
+		await runInDurableObject(stub, (_instance, state) => {
+			state.storage.sql.exec(
+				"UPDATE publication_coordinations SET expires_at = ? WHERE package_slug = ?",
+				now - 1,
+				"gallery",
+			);
+		});
 		await expect(
 			stub.renewPublicationCoordination({
 				publisherDid: PUBLISHER_DID,
@@ -135,7 +142,7 @@ describe("publisher publication coordination", () => {
 				generation: acquired.lease.generation,
 				token: FIRST_TOKEN,
 				leaseMs: 1_000,
-				now: Date.now(),
+				now,
 			}),
 		).resolves.toEqual({ ok: false, code: "PUBLICATION_COORDINATION_REQUIRED" });
 

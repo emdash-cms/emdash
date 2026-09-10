@@ -24,6 +24,8 @@ When writing, revising, or reviewing documentation, load the `writing-emdash-doc
 
 Before starting any work that involves editing code, run `pnpm lint:json | jq '.diagnostics | length'` and confirm it's clean -- if it's failing after your edits, your changes caused it.
 
+Run `pnpm build` from the repository root before `pnpm typecheck`. Package-scoped builds are not sufficient because typecheck resolves declaration output from other workspace packages.
+
 During work:
 
 - `pnpm lint:quick` after every edit (sub-second)
@@ -175,7 +177,7 @@ Test representative upgrades from existing data, retry after partial completion,
 
 ## Indexes
 
-Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `scheduled_at` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
+Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `(deleted_at, scheduled_at)` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
 
 Naming: `idx_{table}_{column}` for single-column, `idx_{table}_{purpose}` for multi-column.
 

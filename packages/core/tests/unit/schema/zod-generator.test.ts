@@ -205,6 +205,30 @@ describe("Zod Generator", () => {
 			expect(() => schema.parse(123)).toThrow();
 		});
 
+		it("applies custom string validation to url fields", () => {
+			const field: Field = {
+				id: "f1",
+				collectionId: "c1",
+				slug: "website",
+				label: "Website",
+				type: "url",
+				columnType: "TEXT",
+				required: true,
+				unique: false,
+				validation: {
+					maxLength: 32,
+					pattern: "^https://allowed\\.example/",
+				},
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			};
+
+			const schema = generateFieldSchema(field);
+			expect(schema.safeParse("https://allowed.example/path").success).toBe(true);
+			expect(schema.safeParse("https://allowed.example/a-very-long-path").success).toBe(false);
+			expect(schema.safeParse("https://other.example/path").success).toBe(false);
+		});
+
 		it("should generate select schema with options", () => {
 			const field: Field = {
 				id: "f1",

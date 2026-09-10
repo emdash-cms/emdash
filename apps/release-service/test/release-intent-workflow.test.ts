@@ -17,7 +17,6 @@ import {
 	persistWorkloadStagedArtifact,
 	workloadArtifactSourceUrl,
 } from "../src/publishing/workload-staging.js";
-import type { AuthoritativeRecord } from "../src/verification/pds.js";
 import {
 	restartReleaseIntentWorkflow,
 	startReleaseIntentWorkflow,
@@ -71,6 +70,11 @@ const WORKLOAD_IDENTITY: VerifiedWorkloadIdentity = {
 	issuedAt: 1_800_000_000,
 	expiresAt: 1_800_000_300,
 };
+const WORKFLOW_REPOSITORY_SIGNING_KEY = "zDnaehJ198TPtSvvRovBzG7rydLgzEz8duqMfnqDGfN4RheUG";
+const WORKFLOW_REPOSITORY_ABSENT =
+	"OqJlcm9vdHOB2CpYJQABcRIgB9itCKrPZ7cyFm11WUh44VKapmCsl6XynhUU19sBqhlndmVyc2lvbgHdAQFxEiAH2K0Iqs9ntzIWbXVZSHjhUpqmYKyXpfKeFRTX2wGqGaZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211amxwdG8zdWMybmNzaWdYQNXHC6vzE2Pg+cR3/eWY+iuEVqbWhQWhM0KeVJHG4mwjRSQIfCZvdhTM6nBmf7IFXpsi4oSNXfqwEjZOE2qkMURkZGF0YdgqWCUAAXESICPWWGKAvX12s+8YBNB6iLwFl8YMr6smSZpFoaG8aBsnZHByZXb2Z3ZlcnNpb24DkwEBcRIgI9ZYYoC9fXaz7xgE0HqIvAWXxgyvqyZJmkWhobxoGyeiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIg75HAxLI29zFxT2IAMP+6xED3Uxy3mslLTuujJkBV1nphbPbQAwFxEiDvkcDEsjb3MXFPYgAw/7rEQPdTHLeayUtO66MmQFXWeqhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqJlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5";
+const WORKFLOW_REPOSITORY_PRESENT =
+	"OqJlcm9vdHOB2CpYJQABcRIgWgszmOUMvR7oP5UWgDQlhH4/SzqVgHvfnAuyV0d/QFxndmVyc2lvbgHdAQFxEiBaCzOY5Qy9Hug/lRaANCWEfj9LOpWAe9+cC7JXR39AXKZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211amxwdG9lbmsybmNzaWdYQOGuG+Xmqsl70lHcF35wqZb5Bfw7MKmWfs3/UyIdpb8JMq9NaSX/+eLAOeS5A2NcFvSxDZUMd9OA33nZ0C4KRf9kZGF0YdgqWCUAAXESIACaXXvgPQS6nqPkANm3i+c4LtA1ejLBGOPmjUw7BHWAZHByZXb2Z3ZlcnNpb24DwQEBcRIgAJpde+A9BLqeo+QA2beL5zgu0DV6MsEY4+aNTDsEdYCiYWWBpGFrWDhjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2UvZ2FsbGVyeToxLjIuM2FwAGF09mF22CpYJQABcRIgmH2tx7Vra7YsQYhvZLzp7PY930i1mrqsy0iZyPqHIWNhbNgqWCUAAXESICPWWGKAvX12s+8YBNB6iLwFl8YMr6smSZpFoaG8aBsnkwEBcRIgI9ZYYoC9fXaz7xgE0HqIvAWXxgyvqyZJmkWhobxoGyeiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIg75HAxLI29zFxT2IAMP+6xED3Uxy3mslLTuujJkBV1nphbPabAwFxEiCYfa3HtWtrtixBiG9kvOns9j3fSLWauqzLSJnI+ochY6VlJHR5cGV4KmNvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucmVsZWFzZWdwYWNrYWdlZ2dhbGxlcnlndmVyc2lvbmUxLjIuM2lhcnRpZmFjdHOhZ3BhY2thZ2WjY3VybHgfaHR0cHM6Ly9leGFtcGxlLmNvbS9nYWxsZXJ5LnRnemhjaGVja3N1bXg4YmNpcWhhenBsNXcycmE3NDJuZ2plend4b3k0cDc0cDJleWlmdG5uaHljc29mYW53bWRyZXppdHlrY29udGVudFR5cGVwYXBwbGljYXRpb24vZ3ppcGpleHRlbnNpb25zoXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5yZWxlYXNlRXh0ZW5zaW9uomUkdHlwZXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5yZWxlYXNlRXh0ZW5zaW9ubmRlY2xhcmVkQWNjZXNzoNADAXESIO+RwMSyNvcxcU9iADD/usRA91Mct5rJS07royZAVdZ6qGJpZHhVYXQ6Ly9kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbS9jb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWRuYW1lZ0dhbGxlcnlkdHlwZW1lbWRhc2gtcGx1Z2luZSR0eXBleCpjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGVnYXV0aG9yc4GhZG5hbWVxRXhhbXBsZSBQdWJsaXNoZXJnbGljZW5zZWNNSVRoc2VjdXJpdHmBoWVlbWFpbHRzZWN1cml0eUBleGFtcGxlLmNvbWpleHRlbnNpb25zoXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlRXh0ZW5zaW9uomUkdHlwZXgzY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlRXh0ZW5zaW9uanJlcG9zaXRvcnl4Imh0dHBzOi8vZ2l0aHViLmNvbS9leGFtcGxlL2dhbGxlcnk=";
 
 function writeUint24LittleEndian(bytes: Uint8Array, offset: number, value: number): void {
 	bytes[offset] = value & 0xff;
@@ -153,8 +157,12 @@ const PROFILE_PROOF =
 const APPROVAL_PROFILE_PROOF =
 	"OqJlcm9vdHOB2CpYJQABcRIgt4Be/ylpOhy2o33XFr7JATwH2VmFRzL6VB4p2I0MSzVndmVyc2lvbgHdAQFxEiC3gF7/KWk6HLajfdcWvskBPAfZWYVHMvpUHinYjQxLNaZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211NXFhZHR6Y2sybWNzaWdYQBg2vVFiuGjkb1Q9TukMNZFbFZ/xXo5d8a6UZnGNnq/FIGQMPMH+RiEl+yhSvATZ9KnIQ2ujZ5q5qkjKyu5t6XhkZGF0YdgqWCUAAXESIGduRlvZ/Lua96nilhYmPVcpLg+ZjEa4kIialhQmHwB0ZHByZXb2Z3ZlcnNpb24DkwEBcRIgZ25GW9n8u5r3qeKWFiY9VykuD5mMRriQiJqWFCYfAHSiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgrKiSWBl9zSDvo1PXTnK3qUZGccnZeweHtjm0xemh2J5hbPaPBAFxEiCsqJJYGX3NIO+jU9dOcrepRkZxydl7B4e2ObTF6aHYnqhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3miaWFwcHJvdmVyc4FwZGlkOnBsYzphcHByb3Zlcmxjb25maXJtYXRpb25mYWx3YXlz";
 const ESCALATION_ONLY_PROFILE_PROOF =
-	"OqJlcm9vdHOB2CpYJQABcRIg9qJp06k9Bpe+jLKRiea83D3qgyuWI1PLK7ZIuHEC+z9ndmVyc2lvbgHdAQFxEiD2omnTqT0Gl76MspGJ5rzcPeqDK5YjU8srtki4cQL7P6ZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211amt6dHZwamMyeGNzaWdYQCWWVx/ubT52wRrIeUXNKyG88VYq3qksj4dMdk1V+fmAeR9K1vt3fK1vmpfvG2eVBWEmfNkxExHnHal22FDev6JkZGF0YdgqWCUAAXESINF8ERKM5sXJ8zAdcMaArpcVuqgGvseuNQmec5MYvHnQZHByZXb2Z3ZlcnNpb24DkwEBcRIg0XwREozmxcnzMB1wxoCulxW6qAa+x641CZ5zkxi8edCiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgN+KakpY3MooEiEzdUFA1gQ7vaaorJdv7QEQF4jxZ9t9hbPaYBAFxEiA34pqSljcyigSITN1QUDWBDu9pqisl2/tARAXiPFn236hiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3miaWFwcHJvdmVyc4FwZGlkOnBsYzphcHByb3Zlcmxjb25maXJtYXRpb25vZXNjYWxhdGlvbi1vbmx5";
-const ESCALATION_ONLY_SIGNING_KEY = "zDnaekRBnvWmwwGibpSzPHpH1rvvZZXB6APVS4tHEccxMBEDc";
+	"OqJlcm9vdHOB2CpYJQABcRIgVDE0fJILp28OW3uFemvB8DupoEHR9qa10q/QWtIKJQhndmVyc2lvbgHdAQFxEiBUMTR8kgunbw5be4V6a8HwO6mgQdH2prXSr9Ba0golCKZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211anN2aDR3bHMyNmNzaWdYQOBgyay0sEK8mN17Q8+ZpLzmhJJdeYdEvCT+9GqrnmJmKgcLAl2ebneSf9b9OXptMS6TI3gUZMRWvvpCxcpZqW5kZGF0YdgqWCUAAXESIJLdQkzZSPifehvezRHqWT2Orp2FN6WjFX/HFReaYBvAZHByZXb2Z3ZlcnNpb24DkwEBcRIgkt1CTNlI+J96G97NEepZPY6unYU3paMVf8cVF5pgG8CiYWWBpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgw0TlSwQE8Qi5DmeWDUCV1/wovIGUh847dRDPTil7SyRhbPbhBAFxEiDDROVLBATxCLkOZ5YNQJXX/Ci8gZSHzjt1EM9OKXtLJKhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3mjZSR0eXBleEFjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGVFeHRlbnNpb24jcmVsZWFzZVBvbGljeWlhcHByb3ZlcnOBcGRpZDpwbGM6YXBwcm92ZXJsY29uZmlybWF0aW9ub2VzY2FsYXRpb24tb25seQ==";
+const ESCALATION_ONLY_REPOSITORY_BEFORE =
+	"OqJlcm9vdHOB2CpYJQABcRIglLIUbT31g5XsHc7w/77LapA5I+nL7R/L/38bBZhYteJndmVyc2lvbgHdAQFxEiCUshRtPfWDlewdzvD/vstqkDkj6cvtH8v/fxsFmFi14qZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211anN2aDUyaXMyNmNzaWdYQLWfg6nhZ4cY/qEnZNROqoyF3HAo+EcgPRuqX8Lbw3BEbizYrFY3TgX9a0f7H48jf2lG+ZQb4AP1ngYbZ7+0CoNkZGF0YdgqWCUAAXESINgPCZKxUNKDLK5vvWIcReUHECWQjKJ/aj9ydxPShTOeZHByZXb2Z3ZlcnNpb24D3gEBcRIg2A8JkrFQ0oMsrm+9YhxF5QcQJZCMon9qP3J3E9KFM56iYWWCpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgw0TlSwQE8Qi5DmeWDUCV1/wovIGUh847dRDPTil7SySkYWtVcmVsZWFzZS9nYWxsZXJ5OjEuMC4wYXAYI2F09mF22CpYJQABcRIgKe3xvLMXzqP1GXCCI8xRmbB0J8uCPTbjue4z0kmJDqphbPbhBAFxEiDDROVLBATxCLkOZ5YNQJXX/Ci8gZSHzjt1EM9OKXtLJKhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3mjZSR0eXBleEFjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGVFeHRlbnNpb24jcmVsZWFzZVBvbGljeWlhcHByb3ZlcnOBcGRpZDpwbGM6YXBwcm92ZXJsY29uZmlybWF0aW9ub2VzY2FsYXRpb24tb25seYYDAXESICnt8byzF86j9RlwgiPMUZmwdCfLgj0247nuM9JJiQ6qpWUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5yZWxlYXNlZ3BhY2thZ2VnZ2FsbGVyeWd2ZXJzaW9uZTEuMC4waWFydGlmYWN0c6FncGFja2FnZaNjdXJseCVodHRwczovL2V4YW1wbGUuY29tL2dhbGxlcnktMS4wLjAudGd6aGNoZWNrc3VtbGJjaXFiYXNlbGluZWtjb250ZW50VHlwZXBhcHBsaWNhdGlvbi9nemlwamV4dGVuc2lvbnOheDNjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2VFeHRlbnNpb26iZSR0eXBleDNjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2VFeHRlbnNpb25uZGVjbGFyZWRBY2Nlc3OhZ25ldHdvcmuhZ3JlcXVlc3Sg";
+const ESCALATION_ONLY_REPOSITORY_AFTER =
+	"OqJlcm9vdHOB2CpYJQABcRIgd66Z6kv1ZzpaZY5x3LqvpVHzyI0GPDWzXRja2p07UDFndmVyc2lvbgHdAQFxEiB3rpnqS/VnOlpljnHcuq+lUfPIjQY8NbNdGNranTtQMaZjZGlkeB1kaWQ6d2ViOnB1Ymxpc2hlci5leGFtcGxlLmNvbWNyZXZtM211anN2aDU1Z2syNmNzaWdYQAagH6XoDxXLhINDqkLnI5YKAP58z9Y1NXfO6FmmhpEVTEaai3sa/VGvfsz09cRnzbzJ2dKTE+znz9fY76wM1K5kZGF0YdgqWCUAAXESICbKK5XxJf/D8rimLj48VYnG8jT9R2LzJiMC7arQnlkNZHByZXb2Z3ZlcnNpb24DlwIBcRIgJsorlfEl/8PyuKYuPjxVicbyNP1HYvMmIwLtqtCeWQ2iYWWDpGFrWDJjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGUvZ2FsbGVyeWFwAGF09mF22CpYJQABcRIgw0TlSwQE8Qi5DmeWDUCV1/wovIGUh847dRDPTil7SySkYWtVcmVsZWFzZS9nYWxsZXJ5OjEuMC4wYXAYI2F09mF22CpYJQABcRIgKe3xvLMXzqP1GXCCI8xRmbB0J8uCPTbjue4z0kmJDqqkYWtDMS4wYXAYNWF09mF22CpYJQABcRIgoo1VqGByjoff0+Pg2xv8KnHaOMEMEbwJl8qTpWpejWNhbPbhBAFxEiDDROVLBATxCLkOZ5YNQJXX/Ci8gZSHzjt1EM9OKXtLJKhiaWR4VWF0Oi8vZGlkOndlYjpwdWJsaXNoZXIuZXhhbXBsZS5jb20vY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlL2dhbGxlcnlkbmFtZWdHYWxsZXJ5ZHR5cGVtZW1kYXNoLXBsdWdpbmUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5wcm9maWxlZ2F1dGhvcnOBoWRuYW1lcUV4YW1wbGUgUHVibGlzaGVyZ2xpY2Vuc2VjTUlUaHNlY3VyaXR5gaFlZW1haWx0c2VjdXJpdHlAZXhhbXBsZS5jb21qZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbqNlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucHJvZmlsZUV4dGVuc2lvbmpyZXBvc2l0b3J5eCJodHRwczovL2dpdGh1Yi5jb20vZXhhbXBsZS9nYWxsZXJ5bXJlbGVhc2VQb2xpY3mjZSR0eXBleEFjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnByb2ZpbGVFeHRlbnNpb24jcmVsZWFzZVBvbGljeWlhcHByb3ZlcnOBcGRpZDpwbGM6YXBwcm92ZXJsY29uZmlybWF0aW9ub2VzY2FsYXRpb24tb25seYYDAXESICnt8byzF86j9RlwgiPMUZmwdCfLgj0247nuM9JJiQ6qpWUkdHlwZXgqY29tLmVtZGFzaGNtcy5leHBlcmltZW50YWwucGFja2FnZS5yZWxlYXNlZ3BhY2thZ2VnZ2FsbGVyeWd2ZXJzaW9uZTEuMC4waWFydGlmYWN0c6FncGFja2FnZaNjdXJseCVodHRwczovL2V4YW1wbGUuY29tL2dhbGxlcnktMS4wLjAudGd6aGNoZWNrc3VtbGJjaXFiYXNlbGluZWtjb250ZW50VHlwZXBhcHBsaWNhdGlvbi9nemlwamV4dGVuc2lvbnOheDNjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2VFeHRlbnNpb26iZSR0eXBleDNjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2VFeHRlbnNpb25uZGVjbGFyZWRBY2Nlc3OhZ25ldHdvcmuhZ3JlcXVlc3Sg9AIBcRIgoo1VqGByjoff0+Pg2xv8KnHaOMEMEbwJl8qTpWpejWOlZSR0eXBleCpjb20uZW1kYXNoY21zLmV4cGVyaW1lbnRhbC5wYWNrYWdlLnJlbGVhc2VncGFja2FnZWdnYWxsZXJ5Z3ZlcnNpb25lMS4xLjBpYXJ0aWZhY3RzoWdwYWNrYWdlo2N1cmx4JWh0dHBzOi8vZXhhbXBsZS5jb20vZ2FsbGVyeS0xLjEuMC50Z3poY2hlY2tzdW1sYmNpcWJhc2VsaW5la2NvbnRlbnRUeXBlcGFwcGxpY2F0aW9uL2d6aXBqZXh0ZW5zaW9uc6F4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucmVsZWFzZUV4dGVuc2lvbqJlJHR5cGV4M2NvbS5lbWRhc2hjbXMuZXhwZXJpbWVudGFsLnBhY2thZ2UucmVsZWFzZUV4dGVuc2lvbm5kZWNsYXJlZEFjY2Vzc6A=";
+const ESCALATION_ONLY_SIGNING_KEY = "zDnaeTBBqgbt5fZ557KrELsN77jxpGavqjxcC9yQFSbTf1dc5";
 const PROVENANCE = {
 	predicateType: "https://slsa.dev/provenance/v1",
 	url: "https://github.com/example/gallery/attestation.sigstore.json",
@@ -230,17 +238,6 @@ function releaseRecord() {
 
 const NETWORK_ACCESS = { network: { request: {} } } as const;
 
-function baselineRelease(version: string, declaredAccess: Record<string, unknown>) {
-	const value = releaseRecord();
-	value.version = version;
-	value.extensions[NSID.packageReleaseExtension]!.declaredAccess = declaredAccess;
-	return {
-		uri: `at://${PUBLISHER_DID}/${NSID.packageRelease}/gallery:${version}`,
-		cid: `bafygallery${version.replaceAll(".", "")}`,
-		value,
-	};
-}
-
 async function fullReleaseRecord() {
 	const release = releaseRecord();
 	const icon = pngBytes(128, 128);
@@ -293,8 +290,9 @@ function proofBytes(value: string): Uint8Array {
 
 interface WorkflowNetworkOptions {
 	artifactSources?: ReadonlyMap<string, { bytes: Uint8Array; mimeType: string }>;
+	profileInvalid?: boolean;
 	profileProof?: string;
-	listedReleases?: () => readonly AuthoritativeRecord[];
+	repositoryProof?: () => Uint8Array;
 	authoritativeProof?: () => Uint8Array | null;
 	signingKey?: () => string;
 	onArtifactFetch?: () => Response | void | Promise<Response | void>;
@@ -355,10 +353,16 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 						})
 					: Response.json({ error: "RecordNotFound" }, { status: 404 });
 			}
-			return new Response(
-				Uint8Array.from(atob(profileProof), (character) => character.charCodeAt(0)),
-				{ headers: { "content-type": "application/vnd.ipld.car" } },
-			);
+			const bytes = Uint8Array.from(atob(profileProof), (character) => character.charCodeAt(0));
+			if (options.profileInvalid) bytes[bytes.length - 1] = (bytes.at(-1) ?? 0) ^ 0xff;
+			return new Response(bytes, { headers: { "content-type": "application/vnd.ipld.car" } });
+		}
+		if (url.origin === pdsUrl && url.pathname === "/xrpc/com.atproto.sync.getRepo") {
+			const bytes = options.repositoryProof?.() ?? proofBytes(profileProof);
+			if (options.profileInvalid) bytes[bytes.length - 1] = (bytes.at(-1) ?? 0) ^ 0xff;
+			return new Response(bytes, {
+				headers: { "content-type": "application/vnd.ipld.car" },
+			});
 		}
 		if (url.origin === oauthPdsUrl && url.pathname === "/.well-known/oauth-protected-resource") {
 			return Response.json({
@@ -418,9 +422,6 @@ function workflowNetwork(options: WorkflowNetworkOptions = {}) {
 					? Response.json({ uri: CREATED_URI, cid: CREATED_CID, value: {} })
 					: Response.json({ error: "RecordNotFound" }, { status: 400 });
 			}
-		}
-		if (url.origin === pdsUrl && url.pathname === "/xrpc/com.atproto.repo.listRecords") {
-			return Response.json({ records: options.listedReleases?.() ?? [] });
 		}
 		if (url.origin === oauthPdsUrl && url.pathname === "/xrpc/com.atproto.repo.createRecord") {
 			const request = input instanceof Request ? input : new Request(url, init);
@@ -508,6 +509,31 @@ afterEach(async () => {
 });
 
 describe("ReleaseIntentWorkflow", () => {
+	it("terminates an intent when its authoritative repository cannot be verified", async () => {
+		vi.stubGlobal("fetch", workflowNetwork({ profileInvalid: true }));
+		await createVerifyingIntent();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "failed",
+			reasonCode: "RELEASE_LIST_INVALID",
+		});
+		await expect(publisher.getIntent(PUBLISHER_DID, INTENT_ID)).resolves.toMatchObject({
+			state: "failed",
+			stateDataJson: '{"code":"RELEASE_LIST_INVALID"}',
+		});
+	});
+
 	it("fails the intent when a verification step conflicts", async () => {
 		vi.stubGlobal("fetch", workflowNetwork());
 		await createVerifyingIntent();
@@ -1078,12 +1104,13 @@ describe("ReleaseIntentWorkflow", () => {
 		vi.stubGlobal(
 			"fetch",
 			workflowNetwork({
-				listedReleases: () => {
+				repositoryProof: () => {
 					snapshotReads += 1;
-					return snapshotReads < 4
-						? []
-						: [{ uri: CREATED_URI, cid: CREATED_CID, value: releaseRecord() }];
+					return proofBytes(
+						snapshotReads < 4 ? WORKFLOW_REPOSITORY_ABSENT : WORKFLOW_REPOSITORY_PRESENT,
+					);
 				},
+				signingKey: () => WORKFLOW_REPOSITORY_SIGNING_KEY,
 				onCreateRecord: () => {
 					createAttempts += 1;
 					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
@@ -1117,11 +1144,11 @@ describe("ReleaseIntentWorkflow", () => {
 		vi.stubGlobal(
 			"fetch",
 			workflowNetwork({
-				listedReleases: () => {
+				repositoryProof: () => {
 					snapshotReads += 1;
-					return snapshotReads < 4
-						? []
-						: [{ uri: "not-an-at-uri", cid: CREATED_CID, value: releaseRecord() }];
+					const proof = proofBytes(PROFILE_PROOF);
+					if (snapshotReads >= 4) proof[proof.length - 1] = (proof.at(-1) ?? 0) ^ 0xff;
+					return proof;
 				},
 			}),
 		);
@@ -1147,7 +1174,6 @@ describe("ReleaseIntentWorkflow", () => {
 	}, 15_000);
 
 	it("does not reintroduce access after a capability-removing release changes the baseline", async () => {
-		let baseline = baselineRelease("1.0.0", NETWORK_ACCESS);
 		let createAttempts = 0;
 		let removalPublished = false;
 		const release = releaseRecord();
@@ -1159,9 +1185,11 @@ describe("ReleaseIntentWorkflow", () => {
 			workflowNetwork({
 				profileProof: ESCALATION_ONLY_PROFILE_PROOF,
 				signingKey: () => ESCALATION_ONLY_SIGNING_KEY,
-				listedReleases: () => [baseline],
+				repositoryProof: () =>
+					proofBytes(
+						removalPublished ? ESCALATION_ONLY_REPOSITORY_AFTER : ESCALATION_ONLY_REPOSITORY_BEFORE,
+					),
 				onAuthorizationMetadata: () => {
-					baseline = baselineRelease("1.1.0", {});
 					removalPublished = true;
 				},
 				onCreateRecord: () => {
@@ -1189,7 +1217,7 @@ describe("ReleaseIntentWorkflow", () => {
 		);
 		expect(JSON.parse(decision?.resultJson ?? "null")).toMatchObject({
 			requiresApproval: false,
-			approvalEvidence: { baselineReleaseCid: "bafygallery100" },
+			approvalEvidence: { baselineReleaseCid: expect.stringMatching(/^b/) },
 		});
 		expect(
 			(await publisher.listIntentTransitions(PUBLISHER_DID, INTENT_ID)).map(
@@ -1260,6 +1288,51 @@ describe("ReleaseIntentWorkflow", () => {
 					.one(),
 		);
 		expect(permits).toEqual({ total: 3, distinct_ids: 3, consumed: 3 });
+	});
+
+	it("rechecks the attested workload against the active policy before create", async () => {
+		let policyChanged = false;
+		let createAttempts = 0;
+		vi.stubGlobal(
+			"fetch",
+			workflowNetwork({
+				onAuthorizationMetadata: async () => {
+					if (policyChanged) return;
+					policyChanged = true;
+					const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+					await runInDurableObject(publisher, (_instance, state) => {
+						state.storage.sql.exec(
+							`UPDATE workload_policies
+							 SET workflow_ref = ?, state_version = state_version + 1
+							 WHERE package_slug = ?`,
+							"example/gallery/.github/workflows/restricted.yml@refs/heads/main",
+							"gallery",
+						);
+					});
+				},
+				onCreateRecord: () => {
+					createAttempts += 1;
+					return Response.json({ uri: CREATED_URI, cid: CREATED_CID });
+				},
+			}),
+		);
+		await createVerifyingIntent();
+		await using introspector = await introspectWorkflowInstance(
+			env.RELEASE_INTENT_WORKFLOW,
+			INTENT_ID,
+		);
+		await env.RELEASE_INTENT_WORKFLOW.create({
+			id: INTENT_ID,
+			params: { publisherDid: PUBLISHER_DID, intentId: INTENT_ID },
+		});
+		await introspector.waitForStatus("complete");
+
+		await expect(introspector.getOutput()).resolves.toEqual({
+			intentId: INTENT_ID,
+			state: "failed",
+			reasonCode: "WORKLOAD_WORKFLOW_MISMATCH",
+		});
+		expect(createAttempts).toBe(0);
 	});
 
 	it.each([

@@ -135,6 +135,29 @@ describe("MediaDetailPanel usage navigation", () => {
 		});
 	});
 
+	it("keeps the Used in height stable when loading results appear", async () => {
+		let resolveUsage!: (value: MediaUsageDetailsResponse) => void;
+		vi.mocked(fetchMediaUsageDetails).mockReturnValueOnce(
+			new Promise((resolve) => {
+				resolveUsage = resolve;
+			}),
+		);
+		const { screen } = await renderPanelRouter();
+		const dialog = screen.getByRole("dialog", { name: "Media details" }).element();
+
+		screen.getByRole("tab", { name: "Used in" }).element().click();
+		await vi.waitFor(() => expect(fetchMediaUsageDetails).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() => {
+			expect(dialog.style.height).toBe("");
+			expect(screen.getByTestId("media-detail-dialog-body").element().style.overflowY).toBe("");
+		});
+		const loadingHeight = dialog.offsetHeight;
+
+		resolveUsage(usageDetails);
+		await expect.element(screen.getByRole("link", { name: /Launch notes/ })).toBeVisible();
+		expect(dialog.offsetHeight).toBe(loadingHeight);
+	});
+
 	it("makes no usage request for provider media", async () => {
 		const { screen } = await renderPanelRouter({ ...item, provider: "cloudflare-images" });
 

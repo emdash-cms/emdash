@@ -1,4 +1,5 @@
 import { isDid } from "@atcute/lexicons/syntax";
+import { canonicalizeRepositoryUrl } from "@emdash-cms/registry-verification";
 import { env } from "cloudflare:workers";
 import { base64url, type JWTVerifyGetKey } from "jose";
 import { ulid } from "ulidx";
@@ -6,6 +7,7 @@ import { ulid } from "ulidx";
 import { readJsonObject } from "../api/body.js";
 import { ApiError } from "../api/errors.js";
 import { apiFailure, apiSuccess } from "../api/response.js";
+import { ApprovalAuthorityError, loadCurrentApprovalPolicy } from "../approvals/authority.js";
 import type { ServiceConfiguration } from "../config.js";
 import {
 	WorkflowConnectionError,
@@ -33,6 +35,7 @@ export interface WorkflowConnectionRouteDependencies {
 	now?: () => number;
 	requestId?: (now: number) => string;
 	invitationToken?: () => string;
+	loadCurrentApprovalPolicy?: typeof loadCurrentApprovalPolicy;
 }
 
 function createInvitationToken(): string {
@@ -159,6 +162,22 @@ function routeFailure(error: unknown, requestId: string): Response {
 			requestId,
 		);
 	}
+	if (error instanceof ApprovalAuthorityError) {
+		if (error.code === "PROFILE_NOT_FOUND" || error.code === "PROFILE_SETUP_REQUIRED") {
+			return apiFailure(
+				new ApiError(
+					"PACKAGE_PROFILE_REQUIRED",
+					409,
+					"Create this plugin's package profile with `emdash-plugin profile setup`, then try again",
+				),
+				requestId,
+			);
+		}
+		return apiFailure(
+			new ApiError("PROFILE_FETCH_FAILED", 503, "Package profile could not be verified"),
+			requestId,
+		);
+	}
 	throw error;
 }
 
@@ -167,6 +186,29 @@ function connectionRequestId(params: Readonly<Record<string, string>>): string {
 	if (!value)
 		throw new ApiError("WORKFLOW_CONNECTION_NOT_FOUND", 404, "Workflow connection not found");
 	return value;
+}
+
+async function requirePackageProfile(
+	publisherDid: string,
+	packageSlug: string,
+	repository: string,
+	dependencies: Pick<WorkflowConnectionRouteDependencies, "loadCurrentApprovalPolicy">,
+): Promise<void> {
+	const profilePolicy = await (dependencies.loadCurrentApprovalPolicy ?? loadCurrentApprovalPolicy)(
+		publisherDid,
+		packageSlug,
+	);
+	const canonicalRepository = canonicalizeRepositoryUrl(profilePolicy.repository);
+	if (
+		canonicalRepository !== profilePolicy.repository ||
+		canonicalRepository !== `https://github.com/${repository}`
+	) {
+		throw new ApiError(
+			"PACKAGE_PROFILE_REQUIRED",
+			409,
+			"Update this plugin's package profile with `emdash-plugin profile setup`, then try again",
+		);
+	}
 }
 
 async function publisherSession(request: Request, configuration: ServiceConfiguration) {
@@ -308,6 +350,7 @@ export async function handleRequestWorkflowConnection(
 		});
 		if (!result.ok) return connectionFailure(result.code, requestId);
 		if (result.status === "connected") {
+			await requirePackageProfile(publisherDid, packageSlug, claim.repository, dependencies);
 			return apiSuccess({ status: "connected", policy: result.policy }, requestId);
 		}
 		return apiSuccess(
@@ -374,7 +417,7 @@ export async function handleConfirmWorkflowConnection(
 	requestId: string,
 	configuration: ServiceConfiguration,
 	params: Readonly<Record<string, string>>,
-	dependencies: Pick<WorkflowConnectionRouteDependencies, "now"> = {},
+	dependencies: Pick<WorkflowConnectionRouteDependencies, "loadCurrentApprovalPolicy" | "now"> = {},
 ): Promise<Response> {
 	try {
 		requireIdempotencyKey(request);
@@ -391,11 +434,25 @@ export async function handleConfirmWorkflowConnection(
 		) {
 			throw new ApiError("INVALID_REQUEST", 400, "Valid workflow release scope required");
 		}
-		const result = await env.PUBLISHER_DO.getByName(session.publisherDid).confirmWorkflowConnection(
+		const publisher = env.PUBLISHER_DO.getByName(session.publisherDid);
+		const now = dependencies.now?.() ?? Date.now();
+		const connection = await publisher.getWorkflowConnectionRequest(
+			session.publisherDid,
+			connectionRequestId(params),
+			now,
+		);
+		if (!connection) return connectionFailure("WORKFLOW_CONNECTION_NOT_FOUND", requestId);
+		await requirePackageProfile(
+			session.publisherDid,
+			connection.packageSlug,
+			connection.claim.repository,
+			dependencies,
+		);
+		const result = await publisher.confirmWorkflowConnection(
 			session.publisherDid,
 			connectionRequestId(params),
 			body["refScope"],
-			dependencies.now?.() ?? Date.now(),
+			now,
 		);
 		if (!result.ok) return connectionFailure(result.code, requestId);
 		return apiSuccess(

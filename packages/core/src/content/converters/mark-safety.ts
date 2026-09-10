@@ -22,6 +22,7 @@ const SUPPORTED_PROSEMIRROR_MARKS = new Set([
 	"superscript",
 	"code",
 	"link",
+	"emdashPortableTextSpan",
 ]);
 
 type UnknownRecord = Record<string, unknown>;

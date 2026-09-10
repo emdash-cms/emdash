@@ -77,6 +77,26 @@ describe("fetchManifest", () => {
 });
 
 describe("throwResponseError", () => {
+	it("formats sandboxed save rejection details as localized plain text", async () => {
+		const response = Response.json(
+			{
+				success: false,
+				error: {
+					code: "SAVE_REJECTED",
+					message: "Save rejected by a sandboxed plugin",
+					details: {
+						pluginId: "<strong>editorial-gate</strong>",
+						reason: "Use a title, not <script>alert('x')</script>",
+					},
+				},
+			},
+			{ status: 422 },
+		);
+
+		await expect(throwResponseError(response, "fallback")).rejects.toThrow(
+			"Plugin <strong>editorial-gate</strong> rejected the save: Use a title, not <script>alert('x')</script>",
+		);
+	});
 	it("includes the field-level message for a validation error", async () => {
 		const response = new Response(
 			JSON.stringify({
