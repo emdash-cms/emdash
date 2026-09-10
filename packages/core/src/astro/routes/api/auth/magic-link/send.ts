@@ -11,7 +11,7 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-import { getMagicLinkEmailStrings } from "@emdash-cms/admin/locales";
+import { getMagicLinkEmailStrings } from "@emdash-cms/admin/locales/emails";
 import { sendMagicLink, type MagicLinkConfig } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
