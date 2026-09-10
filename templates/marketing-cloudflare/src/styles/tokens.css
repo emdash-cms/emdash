@@ -1,69 +1,55 @@
 /*
   tokens.css -- the design tokens for this template. These are the
-  defaults; to customize the site, override any variable in
+  defaults; to customise the site, override any variable in
   src/styles/theme.css rather than editing this file. Declarations in
   theme.css are unlayered, so they always beat these @layer base
-  defaults -- no specificity tricks needed.
+  defaults without specificity tricks.
 
-  Colors use light-dark(): the first value applies in light mode, the
-  second in dark mode. Overriding a color with a plain value changes
-  both modes at once; use light-dark(<light>, <dark>) in an override to
-  keep them distinct.
+  Colours use light-dark(): the first value applies in light mode and
+  the second in dark mode. Overriding a colour with a plain value changes
+  both modes at once. Use light-dark(<light>, <dark>) to keep them distinct.
 
-  The signature gradients are tokens too. Rebranding usually only needs
-  new --color-brand-* / --color-accent-* values -- the gradients follow.
-  For a flat, gradient-free brand, set the --gradient-* tokens to solid
-  colors.
+  The default visual system uses navy-tinted neutrals and one blue accent.
+  Gradient variables remain available for compatibility, but resolve to
+  solid role colours until a custom theme overrides them.
 
-  --font-body is defined by the font pipeline in astro.config.mjs, not
-  here. To swap the loaded webfont, edit the fonts entry there. To use a
-  system font, or a different face for headings only, override
-  --font-body / --font-heading in theme.css.
+  --font-body is defined by the font pipeline in astro.config.mjs. To swap
+  the loaded webfont, edit the fonts entry there. Override --font-heading
+  in theme.css when headings need a separate face.
 */
 
 @layer base {
 	:root {
 		color-scheme: light dark;
 
-		/* Colors */
-		--color-bg: light-dark(#ffffff, #0f172a);
-		--color-text: light-dark(#0f172a, #f1f5f9);
-		--color-muted: light-dark(#64748b, #94a3b8);
-		--color-border: light-dark(#e2e8f0, #334155);
-		--color-surface: light-dark(#f8fafc, #1e293b);
-		--color-brand: light-dark(#6366f1, #818cf8);
-		--color-brand-strong: light-dark(#4f46e5, #6366f1);
-		--color-brand-soft: light-dark(#818cf8, #a5b4fc);
-		--color-accent: #f472b6; /* gradient partner to --color-brand */
-		--color-accent-soft: #f9a8d4;
-		--color-on-brand: white; /* text/icons on brand and gradient surfaces */
-		--color-brand-ring: color-mix(in srgb, var(--color-brand) 10%, transparent);
-		--color-success: #22c55e;
-		--color-warning: #f59e0b;
-		--color-danger: light-dark(#dc2626, #f87171);
+		/* Colours */
+		--color-bg: light-dark(#f7f9fc, #0b1220);
+		--color-text: light-dark(#14213d, #f3f6fb);
+		--color-muted: light-dark(#5c6b82, #9aa9bd);
+		--color-border: light-dark(#dbe3ef, #2a3850);
+		--color-surface: light-dark(#ffffff, #121c2e);
+		--color-surface-raised: light-dark(#ffffff, #18243a);
+		--color-brand: light-dark(#1d4ed8, #60a5fa);
+		--color-brand-strong: light-dark(#1e40af, #3b82f6);
+		--color-brand-soft: light-dark(#dbeafe, #1e3a5f);
+		--color-accent: var(--color-brand);
+		--color-accent-soft: var(--color-brand-soft);
+		--color-on-brand: light-dark(#ffffff, #0b1220);
+		--color-brand-ring: color-mix(in srgb, var(--color-brand) 12%, transparent);
+		--color-success: light-dark(#15803d, #4ade80);
+		--color-warning: light-dark(#a16207, #facc15);
+		--color-danger: light-dark(#b91c1c, #f87171);
 
-		/* Gradients */
-		--gradient-brand: linear-gradient(135deg, var(--color-brand), var(--color-accent));
-		--gradient-brand-strong: linear-gradient(
-			135deg,
-			var(--color-brand-strong),
-			var(--color-accent)
-		); /* CTA resting state; hovers to --gradient-brand */
-		--gradient-brand-soft: linear-gradient(
-			135deg,
-			var(--color-brand-soft),
-			var(--color-accent-soft)
-		); /* hero image glow */
-		--gradient-headline: linear-gradient(
-			135deg,
-			var(--color-text),
-			var(--color-muted)
-		); /* hero headline text fill */
+		/* Compatibility aliases and solid default treatments */
+		--gradient-brand: var(--color-brand);
+		--gradient-brand-strong: var(--color-brand-strong);
+		--gradient-brand-soft: var(--color-brand-soft);
+		--gradient-headline: var(--color-text);
 
 		/* Typography */
 		--font-heading: var(--font-body);
-		--font-weight-heading: 700; /* h2-h6, card titles */
-		--font-weight-display: 800; /* hero and section headlines, logo */
+		--font-weight-heading: 700;
+		--font-weight-display: 700;
 
 		/* Type scale */
 		--font-size-xs: 0.75rem;
@@ -74,18 +60,18 @@
 		--font-size-2xl: 1.5rem;
 		--font-size-3xl: 2rem;
 		--font-size-4xl: 2.5rem;
-		--font-size-5xl: 3.5rem;
-		--font-size-6xl: 4.5rem;
+		--font-size-5xl: 3.25rem;
+		--font-size-6xl: 4rem;
 
 		/* Line heights */
-		--leading-tight: 1.1; /* hero headline */
-		--leading-snug: 1.2; /* headings */
-		--leading-normal: 1.6; /* body copy */
-		--leading-relaxed: 1.7; /* FAQ answers, long-form */
+		--leading-tight: 1.1;
+		--leading-snug: 1.2;
+		--leading-normal: 1.6;
+		--leading-relaxed: 1.7;
 
 		/* Letter spacing */
-		--tracking-tight: -0.03em; /* hero headline, logo, prices */
-		--tracking-snug: -0.02em; /* headings */
+		--tracking-tight: -0.03em;
+		--tracking-snug: -0.02em;
 
 		/* Spacing */
 		--spacing-xs: 0.25rem;
@@ -100,10 +86,12 @@
 
 		/* Layout */
 		--max-width: 720px;
+		--focused-width: 920px;
 		--wide-width: 1200px;
-		--radius-sm: 6px;
+		--radius-sm: 10px;
 		--radius: 10px;
 		--radius-lg: 16px;
+		--radius-xl: 18px;
 		--radius-full: 9999px;
 
 		/* Transitions */
@@ -112,28 +100,29 @@
 		--transition-slow: 300ms ease;
 
 		/* Shadows */
-		--shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
-		--shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-		--shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -4px rgba(0, 0, 0, 0.1);
-		--shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+		--shadow-sm: 0 1px 2px rgba(15, 31, 61, 0.06);
+		--shadow: 0 6px 20px -14px rgba(15, 31, 61, 0.28);
+		--shadow-lg: 0 12px 28px -18px rgba(15, 31, 61, 0.34);
+		--shadow-xl: 0 22px 48px -28px rgba(15, 31, 61, 0.42);
 	}
 
-	/*
-	 * Light-mode values for browsers without light-dark() (Safari < 17.5,
-	 * Chrome < 123). Must mirror the light values above.
-	 */
+	/* Light-mode fallbacks for browsers without light-dark(). */
 	@supports not (color: light-dark(#000, #fff)) {
 		:root {
 			color-scheme: light;
-			--color-bg: #ffffff;
-			--color-text: #0f172a;
-			--color-muted: #64748b;
-			--color-border: #e2e8f0;
-			--color-surface: #f8fafc;
-			--color-brand: #6366f1;
-			--color-brand-strong: #4f46e5;
-			--color-brand-soft: #818cf8;
-			--color-danger: #dc2626;
+			--color-bg: #f7f9fc;
+			--color-text: #14213d;
+			--color-muted: #5c6b82;
+			--color-border: #dbe3ef;
+			--color-surface: #ffffff;
+			--color-surface-raised: #ffffff;
+			--color-brand: #1d4ed8;
+			--color-brand-strong: #1e40af;
+			--color-brand-soft: #dbeafe;
+			--color-on-brand: #ffffff;
+			--color-success: #15803d;
+			--color-warning: #a16207;
+			--color-danger: #b91c1c;
 		}
 	}
 }

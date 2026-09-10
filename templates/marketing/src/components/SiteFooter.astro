@@ -1,0 +1,305 @@
+---
+interface MenuItem {
+	label: string;
+	url: string;
+	target?: string | null;
+}
+
+interface FooterColumn {
+	heading: string;
+	menu: {
+		items: MenuItem[];
+	};
+}
+
+interface SiteLogo {
+	url: string;
+	alt?: string | null;
+}
+
+interface Props {
+	siteTitle: string;
+	siteLogo?: SiteLogo | null;
+	tagline: string;
+	footerColumns: FooterColumn[];
+}
+
+const { siteTitle, siteLogo, tagline, footerColumns } = Astro.props;
+const currentYear = new Date().getFullYear();
+
+function getRel(item: MenuItem) {
+	return item.target === "_blank" ? "noopener noreferrer" : undefined;
+}
+---
+
+<footer class="site-footer">
+	<div class="footer-shell">
+		<div class="footer-top">
+			<div class="footer-brand">
+				<a href="/" class="footer-logo" aria-label={`${siteTitle} home`}>
+					{
+						siteLogo ? (
+							<img
+								src={siteLogo.url}
+								alt={siteLogo.alt || siteTitle}
+								class="footer-logo-img"
+								loading="lazy"
+							/>
+						) : (
+							<span class="footer-logo-text">{siteTitle}</span>
+						)
+					}
+				</a>
+				<p class="footer-tagline">{tagline}</p>
+			</div>
+
+			<nav class="footer-links" aria-label="Footer navigation">
+				{
+					footerColumns.map((column) => (
+						<div class="footer-col">
+							<h2>{column.heading}</h2>
+							<ul>
+								{column.menu.items.map((item) => (
+									<li>
+										<a
+											href={item.url}
+											target={item.target}
+											rel={getRel(item)}
+										>
+											{item.label}
+										</a>
+									</li>
+								))}
+							</ul>
+						</div>
+					))
+				}
+			</nav>
+		</div>
+
+		<div class="footer-bottom">
+			<div class="footer-legal">
+				<p>&copy; {currentYear} {siteTitle}. All rights reserved.</p>
+				<p class="footer-powered">
+					Powered by <a href="https://emdashcms.com">EmDash</a>
+				</p>
+			</div>
+
+			<div class="theme-switcher" role="group" aria-label="Theme selector">
+				<button
+					type="button"
+					class="theme-btn"
+					data-theme="light"
+					aria-pressed="false">Light</button
+				>
+				<button
+					type="button"
+					class="theme-btn"
+					data-theme="dark"
+					aria-pressed="false">Dark</button
+				>
+				<button
+					type="button"
+					class="theme-btn"
+					data-theme="system"
+					aria-pressed="false">System</button
+				>
+			</div>
+		</div>
+	</div>
+</footer>
+
+<style>
+	.site-footer {
+		background: var(--color-surface);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.footer-shell {
+		max-width: var(--wide-width);
+		margin-inline: auto;
+		padding: var(--spacing-5xl) var(--spacing-lg) 0;
+	}
+
+	.footer-top {
+		display: grid;
+		gap: var(--spacing-4xl);
+	}
+
+	.footer-brand {
+		min-width: 0;
+		max-width: 20rem;
+	}
+
+	.footer-logo {
+		display: inline-flex;
+		min-width: 0;
+		max-width: 100%;
+		align-items: center;
+		color: var(--color-text);
+		font-size: var(--font-size-xl);
+		font-weight: var(--font-weight-display);
+		letter-spacing: var(--tracking-tight);
+		line-height: 1.2;
+	}
+
+	.footer-logo-text {
+		overflow-wrap: anywhere;
+	}
+
+	.footer-logo-img {
+		display: block;
+		width: auto;
+		max-width: 100%;
+		height: 30px;
+		object-fit: contain;
+	}
+
+	.footer-tagline {
+		max-width: 18rem;
+		margin-block-start: var(--spacing-md);
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		line-height: 1.6;
+	}
+
+	.footer-links {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--spacing-xl) var(--spacing-2xl);
+	}
+
+	.footer-col h2 {
+		margin-block-end: var(--spacing-md);
+		color: var(--color-text);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		line-height: 1.35;
+	}
+
+	.footer-col ul {
+		list-style: none;
+	}
+
+	.footer-col a {
+		display: block;
+		padding-block: 0.25rem;
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		line-height: 1.55;
+		transition: color var(--transition-fast);
+	}
+
+	.footer-col a:hover,
+	.footer-powered a:hover {
+		color: var(--color-brand);
+	}
+
+	.footer-bottom {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-lg);
+		margin-block-start: var(--spacing-4xl);
+		padding-block: var(--spacing-lg);
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.footer-legal {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem var(--spacing-md);
+	}
+
+	.footer-powered a {
+		color: var(--color-text);
+		font-weight: 500;
+		transition: color var(--transition-fast);
+	}
+
+	.theme-switcher {
+		display: flex;
+		gap: 2px;
+		padding: 3px;
+		background: var(--color-brand-ring);
+		border-radius: calc(var(--radius-sm) + 4px);
+	}
+
+	.theme-btn {
+		min-height: 32px;
+		padding: 6px 10px;
+		color: var(--color-text);
+		font-family: var(--font-body);
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		line-height: 1.3;
+		background: transparent;
+		border: 0;
+		border-radius: var(--radius-sm);
+		cursor: pointer;
+		transition:
+			background var(--transition-fast),
+			color var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.theme-btn:hover,
+	.theme-btn.active {
+		color: var(--color-text);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.theme-btn:active {
+		transform: scale(0.98);
+	}
+
+	@media (min-width: 768px) {
+		.footer-top {
+			grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+		}
+
+		.footer-links {
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+		}
+	}
+
+	@media (max-width: 768px) {
+		.footer-shell {
+			padding-block-start: var(--spacing-4xl);
+		}
+
+		.footer-bottom {
+			align-items: flex-start;
+		}
+
+		.theme-switcher {
+			order: -1;
+		}
+
+		.footer-legal {
+			flex-direction: column;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.footer-links {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.footer-col a,
+		.footer-powered a,
+		.theme-btn {
+			transition: none;
+		}
+
+		.theme-btn:active {
+			transform: none;
+		}
+	}
+</style>
