@@ -146,17 +146,15 @@ describe("Database Migrations (Integration)", () => {
 		db = await setupTestDatabaseWithCollections();
 
 		// Kysely only re-runs trailing entries; include the latest migrations.
+		//
+		// Starts after 043: migration 076 restructures the table 043 creates, so
+		// replaying 043 against a database that has already reached 076 would try
+		// to index `locale` and `translation_group`, which 076 removes. Migrations
+		// are forward-only — 043 is shipped history and is not edited to
+		// accommodate a later one. The window has to stay contiguous, since a
+		// recorded migration sitting before a pending one reads as corrupted
+		// history, so excluding 043 also excludes everything before it.
 		const trailing = [
-			"034_published_at_index",
-			"035_bounded_404_log",
-			"036_i18n_menus_and_taxonomies",
-			"037_credential_algorithm",
-			"038_registry_plugin_state",
-			"039_fix_fts5_triggers",
-			"040_byline_i18n",
-			"041_content_locale_list_index",
-			"042_byline_fields",
-			"043_content_references",
 			"044_comment_reactions",
 			"045_taxonomy_parent_group",
 			"046_media_usage_index",
@@ -189,6 +187,7 @@ describe("Database Migrations (Integration)", () => {
 			"073_media_focal_point",
 			"074_content_deleted_scheduled_index",
 			"075_entry_edit_locks",
+			"076_relations_structural",
 		];
 
 		await db.deleteFrom("_emdash_migrations").where("name", "in", trailing).execute();

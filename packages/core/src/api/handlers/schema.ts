@@ -4,6 +4,8 @@
 
 import type { Kysely } from "kysely";
 
+import { RelationRepository, type Relation } from "../../database/repositories/relation.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import {
@@ -19,6 +21,70 @@ import {
 	type CollectionWithFields,
 } from "../../schema/index.js";
 import type { ApiResult } from "../types.js";
+import { handleRelationDelete } from "./relations.js";
+
+/** Maximum attempts to allocate a unique relation slug for a new reference
+ * field: the base `${collection}_${field}` slug, then `_2` through `_5`. */
+const RELATION_NAME_MAX_ATTEMPTS = 5;
+
+/** True for SQLite UNIQUE / Postgres unique_violation messages — mirrors the
+ * fingerprint used in the relations API handler. */
+function isUniqueViolation(error: unknown): boolean {
+	const message = error instanceof Error ? error.message.toLowerCase() : "";
+	return message.includes("unique constraint failed") || message.includes("duplicate key");
+}
+
+/**
+ * Create the relation definition backing a new reference field, retrying
+ * with a numeric suffix on a name collision. Runs inside the caller's
+ * transaction so the relation and the field row it backs commit or roll
+ * back together.
+ */
+export async function createFieldRelation(
+	trx: Kysely<Database>,
+	collectionSlug: string,
+	fieldSlug: string,
+	fieldLabel: string,
+	targetCollection: string,
+	/** How many entries the new field may hold. `null` is unlimited. */
+	maxChildrenPerParent: number | null = null,
+): Promise<Relation> {
+	const registry = new SchemaRegistry(trx);
+	const relations = new RelationRepository(trx);
+
+	const parent = await registry.getCollection(collectionSlug);
+	if (!parent) {
+		throw new SchemaError(`Collection "${collectionSlug}" not found`, "COLLECTION_NOT_FOUND");
+	}
+
+	if (!(await registry.getCollection(targetCollection))) {
+		throw new SchemaError(
+			`Target collection "${targetCollection}" not found`,
+			"COLLECTION_NOT_FOUND",
+		);
+	}
+
+	const baseSlug = `${collectionSlug}_${fieldSlug}`.slice(0, 63);
+	for (let attempt = 0; attempt < RELATION_NAME_MAX_ATTEMPTS; attempt++) {
+		const suffix = attempt === 0 ? "" : `_${attempt + 1}`;
+		const slug = attempt === 0 ? baseSlug : `${baseSlug.slice(0, 63 - suffix.length)}${suffix}`;
+		try {
+			return await relations.create({
+				slug,
+				parentCollection: collectionSlug,
+				childCollection: targetCollection,
+				parentLabel: parent.label,
+				parentLabelSingular: parent.labelSingular ?? null,
+				childLabel: fieldLabel,
+				maxChildrenPerParent,
+			});
+		} catch (error) {
+			const isLastAttempt = attempt === RELATION_NAME_MAX_ATTEMPTS - 1;
+			if (isLastAttempt || !isUniqueViolation(error)) throw error;
+		}
+	}
+	throw new SchemaError("Could not allocate a unique relation name", "RELATION_NAME_CONFLICT");
+}
 
 function invalidateFieldCaches(collectionSlug: string): void {
 	invalidateCollectionCache(collectionSlug);
@@ -208,6 +274,20 @@ export async function handleSchemaCollectionDelete(
 ): Promise<ApiResult<{ success: boolean }>> {
 	try {
 		const registry = new SchemaRegistry(db);
+
+		// A relation with this collection on either end cannot outlive it: its
+		// edges point at content that is about to be dropped, and the reference
+		// fields viewing it — including ones on the *other* collection — would be
+		// left addressing a collection that no longer exists. The admin lists both
+		// before confirming. Relations go first, so an interrupted delete leaves a
+		// collection with fewer relations rather than a dropped table with
+		// relations still pointing at it.
+		const relations = new RelationRepository(db);
+		for (const relation of await relations.findForCollection(slug)) {
+			const removed = await handleRelationDelete(db, relation.id);
+			if (!removed.success) return removed;
+		}
+
 		await registry.deleteCollection(slug, options);
 
 		return {
@@ -319,6 +399,53 @@ export async function handleSchemaFieldCreate(
 	input: CreateFieldInput,
 ): Promise<ApiResult<FieldResponse>> {
 	try {
+		if (input.type === "reference") {
+			const targetCollection = input.validation?.targetCollection;
+			if (!targetCollection) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: "Reference field requires a target collection",
+					},
+				};
+			}
+
+			// The relation def and the field row it backs must commit or roll
+			// back together — a field without its relation (or vice versa) is
+			// an inconsistent reference field.
+			const item = await withTransaction(db, async (trx) => {
+				// A single-reference field is a one-to-many relation: the limit is the
+				// relation's, so binding its other end later sees the same rule.
+				const relation = await createFieldRelation(
+					trx,
+					collectionSlug,
+					input.slug,
+					input.label,
+					targetCollection,
+					input.validation?.multiple ? null : 1,
+				);
+				const registry = new SchemaRegistry(trx);
+				return registry.createField(collectionSlug, {
+					...input,
+					validation: {
+						...input.validation,
+						relation: relation.slug,
+						relationSide: "parent" as const,
+						targetCollection,
+					},
+				});
+			});
+
+			// Content snapshots embed field values; a column change invalidates them.
+			invalidateCollectionCache(collectionSlug);
+
+			return {
+				success: true,
+				data: { item },
+			};
+		}
+
 		const registry = new SchemaRegistry(db);
 		const item = await registry.createField(collectionSlug, input);
 
@@ -360,6 +487,74 @@ export async function handleSchemaFieldUpdate(
 	input: UpdateFieldInput,
 ): Promise<ApiResult<FieldResponse>> {
 	try {
+		const lookupRegistry = new SchemaRegistry(db);
+		const existing = await lookupRegistry.getField(collectionSlug, fieldSlug);
+		const relationSlug = existing?.type === "reference" ? existing.validation?.relation : undefined;
+		const relationSide = existing?.validation?.relationSide;
+
+		if (existing && relationSlug) {
+			// The relation's childCollection is immutable — a reference field's
+			// target collection can't change after the relation is wired up.
+			const nextTargetCollection = input.validation?.targetCollection;
+			if (
+				nextTargetCollection !== undefined &&
+				nextTargetCollection !== existing.validation?.targetCollection
+			) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: "Cannot change the target collection of an existing reference field",
+					},
+				};
+			}
+
+			// `relation` and `targetCollection` are immutable identity for a wired
+			// reference field. An update that sends `validation: null` or a partial
+			// validation object omitting these keys must not be allowed to clear
+			// them -- registry.updateField() writes whatever is passed verbatim,
+			// which would otherwise orphan the relation row and its edges.
+			const updateInput =
+				input.validation !== undefined
+					? {
+							...input,
+							validation: {
+								...input.validation,
+								relation: existing.validation?.relation,
+								relationSide: existing.validation?.relationSide,
+								targetCollection: existing.validation?.targetCollection,
+							},
+						}
+					: input;
+
+			const item = await withTransaction(db, async (trx) => {
+				const registry = new SchemaRegistry(trx);
+				const updated = await registry.updateField(collectionSlug, fieldSlug, updateInput);
+
+				if (input.label !== undefined && input.label !== existing.label) {
+					const relations = new RelationRepository(trx);
+					const relation = await relations.findBySlug(relationSlug);
+					// The field's label is the role name for the side it binds, so
+					// renaming the field renames that role and leaves the other alone.
+					if (relation) {
+						await relations.update(
+							relation.id,
+							relationSide === "child" ? { parentLabel: input.label } : { childLabel: input.label },
+						);
+					}
+				}
+
+				return updated;
+			});
+
+			invalidateCollectionCache(collectionSlug);
+
+			return {
+				success: true,
+				data: { item },
+			};
+		}
+
 		const registry = new SchemaRegistry(db);
 		const item = await registry.updateField(collectionSlug, fieldSlug, input);
 
@@ -393,12 +588,38 @@ export async function handleSchemaFieldUpdate(
 /**
  * Delete a field
  */
+/**
+ * Delete a field.
+ *
+ * For a reference field, `deleteRelation` also takes the relation, its edges,
+ * and the field bound to its other side. It is opt-in on the wire and checked
+ * by default in the admin's confirm dialog, which enumerates what goes first.
+ */
 export async function handleSchemaFieldDelete(
 	db: Kysely<Database>,
 	collectionSlug: string,
 	fieldSlug: string,
+	options?: { deleteRelation?: boolean },
 ): Promise<ApiResult<{ success: boolean }>> {
 	try {
+		const lookupRegistry = new SchemaRegistry(db);
+		const existing = await lookupRegistry.getField(collectionSlug, fieldSlug);
+		const relationSlug = existing?.type === "reference" ? existing.validation?.relation : undefined;
+
+		if (relationSlug && options?.deleteRelation) {
+			// Taking the relation takes its edges and the field bound to its other
+			// side, so route through the shared cascade rather than deleting the
+			// field here and the relation separately.
+			const relations = new RelationRepository(db);
+			const relation = await relations.findBySlug(relationSlug);
+			if (relation) {
+				const result = await handleRelationDelete(db, relation.id);
+				if (!result.success) return result;
+				invalidateFieldCaches(collectionSlug);
+				return { success: true, data: { success: true } };
+			}
+		}
+
 		const registry = new SchemaRegistry(db);
 		await registry.deleteField(collectionSlug, fieldSlug);
 

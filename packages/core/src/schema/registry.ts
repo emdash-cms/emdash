@@ -10,7 +10,12 @@ import { sql } from "kysely";
 import { ulid } from "ulidx";
 
 import { refreshDevTypes } from "../astro/dev-typegen.js";
-import { currentTimestamp, listTablesLike, tableExists } from "../database/dialect-helpers.js";
+import {
+	columnExists,
+	currentTimestamp,
+	listTablesLike,
+	tableExists,
+} from "../database/dialect-helpers.js";
 import { withTransaction } from "../database/transaction.js";
 import type { CollectionTable, Database, FieldTable } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
@@ -50,6 +55,7 @@ import {
 	isIndexableFieldType,
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
+	STORAGELESS_FIELD_TYPES,
 } from "./types.js";
 
 // Regex patterns for schema registry
@@ -985,17 +991,22 @@ export class SchemaRegistry {
 					.execute();
 				schemaMutated = true;
 
-				// Add column to content table — pass trx to stay on the same connection
-				await this.addColumn(
-					collectionSlug,
-					input.slug,
-					input.type,
-					{
-						required: input.required,
-						defaultValue: input.defaultValue,
-					},
-					trx,
-				);
+				// Add column to content table — pass trx to stay on the same connection.
+				// Storage-less field types (e.g. reference) persist no column; their
+				// values live in a side table (see STORAGELESS_FIELD_TYPES). Insert the
+				// field row only.
+				if (!STORAGELESS_FIELD_TYPES.has(input.type)) {
+					await this.addColumn(
+						collectionSlug,
+						input.slug,
+						input.type,
+						{
+							required: input.required,
+							defaultValue: input.defaultValue,
+						},
+						trx,
+					);
+				}
 
 				if (input.indexed) {
 					await this.createFieldIndex(collectionSlug, id, input.slug, trx);
@@ -1085,6 +1096,17 @@ export class SchemaRegistry {
 				let nextType = field.type;
 
 				if (input.type !== undefined && input.type !== field.type) {
+					// A change into or out of a storage-less type is never a no-op column
+					// change: string -> reference both map to TEXT and would slip past the
+					// affinity check below, yet one has a column and the other does not.
+					if (STORAGELESS_FIELD_TYPES.has(input.type) || STORAGELESS_FIELD_TYPES.has(field.type)) {
+						throw new SchemaError(
+							`Cannot change field "${fieldSlug}" in collection "${collectionSlug}" between ` +
+								`storage-less and column-backed types ("${field.type}" -> "${input.type}").`,
+							"FIELD_TYPE_COLUMN_CHANGE",
+						);
+					}
+
 					const newColumnType = FIELD_TYPE_TO_COLUMN[input.type];
 					if (newColumnType !== field.columnType) {
 						throw new SchemaError(
@@ -1328,8 +1350,19 @@ export class SchemaRegistry {
 					await this.dropFieldIndex(field.id, trx);
 				}
 
-				// Drop column from content table — safe now because FTS triggers are gone
-				await this.dropColumn(collectionSlug, fieldSlug, trx);
+				// Drop column from content table — safe now because FTS triggers are gone.
+				// Whether a field is storage-less is a property of the row rather than of
+				// its type: reference fields created before they became storage-less
+				// still carry a column, and skipping the DDL would strand it and block
+				// the slug from ever being reused.
+				const hasColumn = await columnExists(
+					trx,
+					this.getTableName(collectionSlug),
+					this.getColumnName(fieldSlug),
+				);
+				if (hasColumn) {
+					await this.dropColumn(collectionSlug, fieldSlug, trx);
+				}
 			});
 			if (activeCoverageInvalidated) {
 				await invalidateContentMediaUsageSchemaChange(this.db, collectionSlug);
@@ -1469,6 +1502,8 @@ export class SchemaRegistry {
 		if (options.ifNotExists) table = table.ifNotExists();
 
 		for (const field of fields) {
+			if (STORAGELESS_FIELD_TYPES.has(field.type)) continue;
+
 			const columnName = this.getColumnName(field.slug);
 			const columnType = COLUMN_TYPE_TO_DATA_TYPE[FIELD_TYPE_TO_COLUMN[field.type]];
 			table = table.addColumn(columnName, columnType, (column) => {

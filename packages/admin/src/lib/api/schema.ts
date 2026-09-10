@@ -77,6 +77,9 @@ export interface SchemaField {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		targetCollection?: string;
+		multiple?: boolean;
+		relation?: string;
 	};
 	widget?: string;
 	options?: Record<string, unknown>;
@@ -140,6 +143,9 @@ export interface CreateFieldInput {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		targetCollection?: string;
+		multiple?: boolean;
+		relation?: string;
 	} | null;
 	widget?: string;
 	options?: Record<string, unknown>;
@@ -160,6 +166,9 @@ export interface UpdateFieldInput {
 		pattern?: string;
 		options?: string[];
 		allowedMimeTypes?: string[];
+		targetCollection?: string;
+		multiple?: boolean;
+		relation?: string;
 	} | null;
 	widget?: string;
 	options?: Record<string, unknown>;

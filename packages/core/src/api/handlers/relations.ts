@@ -6,13 +6,18 @@ import {
 	type ContentReference,
 	type CreateRelationInput,
 	type Relation,
+	type UpdateRelationInput,
 } from "../../database/repositories/relation.js";
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { ContentItem } from "../../database/repositories/types.js";
+import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
-import { resolveConfiguredLocale } from "../../i18n/config.js";
+import { invalidateCollectionCache } from "../../object-cache/index.js";
+import { requestCached } from "../../request-cache.js";
+import { invalidateSchemaCache } from "../../schema/index.js";
 import { SchemaRegistry } from "../../schema/registry.js";
 import type { ApiResult } from "../types.js";
+import { referenceFieldConstraints, validateReferenceSelection } from "./validate-references.js";
 
 /** Map an edge-read failure: a bad pagination cursor is a 400 client error,
  * everything else is the generic 500-shaped reference-read error. */
@@ -24,6 +29,10 @@ function referencesGetError(error: unknown): ApiResult<never> {
 		success: false,
 		error: { code: "REFERENCES_GET_ERROR", message: "Failed to get references" },
 	};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
 }
 
 /** True for SQLite UNIQUE / Postgres unique_violation messages (matches the
@@ -42,60 +51,31 @@ export async function handleRelationCreate(
 		const repo = new RelationRepository(db);
 
 		// Invariant: a relation must point at collections that exist. There is no
-		// SQL FK (group-linking precludes it), so a ghost collection would yield a
-		// structurally-valid-but-permanently-useless relation. Skip when
-		// `translationOf` is set — structural fields are then inherited from an
-		// already-validated source, and the input collections are ignored.
-		if (!input.translationOf) {
-			if (!input.parentCollection || !input.childCollection) {
+		// SQL FK (the edge endpoints are content translation_groups, which
+		// precludes one), so a ghost collection would yield a
+		// structurally-valid-but-permanently-useless relation.
+		const registry = new SchemaRegistry(db);
+		for (const collection of [input.parentCollection, input.childCollection]) {
+			if (!(await registry.getCollection(collection))) {
 				return {
 					success: false,
 					error: {
-						code: "VALIDATION_ERROR",
-						message:
-							"parentCollection and childCollection are required unless translationOf is set",
+						code: "COLLECTION_NOT_FOUND",
+						message: `Collection '${collection}' not found`,
 					},
 				};
 			}
-			const registry = new SchemaRegistry(db);
-			for (const collection of [input.parentCollection, input.childCollection]) {
-				if (!(await registry.getCollection(collection))) {
-					return {
-						success: false,
-						error: {
-							code: "COLLECTION_NOT_FOUND",
-							message: `Collection '${collection}' not found`,
-						},
-					};
-				}
-			}
 		}
 
-		const relation = await repo.create({
-			...input,
-			locale: input.locale ? resolveConfiguredLocale(input.locale) : undefined,
-		});
+		const relation = await repo.create(input);
 		return { success: true, data: { relation } };
 	} catch (error) {
-		// A bad `translationOf` makes the repo throw loudly rather than mint an
-		// unlinked relation — surface it as 404, not a generic 500.
-		if (
-			error instanceof Error &&
-			error.message.includes("Source relation for translation not found")
-		) {
-			return {
-				success: false,
-				error: { code: "NOT_FOUND", message: "Source relation for translation not found" },
-			};
-		}
-		// UNIQUE(name, locale) collision, or a second translation for an
-		// already-present (translation_group, locale) — both are client conflicts.
 		if (isUniqueViolation(error)) {
 			return {
 				success: false,
 				error: {
 					code: "CONFLICT",
-					message: "A relation with this name or locale already exists",
+					message: "A relation with this slug already exists",
 				},
 			};
 		}
@@ -106,17 +86,34 @@ export async function handleRelationCreate(
 	}
 }
 
+/**
+ * A relation plus what deleting it would take with it: the reference fields
+ * that view it, and how many links it holds. Both delete dialogs enumerate
+ * these before the user confirms.
+ */
+export interface RelationWithUsage extends Relation {
+	boundFields: BoundField[];
+	linkCount: number;
+}
+
 export async function handleRelationGet(
 	db: Kysely<Database>,
 	id: string,
-): Promise<ApiResult<{ relation: Relation }>> {
+): Promise<ApiResult<{ relation: RelationWithUsage }>> {
 	try {
 		const repo = new RelationRepository(db);
 		const relation = await repo.findById(id);
 		if (!relation) {
 			return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
 		}
-		return { success: true, data: { relation } };
+		const [boundFields, edgeCounts] = await Promise.all([
+			fieldsBoundToRelation(db, relation.slug),
+			repo.countEdgesByRelation(),
+		]);
+		return {
+			success: true,
+			data: { relation: { ...relation, boundFields, linkCount: edgeCounts.get(relation.id) ?? 0 } },
+		};
 	} catch {
 		return {
 			success: false,
@@ -125,15 +122,33 @@ export async function handleRelationGet(
 	}
 }
 
+/**
+ * List relations, optionally only those `collection` takes part in.
+ *
+ * The admin's relation picker filters this way: a reference field can only bind
+ * to a relation with its own collection on one end.
+ */
 export async function handleRelationList(
 	db: Kysely<Database>,
-	opts: { locale?: string },
-): Promise<ApiResult<{ relations: Relation[] }>> {
+	opts: { collection?: string } = {},
+): Promise<ApiResult<{ relations: RelationWithUsage[] }>> {
 	try {
 		const repo = new RelationRepository(db);
-		const locale = opts.locale ? resolveConfiguredLocale(opts.locale) : undefined;
-		const relations = await repo.list(locale);
-		return { success: true, data: { relations } };
+		const [relations, boundByRelation, edgeCounts] = await Promise.all([
+			opts.collection ? repo.findForCollection(opts.collection) : repo.list(),
+			fieldsBoundByRelation(db),
+			repo.countEdgesByRelation(),
+		]);
+		return {
+			success: true,
+			data: {
+				relations: relations.map((relation) => ({
+					...relation,
+					boundFields: boundByRelation.get(relation.slug) ?? [],
+					linkCount: edgeCounts.get(relation.id) ?? 0,
+				})),
+			},
+		};
 	} catch {
 		return {
 			success: false,
@@ -145,7 +160,7 @@ export async function handleRelationList(
 export async function handleRelationUpdate(
 	db: Kysely<Database>,
 	id: string,
-	input: { parentLabel?: string; childLabel?: string },
+	input: UpdateRelationInput,
 ): Promise<ApiResult<{ relation: Relation }>> {
 	try {
 		const repo = new RelationRepository(db);
@@ -162,64 +177,122 @@ export async function handleRelationUpdate(
 	}
 }
 
+/** A reference field that views a relation, and which end it views it from. */
+export interface BoundField {
+	collectionSlug: string;
+	fieldSlug: string;
+	side: "parent" | "child";
+}
+
+/**
+ * Every reference field on the site, grouped by the slug of the relation it
+ * binds.
+ *
+ * Filtered in JS rather than through `json_extract`: `_emdash_fields` holds one
+ * row per field on the whole site, and the reference-typed subset of that is
+ * small enough that a scan beats a dialect-specific JSON path. Grouping the
+ * whole set in one pass also keeps the relations list to a single scan instead
+ * of one per row.
+ */
+export async function fieldsBoundByRelation(
+	db: Kysely<Database>,
+): Promise<Map<string, BoundField[]>> {
+	const rows = await db
+		.selectFrom("_emdash_fields")
+		.innerJoin("_emdash_collections", "_emdash_collections.id", "_emdash_fields.collection_id")
+		.select([
+			"_emdash_fields.slug as fieldSlug",
+			"_emdash_collections.slug as collectionSlug",
+			"_emdash_fields.validation as validation",
+		])
+		.where("_emdash_fields.type", "=", "reference")
+		.execute();
+
+	const byRelation = new Map<string, BoundField[]>();
+	for (const row of rows) {
+		if (!row.validation) continue;
+		let parsed: unknown;
+		try {
+			parsed = JSON.parse(row.validation);
+		} catch {
+			continue;
+		}
+		if (!isRecord(parsed) || typeof parsed.relation !== "string") continue;
+		const bound: BoundField = {
+			collectionSlug: row.collectionSlug,
+			fieldSlug: row.fieldSlug,
+			side: parsed.relationSide === "child" ? "child" : "parent",
+		};
+		const list = byRelation.get(parsed.relation);
+		if (list) list.push(bound);
+		else byRelation.set(parsed.relation, [bound]);
+	}
+	return byRelation;
+}
+
+/** Every reference field bound to one relation, across both of its ends. */
+export async function fieldsBoundToRelation(
+	db: Kysely<Database>,
+	relationSlug: string,
+): Promise<BoundField[]> {
+	return (await fieldsBoundByRelation(db)).get(relationSlug) ?? [];
+}
+
+/**
+ * Delete a relation, the reference fields bound to it, and its edges.
+ *
+ * A relation is only ever deleted deliberately — from the relations admin page,
+ * or by the checkbox on a field delete — and it cannot leave a field pointing at
+ * nothing, so the fields go with it either way. Callers show the count first;
+ * `deletedFields` reports what actually went.
+ *
+ * Order matters: fields first, then the relation row and its edges. On D1
+ * `withTransaction` degrades to sequential statements, so an interrupted run
+ * leaves a relation with fewer bound fields — visible on the relations page and
+ * finishable — rather than fields pointing at a relation that no longer exists.
+ */
 export async function handleRelationDelete(
 	db: Kysely<Database>,
 	id: string,
-): Promise<ApiResult<{ deleted: true }>> {
-	try {
-		const repo = new RelationRepository(db);
-		const deleted = await repo.delete(id);
-		if (!deleted) {
-			return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
-		}
-		return { success: true, data: { deleted: true } };
-	} catch {
-		return {
-			success: false,
-			error: { code: "RELATION_DELETE_ERROR", message: "Failed to delete relation" },
-		};
-	}
-}
-
-export async function handleRelationTranslations(
-	db: Kysely<Database>,
-	id: string,
-): Promise<
-	ApiResult<{
-		translationGroup: string;
-		translations: {
-			id: string;
-			name: string;
-			locale: string;
-			parentLabel: string;
-			childLabel: string;
-		}[];
-	}>
-> {
+): Promise<ApiResult<{ deleted: true; deletedFields: string[] }>> {
 	try {
 		const repo = new RelationRepository(db);
 		const relation = await repo.findById(id);
 		if (!relation) {
 			return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
 		}
-		const siblings = await repo.findTranslations(relation.translationGroup);
+
+		const bound = await fieldsBoundToRelation(db, relation.slug);
+
+		const deleted = await withTransaction(db, async (trx) => {
+			const registry = new SchemaRegistry(trx);
+			for (const field of bound) {
+				await registry.deleteField(field.collectionSlug, field.fieldSlug);
+			}
+			return new RelationRepository(trx).delete(id);
+		});
+
+		if (!deleted) {
+			return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
+		}
+
+		for (const collection of new Set(bound.map((f) => f.collectionSlug))) {
+			invalidateCollectionCache(collection);
+			invalidateSchemaCache(collection);
+		}
+
 		return {
 			success: true,
 			data: {
-				translationGroup: relation.translationGroup,
-				translations: siblings.map((r) => ({
-					id: r.id,
-					name: r.name,
-					locale: r.locale,
-					parentLabel: r.parentLabel,
-					childLabel: r.childLabel,
-				})),
+				deleted: true,
+				deletedFields: bound.map((f) => `${f.collectionSlug}.${f.fieldSlug}`),
 			},
 		};
-	} catch {
+	} catch (error) {
+		console.error("Relation delete error:", error);
 		return {
 			success: false,
-			error: { code: "RELATION_TRANSLATIONS_ERROR", message: "Failed to get translations" },
+			error: { code: "RELATION_DELETE_ERROR", message: "Failed to delete relation" },
 		};
 	}
 }
@@ -228,20 +301,62 @@ export type EntryRef = {
 	id: string;
 	slug: string | null;
 	collection: string;
+	/**
+	 * Display label sourced from the collection's configured `titleField`, then
+	 * `title`, then `name` — `null` when none is set, leaving the client to fall
+	 * back to slug/id. Mirrors the admin's `getEntryTitle`.
+	 */
+	title: string | null;
 	/** The actual locale of the resolved variant — see `pickVariant`. */
 	locale: string | null;
+	/**
+	 * The edge's target: the translation group `id` was resolved from. Stable
+	 * across locales, unlike `id`, so callers comparing a ref against a content
+	 * row (the admin's picker) match the entry rather than one of its variants.
+	 */
+	translationGroup: string | null;
 	sortOrder?: number;
 };
 
-/** Resolve a relation from an id OR its translation_group. */
+/**
+ * Display title for a resolved entry: the collection's configured `titleField`,
+ * then `title`, then `name`, else null.
+ */
+function entryTitle(data: Record<string, unknown>, titleField?: string): string | null {
+	if (titleField) {
+		const configured = data[titleField];
+		if (typeof configured === "string" && configured.length > 0) return configured;
+	}
+	if (typeof data.title === "string" && data.title.length > 0) return data.title;
+	if (typeof data.name === "string" && data.name.length > 0) return data.name;
+	return null;
+}
+
+/**
+ * The collection's configured `titleField`, memoized for the request: a single
+ * content read hydrates every reference field, and several of them commonly
+ * target the same collection.
+ */
+export async function getReferenceTitleField(
+	db: Kysely<Database>,
+	collection: string,
+): Promise<string | undefined> {
+	return requestCached(`reference-title-field:${collection}`, async () => {
+		const row = await db
+			.selectFrom("_emdash_collections")
+			.select("title_field")
+			.where("slug", "=", collection)
+			.executeTakeFirst();
+		return row?.title_field ?? undefined;
+	});
+}
+
+/** Resolve a relation from an id OR its slug. */
 async function resolveRelation(
 	repo: RelationRepository,
-	idOrGroup: string,
+	idOrSlug: string,
 ): Promise<Relation | null> {
-	const byId = await repo.findById(idOrGroup);
-	if (byId) return byId;
-	const group = await repo.findTranslations(idOrGroup);
-	return group[0] ?? null;
+	return (await repo.findById(idOrSlug)) ?? (await repo.findBySlug(idOrSlug));
 }
 
 /**
@@ -268,13 +383,14 @@ function pickVariant(items: ContentItem[], locale: string | null): ContentItem |
  * is restricted to published entries so a draft/scheduled entry referenced by an
  * edge is skipped exactly like a dangling one, never leaking its id/slug/locale.
  */
-async function resolveEntries(
+export async function resolveEntries(
 	content: ContentRepository,
 	collection: string,
 	edges: ContentReference[],
 	pick: (e: ContentReference) => string,
 	locale: string | null,
 	includeDrafts: boolean,
+	titleField?: string,
 ): Promise<EntryRef[]> {
 	const groups = edges.map(pick);
 	const all = await content.findTranslationsForGroups(collection, groups, {
@@ -301,7 +417,9 @@ async function resolveEntries(
 			id: entry.id,
 			slug: entry.slug,
 			collection,
+			title: entryTitle(entry.data, titleField),
 			locale: entry.locale,
+			translationGroup: entry.translationGroup,
 			sortOrder: edge.sortOrder,
 		});
 	}
@@ -344,7 +462,7 @@ export async function handleReferenceChildrenGet(
 			return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
 		}
 
-		const edges = await repo.getChildrenPage(rel.translationGroup, entry.translationGroup, page);
+		const edges = await repo.getChildrenPage(rel.id, entry.translationGroup, page);
 		const children = await resolveEntries(
 			content,
 			rel.childCollection,
@@ -352,11 +470,83 @@ export async function handleReferenceChildrenGet(
 			(e) => e.childGroup,
 			entry.locale,
 			includeDrafts,
+			await getReferenceTitleField(db, rel.childCollection),
 		);
 		return { success: true, data: { children, nextCursor: edges.nextCursor } };
 	} catch (error) {
 		return referencesGetError(error);
 	}
+}
+
+/**
+ * Resolve a relation + parent entry + child ids and replace the parent's
+ * children under that relation. Extracted from `handleReferenceChildrenSet` so
+ * the content create/update transaction can reuse the same resolution logic
+ * with either a `Kysely<Database>` or a `Transaction<Database>`.
+ *
+ * Returns the resolved relation/entry translation_groups on success so callers
+ * can re-read and echo the new set without re-deriving them.
+ */
+export async function setReferenceChildren(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	relation: string,
+	childIds: string[],
+): Promise<ApiResult<{ relationId: string; entryGroup: string }>> {
+	const repo = new RelationRepository(db);
+	const content = new ContentRepository(db);
+
+	const rel = await resolveRelation(repo, relation);
+	if (!rel) return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
+	if (collection !== rel.parentCollection) {
+		return {
+			success: false,
+			error: {
+				code: "VALIDATION_ERROR",
+				message: "Entry is not the parent side of this relation",
+			},
+		};
+	}
+
+	// Keyed by the field's `validation.relation`, which is the relation's slug —
+	// `relation` here may have arrived as either an id or a slug.
+	const constraints = (await referenceFieldConstraints(db, collection)).get(rel.slug);
+	if (constraints) {
+		const selection = validateReferenceSelection(constraints, childIds);
+		if (!selection.success) return selection;
+	}
+
+	const entry = await content.findByIdOrSlug(collection, entryId);
+	if (!entry?.translationGroup) {
+		return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
+	}
+
+	// Resolve every child within the relation's child_collection in one batch
+	// (constant queries, not an N+1 of point lookups for a set up to 1000). A
+	// child id that does not resolve there fails collection-agreement
+	// (invariant 3); order is preserved by iterating the caller's `childIds`.
+	const resolvedChildren = await content.findManyByIdOrSlug(rel.childCollection, childIds);
+	const childGroups: string[] = [];
+	for (const childId of childIds) {
+		const child = resolvedChildren.get(childId);
+		if (!child?.translationGroup) {
+			return {
+				success: false,
+				error: {
+					code: "NOT_FOUND",
+					message: `Child entry '${childId}' not found in ${rel.childCollection}`,
+				},
+			};
+		}
+		childGroups.push(child.translationGroup);
+	}
+
+	await repo.setChildren(rel.id, entry.translationGroup, childGroups);
+	return {
+		success: true,
+		data: { relationId: rel.id, entryGroup: entry.translationGroup },
+	};
 }
 
 export async function handleReferenceChildrenSet(
@@ -367,53 +557,27 @@ export async function handleReferenceChildrenSet(
 	childIds: string[],
 ): Promise<ApiResult<{ children: EntryRef[]; nextCursor?: string }>> {
 	try {
+		const set = await setReferenceChildren(db, collection, entryId, relation, childIds);
+		if (!set.success) return set;
+
 		const repo = new RelationRepository(db);
 		const content = new ContentRepository(db);
 
+		// Re-resolve the relation/entry for their locale + childCollection — cheap
+		// relative to the write above, and keeps this function independent of
+		// `setReferenceChildren`'s internals beyond the two returned groups.
 		const rel = await resolveRelation(repo, relation);
 		if (!rel)
 			return { success: false, error: { code: "NOT_FOUND", message: "Relation not found" } };
-		if (collection !== rel.parentCollection) {
-			return {
-				success: false,
-				error: {
-					code: "VALIDATION_ERROR",
-					message: "Entry is not the parent side of this relation",
-				},
-			};
-		}
-
 		const entry = await content.findByIdOrSlug(collection, entryId);
-		if (!entry?.translationGroup) {
+		if (!entry) {
 			return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
 		}
-
-		// Resolve every child within the relation's child_collection in one batch
-		// (constant queries, not an N+1 of point lookups for a set up to 1000). A
-		// child id that does not resolve there fails collection-agreement
-		// (invariant 3); order is preserved by iterating the caller's `childIds`.
-		const resolvedChildren = await content.findManyByIdOrSlug(rel.childCollection, childIds);
-		const childGroups: string[] = [];
-		for (const childId of childIds) {
-			const child = resolvedChildren.get(childId);
-			if (!child?.translationGroup) {
-				return {
-					success: false,
-					error: {
-						code: "NOT_FOUND",
-						message: `Child entry '${childId}' not found in ${rel.childCollection}`,
-					},
-				};
-			}
-			childGroups.push(child.translationGroup);
-		}
-
-		await repo.setChildren(rel.translationGroup, entry.translationGroup, childGroups);
 
 		// Return the first page of the new set, mirroring the GET shape. The actor
 		// holds an edit permission (gated by the route), so draft children are
 		// included in the echo.
-		const edges = await repo.getChildrenPage(rel.translationGroup, entry.translationGroup);
+		const edges = await repo.getChildrenPage(set.data.relationId, set.data.entryGroup);
 		const children = await resolveEntries(
 			content,
 			rel.childCollection,
@@ -421,6 +585,7 @@ export async function handleReferenceChildrenSet(
 			(e) => e.childGroup,
 			entry.locale,
 			true,
+			await getReferenceTitleField(db, rel.childCollection),
 		);
 		return { success: true, data: { children, nextCursor: edges.nextCursor } };
 	} catch {
@@ -463,7 +628,7 @@ export async function handleReferenceParentsGet(
 			return { success: false, error: { code: "NOT_FOUND", message: "Content entry not found" } };
 		}
 
-		const edges = await repo.getParentsPage(rel.translationGroup, entry.translationGroup, page);
+		const edges = await repo.getParentsPage(rel.id, entry.translationGroup, page);
 		const parents = await resolveEntries(
 			content,
 			rel.parentCollection,
@@ -471,6 +636,7 @@ export async function handleReferenceParentsGet(
 			(e) => e.parentGroup,
 			entry.locale,
 			includeDrafts,
+			await getReferenceTitleField(db, rel.parentCollection),
 		);
 		return { success: true, data: { parents, nextCursor: edges.nextCursor } };
 	} catch (error) {

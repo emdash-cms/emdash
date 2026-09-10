@@ -23,226 +23,143 @@ describeEachDialect("RelationRepository", (dialect) => {
 	});
 
 	const baseInput = {
-		name: "manages",
+		slug: "manages",
 		parentCollection: "employees",
 		childCollection: "employees",
 		parentLabel: "Manager",
 		childLabel: "Direct report",
 	};
 
-	it("create mints an anchor row (translation_group = id, default locale)", async () => {
+	it("create stores the relation and reads it back by id", async () => {
 		const rel = await repo.create({ ...baseInput });
 		expect(rel.id).toBeTruthy();
-		expect(rel.translationGroup).toBe(rel.id);
-		expect(rel.locale).toBe("en");
-		expect(rel.name).toBe("manages");
+		expect(rel.slug).toBe("manages");
 		expect(rel.parentCollection).toBe("employees");
 		expect(rel.childCollection).toBe("employees");
+		expect(rel.parentLabel).toBe("Manager");
 
 		const fetched = await repo.findById(rel.id);
 		expect(fetched).toEqual(rel);
 	});
 
-	it("create with translationOf joins the group and inherits structural fields", async () => {
-		const anchor = await repo.create({ ...baseInput });
-		const fr = await repo.create({
-			name: "ignored-name",
-			parentCollection: "ignored",
-			childCollection: "ignored",
-			parentLabel: "Responsable",
-			childLabel: "Subordonné",
-			locale: "fr",
-			translationOf: anchor.id,
-		});
-
-		expect(fr.translationGroup).toBe(anchor.translationGroup);
-		expect(fr.locale).toBe("fr");
-		expect(fr.name).toBe("manages");
-		expect(fr.parentCollection).toBe("employees");
-		expect(fr.childCollection).toBe("employees");
-		expect(fr.parentLabel).toBe("Responsable");
-		expect(fr.childLabel).toBe("Subordonné");
-	});
-
-	it("create with translationOf omits collections and inherits them from the source", async () => {
-		const anchor = await repo.create({ ...baseInput });
-		const fr = await repo.create({
-			name: "ignored-name",
-			parentLabel: "Responsable",
-			childLabel: "Subordonné",
-			locale: "fr",
-			translationOf: anchor.id,
-		});
-
-		expect(fr.translationGroup).toBe(anchor.translationGroup);
-		expect(fr.parentCollection).toBe("employees");
-		expect(fr.childCollection).toBe("employees");
-	});
-
-	it("create without translationOf and without collections throws", async () => {
-		await expect(
-			repo.create({
-				name: "manages",
-				parentLabel: "Manager",
-				childLabel: "Direct report",
-			}),
-		).rejects.toThrow(
-			"parentCollection and childCollection are required unless translationOf is set",
-		);
-	});
-
-	it("create with a missing translationOf source throws", async () => {
-		await expect(
-			repo.create({ ...baseInput, locale: "fr", translationOf: "does-not-exist" }),
-		).rejects.toThrow("Source relation for translation not found");
+	it("rejects a second relation with the same slug", async () => {
+		await repo.create({ ...baseInput });
+		// A slug identifies one relation outright — that is what lets an entry in
+		// any locale resolve it without a locale to scope by.
+		await expect(repo.create({ ...baseInput, parentCollection: "posts" })).rejects.toThrow();
 	});
 
 	it("findById returns null for an unknown id", async () => {
 		expect(await repo.findById("nope")).toBeNull();
 	});
 
-	it("findByName filters by locale, and resolves deterministically without one", async () => {
-		const anchor = await repo.create({ ...baseInput });
-		await repo.create({
-			...baseInput,
-			locale: "fr",
-			parentLabel: "Responsable",
-			childLabel: "Subordonné",
-			translationOf: anchor.id,
-		});
+	it("findBySlug resolves without a locale", async () => {
+		const rel = await repo.create({ ...baseInput });
 
-		const fr = await repo.findByName("manages", "fr");
-		expect(fr?.locale).toBe("fr");
-
-		const any = await repo.findByName("manages");
-		expect(any?.locale).toBe("en"); // lowest locale code wins deterministically
-
-		expect(await repo.findByName("missing")).toBeNull();
+		expect((await repo.findBySlug("manages"))?.id).toBe(rel.id);
+		expect(await repo.findBySlug("missing")).toBeNull();
 	});
 
-	it("findTranslations returns every locale sibling, ordered by locale", async () => {
-		const anchor = await repo.create({ ...baseInput });
-		await repo.create({
-			...baseInput,
-			locale: "fr",
-			parentLabel: "Responsable",
-			childLabel: "Subordonné",
-			translationOf: anchor.id,
-		});
+	it("list returns relations ordered by slug", async () => {
+		await repo.create({ ...baseInput, slug: "writes", childCollection: "posts" });
+		await repo.create({ ...baseInput, slug: "manages" });
 
-		const sibs = await repo.findTranslations(anchor.translationGroup);
-		expect(sibs.map((r) => r.locale)).toEqual(["en", "fr"]);
-	});
-
-	it("list returns relations ordered by name then id, optionally filtered by locale", async () => {
-		await repo.create({ ...baseInput, name: "writes", childCollection: "posts" });
-		const manages = await repo.create({ ...baseInput, name: "manages" });
-		await repo.create({
-			...baseInput,
-			locale: "fr",
-			parentLabel: "Responsable",
-			childLabel: "Subordonné",
-			translationOf: manages.id,
-		});
-
-		const all = await repo.list();
-		expect(all.map((r) => r.name)).toEqual(["manages", "manages", "writes"]);
-
-		const enOnly = await repo.list("en");
-		// The 'fr' row must be filtered out — assert the filter actually removes it.
-		expect(enOnly.length).toBeLessThan(all.length);
-		expect(enOnly.every((r) => r.locale === "en")).toBe(true);
+		expect((await repo.list()).map((r) => r.slug)).toEqual(["manages", "writes"]);
 	});
 
 	it("findForCollection matches parent OR child collection", async () => {
 		await repo.create({
 			...baseInput,
-			name: "writes",
+			slug: "writes",
 			parentCollection: "authors",
 			childCollection: "posts",
 		});
 		await repo.create({
 			...baseInput,
-			name: "tags_rel",
+			slug: "tags_rel",
 			parentCollection: "posts",
 			childCollection: "tags",
 		});
 
 		const forPosts = await repo.findForCollection("posts");
-		// Asserted in returned order to also verify the (name, id) ORDER BY.
-		expect(forPosts.map((r) => r.name)).toEqual(["tags_rel", "writes"]);
+		// Asserted in returned order to also verify the slug ORDER BY.
+		expect(forPosts.map((r) => r.slug)).toEqual(["tags_rel", "writes"]);
 
 		const forTags = await repo.findForCollection("tags");
-		expect(forTags.map((r) => r.name)).toEqual(["tags_rel"]);
+		expect(forTags.map((r) => r.slug)).toEqual(["tags_rel"]);
 	});
 
-	it("update changes only the localized labels (no-op on missing id)", async () => {
+	it("update changes only the labels (no-op on missing id)", async () => {
 		const rel = await repo.create({ ...baseInput });
 		const updated = await repo.update(rel.id, { parentLabel: "Lead", childLabel: "Report" });
 
 		expect(updated?.parentLabel).toBe("Lead");
 		expect(updated?.childLabel).toBe("Report");
 		// Structural fields untouched.
-		expect(updated?.name).toBe("manages");
+		expect(updated?.slug).toBe("manages");
 		expect(updated?.parentCollection).toBe("employees");
 
 		expect(await repo.update("missing", { parentLabel: "x" })).toBeNull();
 	});
 
-	it("delete of a non-last translation leaves edges intact", async () => {
-		const anchor = await repo.create({ ...baseInput });
-		const fr = await repo.create({
-			...baseInput,
-			locale: "fr",
-			parentLabel: "Responsable",
-			childLabel: "Subordonné",
-			translationOf: anchor.id,
-		});
-		// Seed an edge directly (addReference arrives in Task 4).
-		await ctx.db
-			.insertInto("_emdash_content_references")
-			.values({
-				id: ulid(),
-				relation_group: anchor.translationGroup,
-				parent_group: "parentG",
-				child_group: "childG",
-				sort_order: 0,
-			})
-			.execute();
+	it("defaults both role limits and both singular labels to unset", async () => {
+		const rel = await repo.create({ ...baseInput });
 
-		expect(await repo.delete(fr.id)).toBe(true);
-		// The 'en' anchor row must survive (only the 'fr' translation was deleted)...
-		expect(await repo.findById(anchor.id)).not.toBeNull();
-		// ...and so must its edges.
-		const edges = await ctx.db
-			.selectFrom("_emdash_content_references")
-			.selectAll()
-			.where("relation_group", "=", anchor.translationGroup)
-			.execute();
-		expect(edges).toHaveLength(1);
+		expect(rel.maxChildrenPerParent).toBeNull();
+		expect(rel.maxParentsPerChild).toBeNull();
+		expect(rel.parentLabelSingular).toBeNull();
+		expect(rel.childLabelSingular).toBeNull();
 	});
 
-	it("delete of the last translation purges edges for that relation group", async () => {
-		const anchor = await repo.create({ ...baseInput });
+	it("stores each role's limit and singular label independently", async () => {
+		const rel = await repo.create({
+			...baseInput,
+			parentLabelSingular: "Manager",
+			childLabelSingular: "Direct report",
+			maxChildrenPerParent: 5,
+		});
+
+		expect(rel.maxChildrenPerParent).toBe(5);
+		expect(rel.maxParentsPerChild).toBeNull();
+		expect(rel.parentLabelSingular).toBe("Manager");
+
+		// One side's limit is settable without disturbing the other's.
+		const updated = await repo.update(rel.id, { maxParentsPerChild: 1 });
+		expect(updated?.maxParentsPerChild).toBe(1);
+		expect(updated?.maxChildrenPerParent).toBe(5);
+	});
+
+	it("clears a role limit when set back to null", async () => {
+		const rel = await repo.create({ ...baseInput, maxChildrenPerParent: 5 });
+
+		// `undefined` means "leave alone", so `null` has to be the way to lift a
+		// limit — otherwise a one-to-many relation could never become many-to-many.
+		expect((await repo.update(rel.id, { maxChildrenPerParent: null }))?.maxChildrenPerParent).toBe(
+			null,
+		);
+	});
+
+	it("delete purges the relation's edges", async () => {
+		const rel = await repo.create({ ...baseInput });
 		await ctx.db
 			.insertInto("_emdash_content_references")
 			.values({
 				id: ulid(),
-				relation_group: anchor.translationGroup,
+				relation_id: rel.id,
 				parent_group: "parentG",
 				child_group: "childG",
 				sort_order: 0,
 			})
 			.execute();
 
-		expect(await repo.delete(anchor.id)).toBe(true);
+		expect(await repo.delete(rel.id)).toBe(true);
 		const edges = await ctx.db
 			.selectFrom("_emdash_content_references")
 			.selectAll()
-			.where("relation_group", "=", anchor.translationGroup)
+			.where("relation_id", "=", rel.id)
 			.execute();
 		expect(edges).toHaveLength(0);
-		expect(await repo.findById(anchor.id)).toBeNull();
+		expect(await repo.findById(rel.id)).toBeNull();
 	});
 
 	it("addReference appends by sort_order and dedupes on conflict", async () => {
@@ -251,19 +168,19 @@ describeEachDialect("RelationRepository", (dialect) => {
 		await repo.addReference(rel.id, "p1", "cB");
 		await repo.addReference(rel.id, "p1", "cA"); // duplicate — no-op
 
-		const children = await repo.getChildren(rel.translationGroup, "p1");
+		const children = await repo.getChildren(rel.id, "p1");
 		expect(children.map((c) => c.childGroup)).toEqual(["cA", "cB"]);
 		expect(children.map((c) => c.sortOrder)).toEqual([0, 1]);
 	});
 
-	it("addReference accepts a relation id OR its group, and an explicit sortOrder", async () => {
+	it("addReference accepts a relation id OR its slug, and an explicit sortOrder", async () => {
 		const rel = await repo.create({ ...baseInput });
-		await repo.addReference(rel.translationGroup, "p1", "cA", 5);
-		const children = await repo.getChildren(rel.translationGroup, "p1");
+		await repo.addReference(rel.id, "p1", "cA", 5);
+		const children = await repo.getChildren(rel.id, "p1");
 		expect(children).toEqual([
 			{
 				id: expect.any(String),
-				relationGroup: rel.translationGroup,
+				relationId: rel.id,
 				parentGroup: "p1",
 				childGroup: "cA",
 				sortOrder: 5,
@@ -276,18 +193,18 @@ describeEachDialect("RelationRepository", (dialect) => {
 		await repo.addReference(rel.id, "p1", "shared");
 		await repo.addReference(rel.id, "p2", "shared");
 
-		const parents = await repo.getParents(rel.translationGroup, "shared");
+		const parents = await repo.getParents(rel.id, "shared");
 		expect(parents.map((p) => p.parentGroup).toSorted()).toEqual(["p1", "p2"]);
 
 		await repo.removeReference(rel.id, "p1", "shared");
-		const after = await repo.getParents(rel.translationGroup, "shared");
+		const after = await repo.getParents(rel.id, "shared");
 		expect(after.map((p) => p.parentGroup)).toEqual(["p2"]);
 	});
 
 	it("self-reference (same group as parent and child) is allowed", async () => {
 		const rel = await repo.create({ ...baseInput });
 		await repo.addReference(rel.id, "self", "self");
-		const children = await repo.getChildren(rel.translationGroup, "self");
+		const children = await repo.getChildren(rel.id, "self");
 		expect(children.map((c) => c.childGroup)).toEqual(["self"]);
 	});
 
@@ -305,13 +222,13 @@ describeEachDialect("RelationRepository", (dialect) => {
 		const rel = await repo.create({ ...baseInput });
 		await repo.setChildren(rel.id, "p1", ["a", "b", "c"]);
 
-		let children = await repo.getChildren(rel.translationGroup, "p1");
+		let children = await repo.getChildren(rel.id, "p1");
 		expect(children.map((c) => c.childGroup)).toEqual(["a", "b", "c"]);
 		expect(children.map((c) => c.sortOrder)).toEqual([0, 1, 2]);
 
 		// Reorder + drop 'a' + add 'd'.
 		await repo.setChildren(rel.id, "p1", ["c", "b", "d"]);
-		children = await repo.getChildren(rel.translationGroup, "p1");
+		children = await repo.getChildren(rel.id, "p1");
 		expect(children.map((c) => c.childGroup)).toEqual(["c", "b", "d"]);
 		expect(children.map((c) => c.sortOrder)).toEqual([0, 1, 2]);
 	});
@@ -320,13 +237,13 @@ describeEachDialect("RelationRepository", (dialect) => {
 		const rel = await repo.create({ ...baseInput });
 		await repo.setChildren(rel.id, "p1", ["a", "b"]);
 		await repo.setChildren(rel.id, "p1", []);
-		expect(await repo.getChildren(rel.translationGroup, "p1")).toEqual([]);
+		expect(await repo.getChildren(rel.id, "p1")).toEqual([]);
 	});
 
 	it("setChildren collapses duplicate childGroups (one edge per child)", async () => {
 		const rel = await repo.create({ ...baseInput });
 		await repo.setChildren(rel.id, "p1", ["a", "b", "a"]);
-		const children = await repo.getChildren(rel.translationGroup, "p1");
+		const children = await repo.getChildren(rel.id, "p1");
 		expect(children.map((c) => c.childGroup)).toEqual(["a", "b"]);
 		expect(children.map((c) => c.sortOrder)).toEqual([0, 1]);
 	});
@@ -345,22 +262,22 @@ describeEachDialect("RelationRepository", (dialect) => {
 		const removed = await repo.clearReferencesForGroup("X");
 		expect(removed).toBe(2);
 
-		expect(await repo.getChildren(rel.translationGroup, "X")).toHaveLength(0);
-		expect(await repo.getParents(rel.translationGroup, "X")).toHaveLength(0);
-		expect(await repo.getChildren(rel.translationGroup, "b")).toHaveLength(1);
+		expect(await repo.getChildren(rel.id, "X")).toHaveLength(0);
+		expect(await repo.getParents(rel.id, "X")).toHaveLength(0);
+		expect(await repo.getChildren(rel.id, "b")).toHaveLength(1);
 	});
 
 	it("clearReferencesForGroup purges the group's edges across every relation", async () => {
-		const relA = await repo.create({ ...baseInput, name: "rel_a" });
-		const relB = await repo.create({ ...baseInput, name: "rel_b" });
+		const relA = await repo.create({ ...baseInput, slug: "rel_a" });
+		const relB = await repo.create({ ...baseInput, slug: "rel_b" });
 		// The same content group "X" participates in edges under two relations.
 		await repo.addReference(relA.id, "X", "a");
 		await repo.addReference(relB.id, "b", "X");
 
 		const removed = await repo.clearReferencesForGroup("X");
 		expect(removed).toBe(2);
-		expect(await repo.getChildren(relA.translationGroup, "X")).toHaveLength(0);
-		expect(await repo.getParents(relB.translationGroup, "X")).toHaveLength(0);
+		expect(await repo.getChildren(relA.id, "X")).toHaveLength(0);
+		expect(await repo.getParents(relB.id, "X")).toHaveLength(0);
 	});
 
 	it("countChildren and countParents count edges", async () => {

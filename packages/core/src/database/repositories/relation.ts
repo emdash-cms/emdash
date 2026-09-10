@@ -5,46 +5,61 @@ import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import type { Database, RelationTable, ContentReferenceTable } from "../types.js";
 import { decodeCursor, encodeCursor, InvalidCursorError, type FindManyResult } from "./types.js";
 
+// Each reference-edge row binds six values. Derive the row count so every
+// INSERT stays within D1's 100-parameter statement ceiling.
+const REFERENCE_INSERT_BIND_COLUMNS = 6;
+const D1_MAX_BOUND_PARAMETERS = 100;
+const REFERENCE_INSERT_BATCH_SIZE = Math.floor(
+	D1_MAX_BOUND_PARAMETERS / REFERENCE_INSERT_BIND_COLUMNS,
+);
+
+/**
+ * A relation definition. Not localized: a relation joins the same two
+ * collections whatever language you read it in, and its role labels are
+ * single-valued like a collection's or a field's. That is what lets `slug` be
+ * unique outright (migration 076) and resolve without a locale.
+ */
 export interface Relation {
 	id: string;
-	name: string;
+	slug: string;
 	parentCollection: string;
 	childCollection: string;
 	parentLabel: string;
 	childLabel: string;
-	locale: string;
-	translationGroup: string;
+	parentLabelSingular: string | null;
+	childLabelSingular: string | null;
+	/** How many children one parent may hold. `null` means unlimited. */
+	maxChildrenPerParent: number | null;
+	/** How many parents one child may hold. `null` means unlimited. */
+	maxParentsPerChild: number | null;
 }
 
 export interface CreateRelationInput {
-	name: string;
-	/** Required for a base relation; ignored (inherited from the source) when
-	 * `translationOf` is set. */
-	parentCollection?: string;
-	/** Required for a base relation; ignored (inherited from the source) when
-	 * `translationOf` is set. */
-	childCollection?: string;
+	slug: string;
+	parentCollection: string;
+	childCollection: string;
 	parentLabel: string;
 	childLabel: string;
-	/** Omit to let the DB default (current value: 'en') apply. Higher layers
-	 * resolve locale from request context / i18n config. */
-	locale?: string;
-	/** When set, joins the source relation's translation_group AND inherits its
-	 * structural fields (name, parentCollection, childCollection). Only locale +
-	 * labels may differ on a translation. */
-	translationOf?: string;
+	parentLabelSingular?: string | null;
+	childLabelSingular?: string | null;
+	maxChildrenPerParent?: number | null;
+	maxParentsPerChild?: number | null;
 }
 
 export interface UpdateRelationInput {
-	/** Only localized fields are mutable per row. Changing structural fields
-	 * (name/collections) is a cross-group operation deferred to a later slice. */
+	/** Structural fields are immutable: a reference field stores the slug, and
+	 * the edges are keyed by the id. */
 	parentLabel?: string;
 	childLabel?: string;
+	parentLabelSingular?: string | null;
+	childLabelSingular?: string | null;
+	maxChildrenPerParent?: number | null;
+	maxParentsPerChild?: number | null;
 }
 
 export interface ContentReference {
 	id: string;
-	relationGroup: string;
+	relationId: string;
 	parentGroup: string;
 	childGroup: string;
 	sortOrder: number;
@@ -53,74 +68,47 @@ export interface ContentReference {
 /**
  * Content-references repository.
  *
- * Owns relation *definitions* (`_emdash_relations`, row-per-locale, mirroring
- * `_emdash_taxonomy_defs`) and the *edge* junction (`_emdash_content_references`,
- * keyed by `translation_group` so edges are locale-agnostic, mirroring
+ * Owns relation *definitions* (`_emdash_relations`) and the *edge* junction
+ * (`_emdash_content_references`, whose endpoints are content
+ * `translation_group`s so edges are locale-agnostic, mirroring
  * `content_taxonomies`).
+ *
+ * A relation is schema, so it is not localized — it sits with
+ * `_emdash_collections` and `_emdash_fields`, not with the row-per-locale
+ * tables. See migration 076.
  *
  * Like `TaxonomyRepository`, this is not the validation boundary: it trusts its
  * typed inputs. The API slice supplies Zod schemas at the route and enforces
- * collection-agreement / relation-existence invariants in the handler. The repo
- * does not resolve locale fallbacks — callers pass the locale they want.
+ * collection-agreement / relation-existence invariants in the handler.
  */
 export class RelationRepository {
 	constructor(private db: Kysely<Database>) {}
 
 	/**
-	 * Create a relation. Without `translationOf`, mints a fresh group
-	 * (`translation_group = id`, matching the migration backfill pattern). With
-	 * `translationOf`, the structural fields (name, parentCollection,
-	 * childCollection) and the translation_group are inherited from the source;
-	 * locale and the two labels are taken from `input`.
+	 * Create a relation.
+	 *
+	 * `slug` is unique across all relations, so a duplicate raises the DB's
+	 * unique violation for the handler to translate into a conflict.
 	 */
 	async create(input: CreateRelationInput): Promise<Relation> {
 		const id = ulid();
 		const now = new Date().toISOString();
 
-		let translationGroup = id;
-		let name: string;
-		let parentCollection: string;
-		let childCollection: string;
-
-		if (input.translationOf) {
-			const source = await this.findById(input.translationOf);
-			// translation_group is NOT NULL here, so we cannot fall back to a
-			// fresh group like TaxonomyRepository does — a bad translationOf must
-			// fail loudly rather than silently mint an unlinked relation.
-			if (!source) throw new Error("Source relation for translation not found");
-			translationGroup = source.translationGroup;
-			name = source.name;
-			parentCollection = source.parentCollection;
-			childCollection = source.childCollection;
-		} else {
-			// A base relation carries its own structural fields. The API layer's Zod
-			// schema enforces this; guard here too since the repo trusts its inputs
-			// and the columns are NOT NULL.
-			if (input.parentCollection === undefined || input.childCollection === undefined) {
-				throw new Error(
-					"parentCollection and childCollection are required unless translationOf is set",
-				);
-			}
-			name = input.name;
-			parentCollection = input.parentCollection;
-			childCollection = input.childCollection;
-		}
-
 		await this.db
 			.insertInto("_emdash_relations")
 			.values({
 				id,
-				name,
-				parent_collection: parentCollection,
-				child_collection: childCollection,
+				slug: input.slug,
+				parent_collection: input.parentCollection,
+				child_collection: input.childCollection,
 				parent_label: input.parentLabel,
 				child_label: input.childLabel,
+				parent_label_singular: input.parentLabelSingular ?? null,
+				child_label_singular: input.childLabelSingular ?? null,
+				max_children_per_parent: input.maxChildrenPerParent ?? null,
+				max_parents_per_child: input.maxParentsPerChild ?? null,
 				created_at: now,
 				updated_at: now,
-				// Omit `locale` so the DB DEFAULT (configured defaultLocale)
-				// applies — matches TaxonomyRepository.create.
-				...(input.locale !== undefined ? { locale: input.locale } : {}),
-				translation_group: translationGroup,
 			})
 			.execute();
 
@@ -139,62 +127,46 @@ export class RelationRepository {
 	}
 
 	/**
-	 * Find a relation by name. With `locale`, filter by it; without, return the
-	 * lowest-locale-code match deterministically. Mirrors
-	 * `TaxonomyRepository.findBySlug` — note this returns a single row, unlike
-	 * `TaxonomyRepository.findByName` which returns every term in a taxonomy.
+	 * Find a relation by its slug. No locale: a slug identifies a relation
+	 * outright (`UNIQUE(slug)`, migration 076), which is what lets an entry in
+	 * any locale address it.
 	 */
-	async findByName(name: string, locale?: string): Promise<Relation | null> {
-		let query = this.db.selectFrom("_emdash_relations").selectAll().where("name", "=", name);
-		if (locale !== undefined) query = query.where("locale", "=", locale);
-		const row = await query.orderBy("locale", "asc").executeTakeFirst();
+	async findBySlug(slug: string): Promise<Relation | null> {
+		const row = await this.db
+			.selectFrom("_emdash_relations")
+			.selectAll()
+			.where("slug", "=", slug)
+			.executeTakeFirst();
 		return row ? this.rowToRelation(row) : null;
 	}
 
-	/** Every translation sibling (including itself) sharing a translation_group. */
-	async findTranslations(translationGroup: string): Promise<Relation[]> {
+	/** All relations, ordered by slug. */
+	async list(): Promise<Relation[]> {
 		const rows = await this.db
 			.selectFrom("_emdash_relations")
 			.selectAll()
-			.where("translation_group", "=", translationGroup)
-			.orderBy("locale", "asc")
+			.orderBy("slug", "asc")
 			.execute();
 		return rows.map((row) => this.rowToRelation(row));
 	}
 
-	/**
-	 * All relations, ordered by name then id (id is a stable tiebreak for
-	 * relations sharing a name across locales). Optionally filtered by locale.
-	 */
-	async list(locale?: string): Promise<Relation[]> {
-		let query = this.db
-			.selectFrom("_emdash_relations")
-			.selectAll()
-			.orderBy("name", "asc")
-			.orderBy("id", "asc");
-		if (locale !== undefined) query = query.where("locale", "=", locale);
-		const rows = await query.execute();
-		return rows.map((row) => this.rowToRelation(row));
-	}
-
 	/** Relations where `collection` is the parent OR the child side. */
-	async findForCollection(collection: string, locale?: string): Promise<Relation[]> {
-		let query = this.db
+	async findForCollection(collection: string): Promise<Relation[]> {
+		const rows = await this.db
 			.selectFrom("_emdash_relations")
 			.selectAll()
 			.where((eb) =>
 				eb.or([eb("parent_collection", "=", collection), eb("child_collection", "=", collection)]),
 			)
-			.orderBy("name", "asc")
-			.orderBy("id", "asc");
-		if (locale !== undefined) query = query.where("locale", "=", locale);
-		const rows = await query.execute();
+			.orderBy("slug", "asc")
+			.execute();
 		return rows.map((row) => this.rowToRelation(row));
 	}
 
 	/**
-	 * Update the localized labels of one relation row. Structural fields are
-	 * immutable here (a cross-group concern). No-ops when nothing is supplied.
+	 * Update a relation's role labels and cardinality. Structural fields are
+	 * immutable — a reference field stores the slug, and the edges are keyed by
+	 * the id. No-ops when nothing is supplied.
 	 */
 	async update(id: string, input: UpdateRelationInput): Promise<Relation | null> {
 		const existing = await this.findById(id);
@@ -203,6 +175,18 @@ export class RelationRepository {
 		const updates: Record<string, unknown> = {};
 		if (input.parentLabel !== undefined) updates.parent_label = input.parentLabel;
 		if (input.childLabel !== undefined) updates.child_label = input.childLabel;
+		if (input.parentLabelSingular !== undefined) {
+			updates.parent_label_singular = input.parentLabelSingular;
+		}
+		if (input.childLabelSingular !== undefined) {
+			updates.child_label_singular = input.childLabelSingular;
+		}
+		if (input.maxChildrenPerParent !== undefined) {
+			updates.max_children_per_parent = input.maxChildrenPerParent;
+		}
+		if (input.maxParentsPerChild !== undefined) {
+			updates.max_parents_per_child = input.maxParentsPerChild;
+		}
 
 		if (Object.keys(updates).length > 0) {
 			updates.updated_at = new Date().toISOString();
@@ -213,26 +197,14 @@ export class RelationRepository {
 	}
 
 	/**
-	 * Delete one relation row. When it is the *last* translation of its group,
-	 * purge edges referencing that group (application-layer cascade — group
-	 * linking precludes a SQL FK). Mirrors `TaxonomyRepository.delete`.
+	 * Delete a relation and its edges (application-layer cascade — the edge
+	 * table has no FK).
 	 */
 	async delete(id: string): Promise<boolean> {
 		const relation = await this.findById(id);
 		if (!relation) return false;
 
-		const siblings = await this.db
-			.selectFrom("_emdash_relations")
-			.select("id")
-			.where("translation_group", "=", relation.translationGroup)
-			.where("id", "!=", id)
-			.execute();
-		if (siblings.length === 0) {
-			await this.db
-				.deleteFrom("_emdash_content_references")
-				.where("relation_group", "=", relation.translationGroup)
-				.execute();
-		}
+		await this.db.deleteFrom("_emdash_content_references").where("relation_id", "=", id).execute();
 
 		const result = await this.db
 			.deleteFrom("_emdash_relations")
@@ -241,22 +213,22 @@ export class RelationRepository {
 		return (result.numDeletedRows ?? 0n) > 0n;
 	}
 
-	/** Normalize a relation id OR group to its translation_group. Returns null
-	 * for an unknown relation (edge methods then no-op, matching
+	/** Normalize a relation id OR slug to its id. Returns null for an unknown
+	 * relation (edge methods then no-op, matching
 	 * `TaxonomyRepository.attachToEntry`). */
-	private async resolveRelationGroup(idOrGroup: string): Promise<string | null> {
+	private async resolveRelationId(idOrSlug: string): Promise<string | null> {
 		const row = await this.db
 			.selectFrom("_emdash_relations")
-			.select(["translation_group"])
-			.where((eb) => eb.or([eb("id", "=", idOrGroup), eb("translation_group", "=", idOrGroup)]))
+			.select(["id"])
+			.where((eb) => eb.or([eb("id", "=", idOrSlug), eb("slug", "=", idOrSlug)]))
 			.executeTakeFirst();
-		return row?.translation_group ?? null;
+		return row?.id ?? null;
 	}
 
 	private rowToReference(row: Selectable<ContentReferenceTable>): ContentReference {
 		return {
 			id: row.id,
-			relationGroup: row.relation_group,
+			relationId: row.relation_id,
 			parentGroup: row.parent_group,
 			childGroup: row.child_group,
 			sortOrder: row.sort_order,
@@ -279,15 +251,15 @@ export class RelationRepository {
 		childGroup: string,
 		sortOrder?: number,
 	): Promise<void> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return;
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return;
 
 		let order = sortOrder;
 		if (order === undefined) {
 			const max = await this.db
 				.selectFrom("_emdash_content_references")
 				.select((eb) => eb.fn.max("sort_order").as("max"))
-				.where("relation_group", "=", relationGroup)
+				.where("relation_id", "=", relationId)
 				.where("parent_group", "=", parentGroup)
 				.executeTakeFirst();
 			order = max?.max === null || max?.max === undefined ? 0 : Number(max.max) + 1;
@@ -297,7 +269,7 @@ export class RelationRepository {
 			.insertInto("_emdash_content_references")
 			.values({
 				id: ulid(),
-				relation_group: relationGroup,
+				relation_id: relationId,
 				parent_group: parentGroup,
 				child_group: childGroup,
 				sort_order: order,
@@ -309,12 +281,12 @@ export class RelationRepository {
 
 	/** Remove one `parentGroup → childGroup` edge under a relation. */
 	async removeReference(relation: string, parentGroup: string, childGroup: string): Promise<void> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return;
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return;
 
 		await this.db
 			.deleteFrom("_emdash_content_references")
-			.where("relation_group", "=", relationGroup)
+			.where("relation_id", "=", relationId)
 			.where("parent_group", "=", parentGroup)
 			.where("child_group", "=", childGroup)
 			.execute();
@@ -322,13 +294,13 @@ export class RelationRepository {
 
 	/** Forward traversal: a parent's children for a relation, ordered. */
 	async getChildren(relation: string, parentGroup: string): Promise<ContentReference[]> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return [];
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return [];
 
 		const rows = await this.db
 			.selectFrom("_emdash_content_references")
 			.selectAll()
-			.where("relation_group", "=", relationGroup)
+			.where("relation_id", "=", relationId)
 			.where("parent_group", "=", parentGroup)
 			.orderBy("sort_order", "asc")
 			.orderBy("id", "asc")
@@ -348,15 +320,15 @@ export class RelationRepository {
 		parentGroup: string,
 		options: { limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<ContentReference>> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return { items: [] };
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return { items: [] };
 
 		const limit = Math.min(options.limit || 50, 100);
 
 		let query = this.db
 			.selectFrom("_emdash_content_references")
 			.selectAll()
-			.where("relation_group", "=", relationGroup)
+			.where("relation_id", "=", relationId)
 			.where("parent_group", "=", parentGroup);
 
 		if (options.cursor) {
@@ -393,13 +365,13 @@ export class RelationRepository {
 
 	/** Backlink traversal: the parents that reference a child for a relation. */
 	async getParents(relation: string, childGroup: string): Promise<ContentReference[]> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return [];
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return [];
 
 		const rows = await this.db
 			.selectFrom("_emdash_content_references")
 			.selectAll()
-			.where("relation_group", "=", relationGroup)
+			.where("relation_id", "=", relationId)
 			.where("child_group", "=", childGroup)
 			.orderBy("id", "asc")
 			.execute();
@@ -409,15 +381,14 @@ export class RelationRepository {
 	/**
 	 * Replace all children of `parentGroup` under a relation with `childGroups`,
 	 * assigning positional sort_order (index in the deduped array). Deletes the
-	 * old set for this (relation, parent) and re-inserts — simple and correct;
-	 * the set is small (one parent's children). Mirrors the intent of
-	 * `TaxonomyRepository.setTermsForEntry`.
+	 * old set for this (relation, parent) and re-inserts in D1-safe batches.
+	 * Mirrors the intent of `TaxonomyRepository.setTermsForEntry`.
 	 *
 	 * A parent references a given child at most once (the unique edge), so
 	 * duplicate `childGroups` are collapsed first-occurrence-wins rather than
 	 * relying on the insert's onConflict to silently drop them. Not wrapped in a
-	 * transaction: a crash between the delete and insert leaves the parent with
-	 * no children — acceptable for a replace-all, since a retry restores state.
+	 * transaction: an interruption after the delete can leave the parent with an
+	 * empty or partial replacement. A retry restores the complete requested set.
 	 *
 	 * Concurrency: two simultaneous replace-all calls for the same (relation,
 	 * parent) can interleave their deletes and inserts and merge into the union of
@@ -429,12 +400,12 @@ export class RelationRepository {
 	 * unsupported by design rather than guarded here.
 	 */
 	async setChildren(relation: string, parentGroup: string, childGroups: string[]): Promise<void> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return;
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return;
 
 		await this.db
 			.deleteFrom("_emdash_content_references")
-			.where("relation_group", "=", relationGroup)
+			.where("relation_id", "=", relationId)
 			.where("parent_group", "=", parentGroup)
 			.execute();
 
@@ -443,21 +414,55 @@ export class RelationRepository {
 		if (uniqueChildGroups.length === 0) return;
 
 		const now = new Date().toISOString();
+		const rows = uniqueChildGroups.map((childGroup, index) => ({
+			id: ulid(),
+			relation_id: relationId,
+			parent_group: parentGroup,
+			child_group: childGroup,
+			sort_order: index,
+			created_at: now,
+		}));
+		for (const rowBatch of chunks(rows, REFERENCE_INSERT_BATCH_SIZE)) {
+			await this.db
+				.insertInto("_emdash_content_references")
+				.values(rowBatch)
+				// Belt-and-suspenders: the DELETE above already cleared this
+				// (relation, parent), so no conflict is possible within one call.
+				// This is NOT a concurrency guarantee — delete-then-insert is not atomic.
+				.onConflict((oc) => oc.doNothing())
+				.execute();
+		}
+	}
+
+	/**
+	 * Copy every outgoing edge of `fromParentGroup` onto `toParentGroup`,
+	 * preserving relation, child, and sort order. Used when duplicating a content
+	 * entry so the copy carries the same reference selections (edges are
+	 * storage-less, keyed by translation_group, so they don't ride along in the
+	 * row's `data`). Only the parent side is copied — backlinks pointing at the
+	 * original are intentionally left alone. Idempotent per edge via onConflict.
+	 */
+	async copyParentEdges(fromParentGroup: string, toParentGroup: string): Promise<void> {
+		const rows = await this.db
+			.selectFrom("_emdash_content_references")
+			.selectAll()
+			.where("parent_group", "=", fromParentGroup)
+			.execute();
+		if (rows.length === 0) return;
+
+		const now = new Date().toISOString();
 		await this.db
 			.insertInto("_emdash_content_references")
 			.values(
-				uniqueChildGroups.map((childGroup, index) => ({
+				rows.map((row) => ({
 					id: ulid(),
-					relation_group: relationGroup,
-					parent_group: parentGroup,
-					child_group: childGroup,
-					sort_order: index,
+					relation_id: row.relation_id,
+					parent_group: toParentGroup,
+					child_group: row.child_group,
+					sort_order: row.sort_order,
 					created_at: now,
 				})),
 			)
-			// Belt-and-suspenders: the DELETE above already cleared this
-			// (relation, parent), so no conflict is possible within one call.
-			// This is NOT a concurrency guarantee — delete-then-insert is not atomic.
 			.onConflict((oc) => oc.doNothing())
 			.execute();
 	}
@@ -475,15 +480,15 @@ export class RelationRepository {
 		childGroup: string,
 		options: { limit?: number; cursor?: string } = {},
 	): Promise<FindManyResult<ContentReference>> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return { items: [] };
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return { items: [] };
 
 		const limit = Math.min(options.limit || 50, 100);
 
 		let query = this.db
 			.selectFrom("_emdash_content_references")
 			.selectAll()
-			.where("relation_group", "=", relationGroup)
+			.where("relation_id", "=", relationId)
 			.where("child_group", "=", childGroup);
 
 		if (options.cursor) {
@@ -510,8 +515,8 @@ export class RelationRepository {
 	 * Remove every edge where `group` is the parent OR the child — i.e. ensure no
 	 * orphaned reference edges survive when a content entry is deleted. The
 	 * application-layer cascade that group-linking precludes at the SQL level.
-	 * Wiring this into the content-delete path is a later (handler) slice.
-	 * Returns the number of edges removed.
+	 * Callers must be sure the whole group is gone: edges outlive any single
+	 * locale row. Returns the number of edges removed.
 	 */
 	async clearReferencesForGroup(group: string): Promise<number> {
 		const result = await this.db
@@ -523,12 +528,12 @@ export class RelationRepository {
 
 	/** Count a parent's children under a relation. */
 	async countChildren(relation: string, parentGroup: string): Promise<number> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return 0;
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return 0;
 		const result = await this.db
 			.selectFrom("_emdash_content_references")
 			.select((eb) => eb.fn.count("id").as("count"))
-			.where("relation_group", "=", relationGroup)
+			.where("relation_id", "=", relationId)
 			.where("parent_group", "=", parentGroup)
 			.executeTakeFirst();
 		return Number(result?.count ?? 0);
@@ -536,15 +541,32 @@ export class RelationRepository {
 
 	/** Count a child's parents (backlinks) under a relation. */
 	async countParents(relation: string, childGroup: string): Promise<number> {
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return 0;
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return 0;
 		const result = await this.db
 			.selectFrom("_emdash_content_references")
 			.select((eb) => eb.fn.count("id").as("count"))
-			.where("relation_group", "=", relationGroup)
+			.where("relation_id", "=", relationId)
 			.where("child_group", "=", childGroup)
 			.executeTakeFirst();
 		return Number(result?.count ?? 0);
+	}
+
+	/**
+	 * Total edges per relation, for every relation at once. Relations with no
+	 * edges are absent from the map.
+	 *
+	 * One grouped scan rather than a count per relation: the delete dialogs name
+	 * how many links go with a relation, and the relations list shows the same
+	 * number on every row.
+	 */
+	async countEdgesByRelation(): Promise<Map<string, number>> {
+		const rows = await this.db
+			.selectFrom("_emdash_content_references")
+			.select(["relation_id", (eb) => eb.fn.count("id").as("count")])
+			.groupBy("relation_id")
+			.execute();
+		return new Map(rows.map((row) => [row.relation_id, Number(row.count ?? 0)]));
 	}
 
 	/**
@@ -559,14 +581,14 @@ export class RelationRepository {
 	): Promise<Map<string, number>> {
 		const counts = new Map<string, number>();
 		if (parentGroups.length === 0) return counts;
-		const relationGroup = await this.resolveRelationGroup(relation);
-		if (!relationGroup) return counts;
+		const relationId = await this.resolveRelationId(relation);
+		if (!relationId) return counts;
 
 		for (const chunk of chunks(parentGroups, SQL_BATCH_SIZE)) {
 			const rows = await this.db
 				.selectFrom("_emdash_content_references")
 				.select(["parent_group", (eb) => eb.fn.count("id").as("count")])
-				.where("relation_group", "=", relationGroup)
+				.where("relation_id", "=", relationId)
 				.where("parent_group", "in", chunk)
 				.groupBy("parent_group")
 				.execute();
@@ -580,13 +602,15 @@ export class RelationRepository {
 	private rowToRelation(row: Selectable<RelationTable>): Relation {
 		return {
 			id: row.id,
-			name: row.name,
+			slug: row.slug,
 			parentCollection: row.parent_collection,
 			childCollection: row.child_collection,
 			parentLabel: row.parent_label,
 			childLabel: row.child_label,
-			locale: row.locale,
-			translationGroup: row.translation_group,
+			parentLabelSingular: row.parent_label_singular,
+			childLabelSingular: row.child_label_singular,
+			maxChildrenPerParent: row.max_children_per_parent,
+			maxParentsPerChild: row.max_parents_per_child,
 		};
 	}
 }

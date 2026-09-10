@@ -57,7 +57,6 @@ export const INDEXABLE_FIELD_TYPES: ReadonlySet<FieldType> = new Set([
 	"boolean",
 	"datetime",
 	"select",
-	"reference",
 	"slug",
 ]);
 
@@ -91,6 +90,14 @@ export const FIELD_TYPE_TO_COLUMN: Record<FieldType, ColumnType> = {
 	url: "TEXT",
 	repeater: "JSON",
 };
+
+/**
+ * Field types that persist no `ec_*` column — their values live elsewhere.
+ * `reference` stores edges in `_emdash_content_references` (see migration 043),
+ * never a column on the content table. The `FIELD_TYPE_TO_COLUMN` entry above is
+ * retained deliberately: it doubles as the `isFieldType` guard.
+ */
+export const STORAGELESS_FIELD_TYPES: ReadonlySet<string> = new Set<FieldType>(["reference"]);
 
 /**
  * Features a collection can support
@@ -159,6 +166,19 @@ export interface FieldValidation {
 	minItems?: number; // For repeater fields
 	maxItems?: number; // For repeater fields
 	allowedMimeTypes?: string[];
+	/** Reference fields: the relation's slug. */
+	relation?: string;
+	/**
+	 * Reference fields: which end of the relation this collection sits on.
+	 * `parent` picks children and controls their order; `child` picks parents
+	 * and is unordered, since `sort_order` is scoped to a parent.
+	 */
+	relationSide?: "parent" | "child";
+	/** Reference fields: the collection on the *other* end (derived from the
+	 * relation and the side, denormalized here). */
+	targetCollection?: string;
+	/** Reference fields: allow selecting more than one entry (UI constraint). */
+	multiple?: boolean;
 }
 
 /**

@@ -88,6 +88,22 @@ describe("core media route injection", () => {
 		}
 	});
 
+	it("injects the relation and reference-edge API routes", () => {
+		// Regression: these route files existed but were never wired into
+		// injectCoreRoutes, so /_emdash/api/relations 404'd and the admin's
+		// "Referenced by" backlinks panel silently hid itself.
+		const routes = collectRoutePatterns();
+
+		expect(routes).toContain("/_emdash/api/relations");
+		expect(routes).toContain("/_emdash/api/relations/[id]");
+		expect(routes).toContain(
+			"/_emdash/api/content/[collection]/[id]/references/[relation]/children",
+		);
+		expect(routes).toContain(
+			"/_emdash/api/content/[collection]/[id]/references/[relation]/parents",
+		);
+	});
+
 	it("registers the media replacement route with PUT only", () => {
 		const routes: Array<{ pattern: string; entrypoint: string }> = [];
 		injectCoreRoutes((route) => routes.push(route));

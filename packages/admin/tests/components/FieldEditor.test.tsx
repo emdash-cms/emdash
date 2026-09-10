@@ -369,6 +369,23 @@ describe("FieldEditor", () => {
 
 			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ indexed: true }));
 		});
+
+		it("hides and clears the flag for a storage-less reference field", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "related",
+				label: "Related",
+				type: "reference",
+				indexed: true,
+				validation: { targetCollection: "posts", multiple: true },
+			});
+			const screen = await render(<FieldEditor {...defaultProps} field={field} onSave={onSave} />);
+
+			expect(screen.getByText("Indexed").query()).toBeNull();
+			await save(screen);
+
+			expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ indexed: false }));
+		});
 	});
 
 	describe("config step (file field)", () => {

@@ -172,7 +172,7 @@ describe("validateSeed", () => {
 			expect(result.errors[0]).toContain('unsupported field type "invalid"');
 		});
 
-		it("should reject indexed fields whose type cannot be indexed", () => {
+		it.each(["portableText", "reference"] as const)("should reject indexed %s fields", (type) => {
 			const result = validateSeed({
 				version: "1",
 				collections: [
@@ -183,7 +183,7 @@ describe("validateSeed", () => {
 							{
 								slug: "content",
 								label: "Content",
-								type: "portableText",
+								type,
 								indexed: true,
 							},
 						],
@@ -193,7 +193,7 @@ describe("validateSeed", () => {
 
 			expect(result.valid).toBe(false);
 			expect(result.errors).toContain(
-				'collections[0].fields[0].indexed: type "portableText" cannot be indexed',
+				`collections[0].fields[0].indexed: type "${type}" cannot be indexed`,
 			);
 		});
 
