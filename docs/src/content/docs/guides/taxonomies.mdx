@@ -1,313 +1,99 @@
 ---
 title: Taxonomies
-description: Organize content with categories, tags, and custom taxonomies.
+description: Classify content, query locale-aware terms, and build taxonomy archive pages.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-Taxonomies are classification systems for organizing content. EmDash includes built-in categories and tags, and supports custom taxonomies for specialized classification needs.
+A taxonomy is a named classification applied to one or more collections. EmDash starts with the hierarchical `category` taxonomy and the flat `tag` taxonomy for posts. A site can also define taxonomies such as `genre`, `topic`, or `difficulty`.
 
-## Built-in Taxonomies
+Terms belong to a taxonomy. A category such as “Guides” can have child categories, while tags and other flat taxonomies have one level.
 
-EmDash provides two default taxonomies:
+## Manage terms
 
-| Taxonomy       | Type         | Description                                           |
-| -------------- | ------------ | ----------------------------------------------------- |
-| **Categories** | Hierarchical | Nested classification with parent-child relationships |
-| **Tags**       | Flat         | Simple labels without hierarchy                       |
+Open a taxonomy from **Taxonomies** in the EmDash admin.
 
-Both are available for the posts collection by default.
+<Steps>
 
-## Managing Terms
+1. Click **Add Category**, **Add Tag**, or the equivalent action for the current taxonomy.
 
-### Create a Term
+2. Enter the label and slug. For a hierarchical taxonomy, choose a parent when the term belongs below another term.
 
-<Tabs>
-  <TabItem label="Admin Dashboard">
+3. Add an optional description, then create the term.
 
-1. Go to the taxonomy page (e.g., `/_emdash/admin/taxonomies/category`)
+4. Use the move controls in the term list to set the order within the current parent group.
 
-2. Enter the term name in the **Add New** form
+</Steps>
 
-3. Optionally set:
-   - **Slug** - URL identifier (auto-generated from name)
-   - **Parent** - For hierarchical taxonomies
-   - **Description** - Term description
+Editors assign terms from the taxonomy panels in a content entry. The taxonomy definition controls which collections show each panel.
 
-4. Click **Add**
+Deleting a term removes its assignments from content. It does not delete the content entries.
 
-  </TabItem>
-  <TabItem label="Content Editor">
+## Add a custom taxonomy
 
-1. Open a content entry in the editor
+Create a taxonomy when an existing collection needs a separate classification.
 
-2. Find the taxonomy panel in the sidebar
+<Steps>
 
-3. For categories, check the boxes for applicable terms, or click **+ Add New**
+1. Open **Taxonomies** and click **New Taxonomy**.
 
-4. For tags, type tag names separated by commas
+2. Enter a label and a stable name. Names start with a lowercase letter and contain only lowercase letters, numbers, and underscores.
 
-5. Save the content
+3. Enable **Hierarchical** if terms need parent and child relationships.
 
-  </TabItem>
-  <TabItem label="API">
+4. Select every collection that can use the taxonomy, then click **Create Taxonomy**.
 
-The following request creates a term in the `category` taxonomy:
+5. Add the initial terms and assign them to content.
 
-```bash
-POST /_emdash/api/taxonomies/category/terms
-Content-Type: application/json
-Authorization: Bearer YOUR_API_TOKEN
+</Steps>
 
-{
-  "slug": "tutorials",
-  "label": "Tutorials",
-  "parentId": "term_abc",
-  "description": "How-to guides and tutorials"
-}
-```
+Templates query the stable name. Changing a display label does not require a template change.
 
-  </TabItem>
-</Tabs>
-
-### Edit a Term
-
-1. Go to the taxonomy terms page
-
-2. Click **Edit** next to the term
-
-3. Update the name, slug, parent, or description
-
-4. Click **Save**
-
-### Delete a Term
-
-1. Go to the taxonomy terms page
-
-2. Click **Delete** next to the term
-
-3. Confirm the deletion
-
-<Aside type="caution">
-	Deleting a term removes it from all associated content. Content is not deleted, only the term
-	assignment.
-</Aside>
-
-## Querying Taxonomies
-
-EmDash provides functions to query taxonomy terms and filter content by term.
-
-### Get All Terms
-
-Retrieve all terms for a taxonomy:
+Custom taxonomies use the same query and filter helpers as categories and tags. The following example reads the `genre` terms and filters books by one of their slugs:
 
 ```ts
-import { getTaxonomyTerms } from "emdash";
+import { getEmDashCollection, getTaxonomyTerms } from "emdash";
 
-// Get all categories (returns tree structure)
-const categories = await getTaxonomyTerms("category");
-
-// Get all tags (returns flat list)
-const tags = await getTaxonomyTerms("tag");
-```
-
-For hierarchical taxonomies, terms include a `children` array:
-
-```ts
-interface TaxonomyTerm {
-	id: string;
-	name: string; // Taxonomy name ("category")
-	slug: string; // Term slug ("news")
-	label: string; // Display label ("News")
-	parentId?: string;
-	description?: string;
-	children: TaxonomyTerm[];
-	count?: number; // Number of entries with this term
-}
-```
-
-Computing `count` aggregates every content–term assignment in the taxonomy's
-collections, which is the most expensive part of the call. If you only need
-labels and slugs, skip it — `count` is then omitted from the returned terms:
-
-```ts
-const tags = await getTaxonomyTerms("tag", { includeCounts: false });
-```
-
-### Get a Single Term
-
-The following example fetches one term by taxonomy and slug:
-
-```ts
-import { getTerm } from "emdash";
-
-const category = await getTerm("category", "news");
-// Returns TaxonomyTerm or null
-```
-
-`getTerm()` computes `count` the same way and takes the same option. A term page
-that only needs the label can skip the aggregate — `count` is then omitted:
-
-```ts
-const category = await getTerm("category", "news", { includeCounts: false });
-```
-
-### Get Terms for an Entry
-
-The following example retrieves the categories and tags assigned to a single entry:
-
-```ts
-import { getEntryTerms } from "emdash";
-
-// Get all categories for a post
-const categories = await getEntryTerms("posts", "post-123", "category");
-
-// Get all tags for a post
-const tags = await getEntryTerms("posts", "post-123", "tag");
-```
-
-### Filter Content by Term
-
-Use `getEmDashCollection` with the `where` filter:
-
-```ts
-import { getEmDashCollection } from "emdash";
-
-// Posts in the "news" category
-const { entries: newsPosts } = await getEmDashCollection("posts", {
-	status: "published",
-	where: { category: "news" },
-});
-
-// Posts with the "javascript" tag
-const { entries: jsPosts } = await getEmDashCollection("posts", {
-	status: "published",
-	where: { tag: "javascript" },
+const genres = await getTaxonomyTerms("genre", { includeCounts: false });
+const { entries: scienceFictionBooks } = await getEmDashCollection("books", {
+  where: { genre: "science-fiction" },
 });
 ```
 
-Or use the convenience function:
+## Query a term list
 
-```ts
-import { getEntriesByTerm } from "emdash";
+Use `getTaxonomyTerms()` to render a taxonomy index, navigation list, or set of filters. Hierarchical taxonomies return a tree through each term's `children` array.
 
-const newsPosts = await getEntriesByTerm("posts", "category", "news");
-```
+Term counts are included by default and require an aggregate across the taxonomy's assigned collections. Skip that work when the component does not display counts.
 
-## Building Taxonomy Pages
-
-### Category Archive
-
-Create a page that lists posts in a category:
-
-```astro title="src/pages/category/[slug].astro"
----
-import { getTaxonomyTerms, getTerm, getEmDashCollection } from "emdash";
-import Base from "../../layouts/Base.astro";
-
-export async function getStaticPaths() {
-  const categories = await getTaxonomyTerms("category");
-
-  // Flatten hierarchical tree for routing
-  function flatten(terms) {
-    return terms.flatMap((term) => [term, ...flatten(term.children)]);
-  }
-
-  return flatten(categories).map((cat) => ({
-    params: { slug: cat.slug },
-    props: { category: cat },
-  }));
-}
-
-const { category } = Astro.props;
-
-const { entries: posts } = await getEmDashCollection("posts", {
-  status: "published",
-  where: { category: category.slug },
-});
----
-
-<Base title={category.label}>
-  <h1>{category.label}</h1>
-  {category.description && <p>{category.description}</p>}
-  <p>{category.count} posts</p>
-
-  <ul>
-    {posts.map((post) => (
-      <li>
-        <a href={`/blog/${post.data.slug}`}>{post.data.title}</a>
-      </li>
-    ))}
-  </ul>
-</Base>
-```
-
-### Tag Archive
-
-Create a page that lists posts with a tag:
-
-```astro title="src/pages/tag/[slug].astro"
----
-import { getTaxonomyTerms, getEmDashCollection } from "emdash";
-import Base from "../../layouts/Base.astro";
-
-export async function getStaticPaths() {
-  const tags = await getTaxonomyTerms("tag");
-
-  return tags.map((tag) => ({
-    params: { slug: tag.slug },
-    props: { tag },
-  }));
-}
-
-const { tag } = Astro.props;
-
-const { entries: posts } = await getEmDashCollection("posts", {
-  status: "published",
-  where: { tag: tag.slug },
-});
----
-
-<Base title={`Posts tagged "${tag.label}"`}>
-  <h1>#{tag.label}</h1>
-
-  <ul>
-    {posts.map((post) => (
-      <li>
-        <a href={`/blog/${post.data.slug}`}>{post.data.title}</a>
-      </li>
-    ))}
-  </ul>
-</Base>
-```
-
-### Category List Widget
-
-Display a list of categories with post counts:
+The following component renders category links without counts:
 
 ```astro title="src/components/CategoryList.astro"
 ---
 import { getTaxonomyTerms } from "emdash";
+import { getRelativeLocaleUrl } from "astro:i18n";
 
-const categories = await getTaxonomyTerms("category");
+const locale = Astro.currentLocale;
+const categories = await getTaxonomyTerms("category", {
+  locale,
+  includeCounts: false,
+});
+
+function categoryHref(slug: string) {
+  const path = `/category/${slug}`;
+  return locale ? getRelativeLocaleUrl(locale, path) : path;
+}
 ---
 
-<nav class="category-list">
-  <h3>Categories</h3>
+<nav aria-label="Categories">
   <ul>
-    {categories.map((cat) => (
+    {categories.map((category) => (
       <li>
-        <a href={`/category/${cat.slug}`}>
-          {cat.label} ({cat.count})
-        </a>
-        {cat.children.length > 0 && (
+        <a href={categoryHref(category.slug)}>{category.label}</a>
+        {category.children.length > 0 && (
           <ul>
-            {cat.children.map((child) => (
-              <li>
-                <a href={`/category/${child.slug}`}>
-                  {child.label} ({child.count})
-                </a>
-              </li>
+            {category.children.map((child) => (
+              <li><a href={categoryHref(child.slug)}>{child.label}</a></li>
             ))}
           </ul>
         )}
@@ -317,165 +103,127 @@ const categories = await getTaxonomyTerms("category");
 </nav>
 ```
 
-### Tag Cloud
+When a component displays usage, omit `includeCounts: false` and render `term.count`. The count includes publicly visible entries in the locale used for the query.
 
-Display tags with size based on usage:
+## Build a taxonomy archive
 
-```astro title="src/components/TagCloud.astro"
+Decode a dynamic route parameter before looking up a term. Query the term and content with the same locale, and pass generated paths through Astro's locale URL helper.
+
+The following route lists published posts in one category:
+
+```astro title="src/pages/category/[slug].astro"
 ---
-import { getTaxonomyTerms } from "emdash";
+import { decodeSlug, getEmDashCollection, getTerm } from "emdash";
+import { getRelativeLocaleUrl } from "astro:i18n";
+import Base from "../../layouts/Base.astro";
 
-const tags = await getTaxonomyTerms("tag");
+const locale = Astro.currentLocale;
+const slug = decodeSlug(Astro.params.slug);
+const category = slug
+  ? await getTerm("category", slug, { locale, includeCounts: false })
+  : null;
 
-// Calculate font sizes based on count
-const counts = tags.map((t) => t.count ?? 0);
-const maxCount = Math.max(...counts, 1);
-const minSize = 0.8;
-const maxSize = 2;
+if (!category) {
+  return Astro.redirect("/404");
+}
 
-function getSize(count: number) {
-  const ratio = count / maxCount;
-  return minSize + ratio * (maxSize - minSize);
+const { entries: posts } = await getEmDashCollection("posts", {
+  status: "published",
+  locale,
+  where: { category: category.slug },
+  orderBy: { published_at: "desc" },
+});
+
+function postHref(postSlug: string) {
+  const path = `/posts/${postSlug}`;
+  return locale ? getRelativeLocaleUrl(locale, path) : path;
 }
 ---
 
-<div class="tag-cloud">
-  {tags.map((tag) => (
-    <a
-      href={`/tag/${tag.slug}`}
-      style={`font-size: ${getSize(tag.count ?? 0)}rem`}
-    >
-      {tag.label}
-    </a>
-  ))}
-</div>
+<Base title={`${category.label} posts`}>
+  <h1>{category.label}</h1>
+  {category.description && <p>{category.description}</p>}
+
+  {posts.length > 0 ? (
+    <ul>
+      {posts.map((post) => (
+        post.data.slug && (
+          <li>
+            <a href={postHref(post.data.slug)}>{post.data.title}</a>
+          </li>
+        )
+      ))}
+    </ul>
+  ) : (
+    <p>No posts in this category.</p>
+  )}
+</Base>
 ```
 
-## Displaying Terms on Content
+`where` uses the taxonomy name as its key and a term slug as its value. Query sort identifiers use database field names such as `published_at`; entry data exposes the corresponding value as `publishedAt`.
 
-Show categories and tags on a post:
+Use the collection's actual public route in `postHref()`. If the collection uses a custom `urlPattern`, build links from that pattern rather than assuming `/posts/{slug}`.
+
+## Display an entry's terms
+
+`getEmDashEntry()` and `getEmDashCollection()` hydrate assigned terms onto `entry.data.terms`. Read that value instead of running one `getEntryTerms()` query for every entry in a list.
+
+The following component renders categories and tags already loaded with a post:
 
 ```astro title="src/components/PostTerms.astro"
 ---
-import { getEntryTerms } from "emdash";
+import type { ContentEntry, InferCollectionData } from "emdash";
+import { getRelativeLocaleUrl } from "astro:i18n";
 
 interface Props {
-  collection: string;
-  entryId: string;
+  post: ContentEntry<InferCollectionData<"posts">>;
 }
 
-const { collection, entryId } = Astro.props;
+const { post } = Astro.props;
+const locale = Astro.currentLocale;
+const categories = post.data.terms?.category ?? [];
+const tags = post.data.terms?.tag ?? [];
 
-const categories = await getEntryTerms(collection, entryId, "category");
-const tags = await getEntryTerms(collection, entryId, "tag");
+function termHref(taxonomy: string, slug: string) {
+  const path = `/${taxonomy}/${slug}`;
+  return locale ? getRelativeLocaleUrl(locale, path) : path;
+}
 ---
 
-<div class="post-terms">
-  {categories.length > 0 && (
-    <div class="categories">
-      <span>Posted in:</span>
-      {categories.map((cat, i) => (
-        <>
-          {i > 0 && ", "}
-          <a href={`/category/${cat.slug}`}>{cat.label}</a>
-        </>
-      ))}
-    </div>
-  )}
+{categories.length > 0 && (
+  <ul aria-label="Categories">
+    {categories.map((category) => (
+      <li>
+        <a href={termHref("category", category.slug)}>{category.label}</a>
+      </li>
+    ))}
+  </ul>
+)}
 
-  {tags.length > 0 && (
-    <div class="tags">
-      {tags.map((tag) => (
-        <a href={`/tag/${tag.slug}`} class="tag">
-          #{tag.label}
-        </a>
-      ))}
-    </div>
-  )}
-</div>
+{tags.length > 0 && (
+  <ul aria-label="Tags">
+    {tags.map((tag) => (
+      <li>
+        <a href={termHref("tag", tag.slug)}>{tag.label}</a>
+      </li>
+    ))}
+  </ul>
+)}
 ```
 
-## Custom Taxonomies
+Use `getEntryTerms()` when all you have is a collection name and entry ID. Use `getTermsForEntries()` to batch terms for several entries when they were not hydrated by the content query.
 
-Create taxonomies beyond categories and tags for specialized needs.
+## Translate taxonomies and terms
 
-### Create a Custom Taxonomy
+Taxonomy definitions and terms have one row per locale. EmDash records which rows are translations of the same taxonomy or term. Content assignments use that shared identity, so an assignment made in one locale resolves to the translated term in another locale when one exists.
 
-Use the admin API to create a taxonomy:
+Use the locale switcher on a taxonomy page to manage terms in each configured locale. Open a term's edit dialog and use its **Translations** panel to add or open another locale. A translated term can use a different slug and label.
 
-```bash
-POST /_emdash/api/taxonomies
-Content-Type: application/json
-Authorization: Bearer YOUR_API_TOKEN
+The query helpers use an explicit locale when supplied. Otherwise they use the current request locale, then the configured default. Single-term lookups follow the configured fallback chain when the requested translation is absent.
 
-{
-  "name": "genre",
-  "label": "Genres",
-  "labelSingular": "Genre",
-  "hierarchical": true,
-  "collections": ["books", "movies"]
-}
-```
+<Aside type="tip">
+	Keep taxonomy names stable across locales. Translate the definition label, term labels, and term
+	slugs; templates continue to query the same name, such as `category`.
+</Aside>
 
-### Use Custom Taxonomies
-
-Query and display custom taxonomies the same way as built-in ones:
-
-```ts
-import { getTaxonomyTerms, getEmDashCollection } from "emdash";
-
-// Get all genres
-const genres = await getTaxonomyTerms("genre");
-
-// Get books in a genre
-const { entries: sciFiBooks } = await getEmDashCollection("books", {
-	where: { genre: "science-fiction" },
-});
-```
-
-### Assign to Collections
-
-Taxonomies specify which collections they apply to:
-
-```ts
-{
-  "name": "difficulty",
-  "label": "Difficulty Levels",
-  "hierarchical": false,
-  "collections": ["recipes", "tutorials"]
-}
-```
-
-## Taxonomy API Reference
-
-### REST Endpoints
-
-| Endpoint                                      | Method | Description               |
-| --------------------------------------------- | ------ | ------------------------- |
-| `/_emdash/api/taxonomies`                   | GET    | List taxonomy definitions |
-| `/_emdash/api/taxonomies`                   | POST   | Create taxonomy           |
-| `/_emdash/api/taxonomies/:name/terms`       | GET    | List terms                |
-| `/_emdash/api/taxonomies/:name/terms`       | POST   | Create term               |
-| `/_emdash/api/taxonomies/:name/terms/:slug` | GET    | Get term                  |
-| `/_emdash/api/taxonomies/:name/terms/:slug` | PUT    | Update term               |
-| `/_emdash/api/taxonomies/:name/terms/:slug` | DELETE | Delete term               |
-
-### Assign Terms to Content
-
-The following request assigns category terms to a post:
-
-```bash
-POST /_emdash/api/content/posts/post-123/terms/category
-Content-Type: application/json
-Authorization: Bearer YOUR_API_TOKEN
-
-{
-  "termIds": ["term_news", "term_featured"]
-}
-```
-
-## Next Steps
-
-- [Create a Blog](/guides/create-a-blog/) - Use categories and tags in a blog
-- [Querying Content](/guides/querying-content/) - Filter by taxonomy terms
-- [Working with Content](/guides/working-with-content/) - Assign terms in the editor
+See [Internationalization](/guides/internationalization/) for locale routing and fallback configuration and [Working with Content](/guides/working-with-content/) for editing entries. The [runtime API reference](/reference/api/#taxonomies) documents taxonomy query helpers. For programmatic changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [taxonomy endpoints](/reference/rest-api/#taxonomy-endpoints) for request bodies and responses.

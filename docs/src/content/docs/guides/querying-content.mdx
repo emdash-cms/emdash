@@ -198,7 +198,7 @@ The `data` object within `entry` contains all fields defined for the content typ
 
 ## Rendering SEO Panel Data
 
-For collections with `supports: ["seo"]`, editors can set an SEO title, meta description, OG image, canonical URL, and a "hide from search engines" (noindex) toggle in the admin's SEO panel. That data is delivered on the entry as `entry.data.seo` — but it only reaches the rendered page if your template emits it. Use `getSeoMeta` to resolve the panel fields (with sensible fallbacks to `data.title` / `data.excerpt`) into ready-to-render meta tags:
+For collections with `supports: ["seo"]`, editors can set an SEO title, meta description, OG image, canonical URL, and a "hide from search engines" (noindex) toggle in the admin's SEO panel. That data is delivered on the entry as `entry.data.seo`. On server-rendered pages that include the `<EmDashHead>` component and fetch their entry through `getEmDashEntry()`, the panel values are applied to the rendered head automatically — description, image, canonical, and noindex need no template wiring, and the panel title feeds `og:title`/`twitter:title`. The `<title>` element, prerendered pages, and templates that don't render `<EmDashHead>` still use `getSeoMeta`, which resolves the panel fields (with sensible fallbacks to `data.title` / `data.excerpt`) into ready-to-render meta tags:
 
 ```astro title="src/pages/posts/[...slug].astro"
 ---
@@ -230,7 +230,7 @@ const seo = getSeoMeta(entry, {
 	Templates that hand-roll meta tags from `data.title` / `data.excerpt` silently bypass the
 	entire SEO panel — including the noindex toggle, which is an indexing risk, not just
 	cosmetic. Every detail-page template for an SEO-enabled collection should render through
-	`getSeoMeta` (or read the raw fields via `getContentSeo`).
+	`<EmDashHead>` or `getSeoMeta` (or read the raw fields via `getContentSeo`).
 </Aside>
 
 ## Preview Mode

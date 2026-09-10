@@ -11,23 +11,15 @@ frontend and a separate CMS service.
 
 ## The parts of an EmDash site
 
-The following diagram shows the path from editing content to displaying it:
+The following table shows how each part connects through the EmDash runtime:
 
-```text
-┌────────────────────────── Astro application ──────────────────────────┐
-│                                                                      │
-│  Admin panel                           Pages and components           │
-│  /_emdash/admin/                       written by the site developer  │
-│         │                                        │                   │
-│         │ saves entries                         │ queries entries    │
-│         ▼                                        ▼                   │
-│  ┌────────────────────── EmDash runtime ───────────────────────────┐  │
-│  │ Content model, publishing, queries, media, plugins, and API     │  │
-│  └───────────────────────┬──────────────────────┬──────────────────┘  │
-│                          │                      │                     │
-│                    SQL database            Media storage             │
-└──────────────────────────────────────────────────────────────────────┘
-```
+| Part | Action | Connection |
+| --- | --- | --- |
+| Admin panel | Saves entries and media | Sends changes to the EmDash runtime |
+| Astro pages and components | Query entries for the public site | Read content through the EmDash runtime |
+| EmDash runtime | Applies the content model, publishing rules, queries, plugins, and API behavior | Reads and writes the database and media storage |
+| SQL database | Stores the content model, entries, users, settings, and other records | Used by the EmDash runtime |
+| Media storage | Stores uploaded files | Used by the EmDash runtime |
 
 Editors use the admin panel to work with content. Site developers decide how that content appears
 by writing Astro pages and components. Both sides use the same content model: the collection and
