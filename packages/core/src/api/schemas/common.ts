@@ -81,6 +81,7 @@ export const apiErrorSchema = z
 				.string()
 				.meta({ description: "Machine-readable error code", examples: ["NOT_FOUND"] }),
 			message: z.string().meta({ description: "Human-readable error message" }),
+			details: z.record(z.string(), z.unknown()).optional(),
 		}),
 	})
 	.meta({ id: "ApiError" });

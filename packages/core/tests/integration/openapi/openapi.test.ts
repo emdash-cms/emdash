@@ -270,4 +270,25 @@ describe("OpenAPI spec validation", () => {
 		expect(apiError?.properties).toHaveProperty("success");
 		expect(apiError?.properties).toHaveProperty("error");
 	});
+
+	it("documents optional arbitrary details on API errors", () => {
+		const doc = generateOpenApiDocument();
+		const apiError = (doc.components?.schemas ?? {})["ApiError"] as
+			| {
+					properties?: {
+						error?: {
+							properties?: Record<string, Record<string, unknown>>;
+							required?: string[];
+						};
+					};
+			  }
+			| undefined;
+		const error = apiError?.properties?.error;
+
+		expect(error?.properties?.details).toMatchObject({
+			type: "object",
+			additionalProperties: {},
+		});
+		expect(error?.required).not.toContain("details");
+	});
 });
