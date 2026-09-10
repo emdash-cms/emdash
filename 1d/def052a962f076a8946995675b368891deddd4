@@ -1,0 +1,29 @@
+templates/marketing-cloudflare/seed/seed.json
+  s_81c53493e8c532::t_74bcebf90c383f 166-200
+templates/marketing/seed/seed.json
+  s_81c53493e8c532::t_5c6fc116d3c6e9 166-200
+templates/marketing-cloudflare/src/components/blocks/Pricing.astro
+  s_81c53493e8c532::t_e3e1ecbed538b5 21,23,29-30,39,43-45,51-56,59-60,63-99,101,108-109,113-122,124-125,130,132-133,138-145,148,150-161,164-165,168-195,199-202,206,210-212,217-223,226-229,233-235,238-252,258-260,265,267-268,271-273,276-280,285-286,292-293,297-301,303-304,307-308,311-312
+templates/marketing-cloudflare/src/plugins/marketing-blocks/index.ts
+  s_81c53493e8c532::t_181c22e809b0b0 143-148
+templates/marketing/src/components/blocks/Pricing.astro
+  s_81c53493e8c532::t_b8f24f87144015 21,23,29-30,39,43-45,51-56,59-60,63-99,101,108-109,113-122,124-125,130,132-133,138-145,148,150-161,164-165,168-195,199-202,206,210-212,217-223,226-229,233-235,238-252,258-260,265,267-268,271-273,276-280,285-286,292-293,297-301,303-304,307-308,311-312
+templates/marketing/src/plugins/marketing-blocks/index.ts
+  s_81c53493e8c532::t_36b1df9241410f 143-148
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1ddef052a962f076a8946995675b368891deddd4",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
