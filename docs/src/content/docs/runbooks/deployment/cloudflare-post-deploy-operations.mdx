@@ -1,0 +1,146 @@
+---
+title: Cloudflare Post-Deploy Operations
+description: Separate EmDash content API operations from Cloudflare infrastructure actions after deployment.
+---
+
+import { Steps, Aside } from "@astrojs/starlight/components";
+
+## Scope
+
+Use this runbook after `wrangler deploy` succeeds on a Worker that serves EmDash.
+
+It covers:
+
+- API verification and token-based access patterns,
+- what to do for content workflows,
+- what remains an infrastructure task outside of EmDash.
+
+## Why this matters
+
+EmDash's admin/content APIs are for **application data operations** only. All deployment and platform controls (`env`, `secrets`, `routes`, DNS, D1/R2 lifecycle) are handled by Cloudflare tooling.
+
+## Preconditions
+
+- EmDash worker URL is known (for example `https://my-emdash-site.<subdomain>.workers.dev` or custom domain).
+- At least one `Role.ADMIN` account can access the admin UI to generate API tokens.
+- `curl` available for API checks.
+- Cloudflare deployment credentials available (`wrangler login` already run) when doing infra actions.
+
+## Runbook
+
+<Steps>
+
+1. **Smoke check deployment surface (no auth required)**
+
+   Confirm the Worker answers and setup API is reachable:
+
+   ```bash
+   BASE_URL="https://my-emdash-site.<subdomain>.workers.dev"
+   curl -i "${BASE_URL}/_emdash/api/setup/status"
+   ```
+
+   Expect `200` with an `application/json` response containing `needsSetup`.
+
+2. **Get baseline API auth behavior for a known content endpoint**
+
+   Confirm unauthorized access fails for protected operations:
+
+   ```bash
+   curl -i "${BASE_URL}/_emdash/api/content/posts"
+   ```
+
+   Expect `401` when route is available (missing token/cookie). If your instance has not created the `posts` collection yet, you may get `404` instead.
+
+3. **Create and capture a Personal Access Token in the admin UI**
+
+   - Open **Settings > API tokens** (`/_emdash/admin/settings/api-tokens`).
+   - Create a token with only the scopes needed for your integration.
+   - Export the raw token to your shell immediately (it is shown once):
+
+   ```bash
+   export EMDASH_TOKEN="<raw-token-string>"
+   ```
+
+   A good first scope set for a publishing script is:
+
+   - `content:read`
+   - `content:write`
+   - `media:write`
+
+4. **Re-check API with bearer token**
+
+   ```bash
+   curl -H "Authorization: Bearer ${EMDASH_TOKEN}" \
+    "${BASE_URL}/_emdash/api/content/posts"
+
+	curl -X POST \
+	 -H "Authorization: Bearer ${EMDASH_TOKEN}" \
+	 -H "Content-Type: application/json" \
+	 -d '{"slug":"deploy-smoke","data":{"title":"Deploy smoke"},"status":"draft"}' \
+	 "${BASE_URL}/_emdash/api/content/posts"
+	```
+
+	If POST returns `403`, the token is missing scope for the route.
+	If POST returns `400`, verify your payload includes a valid object under `data` (for example `{"data": {...}}`).
+	If you get `404`, confirm the collection exists and your token endpoint URL is correct.
+
+5. **Use tool endpoints when needed**
+
+   MCP clients and automation that supports JSON-RPC can connect at:
+
+   ```text
+   ${BASE_URL}/_emdash/api/mcp
+   ```
+
+   CLI usage should set `--url ${BASE_URL}` and `--token ${EMDASH_TOKEN}`.
+
+6. **Perform platform-level actions through Cloudflare control plane**
+
+   Use Cloudflare dashboard or Wrangler for:
+
+   - deploy/redeploy,
+   - secrets and bindings,
+   - DNS and custom domain changes,
+   - D1/R2 management and migrations,
+   - observability and log streaming.
+
+   Treat these as separate from EmDash runtime API usage:
+
+   ```bash
+   # Example: inspect runtime logs during an issue
+   wrangler tail
+
+   # Example: update secret values
+   wrangler secret put EMDASH_ENCRYPTION_KEY
+   ```
+
+</Steps>
+
+## Escalation paths
+
+### If protected API calls return `404`
+
+This can mean setup has not completed or collection names are different. Re-run setup in admin and verify collection slugs.
+
+### If token operations return `401`
+
+Recreate the token and ensure `Authorization` header is exactly `Bearer <token>` (no quotes).
+
+### If deploy succeeds but API writes still fail
+
+Use platform logs first before changing application code:
+
+```bash
+wrangler tail
+```
+
+If the worker logs show DB errors, check D1 binding names and migration state in `wrangler.jsonc` vs `emdash` config.
+
+<Aside type="note">
+
+Keep this distinction in incident notes:
+
+- **EmDash API incidents:** missing/invalid tokens, scope errors, content endpoint regressions.
+- **Cloudflare incidents:** bindings, secrets, DNS, replication, deploy target, and rollout state.
+
+</Aside>
