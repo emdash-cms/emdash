@@ -20,6 +20,7 @@ function TestEditor({
 }) {
 	const editor = useEditor({
 		extensions: [StarterKit, ImageExtension],
+		editorProps: { attributes: { class: "prose prose-sm sm:prose-base flow-root" } },
 		content: {
 			type: "doc",
 			content: [
@@ -66,6 +67,38 @@ afterEach(async () => {
 });
 
 describe("Editor image alignment", () => {
+	it.each([
+		{ width: 1280, caption: "" },
+		{ width: 1280, caption: "Diagram caption" },
+		{ width: 390, caption: "" },
+		{ width: 390, caption: "Diagram caption" },
+	])(
+		"keeps image spacing compact at $width px with caption '$caption'",
+		async ({ width, caption }) => {
+			await page.viewport(width, 800);
+			const { editor, image, host } = await renderImage({ caption });
+			editor.commands.insertContentAt(0, {
+				type: "paragraph",
+				content: [{ type: "text", text: "Preceding text" }],
+			});
+			const before = host.querySelector("p")!;
+			const after = host.querySelector("p:last-child")!;
+			const figcaption = host.querySelector("figcaption");
+			const imageBounds = image.getBoundingClientRect();
+
+			expect(imageBounds.top - before.getBoundingClientRect().bottom).toBeCloseTo(16, 0);
+			expect(
+				after.getBoundingClientRect().top - (figcaption ?? image).getBoundingClientRect().bottom,
+			).toBeCloseTo(16, 0);
+			if (caption) {
+				expect(figcaption).not.toBeNull();
+				const captionGap = figcaption!.getBoundingClientRect().top - imageBounds.bottom;
+				expect(captionGap).toBeGreaterThan(0);
+				expect(captionGap).toBeLessThan(16);
+			}
+		},
+	);
+
 	it.each([
 		{ displayWidth: 1200, displayHeight: 800, ratio: 1.5 },
 		{ displayWidth: 1200, displayHeight: 600, ratio: 2 },

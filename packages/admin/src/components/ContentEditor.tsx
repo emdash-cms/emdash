@@ -196,7 +196,14 @@ export interface ContentEditorProps {
 	/** Whether schedule removal is in progress */
 	isUnscheduling?: boolean;
 	/** Callback to change the timestamp of published content */
-	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
+	onPublishedAtChange?: (
+		publishedAt: string,
+		payload?: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		},
+	) => void | Promise<void>;
 	/** Whether the publish timestamp is being updated */
 	isUpdatingPublishedAt?: boolean;
 	/** Whether this collection supports drafts */
@@ -475,6 +482,10 @@ export function ContentEditor({
 	const isDirty = isNew || currentData !== lastSavedData;
 	const saveFeedbackActive = isSaveFeedbackActive ?? isSaving;
 	const autosaveFeedbackActive = isAutosaveFeedbackActive ?? isAutosaving;
+	// Read at call time, not captured: a control that has not re-rendered since the
+	// last autosave settled would otherwise flush a payload that is already saved.
+	const hasPendingSaveRef = React.useRef(false);
+	hasPendingSaveRef.current = Boolean(isDirty || saveFeedbackActive || autosaveFeedbackActive);
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked = isContentOperationPending || hasUnsupportedPortableTextMarks;
 
@@ -663,17 +674,19 @@ export function ContentEditor({
 				slug?: string;
 				bylines?: BylineCreditInput[];
 			}) => void | Promise<void>,
+			invalidFieldsMessage?: string,
 		) => {
 			if (isPublishingRef.current) {
 				return Promise.reject(new Error(t`A publishing action is already in progress`));
 			}
 			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
-				return Promise.reject(new Error(t`Fix invalid fields before changing the schedule`));
+				return Promise.reject(
+					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
+				);
 			}
 
 			cancelPendingAutosave();
-			const payload =
-				isDirty || saveFeedbackActive || autosaveFeedbackActive ? createSavePayload() : undefined;
+			const payload = hasPendingSaveRef.current ? createSavePayload() : undefined;
 			isPublishingRef.current = true;
 			setIsPublishing(true);
 
@@ -696,16 +709,7 @@ export function ContentEditor({
 				setIsPublishing(false);
 			});
 		},
-		[
-			cancelPendingAutosave,
-			createSavePayload,
-			hasInvalidUrls,
-			hasUnsupportedPortableTextMarks,
-			autosaveFeedbackActive,
-			isDirty,
-			saveFeedbackActive,
-			t,
-		],
+		[cancelPendingAutosave, createSavePayload, hasInvalidUrls, hasUnsupportedPortableTextMarks, t],
 	);
 	const handleSchedule = React.useCallback(
 		(scheduledAt: string) =>
@@ -715,6 +719,16 @@ export function ContentEditor({
 	const handleUnschedule = React.useCallback(
 		() => (onUnschedule ? runScheduleChange((payload) => onUnschedule(payload)) : undefined),
 		[onUnschedule, runScheduleChange],
+	);
+	const handlePublishedAtChange = React.useCallback(
+		(publishedAt: string) =>
+			onPublishedAtChange
+				? runScheduleChange(
+						(payload) => onPublishedAtChange(publishedAt, payload),
+						t`Fix invalid fields before changing the publication date`,
+					)
+				: undefined,
+		[onPublishedAtChange, runScheduleChange, t],
 	);
 
 	// Preview URL state
@@ -1135,7 +1149,7 @@ export function ContentEditor({
 							hasPendingChanges={hasPendingChanges}
 							publishingState={publishingState}
 							supportsRevisions={supportsRevisions}
-							onPublishedAtChange={onPublishedAtChange}
+							onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
 							isUpdatingPublishedAt={isUpdatingPublishedAt}
 							onDiscardDraft={onDiscardDraft}
 							onDelete={onDelete}

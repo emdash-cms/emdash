@@ -86,7 +86,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# comentário importado} other {# comentários importados}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1986
+#: packages/admin/src/router.tsx:2009
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# comentário atualizado} other {# comentários atualizados}}"
 
@@ -537,8 +537,7 @@ msgid "• URLs in your content are updated automatically"
 msgstr "• As URLs no seu conteúdo são atualizadas automaticamente"
 
 #: packages/admin/src/components/SetupWizard.tsx:225
-#: packages/admin/src/components/SetupWizard.tsx:277
-#: packages/admin/src/components/SetupWizard.tsx:332
+#: packages/admin/src/components/SetupWizard.tsx:278
 #: packages/admin/src/components/WordPressImport.tsx:1617
 msgid "← Back"
 msgstr "← Voltar"
@@ -657,7 +656,7 @@ msgstr "Já existe uma pasta de mídia com este nome"
 msgid "A publication time has not been selected"
 msgstr "Um horário de publicação não foi selecionado"
 
-#: packages/admin/src/components/ContentEditor.tsx:668
+#: packages/admin/src/components/ContentEditor.tsx:680
 msgid "A publishing action is already in progress"
 msgstr "Uma ação de publicação já está em andamento"
 
@@ -685,7 +684,7 @@ msgstr "Aceitar e instalar"
 msgid "Accept & Update"
 msgstr "Aceitar e atualizar"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:240
+#: packages/admin/src/components/InviteAcceptPage.tsx:239
 msgid "Accept Invite"
 msgstr "Aceitar convite"
 
@@ -694,7 +693,7 @@ msgstr "Aceitar convite"
 msgid "Access denied"
 msgstr "Acesso negado"
 
-#: packages/admin/src/router.tsx:2006
+#: packages/admin/src/router.tsx:2029
 msgid "Access Denied"
 msgstr "Acesso negado"
 
@@ -703,15 +702,15 @@ msgstr "Acesso negado"
 msgid "Access your media library"
 msgstr "Acessar sua biblioteca de mídia"
 
-#: packages/admin/src/components/SetupWizard.tsx:354
+#: packages/admin/src/components/SetupWizard.tsx:347
 msgid "Account"
 msgstr "Conta"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:154
+#: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
 msgstr "A conta já existe"
 
-#: packages/admin/src/components/SignupPage.tsx:277
+#: packages/admin/src/components/SignupPage.tsx:278
 msgid "Account exists"
 msgstr "A conta já existe"
 
@@ -797,7 +796,7 @@ msgstr "Adicionar conteúdo"
 msgid "Add Custom Link"
 msgstr "Adicionar link personalizado"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:447
+#: packages/admin/src/components/ImageFieldRenderer.tsx:451
 msgid "Add dark mode variant"
 msgstr "Adicionar variante para modo escuro"
 
@@ -1059,7 +1058,7 @@ msgstr "Domínios permitidos"
 msgid "Allowed types"
 msgstr "Tipos permitidos"
 
-#: packages/admin/src/components/SignupPage.tsx:454
+#: packages/admin/src/components/SignupPage.tsx:455
 msgid "Already have an account?"
 msgstr "Já tem uma conta?"
 
@@ -1097,6 +1096,10 @@ msgstr "Texto alternativo definido"
 #: packages/admin/src/components/WordPressImport.tsx:1411
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Alternativamente, você pode exportar do WordPress (Ferramentas → Exportar) e enviar o arquivo."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:236
+msgid "An encrypted digital key you unlock using your fingerprint, face, PIN, or device password."
+msgstr ""
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
@@ -1142,10 +1145,10 @@ msgstr "Alternativamente, você pode exportar do WordPress (Ferramentas → Expo
 #: packages/admin/src/router.tsx:1277
 #: packages/admin/src/router.tsx:1308
 #: packages/admin/src/router.tsx:1328
-#: packages/admin/src/router.tsx:1951
-#: packages/admin/src/router.tsx:1967
-#: packages/admin/src/router.tsx:1992
-#: packages/admin/src/router.tsx:2498
+#: packages/admin/src/router.tsx:1974
+#: packages/admin/src/router.tsx:1990
+#: packages/admin/src/router.tsx:2015
+#: packages/admin/src/router.tsx:2521
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1157,7 +1160,7 @@ msgstr "Ocorreu um erro"
 msgid "An unexpected error occurred."
 msgstr "Ocorreu um erro inesperado."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:251
+#: packages/admin/src/components/InviteAcceptPage.tsx:250
 msgid "An unknown error occurred"
 msgstr "Ocorreu um erro desconhecido"
 
@@ -1212,6 +1215,10 @@ msgstr "Aplicar link"
 #: packages/admin/src/components/comments/CommentInbox.tsx:481
 msgid "Approve"
 msgstr "Aprovar"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
+msgid "Approve with that device's face, fingerprint, PIN, or passcode."
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:195
 msgid "approved"
@@ -1282,7 +1289,7 @@ msgstr "Áudio"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:278
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:279
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:438
 msgid "Authentication error: {0}"
 msgstr "Erro de autenticação: {0}"
 
@@ -1399,6 +1406,10 @@ msgstr "Widgets disponíveis"
 msgid "Avatar"
 msgstr "Avatar"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:628
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/MediaDetailPanel.tsx:1793
 #: packages/admin/src/components/MediaLibrary.tsx:811
@@ -1408,7 +1419,7 @@ msgstr "Avatar"
 msgid "Back"
 msgstr "Voltar"
 
-#: packages/admin/src/components/ContentEditor.tsx:882
+#: packages/admin/src/components/ContentEditor.tsx:896
 msgid "Back to {collectionLabel} list"
 msgstr "Voltar para a lista de {collectionLabel}"
 
@@ -1416,11 +1427,11 @@ msgstr "Voltar para a lista de {collectionLabel}"
 msgid "Back to Content Types"
 msgstr "Voltar aos tipos de conteúdo"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:172
+#: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:118
 #: packages/admin/src/components/LoginPage.tsx:154
 #: packages/admin/src/components/LoginPage.tsx:313
-#: packages/admin/src/components/SignupPage.tsx:297
+#: packages/admin/src/components/SignupPage.tsx:298
 msgid "Back to login"
 msgstr "Voltar ao acesso"
 
@@ -1714,7 +1725,7 @@ msgstr "Centro"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
 #: packages/admin/src/components/FieldEditor.tsx:438
-#: packages/admin/src/components/SeoImageField.tsx:57
+#: packages/admin/src/components/SeoImageField.tsx:58
 msgid "Change"
 msgstr "Alterar"
 
@@ -1780,7 +1791,7 @@ msgstr "Verifique os logs do servidor e depois use a API de recuperação de uso
 
 #: packages/admin/src/components/LoginPage.tsx:102
 #: packages/admin/src/components/SignupPage.tsx:148
-#: packages/admin/src/components/SignupPage.tsx:417
+#: packages/admin/src/components/SignupPage.tsx:418
 msgid "Check your email"
 msgstr "Verifique seu e-mail"
 
@@ -1796,6 +1807,14 @@ msgstr "Verificando autenticação..."
 #: packages/admin/src/routes/byline-schema.tsx:362
 msgid "Checking how many stored values reference \"{0}\"…"
 msgstr "Verificando quantos valores armazenados fazem referência a \"{0}\"…"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:493
+msgid "Checking this device for passkey support..."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:577
+msgid "Choose a credential manager on this device, another device, or a security key."
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1045
 #: packages/admin/src/components/ContentList.tsx:1051
@@ -1819,6 +1838,10 @@ msgstr "Escolha uma imagem {0} que não esteja vazia."
 msgid "Choose an image from the library or upload a new one."
 msgstr "Escolha uma imagem da biblioteca ou envie uma nova."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:567
+msgid "Choose another option"
+msgstr ""
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:662
 #: packages/admin/src/components/BylineCreditsEditor.tsx:677
 msgid "Choose bylines"
@@ -1836,6 +1859,10 @@ msgstr "Escolha como entrar"
 msgid "Choose replacement image"
 msgstr "Escolher imagem de substituição"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
+msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
+msgstr ""
+
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
 msgid "Choose when these changes replace the live version."
 msgstr "Escolha quando estas alterações substituem a versão no ar."
@@ -1843,6 +1870,10 @@ msgstr "Escolha quando estas alterações substituem a versão no ar."
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
 msgid "Choose when this draft becomes public."
 msgstr "Escolha quando este rascunho se torna público."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
+msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
+msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:134
 msgid "Choose your preferred admin language"
@@ -1968,7 +1999,7 @@ msgstr "Fechar configurações da imagem"
 msgid "Close panel"
 msgstr "Fechar painel"
 
-#: packages/admin/src/components/ContentEditor.tsx:1394
+#: packages/admin/src/components/ContentEditor.tsx:1408
 msgid "Close settings"
 msgstr "Fechar configurações"
 
@@ -2044,7 +2075,7 @@ msgstr "Comentários de usuários conectados ao CMS são aprovados automaticamen
 msgid "Complete"
 msgstr "Concluído"
 
-#: packages/admin/src/components/SignupPage.tsx:418
+#: packages/admin/src/components/SignupPage.tsx:419
 msgid "Complete signup"
 msgstr "Concluir registro"
 
@@ -2059,6 +2090,18 @@ msgstr "Configurar campo"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
 msgid "Confirm"
 msgstr "Confirmar"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
+msgid "Confirm using the secure prompt from your device or credential manager."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:194
+msgid "Confirm with Face ID, Touch ID, or your device passcode."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:201
+msgid "Confirm with your fingerprint, face, or PIN."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:719
 #: packages/admin/src/components/WordPressImport.tsx:1072
@@ -2169,6 +2212,7 @@ msgstr "O conteúdo foi ignorado porque já existe"
 msgid "Content Write"
 msgstr "Escrita de conteúdo"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:274
 #: packages/admin/src/components/SignupPage.tsx:109
 msgid "Continue"
 msgstr "Continuar"
@@ -2185,6 +2229,14 @@ msgstr "Continuar importação"
 #: packages/admin/src/components/PortableTextEditor.tsx:4345
 msgid "Continue numbering"
 msgstr "Continuar numeração"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:673
+msgid "Continue with another device"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:710
+msgid "Continue with security key"
+msgstr ""
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2358,12 +2410,7 @@ msgstr "Criar uma lista numerada"
 msgid "Create a reusable public profile, then add it to this post."
 msgstr "Crie um perfil público reutilizável e depois adicione-o a este post."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:84
-#: packages/admin/src/components/SignupPage.tsx:236
-msgid "Create Account"
-msgstr "Criar conta"
-
-#: packages/admin/src/components/SignupPage.tsx:416
+#: packages/admin/src/components/SignupPage.tsx:417
 msgid "Create an account"
 msgstr "Criar uma conta"
 
@@ -2405,9 +2452,9 @@ msgstr "Criar novo token"
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "Crie um no WordPress: Usuários → Perfil → Senhas de aplicativo"
 
-#: packages/admin/src/components/SetupWizard.tsx:298
-msgid "Create Passkey"
-msgstr "Criar chave de acesso"
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:741
+msgid "Create passkey"
+msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:102
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
@@ -2456,7 +2503,7 @@ msgstr "Criar token"
 msgid "Create Widget Area"
 msgstr "Criar área de widgets"
 
-#: packages/admin/src/components/SetupWizard.tsx:560
+#: packages/admin/src/components/SetupWizard.tsx:553
 msgid "Create your account"
 msgstr "Crie sua conta"
 
@@ -2475,11 +2522,6 @@ msgstr "Crie o primeiro"
 #: packages/admin/src/components/Sections.tsx:267
 msgid "Create your first reusable content section to get started."
 msgstr "Crie sua primeira seção de conteúdo reutilizável para começar."
-
-#: packages/admin/src/components/InviteAcceptPage.tsx:75
-#: packages/admin/src/components/SignupPage.tsx:227
-msgid "Create your passkey"
-msgstr "Crie sua chave de acesso"
 
 #: packages/admin/src/lib/api/marketplace.ts:280
 #: packages/admin/src/lib/api/marketplace.ts:289
@@ -2617,7 +2659,7 @@ msgid "Dark"
 msgstr "Escuro"
 
 #: packages/admin/src/components/FieldEditor.tsx:688
-#: packages/admin/src/components/ImageFieldRenderer.tsx:391
+#: packages/admin/src/components/ImageFieldRenderer.tsx:395
 msgid "Dark mode variant"
 msgstr "Variante para modo escuro"
 
@@ -3105,7 +3147,7 @@ msgstr "Exibir nuvem de tags"
 msgid "Displayed below the image as a visible caption."
 msgstr "Exibido abaixo da imagem como legenda visível."
 
-#: packages/admin/src/components/ContentEditor.tsx:950
+#: packages/admin/src/components/ContentEditor.tsx:964
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Modo sem distrações (⌘⇧\\)"
 
@@ -3248,9 +3290,21 @@ msgstr "Arraste widgets para cá para adicioná-los"
 msgid "Drag widgets into an area to add them"
 msgstr "Arraste widgets para uma área para adicioná-los"
 
+#: packages/admin/src/components/media/ImageDropTarget.tsx:134
+msgid "Drop an image here or <0>browse</0>"
+msgstr ""
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:118
+msgid "Drop an image here or browse for {label}"
+msgstr ""
+
 #: packages/admin/src/components/MediaLibrary.tsx:791
 msgid "Drop files to upload"
 msgstr "Solte os arquivos para enviar"
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:48
+msgid "Drop one image at a time."
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:700
 msgid "Drop to add widget"
@@ -3280,7 +3334,7 @@ msgstr "ex.: importação, blog"
 msgid "e.g., CI/CD Pipeline"
 msgstr "ex.: Pipeline CI/CD"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:325
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:765
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "ex.: MacBook Pro, iPhone"
 
@@ -3311,7 +3365,7 @@ msgstr "Editar {0}"
 msgid "Edit {0} field"
 msgstr "Editar campo {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:889
+#: packages/admin/src/components/ContentEditor.tsx:903
 msgid "Edit {itemLabel}"
 msgstr "Editar {itemLabel}"
 
@@ -3321,9 +3375,9 @@ msgstr "Editar {title}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:460
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:260
-#: packages/admin/src/components/ImageFieldRenderer.tsx:298
-#: packages/admin/src/components/ImageFieldRenderer.tsx:354
-#: packages/admin/src/components/ImageFieldRenderer.tsx:422
+#: packages/admin/src/components/ImageFieldRenderer.tsx:302
+#: packages/admin/src/components/ImageFieldRenderer.tsx:358
+#: packages/admin/src/components/ImageFieldRenderer.tsx:426
 #: packages/admin/src/components/MediaPickerModal.tsx:1584
 msgid "Edit asset"
 msgstr "Editar mídia"
@@ -3332,7 +3386,7 @@ msgstr "Editar mídia"
 msgid "Edit byline field"
 msgstr "Editar campo do crédito"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:420
+#: packages/admin/src/components/ImageFieldRenderer.tsx:424
 msgid "Edit dark mode asset"
 msgstr "Editar mídia do modo escuro"
 
@@ -3423,9 +3477,9 @@ msgstr "Os editores podem selecionar uma segunda imagem que o site exibe no modo
 msgid "em1.…"
 msgstr "em1.…"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/InviteAcceptPage.tsx:63
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/SignupPage.tsx:213
+#: packages/admin/src/components/SignupPage.tsx:215
 #: packages/admin/src/components/users/UserDetail.tsx:154
 msgid "Email"
 msgstr "E-mail"
@@ -3466,7 +3520,7 @@ msgstr "Configurações de e-mail"
 msgid "Email verified"
 msgstr "E-mail verificado"
 
-#: packages/admin/src/components/SignupPage.tsx:206
+#: packages/admin/src/components/SignupPage.tsx:207
 msgid "Email verified!"
 msgstr "E-mail verificado!"
 
@@ -3494,6 +3548,10 @@ msgstr "Plugin EmDash Exporter detectado! Você pode importar diretamente."
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:487
 msgid "EmDash is scanning existing content."
 msgstr "O EmDash está analisando o conteúdo existente."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:744
+msgid "EmDash never receives your PIN, password, or biometric information."
+msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:575
 msgid "EmDash will continue setup and resume scanning existing content."
@@ -3557,7 +3615,7 @@ msgstr "Digite um nome."
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Digite uma URL (https://…) ou um caminho relativo (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1803
+#: packages/admin/src/components/ContentEditor.tsx:1817
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Digite uma URL válida (ex.: https://example.com)"
 
@@ -3565,7 +3623,7 @@ msgstr "Digite uma URL válida (ex.: https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Digitar credenciais manualmente"
 
-#: packages/admin/src/components/ContentEditor.tsx:949
+#: packages/admin/src/components/ContentEditor.tsx:963
 msgid "Enter distraction-free mode"
 msgstr "Entrar no modo sem distrações"
 
@@ -3577,7 +3635,7 @@ msgstr "Digite o e-mail"
 msgid "Enter HTML..."
 msgstr "Digite o HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1575
+#: packages/admin/src/components/ContentEditor.tsx:1589
 msgid "Enter markdown content..."
 msgstr "Digite o conteúdo em markdown..."
 
@@ -3609,10 +3667,10 @@ msgstr "Digite a URL do seu site WordPress"
 #: packages/admin/src/components/MenuEditor.tsx:155
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:539
+#: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2736
 msgid "Error"
 msgstr "Erro"
 
@@ -3661,7 +3719,7 @@ msgstr "O conteúdo existente está no índice. Novas alterações entram automa
 msgid "Exists"
 msgstr "Existe"
 
-#: packages/admin/src/components/ContentEditor.tsx:1015
+#: packages/admin/src/components/ContentEditor.tsx:1029
 msgid "Exit distraction-free mode"
 msgstr "Sair do modo sem distrações"
 
@@ -3723,7 +3781,7 @@ msgstr "Falha ao se comunicar com o plugin"
 msgid "Failed to confirm upload"
 msgstr "Falha ao confirmar o envio"
 
-#: packages/admin/src/components/SetupWizard.tsx:493
+#: packages/admin/src/components/SetupWizard.tsx:486
 msgid "Failed to create admin"
 msgstr "Falha ao criar administrador"
 
@@ -3789,7 +3847,7 @@ msgid "Failed to delete collection"
 msgstr "Falha ao excluir coleção"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:1989
 msgid "Failed to delete comment"
 msgstr "Falha ao excluir comentário"
 
@@ -3975,7 +4033,7 @@ msgstr "Falha ao carregar seções"
 msgid "Failed to fetch settings"
 msgstr "Falha ao carregar configurações"
 
-#: packages/admin/src/components/SetupWizard.tsx:446
+#: packages/admin/src/components/SetupWizard.tsx:439
 msgid "Failed to fetch setup status"
 msgstr "Falha ao carregar status da configuração"
 
@@ -3987,7 +4045,7 @@ msgstr "Falha ao carregar termos"
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:947
-#: packages/admin/src/router.tsx:1897
+#: packages/admin/src/router.tsx:1920
 msgid "Failed to fetch user"
 msgstr "Falha ao carregar usuário"
 
@@ -4003,7 +4061,7 @@ msgstr "Falha ao gerar URL de pré-visualização"
 msgid "Failed to get authentication options"
 msgstr "Falha ao obter opções de autenticação"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:181
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:336
 msgid "Failed to get registration options"
 msgstr "Falha ao obter opções de registro"
 
@@ -4081,7 +4139,7 @@ msgstr "Falha ao carregar plugins. O agregador do registro pode estar inacessív
 msgid "Failed to load revisions"
 msgstr "Falha ao carregar revisões"
 
-#: packages/admin/src/components/SetupWizard.tsx:541
+#: packages/admin/src/components/SetupWizard.tsx:534
 msgid "Failed to load setup"
 msgstr "Falha ao carregar configuração"
 
@@ -4098,7 +4156,7 @@ msgstr "Falha ao carregar usuários: {0}"
 msgid "Failed to load widget"
 msgstr "Falha ao carregar widget"
 
-#: packages/admin/src/router.tsx:1991
+#: packages/admin/src/router.tsx:2014
 msgid "Failed to perform bulk action"
 msgstr "Falha ao executar ação em massa"
 
@@ -4180,7 +4238,7 @@ msgstr "Falha ao reescrever URLs"
 
 #: packages/admin/src/router.tsx:735
 #: packages/admin/src/router.tsx:1063
-#: packages/admin/src/router.tsx:2497
+#: packages/admin/src/router.tsx:2520
 msgid "Failed to save"
 msgstr "Falha ao salvar"
 
@@ -4217,7 +4275,7 @@ msgstr "Falha ao enviar link de recuperação"
 msgid "Failed to send test email"
 msgstr "Falha ao enviar e-mail de teste"
 
-#: packages/admin/src/components/SignupPage.tsx:366
+#: packages/admin/src/components/SignupPage.tsx:367
 msgid "Failed to send verification email"
 msgstr "Falha ao enviar e-mail de verificação"
 
@@ -4284,7 +4342,7 @@ msgstr "Falha ao atualizar seção"
 msgid "Failed to update settings"
 msgstr "Falha ao atualizar configurações"
 
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:1973
 msgid "Failed to update status"
 msgstr "Falha ao atualizar status"
 
@@ -4308,7 +4366,7 @@ msgstr "Falha ao verificar autenticação"
 msgid "Failed to verify plugin"
 msgstr "Falha ao verificar plugin"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:254
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:412
 msgid "Failed to verify registration"
 msgstr "Falha ao verificar registro"
 
@@ -4461,7 +4519,11 @@ msgstr "Primeira publicação"
 msgid "First-time commenters only"
 msgstr "Apenas quem comenta pela primeira vez"
 
-#: packages/admin/src/components/ContentEditor.tsx:671
+#: packages/admin/src/components/ContentEditor.tsx:728
+msgid "Fix invalid fields before changing the publication date"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:684
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Corrija os campos inválidos antes de alterar o agendamento"
 
@@ -4487,7 +4549,7 @@ msgstr "Pasta excluída"
 msgid "Folder name must be between 1 and 200 characters"
 msgstr "O nome da pasta deve ter entre 1 e 200 caracteres"
 
-#: packages/admin/src/router.tsx:1620
+#: packages/admin/src/router.tsx:1643
 msgid "Folder no longer exists"
 msgstr "A pasta não existe mais"
 
@@ -4603,7 +4665,7 @@ msgstr "Começar"
 msgid "GitHub"
 msgstr "GitHub"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:329
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:769
 msgid "Give this passkey a name to help you identify it later."
 msgstr "Dê um nome a esta chave de acesso para ajudá-lo a identificá-la depois."
 
@@ -4612,7 +4674,7 @@ msgid "Go"
 msgstr "Go"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2733
+#: packages/admin/src/router.tsx:2756
 msgid "Go to Dashboard"
 msgstr "Ir para o painel"
 
@@ -4776,6 +4838,10 @@ msgstr "https://seusite.com"
 msgid "I’ve completed these steps and understand tracking can’t be turned off."
 msgstr "Concluí estas etapas e entendo que o índice não pode ser desativado."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:554
+msgid "I've set it up — check again"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:243
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:153
 msgid "Icon blurred due to image audit"
@@ -4805,8 +4871,8 @@ msgstr "Imagem"
 msgid "Image {0}"
 msgstr "Imagem {0}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:317
-#: packages/admin/src/components/ImageFieldRenderer.tsx:331
+#: packages/admin/src/components/ImageFieldRenderer.tsx:321
+#: packages/admin/src/components/ImageFieldRenderer.tsx:335
 msgid "Image actions"
 msgstr "Ações da imagem"
 
@@ -4815,8 +4881,8 @@ msgid "Image from media library"
 msgstr "Imagem da biblioteca de mídia"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
-#: packages/admin/src/components/ImageFieldRenderer.tsx:463
-#: packages/admin/src/components/ImageFieldRenderer.tsx:515
+#: packages/admin/src/components/ImageFieldRenderer.tsx:467
+#: packages/admin/src/components/ImageFieldRenderer.tsx:519
 msgid "Image not found"
 msgstr "Imagem não encontrada"
 
@@ -4834,9 +4900,13 @@ msgstr "Configurações de imagem"
 msgid "Image Settings"
 msgstr "Configurações de imagem"
 
-#: packages/admin/src/components/SeoImageField.tsx:43
+#: packages/admin/src/components/SeoImageField.tsx:44
 msgid "Image shown when this page is shared on social media"
 msgstr "Imagem exibida quando esta página é compartilhada nas redes sociais"
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:72
+msgid "Image upload failed. Try again."
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1110
 #: packages/admin/src/components/MediaPickerModal.tsx:1120
@@ -4948,6 +5018,10 @@ msgstr "Importando menus e configurações do site..."
 msgid "In trash"
 msgstr "Na lixeira"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:536
+msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
+msgstr ""
+
 #: packages/admin/src/components/BylineFilter.tsx:187
 #: packages/admin/src/components/BylineFilter.tsx:193
 msgid "Include inferred bylines"
@@ -5049,6 +5123,10 @@ msgstr "Inserir imagem"
 msgid "Insert Link"
 msgstr "Inserir link"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:691
+msgid "Insert or tap your security key when the browser asks."
+msgstr ""
+
 #: packages/admin/src/components/PortableTextEditor.tsx:1733
 msgid "Insert raw HTML"
 msgstr "Inserir HTML bruto"
@@ -5107,23 +5185,23 @@ msgstr "Instalando..."
 msgid "Integer"
 msgstr "Inteiro"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:152
+#: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
 msgstr "Link de convite inválido"
 
-#: packages/admin/src/components/ContentEditor.tsx:1872
+#: packages/admin/src/components/ContentEditor.tsx:1886
 msgid "Invalid JSON"
 msgstr "JSON inválido"
 
-#: packages/admin/src/components/SignupPage.tsx:275
+#: packages/admin/src/components/SignupPage.tsx:276
 msgid "Invalid link"
 msgstr "Link inválido"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:241
+#: packages/admin/src/components/InviteAcceptPage.tsx:240
 msgid "Invite Error"
 msgstr "Erro de convite"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:150
+#: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
 msgstr "Convite expirado"
 
@@ -5147,6 +5225,10 @@ msgstr "Invocar ferramentas MCP de todos os plugins ativados"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:517
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr "Invocar apenas as ferramentas MCP ativadas deste plugin"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
+msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
+msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3883
 #: packages/admin/src/components/PortableTextEditor.tsx:4288
@@ -5175,8 +5257,9 @@ msgstr "Item atualizado"
 msgid "Its listing has not been approved for display. Check back later."
 msgstr "A listagem deste plugin não foi aprovada para exibição. Volte a conferir mais tarde."
 
+#: packages/admin/src/components/InviteAcceptPage.tsx:70
 #: packages/admin/src/components/SetupWizard.tsx:213
-#: packages/admin/src/components/SignupPage.tsx:221
+#: packages/admin/src/components/SignupPage.tsx:222
 msgid "Jane Doe"
 msgstr "Jane Doe"
 
@@ -5352,7 +5435,7 @@ msgstr "Claro"
 msgid "Limit"
 msgstr "Limite"
 
-#: packages/admin/src/components/SignupPage.tsx:273
+#: packages/admin/src/components/SignupPage.tsx:274
 msgid "Link expired"
 msgstr "Link expirado"
 
@@ -5393,8 +5476,8 @@ msgstr "Visualização em lista"
 msgid "Live version"
 msgstr "Versão no ar"
 
-#: packages/admin/src/components/ContentEditor.tsx:923
-#: packages/admin/src/components/ContentEditor.tsx:973
+#: packages/admin/src/components/ContentEditor.tsx:937
+#: packages/admin/src/components/ContentEditor.tsx:987
 #: packages/admin/src/components/ContentSettingsPanel.tsx:660
 msgid "Live View"
 msgstr "Visualização ao vivo"
@@ -5423,7 +5506,7 @@ msgstr "Carregar mais"
 msgid "Load more folders"
 msgstr "Carregar mais pastas"
 
-#: packages/admin/src/router.tsx:2688
+#: packages/admin/src/router.tsx:2711
 msgid "Loading"
 msgstr "Carregando"
 
@@ -5439,8 +5522,8 @@ msgstr "Carregando coleções..."
 msgid "Loading comments..."
 msgstr "Carregando comentários..."
 
-#: packages/admin/src/router.tsx:2690
-#: packages/admin/src/router.tsx:2702
+#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2725
 msgid "Loading configuration..."
 msgstr "Carregando configuração..."
 
@@ -5498,7 +5581,7 @@ msgstr "Carregando seções..."
 msgid "Loading settings..."
 msgstr "Carregando configurações..."
 
-#: packages/admin/src/components/SetupWizard.tsx:528
+#: packages/admin/src/components/SetupWizard.tsx:521
 msgid "Loading setup..."
 msgstr "Carregando configuração..."
 
@@ -5944,7 +6027,7 @@ msgstr "Arquivos mensais/anuais"
 msgid "More actions for {0}"
 msgstr "Mais ações para {0}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:500
+#: packages/admin/src/components/ImageFieldRenderer.tsx:504
 msgid "More information about {label}"
 msgstr "Mais informações sobre {label}"
 
@@ -6145,7 +6228,7 @@ msgstr "NOVO"
 msgid "New {0}"
 msgstr "Novo {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:889
+#: packages/admin/src/components/ContentEditor.tsx:903
 msgid "New {itemLabel}"
 msgstr "Novo {itemLabel}"
 
@@ -6226,6 +6309,16 @@ msgstr "Próxima página"
 msgid "Next screenshot"
 msgstr "Próxima captura de tela"
 
+#. placeholder {0}: platformCopy.name
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:726
+msgid "Next, {0} will open"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:652
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:689
+msgid "Next, the browser's passkey window will open"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:1406
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -6267,6 +6360,10 @@ msgstr "Nenhum token de API ainda. Crie um para começar."
 #: packages/admin/src/components/comments/CommentInbox.tsx:539
 msgid "No approved comments yet."
 msgstr "Nenhum comentário aprovado ainda."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:585
+msgid "No built-in passkey authenticator found"
+msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
@@ -6373,7 +6470,7 @@ msgstr "Nenhuma imagem nesta galeria ainda."
 msgid "No installable releases"
 msgstr "Nenhuma versão instalável"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:193
+#: packages/admin/src/components/InviteAcceptPage.tsx:192
 msgid "No invite token provided"
 msgstr "Nenhum token de convite fornecido"
 
@@ -6552,6 +6649,10 @@ msgstr "Nenhum usuário ainda."
 msgid "No widget areas yet. Create one to get started."
 msgstr "Nenhuma área de widgets ainda. Crie uma para começar."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
+msgid "No Windows Hello authenticator found"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:226
 msgid "None"
 msgstr "Nenhum"
@@ -6597,7 +6698,8 @@ msgstr "A autorização OAuth requer HTTPS. Use credenciais manuais."
 msgid "Off"
 msgstr "Desativado"
 
-#: packages/admin/src/components/SeoImageField.tsx:46
+#: packages/admin/src/components/SeoImageField.tsx:47
+#: packages/admin/src/components/SeoImageField.tsx:75
 msgid "OG Image"
 msgstr "Imagem OG"
 
@@ -6609,6 +6711,10 @@ msgstr "Autorize apenas códigos que você reconheça."
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "Apenas endereços de e-mail de domínios permitidos podem se registrar."
 
+#: packages/admin/src/components/media/ImageDropTarget.tsx:53
+msgid "Only image files can be dropped here."
+msgstr ""
+
 #: packages/admin/src/components/MenuList.tsx:162
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "Apenas letras minúsculas, números e hífens"
@@ -6617,7 +6723,7 @@ msgstr "Apenas letras minúsculas, números e hífens"
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "Apenas os tipos MIME listados serão aceitos neste campo."
 
-#: packages/admin/src/components/SignupPage.tsx:419
+#: packages/admin/src/components/SignupPage.tsx:420
 msgid "Oops!"
 msgstr "Ops!"
 
@@ -6644,6 +6750,16 @@ msgstr "Abrir em nova aba"
 #: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "Open setup"
 msgstr "Abrir configuração"
+
+#: packages/admin/src/components/InviteAcceptPage.tsx:83
+#: packages/admin/src/components/SetupWizard.tsx:294
+#: packages/admin/src/components/SignupPage.tsx:237
+msgid "Open the dashboard"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:545
+msgid "Open Windows settings"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1550
 msgid "Open WordPress Profile"
@@ -6698,9 +6814,9 @@ msgstr "Ou clique para navegar. Aceita arquivos .xml exportados do WordPress."
 msgid "or connect by URL"
 msgstr "ou conectar por URL"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:97
+#: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:263
-#: packages/admin/src/components/SetupWizard.tsx:310
+#: packages/admin/src/components/SetupWizard.tsx:307
 msgid "Or continue with"
 msgstr "Ou continue com"
 
@@ -6752,7 +6868,7 @@ msgstr "Propriedade"
 msgid "Package"
 msgstr "Pacote"
 
-#: packages/admin/src/router.tsx:2728
+#: packages/admin/src/router.tsx:2751
 msgid "Page Not Found"
 msgstr "Página não encontrada"
 
@@ -6797,16 +6913,20 @@ msgstr "Aprovar"
 msgid "Passkey added successfully"
 msgstr "Chave de acesso adicionada com sucesso"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:505
+msgid "Passkey created"
+msgstr ""
+
 #: packages/admin/src/components/settings/PasskeyItem.tsx:123
 #: packages/admin/src/components/settings/PasskeyItem.tsx:124
 msgid "Passkey name"
 msgstr "Nome da chave de acesso"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:321
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:761
 msgid "Passkey Name (optional)"
 msgstr "Nome da chave de acesso (opcional)"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:344
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:784
 msgid "Passkey registered successfully!"
 msgstr "Chave de acesso registrada com sucesso!"
 
@@ -6832,13 +6952,8 @@ msgstr "Chaves de acesso ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Chaves de acesso são uma forma segura de entrar na sua conta sem senha. Você pode cadastrar várias chaves de acesso para diferentes dispositivos."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:77
-#: packages/admin/src/components/SignupPage.tsx:229
-msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
-msgstr "Chaves de acesso são uma forma segura de entrar usando a biometria do seu dispositivo, PIN ou chave de segurança."
-
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:302
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:301
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:475
 msgid "Passkeys Not Available Here"
 msgstr "Chaves de acesso não disponíveis aqui"
 
@@ -6920,10 +7035,6 @@ msgstr "Permissões"
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/SetupWizard.tsx:290
-msgid "Pick any method to create your admin account."
-msgstr "Escolha qualquer método para criar sua conta de administrador."
-
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:143
 msgid "Picked up {label}."
 msgstr "{label} foi pego."
@@ -6937,7 +7048,7 @@ msgstr "Texto de espaço reservado"
 msgid "Plain text"
 msgstr "Texto simples"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:166
+#: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
 msgstr "Peça ao seu administrador para enviar um novo convite."
 
@@ -7095,7 +7206,7 @@ msgstr "Posts por página"
 msgid "Pre-release"
 msgstr "Pré-lançamento"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:171
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:326
 msgid "Preparing registration..."
 msgstr "Preparando registro..."
 
@@ -7369,7 +7480,7 @@ msgstr "Atualize a página ou tente novamente."
 msgid "Register"
 msgstr "Cadastrar"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:147
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:273
 #: packages/admin/src/components/settings/SecuritySettings.tsx:182
 msgid "Register Passkey"
 msgstr "Cadastrar chave de acesso"
@@ -7378,11 +7489,11 @@ msgstr "Cadastrar chave de acesso"
 msgid "Registered user"
 msgstr "Usuário cadastrado"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:260
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:419
 msgid "Registration failed"
 msgstr "Falha no registro"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:267
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:426
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "O registro foi cancelado ou expirou. Tente novamente."
 
@@ -7404,13 +7515,13 @@ msgstr "Depois de atualizar o EmDash, recarregue a página antes de tentar novam
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2032
+#: packages/admin/src/components/ContentEditor.tsx:2046
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:471
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:731
-#: packages/admin/src/components/ImageFieldRenderer.tsx:310
-#: packages/admin/src/components/ImageFieldRenderer.tsx:363
-#: packages/admin/src/components/ImageFieldRenderer.tsx:434
+#: packages/admin/src/components/ImageFieldRenderer.tsx:314
+#: packages/admin/src/components/ImageFieldRenderer.tsx:367
+#: packages/admin/src/components/ImageFieldRenderer.tsx:438
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/PortableTextEditor.tsx:4479
 #: packages/admin/src/components/settings/GeneralSettings.tsx:229
@@ -7440,7 +7551,7 @@ msgstr "Remover {0} da seleção"
 msgid "Remove {entry}"
 msgstr "Remover {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2030
+#: packages/admin/src/components/ContentEditor.tsx:2044
 msgid "Remove {label}"
 msgstr "Remover {label}"
 
@@ -7448,7 +7559,7 @@ msgstr "Remover {label}"
 msgid "Remove assignment"
 msgstr "Remover atribuição"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:432
+#: packages/admin/src/components/ImageFieldRenderer.tsx:436
 msgid "Remove dark mode variant"
 msgstr "Remover variante do modo escuro"
 
@@ -7465,8 +7576,8 @@ msgid "Remove from post"
 msgstr "Remover do post"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:528
-#: packages/admin/src/components/ImageFieldRenderer.tsx:308
-#: packages/admin/src/components/SeoImageField.tsx:65
+#: packages/admin/src/components/ImageFieldRenderer.tsx:312
+#: packages/admin/src/components/SeoImageField.tsx:66
 msgid "Remove image"
 msgstr "Remover imagem"
 
@@ -7553,30 +7664,30 @@ msgstr "Repetidor"
 msgid "Repeating group of fields"
 msgstr "Grupo de campos repetidor"
 
-#: packages/admin/src/components/ContentEditor.tsx:2022
-#: packages/admin/src/components/ContentEditor.tsx:2059
+#: packages/admin/src/components/ContentEditor.tsx:2036
+#: packages/admin/src/components/ContentEditor.tsx:2073
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:447
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:504
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:250
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:284
-#: packages/admin/src/components/ImageFieldRenderer.tsx:344
-#: packages/admin/src/components/ImageFieldRenderer.tsx:407
-#: packages/admin/src/components/ImageFieldRenderer.tsx:565
-#: packages/admin/src/components/ImageFieldRenderer.tsx:568
+#: packages/admin/src/components/ImageFieldRenderer.tsx:288
+#: packages/admin/src/components/ImageFieldRenderer.tsx:348
+#: packages/admin/src/components/ImageFieldRenderer.tsx:411
+#: packages/admin/src/components/ImageFieldRenderer.tsx:577
+#: packages/admin/src/components/ImageFieldRenderer.tsx:580
 msgid "Replace"
 msgstr "Substituir"
 
-#: packages/admin/src/components/ContentEditor.tsx:2058
-#: packages/admin/src/components/ImageFieldRenderer.tsx:559
+#: packages/admin/src/components/ContentEditor.tsx:2072
+#: packages/admin/src/components/ImageFieldRenderer.tsx:571
 msgid "Replace {label}"
 msgstr "Substituir {label}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:405
+#: packages/admin/src/components/ImageFieldRenderer.tsx:409
 msgid "Replace dark mode image"
 msgstr "Substituir imagem do modo escuro"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:556
+#: packages/admin/src/components/ImageFieldRenderer.tsx:568
 msgid "Replace dark mode variant for {label}"
 msgstr "Substituir variante do modo escuro de {label}"
 
@@ -7620,7 +7731,7 @@ msgstr "Responder a:"
 msgid "Repository"
 msgstr "Repositório"
 
-#: packages/admin/src/components/SignupPage.tsx:289
+#: packages/admin/src/components/SignupPage.tsx:290
 msgid "Request a new link"
 msgstr "Solicitar um novo link"
 
@@ -7707,7 +7818,7 @@ msgstr "Redimensionar o recorte pelo canto superior esquerdo. Use as teclas de s
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Redimensionar o recorte pelo canto superior direito. Use as teclas de seta para redimensionar."
 
-#: packages/admin/src/components/ContentEditor.tsx:1216
+#: packages/admin/src/components/ContentEditor.tsx:1230
 msgid "Resize settings panel"
 msgstr "Redimensionar painel de configurações"
 
@@ -7758,7 +7869,7 @@ msgstr "Restaurando..."
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2716
+#: packages/admin/src/router.tsx:2739
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Tentar novamente"
@@ -7942,7 +8053,7 @@ msgstr "Salvar (Enter)"
 msgid "Save alt text"
 msgstr "Salvar texto alternativo"
 
-#: packages/admin/src/components/ContentEditor.tsx:1037
+#: packages/admin/src/components/ContentEditor.tsx:1051
 msgid "Save anyway"
 msgstr "Salvar mesmo assim"
 
@@ -8016,6 +8127,10 @@ msgstr "SBOM"
 #: packages/admin/src/components/RegistryPluginDetail.tsx:538
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:645
+msgid "Scan it with a nearby phone or tablet."
+msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Schedule"
@@ -8282,7 +8397,7 @@ msgstr "Título da seção"
 msgid "Sections"
 msgstr "Seções"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:554
 msgid "Secure your account"
 msgstr "Proteja sua conta"
 
@@ -8320,7 +8435,7 @@ msgid "Security contacts"
 msgstr "Contatos de segurança"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:271
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:276
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:435
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Erro de segurança. Certifique-se de estar em uma conexão segura."
 
@@ -8345,9 +8460,9 @@ msgid "Select"
 msgstr "Selecionar"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:2042
-#: packages/admin/src/components/ContentEditor.tsx:2058
-#: packages/admin/src/components/ImageFieldRenderer.tsx:560
+#: packages/admin/src/components/ContentEditor.tsx:2056
+#: packages/admin/src/components/ContentEditor.tsx:2072
+#: packages/admin/src/components/ImageFieldRenderer.tsx:572
 msgid "Select {label}"
 msgstr "Selecionar {label}"
 
@@ -8388,7 +8503,7 @@ msgstr "Selecionar comentário de {0}"
 msgid "Select Content"
 msgstr "Selecionar conteúdo"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:557
+#: packages/admin/src/components/ImageFieldRenderer.tsx:569
 msgid "Select dark mode variant for {label}"
 msgstr "Selecionar a variante para modo escuro de {label}"
 
@@ -8404,7 +8519,7 @@ msgstr "Selecionar favicon"
 msgid "Select Favicon"
 msgstr "Selecionar favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:2046
+#: packages/admin/src/components/ContentEditor.tsx:2060
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 msgid "Select file"
 msgstr "Selecionar arquivo"
@@ -8413,7 +8528,7 @@ msgstr "Selecionar arquivo"
 msgid "Select gallery images"
 msgstr "Selecionar imagens da galeria"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:540
+#: packages/admin/src/components/ImageFieldRenderer.tsx:552
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 #: packages/admin/src/components/PortableTextEditor.tsx:3690
 msgid "Select image"
@@ -8435,8 +8550,7 @@ msgstr "Selecionar logo"
 msgid "Select media"
 msgstr "Selecionar mídia"
 
-#: packages/admin/src/components/SeoImageField.tsx:80
-#: packages/admin/src/components/SeoImageField.tsx:89
+#: packages/admin/src/components/SeoImageField.tsx:85
 msgid "Select OG image"
 msgstr "Selecionar imagem OG"
 
@@ -8454,8 +8568,8 @@ msgstr "Selecionar..."
 msgid "Selected {selectedItemTitle}"
 msgstr "Selecionado: {selectedItemTitle}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:245
-#: packages/admin/src/components/ImageFieldRenderer.tsx:260
+#: packages/admin/src/components/ImageFieldRenderer.tsx:249
+#: packages/admin/src/components/ImageFieldRenderer.tsx:264
 msgid "Selected image"
 msgstr "Imagem selecionada"
 
@@ -8562,7 +8676,12 @@ msgstr "Definir como rascunho"
 msgid "Set up media usage tracking"
 msgstr "Configurar índice de uso da mídia"
 
-#: packages/admin/src/components/SetupWizard.tsx:559
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:534
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:602
+msgid "Set up Windows Hello"
+msgstr ""
+
+#: packages/admin/src/components/SetupWizard.tsx:552
 msgid "Set up your site"
 msgstr "Configure seu site"
 
@@ -8576,8 +8695,8 @@ msgid "Setting up..."
 msgstr "Configurando..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:1084
-#: packages/admin/src/components/ContentEditor.tsx:1380
+#: packages/admin/src/components/ContentEditor.tsx:1098
+#: packages/admin/src/components/ContentEditor.tsx:1394
 #: packages/admin/src/components/ContentTypeEditor.tsx:382
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:491
@@ -8604,7 +8723,7 @@ msgstr "Configurações salvas com sucesso"
 msgid "Setup couldn’t continue. Try again."
 msgstr "Não foi possível continuar a configuração. Tente novamente."
 
-#: packages/admin/src/components/SetupWizard.tsx:468
+#: packages/admin/src/components/SetupWizard.tsx:461
 msgid "Setup failed"
 msgstr "Falha na configuração"
 
@@ -8665,16 +8784,16 @@ msgstr "Exibido para os leitores nesta ordem."
 msgid "Shown when hovering over the image."
 msgstr "Exibido ao passar o mouse sobre a imagem."
 
-#: packages/admin/src/components/SignupPage.tsx:456
+#: packages/admin/src/components/SignupPage.tsx:457
 msgid "Sign in"
 msgstr "Entrar"
 
-#: packages/admin/src/components/SetupWizard.tsx:355
+#: packages/admin/src/components/SetupWizard.tsx:348
 msgid "Sign In"
 msgstr "Entrar"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:162
-#: packages/admin/src/components/SignupPage.tsx:285
+#: packages/admin/src/components/InviteAcceptPage.tsx:161
+#: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
 msgstr "Entrar em vez disso"
 
@@ -8685,7 +8804,7 @@ msgstr "Entre no seu site"
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:264
+#: packages/admin/src/components/SetupWizard.tsx:265
 msgid "Sign in with {0}"
 msgstr "Entre com {0}"
 
@@ -8716,7 +8835,7 @@ msgid "Single line text input"
 msgstr "Entrada de texto de linha única"
 
 #: packages/admin/src/components/Settings.tsx:48
-#: packages/admin/src/components/SetupWizard.tsx:353
+#: packages/admin/src/components/SetupWizard.tsx:346
 msgid "Site"
 msgstr "Site"
 
@@ -8733,7 +8852,7 @@ msgstr "identidade do site aplicada (título, slogan, logo)"
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Identidade do site, logo, favicon e preferências de leitura"
 
-#: packages/admin/src/components/SetupWizard.tsx:351
+#: packages/admin/src/components/SetupWizard.tsx:344
 #: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Site Settings"
 msgstr "Configurações do site"
@@ -8841,8 +8960,8 @@ msgstr "Parte do conteúdo pode ainda não aparecer aqui."
 msgid "Some content types cannot be imported"
 msgstr "Alguns tipos de conteúdo não podem ser importados"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:155
-#: packages/admin/src/components/SignupPage.tsx:278
+#: packages/admin/src/components/InviteAcceptPage.tsx:154
+#: packages/admin/src/components/SignupPage.tsx:279
 msgid "Something went wrong"
 msgstr "Algo deu errado"
 
@@ -8903,7 +9022,7 @@ msgstr "Quadrado (1:1)"
 msgid "Start Import"
 msgstr "Iniciar importação"
 
-#: packages/admin/src/components/ContentEditor.tsx:1549
+#: packages/admin/src/components/ContentEditor.tsx:1563
 #: packages/admin/src/components/PortableTextEditor.tsx:2831
 #: packages/admin/src/components/PortableTextEditor.tsx:2832
 msgid "Start writing, or type '/' for commands"
@@ -9078,6 +9197,22 @@ msgstr "test@example.com"
 msgid "Text formatting"
 msgstr "Formatação de texto"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:200
+msgid "the Android passkey prompt"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:654
+msgid "The browser controls the exact prompt and may offer another compatible method."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:644
+msgid "The browser will usually show a QR code."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
+msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
+msgstr ""
+
 #: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "The cropped image could not be created."
 msgstr "Não foi possível criar a imagem recortada."
@@ -9111,6 +9246,10 @@ msgstr "A última solicitação de mídia falhou. Exibindo a página anterior."
 msgid "The link will expire in 15 minutes."
 msgstr "O link expirará em 15 minutos."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:186
+msgid "the macOS passkey prompt"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:179
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "O marketplace está vazio. Verifique novamente mais tarde para novos plugins."
@@ -9123,9 +9262,13 @@ msgstr "O menu foi excluído."
 msgid "The name of your site, used in the header and metadata"
 msgstr "O nome do seu site, usado no cabeçalho e metadados"
 
-#: packages/admin/src/router.tsx:2730
+#: packages/admin/src/router.tsx:2753
 msgid "The page you're looking for doesn't exist."
 msgstr "A página que você procura não existe."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:684
+msgid "The passkey is saved on your physical security key and can be used on compatible devices."
+msgstr ""
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
 msgid "The plugin field widget failed to render."
@@ -9154,6 +9297,10 @@ msgstr "Não foi possível ler a imagem selecionada."
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
 msgstr "O marketplace de temas está vazio. Verifique novamente mais tarde."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:179
+msgid "the Windows passkey prompt"
+msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:45
 msgid "Theme"
@@ -9207,7 +9354,7 @@ msgstr "Este conteúdo não pode ser editado com segurança"
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Isto não parece uma chave de migração válida. Gere uma nova no plugin e cole a string completa começando com \"em1.\"."
 
-#: packages/admin/src/components/ContentEditor.tsx:1033
+#: packages/admin/src/components/ContentEditor.tsx:1047
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Esta entrada foi alterada em outro lugar depois que você a abriu."
 
@@ -9215,12 +9362,17 @@ msgstr "Esta entrada foi alterada em outro lugar depois que você a abriu."
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "Este campo contém marcações de Portable Text não suportadas: <0>{markList}</0>. Remova-as pela API antes de editar ou salvar este conteúdo."
 
+#. placeholder {0}: file.type
+#: packages/admin/src/components/media/ImageDropTarget.tsx:57
+msgid "This field does not accept {0} files."
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:643
 msgid "This field does not accept {mimeType} files."
 msgstr "Este campo não aceita arquivos {mimeType}."
 
-#: packages/admin/src/components/ContentEditor.tsx:2062
-#: packages/admin/src/components/ImageFieldRenderer.tsx:579
+#: packages/admin/src/components/ContentEditor.tsx:2076
+#: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "This field is required"
 msgstr "Este campo é obrigatório"
 
@@ -9265,7 +9417,7 @@ msgstr "Não foi possível carregar este item de mídia. Tente novamente."
 msgid "This media item no longer exists."
 msgstr "Este item de mídia não existe mais."
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:270
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:429
 msgid "This passkey is already registered on this device."
 msgstr "Esta chave de acesso já está registrada neste dispositivo."
 
@@ -9695,7 +9847,7 @@ msgstr "Até {0}"
 msgid "Untitled"
 msgstr "Sem título"
 
-#: packages/admin/src/components/ContentEditor.tsx:1964
+#: packages/admin/src/components/ContentEditor.tsx:1978
 msgid "Untitled file"
 msgstr "Arquivo sem título"
 
@@ -9842,6 +9994,11 @@ msgstr "Enviado:"
 msgid "Uploading"
 msgstr "Enviando"
 
+#: packages/admin/src/components/media/ImageDropTarget.tsx:132
+#: packages/admin/src/components/media/ImageDropTarget.tsx:145
+msgid "Uploading image…"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:54
 #: packages/admin/src/components/FieldEditor.tsx:266
 #: packages/admin/src/components/FieldEditor.tsx:625
@@ -9910,9 +10067,17 @@ msgstr "O uso pode estar desatualizado."
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Use [param] ou [...rest] nos caminhos para correspondência de padrão."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:623
+msgid "Use a security key"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:639
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
 msgstr "Use uma URL terminada em uma extensão de imagem reconhecida, como .jpg ou .png."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:613
+msgid "Use another device"
+msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:1064
 msgid "Use as end date"
@@ -9942,7 +10107,7 @@ msgstr "Usada como imagem Open Graph de reserva quando uma página não tem nenh
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Usado como identificador. Apenas letras minúsculas, números e sublinhados."
 
-#: packages/admin/src/components/ContentEditor.tsx:1652
+#: packages/admin/src/components/ContentEditor.tsx:1666
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Usado como imagem principal do post nas páginas de listagem e no topo do post"
 
@@ -10013,16 +10178,16 @@ msgstr "Validação"
 msgid "Verify the plugin before installing it"
 msgstr "Verifique o plugin antes de instalar"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:228
+#: packages/admin/src/components/InviteAcceptPage.tsx:227
 msgid "Verifying your invite..."
 msgstr "Verificando seu convite..."
 
-#: packages/admin/src/components/SignupPage.tsx:403
+#: packages/admin/src/components/SignupPage.tsx:404
 msgid "Verifying your link..."
 msgstr "Verificando seu link..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:212
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:216
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
 #: packages/admin/src/components/RegistryPluginDetail.tsx:619
 msgid "Verifying..."
 msgstr "Verificando..."
@@ -10103,13 +10268,17 @@ msgid "Wait for updates already in progress to finish."
 msgstr "Aguarde a conclusão das atualizações já em andamento."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:181
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:185
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:340
 msgid "Waiting for passkey..."
 msgstr "Aguardando chave de acesso..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:335
 msgid "Warn"
 msgstr "Alerta"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:588
+msgid "We checked before opening the browser's passkey prompt so you can choose what happens next."
+msgstr ""
 
 #. placeholder {0}: result.url
 #: packages/admin/src/components/WordPressImport.tsx:1282
@@ -10137,7 +10306,7 @@ msgid "Web address"
 msgstr "Endereço da web"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:160
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:164
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:319
 msgid "WebAuthn is not supported in this browser"
 msgstr "WebAuthn não é suportado neste navegador"
 
@@ -10158,15 +10327,23 @@ msgstr "Boas-vindas ao EmDash, {firstName}!"
 msgid "Welcome to EmDash!"
 msgstr "Boas-vindas ao EmDash!"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:642
+msgid "What happens next?"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2107
 msgid "What happens when you import:"
 msgstr "O que acontece quando você importa:"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:234
+msgid "What is a passkey?"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1890
 msgid "What will happen when you import"
 msgstr "O que acontecerá quando você importar"
 
-#: packages/admin/src/components/ContentEditor.tsx:1034
+#: packages/admin/src/components/ContentEditor.tsx:1048
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "O que você digitou continua aqui. Salvar substitui a versão mais recente."
 
@@ -10181,6 +10358,10 @@ msgstr "Quando a entrada foi modificada pela última vez"
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 msgid "When the entry was published"
 msgstr "Quando a entrada foi publicada"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:246
+msgid "Where is it saved?"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:848
 msgid "Which content types can use this taxonomy"
@@ -10218,7 +10399,7 @@ msgstr "Por que isso é importante para os títulos dos resultados de pesquisa?"
 msgid "Why is this important for search visibility?"
 msgstr "Por que isso é importante para a visibilidade nas pesquisas?"
 
-#: packages/admin/src/components/SeoImageField.tsx:44
+#: packages/admin/src/components/SeoImageField.tsx:45
 msgid "Why is this important for social sharing?"
 msgstr "Por que isso é importante para o compartilhamento social?"
 
@@ -10279,6 +10460,18 @@ msgstr "Será limpo ao salvar"
 #: packages/admin/src/components/WordPressImport.tsx:2030
 msgid "Will create"
 msgstr "Criará"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:558
+msgid "Windows Hello still isn't available to this browser. You can try another device or a security key instead."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:181
+msgid "Windows will show which credential manager will save it before creating it."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:224
+msgid "With a passkey, you don’t need to remember complex passwords"
+msgstr ""
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Without an email provider, invite links must be shared manually."
@@ -10351,6 +10544,10 @@ msgstr "Você ainda pode editar os campos fixos acima. Salvar não altera nenhum
 msgid "You can view and contribute to the site."
 msgstr "Você pode visualizar e contribuir com o site."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:511
+msgid "You can view, rename, or add more passkeys later in Security settings."
+msgstr ""
+
 #: packages/admin/src/components/users/UserDetail.tsx:175
 msgid "You cannot change your own role"
 msgstr "Você não pode alterar sua própria função"
@@ -10376,7 +10573,7 @@ msgstr "Você precisa de permissões de Admin para gerenciar o esquema de crédi
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr "Você precisa de permissões de Admin para gerenciar o índice de uso da mídia."
 
-#: packages/admin/src/router.tsx:2007
+#: packages/admin/src/router.tsx:2030
 msgid "You need Editor permissions to moderate comments."
 msgstr "Você precisa de permissões de Editor para moderar comentários."
 
@@ -10390,11 +10587,11 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "Você não poderá mais usar esta chave de acesso para entrar. Esta ação não pode ser desfeita."
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:55
+#: packages/admin/src/components/InviteAcceptPage.tsx:56
 msgid "You'll be joining as <0>{0}</0>"
 msgstr "Você vai entrar como <0>{0}</0>"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:361
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:801
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "Você será solicitado a usar a autenticação biométrica, chave de segurança ou PIN do seu dispositivo."
 
@@ -10406,11 +10603,11 @@ msgstr "Você será redirecionado ao WordPress para autorizar a conexão."
 msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr "Você vai se cadastrar como <0>{roleName}</0>"
 
-#: packages/admin/src/components/SetupWizard.tsx:564
+#: packages/admin/src/components/SetupWizard.tsx:557
 msgid "You're signed in via Cloudflare Access"
 msgstr "Você está conectado via Cloudflare Access"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:53
+#: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"
 msgstr "Você foi convidado!"
 
@@ -10428,14 +10625,32 @@ msgid "Your account has been created successfully."
 msgstr "Sua conta foi criada com sucesso."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:308
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:481
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "Seu navegador não suporta chaves de acesso. Use um navegador moderno como Chrome, Safari, Firefox ou Edge."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
+msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:188
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:195
+msgid "Your credential manager, such as iCloud Keychain, saves it and may sync it to your other devices."
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:268
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:273
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:432
 msgid "Your device doesn't support the required security features."
 msgstr "Seu dispositivo não suporta os recursos de segurança necessários."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:209
+msgid "Your device's credential manager saves it and will show you where before creating it."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:193
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:207
+msgid "your device's passkey prompt"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:197
 msgid "Your Email"
@@ -10466,8 +10681,8 @@ msgstr "Sua biblioteca de mídia está vazia"
 msgid "Your Name"
 msgstr "Seu nome"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:65
-#: packages/admin/src/components/SignupPage.tsx:217
+#: packages/admin/src/components/InviteAcceptPage.tsx:66
+#: packages/admin/src/components/SignupPage.tsx:218
 msgid "Your name (optional)"
 msgstr "Seu nome (opcional)"
 

@@ -178,9 +178,11 @@ Entry state: `unmanaged`. Kinds: `bug`, `enhancement`, `task`.
 | `investigating` | `agent.skipped` | `blocked` | — |
 | `investigating` | `agent.failed` | `needs_attention` | — |
 | `reproduced` | `work` | `working` | `investigate.work` |
+| `reproduced` | `needs_changes` | `working` | `investigate.work` |
 | `reproduced` | `decline` | `declined` | — |
 | `reproduced` | `take_over` | `human_owned` | — |
 | `diagnosed` | `work` | `working` | `investigate.work` |
+| `diagnosed` | `needs_changes` | `working` | `investigate.work` |
 | `diagnosed` | `decline` | `declined` | — |
 | `diagnosed` | `take_over` | `human_owned` | — |
 | `diagnosed` | `investigate` | `investigating` | `investigate.diagnose` |
@@ -304,9 +306,11 @@ stateDiagram-v2
     investigating --> blocked: agent.skipped
     investigating --> needs_attention: agent.failed
     reproduced --> working: work / investigate.work
+    reproduced --> working: needs_changes / investigate.work
     reproduced --> declined: decline
     reproduced --> human_owned: take_over
     diagnosed --> working: work / investigate.work
+    diagnosed --> working: needs_changes / investigate.work
     diagnosed --> declined: decline
     diagnosed --> human_owned: take_over
     diagnosed --> investigating: investigate / investigate.diagnose

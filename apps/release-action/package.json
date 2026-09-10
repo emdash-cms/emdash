@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/release-action",
-	"version": "0.0.0",
+	"version": "0.0.1",
 	"private": true,
 	"description": "GitHub Action for delegated EmDash plugin releases.",
 	"type": "module",

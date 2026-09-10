@@ -1,14 +1,18 @@
 import { IMAGE_PROMPT_HASH, TEXT_PROMPT_HASH } from "./ai/prompts.js";
+import { unanimousTextModelId } from "./ai/unanimous.js";
 import type { AssessmentVersionSet } from "./assessment/types.js";
 
 const DID_WEB_HOST_RE = /^did:web:([^:]+)$/;
 const VERSION_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+
+export const LABELER_POLICY_EFFECTIVE_AT = "2026-09-09T00:00:00.000Z";
 
 export interface LabelerRuntimeConfig {
 	labelerDid: string;
 	serviceUrl: string;
 	privateKey: string;
 	publicKeyMultibase: string;
+	textModelIds: readonly [string, string];
 	versions: AssessmentVersionSet;
 }
 
@@ -23,24 +27,34 @@ export function readPublicLabelerRuntimeConfig(env: object): PublicLabelerRuntim
 	const labelerDid = readString(env, "LABELER_DID");
 	const serviceUrl = parseServiceUrl(readString(env, "LABELER_SERVICE_URL"));
 	assertDidMatchesService(labelerDid, serviceUrl);
+	const textModelIds = readTextModelIds(env);
 	const versions = readAssessmentVersions(env);
 	return {
 		labelerDid,
 		serviceUrl,
 		publicKeyMultibase: readString(env, "LABEL_SIGNING_PUBLIC_KEY"),
+		textModelIds,
 		versions,
 	};
 }
 
 export function readAssessmentVersions(env: object): AssessmentVersionSet {
+	const textModelIds = readTextModelIds(env);
 	return {
 		policyVersion: readVersion(env, "LABELER_POLICY_VERSION"),
 		parserVersion: readVersion(env, "LABELER_PARSER_VERSION"),
-		textModelId: readModelId(env, "LABELER_TEXT_MODEL_ID"),
+		textModelId: unanimousTextModelId(textModelIds),
 		textPromptHash: TEXT_PROMPT_HASH,
 		imageModelId: readModelId(env, "LABELER_IMAGE_MODEL_ID"),
 		imagePromptHash: IMAGE_PROMPT_HASH,
 	} satisfies AssessmentVersionSet;
+}
+
+function readTextModelIds(env: object): readonly [string, string] {
+	return [
+		readModelId(env, "LABELER_TEXT_MODEL_ID"),
+		readModelId(env, "LABELER_TEXT_VERIFIER_MODEL_ID"),
+	];
 }
 
 function readString(env: object, name: string): string {

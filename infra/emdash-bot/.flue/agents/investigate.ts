@@ -29,6 +29,7 @@ import {
 	requireCandidatePublication,
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
+import { applyCandidateForRevision } from "../lib/candidate-revision.js";
 import { contextRegistry } from "../lib/context-registry.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
@@ -55,6 +56,7 @@ import { buildTimeoutSummaryPrompt, isTimeoutSummaryDelivery } from "../lib/time
 import { untarInto } from "../lib/untar.js";
 import { updateWorkPlan, type WorkPlan } from "../lib/work-plan.js";
 import {
+	attachPublisherWorkspaceWithRetry,
 	attachWorkspaceWithRetry,
 	prepareWorkspaceBeforeModel,
 	WORKSPACE_SANDBOX_ATTEMPT_LIMIT,
@@ -946,7 +948,7 @@ async function attachContainerAttempt(
 		},
 	});
 	if (input.mode === "revise" && input.previousBranchSha) {
-		await applyCandidateForRevision(container, input.previousBranchSha);
+		await applyCandidateForRevision(container, input.previousBranchSha, cloneRef(input));
 	}
 	return {
 		...container,
@@ -960,44 +962,41 @@ async function attachContainerAttempt(
 	};
 }
 
-async function applyCandidateForRevision(
-	container: ContainerBackend,
-	candidateSha: string,
-): Promise<void> {
-	const fetch = await container.exec(
-		`git fetch --depth ${CLONE_DEPTH} origin ${quote(candidateSha)}`,
-		{
-			cwd: REPO_DIR,
-			timeoutMs: 5 * 60_000,
-		},
-	);
-	if (fetch.exitCode !== 0) {
-		throw new Error(`candidate fetch failed (${fetch.exitCode}): ${fetch.stderr.slice(-500)}`);
-	}
-	const apply = await container.exec(
-		[
-			"candidate=FETCH_HEAD",
-			'base="$(git merge-base HEAD "$candidate")"',
-			'test -n "$base"',
-			'git diff --binary "$base" "$candidate" -- > /tmp/emdash-candidate.patch',
-			"git apply --3way --whitespace=nowarn /tmp/emdash-candidate.patch",
-		].join(" && "),
-		{ cwd: REPO_DIR, timeoutMs: 5 * 60_000 },
-	);
-	if (apply.exitCode === 0) return;
-	const conflicts = await container.exec("git ls-files -u", {
-		cwd: REPO_DIR,
-		timeoutMs: DEFAULT_RPC_TIMEOUT_MS,
-	});
-	if (conflicts.exitCode === 0 && conflicts.stdout.trim() !== "") return;
-	throw new Error(`candidate rebase setup failed (${apply.exitCode}): ${apply.stderr.slice(-500)}`);
-}
-
 async function attachPublisherContainer(
 	id: string,
 	input: InvestigateData,
 ): Promise<ContainerBackend> {
-	const container = fromSandbox(workspaceSandbox(`${id}-publisher`));
+	return attachPublisherWorkspaceWithRetry({
+		agentId: id,
+		attach: ({ sandboxId }) => attachPublisherContainerAttempt(sandboxId, input),
+		discard: async ({ sandboxId }) => {
+			await withDeadline(
+				workspaceSandbox(sandboxId).destroy(),
+				DEFAULT_RPC_TIMEOUT_MS,
+				"failed publisher sandbox cleanup",
+			);
+		},
+		onRetry: async ({ attempt, error }) => {
+			console.warn("[investigate] retrying publisher on a fresh sandbox", {
+				runId: input.runId,
+				attempt: attempt + 1,
+				error: errorMessage(error),
+			});
+		},
+		onDiscardFailure: async ({ sandboxId, discardError }) => {
+			console.warn("[investigate] failed publisher sandbox cleanup", {
+				sandboxId,
+				error: errorMessage(discardError),
+			});
+		},
+	});
+}
+
+async function attachPublisherContainerAttempt(
+	id: string,
+	input: InvestigateData,
+): Promise<ContainerBackend> {
+	const container = fromSandbox(workspaceSandbox(id));
 	await prepareContainer(container, input, true);
 	return container;
 }

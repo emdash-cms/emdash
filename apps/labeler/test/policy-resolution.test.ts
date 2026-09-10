@@ -46,7 +46,7 @@ function cleanInput(): AssessmentPolicyInput {
 }
 
 describe("assessment policy resolution", () => {
-	it("requires a manual positive decision during the active rollout", () => {
+	it("requires a manual positive decision when automatic moderation is disabled", () => {
 		expect(resolveAssessmentPolicy(cleanInput())).toMatchObject({
 			outcome: "review",
 			reasonCodes: ["manual-positive-required"],
@@ -54,21 +54,12 @@ describe("assessment policy resolution", () => {
 		});
 	});
 
-	it("does not enable assisted auto-pass without an approved exact promotion", () => {
+	it("passes clean metadata when assisted automatic moderation is enabled", () => {
 		const input = cleanInput();
 		input.policy = { ...input.policy, autoPass: "assisted" };
 		expect(resolveAssessmentPolicy(input)).toMatchObject({
-			outcome: "review",
-			reasonCodes: ["model-promotion-required"],
-		});
-	});
-
-	it("keeps assisted auto-pass unreachable during manual positive enforcement", () => {
-		const input = cleanInput();
-		input.policy = { ...input.policy, autoPass: "assisted" };
-		expect(resolveAssessmentPolicy(input)).toMatchObject({
-			outcome: "review",
-			reasonCodes: ["model-promotion-required"],
+			outcome: "pass",
+			reasonCodes: ["automatic-pass"],
 		});
 	});
 

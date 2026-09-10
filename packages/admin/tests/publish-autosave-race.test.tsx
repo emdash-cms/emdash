@@ -549,6 +549,16 @@ describe("ContentEditPage publish and autosave ordering", () => {
 			data: { title: "After schedule" },
 			_rev: "rev-schedule-1",
 		});
+		await vi.waitFor(() => {
+			expect(
+				queryClient?.getQueryData<ContentItem>([
+					"content",
+					"posts",
+					"post_1",
+					{ locale: undefined },
+				])?.data,
+			).toMatchObject({ title: "After schedule" });
+		});
 
 		const scheduled = screen.getByRole("button", { name: "Scheduled update", exact: true });
 		await expect.element(scheduled).toBeVisible();
@@ -563,9 +573,9 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		await screen.getByRole("textbox", { name: "Title" }).fill("After unschedule");
 		await vi.advanceTimersByTimeAsync(2000);
 		await vi.waitFor(() => {
-			expect(server!.requests.filter((request) => request.method === "PUT")).toHaveLength(4);
+			expect(server!.requests.filter((request) => request.method === "PUT")).toHaveLength(3);
 		});
-		const saveAfterUnschedule = server.requests.filter((request) => request.method === "PUT")[3];
+		const saveAfterUnschedule = server.requests.filter((request) => request.method === "PUT")[2];
 		expect(saveAfterUnschedule?.body).toMatchObject({
 			data: { title: "After unschedule" },
 			_rev: "rev-unschedule-1",
@@ -593,6 +603,64 @@ describe("ContentEditPage publish and autosave ordering", () => {
 			data: { title: "Unscheduled title" },
 			_rev: "rev-initial",
 		});
+	});
+
+	it("flushes the current payload before saving a publication date", async () => {
+		server = createMockServer();
+		let queryClient: ReturnType<typeof createTestQueryClient> | undefined;
+		const screen = await renderEditPage("Publish changes", (client) => {
+			queryClient = client;
+		});
+
+		await screen.getByRole("textbox", { name: "Title" }).fill("Rescued title");
+		await screen.getByRole("button", { name: /Change publication date/ }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+		fireEvent.click(dialog.getByRole("button", { name: "Save date", exact: true }).element());
+
+		await vi.waitFor(() => {
+			expect(
+				server!.requests
+					.filter((request) => request.method === "PUT")
+					.map((request) => (request.body?.publishedAt ? "date" : "save")),
+			).toEqual(["save", "date"]);
+		});
+		const save = server.requests.find(
+			(request) => request.method === "PUT" && !request.body?.publishedAt,
+		);
+		expect(save?.body).toMatchObject({
+			data: { title: "Rescued title" },
+			_rev: "rev-initial",
+		});
+
+		await vi.waitFor(() => {
+			expect(
+				queryClient?.getQueryData<ContentItem>([
+					"content",
+					"posts",
+					"post_1",
+					{ locale: undefined },
+				])?.data,
+			).toMatchObject({ title: "Rescued title" });
+		});
+	});
+
+	it("refuses a publication date change for invalid fields and names the date", async () => {
+		server = createMockServer();
+		const screen = await renderEditPage();
+
+		await screen.getByRole("textbox", { name: "Website" }).fill("not a URL");
+		fireEvent.click(screen.getByRole("button", { name: /Change publication date/ }).element());
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+		fireEvent.click(dialog.getByRole("button", { name: "Save date", exact: true }).element());
+
+		await expect
+			.element(dialog.getByText("Fix invalid fields before changing the publication date"))
+			.toBeVisible();
+		expect(contentMutations(server.requests)).toEqual([]);
 	});
 
 	it("keeps existing bylines after scheduling", async () => {
