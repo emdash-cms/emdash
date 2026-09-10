@@ -1,0 +1,25 @@
+templates/marketing-cloudflare/src/styles/theme.css
+  s_81c53493e8c532::t_b7327cb567e390 45,48,67,70
+templates/marketing-cloudflare/src/styles/tokens.css
+  s_81c53493e8c532::t_1a235b6b232731 145,147-148,155-160,169-170,184,186-187,194-199,208-209
+templates/marketing/src/styles/theme.css
+  s_81c53493e8c532::t_b08b50e547bbee 45,48,67,70
+templates/marketing/src/styles/tokens.css
+  s_81c53493e8c532::t_c00186288daf25 145,147-148,155-160,169-170,184,186-187,194-199,208-209
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0c61a4d7cb4c50ae11e6b4392c61df92e2a368a9",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
