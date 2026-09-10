@@ -141,6 +141,12 @@ const definition: PluginDefinition = {
 				fields: [
 					{ type: "text_input", action_id: "headline", label: "Headline" },
 					{
+						type: "text_input",
+						action_id: "subheadline",
+						label: "Subheadline",
+						multiline: true,
+					},
+					{
 						type: "repeater",
 						action_id: "plans",
 						label: "Plans",

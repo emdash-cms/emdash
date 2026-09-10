@@ -164,6 +164,41 @@
 							]
 						},
 						{
+							"_type": "marketing.pricing",
+							"_key": "pricing",
+							"headline": "Simple, transparent pricing",
+							"subheadline": "No hidden fees. No surprises. Start free and scale as you grow.",
+							"plans": [
+								{
+									"name": "Starter",
+									"price": "$0",
+									"period": "/month",
+									"description": "Perfect for trying things out",
+									"features": "Up to 3 team members\n5 projects\nBasic analytics\nCommunity support\n1GB storage",
+									"ctaLabel": "Get Started",
+									"ctaUrl": "/signup"
+								},
+								{
+									"name": "Pro",
+									"price": "$29",
+									"period": "/user/month",
+									"description": "For growing teams",
+									"features": "Unlimited team members\nUnlimited projects\nAdvanced analytics\nPriority support\n100GB storage\nCustom integrations\nAPI access",
+									"ctaLabel": "Start Free Trial",
+									"ctaUrl": "/signup?plan=pro",
+									"highlighted": true
+								},
+								{
+									"name": "Enterprise",
+									"price": "Custom",
+									"description": "For large organizations",
+									"features": "Everything in Pro\nDedicated support\nCustom contracts\nSLA guarantee\nUnlimited storage",
+									"ctaLabel": "Contact Sales",
+									"ctaUrl": "/contact"
+								}
+							]
+						},
+						{
 							"_type": "marketing.faq",
 							"_key": "faq",
 							"headline": "Frequently asked questions",

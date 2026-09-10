@@ -18,13 +18,16 @@ interface RawPlan {
 
 interface Props {
 	node: {
+		_key?: string;
 		headline?: string;
+		subheadline?: string;
 		plans: RawPlan[];
 	};
 }
 
 const { node } = Astro.props;
-const { headline, plans: rawPlans } = node;
+const { _key, headline, subheadline, plans: rawPlans } = node;
+const headingId = _key ? `${_key}-heading` : undefined;
 
 const plans = rawPlans.map((plan) => {
 	const ctaLabel = plan.ctaLabel?.trim();
@@ -33,218 +36,280 @@ const plans = rawPlans.map((plan) => {
 		...plan,
 		features: (plan.features ?? "")
 			.split("\n")
-			.map((s) => s.trim())
+			.map((feature) => feature.trim())
 			.filter(Boolean),
 		cta: ctaLabel
 			? {
-				label: ctaLabel,
-				url: sanitizeHref(plan.ctaUrl?.trim()),
-			}
+					label: ctaLabel,
+					url: sanitizeHref(plan.ctaUrl?.trim()),
+				}
 			: null,
 	};
 });
 ---
 
-<section class="pricing section">
-	<div class="container">
+<section
+	class:list={["pricing", "section", { "pricing-with-header": headline }]}
+	id={_key}
+	aria-labelledby={headline ? headingId : undefined}
+>
+	<div class="pricing-container">
 		{headline && (
 			<header class="pricing-header">
-				<h2 class="pricing-headline">{headline}</h2>
+				<h2 class="pricing-headline" id={headingId}>{headline}</h2>
+				{subheadline && <p class="pricing-subheadline">{subheadline}</p>}
 			</header>
 		)}
-		<div class="pricing-grid">
-			{plans.map((plan) => (
-				<div class:list={["pricing-card", { "pricing-highlighted": plan.highlighted }]}>
-					{plan.highlighted && <div class="pricing-badge">Most popular</div>}
-					<div class="pricing-plan-header">
-						<h3 class="pricing-name">{plan.name}</h3>
-						<div class="pricing-price">
-							<span class="pricing-amount">{plan.price}</span>
-							{plan.period && <span class="pricing-period">{plan.period}</span>}
-						</div>
-						{plan.description && (
-							<p class="pricing-description">{plan.description}</p>
-						)}
-					</div>
-					<ul class="pricing-features">
-						{plan.features.map((feature) => (
-							<li>
-								<svg class="check-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-									<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-								</svg>
-								{feature}
-							</li>
-						))}
-					</ul>
-					{plan.cta && (
-						<a
-							href={plan.cta.url}
-							class:list={["btn", "btn-lg", "pricing-cta", { "btn-primary": plan.highlighted, "btn-secondary": !plan.highlighted }]}
-						>
-							{plan.cta.label}
-						</a>
-					)}
+		<div class="pricing-stage">
+			<div class="pricing-shell">
+				<div class="pricing-grid">
+					{plans.map((plan) => (
+						<article class:list={["pricing-plan", { "pricing-plan-highlighted": plan.highlighted }]}>
+							<div class="pricing-plan-inner">
+								<header class="pricing-plan-header">
+									<h3 class="pricing-name">{plan.name}</h3>
+									<p class="pricing-price">
+										<span>{plan.price}</span>
+										{plan.period && <span> {plan.period}</span>}
+									</p>
+									{plan.description && <p class="pricing-description">{plan.description}</p>}
+								</header>
+								{plan.cta && (
+									<div class="pricing-action">
+										<a
+											href={plan.cta.url}
+											class:list={["btn", "pricing-cta", { "btn-primary": plan.highlighted, "pricing-cta-neutral": !plan.highlighted }]}
+										>
+											{plan.cta.label}
+										</a>
+									</div>
+								)}
+								<ul class="pricing-features" role="list">
+									{plan.features.map((feature) => (
+										<li>
+											<svg class="check-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+												<path d="M20 6 9 17l-5-5" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" />
+											</svg>
+											<span>{feature}</span>
+										</li>
+									))}
+								</ul>
+							</div>
+						</article>
+					))}
 				</div>
-			))}
+			</div>
 		</div>
 	</div>
 </section>
 
 <style>
 	.pricing.section {
+		position: relative;
+		padding-block: clamp(3rem, 5vw, 4rem) clamp(1.5rem, 3vw, 2rem);
 		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
 	}
 
+	.pricing.section:not(.pricing-with-header) {
+		padding-block: var(--spacing-xl) var(--spacing-lg);
+	}
+
+	.pricing-container {
+		max-width: 64rem;
+		margin-inline: auto;
+		padding-inline: var(--spacing-lg);
+	}
+
 	.pricing-header {
-		max-width: 36rem;
-		margin: 0 auto var(--spacing-3xl);
+		max-width: 42rem;
+		margin-inline: auto;
 		text-align: center;
 	}
 
 	.pricing-headline {
-		font-size: var(--font-size-3xl);
+		font-size: 1.875rem;
 		font-weight: 700;
-		line-height: 1.12;
-		letter-spacing: -0.035em;
+		line-height: 1.2;
+		letter-spacing: -0.03em;
 		text-wrap: balance;
 		overflow-wrap: anywhere;
 	}
 
-	.pricing-grid {
-		display: grid;
-		grid-template-columns: repeat(3, minmax(0, 1fr));
-		gap: var(--spacing-lg);
-		align-items: start;
+	.pricing-subheadline {
+		max-width: 36rem;
+		margin: var(--spacing-md) auto 0;
+		color: var(--color-muted);
+		font-size: var(--font-size-lg);
+		line-height: 1.55;
+		text-wrap: balance;
+		overflow-wrap: anywhere;
 	}
 
-	.pricing-card {
+	.pricing-stage {
 		position: relative;
-		min-width: 0;
-		padding: var(--spacing-xl);
+		container-type: inline-size;
+	}
+
+	.pricing-header + .pricing-stage {
+		margin-block-start: clamp(2.5rem, 5vw, 3.5rem);
+	}
+
+	.pricing-shell {
+		position: relative;
+		max-width: 24rem;
+		margin-inline: auto;
+		color: var(--color-text);
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-lg);
+		border-radius: 12px;
+		box-shadow: var(--shadow-sm);
 	}
 
-	.pricing-highlighted {
+	.pricing-grid {
+		display: grid;
+	}
+
+	.pricing-plan {
+		min-width: 0;
+	}
+
+	.pricing-plan-inner {
+		position: relative;
+	}
+
+	.pricing-plan-highlighted {
+		z-index: 1;
+		margin-inline: -0.25rem;
+		background: var(--color-surface-raised);
+		border: 1px solid transparent;
+		border-radius: var(--radius);
+		box-shadow:
+			0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent),
+			var(--shadow);
+	}
+
+	.pricing-plan-highlighted .pricing-plan-inner {
+		padding-inline: 0.25rem;
+	}
+
+	:global(:root.dark) .pricing-plan-highlighted {
 		background: var(--color-bg);
-		border-color: var(--color-primary);
-		box-shadow: var(--shadow-xl);
-		transform: scale(1.02);
 	}
 
-	.pricing-badge {
-		position: absolute;
-		inset-block-start: 0;
-		inset-inline: 0;
-		width: max-content;
-		margin-inline: auto;
-		transform: translateY(-50%);
-		padding: var(--spacing-xs) var(--spacing-md);
-		font-size: var(--font-size-xs);
-		font-weight: 600;
-		color: var(--button-primary-fg);
-		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-		border-radius: var(--radius-full);
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not(.light)) .pricing-plan-highlighted {
+			background: var(--color-bg);
+		}
 	}
 
 	.pricing-plan-header {
-		text-align: center;
-		padding-bottom: var(--spacing-lg);
-		border-bottom: 1px solid var(--color-border);
+		padding: var(--spacing-xl);
 	}
 
 	.pricing-name {
-		font-size: var(--font-size-lg);
-		font-weight: 700;
-		margin-bottom: var(--spacing-sm);
+		font-size: var(--font-size-base);
+		font-weight: 500;
+		line-height: 1.5;
 		overflow-wrap: anywhere;
 	}
 
 	.pricing-price {
-		display: flex;
-		align-items: baseline;
-		justify-content: center;
-		gap: var(--spacing-xs);
-		margin-bottom: var(--spacing-sm);
-	}
-
-	.pricing-amount {
-		font-size: var(--font-size-4xl);
-		font-weight: 800;
-		letter-spacing: -0.03em;
+		display: block;
+		margin-block: var(--spacing-sm) 0.125rem;
+		font-size: var(--font-size-2xl);
+		font-weight: 600;
+		line-height: 1.35;
+		letter-spacing: -0.02em;
 		overflow-wrap: anywhere;
-	}
-
-	.pricing-period {
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
 	}
 
 	.pricing-description {
-		font-size: var(--font-size-sm);
 		color: var(--color-muted);
-		overflow-wrap: anywhere;
-	}
-
-	.pricing-features {
-		list-style: none;
-		flex: 1;
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-sm);
-	}
-
-	.pricing-features li {
-		display: flex;
-		align-items: flex-start;
-		gap: var(--spacing-sm);
 		font-size: var(--font-size-sm);
+		line-height: 1.45;
 		overflow-wrap: anywhere;
 	}
 
-	.check-icon {
-		width: 18px;
-		height: 18px;
-		flex-shrink: 0;
-		color: var(--color-success);
-		margin-top: 2px;
+	.pricing-action {
+		padding: var(--spacing-md) var(--spacing-xl);
+		border-block: 1px solid var(--color-border);
 	}
 
 	.pricing-cta {
 		width: 100%;
 	}
 
+	.pricing-cta-neutral {
+		color: var(--color-bg);
+		background: var(--color-text);
+	}
+
+	.pricing-cta-neutral:hover {
+		background: color-mix(in srgb, var(--color-text) 88%, var(--color-bg));
+	}
+
+	.pricing-cta-neutral:active {
+		background: color-mix(in srgb, var(--color-text) 78%, var(--color-bg));
+	}
+
+	.pricing-features {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: var(--spacing-xl);
+		list-style: none;
+	}
+
+	.pricing-features li {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		font-size: var(--font-size-base);
+		line-height: 1.5;
+	}
+
+	.pricing-features li span {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.check-icon {
+		width: 0.75rem;
+		height: 0.75rem;
+		flex: 0 0 auto;
+		color: var(--color-primary);
+	}
+
 	@media (min-width: 768px) {
 		.pricing-headline {
-			font-size: var(--font-size-4xl);
+			font-size: 2.25rem;
+			line-height: 1.12;
 		}
 	}
 
 	@media (min-width: 1024px) {
 		.pricing-headline {
-			font-size: var(--font-size-5xl);
+			font-size: 3rem;
+			line-height: 1;
 		}
 	}
 
-	@media (max-width: 900px) {
+	@container (min-width: 56rem) {
+		.pricing-shell {
+			max-width: 100%;
+		}
+
 		.pricing-grid {
-			grid-template-columns: 1fr;
-			max-width: none;
-			margin: 0;
+			grid-template-columns: repeat(3, minmax(0, 1fr));
+			row-gap: var(--spacing-lg);
 		}
 
-		.pricing-highlighted {
-			transform: none;
+		.pricing-plan-highlighted {
+			margin: -0.75rem 0;
 		}
-	}
 
-	@media (max-width: 600px) {
-		.pricing-header {
-			margin-bottom: var(--spacing-2xl);
+		.pricing-plan-highlighted .pricing-plan-inner {
+			padding: 0.75rem 0;
 		}
 	}
 </style>
