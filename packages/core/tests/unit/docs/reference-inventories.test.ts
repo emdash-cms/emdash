@@ -19,7 +19,9 @@ const mcpServerSourceUrl = new URL("../../../src/mcp/server.ts", import.meta.url
 
 function inventoryBlock(source: string, name: "mcp-tool" | "rest-endpoint"): string {
 	const match = source.match(
-		new RegExp(`\\{/\\* ${name}-inventory:start \\*/}([\\s\\S]*?)\\{/\\* ${name}-inventory:end \\*/}`),
+		new RegExp(
+			`\\{/\\* ${name}-inventory:start \\*/}([\\s\\S]*?)\\{/\\* ${name}-inventory:end \\*/}`,
+		),
 	);
 	if (!match?.[1]) throw new Error(`Missing ${name} inventory markers`);
 	return match[1];
@@ -35,9 +37,7 @@ describe("documentation reference inventories", () => {
 	it("lists every static MCP tool with its registered title", async () => {
 		const source = await readFile(mcpReferenceUrl, "utf8");
 		const documented = Array.from(
-			inventoryBlock(source, "mcp-tool").matchAll(
-				/^\| `([^`]+)` \| ([^|]+?) \| `([^`]+)` \|/gm,
-			),
+			inventoryBlock(source, "mcp-tool").matchAll(/^\| `([^`]+)` \| ([^|]+?) \| `([^`]+)` \|/gm),
 			(match) => ({ name: match[1], title: match[2]?.trim(), scope: match[3] }),
 		).toSorted((a, b) => a.name.localeCompare(b.name));
 		const serverSource = await readFile(mcpServerSourceUrl, "utf8");
