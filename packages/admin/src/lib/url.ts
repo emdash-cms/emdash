@@ -12,6 +12,8 @@ export interface ContentUrlOptions {
 		locales: string[];
 		prefixDefaultLocale?: boolean;
 	};
+	/** Entry id used to resolve `{id}` tokens in the pattern. */
+	id?: string;
 	/** Publish date used to resolve `{year}`/`{month}`/... tokens in the pattern. */
 	date?: string | null;
 }
@@ -76,7 +78,8 @@ export function contentUrl(
 	const safe = slug.replace(LEADING_SLASHES, "");
 	// Date tokens resolve against the pattern before the slug is inserted, so
 	// a slug that happens to contain `{year}`-style text stays untouched.
-	const pattern = urlPattern && applyDateTokens(urlPattern, options?.date);
+	let pattern = urlPattern && applyDateTokens(urlPattern, options?.date);
+	if (pattern && options?.id) pattern = pattern.replaceAll("{id}", options.id);
 	const path = pattern ? pattern.replaceAll("{slug}", safe) : `/${collection}/${safe}`;
 	const { locale, i18n } = options ?? {};
 	const shouldPrefix =

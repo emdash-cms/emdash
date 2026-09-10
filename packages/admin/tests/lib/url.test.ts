@@ -43,6 +43,10 @@ describe("contentUrl", () => {
 	it("keeps date tokens literal without a publish date", () => {
 		expect(contentUrl("posts", "hello", "/{year}/{slug}", { date: null })).toBe("/{year}/hello");
 	});
+
+	it("resolves {id} tokens from the entry id", () => {
+		expect(contentUrl("posts", "hello", "/p/{id}", { id: "01ABC" })).toBe("/p/01ABC");
+	});
 });
 
 describe("sanitizeRedirectUrl", () => {

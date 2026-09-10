@@ -1326,6 +1326,7 @@ function ContentListItem({
 							href={contentUrl(collection, item.slug, urlPattern, {
 								locale: item.locale,
 								i18n,
+								id: item.id,
 								date: item.publishedAt,
 							})}
 							external
