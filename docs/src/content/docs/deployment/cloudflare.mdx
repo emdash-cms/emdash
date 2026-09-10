@@ -293,6 +293,26 @@ After deployment, activate the plugin under **Extensions** and select it under *
 
 The plugin uses the binding named `EMAIL` unless its `binding` option names another one. If it is the only active email provider, EmDash selects it automatically. If more than one provider is active, choose the Cloudflare provider under **Settings → Email**. The optional `replyTo` address receives replies without changing the accepted From address.
 
+### Built-in SMTP transport
+
+If you already have SMTP credentials (for example Brevo relay, Office 365, Fastmail, Amazon SES, or a self-hosted Postfix relay), use the SMTP transport built into EmDash instead of Cloudflare Email Sending. It connects through `cloudflare:sockets` on Workers and `node:net`/`node:tls` on Node.
+
+Set these values as Worker secrets or environment variables:
+
+| Variable          | Example                         | Notes                                                    |
+| ----------------- | ------------------------------- | -------------------------------------------------------- |
+| `EMAIL_SMTP_HOST` | `smtp-relay.brevo.com`          | Any SMTP server reachable from your deployment           |
+| `EMAIL_SMTP_PORT` | `587` or `465`                  | 587 uses STARTTLS, 465 uses implicit TLS. Port 25 is refused. |
+| `EMAIL_SMTP_USER` | `you@example.com`               | SMTP auth username                                       |
+| `EMAIL_SMTP_PASS` | `xsmtpsib-…`                    | SMTP auth password (store as a secret)                   |
+| `EMAIL_SMTP_FROM` | `My Site <noreply@example.com>` | Optional default sender; falls back to `EMAIL_SMTP_USER` |
+
+<Aside type="caution">
+	Cloudflare blocks outbound port 25. The transport supports only submission ports 587 (STARTTLS) and 465 (implicit TLS), and always requires TLS before authenticating.
+</Aside>
+
+When configured, the SMTP transport registers as a built-in email provider. A plugin provider you select under **Settings → Email** (such as `cloudflareEmail()`) takes precedence; the SMTP provider is used when it is the only provider or when you select it there.
+
 ## Cloudflare AI Search
 
 The AI Search plugin needs both a native plugin registration and an `ai_search_namespaces` binding. After deploying them, open **Cloudflare AI Search** in the admin, choose the collections, and run **Sync All Content**. The initial sync indexes content published before the plugin was enabled; hooks keep later changes synchronized.
