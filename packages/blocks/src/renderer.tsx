@@ -1,6 +1,7 @@
 import { AccordionBlockComponent } from "./blocks/accordion.js";
 import { ActionsBlockComponent } from "./blocks/actions.js";
 import { BannerBlockComponent } from "./blocks/banner.js";
+import { CardGridBlockComponent } from "./blocks/card-grid.js";
 import { ChartBlockComponent } from "./blocks/chart.js";
 import { CodeBlockComponent } from "./blocks/code.js";
 import { ColumnsBlockComponent } from "./blocks/columns.js";
@@ -59,6 +60,8 @@ function renderBlock(
 			return <EmptyBlockComponent block={block} onAction={onAction} />;
 		case "accordion":
 			return <AccordionBlockComponent block={block} onAction={onAction} />;
+		case "card_grid":
+			return <CardGridBlockComponent block={block} onAction={onAction} />;
 		default: {
 			const _exhaustive: never = block;
 			return null;

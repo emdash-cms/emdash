@@ -135,6 +135,33 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("card_grid", () => {
+			const result = validateBlocks([
+				{
+					type: "card_grid",
+					columns: 2,
+					empty_text: "No cards",
+					cards: [
+						{
+							title: "Analytics",
+							description: "Review site traffic.",
+							image_url: "/analytics.png",
+							image_alt: "Analytics chart",
+							badge: "New",
+							meta: "Reports",
+							actions: [{ type: "button", action_id: "open", label: "Open" }],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("card_grid with empty cards array", () => {
+			const result = validateBlocks([{ type: "card_grid", cards: [] }]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -499,6 +526,30 @@ describe("validateBlocks", () => {
 			]);
 			expect(result.valid).toBe(false);
 			expect(result.errors[0]!.path).toBe("blocks[0].default_open");
+		});
+
+		it("card_grid missing cards", () => {
+			const result = validateBlocks([{ type: "card_grid" }]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]!.path).toBe("blocks[0].cards");
+		});
+
+		it("card_grid validates card fields", () => {
+			const result = validateBlocks([
+				{
+					type: "card_grid",
+					cards: [{ description: 42, actions: [{ type: "select", action_id: "x", label: "X" }] }],
+					columns: 4,
+					empty_text: false,
+				},
+			]);
+			expect(result.valid).toBe(false);
+			const paths = result.errors.map((e) => e.path);
+			expect(paths).toContain("blocks[0].cards[0].title");
+			expect(paths).toContain("blocks[0].cards[0].description");
+			expect(paths).toContain("blocks[0].cards[0].actions[0].type");
+			expect(paths).toContain("blocks[0].columns");
+			expect(paths).toContain("blocks[0].empty_text");
 		});
 
 		it("stats item missing label or value", () => {
