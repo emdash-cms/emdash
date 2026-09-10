@@ -141,6 +141,5 @@ sqlite3 emdash.db ".backup backup.db"
 Back up the local upload directory or S3-compatible bucket separately. To recover, stop every server process, retain a copy of the damaged database, replace it with the verified backup, restore any required media objects, and start the matching application version. Verify sign-in, public content, an edit, and a media read before reopening traffic.
 
 ## JSON exports cannot restore a site
-
 EmDash has no admin action, API endpoint, or CLI command for JSON restore. Use D1 Time Travel, a raw
 D1 SQL dump, or a copy of the SQLite database as described above.

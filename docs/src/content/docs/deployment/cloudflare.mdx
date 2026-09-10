@@ -432,14 +432,20 @@ The preview environment must repeat every binding the preview Worker uses. The c
 
 Use the preview UUID written by Wrangler. Repeat optional KV, AI Search, email, and other bindings when the preview uses those features. Add preview-only secrets with `pnpm wrangler secret put <NAME> --env preview`.
 
-Build for the preview environment, inspect and apply migrations to its D1 binding, then deploy that same build:
+Build once, inspect and apply migrations to the preview D1 binding, then deploy that build to the preview environment:
 
 ```bash
-CLOUDFLARE_ENV=preview pnpm build
-pnpm emdash migrate --status --wrangler-env preview
-pnpm emdash migrate --wrangler-env preview
+pnpm build
+pnpm emdash migrate --status \
+  --wrangler-config wrangler.jsonc \
+  --wrangler-env preview
+pnpm emdash migrate \
+  --wrangler-config wrangler.jsonc \
+  --wrangler-env preview
 pnpm wrangler deploy --env preview
-pnpm emdash migrate --check --wrangler-env preview
+pnpm emdash migrate --check \
+  --wrangler-config wrangler.jsonc \
+  --wrangler-env preview
 ```
 
 Verify the preview URL, admin sign-in, media upload, and any optional binding before sharing it. Never point a preview binding at a production database or bucket.

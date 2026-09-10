@@ -166,6 +166,8 @@ docker compose up -d
 
 Read database and storage credentials from the process environment when the server starts. The following variables support the configuration above:
 
+### Encryption key validation
+
 `EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets or any other stored data. If the variable is set, EmDash checks its format during startup, but plugin secret values remain plaintext in the database.
 
 If you set the variable, generate a valid value and add the result to your environment:

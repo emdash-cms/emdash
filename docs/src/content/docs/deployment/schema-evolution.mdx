@@ -107,10 +107,10 @@ A destructive schema change (removing a field, restructuring a collection) is sa
    npx wrangler d1 execute DB --env preview --remote --file=./prod.sql
    ```
 
-3. Build and deploy with the preview environment selected, then run the schema change against the preview URL:
+3. Build the project, deploy it to the preview environment, then run the schema change against the preview URL:
 
    ```bash
-   CLOUDFLARE_ENV=preview npm run build
+   npm run build
    npx wrangler deploy --env preview
    npx emdash schema remove-field posts legacy_field --url https://preview.example.com
    ```

@@ -3,20 +3,20 @@ title: Preview Mode
 description: Enable secure previews of draft content before publishing.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
 EmDash's preview system lets editors view unpublished content through secure, time-limited URLs. Preview links use HMAC-SHA256 signed tokens that you can share with reviewers without exposing your entire draft content.
 
-## How It Works
+## How preview requests work
 
 1. The admin generates a preview URL for a draft post
 2. The URL contains a signed `_preview` query parameter with an expiration time
 3. EmDash's middleware automatically verifies the token and sets up the request context
 4. Your template code calls `getEmDashEntry()` as normal — draft content is served automatically
 
-Preview is **implicit**. The middleware verifies the token and the query functions read it through `AsyncLocalStorage`, so the same template code serves draft content during a preview and published content otherwise.
+The middleware verifies the token before rendering the page and records which content entry it authorizes. `getEmDashEntry()` reads that request context automatically. The same template therefore serves the draft for a valid, matching preview link and the published entry for an ordinary request. A token for another collection or entry never grants draft access to the requested page.
 
-## Setting Up Preview
+## Set up preview
 
 Preview works as soon as EmDash is installed. On first use, EmDash
 generates a per-site preview secret and stores it in the database, so
@@ -29,7 +29,7 @@ Set `EMDASH_PREVIEW_SECRET` in your environment only if you need to:
 - Pin the secret to a value you control for compliance/audit reasons
 - Migrate to a known value when restoring from a backup
 
-```bash title=".env"
+```dotenv title=".env"
 # Optional: override the auto-generated secret
 EMDASH_PREVIEW_SECRET="your-random-secret-key-here"
 ```
@@ -44,8 +44,6 @@ import { getEmDashEntry } from "emdash";
 
 const { slug } = Astro.params;
 
-// No special preview handling needed — the middleware
-// detects _preview tokens and serves draft content automatically
 const { entry, isPreview, error } = await getEmDashEntry("posts", slug);
 
 if (error) {
@@ -59,7 +57,7 @@ if (!entry) {
 
 {isPreview && (
   <div class="preview-banner">
-    You are viewing a preview. This content is not published.
+    You are viewing the preview version of this page.
   </div>
 )}
 
@@ -68,31 +66,32 @@ if (!entry) {
 </article>
 ```
 
-The `isPreview` flag is `true` when draft content is being served via a valid preview token.
+The `isPreview` flag is `true` when a valid preview token matches the entry returned by the query. Invalid, expired, and non-matching tokens do not expose draft content.
 
-## Generating Preview URLs
+## Generate preview URLs
 
-Use `getPreviewUrl()` to create preview links. The function takes the
-secret as an explicit argument:
+Most editors use **View on site** in the admin. That action calls the preview URL endpoint, which resolves the site secret without exposing it to the browser.
+
+Use `getPreviewUrl()` when server-side application code must create a link. The helper requires the signing secret explicitly. Read secrets from `process.env`, and fail before generating a link if the variable is missing:
 
 ```ts
 import { getPreviewUrl } from "emdash";
 
+const secret = process.env.EMDASH_PREVIEW_SECRET;
+if (!secret) throw new Error("EMDASH_PREVIEW_SECRET is required");
+
 const previewUrl = await getPreviewUrl({
 	collection: "posts",
 	id: "my-draft-post",
-	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
+	secret,
 	expiresIn: "1h",
 });
 // Returns: /posts/my-draft-post?_preview=eyJjaWQ...
 ```
 
-When `EMDASH_PREVIEW_SECRET` isn't set, EmDash auto-generates and stores
-a per-site secret in the database for token verification. The
-`getPreviewUrl()` template helper still requires you to pass the secret
-explicitly — pin your env var if you call it from page templates. Most
-sites use the admin UI's "Generate preview link" button instead, which
-goes through the API and uses the resolved secret automatically.
+When `EMDASH_PREVIEW_SECRET` is unset, the EmDash endpoint generates and stores a per-site secret in the database. The standalone helper cannot read that stored value, so configure the environment variable if application code calls the helper.
+
+The `id` value identifies the authorized content and also replaces `{id}` in the URL path. It can be a database ID or a slug. Use the same identifier that the destination page passes to `getEmDashEntry()`.
 
 Pass `baseUrl` to generate an absolute URL:
 
@@ -100,7 +99,7 @@ Pass `baseUrl` to generate an absolute URL:
 const fullUrl = await getPreviewUrl({
 	collection: "posts",
 	id: "my-draft-post",
-	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
+	secret,
 	baseUrl: "https://example.com",
 });
 // Returns: https://example.com/posts/my-draft-post?_preview=eyJjaWQ...
@@ -112,7 +111,7 @@ Pass `pathPattern` to generate a URL with a custom path:
 const blogUrl = await getPreviewUrl({
 	collection: "posts",
 	id: "my-draft-post",
-	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
+	secret,
 	pathPattern: "/blog/{id}",
 });
 // Returns: /blog/my-draft-post?_preview=eyJjaWQ...
@@ -146,66 +145,72 @@ await getPreviewUrl({
 // Returns: /hello?_preview=...
 ```
 
-The admin's "View on site" link goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`,
-which reads the entry's locale, looks up the site's i18n config and supplies
-the `locale` automatically. To change the default pattern used by that
-endpoint, set `EMDASH_PREVIEW_PATH_PATTERN` (e.g. `/{locale}/{id}`) — request
-bodies still win when they include their own `pathPattern`.
+The admin's **View on site** link goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`. The endpoint uses the entry's database ID and supplies its locale automatically. Set `EMDASH_PREVIEW_PATH_PATTERN` when your public route differs from the default `/{collection}/{id}` pattern. For example, `/{locale}/posts/{id}` produces `/pt-br/posts/01ABC...` for a Portuguese entry and `/posts/01ABC...` for an unprefixed default-locale entry. The destination route can pass that database ID to `getEmDashEntry()`. A `pathPattern` in the request body overrides the environment value.
 
-## Token Expiration
+The endpoint cannot substitute the entry's slug separately from its database ID. If a preview URL must use the slug, generate it in server-side application code with `getPreviewUrl()` and pass the slug as `id`.
+
+The `{locale}` placeholder receives the configured locale code. It does not apply Astro's custom locale `path` mappings. If the public route uses a different segment, call the helper with that segment or provide a route that accepts the locale code used by the admin endpoint.
+
+## Set token expiration
 
 Control how long preview links remain valid:
 
 ```ts
+const preview = {
+	collection: "posts",
+	id: "my-draft-post",
+	secret,
+};
+
 // Valid for 1 hour (default)
-await getPreviewUrl({ ..., expiresIn: "1h" });
+await getPreviewUrl(preview);
 
 // Valid for 30 minutes
-await getPreviewUrl({ ..., expiresIn: "30m" });
+await getPreviewUrl({ ...preview, expiresIn: "30m" });
 
 // Valid for 1 day
-await getPreviewUrl({ ..., expiresIn: "1d" });
+await getPreviewUrl({ ...preview, expiresIn: "1d" });
 
 // Valid for 2 weeks
-await getPreviewUrl({ ..., expiresIn: "2w" });
+await getPreviewUrl({ ...preview, expiresIn: "2w" });
 
 // Valid for 3600 seconds
-await getPreviewUrl({ ..., expiresIn: 3600 });
+await getPreviewUrl({ ...preview, expiresIn: 3600 });
 ```
 
 Supported units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks).
 
-## Verifying Tokens
+## Verify tokens in a custom flow
 
-Use `verifyPreviewToken()` to validate incoming preview requests:
+Normal Astro pages do not call `verifyPreviewToken()`; the EmDash middleware already verifies `_preview`. Use this helper only when code outside that middleware must validate a token:
 
 ```ts
 import { verifyPreviewToken } from "emdash";
 
 // From a URL (extracts _preview query parameter)
-const result = await verifyPreviewToken({
+const fromUrl = await verifyPreviewToken({
 	url: Astro.url,
-	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
+	secret,
 });
 
 // Or with a token directly
-const result = await verifyPreviewToken({
-	token: someTokenString,
-	secret: import.meta.env.EMDASH_PREVIEW_SECRET,
+const fromToken = await verifyPreviewToken({
+	token: Astro.url.searchParams.get("_preview"),
+	secret,
 });
 ```
 
 The result indicates whether the token is valid:
 
 ```ts
-if (result.valid) {
+if (fromUrl.valid) {
 	// Token is valid
-	console.log(result.payload.cid); // "posts:my-draft-post"
-	console.log(result.payload.exp); // Expiry timestamp
-	console.log(result.payload.iat); // Issued-at timestamp
+	console.log(fromUrl.payload.cid); // "posts:my-draft-post"
+	console.log(fromUrl.payload.exp); // Expiry timestamp
+	console.log(fromUrl.payload.iat); // Issued-at timestamp
 } else {
 	// Token is invalid
-	console.log(result.error);
+	console.log(fromUrl.error);
 	// "none" - no token present
 	// "malformed" - token structure is invalid
 	// "invalid" - signature verification failed
@@ -213,14 +218,14 @@ if (result.valid) {
 }
 ```
 
-## Preview Indicator
+## Show a preview indicator
 
-You can show a visual indicator when content is being previewed. The `isPreview` flag returned by `getEmDashEntry` tells you when draft content is being served:
+Use the `isPreview` flag returned by `getEmDashEntry` to show that the page came from a preview request:
 
 ```astro
 {isPreview && (
   <div class="preview-banner" role="alert">
-    <strong>Preview</strong> — You are viewing unpublished content.
+    <strong>Preview</strong> — You are viewing the preview version of this page.
     <a href={Astro.url.pathname}>Exit preview</a>
   </div>
 )}
@@ -231,11 +236,11 @@ You can show a visual indicator when content is being previewed. The `isPreview`
 	that indicates edit/preview mode. You only need a custom preview banner for shared preview links.
 </Aside>
 
-## Helper Functions
+## Inspect preview URLs
 
 ### `isPreviewRequest(url)`
 
-Check if a URL contains a preview token:
+Check whether a URL contains a `_preview` parameter. This does not verify the token:
 
 ```ts
 import { isPreviewRequest } from "emdash";
@@ -269,14 +274,14 @@ const { collection, id } = parseContentId("posts:my-draft-post");
 
 ## Token security
 
-Preview tokens are signed and time-limited. The CLI and the helper functions generate and verify them for you; you do not construct or parse them by hand. A token identifies one entry and stops working after it expires.
+Preview tokens are signed and time-limited. The admin endpoint and helper functions generate and verify them for you; you do not construct or parse them by hand. A token identifies one entry and stops working after it expires.
 
 <Aside type="caution">
 	Keep your `EMDASH_PREVIEW_SECRET` secret. Anyone who has it can generate a
 	valid preview token for any content.
 </Aside>
 
-## Complete Example
+## Complete example
 
 The following page combines preview and visual editing support in a full blog post template:
 
@@ -288,7 +293,6 @@ import { PortableText } from "emdash/ui";
 
 const { slug } = Astro.params;
 
-// Preview is automatic — middleware handles token verification
 const { entry, isPreview, error } = await getEmDashEntry("posts", slug);
 
 if (error) {
@@ -303,7 +307,7 @@ if (!entry) {
 <BaseLayout title={entry.data.title}>
   {isPreview && (
     <div class="preview-banner" role="alert">
-      <strong>Preview</strong> — This content is not published.
+      <strong>Preview</strong> — You are viewing the preview version of this page.
     </div>
   )}
 
@@ -329,7 +333,7 @@ if (!entry) {
 
 Note the `{...entry.edit}` and `{...entry.edit.title}` spreads — these add `data-emdash-ref` attributes that enable visual editing for authenticated editors. In production, they produce no output.
 
-## API Reference
+## API reference
 
 ### `getPreviewUrl(options)`
 
