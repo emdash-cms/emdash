@@ -220,6 +220,17 @@
 									"answer": "Yes, all plans come with a 14-day free trial. No credit card required. You can upgrade, downgrade, or cancel at any time."
 								}
 							]
+						},
+						{
+							"_type": "marketing.cta",
+							"_key": "cta",
+							"mutedHeadline": "Ready to build what matters?",
+							"headline": "Start shipping today.",
+							"body": "Bring your team together, move faster, and stay focused from first idea to launch.",
+							"primaryCtaLabel": "Start Free Trial",
+							"primaryCtaUrl": "/signup",
+							"secondaryCtaLabel": "Request a Demo",
+							"secondaryCtaUrl": "/contact"
 						}
 					]
 				}

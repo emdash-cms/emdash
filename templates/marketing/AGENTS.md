@@ -50,11 +50,11 @@ More structured than the blog and portfolio templates: navy-tinted surfaces, a f
 
 ## Pages
 
-| Page    | Path       | What it shows                                                                                                                    |
-| ------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| Home    | `/`        | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ) authored as a Portable Text document on the Home page |
-| Pricing | `/pricing` | Same block-driven editor -- "Simple, transparent pricing" page using the `pricing` block                                         |
-| Contact | `/contact` | Left column with contact methods (Email / Support / Sales, each with a blue icon), right column with a form                      |
+| Page    | Path       | What it shows                                                                                                                                    |
+| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Home    | `/`        | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ, call to action) authored as a Portable Text document on the Home page |
+| Pricing | `/pricing` | Same block-driven editor -- "Simple, transparent pricing" page using the `pricing` block                                                         |
+| Contact | `/contact` | Left column with contact methods (Email / Support / Sales, each with a blue icon), right column with a form                                      |
 
 There is no posts collection. Content is entirely authored as marketing blocks inside `pages`.
 
@@ -68,15 +68,16 @@ Site settings have `title` and `tagline`. Title renders in the header; tagline i
 
 ## Marketing blocks
 
-This template ships a local plugin at `src/plugins/marketing-blocks/` that registers five Portable Text block types. Editors insert them in the admin's Portable Text editor; they render via `src/components/blocks/{Hero,Features,Testimonials,Pricing,FAQ}.astro` (dispatched from `MarketingBlocks.astro`).
+This template ships a local plugin at `src/plugins/marketing-blocks/` that registers six Portable Text block types. Editors insert them in the admin's Portable Text editor; they render via `src/components/blocks/{Hero,Features,Testimonials,Pricing,FAQ,CallToAction}.astro` (dispatched from `MarketingBlocks.astro`).
 
-| Block                    | Fields                                                                                                                             |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `marketing.hero`         | `headline`, `subheadline`, `primaryCtaLabel`, `primaryCtaUrl`, `secondaryCtaLabel`, `secondaryCtaUrl`, `centered` (toggle)         |
-| `marketing.features`     | `headline`, `subheadline`, repeater of `{ icon, title, description }`                                                              |
-| `marketing.testimonials` | `headline`, repeater of `{ quote, author, role, company, avatar (URL) }`                                                           |
-| `marketing.pricing`      | `headline`, repeater of `{ name, price, period, description, features (newline-separated string), ctaLabel, ctaUrl, highlighted }` |
-| `marketing.faq`          | `headline`, repeater of `{ question, answer }`                                                                                     |
+| Block                    | Fields                                                                                                                                            |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `marketing.hero`         | `headline`, `subheadline`, `primaryCtaLabel`, `primaryCtaUrl`, `secondaryCtaLabel`, `secondaryCtaUrl`, `centered` (toggle)                        |
+| `marketing.features`     | `headline`, `subheadline`, repeater of `{ icon, title, description }`                                                                             |
+| `marketing.testimonials` | `headline`, repeater of `{ quote, author, role, company, avatar (URL) }`                                                                          |
+| `marketing.pricing`      | `headline`, `subheadline`, repeater of `{ name, price, period, description, features (newline-separated string), ctaLabel, ctaUrl, highlighted }` |
+| `marketing.faq`          | `headline`, repeater of `{ question, answer }`                                                                                                    |
+| `marketing.cta`          | `mutedHeadline`, `headline`, `body`, `primaryCtaLabel`, `primaryCtaUrl`, `secondaryCtaLabel`, `secondaryCtaUrl`                                   |
 
 Constraints worth remembering:
 
