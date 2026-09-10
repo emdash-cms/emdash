@@ -31,7 +31,9 @@ beforeAll(async () => {
 });
 
 /** An anonymous GET to an admin page. */
-async function visit(pathname: string): Promise<{ response: Response; next: ReturnType<typeof vi.fn> }> {
+async function visit(
+	pathname: string,
+): Promise<{ response: Response; next: ReturnType<typeof vi.fn> }> {
 	const url = new URL(pathname, "https://site.example.com");
 	const session = {
 		get: vi.fn().mockResolvedValue(null),
@@ -70,6 +72,8 @@ describe("Anonymous access to admin pages", () => {
 		expect(response.status).toBe(302);
 		const location = new URL(response.headers.get("Location")!);
 		expect(location.pathname).toBe("/_emdash/admin/login");
-		expect(location.searchParams.get("redirect")).toBe("/_emdash/admin/content/posts?token=abc&x=1");
+		expect(location.searchParams.get("redirect")).toBe(
+			"/_emdash/admin/content/posts?token=abc&x=1",
+		);
 	});
 });
