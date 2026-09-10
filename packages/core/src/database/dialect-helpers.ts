@@ -207,6 +207,7 @@ export async function listTablesLike(db: Kysely<any>, pattern: string): Promise<
 		const result = await sql<{ table_name: string }>`
 			SELECT table_name FROM information_schema.tables
 			WHERE table_schema = current_schema() AND table_name LIKE ${pattern}
+			ORDER BY table_name
 		`.execute(db);
 		return result.rows.map((r) => r.table_name);
 	}
@@ -214,8 +215,46 @@ export async function listTablesLike(db: Kysely<any>, pattern: string): Promise<
 	const result = await sql<{ name: string }>`
 		SELECT name FROM sqlite_master
 		WHERE type = 'table' AND name LIKE ${pattern}
+		ORDER BY name
 	`.execute(db);
 	return result.rows.map((r) => r.name);
+}
+
+export interface TableColumnInfo {
+	name: string;
+	type: string;
+}
+
+/**
+ * List a table's columns in declaration order.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export async function listTableColumns(
+	db: Kysely<any>,
+	tableName: string,
+): Promise<TableColumnInfo[]> {
+	if (isPostgres(db)) {
+		const result = await sql<{
+			column_name: string;
+			data_type: string;
+		}>`
+			SELECT column_name, data_type
+			FROM information_schema.columns
+			WHERE table_schema = current_schema() AND table_name = ${tableName}
+			ORDER BY ordinal_position
+		`.execute(db);
+		return result.rows.map((column) => ({
+			name: column.column_name,
+			type: column.data_type,
+		}));
+	}
+
+	const result = await sql<{ name: string; type: string }>`
+		SELECT name, type
+		FROM pragma_table_info(${tableName})
+		ORDER BY cid
+	`.execute(db);
+	return result.rows;
 }
 
 /**
