@@ -27,6 +27,7 @@ import { promisify } from "node:util";
 import { decrypt, encrypt } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
 
+import { ENCRYPTION_KEY_PREFIX, parseEncryptionKeys } from "../config/secrets.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import type { Database } from "../database/types.js";
 import type { EmailDeliverEvent, PluginContext } from "./types.js";
@@ -39,15 +40,17 @@ const SMTP_OPTION_PREFIX = "emdash:email:smtp:";
 const SMTP_OPTION_PASSWORD = `${SMTP_OPTION_PREFIX}password`;
 
 /**
- * `EMDASH_ENCRYPTION_KEY` carries the `emdash_enc_v1_` version prefix, but
- * `encrypt()`/`decrypt()` from `@emdash-cms/auth` expect the raw base64url
- * key material. Strip the version prefix before use.
+ * `EMDASH_ENCRYPTION_KEY` may hold a comma-separated key list (rotation);
+ * `encrypt()`/`decrypt()` from `@emdash-cms/auth` expect one raw base64url
+ * key material string. The first key encrypts; all keys are tried for
+ * decryption.
  */
-const ENCRYPTION_KEY_PREFIX = "emdash_enc_v1_";
-function toKeyMaterial(encryptionKey: string): string {
-	return encryptionKey.startsWith(ENCRYPTION_KEY_PREFIX)
-		? encryptionKey.slice(ENCRYPTION_KEY_PREFIX.length)
-		: encryptionKey;
+async function toKeyMaterials(encryptionKey: string): Promise<string[]> {
+	const parsed = await parseEncryptionKeys(encryptionKey);
+	if (!parsed || parsed.length === 0) {
+		throw new Error("EMDASH_ENCRYPTION_KEY is empty");
+	}
+	return parsed.map((k) => k.raw.slice(ENCRYPTION_KEY_PREFIX.length));
 }
 
 // ---------------------------------------------------------------------------
@@ -87,15 +90,23 @@ function concat(chunks: Uint8Array[]): Uint8Array {
 	return out;
 }
 
+/** Byte index of the first CRLF; the buffer is bytes, so a UTF-16 string
+ * index would drift on multi-byte characters in server replies. */
+function indexOfCrlf(buf: Uint8Array): number {
+	for (let i = 0; i + 1 < buf.length; i++) {
+		if (buf[i] === 13 && buf[i + 1] === 10) return i;
+	}
+	return -1;
+}
+
 /** Read until CRLF or buffer exceeds limit. Returns decoded line without CRLF. */
 async function readLine(reader: SocketReader, buffered: Uint8Array[]): Promise<string> {
 	const LIMIT = 8192;
 	while (true) {
 		const joined = concat(buffered);
-		const text = decodeUtf8(joined);
-		const idx = text.indexOf("\r\n");
+		const idx = indexOfCrlf(joined);
 		if (idx >= 0) {
-			const line = text.slice(0, idx);
+			const line = decodeUtf8(joined.slice(0, idx));
 			const rest = joined.slice(idx + 2);
 			buffered.length = 0;
 			if (rest.length > 0) buffered.push(rest);
@@ -127,7 +138,7 @@ async function readReply(
 }
 
 /**
- * Map raw SMTP failures to actionable messages — WP Mail SMTP's approach.
+ * Map raw SMTP failures to actionable messages.
  * The raw server line stays in the message so support can still see it.
  */
 function humanizeSmtpError(code: number, context: string, serverLine: string): string {
@@ -168,17 +179,17 @@ function expectCode(
 }
 
 /**
- * Transcript recorder — WP Mail SMTP's SMTPDebug=3 pattern. Each SMTP step
- * logs what was sent and received so a hang or rejection is debuggable from
- * the worker logs instead of requiring a local repro.
+ * Transcript recorder. Each SMTP step logs what was sent and received so a
+ * hang or rejection is debuggable from the worker logs instead of requiring
+ * a local repro. AUTH credential lines are redacted before recording.
  */
 class SmtpTrace {
 	private readonly events: string[] = [];
 	private readonly start = Date.now();
 
-	record(direction: "send" | "recv", line: string): void {
+	record(direction: "send" | "recv", line: string, sensitive = false): void {
 		const elapsed = Date.now() - this.start;
-		const safe = line.replace(/[\r\n]/g, " ").slice(0, 120);
+		const safe = sensitive ? "[credentials]" : line.replace(/[\r\n]/g, " ").slice(0, 120);
 		this.events.push(`[+${elapsed}ms] ${direction === "send" ? "C>" : "S<"} ${safe}`);
 	}
 
@@ -188,10 +199,25 @@ class SmtpTrace {
 	}
 }
 
-/** Base64 encode ASCII string (SMTP AUTH). */
+/**
+ * SMTP delivery failure with a message that is safe to show to an admin:
+ * a humanized protocol/config error without transcripts or credentials.
+ */
+export class SmtpDeliveryError extends Error {
+	override name = "SmtpDeliveryError";
+}
+
+/** Base64 encode a UTF-8 string (bare `btoa` throws on non-Latin-1 input). */
 function b64(input: string): string {
 	// Workers + Node both have btoa
-	return btoa(input);
+	return btoa(unescape(encodeURIComponent(input)));
+}
+
+/** Base64 encode UTF-8 text and wrap at 76 columns (RFC 2045 body limit). */
+function b64Body(input: string): string {
+	return b64(input)
+		.replace(/.{1,76}/g, "$&\r\n")
+		.trimEnd();
 }
 
 const CRLF_REGEX = /[\r\n]/g;
@@ -211,6 +237,32 @@ function encodeHeader(value: string): string {
 	return `=?UTF-8?B?${btoa(unescape(encodeURIComponent(sanitized)))}?=`;
 }
 
+const ENVELOPE_ADDRESS_REGEX = /^[^\s<>,;"\\]+@[^\s<>,;"\\]+$/;
+
+/**
+ * Validate an address before interpolating it into a MAIL FROM / RCPT TO
+ * wire command. Rejects control characters, whitespace and angle brackets
+ * so a crafted address cannot inject SMTP commands.
+ */
+function assertEnvelopeAddress(address: string, label: string): void {
+	if (!ENVELOPE_ADDRESS_REGEX.test(address)) {
+		throw new SmtpDeliveryError(`Invalid ${label} address for SMTP delivery`);
+	}
+}
+
+/**
+ * Format "Name <email>" for From/Reply-To. An RFC 2047 encoded-word must
+ * not sit inside a quoted string, so non-ASCII names are emitted unquoted
+ * as encoded-words; ASCII names are quoted with `"` and `\` escaped.
+ */
+function formatNameAddress(name: string, email: string): string {
+	const sanitized = sanitizeHeader(name);
+	if (NON_ASCII_REGEX.test(sanitized)) {
+		return `${encodeHeader(sanitized)} <${email}>`;
+	}
+	return `"${sanitized.replace(/[\\"]/g, "\\$&")}" <${email}>`;
+}
+
 const ADDRESS_REGEX = /^\s*(?:"([^"]*)"|([^<]*))?\s*<([^>]+)>\s*$/;
 
 /** Parse "Name <email@example.com>" or bare "email@example.com". */
@@ -223,7 +275,11 @@ function parseAddress(input: string): { email: string; name?: string } {
 	return { email: input.trim() };
 }
 
-/** Build a dot-stuffed MIME body. */
+/**
+ * Build the MIME message. Bodies are base64-encoded and wrapped at 76
+ * columns, so no line ever starts with a dot (no dot-stuffing needed)
+ * and no line exceeds the SMTP 998-octet limit.
+ */
 function buildMime(params: {
 	from: { email: string; name?: string };
 	replyTo?: string;
@@ -234,20 +290,16 @@ function buildMime(params: {
 }): string {
 	const { from, replyTo, to, subject, text, html } = params;
 	const headers: string[] = [
-		`From: ${from.name ? `"${encodeHeader(from.name)}" <${from.email}>` : from.email}`,
-		`To: ${to}`,
+		`From: ${from.name ? formatNameAddress(from.name, from.email) : from.email}`,
+		`To: ${sanitizeHeader(to)}`,
 		`Subject: ${encodeHeader(subject)}`,
 		`Date: ${new Date().toUTCString()}`,
-		`Message-ID: <${crypto.randomUUID()}@emdash>`,
+		`Message-ID: <${crypto.randomUUID()}@${from.email.split("@")[1] || "emdash.invalid"}>`,
 		`MIME-Version: 1.0`,
 	];
 	if (replyTo) {
 		headers.push(`Reply-To: ${encodeHeader(replyTo)}`);
 	}
-
-	// Dot-stuff the raw text BEFORE base64 encoding — the encoded output
-	// has no leading dots, so stuffing must happen on the plain text.
-	const stuffedText = text.replace(/^\./gm, "..");
 
 	let body: string;
 	if (html) {
@@ -258,18 +310,18 @@ function buildMime(params: {
 			`Content-Type: text/plain; charset=utf-8`,
 			`Content-Transfer-Encoding: base64`,
 			``,
-			btoa(unescape(encodeURIComponent(stuffedText))),
+			b64Body(text),
 			`--${boundary}`,
 			`Content-Type: text/html; charset=utf-8`,
 			`Content-Transfer-Encoding: base64`,
 			``,
-			btoa(unescape(encodeURIComponent(html))),
+			b64Body(html),
 			`--${boundary}--`,
 		].join("\r\n");
 	} else {
 		headers.push(`Content-Type: text/plain; charset=utf-8`);
 		headers.push(`Content-Transfer-Encoding: base64`);
-		body = btoa(unescape(encodeURIComponent(stuffedText)));
+		body = b64Body(text);
 	}
 
 	return `${headers.join("\r\n")}\r\n\r\n${body}`;
@@ -422,6 +474,11 @@ async function connectNode(
 				...makeSocket(sock),
 				startTls: () =>
 					new Promise((res, rej) => {
+						// Detach the plaintext listeners first — they share the
+						// read-buffer state with the TLS listeners below and would
+						// otherwise deliver raw TLS record bytes into it.
+						sock.removeAllListeners("data");
+						sock.removeAllListeners("end");
 						const tlsSock = tlsConnect({ socket: sock, servername: host }, () => {
 							chunks.length = 0;
 							tlsSock.on("data", (chunk: Buffer) => {
@@ -512,22 +569,53 @@ export async function loadSmtpConfigFromDb(
 	encryptionKey: string,
 ): Promise<SmtpConfig | null> {
 	const repo = new OptionsRepository(db);
-	const host = await repo.get<string>(`${SMTP_OPTION_PREFIX}host`);
-	if (!host) return null;
+	// One round trip for all fields — this runs on every send.
+	const values = await repo.getMany<string | number>([
+		`${SMTP_OPTION_PREFIX}host`,
+		`${SMTP_OPTION_PREFIX}port`,
+		`${SMTP_OPTION_PREFIX}secure`,
+		`${SMTP_OPTION_PREFIX}user`,
+		SMTP_OPTION_PASSWORD,
+		`${SMTP_OPTION_PREFIX}fromName`,
+		`${SMTP_OPTION_PREFIX}fromEmail`,
+		`${SMTP_OPTION_PREFIX}replyTo`,
+	]);
+	const str = (key: string) => {
+		const value = values.get(key);
+		return typeof value === "string" && value ? value : undefined;
+	};
+	const host = str(`${SMTP_OPTION_PREFIX}host`);
+	const port = Number(values.get(`${SMTP_OPTION_PREFIX}port`)) || undefined;
+	const secureRaw = str(`${SMTP_OPTION_PREFIX}secure`);
+	const secure = secureRaw === "tls" || secureRaw === "starttls" ? secureRaw : undefined;
+	const user = str(`${SMTP_OPTION_PREFIX}user`);
+	const encryptedPass = str(SMTP_OPTION_PASSWORD);
+	const fromName = str(`${SMTP_OPTION_PREFIX}fromName`);
+	const fromEmail = str(`${SMTP_OPTION_PREFIX}fromEmail`);
+	const replyTo = str(`${SMTP_OPTION_PREFIX}replyTo`);
 
-	const port = await repo.get<number>(`${SMTP_OPTION_PREFIX}port`);
-	const secure = await repo.get<"starttls" | "tls">(`${SMTP_OPTION_PREFIX}secure`);
-	const user = await repo.get<string>(`${SMTP_OPTION_PREFIX}user`);
-	const encryptedPass = await repo.get<string>(SMTP_OPTION_PASSWORD);
-	const fromName = await repo.get<string>(`${SMTP_OPTION_PREFIX}fromName`);
-	const fromEmail = await repo.get<string>(`${SMTP_OPTION_PREFIX}fromEmail`);
-	const replyTo = await repo.get<string>(`${SMTP_OPTION_PREFIX}replyTo`);
-
-	if (!port || !secure || !user || !encryptedPass) {
+	if (!host || !port || !secure || !user || !encryptedPass) {
 		return null;
 	}
 
-	const pass = await decrypt(encryptedPass, toKeyMaterial(encryptionKey));
+	// Try every configured key (rotation) — the password may have been
+	// encrypted with a key that is no longer primary.
+	let pass: string | null = null;
+	for (const keyMaterial of await toKeyMaterials(encryptionKey)) {
+		try {
+			pass = await decrypt(encryptedPass, keyMaterial);
+			break;
+		} catch {
+			// Not this key — try the next one.
+		}
+	}
+	if (pass === null) {
+		console.warn(
+			"[email-smtp] Stored SMTP password cannot be decrypted with the configured " +
+				"encryption key(s) — re-save the password in Settings → Email.",
+		);
+		return null;
+	}
 	return {
 		host,
 		port,
@@ -551,7 +639,11 @@ export async function saveSmtpConfigToDb(
 	await repo.set(`${SMTP_OPTION_PREFIX}port`, config.port);
 	await repo.set(`${SMTP_OPTION_PREFIX}secure`, config.secure);
 	await repo.set(`${SMTP_OPTION_PREFIX}user`, config.user);
-	await repo.set(SMTP_OPTION_PASSWORD, await encrypt(config.pass, toKeyMaterial(encryptionKey)));
+	const [primaryKey] = await toKeyMaterials(encryptionKey);
+	if (primaryKey === undefined) {
+		throw new Error("EMDASH_ENCRYPTION_KEY is empty");
+	}
+	await repo.set(SMTP_OPTION_PASSWORD, await encrypt(config.pass, primaryKey));
 	if (config.fromName) {
 		await repo.set(`${SMTP_OPTION_PREFIX}fromName`, config.fromName);
 	} else {
@@ -599,9 +691,9 @@ export async function loadSmtpConfig(
 }
 
 /**
- * WP Mail SMTP's `is_mailer_complete()`: a partial config (host but no
- * password, e.g. a half-saved form) must not even attempt delivery — the
- * resulting 535 is more confusing than a clear "not fully configured" error.
+ * A partial config (host but no password, e.g. a half-saved form) must not
+ * even attempt delivery — the resulting 535 is more confusing than a clear
+ * "not fully configured" error.
  */
 export function isSmtpConfigComplete(config: SmtpConfig | null): config is SmtpConfig {
 	return Boolean(config?.host && config?.port && config?.user && config?.pass);
@@ -614,10 +706,18 @@ export async function deliverSmtp(
 	ctx: PluginContext,
 	connectFn?: ConnectFn,
 ): Promise<void> {
+	if (config.port === 25) {
+		throw new SmtpDeliveryError(
+			"SMTP port 25 is not supported: Cloudflare blocks outbound port 25. " +
+				"Use 587 (STARTTLS) or 465 (implicit TLS) instead.",
+		);
+	}
 	const from = {
 		email: config.fromEmail ?? config.user,
 		...(config.fromName ? { name: config.fromName } : {}),
 	};
+	assertEnvelopeAddress(from.email, "sender");
+	assertEnvelopeAddress(message.to, "recipient");
 	// SMTP timeout must be SHORTER than the hook timeout, otherwise the hook
 	// kills the promise before we can log the transcript. 25s vs 30s hook.
 	const timeoutMs = config.timeoutMs ?? 25_000;
@@ -645,28 +745,32 @@ export async function deliverSmtp(
 
 	let socket: SmtpSocket | null = null;
 	// A throw inside setTimeout never reaches the awaiting promise — it becomes
-	// an unhandled exception and the real delivery keeps hanging until the hook
-	// timeout kills it (which was exactly the "Hook timeout after 30000ms" we
-	// saw live, with no SMTP trace). Race a rejecting timeout promise instead.
+	// an unhandled exception while the real delivery keeps hanging until the
+	// hook timeout kills it, with no SMTP trace. Race a rejecting timeout
+	// promise instead, and race the connect too: a blackholed host must fail
+	// with the same timeout error rather than hanging in connect().
 	let fail!: (error: Error) => void;
 	const timeout = new Promise<never>((_, reject) => {
 		fail = reject;
 	});
 	const timer = setTimeout(() => {
 		socket?.close().catch(() => {});
-		fail(new Error(`SMTP operation timed out after ${timeoutMs}ms`));
+		fail(new SmtpDeliveryError(`SMTP operation timed out after ${timeoutMs}ms`));
 	}, timeoutMs);
 
 	const trace = new SmtpTrace();
+	// Held outside the race so a connect that resolves after the timeout
+	// still gets closed (see finally) instead of leaking the socket.
+	const connecting = connect(config.host, config.port, config.secure);
 	try {
 		// connect() runs outside deliver() so TS's control-flow analysis sees the
 		// socket assignment (closure assignments make `socket` narrow to never).
-		socket = await connect(config.host, config.port, config.secure);
+		socket = await Promise.race([connecting, timeout]);
 		return await Promise.race([deliver(socket), timeout]);
 	} catch (error) {
-		// Attach the SMTP transcript so the failure is debuggable from logs —
-		// a bare "Hook timeout" or "connection closed" says nothing about which
-		// step stalled (WP Mail SMTP's SMTPDebug=3 pattern).
+		// The transcript goes to the server logs only — a bare "Hook timeout"
+		// or "connection closed" says nothing about which step stalled. The
+		// thrown error carries just the humanized message, safe to surface.
 		const detail = error instanceof Error ? error.message : String(error);
 		ctx.log.error("SMTP delivery failed", {
 			error: detail,
@@ -674,18 +778,26 @@ export async function deliverSmtp(
 			port: config.port,
 			trace: trace.tail(),
 		});
-		throw new Error(`${detail} [smtp-trace: ${trace.tail()}]`, { cause: error });
+		throw error instanceof SmtpDeliveryError
+			? error
+			: new SmtpDeliveryError(detail, { cause: error });
 	} finally {
 		clearTimeout(timer);
 		await socket?.close().catch(() => {});
+		void connecting
+			.then((late) => {
+				if (late !== socket) void late.close().catch(() => {});
+				return undefined;
+			})
+			.catch(() => {});
 	}
 
 	async function deliver(sock: SmtpSocket): Promise<void> {
 		let active = sock;
 		const buffered: Uint8Array[] = [];
 
-		const send = async (line: string) => {
-			trace.record("send", line);
+		const send = async (line: string, sensitive = false) => {
+			trace.record("send", line, sensitive);
 			await active.writer.write(encodeUtf8(`${line}\r\n`));
 		};
 		const recv = async (context: string, expected: number | number[]) => {
@@ -716,12 +828,12 @@ export async function deliverSmtp(
 			await recv("EHLO after STARTTLS", 250);
 		}
 
-		// AUTH LOGIN
+		// AUTH LOGIN — credentials are redacted from the trace
 		await send("AUTH LOGIN");
 		await recv("AUTH LOGIN", 334);
-		await send(b64(config.user));
+		await send(b64(config.user), true);
 		await recv("AUTH username", 334);
-		await send(b64(config.pass));
+		await send(b64(config.pass), true);
 		await recv("AUTH password", 235);
 
 		// Envelope
@@ -769,19 +881,22 @@ export function createSmtpEmailDeliver(
 }
 
 /**
- * Build an email:deliver handler that loads the SMTP config lazily from the
- * database on every send. This makes the provider work immediately after
- * the admin saves settings — no runtime restart required.
+ * Build an email:deliver handler that loads the SMTP config lazily on
+ * every send — DB config first (when an encryption key is available to
+ * decrypt the stored password), env vars as fallback. Loading per send
+ * makes admin-saved settings work immediately, no runtime restart.
  */
 export function createSmtpEmailDeliverFromDb(
 	db: Kysely<Database>,
-	encryptionKey: string,
+	encryptionKey: string | null,
 	connectFn?: ConnectFn,
 ): (event: EmailDeliverEvent, ctx: PluginContext) => Promise<void> {
 	return async (event, ctx) => {
-		const config = await loadSmtpConfigFromDb(db, encryptionKey);
+		const config = encryptionKey
+			? await loadSmtpConfig(db, encryptionKey)
+			: loadSmtpConfigFromEnv();
 		if (!isSmtpConfigComplete(config)) {
-			throw new Error(
+			throw new SmtpDeliveryError(
 				"SMTP is not configured. Save host, port, username and password in Settings → Email.",
 			);
 		}

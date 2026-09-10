@@ -64,11 +64,19 @@ export function EmailSettings() {
 		queryFn: fetchEmailSettings,
 	});
 
-	// Sync form state from fetched settings
+	// Sync form state from fetched settings. Saved transport config is
+	// prefilled regardless of which provider is selected, so switching back
+	// to a previously configured provider does not require retyping.
 	React.useEffect(() => {
 		if (!settings) return;
 		if (settings.selectedProviderId === "emdash-smtp") {
 			setProvider("smtp");
+		} else if (settings.selectedProviderId === "emdash-cloudflare-email") {
+			setProvider("cloudflare");
+		} else {
+			setProvider("none");
+		}
+		if (settings.smtp.configured) {
 			if (settings.smtp.host) setSmtpHost(settings.smtp.host);
 			if (settings.smtp.port) setSmtpPort(String(settings.smtp.port));
 			if (settings.smtp.secure) setSmtpSecure(settings.smtp.secure);
@@ -76,13 +84,11 @@ export function EmailSettings() {
 			if (settings.smtp.fromName) setSmtpFromName(settings.smtp.fromName);
 			if (settings.smtp.fromEmail) setSmtpFromEmail(settings.smtp.fromEmail);
 			if (settings.smtp.replyTo) setSmtpReplyTo(settings.smtp.replyTo);
-		} else if (settings.selectedProviderId === "emdash-cloudflare-email") {
-			setProvider("cloudflare");
+		}
+		if (settings.cloudflare.configured) {
 			if (settings.cloudflare.fromName) setCfFromName(settings.cloudflare.fromName);
 			if (settings.cloudflare.fromEmail) setCfFromEmail(settings.cloudflare.fromEmail);
 			if (settings.cloudflare.replyTo) setCfReplyTo(settings.cloudflare.replyTo);
-		} else {
-			setProvider("none");
 		}
 	}, [settings]);
 
@@ -323,7 +329,7 @@ export function EmailSettings() {
 											label={t`Sender name (optional)`}
 											value={smtpFromName}
 											onChange={(event) => setSmtpFromName(event.target.value)}
-											placeholder="Site Name"
+											placeholder={t`Site Name`}
 										/>
 										<Input
 											label={t`Sender email (optional)`}
@@ -356,7 +362,7 @@ export function EmailSettings() {
 											label={t`Sender name`}
 											value={cfFromName}
 											onChange={(event) => setCfFromName(event.target.value)}
-											placeholder="John Doe"
+											placeholder={t`Jane Doe`}
 											required
 										/>
 										<Input

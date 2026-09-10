@@ -49,6 +49,7 @@ function createTestHook<T>(
 		dependencies: [],
 		errorPolicy: "continue",
 		exclusive: false,
+		autoSelect: true,
 		...overrides,
 	};
 }

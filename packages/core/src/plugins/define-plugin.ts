@@ -272,6 +272,7 @@ function resolveHook<THandler>(
 			dependencies: hook.dependencies ?? [],
 			errorPolicy: hook.errorPolicy ?? "abort",
 			exclusive: hook.exclusive ?? false,
+			autoSelect: hook.autoSelect ?? true,
 			handler: hook.handler,
 			pluginId,
 		};
@@ -284,6 +285,7 @@ function resolveHook<THandler>(
 		dependencies: [],
 		errorPolicy: "abort",
 		exclusive: false,
+		autoSelect: true,
 		handler: hook,
 		pluginId,
 	};

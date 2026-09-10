@@ -185,10 +185,13 @@ export async function loadCloudflareConfig(
  * Create the built-in Cloudflare Email provider plugin.
  *
  * Always registered (even without config) so it appears in the provider
- * list. The handler fails with a clear error if the binding is missing
- * or the config is incomplete.
+ * list, but only auto-selected when env vars configure it — otherwise it
+ * activates via explicit selection in Settings → Email. The handler loads
+ * the config lazily per send, so admin-saved settings apply without a
+ * restart, and fails with a clear error if the binding is missing or the
+ * config is incomplete.
  */
-export function createCloudflareEmailPlugin(config: CloudflareEmailConfig | null): ResolvedPlugin {
+export function createCloudflareEmailPlugin(db: Kysely<Database>): ResolvedPlugin {
 	return definePlugin({
 		id: CLOUDFLARE_EMAIL_PLUGIN_ID,
 		version: "1.0.0",
@@ -196,7 +199,9 @@ export function createCloudflareEmailPlugin(config: CloudflareEmailConfig | null
 		hooks: {
 			"email:deliver": {
 				exclusive: true,
+				autoSelect: Boolean(loadCloudflareConfigFromEnv()),
 				handler: async (event: EmailDeliverEvent, ctx: PluginContext) => {
+					const config = await loadCloudflareConfig(db);
 					if (!config) {
 						throw new Error(
 							"[cloudflare-email] Not configured — set sender name and email in " +

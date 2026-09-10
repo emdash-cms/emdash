@@ -236,17 +236,43 @@ describe("createCloudflareEmailDeliver", () => {
 });
 
 describe("createCloudflareEmailPlugin", () => {
-	it("returns a plugin with the correct ID", () => {
-		const plugin = createCloudflareEmailPlugin(baseConfig);
-		expect(plugin.id).toBe(CLOUDFLARE_EMAIL_PLUGIN_ID);
+	it("returns a plugin with the correct ID", async () => {
+		const db = await setupTestDatabase();
+		try {
+			const plugin = createCloudflareEmailPlugin(db);
+			expect(plugin.id).toBe(CLOUDFLARE_EMAIL_PLUGIN_ID);
+		} finally {
+			await teardownTestDatabase(db);
+		}
 	});
 
-	it("throws when config is null and handler is invoked", async () => {
-		const plugin = createCloudflareEmailPlugin(null);
-		const hook = plugin.hooks["email:deliver"];
-		expect(hook).toBeDefined();
-		await expect(
-			hook!.handler({ message: makeMessage(), source: "test" }, mockCtx),
-		).rejects.toThrow(/Not configured/);
+	it("throws when unconfigured and handler is invoked", async () => {
+		const db = await setupTestDatabase();
+		try {
+			const plugin = createCloudflareEmailPlugin(db);
+			const hook = plugin.hooks["email:deliver"];
+			expect(hook).toBeDefined();
+			await expect(
+				hook!.handler({ message: makeMessage(), source: "test" }, mockCtx),
+			).rejects.toThrow(/Not configured/);
+		} finally {
+			await teardownTestDatabase(db);
+		}
+	});
+
+	it("delivers with config saved after plugin creation (no restart needed)", async () => {
+		const db = await setupTestDatabase();
+		try {
+			const plugin = createCloudflareEmailPlugin(db);
+			await saveCloudflareConfigToDb(db, baseConfig);
+			const hook = plugin.hooks["email:deliver"];
+			// Not on Workers: the lazy config load succeeds, then the env
+			// lookup fails — proving the handler read the fresh DB config.
+			await expect(
+				hook!.handler({ message: makeMessage(), source: "test" }, mockCtx),
+			).rejects.toThrow(/Worker env is not available/);
+		} finally {
+			await teardownTestDatabase(db);
+		}
 	});
 });

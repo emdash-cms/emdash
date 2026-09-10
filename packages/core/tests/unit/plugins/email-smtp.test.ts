@@ -252,7 +252,7 @@ describe("deliverSmtp", () => {
 		);
 	});
 
-	it("dot-stuffs lines starting with a period", async () => {
+	it("transmits body lines starting with a period intact", async () => {
 		const script = [
 			makeReply(220, "ready"),
 			makeReply(250, "EHLO ok"),
@@ -277,16 +277,20 @@ describe("deliverSmtp", () => {
 			connectFn,
 		);
 
-		// Dot-stuffing applies to the raw MIME before base64 encoding. The
-		// encoded body contains no leading dots, so we verify the stuffed
-		// line is present in the decoded text.
+		// The body is base64-encoded, so no transmitted line can start with
+		// a period — the DATA terminator cannot be spoofed and no stuffing
+		// is needed. The decoded content must round-trip unchanged.
 		const transcript = written.join("");
 		const plainPartStart = transcript.indexOf("Content-Type: text/plain");
 		const plainBodyStart = transcript.indexOf("\r\n\r\n", plainPartStart) + 4;
 		const plainBodyEnd = transcript.indexOf("\r\n--", plainBodyStart);
 		const encodedBody = transcript.slice(plainBodyStart, plainBodyEnd);
+		for (const line of encodedBody.split("\r\n")) {
+			expect(line.startsWith(".")).toBe(false);
+			expect(line.length).toBeLessThanOrEqual(76);
+		}
 		const decodedBody = Buffer.from(encodedBody, "base64").toString("utf-8");
-		expect(decodedBody).toContain("Line one\n..Line two starts with dot\nLine three");
+		expect(decodedBody).toBe("Line one\n.Line two starts with dot\nLine three");
 	});
 });
 
@@ -358,6 +362,22 @@ describe("loadSmtpConfigFromDb / saveSmtpConfigToDb / clearSmtpConfigFromDb", ()
 		const loaded = await loadSmtpConfigFromDb(db, TEST_ENCRYPTION_KEY);
 
 		expect(loaded).toEqual(input);
+	});
+
+	it("decrypts a password encrypted with a rotated (non-primary) key", async () => {
+		const rotatedList = `emdash_enc_v1_kBb9BcXJ0v3n8Qq2mZxWlY4rT6uHsD1eFgA5cN7iPjM,${TEST_ENCRYPTION_KEY}`;
+		const input: SmtpConfig = {
+			host: "smtp.example.com",
+			port: 587,
+			secure: "starttls",
+			user: "user@example.com",
+			pass: "super-secret",
+		};
+
+		await saveSmtpConfigToDb(db, TEST_ENCRYPTION_KEY, input);
+		const loaded = await loadSmtpConfigFromDb(db, rotatedList);
+
+		expect(loaded?.pass).toBe("super-secret");
 	});
 
 	it("encrypts the password in the database", async () => {
@@ -467,12 +487,6 @@ describe("Cloudflare socket edge cases", () => {
 	};
 
 	it("performs the full STARTTLS upgrade flow (re-EHLO, AUTH)", async () => {
-		// The Cloudflare STARTTLS path stalled after the upgrade. This verifies
-		// the deliverSmtp-level flow — the upgraded
-		// socket takes over reads/writes and the buffer resets. The
-		// writer-release fix itself lives in connectCloudflare and was
-		// verified against live Workers; it cannot be exercised here because
-		// a connectFn mock bypasses connectCloudflare entirely.
 		const script = [
 			makeReply(220, "ready"),
 			makeReply(250, "EHLO ok"),
@@ -549,9 +563,9 @@ describe("Cloudflare socket edge cases", () => {
 		expect(tlsWrites.join("")).toContain("QUIT\r\n");
 	});
 
-	it("attaches the SMTP transcript to errors for debugging", async () => {
-		// WP Mail SMTP's SMTPDebug=3 pattern: when delivery fails, the error
-		// must include the transcript so the failure is debuggable from logs.
+	it("logs the SMTP transcript but keeps it out of the thrown error", async () => {
+		// The transcript is for server logs; the thrown message is surfaced
+		// to admins and must stay free of wire details and credentials.
 		const script = [makeReply(554, "Service unavailable")];
 		const { socket } = mockSocket(script);
 		const connectFn = vi.fn(async () => socket);
@@ -562,15 +576,68 @@ describe("Cloudflare socket edge cases", () => {
 		} catch (error) {
 			const err = error as Error;
 			expect(err.message).toContain("greeting failed");
-			expect(err.message).toContain("[smtp-trace:");
 			expect(err.message).toContain("554");
+			expect(err.message).not.toContain("[smtp-trace:");
 		}
+		expect(mockCtx.log.error).toHaveBeenCalledWith(
+			"SMTP delivery failed",
+			expect.objectContaining({ trace: expect.stringContaining("554") }),
+		);
 	});
 
-	it("uses 25s timeout so hook timeout (30s) does not swallow the error", async () => {
-		// If SMTP timeout == hook timeout, the hook kills the promise before
-		// our own error with transcript can be thrown. This test verifies
-		// the timeout is shorter than 30s by using a short test timeout.
+	it("redacts AUTH credentials from the logged transcript", async () => {
+		const script = [
+			makeReply(220, "ready"),
+			makeReply(250, "EHLO ok"),
+			makeReply(220, "TLS go"),
+			makeReply(250, "EHLO ok"),
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(535, "Authentication credentials invalid"),
+		];
+		const { socket } = mockSocket(script);
+		const connectFn = vi.fn(async () => socket);
+
+		await expect(deliverSmtp(baseConfig, message, mockCtx, connectFn)).rejects.toThrow(
+			/Authentication failed/,
+		);
+
+		const logCall = vi
+			.mocked(mockCtx.log.error)
+			.mock.calls.findLast(([msg]) => msg === "SMTP delivery failed");
+		expect(logCall).toBeDefined();
+		const trace = (logCall![1] as { trace: string }).trace;
+		expect(trace).toContain("[credentials]");
+		expect(trace).not.toContain(btoa(baseConfig.user));
+		expect(trace).not.toContain(btoa(baseConfig.pass));
+	});
+
+	it("rejects envelope addresses that could inject SMTP commands", async () => {
+		const { socket } = mockSocket([]);
+		const connectFn = vi.fn(async () => socket);
+
+		await expect(
+			deliverSmtp(
+				baseConfig,
+				{ ...message, to: "victim@example.com>\r\nRCPT TO:<evil@example.com" },
+				mockCtx,
+				connectFn,
+			),
+		).rejects.toThrow(/Invalid recipient address/);
+		expect(connectFn).not.toHaveBeenCalled();
+	});
+
+	it("refuses port 25 regardless of config source", async () => {
+		const { socket } = mockSocket([]);
+		const connectFn = vi.fn(async () => socket);
+
+		await expect(
+			deliverSmtp({ ...baseConfig, port: 25 }, message, mockCtx, connectFn),
+		).rejects.toThrow(/port 25/);
+		expect(connectFn).not.toHaveBeenCalled();
+	});
+
+	it("fails with its own timeout error when the server never responds", async () => {
 		const { socket } = mockSocket([]);
 
 		// Mock a socket that never responds — should hit our timeout, not the hook's

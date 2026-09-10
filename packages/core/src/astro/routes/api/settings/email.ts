@@ -24,6 +24,7 @@ import {
 	loadSmtpConfigFromEnv,
 	saveSmtpConfigToDb,
 	SMTP_EMAIL_PLUGIN_ID,
+	SmtpDeliveryError,
 } from "#plugins/email-smtp.js";
 import { EXCLUSIVE_HOOK_NONE_VALUE } from "#plugins/hooks.js";
 
@@ -108,13 +109,13 @@ export const GET: APIRoute = async ({ locals }) => {
 			host?: string;
 			port?: number;
 			secure?: "starttls" | "tls";
+			user?: string;
 			fromName?: string;
 			fromEmail?: string;
 			replyTo?: string;
 		} = { configured: false, source: null };
 		try {
-			const encryptionKey =
-				import.meta.env.EMDASH_ENCRYPTION_KEY ?? process.env.EMDASH_ENCRYPTION_KEY;
+			const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
 			const dbConfig = encryptionKey ? await loadSmtpConfigFromDb(emdash.db, encryptionKey) : null;
 			const envConfig = loadSmtpConfigFromEnv();
 
@@ -233,12 +234,14 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			message: `Test email sent to ${body.to}`,
 		});
 	} catch (error) {
-		// Surface the underlying delivery error so the admin can act on it —
-		// e.g. "535 authentication failed" vs "connection refused" need very
-		// different fixes. Never expose raw stack traces; only the message.
-		const detail = error instanceof Error ? error.message : String(error);
-		console.error("[EMAIL_TEST_ERROR]", error);
-		return apiError("EMAIL_TEST_ERROR", `Failed to send test email: ${detail}`, 502);
+		// SmtpDeliveryError messages are humanized and credential-free, so the
+		// admin can act on them (auth rejected vs relay denied vs timeout).
+		// Anything else goes through the generic handler.
+		if (error instanceof SmtpDeliveryError) {
+			console.error("[EMAIL_TEST_ERROR]", error);
+			return apiError("EMAIL_TEST_ERROR", `Failed to send test email: ${error.message}`, 502);
+		}
+		return handleError(error, "Failed to send test email", "EMAIL_TEST_ERROR");
 	}
 };
 
@@ -291,8 +294,7 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 		const body = await parseBody(request, emailSettingsBody);
 		if (isParseError(body)) return body;
 
-		const encryptionKey =
-			import.meta.env.EMDASH_ENCRYPTION_KEY ?? process.env.EMDASH_ENCRYPTION_KEY;
+		const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
 		const optionsRepo = new OptionsRepository(emdash.db);
 		const optionKey = `emdash:exclusive_hook:${EMAIL_DELIVER_HOOK}`;
 
