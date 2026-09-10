@@ -1,695 +1,555 @@
 ---
-title: Seed File Format
-description: Reference for EmDash seed file structure and syntax.
+title: Seed Files
+description: Reference for the EmDash seed format, validation, references, and apply behavior.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-Seed files are JSON documents that bootstrap EmDash sites. They define collections, fields, taxonomies, menus, redirects, widget areas, site settings, and optional sample content.
+A seed file describes the initial model and optional sample data for an EmDash site. Current templates store it at `seed/seed.json` and point to it with `package.json#emdash.seed`.
 
-## Root Structure
+EmDash embeds the seed at build time. It is intended for first setup and explicit seed commands, not as a migration that runs on every deployment.
 
-A seed file has the following top-level shape:
+## File discovery
 
-```json
+The Astro integration searches for a seed in this order:
+
+1. `.emdash/seed.json`.
+2. The path in `package.json#emdash.seed`.
+3. `seed/seed.json`.
+4. The built-in default seed when no user seed exists.
+
+The following package field selects the conventional template path:
+
+```json title="package.json"
 {
-	"$schema": "https://emdashcms.com/seed.schema.json",
-	"version": "1",
-	"meta": {},
-	"settings": {},
-	"collections": [],
-	"taxonomies": [],
-	"bylines": [],
-	"menus": [],
-	"redirects": [],
-	"widgetAreas": [],
-	"sections": [],
-	"content": {}
+  "emdash": {
+    "seed": "seed/seed.json"
+  }
 }
 ```
 
-| Field         | Type     | Required | Description                           |
-| ------------- | -------- | -------- | ------------------------------------- |
-| `$schema`     | `string` | No       | JSON schema URL for editor validation |
-| `version`     | `"1"`    | Yes      | Seed format version                   |
-| `meta`        | `object` | No       | Metadata about the seed               |
-| `settings`    | `object` | No       | Site settings                         |
-| `collections` | `array`  | No       | Collection definitions                |
-| `taxonomies`  | `array`  | No       | Taxonomy definitions                  |
-| `bylines`     | `array`  | No       | Byline profile definitions            |
-| `menus`       | `array`  | No       | Navigation menus                      |
-| `redirects`   | `array`  | No       | Redirect rules                        |
-| `widgetAreas` | `array`  | No       | Widget area definitions               |
-| `sections`    | `array`  | No       | Reusable content blocks               |
-| `content`     | `object` | No       | Sample content entries                |
+## Root shape
 
-## Meta
+The following example contains every root property:
 
-The `meta` object holds optional descriptive metadata about the seed:
-
-```json
+```json title="seed/seed.json"
 {
-	"meta": {
-		"name": "Blog Starter",
-		"description": "A simple blog with posts, pages, and categories",
-		"author": "EmDash"
-	}
+  "$schema": "https://emdashcms.com/seed.schema.json",
+  "version": "1",
+  "defaultLocale": "en",
+  "meta": {
+    "name": "Publication",
+    "description": "A publication seed",
+    "author": "Example Studio"
+  },
+  "settings": {},
+  "collections": [],
+  "taxonomies": [],
+  "bylines": [],
+  "content": {},
+  "menus": [],
+  "redirects": [],
+  "widgetAreas": [],
+  "sections": []
 }
 ```
+
+| Property | Required | Purpose |
+| --- | --- | --- |
+| `$schema` | No | Editor schema URL |
+| `version` | Yes | Seed format; the only accepted value is `"1"` |
+| `defaultLocale` | No | Locale for locale-bearing rows that omit `locale`; defaults to runtime configuration, then `en` |
+| `meta` | No | Descriptive name, description, and author shown during setup |
+| `settings` | No | Partial site settings |
+| `collections` | No | Collection and field definitions |
+| `taxonomies` | No | Taxonomy definitions and optional terms |
+| `bylines` | No | Optional presentation-credit profiles |
+| `content` | No | Sample entries grouped by collection slug |
+| `menus` | No | Menus and nested items |
+| `redirects` | No | Local redirect rules |
+| `widgetAreas` | No | Widget areas and widgets |
+| `sections` | No | Reusable Portable Text sections |
+
+`defaultLocale` must be a non-empty string without leading or trailing whitespace.
 
 ## Settings
 
-The `settings` object holds site-wide configuration values:
+`settings` is a partial site-settings object. Common properties are `title`, `tagline`, `logo`, `favicon`, `url`, `postsPerPage`, `dateFormat`, `timezone`, `social`, and `seo`.
 
-```json
+The setup wizard lets the administrator replace the seeded title and tagline. Applying a seed programmatically writes every supplied setting regardless of `onConflict`.
+
+```json title="seed/seed.json"
 {
-	"settings": {
-		"title": "My Site",
-		"tagline": "A modern CMS",
-		"postsPerPage": 10,
-		"dateFormat": "MMMM d, yyyy"
-	}
+  "version": "1",
+  "settings": {
+    "title": "Field Notes",
+    "tagline": "Reports from the team",
+    "postsPerPage": 12,
+    "dateFormat": "MMMM d, yyyy",
+    "timezone": "Europe/London"
+  }
 }
 ```
-
-Settings are applied to the `options` table with the `site:` prefix. The Setup Wizard will prefill `title` and `tagline` from the seed file (if provided), allowing users to override them during initial setup.
 
 ## Collections
 
-Each collection definition creates a content type in the database:
+A collection requires `slug`, `label`, and `fields`:
 
-```json
+```json title="seed/seed.json"
 {
-	"collections": [
-		{
-			"slug": "posts",
-			"label": "Posts",
-			"labelSingular": "Post",
-			"description": "Blog posts",
-			"icon": "file-text",
-			"supports": ["drafts", "revisions"],
-			"fields": [
-				{
-					"slug": "title",
-					"label": "Title",
-					"type": "string",
-					"required": true
-				},
-				{
-					"slug": "content",
-					"label": "Content",
-					"type": "portableText"
-				},
-				{
-					"slug": "featured_image",
-					"label": "Featured Image",
-					"type": "image"
-				}
-			]
-		}
-	]
+  "version": "1",
+  "collections": [
+    {
+      "slug": "posts",
+      "label": "Posts",
+      "labelSingular": "Post",
+      "description": "Published articles",
+      "supports": ["drafts", "revisions", "scheduling", "search", "seo"],
+      "urlPattern": "/posts/{slug}",
+      "routable": true,
+      "commentsEnabled": true,
+      "editLocking": true,
+      "titleField": "title",
+      "dateField": "event_date",
+      "admin": {
+        "listColumns": ["event_date"]
+      },
+      "fields": [
+        { "slug": "title", "label": "Title", "type": "string", "required": true },
+        { "slug": "event_date", "label": "Event date", "type": "datetime", "indexed": true },
+        { "slug": "content", "label": "Content", "type": "portableText" }
+      ]
+    }
+  ]
 }
 ```
 
-### Collection Properties
+### Collection properties
 
-| Property        | Type     | Required | Description                                  |
-| --------------- | -------- | -------- | -------------------------------------------- |
-| `slug`          | `string` | Yes      | URL-safe identifier (lowercase, underscores) |
-| `label`         | `string` | Yes      | Plural display name                          |
-| `labelSingular` | `string` | No       | Singular display name                        |
-| `description`   | `string` | No       | Admin UI description                         |
-| `icon`          | `string` | No       | Lucide icon name                             |
-| `supports`      | `array`  | No       | Features: `"drafts"`, `"revisions"`          |
-| `hidden`        | `boolean`| No       | Omit the collection's admin sidebar entry    |
-| `sortOrder`     | `number` | No       | Position in the admin sidebar (ascending)    |
-| `editLocking`   | `boolean`| No       | Take an edit lock when an entry is opened (default `true`) |
-| `fields`        | `array`  | Yes      | Field definitions                            |
+| Property | Type | Behavior |
+| --- | --- | --- |
+| `slug` | `string` | Required database and API name; starts with a lowercase letter and contains lowercase letters, digits, and underscores |
+| `label` | `string` | Required plural UI label |
+| `labelSingular` | `string` | Optional singular UI label |
+| `description` | `string` | Optional admin description |
+| `icon` | `string` | Optional icon name |
+| `admin.listColumns` | `string[]` | Up to four declared field slugs shown in the content list |
+| `supports` | `string[]` | Any of `drafts`, `revisions`, `preview`, `scheduling`, `search`, and `seo` |
+| `urlPattern` | `string` | Public pattern such as `/posts/{slug}` |
+| `routable` | `boolean` | Whether published entries require a slug; defaults to `true` |
+| `hidden` | `boolean` | Hides only the generated sidebar link |
+| `sortOrder` | `number` | Explicit admin-sidebar position; ordered collections come first, ascending |
+| `commentsEnabled` | `boolean` | Enables comments for the collection |
+| `editLocking` | `boolean` | Enables edit locks; defaults to `true` |
+| `titleField` | `string` | Field used for the content-list title |
+| `dateField` | `string` | `datetime` field used for the content-list date |
+| `fields` | `SeedField[]` | Required field definitions |
 
-<Aside type="tip" title="Hiding a collection from the sidebar">
-	`hidden: true` only removes the auto-generated sidebar link. The collection keeps working
-	everywhere else — REST API, MCP tools, plugin hooks, and its editor at
-	`/_emdash/admin/content/<slug>`. Use it for collections a plugin owns end to end (autopopulated
-	entries, its own admin page), so editors aren't sent to a raw CRUD list they never need.
-</Aside>
+`sortOrder` belongs to the collection and controls sidebar order. `SeedField` has no `sortOrder` property. Fields are created in their array order.
 
-<Aside type="tip" title="Ordering the sidebar">
-	Collections are listed alphabetically by slug in the admin sidebar unless they carry a
-	`sortOrder`. Ordered collections come first, ascending; everything without one keeps the
-	alphabetical order and follows. Editors can also drag rows on the Content Types screen, which
-	writes the same value.
-</Aside>
+### Field properties
 
-### Field Properties
+| Property | Type | Purpose |
+| --- | --- | --- |
+| `slug` | `string` | Required field name using the collection-slug pattern |
+| `label` | `string` | Required UI label |
+| `type` | `FieldType` | Required stored field type |
+| `required` | `boolean` | Rejects an empty required value |
+| `unique` | `boolean` | Adds a uniqueness constraint |
+| `searchable` | `boolean` | Includes the field in collection search |
+| `indexed` | `boolean` | Adds a query index for supported scalar types |
+| `defaultValue` | any | Initial value when the field is omitted |
+| `validation` | object | Validation rules used by generated content schemas |
+| `widget` | `string` | Admin field widget override |
+| `options` | object | Widget-specific options |
 
-| Property       | Type      | Required | Description                          |
-| -------------- | --------- | -------- | ------------------------------------ |
-| `slug`         | `string`  | Yes      | Column name (lowercase, underscores) |
-| `label`        | `string`  | Yes      | Display name                         |
-| `type`         | `string`  | Yes      | Field type                           |
-| `required`     | `boolean` | No       | Validation: field must have a value  |
-| `unique`       | `boolean` | No       | Validation: value must be unique     |
-| `indexed`      | `boolean` | No       | Enable indexed sorting by this field |
-| `defaultValue` | `any`     | No       | Default value for new entries        |
-| `validation`   | `object`  | No       | Additional validation rules          |
-| `widget`       | `string`  | No       | Admin UI widget override             |
-| `options`      | `object`  | No       | Widget-specific configuration        |
+Supported field types are:
 
-### Field Types
+- `string`, `text`, `url`, and `slug`.
+- `number`, `integer`, and `boolean`.
+- `datetime`.
+- `select` and `multiSelect`.
+- `portableText`, `json`, and `repeater`.
+- `image`, `file`, and `reference`.
 
-| Type           | Description                | Stored As         |
-| -------------- | -------------------------- | ----------------- |
-| `string`       | Short text                 | `TEXT`            |
-| `text`         | Long text (textarea)       | `TEXT`            |
-| `number`       | Numeric value              | `REAL`            |
-| `integer`      | Whole number               | `INTEGER`         |
-| `boolean`      | True/false                 | `INTEGER`         |
-| `date`         | Date value                 | `TEXT` (ISO 8601) |
-| `datetime`     | Date and time              | `TEXT` (ISO 8601) |
-| `email`        | Email address              | `TEXT`            |
-| `url`          | URL                        | `TEXT`            |
-| `slug`         | URL-safe string            | `TEXT`            |
-| `portableText` | Rich text content          | `JSON`            |
-| `image`        | Image reference            | `JSON`            |
-| `file`         | File reference             | `JSON`            |
-| `json`         | Arbitrary JSON             | `JSON`            |
-| `reference`    | Reference to another entry | `TEXT`            |
+Only `string`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`, `reference`, and `slug` can set `indexed: true`.
+
+### Field validation
+
+The generated collection schema recognizes these rules where the field type supports them:
+
+| Rule | Used by |
+| --- | --- |
+| `min`, `max` | Numeric fields |
+| `minLength`, `maxLength`, `pattern` | String-shaped fields |
+| `options` | `select` and `multiSelect` |
+| `subFields`, `minItems`, `maxItems` | `repeater` |
+| `allowedMimeTypes` | Media fields |
+
+`validateSeed()` does not deeply type-check every rule in `validation` or `options`. An invalid rule can therefore pass seed validation and fail later when the collection schema is built or content is written.
 
 ## Taxonomies
 
-Taxonomies are classification systems for content:
+Taxonomy definitions identify their target collections. Terms are sample data and are applied only when `includeContent` is true.
 
-```json
+```json title="seed/seed.json"
 {
-	"taxonomies": [
-		{
-			"name": "category",
-			"label": "Categories",
-			"labelSingular": "Category",
-			"hierarchical": true,
-			"collections": ["posts"],
-			"terms": [
-				{ "slug": "news", "label": "News" },
-				{ "slug": "tutorials", "label": "Tutorials" },
-				{
-					"slug": "advanced",
-					"label": "Advanced Tutorials",
-					"parent": "tutorials"
-				}
-			]
-		},
-		{
-			"name": "tag",
-			"label": "Tags",
-			"labelSingular": "Tag",
-			"hierarchical": false,
-			"collections": ["posts"]
-		}
-	]
+  "version": "1",
+  "taxonomies": [
+    {
+      "name": "category",
+      "label": "Categories",
+      "labelSingular": "Category",
+      "hierarchical": true,
+      "collections": ["posts"],
+      "terms": [
+        { "slug": "engineering", "label": "Engineering" },
+        { "slug": "platform", "label": "Platform", "parent": "engineering" }
+      ]
+    }
+  ]
 }
 ```
 
-### Taxonomy Properties
+A taxonomy can carry a seed-local `id`, `locale`, and `translationOf`. Terms can also carry those properties. `translationOf` refers to another seed-local ID and must be ordered after its source when applying the seed.
 
-| Property        | Type      | Required | Description                                    |
-| --------------- | --------- | -------- | ---------------------------------------------- |
-| `name`          | `string`  | Yes      | Unique identifier                              |
-| `label`         | `string`  | Yes      | Plural display name                            |
-| `labelSingular` | `string`  | No       | Singular display name                          |
-| `hierarchical`  | `boolean` | Yes      | Allow nested terms (categories) or flat (tags) |
-| `collections`   | `array`   | Yes      | Collections this taxonomy applies to           |
-| `terms`         | `array`   | No       | Pre-defined terms                              |
-
-### Term Properties
-
-| Property      | Type     | Required | Description                          |
-| ------------- | -------- | -------- | ------------------------------------ |
-| `slug`        | `string` | Yes      | URL-safe identifier                  |
-| `label`       | `string` | Yes      | Display name                         |
-| `description` | `string` | No       | Term description                     |
-| `parent`      | `string` | No       | Parent term slug (hierarchical only) |
-
-## Menus
-
-The `menus` array defines navigation menus that are editable from the admin:
-
-```json
-{
-	"menus": [
-		{
-			"name": "primary",
-			"label": "Primary Navigation",
-			"items": [
-				{ "type": "custom", "label": "Home", "url": "/" },
-				{ "type": "page", "ref": "about" },
-				{ "type": "custom", "label": "Blog", "url": "/posts" },
-				{
-					"type": "custom",
-					"label": "External",
-					"url": "https://example.com",
-					"target": "_blank"
-				}
-			]
-		}
-	]
-}
-```
-
-### Menu Item Types
-
-| Type         | Description                  | Required Fields     |
-| ------------ | ---------------------------- | ------------------- |
-| `custom`     | Custom URL                   | `url`               |
-| `page`       | Link to a page entry         | `ref`               |
-| `post`       | Link to a post entry         | `ref`               |
-| `taxonomy`   | Link to a taxonomy archive   | `ref`, `collection` |
-| `collection` | Link to a collection archive | `collection`        |
-
-### Menu Item Properties
-
-| Property     | Type     | Description                                      |
-| ------------ | -------- | ------------------------------------------------ |
-| `type`       | `string` | Item type (see above)                            |
-| `label`      | `string` | Display text (auto-generated for page/post refs) |
-| `url`        | `string` | Custom URL (for `custom` type)                   |
-| `ref`        | `string` | Content ID in seed (for `page`/`post` types)     |
-| `collection` | `string` | Collection slug                                  |
-| `target`     | `string` | `"_blank"` for new window                        |
-| `titleAttr`  | `string` | HTML title attribute                             |
-| `cssClasses` | `string` | Custom CSS classes                               |
-| `children`   | `array`  | Nested menu items                                |
+Term `parent` is the parent term's slug in the same locale. A parent on a non-hierarchical taxonomy produces a warning and is ignored.
 
 ## Bylines
 
-Byline profiles are separate from ownership (`author_id`). Define reusable byline identities once, then reference them from content entries.
+Root `bylines` define presentation credits. They are sample data and require `includeContent: true`.
 
-```json
+```json title="seed/seed.json"
 {
-	"bylines": [
-		{
-			"id": "editorial",
-			"slug": "emdash-editorial",
-			"displayName": "EmDash Editorial"
-		},
-		{
-			"id": "guest",
-			"slug": "guest-contributor",
-			"displayName": "Guest Contributor",
-			"isGuest": true
-		}
-	]
+  "version": "1",
+  "bylines": [
+    {
+      "id": "byline-editor",
+      "slug": "alex-editor",
+      "displayName": "Alex Editor",
+      "isGuest": true
+    }
+  ]
 }
 ```
 
-| Property     | Type      | Required | Description                                |
-| ------------ | --------- | -------- | ------------------------------------------ |
-| `id`         | `string`  | Yes      | Seed-local ID used by `content[].bylines`  |
-| `slug`       | `string`  | Yes      | URL-safe byline slug                       |
-| `displayName`| `string`  | Yes      | Name shown in templates and APIs           |
-| `bio`        | `string`  | No       | Optional profile bio                       |
-| `websiteUrl` | `string`  | No       | Optional website URL                       |
-| `isGuest`    | `boolean` | No       | Marks byline as guest profile              |
+The `id` is seed-local and is used by content credits. Optional properties are `bio`, `websiteUrl`, `isGuest`, and `avatar`.
 
-## Redirects
+A byline avatar points to a file that already exists in configured storage:
 
-The `redirects` array defines redirect rules that preserve legacy URLs after migration:
-
-```json
+```json title="seed/seed.json"
 {
-	"redirects": [
-		{ "source": "/old-about", "destination": "/about" },
-		{ "source": "/legacy-feed", "destination": "/rss.xml", "type": 308 },
-		{
-			"source": "/category/news",
-			"destination": "/categories/news",
-			"groupName": "migration"
-		}
-	]
+  "id": "byline-editor",
+  "slug": "alex-editor",
+  "displayName": "Alex Editor",
+  "avatar": {
+    "storageKey": "avatars/alex.jpg",
+    "filename": "alex.jpg",
+    "mimeType": "image/jpeg",
+    "alt": "Alex Editor",
+    "width": 400,
+    "height": 400
+  }
 }
 ```
 
-### Redirect Properties
-
-| Property      | Type      | Required | Description                                        |
-| ------------- | --------- | -------- | -------------------------------------------------- |
-| `source`      | `string`  | Yes      | Source path (must start with `/`)                  |
-| `destination` | `string`  | Yes      | Destination path (must start with `/`)             |
-| `type`        | `number`  | No       | HTTP status: `301`, `302`, `307`, or `308`         |
-| `enabled`     | `boolean` | No       | Whether the redirect is active (default: `true`)   |
-| `groupName`   | `string`  | No       | Optional grouping label for admin filtering/search |
-
-<Aside type="caution">
-	`source` and `destination` must be local paths. External URLs, protocol-relative paths (`//...`),
-	path traversal segments (`..`), and newline characters are rejected by seed validation.
-</Aside>
-
-## Widget Areas
-
-The `widgetAreas` array defines configurable content regions:
-
-```json
-{
-	"widgetAreas": [
-		{
-			"name": "sidebar",
-			"label": "Main Sidebar",
-			"description": "Appears on blog posts and pages",
-			"widgets": [
-				{
-					"type": "component",
-					"title": "Recent Posts",
-					"componentId": "core:recent-posts",
-					"props": { "count": 5 }
-				},
-				{
-					"type": "menu",
-					"title": "Quick Links",
-					"menuName": "footer"
-				},
-				{
-					"type": "content",
-					"title": "About",
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [{ "_type": "span", "text": "Welcome to our site!" }]
-						}
-					]
-				}
-			]
-		}
-	]
-}
-```
-
-### Widget Types
-
-| Type        | Description          | Required Fields           |
-| ----------- | -------------------- | ------------------------- |
-| `content`   | Rich text content    | `content` (Portable Text) |
-| `menu`      | Renders a menu       | `menuName`                |
-| `component` | Registered component | `componentId`             |
-
-### Built-in Components
-
-| Component ID        | Description          |
-| ------------------- | -------------------- |
-| `core:recent-posts` | List of recent posts |
-| `core:categories`   | Category list        |
-| `core:tags`         | Tag cloud            |
-| `core:search`       | Search form          |
-| `core:archives`     | Monthly archives     |
-
-## Sections
-
-Sections are reusable content blocks that editors insert into Portable Text fields via the `/section` slash command:
-
-```json
-{
-	"sections": [
-		{
-			"slug": "hero-centered",
-			"title": "Centered Hero",
-			"description": "Full-width hero with centered heading and CTA button",
-			"keywords": ["hero", "banner", "header", "landing"],
-			"content": [
-				{
-					"_type": "block",
-					"style": "h1",
-					"children": [{ "_type": "span", "text": "Welcome to Our Site" }]
-				},
-				{
-					"_type": "block",
-					"children": [
-						{ "_type": "span", "text": "Your compelling tagline goes here." }
-					]
-				}
-			]
-		}
-	]
-}
-```
-
-### Section Properties
-
-| Property      | Type     | Required | Description                                     |
-| ------------- | -------- | -------- | ----------------------------------------------- |
-| `slug`        | `string` | Yes      | URL-safe identifier                             |
-| `title`       | `string` | Yes      | Display name shown in the section picker        |
-| `description` | `string` | No       | Explains when to use this section               |
-| `keywords`    | `array`  | No       | Search terms for finding the section            |
-| `content`     | `array`  | Yes      | Portable Text blocks                            |
-| `source`      | `string` | No       | `"theme"` (default for seeds) or `"import"`     |
-
-Sections from seed files are marked `source: "theme"` and cannot be deleted from the admin UI. Editors can create their own sections (`source: "user"`) and insert any section type when editing content.
+Byline avatar seeding creates or reuses a media row for the storage key. It does not upload or download the file.
 
 ## Content
 
-The `content` object holds sample content entries organized by collection:
+`content` groups entries by collection slug. Each entry requires a seed-local `id` and a `data` object. Routable collections also require a non-empty `slug`.
 
-```json
+```json title="seed/seed.json"
 {
-	"content": {
-		"posts": [
-			{
-				"id": "hello-world",
-				"slug": "hello-world",
-				"status": "published",
-				"bylines": [
-					{ "byline": "editorial" },
-					{ "byline": "guest", "roleLabel": "Guest essay" }
-				],
-				"data": {
-					"title": "Hello World",
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [{ "_type": "span", "text": "Welcome!" }]
-						}
-					],
-					"excerpt": "Your first post."
-				},
-				"taxonomies": {
-					"category": ["news"],
-					"tag": ["welcome", "first-post"]
-				}
-			}
-		],
-		"pages": [
-			{
-				"id": "about",
-				"slug": "about",
-				"status": "published",
-				"data": {
-					"title": "About Us",
-					"content": [
-						{
-							"_type": "block",
-							"style": "normal",
-							"children": [{ "_type": "span", "text": "About page content." }]
-						}
-					]
-				}
-			}
-		]
-	}
+  "version": "1",
+  "content": {
+    "posts": [
+      {
+        "id": "post-welcome",
+        "slug": "welcome",
+        "status": "published",
+        "data": {
+          "title": "Welcome",
+          "content": []
+        },
+        "taxonomies": {
+          "category": ["engineering"]
+        },
+        "bylines": [
+          { "byline": "byline-editor", "roleLabel": "Editor" }
+        ]
+      }
+    ]
+  }
 }
 ```
 
-### Content Entry Properties
+| Property | Required | Behavior |
+| --- | --- | --- |
+| `id` | Yes | Seed-local reference ID |
+| `slug` | For routable collections | Public slug and conflict key |
+| `status` | No | `published` or `draft`; defaults to `published` |
+| `data` | Yes | Values keyed by collection field slug |
+| `taxonomies` | No | Taxonomy name to term-slug array |
+| `bylines` | No | Ordered credits referencing root byline IDs |
+| `locale` | No | BCP 47 locale; defaults through `defaultLocale` |
+| `translationOf` | No | Seed-local content ID in the same collection |
 
-| Property     | Type     | Required | Description                                         |
-| ------------ | -------- | -------- | --------------------------------------------------- |
-| `id`         | `string` | Yes      | Seed-local ID for references                        |
-| `slug`       | `string` | Yes      | URL slug                                            |
-| `status`     | `string` | No       | `"published"` or `"draft"` (default: `"published"`) |
-| `data`       | `object` | Yes      | Field values                                        |
-| `bylines`    | `array`  | No       | Ordered byline credits (`byline`, optional `roleLabel`) |
-| `taxonomies` | `object` | No       | Term assignments by taxonomy name                   |
+For a routable entry, the seed-local `id` is not its database identity. EmDash creates a database ID and records the mapping for later references. For a slugless entry in a collection with `routable: false`, EmDash uses the seed `id` as the stored ID so reapplication remains idempotent.
 
-## Content References
+On reads, `entry.id` is the Astro route identifier and is normally the slug. The stored database ID is `entry.data.id`.
 
-Reference other content entries using the `$ref:` prefix:
+## Content references
 
-```json
+Use a `$ref:` string inside `data` to replace a seed-local content ID with the created database ID:
+
+```json title="seed/seed.json"
 {
-	"data": {
-		"related_posts": ["$ref:another-post", "$ref:third-post"]
-	}
+  "id": "event-opening",
+  "slug": "opening-night",
+  "data": {
+    "title": "Opening night",
+    "venue": "$ref:venue-main-hall"
+  }
 }
 ```
 
-The `$ref:` prefix resolves seed IDs to database IDs during seeding.
+Reference targets must appear early enough to be present in the apply engine's ID map. An unresolved `$ref:` value remains as the original literal string; `validateSeed()` does not reject it.
 
-## Media References
+## Media references
 
-Include images from URLs:
+Use `$media` in content data to download a URL, upload it with the supplied storage adapter, create a media row, and replace the object with a media field value:
 
-```json
+```json title="seed/seed.json"
 {
-	"data": {
-		"featured_image": {
-			"$media": {
-				"url": "https://images.unsplash.com/photo-xxx",
-				"alt": "Description of the image",
-				"filename": "hero.jpg",
-				"caption": "Photo by Someone"
-			}
-		}
-	}
+  "featured_image": {
+    "$media": {
+      "url": "https://example.com/images/launch.jpg",
+      "filename": "launch.jpg",
+      "alt": "A product launch on stage",
+      "caption": "Launch event"
+    }
+  }
 }
 ```
 
-Include local images from `.emdash/media/`:
+Within one apply call, repeated references to the same URL reuse the resolved media value. Seed media references do not accept a local `file` property. `mediaBasePath` remains in the public `SeedApplyOptions` type but the current apply engine does not read it.
 
-```json
+When no storage adapter is supplied, `$media` references are skipped and resolve to `null`. With `skipMediaDownload: true`, they become external media values and no storage adapter is required.
+
+## Menus
+
+Menus are structural data and are applied even when `includeContent` is false:
+
+```json title="seed/seed.json"
 {
-	"data": {
-		"featured_image": {
-			"$media": {
-				"file": "hero.jpg",
-				"alt": "Description of the image"
-			}
-		}
-	}
+  "version": "1",
+  "menus": [
+    {
+      "name": "primary",
+      "label": "Primary navigation",
+      "items": [
+        {
+          "type": "page",
+          "label": "About",
+          "ref": "page-about",
+          "collection": "pages"
+        },
+        {
+          "type": "custom",
+          "label": "Contact",
+          "url": "/contact",
+          "target": "_self"
+        }
+      ]
+    }
+  ]
 }
 ```
 
-### Media Properties
+Allowed item types are `custom`, `page`, `post`, `taxonomy`, and `collection`. `custom` requires `url`; `page` and `post` require `ref`. Items can include `id`, `translationOf`, `label`, `collection`, `titleAttr`, `cssClasses`, `locale`, `target`, and nested `children`.
 
-| Property   | Type     | Required | Description                          |
-| ---------- | -------- | -------- | ------------------------------------ |
-| `url`      | `string` | Yes\*    | Remote URL to download               |
-| `file`     | `string` | Yes\*    | Local filename in `.emdash/media/` |
-| `alt`      | `string` | No       | Alt text for accessibility           |
-| `filename` | `string` | No       | Override filename                    |
-| `caption`  | `string` | No       | Media caption                        |
+For `page` and `post`, `ref` names a seed content ID. A missing target produces a validation warning and a menu item without a resolved content reference. Existing menu items are deleted and recreated whenever that menu is applied, independent of `onConflict`.
 
-\*Either `url` or `file` is required, not both.
+## Redirects
 
-<Aside>
-	Media is downloaded during seeding. Large images may slow down the Setup Wizard. Consider using
-	compressed images or thumbnail versions for sample content.
-</Aside>
+Redirects require local source and destination paths:
 
-## Applying Seeds Programmatically
-
-Use the seed API for CLI tools or scripts:
-
-```typescript
-import { applySeed, validateSeed } from "emdash/seed";
-import seedData from "./.emdash/seed.json";
-
-// Validate first
-const validation = validateSeed(seedData);
-if (!validation.valid) {
-	console.error(validation.errors);
-	process.exit(1);
+```json title="seed/seed.json"
+{
+  "version": "1",
+  "redirects": [
+    {
+      "source": "/old-path",
+      "destination": "/new-path",
+      "type": 308,
+      "enabled": true,
+      "groupName": "WordPress migration"
+    }
+  ]
 }
-
-// Apply seed
-const result = await applySeed(db, seedData, {
-	includeContent: true,
-	onConflict: "skip",
-	storage: myStorage,
-	baseUrl: "http://localhost:4321",
-});
-
-console.log(result);
-// {
-//   collections: { created: 2, skipped: 0 },
-//   fields: { created: 8, skipped: 0 },
-//   taxonomies: { created: 2, terms: 5 },
-//   bylines: { created: 2, skipped: 0 },
-//   menus: { created: 1, items: 4 },
-//   redirects: { created: 3, skipped: 0 },
-//   widgetAreas: { created: 1, widgets: 3 },
-//   settings: { applied: 3 },
-//   content: { created: 3, skipped: 0 },
-//   media: { created: 2, skipped: 0 }
-// }
 ```
 
-### Apply Options
+Both paths must start with one `/`. Protocol-relative URLs, path traversal segments, and newlines are rejected. Allowed status codes are `301`, `302`, `307`, and `308`.
 
-| Option           | Type      | Default  | Description                        |
-| ---------------- | --------- | -------- | ---------------------------------- |
-| `includeContent` | `boolean` | `false`  | Create sample content entries      |
-| `onConflict`     | `string`  | `"skip"` | `"skip"`, `"update"`, or `"error"` |
-| `mediaBasePath`  | `string`  | —        | Base path for local media files    |
-| `storage`        | `Storage` | —        | Storage adapter for media uploads  |
-| `baseUrl`        | `string`  | —        | Base URL for media URLs            |
+## Widget areas
 
-## Idempotency
+A widget area contains `content`, `menu`, or `component` widgets:
 
-Seeding is safe to run multiple times. Conflict behavior by entity type:
-
-| Entity              | Behavior                              |
-| ------------------- | ------------------------------------- |
-| Collection          | Skip if slug exists                   |
-| Field               | Skip if collection + slug exists      |
-| Taxonomy definition | Skip if name exists                   |
-| Taxonomy term       | Skip if name + slug exists            |
-| Byline profile      | Skip if slug exists                   |
-| Menu                | Skip if name exists                   |
-| Menu items          | Replace all (menu is recreated)       |
-| Redirect            | Skip if source exists                 |
-| Widget area         | Skip if name exists                   |
-| Widgets             | Replace all (area is recreated)       |
-| Section             | Skip if slug exists                   |
-| Settings            | Update (settings are meant to change) |
-| Content             | Skip if slug exists in collection     |
-
-<Aside type="caution">
-	Menu items and widgets are **replaced**, not merged. The seed file is the source of truth for menu
-	and widget area structure.
-</Aside>
-
-## Validation
-
-Seed files are validated before application:
-
-```typescript
-import { validateSeed } from "emdash/seed";
-
-const { valid, errors, warnings } = validateSeed(seedData);
-
-if (!valid) {
-	errors.forEach((e) => console.error(e));
+```json title="seed/seed.json"
+{
+  "version": "1",
+  "widgetAreas": [
+    {
+      "name": "sidebar",
+      "label": "Sidebar",
+      "widgets": [
+        {
+          "type": "menu",
+          "title": "Explore",
+          "menuName": "primary"
+        },
+        {
+          "type": "component",
+          "title": "Recent posts",
+          "componentId": "core:recent-posts",
+          "props": { "count": 5 }
+        }
+      ]
+    }
+  ]
 }
-
-warnings.forEach((w) => console.warn(w));
 ```
 
-Validation checks that:
+A content widget stores Portable Text in `content`. A menu widget requires `menuName`. A component widget requires `componentId` and can pass `props`. There is no `settings` property on `SeedWidget`.
 
-- Required fields are present
-- Slugs are valid for their type (collection and field slugs allow lowercase letters, digits, and underscores; other slugs also allow hyphens)
-- Field types are valid
-- References point to existing content
-- Hierarchical term parents exist
-- Redirect paths are safe local URLs
-- Redirect sources are unique
-- No duplicate slugs within collections
+Existing widgets in an area are deleted and recreated whenever the area is applied, independent of `onConflict`.
 
-## CLI Commands
+## Sections
 
-The seed file at `.emdash/seed.json`, `package.json#emdash.seed`, or `seed/seed.json` is inlined into the build and applied on the first request when the database is empty. To export an existing site's schema (and optionally its content) as a seed file:
+Sections contain reusable Portable Text content:
+
+```json title="seed/seed.json"
+{
+  "version": "1",
+  "sections": [
+    {
+      "slug": "newsletter-signup",
+      "title": "Newsletter signup",
+      "description": "Signup call to action",
+      "keywords": ["newsletter", "email"],
+      "source": "theme",
+      "content": []
+    }
+  ]
+}
+```
+
+Section slugs contain lowercase letters, digits, and hyphens. `source` is `theme` or `import`; a seed defaults it to `theme`. Sections are structural and are applied even when `includeContent` is false.
+
+## Localization
+
+`defaultLocale` fills missing locales for taxonomies, terms, menus, menu items, and content. The active runtime i18n configuration takes precedence when present.
+
+Localized taxonomies, terms, menus, menu items, and content use seed-local `id` and `translationOf` fields. Place the source item before a translation so the apply engine can resolve its translation group. A translated content entry must set `locale`, and its `translationOf` must name another entry in the same collection.
+
+## Apply a seed programmatically
+
+`applySeed()` and `validateSeed()` are exported from `emdash/seed`. The following helper validates before applying:
+
+```ts title="src/apply-project-seed.ts"
+import {
+  applySeed,
+  validateSeed,
+  type SeedApplyOptions,
+  type SeedFile,
+} from "emdash/seed";
+
+type SeedDatabase = Parameters<typeof applySeed>[0];
+
+export async function applyProjectSeed(
+  db: SeedDatabase,
+  seed: SeedFile,
+  options: SeedApplyOptions,
+) {
+  const validation = validateSeed(seed);
+  if (!validation.valid) {
+    throw new Error(validation.errors.join("\n"));
+  }
+
+  return applySeed(db, seed, options);
+}
+```
+
+### `SeedApplyOptions`
+
+| Option | Default | Current behavior |
+| --- | --- | --- |
+| `includeContent` | `false` | Includes content entries, bylines, and taxonomy terms |
+| `onConflict` | `"skip"` | `"skip"`, `"update"`, or `"error"` for supported entity conflicts |
+| `storage` | none | Storage adapter required to download `$media` URLs |
+| `skipMediaDownload` | `false` | Keeps `$media` URLs as external media values |
+| `mediaBasePath` | none | Present in the public type but not used by the current apply engine |
+
+Programmatic application defaults `includeContent` to `false`. The setup wizard passes the administrator's sample-content choice. The `emdash seed` CLI includes content by default unless `--no-content` is set.
+
+### Conflict behavior
+
+`onConflict` is not a transaction policy for the entire seed:
+
+- Collections, fields, bylines, content, redirects, and sections support skip, update, and error behavior.
+- Taxonomy definitions and terms honor the applicable conflict mode.
+- Settings are always applied.
+- Existing menus retain their menu row but replace all items.
+- Existing widget areas retain their area row but replace all widgets.
+- A content conflict is matched by collection, slug, and locale. A slugless entry in a non-routable collection is matched by its seed ID.
+
+With `onConflict: "update"`, content data is replaced and its byline and taxonomy assignments are reconciled to the seed. Test update mode on a copy before using it against an existing site.
+
+`applySeed()` returns counters for collections, fields, taxonomies, bylines, menus, redirects, widget areas, sections, settings, content, and media.
+
+## Validation behavior
+
+`validateSeed()` returns `{ valid, errors, warnings }`. `applySeed()` calls it and throws `Invalid seed file` when errors are present.
+
+The validator checks the structural rules required by the apply engine, including:
+
+- Version and non-empty `defaultLocale`.
+- Collection, field, taxonomy, term, menu, widget-area, section, byline, and content container shapes.
+- Required names, labels, IDs, slugs, and supported field or widget types.
+- Duplicate identifiers in their relevant scope.
+- Indexed field types and `admin.listColumns` references.
+- Taxonomy parents, content translations, content byline references, and menu item requirements.
+- Safe local redirect paths and status codes.
+
+Some conditions are warnings rather than errors. Examples include a taxonomy with no collections, a parent on a flat taxonomy, or a menu content reference that is absent from the seed.
+
+The validator does not prove that all `data` values conform to their collection fields. It also does not deeply validate site settings, field `validation`, field `options`, arbitrary Portable Text blocks, component widget props, `$ref:` targets in content data, or remote `$media` availability. A valid seed can still fail during schema creation, content validation, network download, or storage upload.
+
+Use the `$schema` URL for editor assistance and run the executable validator before applying:
 
 ```bash
-# `mkdir -p` because .emdash/ may not exist yet on a fresh project
-mkdir -p .emdash
-
-# Export the current schema as a seed file
-npx emdash export-seed > .emdash/seed.json
-
-# Export with content
-npx emdash export-seed --with-content > .emdash/seed.json
+npx emdash seed seed/seed.json --validate
 ```
 
-## Next Steps
+## CLI commands
 
-- **[Creating Themes](/themes/creating-themes/)** — Build a complete theme
-- **[Themes Overview](/themes/overview/)** — How themes work
+Apply a seed to a local SQLite database with explicit conflict behavior:
+
+```bash
+npx emdash seed seed/seed.json --database ./data.db --on-conflict skip
+```
+
+Export the current local model and all content back to the template path:
+
+```bash
+npx emdash export-seed --database ./data.db --with-content=all > seed/seed.json
+```
+
+`export-seed` works directly on a local SQLite file. For a deployed D1 database, export it to a local file first. Review exported settings, content, and media references before committing the result.
+
+## Next steps
+
+- [Create a theme](/themes/creating-themes/) to use a seed in a reusable Astro template.
+- [Schema evolution](/deployment/schema-evolution/) to update an existing deployed site's model.
+- [CLI reference](/reference/cli/) for database and export options.
