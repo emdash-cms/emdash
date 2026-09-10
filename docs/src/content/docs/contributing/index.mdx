@@ -3,11 +3,13 @@ title: Contributing to EmDash
 description: How to set up a development environment and contribute to EmDash.
 ---
 
-import { Steps } from "@astrojs/starlight/components";
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Run the Node.js and SQLite demo to start working on EmDash locally. [CONTRIBUTING.md](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md) is the canonical source for prerequisites, repository layout, contribution policy, checks, changesets, and pull request requirements.
+EmDash is a pnpm monorepo. The main package is `packages/core`, published as `emdash`; it contains the Astro integration, REST API, database layer, schema management, and plugin system. The React admin UI lives in `packages/admin`.
 
-## Set up the repository
+This page gives you the quickest path to a working development environment. [`CONTRIBUTING.md`](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md) is the canonical source for prerequisites, repository layout, contribution policy, required checks, changesets, and pull request requirements.
+
+## Local setup
 
 <Steps>
 
@@ -27,24 +29,77 @@ Run the Node.js and SQLite demo to start working on EmDash locally. [CONTRIBUTIN
    pnpm dev
    ```
 
-3. **Open the development bypass URL.**
+   The demo runs on Node.js with SQLite at `http://localhost:4321`. On the first request to an empty database, it also applies the sample content from `seed/seed.json`.
 
-   Visit [the local setup bypass](http://localhost:4321/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin). It runs migrations, creates a development administrator, signs you in, and redirects to the admin panel. To test the passkey setup flow instead, open [the admin panel](http://localhost:4321/_emdash/admin).
+3. **Open the admin panel.**
+
+   For the fastest local setup, open [the development bypass](http://localhost:4321/_emdash/api/setup/dev-bypass?redirect=/_emdash/admin). It runs migrations, creates a development administrator, signs you in, and redirects to the admin panel.
+
+   To test the passkey setup flow instead, open [the admin panel](http://localhost:4321/_emdash/admin). The setup wizard creates the database, runs migrations, and prompts you to create an administrator account.
 
 </Steps>
 
-The demo applies `seed/seed.json` automatically on its first request when the database is empty.
+## Development workflow
 
-## Develop against `packages/core`
+### Watch mode
 
-Run the core package watcher and the demo in separate terminals so core changes rebuild automatically:
+When you change `packages/core` while running the demo, use two terminals so the package rebuilds automatically:
 
 ```bash
-# Terminal 1
+# Terminal 1 — rebuild packages/core on change
 cd packages/core && pnpm dev
 
-# Terminal 2
+# Terminal 2 — run the demo
 cd demos/simple && pnpm dev
 ```
 
-Before opening a pull request, follow the [checks and contribution policy in `CONTRIBUTING.md`](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md). For documentation changes, also follow the [documentation style guide](/contributing/docs-style-guide/). Translation contributions have a separate [translation workflow](/contributing/translating/).
+### Checks
+
+Run the required checks from the repository root before you commit:
+
+```bash
+pnpm typecheck    # TypeScript
+pnpm lint         # full type-aware lint
+pnpm format       # auto-format with oxfmt and Prettier
+```
+
+<Aside type="caution">
+  Type checking and linting must both pass. Don't commit with known failures.
+</Aside>
+
+### Tests
+
+<Tabs>
+<TabItem label="All tests">
+```bash
+pnpm test
+```
+</TabItem>
+<TabItem label="Core only">
+```bash
+cd packages/core && pnpm test
+```
+</TabItem>
+<TabItem label="Watch mode">
+```bash
+cd packages/core && pnpm test --watch
+```
+</TabItem>
+<TabItem label="E2E">
+```bash
+pnpm test:e2e    # starts its own server
+```
+</TabItem>
+</Tabs>
+
+Tests use real in-memory SQLite databases instead of database mocks. Each test gets a fresh database.
+
+## Choose a contribution path
+
+Bug fixes, documentation, and translations can go directly to a pull request. Bug fixes must include a failing test that reproduces the problem. Translation contributions follow the [translation workflow](/contributing/translating/).
+
+Features and refactors require a maintainer-approved Discussion before implementation. Feature pull requests without that approval are closed. Read the full [contribution policy](https://github.com/emdash-cms/emdash/blob/main/CONTRIBUTING.md#contribution-policy) before starting work so you know which path applies.
+
+Documentation changes must also follow the [documentation style guide](/contributing/docs-style-guide/).
+
+For the main execution paths through EmDash, read [Architecture (internals)](/contributing/architecture/). Code-level patterns and invariants are documented in [`AGENTS.md`](https://github.com/emdash-cms/emdash/blob/main/AGENTS.md).
