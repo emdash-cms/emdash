@@ -9,6 +9,7 @@ export {
 	DEFAULT_LOCALE,
 	getLocaleLabel,
 	getLocaleDir,
+	matchLocale,
 	resolveLocale,
 } from "./config.js";
 export type { SupportedLocale } from "./config.js";

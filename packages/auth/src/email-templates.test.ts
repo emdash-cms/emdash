@@ -1,5 +1,5 @@
 /**
- * System email builder tests (#915): the builders default to English
+ * System email builder tests: the builders default to English
  * and render injected localized copy verbatim (text) / escaped (HTML).
  */
 

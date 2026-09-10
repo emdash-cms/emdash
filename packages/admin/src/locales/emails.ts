@@ -2,10 +2,10 @@
  * Localized copy for system emails (invite, magic link / recovery).
  *
  * The email builders live in `@emdash-cms/auth`, which has no i18n
- * machinery — they take final display strings and fall back to English
- * (#915). This module resolves those strings from the admin's Lingui
- * catalogs so the emails follow the site locale like the rest of the
- * admin. It is server-side only (called from EmDash core API routes).
+ * machinery — they take final display strings and fall back to English.
+ * This module resolves those strings from the admin's Lingui catalogs
+ * so the emails follow the site locale like the rest of the admin. It
+ * is server-side only (called from EmDash core API routes).
  *
  * The return shapes mirror `InviteEmailStrings` / `MagicLinkEmailStrings`
  * in `@emdash-cms/auth` structurally; the types are duplicated here so
@@ -59,9 +59,9 @@ const MAGIC_LINK: Record<keyof MagicLinkEmailStrings, MessageDescriptor> = {
 };
 
 /**
- * Build a standalone i18n instance for one resolution. Deliberately not
- * the shared `i18n` singleton — these calls run server-side and must not
- * race with (or reactivate) the admin SPA's active locale.
+ * Build a standalone i18n instance for one resolution. The shared `i18n`
+ * singleton holds the admin SPA's active locale; activating a different
+ * locale on it server-side would race with the UI.
  */
 async function i18nFor(locale: string): Promise<I18n> {
 	// loadMessages falls back to the default (English) catalog for
