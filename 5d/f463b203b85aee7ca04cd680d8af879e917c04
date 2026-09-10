@@ -1,0 +1,19 @@
+e2e/tests/portable-text-table.spec.ts
+  s_8e810e11ab1647::t_263536e2bf21b0 117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5df463b203b85aee7ca04cd680d8af879e917c04",
+  "prompts": {},
+  "sessions": {
+    "s_8e810e11ab1647": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08ad7-6aec-7fc1-9205-b5cfe8310fb8",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
