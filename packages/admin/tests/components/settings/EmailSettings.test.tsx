@@ -32,6 +32,11 @@ vi.mock("../../../src/lib/api/email-settings", async () => {
 
 const { EmailSettings } = await import("../../../src/components/settings/EmailSettings");
 
+const unconfiguredTransports = {
+	smtp: { configured: false, source: null },
+	cloudflare: { configured: false },
+} satisfies Pick<EmailSettingsData, "smtp" | "cloudflare">;
+
 const availableSettings: EmailSettingsData = {
 	available: true,
 	providers: [{ pluginId: "resend" }, { pluginId: "postmark" }],
@@ -40,6 +45,7 @@ const availableSettings: EmailSettingsData = {
 		beforeSend: ["audit-log"],
 		afterSend: ["delivery-metrics"],
 	},
+	...unconfiguredTransports,
 };
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -86,6 +92,7 @@ describe("EmailSettings", () => {
 			providers: [],
 			selectedProviderId: null,
 			middleware: { beforeSend: [], afterSend: [] },
+			...unconfiguredTransports,
 		});
 		const screen = await renderEmailSettings();
 
