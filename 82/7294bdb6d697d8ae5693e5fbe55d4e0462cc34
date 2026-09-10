@@ -1,0 +1,21 @@
+templates/marketing-cloudflare/src/components/blocks/FAQ.astro
+  s_81c53493e8c532::t_9f125426c895f2 146
+templates/marketing/src/components/blocks/FAQ.astro
+  s_81c53493e8c532::t_c83f711759405e 146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "827294bdb6d697d8ae5693e5fbe55d4e0462cc34",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
