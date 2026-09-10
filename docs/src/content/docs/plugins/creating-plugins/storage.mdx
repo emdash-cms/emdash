@@ -5,7 +5,7 @@ description: Persist plugin data in document collections with indexed queries.
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-Sandboxed plugins can store their own data in document collections. You declare collections and indexes in the [manifest](/plugins/creating-plugins/manifest/), and EmDash creates the schema automatically — no migrations to write.
+Sandboxed plugins can store their own records in document collections. Declare each collection and its indexes in the [manifest](/plugins/creating-plugins/manifest/#trust-contract). EmDash creates and updates the matching indexes when the plugin loads.
 
 This page covers sandboxed plugins. The collection API is identical for native plugins; the only difference is that native plugins declare `storage` inside `definePlugin()` rather than in the manifest.
 
@@ -17,6 +17,7 @@ For sandboxed plugins, `storage` lives in `emdash-plugin.jsonc`. The declaration
 {
 	"slug": "forms",
 	// ...identity + profile...
+	"capabilities": ["content:read"],
 
 	"storage": {
 		"submissions": {
@@ -37,8 +38,12 @@ For sandboxed plugins, `storage` lives in `emdash-plugin.jsonc`. The declaration
 
 Each key in `storage` is a collection name. The `indexes` array lists fields that can be queried efficiently — single-field indexes as strings, composite indexes as arrays of strings. See [the manifest reference](/plugins/creating-plugins/manifest/#storage) for the full rules.
 
+Collection names start with a lowercase letter and contain lowercase letters, digits, or underscores. Index field names start with a letter and contain letters, digits, or underscores. Put a unique field or field combination in `uniqueIndexes`; a unique index is already queryable, so do not repeat it in `indexes`.
+
 <Aside type="note">
-	Storage is scoped to the plugin slug. A `submissions` collection in the `forms` plugin is completely separate from `submissions` in another plugin — the plugin can only see its own data.
+	Storage is scoped to the runtime plugin ID. A `submissions` collection in the `forms` plugin is
+	separate from a collection with the same name in another plugin, and each plugin can access only
+	its declared collections.
 </Aside>
 
 ## Using storage at runtime
@@ -72,6 +77,8 @@ export default {
 Accessing a collection that wasn't declared in the manifest throws — the bridge enforces this at the runtime level.
 
 ## Collection API
+
+Each declared collection provides the following read, write, batch, query, and count methods:
 
 ```typescript
 interface StorageCollection<T = unknown> {
@@ -113,11 +120,13 @@ const result = await ctx.storage.submissions.query({
 
 ### Query options
 
+Pass these options to `query()` to filter, order, and page the result:
+
 ```typescript
 interface QueryOptions {
 	where?: WhereClause;
 	orderBy?: Record<string, "asc" | "desc">;
-	limit?: number;     // default 50, max 1000
+	limit?: number;     // default 50, max 100
 	cursor?: string;    // for pagination
 }
 ```
@@ -163,6 +172,8 @@ where: {
 
 ### Ordering
 
+Set one or more indexed fields to ascending or descending order:
+
 ```typescript
 orderBy: { createdAt: "desc" }   // newest first
 orderBy: { score: "asc" }        // lowest first
@@ -197,6 +208,8 @@ async function getAllSubmissions(ctx: PluginContext) {
 
 ## Counting
 
+Count every record in a collection, or only records matching indexed fields:
+
 ```typescript
 const total = await ctx.storage.submissions.count();
 
@@ -206,6 +219,8 @@ const pending = await ctx.storage.submissions.count({
 ```
 
 ## Batch operations
+
+Use the batch methods when one operation reads, writes, or deletes several known record IDs:
 
 ```typescript
 const items = await ctx.storage.submissions.getMany(["sub_1", "sub_2", "sub_3"]);
@@ -228,7 +243,7 @@ Choose indexes based on actual query patterns:
 | Filter by `formId`                       | `"formId"`                           |
 | Filter by `formId`, order by `createdAt` | `["formId", "createdAt"]`            |
 | Order by `createdAt` only                | `"createdAt"`                        |
-| Filter by `status` and `formId`          | `"status"` and `"formId"` (separate) |
+| Filter by `status` and `formId` together | `["status", "formId"]`              |
 
 Composite indexes support queries that filter on the first field and optionally order by the second:
 
@@ -238,6 +253,8 @@ query({ where: { formId: "contact" }, orderBy: { createdAt: "desc" } });  // use
 query({ where: { formId: "contact" } });                                  // uses index (filter only)
 query({ where: { createdAt: { gte: "2024-01-01" } } });                   // does NOT use this composite — filter starts at the wrong field
 ```
+
+Every field named anywhere in `indexes` or `uniqueIndexes` passes the query API's indexed-field check. The order of a composite index still determines which query shapes the database can execute efficiently. Add a separate `"createdAt"` index when the plugin frequently filters or orders by that field without `formId`.
 
 ## Type safety
 
@@ -289,32 +306,16 @@ Pick the right mechanism for each kind of data:
 
 If site editors need to view or edit the data in the admin UI through the regular content editor, create a site collection instead.
 
-## Implementation details
+## How collections are isolated
 
-Plugin storage uses a single namespaced table:
+EmDash stores plugin documents with the plugin ID, collection name, record ID, JSON data, and timestamps. Those namespacing columns are part of every key and index. A plugin receives accessors only for the collections in its manifest, and the sandbox bridge rejects access to any other collection.
 
-```sql
-CREATE TABLE _plugin_storage (
-	plugin_id TEXT NOT NULL,
-	collection TEXT NOT NULL,
-	id TEXT NOT NULL,
-	data JSON NOT NULL,
-	created_at TEXT,
-	updated_at TEXT,
-	PRIMARY KEY (plugin_id, collection, id)
-);
-```
-
-EmDash creates expression indexes for declared fields:
-
-```sql
-CREATE INDEX idx_forms_submissions_formId
-	ON _plugin_storage(json_extract(data, '$.formId'))
-	WHERE plugin_id = 'forms' AND collection = 'submissions';
-```
-
-This design gives you no migrations, portability across SQLite/libSQL/D1, plugin-level isolation, and parameterised queries on every path.
+Declared fields become expression indexes alongside the plugin and collection namespace. EmDash generates the dialect-specific SQL for SQLite, D1, and PostgreSQL; plugin code uses the same collection API on each database.
 
 ## Adding indexes
 
-When you add an index in a plugin update, EmDash creates it automatically on next startup. Adding an index is safe and requires no data migration. When you remove an index, EmDash drops it — and queries on that field start failing with a validation error, which is the intended signal.
+When a plugin update adds an index, EmDash creates it the next time the plugin loads. A unique index cannot be created while existing records contain duplicate values, so check and resolve duplicates before releasing that change.
+
+When an update removes an index, EmDash drops it. Any query or ordering that still uses the field then fails validation. Update the code and manifest together.
+
+Indexes are part of the manifest's storage trust contract. Bump the plugin version whenever you add, remove, or change one, and use a major version when the change breaks an existing query or uniqueness assumption.
