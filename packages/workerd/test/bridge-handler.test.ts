@@ -394,6 +394,37 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.error).toContain("Missing capability: network:fetch");
 		});
 
+		it("blocks private network targets before dispatch", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+			try {
+				const handler = makeHandler({ capabilities: ["network:fetch"], allowedHosts: ["*"] });
+				const result = await call(handler, "http/fetch", {
+					url: "http://127.0.0.1/internal",
+				});
+				expect(result.error).toContain("URLs targeting non-public IP addresses are not allowed");
+				expect(fetchSpy).not.toHaveBeenCalled();
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it.each(["http://[::]/internal", "http://100.100.100.200/internal"])(
+			"blocks non-public network target %s before dispatch",
+			async (url) => {
+				const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+				try {
+					const handler = makeHandler({ capabilities: ["network:fetch"], allowedHosts: ["*"] });
+					const result = await call(handler, "http/fetch", { url });
+					expect(result.error).toContain("URLs targeting non-public IP addresses are not allowed");
+					expect(fetchSpy).not.toHaveBeenCalled();
+				} finally {
+					fetchSpy.mockRestore();
+				}
+			},
+		);
+
 		it("rejects email send without email:send capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "email/send", {
