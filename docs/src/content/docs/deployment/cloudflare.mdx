@@ -387,12 +387,27 @@ Content published or updated after setup is kept in sync automatically. The same
 
 ## Email
 
-On Workers, the only built-in `email:deliver` handler is a dev console stub, so
-email-dependent flows — magic-link login, team invites, and comment
-notifications — fail with **"Email is not configured"** in production. The
-`cloudflareEmail()` plugin delivers real email through
-[Cloudflare Email Sending](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/)
-using a native `send_email` Worker binding, with no external API keys.
+Email-dependent flows — magic-link login, team invites, and comment
+notifications — need an `email:deliver` provider; without one they fail with
+**"Email is not configured"** in production. On Workers you have three options:
+
+- The **built-in SMTP transport** — any standard SMTP server, configured under
+  **Settings → Email** or via environment variables. See
+  [Built-in SMTP transport](#built-in-smtp-transport).
+- The **built-in Cloudflare Email provider** — delivers through
+  [Cloudflare Email Sending](https://developers.cloudflare.com/email-routing/email-workers/send-email-workers/)
+  using a native `send_email` Worker binding, with no external API keys.
+  Configure the sender under **Settings → Email** (or via the
+  `EMAIL_FROM_NAME`, `EMAIL_FROM_EMAIL`, and optional `EMAIL_REPLY_TO`
+  environment variables); the binding setup is described below. The settings
+  page includes a button that tests whether the binding is available.
+- An **email provider plugin** — for example the `cloudflareEmail()` plugin
+  described below, which covers the same Email Sending path with per-plugin
+  configuration in `astro.config.mjs` instead of the admin UI.
+
+Steps 1 and 2 below (sender domain and binding) apply to both the built-in
+Cloudflare Email provider and the `cloudflareEmail()` plugin; steps 3 and 4
+are plugin-only.
 
 ### 1. Onboard a sender domain
 
@@ -463,26 +478,35 @@ Node.
 
 Configure via environment variables:
 
+Configure it under **Settings → Email** in the admin (the password is stored
+encrypted with `EMDASH_ENCRYPTION_KEY`), or via environment variables:
+
 ```bash title=".env"
 EMAIL_SMTP_HOST=smtp-relay.brevo.com
-EMAIL_SMTP_PORT=587
+EMAIL_SMTP_PORT=465
 EMAIL_SMTP_USER=you@example.com
 EMAIL_SMTP_PASS=xsmtpsib-your-key-here
 EMAIL_SMTP_FROM="My Site <noreply@example.com>"
 ```
 
-| Variable          | Example                        | Notes                                                     |
-| ----------------- | ------------------------------ | --------------------------------------------------------- |
-| `EMAIL_SMTP_HOST` | `smtp-relay.brevo.com`         | Any SMTP server reachable from your deployment            |
-| `EMAIL_SMTP_PORT` | `587` or `465`                 | 587 = STARTTLS, 465 = implicit TLS. Port 25 is refused.   |
-| `EMAIL_SMTP_USER` | `you@example.com`              | SMTP auth username                                        |
-| `EMAIL_SMTP_PASS` | `xsmtpsib-…`                   | SMTP auth password (store as a secret)                    |
-| `EMAIL_SMTP_FROM` | `My Site <noreply@example.com>` | Optional default sender; falls back to `EMAIL_SMTP_USER` |
+| Variable                 | Example                         | Notes                                                                        |
+| ------------------------ | ------------------------------- | ---------------------------------------------------------------------------- |
+| `EMAIL_SMTP_HOST`        | `smtp-relay.brevo.com`          | Any SMTP server reachable from your deployment                               |
+| `EMAIL_SMTP_PORT`        | `465` or `587`                  | 465 = implicit TLS (recommended on Workers), 587 = STARTTLS. 25 is refused.  |
+| `EMAIL_SMTP_USER`        | `you@example.com`               | SMTP auth username                                                           |
+| `EMAIL_SMTP_PASS`        | `xsmtpsib-…`                    | SMTP auth password (store as a secret)                                       |
+| `EMAIL_SMTP_SECURE`      | `tls` or `starttls`             | Optional; inferred from the port (465 → `tls`, otherwise `starttls`)         |
+| `EMAIL_SMTP_FROM`        | `My Site <noreply@example.com>` | Optional default sender; falls back to `EMAIL_SMTP_USER`                     |
+| `EMAIL_SMTP_FROM_NAME`   | `My Site`                       | Optional structured alternative to `EMAIL_SMTP_FROM` (with `…_FROM_EMAIL`)   |
+| `EMAIL_SMTP_FROM_EMAIL`  | `noreply@example.com`           | Optional structured alternative to `EMAIL_SMTP_FROM` (with `…_FROM_NAME`)    |
+| `EMAIL_SMTP_REPLY_TO`    | `hello@example.com`             | Optional Reply-To header                                                     |
 
 <Aside type="caution">
 	Cloudflare blocks outbound port 25. This transport only supports submission
-	ports 587 (STARTTLS) and 465 (implicit TLS), and refuses port 25 with a clear
-	error. TLS is always required — plaintext auth is never attempted.
+	ports 465 (implicit TLS) and 587 (STARTTLS), and refuses port 25 with a clear
+	error. TLS is always required — plaintext auth is never attempted. Prefer
+	port 465 on Workers: STARTTLS upgrades over `cloudflare:sockets` are less
+	reliable than implicit TLS.
 </Aside>
 
 The SMTP transport registers as a built-in `email:deliver` provider. When the

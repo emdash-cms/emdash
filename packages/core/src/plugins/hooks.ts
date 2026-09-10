@@ -1349,6 +1349,14 @@ export interface ExclusiveHookResolutionOptions {
 	 * Used as a tiebreaker when no DB selection exists and multiple providers are active.
 	 */
 	preferredHints?: Map<string, string[]>;
+	/**
+	 * Providers whose selection must never be persisted (e.g. the dev-only
+	 * console email provider). Auto-selecting one sets the in-memory
+	 * selection only, and a persisted selection naming one (written by an
+	 * older version against a shared database) does not block re-resolution
+	 * in an environment where that provider is not registered.
+	 */
+	ephemeralProviders?: ReadonlySet<string>;
 }
 
 /** Options table key prefix for exclusive hook selections */
@@ -1368,13 +1376,15 @@ export const EXCLUSIVE_HOOK_NONE_VALUE = "__none__";
  * Shared algorithm used by both PluginManager and EmDashRuntime:
  * 1. If a DB selection exists and that plugin is active → keep it.
  * 2. If the selected provider is not currently registered → keep the DB
- *    value, leave the in-memory selection unset.
+ *    value, leave the in-memory selection unset (unless the selection
+ *    names an ephemeral provider, which is ignored and re-resolved).
  * 3. If no selection and only one auto-select candidate → auto-select it.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
 export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions): Promise<void> {
 	const { pipeline, isActive, getOption, getOptions, setOption, preferredHints } = opts;
+	const ephemeralProviders = opts.ephemeralProviders;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
 
@@ -1433,17 +1443,21 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		// Selection exists but the provider is not currently registered —
 		// keep the DB value (providers may be registered conditionally, and
 		// deleting would silently revert the choice on the next restart).
-		if (currentSelection) {
+		// Ephemeral selections are the exception: they must not wedge
+		// delivery off outside the environment that wrote them.
+		if (currentSelection && !ephemeralProviders?.has(currentSelection)) {
 			continue;
 		}
 
-		// No selection at all — auto-select if only one candidate
+		// No usable selection — auto-select if only one candidate
 		if (autoSelectCandidates.size === 1) {
 			const [onlyProvider] = autoSelectCandidates;
-			try {
-				await setOption(key, onlyProvider);
-			} catch {
-				// Non-fatal
+			if (!ephemeralProviders?.has(onlyProvider)) {
+				try {
+					await setOption(key, onlyProvider);
+				} catch {
+					// Non-fatal
+				}
 			}
 			pipeline.setExclusiveSelection(hookName, onlyProvider);
 			continue;

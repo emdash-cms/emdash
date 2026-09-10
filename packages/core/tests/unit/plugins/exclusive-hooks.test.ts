@@ -537,9 +537,6 @@ describe("resolveExclusiveHooks — shared function", () => {
 			setOption: async (key, value) => {
 				store.set(key, value);
 			},
-			deleteOption: async (key) => {
-				store.delete(key);
-			},
 		});
 
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("only-provider");
@@ -571,12 +568,62 @@ describe("resolveExclusiveHooks — shared function", () => {
 			setOption: async (key, value) => {
 				store.set(key, value);
 			},
-			deleteOption: async (key) => {
-				store.delete(key);
-			},
 		});
 
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("resend-plugin");
+	});
+
+	it("does not persist the auto-selection of an ephemeral provider", async () => {
+		const devProvider = createTestPlugin({
+			id: "dev-console",
+			hooks: {
+				"content:beforeSave": createTestHook("dev-console", vi.fn(), { exclusive: true }),
+			},
+		});
+		const pipeline = new HookPipeline([devProvider]);
+
+		const store = new Map<string, string>();
+		await resolveExclusiveHooks({
+			pipeline,
+			isActive: () => true,
+			getOption: async (key) => store.get(key) ?? null,
+			setOption: async (key, value) => {
+				store.set(key, value);
+			},
+			ephemeralProviders: new Set(["dev-console"]),
+		});
+
+		// Selected for this process, but not written to the store — the
+		// selection must not leak into other environments via a shared DB.
+		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("dev-console");
+		expect(store.size).toBe(0);
+	});
+
+	it("re-resolves past a stored ephemeral selection from another environment", async () => {
+		const realProvider = createTestPlugin({
+			id: "real-provider",
+			hooks: {
+				"content:beforeSave": createTestHook("real-provider", vi.fn(), { exclusive: true }),
+			},
+		});
+		const pipeline = new HookPipeline([realProvider]);
+
+		// A dev session against a shared DB stored the dev-only provider
+		const store = new Map<string, string>([
+			["emdash:exclusive_hook:content:beforeSave", "dev-console"],
+		]);
+		await resolveExclusiveHooks({
+			pipeline,
+			isActive: () => true,
+			getOption: async (key) => store.get(key) ?? null,
+			setOption: async (key, value) => {
+				store.set(key, value);
+			},
+			ephemeralProviders: new Set(["dev-console"]),
+		});
+
+		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("real-provider");
+		expect(store.get("emdash:exclusive_hook:content:beforeSave")).toBe("real-provider");
 	});
 
 	it("filters out inactive providers", async () => {
@@ -603,9 +650,6 @@ describe("resolveExclusiveHooks — shared function", () => {
 			setOption: async (key, value) => {
 				store.set(key, value);
 			},
-			deleteOption: async (key) => {
-				store.delete(key);
-			},
 		});
 
 		// Only active-provider is active, so it should be auto-selected
@@ -631,9 +675,6 @@ describe("resolveExclusiveHooks — shared function", () => {
 			getOption: async (key) => store.get(key) ?? null,
 			setOption: async (key, value) => {
 				store.set(key, value);
-			},
-			deleteOption: async (key) => {
-				store.delete(key);
 			},
 		});
 
@@ -668,9 +709,6 @@ describe("resolveExclusiveHooks — shared function", () => {
 			getOption: async (key) => store.get(key) ?? null,
 			setOption: async (key, value) => {
 				store.set(key, value);
-			},
-			deleteOption: async (key) => {
-				store.delete(key);
 			},
 		});
 
@@ -954,9 +992,6 @@ describe("resolveExclusiveHooks — batched option reads", () => {
 			setOption: vi.fn(async (key: string, value: string) => {
 				store.set(key, value);
 			}),
-			deleteOption: vi.fn(async (key: string) => {
-				store.delete(key);
-			}),
 		};
 	}
 
@@ -1027,7 +1062,6 @@ describe("resolveExclusiveHooks — batched option reads", () => {
 
 		// Matches the per-key tolerance: nothing written, nothing selected
 		expect(callbacks.setOption).not.toHaveBeenCalled();
-		expect(callbacks.deleteOption).not.toHaveBeenCalled();
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBeUndefined();
 		expect(pipeline.getExclusiveSelection("content:afterSave")).toBeUndefined();
 		expect(pipeline.getExclusiveSelection("content:beforeDelete")).toBeUndefined();

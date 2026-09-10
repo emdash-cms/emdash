@@ -113,10 +113,10 @@ async function readLine(reader: SocketReader, buffered: Uint8Array[]): Promise<s
 			return line;
 		}
 		if (joined.length > LIMIT) {
-			throw new Error("SMTP line too long");
+			throw new SmtpDeliveryError("SMTP line too long");
 		}
 		const { value, done } = await reader.read();
-		if (done) throw new Error("SMTP connection closed unexpectedly");
+		if (done) throw new SmtpDeliveryError("SMTP connection closed unexpectedly");
 		if (value) buffered.push(value);
 	}
 }
@@ -174,7 +174,7 @@ function expectCode(
 	const codes = Array.isArray(expected) ? expected : [expected];
 	if (!codes.includes(reply.code)) {
 		const serverLine = reply.lines.join(" | ");
-		throw new Error(humanizeSmtpError(reply.code, context, serverLine));
+		throw new SmtpDeliveryError(humanizeSmtpError(reply.code, context, serverLine));
 	}
 }
 
@@ -398,7 +398,13 @@ async function connectNode(
 		return new Promise((resolve, reject) => {
 			const sock = tlsConnect({ host, port, servername: host }, () => {
 				const chunks: Uint8Array[] = [];
+				let ended = false;
 				let resolveRead: ((r: { value?: Uint8Array; done: boolean }) => void) | null = null;
+				const finish = () => {
+					ended = true;
+					resolveRead?.({ done: true });
+					resolveRead = null;
+				};
 				sock.on("data", (chunk: Buffer) => {
 					const u8 = new Uint8Array(chunk);
 					if (resolveRead) {
@@ -408,8 +414,10 @@ async function connectNode(
 						chunks.push(u8);
 					}
 				});
-				sock.on("end", () => resolveRead?.({ done: true }));
-				sock.on("error", reject);
+				sock.on("end", finish);
+				// A mid-session socket error must complete pending and future
+				// reads (as EOF) instead of leaving them hanging until timeout.
+				sock.on("error", finish);
 				const sockWrite = promisify(sock.write.bind(sock));
 				const sockEnd = promisify(sock.end.bind(sock));
 				resolve({
@@ -421,6 +429,7 @@ async function connectNode(
 						read: () =>
 							new Promise((res) => {
 								if (chunks.length > 0) return res({ value: chunks.shift()!, done: false });
+								if (ended) return res({ done: true });
 								resolveRead = res;
 							}),
 					},
@@ -438,7 +447,13 @@ async function connectNode(
 	return new Promise((resolve, reject) => {
 		const sock = netConnect({ host, port }, () => {
 			const chunks: Uint8Array[] = [];
+			let ended = false;
 			let resolveRead: ((r: { value?: Uint8Array; done: boolean }) => void) | null = null;
+			const finish = () => {
+				ended = true;
+				resolveRead?.({ done: true });
+				resolveRead = null;
+			};
 			sock.on("data", (chunk: Buffer) => {
 				const u8 = new Uint8Array(chunk);
 				if (resolveRead) {
@@ -448,8 +463,10 @@ async function connectNode(
 					chunks.push(u8);
 				}
 			});
-			sock.on("end", () => resolveRead?.({ done: true }));
-			sock.on("error", reject);
+			sock.on("end", finish);
+			// A mid-session socket error must complete pending and future
+			// reads (as EOF) instead of leaving them hanging until timeout.
+			sock.on("error", finish);
 
 			const makeSocket = (s: InstanceType<typeof TLSSocket> | typeof sock): SmtpSocket => {
 				const sWrite = promisify(s.write.bind(s));
@@ -463,6 +480,7 @@ async function connectNode(
 						read: () =>
 							new Promise((res) => {
 								if (chunks.length > 0) return res({ value: chunks.shift()!, done: false });
+								if (ended) return res({ done: true });
 								resolveRead = res;
 							}),
 					},
@@ -490,8 +508,8 @@ async function connectNode(
 									chunks.push(u8);
 								}
 							});
-							tlsSock.on("end", () => resolveRead?.({ done: true }));
-							tlsSock.on("error", rej);
+							tlsSock.on("end", finish);
+							tlsSock.on("error", finish);
 							res(makeSocket(tlsSock));
 						});
 						tlsSock.on("error", rej);
@@ -733,7 +751,7 @@ export async function deliverSmtp(
 				try {
 					return await connectNode(host, port, secure);
 				} catch (nodeError) {
-					throw new Error(
+					throw new SmtpDeliveryError(
 						`Failed to connect to SMTP server ${host}:${port} — ` +
 							`Cloudflare sockets: ${cfError instanceof Error ? cfError.message : String(cfError)}; ` +
 							`Node sockets: ${nodeError instanceof Error ? nodeError.message : String(nodeError)}`,
@@ -778,9 +796,17 @@ export async function deliverSmtp(
 			port: config.port,
 			trace: trace.tail(),
 		});
-		throw error instanceof SmtpDeliveryError
-			? error
-			: new SmtpDeliveryError(detail, { cause: error });
+		if (error instanceof SmtpDeliveryError) throw error;
+		// Unknown errors (socket failures, internal bugs) surface only a
+		// generic message plus the OS error code — the raw message may
+		// contain internals and is available in the log entry above.
+		const code =
+			error instanceof Error && "code" in error && typeof error.code === "string"
+				? ` (${error.code})`
+				: "";
+		throw new SmtpDeliveryError(`SMTP delivery via ${config.host}:${config.port} failed${code}`, {
+			cause: error,
+		});
 	} finally {
 		clearTimeout(timer);
 		await socket?.close().catch(() => {});
@@ -817,7 +843,7 @@ export async function deliverSmtp(
 		// STARTTLS upgrade
 		if (config.secure === "starttls") {
 			if (!active.startTls)
-				throw new Error("STARTTLS requested but socket does not support upgrade");
+				throw new SmtpDeliveryError("STARTTLS requested but socket does not support upgrade");
 			await send("STARTTLS");
 			await recv("STARTTLS", 220);
 			active = await active.startTls();

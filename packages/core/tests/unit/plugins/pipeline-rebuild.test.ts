@@ -215,9 +215,6 @@ describe("HookPipeline rebuild on plugin disable/enable (#105)", () => {
 			setOption: async (key, value) => {
 				options.set(key, value);
 			},
-			deleteOption: async (key) => {
-				options.delete(key);
-			},
 		});
 
 		expect(pipeline2.getExclusiveSelection("email:deliver")).toBe("provider-a");

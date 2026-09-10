@@ -93,6 +93,12 @@ const mockCtx = {
 // ---------------------------------------------------------------------------
 
 describe("loadSmtpConfigFromEnv", () => {
+	afterEach(() => {
+		for (const key of Object.keys(process.env)) {
+			if (key.startsWith("EMAIL_SMTP_")) delete process.env[key];
+		}
+	});
+
 	it("returns null when EMAIL_SMTP_HOST is unset", () => {
 		delete process.env.EMAIL_SMTP_HOST;
 		expect(loadSmtpConfigFromEnv()).toBeNull();
@@ -118,10 +124,6 @@ describe("loadSmtpConfigFromEnv", () => {
 			fromEmail: "noreply@example.com",
 			replyTo: "support@example.com",
 		});
-
-		delete process.env.EMAIL_SMTP_FROM_NAME;
-		delete process.env.EMAIL_SMTP_FROM_EMAIL;
-		delete process.env.EMAIL_SMTP_REPLY_TO;
 	});
 
 	it("parses legacy EMAIL_SMTP_FROM into structured fields", () => {
@@ -141,8 +143,6 @@ describe("loadSmtpConfigFromEnv", () => {
 			fromName: "Site",
 			fromEmail: "noreply@example.com",
 		});
-
-		delete process.env.EMAIL_SMTP_FROM;
 	});
 
 	it("infers secure=tls for port 465", () => {
@@ -426,6 +426,9 @@ describe("loadSmtpConfig", () => {
 
 	afterEach(async () => {
 		await teardownTestDatabase(db);
+		for (const key of Object.keys(process.env)) {
+			if (key.startsWith("EMAIL_SMTP_")) delete process.env[key];
+		}
 	});
 
 	it("prefers DB config over env vars", async () => {
@@ -448,12 +451,6 @@ describe("loadSmtpConfig", () => {
 		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
 		expect(loaded?.host).toBe("db-smtp.example.com");
 		expect(loaded?.port).toBe(465);
-
-		// Cleanup env
-		delete process.env.EMAIL_SMTP_HOST;
-		delete process.env.EMAIL_SMTP_PORT;
-		delete process.env.EMAIL_SMTP_USER;
-		delete process.env.EMAIL_SMTP_PASS;
 	});
 
 	it("falls back to env vars when DB is empty", async () => {
@@ -464,11 +461,6 @@ describe("loadSmtpConfig", () => {
 
 		const loaded = await loadSmtpConfig(db, TEST_ENCRYPTION_KEY);
 		expect(loaded?.host).toBe("env-smtp.example.com");
-
-		delete process.env.EMAIL_SMTP_HOST;
-		delete process.env.EMAIL_SMTP_PORT;
-		delete process.env.EMAIL_SMTP_USER;
-		delete process.env.EMAIL_SMTP_PASS;
 	});
 
 	it("returns null when neither DB nor env is configured", async () => {
@@ -577,7 +569,9 @@ describe("Cloudflare socket edge cases", () => {
 			const err = error as Error;
 			expect(err.message).toContain("greeting failed");
 			expect(err.message).toContain("554");
-			expect(err.message).not.toContain("[smtp-trace:");
+			// Wire-level transcript markers must not leak into the message
+			expect(err.message).not.toContain("S< ");
+			expect(err.message).not.toContain("C> ");
 		}
 		expect(mockCtx.log.error).toHaveBeenCalledWith(
 			"SMTP delivery failed",
