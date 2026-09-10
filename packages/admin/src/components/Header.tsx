@@ -11,6 +11,9 @@ import { ThemeToggle } from "./ThemeToggle";
 
 export type { CurrentUser } from "../lib/api/current-user";
 
+// Role levels (matching @emdash-cms/auth)
+const ROLE_ADMIN = 50;
+
 async function handleLogout() {
 	// Clear the public-site toolbar-bootstrap flag (see Shell.tsx).
 	try {
@@ -38,6 +41,12 @@ export function Header() {
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
 	const { data: user } = useCurrentUser();
+
+	// Site settings are admin-only (the sidebar gates `/settings` on
+	// `ROLE_ADMIN` and the route itself is wrapped in `RequireAdmin`).
+	// Security settings stay visible to everyone: that page manages the
+	// signed-in user's own passkeys.
+	const canManageSettings = (user?.role ?? 0) >= ROLE_ADMIN;
 
 	// Get display name and initials
 	const displayName = user?.name || user?.email || t`User`;
@@ -92,14 +101,16 @@ export function Header() {
 								<Shield className="h-4 w-4" />
 								{t`Security Settings`}
 							</Link>
-							<Link
-								to="/settings"
-								onClick={() => setUserMenuOpen(false)}
-								className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
-							>
-								<Gear className="h-4 w-4" />
-								{t`Settings`}
-							</Link>
+							{canManageSettings && (
+								<Link
+									to="/settings"
+									onClick={() => setUserMenuOpen(false)}
+									className="flex items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-kumo-tint"
+								>
+									<Gear className="h-4 w-4" />
+									{t`Settings`}
+								</Link>
+							)}
 							<hr className="my-1" />
 							<button
 								onClick={handleLogout}

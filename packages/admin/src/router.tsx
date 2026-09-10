@@ -53,6 +53,7 @@ import { PluginSettings } from "./components/PluginSettings";
 import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
+import { RequireAdmin } from "./components/RequireAdmin";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -2064,11 +2065,21 @@ function CommentsPage() {
 	);
 }
 
-// Settings route
+// Settings routes. The sidebar and command palette hide `/settings` below
+// `ROLE_ADMIN`, but a manually-typed URL still mounts these components, so
+// every site-level settings page is wrapped in `RequireAdmin` (the same
+// in-component gate `BylineSchemaPage` uses). Two routes are deliberately
+// left unwrapped: `/settings/security` manages the signed-in user's *own*
+// passkeys and must stay reachable for every role, and
+// `/settings/media-usage` carries its own in-component admin gate.
 const settingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings",
-	component: Settings,
+	component: () => (
+		<RequireAdmin>
+			<Settings />
+		</RequireAdmin>
+	),
 });
 
 const mediaUsageSettingsRoute = createRoute({
@@ -2077,7 +2088,7 @@ const mediaUsageSettingsRoute = createRoute({
 	component: MediaUsageSettings,
 });
 
-// Security settings route
+// Security settings route (per-user passkeys — intentionally not admin-gated)
 const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/security",
@@ -2088,52 +2099,86 @@ const securitySettingsRoute = createRoute({
 const allowedDomainsSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/allowed-domains",
-	component: AllowedDomainsSettings,
+	component: () => (
+		<RequireAdmin>
+			<AllowedDomainsSettings />
+		</RequireAdmin>
+	),
 });
 
 // API tokens settings route
 const apiTokenSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/api-tokens",
-	component: ApiTokenSettings,
+	component: () => (
+		<RequireAdmin>
+			<ApiTokenSettings />
+		</RequireAdmin>
+	),
 });
 
 // Email settings route
 const emailSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/email",
-	component: EmailSettings,
+	component: () => (
+		<RequireAdmin>
+			<EmailSettings />
+		</RequireAdmin>
+	),
 });
 
 // Backup settings route
 const backupSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/backups",
-	component: BackupSettings,
+	component: () => (
+		<RequireAdmin>
+			<BackupSettings />
+		</RequireAdmin>
+	),
 });
 
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/general",
-	component: GeneralSettings,
+	component: () => (
+		<RequireAdmin>
+			<GeneralSettings />
+		</RequireAdmin>
+	),
 });
 
 // Social settings route
 const socialSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/social",
-	component: SocialSettings,
+	component: () => (
+		<RequireAdmin>
+			<SocialSettings />
+		</RequireAdmin>
+	),
 });
 
 // SEO settings route
 const seoSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/seo",
-	component: SeoSettings,
+	component: () => (
+		<RequireAdmin>
+			<SeoSettings />
+		</RequireAdmin>
+	),
 });
 
-// Plugin manager route
+// Plugin manager route. Nav-hidden below `ROLE_ADMIN`, but NOT wrapped in
+// `RequireAdmin`: the server enforces `plugins:read` (`Role.EDITOR`, see
+// `packages/auth/src/rbac.ts`) for the manifest/plugin list this page
+// reads, so an admin-only client gate would block a manually-typed URL
+// that the server itself allows. Mutations (install/enable/disable/
+// uninstall) are separately enforced server-side at `plugins:manage`
+// (`Role.ADMIN`).
 const pluginManagerRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins-manager",
@@ -2148,7 +2193,11 @@ function PluginManagerPage() {
 	return <PluginManager manifest={manifest} />;
 }
 
-// Marketplace browse route
+// Marketplace browse route. Nav-hidden below `ROLE_ADMIN` but deliberately
+// NOT wrapped in `RequireAdmin` — same reasoning as `pluginManagerRoute`
+// above: the server enforces `plugins:read` (`Role.EDITOR`) for browse and
+// detail reads, and `plugins:manage` (`Role.ADMIN`) only for the install
+// mutation.
 const marketplaceBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/marketplace",
@@ -2239,7 +2288,11 @@ function MarketplaceDetailPage() {
 	return <MarketplacePluginDetail pluginId={pluginId} installedPluginIds={installedIds} />;
 }
 
-// Theme marketplace browse route
+// Theme marketplace browse route. Nav-hidden below `ROLE_ADMIN` but
+// deliberately NOT wrapped in `RequireAdmin`: every server endpoint under
+// `/_emdash/api/admin/themes/marketplace` (browse, detail, thumbnail) is
+// GET-only and enforces `plugins:read` (`Role.EDITOR`) — there is no
+// theme-marketplace mutation endpoint to gate at a higher tier.
 const themeMarketplaceBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/themes/marketplace",
@@ -2258,11 +2311,19 @@ function ThemeDetailPage() {
 	return <ThemeMarketplaceDetail themeId={themeId} />;
 }
 
-// WordPress import route
+// WordPress import route. Nav-hidden below `ROLE_ADMIN` and wrapped in
+// `RequireAdmin`: every server handler under `/_emdash/api/import/wordpress`
+// (analyze, prepare, execute) enforces `import:execute` (`Role.ADMIN`) with
+// no lower-tier read path, so unlike the plugin/theme/content-type routes
+// above there is no EDITOR-tier functionality this guard would block.
 const wordpressImportRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/import/wordpress",
-	component: WordPressImport,
+	component: () => (
+		<RequireAdmin>
+			<WordPressImport />
+		</RequireAdmin>
+	),
 });
 
 // Menu routes
@@ -2321,11 +2382,19 @@ const sectionEditRoute = createRoute({
 	component: SectionEditor,
 });
 
-// Users route
+// Users route. Nav-hidden below `ROLE_ADMIN` and wrapped in `RequireAdmin`:
+// `packages/core/src/astro/routes/api/admin/users/index.ts` explicitly
+// checks `user.role < Role.ADMIN` on GET (`users:read` is `Role.ADMIN` in
+// `packages/auth/src/rbac.ts`), so there is no EDITOR-tier read this guard
+// would block.
 const usersRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/users",
-	component: UsersPage,
+	component: () => (
+		<RequireAdmin>
+			<UsersPage />
+		</RequireAdmin>
+	),
 });
 
 // Bylines route
@@ -2359,7 +2428,19 @@ const bylineSchemaRoute = createRoute({
 	component: BylineSchemaPage,
 });
 
-// Content Types routes
+// Content Types routes. Nav-hidden below `ROLE_ADMIN` but deliberately NOT
+// wrapped in `RequireAdmin` — the collections list/detail reads are
+// `schema:read` (`Role.EDITOR`); only the create/update/delete mutations are
+// `schema:manage` (`Role.ADMIN`). See
+// `packages/core/src/astro/routes/api/schema/collections/index.ts` and
+// `.../collections/[slug]/index.ts`.
+//
+// Note: `ContentTypesListPage` also unconditionally queries
+// `fetchOrphanedTables` (GET `/_emdash/api/schema/orphans`), which is gated
+// at `schema:manage` and treated as a fatal `ErrorScreen` on failure — so an
+// Editor loading this page already hits a full-page error today, wrap or no
+// wrap. That's a pre-existing bug, tracked separately, and not addressed by
+// this change.
 const contentTypesListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types",
@@ -2589,10 +2670,26 @@ function ContentTypesEditPage() {
 // Auto-generated plugin settings route (from admin.settingsSchema).
 // Lives under /plugins-manager so it can never shadow a plugin's own
 // admin pages (which own the /plugins/$pluginId/* namespace).
+//
+// Wrapped in `RequireAdmin`: BOTH halves of the settings resource are
+// `plugins:manage` (`Role.ADMIN`) — the GET and the PUT of
+// `/_emdash/api/admin/plugins/[id]/settings` (see
+// `packages/core/src/astro/routes/api/admin/plugins/[id]/settings.ts:35,61`).
+// Unlike `/plugins-manager` itself, nothing on this page is readable at
+// `plugins:read`: the one Editor-tier read it makes (`fetchPlugin`) only
+// supplies the plugin's display name as chrome around that admin-only form,
+// and the plugin detail it returns stays reachable for Editors on
+// `/plugins-manager`. So the guard removes no access the RBAC model grants —
+// it replaces a 403-driven error surface with the same Access-denied screen
+// the other admin routes show.
 const pluginSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins-manager/$pluginId/settings",
-	component: PluginSettingsPage,
+	component: () => (
+		<RequireAdmin>
+			<PluginSettingsPage />
+		</RequireAdmin>
+	),
 });
 
 function PluginSettingsPage() {
