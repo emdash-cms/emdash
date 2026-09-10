@@ -14,16 +14,57 @@ export function escapeHtml(s: string): string {
 		.replaceAll('"', "&quot;");
 }
 
+/**
+ * RTL primary language subtags (BCP 47). Mirrors the admin's
+ * `getLocaleDir` without @emdash-cms/auth depending on the admin package.
+ */
+const RTL_SUBTAGS = new Set(["ar", "fa", "he", "ur", "ps", "sd", "ug", "yi", "ckb", "dv"]);
+
+const SUBTAG_SPLIT_RE = /[-_]/;
+
+/** Text direction for a BCP 47 locale code ("ltr" unless the primary subtag is RTL). */
+export function localeDir(locale: string): "ltr" | "rtl" {
+	const primary = locale.toLowerCase().split(SUBTAG_SPLIT_RE)[0] ?? "";
+	return RTL_SUBTAGS.has(primary) ? "rtl" : "ltr";
+}
+
 const TOKEN_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 /** Function that sends an email (matches the EmailPipeline.send signature) */
 export type EmailSendFn = (message: EmailMessage) => Promise<void>;
+
+/**
+ * Localized copy for the invite email (#915).
+ *
+ * All fields are final display strings — interpolation (site name) happens
+ * in the caller, which owns the locale catalogs. When omitted, the builder
+ * falls back to English. This package deliberately stays free of any i18n
+ * machinery; EmDash core passes strings resolved from the admin catalogs.
+ */
+export interface InviteEmailStrings {
+	/** Subject line, e.g. `You've been invited to Acme` */
+	subject: string;
+	/** First line of the plain-text body, e.g. `You've been invited to join Acme.` */
+	textIntro: string;
+	/** Plain-text instruction above the raw link */
+	textLinkInstruction: string;
+	/** HTML instruction above the button */
+	htmlInstruction: string;
+	/** Button label */
+	buttonLabel: string;
+	/** Expiry note, e.g. `This link expires in 7 days.` */
+	expiryNote: string;
+}
 
 export interface InviteConfig {
 	baseUrl: string;
 	siteName: string;
 	/** Optional email sender. When omitted, invite URL is returned without sending. */
 	email?: EmailSendFn;
+	/** Optional localized email copy. English when omitted. */
+	emailStrings?: InviteEmailStrings;
+	/** Optional BCP 47 locale of the copy; sets lang/dir on the email HTML for RTL. */
+	emailLocale?: string;
 }
 
 /** Result of creating an invite token (without sending email) */
@@ -74,29 +115,53 @@ export async function createInviteToken(
 	return { url: url.toString(), email };
 }
 
+/** English fallback copy for the invite email. */
+function defaultInviteEmailStrings(siteName: string): InviteEmailStrings {
+	return {
+		subject: `You've been invited to ${siteName}`,
+		textIntro: `You've been invited to join ${siteName}.`,
+		textLinkInstruction: "Click this link to create your account:",
+		htmlInstruction: "Click the button below to create your account:",
+		buttonLabel: "Accept Invite",
+		expiryNote: "This link expires in 7 days.",
+	};
+}
+
 /**
  * Build the invite email message.
+ *
+ * Exported for tests and for callers that render the message without
+ * sending (localized copy is injected via `strings`, see #915).
  */
-function buildInviteEmail(inviteUrl: string, email: string, siteName: string): EmailMessage {
-	const safeName = escapeHtml(siteName);
+export function buildInviteEmail(
+	inviteUrl: string,
+	email: string,
+	siteName: string,
+	strings?: InviteEmailStrings,
+	locale?: string,
+): EmailMessage {
+	const s = strings ?? defaultInviteEmailStrings(siteName);
+	// Localized copy may be RTL — set lang/dir on the root so RTL text renders
+	// correctly. Defaults to ltr when no locale is threaded through (#915).
+	const langAttr = locale ? ` lang="${escapeHtml(locale)}" dir="${localeDir(locale)}"` : "";
 	return {
 		to: email,
-		subject: `You've been invited to ${siteName}`,
-		text: `You've been invited to join ${siteName}.\n\nClick this link to create your account:\n${inviteUrl}\n\nThis link expires in 7 days.`,
+		subject: s.subject,
+		text: `${s.textIntro}\n\n${s.textLinkInstruction}\n${inviteUrl}\n\n${s.expiryNote}`,
 		html: `
 <!DOCTYPE html>
-<html>
+<html${langAttr}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
 <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.5; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-  <h1 style="font-size: 24px; margin-bottom: 20px;">You've been invited to ${safeName}</h1>
-  <p>Click the button below to create your account:</p>
+  <h1 style="font-size: 24px; margin-bottom: 20px;">${escapeHtml(s.subject)}</h1>
+  <p>${escapeHtml(s.htmlInstruction)}</p>
   <p style="margin: 30px 0;">
-    <a href="${inviteUrl}" style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Accept Invite</a>
+    <a href="${inviteUrl}" style="background-color: #0066cc; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">${escapeHtml(s.buttonLabel)}</a>
   </p>
-  <p style="color: #666; font-size: 14px;">This link expires in 7 days.</p>
+  <p style="color: #666; font-size: 14px;">${escapeHtml(s.expiryNote)}</p>
 </body>
 </html>`,
 	};
@@ -120,7 +185,13 @@ export async function createInvite(
 
 	// Send email if a sender is configured
 	if (config.email) {
-		const message = buildInviteEmail(result.url, email, config.siteName);
+		const message = buildInviteEmail(
+			result.url,
+			email,
+			config.siteName,
+			config.emailStrings,
+			config.emailLocale,
+		);
 		await config.email(message);
 	}
 

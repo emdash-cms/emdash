@@ -13,9 +13,11 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
+import { getInviteEmailStrings } from "@emdash-cms/admin/locales";
 import { createInvite, InviteError, Role } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
+import { getEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { inviteCreateBody } from "#api/schemas.js";
@@ -55,11 +57,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
 					emdash.email!.send(message, "system")
 			: undefined;
 
+		// Localize the invite email copy (#915). Only resolved when an
+		// email will actually be sent — the copy-link fallback has no copy.
+		const emailLocale = emailSend ? await getEmailLocale(emdash.db, request) : undefined;
+		const emailStrings = emailLocale
+			? await getInviteEmailStrings(emailLocale, siteName)
+			: undefined;
+
 		const result = await createInvite(
 			{
 				baseUrl,
 				siteName,
 				email: emailSend,
+				emailStrings,
+				emailLocale,
 			},
 			adapter,
 			body.email,
