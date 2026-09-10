@@ -1,0 +1,29 @@
+templates/marketing-cloudflare/src/components/blocks/FAQ.astro
+  s_81c53493e8c532::t_655f20a11854b2 18-25,27-48,54-56,59-84,87-90,93-94,97-102,107,111,114,117-127,135-137,147,151,153,155-176
+templates/marketing-cloudflare/src/components/blocks/Pricing.astro
+  s_81c53493e8c532::t_58f68f2c9128db 7-8,31,41-48,50-56,58-108,114-117,119-130,135,137,142-145,150-152,156,158-160,166-169,171-172,175,177,181,183,187,190,195,199,206,209-210,212,216-217,222,225,233-238,244-245,255,262-267
+templates/marketing-cloudflare/src/components/blocks/Testimonials.astro
+  s_81c53493e8c532::t_4417cbb96b340f 2-9,12,14,19-45,48-56,58-77,80-91,97-98,102-116,119-121,124,126,130,132-146,151,153-154,158-164,166,170-181,183,185-190,195-196,201-202,207,212-215,217
+templates/marketing/src/components/blocks/FAQ.astro
+  s_81c53493e8c532::t_1991e0af072672 18-25,27-48,54-56,59-84,87-90,93-94,97-102,107,111,114,117-127,135-137,147,151,153,155-176
+templates/marketing/src/components/blocks/Pricing.astro
+  s_81c53493e8c532::t_a471286b133e7e 7-8,31,41-48,50-56,58-108,114-117,119-130,135,137,142-145,150-152,156,158-160,166-169,171-172,175,177,181,183,187,190,195,199,206,209-210,212,216-217,222,225,233-238,244-245,255,262-267
+templates/marketing/src/components/blocks/Testimonials.astro
+  s_81c53493e8c532::t_a85d5140d12aca 2-9,12,14,19-45,48-56,58-77,80-91,97-98,102-116,119-121,124,126,130,132-146,151,153-154,158-164,166,170-181,183,185-190,195-196,201-202,207,212-215,217
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "12785a5de2cc523286b3216b83b1bbce21c5e28e",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
