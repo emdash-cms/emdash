@@ -1,0 +1,33 @@
+packages/admin/src/components/PortableTextEditor.tsx
+  s_669e4e36f3cd5c::t_77b56edd4f327c 2567
+.changeset/polished-portable-text-tables.md
+  s_8e810e11ab1647::t_039504f132280a 10-11
+packages/admin/tests/editor/PortableTextEditor.test.tsx
+  s_8e810e11ab1647::t_d39d88f9c04c03 1198,1200
+packages/admin/tests/editor/toolbar.test.tsx
+  s_8e810e11ab1647::t_2a40a5ef6637e4 684,686,1749,1825-1828,1837,1844,1846-1848,1851,1864,1866-1868,1877
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "e89c7f0adbad3ce5ea4e4bf7c3001102671ec2a7",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_8e810e11ab1647": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08ad7-6aec-7fc1-9205-b5cfe8310fb8",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
