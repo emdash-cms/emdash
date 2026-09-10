@@ -12,14 +12,14 @@
 		color-scheme: light dark;
 
 		/* Accent scale */
-		--heat-4: #1d4ed80a;
-		--heat-8: #1d4ed814;
-		--heat-12: #1d4ed81f;
-		--heat-16: #1d4ed829;
-		--heat-20: #1d4ed833;
-		--heat-40: #1d4ed866;
-		--heat-90: #1d4ed8e6;
-		--heat-100: #1d4ed8ff;
+		--heat-4: #0075de0a;
+		--heat-8: #0075de14;
+		--heat-12: #0075de1f;
+		--heat-16: #0075de29;
+		--heat-20: #0075de33;
+		--heat-40: #0075de66;
+		--heat-90: #0075dee6;
+		--heat-100: #0075deff;
 
 		/* Neutral scale */
 		--accent-black: #14213dff;
@@ -47,9 +47,9 @@
 		--color-surface: var(--surface);
 		--color-surface-raised: var(--surface-raised);
 		--color-primary: var(--heat-100);
-		--color-primary-dark: var(--heat-90);
+		--color-primary-dark: #005bab;
 		--color-primary-light: var(--heat-12);
-		--color-accent: var(--heat-100);
+		--color-accent: #005bab;
 		--color-accent-light: var(--heat-12);
 		--color-success: #15803d;
 		--color-warning: #a16207;
@@ -58,8 +58,9 @@
 
 		/* Public-template compatibility aliases */
 		--color-brand: var(--color-primary);
-		--color-brand-strong: #1e40af;
-		--color-brand-soft: #dbeafe;
+		--color-brand-hover: var(--color-primary-dark);
+		--color-brand-strong: #005bab;
+		--color-brand-soft: #f2f9ff;
 		--color-on-brand: #ffffff;
 		--color-brand-ring: var(--heat-12);
 		--gradient-brand: var(--color-primary);
@@ -73,7 +74,8 @@
 		--button-padding-y: 8px;
 		--button-padding-x: 12px;
 		--button-primary-bg: var(--heat-100);
-		--button-primary-bg-hover: var(--heat-90);
+		--button-primary-bg-hover: #006bcb;
+		--button-primary-bg-active: #005bab;
 		--button-primary-fg: var(--accent-white);
 		--button-secondary-bg: var(--black-alpha-4);
 		--button-secondary-bg-hover: var(--black-alpha-6);
@@ -162,8 +164,9 @@
 			--color-border: var(--border-muted);
 			--color-surface: var(--surface);
 			--color-surface-raised: var(--surface-raised);
-			--color-brand-strong: #3b82f6;
-			--color-brand-soft: #1e3a5f;
+			--color-brand-hover: #82c1f5;
+			--color-brand-strong: #82c1f5;
+			--color-brand-soft: #163a5c;
 			--color-on-brand: #0b1220;
 			--button-secondary-bg: var(--black-alpha-4);
 			--button-secondary-bg-hover: var(--black-alpha-6);
@@ -200,8 +203,9 @@
 		--color-border: var(--border-muted);
 		--color-surface: var(--surface);
 		--color-surface-raised: var(--surface-raised);
-		--color-brand-strong: #3b82f6;
-		--color-brand-soft: #1e3a5f;
+		--color-brand-hover: #82c1f5;
+		--color-brand-strong: #82c1f5;
+		--color-brand-soft: #163a5c;
 		--color-on-brand: #0b1220;
 		--button-secondary-bg: var(--black-alpha-4);
 		--button-secondary-bg-hover: var(--black-alpha-6);

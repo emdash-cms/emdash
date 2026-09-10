@@ -200,6 +200,11 @@ const pageCtx = createPublicPageContext({
 					text-underline-offset: 2px;
 				}
 
+				main p a:not([class]):hover,
+				main li a:not([class]):hover {
+					color: var(--color-brand-hover);
+				}
+
 				a:focus-visible,
 				button:focus-visible,
 				input:focus-visible,
@@ -331,6 +336,10 @@ const pageCtx = createPublicPageContext({
 
 				.btn-primary:hover {
 					background: var(--button-primary-bg-hover);
+				}
+
+				.btn-primary:active {
+					background: var(--button-primary-bg-active);
 				}
 
 				.btn-secondary {
