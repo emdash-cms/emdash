@@ -1,0 +1,308 @@
+---
+import { decodeSlug, getEmDashEntry } from "emdash";
+import { PortableText } from "emdash/ui";
+import BlogCover from "../../components/BlogCover.astro";
+import Base from "../../layouts/Base.astro";
+import {
+	formatPostDate,
+	getPostAuthor,
+	getReadingTime,
+	type BlogPostData,
+} from "../../lib/blog";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) return Astro.redirect("/404");
+
+const { entry: post, cacheHint } = await getEmDashEntry<"posts", BlogPostData>(
+	"posts",
+	slug,
+);
+
+if (!post) return Astro.redirect("/404");
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+const author = getPostAuthor(post.data);
+const publishedDate = formatPostDate(post.data.publishedAt);
+const readingTime = getReadingTime(post.data.content);
+---
+
+<Base title={post.data.title} description={post.data.excerpt ?? ""}>
+	<article class="article-page">
+		<div class="article-shell">
+			<a href="/blog" class="back-link">
+				<svg viewBox="0 0 20 20" aria-hidden="true">
+					<path d="M16 10H5m4-4-4 4 4 4" />
+				</svg>
+				<span>All stories</span>
+			</a>
+
+			<header class="article-header">
+				<div class="article-meta">
+					{post.data.category && (
+						<span class="article-category" {...post.edit.category}>{post.data.category}</span>
+					)}
+					<span>{readingTime} min read</span>
+				</div>
+				<h1 {...post.edit.title}>{post.data.title}</h1>
+				{post.data.excerpt && (
+					<p class="article-excerpt" {...post.edit.excerpt}>{post.data.excerpt}</p>
+				)}
+				<div class="article-byline">
+					<span class="author-avatar" aria-hidden="true">{author.initials}</span>
+					<span class="author-copy">
+						<strong>{author.name}</strong>
+						<span>
+							{author.role}
+							{author.role && publishedDate ? " · " : ""}
+							{publishedDate && (
+								<time datetime={post.data.publishedAt?.toISOString()}>{publishedDate}</time>
+							)}
+						</span>
+					</span>
+				</div>
+			</header>
+
+			<div class="article-cover" {...post.edit.featured_image}>
+				<BlogCover
+					image={post.data.featured_image}
+					style={post.data.cover_style}
+					label={post.data.category}
+					variant="hero"
+				/>
+			</div>
+
+			<div class="article-body" {...post.edit.content}>
+				<PortableText value={post.data.content} />
+			</div>
+
+			<footer class="article-footer">
+				<a href="/blog" class="back-link">
+					<svg viewBox="0 0 20 20" aria-hidden="true">
+						<path d="M16 10H5m4-4-4 4 4 4" />
+					</svg>
+					<span>Back to the blog</span>
+				</a>
+			</footer>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.article-page {
+		padding-block: clamp(7.5rem, 12vw, 9.5rem) clamp(5rem, 8vw, 7rem);
+		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
+	}
+
+	.article-shell {
+		width: calc(100% - 3rem);
+		max-width: 61rem;
+		margin-inline: auto;
+	}
+
+	.back-link {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-sm);
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		font-weight: 550;
+		line-height: 1.4;
+		transition: color var(--transition-fast);
+	}
+
+	.back-link:hover {
+		color: var(--color-primary);
+	}
+
+	.back-link svg {
+		width: 1rem;
+		height: 1rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.7;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.article-header {
+		max-width: 49rem;
+		margin-block: clamp(2.5rem, 6vw, 4.5rem) clamp(3rem, 6vw, 4.5rem);
+	}
+
+	.article-meta {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.45rem 0.75rem;
+		align-items: center;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		line-height: 1.4;
+	}
+
+	.article-category {
+		color: var(--color-primary);
+		font-weight: 650;
+	}
+
+	.article-header h1 {
+		margin-block-start: var(--spacing-md);
+		font-size: clamp(2.5rem, 7vw, 4.5rem);
+		font-weight: var(--font-weight-display);
+		line-height: 1.02;
+		letter-spacing: -0.05em;
+		text-wrap: balance;
+		overflow-wrap: break-word;
+	}
+
+	.article-excerpt {
+		max-width: 42rem;
+		margin-block-start: var(--spacing-lg);
+		color: var(--color-muted);
+		font-size: clamp(1.0625rem, 2.2vw, 1.25rem);
+		line-height: 1.6;
+		text-wrap: pretty;
+	}
+
+	.article-byline {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		margin-block-start: var(--spacing-xl);
+	}
+
+	.author-avatar {
+		display: inline-flex;
+		width: 2.5rem;
+		height: 2.5rem;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-primary);
+		background: var(--color-primary-light);
+		font-size: 0.75rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		border: 1px solid var(--heat-20);
+		border-radius: 50%;
+	}
+
+	.author-copy {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+	}
+
+	.author-copy strong {
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		line-height: 1.35;
+	}
+
+	.author-copy > span {
+		color: var(--color-muted);
+		font-size: var(--font-size-xs);
+		line-height: 1.5;
+	}
+
+	.article-cover {
+		overflow: hidden;
+		margin-block-end: clamp(3.5rem, 8vw, 6rem);
+		border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.article-body,
+	.article-footer {
+		max-width: 42rem;
+		margin-inline: auto;
+	}
+
+	.article-body {
+		color: color-mix(in srgb, var(--color-text) 82%, transparent);
+		font-size: clamp(1.0625rem, 1.8vw, 1.125rem);
+		line-height: 1.75;
+		overflow-wrap: break-word;
+	}
+
+	.article-body :global(p) {
+		margin-block-end: 1.35em;
+	}
+
+	.article-body :global(h2) {
+		margin-block: 2.25em 0.75em;
+		color: var(--color-text);
+		font-size: clamp(1.75rem, 4vw, 2.125rem);
+		line-height: 1.15;
+		letter-spacing: -0.035em;
+	}
+
+	.article-body :global(h3) {
+		margin-block: 1.8em 0.65em;
+		color: var(--color-text);
+		font-size: var(--font-size-xl);
+		line-height: 1.25;
+	}
+
+	.article-body :global(ul),
+	.article-body :global(ol) {
+		margin-block-end: 1.35em;
+		padding-inline-start: 1.5em;
+	}
+
+	.article-body :global(li + li) {
+		margin-block-start: 0.45em;
+	}
+
+	.article-body :global(blockquote) {
+		margin-block: 2em;
+		padding: 0.2em 0 0.2em var(--spacing-lg);
+		color: var(--color-text);
+		font-size: 1.1em;
+		font-weight: 550;
+		line-height: 1.6;
+		border-inline-start: 3px solid var(--color-primary);
+	}
+
+	.article-body :global(a) {
+		color: var(--color-primary);
+		text-decoration: underline;
+		text-decoration-thickness: from-font;
+		text-underline-offset: 0.18em;
+	}
+
+	.article-body :global(code) {
+		padding: 0.15em 0.35em;
+		background: var(--button-secondary-bg);
+		font-family: var(--font-mono);
+		font-size: 0.88em;
+		border-radius: var(--radius-sm);
+	}
+
+	.article-body :global(img) {
+		margin-block: 2.5rem;
+		border-radius: var(--radius);
+	}
+
+	.article-footer {
+		margin-block-start: clamp(4rem, 8vw, 6rem);
+		padding-block-start: var(--spacing-xl);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	@media (max-width: 479px) {
+		.article-page {
+			padding-block-start: 7rem;
+		}
+
+		.article-header h1 {
+			letter-spacing: -0.04em;
+		}
+
+		.article-body :global(blockquote) {
+			padding-inline-start: var(--spacing-md);
+		}
+	}
+</style>

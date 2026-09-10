@@ -3,7 +3,7 @@
 	"version": "1",
 	"meta": {
 		"name": "Marketing Starter",
-		"description": "A conversion-focused marketing site with landing pages",
+		"description": "A polished marketing site with landing pages and an editorial blog",
 		"author": "EmDash"
 	},
 	"settings": {
@@ -29,6 +29,71 @@
 					"type": "portableText"
 				}
 			]
+			},
+			{
+				"slug": "posts",
+				"label": "Posts",
+				"labelSingular": "Post",
+				"supports": ["drafts", "revisions", "search", "seo"],
+				"fields": [
+					{
+						"slug": "title",
+						"label": "Title",
+						"type": "string",
+						"required": true,
+						"searchable": true
+					},
+					{
+						"slug": "excerpt",
+						"label": "Excerpt",
+						"type": "text",
+						"searchable": true
+					},
+					{
+						"slug": "category",
+						"label": "Category",
+						"type": "string",
+						"searchable": true
+					},
+					{
+						"slug": "featured",
+						"label": "Featured",
+						"type": "boolean"
+					},
+					{
+						"slug": "featured_image",
+						"label": "Featured Image",
+						"type": "image"
+					},
+					{
+						"slug": "cover_style",
+						"label": "Cover Style",
+						"type": "string"
+					},
+					{
+						"slug": "content",
+						"label": "Content",
+						"type": "portableText",
+						"searchable": true
+					}
+				]
+			}
+		],
+	"bylines": [
+		{
+			"id": "author-maya-chen",
+			"slug": "maya-chen",
+			"displayName": "Maya Chen"
+		},
+		{
+			"id": "author-theo-grant",
+			"slug": "theo-grant",
+			"displayName": "Theo Grant"
+		},
+		{
+			"id": "author-nina-patel",
+			"slug": "nina-patel",
+			"displayName": "Nina Patel"
 		}
 	],
 	"menus": [
@@ -43,8 +108,8 @@
 				},
 				{
 					"type": "custom",
-					"label": "Pricing",
-					"url": "/pricing"
+					"label": "Blog",
+					"url": "/blog"
 				},
 				{
 					"type": "custom",
@@ -58,7 +123,7 @@
 			"label": "Footer: Product",
 			"items": [
 				{ "type": "custom", "label": "Features", "url": "/#features" },
-				{ "type": "custom", "label": "Pricing", "url": "/pricing" },
+				{ "type": "custom", "label": "Pricing", "url": "/#pricing" },
 				{ "type": "custom", "label": "Changelog", "url": "/changelog" }
 			]
 		},
@@ -82,6 +147,321 @@
 		}
 	],
 	"content": {
+		"posts": [
+			{
+				"id": "post-calm-launches",
+				"slug": "a-practical-guide-to-calmer-product-launches",
+				"status": "published",
+				"data": {
+					"title": "A practical guide to calmer product launches",
+					"excerpt": "The best launches are not louder. They are clearer. Here is a simple operating rhythm for shipping with less noise and better decisions.",
+					"category": "Product",
+					"featured": true,
+					"cover_style": "signal",
+					"content": [
+						{
+							"_type": "block",
+							"_key": "calm-intro",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "calm-intro-span",
+									"text": "Most launch stress is created long before release day. The team is carrying several versions of the plan, success is described in vague terms, and every late question feels urgent. A calmer launch starts by removing that ambiguity early."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "calm-success",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "calm-success-span",
+									"text": "Decide what success means"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "calm-outcome",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "calm-outcome-span",
+									"text": "Write down one observable change you expect to see after launch. It might be fewer support requests, a shorter setup time, or more people reaching a key moment in the product. One clear outcome gives design, engineering, and marketing the same reference point."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "calm-scope",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "calm-scope-span",
+									"text": "Then define the smallest complete version of the release. This is not the smallest amount of work. It is the smallest experience that solves the problem without asking customers to fill in the gaps."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "calm-quote",
+							"style": "blockquote",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "calm-quote-span",
+									"text": "A launch is a decision checkpoint, not a performance."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "calm-boring",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "calm-boring-span",
+									"text": "Make release day boring"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "calm-rehearse",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "calm-rehearse-span",
+									"text": "By the time customers see the release, the team should already know how it behaves, how to explain it, and what to watch. Rehearse the critical path, prepare the support response, and put the first week of measurement in the calendar."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "calm-learn",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "calm-learn-span",
+									"text": "After launch, hold one short review around the outcome you chose. Keep what helped the team see clearly, remove what created theatre, and carry that learning into the next release. Calm is not a personality trait. It is a process you can design."
+								}
+							]
+						}
+					]
+				},
+				"bylines": [
+					{ "byline": "author-maya-chen", "roleLabel": "Product lead" }
+				]
+			},
+			{
+				"id": "post-trusted-workspace",
+				"slug": "designing-a-workspace-people-can-trust",
+				"status": "published",
+				"data": {
+					"title": "Designing a workspace people can trust",
+					"excerpt": "Trust grows when people can see what changed, understand what happens next, and recover when they make a mistake.",
+					"category": "Design",
+					"cover_style": "blueprint",
+					"content": [
+						{
+							"_type": "block",
+							"_key": "trust-intro",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "trust-intro-span",
+									"text": "A workspace earns trust in small moments. A save indicator updates when expected. A destructive action explains its impact. A teammate can tell whether they are looking at a draft or the version everyone else sees."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "trust-visible",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "trust-visible-span",
+									"text": "Make state visible"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "trust-status",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "trust-status-span",
+									"text": "Do not make people infer whether their work is saved, shared, or private. Put the current state close to the action that changes it, use plain language, and keep the vocabulary consistent across the product."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "trust-history",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "trust-history-span",
+									"text": "History matters too. When the interface shows who changed something and when, collaboration feels legible rather than mysterious. People spend less time checking with each other and more time moving the work forward."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "trust-defaults",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "trust-defaults-span",
+									"text": "Use defaults that respect people"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "trust-recovery",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "trust-recovery-span",
+									"text": "Safe defaults reduce the cost of getting started, but recovery is what lets people explore. Prefer reversible actions, keep a clear undo path, and ask for confirmation only when the consequence is genuinely difficult to reverse."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "trust-close",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "trust-close-span",
+									"text": "Trust is not a layer of polish added at the end. It is the result of clear state, predictable behavior, and respectful defaults working together every time someone uses the product."
+								}
+							]
+						}
+					]
+				},
+				"bylines": [
+					{ "byline": "author-theo-grant", "roleLabel": "Design lead" }
+				]
+			},
+			{
+				"id": "post-customer-conversations",
+				"slug": "what-we-learned-from-our-first-100-customer-conversations",
+				"status": "published",
+				"data": {
+					"title": "What we learned from our first 100 customer conversations",
+					"excerpt": "The most useful insights did not arrive as feature requests. They appeared in repeated workarounds, careful pauses, and unfinished sentences.",
+					"category": "Company",
+					"cover_style": "orbit",
+					"content": [
+						{
+							"_type": "block",
+							"_key": "customers-intro",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "customers-intro-span",
+									"text": "We began our first customer conversations with a list of questions and a quiet hope that someone would validate the roadmap. The useful part started when we stopped trying to confirm our ideas and paid attention to how people already worked."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "customers-workarounds",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "customers-workarounds-span",
+									"text": "Listen for repeated workarounds"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "customers-example",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "customers-example-span",
+									"text": "One workaround can be personal preference. The same workaround across five teams is evidence. We kept a shared note of repeated manual steps, handoffs that needed a meeting, and places where people exported data just to understand it."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "customers-questions",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "customers-questions-span",
+									"text": "The best follow-up question was simple: what happens next? It moved the conversation away from opinions about a screen and toward the real sequence of work, including the people and tools our product would need to fit around."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "customers-loop",
+							"style": "h2",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "customers-loop-span",
+									"text": "Close the loop"
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "customers-followup",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "customers-followup-span",
+									"text": "When a conversation changes a decision, tell the person who helped you see it. A short follow-up makes research feel like a relationship instead of an extraction exercise, and it gives you a thoughtful group to return to as the product changes."
+								}
+							]
+						},
+						{
+							"_type": "block",
+							"_key": "customers-close",
+							"style": "normal",
+							"children": [
+								{
+									"_type": "span",
+									"_key": "customers-close-span",
+									"text": "After one hundred conversations, we had fewer confident predictions and a much clearer view of the work. That trade was worth making. Good customer research does not hand you a roadmap. It improves the quality of the choices you make."
+								}
+							]
+						}
+					]
+				},
+				"bylines": [
+					{ "byline": "author-nina-patel", "roleLabel": "Co-founder" }
+				]
+			}
+		],
 		"pages": [
 			{
 				"id": "home",
@@ -231,75 +611,6 @@
 							"primaryCtaUrl": "/signup",
 							"secondaryCtaLabel": "Request a Demo",
 							"secondaryCtaUrl": "/contact"
-						}
-					]
-				}
-			},
-			{
-				"id": "pricing",
-				"slug": "pricing",
-				"status": "published",
-				"data": {
-					"title": "Pricing",
-					"content": [
-						{
-							"_type": "marketing.hero",
-							"_key": "pricing-hero",
-							"headline": "Simple, transparent pricing",
-							"subheadline": "No hidden fees. No surprises. Start free and scale as you grow.",
-							"centered": true
-						},
-						{
-							"_type": "marketing.pricing",
-							"_key": "pricing-plans",
-							"plans": [
-								{
-									"name": "Starter",
-									"price": "$0",
-									"period": "/month",
-									"description": "Perfect for trying things out",
-									"features": "Up to 3 team members\n5 projects\nBasic analytics\nCommunity support\n1GB storage",
-									"ctaLabel": "Get Started",
-									"ctaUrl": "/signup"
-								},
-								{
-									"name": "Pro",
-									"price": "$29",
-									"period": "/user/month",
-									"description": "For growing teams",
-									"features": "Unlimited team members\nUnlimited projects\nAdvanced analytics\nPriority support\n100GB storage\nCustom integrations\nAPI access",
-									"ctaLabel": "Start Free Trial",
-									"ctaUrl": "/signup?plan=pro",
-									"highlighted": true
-								},
-								{
-									"name": "Enterprise",
-									"price": "Custom",
-									"description": "For large organizations",
-									"features": "Everything in Pro\nDedicated support\nCustom contracts\nSLA guarantee\nUnlimited storage",
-									"ctaLabel": "Contact Sales",
-									"ctaUrl": "/contact"
-								}
-							]
-						},
-						{
-							"_type": "marketing.faq",
-							"_key": "pricing-faq",
-							"headline": "Pricing FAQ",
-							"items": [
-								{
-									"question": "Can I change plans later?",
-									"answer": "Yes, you can upgrade or downgrade at any time. Changes take effect immediately and we'll prorate your billing."
-								},
-								{
-									"question": "What payment methods do you accept?",
-									"answer": "We accept all major credit cards, and Enterprise customers can pay via invoice with NET 30 terms."
-								},
-								{
-									"question": "Is there a discount for annual billing?",
-									"answer": "Yes, annual plans receive a 20% discount compared to monthly billing."
-								}
-							]
 						}
 					]
 				}

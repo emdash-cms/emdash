@@ -44,27 +44,30 @@ This template ships with `.mcp.json`, `.cursor/mcp.json`, and `.vscode/mcp.json`
 
 ## This Template
 
-A SaaS-style landing page template with modular content blocks: hero, features, testimonials, pricing, FAQ, plus a real contact page. Designed for product marketing sites, app landing pages, and anything that needs a hero + features + pricing + CTA flow.
+A SaaS-style marketing template with modular landing-page blocks, an editorial blog, and a contact page. It is designed for product marketing sites and app landing pages that need a complete marketing and publishing flow.
 
 More structured than the blog and portfolio templates: navy-tinted surfaces, a focused blue accent, an isometric hero illustration, and restrained 700-weight display type. The voice is direct and product-confident without tipping into stock SaaS cliche.
 
 ## Pages
 
-| Page    | Path       | What it shows                                                                                                                                    |
-| ------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Home    | `/`        | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ, call to action) authored as a Portable Text document on the Home page |
-| Pricing | `/pricing` | Same block-driven editor -- "Simple, transparent pricing" page using the `pricing` block                                                         |
-| Contact | `/contact` | Left column with contact methods (Email / Support / Sales, each with a blue icon), right column with a form                                      |
-
-There is no posts collection. Content is entirely authored as marketing blocks inside `pages`.
+| Page             | Path           | What it shows                                                                                                                                    |
+| ---------------- | -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Home             | `/`            | Marketing blocks in any order (hero, features, testimonials, pricing, FAQ, call to action) authored as a Portable Text document on the Home page |
+| Blog             | `/blog`        | One featured post and a responsive grid of the remaining published posts                                                                         |
+| Blog post        | `/blog/[slug]` | Post title, author, cover, metadata, and Portable Text article content                                                                             |
+| Contact          | `/contact`     | Left column with contact methods (Email / Support / Sales, each with a blue icon), right column with a form                                      |
+| Pricing redirect | `/pricing`     | Redirects to `/blog`; the pricing section remains available at `/#pricing`                                                                        |
 
 ## Schema
 
 - `pages` collection: `title`, `content` (Portable Text containing marketing blocks).
+- `posts` collection: `title`, `excerpt`, `category`, `featured`, `featured_image`, `cover_style`, `content`.
 - No taxonomies.
 - Four menus: `primary`, `footer_product`, `footer_company`, `footer_support`.
 
 Site settings have `title` and `tagline`. Title renders in the header; tagline is used in the footer / metadata.
+
+Blog posts use `featured_image` when an editor selects an image. Without an image, `BlogCover.astro` renders the `cover_style` value (`signal`, `blueprint`, or `orbit`). The seed includes three author bylines and one post for each cover style.
 
 ## Marketing blocks
 

@@ -1,0 +1,241 @@
+---
+import type { MediaValue } from "emdash";
+import { Image } from "emdash/ui";
+
+interface Props {
+	image?: MediaValue;
+	style?: string;
+	label?: string;
+	variant?: "feature" | "card" | "hero";
+}
+
+const {
+	image,
+	style = "signal",
+	label = "Journal",
+	variant = "card",
+} = Astro.props;
+const styles = ["signal", "blueprint", "orbit"];
+const coverStyle = styles.includes(style) ? style : "signal";
+const coverNumber = { signal: "01", blueprint: "02", orbit: "03" }[coverStyle];
+---
+
+<div class:list={["blog-cover", `blog-cover--${coverStyle}`, `blog-cover--${variant}`]}>
+	{image ? (
+		<div class="cover-media">
+			<Image image={image} />
+		</div>
+	) : (
+		<div class="cover-art" aria-hidden="true">
+			<div class="cover-grid"></div>
+			<span class="cover-label">{label}</span>
+			<div class="cover-object">
+				<span class="cover-bar cover-bar--one"></span>
+				<span class="cover-bar cover-bar--two"></span>
+				<span class="cover-bar cover-bar--three"></span>
+				<span class="cover-core"></span>
+			</div>
+			<span class="cover-number">{coverNumber}</span>
+		</div>
+	)}
+</div>
+
+<style>
+	.blog-cover {
+		position: relative;
+		isolation: isolate;
+		width: 100%;
+		overflow: hidden;
+		background: var(--cover-base);
+		border-radius: inherit;
+		transform: translateZ(0);
+		transition: transform var(--transition-slow);
+	}
+
+	.blog-cover--feature {
+		aspect-ratio: 16 / 11;
+	}
+
+	.blog-cover--card {
+		aspect-ratio: 16 / 10;
+	}
+
+	.blog-cover--hero {
+		aspect-ratio: 2 / 1;
+	}
+
+	.blog-cover--signal {
+		--cover-base: #081a33;
+		--cover-ink: #f5f9ff;
+		--cover-accent: #1683e4;
+		--cover-soft: #15365b;
+	}
+
+	.blog-cover--blueprint {
+		--cover-base: #dceeff;
+		--cover-ink: #0a3158;
+		--cover-accent: #0075de;
+		--cover-soft: #f7fbff;
+	}
+
+	.blog-cover--orbit {
+		--cover-base: #12151d;
+		--cover-ink: #eff7ff;
+		--cover-accent: #62aef0;
+		--cover-soft: #263346;
+	}
+
+	.cover-media,
+	.cover-art {
+		position: absolute;
+		inset: 0;
+	}
+
+	.cover-media :global(img) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.cover-art {
+		color: var(--cover-ink);
+		background:
+			radial-gradient(circle at 78% 22%, color-mix(in srgb, var(--cover-accent) 34%, transparent), transparent 31%),
+			var(--cover-base);
+	}
+
+	.cover-grid {
+		position: absolute;
+		inset: 0;
+		opacity: 0.18;
+		background-image:
+			linear-gradient(color-mix(in srgb, var(--cover-ink) 24%, transparent) 1px, transparent 1px),
+			linear-gradient(90deg, color-mix(in srgb, var(--cover-ink) 24%, transparent) 1px, transparent 1px);
+		background-size: clamp(24px, 5vw, 44px) clamp(24px, 5vw, 44px);
+		mask-image: linear-gradient(to bottom right, #000, transparent 82%);
+	}
+
+	.cover-label,
+	.cover-number {
+		position: absolute;
+		z-index: 2;
+		font-size: clamp(0.65rem, 1.3vw, 0.8rem);
+		font-weight: 650;
+		letter-spacing: 0.1em;
+		line-height: 1;
+		text-transform: uppercase;
+	}
+
+	.cover-label {
+		inset-block-start: 9%;
+		inset-inline-start: 8%;
+	}
+
+	.cover-number {
+		inset-inline-end: 8%;
+		inset-block-end: 9%;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.cover-object {
+		position: absolute;
+		inset: 23% 18%;
+		border: 1px solid color-mix(in srgb, var(--cover-ink) 30%, transparent);
+		border-radius: clamp(14px, 3vw, 28px);
+		background: color-mix(in srgb, var(--cover-soft) 76%, transparent);
+		box-shadow: 0 24px 60px -38px color-mix(in srgb, var(--cover-ink) 52%, transparent);
+	}
+
+	.cover-core {
+		position: absolute;
+		width: 23%;
+		aspect-ratio: 1;
+		inset: 50% auto auto 50%;
+		border: clamp(5px, 1vw, 10px) solid var(--cover-accent);
+		border-radius: 50%;
+		box-shadow: 0 0 0 clamp(7px, 1.4vw, 14px) color-mix(in srgb, var(--cover-accent) 18%, transparent);
+		transform: translate(-50%, -50%);
+	}
+
+	.cover-bar {
+		position: absolute;
+		inset-inline-start: 12%;
+		height: clamp(5px, 1vw, 9px);
+		background: var(--cover-ink);
+		border-radius: var(--radius-full);
+	}
+
+	.cover-bar--one {
+		width: 31%;
+		inset-block-start: 28%;
+	}
+
+	.cover-bar--two {
+		width: 22%;
+		inset-block-start: 48%;
+	}
+
+	.cover-bar--three {
+		width: 13%;
+		inset-block-start: 68%;
+	}
+
+	.blog-cover--blueprint .cover-object {
+		inset: 21% 16%;
+		border-color: color-mix(in srgb, var(--cover-ink) 18%, transparent);
+		border-radius: var(--radius);
+		background: color-mix(in srgb, var(--cover-soft) 88%, transparent);
+	}
+
+	.blog-cover--blueprint .cover-core {
+		width: 34%;
+		border-radius: var(--radius);
+		transform: translate(-20%, -50%) rotate(5deg);
+	}
+
+	.blog-cover--blueprint .cover-bar {
+		inset-inline-start: 10%;
+		background: var(--cover-accent);
+	}
+
+	.blog-cover--orbit .cover-art {
+		background:
+			radial-gradient(circle at 66% 54%, color-mix(in srgb, var(--cover-accent) 24%, transparent), transparent 35%),
+			linear-gradient(145deg, #10141c, #162238);
+	}
+
+	.blog-cover--orbit .cover-object {
+		inset: 16% 23%;
+		border-radius: 50%;
+		background: transparent;
+		box-shadow:
+			0 0 0 clamp(16px, 3vw, 32px) color-mix(in srgb, var(--cover-accent) 8%, transparent),
+			0 0 0 clamp(42px, 8vw, 76px) color-mix(in srgb, var(--cover-accent) 5%, transparent);
+		transform: rotate(-12deg);
+	}
+
+	.blog-cover--orbit .cover-core {
+		width: 15%;
+		inset: 18% 8% auto auto;
+		border: 0;
+		background: var(--cover-accent);
+		box-shadow: 0 0 26px color-mix(in srgb, var(--cover-accent) 68%, transparent);
+		transform: none;
+	}
+
+	.blog-cover--orbit .cover-bar {
+		display: none;
+	}
+
+	@media (max-width: 520px) {
+		.blog-cover--hero {
+			aspect-ratio: 4 / 3;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.blog-cover {
+			transition: none;
+		}
+	}
+</style>
