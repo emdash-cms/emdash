@@ -1,0 +1,27 @@
+templates/marketing-cloudflare/src/components/SiteFooter.astro
+  s_81c53493e8c532::t_117e08c0b69b29 1-305
+templates/marketing-cloudflare/src/components/SiteHeader.astro
+  s_81c53493e8c532::t_14537e2c9a6d0a 1-495
+templates/marketing-cloudflare/src/layouts/Base.astro
+  s_81c53493e8c532::t_173100f11df9a6 4,6-7,23-25,38-42,68-73,76-77,83-87,93-98,101-102,105-125,131,137,141-142,144-146,149-152,182-184,196-197,203-214,216,231,237,241,245,252-253,257,263,272,274,278,281,285-286,292,296,300-301,305-307,311,315,320-321,325-326,332,337-338,342-343,347-348,351-352,355-358,360-362,365-368,370-372,374-376,379-387
+templates/marketing-cloudflare/src/styles/tokens.css
+  s_81c53493e8c532::t_a1a359c64ecbd3 3,6,8-10,12-14,16-18,25-41,43-47,51-52,63-64,67-70,73-74,89,91,94,103-106,109,113-125
+templates/marketing/src/styles/tokens.css
+  s_81c53493e8c532::t_76649b5aeba548 3,6,8-10,12-14,16-18,25-41,43-47,51-52,63-64,67-70,73-74,89,91,94,103-106,109,113-125
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "260005000b2adac2c5fb2673b7ce9b8d6767c297",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
