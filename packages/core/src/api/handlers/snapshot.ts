@@ -12,6 +12,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { listTableColumns, listTablesLike } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 
 // ─�� Preview signature verification ──────────────────────────────
@@ -211,10 +212,44 @@ function isExcluded(tableName: string): boolean {
 	return EXCLUDED_PREFIXES.some((prefix) => tableName.startsWith(prefix));
 }
 
-/** Column info from PRAGMA table_info */
-interface ColumnInfo {
-	name: string;
-	type: string;
+type SnapshotColumnType = "TEXT" | "INTEGER" | "REAL" | "BLOB" | "JSON";
+
+function normalizeColumnType(type: string): SnapshotColumnType {
+	switch (type.toLowerCase()) {
+		case "smallint":
+		case "integer":
+		case "bigint":
+		case "boolean":
+			return "INTEGER";
+		case "real":
+		case "double precision":
+		case "numeric":
+		case "decimal":
+			return "REAL";
+		case "blob":
+		case "bytea":
+			return "BLOB";
+		case "json":
+		case "jsonb":
+			return "JSON";
+		default:
+			return "TEXT";
+	}
+}
+
+function normalizeRows(
+	rows: Record<string, unknown>[],
+	types: Record<string, SnapshotColumnType>,
+): Record<string, unknown>[] {
+	for (const row of rows) {
+		for (const [column, type] of Object.entries(types)) {
+			const value = row[column];
+			if (type === "JSON" && value !== null && value !== undefined && typeof value !== "string") {
+				row[column] = JSON.stringify(value);
+			}
+		}
+	}
+	return rows;
 }
 
 export interface GenerateSnapshotOptions {
@@ -247,15 +282,7 @@ export async function generateSnapshot(
 	const includeTrashed = options?.includeTrashed ?? false;
 	const optionPrefixes = options?.optionPrefixes ?? SAFE_OPTIONS_PREFIXES;
 
-	// Discover all ec_* content tables
-	const tableResult = await sql<{ name: string }>`
-		SELECT name FROM sqlite_master
-		WHERE type = 'table'
-		AND name LIKE 'ec_%'
-		ORDER BY name
-	`.execute(db);
-
-	const contentTables = tableResult.rows.map((r) => r.name);
+	const contentTables = await listTablesLike(db, "ec_%");
 
 	// Build list of all tables to export
 	const allTables = [...contentTables, ...SYSTEM_TABLES];
@@ -266,80 +293,65 @@ export async function generateSnapshot(
 	for (const tableName of allTables) {
 		if (isExcluded(tableName)) continue;
 
-		// Validate identifier before interpolating into sql.raw().
-		// SYSTEM_TABLES are hardcoded and safe, but ec_* names come from
-		// sqlite_master and must be validated.
+		// Content table names come from the database catalog. Validate them
+		// before passing them to sql.ref().
 		if (!SAFE_TABLE_NAME.test(tableName)) continue;
 
-		try {
-			// Get column info via PRAGMA
-			const pragmaResult = await sql<ColumnInfo>`
-				PRAGMA table_info(${sql.raw(`"${tableName}"`)})
-			`.execute(db);
+		const columnInfo = await listTableColumns(db, tableName);
+		if (columnInfo.length === 0) continue;
 
-			if (pragmaResult.rows.length === 0) continue;
+		const columns = columnInfo.map((column) => column.name);
+		const types: Record<string, SnapshotColumnType> = {};
+		for (const column of columnInfo) {
+			types[column.name] = normalizeColumnType(column.type);
+		}
 
-			const columns = pragmaResult.rows.map((r) => r.name);
-			const types: Record<string, string> = {};
-			for (const row of pragmaResult.rows) {
-				types[row.name] = row.type || "TEXT";
-			}
+		schema[tableName] = { columns, types };
 
-			schema[tableName] = { columns, types };
+		let rows: Record<string, unknown>[];
 
-			// Fetch rows
-			let rows: Record<string, unknown>[];
-
-			if (tableName.startsWith("ec_")) {
-				if (includeTrashed) {
-					// Everything, including trash — full-fidelity backup export
-					rows = (
-						await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.raw(`"${tableName}"`)}
-					`.execute(db)
-					).rows;
-				} else if (includeDrafts) {
-					// Include all non-deleted content (published, draft, scheduled)
-					rows = (
-						await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.raw(`"${tableName}"`)}
-						WHERE deleted_at IS NULL
-					`.execute(db)
-					).rows;
-				} else {
-					// Only export published content
-					rows = (
-						await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.raw(`"${tableName}"`)}
-						WHERE deleted_at IS NULL
-						AND status = 'published'
-					`.execute(db)
-					).rows;
-				}
-			} else if (tableName === "options") {
-				// Filter options to safe rendering-only prefixes.
-				// Excludes plugin secrets, passkey challenges, and setup state.
+		if (tableName.startsWith("ec_")) {
+			if (includeTrashed) {
 				rows = (
 					await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.raw(`"${tableName}"`)}
-				`.execute(db)
-				).rows.filter((row) => {
-					const name = typeof row.name === "string" ? row.name : "";
-					return optionPrefixes.some((prefix) => name.startsWith(prefix));
-				});
+						SELECT * FROM ${sql.ref(tableName)}
+					`.execute(db)
+				).rows;
+			} else if (includeDrafts) {
+				rows = (
+					await sql<Record<string, unknown>>`
+						SELECT * FROM ${sql.ref(tableName)}
+						WHERE deleted_at IS NULL
+					`.execute(db)
+				).rows;
 			} else {
 				rows = (
 					await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.raw(`"${tableName}"`)}
-				`.execute(db)
+						SELECT * FROM ${sql.ref(tableName)}
+						WHERE deleted_at IS NULL
+						AND status = 'published'
+					`.execute(db)
 				).rows;
 			}
+		} else if (tableName === "options") {
+			rows = (
+				await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+				`.execute(db)
+			).rows.filter((row) => {
+				const name = typeof row.name === "string" ? row.name : "";
+				return optionPrefixes.some((prefix) => name.startsWith(prefix));
+			});
+		} else {
+			rows = (
+				await sql<Record<string, unknown>>`
+					SELECT * FROM ${sql.ref(tableName)}
+				`.execute(db)
+			).rows;
+		}
 
-			if (rows.length > 0) {
-				tables[tableName] = rows;
-			}
-		} catch {
-			// Table might not exist yet (e.g. pre-migration) — skip silently
+		if (rows.length > 0) {
+			tables[tableName] = normalizeRows(rows, types);
 		}
 	}
 
