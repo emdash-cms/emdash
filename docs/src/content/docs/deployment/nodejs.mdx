@@ -166,7 +166,34 @@ docker compose up -d
 
 Read database and storage credentials from the process environment when the server starts. The following variables support the configuration above:
 
-`EMDASH_ENCRYPTION_KEY` is optional and currently affects startup validation only. EmDash does not use it to encrypt or decrypt stored values, and plugin secrets remain plaintext in the database even when it is set. [Secrets and key management](/deployment/secrets/) explains its format and the effects of rotating or losing each secret.
+`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets or any other stored data. If the variable is set, EmDash checks its format during startup, but plugin secret values remain plaintext in the database.
+
+If you set the variable, generate a valid value and add the result to your environment:
+
+```bash
+npx emdash secrets generate  # add the result to your environment
+```
+
+The value is operator-provided and is not stored in the database. Losing it has no current
+data-recovery impact because no stored data depends on it. Treat the database and its backups as
+sensitive because they contain plaintext plugin secrets.
+
+### Optional: stable-value overrides
+
+EmDash auto-generates the preview HMAC secret and commenter-IP hash
+salt and persists them in the database on first use. The env vars
+below pin them to a value you control — useful when a separate
+process needs to share a secret with your main site.
+
+| Variable | Description |
+| -------- | ----------- |
+| `EMDASH_PREVIEW_SECRET` | Override for the auto-generated preview HMAC secret. |
+| `EMDASH_IP_SALT` | Override for the auto-generated commenter-IP hash salt. |
+| `EMDASH_AUTH_SECRET` | Optional. If set, used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which takes precedence), keeping commenter-IP hashes stable for installs that already rely on it. Leave it unset for a new deployment. |
+
+See [Secrets and key management](/deployment/secrets/) for the key format, every supported secret, and the effects of rotation or loss.
+
+### Database and storage
 
 | Variable               | Description             | Example                    |
 | ---------------------- | ----------------------- | -------------------------- |

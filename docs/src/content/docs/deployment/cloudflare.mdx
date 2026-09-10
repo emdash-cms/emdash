@@ -388,7 +388,11 @@ import AISearchSnippet from "@emdash-cms/cloudflare/plugins/ai-search/astro";
 
 Store secret values with `pnpm wrangler secret put <NAME>`. Do not put them in `wrangler.jsonc` or read them from build-time `import.meta.env` values.
 
-`EMDASH_ENCRYPTION_KEY` currently affects startup validation only; it does not encrypt or decrypt stored values. Plugin secrets remain plaintext in the database. The preview HMAC secret and commenter-IP salt are generated and stored in the database unless you provide runtime overrides. [Secrets and key management](/deployment/secrets/) lists the exact variables, storage locations, and rotation effects.
+`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets or any other stored data. If it is set, EmDash checks its format during startup. A malformed value produces an operator-facing log message, but the site continues to handle requests. Plugin secrets remain plaintext in the database.
+
+EmDash reads its secrets from `process.env` at runtime. Worker code reads bindings from `env`, imported from `cloudflare:workers`. Never read secrets through `import.meta.env`: Vite replaces those values at build time and can write them into the server bundle.
+
+The preview HMAC secret and commenter-IP salt are generated and stored in the database unless you provide runtime overrides. [Secrets and key management](/deployment/secrets/) lists the exact variables, storage locations, and rotation effects.
 
 ## Preview deployments
 

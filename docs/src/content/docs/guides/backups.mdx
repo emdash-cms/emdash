@@ -5,30 +5,28 @@ description: Export selected site data, create restorable database and media bac
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash JSON backups are portable exports of selected data. They are useful for inspection and retention, but EmDash cannot import them. A recovery plan needs a restorable database backup and a separate copy of media binaries.
+Use a JSON backup when you need an offline copy of selected content data. EmDash cannot import that file. A recovery plan needs a raw database backup or point-in-time recovery and a separate copy of media binaries.
 
 ## What's in a backup
 
 A JSON backup includes:
 
 - All content entries, including drafts, scheduled posts, and trashed items
-- Collection and field definitions
-- Taxonomy definitions, terms, and content assignments
-- Menus and menu items, sections, widget areas and widgets, SEO records, migration records, revisions, and media metadata
-- Options whose names start with `site:`, `emdash:site_`, or `emdash:locale`
-
-The export contains the schema and rows for every `ec_*` content table and the following system
-tables: `_emdash_collections`, `_emdash_fields`, `_emdash_taxonomy_defs`, `_emdash_menus`,
-`_emdash_menu_items`, `_emdash_sections`, `_emdash_widget_areas`, `_emdash_widgets`, `_emdash_seo`,
-`_emdash_migrations`, `taxonomies`, `content_taxonomies`, `media`, `options`, and `revisions`.
+- Collection and field definitions that make up the content model
+- Taxonomy definitions, terms, and the terms assigned to each entry
+- Menus and menu items, sections, widget areas and widgets, SEO records, revision history, media
+  metadata, and database migration history
+- Site settings such as the title, tagline, URL, locale, logo, display preferences, social profiles,
+  and SEO defaults. These come from the `site:`, `emdash:site_`, and `emdash:locale` setting groups.
 
 The JSON backup excludes every other database table. This includes:
 
 - User accounts, sessions, passkeys, OAuth data, API tokens, and other authentication data
 - Plugin storage and plugin settings, including plugin secrets
 - Comments and reactions, redirects and 404 logs, bylines, content relations and references, audit logs, rate limits, and scheduled-task state
-- Media folders, usage indexes, upload state, and media binaries
-- Options outside the three allowed prefixes, including the preview signing secret and backup settings
+- Media folders, records of where media is used, incomplete or in-progress uploads, and the media
+  files themselves
+- Other site options, including the preview signing secret and backup schedule
 
 Backups are JSON files in the same snapshot format used by EmDash's preview system, versioned with the EmDash release that created them.
 
@@ -41,8 +39,9 @@ Backups are JSON files in the same snapshot format used by EmDash's preview syst
 
 Under **Settings → Backups** in the admin, the **Download backup** button generates a fresh backup and downloads it as a JSON file. Requires the admin role.
 
-Use this download to retain or inspect the included content data outside EmDash. Use one of the raw
-database recovery options below before bulk imports, schema changes, or major upgrades.
+The download provides an offline copy for inspection or custom migration tooling. EmDash cannot
+restore it. Use one of the raw database recovery options below before bulk imports, schema changes,
+or major upgrades.
 
 ## Automatic backups to storage
 
