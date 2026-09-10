@@ -157,17 +157,9 @@ Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) p
 
 	The `@astrojs/cloudflare` adapter detects `cacheCloudflare()` and enables Workers Cache in the generated deployment configuration.
 
-2. Purge cached responses from Worker code with the platform API. This call does not need Cloudflare REST credentials.
-
-   ```ts
-   import { cache } from "cloudflare:workers";
-
-   await cache.purge({ purgeEverything: true });
-   // Or purge selected tags:
-   await cache.purge({ tags: ["posts"] });
-   ```
-
 </Steps>
+
+That's the whole setup: EmDash invalidates cached entries automatically when content changes (see [Edge Caching](/deployment/edge-cache/) for the tag convention). You only need to purge yourself for custom tags — for example a manual "clear everything" switch, using the platform's [cache purge API](https://developers.cloudflare.com/workers/cache/) from your Worker (no Cloudflare REST credentials needed).
 
 EmDash admin and API responses already send `Cache-Control: private, no-store` and are never stored. Public pages control their own caching through `Cache-Control` / `routeRules` / `Astro.cache`.
 
