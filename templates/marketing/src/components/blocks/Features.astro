@@ -34,76 +34,171 @@ const iconMap: Record<string, string> = {
 ---
 
 <section class="features section" id={_key}>
-	<div class="container">
-		{(headline || subheadline) && (
-			<header class="section-header">
-				{headline && <h2 class="section-headline">{headline}</h2>}
-				{subheadline && <p class="section-subheadline">{subheadline}</p>}
-			</header>
-		)}
+	<div class="features-container container">
+		{
+			(headline || subheadline) && (
+				<header class="features-header">
+					{headline && <h2 class="features-headline">{headline}</h2>}
+					{subheadline && (
+						<p class="features-subheadline">{subheadline}</p>
+					)}
+				</header>
+			)
+		}
 		<div class="features-grid">
-			{features.map((feature) => (
-				<div class="feature-card">
-					<div class="icon-tile feature-icon">
-						<Icon name={iconMap[feature.icon] || "ph:sparkle"} aria-hidden="true" />
-					</div>
-					<h3 class="feature-title">{feature.title}</h3>
-					<p class="feature-description">{feature.description}</p>
-				</div>
-			))}
+			{
+				features.map((feature) => (
+					<article class="feature-card">
+						<div class="feature-title-row">
+							<span class="feature-icon">
+								<Icon
+									name={iconMap[feature.icon] || "ph:sparkle"}
+									aria-hidden="true"
+								/>
+							</span>
+							<h3 class="feature-title">{feature.title}</h3>
+						</div>
+						<p class="feature-description">{feature.description}</p>
+					</article>
+				))
+			}
 		</div>
 	</div>
 </section>
 
 <style>
+	.features.section {
+		padding-block: var(--spacing-4xl);
+		background: color-mix(in srgb, var(--color-bg) 62%, var(--color-surface));
+	}
+
+	.features-container {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-3xl);
+	}
+
+	.features-header {
+		max-width: 38rem;
+		margin-inline: auto;
+		text-align: center;
+	}
+
+	.features-headline {
+		font-size: var(--font-size-3xl);
+		font-weight: var(--font-weight-display);
+		line-height: 1.12;
+		letter-spacing: -0.035em;
+		text-wrap: balance;
+	}
+
+	.features-subheadline {
+		max-width: 38rem;
+		margin: var(--spacing-md) auto 0;
+		color: var(--color-muted);
+		font-size: var(--font-size-base);
+		line-height: 1.65;
+		text-wrap: balance;
+	}
+
 	.features-grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-xl);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		align-items: stretch;
+		gap: var(--spacing-md);
 	}
 
 	.feature-card {
-		padding: var(--spacing-xl);
+		display: flex;
+		min-width: 0;
+		min-height: 13.5rem;
+		flex-direction: column;
+		gap: 0.75rem;
+		padding: 2.75rem;
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
+		border-radius: var(--radius-xl);
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-border) 34%, transparent),
+			var(--shadow-sm);
 		transition:
-			transform var(--transition-base),
-			box-shadow var(--transition-base),
-			border-color var(--transition-base);
+			background var(--transition-fast),
+			border-color var(--transition-fast),
+			box-shadow var(--transition-fast);
 	}
 
 	.feature-card:hover {
-		transform: translateY(-4px);
-		box-shadow: var(--shadow-lg);
-		border-color: var(--color-brand-soft);
+		background: color-mix(in srgb, var(--color-surface) 92%, var(--color-bg));
+		border-color: color-mix(in srgb, var(--color-text) 14%, var(--color-border));
+	}
+
+	.feature-title-row {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: var(--spacing-sm);
 	}
 
 	.feature-icon {
-		margin-bottom: var(--spacing-lg);
+		display: inline-flex;
+		width: 1rem;
+		height: 1rem;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-muted);
+		font-size: 1rem;
+		line-height: 1;
 	}
 
 	.feature-title {
-		font-size: var(--font-size-lg);
-		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-sm);
+		min-width: 0;
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		line-height: 1.35;
+		letter-spacing: -0.01em;
+		overflow-wrap: anywhere;
 	}
 
 	.feature-description {
-		font-size: var(--font-size-sm);
 		color: var(--color-muted);
-		line-height: var(--leading-normal);
+		font-size: var(--font-size-sm);
+		line-height: 1.65;
+		overflow-wrap: anywhere;
 	}
 
 	@media (max-width: 900px) {
 		.features-grid {
-			grid-template-columns: repeat(2, 1fr);
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.feature-card {
+			padding: var(--spacing-2xl);
 		}
 	}
 
 	@media (max-width: 600px) {
+		.features.section {
+			padding-block: var(--spacing-3xl);
+		}
+
+		.features-container {
+			gap: var(--spacing-2xl);
+		}
+
 		.features-grid {
-			grid-template-columns: 1fr;
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.feature-card {
+			min-height: auto;
+			padding: var(--spacing-xl);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.feature-card {
+			transition: none;
 		}
 	}
 </style>
