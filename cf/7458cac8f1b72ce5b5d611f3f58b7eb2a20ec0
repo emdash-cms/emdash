@@ -1,0 +1,33 @@
+packages/admin/src/styles.css
+  s_669e4e36f3cd5c::t_818a49046fb9a5 443,445-456
+.changeset/polished-portable-text-tables.md
+  s_8e810e11ab1647::t_5275ddd37426af 6
+packages/admin/src/components/editor/TableResize.ts
+  s_8e810e11ab1647::t_c8b0c5993c7d59 194
+packages/admin/tests/editor/table-resize.test.tsx
+  s_8e810e11ab1647::t_83099ba1c54bff 203,211-212,232,237,246
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cf7458cac8f1b72ce5b5d611f3f58b7eb2a20ec0",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_8e810e11ab1647": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08ad7-6aec-7fc1-9205-b5cfe8310fb8",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
