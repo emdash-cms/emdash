@@ -36,6 +36,8 @@ Dynamic Workers are available on the [Workers Paid plan](https://developers.clou
    }
    ```
 
+   If the Wrangler config uses named environments, set `CLOUDFLARE_ENV` during the Astro build. The Cloudflare Vite plugin and `sandbox()` then read the same environment. Bindings are not inherited, so add `LOADER` to each named environment that runs sandboxed plugins.
+
 2. Export `PluginBridge` from the Worker entry point, and point `main` at that file. `PluginBridge` is the entrypoint through which sandboxed plugins reach content, media, storage, and email; the runner looks it up on the exports of the entry module:
 
    ```ts title="src/worker.ts"

@@ -540,7 +540,10 @@ export function access(config: AccessConfig): AuthDescriptor {
  * ```
  */
 export function sandbox(): string | undefined {
-	const config = unstable_readConfig({}, { hideWarnings: true });
+	const environment = process.env.CLOUDFLARE_ENV;
+	const config = unstable_readConfig(environment ? { env: environment } : {}, {
+		hideWarnings: true,
+	});
 	const hasWorkerLoader = config.worker_loaders?.some(
 		(loader: { binding?: string }) => loader.binding === "LOADER",
 	);
