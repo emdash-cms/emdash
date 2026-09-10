@@ -289,7 +289,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	async kvSet(key: string, value: unknown): Promise<void> {
 		const { pluginId } = this.ctx.props;
 		await this.env.DB.prepare(
-			"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, updated_at) VALUES (?, '__kv', ?, ?, datetime('now'))",
+			"INSERT INTO _plugin_storage (plugin_id, collection, id, data, updated_at) VALUES (?, '__kv', ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
 		)
 			.bind(pluginId, key, JSON.stringify(value))
 			.run();
@@ -343,7 +343,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Storage collection not declared: ${collection}`);
 		}
 		await this.env.DB.prepare(
-			"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, updated_at) VALUES (?, ?, ?, ?, datetime('now'))",
+			"INSERT INTO _plugin_storage (plugin_id, collection, id, data, updated_at) VALUES (?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
 		)
 			.bind(pluginId, collection, id, JSON.stringify(data))
 			.run();
@@ -440,7 +440,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		// In future, we could use batch API
 		for (const item of items) {
 			await this.env.DB.prepare(
-				"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, updated_at) VALUES (?, ?, ?, ?, datetime('now'))",
+				"INSERT INTO _plugin_storage (plugin_id, collection, id, data, updated_at) VALUES (?, ?, ?, ?, datetime('now')) ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at",
 			)
 				.bind(pluginId, collection, item.id, JSON.stringify(item.data))
 				.run();
