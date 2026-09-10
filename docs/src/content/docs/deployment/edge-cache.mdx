@@ -66,7 +66,7 @@ EmDash's own `cloudflareCache()` provider from `@emdash-cms/cloudflare` predates
 
 No plugin or hook is required. EmDash's content API routes invalidate the route cache whenever an entry changes: saving, publishing, unpublishing, deleting, or restoring an entry purges the tags `[collection, id]`, and scheduled publishing purges the same tags from the cron sweep. Creating or duplicating an entry purges the collection tag (the new entry has no cached pages yet). Any route rule tagged with the collection name (as above) is therefore refreshed within seconds of a publish, even with a long `maxAge`.
 
-Site chrome is covered too: saving site settings purges `emdash:settings`, menu edits purge `emdash:menu:{name}`, and taxonomy and widget-area writes purge their matching `emdash:taxonomy:{name}` / `emdash:widget-area:{name}` tags. Pages pick these tags up automatically when they use the `cacheHint` from `getMenuWithCacheHint()` or `getSiteSettingsWithCacheHint()`.
+Site chrome is covered too: saving site settings purges `emdash:settings`, menu edits purge `emdash:menu:{name}`, and taxonomy and widget-area writes purge their matching `emdash:taxonomy:{name}` / `emdash:widget-area:{name}` tags. Pages pick these tags up automatically when they use the `cacheHint` from `getMenuWithCacheHint()`, `getSiteSettingsWithCacheHint()`, `getTaxonomyTermsWithCacheHint()`, or `getWidgetAreaWithCacheHint()`.
 
 This is also why the tag convention matters: EmDash purges collection names, entry ids, and the `emdash:*` chrome tags. If your route rules use other tag names, the built-in purge will not match them and stale entries survive until `maxAge` expires.
 
