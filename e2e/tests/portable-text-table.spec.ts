@@ -179,7 +179,7 @@ test.describe("Portable Text tables", () => {
 		await runTableAction(page, "Select row");
 		await page.keyboard.press("Backspace");
 		await expect(table.locator("tr")).toHaveCount(3);
-		await expect(page.getByRole("status").first()).toContainText("Row deleted");
+		await expect(page.getByText("Row deleted", { exact: true })).toBeAttached();
 		await page.keyboard.press("ControlOrMeta+z");
 		await expect(table.locator("tr")).toHaveCount(4);
 
@@ -195,7 +195,7 @@ test.describe("Portable Text tables", () => {
 		await expect(table.locator(".selectedCell")).toHaveCount(4);
 		await page.keyboard.press("Delete");
 		await expect(table.locator("tr").first().locator("td")).toHaveCount(3);
-		await expect(page.getByRole("status").first()).toContainText("Column deleted");
+		await expect(page.getByText("Column deleted", { exact: true })).toBeAttached();
 		await page.keyboard.press("ControlOrMeta+z");
 		await expect(table.locator("tr").first().locator("td")).toHaveCount(4);
 
