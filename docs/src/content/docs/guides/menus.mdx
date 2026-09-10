@@ -1,281 +1,128 @@
 ---
 title: Navigation Menus
-description: Create and manage navigation menus for headers, footers, and sidebars.
+description: Create menus in the admin and render locale-aware navigation in an Astro layout.
 ---
 
-import { Aside, Steps, Tabs, TabItem, Code } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash menus are ordered lists of links that you manage through the admin interface. Menus support nesting for dropdowns and can link to pages, posts, taxonomy terms, or external URLs.
+Menus let editors manage ordered links without changing a site template. A menu has a stable name, such as `primary` or `footer`, and a separate set of items for each translated menu.
 
-## Querying Menus
+## Create a menu
 
-Use `getMenu()` to fetch a menu by its unique name:
+Create and arrange menus in **Menus** in the EmDash admin.
+
+<Steps>
+
+1. Click **Create Menu** and enter a name and label. Templates query the name, while the label identifies the menu in the admin.
+
+2. Click **Add Content** to link an entry, or **Add Custom Link** to enter an external URL or a root-relative site path.
+
+3. Use **Move up** and **Move down** to set the order. Edit an item and choose a **Parent** to nest it.
+
+</Steps>
+
+Use the same menu name in every locale. On a multilingual site, open a menu and use its **Translations** panel to create and edit the other locale versions. EmDash keeps the translations of the same content or taxonomy term connected, so `getMenu()` can use the label and slug for the requested locale.
+
+## How menu links resolve
+
+Content and taxonomy menu items store a reference rather than a finished URL. When a template calls `getMenu()`, EmDash resolves that reference using the current collection and locale data.
+
+| Menu item kind | URL returned to the template |
+| -------------- | ---------------------------- |
+| Content entry | The collection's `urlPattern`, or `/{collection}/{slug}` when the collection has no pattern |
+| Taxonomy term | `/{taxonomy}/{slug}` using the resolved term translation |
+| Collection archive | `/{collection}/` |
+| Custom link | The external URL or root-relative path entered by the editor |
+
+Each returned item also contains its label, optional target, title attribute, CSS classes, and nested `children`. The rendering example below uses those values directly.
+
+## Render a menu
+
+Call `getMenu()` in a server-rendered Astro component. It returns `null` when the name does not exist.
+
+The following layout renders a primary menu and one level of nested items:
 
 ```astro title="src/layouts/Base.astro"
 ---
 import { getMenu } from "emdash";
+import { getRelativeLocaleUrl } from "astro:i18n";
 
-const primaryMenu = await getMenu("primary");
+const locale = Astro.currentLocale;
+const menu = await getMenu("primary", { locale });
+
+function menuHref(url: string) {
+  return locale && url.startsWith("/")
+    ? getRelativeLocaleUrl(locale, url)
+    : url;
+}
 ---
 
-{primaryMenu && (
-  <nav>
+{menu && menu.items.length > 0 && (
+  <nav aria-label="Primary navigation">
     <ul>
-      {primaryMenu.items.map(item => (
-        <li>
-          <a href={item.url}>{item.label}</a>
-        </li>
-      ))}
+      {menu.items.map((item) => {
+        const href = menuHref(item.url);
+
+        return (
+          <li class:list={item.cssClasses}>
+            <a
+              href={href}
+              target={item.target}
+              rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+              title={item.titleAttr}
+              aria-current={Astro.url.pathname === href ? "page" : undefined}
+            >
+              {item.label}
+            </a>
+
+            {item.children.length > 0 && (
+              <ul>
+                {item.children.map((child) => {
+                  const childHref = menuHref(child.url);
+
+                  return (
+                    <li class:list={child.cssClasses}>
+                      <a
+                        href={childHref}
+                        target={child.target}
+                        rel={child.target === "_blank" ? "noopener noreferrer" : undefined}
+                        title={child.titleAttr}
+                        aria-current={Astro.url.pathname === childHref ? "page" : undefined}
+                      >
+                        {child.label}
+                      </a>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </li>
+        );
+      })}
     </ul>
   </nav>
 )}
 ```
 
-The function returns `null` if no menu exists with that name.
+`getMenu()` chooses the explicit `locale` first, then the current request locale, then the configured default locale. If a menu or referenced entry is missing in that locale, lookup follows the configured fallback chain.
 
-## Menu Structure
+Menu item URLs contain the collection URL pattern or taxonomy path, but they do not contain Astro's locale prefix. The `menuHref()` helper adds that prefix to root-relative links and leaves external links unchanged.
 
-A menu contains metadata and an array of items:
+The example renders one child level, which covers a typical dropdown. If editors can create deeper navigation, move the item markup into a recursive component that renders each item's `children` with the same rules.
 
-```ts
-interface Menu {
-	id: string;
-	name: string; // Unique identifier ("primary", "footer")
-	label: string; // Display name ("Primary Navigation")
-	items: MenuItem[];
-}
-
-interface MenuItem {
-	id: string;
-	label: string;
-	url: string; // Resolved URL
-	target?: string; // "_blank" for new window
-	titleAttr?: string; // HTML title attribute
-	cssClasses?: string; // Custom CSS classes
-	children: MenuItem[]; // Nested items for dropdowns
-}
-```
-
-URLs are resolved automatically based on the item type:
-
-- **Page/Post items** resolve to `/{collection}/{slug}`
-- **Taxonomy items** resolve to `/{taxonomy}/{slug}`
-- **Collection items** resolve to `/{collection}/`
-- **Custom links** use the URL as-is
-
-## Rendering Nested Menus
-
-Menu items can have children for dropdown navigation. Handle nesting by recursively rendering the `children` array:
-
-```astro title="src/components/Navigation.astro"
----
-import { getMenu } from "emdash";
-import type { MenuItem } from "emdash";
-
-interface Props {
-  name: string;
-}
-
-const menu = await getMenu(Astro.props.name);
----
-
-{menu && (
-  <nav class="nav">
-    <ul class="nav-list">
-      {menu.items.map(item => (
-        <li class:list={["nav-item", item.cssClasses]}>
-          <a
-            href={item.url}
-            target={item.target}
-            title={item.titleAttr}
-            aria-current={Astro.url.pathname === item.url ? "page" : undefined}
-          >
-            {item.label}
-          </a>
-          {item.children.length > 0 && (
-            <ul class="submenu">
-              {item.children.map(child => (
-                <li>
-                  <a href={child.url} target={child.target}>
-                    {child.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          )}
-        </li>
-      ))}
-    </ul>
-  </nav>
-)}
-```
-
-<Aside>
-	Use `aria-current="page"` to indicate the current page in navigation. Screen readers announce
-	this, and the `[aria-current="page"]` CSS selector enables styling the active link.
+<Aside type="tip">
+	Use `aria-current="page"` on the active link. Screen readers announce the current page, and the
+	attribute also provides a stable styling hook.
 </Aside>
 
-## Menu Item Types
+## Use menus in widget areas
 
-The admin supports five types of menu items:
+A menu widget places an existing menu inside a [widget area](/guides/widgets/). The widget reads the menu for the current request locale. Use the direct rendering pattern above when the site needs custom nested markup or explicit locale URL handling.
 
-| Type         | Description                  | URL Resolution         |
-| ------------ | ---------------------------- | ---------------------- |
-| `page`       | Link to a page               | `/{collection}/{slug}` |
-| `post`       | Link to a post               | `/{collection}/{slug}` |
-| `taxonomy`   | Link to a category or tag    | `/{taxonomy}/{slug}`   |
-| `collection` | Link to a collection archive | `/{collection}/`       |
-| `custom`     | External or custom URL       | Used as-is             |
+## Query menu data directly
 
-## Listing All Menus
+Use `getMenus()` when a template needs the available menu definitions rather than one menu's items. The [runtime API reference](/reference/api/#menus) documents the query signatures and return values.
 
-Use `getMenus()` to retrieve all menu definitions (without items):
+For programmatic menu changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [menu endpoints](/reference/rest-api/#menu-endpoints) for request bodies and responses.
 
-```ts
-import { getMenus } from "emdash";
-
-const menus = await getMenus();
-// Returns: [{ id, name, label, locale }, ...]
-```
-
-This is primarily useful for admin interfaces or debugging.
-
-## Creating Menus
-
-Create menus through the admin interface at `/_emdash/admin/menus`, or use the admin API:
-
-```http
-POST /_emdash/api/menus
-Content-Type: application/json
-
-{
-  "name": "footer",
-  "label": "Footer Navigation"
-}
-```
-
-Add items to a menu:
-
-```http
-POST /_emdash/api/menus/footer/items
-Content-Type: application/json
-
-{
-  "type": "page",
-  "referenceCollection": "pages",
-  "referenceId": "page_privacy",
-  "label": "Privacy Policy"
-}
-```
-
-Add a custom external link:
-
-```http
-POST /_emdash/api/menus/footer/items
-Content-Type: application/json
-
-{
-  "type": "custom",
-  "customUrl": "https://github.com/example",
-  "label": "GitHub",
-  "target": "_blank"
-}
-```
-
-## Reordering and Nesting
-
-Update item order and parent-child relationships with the reorder endpoint:
-
-```http
-POST /_emdash/api/menus/primary/reorder
-Content-Type: application/json
-
-{
-  "items": [
-    { "id": "item_1", "parentId": null, "sortOrder": 0 },
-    { "id": "item_2", "parentId": null, "sortOrder": 1 },
-    { "id": "item_3", "parentId": "item_2", "sortOrder": 0 }
-  ]
-}
-```
-
-This makes `item_3` a child of `item_2`, creating a dropdown.
-
-## Complete Example
-
-The following example shows a responsive header with primary navigation:
-
-```astro title="src/layouts/Base.astro"
----
-import { getMenu, getSiteSettings } from "emdash";
-
-const settings = await getSiteSettings();
-const primaryMenu = await getMenu("primary");
----
-
-<html lang="en">
-  <head>
-    <title>{settings.title}</title>
-  </head>
-  <body>
-    <header class="header">
-      <a href="/" class="logo">
-        {settings.logo ? (
-          <img src={settings.logo.url} alt={settings.logo.alt || settings.title} />
-        ) : (
-          settings.title
-        )}
-      </a>
-
-      {primaryMenu && (
-        <nav class="main-nav" aria-label="Main navigation">
-          <ul>
-            {primaryMenu.items.map(item => (
-              <li class:list={[item.cssClasses, { "has-children": item.children.length > 0 }]}>
-                <a
-                  href={item.url}
-                  target={item.target}
-                  aria-current={Astro.url.pathname === item.url ? "page" : undefined}
-                >
-                  {item.label}
-                </a>
-                {item.children.length > 0 && (
-                  <ul class="dropdown">
-                    {item.children.map(child => (
-                      <li>
-                        <a href={child.url} target={child.target}>{child.label}</a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </li>
-            ))}
-          </ul>
-        </nav>
-      )}
-    </header>
-
-    <main>
-      <slot />
-    </main>
-  </body>
-</html>
-```
-
-## API Reference
-
-### `getMenu(name)`
-
-Fetch a menu by name with all items and resolved URLs.
-
-**Parameters:**
-
-- `name` — The menu's unique identifier (string)
-
-**Returns:** `Promise<Menu | null>`
-
-### `getMenus()`
-
-List all menu definitions without items.
-
-**Returns:** `Promise<Array<{ id: string; name: string; label: string; locale: string }>>`
+See [Internationalization](/guides/internationalization/) for locale routing and fallback configuration.
