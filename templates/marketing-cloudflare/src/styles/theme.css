@@ -28,45 +28,47 @@
 }
 
 :root.dark {
-	--heat-100: #62aef0;
-	--heat-90: #62aef0e6;
-	--heat-40: #62aef066;
-	--heat-20: #62aef033;
-	--heat-12: #62aef01f;
-	--heat-8: #62aef014;
-	--heat-4: #62aef00a;
+	--heat-100: #0075de;
+	--heat-90: #0075dee6;
+	--heat-40: #0075de66;
+	--heat-20: #0075de33;
+	--heat-12: #0075de1f;
+	--heat-8: #0075de14;
+	--heat-4: #0075de0a;
 	--color-primary: var(--heat-100);
-	--color-primary-dark: #3d98e6;
+	--color-primary-dark: #005bab;
 	--color-primary-light: var(--heat-12);
-	--color-accent: #82c1f5;
+	--color-accent: var(--heat-100);
 	--color-accent-light: var(--heat-12);
+	--color-brand: #62aef0;
 	--color-brand-hover: #82c1f5;
-	--color-brand-strong: #82c1f5;
-	--color-brand-soft: #262626;
-	--button-primary-bg-hover: #82c1f5;
-	--button-primary-bg-active: #3d98e6;
-	--button-primary-fg: #111111;
+	--color-brand-strong: #62aef0;
+	--color-brand-soft: #1f1f1f;
+	--button-primary-bg-hover: var(--heat-90);
+	--button-primary-bg-active: #005bab;
+	--button-primary-fg: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
 	:root:not(.light) {
-		--heat-100: #62aef0;
-		--heat-90: #62aef0e6;
-		--heat-40: #62aef066;
-		--heat-20: #62aef033;
-		--heat-12: #62aef01f;
-		--heat-8: #62aef014;
-		--heat-4: #62aef00a;
+		--heat-100: #0075de;
+		--heat-90: #0075dee6;
+		--heat-40: #0075de66;
+		--heat-20: #0075de33;
+		--heat-12: #0075de1f;
+		--heat-8: #0075de14;
+		--heat-4: #0075de0a;
 		--color-primary: var(--heat-100);
-		--color-primary-dark: #3d98e6;
+		--color-primary-dark: #005bab;
 		--color-primary-light: var(--heat-12);
-		--color-accent: #82c1f5;
+		--color-accent: var(--heat-100);
 		--color-accent-light: var(--heat-12);
+		--color-brand: #62aef0;
 		--color-brand-hover: #82c1f5;
-		--color-brand-strong: #82c1f5;
-		--color-brand-soft: #262626;
-		--button-primary-bg-hover: #82c1f5;
-		--button-primary-bg-active: #3d98e6;
-		--button-primary-fg: #111111;
+		--color-brand-strong: #62aef0;
+		--color-brand-soft: #1f1f1f;
+		--button-primary-bg-hover: var(--heat-90);
+		--button-primary-bg-active: #005bab;
+		--button-primary-fg: #ffffff;
 	}
 }
