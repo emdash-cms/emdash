@@ -30,7 +30,7 @@ The following table lists every field type and its SQLite column:
 | `slug`         | TEXT          | URL-safe identifier        |
 | `repeater`     | JSON          | Repeating group of fields  |
 
-## Text Types
+## Text types
 
 ### `string`
 
@@ -53,7 +53,7 @@ Short, single-line text. Use for titles, names, and short values.
 
 - `minLength` — Minimum character count
 - `maxLength` — Maximum character count
-- `pattern` — Regex pattern to match
+- `pattern` — Regular expression the value must match
 
 **Widget options:**
 
@@ -78,28 +78,44 @@ Multi-line plain text. Use for descriptions, excerpts, and longer plain text.
 
 - `minLength` — Minimum character count
 - `maxLength` — Maximum character count
+- `pattern` — Regular expression the value must match
 
 **Widget options:**
 
 - `rows` — Number of rows in textarea (default: 3)
 
-### `slug`
+### `url`
 
-URL-safe identifier. Automatically generated from another field or manually entered.
+A web address. The content API rejects values that are not valid URLs.
 
 ```ts
 {
-  slug: "slug",
-  label: "URL Slug",
+  slug: "website",
+  label: "Website",
+  type: "url",
+  required: true,
+}
+```
+
+URL fields are stored as text. Use a `string` field instead when a value may be a relative path such as `/about`, because relative paths are not valid values for a `url` field.
+
+### `slug`
+
+Text intended to hold a slug-like value. This custom field type does not generate or sanitize its value.
+
+```ts
+{
+  slug: "legacy_slug",
+  label: "Legacy Slug",
   type: "slug",
   required: true,
   unique: true,
 }
 ```
 
-Slugs are automatically sanitized: lowercased, spaces replaced with hyphens, special characters removed.
+Every content entry already has a reserved system `slug`, which EmDash manages separately for public URLs. Use a custom `slug` field only when the content model needs another stored slug-like value.
 
-## Number Types
+## Number types
 
 ### `number`
 
@@ -164,7 +180,7 @@ True or false. Use for toggles and flags.
 
 Stored as SQLite INTEGER (0 or 1).
 
-## Date and Time
+## Date and time
 
 ### `datetime`
 
@@ -178,14 +194,9 @@ Date and time value. Stored in ISO 8601 format.
 }
 ```
 
-**Validation options:**
-
-- `min` — Minimum date (ISO string)
-- `max` — Maximum date (ISO string)
-
 **Storage format:** `2025-01-24T12:00:00.000Z`
 
-## Selection Types
+## Selection types
 
 ### `select`
 
@@ -206,7 +217,7 @@ Single selection from predefined options.
 
 **Validation options:**
 
-- `options` — Array of allowed values (required)
+- `options` — Optional array of allowed values. Provide it to present predefined choices and reject other strings; without it, validation accepts any string.
 
 Stored as TEXT containing the selected value.
 
@@ -227,11 +238,11 @@ Multiple selections from predefined options.
 
 **Validation options:**
 
-- `options` — Array of allowed values (required)
+- `options` — Optional array of allowed values. Provide it to present predefined choices and reject other strings; without it, validation accepts any string array.
 
 Stored as JSON array: `["news", "tutorial"]`
 
-## Rich Content
+## Rich content
 
 ### `portableText`
 
@@ -258,14 +269,14 @@ The value is stored as a JSON array of Portable Text blocks, for example:
 ]
 ```
 
-Plugins can add custom block types (embeds, widgets, etc.) to the editor. These appear in the slash command menu and are automatically rendered on the site. See [Portable Text rendering components](/plugins/creating-native-plugins/portable-text-components/).
+Plugins can add custom block types (embeds, widgets, etc.) to the editor. These appear in the slash command menu. Rendering the saved block on the public site requires an Astro component from a native plugin or companion package. See [Portable Text rendering components](/plugins/creating-native-plugins/portable-text-components/).
 
 <Aside>
 	Portable Text is a specification for structured rich text. See
 	[portabletext.org](https://portabletext.org) for details.
 </Aside>
 
-## Media Types
+## Media types
 
 ### `image`
 
@@ -276,26 +287,36 @@ Reference to an uploaded image. Includes metadata like dimensions and alt text.
   slug: "featuredImage",
   label: "Featured Image",
   type: "image",
+  validation: {
+    allowedMimeTypes: ["image/jpeg", "image/png"],
+  },
   options: {
-    showPreview: true,
+    darkVariant: true,
   },
 }
 ```
 
 **Widget options:**
 
-- `showPreview` — Show image preview in admin (default: true)
 - `darkVariant` — Offer editors a second slot for an image shown in dark color schemes (default: false). See [Dark Mode](/guides/dark-mode/).
+
+**Validation options:**
+
+- `allowedMimeTypes` — Non-empty list of exact MIME types accepted for the selected media
 
 The value is stored as an object with the media reference and its metadata:
 
 ```json
 {
 	"id": "01HXK5MZSN...",
-	"url": "https://cdn.example.com/image.jpg",
+	"src": "/_emdash/api/media/file/01HXK5MZSN...",
 	"alt": "Description",
 	"width": 1920,
-	"height": 1080
+	"height": 1080,
+	"provider": "local",
+	"meta": {
+		"storageKey": "01HXK5MZSN....jpg"
+	}
 }
 ```
 
@@ -324,8 +345,15 @@ Reference to an uploaded file such as a document or PDF.
   slug: "document",
   label: "Document",
   type: "file",
+  validation: {
+    allowedMimeTypes: ["application/pdf"],
+  },
 }
 ```
+
+**Validation options:**
+
+- `allowedMimeTypes` — Non-empty list of exact MIME types accepted for the selected media
 
 The value is stored as a provider reference with cached metadata:
 
@@ -346,7 +374,7 @@ persisted value as-is and do not hydrate it from the media library. See
 [File values and current metadata](/guides/media-library/#file-values-and-current-metadata) for the
 canonical lookup APIs when you need fresh metadata or a provider-specific URL.
 
-## Relational Types
+## Relational types
 
 ### `reference`
 
@@ -367,21 +395,14 @@ Reference to another content entry.
 **Widget options:**
 
 - `collection` — Target collection slug (required)
-- `allowMultiple` — Allow multiple references (default: false)
 
-A single reference is stored as the target entry ID:
+A reference is stored as the target entry ID:
 
 ```json
 "01HXK5MZSN..."
 ```
 
-Multiple references are stored as an array of entry IDs:
-
-```json
-["01HXK5MZSN...", "01HXK6NATS..."]
-```
-
-## Flexible Types
+## Flexible types
 
 ### `json`
 
@@ -399,6 +420,49 @@ Stored as-is in SQLite JSON column.
 
 <Aside type="caution">JSON fields have no validation. Use sparingly for truly dynamic data.</Aside>
 
+### `repeater`
+
+A repeating list of structured rows. Define at least one sub-field in `validation.subFields`; editors can then add, remove, reorder, and edit rows without entering raw JSON.
+
+The following field stores a list of product specifications:
+
+```ts
+{
+  slug: "specifications",
+  label: "Specifications",
+  type: "repeater",
+  validation: {
+    minItems: 1,
+    maxItems: 12,
+    subFields: [
+      { slug: "label", label: "Label", type: "string", required: true },
+      { slug: "value", label: "Value", type: "text", required: true },
+      { slug: "source", label: "Source", type: "url" },
+    ],
+  },
+}
+```
+
+Repeater values are stored as an array of objects:
+
+```json
+[
+	{
+		"label": "Weight",
+		"value": "1.2 kg",
+		"source": "https://example.com/specifications"
+	}
+]
+```
+
+The allowed sub-field types are `string`, `text`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`, and `image`. Repeaters cannot contain another repeater or a complex field such as `portableText`, `reference`, or `file`.
+
+Repeater validation accepts these properties:
+
+- `subFields` — One or more sub-field definitions. Each definition requires `slug`, `label`, and `type`; it can also set `required`. A `select` sub-field supplies its choices through `options`.
+- `minItems` — Minimum number of rows. Must be zero or greater.
+- `maxItems` — Maximum number of rows. Must be one or greater and cannot be less than `minItems`.
+
 ## Field properties
 
 All fields support these common properties:
@@ -410,7 +474,9 @@ All fields support these common properties:
 | `type`         | `FieldType` | Field type (required)               |
 | `required`     | `boolean`   | Require a value (default: false)    |
 | `unique`       | `boolean`   | Enforce uniqueness (default: false) |
+| `searchable`   | `boolean`   | Include the field in full-text search (default: false) |
 | `indexed`      | `boolean`   | Enable indexed field sorting/filtering |
+| `translatable` | `boolean`   | Store a value per locale (default: true) |
 | `defaultValue` | `unknown`   | Default value for new entries       |
 | `validation`   | `object`    | Type-specific validation rules      |
 | `widget`       | `string`    | Custom widget override              |
@@ -421,6 +487,8 @@ All fields support these common properties:
 `datetime`, `select`, `reference`, and `slug`. An indexed field can be passed as the `orderBy`
 field or used in `fieldFilters` in content list queries. Avoid indexing fields that are not used
 for sorting or filtering because every index adds storage and write overhead.
+
+`searchable` adds the field's text to the collection's full-text search index. Set `translatable: false` for identifiers, prices, flags, and other values that must stay the same across every translation of an entry; when one locale changes a non-translatable field, EmDash synchronizes the value to its translated entries.
 
 ## Reserved field slugs
 
