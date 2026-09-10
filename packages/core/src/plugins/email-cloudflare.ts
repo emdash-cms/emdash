@@ -123,9 +123,14 @@ export async function loadCloudflareConfigFromDb(
 	db: Kysely<Database>,
 ): Promise<CloudflareEmailConfig | null> {
 	const repo = new OptionsRepository(db);
-	const fromName = await repo.get<string>(`${CLOUDFLARE_OPTION_PREFIX}fromName`);
-	const fromEmail = await repo.get<string>(`${CLOUDFLARE_OPTION_PREFIX}fromEmail`);
-	const replyTo = await repo.get<string>(`${CLOUDFLARE_OPTION_PREFIX}replyTo`);
+	const values = await repo.getMany<string>([
+		`${CLOUDFLARE_OPTION_PREFIX}fromName`,
+		`${CLOUDFLARE_OPTION_PREFIX}fromEmail`,
+		`${CLOUDFLARE_OPTION_PREFIX}replyTo`,
+	]);
+	const fromName = values.get(`${CLOUDFLARE_OPTION_PREFIX}fromName`);
+	const fromEmail = values.get(`${CLOUDFLARE_OPTION_PREFIX}fromEmail`);
+	const replyTo = values.get(`${CLOUDFLARE_OPTION_PREFIX}replyTo`);
 
 	if (!fromName || !fromEmail) return null;
 	return {
@@ -145,8 +150,6 @@ export async function saveCloudflareConfigToDb(
 	const repo = new OptionsRepository(db);
 	await repo.set(`${CLOUDFLARE_OPTION_PREFIX}fromName`, config.fromName);
 	await repo.set(`${CLOUDFLARE_OPTION_PREFIX}fromEmail`, config.fromEmail);
-	// Keep the combined "from" for backward compat with the old API shape
-	await repo.set(`${CLOUDFLARE_OPTION_PREFIX}from`, `${config.fromName} <${config.fromEmail}>`);
 	if (config.replyTo) {
 		await repo.set(`${CLOUDFLARE_OPTION_PREFIX}replyTo`, config.replyTo);
 	} else {

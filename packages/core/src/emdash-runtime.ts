@@ -2898,6 +2898,7 @@ export class EmDashRuntime {
 			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
 			preferredHints,
+			ephemeralProviders: new Set([DEV_CONSOLE_EMAIL_PLUGIN_ID]),
 		});
 	}
 

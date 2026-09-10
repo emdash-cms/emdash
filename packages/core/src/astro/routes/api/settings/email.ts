@@ -278,6 +278,7 @@ const emailSettingsBody = z.discriminatedUnion("provider", [
 	z.object({ provider: z.literal("none") }),
 	z.object({ provider: z.literal("smtp"), smtp: smtpConfigSchema }),
 	z.object({ provider: z.literal("cloudflare"), cloudflare: cloudflareConfigSchema }),
+	z.object({ provider: z.literal("plugin"), pluginId: z.string().min(1) }),
 ]);
 
 export const PUT: APIRoute = async ({ request, locals }) => {
@@ -363,6 +364,35 @@ export const PUT: APIRoute = async ({ request, locals }) => {
 					success: true,
 					message: "Cloudflare Email configured and activated",
 				});
+			}
+
+			case "plugin": {
+				// Select a plugin-provided email:deliver provider. The built-ins
+				// have dedicated variants above that also persist their config.
+				if (
+					body.pluginId === SMTP_EMAIL_PLUGIN_ID ||
+					body.pluginId === CLOUDFLARE_EMAIL_PLUGIN_ID
+				) {
+					return apiError(
+						"VALIDATION_ERROR",
+						"Use the smtp or cloudflare provider variants for built-in providers",
+						400,
+					);
+				}
+				const registered = emdash.hooks
+					.getExclusiveHookProviders(EMAIL_DELIVER_HOOK)
+					.some((p) => p.pluginId === body.pluginId);
+				if (!registered) {
+					return apiError("VALIDATION_ERROR", "Unknown email provider", 400);
+				}
+				await optionsRepo.set(optionKey, body.pluginId);
+				emdash.hooks.setExclusiveSelection(EMAIL_DELIVER_HOOK, body.pluginId);
+				return apiSuccess({ success: true, message: "Email provider updated" });
+			}
+
+			default: {
+				const exhaustive: never = body;
+				return exhaustive;
 			}
 		}
 	} catch (error) {

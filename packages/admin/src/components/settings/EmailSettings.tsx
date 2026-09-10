@@ -18,13 +18,17 @@ import {
 	saveEmailSettings,
 	sendTestEmail,
 	testCloudflareBinding,
-	type EmailProviderChoice,
 	type EmailSettings as EmailSettingsData,
 } from "../../lib/api/email-settings.js";
 import { getMutationError } from "../DialogError.js";
 import { SettingRow, SettingsFrame, SettingsSection } from "./SettingsLayout.js";
 
-const PROVIDER_OPTIONS: { value: EmailProviderChoice; label: MessageDescriptor }[] = [
+const SMTP_PROVIDER_ID = "emdash-smtp";
+const CLOUDFLARE_PROVIDER_ID = "emdash-cloudflare-email";
+
+// Select values: "none", the two built-ins under stable aliases, or a
+// plugin ID verbatim (plugin providers are listed dynamically).
+const BUILTIN_OPTIONS: { value: string; label: MessageDescriptor }[] = [
 	{ value: "none", label: msg`None` },
 	{ value: "smtp", label: msg`SMTP` },
 	{ value: "cloudflare", label: msg`Cloudflare Email` },
@@ -37,7 +41,7 @@ export function EmailSettings() {
 	const [testEmail, setTestEmail] = React.useState("");
 
 	// Provider selection + SMTP form state
-	const [provider, setProvider] = React.useState<EmailProviderChoice>("none");
+	const [provider, setProvider] = React.useState<string>("none");
 	const [smtpHost, setSmtpHost] = React.useState("");
 	const [smtpPort, setSmtpPort] = React.useState("587");
 	const [smtpSecure, setSmtpSecure] = React.useState<"starttls" | "tls">("starttls");
@@ -69,10 +73,14 @@ export function EmailSettings() {
 	// to a previously configured provider does not require retyping.
 	React.useEffect(() => {
 		if (!settings) return;
-		if (settings.selectedProviderId === "emdash-smtp") {
+		if (settings.selectedProviderId === SMTP_PROVIDER_ID) {
 			setProvider("smtp");
-		} else if (settings.selectedProviderId === "emdash-cloudflare-email") {
+		} else if (settings.selectedProviderId === CLOUDFLARE_PROVIDER_ID) {
 			setProvider("cloudflare");
+		} else if (settings.selectedProviderId) {
+			// A plugin provider (resend, postmark, …) — represent it verbatim
+			// so saving does not silently disable a working provider.
+			setProvider(settings.selectedProviderId);
 		} else {
 			setProvider("none");
 		}
@@ -205,8 +213,10 @@ export function EmailSettings() {
 					...(cfReplyTo.trim() ? { replyTo: cfReplyTo.trim() } : {}),
 				},
 			});
+		} else if (provider === "none") {
+			saveMutation.mutate({ provider: "none" });
 		} else {
-			saveMutation.mutate({ provider });
+			saveMutation.mutate({ provider: "plugin", pluginId: provider });
 		}
 	};
 
@@ -247,7 +257,11 @@ export function EmailSettings() {
 	}
 
 	const hasCloudflareProvider = settings?.providers.some(
-		(p) => p.pluginId === "emdash-cloudflare-email",
+		(p) => p.pluginId === CLOUDFLARE_PROVIDER_ID,
+	);
+	// Plugin providers (resend, postmark, …) selectable alongside the built-ins
+	const pluginProviders = (settings?.providers ?? []).filter(
+		(p) => p.pluginId !== SMTP_PROVIDER_ID && p.pluginId !== CLOUDFLARE_PROVIDER_ID,
 	);
 
 	return (
@@ -262,12 +276,15 @@ export function EmailSettings() {
 							<Select
 								label={t`Provider`}
 								value={provider}
-								onValueChange={(value) => setProvider(value as EmailProviderChoice)}
-								items={PROVIDER_OPTIONS.map((opt) => ({
-									value: opt.value,
-									label: t(opt.label),
-									disabled: opt.value === "cloudflare" && !hasCloudflareProvider,
-								}))}
+								onValueChange={(value) => setProvider(value ?? "none")}
+								items={[
+									...BUILTIN_OPTIONS.map((opt) => ({
+										value: opt.value,
+										label: t(opt.label),
+										disabled: opt.value === "cloudflare" && !hasCloudflareProvider,
+									})),
+									...pluginProviders.map((p) => ({ value: p.pluginId, label: p.pluginId })),
+								]}
 							/>
 
 							{provider === "smtp" && (
@@ -512,7 +529,7 @@ function PipelineStatus({ settings }: { settings: EmailSettingsData | undefined 
 					title={t`No email provider configured`}
 					description={
 						<div className="grid gap-1.5">
-							<p>{t`Install and activate an email provider plugin to enable email features like invitations, magic links, and password recovery.`}</p>
+							<p>{t`Choose a provider above (built-in SMTP or Cloudflare Email) or install an email provider plugin to enable email features like invitations, magic links, and password recovery.`}</p>
 							<p>{t`Without an email provider, invite links must be shared manually.`}</p>
 						</div>
 					}

@@ -29,7 +29,7 @@ export interface SmtpConfigStatus {
 
 export interface CloudflareConfigStatus {
 	configured: boolean;
-	from?: string;
+	source: "db" | "env" | null;
 	fromName?: string;
 	fromEmail?: string;
 	replyTo?: string;
@@ -68,10 +68,12 @@ export async function sendTestEmail(to: string): Promise<{ success: boolean; mes
 	);
 }
 
-export type EmailProviderChoice = "none" | "smtp" | "cloudflare";
+export type EmailProviderChoice = "none" | "smtp" | "cloudflare" | "plugin";
 
 export interface SaveEmailSettingsInput {
 	provider: EmailProviderChoice;
+	/** Plugin ID when provider is "plugin" */
+	pluginId?: string;
 	smtp?: {
 		host: string;
 		port: number;
