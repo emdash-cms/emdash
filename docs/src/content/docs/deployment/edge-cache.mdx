@@ -43,7 +43,7 @@ export default defineConfig({
 - `swr` lets the edge keep serving a stale entry while it revalidates in the background, so visitors never wait on a cold render.
 - `tags` name the entry for purging. Tag each route with the collections it renders, using the collection names — EmDash's built-in invalidation purges by collection name, so matching tags are purged automatically. A broad extra tag on every cached route (here `all`, deliberately not a collection name so EmDash never purges it on its own) works as an emergency switch: purging it clears everything at once.
 
-For per-entry precision, the query helpers return a `cacheHint` you can pass to `Astro.cache.set()` inside the page. Its tags name the exact entry (`getEmDashEntry`), the collection (`getEmDashCollection`), or the chrome resource (`getMenuWithCacheHint`, `getSiteSettingsWithCacheHint`) — the same tags EmDash purges on writes, so a publish evicts only the pages that render that entry:
+For per-entry precision, the query helpers return a `cacheHint` you can pass to `Astro.cache.set()` inside the page. Its tags name the exact entry (`getEmDashEntry`), the collection (`getEmDashCollection`), or the chrome resource (`getMenuWithCacheHint`, `getSiteSettingsWithCacheHint`, `getTaxonomyTermsWithCacheHint`, `getWidgetAreaWithCacheHint`) — the same tags EmDash purges on writes, so a publish evicts only the pages that render that entry:
 
 ```astro title="src/pages/blog/[slug].astro"
 ---
