@@ -113,7 +113,7 @@ The object cache covers the reads that run on a typical page render:
 - Content queries: `getEmDashCollection`, `getEmDashEntry`, and `resolveEmDashPath`.
 - Site settings, navigation menus, and taxonomy terms.
 
-Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Deploy to Cloudflare](/deployment/cloudflare/).
+Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Edge Caching](/deployment/edge-cache/).
 
 The object cache and an HTML edge cache solve different problems. A hit in the HTML layer does not run EmDash. A miss runs the Worker, and a response that may fill Astro's route cache bypasses the object cache. Its content queries read from the database, which prevents a page purged after a content change from being rebuilt with an older KV snapshot.
 
