@@ -34,7 +34,7 @@ Plugins extend EmDash through a defined extension surface. They can react to con
 
 EmDash plugins come in two formats:
 
-- **Sandboxed plugins** run in a separate runtime managed by a configured sandbox runner. Administrators can install them from the marketplace or experimental registry, and site developers can register them under `sandboxed: []` in `astro.config.mjs`. The runner limits plugins to their declared EmDash APIs and applies the resource limits supported by the platform.
+- **Sandboxed plugins** run in a separate runtime managed by a configured sandbox runner. Administrators can install them from the plugin registry, and site developers can register them under `sandboxed: []` in `astro.config.mjs`. The runner limits plugins to their declared EmDash APIs and applies the resource limits supported by the platform.
 - **Native plugins** run in the same process as your Astro site. They have full access to the runtime, can ship React admin pages and Portable Text rendering components, and inject HTML into public pages. They install from npm through `astro.config.mjs` and require a deploy.
 
 Prefer a sandboxed plugin unless it needs React admin pages, Portable Text rendering components, page fragments, or direct access to the site process. If you're building a plugin, see [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/).

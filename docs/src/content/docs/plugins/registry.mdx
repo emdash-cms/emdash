@@ -5,7 +5,7 @@ description: Configure and install plugins from the experimental EmDash registry
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-The plugin registry is an experimental alternative source for sandboxed plugins. It uses the [AT Protocol](https://atproto.com/), the account and data network behind Bluesky. A publisher owns the package description and release records as signed data in an [Atmosphere account](/guides/atmosphere-auth/) instead of submitting those records to one central catalog.
+The plugin registry is the supported catalog for sandboxed plugins. It uses the [AT Protocol](https://atproto.com/), the account and data network behind Bluesky. A publisher owns the package description and release records as signed data in an [Atmosphere account](/guides/atmosphere-auth/).
 
 An **aggregator** finds those records and provides the searchable catalog shown in the EmDash admin panel. **Labellers** review the names, descriptions, links, and images that the catalog displays. Each aggregator chooses which labellers must approve a record before it appears. As the site operator, you choose which aggregator to use.
 
@@ -15,20 +15,7 @@ An **aggregator** finds those records and provides the searchable catalog shown 
 	changelogs before upgrading. The reference aggregator is `https://registry.emdashcms.com`.
 </Aside>
 
-## Registry and Marketplace behavior
-
-The Marketplace and registry provide the same operator tasks: browse, install, update, and uninstall sandboxed plugins. They differ in who maintains the catalog and decides which listings appear.
-
-|                         | Marketplace                    | Registry                                       |
-| ----------------------- | ------------------------------ | ---------------------------------------------- |
-| Catalog operator        | EmDash Marketplace service     | The aggregator you configure                   |
-| Package information     | Stored by the Marketplace      | Owned and signed by each publisher             |
-| Decision to show a listing | Marketplace service         | Aggregator policy and its required labellers   |
-| Catalog trust for your site  | Marketplace service       | Aggregator and its required labellers          |
-
-Both sources still install code written by a publisher. Review the publisher and requested permissions before installing from either catalog.
-
-When `experimental.registry` is configured, the admin panel labels the plugin catalog **Registry** and uses the aggregator for plugin browse and install requests. A configured `marketplace` can remain in the same site config; it continues to provide the theme marketplace.
+When `experimental.registry` is configured, the admin panel labels the plugin catalog **Registry** and uses the aggregator for plugin browse and install requests. Review the publisher and requested permissions before installing any plugin.
 
 ## Enable the registry
 
