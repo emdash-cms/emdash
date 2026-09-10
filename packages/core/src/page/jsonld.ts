@@ -27,20 +27,20 @@ export function cleanJsonLd(obj: Record<string, unknown>): Record<string, unknow
 }
 
 /**
- * The site's public origin, as the graphs below refer to it.
+ * Site origin to use for JSON-LD node identifiers.
  *
- * Lifted out of `buildWebSiteJsonLd` unchanged, because `buildBlogPostingJsonLd`
- * now needs the same answer and two copies of this chain would eventually
- * disagree — which, for values used to build an `@id`, means silently
- * publishing two entities instead of one.
- *
- * Deliberately NOT `resolveSiteOrigin()` from `absolute-url.ts`: that gives
- * `SiteSettings.url` precedence over `page.siteUrl`, which would change which
- * origin these graphs carry. That may well be the better order, but it is a
- * behaviour change and does not belong in a fix about node identity.
+ * `page.siteUrl` wins over `page.url` so IDs stay stable when a theme
+ * overrides the public origin. Falls back to the raw canonical or URL only
+ * when neither parses as a URL.
  */
 function siteOrigin(page: PublicPageContext): string {
-	if (page.siteUrl) return page.siteUrl;
+	if (page.siteUrl) {
+		try {
+			return new URL(page.siteUrl).origin;
+		} catch {
+			return page.siteUrl;
+		}
+	}
 	try {
 		return new URL(page.url).origin;
 	} catch {
@@ -74,9 +74,6 @@ export function buildBlogPostingJsonLd(
 	return cleanJsonLd({
 		"@context": "https://schema.org",
 		"@type": "BlogPosting",
-		// A fragment, not the bare canonical: `mainEntityOfPage` below already
-		// identifies the WebPage by that IRI, and reusing it would state that the
-		// article and the page it sits on are the same thing.
 		"@id": `${page.canonical}#article`,
 		headline: ogTitle,
 		description,
@@ -90,11 +87,6 @@ export function buildBlogPostingJsonLd(
 					name: author,
 				}
 			: undefined,
-		// Identified, but still self-describing. `@id` lets a fuller Organization
-		// graph — from a plugin, or hand-written in a template — merge into this
-		// node instead of standing beside it as a second, competing organisation.
-		// `@type` and `name` stay so that a site publishing no such graph is left
-		// with a complete node rather than a dangling reference.
 		publisher: siteName
 			? {
 					"@type": "Organization",
@@ -122,9 +114,7 @@ export function buildWebSiteJsonLd(page: PublicPageContext): Record<string, unkn
 	return cleanJsonLd({
 		"@context": "https://schema.org",
 		"@type": "WebSite",
-		// So a plugin can add `potentialAction` (a sitelinks SearchAction, say)
-		// by emitting a node under the same `@id`, rather than a second WebSite.
-		"@id": `${siteUrl}#website`,
+		"@id": `${siteUrl}/#website`,
 		name: siteName,
 		url: siteUrl,
 	});
