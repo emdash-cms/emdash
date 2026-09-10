@@ -16,6 +16,7 @@ const BLOCK_TYPES = new Set([
 	"code",
 	"empty",
 	"accordion",
+	"timeline",
 ]);
 
 const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
@@ -44,6 +45,7 @@ const CODE_LANGUAGES = new Set(["ts", "tsx", "jsonc", "bash", "css"]);
 const BUTTON_STYLES = new Set(["primary", "danger", "secondary"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
+const TIMELINE_STATUSES = new Set(["default", "success", "warning", "error"]);
 
 /**
  * RFC 6838-style image MIME type or image-prefix.
@@ -584,6 +586,17 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 			break;
 		}
 	}
+}
+
+function validateButtonAction(value: unknown, path: string, errors: ValidationError[]): void {
+	if (isRecord(value) && value.type !== undefined && value.type !== "button") {
+		errors.push({
+			path: `${path}.type`,
+			message: "Timeline actions must be button elements",
+		});
+		return;
+	}
+	validateElement(value, path, errors);
 }
 
 function validateFormField(value: unknown, path: string, errors: ValidationError[]): void {
@@ -1193,6 +1206,69 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 				errors.push({
 					path: `${path}.default_open`,
 					message: "Field 'default_open' must be a boolean if provided",
+				});
+			}
+			break;
+		}
+		case "timeline": {
+			if (!Array.isArray(value.items)) {
+				errors.push({
+					path: `${path}.items`,
+					message: "Required field 'items' must be an array",
+				});
+			} else {
+				for (let i = 0; i < value.items.length; i++) {
+					const item = value.items[i] as unknown;
+					const itemPath = `${path}.items[${i}]`;
+					if (!isRecord(item)) {
+						errors.push({ path: itemPath, message: "Timeline item must be an object" });
+						continue;
+					}
+					if (typeof item.title !== "string") {
+						errors.push({
+							path: `${itemPath}.title`,
+							message: "Required field 'title' must be a string",
+						});
+					}
+					if (typeof item.timestamp !== "string") {
+						errors.push({
+							path: `${itemPath}.timestamp`,
+							message: "Required field 'timestamp' must be a string",
+						});
+					}
+					if (item.description !== undefined && typeof item.description !== "string") {
+						errors.push({
+							path: `${itemPath}.description`,
+							message: "Field 'description' must be a string if provided",
+						});
+					}
+					if (
+						item.status !== undefined &&
+						(typeof item.status !== "string" || !TIMELINE_STATUSES.has(item.status))
+					) {
+						errors.push({
+							path: `${itemPath}.status`,
+							message: `Field 'status' must be one of: ${[...TIMELINE_STATUSES].join(", ")}`,
+						});
+					}
+					if (item.actions !== undefined) {
+						if (!Array.isArray(item.actions)) {
+							errors.push({
+								path: `${itemPath}.actions`,
+								message: "Field 'actions' must be an array if provided",
+							});
+						} else {
+							for (let j = 0; j < item.actions.length; j++) {
+								validateButtonAction(item.actions[j], `${itemPath}.actions[${j}]`, errors);
+							}
+						}
+					}
+				}
+			}
+			if (value.empty_text !== undefined && typeof value.empty_text !== "string") {
+				errors.push({
+					path: `${path}.empty_text`,
+					message: "Field 'empty_text' must be a string if provided",
 				});
 			}
 			break;
