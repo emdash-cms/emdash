@@ -1,8 +1,9 @@
 /**
  * Resolve the locale for outbound system emails (invite, magic link,
- * recovery). Callers read the `emdash:locale` option (batched with
- * their other options reads) and load the matching localized copy from
- * the admin catalogs.
+ * recovery). Only resolves the locale string: callers pass in the
+ * `emdash:locale` option value (batched with their other options
+ * reads) and use the returned locale to load localized copy from the
+ * admin catalogs.
  *
  * Priority: the site-wide `emdash:locale` option (explicit site
  * language) -> the requesting user's admin locale (cookie /
