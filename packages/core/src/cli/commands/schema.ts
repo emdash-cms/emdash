@@ -132,8 +132,6 @@ const deleteCommand = defineCommand({
 				}
 			}
 			const client = createClientFromArgs(args);
-			// The API refuses a collection with content unless told to force;
-			// without this the flag only ever skipped the prompt above.
 			await client.deleteCollection(args.collection, { force: args.force });
 			consola.success(`Deleted collection "${args.collection}"`);
 		} catch (error) {
