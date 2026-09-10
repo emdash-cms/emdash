@@ -181,6 +181,25 @@ EmDash tracks changes to content. Access revision history from the editor sideba
 Restoring a revision creates a new revision with the restored content. The original revision
 history is preserved.
 
+### Entry Open Elsewhere
+
+Opening an entry takes an edit lock on it. If a colleague already has it open, EmDash says who
+and offers two choices:
+
+- **Open read-only** shows the entry without accepting edits, so you cannot type work that will
+  be thrown away.
+- **Take over** gives you the lock. The other person keeps what they typed, but within two
+  minutes their editor tells them you hold the entry now, and their next save is refused.
+
+The lock is renewed while the entry is open and released when you leave the editor or close the
+tab. If the tab loses power or network instead, the lock expires seven minutes later.
+
+Locks are per entry and per locale, so two translations of the same entry can be edited at the
+same time. Scripts and API clients that write to a locked entry are refused; see
+[Entry Edit Lock](/reference/rest-api/#entry-edit-lock) in the REST API reference.
+
+Turn locking off for a collection under **Content Types** → your collection → **Edit locking**.
+
 ## Bulk Operations
 
 Perform actions on multiple entries at once:
@@ -192,7 +211,7 @@ Perform actions on multiple entries at once:
 3. Select an action:
    - **Publish** - Set all selected to published
    - **Archive** - Set all selected to archived
-   - **Delete** - Permanently remove selected
+   - **Delete** - Move selected entries to Trash
 
 4. Confirm the action
 
@@ -235,7 +254,7 @@ When the publication date arrives, the content automatically becomes published.
 
 ## Deleting Content
 
-Delete content from the edit screen or content list:
+Delete content from the edit screen or content list to move it to Trash:
 
 ### From the Editor
 
@@ -253,9 +272,19 @@ Delete content from the edit screen or content list:
 
 3. Confirm the deletion
 
+### Restore from Trash
+
+1. Open the collection that contained the entry.
+
+2. Select the **Trash** tab above the content list.
+
+3. Find the entry and select its **Restore** action.
+
+The entry returns to the collection with its previous content and status.
+
 <Aside type="caution">
-	Deleted content is permanently removed and cannot be recovered. Consider archiving instead if you
-	might need the content later.
+	Administrators also see a separate **Permanently delete** action in Trash. Permanent deletion
+	cannot be undone.
 </Aside>
 
 ## Content API
@@ -272,16 +301,26 @@ Content-Type: application/json
 Authorization: Bearer YOUR_API_TOKEN
 
 {
-  "title": "My New Post",
+  "data": {
+    "title": "My New Post",
+    "content": [
+      {
+        "_type": "block",
+        "style": "normal",
+        "children": [{ "_type": "span", "text": "Post content goes here." }]
+      }
+    ]
+  },
   "slug": "my-new-post",
-  "content": "<p>Post content here</p>",
   "status": "draft"
 }
 ```
 
 ### Update Content
 
-The following request updates an existing post and publishes it:
+The following request updates an existing post. Put collection fields inside `data`. Pass the
+opaque `_rev` from the latest GET response to reject the write if the entry changed in the
+meantime:
 
 ```bash
 PUT /_emdash/api/content/posts/my-new-post
@@ -289,19 +328,37 @@ Content-Type: application/json
 Authorization: Bearer YOUR_API_TOKEN
 
 {
-  "title": "Updated Title",
-  "status": "published"
+  "data": {
+    "title": "Updated Title"
+  },
+  "_rev": "REVISION_TOKEN"
+}
+```
+
+Updating content saves a draft revision. Publish that revision with the publish endpoint, using the
+new `_rev` returned by the update response:
+
+```bash
+POST /_emdash/api/content/posts/my-new-post/publish
+Content-Type: application/json
+Authorization: Bearer YOUR_API_TOKEN
+
+{
+  "_rev": "UPDATED_REVISION_TOKEN"
 }
 ```
 
 ### Delete Content
 
-The following request permanently deletes a post:
+The following request moves a post to Trash:
 
 ```bash
 DELETE /_emdash/api/content/posts/my-new-post
 Authorization: Bearer YOUR_API_TOKEN
 ```
+
+Restore it with `POST /_emdash/api/content/posts/my-new-post/restore`. Administrators can
+permanently delete it with `DELETE /_emdash/api/content/posts/my-new-post/permanent`.
 
 ## Translating Content
 

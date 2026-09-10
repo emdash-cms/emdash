@@ -176,6 +176,11 @@ export const contentListQuery = cursorPaginationQuery
 /** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */
 const contentDateOverride = contentDateTime.nullish();
 
+const overrideLockFlag = z.boolean().optional().meta({
+	description:
+		"Write even though another editor holds this entry's edit lock. Without it the write is refused with 409 ENTRY_LOCKED.",
+});
+
 export const contentCreateBody = z
 	.object({
 		data: z.record(z.string(), z.unknown()),
@@ -206,6 +211,7 @@ export const contentUpdateBody = z
 			.optional()
 			.meta({ description: "Opaque revision token for optimistic concurrency" }),
 		skipRevision: z.boolean().optional(),
+		overrideLock: overrideLockFlag,
 		seo: contentSeoInput.optional(),
 		taxonomies: z.record(z.string(), z.array(z.string())).optional().meta({
 			description:
@@ -224,6 +230,7 @@ export const contentScheduleBody = z
 				description: "ISO 8601 datetime for scheduled publishing",
 				examples: ["2025-06-15T09:00:00Z"],
 			}),
+		overrideLock: overrideLockFlag,
 	})
 	.meta({ id: "ContentScheduleBody" });
 
@@ -232,6 +239,7 @@ export const contentRevisionConditionBody = z.object({
 		.string()
 		.optional()
 		.meta({ description: "Opaque revision token for optimistic concurrency" }),
+	overrideLock: overrideLockFlag,
 });
 
 export const contentPublishBody = contentRevisionConditionBody

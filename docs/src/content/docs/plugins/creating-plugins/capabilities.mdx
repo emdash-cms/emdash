@@ -102,6 +102,7 @@ When a sandbox runner is active, the runtime enforces:
 A few things the capability system doesn't and can't cover:
 
 - **Behaviour within a granted capability.** A plugin with `content:write` can edit any content, not only its own. Capabilities are coarse — they say "this plugin can write content," not "this plugin can write only the content it created." Audit-time review is the only check on what a plugin actually does within its grant.
+- **Entry edit locks.** `ctx.content.update()` writes through an entry's [edit lock](/reference/rest-api/#entry-edit-lock), so an editor who has that entry open in the admin does not stop a plugin write. `ctx.content.delete()` behaves the same way, and releases the lock along with the entry it trashes.
 - **Operator trust on Node.js.** When the configured sandbox runner reports unavailable (no Cloudflare Worker Loader, no Node-side runner installed, etc.), `sandboxed: []` plugins are skipped at startup. You can move them into `plugins: []` to run them in-process — but then there's no V8 isolate, no resource limits, and the plugin can call `fetch()` directly or read environment variables. Treat that as native-level trust.
 - **Side channels.** Timing, log output, and stored data are all visible to anyone with appropriate access to the host environment. Don't use the sandbox as a confidentiality boundary against the operator running it.
 

@@ -14,7 +14,13 @@ import {
 } from "../../src/database/migrations/runner.js";
 import type { Database } from "../../src/database/types.js";
 import { seedPreI18nSchema } from "../utils/pre-i18n-schema.js";
-import { listColumns, listIndexes, listTables, resetD1Schema } from "./d1-schema.js";
+import {
+	listColumns,
+	listIndexes,
+	listTables,
+	resetD1Schema,
+	seedLegacyCollection,
+} from "./d1-schema.js";
 
 declare module "cloudflare:test" {
 	interface ProvidedEnv {
@@ -35,6 +41,11 @@ beforeEach(async () => {
 afterAll(async () => {
 	await db.destroy();
 });
+
+async function migrateThrough(name: string): Promise<void> {
+	const { error } = await createMigrator(db).migrateTo(name);
+	if (error) throw error;
+}
 
 describe("core migrations on D1", () => {
 	it("applies every registered migration to an empty database", async () => {
@@ -63,10 +74,6 @@ describe("retry after a partial run on D1", () => {
 	// the schema changed and the bookkeeping row missing. The next request
 	// reruns the migration against its own output, and an unguarded CREATE
 	// there fails on every boot from then on.
-	async function migrateThrough(name: string): Promise<void> {
-		const { error } = await createMigrator(db).migrateTo(name);
-		if (error) throw error;
-	}
 
 	it("finishes 016 after a run that stopped after its first statement", async () => {
 		await migrateThrough("015_indexes");
@@ -205,5 +212,52 @@ describe("040 byline rebuild on D1", () => {
 		const columns = await listColumns(db, "_emdash_bylines");
 		expect(columns).toContain("locale");
 		expect(columns).toContain("translation_group");
+	});
+});
+
+describe("replay idempotence on D1", () => {
+	// Migrations after this one guard their DDL against a replay; most up to it
+	// do not, so the replay below starts past it.
+	const LAST_UNGUARDED_MIGRATION = "032_rate_limits";
+
+	// A migration that iterates `ec_*` tables is inert on an empty database.
+	async function seedCollectionAfterRegistry(): Promise<string[]> {
+		await migrateThrough("003_schema_registry");
+		await seedLegacyCollection(db);
+		return MIGRATION_NAMES.slice(MIGRATION_NAMES.indexOf("003_schema_registry") + 1);
+	}
+
+	it("applies every migration to a database that already holds a collection", async () => {
+		const remaining = await seedCollectionAfterRegistry();
+
+		const { applied } = await runMigrations(db);
+
+		expect(applied).toEqual(remaining);
+		expect((await getExactMigrationStatus(db)).pending).toEqual([]);
+	});
+
+	it("replays every migration written since the guarded-DDL pattern", async () => {
+		const remaining = await seedCollectionAfterRegistry();
+		const migrations = new Map(
+			(await createMigrator(db).getMigrations()).map((info) => [info.name, info.migration]),
+		);
+		const guarded = new Set(
+			MIGRATION_NAMES.slice(MIGRATION_NAMES.indexOf(LAST_UNGUARDED_MIGRATION) + 1),
+		);
+		const failed: string[] = [];
+
+		for (const name of remaining) {
+			await migrateThrough(name);
+			if (!guarded.has(name)) continue;
+			const migration = migrations.get(name);
+			if (!migration) throw new Error(`no migration is registered as ${name}`);
+			try {
+				await migration.up(db);
+			} catch (error) {
+				failed.push(`${name}: ${error instanceof Error ? error.message : String(error)}`);
+			}
+		}
+
+		expect(failed).toEqual([]);
 	});
 });

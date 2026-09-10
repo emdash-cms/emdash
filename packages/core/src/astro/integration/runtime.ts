@@ -259,12 +259,13 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
 	 * import { untrustedPlugin } from "some-third-party-plugin";
 	 *
 	 * emdash({
 	 *   plugins: [trustedPlugin()],     // runs in host
 	 *   sandboxed: [untrustedPlugin()], // runs in isolate
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -275,8 +276,10 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -367,9 +370,11 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
 	 *   marketplace: "https://marketplace.emdashcms.com",
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -385,13 +390,15 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
 	 *   experimental: {
 	 *     registry: {
 	 *       aggregatorUrl: "https://registry.emdashcms.com",
 	 *     },
 	 *   },
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */

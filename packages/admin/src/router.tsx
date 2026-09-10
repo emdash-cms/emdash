@@ -41,6 +41,7 @@ import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
 import { Dashboard } from "./components/Dashboard";
 import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
+import { EntryLockNotice } from "./components/EntryLockNotice";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
@@ -144,6 +145,7 @@ import { runBulkAction } from "./lib/bulk";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import { sanitizeRedirectUrl } from "./lib/url";
+import { useEntryLock } from "./lib/useEntryLock";
 import { BylineSchemaPage } from "./routes/byline-schema";
 import { BylinesPage } from "./routes/bylines";
 import { UsersPage } from "./routes/users";
@@ -865,6 +867,12 @@ function ContentEditPage() {
 		queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
 		enabled: !i18n || !!activeLocale,
 	});
+	const entryLock = useEntryLock({
+		collection,
+		entryId: id,
+		locale: activeLocale,
+		ready: Boolean(rawItem),
+	});
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
 	const activeRevisionEntryRef = React.useRef("");
 	if (activeRevisionEntryRef.current !== id) {
@@ -1058,14 +1066,15 @@ function ContentEditPage() {
 		[activeLocale, collection, rawItem?.locale],
 	);
 	const handleContentUpdateError = React.useCallback(
-		(error: unknown) => {
+		(error: unknown, targetId: string) => {
+			if (entryLock.reportWriteError(error, targetId)) return;
 			toastManager.add({
 				title: t`Failed to save`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
 				type: "error",
 			});
 		},
-		[t, toastManager],
+		[entryLock.reportWriteError, t, toastManager],
 	);
 
 	const updateMutation = useMutation({
@@ -1090,7 +1099,7 @@ function ContentEditPage() {
 		},
 		onError: async (error, variables) => {
 			if (isSaveConflict(error) && (await recoverFromSaveConflict(variables.targetId))) return;
-			handleContentUpdateError(error);
+			handleContentUpdateError(error, variables.targetId);
 		},
 		onSettled: (_, __, variables) => {
 			if (variables.source === "editor") {
@@ -1112,7 +1121,7 @@ function ContentEditPage() {
 		onSuccess: () => {
 			handleContentUpdateSuccess(id);
 		},
-		onError: handleContentUpdateError,
+		onError: (error) => handleContentUpdateError(error, id),
 	});
 
 	// Autosave mutation - skips revision creation
@@ -1145,6 +1154,7 @@ function ContentEditPage() {
 		onError: async (err, variables) => {
 			if (isSaveConflict(err) && (await recoverFromSaveConflict(variables.targetId))) return;
 			if (isTerminalRequestError(err)) recordAutosaveRejection(variables.targetId);
+			if (entryLock.reportWriteError(err, variables.targetId)) return;
 			toastManager.add({
 				title: t`Autosave failed`,
 				description: err instanceof Error ? err.message : t`An error occurred`,
@@ -1169,6 +1179,7 @@ function ContentEditPage() {
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
 		onError: (error) => {
+			if (entryLock.reportWriteError(error, id)) return;
 			toastManager.add({
 				title: t`Failed to publish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -1187,6 +1198,7 @@ function ContentEditPage() {
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
 		onError: (error) => {
+			if (entryLock.reportWriteError(error, id)) return;
 			toastManager.add({
 				title: t`Failed to unpublish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -1209,6 +1221,7 @@ function ContentEditPage() {
 			});
 		},
 		onError: (error) => {
+			if (entryLock.reportWriteError(error, id)) return;
 			toastManager.add({
 				title: t`Failed to discard changes`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -1254,6 +1267,7 @@ function ContentEditPage() {
 			});
 		},
 		onError: (error) => {
+			if (entryLock.reportWriteError(error, id)) return;
 			toastManager.add({
 				title: t`Failed to schedule`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -1272,6 +1286,7 @@ function ContentEditPage() {
 			});
 		},
 		onError: (error) => {
+			if (entryLock.reportWriteError(error, id)) return;
 			toastManager.add({
 				title: t`Failed to unschedule`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -1323,6 +1338,7 @@ function ContentEditPage() {
 			});
 		},
 		onError: (error) => {
+			if (entryLock.reportWriteError(error, id)) return;
 			toastManager.add({
 				title: t`Failed to delete`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -1591,6 +1607,15 @@ function ContentEditPage() {
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
 			manifest={manifest ?? null}
+			readOnly={entryLock.readOnly}
+			notice={
+				<EntryLockNotice
+					state={entryLock.state}
+					onTakeOver={entryLock.takeOver}
+					onReadInstead={entryLock.readInstead}
+					isTakingOver={entryLock.isTakingOver}
+				/>
+			}
 		/>
 	);
 }

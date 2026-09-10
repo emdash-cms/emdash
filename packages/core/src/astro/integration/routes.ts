@@ -169,6 +169,11 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/content/[collection]/[id]/compare.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/lock",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/lock.ts"),
+	});
+
 	// i18n translation routes
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/translations",

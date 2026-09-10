@@ -256,13 +256,19 @@ npx emdash content update posts 01ABC123 \
   --data '{"title": "Updated"}'
 ```
 
-| Option   | Description                            |
-| -------- | -------------------------------------- |
-| `--rev`  | Revision token from `get` (required)   |
-| `--data` | JSON string with content data          |
-| `--file` | Read data from a JSON file             |
+| Option            | Description                                              |
+| ----------------- | -------------------------------------------------------- |
+| `--rev`           | Revision token from `get` (required)                     |
+| `--data`          | JSON string with content data                            |
+| `--file`          | Read data from a JSON file                               |
+| `--override-lock` | Write even though another editor has the entry open      |
 
 If the item has changed since your `get`, the server returns 409 Conflict — re-read and try again.
+
+If someone has the entry open in the admin, the server returns 409 with code
+`ENTRY_LOCKED` and a message that names the holder. Wait for them to finish, or
+pass `--override-lock`. The same flag is available on `content delete`,
+`content publish`, `content unpublish` and `content schedule`.
 
 #### `content delete <collection> <id>`
 

@@ -454,19 +454,13 @@ the provider under **Settings → Email**.
 
 ## Environment Variables
 
-### Recommended: encryption key
+### Encryption key validation
 
-`EMDASH_ENCRYPTION_KEY` is the key for encrypting plugin secrets at
-rest (webhook tokens, Turnstile keys, etc.). The key is validated on
-startup; plugin secret encryption uses it once enabled. Set it on
-every deployment so secrets are protected without a later config
-change.
+`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets. If the variable is set, EmDash
+checks its format during startup, but plugin secret values remain unencrypted in the database.
 
-The key is provided by you and never stored in the database; only
-encrypted ciphertext is. Losing it means losing every secret encrypted
-with it.
-
-Generate a key and store it as a Worker secret with the following commands:
+If you set the variable, generate a valid value and store it as a Worker secret with the following
+commands:
 
 ```bash
 npx emdash secrets generate
@@ -474,9 +468,8 @@ wrangler secret put EMDASH_ENCRYPTION_KEY
 ```
 
 <Aside type="caution">
-Never commit the encryption key to your repository, and back it up
-somewhere durable (a password manager, KMS, or your team's secret
-store). The plain text value lives only in your environment.
+	Treat the database and its backups as sensitive because they contain plaintext plugin secrets.
+	Never commit secret values to your repository.
 </Aside>
 
 ### Optional: stable-value overrides
@@ -493,7 +486,9 @@ needs to share the secret with your main site.
 | `EMDASH_IP_SALT` | Override for the auto-generated commenter-IP hash salt. |
 | `EMDASH_AUTH_SECRET` | Optional. If set, it is used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which takes precedence), keeping commenter-IP hashes stable for installs that already rely on it. Leave it unset for a new deployment. |
 
-Access environment variables in your configuration using `import.meta.env` or the Cloudflare `env` binding.
+Read EmDash secrets from `process.env` at runtime. Read Worker bindings from `env`, imported from
+`cloudflare:workers`. Never read secrets through `import.meta.env`: Vite replaces those values at
+build time and can write them into the server bundle.
 
 For the complete inventory of every secret EmDash uses — including storage locations, rotation steps, and what breaks when a key is lost — see [Secrets & Key Management](/deployment/secrets/).
 

@@ -13,6 +13,7 @@
 import type { PublicPageContext } from "../plugins/types.js";
 import { renderFragments } from "../page/fragments.js";
 import { getPageRuntime } from "../page/index.js";
+import { resolveSeoPanelPage } from "../page/seo-contributions.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -24,7 +25,9 @@ const runtime = getPageRuntime(Astro.locals as Record<string, unknown>);
 let html = "";
 
 if (runtime) {
-	const contributions = await runtime.collectPageFragments(page);
+	// Same SEO panel overlay as <EmDashHead>, so body fragment hooks see
+	// the identical page context as head hooks (a request-cache read).
+	const contributions = await runtime.collectPageFragments(await resolveSeoPanelPage(page));
 	html = renderFragments(contributions, "body:start");
 }
 ---

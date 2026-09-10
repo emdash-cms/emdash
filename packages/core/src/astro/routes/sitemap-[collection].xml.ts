@@ -102,6 +102,10 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 				collection: col.collection,
 				slug: entry.slug || entry.id,
 				id: entry.id,
+				// Published date keeps date-token permalinks stable across edits;
+				// no updatedAt fallback — tokens stay literal without a publish
+				// date, consistent with the resolver's documented behavior.
+				date: entry.publishedAt,
 			});
 			const localized = await localizePath(path, entry.locale);
 			const absolute = localized === null ? null : `${siteUrl}${localized}`;

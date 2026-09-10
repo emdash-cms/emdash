@@ -19,6 +19,10 @@ import { sql } from "kysely";
 import { buildStatusCondition, compoundSelectLimit } from "../database/dialect-helpers.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
+import {
+	filterToRegisteredCollections,
+	noteStaleRegisteredCollections,
+} from "../schema/collection-slugs-cache.js";
 import { chunks } from "../utils/chunks.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 
@@ -100,6 +104,11 @@ async function runBatch(
 		return await runCounts(db, taxonomyName, collections, locale);
 	} catch (error) {
 		if (!isMissingTableError(error)) throw error;
+		// The slug filter let a missing table through: the collection was
+		// deleted on another isolate (stale cache) or the registry drifted
+		// from the physical schema. Window-gated, so the delete case stops
+		// sending failing statements within one revalidation window.
+		noteStaleRegisteredCollections();
 	}
 
 	const counts = new Map<string, number>();
@@ -120,10 +129,15 @@ async function runBatch(
  * it preserves the locale-agnostic API used by legacy callers.
  *
  * Counts are scoped to the taxonomy's declared collections — pass
- * `TaxonomyDef.collections` (`_emdash_taxonomy_defs.collections`). Collections
- * whose `ec_*` table doesn't exist (pre-migration drift, a declared collection
- * that was never created) are skipped, yielding a partial-but-correct count
- * rather than a throw.
+ * `TaxonomyDef.collections` (`_emdash_taxonomy_defs.collections`). Declared
+ * collections without a `_emdash_collections` row (the migration-seeded
+ * defaults declare `posts` unconditionally) are filtered out before any SQL
+ * is built, so no statement referencing a missing `ec_*` table is sent — a
+ * failed statement is logged by the database even when the caller recovers,
+ * flooding D1 observability with phantom errors. The missing-table guards in
+ * `runBatch` stay as the backstop for registry/table drift (e.g. a partially
+ * applied D1 create) and for a table dropped mid-flight, yielding a
+ * partial-but-correct count rather than a throw.
  *
  * One database round-trip for the whole taxonomy (UNION ALL across
  * collections). On a backend that caps compound-SELECT terms — D1 allows five
@@ -146,8 +160,11 @@ export async function fetchVisibleTermCounts(
 	for (const collection of unique) validateIdentifier(collection, "collection slug");
 	if (unique.length === 0) return new Map();
 
+	const present = await filterToRegisteredCollections(db, unique);
+	if (present.length === 0) return new Map();
+
 	const limit = compoundSelectLimit(db);
-	const batched = limit === null ? [unique] : chunks(unique, limit);
+	const batched = limit === null ? [present] : chunks(present, limit);
 	const batches = await Promise.all(
 		batched.map((batch) => runBatch(db, taxonomyName, batch, locale)),
 	);

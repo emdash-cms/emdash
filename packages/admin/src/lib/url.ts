@@ -12,6 +12,10 @@ export interface ContentUrlOptions {
 		locales: string[];
 		prefixDefaultLocale?: boolean;
 	};
+	/** Entry id used to resolve `{id}` tokens in the pattern. */
+	id?: string;
+	/** Publish date used to resolve `{year}`/`{month}`/... tokens in the pattern. */
+	date?: string | null;
 }
 
 /**
@@ -30,11 +34,39 @@ export function sanitizeRedirectUrl(raw: string): string {
 	return DEFAULT_REDIRECT;
 }
 
+const DATE_TOKEN = /\{(year|month|day|hour|minute|second)\}/g;
+// SQLite-style datetime without timezone info; stored values are UTC.
+const OFFSETLESS_DATETIME = /^(\d{4}-\d{2}-\d{2})[ T](\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?)$/;
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Substitute WordPress-style date tokens from a publish date (zero-padded).
+ * Tokens are left untouched when no valid date is available. Kept in sync with
+ * the core `interpolateUrlPattern` resolver used for sitemap/canonical URLs.
+ */
+function applyDateTokens(path: string, date?: string | null): string {
+	if (date == null) return path;
+	const offsetless = OFFSETLESS_DATETIME.exec(date);
+	const d = new Date(offsetless ? `${offsetless[1]}T${offsetless[2]}Z` : date);
+	if (Number.isNaN(d.getTime())) return path;
+	const parts: Record<string, string> = {
+		year: String(d.getUTCFullYear()),
+		month: pad2(d.getUTCMonth() + 1),
+		day: pad2(d.getUTCDate()),
+		hour: pad2(d.getUTCHours()),
+		minute: pad2(d.getUTCMinutes()),
+		second: pad2(d.getUTCSeconds()),
+	};
+	return path.replace(DATE_TOKEN, (match, key: string) => parts[key] ?? match);
+}
+
 /**
  * Build a public content URL from collection metadata and slug.
  *
  * Uses the collection's `urlPattern` when available (e.g. `/blog/{slug}`),
- * otherwise falls back to `/{collection}/{slug}`. Leading slashes are
+ * otherwise falls back to `/{collection}/{slug}`. Also resolves the date
+ * tokens `{year}`/`{month}`/`{day}`/`{hour}`/`{minute}`/`{second}` from the
+ * entry's publish `date` (for WordPress-style permalinks). Leading slashes are
  * stripped from the slug to prevent protocol-relative URLs.
  */
 export function contentUrl(
@@ -44,7 +76,11 @@ export function contentUrl(
 	options?: ContentUrlOptions,
 ): string {
 	const safe = slug.replace(LEADING_SLASHES, "");
-	const path = urlPattern ? urlPattern.replace("{slug}", safe) : `/${collection}/${safe}`;
+	// Date tokens resolve against the pattern before the slug is inserted, so
+	// a slug that happens to contain `{year}`-style text stays untouched.
+	let pattern = urlPattern && applyDateTokens(urlPattern, options?.date);
+	if (pattern && options?.id) pattern = pattern.replaceAll("{id}", options.id);
+	const path = pattern ? pattern.replaceAll("{slug}", safe) : `/${collection}/${safe}`;
 	const { locale, i18n } = options ?? {};
 	const shouldPrefix =
 		locale && i18n && (locale !== i18n.defaultLocale || i18n.prefixDefaultLocale === true);

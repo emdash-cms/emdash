@@ -8,6 +8,7 @@ import type { APIRoute } from "astro";
 
 import { requireOwnerPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { contentRevisionConditionBody } from "#api/schemas.js";
 
@@ -51,6 +52,15 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 	if (denied) return denied;
 
 	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
+
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
+		override: body?.overrideLock,
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
 
 	const result = await emdash.handleContentUnpublish(collection, resolvedId, { _rev: body?._rev });
 
