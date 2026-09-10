@@ -75,15 +75,6 @@ const readingTime = getReadingTime(post.data.content);
 			<div class="article-body" {...post.edit.content}>
 				<PortableText value={post.data.content} />
 			</div>
-
-			<footer class="article-footer">
-				<a href="/blog" class="back-link">
-					<svg viewBox="0 0 20 20" aria-hidden="true">
-						<path d="M16 10H5m4-4-4 4 4 4" />
-					</svg>
-					<span>Back to the blog</span>
-				</a>
-			</footer>
 		</div>
 	</article>
 </Base>
@@ -95,6 +86,8 @@ const readingTime = getReadingTime(post.data.content);
 	}
 
 	.article-shell {
+		--article-content-width: 52rem;
+
 		width: calc(100% - 3rem);
 		max-width: 61rem;
 		margin-inline: auto;
@@ -126,7 +119,7 @@ const readingTime = getReadingTime(post.data.content);
 	}
 
 	.article-header {
-		max-width: 52rem;
+		max-width: var(--article-content-width);
 		margin-block: clamp(2.5rem, 6vw, 4.5rem) clamp(3rem, 6vw, 4.5rem);
 	}
 
@@ -157,7 +150,7 @@ const readingTime = getReadingTime(post.data.content);
 	}
 
 	.article-excerpt {
-		max-width: 46rem;
+		max-width: var(--article-content-width);
 		margin-block-start: var(--spacing-lg);
 		color: var(--color-muted);
 		font-size: clamp(1.0625rem, 2.2vw, 1.25rem);
@@ -207,6 +200,7 @@ const readingTime = getReadingTime(post.data.content);
 	}
 
 	.article-cover {
+		max-width: var(--article-content-width);
 		overflow: hidden;
 		margin-block-end: clamp(3.5rem, 8vw, 6rem);
 		border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
@@ -214,9 +208,8 @@ const readingTime = getReadingTime(post.data.content);
 		box-shadow: var(--shadow-sm);
 	}
 
-	.article-body,
-	.article-footer {
-		max-width: 46rem;
+	.article-body {
+		max-width: var(--article-content-width);
 		margin-inline: 0;
 	}
 
@@ -284,12 +277,6 @@ const readingTime = getReadingTime(post.data.content);
 	.article-body :global(img) {
 		margin-block: 2.5rem;
 		border-radius: var(--radius);
-	}
-
-	.article-footer {
-		margin-block-start: clamp(4rem, 8vw, 6rem);
-		padding-block-start: var(--spacing-xl);
-		border-block-start: 1px solid var(--color-border);
 	}
 
 	@media (max-width: 479px) {
