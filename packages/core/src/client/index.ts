@@ -544,9 +544,16 @@ export class EmDashClient {
 		return data.item;
 	}
 
-	/** Delete a collection */
-	async deleteCollection(slug: string): Promise<void> {
-		await this.request<unknown>("DELETE", `/schema/collections/${encodeURIComponent(slug)}`);
+	/**
+	 * Delete a collection. A collection that still has content is refused
+	 * unless `force` is set, which the route reads as `?force=true`.
+	 */
+	async deleteCollection(slug: string, options?: { force?: boolean }): Promise<void> {
+		const query = options?.force ? "?force=true" : "";
+		await this.request<unknown>(
+			"DELETE",
+			`/schema/collections/${encodeURIComponent(slug)}${query}`,
+		);
 	}
 
 	/** Create a field on a collection */
