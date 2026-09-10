@@ -1,4 +1,5 @@
 ---
+import { Icon } from "astro-iconset/components";
 import { sanitizeHref } from "emdash";
 
 interface MenuItem {
@@ -48,7 +49,12 @@ const navItems = menuItems.map((item) => ({
 						{siteLogo ? (
 							<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
 						) : (
-							<span class="site-logo-text">{siteTitle}</span>
+							<>
+								<span class="site-logo-mark" aria-hidden="true">
+									<Icon name="ph:phosphor-logo" />
+								</span>
+								<span class="site-logo-text">{siteTitle}</span>
+							</>
 						)}
 					</a>
 
@@ -233,6 +239,7 @@ const navItems = menuItems.map((item) => ({
 		min-width: 0;
 		max-width: 100%;
 		align-items: center;
+		gap: 0.625rem;
 		color: var(--color-text);
 		font-size: var(--font-size-xl);
 		font-weight: 700;
@@ -244,6 +251,26 @@ const navItems = menuItems.map((item) => ({
 		overflow: hidden;
 		text-overflow: ellipsis;
 		white-space: nowrap;
+	}
+
+	.site-logo-mark {
+		display: inline-flex;
+		width: 1.75rem;
+		height: 1.75rem;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		color: var(--button-primary-fg);
+		background: var(--button-primary-bg);
+		font-size: 1.125rem;
+		line-height: 1;
+		border-radius: 0.5rem;
+		box-shadow: inset 0 0 0 1px color-mix(in srgb, #fff 18%, transparent);
+		transition: background var(--transition-fast);
+	}
+
+	.site-logo:hover .site-logo-mark {
+		background: var(--button-primary-bg-hover);
 	}
 
 	.site-logo-img {

@@ -103,10 +103,11 @@ const iconMap: Record<string, string> = {
 	.feature-card {
 		position: relative;
 		display: flex;
-		min-height: 13.5rem;
+		min-height: 10.75rem;
 		flex-direction: column;
+		justify-content: center;
 		gap: 0.75rem;
-		padding: 2.75rem;
+		padding: 1.75rem 2.75rem;
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: 18px;
@@ -218,7 +219,8 @@ const iconMap: Record<string, string> = {
 		}
 
 		.feature-card {
-			padding: var(--spacing-2xl);
+			min-height: 10.75rem;
+			padding: var(--spacing-xl) var(--spacing-2xl);
 		}
 	}
 
@@ -237,7 +239,7 @@ const iconMap: Record<string, string> = {
 
 		.feature-card {
 			min-height: auto;
-			padding: var(--spacing-xl);
+			padding: var(--spacing-lg) var(--spacing-xl);
 		}
 	}
 
