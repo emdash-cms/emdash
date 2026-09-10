@@ -44,15 +44,21 @@ describe("documentation reference inventories", () => {
 		const registrations = [...serverSource.matchAll(/server\.registerTool\(\s*"([^"]+)"/g)];
 		const scopes = new Map<string, string>();
 		for (const [index, registration] of registrations.entries()) {
+			const registrationName = registration[1];
 			const block = serverSource.slice(
 				registration.index,
 				registrations[index + 1]?.index ?? serverSource.length,
 			);
-			const scope = block.match(/requireScope\(extra, "([^"]+)"\)/)?.[1];
-			if (!registration[1] || !scope) {
-				throw new Error(`Missing scope for MCP registration ${registration[1] ?? "unknown"}`);
+			// Core registrations declare one literal scope guard. Fail if that source shape changes
+			// instead of guessing which scope the reference should publish.
+			const scopeMatches = [...block.matchAll(/requireScope\(extra, "([^"]+)"\)/g)];
+			const scope = scopeMatches[0]?.[1];
+			if (!registrationName || scopeMatches.length !== 1 || !scope) {
+				throw new Error(
+					`Expected one literal scope for MCP registration ${registrationName ?? "unknown"}`,
+				);
 			}
-			scopes.set(registration[1], scope);
+			scopes.set(registrationName, scope);
 		}
 
 		const server = createMcpServer();
