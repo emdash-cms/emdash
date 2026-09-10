@@ -20,6 +20,12 @@ export function buildSeoImageUrl(imageRef: string, siteUrl?: string): string {
 		return imageRef;
 	}
 
+	// `//host/path` is protocol-relative — already qualified, not a path
+	// to prefix with the site URL.
+	if (imageRef.startsWith("//")) {
+		return imageRef;
+	}
+
 	// Root-relative path (already includes the media API prefix). Without
 	// this branch we'd re-prefix and produce a doubled path that 404s.
 	if (imageRef.startsWith("/")) {

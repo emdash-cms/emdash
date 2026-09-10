@@ -175,6 +175,21 @@ describe("applySeoPanelToPageContext", () => {
 		});
 	});
 
+	it("passes a protocol-relative image reference through unchanged", () => {
+		const result = applySeoPanelToPageContext(
+			createPage(),
+			{ ...emptySeo, image: "//cdn.example.com/x.png" },
+			{ siteUrl: "https://example.com" },
+		);
+
+		const contributions = generateBaseSeoContributions(result);
+		expect(contributions).toContainEqual({
+			kind: "property",
+			property: "og:image",
+			content: "//cdn.example.com/x.png",
+		});
+	});
+
 	it("resolves a bare media id image against siteUrl and wins the og/twitter image", () => {
 		const result = applySeoPanelToPageContext(
 			createPage(),

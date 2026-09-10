@@ -67,7 +67,8 @@ if (runtime) {
 	// otherwise have done. Loaded first because the site URL feeds the
 	// SEO-panel overlay below.
 	const siteSettings = await getSiteSettings();
-	const siteUrl = page.siteUrl || siteSettings.url || new URL(page.url).origin;
+	const siteUrl =
+		page.siteUrl || siteSettings.url || (URL.canParse(page.url) ? new URL(page.url).origin : "");
 
 	// SEO panel values for the rendered content entry, primed by
 	// the entry query's folded _emdash_seo column — a request-cache read,

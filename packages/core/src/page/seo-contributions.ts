@@ -173,7 +173,10 @@ export async function resolveSeoPanelPage(
 	const seo = await peekSeoPanel(page.content.collection, page.content.id);
 	if (!seo) return page;
 	const resolvedSiteUrl =
-		siteUrl || page.siteUrl || (await getSiteSettings()).url || new URL(page.url).origin;
+		siteUrl ||
+		page.siteUrl ||
+		(await getSiteSettings()).url ||
+		(URL.canParse(page.url) ? new URL(page.url).origin : "");
 	return applySeoPanelToPageContext(page, seo, { siteUrl: resolvedSiteUrl });
 }
 
