@@ -69,6 +69,7 @@ function createTestHook<T>(
 		dependencies: [],
 		errorPolicy: "continue",
 		exclusive: false,
+		autoSelect: true,
 		...overrides,
 	};
 }
@@ -542,6 +543,40 @@ describe("resolveExclusiveHooks — shared function", () => {
 		});
 
 		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("only-provider");
+	});
+
+	it("auto-selects the sole real provider past unconfigured built-ins", async () => {
+		const realProvider = createTestPlugin({
+			id: "resend-plugin",
+			hooks: {
+				"content:beforeSave": createTestHook("resend-plugin", vi.fn(), { exclusive: true }),
+			},
+		});
+		const unconfiguredBuiltin = createTestPlugin({
+			id: "builtin-smtp",
+			hooks: {
+				"content:beforeSave": createTestHook("builtin-smtp", vi.fn(), {
+					exclusive: true,
+					autoSelect: false,
+				}),
+			},
+		});
+		const pipeline = new HookPipeline([realProvider, unconfiguredBuiltin]);
+
+		const store = new Map<string, string>();
+		await resolveExclusiveHooks({
+			pipeline,
+			isActive: () => true,
+			getOption: async (key) => store.get(key) ?? null,
+			setOption: async (key, value) => {
+				store.set(key, value);
+			},
+			deleteOption: async (key) => {
+				store.delete(key);
+			},
+		});
+
+		expect(pipeline.getExclusiveSelection("content:beforeSave")).toBe("resend-plugin");
 	});
 
 	it("filters out inactive providers", async () => {

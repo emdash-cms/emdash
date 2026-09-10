@@ -485,10 +485,10 @@ EMAIL_SMTP_FROM="My Site <noreply@example.com>"
 	error. TLS is always required — plaintext auth is never attempted.
 </Aside>
 
-When configured, the SMTP transport registers as a built-in `email:deliver`
-provider. Explicitly selected plugin transports (like `cloudflareEmail()`) still
-take precedence — the built-in SMTP provider only wins when it's the sole
-registered provider or when you explicitly select it under **Settings → Email**.
+The SMTP transport registers as a built-in `email:deliver` provider. When the
+environment variables above are set and no other provider is configured, it is
+selected automatically; otherwise pick it under **Settings → Email**. An
+explicitly selected provider — plugin or built-in — always takes precedence.
 
 ## Environment Variables
 

@@ -800,6 +800,14 @@ export interface HookConfig<THandler> {
 	 * admin-selected provider. Used for email:deliver, search, image optimization, etc.
 	 */
 	exclusive?: boolean;
+	/**
+	 * Whether this exclusive provider may be auto-selected when it is the
+	 * only candidate (default true). Built-in providers that are registered
+	 * unconfigured set this to false so they only activate when explicitly
+	 * selected — otherwise their mere presence would block auto-selection
+	 * of a site's single real provider plugin.
+	 */
+	autoSelect?: boolean;
 	/** The hook handler */
 	handler: THandler;
 }
@@ -1163,6 +1171,8 @@ export interface ResolvedHook<THandler> {
 	errorPolicy: "continue" | "abort";
 	/** Whether this hook is exclusive (provider pattern) */
 	exclusive: boolean;
+	/** Whether this exclusive provider participates in sole-provider auto-selection */
+	autoSelect: boolean;
 	handler: THandler;
 	pluginId: string;
 }

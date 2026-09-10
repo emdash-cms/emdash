@@ -580,9 +580,6 @@ export class PluginManager {
 			getOption: (key) => optionsRepo.get<string>(key),
 			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
-			deleteOption: async (key) => {
-				await optionsRepo.delete(key);
-			},
 			preferredHints,
 		});
 	}

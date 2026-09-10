@@ -205,11 +205,11 @@ import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
 import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
-import { createCloudflareEmailPlugin, loadCloudflareConfig } from "./plugins/email-cloudflare.js";
+import { createCloudflareEmailPlugin } from "./plugins/email-cloudflare.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import {
-	createSmtpEmailDeliver,
 	createSmtpEmailDeliverFromDb,
+	isSmtpConfigComplete,
 	loadSmtpConfigFromEnv,
 	SMTP_EMAIL_PLUGIN_ID,
 } from "./plugins/email-smtp.js";
@@ -1472,20 +1472,25 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Register built-in SMTP email provider when EMAIL_SMTP_* env vars are
-		// present or when configured in the admin UI (stored in DB). This is the
-		// only transport that works with generic SMTP credentials (Brevo relay,
-		// Office365, Fastmail, self-hosted Postfix) because sandboxed plugins
-		// cannot open TCP sockets. Registered as a built-in so it participates
-		// in exclusive hook resolution like any other provider — explicitly-
-		// selected plugin transports still win.
-		const encryptionKey =
-			import.meta.env.EMDASH_ENCRYPTION_KEY ?? process.env.EMDASH_ENCRYPTION_KEY;
-		// Register the SMTP provider even when not yet configured — the admin
-		// settings UI needs it in the provider list. The handler loads the
-		// config lazily from the DB on every send, so saving settings takes
-		// effect immediately without a runtime restart.
+		// Register the built-in SMTP email provider. This is the only transport
+		// that works with generic SMTP credentials (Brevo relay, Office365,
+		// Fastmail, self-hosted Postfix) because sandboxed plugins cannot open
+		// TCP sockets. Always registered so it appears in the Settings → Email
+		// provider list; the handler loads config (DB first, env fallback)
+		// lazily on every send, so admin-saved settings apply without a
+		// restart. Auto-selection is limited to env-configured setups — a DB
+		// config is always paired with an explicit selection saved by the
+		// settings route, so no startup DB probe is needed here.
+		// Secrets read process.env only — import.meta.env is statically inlined
+		// at build time and would bake the build machine's key into the bundle.
+		const encryptionKey = process.env.EMDASH_ENCRYPTION_KEY;
 		try {
+			let smtpEnvConfigured = false;
+			try {
+				smtpEnvConfigured = isSmtpConfigComplete(loadSmtpConfigFromEnv());
+			} catch {
+				// Invalid env config (e.g. port 25) — surfaced at delivery time.
+			}
 			const smtpPlugin = definePlugin({
 				id: SMTP_EMAIL_PLUGIN_ID,
 				version: "1.0.0",
@@ -1493,20 +1498,11 @@ export class EmDashRuntime {
 				hooks: {
 					"email:deliver": {
 						exclusive: true,
+						autoSelect: smtpEnvConfigured,
 						// SMTP over public internet (EHLO → STARTTLS → AUTH → DATA)
 						// needs far more than the 5s default hook timeout.
 						timeout: 30_000,
-						handler: encryptionKey
-							? createSmtpEmailDeliverFromDb(db, encryptionKey)
-							: createSmtpEmailDeliver(
-									loadSmtpConfigFromEnv() ?? {
-										host: "",
-										port: 587,
-										secure: "starttls",
-										user: "",
-										pass: "",
-									},
-								),
+						handler: createSmtpEmailDeliverFromDb(db, encryptionKey ?? null),
 					},
 				},
 			});
@@ -1516,13 +1512,12 @@ export class EmDashRuntime {
 			console.warn("[email] Failed to register SMTP email provider:", error);
 		}
 
-		// Register built-in Cloudflare Email provider. Always registered
-		// (even unconfigured) so it appears in the Settings → Email list.
-		// Config comes from DB (Settings UI) or env vars; the send_email
-		// binding is checked at delivery time with a clear error message.
+		// Register the built-in Cloudflare Email provider. Always registered
+		// (even unconfigured) so it appears in the Settings → Email list; the
+		// handler loads config (DB first, env fallback) lazily per send and
+		// checks the send_email binding at delivery time with a clear error.
 		try {
-			const cloudflareConfig = await loadCloudflareConfig(db);
-			const cloudflarePlugin = createCloudflareEmailPlugin(cloudflareConfig);
+			const cloudflarePlugin = createCloudflareEmailPlugin(db);
 			allPipelinePlugins.push(cloudflarePlugin);
 			enabledPlugins.add(cloudflarePlugin.id);
 		} catch (error) {
@@ -2446,9 +2441,6 @@ export class EmDashRuntime {
 			getOption: (key) => optionsRepo.get<string>(key),
 			getOptions: (keys) => optionsRepo.getMany<string>(keys),
 			setOption: (key, value) => optionsRepo.set(key, value),
-			deleteOption: async (key) => {
-				await optionsRepo.delete(key);
-			},
 			preferredHints,
 		});
 	}
