@@ -200,16 +200,15 @@ describe("direction-aware table resizing", () => {
 	it("enforces the visual minimum for valid sub-minimum stored widths", () => {
 		const { editor, host } = createEditor("ltr", { content: tableContent(Array(10).fill(1)) });
 		const table = host.querySelector<HTMLTableElement>("table")!;
-		const wrapper = table.closest<HTMLElement>(".tableWrapper")!;
-
+		const wrapper = table.parentElement!;
+		const style = getComputedStyle(wrapper);
 		expect(table.style.width).toBe("100%");
 		expect(table.style.minWidth).toBe("960px");
 		expect(Array.from(table.querySelectorAll("col"), (col) => col.style.width)).toEqual(
 			Array(10).fill("96px"),
 		);
 		expect(tableColumnWidths(editor, 0)).toEqual([1, 1]);
-		expect(wrapper.scrollWidth).toBeGreaterThanOrEqual(960);
-		expect(getComputedStyle(wrapper).overflowY).toBe("hidden");
+		expect(wrapper.scrollWidth >= 960 && style.overflowY === "hidden").toBe(true);
 	});
 
 	it("measures automatic span segments after clamping neighboring rendered widths", () => {
