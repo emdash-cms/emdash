@@ -20,7 +20,7 @@ A JSON backup includes:
 - Site settings such as the title, tagline, URL, locale, logo, display preferences, social profiles,
   and SEO defaults. These come from the `site:`, `emdash:site_`, and `emdash:locale` setting groups.
 
-The JSON backup excludes every other database table. This includes:
+It omits all other database tables, including:
 
 - User accounts, sessions, passkeys, OAuth data, API tokens, and other authentication data
 - Plugin storage and plugin settings, including plugin secrets
@@ -40,9 +40,8 @@ Backups are JSON files in the same snapshot format used by EmDash's preview syst
 
 Under **Settings → Backups** in the admin, the **Download backup** button generates a fresh backup and downloads it as a JSON file. Requires the admin role.
 
-The download provides an offline copy for inspection or custom migration tooling. EmDash cannot
-restore it. Use one of the raw database recovery options below before bulk imports, schema changes,
-or major upgrades.
+The download is for inspection or custom migration tooling. Before bulk imports, schema changes, or
+major upgrades, create a restorable database backup using one of the options below.
 
 ## Automatic backups to storage
 
@@ -90,11 +89,6 @@ Time Travel keeps 30 days of history on the paid plan (7 days on free) with minu
 
 See the [D1 Time Travel documentation](https://developers.cloudflare.com/d1/reference/time-travel/) for details.
 
-<Aside type="tip">
-	D1 Time Travel and raw database dumps can restore a database. EmDash JSON backups are exports of
-	selected content data and cannot be restored by EmDash.
-</Aside>
-
 ## Offsite database dumps
 
 For a complete SQL dump of the raw database (including users and auth tables), use Wrangler:
@@ -113,6 +107,5 @@ On Node deployments, the database is a single SQLite file — copy it while the 
 
 ## JSON restore
 
-EmDash has no admin action, API endpoint, or CLI command that restores a JSON backup. The JSON file
-is export-only. To recover a site, use D1 Time Travel, import a raw D1 SQL dump, or restore the
-SQLite database file as described above.
+EmDash has no admin action, API endpoint, or CLI command for JSON restore. Use D1 Time Travel, a raw
+D1 SQL dump, or a copy of the SQLite database as described above.
