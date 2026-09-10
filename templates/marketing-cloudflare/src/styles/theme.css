@@ -42,10 +42,10 @@
 	--color-accent-light: var(--heat-12);
 	--color-brand-hover: #82c1f5;
 	--color-brand-strong: #82c1f5;
-	--color-brand-soft: #163a5c;
+	--color-brand-soft: #262626;
 	--button-primary-bg-hover: #82c1f5;
 	--button-primary-bg-active: #3d98e6;
-	--button-primary-fg: #0b1220;
+	--button-primary-fg: #111111;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,9 +64,9 @@
 		--color-accent-light: var(--heat-12);
 		--color-brand-hover: #82c1f5;
 		--color-brand-strong: #82c1f5;
-		--color-brand-soft: #163a5c;
+		--color-brand-soft: #262626;
 		--button-primary-bg-hover: #82c1f5;
 		--button-primary-bg-active: #3d98e6;
-		--button-primary-fg: #0b1220;
+		--button-primary-fg: #111111;
 	}
 }
