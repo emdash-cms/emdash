@@ -136,7 +136,7 @@ test.describe("Autosave", () => {
 				slug: "summary",
 				type: "string",
 				label: "Summary",
-				validation: { maxLength: 10 },
+				validation: { minLength: 10 },
 			}),
 		});
 
@@ -152,15 +152,15 @@ test.describe("Autosave", () => {
 
 		const summaryInput = admin.page.locator("#field-summary");
 		const rejectedPut = admin.page.waitForResponse(isPut, { timeout: 10000 });
-		await summaryInput.fill("well over ten characters");
+		await summaryInput.fill("short");
 		expect((await rejectedPut).status()).toBe(400);
 
 		await admin.page.waitForTimeout(7000);
 		expect(putStatuses).toEqual([400]);
-		await expect(summaryInput).toHaveValue("well over ten characters");
+		await expect(summaryInput).toHaveValue("short");
 
 		const acceptedPut = admin.page.waitForResponse(isPut, { timeout: 10000 });
-		await summaryInput.fill("short");
+		await summaryInput.fill("long enough now");
 		expect((await acceptedPut).status()).toBe(200);
 	});
 });

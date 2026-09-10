@@ -55,6 +55,8 @@ Short, single-line text. Use for titles, names, and short values.
 - `maxLength` — Maximum character count
 - `pattern` — Regex pattern to match
 
+The editor caps input at `maxLength` and shows a live character count against the length rules.
+
 **Widget options:**
 
 - None specific
@@ -78,6 +80,8 @@ Multi-line plain text. Use for descriptions, excerpts, and longer plain text.
 
 - `minLength` — Minimum character count
 - `maxLength` — Maximum character count
+
+The editor caps input at `maxLength` and shows a live character count against the length rules.
 
 **Widget options:**
 
@@ -123,6 +127,8 @@ Decimal number. Use for prices, ratings, and measurements.
 - `min` — Minimum value
 - `max` — Maximum value
 
+The editor sets `min` and `max` on the number input and shows the allowed range beneath it.
+
 Stored as SQLite REAL (64-bit floating point).
 
 ### `integer`
@@ -146,6 +152,8 @@ Whole number. Use for quantities, counts, and order values.
 
 - `min` — Minimum value
 - `max` — Maximum value
+
+The editor sets `min` and `max` on the number input and shows the allowed range beneath it.
 
 Stored as SQLite INTEGER.
 

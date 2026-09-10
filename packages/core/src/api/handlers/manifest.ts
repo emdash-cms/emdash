@@ -287,11 +287,7 @@ function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
 		}));
 	}
 
-	// Include validation only for field widgets that need it client-side.
-	if (
-		(field.type === "repeater" || field.type === "file" || field.type === "image") &&
-		field.validation
-	) {
+	if (field.validation) {
 		entry.validation = { ...field.validation };
 	}
 
