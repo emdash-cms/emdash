@@ -114,7 +114,7 @@ test.describe("Portable Text tables", () => {
 		await expect(table.locator("tr")).toHaveCount(2);
 		await expect(table.locator("th")).toHaveCount(3);
 		await expect(table.locator("td")).toHaveCount(3);
-		await expect(page.getByRole("status").first()).toContainText("Table inserted");
+		await expect(page.getByText("Table inserted", { exact: true })).toBeAttached();
 		await expectCaretIn(table.locator("th").first());
 
 		await page.keyboard.press("Tab");
