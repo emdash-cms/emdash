@@ -11,6 +11,7 @@ import { FieldsBlockComponent } from "./blocks/fields.js";
 import { FormBlockComponent } from "./blocks/form.js";
 import { HeaderBlockComponent } from "./blocks/header.js";
 import { ImageBlockComponent } from "./blocks/image.js";
+import { ItemListBlockComponent } from "./blocks/item-list.js";
 import { MeterBlockComponent } from "./blocks/meter.js";
 import { SectionBlockComponent } from "./blocks/section.js";
 import { StatsBlockComponent } from "./blocks/stats.js";
@@ -59,6 +60,8 @@ function renderBlock(
 			return <EmptyBlockComponent block={block} onAction={onAction} />;
 		case "accordion":
 			return <AccordionBlockComponent block={block} onAction={onAction} />;
+		case "item_list":
+			return <ItemListBlockComponent block={block} onAction={onAction} />;
 		default: {
 			const _exhaustive: never = block;
 			return null;
