@@ -170,23 +170,20 @@ docker compose up -d
 
 ## Environment Variables
 
-### Recommended: encryption key
+### Encryption key validation
 
-`EMDASH_ENCRYPTION_KEY` is the key for encrypting plugin secrets at
-rest. The key is validated on startup; plugin secret encryption uses
-it once enabled. Set it on every deployment so secrets are protected
-without a later config change.
+`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets. If the variable is set, EmDash
+checks its format during startup, but plugin secret values remain unencrypted in the database.
 
-Generate a key and add the result to your environment:
+If you set the variable, generate a valid value and add the result to your environment:
 
 ```bash
 npx emdash secrets generate  # add the result to your environment
 ```
 
-The key is provided by you and never stored in the database; only
-encrypted ciphertext is. Back it up somewhere durable (a password
-manager, KMS, or your team's secret store) — losing it means losing
-every secret encrypted with it.
+The value is operator-provided and is not stored in the database. Losing it has no current
+data-recovery impact because no stored data depends on it. Treat the database and its backups as
+sensitive because they contain plaintext plugin secrets.
 
 ### Optional: stable-value overrides
 

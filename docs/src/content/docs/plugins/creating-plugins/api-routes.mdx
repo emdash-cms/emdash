@@ -114,7 +114,7 @@ routes: {
 
 Private routes require the `X-EmDash-Request: 1` CSRF header for cookie-authenticated requests. The admin UI sends it automatically; token-authenticated requests are exempt.
 
-To opt a route out of auth and CSRF, mark it `public: true`:
+To opt a route out of authentication, mark it `public: true`:
 
 ```typescript
 routes: {
@@ -130,7 +130,11 @@ routes: {
 ```
 
 <Aside type="caution">
-	Public routes skip authentication, scope, and CSRF entirely. Anyone on the internet can call them. Use `public: true` only for endpoints that need to accept external traffic — webhooks, public-facing search endpoints — and validate the input carefully.
+	A public route skips authentication and token scope checks, but not protection against cross-origin
+	browser requests. For requests that can change data, EmDash accepts a matching site `Origin` or the
+	`X-EmDash-Request: 1` header; a different or malformed `Origin` returns 403. Webhooks and other
+	non-browser clients usually omit `Origin` and remain allowed, so anyone can call a public route.
+	Validate all input and verify the service's signature or token when available.
 </Aside>
 
 ### The authenticated caller
