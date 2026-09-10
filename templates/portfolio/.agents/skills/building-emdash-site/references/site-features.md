@@ -258,11 +258,19 @@ Search requires per-collection enablement:
 ## SEO Meta
 
 > [!IMPORTANT]
-> Content detail pages must render metadata from `getSeoMeta`. A template that
-> hard-codes `<title>{entry.data.title}</title>` bypasses the admin SEO panel,
-> including its "hide from search engines" setting.
+> On server-rendered content pages that fetch the entry with `getEmDashEntry()`
+> and render `<EmDashHead>`, EmDash automatically applies the SEO panel's
+> description, image, canonical URL, and noindex setting. The panel title
+> supplies the social and JSON-LD title contributions. The panel data uses the
+> entry query the page already runs, so it adds no additional query.
+>
+> `<EmDashHead>` cannot set the document `<title>`, so use `getSeoMeta()` for
+> the title. Prerendered pages, pages without `<EmDashHead>`, hand-rolled query
+> paths, and multi-entry collection results do not receive this overlay. Use
+> `getSeoMeta()` or the raw SEO data on those paths.
 
-Generate SEO meta from content entries:
+Use `getSeoMeta()` when the template needs to set `<title>` or the page does not
+receive the automatic overlay:
 
 ```typescript
 import { getSeoMeta } from "emdash";
