@@ -89,9 +89,27 @@ map the safe `ListingUnavailable` response to `{ status: "unavailable" }`. A suc
 indexed but unavailable listing from a missing package without rendering publisher-controlled
 error content.
 
-Release views expose `artifactCaches` as an array even when an older aggregator omits it. Use
-`evaluateRegistryReleaseWithdrawal()` from `@emdash-cms/registry-client/withdrawal` before showing
-or selecting a release when withdrawal state matters.
+Use the withdrawal helper before showing or selecting a release:
+
+```typescript title="src/lib/plugin.ts"
+import {
+	DiscoveryClient,
+	type ValidatedReleaseView,
+} from "@emdash-cms/registry-client/discovery";
+import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
+
+const discovery = new DiscoveryClient({
+	aggregatorUrl: "https://registry.emdashcms.com",
+});
+
+export function canShowRelease(release: ValidatedReleaseView) {
+	const result = evaluateRegistryReleaseWithdrawal(release, discovery.labelerPolicy);
+	return release.release !== null && !result.withdrawn;
+}
+```
+
+`withdrawn` is `true` when the applicable labels remove the release from use. Invalid label data
+fails closed: `withdrawn` and `malformed` are both `true`.
 
 ## Handling untrusted records
 

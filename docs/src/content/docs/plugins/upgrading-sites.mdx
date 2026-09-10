@@ -26,13 +26,13 @@ For the full list of changes in each package, see its entry on the [releases pag
 
 Earlier EmDash versions install package artifacts only from an external URL.
 
-Registry releases can now store the package bundle as a blob in the publisher's Personal Data Server (PDS). EmDash resolves blob-only releases through a record-scoped cache or the publisher's PDS and verifies the fetched bytes before installation.
+Registry releases can now store the package bundle as a blob in the publisher's Personal Data Server (PDS). EmDash can download the bundle from the publisher's PDS or a cache tied to that exact signed release. It verifies the downloaded bytes before installation.
 
 #### What should I do?
 
-Upgrade EmDash before installing a release whose package artifact does not provide an external URL. Publishers that must support older sites can continue to publish the package bundle with `emdash-plugin publish --url <https-url>`.
+Upgrade EmDash before installing a release whose package artifact does not provide an external URL.
 
-### Changed: published plugins use a default export
+### Changed: three first-party plugins use a default export
 
 Earlier releases exposed first-party plugins as a named export and a factory call, for example `import { auditLogPlugin } from "@emdash-cms/plugin-audit-log"` used as `auditLogPlugin()`.
 
@@ -68,10 +68,14 @@ Apply the same two edits to the other packages. `@emdash-cms/plugin-atproto` and
 
 <Aside type="note" title="Where did the factory argument go?">
 	The old factory call accepted per-install configuration. That configuration
-	now lives in the admin UI, under the plugin's settings page (stored in KV).
+	now lives in the admin UI, under the plugin's settings page.
 	Set it there instead of in `astro.config.mjs`. There is nothing to pass at
 	the call site, so the `()` is no longer needed.
 </Aside>
+
+This change applies only to the three packages listed above. Other native plugin imports may keep
+their existing shape. For example, Field Kit remains `fieldKitPlugin()` under `plugins: []`; follow
+each native plugin's installation instructions.
 
 ## After upgrading
 

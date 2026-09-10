@@ -20,7 +20,7 @@ Install the package from npm:
 npm i @emdash-cms/plugin-field-kit
 ```
 
-Field Kit exports a native plugin descriptor factory. Call `fieldKitPlugin()` under `plugins: []`:
+Import `fieldKitPlugin`, call it, and add the result to `plugins: []`:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -43,7 +43,9 @@ Attach a widget to any `json` field by setting `widget` to `field-kit:<name>`. T
 	"slug": "ingredients",
 	"type": "json",
 	"widget": "field-kit:list",
-	"options": { "fields": [...] }
+	"options": {
+		"fields": [{ "key": "name", "label": "Name", "type": "text", "required": true }]
+	}
 }
 ```
 
