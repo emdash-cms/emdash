@@ -1,0 +1,25 @@
+templates/marketing-cloudflare/src/components/BlogCover.astro
+  s_81c53493e8c532::t_8e584e91d7c15a 31-133,163,166-168,175-177,181,184-186,199-210,216,220-231,235,237-238,240,243,246-247,255-261,264-267,270-278,281-285,288-293,296-303,306-309,312-317,320-324,327-330,333-338,341-373,376-377,380-383,386-473,480-484
+templates/marketing-cloudflare/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_72eb38b7bce98c 129,160,219-220
+templates/marketing/src/components/BlogCover.astro
+  s_81c53493e8c532::t_6f0ca7aeb3b7bd 31-133,163,166-168,175-177,181,184-186,199-210,216,220-231,235,237-238,240,243,246-247,255-261,264-267,270-278,281-285,288-293,296-303,306-309,312-317,320-324,327-330,333-338,341-373,376-377,380-383,386-473,480-484
+templates/marketing/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_e3223e05d36961 129,160,219-220
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8b0662092a6fc62ebfd13f5f182b83a7b3e300b1",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
