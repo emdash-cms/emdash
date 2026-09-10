@@ -42,10 +42,6 @@ export function Header() {
 
 	const { data: user } = useCurrentUser();
 
-	// Site settings are admin-only (the sidebar gates `/settings` on
-	// `ROLE_ADMIN` and the route itself is wrapped in `RequireAdmin`).
-	// Security settings stay visible to everyone: that page manages the
-	// signed-in user's own passkeys.
 	const canManageSettings = (user?.role ?? 0) >= ROLE_ADMIN;
 
 	// Get display name and initials

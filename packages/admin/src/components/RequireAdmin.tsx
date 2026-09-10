@@ -1,23 +1,9 @@
-/**
- * Admin-only route guard.
- *
- * The sidebar and command palette already hide admin entries via
- * `minRole: ROLE_ADMIN`, but a manually-typed URL still mounts the route
- * component — so the in-component check is the source of truth. This
- * mirrors the gate inside `routes/byline-schema.tsx`: show a loader while
- * the current user is being fetched, then either render the children or
- * an access-denied surface instead of silently fetching and 403ing.
- */
-
 import { Loader } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
 import { useCurrentUser } from "../lib/api/current-user.js";
 
-// Mirror of `packages/auth/src/rbac.ts:Role.ADMIN`. Inline here for the
-// same reason the existing routes inline `ROLE_EDITOR` / `ROLE_ADMIN`:
-// avoids a circular dep through `@emdash-cms/auth` for the admin SPA.
 const ROLE_ADMIN = 50;
 
 export function RequireAdmin({ children }: { children: React.ReactNode }) {

@@ -1,10 +1,3 @@
-/**
- * `RequireAdmin` — the in-component gate wrapped around the admin-only
- * `/settings*` routes in `router.tsx`. The sidebar hides those entries for
- * non-admins, but a manually-typed URL still mounts the route component,
- * so this guard is the source of truth for URL-direct navigation.
- */
-
 import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 

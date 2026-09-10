@@ -1,31 +1,3 @@
-/**
- * Regression coverage for the route groups audited alongside the
- * `/settings` admin gate (card emdb-023). All of them are nav-hidden below
- * `ROLE_ADMIN` in `router.tsx`, but the server's own RBAC tiers
- * (`packages/auth/src/rbac.ts`) differ per route, so only some of them
- * belong behind the `RequireAdmin` guard:
- *
- * - `/settings` and its 7 sub-pages, `/users`, and `/import/wordpress`:
- *   every server read is `Role.ADMIN` (`users:read`, `import:execute`, or
- *   the settings endpoints), so these ARE wrapped in `RequireAdmin` —
- *   verified below by rendering all 11 routes.
- * - `/plugins-manager/$pluginId/settings`: both the GET and the PUT of the
- *   plugin settings resource are `plugins:manage` (`Role.ADMIN`), and the
- *   page's only Editor-tier read (`fetchPlugin`) is display chrome that
- *   stays reachable on `/plugins-manager` — so this one IS wrapped too.
- * - `/content-types`, `/plugins-manager`, `/plugins/marketplace`, and
- *   `/themes/marketplace`: the server enforces only `Role.EDITOR` for reads
- *   (`schema:read` / `plugins:read`), so wrapping them in `RequireAdmin`
- *   would regress Editor access the RBAC model deliberately grants. These
- *   four are covered by `UNWRAPPED_ROUTES` below, which mounts each one
- *   through the router as an Editor and asserts the page still renders.
- *   That negative space is the point: their own component tests
- *   (`PluginManager.test.tsx`, `MarketplacePluginDetail.test.tsx`, …) mount
- *   the components directly, never through the router with a role-mocked
- *   user, so nothing there would catch an accidental `RequireAdmin` wrap —
- *   it would ship silently. This file is the only place that can.
- */
-
 import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
@@ -59,14 +31,9 @@ vi.mock("../src/components/PluginSettings", () => ({
 	PluginSettings: () => <div>Plugin settings content</div>,
 }));
 
-// The four deliberately-unwrapped pages (see UNWRAPPED_ROUTES). Their route
-// components are thin wrappers in router.tsx that pass query data down, so
-// stubbing the leaf component is enough to give each route a marker.
-//
-// These spread `importOriginal` rather than replacing the module outright:
-// three of the four also export siblings that other modules import
-// (`moveCollection`, `MarketplaceInstallMessage`, `UninstallConfirmDialog`,
-// `AuditBadge`), and a bare factory drops them, breaking the import graph.
+// Spread `importOriginal` rather than replacing the module outright: three
+// of these four also export siblings that other modules import, and a bare
+// factory would drop them and break the import graph.
 vi.mock("../src/components/ContentTypeList", async (importOriginal) => ({
 	...(await importOriginal<typeof import("../src/components/ContentTypeList")>()),
 	ContentTypeList: () => <div>Content types content</div>,
@@ -162,12 +129,7 @@ const WRAPPED_ROUTES: Array<[string, string]> = [
 	["/plugins-manager/test-plugin/settings", "Plugin settings content"],
 ];
 
-/**
- * The mirror image of WRAPPED_ROUTES: routes that must STAY reachable for a
- * non-admin. Every read behind these is `Role.EDITOR` or below, so a
- * `RequireAdmin` wrapper here would be a capability regression shipped as a
- * security fix — the failure mode this table exists to catch.
- */
+// Routes that must stay reachable for a non-admin (Editor-tier reads).
 const UNWRAPPED_ROUTES: Array<[string, string]> = [
 	["/content-types", "Content types content"],
 	["/plugins-manager", "Plugin manager content"],
@@ -175,7 +137,7 @@ const UNWRAPPED_ROUTES: Array<[string, string]> = [
 	["/themes/marketplace", "Theme marketplace content"],
 ];
 
-describe("RequireAdmin-wrapped routes (emdb-023): /settings + 7 sub-pages, /users, /import/wordpress, plugin settings", () => {
+describe("admin-only routes show Access denied to non-admins", () => {
 	let mockFetch: ReturnType<typeof createMockFetch>;
 
 	afterEach(() => {
@@ -214,7 +176,7 @@ describe("RequireAdmin-wrapped routes (emdb-023): /settings + 7 sub-pages, /user
 	});
 });
 
-describe("deliberately UNWRAPPED routes (emdb-023): still reachable for a non-admin", () => {
+describe("routes that stay reachable for non-admins", () => {
 	let mockFetch: ReturnType<typeof createMockFetch>;
 
 	afterEach(() => {
