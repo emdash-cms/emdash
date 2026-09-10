@@ -75,7 +75,6 @@ import {
 	BracketsAngle,
 	CodeBlock,
 	Stack,
-	Eye,
 	Table as TableIcon,
 	Plus,
 	Trash,
@@ -2528,7 +2527,6 @@ export function PortableTextEditor({
 	"aria-labelledby": ariaLabelledby,
 	pluginBlocks = [],
 	focusMode: controlledFocusMode,
-	onFocusModeChange,
 	onEditorReady,
 	minimal = false,
 	onBlockSidebarOpen,
@@ -2566,16 +2564,7 @@ export function PortableTextEditor({
 		onChangeRef.current = onChange;
 	}, [onChange]);
 
-	// Focus mode state - support both controlled and uncontrolled modes
-	const [internalFocusMode, setInternalFocusMode] = React.useState<FocusMode>("normal");
-	const focusMode = controlledFocusMode ?? internalFocusMode;
-	const setFocusMode = (mode: FocusMode) => {
-		if (onFocusModeChange) {
-			onFocusModeChange(mode);
-		} else {
-			setInternalFocusMode(mode);
-		}
-	};
+	const focusMode = controlledFocusMode ?? "normal";
 
 	// Media picker state (for image insertion)
 	const [mediaPickerOpen, setMediaPickerOpen] = React.useState(false);
@@ -3539,8 +3528,6 @@ export function PortableTextEditor({
 						toolbarRef={toolbarRef}
 						editor={editor}
 						editable={editable}
-						focusMode={focusMode}
-						onFocusModeChange={setFocusMode}
 						onInsertBlock={handleTouchInsertBlock}
 						onInsertImage={openToolbarImagePicker}
 						onTableAction={announceTable}
@@ -4105,8 +4092,6 @@ function EditorToolbar({
 	toolbarRef,
 	editor,
 	editable,
-	focusMode,
-	onFocusModeChange,
 	onInsertBlock,
 	onInsertImage,
 	onTableAction,
@@ -4114,8 +4099,6 @@ function EditorToolbar({
 	toolbarRef: React.RefObject<HTMLDivElement | null>;
 	editor: Editor;
 	editable: boolean;
-	focusMode: FocusMode;
-	onFocusModeChange: (mode: FocusMode) => void;
 	onInsertBlock: () => void;
 	onInsertImage: () => void;
 	onTableAction: (label: string) => void;
@@ -4518,19 +4501,6 @@ function EditorToolbar({
 					title={t`Redo`}
 				>
 					<ArrowUUpRight className="h-4 w-4" aria-hidden="true" />
-				</ToolbarButton>
-			</ToolbarGroup>
-
-			<ToolbarSeparator aria-hidden="true" />
-
-			{/* Focus mode */}
-			<ToolbarGroup>
-				<ToolbarButton
-					onClick={() => onFocusModeChange(focusMode === "spotlight" ? "normal" : "spotlight")}
-					active={focusMode === "spotlight"}
-					title={focusMode === "spotlight" ? t`Exit Spotlight Mode` : t`Spotlight Mode`}
-				>
-					<Eye className="h-4 w-4" aria-hidden="true" />
 				</ToolbarButton>
 			</ToolbarGroup>
 		</div>

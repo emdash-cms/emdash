@@ -108,8 +108,6 @@ vi.mock("../../src/components/editor/PluginBlockNode", async () => {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const SPOTLIGHT_MODE_PATTERN = /Spotlight Mode/i;
-
 /** Wait for the ProseMirror editor to mount inside the container */
 async function waitForEditor(): Promise<HTMLElement> {
 	let pm: HTMLElement | null = null;
@@ -1002,23 +1000,6 @@ describe("Editor component behaviour", () => {
 		expect(wrapper).toBeNull();
 	});
 
-	it("calls onFocusModeChange when spotlight button is clicked", async () => {
-		const onFocusModeChange = vi.fn();
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="normal"
-				onFocusModeChange={onFocusModeChange}
-				value={[textBlock("Test")]}
-			/>,
-		);
-		await waitForEditor();
-
-		// The spotlight button has aria-label containing "Spotlight Mode"
-		const spotlightBtn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await spotlightBtn.click();
-		expect(onFocusModeChange).toHaveBeenCalledWith("spotlight");
-	});
-
 	it("hides toolbar and footer in minimal mode", async () => {
 		await render(<PortableTextEditor minimal={true} value={[textBlock("Minimal")]} />);
 		await waitForEditor();
@@ -1214,11 +1195,9 @@ describe("Toolbar", () => {
 		await expect.element(redoBtn).toBeDisabled();
 	});
 
-	it("has spotlight mode button", async () => {
+	it("does not include a spotlight mode button", async () => {
 		const screen = await renderWithToolbar();
-		await expect
-			.element(screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN }))
-			.toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Spotlight Mode/i }).query()).toBeNull();
 	});
 
 	it("toggles bold aria-pressed when clicked", async () => {
@@ -1316,35 +1295,6 @@ describe("Toolbar", () => {
 			},
 			{ timeout: 2000 },
 		);
-	});
-
-	it("toggles spotlight mode button aria-pressed", async () => {
-		const onFocusModeChange = vi.fn();
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="normal"
-				onFocusModeChange={onFocusModeChange}
-				value={[textBlock("Test")]}
-			/>,
-		);
-		await waitForEditor();
-
-		const btn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
-	});
-
-	it("spotlight button shows pressed when focusMode is spotlight", async () => {
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="spotlight"
-				onFocusModeChange={() => {}}
-				value={[textBlock("Focused")]}
-			/>,
-		);
-		await waitForEditor();
-
-		const btn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "true");
 	});
 
 	it("toolbar not present in minimal mode", async () => {

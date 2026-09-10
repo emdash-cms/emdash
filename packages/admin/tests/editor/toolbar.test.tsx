@@ -681,9 +681,9 @@ describe("Toolbar Presence and Structure", () => {
 		await expect.element(screen.getByRole("button", { name: "Redo" })).toBeVisible();
 	});
 
-	it("has Spotlight Mode button", async () => {
+	it("does not include a Spotlight Mode button", async () => {
 		const { screen } = await renderEditor();
-		await expect.element(screen.getByRole("button", { name: "Spotlight Mode" })).toBeVisible();
+		expect(screen.getByRole("button", { name: "Spotlight Mode" }).query()).toBeNull();
 	});
 
 	it("gives every fixed-toolbar control visible pointer-hover feedback", async () => {
@@ -1746,77 +1746,7 @@ describe("Link Insertion", () => {
 });
 
 // =============================================================================
-// 7. Focus Mode Toggle
-// =============================================================================
-
-describe("Focus Mode Toggle", () => {
-	it("initially Spotlight Mode aria-pressed is false", async () => {
-		const { screen } = await renderEditor();
-		const btn = screen.getByRole("button", { name: "Spotlight Mode" });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
-	});
-
-	it("clicking Spotlight Mode toggles aria-pressed to true and adds class", async () => {
-		const { screen } = await renderEditor();
-		const btn = screen.getByRole("button", { name: "Spotlight Mode" });
-
-		btn.element().click();
-
-		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
-			// The wrapper div should have the spotlight-mode class
-			const wrapper = screen.container.querySelector(".spotlight-mode");
-			expect(wrapper).toBeTruthy();
-		});
-	});
-
-	it("clicking Spotlight Mode again toggles back to false and removes class", async () => {
-		const { screen } = await renderEditor();
-		const btn = screen.getByRole("button", { name: "Spotlight Mode" });
-
-		// Toggle on
-		btn.element().click();
-		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("true");
-		});
-
-		// Toggle off
-		btn.element().click();
-		await vi.waitFor(() => {
-			expect(btn.element().getAttribute("aria-pressed")).toBe("false");
-			expect(screen.container.querySelector(".spotlight-mode")).toBeNull();
-		});
-	});
-
-	it("with controlled focusMode prop, reflects external state", async () => {
-		const { screen } = await renderEditor({ focusMode: "spotlight" });
-
-		// The button title changes to "Exit Spotlight Mode" when active
-		const btn = screen.getByRole("button", { name: "Exit Spotlight Mode" });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "true");
-
-		const wrapper = screen.container.querySelector(".spotlight-mode");
-		expect(wrapper).toBeTruthy();
-	});
-
-	it("with onFocusModeChange callback, fires with correct mode", async () => {
-		const onFocusModeChange = vi.fn();
-		const { screen } = await renderEditor({
-			focusMode: "normal",
-			onFocusModeChange,
-		});
-
-		const btn = screen.getByRole("button", { name: "Spotlight Mode" });
-		btn.element().click();
-
-		await vi.waitFor(() => {
-			expect(onFocusModeChange).toHaveBeenCalledWith("spotlight");
-		});
-	});
-});
-
-// =============================================================================
-// 8. WAI-ARIA Keyboard Navigation
+// 7. WAI-ARIA Keyboard Navigation
 // =============================================================================
 
 describe("WAI-ARIA Keyboard Navigation", () => {
@@ -1892,32 +1822,33 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 
 	it("End moves focus to last button", async () => {
 		const { screen } = await renderEditor();
-
+		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
+		const buttons = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].filter(
+			(button) => !button.disabled && button.getClientRects().length > 0,
+		);
 		const bold = screen.getByRole("button", { name: "Bold" });
 
 		// Focus the first button
 		bold.element().focus();
 
-		// Press End — last button is Spotlight Mode (or Exit Spotlight Mode)
 		await userEvent.keyboard("{End}");
 
 		await vi.waitFor(() => {
-			const active = document.activeElement as HTMLElement;
-			// Last button in the toolbar — its aria-label should be "Spotlight Mode"
-			expect(active.getAttribute("aria-label")).toBe("Spotlight Mode");
+			expect(document.activeElement).toBe(buttons.at(-1));
 		});
 	});
 
 	it("ArrowRight wraps from last to first button", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
-		const spotlightBtn = screen.getByRole("button", { name: "Spotlight Mode" });
-		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+		const buttons = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].filter(
 			(button) => !button.disabled && button.getClientRects().length > 0,
-		)!;
+		);
+		const firstButton = buttons[0]!;
+		const lastButton = buttons.at(-1)!;
 
 		// Focus the last button
-		spotlightBtn.element().focus();
+		lastButton.focus();
 
 		// Press ArrowRight - should wrap to first
 		await userEvent.keyboard("{ArrowRight}");
@@ -1930,9 +1861,11 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 	it("ArrowLeft wraps from first to last button", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
-		const firstButton = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].find(
+		const buttons = [...toolbar.querySelectorAll<HTMLButtonElement>("button")].filter(
 			(button) => !button.disabled && button.getClientRects().length > 0,
-		)!;
+		);
+		const firstButton = buttons[0]!;
+		const lastButton = buttons.at(-1)!;
 
 		// Focus the first button
 		firstButton.focus();
@@ -1941,8 +1874,7 @@ describe("WAI-ARIA Keyboard Navigation", () => {
 		await userEvent.keyboard("{ArrowLeft}");
 
 		await vi.waitFor(() => {
-			const active = document.activeElement as HTMLElement;
-			expect(active.getAttribute("aria-label")).toBe("Spotlight Mode");
+			expect(document.activeElement).toBe(lastButton);
 		});
 	});
 });
