@@ -218,10 +218,20 @@ describe("page SEO metadata", () => {
 			expect(publisher.name).toBe("My Site");
 		});
 
+		it("normalises a configured siteUrl to an origin", () => {
+			// A trailing slash on `page.siteUrl` would otherwise reach the id as
+			// `https://example.com//#organization`, which is a different IRI.
+			const graph = buildBlogPostingJsonLd(createPage({ siteUrl: "https://example.com/" }));
+			expect(graph).not.toBeNull();
+
+			const publisher = graph?.publisher as Record<string, unknown>;
+			expect(publisher["@id"]).toBe("https://example.com/#organization");
+		});
+
 		it("gives the WebSite an @id so a plugin can extend it", () => {
 			const graph = buildWebSiteJsonLd(createPage({ pageType: "website" }));
 
-			expect(graph).toMatchObject({ "@id": "https://example.com#website" });
+			expect(graph).toMatchObject({ "@id": "https://example.com/#website" });
 		});
 	});
 });
