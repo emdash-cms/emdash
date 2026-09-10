@@ -1,6 +1,7 @@
-import type { Kysely } from "kysely";
+import { type Kysely, sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { up as migrateRevisions } from "../../../src/database/migrations/076_plugin_storage_revisions.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
 import type { Database } from "../../../src/database/types.js";
@@ -10,7 +11,9 @@ import type {
 	ConditionalWriteResult,
 	VersionedValue,
 } from "../../../src/plugins/types.js";
+import { createLegacyPluginStorageTables } from "../../utils/plugin-storage-revision-cases.js";
 import {
+	createForDialect,
 	describeEachDialect,
 	setupForDialect,
 	teardownForDialect,
@@ -224,4 +227,101 @@ describeEachDialect("conditional plugin storage", (dialect) => {
 		await expect(target.compareAndSet("key", null, "value")).rejects.toThrow();
 		await expect(target.compareAndDelete("key", "revision")).rejects.toThrow();
 	});
+});
+
+describeEachDialect("conditional plugin storage after a legacy upgrade", (dialect) => {
+	let ctx: DialectTestContext;
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		ctx = await createForDialect(dialect);
+		db = ctx.db;
+		await createLegacyPluginStorageTables(db);
+	});
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	function store(kind: "collection" | "kv", pluginId = "owner", collection = "jobs") {
+		return kind === "collection"
+			? createStorageAccess(db, pluginId, { [collection]: { indexes: [] } })[collection]
+			: createKVAccess(new OptionsRepository(db), pluginId);
+	}
+
+	async function oldPut(
+		kind: "collection" | "kv",
+		key: string,
+		pluginId = "owner",
+		collection = "jobs",
+	) {
+		if (kind === "kv") {
+			await sql`
+				INSERT INTO options (name, value) VALUES (${`plugin:${pluginId}:${key}`}, ${'"same"'})
+				ON CONFLICT (name) DO UPDATE SET value = excluded.value
+			`.execute(db);
+		} else {
+			await sql`
+				INSERT INTO _plugin_storage (plugin_id, collection, id, data)
+				VALUES (${pluginId}, ${collection}, ${key}, ${'"same"'})
+				ON CONFLICT (plugin_id, collection, id) DO UPDATE SET data = excluded.data
+			`.execute(db);
+		}
+	}
+
+	for (const kind of ["collection", "kv"] as const) {
+		it(`${kind}: admits one writer at revision 0 without changing other legacy keys`, async () => {
+			await oldPut(kind, "key");
+			await oldPut(kind, "neighbor");
+			await oldPut(kind, "key", "other");
+			if (kind === "collection") await oldPut(kind, "key", "owner", "other");
+			await migrateRevisions(db);
+			const target = store(kind);
+			const initial = await target.getVersioned("key");
+			expect(initial).toEqual({ value: "same", revision: "0" });
+			if (!initial) throw new Error("Missing legacy value");
+
+			const writes = await Promise.all([
+				target.compareAndSet("key", initial.revision, "first"),
+				target.compareAndSet("key", initial.revision, "second"),
+			]);
+
+			expect(writes.filter((result) => result.applied)).toHaveLength(1);
+			const winner = writes.find((result) => result.applied);
+			if (!winner?.applied) throw new Error("Missing conditional write winner");
+			expect(winner.revision).not.toBe("0");
+			expect((await target.getVersioned("key"))?.revision).toBe(winner.revision);
+			expect(await target.compareAndDelete("key", initial.revision)).toEqual({ applied: false });
+			expect(await store(kind, "other").getVersioned("key")).toEqual(initial);
+			if (kind === "collection") {
+				expect(await store(kind, "owner", "other").getVersioned("key")).toEqual(initial);
+			}
+			expect(await target.getVersioned("neighbor")).toEqual(initial);
+			const neighborWrite = await target.compareAndSet("neighbor", "0", "neighbor updated");
+			if (!neighborWrite.applied) throw new Error("Expected legacy neighbor write");
+			expect(neighborWrite.revision).not.toBe("0");
+			expect(await target.getVersioned("neighbor")).toEqual({
+				value: "neighbor updated",
+				revision: neighborWrite.revision,
+			});
+		});
+
+		it(`${kind}: rejects deletion at revision 0 after old writes and recreation`, async () => {
+			for (const key of ["updated", "recreated"]) await oldPut(kind, key);
+			await migrateRevisions(db);
+			const target = store(kind);
+
+			for (const key of ["updated", "recreated"]) {
+				const initial = await target.getVersioned(key);
+				expect(initial).toEqual({ value: "same", revision: "0" });
+				if (!initial) throw new Error("Missing legacy value");
+				if (key === "recreated") await target.delete(key);
+				await oldPut(kind, key);
+				const current = await target.getVersioned(key);
+				expect(current?.value).toBe("same");
+				expect(current?.revision).not.toBe(initial.revision);
+				expect(await target.compareAndDelete(key, initial.revision)).toEqual({ applied: false });
+				expect(await target.getVersioned(key)).toEqual(current);
+			}
+		});
+	}
 });

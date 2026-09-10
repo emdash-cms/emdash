@@ -69,69 +69,159 @@ function afterStatement(callback: () => void): KyselyPlugin {
 	};
 }
 
+async function readRows(db: Kysely<unknown>, store: Store) {
+	const result = await sql<Record<string, string>>`
+		SELECT * FROM ${sql.ref(store.table)}
+		ORDER BY ${sql.join(store.keys.map((column) => sql.ref(column)))}
+	`.execute(db);
+	return result.rows;
+}
+
+const WHITESPACE_REGEX = /\s+/g;
+
+function captureStatements(db: Kysely<unknown>, statements: string[]): KyselyPlugin {
+	return {
+		transformQuery: ({ node, queryId }) => {
+			const query = db.getExecutor().compileQuery(node, queryId);
+			statements.push(query.sql.replace(WHITESPACE_REGEX, " ").trim().toUpperCase());
+			return node;
+		},
+		transformResult: ({ result }) => Promise.resolve(result),
+	};
+}
+
 export function pluginStorageRevisionMigrationCases(
 	getDb: () => Kysely<unknown>,
 	sqlite: boolean,
 ): void {
-	it("backfills multiple keyset pages without changing legacy values or timestamps", async () => {
+	it("initializes legacy revisions without reading or updating stored rows", async () => {
 		const db = getDb();
-		for (let start = 0; start < 503; start += 25) {
-			const indexes = Array.from(
-				{ length: Math.min(25, 503 - start) },
-				(_, index) => start + index,
+		for (const store of STORES) await oldPut(db, store);
+		await sql`
+			UPDATE _plugin_storage
+			SET created_at = '2026-02-01T12:34:56.000Z', updated_at = '2026-08-01T12:34:56.000Z'
+		`.execute(db);
+		const before = await Promise.all(STORES.map((store) => readRows(db, store)));
+		const statements: string[] = [];
+
+		await up(db.withPlugin(captureStatements(db, statements)));
+
+		expect(statements.length).toBeGreaterThan(0);
+		for (const [index, store] of STORES.entries()) {
+			const table = `"${store.table.toUpperCase()}"`;
+			expect(
+				statements.filter(
+					(statement) => statement.startsWith("SELECT ") && statement.includes(` FROM ${table}`),
+				),
+			).toEqual([]);
+			expect(statements.filter((statement) => statement.startsWith(`UPDATE ${table}`))).toEqual([]);
+			expect(await readRows(db, store)).toEqual(
+				before[index]?.map((row) => ({ ...row, revision: "0" })),
 			);
-			await sql`
-				INSERT INTO options (name, value) VALUES ${sql.join(
-					indexes.map((index) => sql`(${`plugin:test:${index}`}, ${JSON.stringify({ index })})`),
-				)}
+		}
+	});
+
+	for (const store of STORES) {
+		it(`${store.table}: accepts the first conditional write at revision 0 and rejects its reuse`, async () => {
+			const db = getDb();
+			await oldPut(db, store);
+			await up(db);
+			expect((await readRow(db, store)).revision).toBe("0");
+			const revision = crypto.randomUUID();
+			const value = '{"count":2}';
+
+			const first = await sql<{ revision: string }>`
+				UPDATE ${sql.ref(store.table)} SET ${sql.ref(store.data)} = ${value}, revision = ${revision}
+				WHERE ${whereKey(store)} AND revision = '0'
+				RETURNING revision
 			`.execute(db);
+			const stale = await sql<{ revision: string }>`
+				UPDATE ${sql.ref(store.table)} SET ${sql.ref(store.data)} = ${'{"count":3}'}, revision = ${crypto.randomUUID()}
+				WHERE ${whereKey(store)} AND revision = '0'
+				RETURNING revision
+			`.execute(db);
+
+			expect(first.rows).toEqual([{ revision }]);
+			expect(stale.rows).toEqual([]);
+			expect(await readRow(db, store)).toEqual({ value, revision });
+		});
+
+		it(`${store.table}: invalidates legacy revision 0 on the first old-writer update`, async () => {
+			const db = getDb();
+			await oldPut(db, store);
+			await up(db);
+			const before = await readRow(db, store);
+			expect(before.revision).toBe("0");
+
+			await oldPut(db, store);
+
+			const updated = await readRow(db, store);
+			expect(updated.value).toBe(before.value);
+			expect(updated.revision).not.toBe("0");
+			const stale = await sql<{ revision: string }>`
+				UPDATE ${sql.ref(store.table)} SET ${sql.ref(store.data)} = ${'{"count":2}'}, revision = ${crypto.randomUUID()}
+				WHERE ${whereKey(store)} AND revision = '0'
+				RETURNING revision
+			`.execute(db);
+			expect(stale.rows).toEqual([]);
+			expect(await readRow(db, store)).toEqual(updated);
+		});
+
+		it(`${store.table}: invalidates legacy revision 0 after an old writer deletes and recreates the same value`, async () => {
+			const db = getDb();
+			await oldPut(db, store);
+			await up(db);
+			const before = await readRow(db, store);
+			expect(before.revision).toBe("0");
+
+			await sql`DELETE FROM ${sql.ref(store.table)} WHERE ${whereKey(store)}`.execute(db);
+			await oldPut(db, store);
+
+			const recreated = await readRow(db, store);
+			expect(recreated.value).toBe(before.value);
+			expect(recreated.revision).not.toBe("0");
+			const stale = await sql<{ revision: string }>`
+				DELETE FROM ${sql.ref(store.table)}
+				WHERE ${whereKey(store)} AND revision = '0'
+				RETURNING revision
+			`.execute(db);
+			expect(stale.rows).toEqual([]);
+			expect(await readRow(db, store)).toEqual(recreated);
+		});
+	}
+
+	it("preserves mixed zero and assigned revisions when the migration resumes", async () => {
+		const db = getDb();
+		for (const store of STORES) {
+			await oldPut(db, store);
+			await db.schema
+				.alterTable(store.table)
+				.addColumn("revision", "text", (column) => column.notNull().defaultTo("0"))
+				.execute();
 			await sql`
-				INSERT INTO _plugin_storage (plugin_id, collection, id, data) VALUES ${sql.join(
-					indexes.map(
-						(index) => sql`(
-							${`plugin-${Math.floor(index / 200)}`},
-							${`collection-${Math.floor(index / 50) % 4}`},
-							${`entry-${index % 50}`}, ${JSON.stringify({ index })}
-						)`,
-					),
-				)}
+				INSERT INTO ${sql.ref(store.table)}
+					(${sql.join([...store.keys, store.data, "revision"].map((column) => sql.ref(column)))})
+				VALUES (${sql.join(
+					[
+						...store.values.map((value) => `${value}:assigned`),
+						'{"count":2}',
+						crypto.randomUUID(),
+					].map((value) => sql`${value}`),
+				)})
 			`.execute(db);
 		}
-		const before = await Promise.all(
-			STORES.map((store) =>
-				sql<Record<string, string>>`
-					SELECT * FROM ${sql.ref(store.table)}
-					ORDER BY ${sql.join(store.keys.map((column) => sql.ref(column)))}
-				`.execute(db),
-			),
-		);
+		const before = await Promise.all(STORES.map((store) => readRows(db, store)));
 
 		await up(db);
+		await up(db);
 
-		const revisions = new Set<string>();
-		for (const [index, store] of STORES.entries()) {
-			const after = await sql<Record<string, string>>`
-				SELECT * FROM ${sql.ref(store.table)}
-				ORDER BY ${sql.join(store.keys.map((column) => sql.ref(column)))}
-			`.execute(db);
-			expect(after.rows).toHaveLength(503);
-			expect(
-				after.rows.map(({ revision, ...row }) => {
-					if (typeof revision !== "string") throw new Error("Missing backfilled revision");
-					expect(revision).not.toBe("0");
-					expect(revision.length).toBeGreaterThan(20);
-					revisions.add(revision);
-					return row;
-				}),
-			).toEqual(before[index]?.rows);
-		}
-		expect(revisions.size).toBe(1006);
+		expect(await Promise.all(STORES.map((store) => readRows(db, store)))).toEqual(before);
 	});
 
 	it("preserves assigned revisions and payloads when the migration runs again", async () => {
 		const db = getDb();
-		for (const store of STORES) await oldPut(db, store);
 		await up(db);
+		for (const store of STORES) await oldPut(db, store);
 		const before = await Promise.all(STORES.map((store) => readRow(db, store)));
 
 		await up(db);
@@ -245,7 +335,7 @@ export function pluginStorageRevisionMigrationCases(
 			const recovered = await Promise.all(STORES.map((store) => readRow(db, store)));
 			for (const row of recovered) {
 				expect(row?.value).toBe('{"count":1}');
-				expect(row?.revision).not.toBe("0");
+				expect(row?.revision).toBe("0");
 			}
 			await up(db);
 			expect(await Promise.all(STORES.map((store) => readRow(db, store)))).toEqual(recovered);
@@ -262,7 +352,7 @@ export function pluginStorageRevisionMigrationCases(
 			for (const store of STORES) {
 				const row = await readRow(db, store);
 				expect(row.value).toBe('{"count":1}');
-				expect(row.revision).not.toBe("0");
+				expect(row.revision).toBe("0");
 			}
 		});
 

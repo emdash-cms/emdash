@@ -7,7 +7,6 @@ const TABLES = [
 	{ name: "_plugin_storage", keys: ["plugin_id", "collection", "id"] },
 ] as const;
 
-const BACKFILL_PAGE_SIZE = 250;
 const DUPLICATE_COLUMN_REGEX =
 	/(?:duplicate column|column .* already exists|already exists.*column)/i;
 
@@ -76,34 +75,6 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 					WHERE ${rowKey} AND revision = NEW.revision;
 				END
 			`.execute(db);
-		}
-	}
-
-	// Old writers must stamp inserts before the backfill cursor can pass their keys.
-	for (const table of TABLES) {
-		const key = sql`(${sql.join(table.keys.map((column) => sql.ref(column)))})`;
-		let cursor: string[] | undefined;
-		while (true) {
-			const afterCursor = cursor
-				? sql`AND ${key} > (${sql.join(cursor.map((value) => sql`${value}`))})`
-				: sql``;
-			const page = await sql<Record<string, string>>`
-				SELECT ${sql.join(table.keys.map((column) => sql.ref(column)))}
-				FROM ${sql.ref(table.name)}
-				WHERE revision = '0' ${afterCursor}
-				ORDER BY ${sql.join(table.keys.map((column) => sql.ref(column)))}
-				LIMIT ${BACKFILL_PAGE_SIZE}
-			`.execute(db);
-			const last = page.rows.at(-1);
-			if (!last) break;
-			const nextCursor = table.keys.map((column) => last[column]);
-			await sql`
-				UPDATE ${sql.ref(table.name)}
-				SET revision = ${isPostgres(db) ? sql`gen_random_uuid()::text` : sql`lower(hex(randomblob(16)))`}
-				WHERE revision = '0' ${afterCursor}
-					AND ${key} <= (${sql.join(nextCursor.map((value) => sql`${value}`))})
-			`.execute(db);
-			cursor = nextCursor;
 		}
 	}
 }
