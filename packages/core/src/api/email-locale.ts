@@ -9,7 +9,7 @@
  * Accept-Language, i.e. the language the inviter works in) -> English.
  */
 
-import { matchLocale, resolveLocale } from "@emdash-cms/admin/locales";
+import { matchLocale, resolveLocale } from "@emdash-cms/admin/locales/config";
 
 export function resolveEmailLocale(siteLocale: unknown, request: Request): string {
 	if (typeof siteLocale === "string" && siteLocale) {
