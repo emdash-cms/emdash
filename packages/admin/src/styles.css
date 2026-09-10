@@ -446,10 +446,10 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	background:
 		linear-gradient(to right, var(--color-kumo-base), transparent) left / 1rem 100% no-repeat local,
 		linear-gradient(to left, var(--color-kumo-base), transparent) right / 1rem 100% no-repeat local,
-		linear-gradient(to right, var(--color-kumo-line), transparent) left / 0.5rem 100% no-repeat
-			scroll,
-		linear-gradient(to left, var(--color-kumo-line), transparent) right / 0.5rem 100% no-repeat
-			scroll;
+		linear-gradient(to right, color-mix(in srgb, currentcolor 5%, transparent), transparent) left /
+			6px 100% no-repeat scroll,
+		linear-gradient(to left, color-mix(in srgb, currentcolor 5%, transparent), transparent) right /
+			6px 100% no-repeat scroll;
 }
 
 .ProseMirror .tableWrapper::-webkit-scrollbar {
