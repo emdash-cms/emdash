@@ -22,6 +22,7 @@ import {
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
 import {
@@ -468,7 +469,10 @@ export async function handleRegistryInstall(
 			success: false,
 			error: {
 				code: "SANDBOX_NOT_AVAILABLE",
-				message: "Sandbox runner is required for registry plugins",
+				message: withUnavailableReason(
+					"Sandbox runner is required for registry plugins",
+					sandboxRunner,
+				),
 			},
 		};
 	}
@@ -1229,7 +1233,10 @@ export async function handleRegistryUpdate(
 	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
 		return {
 			success: false,
-			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },
+			error: {
+				code: "SANDBOX_NOT_AVAILABLE",
+				message: withUnavailableReason("Sandbox runner is required", sandboxRunner),
+			},
 		};
 	}
 	try {
