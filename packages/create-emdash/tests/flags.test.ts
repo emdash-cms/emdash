@@ -373,6 +373,8 @@ describe("HELP_TEXT", () => {
 			"--package-manager",
 			"--install",
 			"--no-install",
+			"--sandboxed-plugins",
+			"--no-sandboxed-plugins",
 			"--yes",
 			"--force",
 			"--help",
