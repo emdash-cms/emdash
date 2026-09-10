@@ -4,8 +4,8 @@ interface RawPlan {
 	price: string;
 	period?: string;
 	description?: string;
-	// Features are stored as a newline-separated string (Block Kit has no
-	// list-of-strings element, so a multiline text input is the closest fit).
+	// Features are stored as a newline-separated string because Block Kit
+	// has no list-of-strings element.
 	features?: string;
 	// CTAs are flattened to sibling fields because Block Kit has no
 	// object-group element.
@@ -28,7 +28,7 @@ const plans = rawPlans.map((plan) => ({
 	...plan,
 	features: (plan.features ?? "")
 		.split("\n")
-		.map((s) => s.trim())
+		.map((feature) => feature.trim())
 		.filter(Boolean),
 	cta: {
 		label: plan.ctaLabel ?? "",
@@ -38,133 +38,191 @@ const plans = rawPlans.map((plan) => ({
 ---
 
 <section class="pricing section">
-	<div class="container">
-		{headline && (
-			<header class="section-header pricing-header">
-				<h2 class="section-headline">{headline}</h2>
-			</header>
-		)}
+	<div class="pricing-container container">
+		{
+			headline && (
+				<header class="pricing-header">
+					<h2 class="pricing-headline">{headline}</h2>
+				</header>
+			)
+		}
 		<div class="pricing-grid">
-			{plans.map((plan) => (
-				<div class:list={["pricing-card", { "pricing-highlighted": plan.highlighted }]}>
-					{plan.highlighted && <div class="pricing-badge">Most popular</div>}
-					<div class="pricing-plan-header">
-						<h3 class="pricing-name">{plan.name}</h3>
-						<div class="pricing-price">
-							<span class="pricing-amount">{plan.price}</span>
-							{plan.period && <span class="pricing-period">{plan.period}</span>}
-						</div>
-						{plan.description && (
-							<p class="pricing-description">{plan.description}</p>
-						)}
-					</div>
-					<ul class="pricing-features">
-						{plan.features.map((feature) => (
-							<li>
-								<svg class="check-icon" viewBox="0 0 20 20" fill="currentColor">
-									<path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
-								</svg>
-								{feature}
-							</li>
-						))}
-					</ul>
-					<a
-						href={plan.cta.url}
-						class:list={["btn", "btn-lg", "pricing-cta", { "btn-primary": plan.highlighted, "btn-secondary": !plan.highlighted }]}
+			{
+				plans.map((plan) => (
+					<article
+						class:list={[
+							"pricing-card",
+							{ "pricing-highlighted": plan.highlighted },
+						]}
 					>
-						{plan.cta.label}
-					</a>
-				</div>
-			))}
+						{plan.highlighted && (
+							<div class="pricing-badge">Most popular</div>
+						)}
+						<div class="pricing-plan-header">
+							<h3 class="pricing-name">{plan.name}</h3>
+							<div class="pricing-price">
+								<span class="pricing-amount">{plan.price}</span>
+								{plan.period && (
+									<span class="pricing-period">{plan.period}</span>
+								)}
+							</div>
+							{plan.description && (
+								<p class="pricing-description">{plan.description}</p>
+							)}
+						</div>
+						<ul class="pricing-features">
+							{plan.features.map((feature) => (
+								<li>
+									<svg
+										class="check-icon"
+										viewBox="0 0 20 20"
+										fill="currentColor"
+										aria-hidden="true"
+									>
+										<path
+											fill-rule="evenodd"
+											d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+											clip-rule="evenodd"
+										/>
+									</svg>
+									<span>{feature}</span>
+								</li>
+							))}
+						</ul>
+						<a
+							href={plan.cta.url}
+							class:list={[
+								"btn",
+								"btn-lg",
+								"pricing-cta",
+								{
+									"btn-primary": plan.highlighted,
+									"btn-secondary": !plan.highlighted,
+								},
+							]}
+						>
+							{plan.cta.label}
+						</a>
+					</article>
+				))
+			}
 		</div>
 	</div>
 </section>
 
 <style>
+	.pricing.section {
+		background: color-mix(in srgb, var(--color-bg) 62%, var(--color-surface));
+	}
+
 	.pricing-header {
-		margin-bottom: var(--spacing-2xl);
+		max-width: 46rem;
+		margin: 0 auto var(--spacing-3xl);
+		text-align: center;
+	}
+
+	.pricing-headline {
+		font-size: var(--font-size-3xl);
+		font-weight: var(--font-weight-display);
+		line-height: 1.12;
+		letter-spacing: -0.035em;
+		text-wrap: balance;
+		overflow-wrap: anywhere;
 	}
 
 	.pricing-grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-xl);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
 		align-items: start;
+		gap: var(--spacing-lg);
 	}
 
 	.pricing-card {
 		position: relative;
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+		gap: var(--spacing-lg);
 		padding: var(--spacing-xl);
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-lg);
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-border) 30%, transparent),
+			var(--shadow-sm);
 	}
 
 	.pricing-highlighted {
-		background: var(--color-bg);
+		background: var(--color-surface-raised);
 		border-color: var(--color-brand);
-		box-shadow: var(--shadow-xl);
+		box-shadow:
+			0 0 0 4px var(--color-brand-ring),
+			var(--shadow-xl);
 		transform: scale(1.02);
 	}
 
 	.pricing-badge {
 		position: absolute;
-		top: 0;
-		left: 50%;
-		transform: translate(-50%, -50%);
+		inset-block-start: 0;
+		inset-inline: 0;
+		width: max-content;
+		margin-inline: auto;
 		padding: var(--spacing-xs) var(--spacing-md);
+		color: var(--color-on-brand);
+		background: var(--color-brand-strong);
 		font-size: var(--font-size-xs);
 		font-weight: 600;
-		color: var(--color-on-brand);
-		background: var(--gradient-brand);
+		white-space: nowrap;
 		border-radius: var(--radius-full);
+		transform: translateY(-50%);
 	}
 
 	.pricing-plan-header {
+		padding-block-end: var(--spacing-lg);
 		text-align: center;
-		padding-bottom: var(--spacing-lg);
-		border-bottom: 1px solid var(--color-border);
+		border-block-end: 1px solid var(--color-border);
 	}
 
 	.pricing-name {
+		margin-block-end: var(--spacing-sm);
 		font-size: var(--font-size-lg);
 		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-sm);
+		overflow-wrap: anywhere;
 	}
 
 	.pricing-price {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: baseline;
 		justify-content: center;
 		gap: var(--spacing-xs);
-		margin-bottom: var(--spacing-sm);
+		margin-block-end: var(--spacing-sm);
 	}
 
 	.pricing-amount {
 		font-size: var(--font-size-4xl);
 		font-weight: var(--font-weight-display);
 		letter-spacing: var(--tracking-tight);
+		overflow-wrap: anywhere;
 	}
 
-	.pricing-period {
-		font-size: var(--font-size-sm);
+	.pricing-period,
+	.pricing-description {
 		color: var(--color-muted);
+		font-size: var(--font-size-sm);
 	}
 
 	.pricing-description {
-		font-size: var(--font-size-sm);
-		color: var(--color-muted);
+		line-height: var(--leading-normal);
+		overflow-wrap: anywhere;
 	}
 
 	.pricing-features {
-		list-style: none;
-		flex: 1;
 		display: flex;
+		flex: 1;
 		flex-direction: column;
 		gap: var(--spacing-sm);
+		list-style: none;
 	}
 
 	.pricing-features li {
@@ -172,14 +230,20 @@ const plans = rawPlans.map((plan) => ({
 		align-items: flex-start;
 		gap: var(--spacing-sm);
 		font-size: var(--font-size-sm);
+		line-height: 1.5;
+	}
+
+	.pricing-features li span {
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 
 	.check-icon {
 		width: 18px;
 		height: 18px;
-		flex-shrink: 0;
+		flex: 0 0 auto;
+		margin-block-start: 2px;
 		color: var(--color-success);
-		margin-top: 2px;
 	}
 
 	.pricing-cta {
@@ -188,13 +252,17 @@ const plans = rawPlans.map((plan) => ({
 
 	@media (max-width: 900px) {
 		.pricing-grid {
-			grid-template-columns: 1fr;
-			max-width: 400px;
-			margin: 0 auto;
+			grid-template-columns: minmax(0, 1fr);
 		}
 
 		.pricing-highlighted {
 			transform: none;
+		}
+	}
+
+	@media (max-width: 600px) {
+		.pricing-header {
+			margin-block-end: var(--spacing-2xl);
 		}
 	}
 </style>

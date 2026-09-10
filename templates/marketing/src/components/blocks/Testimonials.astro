@@ -1,125 +1,220 @@
 ---
+interface Testimonial {
+	quote: string;
+	author: string;
+	role?: string;
+	company?: string;
+	avatar?: string;
+}
+
 interface Props {
 	node: {
+		_key?: string;
 		headline?: string;
-		testimonials: Array<{
-			quote: string;
-			author: string;
-			role?: string;
-			company?: string;
-			avatar?: string;
-		}>;
+		testimonials: Testimonial[];
 	};
 }
 
 const { node } = Astro.props;
-const { headline, testimonials } = node;
+const { _key, headline, testimonials } = node;
+const WHITESPACE_REGEX = /\s+/;
+
+function getInitials(name: string) {
+	return name
+		.trim()
+		.split(WHITESPACE_REGEX)
+		.map((part) => part[0])
+		.filter(Boolean)
+		.slice(0, 2)
+		.join("")
+		.toUpperCase();
+}
+
+function getAttribution(testimonial: Testimonial) {
+	if (testimonial.role && testimonial.company) {
+		return `${testimonial.role} at ${testimonial.company}`;
+	}
+	return testimonial.role || testimonial.company;
+}
+
+const testimonialItems = testimonials.map((testimonial) => ({
+	...testimonial,
+	attribution: getAttribution(testimonial),
+	avatarUrl: testimonial.avatar?.trim() || null,
+	initials: getInitials(testimonial.author),
+}));
 ---
 
-<section class="testimonials section">
-	<div class="container">
-		{headline && (
-			<header class="section-header">
-				<h2 class="section-headline">{headline}</h2>
-			</header>
-		)}
+<section class="testimonials section" id={_key}>
+	<div class="testimonials-container container">
+		{
+			headline && (
+				<header class="testimonials-header">
+					<h2 class="testimonials-headline">{headline}</h2>
+				</header>
+			)
+		}
 		<div class="testimonials-grid">
-			{testimonials.map((testimonial) => (
-				<div class="testimonial-card">
-					<blockquote class="testimonial-quote">
-						"{testimonial.quote}"
-					</blockquote>
-					<div class="testimonial-author">
-						{testimonial.avatar && (
-							<img
-								src={testimonial.avatar}
-								alt={testimonial.author}
-								class="testimonial-avatar"
-								loading="lazy"
-							/>
-						)}
-						<div class="testimonial-info">
-							<span class="testimonial-name">{testimonial.author}</span>
-							{(testimonial.role || testimonial.company) && (
-								<span class="testimonial-role">
-									{testimonial.role}
-									{testimonial.role && testimonial.company && " at "}
-									{testimonial.company}
+			{
+				testimonialItems.map((testimonial) => (
+					<figure class="testimonial-item">
+						<blockquote class="testimonial-bubble">
+							<p>"{testimonial.quote}"</p>
+						</blockquote>
+						<figcaption class="testimonial-author">
+							{testimonial.avatarUrl ? (
+								<img
+									src={testimonial.avatarUrl}
+									alt=""
+									class="testimonial-avatar"
+									loading="lazy"
+								/>
+							) : (
+								<span
+									class="testimonial-avatar testimonial-avatar-fallback"
+									aria-hidden="true"
+								>
+									{testimonial.initials}
 								</span>
 							)}
-						</div>
-					</div>
-				</div>
-			))}
+							<span class="testimonial-meta">
+								<span class="testimonial-name">{testimonial.author}</span>
+								{testimonial.attribution && (
+									<span class="testimonial-role">
+										{testimonial.attribution}
+									</span>
+								)}
+							</span>
+						</figcaption>
+					</figure>
+				))
+			}
 		</div>
 	</div>
 </section>
 
 <style>
-	.testimonials {
+	.testimonials.section {
+		padding-block: var(--spacing-4xl);
 		background: var(--color-surface);
+	}
+
+	.testimonials-header {
+		max-width: 46rem;
+		margin: 0 auto var(--spacing-3xl);
+		text-align: center;
+	}
+
+	.testimonials-headline {
+		font-size: var(--font-size-3xl);
+		font-weight: var(--font-weight-display);
+		line-height: 1.12;
+		letter-spacing: -0.035em;
+		text-wrap: balance;
+		overflow-wrap: anywhere;
 	}
 
 	.testimonials-grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-xl);
-	}
-
-	.testimonial-card {
-		padding: var(--spacing-xl);
-		background: var(--color-bg);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		display: flex;
-		flex-direction: column;
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		align-items: stretch;
 		gap: var(--spacing-lg);
 	}
 
-	.testimonial-quote {
-		font-size: var(--font-size-lg);
-		line-height: var(--leading-normal);
-		color: var(--color-text);
+	.testimonial-item {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+	}
+
+	.testimonial-bubble {
 		flex: 1;
+		padding: var(--spacing-lg);
+		color: var(--color-text);
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		border-end-start-radius: var(--radius-sm);
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-border) 30%, transparent),
+			var(--shadow-sm);
+	}
+
+	.testimonial-bubble p {
+		font-size: var(--font-size-base);
+		line-height: 1.65;
+		overflow-wrap: anywhere;
 	}
 
 	.testimonial-author {
 		display: flex;
+		min-width: 0;
 		align-items: center;
-		gap: var(--spacing-md);
+		gap: 0.625rem;
+		margin-block-start: var(--spacing-md);
 	}
 
 	.testimonial-avatar {
-		width: 48px;
-		height: 48px;
+		display: block;
+		width: 2rem;
+		height: 2rem;
+		aspect-ratio: 1;
+		flex: 0 0 auto;
+		background: var(--color-bg);
+		border: 1px solid var(--color-border);
 		border-radius: var(--radius-full);
+		box-shadow: var(--shadow-sm);
 		object-fit: cover;
 	}
 
-	.testimonial-info {
+	.testimonial-avatar-fallback {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-text);
+		background: color-mix(in srgb, var(--color-surface) 80%, var(--color-border));
+		font-size: 0.625rem;
+		font-weight: 700;
+		line-height: 1;
+	}
+
+	.testimonial-meta {
 		display: flex;
+		min-width: 0;
 		flex-direction: column;
+		gap: 0.125rem;
+	}
+
+	.testimonial-name,
+	.testimonial-role {
+		overflow-wrap: anywhere;
 	}
 
 	.testimonial-name {
-		font-weight: 600;
 		font-size: var(--font-size-sm);
+		font-weight: 600;
+		line-height: 1.35;
 	}
 
 	.testimonial-role {
-		font-size: var(--font-size-xs);
 		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		line-height: 1.4;
 	}
 
 	@media (max-width: 900px) {
 		.testimonials-grid {
-			grid-template-columns: repeat(2, 1fr);
+			grid-template-columns: repeat(2, minmax(0, 1fr));
 		}
 	}
 
 	@media (max-width: 600px) {
+		.testimonials-header {
+			margin-block-end: var(--spacing-xl);
+		}
+
 		.testimonials-grid {
-			grid-template-columns: 1fr;
+			grid-template-columns: minmax(0, 1fr);
 		}
 	}
 </style>
