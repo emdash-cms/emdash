@@ -17,11 +17,91 @@
  *   - pages: "About" (en, published), "Contact" (en, draft)
  */
 
-import { test, expect } from "../fixtures";
+import { test, expect } from "../fixtures/index.js";
 
 // The edit route preserves the entry's locale as a `?locale=` search param
 // (see #1242), so the URL may carry a query string after the ULID.
 const CONTENT_EDIT_URL_PATTERN = /\/content\/posts\/[A-Z0-9]+(?:\?.*)?$/;
+
+const localeTest = test.extend<{
+	localeCollection: {
+		collection: string;
+		createPost: (locale: string, title: string) => Promise<void>;
+	};
+}>({
+	localeCollection: async ({ request, serverInfo }, use) => {
+		const headers = {
+			Authorization: `Bearer ${serverInfo.token}`,
+			"X-EmDash-Request": "1",
+			Origin: serverInfo.baseUrl,
+		};
+		const collection = `locale_switcher_${crypto.randomUUID().replaceAll("-", "")}`;
+		const collectionPath = `${serverInfo.baseUrl}/_emdash/api/schema/collections/${collection}`;
+		const contentPath = `${serverInfo.baseUrl}/_emdash/api/content/${collection}`;
+		const postIds: string[] = [];
+		const pendingPosts = new Map<string, string>();
+
+		try {
+			const created = await request.post(`${serverInfo.baseUrl}/_emdash/api/schema/collections`, {
+				headers,
+				data: { slug: collection, label: "Posts", labelSingular: "Post", supports: ["drafts"] },
+			});
+			await expect(created).toBeOK();
+
+			const field = await request.post(`${collectionPath}/fields`, {
+				headers,
+				data: { slug: "title", label: "Title", type: "string", required: true },
+			});
+			await expect(field).toBeOK();
+
+			await use({
+				collection,
+				createPost: async (locale, title) => {
+					const slug = `post-${locale}`;
+					pendingPosts.set(slug, locale);
+					const response = await request.post(contentPath, {
+						headers,
+						data: { data: { title }, slug, locale },
+					});
+					await expect(response).toBeOK();
+					const body = await response.json();
+					postIds.push(body.data.item.id);
+					pendingPosts.delete(slug);
+				},
+			});
+		} finally {
+			for (const [slug, locale] of pendingPosts) {
+				await expect
+					.soft(
+						request
+							.get(`${contentPath}/${slug}`, { headers, params: { locale } })
+							.then(async (response) => {
+								if (response.status() === 404) return true;
+								await expect(response).toBeOK();
+								const body = await response.json();
+								postIds.push(body.data.item.id);
+								return true;
+							}),
+					)
+					.resolves.toBe(true);
+			}
+			const paths = postIds.flatMap((id) => [
+				`${contentPath}/${id}`,
+				`${contentPath}/${id}/permanent`,
+			]);
+			for (const path of paths) {
+				await expect.soft(request.delete(path, { headers })).resolves.toBeOK();
+			}
+			await expect
+				.soft(
+					request
+						.delete(collectionPath, { headers })
+						.then((response) => response.ok() || response.status() === 404),
+				)
+				.resolves.toBe(true);
+		}
+	},
+});
 
 interface CreatePostInput {
 	title: string;
@@ -179,13 +259,19 @@ test.describe("i18n", () => {
 			}
 		});
 
-		test("has a locale filter switcher", async ({ admin }) => {
-			await admin.goToContent("posts");
+		localeTest("has a locale filter switcher", async ({ admin, serverInfo, localeCollection }) => {
+			const { collection, createPost } = localeCollection;
+			await createPost("en", "First Post");
+			await admin.goToContent(collection);
 			await admin.waitForLoading();
+			await expect(admin.page.getByRole("searchbox", { name: "Search posts" })).toHaveValue("");
 
 			const select = admin.page.getByRole("combobox", { name: "Locale" });
+			const englishPost = admin.page.getByRole("link", { name: "First Post", exact: true });
+			const emptyMessage = admin.page.getByText("No posts yet.");
 			await expect(select).toBeVisible();
 			await expect(select).toHaveText("EN (default)");
+			await expect(englishPost).toBeVisible();
 			await select.click();
 
 			await expect(admin.page.getByRole("option", { name: "EN (default)" })).toBeVisible();
@@ -195,15 +281,48 @@ test.describe("i18n", () => {
 
 			await admin.setLocaleFilter("fr");
 			await expect(select).toHaveText("FR");
-			await expect(admin.page).toHaveURL(/\/content\/posts\?locale=fr$/);
+			await expect(admin.page).toHaveURL(
+				`${serverInfo.baseUrl}/_emdash/admin/content/${collection}?locale=fr`,
+			);
 			expect(await admin.getLocaleFilterValue()).toBe("fr");
-			await expect(admin.page.getByText("No posts yet.")).toBeVisible();
+			await expect(emptyMessage).toBeVisible();
+			await expect(englishPost).toHaveCount(0);
 
 			await admin.setLocaleFilter("en");
 			await expect(select).toHaveText("EN (default)");
 			expect(await admin.getLocaleFilterValue()).toBe("en");
-			await expect(admin.page.getByRole("link", { name: "First Post", exact: true })).toBeVisible();
+			await expect(englishPost).toBeVisible();
+			await expect(emptyMessage).toHaveCount(0);
 		});
+
+		localeTest(
+			"shows only content from the selected locale",
+			async ({ admin, localeCollection }) => {
+				const { collection, createPost } = localeCollection;
+				await createPost("en", "First Post");
+				await createPost("fr", "French Post");
+				await admin.goToContent(collection);
+				await admin.waitForLoading();
+				await expect(admin.page.getByRole("searchbox", { name: "Search posts" })).toHaveValue("");
+
+				const select = admin.page.getByRole("combobox", { name: "Locale" });
+				const englishPost = admin.page.getByRole("link", { name: "First Post", exact: true });
+				const frenchPost = admin.page.getByRole("link", { name: "French Post", exact: true });
+				await expect(select).toHaveText("EN (default)");
+				await expect(englishPost).toBeVisible();
+				await expect(frenchPost).toHaveCount(0);
+
+				await admin.setLocaleFilter("fr");
+				await expect(select).toHaveText("FR");
+				await expect(frenchPost).toBeVisible();
+				await expect(englishPost).toHaveCount(0);
+
+				await admin.setLocaleFilter("en");
+				await expect(select).toHaveText("EN (default)");
+				await expect(englishPost).toBeVisible();
+				await expect(frenchPost).toHaveCount(0);
+			},
+		);
 	});
 
 	test.describe("Content Editor", () => {
