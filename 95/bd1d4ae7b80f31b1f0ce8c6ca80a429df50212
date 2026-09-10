@@ -1,0 +1,21 @@
+templates/marketing-cloudflare/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_34d853c696e834 89-90,122,153,203,211-212
+templates/marketing/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_284e0a5b780b16 89-90,122,153,203,211-212
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "95bd1d4ae7b80f31b1f0ce8c6ca80a429df50212",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
