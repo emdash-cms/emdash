@@ -124,6 +124,12 @@ export interface SandboxedPluginInstance {
 	invokeRoute(routeName: string, input: unknown, request: SerializedRequest): Promise<unknown>;
 
 	/**
+	 * Change whether the plugin may access host services.
+	 * Deactivation revokes credentials synchronously; reactivation issues fresh credentials.
+	 */
+	setActive?(active: boolean): void;
+
+	/**
 	 * Terminate the sandboxed plugin.
 	 * Releases resources and prevents further invocations.
 	 */
