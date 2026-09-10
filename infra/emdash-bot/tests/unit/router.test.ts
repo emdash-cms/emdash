@@ -48,7 +48,7 @@ function assertClassify(
 }
 
 const MENTION_TEXT_RE = /mention/;
-const FOOTER_IMPLEMENT_RE = /@emdashbot implement/;
+const FOOTER_WORK_RE = /@emdashbot work/;
 const FOOTER_DECLINE_RE = /@emdashbot decline/;
 
 describe("router", () => {
@@ -89,9 +89,9 @@ describe("router", () => {
 
 	test("parseCommand is strict: only an exact bare verb is deterministic", () => {
 		expect(parseCommand("@emdashbot retry")).toEqual({ event: "retry", arg: null });
-		expect(parseCommand("@emdashbot resume")).toEqual({ event: "resume", arg: null });
+		expect(parseCommand("@emdashbot resume")).toEqual({ event: "retry", arg: null });
 		expect(parseCommand("@emdashbot take over")).toEqual({ event: "take_over", arg: null });
-		expect(parseCommand("@emdashbot confirmed")).toEqual({ event: "confirm", arg: null }); // alias
+		expect(parseCommand("@emdashbot confirmed")).toEqual({ event: "accept", arg: null }); // alias
 		expect(parseCommand("@emdashbot hand back please")).toBe(null); // extra word
 		expect(parseCommand("@emdashbot implement use a LEFT JOIN")).toBe(null); // arg -> classifier
 		expect(parseCommand("@emdashbot I don't think we should implement this")).toBe(null); // prose
@@ -101,24 +101,24 @@ describe("router", () => {
 
 	test("classifierCommands excludes destructive events", () => {
 		const cmds = new Set(classifierCommands("blocked").map((c) => c.event));
-		expect(cmds.has("implement")).toBe(true);
+		expect(cmds.has("work")).toBe(true);
 		expect(cmds.has("decline")).toBe(false);
 		expect(cmds.has("take_over")).toBe(false);
 	});
 
-	test("failed runs offer classifier-routable resume and restore their saved active state", () => {
+	test("failed runs offer classifier-routable retry", () => {
 		const commands = new Set(classifierCommands("failed").map((command) => command.event));
-		expect(commands.has("resume")).toBe(true);
+		expect(commands.has("retry")).toBe(true);
 
 		const decision = resolve({
 			labels: ["bot:enhancement", "bot:failed"],
-			event: "resume",
+			event: "retry",
 			actor: "maintainer",
-			resumeState: "fixing",
+			retryMode: "work",
 		});
 		assertTransition(decision);
-		expect(decision.to).toBe("fixing");
-		expect(decision.action).toBe("investigate.resume");
+		expect(decision.to).toBe("working");
+		expect(decision.action).toBe("investigate.work");
 	});
 
 	test.each([
@@ -181,7 +181,7 @@ describe("router", () => {
 			actor: "maintainer",
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("in_review");
 		expect(d.action).toBe("investigate.revise");
 	});
 
@@ -204,15 +204,19 @@ describe("router", () => {
 		}
 	});
 
-	test("resolve: pr.closed moves in_review / working / awaiting_feedback to blocked", () => {
-		for (const label of ["bot:in-review", "bot:working", "bot:awaiting-feedback"] as const) {
+	test("resolve: pr.closed retains attached PR attention", () => {
+		for (const [label, expected] of [
+			["bot:in-review", "needs_attention"],
+			["bot:working", "blocked"],
+			["bot:awaiting-feedback", "blocked"],
+		] as const) {
 			const d = resolve({
 				labels: ["bot:bug", label],
 				event: "pr.closed",
 				actor: "system",
 			});
 			assertTransition(d);
-			expect(d.to).toBe("blocked");
+			expect(d.to).toBe(expected);
 			expect(d.action).toBe(null);
 		}
 	});
@@ -279,7 +283,7 @@ describe("router", () => {
 			allowDefault: true,
 		});
 		assertTransition(d);
-		expect(d.to).toBe("working");
+		expect(d.to).toBe("in_review");
 		expect(d.action).toBe("investigate.revise");
 		expect(d.arg).toBe("the test name is wrong, rename it");
 	});
@@ -364,7 +368,7 @@ describe("router", () => {
 		assertClassify(d);
 		expect(d.state).toBe("blocked");
 		const events = new Set(d.commands.map((c) => c.event));
-		expect(events.has("implement")).toBe(true);
+		expect(events.has("work")).toBe(true);
 		expect(events.has("decline")).toBe(false);
 		expect(d.text).toBe("please try fixing it in the loader");
 	});
@@ -471,13 +475,13 @@ describe("router", () => {
 		});
 		const d = resolve({ labels: ["bot:bug", "bot:working"], event, actor: "system" });
 		assertTransition(d);
-		expect(d.to).toBe("awaiting_feedback");
+		expect(d.to).toBe("preview_building");
 		expect(d.action).toBe(null);
 	});
 
 	test("replyFooter lists the offered commands for the state", () => {
 		const footer = replyFooter("blocked");
-		expect(footer).toMatch(FOOTER_IMPLEMENT_RE);
+		expect(footer).toMatch(FOOTER_WORK_RE);
 		expect(footer).toMatch(FOOTER_DECLINE_RE);
 	});
 });
@@ -658,7 +662,7 @@ describe("router: investigation + fix loop", () => {
 		}
 
 		const commands = new Set(classifierCommands("blocked").map((command) => command.event));
-		expect(commands.has("implement")).toBe(true);
+		expect(commands.has("work")).toBe(true);
 	});
 
 	test("confirm opens a draft PR; reject and expire reap the branch", () => {
@@ -690,9 +694,9 @@ describe("router: investigation + fix loop", () => {
 		expect(expire.action).toBe("reapBranch");
 	});
 
-	test("fix is offered to the classifier from a reproduced verdict", () => {
+	test("work is offered to the classifier from a reproduced verdict", () => {
 		const events = new Set(classifierCommands("reproduced").map((c) => c.event));
-		expect(events.has("fix")).toBe(true);
+		expect(events.has("work")).toBe(true);
 		expect(events.has("investigate")).toBe(true);
 		expect(events.has("decline")).toBe(false); // destructive
 		expect(events.has("take_over")).toBe(false); // destructive

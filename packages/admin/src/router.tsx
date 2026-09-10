@@ -1375,10 +1375,33 @@ function ContentEditPage() {
 		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
 	);
 	const handlePublishedAtChange = React.useCallback(
-		async (publishedAt: string) => {
+		async (
+			publishedAt: string,
+			payload?: {
+				data: Record<string, unknown>;
+				slug?: string;
+				bylines?: BylineCreditInput[];
+			},
+		) => {
+			await serializeEditorSave(async () => {
+				if (!payload) return;
+				return updateMutation.mutateAsync({
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+					source: "editor",
+					changes: payload,
+				});
+			});
 			await publishedAtMutation.mutateAsync(publishedAt);
 		},
-		[publishedAtMutation.mutateAsync],
+		[
+			activeLocale,
+			id,
+			publishedAtMutation.mutateAsync,
+			rawItem?.locale,
+			serializeEditorSave,
+			updateMutation.mutateAsync,
+		],
 	);
 
 	const handleSeoChange = React.useCallback(

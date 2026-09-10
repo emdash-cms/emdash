@@ -86,7 +86,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# komentar uvezen} few {# komentara uvezeno} other {# komentara uvezeno}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1986
+#: packages/admin/src/router.tsx:2009
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# komentar ažuriran} few {# komentara ažurirano} other {# komentara ažurirano}}"
 
@@ -118,7 +118,7 @@ msgstr ""
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1496
-#: packages/admin/src/components/MediaLibrary.tsx:998
+#: packages/admin/src/components/MediaLibrary.tsx:1002
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr ""
 
@@ -359,7 +359,7 @@ msgstr "{base} na: {0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# promena iz sledeće revizije} few {# promene iz sledeće revizije} other {# promena iz sledeće revizije}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2532
+#: packages/admin/src/components/PortableTextEditor.tsx:2764
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr ""
 
@@ -391,7 +391,7 @@ msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1207
+#: packages/admin/src/components/ContentList.tsx:1208
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} stavka} few {#{0} stavke} other {#{1} stavki}}"
 
@@ -418,7 +418,7 @@ msgstr ""
 msgid "{label} moved to position {0}."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1196
+#: packages/admin/src/components/ContentList.tsx:1197
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# stavka odgovara \"{searchQuery}\"} few {# stavke odgovaraju \"{searchQuery}\"} other {# stavki odgovara \"{searchQuery}\"}}"
 
@@ -468,7 +468,7 @@ msgstr ""
 msgid "{position} of {total}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2533
+#: packages/admin/src/components/PortableTextEditor.tsx:2765
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
@@ -488,7 +488,7 @@ msgstr "{selectedCount, plural, one {# izabrano} few {# izabrana} other {# izabr
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr "{selectedCount, plural, one {Premestiti # stavku u otpad? Možete je kasnije vratiti.} few {Premestiti # stavke u otpad? Možete ih kasnije vratiti.} other {Premestiti # stavki u otpad? Možete ih kasnije vratiti.}}"
 
-#: packages/admin/src/components/ContentList.tsx:1202
+#: packages/admin/src/components/ContentList.tsx:1203
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# stavka} few {# stavke} other {# stavki}}"
 
@@ -512,7 +512,7 @@ msgstr "{unchangedCount, plural, one {Sakrij # nepromenjeno} few {Sakrij # nepro
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {Prikaži # nepromenjeno} few {Prikaži # nepromenjena} other {Prikaži # nepromenjenih}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2531
+#: packages/admin/src/components/PortableTextEditor.tsx:2763
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
@@ -537,8 +537,7 @@ msgid "• URLs in your content are updated automatically"
 msgstr "• URL-ovi u vašem sadržaju se automatski ažuriraju"
 
 #: packages/admin/src/components/SetupWizard.tsx:225
-#: packages/admin/src/components/SetupWizard.tsx:277
-#: packages/admin/src/components/SetupWizard.tsx:332
+#: packages/admin/src/components/SetupWizard.tsx:278
 #: packages/admin/src/components/WordPressImport.tsx:1617
 msgid "← Back"
 msgstr "← Nazad"
@@ -657,7 +656,7 @@ msgstr ""
 msgid "A publication time has not been selected"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:668
+#: packages/admin/src/components/ContentEditor.tsx:680
 msgid "A publishing action is already in progress"
 msgstr ""
 
@@ -685,7 +684,7 @@ msgstr "Prihvati i instaliraj"
 msgid "Accept & Update"
 msgstr "Prihvati i ažuriraj"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:240
+#: packages/admin/src/components/InviteAcceptPage.tsx:239
 msgid "Accept Invite"
 msgstr "Prihvati pozivnicu"
 
@@ -694,7 +693,7 @@ msgstr "Prihvati pozivnicu"
 msgid "Access denied"
 msgstr "Pristup odbijen"
 
-#: packages/admin/src/router.tsx:2006
+#: packages/admin/src/router.tsx:2029
 msgid "Access Denied"
 msgstr "Pristup odbijen"
 
@@ -703,15 +702,15 @@ msgstr "Pristup odbijen"
 msgid "Access your media library"
 msgstr "Pristupite biblioteci medija"
 
-#: packages/admin/src/components/SetupWizard.tsx:354
+#: packages/admin/src/components/SetupWizard.tsx:347
 msgid "Account"
 msgstr "Nalog"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:154
+#: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
 msgstr "Nalog već postoji"
 
-#: packages/admin/src/components/SignupPage.tsx:277
+#: packages/admin/src/components/SignupPage.tsx:278
 msgid "Account exists"
 msgstr "Nalog postoji"
 
@@ -725,7 +724,7 @@ msgstr "ACF polja"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:291
 #: packages/admin/src/components/ContentList.tsx:637
-#: packages/admin/src/components/ContentList.tsx:768
+#: packages/admin/src/components/ContentList.tsx:769
 #: packages/admin/src/components/ContentTypeList.tsx:190
 #: packages/admin/src/components/TaxonomyManager.tsx:1056
 #: packages/admin/src/routes/byline-schema.tsx:249
@@ -752,7 +751,7 @@ msgstr "Dodaj"
 #. placeholder {0}: option.byline.displayName
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/BylineCreditsEditor.tsx:498
-#: packages/admin/src/components/PortableTextEditor.tsx:2144
+#: packages/admin/src/components/PortableTextEditor.tsx:2376
 #: packages/admin/src/components/TaxonomyManager.tsx:545
 #: packages/admin/src/components/TaxonomyManager.tsx:1047
 msgid "Add {0}"
@@ -778,11 +777,11 @@ msgstr "Dodajte bar jedno podpolje da definišete strukturu ponavljača."
 msgid "Add byline"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3760
+#: packages/admin/src/components/PortableTextEditor.tsx:3997
 msgid "Add column after"
 msgstr "Dodaj kolonu posle"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3754
+#: packages/admin/src/components/PortableTextEditor.tsx:3991
 msgid "Add column before"
 msgstr "Dodaj kolonu pre"
 
@@ -797,7 +796,7 @@ msgstr "Dodaj sadržaj"
 msgid "Add Custom Link"
 msgstr "Dodaj prilagođeni link"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:447
+#: packages/admin/src/components/ImageFieldRenderer.tsx:451
 msgid "Add dark mode variant"
 msgstr ""
 
@@ -840,7 +839,7 @@ msgstr ""
 msgid "Add images to gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2144
+#: packages/admin/src/components/PortableTextEditor.tsx:2376
 msgid "Add item"
 msgstr "Dodaj stavku"
 
@@ -848,7 +847,7 @@ msgstr "Dodaj stavku"
 msgid "Add Item"
 msgstr "Dodaj stavku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3689
+#: packages/admin/src/components/PortableTextEditor.tsx:3926
 msgid "Add link"
 msgstr "Dodaj link"
 
@@ -870,8 +869,8 @@ msgid "Add new {0}"
 msgstr "Dodaj novi {0}"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:127
-#: packages/admin/src/components/MediaLibrary.tsx:848
-#: packages/admin/src/components/MediaLibrary.tsx:853
+#: packages/admin/src/components/MediaLibrary.tsx:852
+#: packages/admin/src/components/MediaLibrary.tsx:857
 msgid "Add new folder"
 msgstr ""
 
@@ -887,11 +886,11 @@ msgstr "Dodaj Passkey"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Dodajte dodatke u astro.config.mjs da proširite EmDash funkcionalnost."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3781
+#: packages/admin/src/components/PortableTextEditor.tsx:4018
 msgid "Add row after"
 msgstr "Dodaj red posle"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3775
+#: packages/admin/src/components/PortableTextEditor.tsx:4012
 msgid "Add row before"
 msgstr "Dodaj red pre"
 
@@ -963,15 +962,15 @@ msgstr ""
 msgid "Agent-callable MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4157
+#: packages/admin/src/components/PortableTextEditor.tsx:4394
 msgid "Align Center"
 msgstr "Poravnaj po centru"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4150
+#: packages/admin/src/components/PortableTextEditor.tsx:4387
 msgid "Align Left"
 msgstr "Poravnaj levo"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4164
+#: packages/admin/src/components/PortableTextEditor.tsx:4401
 msgid "Align Right"
 msgstr "Poravnaj desno"
 
@@ -984,8 +983,8 @@ msgstr "Poravnanje"
 msgid "All"
 msgstr "Sve"
 
-#: packages/admin/src/components/ContentList.tsx:918
-#: packages/admin/src/components/ContentList.tsx:922
+#: packages/admin/src/components/ContentList.tsx:919
+#: packages/admin/src/components/ContentList.tsx:923
 msgid "All authors"
 msgstr "Svi autori"
 
@@ -1023,12 +1022,12 @@ msgstr "Sve uloge"
 msgid "All Sources"
 msgstr "Svi izvori"
 
-#: packages/admin/src/components/ContentList.tsx:857
+#: packages/admin/src/components/ContentList.tsx:858
 #: packages/admin/src/components/Redirects.tsx:426
 msgid "All statuses"
 msgstr "Svi statusi"
 
-#: packages/admin/src/components/MediaLibrary.tsx:980
+#: packages/admin/src/components/MediaLibrary.tsx:984
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/Redirects.tsx:432
 msgid "All types"
@@ -1059,7 +1058,7 @@ msgstr "Dozvoljeni domeni"
 msgid "Allowed types"
 msgstr "Dozvoljeni tipovi"
 
-#: packages/admin/src/components/SignupPage.tsx:454
+#: packages/admin/src/components/SignupPage.tsx:455
 msgid "Already have an account?"
 msgstr "Već imate nalog?"
 
@@ -1075,7 +1074,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:470
 #: packages/admin/src/components/editor/ImageNode.tsx:278
-#: packages/admin/src/components/MediaLibrary.tsx:1204
+#: packages/admin/src/components/MediaLibrary.tsx:1208
 msgid "Alt text"
 msgstr "Alt tekst"
 
@@ -1085,18 +1084,22 @@ msgstr "Alt tekst"
 msgid "Alt Text"
 msgstr "Alt tekst"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1552
+#: packages/admin/src/components/MediaLibrary.tsx:1559
 msgid "Alt text is not applicable to folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1780
-#: packages/admin/src/components/MediaLibrary.tsx:1837
+#: packages/admin/src/components/MediaLibrary.tsx:1787
+#: packages/admin/src/components/MediaLibrary.tsx:1844
 msgid "Alt text set"
 msgstr "Alt tekst postavljen"
 
 #: packages/admin/src/components/WordPressImport.tsx:1411
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Alternativno, možete izvesti iz WordPress-a (Alati → Izvoz) i otpremiti fajl."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:236
+msgid "An encrypted digital key you unlock using your fingerprint, face, PIN, or device password."
+msgstr ""
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
@@ -1142,10 +1145,10 @@ msgstr "Alternativno, možete izvesti iz WordPress-a (Alati → Izvoz) i otpremi
 #: packages/admin/src/router.tsx:1277
 #: packages/admin/src/router.tsx:1308
 #: packages/admin/src/router.tsx:1328
-#: packages/admin/src/router.tsx:1951
-#: packages/admin/src/router.tsx:1967
-#: packages/admin/src/router.tsx:1992
-#: packages/admin/src/router.tsx:2498
+#: packages/admin/src/router.tsx:1974
+#: packages/admin/src/router.tsx:1990
+#: packages/admin/src/router.tsx:2015
+#: packages/admin/src/router.tsx:2521
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1157,7 +1160,7 @@ msgstr "Došlo je do greške"
 msgid "An unexpected error occurred."
 msgstr "Došlo je do neočekivane greške."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:251
+#: packages/admin/src/components/InviteAcceptPage.tsx:250
 msgid "An unknown error occurred"
 msgstr "Došlo je do nepoznate greške"
 
@@ -1193,7 +1196,7 @@ msgid "Application Password"
 msgstr "Lozinka za aplikaciju"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:542
-#: packages/admin/src/components/PortableTextEditor.tsx:4246
+#: packages/admin/src/components/PortableTextEditor.tsx:4483
 msgid "Apply"
 msgstr "Primeni"
 
@@ -1202,8 +1205,8 @@ msgstr "Primeni"
 msgid "Apply language"
 msgstr "Primeni jezik"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3615
-#: packages/admin/src/components/PortableTextEditor.tsx:3616
+#: packages/admin/src/components/PortableTextEditor.tsx:3852
+#: packages/admin/src/components/PortableTextEditor.tsx:3853
 msgid "Apply link"
 msgstr "Primeni link"
 
@@ -1212,6 +1215,10 @@ msgstr "Primeni link"
 #: packages/admin/src/components/comments/CommentInbox.tsx:481
 msgid "Approve"
 msgstr "Odobri"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
+msgid "Approve with that device's face, fingerprint, PIN, or passcode."
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:195
 msgid "approved"
@@ -1225,7 +1232,7 @@ msgstr "Odobreno"
 msgid "Arbitrary JSON data"
 msgstr "Proizvoljni JSON podaci"
 
-#: packages/admin/src/components/ContentList.tsx:861
+#: packages/admin/src/components/ContentList.tsx:862
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "Arhivirano"
@@ -1275,14 +1282,14 @@ msgid "Astro"
 msgstr "Astro"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
-#: packages/admin/src/components/MediaLibrary.tsx:983
+#: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaPickerModal.tsx:385
 msgid "Audio"
 msgstr "Audio"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:278
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:279
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:438
 msgid "Authentication error: {0}"
 msgstr "Greška autentifikacije: {0}"
 
@@ -1399,16 +1406,20 @@ msgstr "Dostupni vidžeti"
 msgid "Avatar"
 msgstr "Avatar"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:628
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/MediaDetailPanel.tsx:1793
-#: packages/admin/src/components/MediaLibrary.tsx:807
+#: packages/admin/src/components/MediaLibrary.tsx:811
 #: packages/admin/src/components/MenuEditor.tsx:362
 #: packages/admin/src/components/WordPressImport.tsx:1526
 #: packages/admin/src/components/WordPressImport.tsx:2543
 msgid "Back"
 msgstr "Nazad"
 
-#: packages/admin/src/components/ContentEditor.tsx:870
+#: packages/admin/src/components/ContentEditor.tsx:896
 msgid "Back to {collectionLabel} list"
 msgstr "Nazad na listu {collectionLabel}"
 
@@ -1416,15 +1427,15 @@ msgstr "Nazad na listu {collectionLabel}"
 msgid "Back to Content Types"
 msgstr "Nazad na tipove sadržaja"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:172
+#: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:118
 #: packages/admin/src/components/LoginPage.tsx:154
 #: packages/admin/src/components/LoginPage.tsx:313
-#: packages/admin/src/components/SignupPage.tsx:297
+#: packages/admin/src/components/SignupPage.tsx:298
 msgid "Back to login"
 msgstr "Nazad na prijavu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1091
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Back to Main library"
 msgstr ""
 
@@ -1503,8 +1514,8 @@ msgstr "Biografija"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "Akcije bloka — prevucite za preuređivanje, kliknite za meni"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3639
-#: packages/admin/src/components/PortableTextEditor.tsx:4044
+#: packages/admin/src/components/PortableTextEditor.tsx:3876
+#: packages/admin/src/components/PortableTextEditor.tsx:4281
 msgid "Bold"
 msgstr "Podebljano"
 
@@ -1548,8 +1559,8 @@ msgid "Browse themes and preview them with your own content."
 msgstr "Pregledajte teme i pregledajte ih sa sopstvenim sadržajem."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1460
-#: packages/admin/src/components/PortableTextEditor.tsx:4092
+#: packages/admin/src/components/PortableTextEditor.tsx:1692
+#: packages/admin/src/components/PortableTextEditor.tsx:4329
 msgid "Bullet List"
 msgstr "Lista sa tačkama"
 
@@ -1607,8 +1618,8 @@ msgstr "Može pregledati sadržaj"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:256
 #: packages/admin/src/components/ConfirmDialog.tsx:99
 #: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/components/ContentList.tsx:1370
-#: packages/admin/src/components/ContentList.tsx:1552
+#: packages/admin/src/components/ContentList.tsx:1376
+#: packages/admin/src/components/ContentList.tsx:1558
 #: packages/admin/src/components/ContentPickerModal.tsx:240
 #: packages/admin/src/components/ContentSettingsPanel.tsx:312
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1213
@@ -1627,7 +1638,7 @@ msgstr "Može pregledati sadržaj"
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/PluginManager.tsx:744
-#: packages/admin/src/components/PortableTextEditor.tsx:4230
+#: packages/admin/src/components/PortableTextEditor.tsx:4467
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -1714,7 +1725,7 @@ msgstr "Centar"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
 #: packages/admin/src/components/FieldEditor.tsx:438
-#: packages/admin/src/components/SeoImageField.tsx:57
+#: packages/admin/src/components/SeoImageField.tsx:58
 msgid "Change"
 msgstr "Promeni"
 
@@ -1780,7 +1791,7 @@ msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:102
 #: packages/admin/src/components/SignupPage.tsx:148
-#: packages/admin/src/components/SignupPage.tsx:417
+#: packages/admin/src/components/SignupPage.tsx:418
 msgid "Check your email"
 msgstr "Proverite email"
 
@@ -1797,8 +1808,16 @@ msgstr "Provera autentifikacije..."
 msgid "Checking how many stored values reference \"{0}\"…"
 msgstr "Provera koliko sačuvanih vrednosti referencira \"{0}\"…"
 
-#: packages/admin/src/components/ContentList.tsx:1044
-#: packages/admin/src/components/ContentList.tsx:1050
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:493
+msgid "Checking this device for passkey support..."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:577
+msgid "Choose a credential manager on this device, another device, or a security key."
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1045
+#: packages/admin/src/components/ContentList.tsx:1051
 msgid "Choose a date range"
 msgstr ""
 
@@ -1819,6 +1838,10 @@ msgstr ""
 msgid "Choose an image from the library or upload a new one."
 msgstr ""
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:567
+msgid "Choose another option"
+msgstr ""
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:662
 #: packages/admin/src/components/BylineCreditsEditor.tsx:677
 msgid "Choose bylines"
@@ -1828,12 +1851,12 @@ msgstr ""
 msgid "Choose files to upload"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:288
-msgid "Choose how to sign in"
-msgstr "Izaberite način prijave"
-
 #: packages/admin/src/components/MediaDetailPanel.tsx:1824
 msgid "Choose replacement image"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
+msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
@@ -1842,6 +1865,10 @@ msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
 msgid "Choose when this draft becomes public."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
+msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:134
@@ -1853,7 +1880,7 @@ msgid "Choosing a byline replaces this automatic credit."
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:571
-#: packages/admin/src/components/ContentList.tsx:1058
+#: packages/admin/src/components/ContentList.tsx:1059
 msgid "Clear"
 msgstr "Obriši"
 
@@ -1861,14 +1888,14 @@ msgstr "Obriši"
 msgid "Clear completed"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:963
-#: packages/admin/src/components/MediaLibrary.tsx:1080
+#: packages/admin/src/components/ContentList.tsx:964
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/users/UserList.tsx:122
 msgid "Clear filters"
 msgstr "Obriši filtere"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1080
-#: packages/admin/src/components/MediaLibrary.tsx:1115
+#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/MediaLibrary.tsx:1119
 msgid "Clear search"
 msgstr "Obriši pretragu"
 
@@ -1915,9 +1942,9 @@ msgstr "Kliknite na link u email-u da se prijavite."
 #: packages/admin/src/components/MenuList.tsx:139
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/MenuList.tsx:149
-#: packages/admin/src/components/PortableTextEditor.tsx:1928
-#: packages/admin/src/components/PortableTextEditor.tsx:1934
-#: packages/admin/src/components/PortableTextEditor.tsx:1938
+#: packages/admin/src/components/PortableTextEditor.tsx:2160
+#: packages/admin/src/components/PortableTextEditor.tsx:2166
+#: packages/admin/src/components/PortableTextEditor.tsx:2170
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
 #: packages/admin/src/components/Redirects.tsx:115
 #: packages/admin/src/components/Redirects.tsx:121
@@ -1968,19 +1995,19 @@ msgstr ""
 msgid "Close panel"
 msgstr "Zatvori panel"
 
-#: packages/admin/src/components/ContentEditor.tsx:1382
+#: packages/admin/src/components/ContentEditor.tsx:1408
 msgid "Close settings"
 msgstr "Zatvori podešavanja"
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
-#: packages/admin/src/components/PortableTextEditor.tsx:3681
+#: packages/admin/src/components/PortableTextEditor.tsx:3918
 #: packages/admin/src/components/Redirects.tsx:478
 msgid "Code"
 msgstr "Kod"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1490
-#: packages/admin/src/components/PortableTextEditor.tsx:4131
+#: packages/admin/src/components/PortableTextEditor.tsx:1722
+#: packages/admin/src/components/PortableTextEditor.tsx:4368
 msgid "Code Block"
 msgstr "Blok koda"
 
@@ -2044,7 +2071,7 @@ msgstr "Komentari prijavljenih CMS korisnika se automatski odobravaju"
 msgid "Complete"
 msgstr ""
 
-#: packages/admin/src/components/SignupPage.tsx:418
+#: packages/admin/src/components/SignupPage.tsx:419
 msgid "Complete signup"
 msgstr "Završi registraciju"
 
@@ -2059,6 +2086,18 @@ msgstr "Konfiguriši polje"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
 msgid "Confirm"
 msgstr "Potvrdi"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
+msgid "Confirm using the secure prompt from your device or credential manager."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:194
+msgid "Confirm with Face ID, Touch ID, or your device passcode."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:201
+msgid "Confirm with your fingerprint, face, or PIN."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:719
 #: packages/admin/src/components/WordPressImport.tsx:1072
@@ -2091,7 +2130,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:285
 #: packages/admin/src/components/Dashboard.tsx:269
-#: packages/admin/src/components/PortableTextEditor.tsx:2748
+#: packages/admin/src/components/PortableTextEditor.tsx:2981
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:422
 #: packages/admin/src/components/Widgets.tsx:899
@@ -2169,6 +2208,7 @@ msgstr "Sadržaj je preskočen jer već postoji"
 msgid "Content Write"
 msgstr "Pisanje sadržaja"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:274
 #: packages/admin/src/components/SignupPage.tsx:109
 msgid "Continue"
 msgstr "Nastavi"
@@ -2182,8 +2222,16 @@ msgstr "Nastavi →"
 msgid "Continue Import"
 msgstr "Nastavi uvoz"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4108
+#: packages/admin/src/components/PortableTextEditor.tsx:4345
 msgid "Continue numbering"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:673
+msgid "Continue with another device"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:710
+msgid "Continue with security key"
 msgstr ""
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
@@ -2242,7 +2290,7 @@ msgstr "Kopiraj URL"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "Nije moguće automatski kopirati. Izaberite URL iznad i kopirajte ručno."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3377
+#: packages/admin/src/components/PortableTextEditor.tsx:3614
 msgid "Could not insert section"
 msgstr ""
 
@@ -2341,7 +2389,7 @@ msgstr ""
 msgid "Create {0} translation"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1461
+#: packages/admin/src/components/PortableTextEditor.tsx:1693
 msgid "Create a bullet list"
 msgstr "Kreiraj listu sa tačkama"
 
@@ -2350,7 +2398,7 @@ msgstr "Kreiraj listu sa tačkama"
 msgid "Create a new {0}"
 msgstr "Kreiraj novi {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1471
+#: packages/admin/src/components/PortableTextEditor.tsx:1703
 msgid "Create a numbered list"
 msgstr "Kreiraj numerisanu listu"
 
@@ -2358,12 +2406,7 @@ msgstr "Kreiraj numerisanu listu"
 msgid "Create a reusable public profile, then add it to this post."
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:84
-#: packages/admin/src/components/SignupPage.tsx:236
-msgid "Create Account"
-msgstr "Kreiraj nalog"
-
-#: packages/admin/src/components/SignupPage.tsx:416
+#: packages/admin/src/components/SignupPage.tsx:417
 msgid "Create an account"
 msgstr "Kreiraj nalog"
 
@@ -2405,9 +2448,9 @@ msgstr "Kreiraj novi token"
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "Kreirajte jednu u WordPress-u: Korisnici → Profil → Lozinke za aplikacije"
 
-#: packages/admin/src/components/SetupWizard.tsx:298
-msgid "Create Passkey"
-msgstr "Kreiraj Passkey"
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:741
+msgid "Create passkey"
+msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:102
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
@@ -2456,7 +2499,7 @@ msgstr "Kreiraj token"
 msgid "Create Widget Area"
 msgstr "Kreiraj oblast vidžeta"
 
-#: packages/admin/src/components/SetupWizard.tsx:560
+#: packages/admin/src/components/SetupWizard.tsx:553
 msgid "Create your account"
 msgstr "Kreirajte nalog"
 
@@ -2476,11 +2519,6 @@ msgstr "Kreirajte prvi"
 msgid "Create your first reusable content section to get started."
 msgstr "Kreirajte prvu višekratnu sekciju sadržaja da počnete."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:75
-#: packages/admin/src/components/SignupPage.tsx:227
-msgid "Create your passkey"
-msgstr "Kreirajte passkey"
-
 #: packages/admin/src/lib/api/marketplace.ts:280
 #: packages/admin/src/lib/api/marketplace.ts:289
 msgid "Create, update, and delete content"
@@ -2498,7 +2536,7 @@ msgstr "Kreiraj, ažuriraj i briši termine taksonomije"
 msgid "Create, update, delete content"
 msgstr "Kreiraj, ažuriraj, briši sadržaj"
 
-#: packages/admin/src/components/ContentList.tsx:867
+#: packages/admin/src/components/ContentList.tsx:868
 #: packages/admin/src/components/ContentSettingsPanel.tsx:991
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
 #: packages/admin/src/components/users/UserDetail.tsx:219
@@ -2564,7 +2602,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:761
-#: packages/admin/src/components/MediaLibrary.tsx:1386
+#: packages/admin/src/components/MediaLibrary.tsx:1393
 msgid "Cropped copy created."
 msgstr ""
 
@@ -2617,7 +2655,7 @@ msgid "Dark"
 msgstr "Tamno"
 
 #: packages/admin/src/components/FieldEditor.tsx:688
-#: packages/admin/src/components/ImageFieldRenderer.tsx:391
+#: packages/admin/src/components/ImageFieldRenderer.tsx:395
 msgid "Dark mode variant"
 msgstr ""
 
@@ -2643,7 +2681,7 @@ msgstr "Datum i vreme"
 msgid "Date and time picker"
 msgstr "Birač datuma i vremena"
 
-#: packages/admin/src/components/ContentList.tsx:940
+#: packages/admin/src/components/ContentList.tsx:941
 msgid "Date field to filter on"
 msgstr "Polje datuma za filtriranje"
 
@@ -2651,7 +2689,7 @@ msgstr "Polje datuma za filtriranje"
 msgid "Date Format"
 msgstr "Format datuma"
 
-#: packages/admin/src/components/ContentList.tsx:990
+#: packages/admin/src/components/ContentList.tsx:991
 msgid "Date range"
 msgstr ""
 
@@ -2769,7 +2807,7 @@ msgstr "Obrisati polje potpisa autora?"
 msgid "Delete Byline?"
 msgstr "Obrisati potpis autora?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3766
+#: packages/admin/src/components/PortableTextEditor.tsx:4003
 msgid "Delete column"
 msgstr "Obriši kolonu"
 
@@ -2822,11 +2860,11 @@ msgid "Delete permanently"
 msgstr "Obriši trajno"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1563
+#: packages/admin/src/components/ContentList.tsx:1569
 msgid "Delete Permanently"
 msgstr "Obriši trajno"
 
-#: packages/admin/src/components/ContentList.tsx:1543
+#: packages/admin/src/components/ContentList.tsx:1549
 msgid "Delete Permanently?"
 msgstr "Obrisati trajno?"
 
@@ -2843,7 +2881,7 @@ msgstr "Obriši preusmeravanje {0}"
 msgid "Delete Redirect?"
 msgstr "Obrisati preusmeravanje?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3785
+#: packages/admin/src/components/PortableTextEditor.tsx:4022
 msgid "Delete row"
 msgstr "Obriši red"
 
@@ -2851,7 +2889,7 @@ msgstr "Obriši red"
 msgid "Delete Section?"
 msgstr "Obrisati sekciju?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3800
+#: packages/admin/src/components/PortableTextEditor.tsx:4037
 msgid "Delete table"
 msgstr "Obriši tabelu"
 
@@ -2859,7 +2897,7 @@ msgstr "Obriši tabelu"
 msgid "Delete Widget Area?"
 msgstr "Obrisati oblast vidžeta?"
 
-#: packages/admin/src/components/ContentList.tsx:765
+#: packages/admin/src/components/ContentList.tsx:766
 msgid "Deleted"
 msgstr "Obrisano"
 
@@ -3064,7 +3102,7 @@ msgstr "Odbaci"
 msgid "Dismiss completed {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3391
+#: packages/admin/src/components/PortableTextEditor.tsx:3628
 msgid "Dismiss section error"
 msgstr ""
 
@@ -3105,11 +3143,11 @@ msgstr "Prikaži oblak tagova"
 msgid "Displayed below the image as a visible caption."
 msgstr "Prikazano ispod slike kao vidljiv opis."
 
-#: packages/admin/src/components/ContentEditor.tsx:938
+#: packages/admin/src/components/ContentEditor.tsx:964
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Režim bez ometanja (⌘⇧\\)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1508
+#: packages/admin/src/components/PortableTextEditor.tsx:1740
 msgid "Divider"
 msgstr "Razdelnik"
 
@@ -3118,7 +3156,7 @@ msgid "Dockerfile"
 msgstr "Dockerfile"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:984
+#: packages/admin/src/components/MediaLibrary.tsx:988
 #: packages/admin/src/components/MediaPickerModal.tsx:386
 msgid "Documents"
 msgstr "Dokumenti"
@@ -3144,7 +3182,7 @@ msgid "Don't have an account? <0>Sign up</0>"
 msgstr "Nemate nalog? <0>Registrujte se</0>"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:911
-#: packages/admin/src/components/ContentList.tsx:1066
+#: packages/admin/src/components/ContentList.tsx:1067
 #: packages/admin/src/components/MediaUploadDialog.tsx:353
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2144
@@ -3181,7 +3219,7 @@ msgstr "Preuzmi SBOM"
 msgid "Downloading"
 msgstr "Preuzimanje"
 
-#: packages/admin/src/components/ContentList.tsx:859
+#: packages/admin/src/components/ContentList.tsx:860
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "Nacrt"
@@ -3220,7 +3258,7 @@ msgstr "Prevucite i otpustite ili kliknite za pregled (.xml)"
 msgid "Drag here to add"
 msgstr "Prevucite ovde da dodate"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2320
+#: packages/admin/src/components/PortableTextEditor.tsx:2552
 msgid "Drag to reorder"
 msgstr "Prevucite za promenu redosleda"
 
@@ -3248,8 +3286,20 @@ msgstr "Prevucite vidžete ovde da ih dodate"
 msgid "Drag widgets into an area to add them"
 msgstr "Prevucite vidžete u oblast da ih dodate"
 
-#: packages/admin/src/components/MediaLibrary.tsx:787
+#: packages/admin/src/components/media/ImageDropTarget.tsx:134
+msgid "Drop an image here or <0>browse</0>"
+msgstr ""
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:118
+msgid "Drop an image here or browse for {label}"
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:791
 msgid "Drop files to upload"
+msgstr ""
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:48
+msgid "Drop one image at a time."
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:700
@@ -3264,7 +3314,7 @@ msgstr "Otpustite WordPress izvozni fajl ovde"
 msgid "Duplicate"
 msgstr "Dupliraj"
 
-#: packages/admin/src/components/ContentList.tsx:1343
+#: packages/admin/src/components/ContentList.tsx:1349
 msgid "Duplicate {title}"
 msgstr "Dupliraj {title}"
 
@@ -3280,7 +3330,7 @@ msgstr "npr. import, blog"
 msgid "e.g., CI/CD Pipeline"
 msgstr "npr. CI/CD Pipeline"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:325
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:765
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "npr. MacBook Pro, iPhone"
 
@@ -3297,7 +3347,7 @@ msgstr "Uredi"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:332
-#: packages/admin/src/components/PortableTextEditor.tsx:1925
+#: packages/admin/src/components/PortableTextEditor.tsx:2157
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
 #: packages/admin/src/components/TaxonomyManager.tsx:277
 #: packages/admin/src/components/TaxonomyManager.tsx:544
@@ -3311,19 +3361,19 @@ msgstr "Uredi {0}"
 msgid "Edit {0} field"
 msgstr "Uredi polje {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:877
+#: packages/admin/src/components/ContentEditor.tsx:903
 msgid "Edit {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1335
+#: packages/admin/src/components/ContentList.tsx:1341
 msgid "Edit {title}"
 msgstr "Uredi {title}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:460
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:260
-#: packages/admin/src/components/ImageFieldRenderer.tsx:298
-#: packages/admin/src/components/ImageFieldRenderer.tsx:354
-#: packages/admin/src/components/ImageFieldRenderer.tsx:422
+#: packages/admin/src/components/ImageFieldRenderer.tsx:302
+#: packages/admin/src/components/ImageFieldRenderer.tsx:358
+#: packages/admin/src/components/ImageFieldRenderer.tsx:426
 #: packages/admin/src/components/MediaPickerModal.tsx:1584
 msgid "Edit asset"
 msgstr ""
@@ -3332,7 +3382,7 @@ msgstr ""
 msgid "Edit byline field"
 msgstr "Uredi polje potpisa autora"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:420
+#: packages/admin/src/components/ImageFieldRenderer.tsx:424
 msgid "Edit dark mode asset"
 msgstr ""
 
@@ -3349,8 +3399,8 @@ msgid "Edit folder"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1467
-#: packages/admin/src/components/MediaLibrary.tsx:1534
+#: packages/admin/src/components/MediaLibrary.tsx:1474
+#: packages/admin/src/components/MediaLibrary.tsx:1541
 msgid "Edit folder {0}"
 msgstr ""
 
@@ -3364,7 +3414,7 @@ msgstr ""
 msgid "Edit image {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3689
+#: packages/admin/src/components/PortableTextEditor.tsx:3926
 msgid "Edit link"
 msgstr "Uredi link"
 
@@ -3426,9 +3476,9 @@ msgstr ""
 msgid "em1.…"
 msgstr "em1.…"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/InviteAcceptPage.tsx:63
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/SignupPage.tsx:213
+#: packages/admin/src/components/SignupPage.tsx:215
 #: packages/admin/src/components/users/UserDetail.tsx:154
 msgid "Email"
 msgstr "E-pošta"
@@ -3469,16 +3519,16 @@ msgstr "Podešavanja e-pošte"
 msgid "Email verified"
 msgstr "E-pošta verifikovana"
 
-#: packages/admin/src/components/SignupPage.tsx:206
+#: packages/admin/src/components/SignupPage.tsx:207
 msgid "Email verified!"
 msgstr "E-pošta verifikovana!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2762
+#: packages/admin/src/components/PortableTextEditor.tsx:2995
 msgid "Embed a {0}"
 msgstr "Ugradi {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2765
+#: packages/admin/src/components/PortableTextEditor.tsx:2998
 msgid "Embeds"
 msgstr "Ugradnje"
 
@@ -3496,6 +3546,10 @@ msgstr "EmDash Exporter dodatak detektovan! Možete direktno uvesti."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:487
 msgid "EmDash is scanning existing content."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:744
+msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:575
@@ -3560,7 +3614,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Unesite URL (https://…) ili relativnu putanju (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1791
+#: packages/admin/src/components/ContentEditor.tsx:1817
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Unesite važeći URL (npr. https://example.com)"
 
@@ -3568,7 +3622,7 @@ msgstr "Unesite važeći URL (npr. https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Unesite akreditive ručno"
 
-#: packages/admin/src/components/ContentEditor.tsx:937
+#: packages/admin/src/components/ContentEditor.tsx:963
 msgid "Enter distraction-free mode"
 msgstr "Uđi u režim bez ometanja"
 
@@ -3580,7 +3634,7 @@ msgstr "Unesite e-poštu"
 msgid "Enter HTML..."
 msgstr "Unesite HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1563
+#: packages/admin/src/components/ContentEditor.tsx:1589
 msgid "Enter markdown content..."
 msgstr "Unesite markdown sadržaj..."
 
@@ -3612,10 +3666,10 @@ msgstr "Unesite URL WordPress sajta"
 #: packages/admin/src/components/MenuEditor.tsx:155
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:539
+#: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2736
 msgid "Error"
 msgstr "Greška"
 
@@ -3664,11 +3718,11 @@ msgstr ""
 msgid "Exists"
 msgstr "Postoji"
 
-#: packages/admin/src/components/ContentEditor.tsx:1003
+#: packages/admin/src/components/ContentEditor.tsx:1029
 msgid "Exit distraction-free mode"
 msgstr "Izađi iz režima bez ometanja"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4519
 msgid "Exit Spotlight Mode"
 msgstr "Izađi iz Spotlight režima"
 
@@ -3726,7 +3780,7 @@ msgstr "Komunikacija sa dodatkom nije uspela"
 msgid "Failed to confirm upload"
 msgstr "Potvrda otpremanja nije uspela"
 
-#: packages/admin/src/components/SetupWizard.tsx:493
+#: packages/admin/src/components/SetupWizard.tsx:486
 msgid "Failed to create admin"
 msgstr "Kreiranje administratora nije uspelo"
 
@@ -3792,7 +3846,7 @@ msgid "Failed to delete collection"
 msgstr "Brisanje kolekcije nije uspelo"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:1989
 msgid "Failed to delete comment"
 msgstr "Brisanje komentara nije uspelo"
 
@@ -3891,7 +3945,7 @@ msgstr "Omogućavanje korisnika nije uspelo"
 msgid "Failed to execute import"
 msgstr "Izvršavanje uvoza nije uspelo"
 
-#: packages/admin/src/lib/api/client.ts:318
+#: packages/admin/src/lib/api/client.ts:319
 msgid "Failed to fetch auth mode"
 msgstr "Preuzimanje režima autentifikacije nije uspelo"
 
@@ -3916,7 +3970,7 @@ msgstr "Preuzimanje podešavanja e-pošte nije uspelo"
 msgid "Failed to fetch entry terms"
 msgstr "Preuzimanje termina unosa nije uspelo"
 
-#: packages/admin/src/lib/api/client.ts:301
+#: packages/admin/src/lib/api/client.ts:302
 msgid "Failed to fetch manifest"
 msgstr "Preuzimanje manifesta nije uspelo"
 
@@ -3978,7 +4032,7 @@ msgstr "Preuzimanje sekcija nije uspelo"
 msgid "Failed to fetch settings"
 msgstr "Preuzimanje podešavanja nije uspelo"
 
-#: packages/admin/src/components/SetupWizard.tsx:446
+#: packages/admin/src/components/SetupWizard.tsx:439
 msgid "Failed to fetch setup status"
 msgstr "Preuzimanje statusa podešavanja nije uspelo"
 
@@ -3990,7 +4044,7 @@ msgstr "Preuzimanje termina nije uspelo"
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:947
-#: packages/admin/src/router.tsx:1897
+#: packages/admin/src/router.tsx:1920
 msgid "Failed to fetch user"
 msgstr "Preuzimanje korisnika nije uspelo"
 
@@ -4006,7 +4060,7 @@ msgstr "Generisanje URL-a pregleda nije uspelo"
 msgid "Failed to get authentication options"
 msgstr "Preuzimanje opcija autentifikacije nije uspelo"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:181
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:336
 msgid "Failed to get registration options"
 msgstr "Preuzimanje opcija registracije nije uspelo"
 
@@ -4084,7 +4138,7 @@ msgstr "Učitavanje dodataka nije uspelo. Agregator registra možda nije dostupa
 msgid "Failed to load revisions"
 msgstr "Učitavanje revizija nije uspelo"
 
-#: packages/admin/src/components/SetupWizard.tsx:541
+#: packages/admin/src/components/SetupWizard.tsx:534
 msgid "Failed to load setup"
 msgstr "Učitavanje podešavanja nije uspelo"
 
@@ -4101,7 +4155,7 @@ msgstr "Učitavanje korisnika nije uspelo: {0}"
 msgid "Failed to load widget"
 msgstr "Učitavanje vidžeta nije uspelo"
 
-#: packages/admin/src/router.tsx:1991
+#: packages/admin/src/router.tsx:2014
 msgid "Failed to perform bulk action"
 msgstr "Izvršavanje grupne akcije nije uspelo"
 
@@ -4183,7 +4237,7 @@ msgstr "Prepisivanje URL-ova nije uspelo"
 
 #: packages/admin/src/router.tsx:735
 #: packages/admin/src/router.tsx:1063
-#: packages/admin/src/router.tsx:2497
+#: packages/admin/src/router.tsx:2520
 msgid "Failed to save"
 msgstr "Čuvanje nije uspelo"
 
@@ -4220,7 +4274,7 @@ msgstr "Slanje linka za oporavak nije uspelo"
 msgid "Failed to send test email"
 msgstr "Slanje test e-pošte nije uspelo"
 
-#: packages/admin/src/components/SignupPage.tsx:366
+#: packages/admin/src/components/SignupPage.tsx:367
 msgid "Failed to send verification email"
 msgstr "Slanje verifikacione e-pošte nije uspelo"
 
@@ -4287,7 +4341,7 @@ msgstr "Ažuriranje sekcije nije uspelo"
 msgid "Failed to update settings"
 msgstr "Ažuriranje podešavanja nije uspelo"
 
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:1973
 msgid "Failed to update status"
 msgstr "Ažuriranje statusa nije uspelo"
 
@@ -4311,7 +4365,7 @@ msgstr "Verifikacija autentifikacije nije uspela"
 msgid "Failed to verify plugin"
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:254
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:412
 msgid "Failed to verify registration"
 msgstr "Verifikacija registracije nije uspela"
 
@@ -4392,7 +4446,7 @@ msgstr "Fajl iz biblioteke medija"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1403
 #: packages/admin/src/components/MediaDetailPanel.tsx:1420
-#: packages/admin/src/components/MediaLibrary.tsx:1201
+#: packages/admin/src/components/MediaLibrary.tsx:1205
 msgid "Filename"
 msgstr "Ime fajla"
 
@@ -4404,7 +4458,7 @@ msgstr "Ime fajla se ne može menjati nakon otpremanja"
 msgid "Files upload as soon as you add them."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:914
+#: packages/admin/src/components/ContentList.tsx:915
 msgid "Filter by author"
 msgstr "Filtriraj po autoru"
 
@@ -4420,7 +4474,7 @@ msgstr "Filtriraj po mogućnosti"
 msgid "Filter by collection"
 msgstr "Filtriraj po kolekciji"
 
-#: packages/admin/src/components/ContentList.tsx:1036
+#: packages/admin/src/components/ContentList.tsx:1037
 msgid "Filter by date range: {rangeLabel}"
 msgstr ""
 
@@ -4432,12 +4486,12 @@ msgstr "Filtriraj po ulozi"
 msgid "Filter by source"
 msgstr "Filtriraj po izvoru"
 
-#: packages/admin/src/components/ContentList.tsx:896
+#: packages/admin/src/components/ContentList.tsx:897
 #: packages/admin/src/components/Redirects.tsx:427
 msgid "Filter by status"
 msgstr "Filtriraj po statusu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:986
+#: packages/admin/src/components/MediaLibrary.tsx:990
 #: packages/admin/src/components/MediaPickerModal.tsx:1276
 #: packages/admin/src/components/Redirects.tsx:433
 msgid "Filter by type"
@@ -4451,7 +4505,7 @@ msgstr "Filtriraj tip potpisa autora"
 msgid "Finish any current edits."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1307
+#: packages/admin/src/components/MediaLibrary.tsx:1314
 #: packages/admin/src/components/MediaPickerModal.tsx:1544
 msgid "First page"
 msgstr ""
@@ -4464,7 +4518,11 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Samo prvi komentatori"
 
-#: packages/admin/src/components/ContentEditor.tsx:671
+#: packages/admin/src/components/ContentEditor.tsx:728
+msgid "Fix invalid fields before changing the publication date"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:684
 msgid "Fix invalid fields before changing the schedule"
 msgstr ""
 
@@ -4490,7 +4548,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1620
+#: packages/admin/src/router.tsx:1643
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -4510,19 +4568,19 @@ msgstr ""
 msgid "Folder unavailable"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1013
+#: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaPickerModal.tsx:1314
 msgid "Folders"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1523
-#: packages/admin/src/components/MediaLibrary.tsx:1023
-#: packages/admin/src/components/MediaLibrary.tsx:1564
+#: packages/admin/src/components/MediaLibrary.tsx:1027
+#: packages/admin/src/components/MediaLibrary.tsx:1571
 #: packages/admin/src/components/MediaPickerModal.tsx:1319
 msgid "Folders could not be loaded."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:818
+#: packages/admin/src/components/MediaLibrary.tsx:822
 msgid "Folders navigation"
 msgstr ""
 
@@ -4547,7 +4605,7 @@ msgid "Freeform"
 msgstr ""
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:987
+#: packages/admin/src/components/ContentList.tsx:988
 msgid "From {0}"
 msgstr ""
 
@@ -4573,7 +4631,7 @@ msgid "Full admin access"
 msgstr "Pun admin pristup"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:2729
+#: packages/admin/src/components/PortableTextEditor.tsx:2962
 msgid "Gallery"
 msgstr ""
 
@@ -4606,7 +4664,7 @@ msgstr "Započnite"
 msgid "GitHub"
 msgstr "GitHub"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:329
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:769
 msgid "Give this passkey a name to help you identify it later."
 msgstr "Dajte ovom passkey-u ime da biste ga kasnije lakše prepoznali."
 
@@ -4615,7 +4673,7 @@ msgid "Go"
 msgstr "Idi"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2733
+#: packages/admin/src/router.tsx:2756
 msgid "Go to Dashboard"
 msgstr "Idi na kontrolnu tablu"
 
@@ -4628,7 +4686,7 @@ msgstr "Google verifikacija"
 msgid "GraphQL"
 msgstr "GraphQL"
 
-#: packages/admin/src/components/MediaLibrary.tsx:941
+#: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:1232
 msgid "Grid view"
 msgstr "Prikaz mreže"
@@ -4651,37 +4709,37 @@ msgstr "Samo gost"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:32
-#: packages/admin/src/components/PortableTextEditor.tsx:1400
+#: packages/admin/src/components/PortableTextEditor.tsx:1632
 msgid "Heading 1"
 msgstr "Naslov 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1410
+#: packages/admin/src/components/PortableTextEditor.tsx:1642
 msgid "Heading 2"
 msgstr "Naslov 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1420
+#: packages/admin/src/components/PortableTextEditor.tsx:1652
 msgid "Heading 3"
 msgstr "Naslov 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1430
+#: packages/admin/src/components/PortableTextEditor.tsx:1662
 msgid "Heading 4"
 msgstr "Naslov 4"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1440
+#: packages/admin/src/components/PortableTextEditor.tsx:1672
 msgid "Heading 5"
 msgstr "Naslov 5"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1450
+#: packages/admin/src/components/PortableTextEditor.tsx:1682
 msgid "Heading 6"
 msgstr "Naslov 6"
 
@@ -4750,7 +4808,7 @@ msgstr "Kako kreirati Application Password"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:37
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1500
+#: packages/admin/src/components/PortableTextEditor.tsx:1732
 msgid "HTML"
 msgstr "HTML"
 
@@ -4758,8 +4816,8 @@ msgstr "HTML"
 msgid "HTML source"
 msgstr "HTML izvor"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3602
-#: packages/admin/src/components/PortableTextEditor.tsx:4212
+#: packages/admin/src/components/PortableTextEditor.tsx:3839
+#: packages/admin/src/components/PortableTextEditor.tsx:4449
 msgid "https://..."
 msgstr "https://..."
 
@@ -4779,6 +4837,10 @@ msgstr "https://yoursite.com"
 msgid "I’ve completed these steps and understand tracking can’t be turned off."
 msgstr ""
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:554
+msgid "I've set it up — check again"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:243
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:153
 msgid "Icon blurred due to image audit"
@@ -4794,7 +4856,7 @@ msgstr "Ako nalog postoji za <0>{email}</0>, poslali smo link za prijavu."
 
 #: packages/admin/src/components/FieldEditor.tsx:236
 #: packages/admin/src/components/FieldEditor.tsx:626
-#: packages/admin/src/components/PortableTextEditor.tsx:2714
+#: packages/admin/src/components/PortableTextEditor.tsx:2947
 msgid "Image"
 msgstr "Slika"
 
@@ -4808,8 +4870,8 @@ msgstr "Slika"
 msgid "Image {0}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:317
-#: packages/admin/src/components/ImageFieldRenderer.tsx:331
+#: packages/admin/src/components/ImageFieldRenderer.tsx:321
+#: packages/admin/src/components/ImageFieldRenderer.tsx:335
 msgid "Image actions"
 msgstr ""
 
@@ -4818,8 +4880,8 @@ msgid "Image from media library"
 msgstr "Slika iz biblioteke medija"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
-#: packages/admin/src/components/ImageFieldRenderer.tsx:463
-#: packages/admin/src/components/ImageFieldRenderer.tsx:515
+#: packages/admin/src/components/ImageFieldRenderer.tsx:467
+#: packages/admin/src/components/ImageFieldRenderer.tsx:519
 msgid "Image not found"
 msgstr "Slika nije pronađena"
 
@@ -4837,9 +4899,13 @@ msgstr "Podešavanja slike"
 msgid "Image Settings"
 msgstr "Podešavanja slike"
 
-#: packages/admin/src/components/SeoImageField.tsx:43
+#: packages/admin/src/components/SeoImageField.tsx:44
 msgid "Image shown when this page is shared on social media"
 msgstr "Slika prikazana kada se ova stranica deli na društvenim mrežama"
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:72
+msgid "Image upload failed. Try again."
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1110
 #: packages/admin/src/components/MediaPickerModal.tsx:1120
@@ -4848,7 +4914,7 @@ msgstr "URL slike"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:64
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:981
+#: packages/admin/src/components/MediaLibrary.tsx:985
 #: packages/admin/src/components/MediaPickerModal.tsx:383
 msgid "Images"
 msgstr "Slike"
@@ -4951,6 +5017,10 @@ msgstr "Uvoz menija i podešavanja sajta..."
 msgid "In trash"
 msgstr ""
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:536
+msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
+msgstr ""
+
 #: packages/admin/src/components/BylineFilter.tsx:187
 #: packages/admin/src/components/BylineFilter.tsx:193
 msgid "Include inferred bylines"
@@ -4968,7 +5038,7 @@ msgstr "Nekompatibilno"
 msgid "Independent verification"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:882
+#: packages/admin/src/components/MediaLibrary.tsx:886
 msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
@@ -4985,49 +5055,49 @@ msgstr ""
 msgid "Indexing existing content"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4072
+#: packages/admin/src/components/PortableTextEditor.tsx:4309
 msgid "Inline Code"
 msgstr "Ugrađeni kod"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1925
+#: packages/admin/src/components/PortableTextEditor.tsx:2157
 msgid "Insert {0}"
 msgstr "Umetni {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1481
+#: packages/admin/src/components/PortableTextEditor.tsx:1713
 msgid "Insert a blockquote"
 msgstr "Umetni citat"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1491
+#: packages/admin/src/components/PortableTextEditor.tsx:1723
 msgid "Insert a code block"
 msgstr "Umetni blok koda"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1509
+#: packages/admin/src/components/PortableTextEditor.tsx:1741
 msgid "Insert a horizontal rule"
 msgstr "Umetni horizontalnu liniju"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2745
+#: packages/admin/src/components/PortableTextEditor.tsx:2978
 msgid "Insert a reusable section"
 msgstr "Umetni ponovo upotrebljivu sekciju"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1519
+#: packages/admin/src/components/PortableTextEditor.tsx:1751
 msgid "Insert a table"
 msgstr "Umetni tabelu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2715
+#: packages/admin/src/components/PortableTextEditor.tsx:2948
 msgid "Insert an image"
 msgstr "Umetni sliku"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2730
+#: packages/admin/src/components/PortableTextEditor.tsx:2963
 msgid "Insert an image gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1753
+#: packages/admin/src/components/PortableTextEditor.tsx:1985
 msgid "Insert block"
 msgstr "Umetni blok"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4024
-#: packages/admin/src/components/PortableTextEditor.tsx:4034
+#: packages/admin/src/components/PortableTextEditor.tsx:4261
+#: packages/admin/src/components/PortableTextEditor.tsx:4271
 msgid "Insert block after current block"
 msgstr "Umetni blok posle trenutnog bloka"
 
@@ -5035,24 +5105,28 @@ msgstr "Umetni blok posle trenutnog bloka"
 msgid "Insert block below"
 msgstr "Umetni blok ispod"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4138
+#: packages/admin/src/components/PortableTextEditor.tsx:4375
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3454
+#: packages/admin/src/components/PortableTextEditor.tsx:3691
 msgid "Insert image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4135
+#: packages/admin/src/components/PortableTextEditor.tsx:4372
 msgid "Insert Image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4182
-#: packages/admin/src/components/PortableTextEditor.tsx:4196
+#: packages/admin/src/components/PortableTextEditor.tsx:4419
+#: packages/admin/src/components/PortableTextEditor.tsx:4433
 msgid "Insert Link"
 msgstr "Umetni link"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1501
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:691
+msgid "Insert or tap your security key when the browser asks."
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1733
 msgid "Insert raw HTML"
 msgstr "Umetni sirovi HTML"
 
@@ -5110,23 +5184,23 @@ msgstr "Instaliranje..."
 msgid "Integer"
 msgstr "Ceo broj"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:152
+#: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
 msgstr "Nevažeći link za pozivnicu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1860
+#: packages/admin/src/components/ContentEditor.tsx:1886
 msgid "Invalid JSON"
 msgstr "Nevažeći JSON"
 
-#: packages/admin/src/components/SignupPage.tsx:275
+#: packages/admin/src/components/SignupPage.tsx:276
 msgid "Invalid link"
 msgstr "Nevažeći link"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:241
+#: packages/admin/src/components/InviteAcceptPage.tsx:240
 msgid "Invite Error"
 msgstr "Greška pozivnice"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:150
+#: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
 msgstr "Pozivnica istekla"
 
@@ -5151,13 +5225,17 @@ msgstr ""
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3646
-#: packages/admin/src/components/PortableTextEditor.tsx:4051
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
+msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3883
+#: packages/admin/src/components/PortableTextEditor.tsx:4288
 msgid "Italic"
 msgstr "Kurziv"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2306
+#: packages/admin/src/components/PortableTextEditor.tsx:2538
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "Stavka {0}"
@@ -5178,8 +5256,9 @@ msgstr "Stavka ažurirana"
 msgid "Its listing has not been approved for display. Check back later."
 msgstr ""
 
+#: packages/admin/src/components/InviteAcceptPage.tsx:70
 #: packages/admin/src/components/SetupWizard.tsx:213
-#: packages/admin/src/components/SignupPage.tsx:221
+#: packages/admin/src/components/SignupPage.tsx:222
 msgid "Jane Doe"
 msgstr "Jane Doe"
 
@@ -5275,7 +5354,7 @@ msgstr ""
 msgid "Language"
 msgstr "Jezik"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1401
+#: packages/admin/src/components/PortableTextEditor.tsx:1633
 msgid "Large section heading"
 msgstr "Veliki naslov sekcije"
 
@@ -5291,7 +5370,7 @@ msgstr "Poslednja prijava"
 msgid "Last Login"
 msgstr "Poslednja prijava"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1310
+#: packages/admin/src/components/MediaLibrary.tsx:1317
 #: packages/admin/src/components/MediaPickerModal.tsx:1547
 msgid "Last page"
 msgstr ""
@@ -5333,7 +5412,7 @@ msgstr "Levo"
 #: packages/admin/src/components/MediaLibrary.tsx:319
 #: packages/admin/src/components/MediaLibrary.tsx:478
 #: packages/admin/src/components/MediaLibrary.tsx:751
-#: packages/admin/src/components/MediaLibrary.tsx:1352
+#: packages/admin/src/components/MediaLibrary.tsx:1359
 #: packages/admin/src/components/MediaPickerModal.tsx:358
 #: packages/admin/src/components/MediaPickerModal.tsx:375
 msgid "Library"
@@ -5355,7 +5434,7 @@ msgstr "Svetlo"
 msgid "Limit"
 msgstr "Limit"
 
-#: packages/admin/src/components/SignupPage.tsx:273
+#: packages/admin/src/components/SignupPage.tsx:274
 msgid "Link expired"
 msgstr "Link je istekao"
 
@@ -5384,7 +5463,7 @@ msgstr "LinkedIn"
 msgid "Links"
 msgstr "Linkovi"
 
-#: packages/admin/src/components/MediaLibrary.tsx:950
+#: packages/admin/src/components/MediaLibrary.tsx:954
 #: packages/admin/src/components/MediaPickerModal.tsx:1242
 msgid "List view"
 msgstr "Prikaz liste"
@@ -5396,8 +5475,8 @@ msgstr "Prikaz liste"
 msgid "Live version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:911
-#: packages/admin/src/components/ContentEditor.tsx:961
+#: packages/admin/src/components/ContentEditor.tsx:937
+#: packages/admin/src/components/ContentEditor.tsx:987
 #: packages/admin/src/components/ContentSettingsPanel.tsx:660
 msgid "Live View"
 msgstr "Prikaz uživo"
@@ -5412,21 +5491,21 @@ msgstr "Prikaz uživo"
 msgid "Load more"
 msgstr "Učitaj više"
 
-#: packages/admin/src/components/ContentList.tsx:744
-#: packages/admin/src/components/ContentList.tsx:808
-#: packages/admin/src/components/MediaLibrary.tsx:1345
+#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
 msgstr "Učitaj više"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1542
-#: packages/admin/src/components/MediaLibrary.tsx:1053
-#: packages/admin/src/components/MediaLibrary.tsx:1245
+#: packages/admin/src/components/MediaLibrary.tsx:1057
+#: packages/admin/src/components/MediaLibrary.tsx:1249
 #: packages/admin/src/components/MediaPickerModal.tsx:1368
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2688
+#: packages/admin/src/router.tsx:2711
 msgid "Loading"
 msgstr ""
 
@@ -5442,8 +5521,8 @@ msgstr "Učitavanje kolekcija..."
 msgid "Loading comments..."
 msgstr "Učitavanje komentara..."
 
-#: packages/admin/src/router.tsx:2690
-#: packages/admin/src/router.tsx:2702
+#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2725
 msgid "Loading configuration..."
 msgstr "Učitavanje konfiguracije..."
 
@@ -5451,12 +5530,12 @@ msgstr "Učitavanje konfiguracije..."
 msgid "Loading content..."
 msgstr "Učitavanje sadržaja..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3364
+#: packages/admin/src/components/PortableTextEditor.tsx:3601
 msgid "Loading editor..."
 msgstr "Učitavanje editora..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:997
-#: packages/admin/src/components/MediaLibrary.tsx:1213
+#: packages/admin/src/components/MediaLibrary.tsx:1001
+#: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1337
 msgid "Loading folders"
 msgstr ""
@@ -5501,7 +5580,7 @@ msgstr "Učitavanje sekcija..."
 msgid "Loading settings..."
 msgstr "Učitavanje podešavanja..."
 
-#: packages/admin/src/components/SetupWizard.tsx:528
+#: packages/admin/src/components/SetupWizard.tsx:521
 msgid "Loading setup..."
 msgstr "Učitavanje podešavanja..."
 
@@ -5518,18 +5597,18 @@ msgid "Loading widgets..."
 msgstr "Učitavanje vidžeta..."
 
 #: packages/admin/src/components/ContentList.tsx:647
-#: packages/admin/src/components/ContentList.tsx:744
-#: packages/admin/src/components/ContentList.tsx:778
-#: packages/admin/src/components/ContentList.tsx:808
+#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentList.tsx:779
+#: packages/admin/src/components/ContentList.tsx:809
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
 #: packages/admin/src/components/MediaDetailPanel.tsx:612
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
 #: packages/admin/src/components/MediaDetailPanel.tsx:1729
-#: packages/admin/src/components/MediaLibrary.tsx:1345
+#: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:204
-#: packages/admin/src/components/PortableTextEditor.tsx:2433
+#: packages/admin/src/components/PortableTextEditor.tsx:2665
 #: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:165
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
@@ -5555,7 +5634,7 @@ msgid "Local time"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:619
-#: packages/admin/src/components/ContentList.tsx:761
+#: packages/admin/src/components/ContentList.tsx:762
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Lokal"
@@ -5734,8 +5813,8 @@ msgstr "Maksimalno oznaka"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2718
-#: packages/admin/src/components/PortableTextEditor.tsx:2733
+#: packages/admin/src/components/PortableTextEditor.tsx:2951
+#: packages/admin/src/components/PortableTextEditor.tsx:2966
 #: packages/admin/src/components/Settings.tsx:70
 #: packages/admin/src/components/Sidebar.tsx:270
 #: packages/admin/src/components/WordPressImport.tsx:770
@@ -5770,12 +5849,12 @@ msgid "Media in this folder will return to Main library. No files will be delete
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:153
-#: packages/admin/src/components/MediaLibrary.tsx:815
-#: packages/admin/src/components/MediaLibrary.tsx:830
+#: packages/admin/src/components/MediaLibrary.tsx:819
+#: packages/admin/src/components/MediaLibrary.tsx:834
 msgid "Media Library"
 msgstr "Biblioteka medija"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1306
+#: packages/admin/src/components/MediaLibrary.tsx:1313
 #: packages/admin/src/components/MediaPickerModal.tsx:1543
 msgid "Media pagination"
 msgstr ""
@@ -5793,7 +5872,7 @@ msgstr ""
 msgid "Media usage tracking"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:879
+#: packages/admin/src/components/MediaLibrary.tsx:883
 msgid "Media usage tracking is indexing existing content"
 msgstr ""
 
@@ -5805,11 +5884,11 @@ msgstr ""
 msgid "Media usage tracking is ready"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:880
+#: packages/admin/src/components/MediaLibrary.tsx:884
 msgid "Media usage tracking is setting up"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:877
+#: packages/admin/src/components/MediaLibrary.tsx:881
 msgid "Media usage tracking needs attention"
 msgstr ""
 
@@ -5817,7 +5896,7 @@ msgstr ""
 msgid "Media Write"
 msgstr "Pisanje medija"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1411
+#: packages/admin/src/components/PortableTextEditor.tsx:1643
 msgid "Medium section heading"
 msgstr "Srednji naslov sekcije"
 
@@ -5914,7 +5993,7 @@ msgstr "Min. dužina"
 msgid "Min Value"
 msgstr "Min. vrednost"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1441
+#: packages/admin/src/components/PortableTextEditor.tsx:1673
 msgid "Minor section heading"
 msgstr ""
 
@@ -5947,7 +6026,7 @@ msgstr "Mesečni/godišnji arhivi"
 msgid "More actions for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:500
+#: packages/admin/src/components/ImageFieldRenderer.tsx:504
 msgid "More information about {label}"
 msgstr ""
 
@@ -5973,7 +6052,7 @@ msgstr "Pomeri \"{0}\" nadole"
 msgid "Move \"{0}\" up"
 msgstr "Pomeri \"{0}\" nagore"
 
-#: packages/admin/src/components/ContentList.tsx:1364
+#: packages/admin/src/components/ContentList.tsx:1370
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Premestiti \"{title}\" u otpad? Možete ga kasnije vratiti."
 
@@ -6007,7 +6086,7 @@ msgstr ""
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1355
+#: packages/admin/src/components/ContentList.tsx:1361
 msgid "Move {title} to trash"
 msgstr "Premesti {title} u otpad"
 
@@ -6015,7 +6094,7 @@ msgstr "Premesti {title} u otpad"
 msgid "Move down"
 msgstr "Pomeri nadole"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1088
+#: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Move media here from Media Details."
 msgstr ""
 
@@ -6028,14 +6107,14 @@ msgid "Move to trash"
 msgstr "Premesti u otpad"
 
 #: packages/admin/src/components/ContentList.tsx:556
-#: packages/admin/src/components/ContentList.tsx:1377
+#: packages/admin/src/components/ContentList.tsx:1383
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1200
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1220
 msgid "Move to Trash"
 msgstr "Premesti u otpad"
 
 #: packages/admin/src/components/ContentList.tsx:534
-#: packages/admin/src/components/ContentList.tsx:1362
+#: packages/admin/src/components/ContentList.tsx:1368
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1205
 msgid "Move to Trash?"
 msgstr "Premestiti u otpad?"
@@ -6148,7 +6227,7 @@ msgstr "NOVO"
 msgid "New {0}"
 msgstr "Novo {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:877
+#: packages/admin/src/components/ContentEditor.tsx:903
 msgid "New {itemLabel}"
 msgstr ""
 
@@ -6169,7 +6248,7 @@ msgstr "Novi tip sadržaja"
 msgid "New field"
 msgstr "Novo polje"
 
-#: packages/admin/src/components/MediaLibrary.tsx:852
+#: packages/admin/src/components/MediaLibrary.tsx:856
 msgid "New folder"
 msgstr ""
 
@@ -6219,8 +6298,8 @@ msgid "Next"
 msgstr "Sledeće"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:363
-#: packages/admin/src/components/ContentList.tsx:732
-#: packages/admin/src/components/MediaLibrary.tsx:1309
+#: packages/admin/src/components/ContentList.tsx:733
+#: packages/admin/src/components/MediaLibrary.tsx:1316
 #: packages/admin/src/components/MediaPickerModal.tsx:1546
 msgid "Next page"
 msgstr "Sledeća stranica"
@@ -6229,7 +6308,17 @@ msgstr "Sledeća stranica"
 msgid "Next screenshot"
 msgstr "Sledeći snimak ekrana"
 
-#: packages/admin/src/components/ContentList.tsx:1400
+#. placeholder {0}: platformCopy.name
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:726
+msgid "Next, {0} will open"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:652
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:689
+msgid "Next, the browser's passkey window will open"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1406
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
@@ -6258,8 +6347,8 @@ msgstr "Još nema {0}. Kreirajte jedan da biste počeli."
 msgid "No 404 errors recorded yet."
 msgstr "Još nema zabeleženih 404 grešaka."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1780
-#: packages/admin/src/components/MediaLibrary.tsx:1837
+#: packages/admin/src/components/MediaLibrary.tsx:1787
+#: packages/admin/src/components/MediaLibrary.tsx:1844
 msgid "No alt text"
 msgstr "Nema alt teksta"
 
@@ -6270,6 +6359,10 @@ msgstr "Još nema API tokena. Kreirajte jedan da biste počeli."
 #: packages/admin/src/components/comments/CommentInbox.tsx:539
 msgid "No approved comments yet."
 msgstr "Još nema odobrenih komentara."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:585
+msgid "No built-in passkey authenticator found"
+msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
@@ -6376,11 +6469,11 @@ msgstr ""
 msgid "No installable releases"
 msgstr "Nema verzija za instalaciju"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:193
+#: packages/admin/src/components/InviteAcceptPage.tsx:192
 msgid "No invite token provided"
 msgstr "Nije prosleđen token za pozivnicu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2229
+#: packages/admin/src/components/PortableTextEditor.tsx:2461
 #: packages/admin/src/components/RepeaterField.tsx:165
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
@@ -6402,8 +6495,8 @@ msgstr "Nema podudaranja"
 msgid "No matching bylines."
 msgstr "Nema odgovarajućih potpisa autora."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1072
-#: packages/admin/src/components/MediaLibrary.tsx:1111
+#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1115
 msgid "No matching media"
 msgstr "Nema odgovarajućih medija"
 
@@ -6416,11 +6509,11 @@ msgstr "Nije pronađen odgovarajući passkey za ovaj nalog."
 msgid "No maximum"
 msgstr "Bez maksimuma"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1134
+#: packages/admin/src/components/MediaLibrary.tsx:1138
 msgid "No media available from this provider."
 msgstr "Nema dostupnih medija od ovog provajdera."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1133
+#: packages/admin/src/components/MediaLibrary.tsx:1137
 #: packages/admin/src/components/MediaPickerModal.tsx:1406
 msgid "No media found"
 msgstr "Mediji nisu pronađeni"
@@ -6490,7 +6583,7 @@ msgstr "Nema nedavne aktivnosti"
 msgid "No redirects yet"
 msgstr "Još nema preusmeravanja"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1778
+#: packages/admin/src/components/PortableTextEditor.tsx:2010
 #: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "Nema rezultata"
@@ -6555,6 +6648,10 @@ msgstr "Još nema korisnika."
 msgid "No widget areas yet. Create one to get started."
 msgstr "Još nema oblasti za vidžete. Kreirajte jednu da biste počeli."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
+msgid "No Windows Hello authenticator found"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:226
 msgid "None"
 msgstr "Nijedan"
@@ -6568,7 +6665,7 @@ msgstr "Nijedan (najviši nivo)"
 msgid "Not compatible with this environment"
 msgstr "Nije kompatibilno sa ovim okruženjem"
 
-#: packages/admin/src/components/ContentList.tsx:1399
+#: packages/admin/src/components/ContentList.tsx:1405
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
 msgstr ""
@@ -6587,8 +6684,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "Broj objava po stranici u prikazima liste"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1470
-#: packages/admin/src/components/PortableTextEditor.tsx:4099
+#: packages/admin/src/components/PortableTextEditor.tsx:1702
+#: packages/admin/src/components/PortableTextEditor.tsx:4336
 msgid "Numbered List"
 msgstr "Numerisana lista"
 
@@ -6600,7 +6697,8 @@ msgstr "OAuth autorizacija zahteva HTTPS. Koristite ručne akreditive."
 msgid "Off"
 msgstr ""
 
-#: packages/admin/src/components/SeoImageField.tsx:46
+#: packages/admin/src/components/SeoImageField.tsx:47
+#: packages/admin/src/components/SeoImageField.tsx:75
 msgid "OG Image"
 msgstr "OG slika"
 
@@ -6612,6 +6710,10 @@ msgstr "Autorizujte samo kodove koje prepoznajete."
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "Samo e-adrese sa dozvoljenih domena mogu da se registruju."
 
+#: packages/admin/src/components/media/ImageDropTarget.tsx:53
+msgid "Only image files can be dropped here."
+msgstr ""
+
 #: packages/admin/src/components/MenuList.tsx:162
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "Samo mala slova, brojevi i crtice"
@@ -6620,7 +6722,7 @@ msgstr "Samo mala slova, brojevi i crtice"
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "Za ovo polje biće prihvaćeni samo navedeni MIME tipovi."
 
-#: packages/admin/src/components/SignupPage.tsx:419
+#: packages/admin/src/components/SignupPage.tsx:420
 msgid "Oops!"
 msgstr "Ups!"
 
@@ -6630,8 +6732,8 @@ msgstr ""
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:183
-#: packages/admin/src/components/MediaLibrary.tsx:1451
-#: packages/admin/src/components/MediaLibrary.tsx:1522
+#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1529
 msgid "Open folder {0}"
 msgstr ""
 
@@ -6644,8 +6746,18 @@ msgstr ""
 msgid "Open in new tab"
 msgstr "Otvori u novom tabu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:885
+#: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "Open setup"
+msgstr ""
+
+#: packages/admin/src/components/InviteAcceptPage.tsx:83
+#: packages/admin/src/components/SetupWizard.tsx:294
+#: packages/admin/src/components/SignupPage.tsx:237
+msgid "Open the dashboard"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:545
+msgid "Open Windows settings"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1550
@@ -6704,9 +6816,9 @@ msgstr "Ili kliknite za pregled. Prihvata .xml fajlove izvežene iz WordPress-a.
 msgid "or connect by URL"
 msgstr "ili poveži putem URL-a"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:97
+#: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:263
-#: packages/admin/src/components/SetupWizard.tsx:310
+#: packages/admin/src/components/SetupWizard.tsx:307
 msgid "Or continue with"
 msgstr "Ili nastavi sa"
 
@@ -6758,16 +6870,16 @@ msgstr "Vlasništvo"
 msgid "Package"
 msgstr "Paket"
 
-#: packages/admin/src/router.tsx:2728
+#: packages/admin/src/router.tsx:2751
 msgid "Page Not Found"
 msgstr "Stranica nije pronađena"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1311
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 #: packages/admin/src/components/MediaPickerModal.tsx:1548
 msgid "Page number"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1312
+#: packages/admin/src/components/MediaLibrary.tsx:1319
 #: packages/admin/src/components/MediaPickerModal.tsx:1549
 msgid "Page size"
 msgstr ""
@@ -6803,16 +6915,20 @@ msgstr "Prođi"
 msgid "Passkey added successfully"
 msgstr "Passkey uspešno dodat"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:505
+msgid "Passkey created"
+msgstr ""
+
 #: packages/admin/src/components/settings/PasskeyItem.tsx:123
 #: packages/admin/src/components/settings/PasskeyItem.tsx:124
 msgid "Passkey name"
 msgstr "Naziv passkey-a"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:321
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:761
 msgid "Passkey Name (optional)"
 msgstr "Naziv passkey-a (opciono)"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:344
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:784
 msgid "Passkey registered successfully!"
 msgstr "Passkey uspešno registrovan!"
 
@@ -6838,13 +6954,8 @@ msgstr "Passkey-evi ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Passkey-evi su siguran način prijave bez lozinke na vaš nalog. Možete registrovati više passkey-eva za različite uređaje."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:77
-#: packages/admin/src/components/SignupPage.tsx:229
-msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
-msgstr "Passkey-evi su siguran način prijave bez lozinke pomoću biometrije, PIN-a ili sigurnosnog ključa vašeg uređaja."
-
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:302
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:301
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:475
 msgid "Passkeys Not Available Here"
 msgstr "Passkey-evi nisu dostupni ovde"
 
@@ -6902,7 +7013,7 @@ msgstr "Izmene na čekanju"
 msgid "People shown publicly on this post."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1326
+#: packages/admin/src/components/MediaLibrary.tsx:1333
 msgid "Per page"
 msgstr ""
 
@@ -6910,11 +7021,11 @@ msgstr ""
 msgid "Period"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1546
+#: packages/admin/src/components/ContentList.tsx:1552
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "Trajno obrisati \"{title}\"? Ovo se ne može poništiti."
 
-#: packages/admin/src/components/ContentList.tsx:1535
+#: packages/admin/src/components/ContentList.tsx:1541
 msgid "Permanently delete {title}"
 msgstr "Trajno obriši {title}"
 
@@ -6925,10 +7036,6 @@ msgstr "Dozvole"
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:46
 msgid "PHP"
 msgstr "PHP"
-
-#: packages/admin/src/components/SetupWizard.tsx:290
-msgid "Pick any method to create your admin account."
-msgstr "Izaberite bilo koji način za kreiranje admin naloga."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:143
 msgid "Picked up {label}."
@@ -6943,7 +7050,7 @@ msgstr "Tekst placeholder-a"
 msgid "Plain text"
 msgstr "Običan tekst"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:166
+#: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
 msgstr "Zamolite administratora da pošalje novu pozivnicu."
 
@@ -7101,7 +7208,7 @@ msgstr "Objava po stranici"
 msgid "Pre-release"
 msgstr "Pre-release"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:171
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:326
 msgid "Preparing registration..."
 msgstr "Priprema registracije..."
 
@@ -7121,7 +7228,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:387
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaDetailPanel.tsx:1676
-#: packages/admin/src/components/MediaLibrary.tsx:1200
+#: packages/admin/src/components/MediaLibrary.tsx:1204
 msgid "Preview"
 msgstr "Pregled"
 
@@ -7138,8 +7245,8 @@ msgid "Previous"
 msgstr "Prethodno"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:344
-#: packages/admin/src/components/ContentList.tsx:720
-#: packages/admin/src/components/MediaLibrary.tsx:1308
+#: packages/admin/src/components/ContentList.tsx:721
+#: packages/admin/src/components/MediaLibrary.tsx:1315
 #: packages/admin/src/components/MediaPickerModal.tsx:1545
 msgid "Previous page"
 msgstr "Prethodna stranica"
@@ -7203,8 +7310,8 @@ msgstr ""
 msgid "Publish now"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:858
-#: packages/admin/src/components/ContentList.tsx:869
+#: packages/admin/src/components/ContentList.tsx:859
+#: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:297
 #: packages/admin/src/router.tsx:1169
@@ -7258,8 +7365,8 @@ msgid "Quick edit alt text"
 msgstr "Brzo uredi alt tekst"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1480
-#: packages/admin/src/components/PortableTextEditor.tsx:4124
+#: packages/admin/src/components/PortableTextEditor.tsx:1712
+#: packages/admin/src/components/PortableTextEditor.tsx:4361
 msgid "Quote"
 msgstr "Citat"
 
@@ -7347,7 +7454,7 @@ msgstr "Preusmeravanje na prijavu..."
 msgid "Redirects"
 msgstr "Preusmeravanja"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4269
+#: packages/admin/src/components/PortableTextEditor.tsx:4506
 msgid "Redo"
 msgstr "Ponovi"
 
@@ -7375,7 +7482,7 @@ msgstr "Osvežite stranicu ili pokušajte ponovo."
 msgid "Register"
 msgstr "Registruj se"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:147
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:273
 #: packages/admin/src/components/settings/SecuritySettings.tsx:182
 msgid "Register Passkey"
 msgstr "Registruj passkey"
@@ -7384,11 +7491,11 @@ msgstr "Registruj passkey"
 msgid "Registered user"
 msgstr "Registrovani korisnik"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:260
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:419
 msgid "Registration failed"
 msgstr "Registracija nije uspela"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:267
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:426
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "Registracija je otkazana ili je isteklo vreme. Pokušajte ponovo."
 
@@ -7410,15 +7517,15 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2020
+#: packages/admin/src/components/ContentEditor.tsx:2046
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:471
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:731
-#: packages/admin/src/components/ImageFieldRenderer.tsx:310
-#: packages/admin/src/components/ImageFieldRenderer.tsx:363
-#: packages/admin/src/components/ImageFieldRenderer.tsx:434
+#: packages/admin/src/components/ImageFieldRenderer.tsx:314
+#: packages/admin/src/components/ImageFieldRenderer.tsx:367
+#: packages/admin/src/components/ImageFieldRenderer.tsx:438
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/PortableTextEditor.tsx:4242
+#: packages/admin/src/components/PortableTextEditor.tsx:4479
 #: packages/admin/src/components/settings/GeneralSettings.tsx:229
 #: packages/admin/src/components/settings/GeneralSettings.tsx:289
 #: packages/admin/src/components/settings/PasskeyItem.tsx:180
@@ -7446,7 +7553,7 @@ msgstr ""
 msgid "Remove {entry}"
 msgstr "Ukloni {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2018
+#: packages/admin/src/components/ContentEditor.tsx:2044
 msgid "Remove {label}"
 msgstr "Ukloni {label}"
 
@@ -7454,7 +7561,7 @@ msgstr "Ukloni {label}"
 msgid "Remove assignment"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:432
+#: packages/admin/src/components/ImageFieldRenderer.tsx:436
 msgid "Remove dark mode variant"
 msgstr ""
 
@@ -7471,8 +7578,8 @@ msgid "Remove from post"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:528
-#: packages/admin/src/components/ImageFieldRenderer.tsx:308
-#: packages/admin/src/components/SeoImageField.tsx:65
+#: packages/admin/src/components/ImageFieldRenderer.tsx:312
+#: packages/admin/src/components/SeoImageField.tsx:66
 msgid "Remove image"
 msgstr "Ukloni sliku"
 
@@ -7486,13 +7593,13 @@ msgid "Remove image?"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2345
+#: packages/admin/src/components/PortableTextEditor.tsx:2577
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "Ukloni stavku {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3627
-#: packages/admin/src/components/PortableTextEditor.tsx:3628
+#: packages/admin/src/components/PortableTextEditor.tsx:3864
+#: packages/admin/src/components/PortableTextEditor.tsx:3865
 msgid "Remove link"
 msgstr "Ukloni link"
 
@@ -7559,30 +7666,30 @@ msgstr "Ponavljač"
 msgid "Repeating group of fields"
 msgstr "Grupa polja koja se ponavlja"
 
-#: packages/admin/src/components/ContentEditor.tsx:2010
-#: packages/admin/src/components/ContentEditor.tsx:2047
+#: packages/admin/src/components/ContentEditor.tsx:2036
+#: packages/admin/src/components/ContentEditor.tsx:2073
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:447
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:504
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:250
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:284
-#: packages/admin/src/components/ImageFieldRenderer.tsx:344
-#: packages/admin/src/components/ImageFieldRenderer.tsx:407
-#: packages/admin/src/components/ImageFieldRenderer.tsx:565
-#: packages/admin/src/components/ImageFieldRenderer.tsx:568
+#: packages/admin/src/components/ImageFieldRenderer.tsx:288
+#: packages/admin/src/components/ImageFieldRenderer.tsx:348
+#: packages/admin/src/components/ImageFieldRenderer.tsx:411
+#: packages/admin/src/components/ImageFieldRenderer.tsx:577
+#: packages/admin/src/components/ImageFieldRenderer.tsx:580
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2046
-#: packages/admin/src/components/ImageFieldRenderer.tsx:559
+#: packages/admin/src/components/ContentEditor.tsx:2072
+#: packages/admin/src/components/ImageFieldRenderer.tsx:571
 msgid "Replace {label}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:405
+#: packages/admin/src/components/ImageFieldRenderer.tsx:409
 msgid "Replace dark mode image"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:556
+#: packages/admin/src/components/ImageFieldRenderer.tsx:568
 msgid "Replace dark mode variant for {label}"
 msgstr ""
 
@@ -7626,11 +7733,11 @@ msgstr "Odgovori na:"
 msgid "Repository"
 msgstr "Repozitorijum"
 
-#: packages/admin/src/components/SignupPage.tsx:289
+#: packages/admin/src/components/SignupPage.tsx:290
 msgid "Request a new link"
 msgstr "Zatraži novi link"
 
-#: packages/admin/src/lib/api/client.ts:289
+#: packages/admin/src/lib/api/client.ts:290
 msgid "Request failed"
 msgstr "Zahtev nije uspeo"
 
@@ -7713,11 +7820,11 @@ msgstr ""
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1204
+#: packages/admin/src/components/ContentEditor.tsx:1230
 msgid "Resize settings panel"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4115
+#: packages/admin/src/components/PortableTextEditor.tsx:4352
 msgid "Restart numbering"
 msgstr ""
 
@@ -7725,7 +7832,7 @@ msgstr ""
 msgid "Restore"
 msgstr "Vrati"
 
-#: packages/admin/src/components/ContentList.tsx:1523
+#: packages/admin/src/components/ContentList.tsx:1529
 msgid "Restore {title}"
 msgstr "Vrati {title}"
 
@@ -7755,8 +7862,8 @@ msgstr "Vraćanje..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:218
 #: packages/admin/src/components/MediaDetailPanel.tsx:1529
-#: packages/admin/src/components/MediaLibrary.tsx:1017
-#: packages/admin/src/components/MediaLibrary.tsx:1567
+#: packages/admin/src/components/MediaLibrary.tsx:1021
+#: packages/admin/src/components/MediaLibrary.tsx:1574
 #: packages/admin/src/components/MediaPickerModal.tsx:1208
 #: packages/admin/src/components/MediaPickerModal.tsx:1304
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
@@ -7764,7 +7871,7 @@ msgstr "Vraćanje..."
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2716
+#: packages/admin/src/router.tsx:2739
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Pokušaj ponovo"
@@ -7948,7 +8055,7 @@ msgstr "Sačuvaj (Enter)"
 msgid "Save alt text"
 msgstr "Sačuvaj alt tekst"
 
-#: packages/admin/src/components/ContentEditor.tsx:1025
+#: packages/admin/src/components/ContentEditor.tsx:1051
 msgid "Save anyway"
 msgstr ""
 
@@ -8023,6 +8130,10 @@ msgstr "SBOM"
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:645
+msgid "Scan it with a nearby phone or tablet."
+msgstr ""
+
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Schedule"
 msgstr "Zakazivanje"
@@ -8042,7 +8153,7 @@ msgstr ""
 msgid "Schedule publication"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:860
+#: packages/admin/src/components/ContentList.tsx:861
 #: packages/admin/src/components/ContentSettingsPanel.tsx:545
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1252
@@ -8138,7 +8249,7 @@ msgstr "Pretraži {0}"
 msgid "Search {0}..."
 msgstr "Pretraži {0}..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:962
+#: packages/admin/src/components/MediaLibrary.tsx:966
 #: packages/admin/src/components/MediaPickerModal.tsx:1255
 msgid "Search by filename..."
 msgstr "Pretraži po nazivu fajla..."
@@ -8191,7 +8302,7 @@ msgstr ""
 msgid "Search form"
 msgstr "Obrazac za pretragu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:963
+#: packages/admin/src/components/MediaLibrary.tsx:967
 #: packages/admin/src/components/MediaPickerModal.tsx:1257
 msgid "Search media"
 msgstr "Pretraži medije"
@@ -8239,7 +8350,7 @@ msgstr ""
 msgid "Search users"
 msgstr "Pretraži korisnike"
 
-#: packages/admin/src/components/MediaLibrary.tsx:962
+#: packages/admin/src/components/MediaLibrary.tsx:966
 #: packages/admin/src/components/MediaPickerModal.tsx:1255
 msgid "Search..."
 msgstr "Pretraži..."
@@ -8254,7 +8365,7 @@ msgstr "Pretraživo"
 msgid "Searching…"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2744
+#: packages/admin/src/components/PortableTextEditor.tsx:2977
 msgid "Section"
 msgstr "Sekcija"
 
@@ -8288,7 +8399,7 @@ msgstr "Naslov sekcije"
 msgid "Sections"
 msgstr "Sekcije"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:554
 msgid "Secure your account"
 msgstr "Obezbedi svoj nalog"
 
@@ -8326,7 +8437,7 @@ msgid "Security contacts"
 msgstr "Bezbednosni kontakti"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:271
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:276
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:435
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Bezbednosna greška. Uveri se da koristiš bezbednu vezu."
 
@@ -8351,13 +8462,13 @@ msgid "Select"
 msgstr "Izaberi"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:2030
-#: packages/admin/src/components/ContentEditor.tsx:2046
-#: packages/admin/src/components/ImageFieldRenderer.tsx:560
+#: packages/admin/src/components/ContentEditor.tsx:2056
+#: packages/admin/src/components/ContentEditor.tsx:2072
+#: packages/admin/src/components/ImageFieldRenderer.tsx:572
 msgid "Select {label}"
 msgstr "Izaberi {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1260
+#: packages/admin/src/components/ContentList.tsx:1263
 msgid "Select {title}"
 msgstr "Izaberi {title}"
 
@@ -8394,7 +8505,7 @@ msgstr "Izaberi komentar od {0}"
 msgid "Select Content"
 msgstr "Izaberi sadržaj"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:557
+#: packages/admin/src/components/ImageFieldRenderer.tsx:569
 msgid "Select dark mode variant for {label}"
 msgstr ""
 
@@ -8410,18 +8521,18 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "Izaberi favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:2034
+#: packages/admin/src/components/ContentEditor.tsx:2060
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 msgid "Select file"
 msgstr "Izaberi fajl"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3468
+#: packages/admin/src/components/PortableTextEditor.tsx:3705
 msgid "Select gallery images"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:540
+#: packages/admin/src/components/ImageFieldRenderer.tsx:552
 #: packages/admin/src/components/MediaPickerModal.tsx:228
-#: packages/admin/src/components/PortableTextEditor.tsx:3453
+#: packages/admin/src/components/PortableTextEditor.tsx:3690
 msgid "Select image"
 msgstr "Izaberi sliku"
 
@@ -8441,8 +8552,7 @@ msgstr "Izaberi logo"
 msgid "Select media"
 msgstr "Izaberi medije"
 
-#: packages/admin/src/components/SeoImageField.tsx:80
-#: packages/admin/src/components/SeoImageField.tsx:89
+#: packages/admin/src/components/SeoImageField.tsx:85
 msgid "Select OG image"
 msgstr "Izaberi OG sliku"
 
@@ -8451,17 +8561,17 @@ msgid "Select which content types to import."
 msgstr "Izaberi koje tipove sadržaja da uvezeš."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2440
+#: packages/admin/src/components/PortableTextEditor.tsx:2672
 #: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "Izaberi..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1769
+#: packages/admin/src/components/PortableTextEditor.tsx:2001
 msgid "Selected {selectedItemTitle}"
 msgstr "Izabrano {selectedItemTitle}"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:245
-#: packages/admin/src/components/ImageFieldRenderer.tsx:260
+#: packages/admin/src/components/ImageFieldRenderer.tsx:249
+#: packages/admin/src/components/ImageFieldRenderer.tsx:264
 msgid "Selected image"
 msgstr ""
 
@@ -8564,11 +8674,16 @@ msgstr "Postavi na 0 da se komentari nikada ne zatvaraju automatski."
 msgid "Set to draft"
 msgstr "Postavi kao nacrt"
 
-#: packages/admin/src/components/MediaLibrary.tsx:875
+#: packages/admin/src/components/MediaLibrary.tsx:879
 msgid "Set up media usage tracking"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:559
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:534
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:602
+msgid "Set up Windows Hello"
+msgstr ""
+
+#: packages/admin/src/components/SetupWizard.tsx:552
 msgid "Set up your site"
 msgstr "Podesi svoj sajt"
 
@@ -8582,8 +8697,8 @@ msgid "Setting up..."
 msgstr "Podešava se..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:1072
-#: packages/admin/src/components/ContentEditor.tsx:1368
+#: packages/admin/src/components/ContentEditor.tsx:1098
+#: packages/admin/src/components/ContentEditor.tsx:1394
 #: packages/admin/src/components/ContentTypeEditor.tsx:382
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:491
@@ -8610,7 +8725,7 @@ msgstr "Podešavanja uspešno sačuvana"
 msgid "Setup couldn’t continue. Try again."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:468
+#: packages/admin/src/components/SetupWizard.tsx:461
 msgid "Setup failed"
 msgstr "Podešavanje nije uspelo"
 
@@ -8658,7 +8773,7 @@ msgstr "Prikaži token"
 
 #. placeholder {0}: count ?? 0
 #. placeholder {0}: totalCount ?? 0
-#: packages/admin/src/components/MediaLibrary.tsx:1317
+#: packages/admin/src/components/MediaLibrary.tsx:1324
 #: packages/admin/src/components/MediaPickerModal.tsx:1554
 msgid "Showing {pageShowingRange} of {0}"
 msgstr ""
@@ -8671,16 +8786,16 @@ msgstr ""
 msgid "Shown when hovering over the image."
 msgstr "Prikazuje se pri prelasku miša preko slike."
 
-#: packages/admin/src/components/SignupPage.tsx:456
+#: packages/admin/src/components/SignupPage.tsx:457
 msgid "Sign in"
 msgstr "Prijavi se"
 
-#: packages/admin/src/components/SetupWizard.tsx:355
+#: packages/admin/src/components/SetupWizard.tsx:348
 msgid "Sign In"
 msgstr "Prijavi se"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:162
-#: packages/admin/src/components/SignupPage.tsx:285
+#: packages/admin/src/components/InviteAcceptPage.tsx:161
+#: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
 msgstr "Prijavi se umesto toga"
 
@@ -8691,7 +8806,7 @@ msgstr "Prijavi se na svoj sajt"
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:264
+#: packages/admin/src/components/SetupWizard.tsx:265
 msgid "Sign in with {0}"
 msgstr "Prijavi se sa {0}"
 
@@ -8722,7 +8837,7 @@ msgid "Single line text input"
 msgstr "Jednoredni unos teksta"
 
 #: packages/admin/src/components/Settings.tsx:48
-#: packages/admin/src/components/SetupWizard.tsx:353
+#: packages/admin/src/components/SetupWizard.tsx:346
 msgid "Site"
 msgstr "Sajt"
 
@@ -8739,7 +8854,7 @@ msgstr "identitet sajta primenjen (naslov, slogan, logo)"
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Identitet sajta, logo, favicon i preferencije čitanja"
 
-#: packages/admin/src/components/SetupWizard.tsx:351
+#: packages/admin/src/components/SetupWizard.tsx:344
 #: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Site Settings"
 msgstr "Podešavanja sajta"
@@ -8765,11 +8880,11 @@ msgstr "URL sajta"
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr "Sajtovi na Cloudflare D1 mogu dodatno vratiti bazu podataka na bilo koji minut u poslednjih 30 dana koristeći D1 Time Travel — uvek uključeno, bez potrebe za podešavanjem."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1203
+#: packages/admin/src/components/MediaLibrary.tsx:1207
 msgid "Size"
 msgstr "Veličina"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1548
+#: packages/admin/src/components/MediaLibrary.tsx:1555
 msgid "Size is not applicable to folders"
 msgstr ""
 
@@ -8808,15 +8923,15 @@ msgstr "Slug kopiran u clipboard"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "Slugovi se ne mogu menjati nakon kreiranja polja."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1421
+#: packages/admin/src/components/PortableTextEditor.tsx:1653
 msgid "Small section heading"
 msgstr "Mali naslov sekcije"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1431
+#: packages/admin/src/components/PortableTextEditor.tsx:1663
 msgid "Smaller section heading"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1451
+#: packages/admin/src/components/PortableTextEditor.tsx:1683
 msgid "Smallest section heading"
 msgstr ""
 
@@ -8847,8 +8962,8 @@ msgstr ""
 msgid "Some content types cannot be imported"
 msgstr "Neki tipovi sadržaja ne mogu biti uvezeni"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:155
-#: packages/admin/src/components/SignupPage.tsx:278
+#: packages/admin/src/components/InviteAcceptPage.tsx:154
+#: packages/admin/src/components/SignupPage.tsx:279
 msgid "Something went wrong"
 msgstr "Nešto je pošlo po zlu"
 
@@ -8885,7 +9000,7 @@ msgstr "neželjeno"
 msgid "Spam"
 msgstr "Neželjeno"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4519
 msgid "Spotlight Mode"
 msgstr "Režim osvetljavanja"
 
@@ -8909,9 +9024,9 @@ msgstr ""
 msgid "Start Import"
 msgstr "Započni uvoz"
 
-#: packages/admin/src/components/ContentEditor.tsx:1537
-#: packages/admin/src/components/PortableTextEditor.tsx:2599
-#: packages/admin/src/components/PortableTextEditor.tsx:2600
+#: packages/admin/src/components/ContentEditor.tsx:1563
+#: packages/admin/src/components/PortableTextEditor.tsx:2831
+#: packages/admin/src/components/PortableTextEditor.tsx:2832
 msgid "Start writing, or type '/' for commands"
 msgstr "Počni da pišeš ili ukucaj '/' za komande"
 
@@ -8945,8 +9060,8 @@ msgstr "Sačuvane rezervne kopije"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Čuvano po lokalu — svaki prevod potpisa autora ima sopstvenu vrednost."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3660
-#: packages/admin/src/components/PortableTextEditor.tsx:4065
+#: packages/admin/src/components/PortableTextEditor.tsx:3897
+#: packages/admin/src/components/PortableTextEditor.tsx:4302
 msgid "Strikethrough"
 msgstr "Precrtano"
 
@@ -8967,11 +9082,11 @@ msgstr "Podpolja"
 msgid "Subscriber"
 msgstr "Pretplatnik"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3667
+#: packages/admin/src/components/PortableTextEditor.tsx:3904
 msgid "Subscript"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3674
+#: packages/admin/src/components/PortableTextEditor.tsx:3911
 msgid "Superscript"
 msgstr ""
 
@@ -9003,11 +9118,11 @@ msgstr "Sistem ({resolvedLabel})"
 msgid "System Fields"
 msgstr "Sistemska polja"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1518
+#: packages/admin/src/components/PortableTextEditor.tsx:1750
 msgid "Table"
 msgstr "Tabela"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3749
+#: packages/admin/src/components/PortableTextEditor.tsx:3986
 msgid "Table controls"
 msgstr "Kontrole tabele"
 
@@ -9080,9 +9195,25 @@ msgstr "Pojam obrisan"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4016
+#: packages/admin/src/components/PortableTextEditor.tsx:4253
 msgid "Text formatting"
 msgstr "Formatiranje teksta"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:200
+msgid "the Android passkey prompt"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:654
+msgid "The browser controls the exact prompt and may offer another compatible method."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:644
+msgid "The browser will usually show a QR code."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
+msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "The cropped image could not be created."
@@ -9117,6 +9248,10 @@ msgstr ""
 msgid "The link will expire in 15 minutes."
 msgstr "Link će isteći za 15 minuta."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:186
+msgid "the macOS passkey prompt"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:179
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "Tržište je prazno. Proveri ponovo kasnije za nove dodatke."
@@ -9129,9 +9264,13 @@ msgstr "Meni je obrisan."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Naziv tvog sajta, koristi se u zaglavlju i metapodacima"
 
-#: packages/admin/src/router.tsx:2730
+#: packages/admin/src/router.tsx:2753
 msgid "The page you're looking for doesn't exist."
 msgstr "Stranica koju tražiš ne postoji."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:684
+msgid "The passkey is saved on your physical security key and can be used on compatible devices."
+msgstr ""
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
 msgid "The plugin field widget failed to render."
@@ -9160,6 +9299,10 @@ msgstr ""
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
 msgstr "Tržište tema je prazno. Proveri ponovo kasnije."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:179
+msgid "the Windows passkey prompt"
+msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:45
 msgid "Theme"
@@ -9205,7 +9348,7 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Ova kolekcija je definisana u kodu. Neka podešavanja se ovde ne mogu menjati. Uredi live.config.ts fajl da izmeniš šemu."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3350
+#: packages/admin/src/components/PortableTextEditor.tsx:3587
 msgid "This content cannot be edited safely"
 msgstr ""
 
@@ -9213,20 +9356,25 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Ovo ne izgleda kao validan ključ migracije. Generiši novi u dodatku i nalepi ceo string koji počinje sa \"em1.\"."
 
-#: packages/admin/src/components/ContentEditor.tsx:1021
+#: packages/admin/src/components/ContentEditor.tsx:1047
 msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3352
+#: packages/admin/src/components/PortableTextEditor.tsx:3589
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
+msgstr ""
+
+#. placeholder {0}: file.type
+#: packages/admin/src/components/media/ImageDropTarget.tsx:57
+msgid "This field does not accept {0} files."
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:643
 msgid "This field does not accept {mimeType} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2050
-#: packages/admin/src/components/ImageFieldRenderer.tsx:579
+#: packages/admin/src/components/ContentEditor.tsx:2076
+#: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "This field is required"
 msgstr "Ovo polje je obavezno"
 
@@ -9234,7 +9382,7 @@ msgstr "Ovo polje je obavezno"
 msgid "This file isn’t used in any content."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "This folder is empty"
 msgstr ""
 
@@ -9271,7 +9419,7 @@ msgstr ""
 msgid "This media item no longer exists."
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:270
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:429
 msgid "This passkey is already registered on this device."
 msgstr "Ovaj Passkey je već registrovan na ovom uređaju."
 
@@ -9309,7 +9457,7 @@ msgid "This removes the byline profile. Content byline links are removed and lea
 msgstr "Ovo uklanja profil potpisa autora. Linkovi potpisa autora u sadržaju se uklanjaju i pokazivači se brišu."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3379
+#: packages/admin/src/components/PortableTextEditor.tsx:3616
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr ""
 
@@ -9381,7 +9529,7 @@ msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "Vremenska zona za prikaz datuma (npr. America/New_York)"
 
 #: packages/admin/src/components/ContentList.tsx:597
-#: packages/admin/src/components/ContentList.tsx:757
+#: packages/admin/src/components/ContentList.tsx:758
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -9404,7 +9552,7 @@ msgstr "za zatvaranje"
 msgid "to select"
 msgstr "za izbor"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3794
+#: packages/admin/src/components/PortableTextEditor.tsx:4031
 msgid "Toggle header row"
 msgstr "Uključi/isključi zaglavni red"
 
@@ -9492,7 +9640,7 @@ msgstr "korpa"
 msgid "Trash"
 msgstr "Korpa"
 
-#: packages/admin/src/components/ContentList.tsx:785
+#: packages/admin/src/components/ContentList.tsx:786
 msgid "Trash is empty"
 msgstr "Korpa je prazna"
 
@@ -9504,7 +9652,7 @@ msgstr "Korpa je prazna."
 msgid "True/false toggle"
 msgstr "Prekidač tačno/netačno"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "Try a broader media type or clear your filters."
 msgstr "Probaj širi tip medija ili obriši filtere."
 
@@ -9538,12 +9686,12 @@ msgstr ""
 msgid "Try another code"
 msgstr "Probaj drugi kod"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1112
+#: packages/admin/src/components/MediaLibrary.tsx:1116
 #: packages/admin/src/components/MediaPickerModal.tsx:1409
 msgid "Try another filename or clear your search."
 msgstr "Probaj drugi naziv fajla ili obriši pretragu."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1075
+#: packages/admin/src/components/MediaLibrary.tsx:1079
 msgid "Try another filename, or clear your search and filters."
 msgstr "Probaj drugi naziv fajla ili obriši pretragu i filtere."
 
@@ -9583,7 +9731,7 @@ msgstr "Twitter"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:610
-#: packages/admin/src/components/MediaLibrary.tsx:1202
+#: packages/admin/src/components/MediaLibrary.tsx:1206
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
 msgstr "Tip"
@@ -9593,7 +9741,7 @@ msgstr "Tip"
 msgid "Type mismatch ({0})"
 msgstr "Neusklađenost tipa ({0})"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1544
+#: packages/admin/src/components/MediaLibrary.tsx:1551
 msgid "Type: Folder"
 msgstr ""
 
@@ -9611,12 +9759,12 @@ msgstr "Nije moguće pristupiti tržištu"
 msgid "Unassigned"
 msgstr "Nedodeljeno"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3653
-#: packages/admin/src/components/PortableTextEditor.tsx:4058
+#: packages/admin/src/components/PortableTextEditor.tsx:3890
+#: packages/admin/src/components/PortableTextEditor.tsx:4295
 msgid "Underline"
 msgstr "Podvučeno"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4262
+#: packages/admin/src/components/PortableTextEditor.tsx:4499
 msgid "Undo"
 msgstr "Poništi"
 
@@ -9692,7 +9840,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "Nepodržan tip elementa vidžeta: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:989
+#: packages/admin/src/components/ContentList.tsx:990
 msgid "Until {0}"
 msgstr ""
 
@@ -9701,7 +9849,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "Bez naslova"
 
-#: packages/admin/src/components/ContentEditor.tsx:1952
+#: packages/admin/src/components/ContentEditor.tsx:1978
 msgid "Untitled file"
 msgstr "Fajl bez naslova"
 
@@ -9745,7 +9893,7 @@ msgstr "Ažuriraj ovo pravilo preusmeravanja."
 msgid "Update to v{0}"
 msgstr "Ažuriraj na v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:869
 #: packages/admin/src/components/ContentSettingsPanel.tsx:998
 #: packages/admin/src/components/RegistryPluginDetail.tsx:559
 msgid "Updated"
@@ -9768,7 +9916,7 @@ msgstr ""
 msgid "Updating..."
 msgstr "Ažurira se..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:864
+#: packages/admin/src/components/MediaLibrary.tsx:868
 msgid "Upload"
 msgstr "Otpremi"
 
@@ -9808,12 +9956,12 @@ msgid "Upload files"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:750
-#: packages/admin/src/components/MediaLibrary.tsx:1102
-#: packages/admin/src/components/MediaLibrary.tsx:1126
+#: packages/admin/src/components/MediaLibrary.tsx:1106
+#: packages/admin/src/components/MediaLibrary.tsx:1130
 msgid "Upload Files"
 msgstr "Otpremi fajlove"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1099
+#: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Otpremi slike, video snimke i dokumente da držiš resurse za ponovnu upotrebu na jednom mestu."
 
@@ -9821,7 +9969,7 @@ msgstr "Otpremi slike, video snimke i dokumente da držiš resurse za ponovnu up
 msgid "Upload Media"
 msgstr "Otpremi medije"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1123
+#: packages/admin/src/components/MediaLibrary.tsx:1127
 msgid "Upload media to keep reusable assets in one place."
 msgstr "Otpremi medije da držiš resurse za ponovnu upotrebu na jednom mestu."
 
@@ -9848,14 +9996,19 @@ msgstr "Otpremljeno:"
 msgid "Uploading"
 msgstr "Otprema se"
 
+#: packages/admin/src/components/media/ImageDropTarget.tsx:132
+#: packages/admin/src/components/media/ImageDropTarget.tsx:145
+msgid "Uploading image…"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:54
 #: packages/admin/src/components/FieldEditor.tsx:266
 #: packages/admin/src/components/FieldEditor.tsx:625
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3607
-#: packages/admin/src/components/PortableTextEditor.tsx:4207
-#: packages/admin/src/components/PortableTextEditor.tsx:4217
+#: packages/admin/src/components/PortableTextEditor.tsx:3844
+#: packages/admin/src/components/PortableTextEditor.tsx:4444
+#: packages/admin/src/components/PortableTextEditor.tsx:4454
 msgid "URL"
 msgstr "URL"
 
@@ -9916,11 +10069,19 @@ msgstr ""
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Koristi [param] ili [...rest] u putanjama za uparivanje šablona."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:623
+msgid "Use a security key"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:639
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1063
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:613
+msgid "Use another device"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1064
 msgid "Use as end date"
 msgstr ""
 
@@ -9948,7 +10109,7 @@ msgstr "Koristi se kao rezervna Open Graph slika kada stranica nema svoju. Prepo
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Koristi se kao identifikator. Samo mala slova, brojevi i donje crte."
 
-#: packages/admin/src/components/ContentEditor.tsx:1640
+#: packages/admin/src/components/ContentEditor.tsx:1666
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Koristi se kao glavna vizuelna slika za ovu objavu na stranicama sa listingom i na vrhu objave"
 
@@ -10019,16 +10180,16 @@ msgstr "Validacija"
 msgid "Verify the plugin before installing it"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:228
+#: packages/admin/src/components/InviteAcceptPage.tsx:227
 msgid "Verifying your invite..."
 msgstr "Proverava se pozivnica..."
 
-#: packages/admin/src/components/SignupPage.tsx:403
+#: packages/admin/src/components/SignupPage.tsx:404
 msgid "Verifying your link..."
 msgstr "Proverava se link..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:212
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:216
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
 #: packages/admin/src/components/RegistryPluginDetail.tsx:619
 msgid "Verifying..."
 msgstr "Proverava se..."
@@ -10044,7 +10205,7 @@ msgid "Version {0}"
 msgstr "Verzija {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
-#: packages/admin/src/components/MediaLibrary.tsx:982
+#: packages/admin/src/components/MediaLibrary.tsx:986
 #: packages/admin/src/components/MediaPickerModal.tsx:384
 msgid "Video"
 msgstr "Video"
@@ -10058,16 +10219,16 @@ msgstr "Pogledaj status email provajdera i pošalji test emailove"
 msgid "View in Marketplace"
 msgstr "Pogledaj na tržištu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:928
+#: packages/admin/src/components/MediaLibrary.tsx:932
 #: packages/admin/src/components/MediaPickerModal.tsx:1215
 msgid "View mode"
 msgstr "Režim pregleda"
 
-#: packages/admin/src/components/ContentList.tsx:1327
+#: packages/admin/src/components/ContentList.tsx:1333
 msgid "View published {title}"
 msgstr "Pogledaj objavljeno {title}"
 
-#: packages/admin/src/components/MediaLibrary.tsx:885
+#: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "View setup"
 msgstr ""
 
@@ -10109,13 +10270,17 @@ msgid "Wait for updates already in progress to finish."
 msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:181
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:185
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:340
 msgid "Waiting for passkey..."
 msgstr "Čeka se Passkey..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:335
 msgid "Warn"
 msgstr "Upozorenje"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:588
+msgid "We checked before opening the browser's passkey prompt so you can choose what happens next."
+msgstr ""
 
 #. placeholder {0}: result.url
 #: packages/admin/src/components/WordPressImport.tsx:1282
@@ -10143,7 +10308,7 @@ msgid "Web address"
 msgstr "Web adresa"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:160
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:164
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:319
 msgid "WebAuthn is not supported in this browser"
 msgstr "WebAuthn nije podržan u ovom pregledaču"
 
@@ -10164,15 +10329,23 @@ msgstr "Dobrodošao u EmDash, {firstName}!"
 msgid "Welcome to EmDash!"
 msgstr "Dobrodošao u EmDash!"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:642
+msgid "What happens next?"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2107
 msgid "What happens when you import:"
 msgstr "Šta se dešava pri uvozu:"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:234
+msgid "What is a passkey?"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1890
 msgid "What will happen when you import"
 msgstr "Šta će se desiti pri uvozu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1022
+#: packages/admin/src/components/ContentEditor.tsx:1048
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr ""
 
@@ -10187,6 +10360,10 @@ msgstr "Kada je stavka poslednji put izmenjena"
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 msgid "When the entry was published"
 msgstr "Kada je stavka objavljena"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:246
+msgid "Where is it saved?"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:848
 msgid "Which content types can use this taxonomy"
@@ -10224,7 +10401,7 @@ msgstr "Zašto je ovo važno za naslove u rezultatima pretrage?"
 msgid "Why is this important for search visibility?"
 msgstr "Zašto je ovo važno za vidljivost u pretrazi?"
 
-#: packages/admin/src/components/SeoImageField.tsx:44
+#: packages/admin/src/components/SeoImageField.tsx:45
 msgid "Why is this important for social sharing?"
 msgstr "Zašto je ovo važno za deljenje na društvenim mrežama?"
 
@@ -10286,6 +10463,18 @@ msgstr ""
 msgid "Will create"
 msgstr "Kreiraće"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:558
+msgid "Windows Hello still isn't available to this browser. You can try another device or a security key instead."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:181
+msgid "Windows will show which credential manager will save it before creating it."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:224
+msgid "With a passkey, you don’t need to remember complex passwords"
+msgstr ""
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Bez email provajdera, linkovi za pozivnicu moraju se deliti ručno."
@@ -10326,7 +10515,7 @@ msgstr "YAML"
 msgid "Yearly"
 msgstr "Godišnje"
 
-#: packages/admin/src/components/ContentList.tsx:1402
+#: packages/admin/src/components/ContentList.tsx:1408
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -10357,6 +10546,10 @@ msgstr "Još uvek možeš uređivati fiksna polja iznad. Čuvanje neće dirati s
 msgid "You can view and contribute to the site."
 msgstr "Možeš pregledati sajt i doprinositi mu."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:511
+msgid "You can view, rename, or add more passkeys later in Security settings."
+msgstr ""
+
 #: packages/admin/src/components/users/UserDetail.tsx:175
 msgid "You cannot change your own role"
 msgstr "Ne možeš promeniti sopstvenu ulogu"
@@ -10382,7 +10575,7 @@ msgstr "Potrebne su ti admin dozvole za upravljanje šemom potpisa autora."
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2007
+#: packages/admin/src/router.tsx:2030
 msgid "You need Editor permissions to moderate comments."
 msgstr "Potrebne su ti Editor dozvole za moderiranje komentara."
 
@@ -10396,11 +10589,11 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "Više nećeš moći da koristiš ovaj Passkey za prijavu. Ova radnja se ne može poništiti."
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:55
+#: packages/admin/src/components/InviteAcceptPage.tsx:56
 msgid "You'll be joining as <0>{0}</0>"
 msgstr "Pridružićeš se kao <0>{0}</0>"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:361
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:801
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "Bićeš upitan da koristiš biometrijsku autentifikaciju uređaja, bezbednosni ključ ili PIN."
 
@@ -10412,11 +10605,11 @@ msgstr "Bićeš preusmeren na WordPress da autorizuješ vezu."
 msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:564
+#: packages/admin/src/components/SetupWizard.tsx:557
 msgid "You're signed in via Cloudflare Access"
 msgstr "Prijavljen si putem Cloudflare Access"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:53
+#: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"
 msgstr "Pozvan si!"
 
@@ -10434,14 +10627,32 @@ msgid "Your account has been created successfully."
 msgstr "Tvoj nalog je uspešno kreiran."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:308
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:481
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "Tvoj pregledač ne podržava Passkey. Koristi moderan pregledač kao Chrome, Safari, Firefox ili Edge."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
+msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:188
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:195
+msgid "Your credential manager, such as iCloud Keychain, saves it and may sync it to your other devices."
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:268
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:273
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:432
 msgid "Your device doesn't support the required security features."
 msgstr "Tvoj uređaj ne podržava potrebne bezbednosne funkcije."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:209
+msgid "Your device's credential manager saves it and will show you where before creating it."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:193
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:207
+msgid "your device's passkey prompt"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:197
 msgid "Your Email"
@@ -10463,8 +10674,8 @@ msgstr "Tvoje Instagram korisničko ime"
 msgid "Your LinkedIn profile username"
 msgstr "Korisničko ime tvog LinkedIn profila"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1098
-#: packages/admin/src/components/MediaLibrary.tsx:1122
+#: packages/admin/src/components/MediaLibrary.tsx:1102
+#: packages/admin/src/components/MediaLibrary.tsx:1126
 msgid "Your media library is empty"
 msgstr "Tvoja biblioteka medija je prazna"
 
@@ -10472,8 +10683,8 @@ msgstr "Tvoja biblioteka medija je prazna"
 msgid "Your Name"
 msgstr "Tvoje ime"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:65
-#: packages/admin/src/components/SignupPage.tsx:217
+#: packages/admin/src/components/InviteAcceptPage.tsx:66
+#: packages/admin/src/components/SignupPage.tsx:218
 msgid "Your name (optional)"
 msgstr "Tvoje ime (opciono)"
 

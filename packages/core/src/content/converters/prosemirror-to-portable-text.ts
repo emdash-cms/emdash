@@ -15,6 +15,14 @@ import {
 	assertProseMirrorMarksSupported,
 } from "./mark-safety.js";
 import { readOrderedListMetadata, type OrderedListMetadata } from "./numbered-list.js";
+import {
+	PORTABLE_TEXT_BLOCK_NODE,
+	PORTABLE_TEXT_SPAN_MARK,
+	portableTextBlockFromAttrs,
+	portableTextKeyFromAttrs,
+	portableTextMarkDefsFromMarks,
+	portableTextSpanKeyFromMarks,
+} from "./portable-text-identity.js";
 import type {
 	ProseMirrorDocument,
 	ProseMirrorNode,
@@ -46,19 +54,31 @@ export function prosemirrorToPortableText(doc: ProseMirrorDocument): PortableTex
 	assertProseMirrorMarksSupported(doc);
 
 	const blocks: PortableTextBlock[] = [];
+	const usedBlockKeys = new Set<string>();
 
 	for (const [i, node] of doc.content.entries()) {
+		if (i === doc.content.length - 1 && isUnkeyedEmptyParagraph(node)) continue;
 		const converted = convertNode(node, `root:${i}`);
-		if (converted) {
-			if (Array.isArray(converted)) {
-				blocks.push(...converted);
-			} else {
-				blocks.push(converted);
+		for (const block of converted ? (Array.isArray(converted) ? converted : [converted]) : []) {
+			let key = block._key;
+			if (usedBlockKeys.has(key)) {
+				do key = generateKey();
+				while (usedBlockKeys.has(key));
 			}
+			usedBlockKeys.add(key);
+			blocks.push(key === block._key ? block : { ...block, _key: key });
 		}
 	}
 
 	return blocks;
+}
+
+function isUnkeyedEmptyParagraph(node: ProseMirrorNode): boolean {
+	return (
+		node.type === "paragraph" &&
+		(node.content?.length ?? 0) === 0 &&
+		portableTextKeyFromAttrs(node.attrs) === undefined
+	);
 }
 
 /**
@@ -69,6 +89,9 @@ function convertNode(
 	path: string,
 ): PortableTextBlock | PortableTextBlock[] | null {
 	switch (node.type) {
+		case PORTABLE_TEXT_BLOCK_NODE:
+			return portableTextBlockFromAttrs(node.attrs) ?? null;
+
 		case "paragraph":
 			return convertParagraph(node);
 
@@ -114,7 +137,7 @@ function convertNode(
 		case "horizontalRule":
 			return {
 				_type: "break",
-				_key: generateKey(),
+				_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 				style: "lineBreak",
 			};
 
@@ -145,10 +168,10 @@ function convertParagraph(node: ProseMirrorNode): PortableTextTextBlock | null {
 
 	return {
 		_type: "block",
-		_key: generateKey(),
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 		style: "normal",
 		children,
-		markDefs: markDefs.length > 0 ? markDefs : undefined,
+		...(markDefs.length > 0 ? { markDefs } : {}),
 		...(textAlign ? { textAlign } : {}),
 	};
 }
@@ -190,7 +213,7 @@ function convertHeading(node: ProseMirrorNode): PortableTextTextBlock | null {
 
 	return {
 		_type: "block",
-		_key: generateKey(),
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 		style,
 		children,
 		markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -238,7 +261,7 @@ function convertListItem(
 			if (children.length > 0) {
 				blocks.push({
 					_type: "block",
-					_key: generateKey(),
+					_key: portableTextKeyFromAttrs(child.attrs) ?? generateKey(),
 					style: "normal",
 					listItem,
 					level,
@@ -294,7 +317,10 @@ function convertBlockquote(
 			if (children.length > 0) {
 				blocks.push({
 					_type: "block",
-					_key: generateKey(),
+					_key:
+						portableTextKeyFromAttrs(child.attrs) ??
+						portableTextKeyFromAttrs(node.attrs) ??
+						generateKey(),
 					style: "blockquote",
 					children,
 					markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -315,7 +341,7 @@ function convertCodeBlock(node: ProseMirrorNode): PortableTextCodeBlock {
 
 	return {
 		_type: "code",
-		_key: generateKey(),
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 		code,
 		language: language || undefined,
 	};
@@ -328,7 +354,7 @@ function convertHtmlBlock(node: ProseMirrorNode): PortableTextHtmlBlock {
 	const rawHtml = node.attrs?.html;
 	return {
 		_type: "htmlBlock",
-		_key: generateKey(),
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 		html: typeof rawHtml === "string" ? rawHtml : "",
 	};
 }
@@ -351,7 +377,7 @@ function convertImage(node: ProseMirrorNode): PortableTextImageBlock {
 
 	return {
 		_type: "image",
-		_key: generateKey(),
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 		asset: {
 			// Use mediaId as _ref if available (for proper provider lookups)
 			_ref: mediaId || src || "",
@@ -384,7 +410,7 @@ function convertGallery(node: ProseMirrorNode): PortableTextGalleryBlock {
 	const columns = node.attrs?.columns;
 	return {
 		_type: "gallery",
-		_key: generateKey(),
+		_key: portableTextKeyFromAttrs(node.attrs) ?? generateKey(),
 		images: sanitizeGalleryImages(node.attrs?.images, generateKey),
 		...(typeof columns === "number" ? { columns } : {}),
 	};
@@ -403,23 +429,49 @@ function convertInlineContent(
 	const children: PortableTextSpan[] = [];
 	const markDefs: PortableTextMarkDef[] = [];
 	const markDefMap = new Map<string, string>();
+	const usedSpanKeys = new Set<string>();
+	const claimSpanKey = (preferred?: string) => {
+		if (preferred && !usedSpanKeys.has(preferred)) {
+			usedSpanKeys.add(preferred);
+			return preferred;
+		}
+		let key: string;
+		do key = generateKey();
+		while (usedSpanKeys.has(key));
+		usedSpanKeys.add(key);
+		return key;
+	};
 
 	for (const node of nodes) {
 		if (node.type === "text" && node.text) {
 			const marks: string[] = [];
+			const originalMarkDefs = portableTextMarkDefsFromMarks(node.marks);
 
 			for (const mark of node.marks || []) {
-				const markType = convertMark(mark, markDefs, markDefMap);
+				const markType = convertMark(mark, markDefs, markDefMap, originalMarkDefs);
 				if (markType) {
 					marks.push(markType);
 				}
 			}
 
+			const preferredKey =
+				portableTextSpanKeyFromMarks(node.marks) ?? portableTextKeyFromAttrs(node.attrs);
+			const normalizedMarks = marks.length > 0 ? marks : undefined;
+			const previous = children.at(-1);
+			if (
+				preferredKey &&
+				previous?._key === preferredKey &&
+				JSON.stringify(previous.marks) === JSON.stringify(normalizedMarks)
+			) {
+				previous.text += node.text;
+				continue;
+			}
+
 			children.push({
 				_type: "span",
-				_key: generateKey(),
+				_key: claimSpanKey(preferredKey),
 				text: node.text,
-				marks: marks.length > 0 ? marks : undefined,
+				marks: normalizedMarks,
 			});
 		} else if (node.type === "hardBreak") {
 			// Hard breaks become newlines in the text
@@ -429,7 +481,9 @@ function convertInlineContent(
 			} else {
 				children.push({
 					_type: "span",
-					_key: generateKey(),
+					_key: claimSpanKey(
+						portableTextSpanKeyFromMarks(node.marks) ?? portableTextKeyFromAttrs(node.attrs),
+					),
 					text: "\n",
 				});
 			}
@@ -440,7 +494,7 @@ function convertInlineContent(
 	if (children.length === 0) {
 		children.push({
 			_type: "span",
-			_key: generateKey(),
+			_key: claimSpanKey(),
 			text: "",
 		});
 	}
@@ -455,6 +509,7 @@ function convertMark(
 	mark: ProseMirrorMark,
 	markDefs: PortableTextMarkDef[],
 	markDefMap: Map<string, string>,
+	originalMarkDefs: PortableTextMarkDef[],
 ): string | null {
 	switch (mark.type) {
 		case "bold":
@@ -481,25 +536,36 @@ function convertMark(
 		case "code":
 			return "code";
 
+		case PORTABLE_TEXT_SPAN_MARK:
+			return null;
+
 		case "link": {
 			const href = (typeof mark.attrs?.href === "string" ? mark.attrs.href : "") || "";
 			const blank = mark.attrs?.target === "_blank";
-			const identity = JSON.stringify([href, blank]);
+			const originalMarkDef = originalMarkDefs.find((markDef) => markDef._type === "link");
+			const mapKey = originalMarkDef
+				? `key:${originalMarkDef._key}`
+				: `value:${JSON.stringify([href, blank])}`;
 
 			// Check if we already have a mark def for this link
-			if (markDefMap.has(identity)) {
-				return markDefMap.get(identity)!;
+			if (markDefMap.has(mapKey)) {
+				return markDefMap.get(mapKey)!;
 			}
 
 			// Create new mark def
-			const key = generateKey();
+			const key = originalMarkDef?._key || generateKey();
 			markDefs.push({
+				...originalMarkDef,
 				_type: "link",
 				_key: key,
 				href,
-				blank,
+				...(originalMarkDef
+					? blank || Object.hasOwn(originalMarkDef, "blank")
+						? { blank }
+						: {}
+					: { blank }),
 			});
-			markDefMap.set(identity, key);
+			markDefMap.set(mapKey, key);
 
 			return key;
 		}

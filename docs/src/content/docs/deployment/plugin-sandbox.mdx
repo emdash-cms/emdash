@@ -114,7 +114,7 @@ Plugin services listen on `127.0.0.1`, and the channel back to the server is a U
 
 The child process receives only `PATH`, `HOME`, `TMPDIR`, `TMP`, `TEMP`, `LANG`, and `LC_ALL` from the server's environment, so secrets in the server's environment stay out of the sandbox. To pass more variables, set `EMDASH_WORKERD_PASSTHROUGH_ENV` to a comma-separated list of variable names.
 
-If `workerd` exits unexpectedly, the runner logs `[emdash:workerd] workerd exited with <reason>` and restarts it on the next invocation, with a delay that starts at 1 second and doubles up to 30 seconds. When `workerd` crashes more than five times within 60 seconds, the runner stops restarting it and logs `[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up`. From then on, every sandboxed plugin hook and route fails with `Plugin sandbox unavailable for <plugin>: workerd is not running` until the server restarts. A `SIGTERM` to the server terminates `workerd` with it.
+If `workerd` exits unexpectedly, the runner logs `[emdash:workerd] workerd exited with <reason>` and restarts it on the next invocation, with a delay that starts at 1 second and doubles up to 30 seconds. When `workerd` crashes more than five times within 60 seconds, the runner stops restarting it and logs `[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up`. From then on, every sandboxed plugin hook and route fails with `Plugin sandbox unavailable for <plugin>: workerd crashed 5 times in 60 seconds and the runner stopped retrying; restart the server`. Restarting the server starts `workerd` again, as does installing or updating a plugin from the admin. A `SIGTERM` to the server terminates `workerd` with it.
 
 ## Resource limits
 

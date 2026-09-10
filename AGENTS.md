@@ -24,6 +24,8 @@ When writing, revising, or reviewing documentation, load the `writing-emdash-doc
 
 Before starting any work that involves editing code, run `pnpm lint:json | jq '.diagnostics | length'` and confirm it's clean -- if it's failing after your edits, your changes caused it.
 
+Run `pnpm build` from the repository root before `pnpm typecheck`. Package-scoped builds are not sufficient because typecheck resolves declaration output from other workspace packages.
+
 During work:
 
 - `pnpm lint:quick` after every edit (sub-second)

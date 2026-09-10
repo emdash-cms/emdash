@@ -19,7 +19,7 @@ export interface DiagnosisResult {
 
 export interface StoredDiagnosis {
 	readonly runId: string;
-	readonly mode: "diagnose" | "repro";
+	readonly mode: "investigate" | "work" | "diagnose" | "repro";
 	readonly completedAt: string;
 	readonly result: DiagnosisResult;
 }
@@ -51,8 +51,9 @@ export function shouldStoreDiagnosis(
 	mode: InvestigationMode,
 	result: DiagnosisResult,
 	ok: boolean,
-): mode is "diagnose" | "repro" {
-	if (!ok || (mode !== "diagnose" && mode !== "repro")) return false;
+): mode is "investigate" | "work" | "diagnose" | "repro" {
+	if (!ok || (mode !== "investigate" && mode !== "work" && mode !== "diagnose" && mode !== "repro"))
+		return false;
 	if (result.skipped === true || typeof result.failureStage === "string") return false;
 	if (typeof result.summary !== "string" || result.summary.trim() === "") return false;
 	return result.reproduced === true || result.rootCauseFound === true;

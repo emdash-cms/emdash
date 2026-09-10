@@ -147,12 +147,15 @@ describe("MediaDetailPanel usage navigation", () => {
 
 		screen.getByRole("tab", { name: "Used in" }).element().click();
 		await vi.waitFor(() => expect(fetchMediaUsageDetails).toHaveBeenCalledTimes(1));
-		await vi.waitFor(() => expect(dialog.style.height).toBe(""));
-		const loadingHeight = dialog.getBoundingClientRect().height;
+		await vi.waitFor(() => {
+			expect(dialog.style.height).toBe("");
+			expect(screen.getByTestId("media-detail-dialog-body").element().style.overflowY).toBe("");
+		});
+		const loadingHeight = dialog.offsetHeight;
 
 		resolveUsage(usageDetails);
 		await expect.element(screen.getByRole("link", { name: /Launch notes/ })).toBeVisible();
-		expect(dialog.getBoundingClientRect().height).toBeCloseTo(loadingHeight, 0);
+		expect(dialog.offsetHeight).toBe(loadingHeight);
 	});
 
 	it("makes no usage request for provider media", async () => {

@@ -847,6 +847,15 @@ export class ContentRepository {
 		return mappedResult;
 	}
 
+	private normalizeScheduledAt(value: string | null): string | null {
+		if (value === null) return null;
+		const scheduledDate = new Date(value);
+		if (isNaN(scheduledDate.getTime())) {
+			throw new EmDashValidationError("Invalid scheduled date");
+		}
+		return scheduledDate.toISOString();
+	}
+
 	/**
 	 * Update content
 	 */
@@ -871,7 +880,7 @@ export class ContentRepository {
 		}
 
 		if (input.scheduledAt !== undefined) {
-			updates.scheduled_at = input.scheduledAt;
+			updates.scheduled_at = this.normalizeScheduledAt(input.scheduledAt);
 		}
 
 		if (input.authorId !== undefined) {
@@ -1030,7 +1039,7 @@ export class ContentRepository {
 			liveMetadataChanged = true;
 		}
 		if (input.scheduledAt !== undefined) {
-			assignments.push(sql`scheduled_at = ${input.scheduledAt}`);
+			assignments.push(sql`scheduled_at = ${this.normalizeScheduledAt(input.scheduledAt)}`);
 			liveMetadataChanged = true;
 		}
 		if (input.authorId !== undefined) {
@@ -1546,10 +1555,11 @@ export class ContentRepository {
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
+		// The due query compares ISO strings, so every stored schedule uses the same UTC form.
 		await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
-				scheduled_at = ${scheduledAt},
+				scheduled_at = ${scheduledDate.toISOString()},
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL

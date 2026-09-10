@@ -1,8 +1,9 @@
-import { encode } from "@atcute/cbor";
+import { encode, toBytes } from "@atcute/cbor";
 import { P256PrivateKeyExportable, P256PublicKey, parsePublicMultikey } from "@atcute/crypto";
-import { toBase64Url } from "@atcute/multibase";
+import { toBase64Pad, toBase64Url } from "@atcute/multibase";
 import {
 	createListingLabelSigner,
+	parseSignedListingLabel,
 	verifyListingLabel,
 	type LabelDidDocument,
 	type ListingLabelSigner,
@@ -1040,6 +1041,33 @@ describe("subscription verification", () => {
 });
 
 describe("subscription frame bounds", () => {
+	it("decodes compact signature bytes from a label subscription frame", () => {
+		const signature = new Uint8Array(64).fill(255);
+		const header = encode({ op: 1, t: "#labels" });
+		const payload = encode({
+			seq: 1,
+			labels: [
+				{
+					ver: 1,
+					src: SOURCE,
+					uri: URI,
+					cid: CID_A,
+					val: "listing-passed",
+					cts: NOW,
+					sig: toBytes(signature),
+				},
+			],
+		});
+		const bytes = new Uint8Array(header.length + payload.length);
+		bytes.set(header);
+		bytes.set(payload, header.length);
+
+		const frame = decodeLabelStreamFrame(bytes);
+
+		expect(frame?.seq).toBe(1);
+		expect(() => parseSignedListingLabel(frame?.labels[0])).not.toThrow();
+	});
+
 	it("rejects oversized frames before CBOR decode", () => {
 		expect(() => decodeLabelStreamFrame(new Uint8Array(1024 * 1024 + 1))).toThrow(/frame exceeds/);
 	});
@@ -1057,6 +1085,41 @@ describe("subscription frame bounds", () => {
 });
 
 describe("query replay bounds", () => {
+	it("decodes padded standard base64 signatures returned by queryLabels", async () => {
+		const signature = new Uint8Array(64).fill(255);
+		const client = new RealLabelQueryClient(async () =>
+			Response.json({
+				labels: [
+					{
+						ver: 1,
+						src: SOURCE,
+						uri: URI,
+						cid: CID_A,
+						val: "listing-passed",
+						cts: NOW,
+						sig: { $bytes: toBase64Pad(signature) },
+					},
+				],
+				cursor: "1",
+			}),
+		);
+
+		await expect(client.query("https://labels.example", SOURCE, 0)).resolves.toEqual({
+			labels: [
+				{
+					ver: 1,
+					src: SOURCE,
+					uri: URI,
+					cid: CID_A,
+					val: "listing-passed",
+					cts: NOW,
+					sig: signature,
+				},
+			],
+			nextCursor: 1,
+		});
+	});
+
 	it("decodes base64url signatures returned by queryLabels", async () => {
 		const signature = new Uint8Array(64).fill(255);
 		const client = new RealLabelQueryClient(async () =>

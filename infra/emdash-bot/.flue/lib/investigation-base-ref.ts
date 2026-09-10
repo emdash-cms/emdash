@@ -7,7 +7,6 @@ export function investigationBaseRef(
 ): string {
 	if (mode === "revise") {
 		if (!previousBranchSha) throw new Error("candidate branch is missing for revision");
-		return previousBranchSha;
 	}
 	if (!mainBranchSha) throw new Error("main branch is missing");
 	return mainBranchSha;

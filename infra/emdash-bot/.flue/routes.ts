@@ -14,16 +14,11 @@ import {
 	readAppCreds,
 	readRepoContext,
 } from "./lib/github.js";
-import type { OrchestratorDO } from "./lib/orchestrator.js";
 import {
 	normalizeWebhook,
 	resolvePullRequestWebhook,
 	verifyWebhookSignature,
 } from "./lib/webhook.js";
-
-interface TraceRouteEnv extends Env {
-	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
-}
 
 const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
 
@@ -58,8 +53,7 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			return c.json({ error: "Invalid trace limit" }, 400);
 		}
 		try {
-			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer local DO RPC methods.
-			const { Orchestrator } = c.env as TraceRouteEnv;
+			const { Orchestrator } = c.env;
 			const runId = c.req.query("run");
 			const trace = await Orchestrator.getByName(`issue-${issueNumber}`).getPublicRunTrace({
 				...(runId ? { runId } : {}),

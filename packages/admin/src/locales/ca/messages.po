@@ -86,7 +86,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:1986
+#: packages/admin/src/router.tsx:2009
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {# comentari actualitzat} other {# comentaris actualitzats}}"
 
@@ -118,7 +118,7 @@ msgstr ""
 #. placeholder {0}: locationFolders.length
 #. placeholder {0}: visibleFolders.length
 #: packages/admin/src/components/MediaDetailPanel.tsx:1496
-#: packages/admin/src/components/MediaLibrary.tsx:998
+#: packages/admin/src/components/MediaLibrary.tsx:1002
 msgid "{0, plural, one {# folder loaded} other {# folders loaded}}"
 msgstr ""
 
@@ -359,7 +359,7 @@ msgstr "{base} a: {0}"
 msgid "{changedCount, plural, one {# change from next revision} other {# changes from next revision}}"
 msgstr "{changedCount, plural, one {# canvi respecte de la revisió següent} other {# canvis respecte de la revisió següent}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2532
+#: packages/admin/src/components/PortableTextEditor.tsx:2764
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr ""
 
@@ -391,7 +391,7 @@ msgstr ""
 
 #. placeholder {0}: hasMore ? "+" : ""
 #. placeholder {1}: hasMore ? "+" : ""
-#: packages/admin/src/components/ContentList.tsx:1207
+#: packages/admin/src/components/ContentList.tsx:1208
 msgid "{filteredCount, plural, one {#{0} item} other {#{1} items}}"
 msgstr "{filteredCount, plural, one {#{0} element} other {#{1} elements}}"
 
@@ -418,7 +418,7 @@ msgstr ""
 msgid "{label} moved to position {0}."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1196
+#: packages/admin/src/components/ContentList.tsx:1197
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# element que coincideix amb \"{searchQuery}\"} other {# elements que coincideixen amb \"{searchQuery}\"}}"
 
@@ -468,7 +468,7 @@ msgstr ""
 msgid "{position} of {total}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2533
+#: packages/admin/src/components/PortableTextEditor.tsx:2765
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr ""
 
@@ -488,7 +488,7 @@ msgstr ""
 msgid "{selectedCount, plural, one {Move # item to trash? You can restore it later.} other {Move # items to trash? You can restore them later.}}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1202
+#: packages/admin/src/components/ContentList.tsx:1203
 msgid "{total, plural, one {# item} other {# items}}"
 msgstr "{total, plural, one {# element} other {# elements}}"
 
@@ -512,7 +512,7 @@ msgstr "{unchangedCount, plural, one {Amaga'n # sense canvis} other {Amaga'n # s
 msgid "{unchangedCount, plural, one {Show # unchanged} other {Show # unchanged}}"
 msgstr "{unchangedCount, plural, one {Mostra'n # sense canvis} other {Mostra'n # sense canvis}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2531
+#: packages/admin/src/components/PortableTextEditor.tsx:2763
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr ""
 
@@ -537,8 +537,7 @@ msgid "• URLs in your content are updated automatically"
 msgstr "• Els URL del teu contingut s'actualitzen automàticament"
 
 #: packages/admin/src/components/SetupWizard.tsx:225
-#: packages/admin/src/components/SetupWizard.tsx:277
-#: packages/admin/src/components/SetupWizard.tsx:332
+#: packages/admin/src/components/SetupWizard.tsx:278
 #: packages/admin/src/components/WordPressImport.tsx:1617
 msgid "← Back"
 msgstr "← Enrere"
@@ -657,7 +656,7 @@ msgstr ""
 msgid "A publication time has not been selected"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:668
+#: packages/admin/src/components/ContentEditor.tsx:680
 msgid "A publishing action is already in progress"
 msgstr ""
 
@@ -685,7 +684,7 @@ msgstr "Accepta i instal·la"
 msgid "Accept & Update"
 msgstr "Accepta i actualitza"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:240
+#: packages/admin/src/components/InviteAcceptPage.tsx:239
 msgid "Accept Invite"
 msgstr "Accepta la invitació"
 
@@ -694,7 +693,7 @@ msgstr "Accepta la invitació"
 msgid "Access denied"
 msgstr "Accés denegat"
 
-#: packages/admin/src/router.tsx:2006
+#: packages/admin/src/router.tsx:2029
 msgid "Access Denied"
 msgstr "Accés denegat"
 
@@ -703,15 +702,15 @@ msgstr "Accés denegat"
 msgid "Access your media library"
 msgstr "Accedeix a la teva biblioteca multimèdia"
 
-#: packages/admin/src/components/SetupWizard.tsx:354
+#: packages/admin/src/components/SetupWizard.tsx:347
 msgid "Account"
 msgstr "Compte"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:154
+#: packages/admin/src/components/InviteAcceptPage.tsx:153
 msgid "Account already exists"
 msgstr "El compte ja existeix"
 
-#: packages/admin/src/components/SignupPage.tsx:277
+#: packages/admin/src/components/SignupPage.tsx:278
 msgid "Account exists"
 msgstr "El compte existeix"
 
@@ -725,7 +724,7 @@ msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:291
 #: packages/admin/src/components/ContentList.tsx:637
-#: packages/admin/src/components/ContentList.tsx:768
+#: packages/admin/src/components/ContentList.tsx:769
 #: packages/admin/src/components/ContentTypeList.tsx:190
 #: packages/admin/src/components/TaxonomyManager.tsx:1056
 #: packages/admin/src/routes/byline-schema.tsx:249
@@ -752,7 +751,7 @@ msgstr "Afegeix"
 #. placeholder {0}: option.byline.displayName
 #. placeholder {0}: taxonomyDef.labelSingular || t`Term`
 #: packages/admin/src/components/BylineCreditsEditor.tsx:498
-#: packages/admin/src/components/PortableTextEditor.tsx:2144
+#: packages/admin/src/components/PortableTextEditor.tsx:2376
 #: packages/admin/src/components/TaxonomyManager.tsx:545
 #: packages/admin/src/components/TaxonomyManager.tsx:1047
 msgid "Add {0}"
@@ -778,11 +777,11 @@ msgstr "Afegeix com a mínim un subcamp per definir l'estructura del repetidor."
 msgid "Add byline"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3760
+#: packages/admin/src/components/PortableTextEditor.tsx:3997
 msgid "Add column after"
 msgstr "Afegeix una columna després"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3754
+#: packages/admin/src/components/PortableTextEditor.tsx:3991
 msgid "Add column before"
 msgstr "Afegeix una columna abans"
 
@@ -797,7 +796,7 @@ msgstr "Afegeix contingut"
 msgid "Add Custom Link"
 msgstr "Afegeix un enllaç personalitzat"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:447
+#: packages/admin/src/components/ImageFieldRenderer.tsx:451
 msgid "Add dark mode variant"
 msgstr ""
 
@@ -840,7 +839,7 @@ msgstr ""
 msgid "Add images to gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2144
+#: packages/admin/src/components/PortableTextEditor.tsx:2376
 msgid "Add item"
 msgstr "Afegeix un element"
 
@@ -848,7 +847,7 @@ msgstr "Afegeix un element"
 msgid "Add Item"
 msgstr "Afegeix un element"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3689
+#: packages/admin/src/components/PortableTextEditor.tsx:3926
 msgid "Add link"
 msgstr "Afegeix un enllaç"
 
@@ -870,8 +869,8 @@ msgid "Add new {0}"
 msgstr "Afegeix {0}"
 
 #: packages/admin/src/components/MediaFolderDialog.tsx:127
-#: packages/admin/src/components/MediaLibrary.tsx:848
-#: packages/admin/src/components/MediaLibrary.tsx:853
+#: packages/admin/src/components/MediaLibrary.tsx:852
+#: packages/admin/src/components/MediaLibrary.tsx:857
 msgid "Add new folder"
 msgstr ""
 
@@ -887,11 +886,11 @@ msgstr "Afegeix una clau d'accés"
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "Afegeix connectors al teu astro.config.mjs per ampliar les funcions d'EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3781
+#: packages/admin/src/components/PortableTextEditor.tsx:4018
 msgid "Add row after"
 msgstr "Afegeix una fila després"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3775
+#: packages/admin/src/components/PortableTextEditor.tsx:4012
 msgid "Add row before"
 msgstr "Afegeix una fila abans"
 
@@ -963,15 +962,15 @@ msgstr ""
 msgid "Agent-callable MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4157
+#: packages/admin/src/components/PortableTextEditor.tsx:4394
 msgid "Align Center"
 msgstr "Alinea al centre"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4150
+#: packages/admin/src/components/PortableTextEditor.tsx:4387
 msgid "Align Left"
 msgstr "Alinea a l'esquerra"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4164
+#: packages/admin/src/components/PortableTextEditor.tsx:4401
 msgid "Align Right"
 msgstr "Alinea a la dreta"
 
@@ -984,8 +983,8 @@ msgstr "Alineació"
 msgid "All"
 msgstr "Tots"
 
-#: packages/admin/src/components/ContentList.tsx:918
-#: packages/admin/src/components/ContentList.tsx:922
+#: packages/admin/src/components/ContentList.tsx:919
+#: packages/admin/src/components/ContentList.tsx:923
 msgid "All authors"
 msgstr "Tots els autors"
 
@@ -1023,12 +1022,12 @@ msgstr "Tots els rols"
 msgid "All Sources"
 msgstr "Totes les fonts"
 
-#: packages/admin/src/components/ContentList.tsx:857
+#: packages/admin/src/components/ContentList.tsx:858
 #: packages/admin/src/components/Redirects.tsx:426
 msgid "All statuses"
 msgstr "Tots els estats"
 
-#: packages/admin/src/components/MediaLibrary.tsx:980
+#: packages/admin/src/components/MediaLibrary.tsx:984
 #: packages/admin/src/components/MediaPickerModal.tsx:381
 #: packages/admin/src/components/Redirects.tsx:432
 msgid "All types"
@@ -1059,7 +1058,7 @@ msgstr "Dominis permesos"
 msgid "Allowed types"
 msgstr "Tipus permesos"
 
-#: packages/admin/src/components/SignupPage.tsx:454
+#: packages/admin/src/components/SignupPage.tsx:455
 msgid "Already have an account?"
 msgstr "Ja tens un compte?"
 
@@ -1075,7 +1074,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:466
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:470
 #: packages/admin/src/components/editor/ImageNode.tsx:278
-#: packages/admin/src/components/MediaLibrary.tsx:1204
+#: packages/admin/src/components/MediaLibrary.tsx:1208
 msgid "Alt text"
 msgstr "Text alternatiu"
 
@@ -1085,18 +1084,22 @@ msgstr "Text alternatiu"
 msgid "Alt Text"
 msgstr "Text alternatiu"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1552
+#: packages/admin/src/components/MediaLibrary.tsx:1559
 msgid "Alt text is not applicable to folders"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1780
-#: packages/admin/src/components/MediaLibrary.tsx:1837
+#: packages/admin/src/components/MediaLibrary.tsx:1787
+#: packages/admin/src/components/MediaLibrary.tsx:1844
 msgid "Alt text set"
 msgstr "Text alternatiu definit"
 
 #: packages/admin/src/components/WordPressImport.tsx:1411
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Com a alternativa, pots exportar des de WordPress (Eines → Exporta) i pujar el fitxer."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:236
+msgid "An encrypted digital key you unlock using your fingerprint, face, PIN, or device password."
+msgstr ""
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
@@ -1142,10 +1145,10 @@ msgstr "Com a alternativa, pots exportar des de WordPress (Eines → Exporta) i 
 #: packages/admin/src/router.tsx:1277
 #: packages/admin/src/router.tsx:1308
 #: packages/admin/src/router.tsx:1328
-#: packages/admin/src/router.tsx:1951
-#: packages/admin/src/router.tsx:1967
-#: packages/admin/src/router.tsx:1992
-#: packages/admin/src/router.tsx:2498
+#: packages/admin/src/router.tsx:1974
+#: packages/admin/src/router.tsx:1990
+#: packages/admin/src/router.tsx:2015
+#: packages/admin/src/router.tsx:2521
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1157,7 +1160,7 @@ msgstr "S'ha produït un error"
 msgid "An unexpected error occurred."
 msgstr "S'ha produït un error inesperat."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:251
+#: packages/admin/src/components/InviteAcceptPage.tsx:250
 msgid "An unknown error occurred"
 msgstr "S'ha produït un error desconegut"
 
@@ -1193,7 +1196,7 @@ msgid "Application Password"
 msgstr "Contrasenya d'aplicació"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:542
-#: packages/admin/src/components/PortableTextEditor.tsx:4246
+#: packages/admin/src/components/PortableTextEditor.tsx:4483
 msgid "Apply"
 msgstr "Aplica"
 
@@ -1202,8 +1205,8 @@ msgstr "Aplica"
 msgid "Apply language"
 msgstr "Aplica l'idioma"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3615
-#: packages/admin/src/components/PortableTextEditor.tsx:3616
+#: packages/admin/src/components/PortableTextEditor.tsx:3852
+#: packages/admin/src/components/PortableTextEditor.tsx:3853
 msgid "Apply link"
 msgstr "Aplica l'enllaç"
 
@@ -1212,6 +1215,10 @@ msgstr "Aplica l'enllaç"
 #: packages/admin/src/components/comments/CommentInbox.tsx:481
 msgid "Approve"
 msgstr "Aprova"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
+msgid "Approve with that device's face, fingerprint, PIN, or passcode."
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:195
 msgid "approved"
@@ -1225,7 +1232,7 @@ msgstr "Aprovat"
 msgid "Arbitrary JSON data"
 msgstr "Dades JSON arbitràries"
 
-#: packages/admin/src/components/ContentList.tsx:861
+#: packages/admin/src/components/ContentList.tsx:862
 #: packages/admin/src/components/ContentStatusBadge.tsx:65
 msgid "Archived"
 msgstr "Arxivat"
@@ -1275,14 +1282,14 @@ msgid "Astro"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
-#: packages/admin/src/components/MediaLibrary.tsx:983
+#: packages/admin/src/components/MediaLibrary.tsx:987
 #: packages/admin/src/components/MediaPickerModal.tsx:385
 msgid "Audio"
 msgstr "Àudio"
 
 #. placeholder {0}: error.message
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:278
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:279
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:438
 msgid "Authentication error: {0}"
 msgstr "Error d'autenticació: {0}"
 
@@ -1399,16 +1406,20 @@ msgstr "Ginys disponibles"
 msgid "Avatar"
 msgstr "Avatar"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:628
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:665
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/editor/BlockMenu.tsx:266
 #: packages/admin/src/components/MediaDetailPanel.tsx:1793
-#: packages/admin/src/components/MediaLibrary.tsx:807
+#: packages/admin/src/components/MediaLibrary.tsx:811
 #: packages/admin/src/components/MenuEditor.tsx:362
 #: packages/admin/src/components/WordPressImport.tsx:1526
 #: packages/admin/src/components/WordPressImport.tsx:2543
 msgid "Back"
 msgstr "Enrere"
 
-#: packages/admin/src/components/ContentEditor.tsx:870
+#: packages/admin/src/components/ContentEditor.tsx:896
 msgid "Back to {collectionLabel} list"
 msgstr "Torna a la llista {collectionLabel}"
 
@@ -1416,15 +1427,15 @@ msgstr "Torna a la llista {collectionLabel}"
 msgid "Back to Content Types"
 msgstr "Torna als tipus de contingut"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:172
+#: packages/admin/src/components/InviteAcceptPage.tsx:171
 #: packages/admin/src/components/LoginPage.tsx:118
 #: packages/admin/src/components/LoginPage.tsx:154
 #: packages/admin/src/components/LoginPage.tsx:313
-#: packages/admin/src/components/SignupPage.tsx:297
+#: packages/admin/src/components/SignupPage.tsx:298
 msgid "Back to login"
 msgstr "Torna a l'inici de sessió"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1091
+#: packages/admin/src/components/MediaLibrary.tsx:1095
 msgid "Back to Main library"
 msgstr ""
 
@@ -1503,8 +1514,8 @@ msgstr "Biografia"
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "Accions del bloc: arrossega per reordenar, fes clic per al menú"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3639
-#: packages/admin/src/components/PortableTextEditor.tsx:4044
+#: packages/admin/src/components/PortableTextEditor.tsx:3876
+#: packages/admin/src/components/PortableTextEditor.tsx:4281
 msgid "Bold"
 msgstr "Negreta"
 
@@ -1548,8 +1559,8 @@ msgid "Browse themes and preview them with your own content."
 msgstr "Explora temes i previsualitza'ls amb el teu propi contingut."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:127
-#: packages/admin/src/components/PortableTextEditor.tsx:1460
-#: packages/admin/src/components/PortableTextEditor.tsx:4092
+#: packages/admin/src/components/PortableTextEditor.tsx:1692
+#: packages/admin/src/components/PortableTextEditor.tsx:4329
 msgid "Bullet List"
 msgstr "Llista de vinyetes"
 
@@ -1607,8 +1618,8 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:256
 #: packages/admin/src/components/ConfirmDialog.tsx:99
 #: packages/admin/src/components/ContentList.tsx:545
-#: packages/admin/src/components/ContentList.tsx:1370
-#: packages/admin/src/components/ContentList.tsx:1552
+#: packages/admin/src/components/ContentList.tsx:1376
+#: packages/admin/src/components/ContentList.tsx:1558
 #: packages/admin/src/components/ContentPickerModal.tsx:240
 #: packages/admin/src/components/ContentSettingsPanel.tsx:312
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1213
@@ -1627,7 +1638,7 @@ msgstr "Pot veure el contingut"
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
 #: packages/admin/src/components/PluginManager.tsx:744
-#: packages/admin/src/components/PortableTextEditor.tsx:4230
+#: packages/admin/src/components/PortableTextEditor.tsx:4467
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:183
 #: packages/admin/src/components/SectionPickerModal.tsx:131
@@ -1714,7 +1725,7 @@ msgstr "Centre"
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:76
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
 #: packages/admin/src/components/FieldEditor.tsx:438
-#: packages/admin/src/components/SeoImageField.tsx:57
+#: packages/admin/src/components/SeoImageField.tsx:58
 msgid "Change"
 msgstr "Canvia"
 
@@ -1780,7 +1791,7 @@ msgstr ""
 
 #: packages/admin/src/components/LoginPage.tsx:102
 #: packages/admin/src/components/SignupPage.tsx:148
-#: packages/admin/src/components/SignupPage.tsx:417
+#: packages/admin/src/components/SignupPage.tsx:418
 msgid "Check your email"
 msgstr "Comprova el teu correu electrònic"
 
@@ -1797,8 +1808,16 @@ msgstr "S'està comprovant l'autenticació..."
 msgid "Checking how many stored values reference \"{0}\"…"
 msgstr "S'està comprovant quants valors emmagatzemats fan referència a «{0}»…"
 
-#: packages/admin/src/components/ContentList.tsx:1044
-#: packages/admin/src/components/ContentList.tsx:1050
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:493
+msgid "Checking this device for passkey support..."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:577
+msgid "Choose a credential manager on this device, another device, or a security key."
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1045
+#: packages/admin/src/components/ContentList.tsx:1051
 msgid "Choose a date range"
 msgstr ""
 
@@ -1819,6 +1838,10 @@ msgstr ""
 msgid "Choose an image from the library or upload a new one."
 msgstr ""
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:567
+msgid "Choose another option"
+msgstr ""
+
 #: packages/admin/src/components/BylineCreditsEditor.tsx:662
 #: packages/admin/src/components/BylineCreditsEditor.tsx:677
 msgid "Choose bylines"
@@ -1828,12 +1851,12 @@ msgstr ""
 msgid "Choose files to upload"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:288
-msgid "Choose how to sign in"
-msgstr "Tria com iniciar la sessió"
-
 #: packages/admin/src/components/MediaDetailPanel.tsx:1824
 msgid "Choose replacement image"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
+msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:472
@@ -1842,6 +1865,10 @@ msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:475
 msgid "Choose when this draft becomes public."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
+msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
 msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:134
@@ -1853,7 +1880,7 @@ msgid "Choosing a byline replaces this automatic credit."
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:571
-#: packages/admin/src/components/ContentList.tsx:1058
+#: packages/admin/src/components/ContentList.tsx:1059
 msgid "Clear"
 msgstr ""
 
@@ -1861,14 +1888,14 @@ msgstr ""
 msgid "Clear completed"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:963
-#: packages/admin/src/components/MediaLibrary.tsx:1080
+#: packages/admin/src/components/ContentList.tsx:964
+#: packages/admin/src/components/MediaLibrary.tsx:1084
 #: packages/admin/src/components/users/UserList.tsx:122
 msgid "Clear filters"
 msgstr "Neteja els filtres"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1080
-#: packages/admin/src/components/MediaLibrary.tsx:1115
+#: packages/admin/src/components/MediaLibrary.tsx:1084
+#: packages/admin/src/components/MediaLibrary.tsx:1119
 msgid "Clear search"
 msgstr "Neteja la cerca"
 
@@ -1915,9 +1942,9 @@ msgstr "Fes clic a l'enllaç del correu electrònic per iniciar la sessió."
 #: packages/admin/src/components/MenuList.tsx:139
 #: packages/admin/src/components/MenuList.tsx:145
 #: packages/admin/src/components/MenuList.tsx:149
-#: packages/admin/src/components/PortableTextEditor.tsx:1928
-#: packages/admin/src/components/PortableTextEditor.tsx:1934
-#: packages/admin/src/components/PortableTextEditor.tsx:1938
+#: packages/admin/src/components/PortableTextEditor.tsx:2160
+#: packages/admin/src/components/PortableTextEditor.tsx:2166
+#: packages/admin/src/components/PortableTextEditor.tsx:2170
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:347
 #: packages/admin/src/components/Redirects.tsx:115
 #: packages/admin/src/components/Redirects.tsx:121
@@ -1968,19 +1995,19 @@ msgstr ""
 msgid "Close panel"
 msgstr "Tanca el tauler"
 
-#: packages/admin/src/components/ContentEditor.tsx:1382
+#: packages/admin/src/components/ContentEditor.tsx:1408
 msgid "Close settings"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeList.tsx:356
-#: packages/admin/src/components/PortableTextEditor.tsx:3681
+#: packages/admin/src/components/PortableTextEditor.tsx:3918
 #: packages/admin/src/components/Redirects.tsx:478
 msgid "Code"
 msgstr "Codi"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:119
-#: packages/admin/src/components/PortableTextEditor.tsx:1490
-#: packages/admin/src/components/PortableTextEditor.tsx:4131
+#: packages/admin/src/components/PortableTextEditor.tsx:1722
+#: packages/admin/src/components/PortableTextEditor.tsx:4368
 msgid "Code Block"
 msgstr "Bloc de codi"
 
@@ -2044,7 +2071,7 @@ msgstr "Els comentaris dels usuaris del CMS amb sessió iniciada s'aproven autom
 msgid "Complete"
 msgstr ""
 
-#: packages/admin/src/components/SignupPage.tsx:418
+#: packages/admin/src/components/SignupPage.tsx:419
 msgid "Complete signup"
 msgstr "Completa el registre"
 
@@ -2059,6 +2086,18 @@ msgstr "Configura el camp"
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:416
 msgid "Confirm"
 msgstr "Confirma"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:208
+msgid "Confirm using the secure prompt from your device or credential manager."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:194
+msgid "Confirm with Face ID, Touch ID, or your device passcode."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:201
+msgid "Confirm with your fingerprint, face, or PIN."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:719
 #: packages/admin/src/components/WordPressImport.tsx:1072
@@ -2091,7 +2130,7 @@ msgstr ""
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:285
 #: packages/admin/src/components/Dashboard.tsx:269
-#: packages/admin/src/components/PortableTextEditor.tsx:2748
+#: packages/admin/src/components/PortableTextEditor.tsx:2981
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:422
 #: packages/admin/src/components/Widgets.tsx:899
@@ -2169,6 +2208,7 @@ msgstr "S'ha omès el contingut perquè ja existeix"
 msgid "Content Write"
 msgstr "Escriptura de contingut"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:274
 #: packages/admin/src/components/SignupPage.tsx:109
 msgid "Continue"
 msgstr "Continua"
@@ -2182,8 +2222,16 @@ msgstr "Continua →"
 msgid "Continue Import"
 msgstr "Continua la importació"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4108
+#: packages/admin/src/components/PortableTextEditor.tsx:4345
 msgid "Continue numbering"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:673
+msgid "Continue with another device"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:710
+msgid "Continue with security key"
 msgstr ""
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
@@ -2242,7 +2290,7 @@ msgstr "Copia l'URL"
 msgid "Could not copy automatically. Please select the URL above and copy manually."
 msgstr "No s'ha pogut copiar automàticament. Selecciona l'URL de dalt i copia'l manualment."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3377
+#: packages/admin/src/components/PortableTextEditor.tsx:3614
 msgid "Could not insert section"
 msgstr ""
 
@@ -2341,7 +2389,7 @@ msgstr ""
 msgid "Create {0} translation"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1461
+#: packages/admin/src/components/PortableTextEditor.tsx:1693
 msgid "Create a bullet list"
 msgstr "Crea una llista de vinyetes"
 
@@ -2350,7 +2398,7 @@ msgstr "Crea una llista de vinyetes"
 msgid "Create a new {0}"
 msgstr "Crea {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1471
+#: packages/admin/src/components/PortableTextEditor.tsx:1703
 msgid "Create a numbered list"
 msgstr "Crea una llista numerada"
 
@@ -2358,12 +2406,7 @@ msgstr "Crea una llista numerada"
 msgid "Create a reusable public profile, then add it to this post."
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:84
-#: packages/admin/src/components/SignupPage.tsx:236
-msgid "Create Account"
-msgstr "Crea un compte"
-
-#: packages/admin/src/components/SignupPage.tsx:416
+#: packages/admin/src/components/SignupPage.tsx:417
 msgid "Create an account"
 msgstr "Crea un compte"
 
@@ -2405,9 +2448,9 @@ msgstr "Crea un testimoni nou"
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "Crea'n una a WordPress: Usuaris → Perfil → Contrasenyes d'aplicació"
 
-#: packages/admin/src/components/SetupWizard.tsx:298
-msgid "Create Passkey"
-msgstr "Crea una clau d'accés"
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:741
+msgid "Create passkey"
+msgstr ""
 
 #: packages/admin/src/components/Settings.tsx:102
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:196
@@ -2456,7 +2499,7 @@ msgstr "Crea un testimoni"
 msgid "Create Widget Area"
 msgstr "Crea una àrea de ginys"
 
-#: packages/admin/src/components/SetupWizard.tsx:560
+#: packages/admin/src/components/SetupWizard.tsx:553
 msgid "Create your account"
 msgstr "Crea el teu compte"
 
@@ -2476,11 +2519,6 @@ msgstr "Crea'n el primer"
 msgid "Create your first reusable content section to get started."
 msgstr "Crea la teva primera secció de contingut reutilitzable per començar."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:75
-#: packages/admin/src/components/SignupPage.tsx:227
-msgid "Create your passkey"
-msgstr "Crea la teva clau d'accés"
-
 #: packages/admin/src/lib/api/marketplace.ts:280
 #: packages/admin/src/lib/api/marketplace.ts:289
 msgid "Create, update, and delete content"
@@ -2498,7 +2536,7 @@ msgstr "Crea, actualitza i elimina termes de taxonomia"
 msgid "Create, update, delete content"
 msgstr "Crea, actualitza i elimina contingut"
 
-#: packages/admin/src/components/ContentList.tsx:867
+#: packages/admin/src/components/ContentList.tsx:868
 #: packages/admin/src/components/ContentSettingsPanel.tsx:991
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:358
 #: packages/admin/src/components/users/UserDetail.tsx:219
@@ -2564,7 +2602,7 @@ msgid "Crop selection. Use the Arrow keys to move it."
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:761
-#: packages/admin/src/components/MediaLibrary.tsx:1386
+#: packages/admin/src/components/MediaLibrary.tsx:1393
 msgid "Cropped copy created."
 msgstr ""
 
@@ -2617,7 +2655,7 @@ msgid "Dark"
 msgstr "Fosc"
 
 #: packages/admin/src/components/FieldEditor.tsx:688
-#: packages/admin/src/components/ImageFieldRenderer.tsx:391
+#: packages/admin/src/components/ImageFieldRenderer.tsx:395
 msgid "Dark mode variant"
 msgstr ""
 
@@ -2643,7 +2681,7 @@ msgstr "Data i hora"
 msgid "Date and time picker"
 msgstr "Selector de data i hora"
 
-#: packages/admin/src/components/ContentList.tsx:940
+#: packages/admin/src/components/ContentList.tsx:941
 msgid "Date field to filter on"
 msgstr "Camp de data per filtrar"
 
@@ -2651,7 +2689,7 @@ msgstr "Camp de data per filtrar"
 msgid "Date Format"
 msgstr "Format de data"
 
-#: packages/admin/src/components/ContentList.tsx:990
+#: packages/admin/src/components/ContentList.tsx:991
 msgid "Date range"
 msgstr ""
 
@@ -2769,7 +2807,7 @@ msgstr "Vols eliminar el camp de signatura?"
 msgid "Delete Byline?"
 msgstr "Vols eliminar la signatura?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3766
+#: packages/admin/src/components/PortableTextEditor.tsx:4003
 msgid "Delete column"
 msgstr "Elimina la columna"
 
@@ -2822,11 +2860,11 @@ msgid "Delete permanently"
 msgstr "Elimina permanentment"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:182
-#: packages/admin/src/components/ContentList.tsx:1563
+#: packages/admin/src/components/ContentList.tsx:1569
 msgid "Delete Permanently"
 msgstr "Elimina permanentment"
 
-#: packages/admin/src/components/ContentList.tsx:1543
+#: packages/admin/src/components/ContentList.tsx:1549
 msgid "Delete Permanently?"
 msgstr "Vols eliminar-ho permanentment?"
 
@@ -2843,7 +2881,7 @@ msgstr "Elimina la redirecció {0}"
 msgid "Delete Redirect?"
 msgstr "Vols eliminar la redirecció?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3785
+#: packages/admin/src/components/PortableTextEditor.tsx:4022
 msgid "Delete row"
 msgstr "Elimina la fila"
 
@@ -2851,7 +2889,7 @@ msgstr "Elimina la fila"
 msgid "Delete Section?"
 msgstr "Vols eliminar la secció?"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3800
+#: packages/admin/src/components/PortableTextEditor.tsx:4037
 msgid "Delete table"
 msgstr "Elimina la taula"
 
@@ -2859,7 +2897,7 @@ msgstr "Elimina la taula"
 msgid "Delete Widget Area?"
 msgstr "Vols eliminar l'àrea de ginys?"
 
-#: packages/admin/src/components/ContentList.tsx:765
+#: packages/admin/src/components/ContentList.tsx:766
 msgid "Deleted"
 msgstr "Eliminat"
 
@@ -3064,7 +3102,7 @@ msgstr "Descarta"
 msgid "Dismiss completed {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3391
+#: packages/admin/src/components/PortableTextEditor.tsx:3628
 msgid "Dismiss section error"
 msgstr ""
 
@@ -3105,11 +3143,11 @@ msgstr ""
 msgid "Displayed below the image as a visible caption."
 msgstr "Es mostra sota la imatge com a llegenda visible."
 
-#: packages/admin/src/components/ContentEditor.tsx:938
+#: packages/admin/src/components/ContentEditor.tsx:964
 msgid "Distraction-free mode (⌘⇧\\)"
 msgstr "Mode sense distraccions (⌘⇧\\)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1508
+#: packages/admin/src/components/PortableTextEditor.tsx:1740
 msgid "Divider"
 msgstr "Separador"
 
@@ -3118,7 +3156,7 @@ msgid "Dockerfile"
 msgstr ""
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:66
-#: packages/admin/src/components/MediaLibrary.tsx:984
+#: packages/admin/src/components/MediaLibrary.tsx:988
 #: packages/admin/src/components/MediaPickerModal.tsx:386
 msgid "Documents"
 msgstr "Documents"
@@ -3144,7 +3182,7 @@ msgid "Don't have an account? <0>Sign up</0>"
 msgstr "No tens cap compte? <0>Registra't</0>"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:911
-#: packages/admin/src/components/ContentList.tsx:1066
+#: packages/admin/src/components/ContentList.tsx:1067
 #: packages/admin/src/components/MediaUploadDialog.tsx:353
 #: packages/admin/src/components/users/InviteUserModal.tsx:142
 #: packages/admin/src/components/WordPressImport.tsx:2144
@@ -3181,7 +3219,7 @@ msgstr "Baixa l'SBOM"
 msgid "Downloading"
 msgstr "S'està baixant"
 
-#: packages/admin/src/components/ContentList.tsx:859
+#: packages/admin/src/components/ContentList.tsx:860
 #: packages/admin/src/components/ContentStatusBadge.tsx:61
 msgid "Draft"
 msgstr "Esborrany"
@@ -3220,7 +3258,7 @@ msgstr "Arrossega i deixa anar o fes clic per explorar (.xml)"
 msgid "Drag here to add"
 msgstr "Arrossega aquí per afegir"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2320
+#: packages/admin/src/components/PortableTextEditor.tsx:2552
 msgid "Drag to reorder"
 msgstr "Arrossega per reordenar"
 
@@ -3248,8 +3286,20 @@ msgstr "Arrossega ginys aquí per afegir-los"
 msgid "Drag widgets into an area to add them"
 msgstr "Arrossega ginys a una àrea per afegir-los"
 
-#: packages/admin/src/components/MediaLibrary.tsx:787
+#: packages/admin/src/components/media/ImageDropTarget.tsx:134
+msgid "Drop an image here or <0>browse</0>"
+msgstr ""
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:118
+msgid "Drop an image here or browse for {label}"
+msgstr ""
+
+#: packages/admin/src/components/MediaLibrary.tsx:791
 msgid "Drop files to upload"
+msgstr ""
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:48
+msgid "Drop one image at a time."
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:700
@@ -3264,7 +3314,7 @@ msgstr "Deixa anar aquí el teu fitxer d'exportació de WordPress"
 msgid "Duplicate"
 msgstr "Duplica"
 
-#: packages/admin/src/components/ContentList.tsx:1343
+#: packages/admin/src/components/ContentList.tsx:1349
 msgid "Duplicate {title}"
 msgstr "Duplica {title}"
 
@@ -3280,7 +3330,7 @@ msgstr "p. ex. import, blog"
 msgid "e.g., CI/CD Pipeline"
 msgstr "p. ex. canalització CI/CD"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:325
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:765
 msgid "e.g., MacBook Pro, iPhone"
 msgstr "p. ex. MacBook Pro, iPhone"
 
@@ -3297,7 +3347,7 @@ msgstr "Edita"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:332
-#: packages/admin/src/components/PortableTextEditor.tsx:1925
+#: packages/admin/src/components/PortableTextEditor.tsx:2157
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:263
 #: packages/admin/src/components/TaxonomyManager.tsx:277
 #: packages/admin/src/components/TaxonomyManager.tsx:544
@@ -3311,19 +3361,19 @@ msgstr "Edita {0}"
 msgid "Edit {0} field"
 msgstr "Edita el camp {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:877
+#: packages/admin/src/components/ContentEditor.tsx:903
 msgid "Edit {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1335
+#: packages/admin/src/components/ContentList.tsx:1341
 msgid "Edit {title}"
 msgstr "Edita {title}"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:460
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:260
-#: packages/admin/src/components/ImageFieldRenderer.tsx:298
-#: packages/admin/src/components/ImageFieldRenderer.tsx:354
-#: packages/admin/src/components/ImageFieldRenderer.tsx:422
+#: packages/admin/src/components/ImageFieldRenderer.tsx:302
+#: packages/admin/src/components/ImageFieldRenderer.tsx:358
+#: packages/admin/src/components/ImageFieldRenderer.tsx:426
 #: packages/admin/src/components/MediaPickerModal.tsx:1584
 msgid "Edit asset"
 msgstr ""
@@ -3332,7 +3382,7 @@ msgstr ""
 msgid "Edit byline field"
 msgstr "Edita el camp de signatura"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:420
+#: packages/admin/src/components/ImageFieldRenderer.tsx:424
 msgid "Edit dark mode asset"
 msgstr ""
 
@@ -3349,8 +3399,8 @@ msgid "Edit folder"
 msgstr ""
 
 #. placeholder {0}: folder.name
-#: packages/admin/src/components/MediaLibrary.tsx:1467
-#: packages/admin/src/components/MediaLibrary.tsx:1534
+#: packages/admin/src/components/MediaLibrary.tsx:1474
+#: packages/admin/src/components/MediaLibrary.tsx:1541
 msgid "Edit folder {0}"
 msgstr ""
 
@@ -3364,7 +3414,7 @@ msgstr ""
 msgid "Edit image {0}"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3689
+#: packages/admin/src/components/PortableTextEditor.tsx:3926
 msgid "Edit link"
 msgstr "Edita l'enllaç"
 
@@ -3426,9 +3476,9 @@ msgstr ""
 msgid "em1.…"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:62
+#: packages/admin/src/components/InviteAcceptPage.tsx:63
 #: packages/admin/src/components/Settings.tsx:110
-#: packages/admin/src/components/SignupPage.tsx:213
+#: packages/admin/src/components/SignupPage.tsx:215
 #: packages/admin/src/components/users/UserDetail.tsx:154
 msgid "Email"
 msgstr "Correu electrònic"
@@ -3469,16 +3519,16 @@ msgstr "Configuració de correu"
 msgid "Email verified"
 msgstr "Correu electrònic verificat"
 
-#: packages/admin/src/components/SignupPage.tsx:206
+#: packages/admin/src/components/SignupPage.tsx:207
 msgid "Email verified!"
 msgstr "Correu electrònic verificat!"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2762
+#: packages/admin/src/components/PortableTextEditor.tsx:2995
 msgid "Embed a {0}"
 msgstr "Incrusta {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2765
+#: packages/admin/src/components/PortableTextEditor.tsx:2998
 msgid "Embeds"
 msgstr "Incrustacions"
 
@@ -3496,6 +3546,10 @@ msgstr "S'ha detectat el connector EmDash Exporter. Pots importar directament."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:487
 msgid "EmDash is scanning existing content."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:744
+msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr ""
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:575
@@ -3560,7 +3614,7 @@ msgstr ""
 msgid "Enter a URL (https://…) or a relative path (/…)"
 msgstr "Introdueix un URL (https://…) o una ruta relativa (/…)"
 
-#: packages/admin/src/components/ContentEditor.tsx:1791
+#: packages/admin/src/components/ContentEditor.tsx:1817
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Introdueix un URL vàlid (p. ex. https://example.com)"
 
@@ -3568,7 +3622,7 @@ msgstr "Introdueix un URL vàlid (p. ex. https://example.com)"
 msgid "Enter credentials manually"
 msgstr "Introdueix les credencials manualment"
 
-#: packages/admin/src/components/ContentEditor.tsx:937
+#: packages/admin/src/components/ContentEditor.tsx:963
 msgid "Enter distraction-free mode"
 msgstr "Entra al mode sense distraccions"
 
@@ -3580,7 +3634,7 @@ msgstr "Introdueix el correu electrònic"
 msgid "Enter HTML..."
 msgstr "Introdueix HTML..."
 
-#: packages/admin/src/components/ContentEditor.tsx:1563
+#: packages/admin/src/components/ContentEditor.tsx:1589
 msgid "Enter markdown content..."
 msgstr "Introdueix contingut en Markdown..."
 
@@ -3612,10 +3666,10 @@ msgstr "Introdueix l'URL del teu lloc de WordPress"
 #: packages/admin/src/components/MenuEditor.tsx:155
 #: packages/admin/src/components/MenuEditor.tsx:193
 #: packages/admin/src/components/MenuEditor.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:539
+#: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2736
 msgid "Error"
 msgstr "Error"
 
@@ -3664,11 +3718,11 @@ msgstr ""
 msgid "Exists"
 msgstr "Existeix"
 
-#: packages/admin/src/components/ContentEditor.tsx:1003
+#: packages/admin/src/components/ContentEditor.tsx:1029
 msgid "Exit distraction-free mode"
 msgstr "Surt del mode sense distraccions"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4519
 msgid "Exit Spotlight Mode"
 msgstr "Surt del mode focus"
 
@@ -3726,7 +3780,7 @@ msgstr "No s'ha pogut comunicar amb el connector"
 msgid "Failed to confirm upload"
 msgstr "No s'ha pogut confirmar la pujada"
 
-#: packages/admin/src/components/SetupWizard.tsx:493
+#: packages/admin/src/components/SetupWizard.tsx:486
 msgid "Failed to create admin"
 msgstr "No s'ha pogut crear l'administrador"
 
@@ -3792,7 +3846,7 @@ msgid "Failed to delete collection"
 msgstr "No s'ha pogut eliminar la col·lecció"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:1989
 msgid "Failed to delete comment"
 msgstr "No s'ha pogut eliminar el comentari"
 
@@ -3891,7 +3945,7 @@ msgstr "No s'ha pogut activar l'usuari"
 msgid "Failed to execute import"
 msgstr "No s'ha pogut executar la importació"
 
-#: packages/admin/src/lib/api/client.ts:318
+#: packages/admin/src/lib/api/client.ts:319
 msgid "Failed to fetch auth mode"
 msgstr "No s'ha pogut obtenir el mode d'autenticació"
 
@@ -3916,7 +3970,7 @@ msgstr "No s'ha pogut obtenir la configuració de correu"
 msgid "Failed to fetch entry terms"
 msgstr "No s'han pogut obtenir els termes de l'entrada"
 
-#: packages/admin/src/lib/api/client.ts:301
+#: packages/admin/src/lib/api/client.ts:302
 msgid "Failed to fetch manifest"
 msgstr "No s'ha pogut obtenir el manifest"
 
@@ -3978,7 +4032,7 @@ msgstr "No s'han pogut obtenir les seccions"
 msgid "Failed to fetch settings"
 msgstr "No s'ha pogut obtenir la configuració"
 
-#: packages/admin/src/components/SetupWizard.tsx:446
+#: packages/admin/src/components/SetupWizard.tsx:439
 msgid "Failed to fetch setup status"
 msgstr "No s'ha pogut obtenir l'estat de configuració"
 
@@ -3990,7 +4044,7 @@ msgstr "No s'han pogut obtenir els termes"
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
 #: packages/admin/src/router.tsx:947
-#: packages/admin/src/router.tsx:1897
+#: packages/admin/src/router.tsx:1920
 msgid "Failed to fetch user"
 msgstr "No s'ha pogut obtenir l'usuari"
 
@@ -4006,7 +4060,7 @@ msgstr "No s'ha pogut generar l'URL de previsualització"
 msgid "Failed to get authentication options"
 msgstr "No s'han pogut obtenir les opcions d'autenticació"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:181
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:336
 msgid "Failed to get registration options"
 msgstr "No s'han pogut obtenir les opcions de registre"
 
@@ -4084,7 +4138,7 @@ msgstr "No s'han pogut carregar els connectors. Pot ser que l'agregador del regi
 msgid "Failed to load revisions"
 msgstr "No s'han pogut carregar les revisions"
 
-#: packages/admin/src/components/SetupWizard.tsx:541
+#: packages/admin/src/components/SetupWizard.tsx:534
 msgid "Failed to load setup"
 msgstr "No s'ha pogut carregar la configuració inicial"
 
@@ -4101,7 +4155,7 @@ msgstr "No s'han pogut carregar els usuaris: {0}"
 msgid "Failed to load widget"
 msgstr "No s'ha pogut carregar el giny"
 
-#: packages/admin/src/router.tsx:1991
+#: packages/admin/src/router.tsx:2014
 msgid "Failed to perform bulk action"
 msgstr "No s'ha pogut dur a terme l'acció massiva"
 
@@ -4183,7 +4237,7 @@ msgstr "No s'han pogut reescriure els URL"
 
 #: packages/admin/src/router.tsx:735
 #: packages/admin/src/router.tsx:1063
-#: packages/admin/src/router.tsx:2497
+#: packages/admin/src/router.tsx:2520
 msgid "Failed to save"
 msgstr "No s'ha pogut desar"
 
@@ -4220,7 +4274,7 @@ msgstr "No s'ha pogut enviar l'enllaç de recuperació"
 msgid "Failed to send test email"
 msgstr "No s'ha pogut enviar el correu de prova"
 
-#: packages/admin/src/components/SignupPage.tsx:366
+#: packages/admin/src/components/SignupPage.tsx:367
 msgid "Failed to send verification email"
 msgstr "No s'ha pogut enviar el correu de verificació"
 
@@ -4287,7 +4341,7 @@ msgstr "No s'ha pogut actualitzar la secció"
 msgid "Failed to update settings"
 msgstr "No s'ha pogut actualitzar la configuració"
 
-#: packages/admin/src/router.tsx:1950
+#: packages/admin/src/router.tsx:1973
 msgid "Failed to update status"
 msgstr "No s'ha pogut actualitzar l'estat"
 
@@ -4311,7 +4365,7 @@ msgstr "No s'ha pogut verificar l'autenticació"
 msgid "Failed to verify plugin"
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:254
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:412
 msgid "Failed to verify registration"
 msgstr "No s'ha pogut verificar el registre"
 
@@ -4392,7 +4446,7 @@ msgstr "Fitxer de la biblioteca multimèdia"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1403
 #: packages/admin/src/components/MediaDetailPanel.tsx:1420
-#: packages/admin/src/components/MediaLibrary.tsx:1201
+#: packages/admin/src/components/MediaLibrary.tsx:1205
 msgid "Filename"
 msgstr "Nom del fitxer"
 
@@ -4404,7 +4458,7 @@ msgstr "El nom del fitxer no es pot canviar després de la pujada"
 msgid "Files upload as soon as you add them."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:914
+#: packages/admin/src/components/ContentList.tsx:915
 msgid "Filter by author"
 msgstr "Filtra per autor"
 
@@ -4420,7 +4474,7 @@ msgstr "Filtra per capacitat"
 msgid "Filter by collection"
 msgstr "Filtra per col·lecció"
 
-#: packages/admin/src/components/ContentList.tsx:1036
+#: packages/admin/src/components/ContentList.tsx:1037
 msgid "Filter by date range: {rangeLabel}"
 msgstr ""
 
@@ -4432,12 +4486,12 @@ msgstr "Filtra per rol"
 msgid "Filter by source"
 msgstr "Filtra per font"
 
-#: packages/admin/src/components/ContentList.tsx:896
+#: packages/admin/src/components/ContentList.tsx:897
 #: packages/admin/src/components/Redirects.tsx:427
 msgid "Filter by status"
 msgstr "Filtra per estat"
 
-#: packages/admin/src/components/MediaLibrary.tsx:986
+#: packages/admin/src/components/MediaLibrary.tsx:990
 #: packages/admin/src/components/MediaPickerModal.tsx:1276
 #: packages/admin/src/components/Redirects.tsx:433
 msgid "Filter by type"
@@ -4451,7 +4505,7 @@ msgstr "Filtra per tipus de signatura"
 msgid "Finish any current edits."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1307
+#: packages/admin/src/components/MediaLibrary.tsx:1314
 #: packages/admin/src/components/MediaPickerModal.tsx:1544
 msgid "First page"
 msgstr ""
@@ -4464,7 +4518,11 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "Només els qui comenten per primera vegada"
 
-#: packages/admin/src/components/ContentEditor.tsx:671
+#: packages/admin/src/components/ContentEditor.tsx:728
+msgid "Fix invalid fields before changing the publication date"
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:684
 msgid "Fix invalid fields before changing the schedule"
 msgstr ""
 
@@ -4490,7 +4548,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1620
+#: packages/admin/src/router.tsx:1643
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -4510,19 +4568,19 @@ msgstr ""
 msgid "Folder unavailable"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1013
+#: packages/admin/src/components/MediaLibrary.tsx:1017
 #: packages/admin/src/components/MediaPickerModal.tsx:1314
 msgid "Folders"
 msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1523
-#: packages/admin/src/components/MediaLibrary.tsx:1023
-#: packages/admin/src/components/MediaLibrary.tsx:1564
+#: packages/admin/src/components/MediaLibrary.tsx:1027
+#: packages/admin/src/components/MediaLibrary.tsx:1571
 #: packages/admin/src/components/MediaPickerModal.tsx:1319
 msgid "Folders could not be loaded."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:818
+#: packages/admin/src/components/MediaLibrary.tsx:822
 msgid "Folders navigation"
 msgstr ""
 
@@ -4547,7 +4605,7 @@ msgid "Freeform"
 msgstr ""
 
 #. placeholder {0}: formatter.format(from)
-#: packages/admin/src/components/ContentList.tsx:987
+#: packages/admin/src/components/ContentList.tsx:988
 msgid "From {0}"
 msgstr ""
 
@@ -4573,7 +4631,7 @@ msgid "Full admin access"
 msgstr "Accés d'administració complet"
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:2729
+#: packages/admin/src/components/PortableTextEditor.tsx:2962
 msgid "Gallery"
 msgstr ""
 
@@ -4606,7 +4664,7 @@ msgstr "Comença"
 msgid "GitHub"
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:329
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:769
 msgid "Give this passkey a name to help you identify it later."
 msgstr "Posa un nom a aquesta clau d'accés per identificar-la més fàcilment després."
 
@@ -4615,7 +4673,7 @@ msgid "Go"
 msgstr "Ves"
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2733
+#: packages/admin/src/router.tsx:2756
 msgid "Go to Dashboard"
 msgstr "Ves al tauler"
 
@@ -4628,7 +4686,7 @@ msgstr "Verificació de Google"
 msgid "GraphQL"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:941
+#: packages/admin/src/components/MediaLibrary.tsx:945
 #: packages/admin/src/components/MediaPickerModal.tsx:1232
 msgid "Grid view"
 msgstr "Vista de graella"
@@ -4651,37 +4709,37 @@ msgstr "Només convidats"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:63
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:32
-#: packages/admin/src/components/PortableTextEditor.tsx:1400
+#: packages/admin/src/components/PortableTextEditor.tsx:1632
 msgid "Heading 1"
 msgstr "Encapçalament 1"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:71
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:1410
+#: packages/admin/src/components/PortableTextEditor.tsx:1642
 msgid "Heading 2"
 msgstr "Encapçalament 2"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:79
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:1420
+#: packages/admin/src/components/PortableTextEditor.tsx:1652
 msgid "Heading 3"
 msgstr "Encapçalament 3"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:1430
+#: packages/admin/src/components/PortableTextEditor.tsx:1662
 msgid "Heading 4"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:95
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:1440
+#: packages/admin/src/components/PortableTextEditor.tsx:1672
 msgid "Heading 5"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:103
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:1450
+#: packages/admin/src/components/PortableTextEditor.tsx:1682
 msgid "Heading 6"
 msgstr ""
 
@@ -4750,7 +4808,7 @@ msgstr "Com crear una contrasenya d'aplicació"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:37
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:114
-#: packages/admin/src/components/PortableTextEditor.tsx:1500
+#: packages/admin/src/components/PortableTextEditor.tsx:1732
 msgid "HTML"
 msgstr ""
 
@@ -4758,8 +4816,8 @@ msgstr ""
 msgid "HTML source"
 msgstr "Codi font HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3602
-#: packages/admin/src/components/PortableTextEditor.tsx:4212
+#: packages/admin/src/components/PortableTextEditor.tsx:3839
+#: packages/admin/src/components/PortableTextEditor.tsx:4449
 msgid "https://..."
 msgstr ""
 
@@ -4779,6 +4837,10 @@ msgstr ""
 msgid "I’ve completed these steps and understand tracking can’t be turned off."
 msgstr ""
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:554
+msgid "I've set it up — check again"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:243
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:153
 msgid "Icon blurred due to image audit"
@@ -4794,7 +4856,7 @@ msgstr "Si existeix un compte per a <0>{email}</0>, t'hem enviat un enllaç d'in
 
 #: packages/admin/src/components/FieldEditor.tsx:236
 #: packages/admin/src/components/FieldEditor.tsx:626
-#: packages/admin/src/components/PortableTextEditor.tsx:2714
+#: packages/admin/src/components/PortableTextEditor.tsx:2947
 msgid "Image"
 msgstr "Imatge"
 
@@ -4808,8 +4870,8 @@ msgstr "Imatge"
 msgid "Image {0}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:317
-#: packages/admin/src/components/ImageFieldRenderer.tsx:331
+#: packages/admin/src/components/ImageFieldRenderer.tsx:321
+#: packages/admin/src/components/ImageFieldRenderer.tsx:335
 msgid "Image actions"
 msgstr ""
 
@@ -4818,8 +4880,8 @@ msgid "Image from media library"
 msgstr "Imatge de la biblioteca multimèdia"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:67
-#: packages/admin/src/components/ImageFieldRenderer.tsx:463
-#: packages/admin/src/components/ImageFieldRenderer.tsx:515
+#: packages/admin/src/components/ImageFieldRenderer.tsx:467
+#: packages/admin/src/components/ImageFieldRenderer.tsx:519
 msgid "Image not found"
 msgstr "No s'ha trobat la imatge"
 
@@ -4837,9 +4899,13 @@ msgstr "Configuració de la imatge"
 msgid "Image Settings"
 msgstr "Configuració de la imatge"
 
-#: packages/admin/src/components/SeoImageField.tsx:43
+#: packages/admin/src/components/SeoImageField.tsx:44
 msgid "Image shown when this page is shared on social media"
 msgstr "Imatge que es mostra quan es comparteix aquesta pàgina a les xarxes socials"
+
+#: packages/admin/src/components/media/ImageDropTarget.tsx:72
+msgid "Image upload failed. Try again."
+msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1110
 #: packages/admin/src/components/MediaPickerModal.tsx:1120
@@ -4848,7 +4914,7 @@ msgstr "URL de la imatge"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:64
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:256
-#: packages/admin/src/components/MediaLibrary.tsx:981
+#: packages/admin/src/components/MediaLibrary.tsx:985
 #: packages/admin/src/components/MediaPickerModal.tsx:383
 msgid "Images"
 msgstr "Imatges"
@@ -4951,6 +5017,10 @@ msgstr ""
 msgid "In trash"
 msgstr ""
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:536
+msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
+msgstr ""
+
 #: packages/admin/src/components/BylineFilter.tsx:187
 #: packages/admin/src/components/BylineFilter.tsx:193
 msgid "Include inferred bylines"
@@ -4968,7 +5038,7 @@ msgstr "Incompatible"
 msgid "Independent verification"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:882
+#: packages/admin/src/components/MediaLibrary.tsx:886
 msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
@@ -4985,49 +5055,49 @@ msgstr ""
 msgid "Indexing existing content"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4072
+#: packages/admin/src/components/PortableTextEditor.tsx:4309
 msgid "Inline Code"
 msgstr "Codi en línia"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1925
+#: packages/admin/src/components/PortableTextEditor.tsx:2157
 msgid "Insert {0}"
 msgstr "Insereix {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1481
+#: packages/admin/src/components/PortableTextEditor.tsx:1713
 msgid "Insert a blockquote"
 msgstr "Insereix una cita"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1491
+#: packages/admin/src/components/PortableTextEditor.tsx:1723
 msgid "Insert a code block"
 msgstr "Insereix un bloc de codi"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1509
+#: packages/admin/src/components/PortableTextEditor.tsx:1741
 msgid "Insert a horizontal rule"
 msgstr "Insereix una línia horitzontal"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2745
+#: packages/admin/src/components/PortableTextEditor.tsx:2978
 msgid "Insert a reusable section"
 msgstr "Insereix una secció reutilitzable"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1519
+#: packages/admin/src/components/PortableTextEditor.tsx:1751
 msgid "Insert a table"
 msgstr "Insereix una taula"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2715
+#: packages/admin/src/components/PortableTextEditor.tsx:2948
 msgid "Insert an image"
 msgstr "Insereix una imatge"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2730
+#: packages/admin/src/components/PortableTextEditor.tsx:2963
 msgid "Insert an image gallery"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1753
+#: packages/admin/src/components/PortableTextEditor.tsx:1985
 msgid "Insert block"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4024
-#: packages/admin/src/components/PortableTextEditor.tsx:4034
+#: packages/admin/src/components/PortableTextEditor.tsx:4261
+#: packages/admin/src/components/PortableTextEditor.tsx:4271
 msgid "Insert block after current block"
 msgstr ""
 
@@ -5035,24 +5105,28 @@ msgstr ""
 msgid "Insert block below"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4138
+#: packages/admin/src/components/PortableTextEditor.tsx:4375
 msgid "Insert HTML"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3454
+#: packages/admin/src/components/PortableTextEditor.tsx:3691
 msgid "Insert image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4135
+#: packages/admin/src/components/PortableTextEditor.tsx:4372
 msgid "Insert Image"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4182
-#: packages/admin/src/components/PortableTextEditor.tsx:4196
+#: packages/admin/src/components/PortableTextEditor.tsx:4419
+#: packages/admin/src/components/PortableTextEditor.tsx:4433
 msgid "Insert Link"
 msgstr "Insereix un enllaç"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1501
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:691
+msgid "Insert or tap your security key when the browser asks."
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:1733
 msgid "Insert raw HTML"
 msgstr "Insereix HTML pur"
 
@@ -5110,23 +5184,23 @@ msgstr "S'està instal·lant..."
 msgid "Integer"
 msgstr "Enter"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:152
+#: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
 msgstr "Enllaç d'invitació no vàlid"
 
-#: packages/admin/src/components/ContentEditor.tsx:1860
+#: packages/admin/src/components/ContentEditor.tsx:1886
 msgid "Invalid JSON"
 msgstr "JSON no vàlid"
 
-#: packages/admin/src/components/SignupPage.tsx:275
+#: packages/admin/src/components/SignupPage.tsx:276
 msgid "Invalid link"
 msgstr "Enllaç no vàlid"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:241
+#: packages/admin/src/components/InviteAcceptPage.tsx:240
 msgid "Invite Error"
 msgstr "Error d'invitació"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:150
+#: packages/admin/src/components/InviteAcceptPage.tsx:149
 msgid "Invite expired"
 msgstr "La invitació ha caducat"
 
@@ -5151,13 +5225,17 @@ msgstr ""
 msgid "Invoke only this plugin's enabled MCP tools"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3646
-#: packages/admin/src/components/PortableTextEditor.tsx:4051
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
+msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
+msgstr ""
+
+#: packages/admin/src/components/PortableTextEditor.tsx:3883
+#: packages/admin/src/components/PortableTextEditor.tsx:4288
 msgid "Italic"
 msgstr "Cursiva"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2306
+#: packages/admin/src/components/PortableTextEditor.tsx:2538
 #: packages/admin/src/components/RepeaterField.tsx:239
 msgid "Item {0}"
 msgstr "Element {0}"
@@ -5178,8 +5256,9 @@ msgstr "S'ha actualitzat l'element"
 msgid "Its listing has not been approved for display. Check back later."
 msgstr ""
 
+#: packages/admin/src/components/InviteAcceptPage.tsx:70
 #: packages/admin/src/components/SetupWizard.tsx:213
-#: packages/admin/src/components/SignupPage.tsx:221
+#: packages/admin/src/components/SignupPage.tsx:222
 msgid "Jane Doe"
 msgstr "Jana Puig"
 
@@ -5275,7 +5354,7 @@ msgstr ""
 msgid "Language"
 msgstr "Idioma"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1401
+#: packages/admin/src/components/PortableTextEditor.tsx:1633
 msgid "Large section heading"
 msgstr "Encapçalament de secció gran"
 
@@ -5291,7 +5370,7 @@ msgstr "Últim inici de sessió"
 msgid "Last Login"
 msgstr "Últim inici de sessió"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1310
+#: packages/admin/src/components/MediaLibrary.tsx:1317
 #: packages/admin/src/components/MediaPickerModal.tsx:1547
 msgid "Last page"
 msgstr ""
@@ -5333,7 +5412,7 @@ msgstr "Esquerra"
 #: packages/admin/src/components/MediaLibrary.tsx:319
 #: packages/admin/src/components/MediaLibrary.tsx:478
 #: packages/admin/src/components/MediaLibrary.tsx:751
-#: packages/admin/src/components/MediaLibrary.tsx:1352
+#: packages/admin/src/components/MediaLibrary.tsx:1359
 #: packages/admin/src/components/MediaPickerModal.tsx:358
 #: packages/admin/src/components/MediaPickerModal.tsx:375
 msgid "Library"
@@ -5355,7 +5434,7 @@ msgstr "Clar"
 msgid "Limit"
 msgstr ""
 
-#: packages/admin/src/components/SignupPage.tsx:273
+#: packages/admin/src/components/SignupPage.tsx:274
 msgid "Link expired"
 msgstr "L'enllaç ha caducat"
 
@@ -5384,7 +5463,7 @@ msgstr "LinkedIn"
 msgid "Links"
 msgstr "Enllaços"
 
-#: packages/admin/src/components/MediaLibrary.tsx:950
+#: packages/admin/src/components/MediaLibrary.tsx:954
 #: packages/admin/src/components/MediaPickerModal.tsx:1242
 msgid "List view"
 msgstr "Vista de llista"
@@ -5396,8 +5475,8 @@ msgstr "Vista de llista"
 msgid "Live version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:911
-#: packages/admin/src/components/ContentEditor.tsx:961
+#: packages/admin/src/components/ContentEditor.tsx:937
+#: packages/admin/src/components/ContentEditor.tsx:987
 #: packages/admin/src/components/ContentSettingsPanel.tsx:660
 msgid "Live View"
 msgstr "Vista en directe"
@@ -5412,21 +5491,21 @@ msgstr "Vista en directe"
 msgid "Load more"
 msgstr "Carrega'n més"
 
-#: packages/admin/src/components/ContentList.tsx:744
-#: packages/admin/src/components/ContentList.tsx:808
-#: packages/admin/src/components/MediaLibrary.tsx:1345
+#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentList.tsx:809
+#: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/users/UserList.tsx:162
 msgid "Load More"
 msgstr "Carrega'n més"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1542
-#: packages/admin/src/components/MediaLibrary.tsx:1053
-#: packages/admin/src/components/MediaLibrary.tsx:1245
+#: packages/admin/src/components/MediaLibrary.tsx:1057
+#: packages/admin/src/components/MediaLibrary.tsx:1249
 #: packages/admin/src/components/MediaPickerModal.tsx:1368
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2688
+#: packages/admin/src/router.tsx:2711
 msgid "Loading"
 msgstr ""
 
@@ -5442,8 +5521,8 @@ msgstr "S'estan carregant les col·leccions..."
 msgid "Loading comments..."
 msgstr "S'estan carregant els comentaris..."
 
-#: packages/admin/src/router.tsx:2690
-#: packages/admin/src/router.tsx:2702
+#: packages/admin/src/router.tsx:2713
+#: packages/admin/src/router.tsx:2725
 msgid "Loading configuration..."
 msgstr "S'està carregant la configuració..."
 
@@ -5451,12 +5530,12 @@ msgstr "S'està carregant la configuració..."
 msgid "Loading content..."
 msgstr "S'està carregant el contingut..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3364
+#: packages/admin/src/components/PortableTextEditor.tsx:3601
 msgid "Loading editor..."
 msgstr "S'està carregant l'editor..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:997
-#: packages/admin/src/components/MediaLibrary.tsx:1213
+#: packages/admin/src/components/MediaLibrary.tsx:1001
+#: packages/admin/src/components/MediaLibrary.tsx:1217
 #: packages/admin/src/components/MediaPickerModal.tsx:1337
 msgid "Loading folders"
 msgstr ""
@@ -5501,7 +5580,7 @@ msgstr "S'estan carregant les seccions..."
 msgid "Loading settings..."
 msgstr "S'està carregant la configuració..."
 
-#: packages/admin/src/components/SetupWizard.tsx:528
+#: packages/admin/src/components/SetupWizard.tsx:521
 msgid "Loading setup..."
 msgstr "S'està carregant la configuració inicial..."
 
@@ -5518,18 +5597,18 @@ msgid "Loading widgets..."
 msgstr "S'estan carregant els ginys..."
 
 #: packages/admin/src/components/ContentList.tsx:647
-#: packages/admin/src/components/ContentList.tsx:744
-#: packages/admin/src/components/ContentList.tsx:778
-#: packages/admin/src/components/ContentList.tsx:808
+#: packages/admin/src/components/ContentList.tsx:745
+#: packages/admin/src/components/ContentList.tsx:779
+#: packages/admin/src/components/ContentList.tsx:809
 #: packages/admin/src/components/ContentPickerModal.tsx:225
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:596
 #: packages/admin/src/components/MediaDetailPanel.tsx:612
 #: packages/admin/src/components/MediaDetailPanel.tsx:614
 #: packages/admin/src/components/MediaDetailPanel.tsx:1729
-#: packages/admin/src/components/MediaLibrary.tsx:1345
+#: packages/admin/src/components/MediaLibrary.tsx:1352
 #: packages/admin/src/components/MediaUsedIn.tsx:204
-#: packages/admin/src/components/PortableTextEditor.tsx:2433
+#: packages/admin/src/components/PortableTextEditor.tsx:2665
 #: packages/admin/src/components/Redirects.tsx:560
 #: packages/admin/src/components/RegistryBrowse.tsx:165
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
@@ -5555,7 +5634,7 @@ msgid "Local time"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:619
-#: packages/admin/src/components/ContentList.tsx:761
+#: packages/admin/src/components/ContentList.tsx:762
 #: packages/admin/src/components/LocaleSwitcher.tsx:60
 msgid "Locale"
 msgstr "Idioma"
@@ -5734,8 +5813,8 @@ msgstr ""
 msgid "MDX"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2718
-#: packages/admin/src/components/PortableTextEditor.tsx:2733
+#: packages/admin/src/components/PortableTextEditor.tsx:2951
+#: packages/admin/src/components/PortableTextEditor.tsx:2966
 #: packages/admin/src/components/Settings.tsx:70
 #: packages/admin/src/components/Sidebar.tsx:270
 #: packages/admin/src/components/WordPressImport.tsx:770
@@ -5770,12 +5849,12 @@ msgid "Media in this folder will return to Main library. No files will be delete
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:153
-#: packages/admin/src/components/MediaLibrary.tsx:815
-#: packages/admin/src/components/MediaLibrary.tsx:830
+#: packages/admin/src/components/MediaLibrary.tsx:819
+#: packages/admin/src/components/MediaLibrary.tsx:834
 msgid "Media Library"
 msgstr "Biblioteca multimèdia"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1306
+#: packages/admin/src/components/MediaLibrary.tsx:1313
 #: packages/admin/src/components/MediaPickerModal.tsx:1543
 msgid "Media pagination"
 msgstr ""
@@ -5793,7 +5872,7 @@ msgstr ""
 msgid "Media usage tracking"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:879
+#: packages/admin/src/components/MediaLibrary.tsx:883
 msgid "Media usage tracking is indexing existing content"
 msgstr ""
 
@@ -5805,11 +5884,11 @@ msgstr ""
 msgid "Media usage tracking is ready"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:880
+#: packages/admin/src/components/MediaLibrary.tsx:884
 msgid "Media usage tracking is setting up"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:877
+#: packages/admin/src/components/MediaLibrary.tsx:881
 msgid "Media usage tracking needs attention"
 msgstr ""
 
@@ -5817,7 +5896,7 @@ msgstr ""
 msgid "Media Write"
 msgstr "Escriptura de fitxers multimèdia"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1411
+#: packages/admin/src/components/PortableTextEditor.tsx:1643
 msgid "Medium section heading"
 msgstr "Encapçalament de secció mitjà"
 
@@ -5914,7 +5993,7 @@ msgstr "Longitud mínima"
 msgid "Min Value"
 msgstr "Valor mínim"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1441
+#: packages/admin/src/components/PortableTextEditor.tsx:1673
 msgid "Minor section heading"
 msgstr ""
 
@@ -5947,7 +6026,7 @@ msgstr ""
 msgid "More actions for {0}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:500
+#: packages/admin/src/components/ImageFieldRenderer.tsx:504
 msgid "More information about {label}"
 msgstr ""
 
@@ -5973,7 +6052,7 @@ msgstr "Mou «{0}» avall"
 msgid "Move \"{0}\" up"
 msgstr "Mou «{0}» amunt"
 
-#: packages/admin/src/components/ContentList.tsx:1364
+#: packages/admin/src/components/ContentList.tsx:1370
 msgid "Move \"{title}\" to trash? You can restore it later."
 msgstr "Vols moure «{title}» a la paperera? El podràs restaurar més tard."
 
@@ -6007,7 +6086,7 @@ msgstr ""
 msgid "Move {0} up — unavailable, its parent has no translation in this locale"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1355
+#: packages/admin/src/components/ContentList.tsx:1361
 msgid "Move {title} to trash"
 msgstr "Mou {title} a la paperera"
 
@@ -6015,7 +6094,7 @@ msgstr "Mou {title} a la paperera"
 msgid "Move down"
 msgstr "Mou avall"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1088
+#: packages/admin/src/components/MediaLibrary.tsx:1092
 msgid "Move media here from Media Details."
 msgstr ""
 
@@ -6028,14 +6107,14 @@ msgid "Move to trash"
 msgstr ""
 
 #: packages/admin/src/components/ContentList.tsx:556
-#: packages/admin/src/components/ContentList.tsx:1377
+#: packages/admin/src/components/ContentList.tsx:1383
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1200
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1220
 msgid "Move to Trash"
 msgstr "Mou a la paperera"
 
 #: packages/admin/src/components/ContentList.tsx:534
-#: packages/admin/src/components/ContentList.tsx:1362
+#: packages/admin/src/components/ContentList.tsx:1368
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1205
 msgid "Move to Trash?"
 msgstr "Vols moure-ho a la paperera?"
@@ -6148,7 +6227,7 @@ msgstr "NOU"
 msgid "New {0}"
 msgstr "{0} nou"
 
-#: packages/admin/src/components/ContentEditor.tsx:877
+#: packages/admin/src/components/ContentEditor.tsx:903
 msgid "New {itemLabel}"
 msgstr ""
 
@@ -6169,7 +6248,7 @@ msgstr "Tipus de contingut nou"
 msgid "New field"
 msgstr "Camp nou"
 
-#: packages/admin/src/components/MediaLibrary.tsx:852
+#: packages/admin/src/components/MediaLibrary.tsx:856
 msgid "New folder"
 msgstr ""
 
@@ -6219,8 +6298,8 @@ msgid "Next"
 msgstr "Següent"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:363
-#: packages/admin/src/components/ContentList.tsx:732
-#: packages/admin/src/components/MediaLibrary.tsx:1309
+#: packages/admin/src/components/ContentList.tsx:733
+#: packages/admin/src/components/MediaLibrary.tsx:1316
 #: packages/admin/src/components/MediaPickerModal.tsx:1546
 msgid "Next page"
 msgstr "Pàgina següent"
@@ -6229,7 +6308,17 @@ msgstr "Pàgina següent"
 msgid "Next screenshot"
 msgstr "Captura de pantalla següent"
 
-#: packages/admin/src/components/ContentList.tsx:1400
+#. placeholder {0}: platformCopy.name
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:726
+msgid "Next, {0} will open"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:652
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:689
+msgid "Next, the browser's passkey window will open"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1406
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:422
 msgid "No"
@@ -6258,8 +6347,8 @@ msgstr "Encara no hi ha cap {0}. Crea'n un per començar."
 msgid "No 404 errors recorded yet."
 msgstr "Encara no s'ha registrat cap error 404."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1780
-#: packages/admin/src/components/MediaLibrary.tsx:1837
+#: packages/admin/src/components/MediaLibrary.tsx:1787
+#: packages/admin/src/components/MediaLibrary.tsx:1844
 msgid "No alt text"
 msgstr "Sense text alternatiu"
 
@@ -6270,6 +6359,10 @@ msgstr "Encara no hi ha cap testimoni d'API. Crea'n un per començar."
 #: packages/admin/src/components/comments/CommentInbox.tsx:539
 msgid "No approved comments yet."
 msgstr "Encara no hi ha cap comentari aprovat."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:585
+msgid "No built-in passkey authenticator found"
+msgstr ""
 
 #: packages/admin/src/components/BylineFilter.tsx:101
 msgid "No byline"
@@ -6376,11 +6469,11 @@ msgstr ""
 msgid "No installable releases"
 msgstr "No hi ha versions instal·lables"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:193
+#: packages/admin/src/components/InviteAcceptPage.tsx:192
 msgid "No invite token provided"
 msgstr "No s'ha proporcionat cap testimoni d'invitació"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2229
+#: packages/admin/src/components/PortableTextEditor.tsx:2461
 #: packages/admin/src/components/RepeaterField.tsx:165
 #: packages/admin/src/components/settings/BackupSettings.tsx:283
 msgid "No items yet"
@@ -6402,8 +6495,8 @@ msgstr "Cap coincidència"
 msgid "No matching bylines."
 msgstr "Cap signatura coincident."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1072
-#: packages/admin/src/components/MediaLibrary.tsx:1111
+#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1115
 msgid "No matching media"
 msgstr "Cap fitxer multimèdia coincident"
 
@@ -6416,11 +6509,11 @@ msgstr "No s'ha trobat cap clau d'accés coincident per a aquest compte."
 msgid "No maximum"
 msgstr "Sense màxim"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1134
+#: packages/admin/src/components/MediaLibrary.tsx:1138
 msgid "No media available from this provider."
 msgstr "No hi ha cap fitxer multimèdia disponible d'aquest proveïdor."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1133
+#: packages/admin/src/components/MediaLibrary.tsx:1137
 #: packages/admin/src/components/MediaPickerModal.tsx:1406
 msgid "No media found"
 msgstr "No s'ha trobat cap fitxer multimèdia"
@@ -6490,7 +6583,7 @@ msgstr "No hi ha activitat recent"
 msgid "No redirects yet"
 msgstr "Encara no hi ha cap redirecció"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1778
+#: packages/admin/src/components/PortableTextEditor.tsx:2010
 #: packages/admin/src/components/RepeaterField.tsx:374
 msgid "No results"
 msgstr "Cap resultat"
@@ -6555,6 +6648,10 @@ msgstr "Encara no hi ha cap usuari."
 msgid "No widget areas yet. Create one to get started."
 msgstr "Encara no hi ha cap àrea de ginys. Crea'n una per començar."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:584
+msgid "No Windows Hello authenticator found"
+msgstr ""
+
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:226
 msgid "None"
 msgstr "Cap"
@@ -6568,7 +6665,7 @@ msgstr "Cap (nivell superior)"
 msgid "Not compatible with this environment"
 msgstr "No és compatible amb aquest entorn"
 
-#: packages/admin/src/components/ContentList.tsx:1399
+#: packages/admin/src/components/ContentList.tsx:1405
 #: packages/admin/src/components/PluginSettings.tsx:341
 msgid "Not set"
 msgstr ""
@@ -6587,8 +6684,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "Nombre d'entrades que es mostren per pàgina a les vistes de llista"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:135
-#: packages/admin/src/components/PortableTextEditor.tsx:1470
-#: packages/admin/src/components/PortableTextEditor.tsx:4099
+#: packages/admin/src/components/PortableTextEditor.tsx:1702
+#: packages/admin/src/components/PortableTextEditor.tsx:4336
 msgid "Numbered List"
 msgstr "Llista numerada"
 
@@ -6600,7 +6697,8 @@ msgstr ""
 msgid "Off"
 msgstr ""
 
-#: packages/admin/src/components/SeoImageField.tsx:46
+#: packages/admin/src/components/SeoImageField.tsx:47
+#: packages/admin/src/components/SeoImageField.tsx:75
 msgid "OG Image"
 msgstr "Imatge OG"
 
@@ -6612,6 +6710,10 @@ msgstr "Autoritza només els codis que reconeguis."
 msgid "Only email addresses from allowed domains can sign up."
 msgstr "Només es poden registrar les adreces electròniques de dominis permesos."
 
+#: packages/admin/src/components/media/ImageDropTarget.tsx:53
+msgid "Only image files can be dropped here."
+msgstr ""
+
 #: packages/admin/src/components/MenuList.tsx:162
 msgid "Only lowercase letters, numbers, and hyphens"
 msgstr "Només lletres minúscules, números i guions"
@@ -6620,7 +6722,7 @@ msgstr "Només lletres minúscules, números i guions"
 msgid "Only the listed MIME types will be accepted for this field."
 msgstr "Només s'acceptaran els tipus MIME llistats per a aquest camp."
 
-#: packages/admin/src/components/SignupPage.tsx:419
+#: packages/admin/src/components/SignupPage.tsx:420
 msgid "Oops!"
 msgstr "Vaja!"
 
@@ -6630,8 +6732,8 @@ msgstr ""
 
 #. placeholder {0}: folder.name
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:183
-#: packages/admin/src/components/MediaLibrary.tsx:1451
-#: packages/admin/src/components/MediaLibrary.tsx:1522
+#: packages/admin/src/components/MediaLibrary.tsx:1458
+#: packages/admin/src/components/MediaLibrary.tsx:1529
 msgid "Open folder {0}"
 msgstr ""
 
@@ -6644,8 +6746,18 @@ msgstr ""
 msgid "Open in new tab"
 msgstr "Obre en una pestanya nova"
 
-#: packages/admin/src/components/MediaLibrary.tsx:885
+#: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "Open setup"
+msgstr ""
+
+#: packages/admin/src/components/InviteAcceptPage.tsx:83
+#: packages/admin/src/components/SetupWizard.tsx:294
+#: packages/admin/src/components/SignupPage.tsx:237
+msgid "Open the dashboard"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:545
+msgid "Open Windows settings"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1550
@@ -6704,9 +6816,9 @@ msgstr "O fes clic per explorar. Accepta fitxers .xml exportats de WordPress."
 msgid "or connect by URL"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:97
+#: packages/admin/src/components/InviteAcceptPage.tsx:96
 #: packages/admin/src/components/LoginPage.tsx:263
-#: packages/admin/src/components/SetupWizard.tsx:310
+#: packages/admin/src/components/SetupWizard.tsx:307
 msgid "Or continue with"
 msgstr "O continua amb"
 
@@ -6758,16 +6870,16 @@ msgstr "Propietat"
 msgid "Package"
 msgstr "Paquet"
 
-#: packages/admin/src/router.tsx:2728
+#: packages/admin/src/router.tsx:2751
 msgid "Page Not Found"
 msgstr "No s'ha trobat la pàgina"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1311
+#: packages/admin/src/components/MediaLibrary.tsx:1318
 #: packages/admin/src/components/MediaPickerModal.tsx:1548
 msgid "Page number"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1312
+#: packages/admin/src/components/MediaLibrary.tsx:1319
 #: packages/admin/src/components/MediaPickerModal.tsx:1549
 msgid "Page size"
 msgstr ""
@@ -6803,16 +6915,20 @@ msgstr "Correcte"
 msgid "Passkey added successfully"
 msgstr "S'ha afegit la clau d'accés correctament"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:505
+msgid "Passkey created"
+msgstr ""
+
 #: packages/admin/src/components/settings/PasskeyItem.tsx:123
 #: packages/admin/src/components/settings/PasskeyItem.tsx:124
 msgid "Passkey name"
 msgstr "Nom de la clau d'accés"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:321
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:761
 msgid "Passkey Name (optional)"
 msgstr "Nom de la clau d'accés (opcional)"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:344
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:784
 msgid "Passkey registered successfully!"
 msgstr "S'ha registrat la clau d'accés correctament!"
 
@@ -6838,13 +6954,8 @@ msgstr "Claus d'accés ({0})"
 msgid "Passkeys are a secure, passwordless way to sign in to your account. You can register multiple passkeys for different devices."
 msgstr "Les claus d'accés són una manera segura i sense contrasenya d'iniciar la sessió al teu compte. Pots registrar diverses claus d'accés per a diferents dispositius."
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:77
-#: packages/admin/src/components/SignupPage.tsx:229
-msgid "Passkeys are a secure, passwordless way to sign in using your device's biometrics, PIN, or security key."
-msgstr "Les claus d'accés són una manera segura i sense contrasenya d'iniciar la sessió amb la biometria, el PIN o la clau de seguretat del teu dispositiu."
-
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:302
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:301
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:475
 msgid "Passkeys Not Available Here"
 msgstr "Les claus d'accés no estan disponibles aquí"
 
@@ -6902,7 +7013,7 @@ msgstr "Canvis pendents"
 msgid "People shown publicly on this post."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1326
+#: packages/admin/src/components/MediaLibrary.tsx:1333
 msgid "Per page"
 msgstr ""
 
@@ -6910,11 +7021,11 @@ msgstr ""
 msgid "Period"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1546
+#: packages/admin/src/components/ContentList.tsx:1552
 msgid "Permanently delete \"{title}\"? This cannot be undone."
 msgstr "Vols eliminar permanentment «{title}»? Aquesta acció no es pot desfer."
 
-#: packages/admin/src/components/ContentList.tsx:1535
+#: packages/admin/src/components/ContentList.tsx:1541
 msgid "Permanently delete {title}"
 msgstr "Elimina permanentment {title}"
 
@@ -6925,10 +7036,6 @@ msgstr "Permisos"
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:46
 msgid "PHP"
 msgstr ""
-
-#: packages/admin/src/components/SetupWizard.tsx:290
-msgid "Pick any method to create your admin account."
-msgstr "Tria qualsevol mètode per crear el teu compte d'administrador."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:143
 msgid "Picked up {label}."
@@ -6943,7 +7050,7 @@ msgstr ""
 msgid "Plain text"
 msgstr "Text sense format"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:166
+#: packages/admin/src/components/InviteAcceptPage.tsx:165
 msgid "Please ask your administrator to send a new invite."
 msgstr "Demana a l'administrador que enviï una invitació nova."
 
@@ -7101,7 +7208,7 @@ msgstr "Entrades per pàgina"
 msgid "Pre-release"
 msgstr "Preversió"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:171
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:326
 msgid "Preparing registration..."
 msgstr "S'està preparant el registre..."
 
@@ -7121,7 +7228,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:387
 #: packages/admin/src/components/ContentTypeEditor.tsx:81
 #: packages/admin/src/components/MediaDetailPanel.tsx:1676
-#: packages/admin/src/components/MediaLibrary.tsx:1200
+#: packages/admin/src/components/MediaLibrary.tsx:1204
 msgid "Preview"
 msgstr "Previsualitza"
 
@@ -7138,8 +7245,8 @@ msgid "Previous"
 msgstr "Anterior"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:344
-#: packages/admin/src/components/ContentList.tsx:720
-#: packages/admin/src/components/MediaLibrary.tsx:1308
+#: packages/admin/src/components/ContentList.tsx:721
+#: packages/admin/src/components/MediaLibrary.tsx:1315
 #: packages/admin/src/components/MediaPickerModal.tsx:1545
 msgid "Previous page"
 msgstr "Pàgina anterior"
@@ -7203,8 +7310,8 @@ msgstr ""
 msgid "Publish now"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:858
-#: packages/admin/src/components/ContentList.tsx:869
+#: packages/admin/src/components/ContentList.tsx:859
+#: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/Dashboard.tsx:297
 #: packages/admin/src/router.tsx:1169
@@ -7258,8 +7365,8 @@ msgid "Quick edit alt text"
 msgstr "Edita ràpidament el text alternatiu"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:111
-#: packages/admin/src/components/PortableTextEditor.tsx:1480
-#: packages/admin/src/components/PortableTextEditor.tsx:4124
+#: packages/admin/src/components/PortableTextEditor.tsx:1712
+#: packages/admin/src/components/PortableTextEditor.tsx:4361
 msgid "Quote"
 msgstr "Cita"
 
@@ -7347,7 +7454,7 @@ msgstr "S'està redirigint a l'inici de sessió..."
 msgid "Redirects"
 msgstr "Redireccions"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4269
+#: packages/admin/src/components/PortableTextEditor.tsx:4506
 msgid "Redo"
 msgstr "Refés"
 
@@ -7375,7 +7482,7 @@ msgstr ""
 msgid "Register"
 msgstr "Registra't"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:147
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:273
 #: packages/admin/src/components/settings/SecuritySettings.tsx:182
 msgid "Register Passkey"
 msgstr "Registra una clau d'accés"
@@ -7384,11 +7491,11 @@ msgstr "Registra una clau d'accés"
 msgid "Registered user"
 msgstr "Usuari registrat"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:260
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:419
 msgid "Registration failed"
 msgstr "Ha fallat el registre"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:267
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:426
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "El registre s'ha cancel·lat o ha excedit el temps d'espera. Torna-ho a provar."
 
@@ -7410,15 +7517,15 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:84
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:115
-#: packages/admin/src/components/ContentEditor.tsx:2020
+#: packages/admin/src/components/ContentEditor.tsx:2046
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:471
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:309
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:731
-#: packages/admin/src/components/ImageFieldRenderer.tsx:310
-#: packages/admin/src/components/ImageFieldRenderer.tsx:363
-#: packages/admin/src/components/ImageFieldRenderer.tsx:434
+#: packages/admin/src/components/ImageFieldRenderer.tsx:314
+#: packages/admin/src/components/ImageFieldRenderer.tsx:367
+#: packages/admin/src/components/ImageFieldRenderer.tsx:438
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
-#: packages/admin/src/components/PortableTextEditor.tsx:4242
+#: packages/admin/src/components/PortableTextEditor.tsx:4479
 #: packages/admin/src/components/settings/GeneralSettings.tsx:229
 #: packages/admin/src/components/settings/GeneralSettings.tsx:289
 #: packages/admin/src/components/settings/PasskeyItem.tsx:180
@@ -7446,7 +7553,7 @@ msgstr ""
 msgid "Remove {entry}"
 msgstr "Treu {entry}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2018
+#: packages/admin/src/components/ContentEditor.tsx:2044
 msgid "Remove {label}"
 msgstr "Treu {label}"
 
@@ -7454,7 +7561,7 @@ msgstr "Treu {label}"
 msgid "Remove assignment"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:432
+#: packages/admin/src/components/ImageFieldRenderer.tsx:436
 msgid "Remove dark mode variant"
 msgstr ""
 
@@ -7471,8 +7578,8 @@ msgid "Remove from post"
 msgstr ""
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:528
-#: packages/admin/src/components/ImageFieldRenderer.tsx:308
-#: packages/admin/src/components/SeoImageField.tsx:65
+#: packages/admin/src/components/ImageFieldRenderer.tsx:312
+#: packages/admin/src/components/SeoImageField.tsx:66
 msgid "Remove image"
 msgstr "Treu la imatge"
 
@@ -7486,13 +7593,13 @@ msgid "Remove image?"
 msgstr ""
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:2345
+#: packages/admin/src/components/PortableTextEditor.tsx:2577
 #: packages/admin/src/components/RepeaterField.tsx:275
 msgid "Remove item {0}"
 msgstr "Treu l'element {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3627
-#: packages/admin/src/components/PortableTextEditor.tsx:3628
+#: packages/admin/src/components/PortableTextEditor.tsx:3864
+#: packages/admin/src/components/PortableTextEditor.tsx:3865
 msgid "Remove link"
 msgstr "Treu l'enllaç"
 
@@ -7559,30 +7666,30 @@ msgstr "Repetidor"
 msgid "Repeating group of fields"
 msgstr "Grup de camps repetible"
 
-#: packages/admin/src/components/ContentEditor.tsx:2010
-#: packages/admin/src/components/ContentEditor.tsx:2047
+#: packages/admin/src/components/ContentEditor.tsx:2036
+#: packages/admin/src/components/ContentEditor.tsx:2073
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:447
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:504
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:250
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:324
-#: packages/admin/src/components/ImageFieldRenderer.tsx:284
-#: packages/admin/src/components/ImageFieldRenderer.tsx:344
-#: packages/admin/src/components/ImageFieldRenderer.tsx:407
-#: packages/admin/src/components/ImageFieldRenderer.tsx:565
-#: packages/admin/src/components/ImageFieldRenderer.tsx:568
+#: packages/admin/src/components/ImageFieldRenderer.tsx:288
+#: packages/admin/src/components/ImageFieldRenderer.tsx:348
+#: packages/admin/src/components/ImageFieldRenderer.tsx:411
+#: packages/admin/src/components/ImageFieldRenderer.tsx:577
+#: packages/admin/src/components/ImageFieldRenderer.tsx:580
 msgid "Replace"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2046
-#: packages/admin/src/components/ImageFieldRenderer.tsx:559
+#: packages/admin/src/components/ContentEditor.tsx:2072
+#: packages/admin/src/components/ImageFieldRenderer.tsx:571
 msgid "Replace {label}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:405
+#: packages/admin/src/components/ImageFieldRenderer.tsx:409
 msgid "Replace dark mode image"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:556
+#: packages/admin/src/components/ImageFieldRenderer.tsx:568
 msgid "Replace dark mode variant for {label}"
 msgstr ""
 
@@ -7626,11 +7733,11 @@ msgstr "Respon a:"
 msgid "Repository"
 msgstr "Dipòsit"
 
-#: packages/admin/src/components/SignupPage.tsx:289
+#: packages/admin/src/components/SignupPage.tsx:290
 msgid "Request a new link"
 msgstr "Sol·licita un enllaç nou"
 
-#: packages/admin/src/lib/api/client.ts:289
+#: packages/admin/src/lib/api/client.ts:290
 msgid "Request failed"
 msgstr "Ha fallat la sol·licitud"
 
@@ -7713,11 +7820,11 @@ msgstr ""
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1204
+#: packages/admin/src/components/ContentEditor.tsx:1230
 msgid "Resize settings panel"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4115
+#: packages/admin/src/components/PortableTextEditor.tsx:4352
 msgid "Restart numbering"
 msgstr ""
 
@@ -7725,7 +7832,7 @@ msgstr ""
 msgid "Restore"
 msgstr "Restaura"
 
-#: packages/admin/src/components/ContentList.tsx:1523
+#: packages/admin/src/components/ContentList.tsx:1529
 msgid "Restore {title}"
 msgstr "Restaura {title}"
 
@@ -7755,8 +7862,8 @@ msgstr "S'està restaurant..."
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:218
 #: packages/admin/src/components/MediaDetailPanel.tsx:1529
-#: packages/admin/src/components/MediaLibrary.tsx:1017
-#: packages/admin/src/components/MediaLibrary.tsx:1567
+#: packages/admin/src/components/MediaLibrary.tsx:1021
+#: packages/admin/src/components/MediaLibrary.tsx:1574
 #: packages/admin/src/components/MediaPickerModal.tsx:1208
 #: packages/admin/src/components/MediaPickerModal.tsx:1304
 #: packages/admin/src/components/MediaPickerModal.tsx:1326
@@ -7764,7 +7871,7 @@ msgstr "S'està restaurant..."
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2716
+#: packages/admin/src/router.tsx:2739
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "Reintenta"
@@ -7948,7 +8055,7 @@ msgstr "Desa (Retorn)"
 msgid "Save alt text"
 msgstr "Desa el text alternatiu"
 
-#: packages/admin/src/components/ContentEditor.tsx:1025
+#: packages/admin/src/components/ContentEditor.tsx:1051
 msgid "Save anyway"
 msgstr ""
 
@@ -8023,6 +8130,10 @@ msgstr ""
 msgid "SBOM · {0}"
 msgstr "SBOM · {0}"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:645
+msgid "Scan it with a nearby phone or tablet."
+msgstr ""
+
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:476
 msgid "Schedule"
 msgstr "Programa"
@@ -8042,7 +8153,7 @@ msgstr ""
 msgid "Schedule publication"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:860
+#: packages/admin/src/components/ContentList.tsx:861
 #: packages/admin/src/components/ContentSettingsPanel.tsx:545
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
 #: packages/admin/src/router.tsx:1252
@@ -8138,7 +8249,7 @@ msgstr "Cerca {0}"
 msgid "Search {0}..."
 msgstr "Cerca {0}..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:962
+#: packages/admin/src/components/MediaLibrary.tsx:966
 #: packages/admin/src/components/MediaPickerModal.tsx:1255
 msgid "Search by filename..."
 msgstr "Cerca per nom de fitxer..."
@@ -8191,7 +8302,7 @@ msgstr ""
 msgid "Search form"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:963
+#: packages/admin/src/components/MediaLibrary.tsx:967
 #: packages/admin/src/components/MediaPickerModal.tsx:1257
 msgid "Search media"
 msgstr "Cerca fitxers multimèdia"
@@ -8239,7 +8350,7 @@ msgstr ""
 msgid "Search users"
 msgstr "Cerca usuaris"
 
-#: packages/admin/src/components/MediaLibrary.tsx:962
+#: packages/admin/src/components/MediaLibrary.tsx:966
 #: packages/admin/src/components/MediaPickerModal.tsx:1255
 msgid "Search..."
 msgstr "Cerca..."
@@ -8254,7 +8365,7 @@ msgstr "Cercable"
 msgid "Searching…"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2744
+#: packages/admin/src/components/PortableTextEditor.tsx:2977
 msgid "Section"
 msgstr "Secció"
 
@@ -8288,7 +8399,7 @@ msgstr "Títol de la secció"
 msgid "Sections"
 msgstr "Seccions"
 
-#: packages/admin/src/components/SetupWizard.tsx:561
+#: packages/admin/src/components/SetupWizard.tsx:554
 msgid "Secure your account"
 msgstr "Assegura el teu compte"
 
@@ -8326,7 +8437,7 @@ msgid "Security contacts"
 msgstr "Contactes de seguretat"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:271
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:276
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:435
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Error de seguretat. Assegura't que estàs en una connexió segura."
 
@@ -8351,13 +8462,13 @@ msgid "Select"
 msgstr "Selecciona"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:140
-#: packages/admin/src/components/ContentEditor.tsx:2030
-#: packages/admin/src/components/ContentEditor.tsx:2046
-#: packages/admin/src/components/ImageFieldRenderer.tsx:560
+#: packages/admin/src/components/ContentEditor.tsx:2056
+#: packages/admin/src/components/ContentEditor.tsx:2072
+#: packages/admin/src/components/ImageFieldRenderer.tsx:572
 msgid "Select {label}"
 msgstr "Selecciona {label}"
 
-#: packages/admin/src/components/ContentList.tsx:1260
+#: packages/admin/src/components/ContentList.tsx:1263
 msgid "Select {title}"
 msgstr ""
 
@@ -8394,7 +8505,7 @@ msgstr "Selecciona el comentari de {0}"
 msgid "Select Content"
 msgstr "Selecciona contingut"
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:557
+#: packages/admin/src/components/ImageFieldRenderer.tsx:569
 msgid "Select dark mode variant for {label}"
 msgstr ""
 
@@ -8410,18 +8521,18 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "Selecciona la icona del lloc"
 
-#: packages/admin/src/components/ContentEditor.tsx:2034
+#: packages/admin/src/components/ContentEditor.tsx:2060
 #: packages/admin/src/components/MediaPickerModal.tsx:228
 msgid "Select file"
 msgstr "Selecciona un fitxer"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3468
+#: packages/admin/src/components/PortableTextEditor.tsx:3705
 msgid "Select gallery images"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:540
+#: packages/admin/src/components/ImageFieldRenderer.tsx:552
 #: packages/admin/src/components/MediaPickerModal.tsx:228
-#: packages/admin/src/components/PortableTextEditor.tsx:3453
+#: packages/admin/src/components/PortableTextEditor.tsx:3690
 msgid "Select image"
 msgstr "Selecciona una imatge"
 
@@ -8441,8 +8552,7 @@ msgstr "Selecciona el logotip"
 msgid "Select media"
 msgstr "Selecciona un fitxer multimèdia"
 
-#: packages/admin/src/components/SeoImageField.tsx:80
-#: packages/admin/src/components/SeoImageField.tsx:89
+#: packages/admin/src/components/SeoImageField.tsx:85
 msgid "Select OG image"
 msgstr "Selecciona la imatge OG"
 
@@ -8451,17 +8561,17 @@ msgid "Select which content types to import."
 msgstr "Selecciona quins tipus de contingut vols importar."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:2440
+#: packages/admin/src/components/PortableTextEditor.tsx:2672
 #: packages/admin/src/components/RepeaterField.tsx:372
 msgid "Select..."
 msgstr "Selecciona..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1769
+#: packages/admin/src/components/PortableTextEditor.tsx:2001
 msgid "Selected {selectedItemTitle}"
 msgstr ""
 
-#: packages/admin/src/components/ImageFieldRenderer.tsx:245
-#: packages/admin/src/components/ImageFieldRenderer.tsx:260
+#: packages/admin/src/components/ImageFieldRenderer.tsx:249
+#: packages/admin/src/components/ImageFieldRenderer.tsx:264
 msgid "Selected image"
 msgstr ""
 
@@ -8564,11 +8674,16 @@ msgstr "Defineix-ho a 0 per no tancar mai els comentaris automàticament."
 msgid "Set to draft"
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:875
+#: packages/admin/src/components/MediaLibrary.tsx:879
 msgid "Set up media usage tracking"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:559
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:534
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:602
+msgid "Set up Windows Hello"
+msgstr ""
+
+#: packages/admin/src/components/SetupWizard.tsx:552
 msgid "Set up your site"
 msgstr "Configura el teu lloc"
 
@@ -8582,8 +8697,8 @@ msgid "Setting up..."
 msgstr "S'està configurant..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:234
-#: packages/admin/src/components/ContentEditor.tsx:1072
-#: packages/admin/src/components/ContentEditor.tsx:1368
+#: packages/admin/src/components/ContentEditor.tsx:1098
+#: packages/admin/src/components/ContentEditor.tsx:1394
 #: packages/admin/src/components/ContentTypeEditor.tsx:382
 #: packages/admin/src/components/Header.tsx:101
 #: packages/admin/src/components/PluginManager.tsx:491
@@ -8610,7 +8725,7 @@ msgstr "S'ha desat la configuració correctament"
 msgid "Setup couldn’t continue. Try again."
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:468
+#: packages/admin/src/components/SetupWizard.tsx:461
 msgid "Setup failed"
 msgstr "Ha fallat la configuració"
 
@@ -8658,7 +8773,7 @@ msgstr "Mostra el testimoni"
 
 #. placeholder {0}: count ?? 0
 #. placeholder {0}: totalCount ?? 0
-#: packages/admin/src/components/MediaLibrary.tsx:1317
+#: packages/admin/src/components/MediaLibrary.tsx:1324
 #: packages/admin/src/components/MediaPickerModal.tsx:1554
 msgid "Showing {pageShowingRange} of {0}"
 msgstr ""
@@ -8671,16 +8786,16 @@ msgstr ""
 msgid "Shown when hovering over the image."
 msgstr "Es mostra en passar el cursor per sobre de la imatge."
 
-#: packages/admin/src/components/SignupPage.tsx:456
+#: packages/admin/src/components/SignupPage.tsx:457
 msgid "Sign in"
 msgstr "Inicia la sessió"
 
-#: packages/admin/src/components/SetupWizard.tsx:355
+#: packages/admin/src/components/SetupWizard.tsx:348
 msgid "Sign In"
 msgstr "Inicia la sessió"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:162
-#: packages/admin/src/components/SignupPage.tsx:285
+#: packages/admin/src/components/InviteAcceptPage.tsx:161
+#: packages/admin/src/components/SignupPage.tsx:286
 msgid "Sign in instead"
 msgstr "Inicia la sessió"
 
@@ -8691,7 +8806,7 @@ msgstr "Inicia la sessió al teu lloc"
 #. placeholder {0}: authProviderList.find((p) => p.id === activeProvider)?.label ?? activeProvider
 #. placeholder {0}: provider.label
 #: packages/admin/src/components/LoginPage.tsx:233
-#: packages/admin/src/components/SetupWizard.tsx:264
+#: packages/admin/src/components/SetupWizard.tsx:265
 msgid "Sign in with {0}"
 msgstr "Inicia la sessió amb {0}"
 
@@ -8722,7 +8837,7 @@ msgid "Single line text input"
 msgstr "Entrada de text d'una sola línia"
 
 #: packages/admin/src/components/Settings.tsx:48
-#: packages/admin/src/components/SetupWizard.tsx:353
+#: packages/admin/src/components/SetupWizard.tsx:346
 msgid "Site"
 msgstr "Lloc"
 
@@ -8739,7 +8854,7 @@ msgstr ""
 msgid "Site identity, logo, favicon, and reading preferences"
 msgstr "Identitat del lloc, logotip, icona del lloc i preferències de lectura"
 
-#: packages/admin/src/components/SetupWizard.tsx:351
+#: packages/admin/src/components/SetupWizard.tsx:344
 #: packages/admin/src/components/WordPressImport.tsx:1169
 msgid "Site Settings"
 msgstr "Configuració del lloc"
@@ -8765,11 +8880,11 @@ msgstr "URL del lloc"
 msgid "Sites on Cloudflare D1 can additionally restore the database to any minute within the last 30 days using D1 Time Travel — always on, no setup required."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1203
+#: packages/admin/src/components/MediaLibrary.tsx:1207
 msgid "Size"
 msgstr "Mida"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1548
+#: packages/admin/src/components/MediaLibrary.tsx:1555
 msgid "Size is not applicable to folders"
 msgstr ""
 
@@ -8808,15 +8923,15 @@ msgstr "Slug copiat al porta-retalls"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "Els slugs no es poden canviar després de crear el camp."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1421
+#: packages/admin/src/components/PortableTextEditor.tsx:1653
 msgid "Small section heading"
 msgstr "Encapçalament de secció petit"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1431
+#: packages/admin/src/components/PortableTextEditor.tsx:1663
 msgid "Smaller section heading"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1451
+#: packages/admin/src/components/PortableTextEditor.tsx:1683
 msgid "Smallest section heading"
 msgstr ""
 
@@ -8847,8 +8962,8 @@ msgstr ""
 msgid "Some content types cannot be imported"
 msgstr "Alguns tipus de contingut no es poden importar"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:155
-#: packages/admin/src/components/SignupPage.tsx:278
+#: packages/admin/src/components/InviteAcceptPage.tsx:154
+#: packages/admin/src/components/SignupPage.tsx:279
 msgid "Something went wrong"
 msgstr "Alguna cosa ha anat malament"
 
@@ -8885,7 +9000,7 @@ msgstr "brossa"
 msgid "Spam"
 msgstr "Brossa"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4519
 msgid "Spotlight Mode"
 msgstr "Mode focus"
 
@@ -8909,9 +9024,9 @@ msgstr ""
 msgid "Start Import"
 msgstr "Inicia la importació"
 
-#: packages/admin/src/components/ContentEditor.tsx:1537
-#: packages/admin/src/components/PortableTextEditor.tsx:2599
-#: packages/admin/src/components/PortableTextEditor.tsx:2600
+#: packages/admin/src/components/ContentEditor.tsx:1563
+#: packages/admin/src/components/PortableTextEditor.tsx:2831
+#: packages/admin/src/components/PortableTextEditor.tsx:2832
 msgid "Start writing, or type '/' for commands"
 msgstr ""
 
@@ -8945,8 +9060,8 @@ msgstr ""
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "S'emmagatzema per idioma: cada traducció d'una signatura té el seu propi valor."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3660
-#: packages/admin/src/components/PortableTextEditor.tsx:4065
+#: packages/admin/src/components/PortableTextEditor.tsx:3897
+#: packages/admin/src/components/PortableTextEditor.tsx:4302
 msgid "Strikethrough"
 msgstr "Ratllat"
 
@@ -8967,11 +9082,11 @@ msgstr "Subcamps"
 msgid "Subscriber"
 msgstr "Subscriptor"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3667
+#: packages/admin/src/components/PortableTextEditor.tsx:3904
 msgid "Subscript"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3674
+#: packages/admin/src/components/PortableTextEditor.tsx:3911
 msgid "Superscript"
 msgstr ""
 
@@ -9003,11 +9118,11 @@ msgstr "Sistema ({resolvedLabel})"
 msgid "System Fields"
 msgstr "Camps del sistema"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1518
+#: packages/admin/src/components/PortableTextEditor.tsx:1750
 msgid "Table"
 msgstr "Taula"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3749
+#: packages/admin/src/components/PortableTextEditor.tsx:3986
 msgid "Table controls"
 msgstr ""
 
@@ -9080,9 +9195,25 @@ msgstr "S'ha eliminat el terme"
 msgid "test@example.com"
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4016
+#: packages/admin/src/components/PortableTextEditor.tsx:4253
 msgid "Text formatting"
 msgstr "Format del text"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:200
+msgid "the Android passkey prompt"
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:654
+msgid "The browser controls the exact prompt and may offer another compatible method."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:644
+msgid "The browser will usually show a QR code."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:639
+msgid "The credential manager on the phone or tablet you choose saves it. EmDash does not receive the passkey."
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:822
 msgid "The cropped image could not be created."
@@ -9117,6 +9248,10 @@ msgstr ""
 msgid "The link will expire in 15 minutes."
 msgstr "L'enllaç caducarà d'aquí a 15 minuts."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:186
+msgid "the macOS passkey prompt"
+msgstr ""
+
 #: packages/admin/src/components/MarketplaceBrowse.tsx:179
 msgid "The marketplace is empty. Check back later for new plugins."
 msgstr "El mercat és buit. Torna-hi més tard per veure connectors nous."
@@ -9129,9 +9264,13 @@ msgstr "S'ha eliminat el menú."
 msgid "The name of your site, used in the header and metadata"
 msgstr "El nom del teu lloc, utilitzat a la capçalera i les metadades"
 
-#: packages/admin/src/router.tsx:2730
+#: packages/admin/src/router.tsx:2753
 msgid "The page you're looking for doesn't exist."
 msgstr "La pàgina que cerques no existeix."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:684
+msgid "The passkey is saved on your physical security key and can be used on compatible devices."
+msgstr ""
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
 msgid "The plugin field widget failed to render."
@@ -9160,6 +9299,10 @@ msgstr ""
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:153
 msgid "The theme marketplace is empty. Check back later."
 msgstr "El mercat de temes és buit. Torna-hi més tard."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:179
+msgid "the Windows passkey prompt"
+msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:45
 msgid "Theme"
@@ -9205,7 +9348,7 @@ msgstr ""
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Aquesta col·lecció està definida al codi. Algunes opcions no es poden canviar aquí. Edita el fitxer live.config.ts per modificar l'esquema."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3350
+#: packages/admin/src/components/PortableTextEditor.tsx:3587
 msgid "This content cannot be edited safely"
 msgstr ""
 
@@ -9213,20 +9356,25 @@ msgstr ""
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1021
+#: packages/admin/src/components/ContentEditor.tsx:1047
 msgid "This entry changed somewhere else after you opened it."
 msgstr ""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3352
+#: packages/admin/src/components/PortableTextEditor.tsx:3589
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
+msgstr ""
+
+#. placeholder {0}: file.type
+#: packages/admin/src/components/media/ImageDropTarget.tsx:57
+msgid "This field does not accept {0} files."
 msgstr ""
 
 #: packages/admin/src/components/MediaPickerModal.tsx:643
 msgid "This field does not accept {mimeType} files."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2050
-#: packages/admin/src/components/ImageFieldRenderer.tsx:579
+#: packages/admin/src/components/ContentEditor.tsx:2076
+#: packages/admin/src/components/ImageFieldRenderer.tsx:591
 msgid "This field is required"
 msgstr "Aquest camp és obligatori"
 
@@ -9234,7 +9382,7 @@ msgstr "Aquest camp és obligatori"
 msgid "This file isn’t used in any content."
 msgstr ""
 
-#: packages/admin/src/components/MediaLibrary.tsx:1087
+#: packages/admin/src/components/MediaLibrary.tsx:1091
 msgid "This folder is empty"
 msgstr ""
 
@@ -9271,7 +9419,7 @@ msgstr ""
 msgid "This media item no longer exists."
 msgstr ""
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:270
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:429
 msgid "This passkey is already registered on this device."
 msgstr "Aquesta clau d'accés ja està registrada en aquest dispositiu."
 
@@ -9309,7 +9457,7 @@ msgid "This removes the byline profile. Content byline links are removed and lea
 msgstr "Això elimina el perfil de signatura. S'eliminen els enllaços de signatura del contingut i s'esborren els punters principals."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3379
+#: packages/admin/src/components/PortableTextEditor.tsx:3616
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr ""
 
@@ -9381,7 +9529,7 @@ msgid "Timezone for displaying dates (e.g., America/New_York)"
 msgstr "Fus horari per mostrar les dates (p. ex. Europe/Madrid)"
 
 #: packages/admin/src/components/ContentList.tsx:597
-#: packages/admin/src/components/ContentList.tsx:757
+#: packages/admin/src/components/ContentList.tsx:758
 #: packages/admin/src/components/SectionEditor.tsx:272
 #: packages/admin/src/components/Sections.tsx:170
 #: packages/admin/src/components/Widgets.tsx:891
@@ -9404,7 +9552,7 @@ msgstr "per tancar"
 msgid "to select"
 msgstr "per seleccionar"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3794
+#: packages/admin/src/components/PortableTextEditor.tsx:4031
 msgid "Toggle header row"
 msgstr "Commuta la fila de capçalera"
 
@@ -9492,7 +9640,7 @@ msgstr "paperera"
 msgid "Trash"
 msgstr "Paperera"
 
-#: packages/admin/src/components/ContentList.tsx:785
+#: packages/admin/src/components/ContentList.tsx:786
 msgid "Trash is empty"
 msgstr "La paperera és buida"
 
@@ -9504,7 +9652,7 @@ msgstr "La paperera és buida."
 msgid "True/false toggle"
 msgstr "Commutador cert/fals"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1076
+#: packages/admin/src/components/MediaLibrary.tsx:1080
 msgid "Try a broader media type or clear your filters."
 msgstr "Prova un tipus de fitxer més ampli o neteja els filtres."
 
@@ -9538,12 +9686,12 @@ msgstr ""
 msgid "Try another code"
 msgstr "Prova un altre codi"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1112
+#: packages/admin/src/components/MediaLibrary.tsx:1116
 #: packages/admin/src/components/MediaPickerModal.tsx:1409
 msgid "Try another filename or clear your search."
 msgstr "Prova un altre nom de fitxer o neteja la cerca."
 
-#: packages/admin/src/components/MediaLibrary.tsx:1075
+#: packages/admin/src/components/MediaLibrary.tsx:1079
 msgid "Try another filename, or clear your search and filters."
 msgstr "Prova un altre nom de fitxer, o neteja la cerca i els filtres."
 
@@ -9583,7 +9731,7 @@ msgstr "Twitter"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:260
 #: packages/admin/src/components/FieldEditor.tsx:610
-#: packages/admin/src/components/MediaLibrary.tsx:1202
+#: packages/admin/src/components/MediaLibrary.tsx:1206
 #: packages/admin/src/routes/byline-schema.tsx:240
 msgid "Type"
 msgstr "Tipus"
@@ -9593,7 +9741,7 @@ msgstr "Tipus"
 msgid "Type mismatch ({0})"
 msgstr "Discrepància de tipus ({0})"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1544
+#: packages/admin/src/components/MediaLibrary.tsx:1551
 msgid "Type: Folder"
 msgstr ""
 
@@ -9611,12 +9759,12 @@ msgstr "No s'ha pogut arribar al mercat"
 msgid "Unassigned"
 msgstr "Sense assignar"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3653
-#: packages/admin/src/components/PortableTextEditor.tsx:4058
+#: packages/admin/src/components/PortableTextEditor.tsx:3890
+#: packages/admin/src/components/PortableTextEditor.tsx:4295
 msgid "Underline"
 msgstr "Subratllat"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4262
+#: packages/admin/src/components/PortableTextEditor.tsx:4499
 msgid "Undo"
 msgstr "Desfés"
 
@@ -9692,7 +9840,7 @@ msgid "Unsupported widget element type: {0}"
 msgstr "Tipus d'element de giny no admès: {0}"
 
 #. placeholder {0}: formatter.format(to)
-#: packages/admin/src/components/ContentList.tsx:989
+#: packages/admin/src/components/ContentList.tsx:990
 msgid "Until {0}"
 msgstr ""
 
@@ -9701,7 +9849,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "Sense títol"
 
-#: packages/admin/src/components/ContentEditor.tsx:1952
+#: packages/admin/src/components/ContentEditor.tsx:1978
 msgid "Untitled file"
 msgstr "Fitxer sense títol"
 
@@ -9745,7 +9893,7 @@ msgstr "Actualitza aquesta regla de redirecció."
 msgid "Update to v{0}"
 msgstr "Actualitza a la v{0}"
 
-#: packages/admin/src/components/ContentList.tsx:868
+#: packages/admin/src/components/ContentList.tsx:869
 #: packages/admin/src/components/ContentSettingsPanel.tsx:998
 #: packages/admin/src/components/RegistryPluginDetail.tsx:559
 msgid "Updated"
@@ -9768,7 +9916,7 @@ msgstr ""
 msgid "Updating..."
 msgstr "S'està actualitzant..."
 
-#: packages/admin/src/components/MediaLibrary.tsx:864
+#: packages/admin/src/components/MediaLibrary.tsx:868
 msgid "Upload"
 msgstr "Puja"
 
@@ -9808,12 +9956,12 @@ msgid "Upload files"
 msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:750
-#: packages/admin/src/components/MediaLibrary.tsx:1102
-#: packages/admin/src/components/MediaLibrary.tsx:1126
+#: packages/admin/src/components/MediaLibrary.tsx:1106
+#: packages/admin/src/components/MediaLibrary.tsx:1130
 msgid "Upload Files"
 msgstr "Puja fitxers"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1099
+#: packages/admin/src/components/MediaLibrary.tsx:1103
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Puja imatges, vídeos i documents per tenir els recursos reutilitzables en un sol lloc."
 
@@ -9821,7 +9969,7 @@ msgstr "Puja imatges, vídeos i documents per tenir els recursos reutilitzables 
 msgid "Upload Media"
 msgstr "Puja fitxers multimèdia"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1123
+#: packages/admin/src/components/MediaLibrary.tsx:1127
 msgid "Upload media to keep reusable assets in one place."
 msgstr "Puja fitxers multimèdia per tenir els recursos reutilitzables en un sol lloc."
 
@@ -9848,14 +9996,19 @@ msgstr "Pujat:"
 msgid "Uploading"
 msgstr "S'està pujant"
 
+#: packages/admin/src/components/media/ImageDropTarget.tsx:132
+#: packages/admin/src/components/media/ImageDropTarget.tsx:145
+msgid "Uploading image…"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:54
 #: packages/admin/src/components/FieldEditor.tsx:266
 #: packages/admin/src/components/FieldEditor.tsx:625
 #: packages/admin/src/components/MenuEditor.tsx:418
 #: packages/admin/src/components/MenuEditor.tsx:596
-#: packages/admin/src/components/PortableTextEditor.tsx:3607
-#: packages/admin/src/components/PortableTextEditor.tsx:4207
-#: packages/admin/src/components/PortableTextEditor.tsx:4217
+#: packages/admin/src/components/PortableTextEditor.tsx:3844
+#: packages/admin/src/components/PortableTextEditor.tsx:4444
+#: packages/admin/src/components/PortableTextEditor.tsx:4454
 msgid "URL"
 msgstr ""
 
@@ -9916,11 +10069,19 @@ msgstr ""
 msgid "Use [param] or [...rest] in paths for pattern matching."
 msgstr "Utilitza [param] o [...rest] a les rutes per fer coincidència de patrons."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:623
+msgid "Use a security key"
+msgstr ""
+
 #: packages/admin/src/components/MediaPickerModal.tsx:639
 msgid "Use a URL ending in a recognized image extension, such as .jpg or .png."
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1063
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:613
+msgid "Use another device"
+msgstr ""
+
+#: packages/admin/src/components/ContentList.tsx:1064
 msgid "Use as end date"
 msgstr ""
 
@@ -9948,7 +10109,7 @@ msgstr "S'utilitza com a imatge Open Graph alternativa quan una pàgina no en t�
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "S'utilitza com a identificador. Només lletres minúscules, números i guions baixos."
 
-#: packages/admin/src/components/ContentEditor.tsx:1640
+#: packages/admin/src/components/ContentEditor.tsx:1666
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "S'utilitza com a element visual principal d'aquesta entrada a les pàgines de llista i a la part superior de l'entrada"
 
@@ -10019,16 +10180,16 @@ msgstr "Validació"
 msgid "Verify the plugin before installing it"
 msgstr ""
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:228
+#: packages/admin/src/components/InviteAcceptPage.tsx:227
 msgid "Verifying your invite..."
 msgstr "S'està verificant la teva invitació..."
 
-#: packages/admin/src/components/SignupPage.tsx:403
+#: packages/admin/src/components/SignupPage.tsx:404
 msgid "Verifying your link..."
 msgstr "S'està verificant el teu enllaç..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:212
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:216
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
 #: packages/admin/src/components/RegistryPluginDetail.tsx:619
 msgid "Verifying..."
 msgstr "S'està verificant..."
@@ -10044,7 +10205,7 @@ msgid "Version {0}"
 msgstr "Versió {0}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:70
-#: packages/admin/src/components/MediaLibrary.tsx:982
+#: packages/admin/src/components/MediaLibrary.tsx:986
 #: packages/admin/src/components/MediaPickerModal.tsx:384
 msgid "Video"
 msgstr "Vídeo"
@@ -10058,16 +10219,16 @@ msgstr "Consulta l'estat del proveïdor de correu i envia correus de prova"
 msgid "View in Marketplace"
 msgstr "Mostra al mercat"
 
-#: packages/admin/src/components/MediaLibrary.tsx:928
+#: packages/admin/src/components/MediaLibrary.tsx:932
 #: packages/admin/src/components/MediaPickerModal.tsx:1215
 msgid "View mode"
 msgstr "Mode de visualització"
 
-#: packages/admin/src/components/ContentList.tsx:1327
+#: packages/admin/src/components/ContentList.tsx:1333
 msgid "View published {title}"
 msgstr "Mostra {title} publicat"
 
-#: packages/admin/src/components/MediaLibrary.tsx:885
+#: packages/admin/src/components/MediaLibrary.tsx:889
 msgid "View setup"
 msgstr ""
 
@@ -10109,13 +10270,17 @@ msgid "Wait for updates already in progress to finish."
 msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:181
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:185
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:340
 msgid "Waiting for passkey..."
 msgstr "S'està esperant la clau d'accés..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:335
 msgid "Warn"
 msgstr "Advertència"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:588
+msgid "We checked before opening the browser's passkey prompt so you can choose what happens next."
+msgstr ""
 
 #. placeholder {0}: result.url
 #: packages/admin/src/components/WordPressImport.tsx:1282
@@ -10143,7 +10308,7 @@ msgid "Web address"
 msgstr "Adreça web"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:160
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:164
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:319
 msgid "WebAuthn is not supported in this browser"
 msgstr "Aquest navegador no admet WebAuthn"
 
@@ -10164,15 +10329,23 @@ msgstr "Us donem la benvinguda a EmDash, {firstName}!"
 msgid "Welcome to EmDash!"
 msgstr "Us donem la benvinguda a EmDash!"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:642
+msgid "What happens next?"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2107
 msgid "What happens when you import:"
 msgstr "Què passa quan importes:"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:234
+msgid "What is a passkey?"
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1890
 msgid "What will happen when you import"
 msgstr "Què passarà quan importis"
 
-#: packages/admin/src/components/ContentEditor.tsx:1022
+#: packages/admin/src/components/ContentEditor.tsx:1048
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr ""
 
@@ -10187,6 +10360,10 @@ msgstr "Quan es va modificar l'entrada per última vegada"
 #: packages/admin/src/components/ContentTypeEditor.tsx:137
 msgid "When the entry was published"
 msgstr "Quan es va publicar l'entrada"
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:246
+msgid "Where is it saved?"
+msgstr ""
 
 #: packages/admin/src/components/TaxonomyManager.tsx:848
 msgid "Which content types can use this taxonomy"
@@ -10224,7 +10401,7 @@ msgstr ""
 msgid "Why is this important for search visibility?"
 msgstr ""
 
-#: packages/admin/src/components/SeoImageField.tsx:44
+#: packages/admin/src/components/SeoImageField.tsx:45
 msgid "Why is this important for social sharing?"
 msgstr ""
 
@@ -10286,6 +10463,18 @@ msgstr ""
 msgid "Will create"
 msgstr "Es crearà"
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:558
+msgid "Windows Hello still isn't available to this browser. You can try another device or a security key instead."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:181
+msgid "Windows will show which credential manager will save it before creating it."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:224
+msgid "With a passkey, you don’t need to remember complex passwords"
+msgstr ""
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:148
 msgid "Without an email provider, invite links must be shared manually."
 msgstr "Sense un proveïdor de correu, els enllaços d'invitació s'han de compartir manualment."
@@ -10326,7 +10515,7 @@ msgstr ""
 msgid "Yearly"
 msgstr ""
 
-#: packages/admin/src/components/ContentList.tsx:1402
+#: packages/admin/src/components/ContentList.tsx:1408
 #: packages/admin/src/components/users/UserDetail.tsx:236
 #: packages/admin/src/routes/byline-schema.tsx:420
 #: packages/admin/src/routes/byline-schema.tsx:422
@@ -10357,6 +10546,10 @@ msgstr "Encara pots editar els camps fixos de dalt. En desar, no es modificarà 
 msgid "You can view and contribute to the site."
 msgstr "Pots veure el lloc i contribuir-hi."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:511
+msgid "You can view, rename, or add more passkeys later in Security settings."
+msgstr ""
+
 #: packages/admin/src/components/users/UserDetail.tsx:175
 msgid "You cannot change your own role"
 msgstr "No pots canviar el teu propi rol"
@@ -10382,7 +10575,7 @@ msgstr "Necessites permisos d'administrador per gestionar l'esquema de signature
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2007
+#: packages/admin/src/router.tsx:2030
 msgid "You need Editor permissions to moderate comments."
 msgstr "Necessites permisos d'editor per moderar els comentaris."
 
@@ -10396,11 +10589,11 @@ msgid "You won't be able to use this passkey to sign in anymore. This action can
 msgstr "Ja no podràs utilitzar aquesta clau d'accés per iniciar la sessió. Aquesta acció no es pot desfer."
 
 #. placeholder {0}: inviteData.roleName
-#: packages/admin/src/components/InviteAcceptPage.tsx:55
+#: packages/admin/src/components/InviteAcceptPage.tsx:56
 msgid "You'll be joining as <0>{0}</0>"
 msgstr "T'uniràs com a <0>{0}</0>"
 
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:361
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:801
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "Se't demanarà que utilitzis l'autenticació biomètrica, la clau de seguretat o el PIN del teu dispositiu."
 
@@ -10412,11 +10605,11 @@ msgstr "Se't redirigirà a WordPress per autoritzar la connexió."
 msgid "You'll be signing up as <0>{roleName}</0>"
 msgstr ""
 
-#: packages/admin/src/components/SetupWizard.tsx:564
+#: packages/admin/src/components/SetupWizard.tsx:557
 msgid "You're signed in via Cloudflare Access"
 msgstr "Has iniciat la sessió mitjançant Cloudflare Access"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:53
+#: packages/admin/src/components/InviteAcceptPage.tsx:54
 msgid "You've been invited!"
 msgstr "T'han convidat!"
 
@@ -10434,14 +10627,32 @@ msgid "Your account has been created successfully."
 msgstr "El teu compte s'ha creat correctament."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:308
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:307
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:481
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "El teu navegador no admet claus d'accés. Utilitza un navegador modern com Chrome, Safari, Firefox o Edge."
 
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
+msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:188
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:195
+msgid "Your credential manager, such as iCloud Keychain, saves it and may sync it to your other devices."
+msgstr ""
+
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:268
-#: packages/admin/src/components/auth/PasskeyRegistration.tsx:273
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:432
 msgid "Your device doesn't support the required security features."
 msgstr "El teu dispositiu no admet les funcions de seguretat necessàries."
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:209
+msgid "Your device's credential manager saves it and will show you where before creating it."
+msgstr ""
+
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:193
+#: packages/admin/src/components/auth/PasskeyRegistration.tsx:207
+msgid "your device's passkey prompt"
+msgstr ""
 
 #: packages/admin/src/components/SetupWizard.tsx:197
 msgid "Your Email"
@@ -10463,8 +10674,8 @@ msgstr "El teu nom d'usuari d'Instagram"
 msgid "Your LinkedIn profile username"
 msgstr "El nom d'usuari del teu perfil de LinkedIn"
 
-#: packages/admin/src/components/MediaLibrary.tsx:1098
-#: packages/admin/src/components/MediaLibrary.tsx:1122
+#: packages/admin/src/components/MediaLibrary.tsx:1102
+#: packages/admin/src/components/MediaLibrary.tsx:1126
 msgid "Your media library is empty"
 msgstr "La teva biblioteca multimèdia és buida"
 
@@ -10472,8 +10683,8 @@ msgstr "La teva biblioteca multimèdia és buida"
 msgid "Your Name"
 msgstr "El teu nom"
 
-#: packages/admin/src/components/InviteAcceptPage.tsx:65
-#: packages/admin/src/components/SignupPage.tsx:217
+#: packages/admin/src/components/InviteAcceptPage.tsx:66
+#: packages/admin/src/components/SignupPage.tsx:218
 msgid "Your name (optional)"
 msgstr "El teu nom (opcional)"
 

@@ -387,6 +387,182 @@ export interface CreatedPullRequest {
 	htmlUrl: string;
 }
 
+export interface PullRequestStatus {
+	readonly number: number;
+	readonly url: string;
+	readonly state: "open" | "closed" | "merged";
+	readonly draft: boolean;
+	readonly headSha: string;
+	readonly mergeability: "mergeable" | "conflicting" | "unknown";
+	readonly review: "approved" | "changes-requested" | "review-required";
+	readonly checks: "none" | "pending" | "passing" | "failing";
+	readonly failingChecks: ReadonlyArray<{ name: string; url: string | null }>;
+	readonly pendingChecks: string[];
+	readonly updatedAt: string;
+}
+
+const PASSING_CHECK_CONCLUSIONS = new Set(["success", "neutral", "skipped"]);
+const FAILING_CHECK_CONCLUSIONS = new Set([
+	"action_required",
+	"cancelled",
+	"failure",
+	"startup_failure",
+	"stale",
+	"timed_out",
+]);
+
+export async function getPullRequestStatus(
+	token: string,
+	ctx: RepoContext,
+	prNumber: number,
+): Promise<PullRequestStatus> {
+	const pullResponse = await githubFetch(
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`,
+		{ headers: authHeaders(token) },
+	);
+	if (!pullResponse.ok) {
+		throw new Error(
+			`getPullRequestStatus failed: ${pullResponse.status} ${await pullResponse.text()}`,
+		);
+	}
+	const pull = await pullResponse.json<{
+		number?: number;
+		html_url?: string;
+		state?: string;
+		draft?: boolean;
+		merged?: boolean;
+		mergeable?: boolean | null;
+		head?: { sha?: string };
+	}>();
+	const headSha = pull.head?.sha;
+	if (!headSha) throw new Error("getPullRequestStatus response had no head SHA");
+
+	const [reviewsResponse, checksResponse, statusesResponse] = await Promise.all([
+		githubFetch(
+			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}/reviews?per_page=100`,
+			{
+				headers: authHeaders(token),
+			},
+		),
+		githubFetch(
+			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/commits/${headSha}/check-runs?per_page=100`,
+			{
+				headers: authHeaders(token),
+			},
+		),
+		githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/commits/${headSha}/status`, {
+			headers: authHeaders(token),
+		}),
+	]);
+	if (
+		!reviewsResponse.ok ||
+		(!checksResponse.ok && checksResponse.status !== 403) ||
+		!statusesResponse.ok
+	) {
+		throw new Error(
+			`getPullRequestStatus details failed: reviews=${reviewsResponse.status} checks=${checksResponse.status} statuses=${statusesResponse.status}`,
+		);
+	}
+
+	const reviews = await reviewsResponse.json<
+		Array<{
+			state?: string;
+			submitted_at?: string;
+			commit_id?: string | null;
+			user?: { login?: string };
+		}>
+	>();
+	const checkPayload = checksResponse.ok
+		? await checksResponse.json<{
+				check_runs?: Array<{
+					name?: string;
+					status?: string;
+					conclusion?: string | null;
+					details_url?: string | null;
+				}>;
+			}>()
+		: { check_runs: [] };
+	const combinedStatus = await statusesResponse.json<{
+		state?: string;
+		statuses?: Array<{ context?: string; state?: string; target_url?: string | null }>;
+	}>();
+
+	const latestReviews = new Map<
+		string,
+		{ state: string; submittedAt: string; commitId: string | null }
+	>();
+	for (const review of reviews) {
+		const login = review.user?.login;
+		const state = review.state?.toLowerCase();
+		if (!login || !state || state === "pending") continue;
+		const submittedAt = review.submitted_at ?? "";
+		const previous = latestReviews.get(login);
+		if (!previous || submittedAt >= previous.submittedAt) {
+			latestReviews.set(login, { state, submittedAt, commitId: review.commit_id ?? null });
+		}
+	}
+	const latestReviewValues = [...latestReviews.values()];
+	const reviewStates = new Set(latestReviewValues.map(({ state }) => state));
+	const review = latestReviewValues.some(
+		({ state, commitId }) => state === "changes_requested" && commitId === headSha,
+	)
+		? "changes-requested"
+		: reviewStates.has("approved")
+			? "approved"
+			: "review-required";
+
+	const failingChecks: Array<{ name: string; url: string | null }> = [];
+	const pendingChecks: string[] = [];
+	let passingCount = 0;
+	for (const check of checkPayload.check_runs ?? []) {
+		const name = check.name ?? "Unnamed check";
+		if (check.status !== "completed" || check.conclusion === null) {
+			pendingChecks.push(name);
+		} else if (FAILING_CHECK_CONCLUSIONS.has(check.conclusion ?? "")) {
+			failingChecks.push({ name, url: check.details_url ?? null });
+		} else if (PASSING_CHECK_CONCLUSIONS.has(check.conclusion ?? "")) {
+			passingCount += 1;
+		}
+	}
+	for (const status of combinedStatus.statuses ?? []) {
+		const name = status.context ?? "Unnamed status";
+		if (status.state === "pending") pendingChecks.push(name);
+		else if (status.state === "failure" || status.state === "error") {
+			failingChecks.push({ name, url: status.target_url ?? null });
+		} else if (status.state === "success") passingCount += 1;
+	}
+	if (
+		combinedStatus.state === "failure" &&
+		failingChecks.length === 0 &&
+		(combinedStatus.statuses?.length ?? 0) === 0
+	) {
+		failingChecks.push({ name: "Commit status", url: null });
+	}
+	const checks =
+		failingChecks.length > 0
+			? "failing"
+			: pendingChecks.length > 0 || combinedStatus.state === "pending"
+				? "pending"
+				: passingCount > 0 || combinedStatus.state === "success"
+					? "passing"
+					: "none";
+
+	return {
+		number: pull.number ?? prNumber,
+		url: pull.html_url ?? `https://github.com/${ctx.owner}/${ctx.repo}/pull/${prNumber}`,
+		state: pull.merged === true ? "merged" : pull.state === "closed" ? "closed" : "open",
+		draft: pull.draft === true,
+		headSha,
+		mergeability:
+			pull.mergeable === true ? "mergeable" : pull.mergeable === false ? "conflicting" : "unknown",
+		review,
+		checks,
+		failingChecks,
+		pendingChecks,
+		updatedAt: new Date().toISOString(),
+	};
+}
+
 export async function getPullRequestHeadBranch(
 	token: string,
 	ctx: RepoContext,

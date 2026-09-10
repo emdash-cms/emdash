@@ -213,6 +213,24 @@ describe("POST /webhook/github (workers-pool)", () => {
 		expect(await res.text()).toMatch(/skipped/);
 	});
 
+	test("new issues are admitted into automatic triage", async () => {
+		const issueNumber = uniqueIssueNumber();
+		const res = await postWebhook({
+			eventType: "issues",
+			delivery: `opened-${issueNumber}`,
+			payload: {
+				action: "opened",
+				issue: { number: issueNumber, user: { login: "reporter" }, labels: [] },
+				sender: { login: "reporter" },
+			},
+		});
+		expect(res.status).toBe(202);
+
+		const stub = testEnv.Orchestrator.getByName(`issue-${issueNumber}`);
+		await stub.tick();
+		expect(await stub.getPersistedState()).toMatchObject({ state: "triaging", kind: "task" });
+	});
+
 	test("issue_comment.created with bare verb advances the DO state", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const res = await postWebhook({

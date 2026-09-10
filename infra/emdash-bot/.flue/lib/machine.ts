@@ -36,6 +36,7 @@ export const RUN_PHASES = [
 	{ id: "prepare", label: "Prepare" },
 	{ id: "reproduce", label: "Reproduce" },
 	{ id: "diagnose", label: "Diagnose" },
+	{ id: "work", label: "Work" },
 	{ id: "edit", label: "Edit" },
 	{ id: "finalize", label: "Finalize" },
 	{ id: "verify", label: "Verify" },
@@ -44,10 +45,22 @@ export const RUN_PHASES = [
 ] as const;
 
 export type RunPhaseId = (typeof RUN_PHASES)[number]["id"];
-export type RunMode = "repro" | "implement" | "revise" | "diagnose" | "fix";
+export type RunMode =
+	| "triage"
+	| "investigate"
+	| "work"
+	| "revise"
+	// Stored runs from the previous command model remain resumable.
+	| "repro"
+	| "implement"
+	| "diagnose"
+	| "fix";
 export type RunStatus = "running" | "succeeded" | "failed" | "timed_out" | "cancelled";
 
 const RUN_PLANS = {
+	triage: ["prepare", "diagnose", "report"],
+	investigate: ["prepare", "reproduce", "diagnose", "report"],
+	work: ["prepare", "work", "finalize", "verify", "publish", "report"],
 	diagnose: ["prepare", "reproduce", "diagnose", "report"],
 	repro: ["prepare", "reproduce", "diagnose", "edit", "finalize", "verify", "publish", "report"],
 	implement: ["prepare", "edit", "finalize", "verify", "publish", "report"],
@@ -64,6 +77,9 @@ export function runMachineSnapshot() {
 		phases: RUN_PHASES,
 		statuses: ["running", "succeeded", "failed", "timed_out", "cancelled"] as const,
 		plans: {
+			triage: runPlan("triage"),
+			investigate: runPlan("investigate"),
+			work: runPlan("work"),
 			diagnose: runPlan("diagnose"),
 			repro: runPlan("repro"),
 			implement: runPlan("implement"),
@@ -80,6 +96,8 @@ export function runMachineSnapshot() {
 export type StateId =
 	| "unmanaged"
 	| "triage"
+	| "triaging"
+	| "awaiting_approval"
 	| "working"
 	| "blocked"
 	| "awaiting_feedback"
@@ -88,6 +106,7 @@ export type StateId =
 	| "done"
 	| "declined"
 	| "failed"
+	| "needs_attention"
 	// --- next-generation: investigation lifecycle (maintainer-triggered) ---
 	| "investigating"
 	| "reproduced"
@@ -135,6 +154,8 @@ export interface StateMeta {
 	transient?: boolean;
 	/** Commands offered in the bot's self-documenting comment footer. */
 	offeredCommands: CommandVerb[];
+	/** Stored-state compatibility only; new transitions do not enter this state. */
+	legacy?: boolean;
 	/**
 	 * On a bot-authored PR, an `@emdashbot` comment whose verb isn't a known
 	 * command is treated as this event, with the whole comment as its arg.
@@ -160,7 +181,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"No bot labels yet. An issue nobody has handed to the bot. Entry commands work directly.",
 		terminal: false,
-		offeredCommands: ["investigate", "repro", "fix", "implement", "decline"],
+		offeredCommands: ["triage", "work", "investigate", "decline"],
 	},
 	triage: {
 		label: "bot:triage",
@@ -169,7 +190,28 @@ export const STATES: Record<StateId, StateMeta> = {
 		boardColumn: "Triage",
 		description: "Filed and awaiting a decision on whether/how the bot should act.",
 		terminal: false,
-		offeredCommands: ["investigate", "repro", "fix", "implement", "decline"],
+		offeredCommands: ["triage", "work", "investigate", "decline"],
+	},
+	triaging: {
+		label: "bot:triaging",
+		phase: "intake",
+		tone: "active",
+		boardColumn: "Triage",
+		description:
+			"The bot is classifying the issue, checking existing work, and deciding whether it can proceed automatically.",
+		terminal: false,
+		transient: true,
+		offeredCommands: ["status", "work", "take_over"],
+	},
+	awaiting_approval: {
+		label: "bot:awaiting-approval",
+		phase: "verdict",
+		tone: "waiting",
+		boardColumn: "Awaiting approval",
+		description:
+			"Triage found useful work that needs a maintainer decision before the bot continues.",
+		terminal: false,
+		offeredCommands: ["work", "triage", "investigate", "decline", "take_over"],
 	},
 	working: {
 		label: "bot:working",
@@ -190,7 +232,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"The bot stopped without a first-class verdict and needs a human decision. Covers skipped, by-design, closed-PR, and legacy infrastructure outcomes; the reason is in the bot's comment.",
 		terminal: false,
-		offeredCommands: ["investigate", "fix", "implement", "repro", "retry", "decline", "take_over"],
+		offeredCommands: ["triage", "work", "investigate", "retry", "decline", "take_over"],
 	},
 	awaiting_feedback: {
 		label: "bot:awaiting-feedback",
@@ -200,6 +242,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"A fix is staged on bot/fix-<n>; waiting for the reporter or a maintainer to confirm or reject.",
 		terminal: false,
+		legacy: true,
 		offeredCommands: ["confirm", "reject", "retry", "revise", "take_over"],
 	},
 	in_review: {
@@ -210,8 +253,8 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"A PR is open. The review/* sub-states live on the PR and roll up here. On a bot PR, a plain `@emdashbot` comment is feedback; explicit verbs still win.",
 		terminal: false,
-		offeredCommands: ["revise", "decline", "take_over"],
-		defaultCommentEvent: "revise",
+		offeredCommands: ["work", "decline", "take_over"],
+		defaultCommentEvent: "work",
 	},
 	human_owned: {
 		label: "bot:human-owned",
@@ -251,7 +294,19 @@ export const STATES: Record<StateId, StateMeta> = {
 		boardColumn: "Failed",
 		description: "An agent run errored or produced no usable result. Retryable -- not a dead end.",
 		terminal: false,
-		offeredCommands: ["resume", "retry", "implement", "repro", "investigate", "revise", "decline"],
+		legacy: true,
+		offeredCommands: ["retry", "work", "triage", "investigate", "decline"],
+	},
+	needs_attention: {
+		label: "bot:needs-attention",
+		phase: "candidate",
+		tone: "attention",
+		detour: true,
+		boardColumn: "Needs attention",
+		description:
+			"The last run or attached pull request needs maintainer attention. Durable work and PR state are retained.",
+		terminal: false,
+		offeredCommands: ["retry", "work", "triage", "investigate", "decline", "take_over"],
 	},
 
 	// -----------------------------------------------------------------------
@@ -279,7 +334,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: reproduced with a diagnosis attached. Resting until a maintainer triggers the fix loop or disposes of it.",
 		terminal: false,
-		offeredCommands: ["fix", "implement", "investigate", "decline", "take_over"],
+		offeredCommands: ["work", "investigate", "decline", "take_over"],
 	},
 	diagnosed: {
 		label: "bot:diagnosed",
@@ -289,7 +344,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: root cause identified, but not confirmed by a reproduction (environment limits). Actionable like reproduced; the fix loop verifies with a failing test before changing anything.",
 		terminal: false,
-		offeredCommands: ["fix", "implement", "investigate", "decline", "take_over"],
+		offeredCommands: ["work", "investigate", "decline", "take_over"],
 	},
 	not_reproduced: {
 		label: "bot:not-reproduced",
@@ -300,7 +355,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: could not reproduce, transcript attached. A first-class outcome, not a failure. Reporter can add steps; a maintainer can re-investigate.",
 		terminal: false,
-		offeredCommands: ["investigate", "decline", "take_over"],
+		offeredCommands: ["triage", "investigate", "decline", "take_over"],
 	},
 	needs_info: {
 		label: "bot:needs-info",
@@ -311,7 +366,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Verdict: the investigation needs information only the reporter has. Evidence records what was tried and what is missing.",
 		terminal: false,
-		offeredCommands: ["investigate", "decline", "take_over"],
+		offeredCommands: ["triage", "work", "investigate", "decline", "take_over"],
 	},
 	fixing: {
 		label: "bot:fixing",
@@ -320,6 +375,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		boardColumn: "Fixing",
 		description: "A maintainer-triggered delivery run is building a candidate on bot/fix-<n>.",
 		terminal: false,
+		legacy: true,
 		transient: true,
 		offeredCommands: ["status"],
 	},
@@ -342,7 +398,7 @@ export const STATES: Record<StateId, StateMeta> = {
 		description:
 			"Preview link posted; waiting for the reporter to confirm the change. On confirm a draft PR opens; on denial or 14-day silence the branch is reaped.",
 		terminal: false,
-		offeredCommands: ["confirm", "reject", "decline", "take_over"],
+		offeredCommands: ["accept", "needs_changes", "decline", "take_over"],
 	},
 };
 
@@ -365,6 +421,10 @@ export type Actor =
 // Maintainer/reporter-facing verbs, spoken as `@emdashbot <verb> [args]` or,
 // for a few, applied as a label. Keep this list and the grammar in sync.
 export type CommandVerb =
+	| "triage"
+	| "work"
+	| "accept"
+	| "needs_changes"
 	| "repro"
 	| "implement"
 	| "retry"
@@ -387,6 +447,8 @@ export type CommandVerb =
 // gating fields in the Flue result (skipped / reproduced / fixed / verdict).
 // These names map 1:1 to the agent contract in .flue/agents/investigate.ts.
 export type AgentEvent =
+	| "agent.auto_work"
+	| "agent.awaiting_approval"
 	| "agent.skipped" // result.skipped === true
 	| "agent.not_reproduced" // !skipped && !reproduced
 	| "agent.by_design" // verdict === "intended-behavior"
@@ -398,7 +460,14 @@ export type AgentEvent =
 	| "agent.failed"; // nonzero exit / no result file
 
 // GitHub PR lifecycle events that propagate onto the anchoring issue.
-export type PrEvent = "pr.opened" | "pr.merged" | "pr.closed" | "pr.approved";
+export type PrEvent =
+	| "pr.opened"
+	| "pr.updated"
+	| "pr.problems"
+	| "pr.green"
+	| "pr.merged"
+	| "pr.closed"
+	| "pr.approved";
 
 // Preview-deploy lifecycle events, emitted by the preview-build pipeline.
 export type PreviewEvent =
@@ -413,6 +482,8 @@ export type EventId = CommandVerb | AgentEvent | PrEvent | PreviewEvent | TimerE
 export interface EventMeta {
 	description: string;
 	actors: Actor[];
+	/** Parsed for backwards compatibility but omitted from the public command reference. */
+	legacy?: boolean;
 	/** True for status/help: render the item's state, never mutate it. */
 	readOnly?: boolean;
 	/** Free-text argument the verb carries (a directive, feedback, etc.). */
@@ -433,10 +504,34 @@ export interface EventMeta {
 
 export const EVENTS: Record<EventId, EventMeta> = {
 	// --- commands ---
+	triage: {
+		description:
+			"Classify the issue, apply useful labels, ask for missing information, and proceed automatically only when the work is clear and low risk.",
+		actors: ["maintainer", "system"],
+		arg: "directive",
+		defaultKind: "task",
+	},
+	work: {
+		description:
+			"Take the issue as far as a verified candidate release, reproducing bugs when appropriate.",
+		actors: ["maintainer"],
+		arg: "directive",
+		defaultKind: "task",
+	},
+	accept: {
+		description: "Confirm the candidate works and open its draft pull request.",
+		actors: ["reporter", "maintainer"],
+	},
+	needs_changes: {
+		description: "Explain what is still wrong so the bot can revise the candidate.",
+		actors: ["reporter", "maintainer"],
+		arg: "feedback",
+	},
 	repro: {
 		description: "Reproduce the issue as a bug and attempt a fix.",
 		actors: ["maintainer"],
 		defaultKind: "bug",
+		legacy: true,
 	},
 	// Next-generation split of `repro`: reproduce + diagnose only, no auto-fix.
 	// The fix loop is a separate `fix` trigger. Maintainer-only (expensive run).
@@ -453,6 +548,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		actors: ["maintainer"],
 		arg: "directive",
 		defaultKind: "enhancement",
+		legacy: true,
 	},
 	// Start a bug delivery run. A reproduced/diagnosed issue uses the durable
 	// diagnosis-aware fix mode; a cold or triaged issue uses the direct
@@ -462,25 +558,32 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		actors: ["maintainer"],
 		arg: "directive",
 		defaultKind: "bug",
+		legacy: true,
 	},
 	// NB: `retry` is always wired to `investigate.repro` in the transition
 	// table (we don't persist the previous run's mode), so the user-facing
 	// description has to say what it actually does. After `implement`/`revise`,
 	// re-issue the original command verb instead.
-	retry: { description: "Re-run the bug reproduction pipeline.", actors: ["maintainer"] },
+	retry: {
+		description: "Retry the last triage, investigation, work, or PR repair run.",
+		actors: ["maintainer"],
+	},
 	resume: {
 		description: "Continue the saved conversation and workspace from a timed-out run.",
 		actors: ["maintainer"],
 		arg: "directive",
+		legacy: true,
 	},
 	revise: {
 		description: "Send review feedback back into the agent to update the open PR branch.",
 		actors: ["maintainer"],
 		arg: "feedback",
+		legacy: true,
 	},
 	confirm: {
 		description: "Confirm the staged fix works; open a PR.",
 		actors: ["reporter", "maintainer"],
+		legacy: true,
 	},
 	reject: {
 		description: "The staged fix does not work; retry with feedback.",
@@ -489,6 +592,7 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		// agent needs. Mark this so the classifier extracts the whole comment
 		// into `arg`, which then becomes the dispatched run's retryContext.
 		arg: "feedback",
+		legacy: true,
 	},
 	decline: {
 		description: "Won't be actioned; move to declined.",
@@ -526,6 +630,14 @@ export const EVENTS: Record<EventId, EventMeta> = {
 		readOnly: true,
 	},
 	// --- agent results ---
+	"agent.auto_work": {
+		description: "Triage found an obvious, low-risk task that can proceed automatically.",
+		actors: ["system"],
+	},
+	"agent.awaiting_approval": {
+		description: "Triage found work that needs maintainer approval.",
+		actors: ["system"],
+	},
 	"agent.skipped": {
 		description: "Agent skipped (non-bug kind, or repro needs external/prod-only conditions).",
 		actors: ["system"],
@@ -567,6 +679,19 @@ export const EVENTS: Record<EventId, EventMeta> = {
 	},
 	// --- PR lifecycle ---
 	"pr.opened": { description: "A bot PR was opened for this item.", actors: ["system"] },
+	"pr.updated": {
+		description: "The attached PR head changed; refresh its checks and review state.",
+		actors: ["system"],
+	},
+	"pr.problems": {
+		description: "The attached PR has failing checks, conflicts, or requested changes.",
+		actors: ["system"],
+		arg: "feedback",
+	},
+	"pr.green": {
+		description: "The attached PR is mergeable and all reported checks pass.",
+		actors: ["system"],
+	},
 	"pr.merged": { description: "The bot PR was merged.", actors: ["system"] },
 	"pr.closed": {
 		description: "The bot PR was closed without merging.",
@@ -599,6 +724,8 @@ export const EVENTS: Record<EventId, EventMeta> = {
 // The router dispatches these; the implementation is the investigate agent
 // (.flue/agents/investigate.ts). `mode` selects the entry behaviour.
 export type ActionId =
+	| "investigate.triage"
+	| "investigate.work"
 	| "investigate.repro" // bug repro -> diagnose -> verify -> fix
 	| "investigate.implement" // directed build/fix (sets maintainerDirective)
 	| "investigate.revise" // re-run against existing bot/fix-<n> with PR feedback
@@ -628,6 +755,71 @@ export interface Transition {
 }
 
 export const TRANSITIONS: Transition[] = [
+	// --- maintainer-facing lifecycle ---
+	{ from: "unmanaged", event: "triage", to: "triaging", action: "investigate.triage" },
+	{ from: "unmanaged", event: "work", to: "working", action: "investigate.work" },
+	{ from: "triage", event: "triage", to: "triaging", action: "investigate.triage" },
+	{ from: "triage", event: "work", to: "working", action: "investigate.work" },
+	{ from: "triaging", event: "agent.auto_work", to: "working", action: "investigate.work" },
+	{ from: "triaging", event: "agent.awaiting_approval", to: "awaiting_approval" },
+	{ from: "triaging", event: "agent.needs_info", to: "needs_info" },
+	{ from: "triaging", event: "agent.not_reproduced", to: "awaiting_approval" },
+	{ from: "triaging", event: "agent.diagnosed", to: "awaiting_approval" },
+	{ from: "triaging", event: "agent.reproduced", to: "awaiting_approval" },
+	{ from: "triaging", event: "agent.by_design", to: "awaiting_approval" },
+	{ from: "triaging", event: "agent.skipped", to: "awaiting_approval" },
+	{ from: "triaging", event: "agent.failed", to: "needs_attention" },
+	{ from: "triaging", event: "work", to: "working", action: "investigate.work" },
+	{ from: "triaging", event: "take_over", to: "human_owned" },
+	{ from: "triaging", event: "decline", to: "declined" },
+	{ from: "awaiting_approval", event: "triage", to: "triaging", action: "investigate.triage" },
+	{ from: "awaiting_approval", event: "work", to: "working", action: "investigate.work" },
+	{
+		from: "awaiting_approval",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+	},
+	{ from: "awaiting_approval", event: "take_over", to: "human_owned" },
+	{ from: "awaiting_approval", event: "decline", to: "declined" },
+	{ from: "needs_attention", event: "retry", to: "working", action: "investigate.work" },
+	{
+		from: "needs_attention",
+		event: "resume",
+		to: "working",
+		action: "investigate.resume",
+		note: "internal retry path when a durable timeout checkpoint exists",
+	},
+	{ from: "needs_attention", event: "work", to: "working", action: "investigate.work" },
+	{
+		from: "needs_attention",
+		event: "revise",
+		to: "in_review",
+		action: "investigate.revise",
+	},
+	{ from: "needs_attention", event: "triage", to: "triaging", action: "investigate.triage" },
+	{
+		from: "needs_attention",
+		event: "investigate",
+		to: "investigating",
+		action: "investigate.diagnose",
+	},
+	{ from: "needs_attention", event: "take_over", to: "human_owned" },
+	{ from: "needs_attention", event: "decline", to: "declined" },
+	{ from: "needs_attention", event: "pr.updated", to: "needs_attention" },
+	{
+		from: "needs_attention",
+		event: "pr.problems",
+		to: "in_review",
+		action: "investigate.revise",
+	},
+	{ from: "needs_attention", event: "pr.green", to: "in_review" },
+	{ from: "needs_attention", event: "pr.merged", to: "done" },
+	{ from: "needs_attention", event: "pr.closed", to: "needs_attention" },
+	{ from: "needs_info", event: "triage", to: "triaging", action: "investigate.triage" },
+	{ from: "done", event: "triage", to: "triaging", action: "investigate.triage" },
+	{ from: "declined", event: "triage", to: "triaging", action: "investigate.triage" },
+
 	// --- entry on an untriaged issue (no triage step required) ---
 	{ from: "unmanaged", event: "repro", to: "working", action: "investigate.repro" },
 	{
@@ -674,13 +866,15 @@ export const TRANSITIONS: Transition[] = [
 	{
 		from: "working",
 		event: "agent.fix_ready",
-		to: "awaiting_feedback",
+		to: "preview_building",
 		note: "executor pushes bot/fix-<n>; orchestrator asks the reporter to confirm. PR opens on confirm, not here.",
 	},
 	{ from: "working", event: "agent.revised", to: "in_review" },
-	{ from: "working", event: "agent.failed", to: "failed" },
+	{ from: "working", event: "agent.failed", to: "needs_attention" },
 
 	// --- blocked: every reason accepts the same overrides (kills the sinks) ---
+	{ from: "blocked", event: "triage", to: "triaging", action: "investigate.triage" },
+	{ from: "blocked", event: "work", to: "working", action: "investigate.work" },
 	{ from: "blocked", event: "fix", to: "fixing", action: "investigate.implement" },
 	{ from: "blocked", event: "implement", to: "fixing", action: "investigate.implement" },
 	{ from: "blocked", event: "repro", to: "working", action: "investigate.repro" },
@@ -713,10 +907,35 @@ export const TRANSITIONS: Transition[] = [
 	{
 		from: "in_review",
 		event: "revise",
-		to: "working",
+		to: "in_review",
 		action: "investigate.revise",
 		note: "PR feedback -> agent (was impossible)",
 	},
+	{
+		from: "in_review",
+		event: "work",
+		to: "in_review",
+		action: "investigate.revise",
+		note: "maintainer guidance updates the attached PR",
+	},
+	{
+		from: "in_review",
+		event: "needs_changes",
+		to: "in_review",
+		action: "investigate.revise",
+		note: "reporter feedback on the issue updates the attached PR",
+	},
+	{ from: "in_review", event: "pr.updated", to: "in_review" },
+	{
+		from: "in_review",
+		event: "pr.problems",
+		to: "in_review",
+		action: "investigate.revise",
+		note: "automatically repair failing checks, conflicts, and requested changes",
+	},
+	{ from: "in_review", event: "pr.green", to: "in_review" },
+	{ from: "in_review", event: "agent.revised", to: "in_review" },
+	{ from: "in_review", event: "agent.failed", to: "needs_attention" },
 	{ from: "in_review", event: "pr.merged", to: "done" },
 	// A bot PR can be merged from non-review states too. Keep pr.merged terminal
 	// from every state where the PR may still be open: bot:working (during a
@@ -729,7 +948,12 @@ export const TRANSITIONS: Transition[] = [
 	// Closed without merge is not done. Return to blocked so a human can
 	// re-open the PR path, re-run, or take over. Mirror pr.merged's coverage
 	// of states where a bot PR may still be open.
-	{ from: "in_review", event: "pr.closed", to: "blocked", note: "PR closed without merge" },
+	{
+		from: "in_review",
+		event: "pr.closed",
+		to: "needs_attention",
+		note: "PR closed without merge",
+	},
 	{ from: "working", event: "pr.closed", to: "blocked", note: "PR closed mid-revise" },
 	{
 		from: "awaiting_feedback",
@@ -761,6 +985,8 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "declined", event: "reopen", to: "triage" },
 
 	// --- failed: retryable ---
+	{ from: "failed", event: "triage", to: "triaging", action: "investigate.triage" },
+	{ from: "failed", event: "work", to: "working", action: "investigate.work" },
 	{
 		from: "failed",
 		event: "resume",
@@ -833,13 +1059,29 @@ export const TRANSITIONS: Transition[] = [
 		to: "blocked",
 		note: "repro needs external/prod-only conditions",
 	},
-	{ from: "investigating", event: "agent.failed", to: "failed" },
+	{ from: "investigating", event: "agent.failed", to: "needs_attention" },
 
 	// --- verdict disposal edges (maintainer disposes; humans dispose) ---
+	{ from: "reproduced", event: "work", to: "working", action: "investigate.work" },
+	{
+		from: "reproduced",
+		event: "needs_changes",
+		to: "working",
+		action: "investigate.work",
+		note: "late candidate feedback starts a new work run after the candidate expired",
+	},
 	{ from: "reproduced", event: "fix", to: "fixing", action: "investigate.fix" },
 	{ from: "reproduced", event: "implement", to: "fixing", action: "investigate.fix" },
 	{ from: "reproduced", event: "decline", to: "declined" },
 	{ from: "reproduced", event: "take_over", to: "human_owned" },
+	{ from: "diagnosed", event: "work", to: "working", action: "investigate.work" },
+	{
+		from: "diagnosed",
+		event: "needs_changes",
+		to: "working",
+		action: "investigate.work",
+		note: "candidate feedback remains actionable after a diagnosis-only run",
+	},
 	{ from: "diagnosed", event: "fix", to: "fixing", action: "investigate.fix" },
 	{ from: "diagnosed", event: "implement", to: "fixing", action: "investigate.fix" },
 	{ from: "diagnosed", event: "decline", to: "declined" },
@@ -851,8 +1093,10 @@ export const TRANSITIONS: Transition[] = [
 		action: "investigate.diagnose",
 		note: "re-diagnose",
 	},
+	{ from: "not_reproduced", event: "triage", to: "triaging", action: "investigate.triage" },
 	{ from: "not_reproduced", event: "decline", to: "declined" },
 	{ from: "not_reproduced", event: "take_over", to: "human_owned" },
+	{ from: "needs_info", event: "work", to: "working", action: "investigate.work" },
 	{ from: "needs_info", event: "decline", to: "declined" },
 	{ from: "needs_info", event: "take_over", to: "human_owned" },
 
@@ -862,7 +1106,7 @@ export const TRANSITIONS: Transition[] = [
 	// confirmation (awaiting_reporter) -> draft PR (in_review) or reap.
 	// =======================================================================
 	{ from: "fixing", event: "agent.fix_ready", to: "preview_building" },
-	{ from: "fixing", event: "agent.failed", to: "failed" },
+	{ from: "fixing", event: "agent.failed", to: "needs_attention" },
 	{
 		from: "fixing",
 		event: "agent.by_design",
@@ -886,6 +1130,21 @@ export const TRANSITIONS: Transition[] = [
 	},
 
 	{ from: "awaiting_reporter", event: "confirm", to: "in_review", action: "openDraftPr" },
+	{ from: "awaiting_reporter", event: "accept", to: "in_review", action: "openDraftPr" },
+	{
+		from: "awaiting_reporter",
+		event: "needs_changes",
+		to: "working",
+		action: "investigate.revise",
+		note: "revise the retained candidate from reporter feedback",
+	},
+	{
+		from: "awaiting_reporter",
+		event: "work",
+		to: "working",
+		action: "investigate.revise",
+		note: "legacy revise command updates the retained candidate",
+	},
 	{
 		from: "awaiting_reporter",
 		event: "reject",
@@ -919,6 +1178,9 @@ export const TRANSITIONS: Transition[] = [
 	{ from: "fixing", event: "reset", to: "triage" },
 	{ from: "preview_building", event: "reset", to: "triage" },
 	{ from: "awaiting_reporter", event: "reset", to: "triage" },
+	{ from: "triaging", event: "reset", to: "triage" },
+	{ from: "awaiting_approval", event: "reset", to: "triage" },
+	{ from: "needs_attention", event: "reset", to: "triage" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -1045,7 +1307,7 @@ export function validateMachine(): MachineProblem[] {
 		}
 	}
 	for (const id of stateIds) {
-		if (!reachable.has(id))
+		if (!reachable.has(id) && !STATES[id].legacy)
 			problems.push({
 				severity: "error",
 				message: `State "${id}" is unreachable from "${ENTRY_STATE}"`,

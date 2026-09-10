@@ -52,6 +52,7 @@ function isMachineActor(value: string): value is Actor {
 const MENTION_RE = /^[ \t]*@emdashbot(?=\s|$)([\s\S]*)/m;
 const WS_RE = /\s+/g;
 const UNDERSCORE_RE = /_/g;
+const NEEDS_CHANGES_WITH_FEEDBACK_RE = /^(?:reject|needs[ _]changes)\s+([\s\S]+)$/i;
 
 /**
  * The state id encoded in a label set.
@@ -85,9 +86,17 @@ const VERB_ALIASES: Record<string, EventId> = {
 	takeover: "take_over",
 	"hand back": "hand_back",
 	handback: "hand_back",
-	confirmed: "confirm",
-	verified: "confirm",
-	fixed: "confirm",
+	fix: "work",
+	implement: "work",
+	repro: "work",
+	revise: "work",
+	confirm: "accept",
+	confirmed: "accept",
+	verified: "accept",
+	fixed: "accept",
+	reject: "needs_changes",
+	"needs changes": "needs_changes",
+	resume: "retry",
 };
 
 /**
@@ -116,6 +125,10 @@ export interface ParsedCommand {
 export function parseCommand(body: string | null | undefined): ParsedCommand | null {
 	const text = parseMention(body);
 	if (text === null) return null;
+	const needsChanges = NEEDS_CHANGES_WITH_FEEDBACK_RE.exec(text);
+	if (needsChanges?.[1]) {
+		return { event: "needs_changes", arg: needsChanges[1].trim() };
+	}
 	const normalized = text.trim().toLowerCase().replace(WS_RE, " ");
 	const aliased = VERB_ALIASES[normalized];
 	const event = aliased ?? (isKnownEvent(normalized) ? normalized : null);
@@ -189,6 +202,12 @@ function failedWriteRetry(mode: InvestigationMode | undefined): {
 	action: string;
 } | null {
 	switch (mode) {
+		case "triage":
+			return { to: "triaging", action: "investigate.triage" };
+		case "work":
+			return { to: "working", action: "investigate.work" };
+		case "investigate":
+			return { to: "investigating", action: "investigate.diagnose" };
 		case "implement":
 		case "fix":
 			return { to: "fixing", action: `investigate.${mode}` };
@@ -244,7 +263,11 @@ export function resolve({
 	if (!from) return { kind: "noop", reason: "item has conflicting state labels" };
 	const t = findTransition(from, event);
 	if (!t) return { kind: "noop", reason: `no transition for ${from} + ${event}`, from };
-	const retry = from === "failed" && event === "retry" ? failedWriteRetry(retryMode) : null;
+	const retry =
+		event === "retry" &&
+		(from === "failed" || (from === "needs_attention" && retryMode === "revise"))
+			? failedWriteRetry(retryMode)
+			: null;
 	const to =
 		event === "resume" && resumeState
 			? resumeState
@@ -352,6 +375,9 @@ export function replyFooter(state: StateId | null): string {
 }
 
 export interface AgentResult {
+	disposition?: "auto-work" | "needs-info" | "await-approval";
+	kind?: Kind;
+	labels?: readonly string[];
 	skipped?: boolean;
 	reproduced?: boolean;
 	rootCauseFound?: boolean;
@@ -389,13 +415,20 @@ export function outcomeFromResult({
 	if (result.skipped === true) return "agent.skipped";
 	if (result.verdict === "intended-behavior") return "agent.by_design";
 	const effectiveMode = mode ?? "repro";
-	if (effectiveMode === "diagnose") {
+	if (effectiveMode === "triage") {
+		if (result.disposition === "auto-work" && autoWorkAllowed(result)) return "agent.auto_work";
+		if (result.disposition === "needs-info") return "agent.needs_info";
+		return "agent.awaiting_approval";
+	}
+	if (effectiveMode === "diagnose" || effectiveMode === "investigate") {
 		if (result.verdict === "unclear") return "agent.needs_info";
 		if (result.reproduced === true) return "agent.reproduced";
 		return result.rootCauseFound === true ? "agent.diagnosed" : "agent.not_reproduced";
 	}
-	if (effectiveMode === "fix") {
-		return result.fixed === true && pushed === true ? "agent.fix_ready" : "agent.failed";
+	if (effectiveMode === "fix" || effectiveMode === "work") {
+		const delivered =
+			result.fixed === true || (effectiveMode === "work" && result.implemented === true);
+		return delivered && pushed === true ? "agent.fix_ready" : "agent.failed";
 	}
 	if (effectiveMode === "implement") {
 		return result.implemented === true && pushed === true ? "agent.fix_ready" : "agent.failed";
@@ -405,6 +438,13 @@ export function outcomeFromResult({
 	}
 	if (result.fixed === true) return pushed === true ? "agent.fix_ready" : "agent.failed";
 	return effectiveMode === "repro" ? "agent.reproduced" : "agent.failed";
+}
+
+const RESTRICTED_AUTO_WORK_LABELS: ReadonlySet<string> = new Set(["area/auth", "area/ci"]);
+
+function autoWorkAllowed(result: AgentResult): boolean {
+	if (result.kind === "enhancement") return false;
+	return !(result.labels ?? []).some((label) => RESTRICTED_AUTO_WORK_LABELS.has(label));
 }
 
 /** Invariant check: exactly one kind + one state label. */

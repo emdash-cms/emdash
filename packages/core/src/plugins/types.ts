@@ -811,6 +811,12 @@ export interface ContentHookEvent {
 	content: Record<string, unknown>;
 	collection: string;
 	isNew: boolean;
+	/**
+	 * ID of the existing item on `content:beforeSave` for an update. Absent on
+	 * creates, where the ID is assigned when the save completes, and on
+	 * `content:afterSave`, where `content.id` carries it.
+	 */
+	id?: string;
 }
 
 /**

@@ -88,6 +88,33 @@ describe("ContentList", () => {
 			await expect.element(screen.getByText("My Post")).toBeInTheDocument();
 		});
 
+		it("links published translations to their locale-prefixed path", async () => {
+			const items = [
+				makeItem({
+					status: "published",
+					slug: "polski-test",
+					locale: "pl",
+					data: { title: "Polski test" },
+				}),
+			];
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={items}
+					urlPattern="/posts/{slug}"
+					i18n={{
+						defaultLocale: "en",
+						locales: ["en", "pl"],
+						prefixDefaultLocale: false,
+					}}
+				/>,
+			);
+
+			await expect
+				.element(screen.getByRole("link", { name: "View published Polski test" }))
+				.toHaveAttribute("href", "/pl/posts/polski-test");
+		});
+
 		it("falls back to data.name when title is missing", async () => {
 			const items = [makeItem({ id: "1", data: { name: "Named Item" } })];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);

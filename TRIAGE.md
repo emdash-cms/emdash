@@ -46,7 +46,7 @@ EmDash has a lot of automation. Probably the most important piece is @emdashbot,
 - **Apply the `bot:review` label to summon a re-review**, for example after an author pushes significant changes. It sometimes fails to review the first time (e.g. if there's an error while it is running), in which case it is useful to ask for a re-review.
 - Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically by workflows. See [PR Labels](#pr-labels) for what they mean.
 
-Issue triage is a different story. There is a separate issue-investigation bot (see [The Investigation Bot and `bot:*` Labels](#the-investigation-bot-and-bot-labels)), but its expensive work only runs when a **maintainer** explicitly asks for it, and a human always owns the outcome. In practice, most issues are still triaged and reproduced by humans, so your work here is particularly valuable.
+Issue triage uses a separate issue-work bot (see [The Investigation Bot and `bot:*` Labels](#the-investigation-bot-and-bot-labels)). It performs a bounded first pass on new issues, applies area and kind labels, and asks a focused question when the report lacks information. It may prepare a candidate automatically for an obvious low-risk change, but deeper or sensitive work waits for maintainer approval. A human still accepts the candidate and reviews the resulting PR.
 
 You can help by:
 
@@ -154,27 +154,32 @@ For bugs, a confirmed reproduction is the most useful evidence for priority. If 
 
 ### The Investigation Bot and `bot:*` Labels
 
-A maintainer can hand an issue to the investigation bot with an `@emdashbot` comment. The bot classifies and routes issues when they mention `@emdashbot`, and the expensive work — reproducing, diagnosing, building a fix — only runs on an explicit **maintainer** directive, so you will not trigger it yourself:
+New issues enter automatic triage. A maintainer can also run the same pass on an older issue with `@emdashbot triage`. The normal maintainer commands are:
 
-- `@emdashbot investigate` — reproduce the bug and diagnose it, with evidence. It does not attempt a fix; it posts a verdict.
-- `@emdashbot fix` — on an issue the bot already reproduced, build a candidate fix on a `bot/fix-<n>` branch and publish a preview for the reporter to try (see below). No pull request opens until the reporter confirms.
-- `@emdashbot status` / `@emdashbot help` — anyone can ask; these just print the current state and the available commands.
+- `@emdashbot triage` — classify the issue, check the relevant source area, apply useful labels, and decide whether to ask for information, await approval, or start low-risk work.
+- `@emdashbot investigate` — reproduce and diagnose the report with evidence, without preparing a candidate.
+- `@emdashbot work` — take the issue through reproduction where appropriate, implementation, verification, and a candidate preview.
+- `@emdashbot accept` / `@emdashbot needs changes <feedback>` — accept a candidate or start another revision. The reporter can also reply naturally when the bot asks them to test the preview.
+- `@emdashbot retry` — retry the last failed or timed-out run, using its saved workspace when available.
+- `@emdashbot status` / `@emdashbot help` — show the current state and available commands without changing anything.
 
-Every verdict carries its evidence — the commands the bot ran and what it found. "Could not reproduce," with a transcript, is a first-class outcome, not a failure. The bot only proposes; a maintainer disposes.
+Older `fix`, `implement`, and `repro` commands remain aliases for `work`. A maintainer does not need to choose between separate bug-fix and implementation modes.
 
-**The reporter preview-confirm loop.** When a maintainer runs `@emdashbot fix`, the bot pushes a candidate branch, waits for a `pkg.pr.new` preview to publish, and then asks the _reporter_ to install that preview and confirm it fixes their case against their own site — the only place a site-specific bug reliably reproduces. If the reporter confirms, a draft PR opens. If they say it is still broken, or stay silent for two weeks, the bot reaps the candidate branch and falls back to the reproduced verdict for a maintainer to pick up. If you are the reporter, trying the preview is the single most useful thing you can do.
+Every verdict carries the commands and evidence behind it. "Could not reproduce," with a transcript, is a complete investigation outcome. Automatic triage never closes an issue or implements features and sensitive-area changes without approval.
 
-Like the PR labels, the bot's state labels are managed by the bot — you read them, you don't set them:
+**The reporter preview-confirm loop.** When work produces a candidate, the bot pushes `bot/fix-<n>`, waits for the `pkg.pr.new` preview, and asks the reporter to try it. The reporter can reply naturally to accept it or explain what still needs to change. Acceptance opens a draft PR. Further code review happens on the PR, where the bot watches checks, conflicts, and submitted maintainer reviews and continues repairing its branch until it is green or needs human attention.
 
-- `bot:investigating` — a reproduce-and-diagnose run is in flight.
-- `bot:reproduced` — reproduced, with a diagnosis attached; resting until a maintainer triggers a fix or disposes of it.
-- `bot:diagnosed` — root cause identified but not confirmed by a reproduction (environment limits). Actionable like `bot:reproduced`; the fix loop verifies with a failing test before changing anything.
-- `bot:not-reproduced` — could not reproduce, transcript attached. Add steps and a maintainer can re-investigate.
-- `bot:needs-info` — the investigation needs information only the reporter has.
-- `bot:fixing` / `bot:preview-building` / `bot:awaiting-reporter` — the fix loop: building a candidate, publishing its preview, and waiting for the reporter to confirm it.
-- `bot:blocked` / `bot:failed` — the bot stopped for a human decision, or a run errored; the reason is in its comment.
+Like the PR labels, the bot's lifecycle labels are managed by the bot:
 
-If an issue carries one of these, a bot investigation has happened or is in flight — read the bot's comments before starting a manual reproduction. `bot:awaiting-reporter` in particular means a candidate fix and preview already exist, so testing that fix beats re-reproducing the original bug. Double-checking the bot's conclusions is itself valuable triage: a human confirming or refuting a `bot:reproduced` or `bot:not-reproduced` verdict is worth more than the label.
+- `bot:triaging` — the bounded issue-classification pass is running.
+- `bot:awaiting-approval` — triage found useful work that needs a maintainer decision.
+- `bot:working` / `bot:investigating` — implementation or investigation is running.
+- `bot:needs-info` — the reporter can unblock the next pass by replying with the requested details; no bot mention is required.
+- `bot:preview-building` / `bot:awaiting-reporter` — a candidate exists and is being prepared for acceptance.
+- `bot:in-review` — a draft PR is attached; implementation discussion and automatic repair happen there.
+- `bot:needs-attention` — the candidate or PR is retained, but the bot cannot continue safely without a maintainer.
+
+Read the bot's current comment before starting a manual reproduction. `bot:awaiting-reporter` means a candidate preview is ready to test. `bot:in-review` means the implementation discussion has moved to the linked PR.
 
 (You may still see older `triage/*` labels on issues filed before the switch to `bot:*`; treat them as historical.)
 

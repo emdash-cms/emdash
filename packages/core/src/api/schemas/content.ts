@@ -8,6 +8,16 @@ import { cursorPaginationQuery, httpUrl, localeCode } from "./common.js";
 // Content: Input schemas
 // ---------------------------------------------------------------------------
 
+const contentDateTime = z.iso
+	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
+	.or(
+		z.iso.datetime({
+			offset: true,
+			precision: -1,
+			message: "must be an ISO 8601 datetime",
+		}),
+	);
+
 /** SEO input — per-content meta fields */
 export const contentSeoInput = z
 	.object({
@@ -21,10 +31,7 @@ export const contentSeoInput = z
 
 /** ISO 8601 date or datetime bound for the content-list date range filter. */
 const contentDateBound = z
-	.union([
-		z.iso.datetime({ offset: true, message: "must be an ISO 8601 datetime" }),
-		z.iso.date({ message: "must be an ISO 8601 date" }),
-	])
+	.union([contentDateTime, z.iso.date({ message: "must be an ISO 8601 date" })])
 	.optional();
 
 /**
@@ -61,7 +68,7 @@ const booleanParam = z
 	.optional()
 	.transform((value) => value === "1" || value === "true");
 
-const contentFieldComparable = z.union([z.string().max(2048), z.number().finite()]);
+const contentFieldComparable = z.union([z.string().max(2048), z.number()]);
 const contentFieldFilterScalar = z.union([contentFieldComparable, z.boolean(), z.null()]);
 const contentFieldFilterValue = z.union([
 	contentFieldFilterScalar,
@@ -167,9 +174,7 @@ export const contentListQuery = cursorPaginationQuery
 	.meta({ id: "ContentListQuery" });
 
 /** ISO 8601 datetime for `publishedAt` / `createdAt`. Routes gate writes behind `content:publish_any`. */
-const contentDateOverride = z.iso
-	.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
-	.nullish();
+const contentDateOverride = contentDateTime.nullish();
 
 export const contentCreateBody = z
 	.object({
@@ -212,10 +217,13 @@ export const contentUpdateBody = z
 
 export const contentScheduleBody = z
 	.object({
-		scheduledAt: z.string().min(1, "scheduledAt is required").meta({
-			description: "ISO 8601 datetime for scheduled publishing",
-			example: "2025-06-15T09:00:00Z",
-		}),
+		scheduledAt: z
+			.string()
+			.min(1, "scheduledAt is required")
+			.meta({
+				description: "ISO 8601 datetime for scheduled publishing",
+				examples: ["2025-06-15T09:00:00Z"],
+			}),
 	})
 	.meta({ id: "ContentScheduleBody" });
 
@@ -233,13 +241,10 @@ export const contentPublishBody = contentRevisionConditionBody
 		// publishing). Tightening the schema here means callers either
 		// pass a valid datetime or omit the field, and the route doesn't
 		// have to silently drop a null that snuck through.
-		publishedAt: z.iso
-			.datetime({ offset: true, message: "must be an ISO 8601 datetime" })
-			.optional()
-			.meta({
-				description:
-					"Optional ISO 8601 datetime to backdate the publish (e.g. when migrating content). Requires content:publish_any permission. Without this, existing published_at is preserved on re-publish.",
-			}),
+		publishedAt: contentDateTime.optional().meta({
+			description:
+				"Optional ISO 8601 datetime to backdate the publish (e.g. when migrating content). Requires content:publish_any permission. Without this, existing published_at is preserved on re-publish.",
+		}),
 	})
 	.meta({ id: "ContentPublishBody" });
 
@@ -255,6 +260,42 @@ export const contentTermsBody = z
 		termIds: z.array(z.string()),
 	})
 	.meta({ id: "ContentTermsBody" });
+
+/** A single term variant returned as part of an entry's term assignments. */
+const contentEntryTermSchema = z
+	.object({
+		id: z.string(),
+		name: z.string().meta({ description: "Taxonomy name" }),
+		slug: z.string(),
+		label: z.string(),
+		parentId: z.string().nullable(),
+		locale: localeCode,
+		translationGroup: z.string().nullable(),
+	})
+	.meta({ id: "ContentEntryTerm" });
+
+/** Term assignments response for the content terms endpoint. */
+export const contentTermsResponseSchema = z
+	.object({
+		terms: z.array(contentEntryTermSchema),
+		unresolved: z.array(
+			z.object({
+				translationGroup: z.string(),
+				availableLocales: z.array(localeCode),
+				translations: z.array(
+					z.object({
+						id: z.string(),
+						slug: z.string(),
+						locale: localeCode,
+					}),
+				),
+			}),
+		),
+		entryLocale: localeCode,
+		defaultLocale: localeCode,
+		implicitDefaultLocale: z.boolean(),
+	})
+	.meta({ id: "ContentTermsResponse" });
 
 export const contentTrashQuery = cursorPaginationQuery
 	.extend({

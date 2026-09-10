@@ -1,5 +1,125 @@
 # @emdash-cms/admin
 
+## 0.37.0
+
+### Minor Changes
+
+- [#2899](https://github.com/emdash-cms/emdash/pull/2899) [`595a6b1`](https://github.com/emdash-cms/emdash/commit/595a6b12a11e67b89684bc5f5c14fbb6f0fc5e7f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds **Replace image** to the Media Library for ready JPEG, PNG, and WebP files stored by EmDash.
+
+  Choose a same-format file to update every existing use of an image while preserving its media ID, filename, URL, alt text, caption, and location. The replacement can use different dimensions or an aspect ratio from the original. EmDash overwrites the original bytes and clears the focal point; it does not retain the previous file. The action works with local disk, R2, and S3-compatible storage.
+
+- [#2905](https://github.com/emdash-cms/emdash/pull/2905) [`de8b03a`](https://github.com/emdash-cms/emdash/commit/de8b03a47330341f9e6d0c397f312fca27fba0ae) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds in-context Media Library asset editing to admin image pickers, image fields, and rich text
+  images and galleries. Editors can update asset metadata and focal points, create and select cropped
+  copies, or replace original image data while staying in the content editor. Gallery images also
+  support keyboard reordering.
+
+- [#2861](https://github.com/emdash-cms/emdash/pull/2861) [`05d5596`](https://github.com/emdash-cms/emdash/commit/05d559625224fbfd23fc08608c44a46ef3735c3e) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds cropping for JPEG, PNG, and WebP images stored by EmDash on local disk, Cloudflare R2, or S3-compatible storage.
+
+  Move and resize a rule-of-thirds crop frame with corner handles for fixed ratios and eight handles for Freeform. Choose the original ratio, Freeform, or a common aspect ratio. **Create cropped copy** creates a separate media item with any ratio and names it for the selected ratio or output dimensions. **Replace original** uses the original ratio and replaces the existing item under the same ID and URL, so every reference uses the cropped image without rewriting or republishing content. Local media and responsive renditions revalidate their stable URLs so sites load the replacement instead of keeping a stale cached image. The original bytes and crop history are not retained.
+
+- [#2900](https://github.com/emdash-cms/emdash/pull/2900) [`9def325`](https://github.com/emdash-cms/emdash/commit/9def3252a991f4b750c2d63effd6a474857cd338) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds Media Library browsing and inline uploads to admin media pickers. Editors can search, filter
+  by type, browse folders, switch between grid and list views, use numbered pages, and select media
+  from configured providers or a direct URL without leaving the content editor.
+
+  Uploads appear in the picker with an uploading or failed status. Successful uploads become
+  selected media cards, and gallery selections can be reordered before they are added.
+
+- [#2969](https://github.com/emdash-cms/emdash/pull/2969) [`9a66ff0`](https://github.com/emdash-cms/emdash/commit/9a66ff0bdec007c5161407720a40b718248fce82) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds drag-and-drop uploads to empty Featured Image and OG Image fields in the content editor. Drop one image to upload and select it, or click the dashed control to choose an image from the media picker. Upload progress and errors appear inline.
+
+- [#2746](https://github.com/emdash-cms/emdash/pull/2746) [`c7b6fdf`](https://github.com/emdash-cms/emdash/commit/c7b6fdfd1f5dd9a168f5d0f6bfa9b7b9ff343145) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `DirectPdsClient` for reading package profiles and releases with AT Protocol repository proofs, and updates experimental decentralized registry installs and updates to verify current signed records directly from the publisher's PDS.
+
+  #### Aggregator record integrity
+
+  Install and update reject aggregator-supplied profile or release metadata whose URI or CID does not match the publisher's signed records. The server returns `AGGREGATOR_RECORD_MISMATCH` before fetching the artifact or requesting consent.
+
+  #### Publisher identity display
+
+  The admin treats handle resolution as an advisory identity signal. It keeps the install button disabled while attempting to resolve the package DID back to a handle, then blocks installation when `resolveDidToHandle()` conclusively returns `"invalid"`. An indeterminate result caused by a network failure, unsupported DID method, or missing handle displays the publisher DID and does not block installation.
+
+  Install and update trust the publisher DID and the signed repository proofs for the profile and release records. A handle is display metadata and is not an authorization or record-integrity input.
+
+  #### Provenance and release policy
+
+  The installer applies the signed profile's release policy, independently fetches and verifies supplied Sigstore/SLSA provenance, and binds moderation labels to the exact profile or release CID. Missing required provenance and any supplied provenance that is unavailable, malformed, mismatched, or unsupported block installation and updates. Artifact checksums, archive paths, bundle limits, manifest identity, and version use the same verification rules as the registry release tooling.
+
+  The verification package also exports `inspectPackageReleaseRecords` for validating signed records and policy before artifact and provenance evidence is available.
+
+  Registry install and update consent now show the exact verified profile and release CIDs, signed publisher policy, and provenance status. Install consent uses permissions and MCP tools read from the verified bundle rather than the aggregator's record copy.
+
+  Install, update, and delegated-release verification require lowercase base32 multibase `sha2-256` multihashes for package artifacts and provenance documents. The plugin CLI already produces this format. The authenticated image-artifact proxy still accepts legacy bare hexadecimal SHA-256 checksums for display-only images.
+
+### Patch Changes
+
+- [#2895](https://github.com/emdash-cms/emdash/pull/2895) [`76946e4`](https://github.com/emdash-cms/emdash/commit/76946e491c0ceb0317ebe1a1454d9786fc145bff) Thanks [@ismail-rt](https://github.com/ismail-rt)! - Fixes admin “View published” and “Live View” links so translated entries include the locale prefix required by the site’s Astro i18n routing configuration.
+
+- [#2931](https://github.com/emdash-cms/emdash/pull/2931) [`6676283`](https://github.com/emdash-cms/emdash/commit/6676283a20babf847c5dcc6692296b606d6b6d55) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes the editor image settings panel overflowing at narrow widths and aligns its fields, help, and actions with the standard editor sidebar.
+
+  Changing image alignment or text preserves the existing display size. Reset clears custom dimensions, constrained editor images retain their aspect ratio, floated images stay visible, and None and Center have distinct positions.
+
+  Preserves image alignment through the exported Portable Text converters. Image settings offer None, Left, Center, and Right; existing imported Wide and Full values and public theme hooks are retained.
+
+- [#2963](https://github.com/emdash-cms/emdash/pull/2963) [`85f8b5a`](https://github.com/emdash-cms/emdash/commit/85f8b5a4322de83a89607bb7718e727f11e4d9b7) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates admin editor paragraphs with tighter line spacing, clearer paragraph breaks, and 16px text on mobile. Wrapped writing hints no longer overlap following content and use softer colours in both themes.
+
+- [#2761](https://github.com/emdash-cms/emdash/pull/2761) [`8fb13cf`](https://github.com/emdash-cms/emdash/commit/8fb13cf7a6bdabab8e9a4288c685be4715febd63) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds a dedicated **Used in** tab to media details, keeping file information and focal-point controls separate from usage references.
+
+- [#2922](https://github.com/emdash-cms/emdash/pull/2922) [`096cd91`](https://github.com/emdash-cms/emdash/commit/096cd91299629467b0cd5ee24829da17b0d3d624) Thanks [@danielmlr](https://github.com/danielmlr)! - Completes the German admin translations: every string in the admin catalog now has a German translation, so German-speaking editors no longer see English in the media, publishing, byline, editor and plugin screens.
+
+- [#2126](https://github.com/emdash-cms/emdash/pull/2126) [`7887577`](https://github.com/emdash-cms/emdash/commit/788757761732ca691d73f7f8c99e7d3d66bf9dec) Thanks [@swissky](https://github.com/swissky)! - Fixes a silent draft-overwrite in the page editor. The editor now echoes the entry's `_rev` token on save and autosave, so the server rejects a save that is based on a stale read with a 409 conflict instead of silently replacing a newer draft revision. Editors who hit a conflict now see a clear error and can reload instead of losing work.
+
+- [#2902](https://github.com/emdash-cms/emdash/pull/2902) [`87c7884`](https://github.com/emdash-cms/emdash/commit/87c7884a9bc42efecdea687fc0a58aa71b2ecc4d) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the content editor refusing every later save once another writer changed the same entry, so what you typed is kept and can be saved over the newer version. Autosave pauses for that entry until you decide, so your copy never goes over the other version without you choosing it.
+
+- [#2865](https://github.com/emdash-cms/emdash/pull/2865) [`5f9eb67`](https://github.com/emdash-cms/emdash/commit/5f9eb67440cf89ec473d608e99d8b19272a20e96) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates sidebar navigation icons to use Phosphor's filled style for the active page.
+
+- [#2761](https://github.com/emdash-cms/emdash/pull/2761) [`8fb13cf`](https://github.com/emdash-cms/emdash/commit/8fb13cf7a6bdabab8e9a4288c685be4715febd63) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates Media Library grid cards to show filenames and file formats below larger previews.
+
+- [#2972](https://github.com/emdash-cms/emdash/pull/2972) [`d267a2c`](https://github.com/emdash-cms/emdash/commit/d267a2c7f6f33b64cde8e4acc723b6ee7779c444) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes editor changes being silently discarded when the publication date of a published entry is saved. Unsaved changes are now written first, so the entry keeps them and the save indicator no longer reports "Saved" over lost work.
+
+- [#2939](https://github.com/emdash-cms/emdash/pull/2939) [`c81e5e7`](https://github.com/emdash-cms/emdash/commit/c81e5e770e070697b4e06b9994d9ea9e8e1fb5f8) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the admin rich-text editor replacing payload-less custom blocks with an `[Unknown block type: …]` paragraph during autosave. Custom blocks, existing block and span keys, supported marks, and link definitions survive editor round trips, and the editor does not save a synthetic trailing paragraph.
+
+  Applications using the exported converters can pass `{ preserveIdentity: true }` to `portableTextToProsemirror()` and add `portableTextIdentityExtensions` to their TipTap schema for the same lossless behavior. The default conversion remains compatible with standard ProseMirror schemas.
+
+- [#2830](https://github.com/emdash-cms/emdash/pull/2830) [`965bf33`](https://github.com/emdash-cms/emdash/commit/965bf3303bb71a2444c414585e29960606ae0cbb) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes image fields and Portable Text editors so they preserve direct image URLs and external provider identities, allowing selected images to continue rendering after saving or replacement.
+
+- [#2860](https://github.com/emdash-cms/emdash/pull/2860) [`afa81c5`](https://github.com/emdash-cms/emdash/commit/afa81c5e847f1492f7b5eba134d97d0bbbb3aed7) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes Publish saving and awaiting the editor's latest changes before making content live. Validation errors, failed saves, and revision conflicts now stop publishing instead of promoting stale draft data.
+
+- [#2858](https://github.com/emdash-cms/emdash/pull/2858) [`bb8b087`](https://github.com/emdash-cms/emdash/commit/bb8b087c9a79c07336d2cdcadc6cec92428a2b4a) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes sandboxed `content:beforeSave` hooks being unable to reject content creation or updates.
+
+  Return a version 1 sandbox hook result with a `SAVE_REJECTED` error to stop the save and show the reason to the editor:
+
+  ```ts
+  return {
+  	__emdashSandboxHookResult: true,
+  	version: 1,
+  	error: {
+  		code: "SAVE_REJECTED",
+  		reason: "Add a title before saving.",
+  	},
+  };
+  ```
+
+  The reason must contain 1–500 characters of plain text. Invalid error results and unexpected sandbox exceptions stop the save with a generic hook error instead of exposing internal details.
+
+- [#2891](https://github.com/emdash-cms/emdash/pull/2891) [`98ef920`](https://github.com/emdash-cms/emdash/commit/98ef92055bc7d6e1af644bc62ae207651eda3af0) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates the content editor's Publish section so authors can distinguish the live version from draft changes and choose immediate or scheduled publishing from one contextual action menu.
+
+  Publishing dates and schedules display in the browser's local time zone while stored timestamp values remain unchanged.
+
+  Schedule and unschedule responses now return the current revision token so subsequent editor saves retain optimistic-concurrency protection.
+
+- [#2952](https://github.com/emdash-cms/emdash/pull/2952) [`b2da4f2`](https://github.com/emdash-cms/emdash/commit/b2da4f2973539055d1fa79157adc3414a5b46546) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes Media Library pagination scrolling out of view by keeping its controls visible at the bottom while browsing media.
+
+- [#2761](https://github.com/emdash-cms/emdash/pull/2761) [`8fb13cf`](https://github.com/emdash-cms/emdash/commit/8fb13cf7a6bdabab8e9a4288c685be4715febd63) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates image previews to show a theme-aware checkerboard behind transparent areas.
+
+- [#2961](https://github.com/emdash-cms/emdash/pull/2961) [`8efac35`](https://github.com/emdash-cms/emdash/commit/8efac3583310d81a711a6333d7a9113c2d5c008f) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Fixes excessive vertical space between images and surrounding text in the admin editor.
+
+- [#2807](https://github.com/emdash-cms/emdash/pull/2807) [`013156d`](https://github.com/emdash-cms/emdash/commit/013156db5bf7e2ce9ba2734eebf85bd2e72c2c36) Thanks [@LeanderG](https://github.com/LeanderG)! - Fixes the admin Trash tab on multilingual sites, where it listed trashed entries from every locale regardless of the locale picker. Trash now follows the same locale filter as the All tab and shows a Locale column, so switching locales narrows the trash to that locale's entries.
+
+  `GET /_emdash/api/content/{collection}/trash` accepts an optional `locale` query parameter to scope the listing, and each item in the response now carries `locale` and `translationGroup`. Omitting `locale` still returns every locale, so existing API callers are unaffected.
+
+- Updated dependencies [[`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636), [`66aeecd`](https://github.com/emdash-cms/emdash/commit/66aeecd1feded23c2ee607b799500c390a04eb92), [`52fffdc`](https://github.com/emdash-cms/emdash/commit/52fffdc3556396f48a5320a0213da1a03337f642), [`3b124f2`](https://github.com/emdash-cms/emdash/commit/3b124f23126fead8884884b9f3d53e3be5d41bd3), [`920e1f3`](https://github.com/emdash-cms/emdash/commit/920e1f3fe6a7c7bf725c85e26f81e588e1201243), [`e0e60ba`](https://github.com/emdash-cms/emdash/commit/e0e60ba17b93d2022411afb8a3187c08e5142c18), [`c7b6fdf`](https://github.com/emdash-cms/emdash/commit/c7b6fdfd1f5dd9a168f5d0f6bfa9b7b9ff343145)]:
+  - @emdash-cms/plugin-types@0.3.1
+  - @emdash-cms/registry-client@0.5.0
+  - @emdash-cms/blocks@0.37.0
+
 ## 0.36.0
 
 ### Minor Changes

@@ -22,6 +22,7 @@ export const MODERATION_FINDING_CATEGORIES = [
 	"scam-or-spam",
 	"malicious-or-deceptive-link",
 	"misleading-media-or-claims",
+	"moderation-manipulation",
 ] as const;
 
 export type ModerationFindingCategory = (typeof MODERATION_FINDING_CATEGORIES)[number];
