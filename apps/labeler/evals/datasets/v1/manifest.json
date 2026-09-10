@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"datasetVersion": "listing-metadata-evals-v1",
+	"promotionEnabled": false,
+	"publicDatasetHash": "cc3a7e3387df3b08fb86ffb6c1de91fa3ce8e77020139a9e396f21215633d9b9",
+	"promotionDatasetHash": "77b43dea2203e864f9ea407071638582e3ea1c5836110c6175d64f381a6edebc",
+	"publicFixturePath": "public.json",
+	"files": {
+		"public.json": "69fbe5d8128643bcc215502986bda334d5fc8d78c0507a28f3606a77fbf66da3",
+		"assets/clean-plugin-card.png": "3b95c0e4dcb87a30f7376ec0465e0450e309bc3cd07247b86e894c3fb3914338",
+		"assets/impersonation-badge.png": "349e4c670c3df06c70267f23ab79299c6c4ac1d62c74f29287e477f29430a1c0",
+		"assets/phishing-login.png": "ea1d3f61f600274edeef73530eeeaff7cc80257f28134d1ee0ef45a2c0bdf69f",
+		"assets/phishing-prompt-injection.png": "39c0fbcb6c948c1dc9cba135c01cd8d846ceb3c186163f916ac038abab76e039",
+		"assets/legacy-brand-logo.png": "933d4b1febcb936b84f35634d7ee3ab93a884ce982925c3d4fc32f9aed8f0b8c",
+		"assets/legacy-clean-icon.png": "2013f7463519a340ed1588e8ad33bd9ee0d4eeb0e1c459a78091192ef9f566bc"
+	},
+	"assets": {
+		"clean-plugin-card": "assets/clean-plugin-card.png",
+		"phishing-login": "assets/phishing-login.png",
+		"impersonation-badge": "assets/impersonation-badge.png",
+		"phishing-prompt-injection": "assets/phishing-prompt-injection.png",
+		"legacy-brand-logo": "assets/legacy-brand-logo.png",
+		"legacy-clean-icon": "assets/legacy-clean-icon.png"
+	},
+	"holdout": {
+		"datasetVersion": "listing-metadata-evals-v1-holdout",
+		"fixturePath": "holdout.json",
+		"commitment": "56d4bd4d53f568609e26c7f8243591875dc1b379cca29a79fe9efe4aedf66abf"
+	},
+	"budgets": {
+		"maxFalseNegativesPerCategory": 0,
+		"maxFalsePositivesPerCategory": 0,
+		"maxInvalidOutputs": 0,
+		"maxModelErrors": 0,
+		"maxBenignReviewRate": 0,
+		"maxOutcomeMismatches": 0,
+		"maxRepeatedRunDisagreementRate": 0,
+		"maxP95LatencyMs": 15000,
+		"maxConfiguredUnits": 100000
+	}
+}

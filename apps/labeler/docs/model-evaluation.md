@@ -1,0 +1,231 @@
+# Listing moderation model evaluation
+
+The labeler automatically approves listing metadata only when the selected text models complete
+with no findings and every displayed image also passes. Findings and incomplete assessments remain
+hidden for operator review.
+
+## Selected models
+
+The automatic moderation bundle uses the following Workers AI catalog models:
+
+- Text: unanimous results from `@cf/meta/llama-3.3-70b-instruct-fp8-fast` and
+  `@cf/zai-org/glm-5.3-flash`
+- Images: `@cf/zai-org/glm-5.3-flash`, with thinking disabled and a 512-pixel WebP derivative
+
+The text prompt is `listing-text-v9`, with content hash
+`aee2551bd26b942ef2f67fa3137ad0d16eb5b502a376a2df410486d4fe37b1c5`. The image prompt is
+`listing-image-v7`, with content hash
+`7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0`. The runtime computes
+these hashes from the embedded prompts; operators do not configure separate prompt-hash values.
+
+## Moderation-manipulation evaluation
+
+Text prompt `listing-text-v9`, with content hash
+`aee2551bd26b942ef2f67fa3137ad0d16eb5b502a376a2df410486d4fe37b1c5`, adds
+`moderation-manipulation` for direct attempts to alter, bypass, suppress, or predetermine automated
+moderation. Quoted or descriptive discussion remains benign. It also excludes unsupported usage,
+performance, testimonial, and other marketing claims unless the submitted content itself identifies
+fabrication, forgery, nonexistent evidence, or a contradiction. Image prompt `listing-image-v7`,
+with content hash `7215746880df62b42448d3e9f5c8f5709f9071906ab705ffa8889c51ab8817b0`, applies the same
+distinctions.
+
+A three-repeat run evaluated the 20-case public text corpus with the new category. No model passed
+the complete zero-error budget:
+
+- Llama 3.3 produced the correct pass or review outcome in all 60 runs, with no invalid output,
+  model error, or repeated-run disagreement. It added an extra category to three expected-review
+  cases. P95 latency was 5.66 seconds.
+- GLM 5.3 Flash classified the manipulation fixtures correctly. A sequential retry confirmed the
+  multilingual phishing and long benign cases, but all three Unicode-confusable responses omitted
+  a benign evidence reference and were rejected by the coverage contract.
+- Kimi K2.7 Code produced no unsafe pass, but had five invalid outputs, nine repeated-run
+  disagreements, and 65.79-second P95 latency.
+
+The Llama and GLM artifact has SHA-256 digest
+`fc2318bef43f0f8696e650a130ed48f448f6d2827b3307d730e37becf16f1fa6`. The Kimi artifact has
+digest `9a4f514af712e56a005a2d73bd55d5ee7fadd3a53fb8ab06d9acdd2a153dba0a`, and the sequential GLM
+retry has digest `d175ac9ae4cbabbd09eb559fd78dab01d5ac0d6036f03db6e6f5766cc249b026`.
+
+Qwen 3.8 matched the expected outcome and categories in all 18 repeated public image runs under
+image prompt v7. It had no invalid output, model error, coverage failure, or repeated-run
+disagreement. P95 latency was 4.05 seconds. The artifact has SHA-256 digest
+`ace1216c7d19e489559cf39195703f515d9725462ab2749b2c9aa5d5148276c0`.
+
+GLM 5.3 Flash also matched all 18 public image outcomes under image prompt v7. One repeat added a
+phishing category to the screenshot that already required review for moderation manipulation; all
+other categories matched. P95 latency was 4.96 seconds. The artifact has SHA-256 digest
+`24c31f4b4aea37be4f61293ed663f85dba8dd687913f66ccd01e4380d8104f18`.
+
+A separate private-image check selected GLM as the image candidate because it caught nudity and
+hateful imagery that Qwen missed. Catching unsafe imagery takes precedence over Qwen's cleaner
+category result on the public regression fixtures.
+
+A local v2 protected text fixture added `moderation-manipulation` to 21 direct bypass commands and
+left 10 quoted documentation controls unchanged. Its commitment is
+`1f6649bcece0bd079d97454aeada1c131d59bac2c1d5baa0dabaac8a0e28b3a2`. A three-repeat Llama run
+evaluated 320 public and protected text cases. All 69 runs expected to identify manipulation did so,
+and no expected-pass case went to review under that fixture. The fixture incorrectly expected
+unsupported installation-count claims to review. Under the corrected policy, the result contains
+six distinct unsafe passes for a recovery-phrase and password request, plus three distinct false
+positive reviews for the unsupported claim. The run had no invalid output, model error, or coverage
+failure. Fourteen cases disagreed on additional categories, but none disagreed on pass or review.
+P95 latency was 5.17 seconds. The artifact has SHA-256 digest
+`69aec3a944e965200bebe291d13a633d50a3a53d6d37814dd2cb912b24889f33`.
+
+A focused text regression used a local v3 protected fixture with commitment
+`542de52832d2689c91ba94d331bd12349c976e9ce9a76c0e4306301bc10b271e`. Llama matched the
+expected pass or review outcome in all 105 runs, with no invalid output, model error, coverage
+failure, or repeated-run disagreement. All unsupported installation-count variants passed, while
+the variant containing a direct bypass command reviewed for manipulation only. P95 latency was
+2.76 seconds. The artifact has SHA-256 digest
+`91938a482d63f191b5f65fba097f6347ac17359701dd122ca414ceb810f44926`.
+
+The focused checks informed the unanimous automatic-pass evaluation below.
+
+## Candidate selection
+
+The candidate sweep started from the live Workers AI catalog rather than a fixed list from model
+documentation. It evaluated current general models, older controls, specialist moderation models,
+and native vision interfaces. The evaluated families included GPT-OSS, GLM, DeepSeek, Nemotron,
+Gemma, Kimi, Qwen, Llama, Llama Guard, Moondream, and LLaVA.
+
+The public development corpus contains 27 fixtures: 21 text cases and six image cases. It covers
+all nine finding categories, clean inputs, borderline wording, prompt injection, Unicode
+confusables, multilingual text, long input, and redacted realistic input. The development sweep
+also found provider-interface differences that required support for OpenAI-compatible choice
+envelopes, provider-parsed objects, native vision inputs, server-sent event responses, and models
+whose native thinking mode must be disabled.
+
+The first broad sweep passed the output schema directly as `response_format.json_schema`. The live
+schemas for current OpenAI-compatible models instead require
+`json_schema: { name, schema, strict }`. The earlier invalid-JSON results for DeepSeek V4, Gemma 4,
+GLM, GPT-OSS 120B, Kimi, Nemotron 3, Qwen 3.8 text, and Llama 3.2 Vision therefore mix adapter
+incompatibility with model behavior and cannot be used as model-quality evidence.
+
+A four-case diagnostic used the nested strict schema and disabled thinking for GLM 5.2 and Kimi
+K2.7 Code. GLM returned valid, correct JSON for all four cases. Kimi handled the two simpler cases,
+but exhausted 1,024 completion tokens and returned empty content for the two phishing cases. With
+`max_completion_tokens` and low reasoning effort, Kimi handled the prompt-injected phishing case
+at 1,227 completion tokens. The Unicode-confusable case still exhausted 4,096 completion tokens
+and returned empty content. Raw provider responses were retained for these diagnostics.
+
+A corrected one-pass GLM 5.2 run covered all 318 text fixtures. Two transient provider errors were
+retried, and all fixtures received a model response. Twenty-three expected-review rows resolved to
+pass: 12 rows represented five distinct phishing patterns, while 11 were synthetic lookalike-link
+variants whose expectations require separate validation. Six responses exhausted the 2,048-token
+limit while emitting an unfinished JSON object followed by whitespace. GLM did not send a clean
+case to review. P95 latency was 9.93 seconds. The artifact has SHA-256 digest
+`6275ba4f4bd3d1bff8c7b0c7247bd53029a87378a9874053d89b743740b9441e`.
+
+On the earlier public corpus, Llama produced 51 valid text results across three repeats without a
+pass/review error. The password-form screenshots are benign negative controls: an image of a
+credential form is passive UI evidence and cannot establish phishing or credential solicitation.
+Under image prompt v5, Qwen matched all six corrected image outcomes and categories without an
+invalid output or model error. P95 latency was 33.35 seconds, above the 15-second evaluation
+budget. Exact category assignments remain an advisory quality metric rather than an automatic-pass
+safety claim.
+
+## Protected validation
+
+The first protected corpus contained 400 cases: 300 expected-review cases, 100 expected-pass
+cases, and 100 images. It was used for candidate selection and is retained separately from the
+promotion holdout.
+
+Llama caught every prohibited text case but sent four clean variants of the same independent
+compatibility statement to review. The statement was added to the public development corpus, and
+the text prompt was clarified to treat explicit independent, unaffiliated, or compatibility-only
+statements as non-impersonation. Llama then passed the public regression and five protected
+variants in all 18 repeated calls.
+
+Nemotron 3 was the only alternative text model to pass the 55-case clean screen without an
+error. A later screen against 15 hard prohibited cases produced five unsafe passes, six model
+errors, one invalid output, and three correct reviews. GLM 5.2 and GPT-OSS 120B each failed a
+clean case during the earlier screen, before the response-format correction. None replaced Llama.
+
+## Unanimous automatic moderation
+
+The automatic-pass candidate runs Llama 3.3 and GLM 5.3 Flash in parallel over the same text and
+link evidence. It returns a clean result only when both models complete with no findings and cover
+every evidence reference. A finding, timeout, invalid output, missing reference, or provider error
+keeps the listing out of automatic discovery. The candidate does not issue automatic blocks.
+
+A paced one-repeat GLM screen evaluated all 321 public and protected text fixtures with the
+production 20-second deadline. It produced no unsafe pass. GLM sent one public unsupported
+marketing claim to review, omitted an evidence reference on two expected-review fixtures, and
+timed out on one expected-review fixture. All 50 protected expected-pass text fixtures passed. P95
+latency was 6.29 seconds. The artifact is stored at
+`development/2026-09-09/glm-full-sequential.json` in `emdash-labeler-eval-artifacts`; its SHA-256
+digest is `f888aa278f651ecd53575ec18c03f0525d3ef02aa83111142cf2bc1bd68fc132`.
+
+The production-equivalent unanimous adapter then evaluated the 21 public text fixtures. It
+produced no unsafe pass and no benign review. One benign claim and one prohibited confusable-login
+fixture failed closed because a member omitted an evidence reference. P95 latency was 5.82 seconds.
+The artifact is stored at `development/2026-09-09/unanimous-public.json`; its SHA-256 digest is
+`74314208c545046782bec23f39a4ae103772a8d6b4ec9693b88164c31faac5f9`.
+
+Alternative verifier screening did not displace GLM:
+
+- GPT-OSS 120B produced no unsafe pass on the phishing, manipulation, and benign-control subset,
+  but seven prohibited cases failed closed because of invalid output or provider errors.
+- DeepSeek V4 Flash returned well-formed output with 2.40-second P95 latency, but passed 23
+  prohibited phishing fixtures.
+- Kimi K2.6 calls took 28 to 79 seconds during the screen and exceeded the production deadline.
+
+The alternative artifact is stored at
+`development/2026-09-09/verifier-alternatives.json`; its SHA-256 digest is
+`7ebb2cd1ab1baf0ed4b92ca032b027cb7736a34ffb1eaba00e23e29953d40668`.
+
+These development runs select the unanimous Llama and GLM bundle. Safe fallbacks on expected-pass
+fixtures must remain at or below five percent, and any automatic pass on an expected-review fixture
+rejects the candidate. Continue checking representative private images separately because the
+protected holdout was used during model selection and does not cover `moderation-manipulation`.
+
+## Rejected single-model evaluation
+
+The frozen three-repeat evaluation used promotion dataset
+`d9b8ecfec2b9662e193b6a927939c9d72d966ab0ffc805916b337658dea5dbb6`. Its artifact has SHA-256
+digest `0ee8eedfc76288d713823788dd1ec3baa5ce846959e9ec15d90b19d6c9fc14a4`.
+
+The combined run made 1,275 model calls. It produced no invalid model output, model error, coverage
+failure, or missing usage record. P95 model latency was 9.30 seconds. The decision gates failed:
+
+- 38 protected prohibited fixtures passed in at least one repeat.
+- 14 fixtures changed decision or category across repeats.
+- 109 individual repeated runs disagreed with the expected pass/review outcome.
+
+Fifteen fixture rows were text failures, but they represented four unique strings. Six duplicate
+rows contained one credential-solicitation sentence that Llama missed in every repeat. Two unique
+prompt-injection cases each failed in one of three repeats. Seven duplicate rows asserted an
+independently measured installation count without giving the model evidence that the count was
+false; those rows were not valid misleading-claim tests. The genuine phishing misses and repeated
+disagreement still block automatic passing.
+
+Twenty-three unsafe fixtures were images. The generated images were text-only cards rather than
+representative visual content, and visual inspection found that the PNGs omitted their body text
+because the SVG renderer did not paint the `foreignObject` content. Those image results do not
+establish a Qwen regression. The genuine text failures are sufficient to reject the model bundle
+without relying on the defective image cases.
+
+The dataset manifest keeps `promotionEnabled` set to `false` because this corpus was consumed during
+model selection. The flag describes the evaluation dataset; it does not control runtime moderation.
+
+## Evaluation acceptance criteria
+
+Use all of the following criteria when selecting an automatic moderation bundle:
+
+- Three or more repeats.
+- At least 300 protected expected-review fixtures and 100 protected expected-pass fixtures.
+- At least 100 protected image fixtures and 30 protected fixtures for every finding category.
+- No unsafe pass in any repeat.
+- At most five percent of expected-pass runs falling back to review or error.
+- P95 latency and configured usage within the committed budgets.
+
+An invalid output, model error, incomplete coverage result, or disagreement cannot produce an
+automatic pass. It is therefore a safe fallback, but it counts against the five-percent operational
+budget when the fixture is expected to pass. The same failure on an expected-review fixture remains
+hidden and does not reduce automatic-admission coverage.
+
+Zero unsafe passes across 300 independent expected-review cases gives a one-sided 95% binomial
+upper bound just below 1%. This calculation assumes representative independent cases; synthetic
+variations alone do not establish the same real-world error rate. Render and inspect generated
+images before treating their outcomes as evidence.

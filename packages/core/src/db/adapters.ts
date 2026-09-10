@@ -134,9 +134,9 @@ export interface LibsqlConfig {
 }
 
 /**
- * SQLite database adapter (better-sqlite3)
+ * SQLite database adapter (node:sqlite)
  *
- * For local development and Node.js deployments.
+ * For local development and Node.js deployments. Requires Node.js 22.16 or later.
  *
  * @example
  * ```ts
@@ -199,7 +199,14 @@ export interface PostgresConfig {
 	user?: string;
 	password?: string;
 	ssl?: boolean;
-	pool?: { min?: number; max?: number };
+	pool?: {
+		min?: number;
+		max?: number;
+		/** Maximum time to wait for a connection, in milliseconds. Uses the pg default when omitted. */
+		connectionTimeoutMillis?: number;
+		/** Time before an idle client is closed, in milliseconds. Uses the pg default when omitted. */
+		idleTimeoutMillis?: number;
+	};
 	migrationConnectionStringEnv?: string;
 }
 

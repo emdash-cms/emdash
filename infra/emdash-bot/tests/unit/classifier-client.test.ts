@@ -53,7 +53,7 @@ describe("classifyComment", () => {
 	});
 
 	test("resolves the command from one model tool call", async () => {
-		const event = commands.find((command) => command.event === "implement");
+		const event = commands.find((command) => command.event === "work");
 		expect(event).toBeDefined();
 		if (!event) return;
 		const { ai, run } = mockAi(
@@ -104,12 +104,12 @@ describe("classifyComment", () => {
 });
 
 describe("resolveClassification", () => {
-	test("accepts resume when a failed run offers it", () => {
+	test("accepts retry when a failed run offers it", () => {
 		const failedCommands = classifierCommands("failed");
 		expect(
 			resolveClassification(
 				{
-					event: "resume",
+					event: "retry",
 					arg: "continue from the saved work",
 					reasoning: "The maintainer asks the previous run to continue",
 				},
@@ -117,7 +117,7 @@ describe("resolveClassification", () => {
 			),
 		).toEqual({
 			kind: "event",
-			event: "resume",
+			event: "retry",
 			arg: "continue from the saved work",
 			reasoning: "The maintainer asks the previous run to continue",
 		});

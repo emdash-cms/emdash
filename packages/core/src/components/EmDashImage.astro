@@ -15,12 +15,17 @@
  * <!-- With overrides -->
  * <Image image={post.data.featured_image} class="hero" />
  * ```
+ *
+ * When the image value carries a `darkVariant`, both images are rendered and
+ * CSS shows the one matching the page's color scheme. See the dark mode guide
+ * for the `<html>` class convention and how to override the selectors.
  */
-import type { MediaValue } from "../fields/types.js";
+import type { ImageValue, MediaValue } from "../fields/types.js";
 import type { HTMLAttributes } from "astro/types";
 import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
+import { normalizeLegacyExternalMediaValue } from "../media/normalize.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	buildResponsiveImage,
@@ -28,13 +33,19 @@ import {
 	RESPONSIVE_BREAKPOINTS,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
+import { focalPointToObjectPosition } from "../media/focal-point.js";
 
 interface Props extends Omit<
 	HTMLAttributes<"img">,
 	"src" | "width" | "height"
 > {
 	/** Image value from content field or media library */
-	image: MediaValue | string | undefined | null;
+	image: ImageValue | string | undefined | null;
+	/**
+	 * Image shown in a dark color scheme. Defaults to `image.darkVariant`;
+	 * pass it explicitly when the dark image comes from another field.
+	 */
+	darkVariant?: MediaValue | string | undefined | null;
 	/** Override alt text (uses image.alt by default) */
 	alt?: string;
 	/** Override width (uses image.width by default) */
@@ -49,12 +60,14 @@ interface Props extends Omit<
 
 const {
 	image,
+	darkVariant,
 	alt,
 	width,
 	height,
 	priority,
 	placeholder = true,
 	class: className,
+	id,
 	...attrs
 } = Astro.props;
 
@@ -66,7 +79,7 @@ function normalizeImage(
 	if (typeof img === "string") {
 		return { id: "", src: img };
 	}
-	return img;
+	return normalizeLegacyExternalMediaValue(img);
 }
 
 /**
@@ -96,22 +109,31 @@ function generateSrcset(
 		.join(", ");
 }
 
-const img = normalizeImage(image);
+interface ResolvedImage {
+	src: string;
+	srcset?: string;
+	sizes?: string;
+	astroImageSrc: string;
+	width?: number;
+	height?: number;
+	generatedStyle: string;
+}
 
-// Determine final dimensions (props override image metadata)
-const finalWidth = width ?? img?.width;
-const finalHeight = height ?? img?.height;
-const finalAlt = alt ?? img?.alt ?? "";
-const aspectRatio =
-	finalWidth && finalHeight ? finalWidth / finalHeight : undefined;
+/**
+ * Resolve the source URL, srcset, dimensions, and LQIP style for one media
+ * value. Props override the value's own dimensions.
+ */
+async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
+	const finalWidth = width ?? img.width;
+	const finalHeight = height ?? img.height;
+	const aspectRatio =
+		finalWidth && finalHeight ? finalWidth / finalHeight : undefined;
 
-// Get the image source URL and srcset
-let src = "";
-let srcset: string | undefined;
-let sizes: string | undefined;
-let astroImageSrc = "";
+	let src = "";
+	let srcset: string | undefined;
+	let sizes: string | undefined;
+	let astroImageSrc = "";
 
-if (img) {
 	const providerId = img.provider ?? "local";
 
 	if (providerId === "local" || img.src) {
@@ -170,56 +192,119 @@ if (img) {
 			src = buildLocalImageUrl(img);
 		}
 	}
+
+	// Build placeholder background style. Prefer the first-class MediaValue fields;
+	// fall back to `meta` for snapshots stored before LQIP was promoted off `meta`.
+	const blurhash = img.blurhash ?? (img.meta?.blurhash as string | undefined);
+	const dominantColor =
+		img.dominantColor ?? (img.meta?.dominantColor as string | undefined);
+
+	let placeholderStyle = "";
+	if (placeholder && blurhash) {
+		const { blurhashToImageCssString } = await import("@unpic/placeholder");
+		placeholderStyle = blurhashToImageCssString(blurhash);
+	} else if (placeholder && dominantColor) {
+		placeholderStyle = `background-color: ${dominantColor};`;
+	}
+
+	// The focal point travels with the media value, so the dark variant gets
+	// its own object-position rather than inheriting the light image's.
+	const objectPosition = focalPointToObjectPosition(img.focalX, img.focalY);
+	const generatedStyle = [
+		placeholderStyle,
+		objectPosition ? `object-position: ${objectPosition};` : "",
+	]
+		.filter(Boolean)
+		.join(" ");
+
+	return {
+		src,
+		srcset,
+		sizes,
+		astroImageSrc,
+		width: finalWidth,
+		height: finalHeight,
+		generatedStyle,
+	};
 }
 
-// Build placeholder background style. Prefer the first-class MediaValue fields;
-// fall back to `meta` for snapshots stored before LQIP was promoted off `meta`.
-const blurhash =
-	img?.blurhash ?? (img?.meta?.blurhash as string | undefined);
-const dominantColor =
-	img?.dominantColor ?? (img?.meta?.dominantColor as string | undefined);
+const img = normalizeImage(image);
+const darkSource =
+	darkVariant ?? (typeof image === "object" ? image?.darkVariant : undefined);
+const dark = img ? normalizeImage(darkSource) : null;
+const finalAlt = alt ?? img?.alt ?? "";
 
-let placeholderStyle = "";
-if (placeholder && blurhash) {
-	const { blurhashToImageCssString } = await import("@unpic/placeholder");
-	placeholderStyle = blurhashToImageCssString(blurhash);
-} else if (placeholder && dominantColor) {
-	placeholderStyle = `background-color: ${dominantColor};`;
+const resolved = img ? await resolveImage(img) : null;
+const resolvedDark = dark ? await resolveImage(dark) : null;
+
+function imgProps(
+	r: ResolvedImage,
+	variantClass: string | undefined,
+	elementId: string | null | undefined
+): Record<string, unknown> {
+	return {
+		id: elementId,
+		src: r.src,
+		srcset: r.srcset,
+		sizes: r.sizes,
+		width: r.width,
+		height: r.height,
+		alt: finalAlt,
+		loading: priority ? "eager" : "lazy",
+		fetchpriority: priority ? "high" : undefined,
+		decoding: "async",
+		style: r.generatedStyle || undefined,
+		class: ["emdash-image-media", variantClass, className].filter(Boolean).join(" "),
+		...attrs,
+	};
 }
 
-const imgProps: Record<string, unknown> = {
-	src,
-	srcset,
-	sizes,
-	width: finalWidth,
-	height: finalHeight,
-	alt: finalAlt,
-	loading: priority ? "eager" : "lazy",
-	fetchpriority: priority ? "high" : undefined,
-	decoding: "async",
-	style: placeholderStyle || undefined,
-	class: ["emdash-image-media", className].filter(Boolean).join(" "),
-	...attrs,
-};
+const lightClass = resolvedDark ? "emdash-image--light" : undefined;
+// Both variants render into the same document, so a caller-supplied `id` would
+// otherwise appear on two elements.
+const darkId = id ? `${id}--dark` : undefined;
+const astroClass = (variantClass: string | undefined) =>
+	[variantClass, className].filter(Boolean).join(" ") || undefined;
 ---
 
 {
-	img && astroImageSrc ? (
+	resolved && resolved.astroImageSrc ? (
 		<AstroImage
-			src={astroImageSrc}
+			id={id}
+			src={resolved.astroImageSrc}
 			alt={finalAlt}
-			width={finalWidth}
-			height={finalHeight}
+			width={resolved.width}
+			height={resolved.height}
 			priority={priority}
 			layout="constrained"
 			loading={priority ? "eager" : "lazy"}
 			decoding="async"
-			class={className}
-			style={placeholderStyle || undefined}
+			class={astroClass(lightClass)}
+			style={resolved.generatedStyle || undefined}
 			{...attrs}
 		/>
-	) : img && src ? (
-		<img {...imgProps} />
+	) : resolved && resolved.src ? (
+		<img {...imgProps(resolved, lightClass, id)} />
+	) : null
+}
+{
+	resolvedDark && resolvedDark.astroImageSrc ? (
+		<AstroImage
+			id={darkId}
+			src={resolvedDark.astroImageSrc}
+			alt={finalAlt}
+			width={resolvedDark.width}
+			height={resolvedDark.height}
+			priority={priority}
+			layout="constrained"
+			loading={priority ? "eager" : "lazy"}
+			decoding="async"
+			class={astroClass("emdash-image--dark")}
+			style={resolvedDark.generatedStyle || undefined}
+			{...attrs}
+		/>
+	) : resolvedDark && resolvedDark.src ? (
+		<img {...imgProps(resolvedDark, "emdash-image--dark", darkId)} />
 	) : null
 }
 
@@ -227,5 +312,25 @@ const imgProps: Record<string, unknown> = {
 	.emdash-image-media {
 		max-width: 100%;
 		height: auto;
+	}
+</style>
+
+<style is:global>
+	/* A `dark` or `light` class on <html> wins over the system preference. */
+	:where(:root.dark) .emdash-image--light {
+		display: none;
+	}
+	:where(:root.light) .emdash-image--dark {
+		display: none;
+	}
+	@media (prefers-color-scheme: dark) {
+		:where(:root:not(.light)) .emdash-image--light {
+			display: none;
+		}
+	}
+	@media (prefers-color-scheme: light) {
+		:where(:root:not(.dark)) .emdash-image--dark {
+			display: none;
+		}
 	}
 </style>

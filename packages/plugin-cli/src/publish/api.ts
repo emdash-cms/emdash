@@ -3,7 +3,7 @@
  *
  * Pure-ish core of the publish pipeline: given an already-fetched tarball
  * checksum, an extracted manifest, an authenticated `PublishingClient`, and
- * the URL the bytes are hosted at, this writes the profile (if missing) and
+ * a blob or URL artifact source, this writes the profile (if missing) and
  * release records to the publisher's atproto repo.
  *
  * Splits cleanly from the CLI command so tests can run it against a mock
@@ -15,8 +15,8 @@
  *
  * Profile bootstrap + release create happen in a single atproto
  * `applyWrites` commit, so a network blip mid-publish can't leave a profile
- * with no releases (or vice versa). FAIR specifies version-record
- * immutability; we refuse to overwrite an existing release at
+ * with no releases (or vice versa). Release records are version-immutable;
+ * the client refuses to overwrite an existing release at
  * `<slug>:<version>` unless `allowOverwrite: true` is set.
  *
  * Validation
@@ -42,7 +42,7 @@
  */
 
 import { ClientResponseError } from "@atcute/client";
-import type { Nsid } from "@atcute/lexicons";
+import type { Blob, Nsid } from "@atcute/lexicons";
 import { safeParse } from "@atcute/lexicons/validations";
 import {
 	capabilitiesToDeclaredAccess,
@@ -61,11 +61,16 @@ import {
 	PackageReleaseExtension,
 } from "@emdash-cms/registry-lexicons";
 
+import { multihashFromBlobCid } from "../multihash.js";
+
 // ──────────────────────────────────────────────────────────────────────────
 // Public types
 // ──────────────────────────────────────────────────────────────────────────
 
 export type PublishErrorCode =
+	| "ARTIFACT_CHECKSUM_MISMATCH"
+	| "ARTIFACT_CHECKSUM_MISSING"
+	| "ARTIFACT_SOURCE_MISSING"
 	| "DEPRECATED_CAPABILITY"
 	| "INVALID_SLUG"
 	| "INVALID_VERSION"
@@ -145,14 +150,16 @@ export interface ProfileInput {
  * reads the file, computes the checksum, measures the dimensions, and uploads
  * the bytes before constructing this; `publishRelease` only writes it.
  */
-export interface ReleaseArtifactInput {
-	url: string;
+interface ReleaseArtifactFields {
 	checksum: string;
 	contentType: string;
 	width: number;
 	height: number;
 	lang?: string;
 }
+
+export type ReleaseArtifactInput = ReleaseArtifactFields &
+	({ blob: Blob; url?: string } | { blob?: Blob; url: string });
 
 /**
  * Resolved release media artifacts. `icon` / `banner` are single images;
@@ -173,9 +180,11 @@ export interface PublishOptions {
 	/** The plugin manifest extracted from the tarball. */
 	manifest: PluginManifest;
 	/** Multibase-multihash sha2-256 of the tarball bytes. */
-	checksum: string;
+	checksum?: string;
 	/** Public URL where the tarball is hosted. */
-	url: string;
+	url?: string;
+	/** Tarball bytes stored as a blob on the publisher's PDS. */
+	blob?: Blob;
 	/**
 	 * Structured profile block used when bootstrapping a new profile.
 	 * Preferred over `profile`; when both are set, this wins entirely.
@@ -281,7 +290,8 @@ interface PackageProfileRecordShape {
 
 /** An image artifact embedded in a release (`release.json#artifact`). */
 interface ImageArtifact {
-	url: string;
+	blob?: Blob;
+	url?: string;
 	checksum: string;
 	contentType: string;
 	width: number;
@@ -295,7 +305,8 @@ interface PackageReleaseRecordShape {
 	version: string;
 	artifacts: {
 		package: {
-			url: string;
+			blob?: Blob;
+			url?: string;
 			checksum: string;
 			contentType?: string;
 		};
@@ -352,6 +363,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			{ version: options.manifest.version },
 		);
 	}
+	const packageArtifact = resolvePackageArtifact(options);
 
 	// Refuse `network:request` with no allowedHosts. The lexicon defines
 	// `request: {}` (no allowedHosts) as "unrestricted requests" -- but the
@@ -393,7 +405,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		throw new PublishError(
 			"RELEASE_ALREADY_PUBLISHED",
 			`Release ${slug}@${options.manifest.version} is already published. ` +
-				"FAIR specifies that version records are immutable; aggregators and " +
+				"Version records are immutable; aggregators and " +
 				"labellers may treat any change as a takedown event. " +
 				"Pass allowOverwrite: true to overwrite anyway.",
 			{ slug, version: options.manifest.version },
@@ -431,11 +443,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		package: slug,
 		version: options.manifest.version,
 		artifacts: {
-			package: {
-				url: options.url,
-				checksum: options.checksum,
-				contentType: "application/gzip",
-			},
+			package: packageArtifact,
 		},
 		extensions: {
 			[NSID.packageReleaseExtension]: releaseExtension,
@@ -585,7 +593,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 		profileUri,
 		releaseUri: releaseOpResult.uri,
 		releaseCid: releaseOpResult.cid,
-		checksum: options.checksum,
+		checksum: packageArtifact.checksum,
 		profileCreated,
 		releaseOverwritten,
 		slug,
@@ -601,10 +609,54 @@ function atUri(did: Did, collection: string, rkey: string): string {
 	return `at://${did}/${collection}/${rkey}`;
 }
 
+function resolvePackageArtifact(
+	options: PublishOptions,
+): PackageReleaseRecordShape["artifacts"]["package"] {
+	if (!options.blob && !options.url) {
+		throw new PublishError(
+			"ARTIFACT_SOURCE_MISSING",
+			"The package artifact must provide a blob or URL.",
+		);
+	}
+
+	let checksum = options.checksum;
+	if (options.blob) {
+		let blobChecksum: string;
+		try {
+			blobChecksum = multihashFromBlobCid(options.blob.ref.$link);
+		} catch {
+			throw new PublishError(
+				"ARTIFACT_CHECKSUM_MISMATCH",
+				"The package blob reference is not a raw sha2-256 CID.",
+			);
+		}
+		if (checksum !== undefined && checksum !== blobChecksum) {
+			throw new PublishError(
+				"ARTIFACT_CHECKSUM_MISMATCH",
+				"The package checksum does not match its blob reference CID.",
+			);
+		}
+		checksum = blobChecksum;
+	}
+	if (checksum === undefined) {
+		throw new PublishError(
+			"ARTIFACT_CHECKSUM_MISSING",
+			"A URL-hosted package artifact requires a checksum.",
+		);
+	}
+
+	return {
+		...(options.blob ? { blob: options.blob } : {}),
+		...(options.url ? { url: options.url } : {}),
+		checksum,
+		contentType: "application/gzip",
+	};
+}
+
 /**
  * Write resolved media artifacts into a release record's `artifacts` map.
  *
- * `icon` and `banner` map to their single-`#artifact` lexicon slots directly;
+ * `icon` and `banner` map to their single-image artifact slots directly;
  * `screenshots` is written as the lexicon's `artifacts.screenshots` array,
  * preserving gallery order.
  */

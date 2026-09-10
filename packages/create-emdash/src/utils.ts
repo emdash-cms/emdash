@@ -1,3 +1,4 @@
+import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -5,6 +6,25 @@ import { resolve } from "node:path";
 export const PROJECT_NAME_PATTERN = /^[a-z0-9-]+$/;
 const INVALID_PKG_NAME_CHARS = /[^a-z0-9-]/g;
 const LEADING_TRAILING_HYPHENS = /^-+|-+$/g;
+
+export function runCommand(command: string, args: string[], cwd: string): Promise<void> {
+	return new Promise((resolvePromise, reject) => {
+		const child = spawn(command, args, {
+			cwd,
+			stdio: "inherit",
+			shell: process.platform === "win32",
+		});
+		child.once("error", reject);
+		child.once("close", (code, signal) => {
+			if (code === 0) {
+				resolvePromise();
+				return;
+			}
+			const reason = signal ? `signal ${signal}` : `code ${code ?? "unknown"}`;
+			reject(new Error(`${command} ${args.join(" ")} exited with ${reason}`));
+		});
+	});
+}
 
 /**
  * Generate a fresh `EMDASH_ENCRYPTION_KEY` value.

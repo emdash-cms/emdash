@@ -4,7 +4,10 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { processDueMediaUsageCollectionDeletions } from "../../../src/media/usage/collection-deletion-processor.js";
 import { loadContentMediaUsageSnapshots } from "../../../src/media/usage/content-snapshots.js";
-import { processDueMediaUsageReconciliation } from "../../../src/media/usage/reconciliation-processor.js";
+import {
+	processDueMediaUsageReconciliation,
+	processDueMediaUsageReconciliationDetailed,
+} from "../../../src/media/usage/reconciliation-processor.js";
 import { MediaUsageReconciliationRepository } from "../../../src/media/usage/reconciliation.js";
 import { buildContentMediaUsageSourceKey } from "../../../src/media/usage/source-key.js";
 import { processDueMediaUsageWork } from "../../../src/media/usage/work-processor.js";
@@ -101,6 +104,52 @@ describeEachDialect("media usage reconciliation finalization", (dialect) => {
 				.executeTakeFirst(),
 		).toBeUndefined();
 		expect(await usage.findSource(quarantinedSourceKey)).not.toBeNull();
+	});
+
+	it("reports a seeded or claimed reconciliation unit as consumed", async () => {
+		const collection = await createCollection(ctx, "consumed_reconciliation", true);
+		await activateCollection(ctx, collection);
+
+		await expect(processDueMediaUsageReconciliationDetailed(ctx.db)).resolves.toMatchObject({
+			consumedUnit: true,
+			outcome: "advanced",
+		});
+	});
+
+	it("sweeps a full bulk batch of current sources in one reconciliation unit", async () => {
+		const collection = await createCollection(ctx, "bulk_sources", true);
+		for (let offset = 0; offset < 500; offset += 100) {
+			await ctx.db
+				.insertInto("ec_bulk_sources")
+				.values(
+					Array.from({ length: 100 }, (_, index) => {
+						const id = `entry-${String(offset + index).padStart(3, "0")}`;
+						return { id, slug: id };
+					}),
+				)
+				.execute();
+		}
+		await activateCollection(ctx, collection);
+
+		await expect(processDueMediaUsageReconciliation(ctx.db)).resolves.toBe("advanced");
+		await expect(processDueMediaUsageWork(ctx.db)).resolves.toMatchObject({ completedCount: 500 });
+		await expect(processDueMediaUsageReconciliation(ctx.db)).resolves.toBe("advanced");
+		await expect(processDueMediaUsageReconciliation(ctx.db)).resolves.toBe("completed");
+
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_reconciliations")
+				.select("collection_id")
+				.where("collection_id", "=", collection.id)
+				.executeTakeFirst(),
+		).toBeUndefined();
+		expect(
+			await ctx.db
+				.selectFrom("_emdash_media_usage_index_status")
+				.select(["status", "reconciliation_required"])
+				.where("collection_id", "=", collection.id)
+				.executeTakeFirstOrThrow(),
+		).toEqual({ status: "complete", reconciliation_required: 0 });
 	});
 
 	it("preserves automatic ownership until failed work reaches terminal coverage", async () => {

@@ -1,0 +1,2 @@
+# Keep JSON files on LF so generators do not create line-ending-only diffs.
+*.json text eol=lf

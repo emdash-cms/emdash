@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/registry-lexicons",
-	"version": "0.3.0",
+	"version": "0.4.0",
 	"description": "Generated TypeScript types for EmDash plugin registry lexicons (com.emdashcms.experimental.*). EXPERIMENTAL: NSIDs and shapes will change.",
 	"type": "module",
 	"main": "dist/index.js",
@@ -45,6 +45,7 @@
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
 		"@atcute/lex-cli": "catalog:",
+		"@emdash-cms/registry-moderation": "workspace:*",
 		"publint": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",

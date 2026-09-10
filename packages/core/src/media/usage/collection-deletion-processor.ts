@@ -12,13 +12,11 @@ import {
 
 export const MEDIA_USAGE_COLLECTION_DELETION_LIMITS = Object.freeze({
 	candidatesPerTick: 4,
-	deletionsPerTick: 1,
 	rowsPerBatch: 50,
 	leaseDurationSeconds: 5 * 60,
 	maxAttempts: 5,
 	retryBaseSeconds: 30,
 	retryMaxSeconds: 15 * 60,
-	maxQueriesPerTick: 30,
 });
 
 export interface MediaUsageCollectionDeletionTickResult {
@@ -36,7 +34,13 @@ export async function processDueMediaUsageCollectionDeletions(
 	const candidates = await repository.findDue(
 		MEDIA_USAGE_COLLECTION_DELETION_LIMITS.candidatesPerTick,
 	);
-	if (candidates.length === 0) return { candidateCount: 0, claimedCount: 0, outcome: "idle" };
+	if (candidates.length === 0) {
+		return {
+			candidateCount: (await repository.hasNonterminal()) ? 1 : 0,
+			claimedCount: 0,
+			outcome: "idle",
+		};
+	}
 
 	let claim: (MediaUsageCollectionDeletionRecord & { leaseToken: string }) | null = null;
 	for (const candidate of candidates) {

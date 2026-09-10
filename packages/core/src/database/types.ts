@@ -67,6 +67,8 @@ export interface MediaTable {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focal_x: number | null;
+	focal_y: number | null;
 	alt: string | null;
 	caption: string | null;
 	storage_key: string;
@@ -76,6 +78,13 @@ export interface MediaTable {
 	dominant_color: string | null;
 	created_at: Generated<string>;
 	author_id: string | null;
+	folder_id: Generated<string | null>;
+}
+
+export interface MediaFolderTable {
+	id: string;
+	name: string;
+	name_key: string;
 }
 
 export interface MediaUploadAttemptTable {
@@ -430,6 +439,7 @@ export interface CollectionTable {
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close
 	comments_auto_approve_users: Generated<number>; // 0 or 1
+	edit_locking: Generated<number>; // 0 or 1; take an edit lock when an entry is opened
 	created_at: Generated<string>;
 	updated_at: Generated<string>;
 }
@@ -627,6 +637,7 @@ export interface Database {
 	content_taxonomies: ContentTaxonomyTable;
 	_emdash_taxonomy_defs: TaxonomyDefTable;
 	media: MediaTable;
+	media_folders: MediaFolderTable;
 	_emdash_media_upload_attempts: MediaUploadAttemptTable;
 	_emdash_media_usage_sources: MediaUsageSourceTable;
 	_emdash_media_usage: MediaUsageTable;
@@ -676,6 +687,7 @@ export interface Database {
 	_emdash_relations: RelationTable;
 	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
+	_emdash_entry_locks: EntryLockTable;
 }
 
 export type MediaRow = {
@@ -685,6 +697,8 @@ export type MediaRow = {
 	size: number | null;
 	width: number | null;
 	height: number | null;
+	focal_x: number | null;
+	focal_y: number | null;
 	alt: string | null;
 	caption: string | null;
 	storage_key: string;
@@ -694,6 +708,7 @@ export type MediaRow = {
 	dominant_color: string | null;
 	created_at: string;
 	author_id: string | null;
+	folder_id: string | null;
 };
 
 export interface RedirectTable {
@@ -846,4 +861,13 @@ export interface RateLimitTable {
 	key: string; // {ip}:{endpoint}
 	window: string; // ISO timestamp truncated to window size
 	count: number;
+}
+
+export interface EntryLockTable {
+	collection: string;
+	entry_id: string; // ID in the ec_* table
+	user_id: string;
+	token: string; // identifies the holder's editing session, one per tab
+	acquired_at: string; // ISO 8601 with milliseconds
+	expires_at: string; // ISO 8601 with milliseconds
 }

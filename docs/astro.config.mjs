@@ -68,6 +68,7 @@ export default defineConfig({
 						},
 						{ label: "Querying Content", slug: "guides/querying-content" },
 						{ label: "Media Library", slug: "guides/media-library" },
+						{ label: "Dark Mode", slug: "guides/dark-mode" },
 						{ label: "Taxonomies", slug: "guides/taxonomies" },
 						{ label: "Navigation Menus", slug: "guides/menus" },
 						{ label: "Widget Areas", slug: "guides/widgets" },
@@ -146,6 +147,10 @@ export default defineConfig({
 									slug: "plugins/creating-plugins/publishing",
 								},
 								{
+									label: "Automated Releases",
+									slug: "plugins/creating-plugins/delegated-releases",
+								},
+								{
 									label: "Migrating to the CLI",
 									slug: "plugins/creating-plugins/migrating-to-the-cli",
 								},
@@ -220,11 +225,13 @@ export default defineConfig({
 					items: [
 						{ label: "Deploy to Cloudflare", slug: "deployment/cloudflare" },
 						{ label: "Deploy to Node.js", slug: "deployment/nodejs" },
+						{ label: "Update EmDash", slug: "deployment/updating" },
 						{ label: "Core Database Migrations", slug: "deployment/core-migrations" },
 						{ label: "Evolving a Deployed Site", slug: "deployment/schema-evolution" },
 						{ label: "Database Options", slug: "deployment/database" },
 						{ label: "Storage Options", slug: "deployment/storage" },
 						{ label: "Object Cache", slug: "deployment/object-cache" },
+						{ label: "Plugin Sandbox", slug: "deployment/plugin-sandbox" },
 						{ label: "Secrets & Key Management", slug: "deployment/secrets" },
 					],
 				},

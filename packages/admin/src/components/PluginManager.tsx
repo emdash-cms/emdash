@@ -8,7 +8,7 @@
 
 import { Badge, Button, Checkbox, Switch, Toast } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	Gear,
 	FileText,
@@ -43,10 +43,12 @@ import {
 	type PluginMcpConsentTool,
 } from "../lib/api/marketplace.js";
 import {
+	RegistryMcpConsentRequiredError,
 	RegistryUpdateEscalationError,
 	uninstallRegistryPlugin,
 	updateRegistryPlugin,
 	type RegistryUpdateOpts,
+	type RegistryRecordVerificationSummary,
 } from "../lib/api/registry.js";
 import { safeIconUrl } from "../lib/url.js";
 import { cn } from "../lib/utils";
@@ -55,6 +57,18 @@ import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+
+export function MarketplaceInstallMessage() {
+	return (
+		<Trans>
+			Browse the{" "}
+			<Link to="/plugins/marketplace" className="text-kumo-link hover:underline">
+				marketplace
+			</Link>{" "}
+			to install plugins, or add them to your astro.config.mjs.
+		</Trans>
+	);
+}
 
 export interface PluginManagerProps {
 	/** Admin manifest — used to check if marketplace is configured */
@@ -200,13 +214,7 @@ export function PluginManager({ manifest }: PluginManagerProps) {
 					<h3 className="mt-4 text-lg font-medium">{t`No plugins configured`}</h3>
 					<p className="mt-2 text-sm text-kumo-subtle">
 						{hasMarketplace ? (
-							<>
-								{t`Browse the`}{" "}
-								<Link to="/plugins/marketplace" className="text-kumo-link hover:underline">
-									{t`marketplace`}
-								</Link>{" "}
-								{t`to install plugins, or add them to your astro.config.mjs.`}
-							</>
+							<MarketplaceInstallMessage />
 						) : (
 							t`Add plugins to your astro.config.mjs to extend EmDash functionality.`
 						)}
@@ -242,6 +250,8 @@ function PluginCard({
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
 	const [registryEscalation, setRegistryEscalation] =
 		React.useState<RegistryUpdateEscalationError | null>(null);
+	const [registryVerification, setRegistryVerification] =
+		React.useState<RegistryRecordVerificationSummary | null>(null);
 	const queryClient = useQueryClient();
 	const toastManager = Toast.useToastManager();
 
@@ -261,6 +271,7 @@ function PluginCard({
 		onSuccess: () => {
 			setShowUpdateConsent(false);
 			setRegistryEscalation(null);
+			setRegistryVerification(null);
 			setMcpUpdateTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
 			void queryClient.invalidateQueries({ queryKey: ["plugin-updates"] });
@@ -273,9 +284,14 @@ function PluginCard({
 		onError: (err) => {
 			if (err instanceof RegistryUpdateEscalationError) {
 				setRegistryEscalation(err);
+				setRegistryVerification(err.verification ?? null);
 				setShowUpdateConsent(true);
 			}
-			if (err instanceof PluginMcpConsentRequiredError) {
+			if (err instanceof RegistryMcpConsentRequiredError) {
+				setMcpUpdateTools(err.tools);
+				setRegistryVerification(err.verification ?? null);
+				setShowUpdateConsent(true);
+			} else if (err instanceof PluginMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
 			}
@@ -289,6 +305,7 @@ function PluginCard({
 			// is none); `onError` opens the consent dialog populated with
 			// the actual diff.
 			setRegistryEscalation(null);
+			setRegistryVerification(null);
 			updateMutation.mutate({});
 		} else {
 			setShowUpdateConsent(true);
@@ -300,6 +317,8 @@ function PluginCard({
 			const opts: RegistryUpdateOpts = {
 				confirmCapabilityChanges: true,
 				confirmMcpTools: mcpUpdateTools.length > 0,
+				acknowledgedProfileCid: registryVerification?.profileCid,
+				acknowledgedReleaseCid: registryVerification?.releaseCid,
 			};
 			if (registryEscalation?.code === "ROUTE_VISIBILITY_ESCALATION") {
 				opts.confirmRouteVisibilityChanges = true;
@@ -502,9 +521,7 @@ function PluginCard({
 							aria-expanded={expanded}
 						>
 							{expanded ? <CaretDown className="h-4 w-4" /> : <CaretNext className="h-4 w-4" />}
-							<span className="sr-only">
-								{expanded ? t`Collapse` : t`Expand`} {t`details`}
-							</span>
+							<span className="sr-only">{expanded ? t`Collapse details` : t`Expand details`}</span>
 						</Button>
 					</div>
 				</div>
@@ -644,6 +661,7 @@ function PluginCard({
 					newCapabilities={registryEscalation?.capabilityChanges.added ?? []}
 					newlyPublicRoutes={registryEscalation?.routeVisibilityChanges?.newlyPublic ?? []}
 					mcpTools={mcpUpdateTools}
+					verification={registryVerification ?? undefined}
 					isPending={updateMutation.isPending}
 					error={
 						updateMutation.error instanceof RegistryUpdateEscalationError
@@ -654,6 +672,7 @@ function PluginCard({
 					onCancel={() => {
 						setShowUpdateConsent(false);
 						setRegistryEscalation(null);
+						setRegistryVerification(null);
 						setMcpUpdateTools([]);
 						updateMutation.reset();
 					}}

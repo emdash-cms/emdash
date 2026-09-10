@@ -4,4 +4,6 @@
 "emdash": patch
 ---
 
-Adds a sandboxed-plugins opt-in for new Cloudflare projects so free-plan deployments omit Worker Loader, while paid-plan projects can enable the binding during scaffolding.
+New Cloudflare projects leave the paid-plan Worker Loader binding disabled so they can deploy on the Workers free plan. Enable sandboxed plugins in the scaffold prompt or with `--sandboxed-plugins`.
+
+The Cloudflare `sandbox()` helper now selects the runner from the `LOADER` binding in `wrangler.jsonc`. Without it, config-based sandboxed plugins do not load and marketplace or registry installs return `SANDBOX_NOT_AVAILABLE`, while browsing remains available.

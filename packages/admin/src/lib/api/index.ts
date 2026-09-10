@@ -7,7 +7,9 @@
 // Base client and shared types
 export {
 	API_BASE,
+	ApiResponseError,
 	apiFetch,
+	isTerminalRequestError,
 	parseApiResponse,
 	throwResponseError,
 	type FindManyResult,
@@ -58,7 +60,17 @@ export {
 // Media
 export {
 	type MediaItem,
+	type LocalMediaItem,
+	type MediaFolder,
+	type MediaFolderListResult,
+	type MediaUpdateInput,
 	type MediaUploadOptions,
+	type MediaUsageCoverageStatus,
+	type MediaUsageCoverage,
+	type MediaUsageOccurrenceDetail,
+	type MediaUsageSourceDetail,
+	type MediaUsageEntryDetail,
+	type MediaUsageDetailsResponse,
 	type MediaProviderCapabilities,
 	type MediaProviderInfo,
 	type MediaProviderItem,
@@ -66,7 +78,15 @@ export {
 	MEDIA_SEARCH_MAX_LENGTH,
 	fetchMediaList,
 	fetchMediaItem,
+	fetchMediaUsageDetails,
+	MediaUsageAccessDeniedError,
+	fetchMediaFolders,
+	fetchMediaFolder,
+	createMediaFolder,
+	renameMediaFolder,
+	deleteMediaFolder,
 	uploadMedia,
+	replaceMediaImage,
 	deleteMedia,
 	updateMedia,
 	fetchMediaProviders,
@@ -397,3 +417,12 @@ export {
 
 // Current user
 export { type CurrentUser, useCurrentUser } from "./current-user.js";
+
+// Entry edit locks
+export {
+	type EntryLockHolder,
+	type EntryLockStatus,
+	acquireEntryLock,
+	releaseEntryLock,
+	entryLockRefusal,
+} from "./entry-lock.js";

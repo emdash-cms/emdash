@@ -1,5 +1,37 @@
 import type { MediaItem, MediaProviderItem } from "./api/media.js";
 
+export function canonicalMediaProviderId(provider: string | undefined): string {
+	if (!provider) return "local";
+	return provider === "external-url" ? "external" : provider;
+}
+
+export interface MediaFocalPoint {
+	focalX: number;
+	focalY: number;
+}
+
+function isFocalCoordinate(value: unknown): value is number {
+	return typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1;
+}
+
+export function normalizeMediaFocalPoint(value: {
+	focalX?: number | null;
+	focalY?: number | null;
+}): MediaFocalPoint | null {
+	const { focalX, focalY } = value;
+	if (!isFocalCoordinate(focalX) || !isFocalCoordinate(focalY)) return null;
+	return { focalX, focalY };
+}
+
+export function getMediaObjectPosition(value: {
+	focalX?: number | null;
+	focalY?: number | null;
+}): string | undefined {
+	const point = normalizeMediaFocalPoint(value);
+	if (!point) return undefined;
+	return `${Math.round(point.focalX * 10_000) / 100}% ${Math.round(point.focalY * 10_000) / 100}%`;
+}
+
 /** Read a string value from an untyped `meta` bag, or undefined. */
 export function metaString(
 	meta: Record<string, unknown> | undefined,
@@ -7,6 +39,41 @@ export function metaString(
 ): string | undefined {
 	const value = meta?.[key];
 	return typeof value === "string" ? value : undefined;
+}
+
+/** Read a finite number from an untyped `meta` bag, or undefined. */
+export function metaNumber(
+	meta: Record<string, unknown> | undefined,
+	key: string,
+): number | undefined {
+	const value = meta?.[key];
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null;
+}
+
+/** Streaming playback URLs a provider may expose for a video/audio item. */
+export interface MediaPlayback {
+	hls?: string;
+	dash?: string;
+}
+
+/**
+ * Read streaming playback URLs from an untyped `meta` bag.
+ *
+ * Streaming providers do not expose a single fetchable file URL — Cloudflare
+ * Stream, for example, reports `meta.playback = { hls, dash }` and uses
+ * `previewUrl` for the poster thumbnail. Returns undefined when the item has
+ * no streaming sources (e.g. a plain uploaded MP4, which is playable directly).
+ */
+export function metaPlayback(meta: Record<string, unknown> | undefined): MediaPlayback | undefined {
+	const raw = meta?.playback;
+	if (!isRecord(raw)) return undefined;
+	const hls = typeof raw.hls === "string" ? raw.hls : undefined;
+	const dash = typeof raw.dash === "string" ? raw.dash : undefined;
+	return hls || dash ? { hls, dash } : undefined;
 }
 
 export function providerItemToMediaItem(
@@ -18,7 +85,9 @@ export function providerItemToMediaItem(
 		filename: item.filename,
 		mimeType: item.mimeType,
 		url: item.previewUrl || "",
-		size: item.size || 0,
+		// Providers may report size as a first-class field or stash it in `meta`
+		// (Cloudflare Stream uses `meta.size`); 0 means "unknown".
+		size: item.size ?? metaNumber(item.meta, "size") ?? 0,
 		width: item.width,
 		height: item.height,
 		// Prefer first-class fields; some providers stash LQIP in `meta`.
@@ -33,6 +102,12 @@ export function providerItemToMediaItem(
 
 /** Root-absolute path prefix for locally stored media served by EmDash. */
 const INTERNAL_MEDIA_PREFIX = "/_emdash/api/media/file/";
+
+export function getMediaPreviewUrl(originalUrl: string, contentHash?: string | null): string {
+	if (!contentHash || !originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
+	const separator = originalUrl.includes("?") ? "&" : "?";
+	return `${originalUrl}${separator}_emdash_media=${encodeURIComponent(contentHash)}`;
+}
 
 /**
  * Default rendered width (CSS px) for admin grid thumbnails, requested at ~2x
@@ -66,19 +141,21 @@ export function getMediaThumbnailUrl(
 	originalUrl: string,
 	mimeType: string,
 	width: number = MEDIA_THUMBNAIL_WIDTH,
+	contentHash?: string | null,
 ): string {
-	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return originalUrl;
-	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return originalUrl;
+	const previewUrl = getMediaPreviewUrl(originalUrl, contentHash);
+	if (!mimeType.startsWith("image/") || mimeType === "image/svg+xml") return previewUrl;
+	if (!originalUrl.startsWith(INTERNAL_MEDIA_PREFIX)) return previewUrl;
 
 	// Astro authorizes the media route by absolute origin (see the
 	// `image.remotePatterns` entry the EmDash integration registers), so the
 	// transform source must be an absolute same-origin URL. The admin is served
 	// from the site origin, so `window.location.origin` is the right host.
 	const origin = typeof window === "undefined" ? "" : window.location.origin;
-	if (!origin) return originalUrl;
+	if (!origin) return previewUrl;
 
 	const params = new URLSearchParams({
-		href: `${origin}${originalUrl}`,
+		href: `${origin}${previewUrl}`,
 		w: String(width),
 		f: "webp",
 	});

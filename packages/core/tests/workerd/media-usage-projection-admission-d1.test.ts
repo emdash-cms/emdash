@@ -60,14 +60,13 @@ it("reports real D1 metadata for the approved full runtime boundary", async () =
 
 	const measurement = await measure(() =>
 		runtime.handleContentUpdate(fixture.collectionSlug, created.data.item.id, {
-			data: mediaUsageMeasurementData(12, "boundary-d1-draft"),
+			data: mediaUsageMeasurementData(500, "boundary-d1-draft"),
 		}),
 	);
 	expect(measurement.value.success).toBe(true);
-	expect(measurement.d1Queries).toBeLessThanOrEqual(40);
-	// The collection/source cleanup cursors add one index write for this source
-	// and each of its 12 occurrences; keep the bound exact so further growth fails.
-	expect(measurement.rowsWritten).toBeLessThanOrEqual(135);
+	expect(measurement.d1Queries).toBeLessThanOrEqual(150);
+	expect(measurement.rowsWritten).toBeLessThanOrEqual(5_000);
+	expect(measurement.wallDurationMs).toBeLessThan(5_000);
 	expect(measurement.maxBinds).toBeLessThanOrEqual(100);
 	expect(measurement.maxSqlBytes).toBeLessThan(100 * 1024);
 	const { value: _value, ...evidence } = measurement;

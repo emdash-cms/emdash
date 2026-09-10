@@ -1,0 +1,48 @@
+diff --git a/dist/ws.cjs b/dist/ws.cjs
+--- a/dist/ws.cjs
++++ b/dist/ws.cjs
+@@ -38,10 +38,19 @@ function assert(condition, msg) {
+   if (!condition) throw new Error(msg);
+ }
++function cloneMessageEvent(e) {
++  return new MessageEvent(e.type, {
++    data: e.data,
++    origin: e.origin,
++    lastEventId: e.lastEventId,
++    ports: e.ports
++  });
++}
+ function cloneEventBrowser(e) {
++  if ("data" in e) return cloneMessageEvent(e);
+   return new e.constructor(e.type, e);
+ }
+ function cloneEventNode(e) {
+-  if ("data" in e) return new MessageEvent(e.type, e);
++  if ("data" in e) return cloneMessageEvent(e);
+   if ("code" in e || "reason" in e)
+     return new CloseEvent(e.code || 1999, e.reason || "unknown reason", e);
+   if ("error" in e) return new ErrorEvent(e.error, e);
+diff --git a/dist/ws.js b/dist/ws.js
+--- a/dist/ws.js
++++ b/dist/ws.js
+@@ -38,10 +38,19 @@ function assert(condition, msg) {
+   if (!condition) throw new Error(msg);
+ }
++function cloneMessageEvent(e) {
++  return new MessageEvent(e.type, {
++    data: e.data,
++    origin: e.origin,
++    lastEventId: e.lastEventId,
++    ports: e.ports
++  });
++}
+ function cloneEventBrowser(e) {
++  if ("data" in e) return cloneMessageEvent(e);
+   return new e.constructor(e.type, e);
+ }
+ function cloneEventNode(e) {
+-  if ("data" in e) return new MessageEvent(e.type, e);
++  if ("data" in e) return cloneMessageEvent(e);
+   if ("code" in e || "reason" in e)
+     return new CloseEvent(e.code || 1999, e.reason || "unknown reason", e);
+   if ("error" in e) return new ErrorEvent(e.error, e);

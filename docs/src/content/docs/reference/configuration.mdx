@@ -479,17 +479,19 @@ In every mode, the toolbar can be dismissed in the browser via its × button (pe
 
 #### `experimental.registry`
 
-**Optional.** Point the admin dashboard's plugin browse and install flows at a federated [plugin registry](/plugins/registry/) instead of the central marketplace. Requires `sandboxRunner`, because registry plugins run sandboxed.
+**Optional.** Point the admin dashboard's plugin browse and install flows at a federated [plugin registry](/plugins/registry/) instead of the central marketplace. Browsing works without a [`sandboxRunner`](/deployment/plugin-sandbox/), but installing or updating a registry plugin requires an available runner because registry plugins run sandboxed.
 
 Pass a bare aggregator URL string, or an object when you need a labeller or a release-age policy. The following example uses the object form:
 
 ```js title="astro.config.mjs"
+import { sandbox } from "@emdash-cms/cloudflare";
+
 emdash({
-	sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	sandboxRunner: sandbox(),
 	experimental: {
 		registry: {
 			aggregatorUrl: "https://registry.emdashcms.com",
-			acceptLabelers: "did:plc:emdashverification",
+			acceptLabelers: "did:web:labels.emdashcms.com",
 			policy: {
 				minimumReleaseAge: "48h",
 				minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
@@ -502,7 +504,7 @@ emdash({
 | Option                            | Type                   | Description                                                                                   |
 | --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
 | `aggregatorUrl`                   | `string`               | Aggregator origin where the registry's XRPC endpoints are mounted. HTTPS in production.        |
-| `acceptLabelers`                  | `string`               | Comma-separated labeller DIDs forwarded to the aggregator for takedown and verification labels. |
+| `acceptLabelers`                  | `string`               | Optional comma-separated bare labeller DIDs used as a validated request and cache declaration. It cannot override aggregator policy. |
 | `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
 | `policy.minimumReleaseAgeExclude` | `string[]`             | DIDs (or `<did>/<slug>` pairs) exempt from the holdback.                                        |
 
@@ -518,7 +520,7 @@ import { sqlite, libsql, postgres } from "emdash/db";
 
 ### `sqlite(config)`
 
-SQLite database using better-sqlite3. The following example connects to a local file:
+SQLite database using Node.js's built-in database driver. The following example connects to a local file:
 
 | Option | Type     | Description                   |
 | ------ | -------- | ----------------------------- |
@@ -549,17 +551,19 @@ libsql({
 
 PostgreSQL database with connection pooling.
 
-| Option             | Type      | Description                          |
-| ------------------ | --------- | ------------------------------------ |
-| `connectionString` | `string`  | PostgreSQL connection URL            |
-| `host`             | `string`  | Database host                        |
-| `port`             | `number`  | Database port                        |
-| `database`         | `string`  | Database name                        |
-| `user`             | `string`  | Database user                        |
-| `password`         | `string`  | Database password                    |
-| `ssl`              | `boolean` | Enable SSL                           |
-| `pool.min`         | `number`  | Minimum pool size (default: 0)       |
-| `pool.max`         | `number`  | Maximum pool size (default: 10)      |
+| Option                         | Type      | Description                                          |
+| ------------------------------ | --------- | ---------------------------------------------------- |
+| `connectionString`             | `string`  | PostgreSQL connection URL                            |
+| `host`                         | `string`  | Database host                                        |
+| `port`                         | `number`  | Database port                                        |
+| `database`                     | `string`  | Database name                                        |
+| `user`                         | `string`  | Database user                                        |
+| `password`                     | `string`  | Database password                                    |
+| `ssl`                          | `boolean` | Enable SSL                                           |
+| `pool.min`                     | `number`  | Minimum pool size (default: 0)                       |
+| `pool.max`                     | `number`  | Maximum pool size (default: 10)                      |
+| `pool.connectionTimeoutMillis` | `number`  | Maximum connection wait (pg default: 0, no timeout)  |
+| `pool.idleTimeoutMillis`       | `number`  | Idle-client lifetime (pg default: 10,000 ms)         |
 | `migrationConnectionStringEnv` | `string` | Migration connection-string variable name (default `DATABASE_URL`) |
 
 The following example connects with a connection string:

@@ -23,7 +23,6 @@
     "@emdash-cms/plugin-cli": "workspace:*",
     "@emdash-cms/plugin-mcp-smoke": "workspace:*",
     "astro": "catalog:",
-    "better-sqlite3": "catalog:",
     "emdash": "workspace:*",
     "react": "catalog:",
     "react-dom": "catalog:"

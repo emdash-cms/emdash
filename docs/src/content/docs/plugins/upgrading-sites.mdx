@@ -12,15 +12,25 @@ This guide is for **site operators**: people who install plugins into a site. If
 Update `emdash` and your plugin packages to their latest versions, then reinstall and rebuild:
 
 ```sh
-pnpm up emdash @emdash-cms/plugin-audit-log @emdash-cms/plugin-webhook-notifier @emdash-cms/plugin-atproto
+pnpm up --latest emdash @emdash-cms/plugin-audit-log @emdash-cms/plugin-webhook-notifier @emdash-cms/plugin-atproto
 pnpm build
 ```
 
 After upgrading, your site may build and run without further changes. If the build fails or a plugin stops loading, work through the breaking changes below. Each one tells you exactly what to change.
 
-For the full list of changes in each package, see its entry in the [EmDash changelog](https://github.com/emdash-cms/emdash/blob/main/CHANGELOG.md).
+For the full list of changes in each package, see its entry on the [releases page](https://github.com/emdash-cms/emdash/releases).
 
 ## Breaking changes
+
+### Changed: registry releases can use PDS blobs
+
+Earlier EmDash versions install package artifacts only from an external URL.
+
+Registry releases can now store the package bundle as a blob in the publisher's Personal Data Server (PDS). EmDash resolves blob-only releases through a record-scoped cache or the publisher's PDS and verifies the fetched bytes before installation.
+
+#### What should I do?
+
+Upgrade EmDash before installing a release whose package artifact does not provide an external URL. Publishers that must support older sites can continue to publish the package bundle with `emdash-plugin publish --url <https-url>`.
 
 ### Renamed: `@emdash-cms/registry-cli` is now `@emdash-cms/plugin-cli`
 
@@ -45,6 +55,24 @@ Update any `package.json` scripts that call the old binary, replacing `emdash-re
 emdash-registry publish --url https://example.com/my-plugin-1.0.0.tar.gz
 emdash-plugin publish --url https://example.com/my-plugin-1.0.0.tar.gz
 ```
+
+### Removed: `--artifact-base-url`
+
+Earlier releases required `--artifact-base-url` when a manifest declared icons, banners, or screenshots. The CLI uploaded those files with HTTP PUT.
+
+The CLI now uploads listing images to your Atmosphere account as atproto blobs. `emdash-plugin publish` also builds and uploads the package bundle there by default. The `--url` option remains available for externally hosted package bundles.
+
+#### What should I do?
+
+Remove `--artifact-base-url` and the image-host write credentials from publish scripts. Run `emdash-plugin publish` from the plugin directory:
+
+```sh
+emdash-plugin publish
+```
+
+The updated CLI rejects `--artifact-base-url` instead of ignoring it, so stale scripts fail with migration guidance.
+
+If the command reports `MISSING_BLOB_SCOPE`, run `emdash-plugin logout`, then log in again to grant blob upload access.
 
 ### Changed: published plugins use a default export
 

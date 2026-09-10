@@ -8,14 +8,14 @@ import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
 export type MediaUsageWorkState = "pending" | "retry" | "leased" | "failed";
 export type MediaUsageWorkVersion = number | string;
 const MAX_PORTABLE_DURATION_SECONDS = 365 * 24 * 60 * 60;
-const MAX_WORK_SELECTION_LIMIT = 100;
+const MAX_WORK_SELECTION_LIMIT = 1_000;
 const NON_NEGATIVE_DECIMAL_PATTERN = /^(?:0|[1-9][0-9]*)$/;
 const POSITIVE_DECIMAL_PATTERN = /^[1-9][0-9]*$/;
 const STABLE_ERROR_CODE_PATTERN = /^[A-Z][A-Z0-9_]{0,63}$/;
 
 export const MEDIA_USAGE_WORK_OPERATOR_DEFAULT_LIMIT = 50;
 export const MEDIA_USAGE_WORK_OPERATOR_MAX_LIMIT = 100;
-export const MEDIA_USAGE_RECONCILIATION_PAGE_LIMIT = 50;
+export const MEDIA_USAGE_RECONCILIATION_PAGE_LIMIT = 1_000;
 const MEDIA_USAGE_WORK_STATES = ["pending", "retry", "leased", "failed"] as const;
 
 export interface MediaUsageWorkIdentity {
@@ -79,18 +79,18 @@ export class MediaUsageWorkRepository {
 		assertNonNegativeDecimal(input.changeEpoch, "change epoch");
 		const contentIds = [...new Set(input.contentIds)];
 		if (contentIds.length < 1 || contentIds.length > MEDIA_USAGE_RECONCILIATION_PAGE_LIMIT) {
-			throw new Error("Reconciliation enqueue requires from 1 to 50 content IDs");
+			throw new Error("Reconciliation enqueue requires from 1 to 1000 content IDs");
 		}
 		if (contentIds.some((contentId) => !contentId)) {
 			throw new Error("Reconciliation enqueue content IDs must not be empty");
 		}
 		const now = this.timestampOffset(0);
-		const pageValues = sql.join(
-			contentIds.map((contentId) => sql`(${contentId})`),
-			sql`, `,
-		);
+		const contentIdsJson = JSON.stringify(contentIds);
+		const page = isPostgres(this.db)
+			? sql`SELECT value::text AS content_id FROM jsonb_array_elements_text(${contentIdsJson}::jsonb) AS value`
+			: sql`SELECT value AS content_id FROM json_each(${contentIdsJson})`;
 		await sql`
-			WITH page(content_id) AS (VALUES ${pageValues})
+			WITH page(content_id) AS (${page})
 			INSERT INTO _emdash_media_usage_work (
 				collection_id, collection_slug, content_id, change_epoch, work_version,
 				state, attempt_count, next_attempt_at, lease_token, lease_expires_at,
@@ -308,10 +308,11 @@ export class MediaUsageWorkRepository {
 			.updateTable("_emdash_media_usage_index_status as status")
 			.set({
 				change_epoch: sql<number>`change_epoch + 1`,
-				status: sql<string>`CASE WHEN status = 'complete' THEN 'stale' ELSE status END`,
+				status: sql<string>`CASE WHEN status IN ('complete', 'partial', 'failed') THEN 'stale' ELSE status END`,
 				completed_at: sql<
 					string | null
-				>`CASE WHEN status = 'complete' THEN NULL ELSE completed_at END`,
+				>`CASE WHEN status IN ('complete', 'partial', 'failed') THEN NULL ELSE completed_at END`,
+				last_error_code: null,
 				updated_at: this.timestampOffset(0),
 			})
 			.where("status.adapter_id", "=", "content-media")
@@ -508,42 +509,101 @@ export class MediaUsageWorkRepository {
 		return row?.lease_expires_at ?? null;
 	}
 
-	async findDueWork(limit: number): Promise<MediaUsageWorkRecord[]> {
-		if (!Number.isSafeInteger(limit) || limit < 1 || limit > MAX_WORK_SELECTION_LIMIT) {
+	async claimDueWorkBatch(input: {
+		limit: number;
+		leaseDurationSeconds: number;
+	}): Promise<MediaUsageWorkRecord[]> {
+		if (
+			!Number.isSafeInteger(input.limit) ||
+			input.limit < 1 ||
+			input.limit > MAX_WORK_SELECTION_LIMIT
+		) {
 			throw new Error(
 				`Media usage due-work limit must be a whole number from 1 to ${MAX_WORK_SELECTION_LIMIT}`,
 			);
 		}
+		const leaseDurationSeconds = durationSeconds(
+			input.leaseDurationSeconds,
+			"lease duration",
+			false,
+		);
+		const leaseToken = ulid();
+		const now = this.timestampOffset(0);
+		let candidates = this.db
+			.selectFrom("_emdash_media_usage_work as due")
+			.select(["due.collection_id", "due.content_id", "due.work_version"])
+			.where((eb) =>
+				eb.or([
+					eb.and([
+						eb("due.state", "in", ["pending", "retry"]),
+						this.timestampIsDue("due.next_attempt_at"),
+					]),
+					eb.and([
+						eb("due.state", "=", "leased"),
+						eb("due.lease_expires_at", "is not", null),
+						this.timestampIsDue("due.lease_expires_at"),
+					]),
+				]),
+			)
+			.orderBy(
+				sql<string>`CASE
+					WHEN due.state = 'leased' THEN due.lease_expires_at
+					ELSE due.next_attempt_at
+				END`,
+				"asc",
+			)
+			.orderBy("due.updated_at", "asc")
+			.orderBy("due.collection_id", "asc")
+			.orderBy("due.content_id", "asc")
+			.limit(input.limit);
+		if (isPostgres(this.db)) candidates = candidates.forUpdate().skipLocked();
+		const rows = await this.db
+			.with("due_media_usage_work", () => candidates)
+			.updateTable("_emdash_media_usage_work")
+			.set({
+				state: "leased",
+				lease_token: leaseToken,
+				lease_expires_at: this.timestampOffset(leaseDurationSeconds),
+				last_attempted_at: now,
+				updated_at: now,
+			})
+			.where((eb) =>
+				eb.and([
+					eb.exists(
+						eb
+							.selectFrom("due_media_usage_work as due")
+							.select("due.content_id")
+							.whereRef("due.collection_id", "=", "_emdash_media_usage_work.collection_id")
+							.whereRef("due.content_id", "=", "_emdash_media_usage_work.content_id")
+							.whereRef("due.work_version", "=", "_emdash_media_usage_work.work_version"),
+					),
+					eb.or([
+						eb.and([
+							eb("state", "in", ["pending", "retry"]),
+							this.timestampIsDue("next_attempt_at"),
+						]),
+						eb.and([
+							eb("state", "=", "leased"),
+							eb("lease_expires_at", "is not", null),
+							this.timestampIsDue("lease_expires_at"),
+						]),
+					]),
+				]),
+			)
+			.returningAll()
+			.execute();
 
-		const pendingRows = await this.findDueRows("pending", "next_attempt_at", limit);
-		const retryRows = await this.findDueRows("retry", "next_attempt_at", limit);
-		const leasedRows = await this.findDueRows("leased", "lease_expires_at", limit);
-
-		return [...pendingRows, ...retryRows, ...leasedRows]
-			.map(rowToWork)
-			.toSorted(compareDueWork)
-			.slice(0, limit);
+		return rows.map(rowToWork);
 	}
 
-	private async findDueRows(
-		state: "pending" | "retry" | "leased",
-		timestampColumn: "next_attempt_at" | "lease_expires_at",
-		limit: number,
-	): Promise<Selectable<MediaUsageWorkTable>[]> {
-		let query = this.db
+	async hasNonterminalWork(): Promise<boolean> {
+		const row = await this.db
 			.selectFrom("_emdash_media_usage_work")
-			.selectAll()
-			.where("state", "=", state)
-			.where(this.timestampIsDue(timestampColumn))
-			.orderBy(timestampColumn, "asc");
-		if (timestampColumn === "next_attempt_at") {
-			query = query.orderBy("updated_at", "asc");
-		}
-		return query
-			.orderBy("collection_id", "asc")
-			.orderBy("content_id", "asc")
-			.limit(limit)
-			.execute();
+			.select("content_id")
+			.where("state", "in", ["pending", "retry", "leased"])
+			.limit(1)
+			.executeTakeFirst();
+		return row !== undefined;
 	}
 
 	async findWorkForContent(
@@ -608,18 +668,230 @@ export class MediaUsageWorkRepository {
 		return row ? rowToWork(row) : null;
 	}
 
-	async completeWork(input: MediaUsageWorkLease): Promise<boolean> {
-		assertLease(input);
-		const result = await this.db
-			.deleteFrom("_emdash_media_usage_work")
-			.where("collection_id", "=", input.collectionId)
-			.where("content_id", "=", input.contentId)
-			.where("work_version", "=", input.workVersion)
-			.where("state", "=", "leased")
-			.where("lease_token", "=", input.leaseToken)
-			.where(this.leaseIsLive())
-			.executeTakeFirst();
-		return Number(result.numDeletedRows ?? 0) > 0;
+	async completeWorkBatch(inputs: readonly MediaUsageWorkLease[]): Promise<Set<string>> {
+		const unique = [
+			...new Map(
+				inputs.map((input) => {
+					assertLease(input);
+					return [workIdentityKey(input), input] as const;
+				}),
+			).values(),
+		];
+		const completed = new Set<string>();
+		if (unique.length === 0) return completed;
+		const payload = JSON.stringify(
+			unique.map((input) => ({
+				collection_id: input.collectionId,
+				content_id: input.contentId,
+				work_version: String(input.workVersion),
+				lease_token: input.leaseToken,
+			})),
+		);
+		const claimed = this.claimedWorkBatchInput(payload);
+		const result = await sql<{
+			collection_id: string;
+			content_id: string;
+			work_version: MediaUsageWorkVersion;
+		}>`
+			WITH claimed AS (${claimed})
+			DELETE FROM _emdash_media_usage_work AS work
+			WHERE work.state = 'leased'
+				AND ${this.qualifiedLeaseIsLive("work.lease_expires_at")}
+				AND EXISTS (
+					SELECT 1
+					FROM claimed
+					WHERE claimed.collection_id = work.collection_id
+						AND claimed.content_id = work.content_id
+						AND claimed.work_version = work.work_version
+						AND claimed.lease_token = work.lease_token
+				)
+			RETURNING collection_id, content_id, work_version
+		`.execute(this.db);
+		for (const row of result.rows) {
+			completed.add(
+				workIdentityKey({
+					collectionId: row.collection_id,
+					contentId: row.content_id,
+					workVersion: row.work_version,
+				}),
+			);
+		}
+		return completed;
+	}
+
+	async lockClaimedWorkBatch(inputs: readonly MediaUsageWorkLease[]): Promise<Set<string>> {
+		const unique = [
+			...new Map(
+				inputs.map((input) => {
+					assertLease(input);
+					return [workIdentityKey(input), input] as const;
+				}),
+			).values(),
+		].toSorted((left, right) => workIdentityKey(left).localeCompare(workIdentityKey(right)));
+		if (!isPostgres(this.db)) return new Set(unique.map(workIdentityKey));
+		if (unique.length === 0) return new Set();
+		const payload = JSON.stringify(
+			unique.map((input) => ({
+				collection_id: input.collectionId,
+				content_id: input.contentId,
+				work_version: String(input.workVersion),
+				lease_token: input.leaseToken,
+			})),
+		);
+		const claimed = this.claimedWorkBatchInput(payload);
+		const result = await sql<{
+			collection_id: string;
+			content_id: string;
+			work_version: MediaUsageWorkVersion;
+		}>`
+			WITH claimed AS (${claimed})
+			SELECT work.collection_id, work.content_id, work.work_version
+			FROM _emdash_media_usage_work AS work
+			INNER JOIN claimed
+				ON claimed.collection_id = work.collection_id
+				AND claimed.content_id = work.content_id
+				AND claimed.work_version = work.work_version
+				AND claimed.lease_token = work.lease_token
+			WHERE work.state = 'leased'
+				AND ${this.qualifiedLeaseIsLive("work.lease_expires_at")}
+			ORDER BY work.collection_id, work.content_id
+			FOR UPDATE
+		`.execute(this.db);
+		return new Set(
+			result.rows.map((row) =>
+				workIdentityKey({
+					collectionId: row.collection_id,
+					contentId: row.content_id,
+					workVersion: row.work_version,
+				}),
+			),
+		);
+	}
+
+	async retryClaimedWorkBatch(input: {
+		work: readonly MediaUsageWorkLease[];
+		errorCode: string;
+		retryDelaySeconds: number;
+		maxAttempts: number;
+	}): Promise<Map<string, "retry" | "failed">> {
+		assertErrorCode(input.errorCode);
+		const retryDelaySeconds = durationSeconds(input.retryDelaySeconds, "retry delay", true);
+		if (!Number.isSafeInteger(input.maxAttempts) || input.maxAttempts < 1) {
+			throw new Error("Media usage work max attempts must be a positive whole number");
+		}
+		const unique = [
+			...new Map(
+				input.work.map((work) => {
+					assertLease(work);
+					return [workIdentityKey(work), work] as const;
+				}),
+			).values(),
+		];
+		const transitioned = new Map<string, "retry" | "failed">();
+		if (unique.length === 0) return transitioned;
+		const payload = JSON.stringify(
+			unique.map((work) => ({
+				collection_id: work.collectionId,
+				content_id: work.contentId,
+				work_version: String(work.workVersion),
+				lease_token: work.leaseToken,
+			})),
+		);
+		const claimed = this.claimedWorkBatchInput(payload);
+		const result = await sql<{
+			collection_id: string;
+			content_id: string;
+			work_version: MediaUsageWorkVersion;
+			state: "retry" | "failed";
+		}>`
+			WITH claimed AS (${claimed})
+			UPDATE _emdash_media_usage_work AS work
+			SET state = CASE WHEN work.attempt_count + 1 >= ${input.maxAttempts} THEN 'failed' ELSE 'retry' END,
+				attempt_count = work.attempt_count + 1,
+				next_attempt_at = ${this.timestampOffset(retryDelaySeconds)},
+				lease_token = NULL,
+				lease_expires_at = NULL,
+				last_error_code = ${input.errorCode},
+				updated_at = ${this.timestampOffset(0)}
+			WHERE work.state = 'leased'
+				AND ${this.qualifiedLeaseIsLive("work.lease_expires_at")}
+				AND EXISTS (
+					SELECT 1
+					FROM claimed
+					WHERE claimed.collection_id = work.collection_id
+						AND claimed.content_id = work.content_id
+						AND claimed.work_version = work.work_version
+						AND claimed.lease_token = work.lease_token
+				)
+			RETURNING collection_id, content_id, work_version, state
+		`.execute(this.db);
+		for (const row of result.rows) {
+			transitioned.set(
+				workIdentityKey({
+					collectionId: row.collection_id,
+					contentId: row.content_id,
+					workVersion: row.work_version,
+				}),
+				row.state,
+			);
+		}
+		return transitioned;
+	}
+
+	async releaseClaimedWorkBatch(inputs: readonly MediaUsageWorkLease[]): Promise<Set<string>> {
+		const unique = [
+			...new Map(
+				inputs.map((input) => {
+					assertLease(input);
+					return [workIdentityKey(input), input] as const;
+				}),
+			).values(),
+		];
+		const released = new Set<string>();
+		if (unique.length === 0) return released;
+		const payload = JSON.stringify(
+			unique.map((input) => ({
+				collection_id: input.collectionId,
+				content_id: input.contentId,
+				work_version: String(input.workVersion),
+				lease_token: input.leaseToken,
+			})),
+		);
+		const claimed = this.claimedWorkBatchInput(payload);
+		const result = await sql<{
+			collection_id: string;
+			content_id: string;
+			work_version: MediaUsageWorkVersion;
+		}>`
+			WITH claimed AS (${claimed})
+			UPDATE _emdash_media_usage_work AS work
+			SET state = 'pending',
+				next_attempt_at = ${this.timestampOffset(0)},
+				lease_token = NULL,
+				lease_expires_at = NULL,
+				updated_at = ${this.timestampOffset(0)}
+			WHERE work.state = 'leased'
+				AND ${this.qualifiedLeaseIsLive("work.lease_expires_at")}
+				AND EXISTS (
+					SELECT 1
+					FROM claimed
+					WHERE claimed.collection_id = work.collection_id
+						AND claimed.content_id = work.content_id
+						AND claimed.work_version = work.work_version
+						AND claimed.lease_token = work.lease_token
+				)
+			RETURNING collection_id, content_id, work_version
+		`.execute(this.db);
+		for (const row of result.rows) {
+			released.add(
+				workIdentityKey({
+					collectionId: row.collection_id,
+					contentId: row.content_id,
+					workVersion: row.work_version,
+				}),
+			);
+		}
+		return released;
 	}
 
 	async deleteWorkThroughEpoch(
@@ -636,53 +908,49 @@ export class MediaUsageWorkRepository {
 		return Number(result.numDeletedRows ?? 0);
 	}
 
-	async retryWork(
-		input: MediaUsageWorkLease & {
-			retryDelaySeconds: number;
-			errorCode: string;
-		},
-	): Promise<boolean> {
-		const retryDelaySeconds = durationSeconds(input.retryDelaySeconds, "retry delay", true);
-		assertErrorCode(input.errorCode);
-		return this.transitionFailure(input, "retry", {
-			next_attempt_at: this.timestampOffset(retryDelaySeconds),
-		});
-	}
-
-	async failWork(
-		input: MediaUsageWorkLease & {
-			errorCode: string;
-		},
-	): Promise<boolean> {
-		assertErrorCode(input.errorCode);
-		return this.transitionFailure(input, "failed");
-	}
-
-	private async transitionFailure(
-		input: MediaUsageWorkLease & { errorCode: string },
-		state: "retry" | "failed",
-		extra: { next_attempt_at?: RawBuilder<string> } = {},
-	): Promise<boolean> {
-		assertLease(input);
+	async deleteObsoleteReconciliationWork(input: {
+		collectionId: string;
+		collectionSlug: string;
+		runToken: string;
+		leaseToken: string;
+		targetEpoch: number | string;
+	}): Promise<number> {
+		assertNonNegativeDecimal(input.targetEpoch, "target epoch");
 		const result = await this.db
-			.updateTable("_emdash_media_usage_work")
-			.set({
-				state,
-				attempt_count: sql<number>`attempt_count + 1`,
-				lease_token: null,
-				lease_expires_at: null,
-				last_error_code: input.errorCode,
-				updated_at: this.timestampOffset(0),
-				...extra,
-			})
-			.where("collection_id", "=", input.collectionId)
-			.where("content_id", "=", input.contentId)
-			.where("work_version", "=", input.workVersion)
-			.where("state", "=", "leased")
-			.where("lease_token", "=", input.leaseToken)
-			.where(this.leaseIsLive())
+			.deleteFrom("_emdash_media_usage_work as work")
+			.where("work.collection_id", "=", input.collectionId)
+			.where("work.change_epoch", "<", input.targetEpoch)
+			.where((eb) =>
+				eb.exists(
+					eb
+						.selectFrom("_emdash_media_usage_reconciliations as reconciliation")
+						.innerJoin("_emdash_media_usage_index_status as status", (join) =>
+							join
+								.onRef("status.collection_id", "=", "reconciliation.collection_id")
+								.onRef("status.scope_key", "=", "reconciliation.collection_slug"),
+						)
+						.innerJoin("_emdash_collections as collection", (join) =>
+							join
+								.onRef("collection.id", "=", "reconciliation.collection_id")
+								.onRef("collection.slug", "=", "reconciliation.collection_slug"),
+						)
+						.select("reconciliation.collection_id")
+						.where("reconciliation.collection_id", "=", input.collectionId)
+						.where("reconciliation.collection_slug", "=", input.collectionSlug)
+						.where("reconciliation.run_token", "=", input.runToken)
+						.where("reconciliation.target_epoch", "=", input.targetEpoch)
+						.where("reconciliation.state", "=", "leased")
+						.where("reconciliation.lease_token", "=", input.leaseToken)
+						.where(this.qualifiedLeaseIsLive("reconciliation.lease_expires_at"))
+						.where("status.capture_state", "=", "active")
+						.where("status.reconciliation_required", "=", 1)
+						.where("status.status", "=", "running")
+						.where("status.cursor", "=", input.runToken)
+						.where("status.change_epoch", "=", input.targetEpoch),
+				),
+			)
 			.executeTakeFirst();
-		return Number(result.numUpdatedRows ?? 0) > 0;
+		return Number(result.numDeletedRows ?? 0);
 	}
 
 	private leaseIsLive(): RawBuilder<boolean> {
@@ -699,7 +967,13 @@ export class MediaUsageWorkRepository {
 	}
 
 	private timestampIsDue(
-		column: "next_attempt_at" | "lease_expires_at" | "work.lease_expires_at",
+		column:
+			| "next_attempt_at"
+			| "lease_expires_at"
+			| "work.lease_expires_at"
+			| "work.next_attempt_at"
+			| "due.next_attempt_at"
+			| "due.lease_expires_at",
 	): RawBuilder<boolean> {
 		return isPostgres(this.db)
 			? sql<boolean>`${sql.ref(column)} <= to_char(
@@ -722,6 +996,31 @@ export class MediaUsageWorkRepository {
 			${`${offsetSeconds >= 0 ? "+" : ""}${offsetSeconds} seconds`}
 		)`;
 	}
+
+	private claimedWorkBatchInput(payload: string): RawBuilder<unknown> {
+		if (isPostgres(this.db)) {
+			return sql`
+				SELECT
+					entry.value ->> 'collection_id' AS collection_id,
+					entry.value ->> 'content_id' AS content_id,
+					CAST(entry.value ->> 'work_version' AS bigint) AS work_version,
+					entry.value ->> 'lease_token' AS lease_token
+				FROM jsonb_array_elements(${payload}::jsonb) AS entry(value)
+			`;
+		}
+		return sql`
+			SELECT
+				json_extract(entry.value, '$.collection_id') AS collection_id,
+				json_extract(entry.value, '$.content_id') AS content_id,
+				CAST(json_extract(entry.value, '$.work_version') AS integer) AS work_version,
+				json_extract(entry.value, '$.lease_token') AS lease_token
+			FROM json_each(${payload}) AS entry
+		`;
+	}
+}
+
+function workIdentityKey(input: MediaUsageWorkIdentity): string {
+	return `${input.collectionId}\u0000${input.contentId}\u0000${String(input.workVersion)}`;
 }
 
 function operatorLimit(value: number | undefined): number {
@@ -827,22 +1126,7 @@ function isMediaUsageWorkState(value: string): value is MediaUsageWorkState {
 	return value === "pending" || value === "retry" || value === "leased" || value === "failed";
 }
 
-function compareDueWork(a: MediaUsageWorkRecord, b: MediaUsageWorkRecord): number {
-	const eligibility = dueTimestamp(a).localeCompare(dueTimestamp(b));
-	if (eligibility !== 0) return eligibility;
-	const updated = a.updatedAt.localeCompare(b.updatedAt);
-	if (updated !== 0) return updated;
-	const collection = a.collectionId.localeCompare(b.collectionId);
-	return collection !== 0 ? collection : a.contentId.localeCompare(b.contentId);
-}
-
 function compareOperatorWork(a: MediaUsageOperatorWorkItem, b: MediaUsageOperatorWorkItem): number {
 	const updated = b.updatedAt.localeCompare(a.updatedAt);
 	return updated !== 0 ? updated : b.contentId.localeCompare(a.contentId);
-}
-
-function dueTimestamp(work: MediaUsageWorkRecord): string {
-	if (work.state !== "leased") return work.nextAttemptAt;
-	if (!work.leaseExpiresAt) throw new Error("Due leased media usage work must have a lease expiry");
-	return work.leaseExpiresAt;
 }

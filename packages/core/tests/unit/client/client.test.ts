@@ -724,6 +724,122 @@ describe("EmDashClient", () => {
 	});
 
 	describe("media usage reads", () => {
+		it("serializes Main library and folder media filters", async () => {
+			const capturedUrls: URL[] = [];
+			const backend: Interceptor = async (req) => {
+				capturedUrls.push(new URL(req.url));
+				return jsonResponse({ items: [] });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.mediaList({ folderId: null });
+			await client.mediaList({ folderId: "folder/one" });
+
+			expect(capturedUrls.map((url) => url.searchParams.get("folderId"))).toEqual([
+				"unfiled",
+				"folder/one",
+			]);
+		});
+
+		it("lists and mutates media folders with encoded IDs", async () => {
+			const requests: Array<{ method: string; url: URL; body: unknown }> = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				const text = await req.text();
+				requests.push({ method: req.method, url, body: text ? JSON.parse(text) : undefined });
+				if (req.method === "GET" && url.pathname.endsWith("/media/folders/folder%2Fone")) {
+					return jsonResponse({ item: { id: "folder/one", name: "One" } });
+				}
+				if (req.method === "GET") {
+					return jsonResponse({ items: [{ id: "folder/one", name: "One" }], nextCursor: "next" });
+				}
+				if (req.method === "DELETE") return jsonResponse({ deleted: true });
+				if (url.pathname.endsWith("/media/media%2Fone")) {
+					return jsonResponse({
+						item: { id: "media/one", folderId: null, focalX: 0.25, focalY: 0.75 },
+					});
+				}
+				return jsonResponse({ item: { id: "folder/one", name: "Updated" } });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const list = await client.mediaFolderList({
+				limit: 25,
+				cursor: "after / folder",
+				q: "photo set",
+			});
+			const fetched = await client.mediaFolderGet("folder/one");
+			const created = await client.mediaFolderCreate("Created");
+			const updated = await client.mediaFolderUpdate("folder/one", "Updated");
+			await client.mediaFolderDelete("folder/one");
+			const media = await client.mediaSetFolder("media/one", null);
+
+			expect(list).toEqual({ items: [{ id: "folder/one", name: "One" }], nextCursor: "next" });
+			expect(created).toEqual({ id: "folder/one", name: "Updated" });
+			expect(updated).toEqual({ id: "folder/one", name: "Updated" });
+			expect(fetched).toEqual({ id: "folder/one", name: "One" });
+			expect(media).toEqual({ id: "media/one", folderId: null });
+			expect(Object.fromEntries(requests[0]?.url.searchParams ?? [])).toEqual({
+				limit: "25",
+				cursor: "after / folder",
+				q: "photo set",
+			});
+			expect(
+				requests.map(({ method, url, body }) => ({ method, path: url.pathname, body })).slice(1),
+			).toEqual([
+				{
+					method: "GET",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: undefined,
+				},
+				{ method: "POST", path: "/_emdash/api/media/folders", body: { name: "Created" } },
+				{
+					method: "PUT",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: { name: "Updated" },
+				},
+				{
+					method: "DELETE",
+					path: "/_emdash/api/media/folders/folder%2Fone",
+					body: undefined,
+				},
+				{
+					method: "PUT",
+					path: "/_emdash/api/media/media%2Fone",
+					body: { folderId: null },
+				},
+			]);
+		});
+
+		it("requests a numbered media page and returns its total", async () => {
+			let capturedUrl: URL | undefined;
+			const backend: Interceptor = async (req) => {
+				capturedUrl = new URL(req.url);
+				return jsonResponse({ items: [{ id: "media-1" }], totalCount: 37 });
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			const result = await client.mediaList({ page: 2, limit: 25 });
+
+			expect(Object.fromEntries(capturedUrl?.searchParams ?? [])).toEqual({
+				limit: "25",
+				page: "2",
+			});
+			expect(result).toEqual({ items: [{ id: "media-1" }], totalCount: 37 });
+		});
+
 		it("opts media list into usage summaries with an exact includeUsage value", async () => {
 			let capturedUrl: URL | undefined;
 			const backend: Interceptor = async (req) => {
@@ -1021,6 +1137,133 @@ describe("EmDashClient", () => {
 	});
 
 	describe("media usage work operators", () => {
+		it("reads aggregate media usage indexing progress", async () => {
+			let capturedRequest: Request | undefined;
+			const progress = {
+				status: "indexing" as const,
+				readyCollections: 2,
+				totalCollections: 3,
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						capturedRequest = request;
+						return jsonResponse(progress);
+					},
+				],
+			});
+			await expect(client.mediaGetUsageProgress()).resolves.toEqual(progress);
+			expect(capturedRequest?.method).toBe("GET");
+			expect(new URL(capturedRequest!.url).pathname).toBe(
+				"/_emdash/api/admin/media-usage/progress",
+			);
+		});
+
+		it("advances one media usage progress step without a request body", async () => {
+			let capturedRequest: Request | undefined;
+			const result = {
+				activation: {
+					state: "active" as const,
+					collectionCursor: null,
+					attemptCount: 1,
+					drainConfirmedAt: "2026-08-12T09:00:00.000Z",
+					lastAttemptedAt: "2026-08-12T09:00:00.000Z",
+					lastErrorCode: null,
+					leaseExpiresAt: null,
+					activatedAt: "2026-08-12T09:00:01.000Z",
+					updatedAt: "2026-08-12T09:00:01.000Z",
+				},
+				progress: { status: "ready" as const, readyCollections: 2, totalCollections: 2 },
+				nextRequestInMs: null,
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						capturedRequest = request;
+						return jsonResponse(result);
+					},
+				],
+			});
+
+			await expect(client.mediaAdvanceUsageProgress()).resolves.toEqual(result);
+			expect(capturedRequest?.method).toBe("POST");
+			expect(capturedRequest?.headers.get("X-EmDash-Request")).toBe("1");
+			expect(capturedRequest?.body).toBeNull();
+			expect(new URL(capturedRequest!.url).pathname).toBe(
+				"/_emdash/api/admin/media-usage/progress",
+			);
+		});
+
+		it("reads the redacted activation status", async () => {
+			let capturedRequest: Request | undefined;
+			const status = {
+				state: "expanded" as const,
+				collectionCursor: null,
+				attemptCount: 0,
+				drainConfirmedAt: null,
+				lastAttemptedAt: null,
+				lastErrorCode: null,
+				leaseExpiresAt: null,
+				activatedAt: null,
+				updatedAt: "2026-08-12T09:00:00.000Z",
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						capturedRequest = request;
+						return jsonResponse(status);
+					},
+				],
+			});
+
+			await expect(client.mediaGetUsageActivation()).resolves.toEqual(status);
+			expect(capturedRequest?.method).toBe("GET");
+			expect(new URL(capturedRequest!.url).pathname).toBe(
+				"/_emdash/api/admin/media-usage/activation",
+			);
+		});
+
+		it("advances one activation batch after writer confirmation", async () => {
+			let capturedBody: unknown;
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [
+					async (request) => {
+						expect(request.method).toBe("POST");
+						expect(request.headers.get("X-EmDash-Request")).toBe("1");
+						capturedBody = await request.json();
+						return jsonResponse({
+							outcome: "active",
+							processedCollections: 0,
+							activation: {
+								state: "active",
+								collectionCursor: null,
+								attemptCount: 1,
+								drainConfirmedAt: "2026-08-12T09:00:00.000Z",
+								lastAttemptedAt: "2026-08-12T09:00:00.000Z",
+								lastErrorCode: null,
+								leaseExpiresAt: null,
+								activatedAt: "2026-08-12T09:00:01.000Z",
+								updatedAt: "2026-08-12T09:00:01.000Z",
+							},
+						});
+					},
+				],
+			});
+
+			await client.mediaAdvanceUsageActivation({
+				writersDrained: true,
+			});
+			expect(capturedBody).toEqual({ writersDrained: true });
+		});
+
 		it("serializes a bounded work-list query and returns the cursor page", async () => {
 			let capturedUrl: URL | undefined;
 			const page = {

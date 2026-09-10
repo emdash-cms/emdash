@@ -1,5 +1,12 @@
 # @emdash-cms/plugin-mcp-smoke
 
+## 6.0.0
+
+### Patch Changes
+
+- Updated dependencies [[`0aa1bc8`](https://github.com/emdash-cms/emdash/commit/0aa1bc84a3a652b31ffb15cfd7c2d4b767b83e37), [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b), [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b), [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b), [`2c30503`](https://github.com/emdash-cms/emdash/commit/2c305031595934066065e2e20f1c58a76d84d1d8), [`34336e1`](https://github.com/emdash-cms/emdash/commit/34336e1570fe2ddaf063b0a0363a9132cf823b8b)]:
+  - emdash@0.35.0
+
 ## 5.0.0
 
 ### Patch Changes

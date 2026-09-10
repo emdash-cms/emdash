@@ -42,6 +42,7 @@ import {
 } from "./object-cache/index.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { resetRegisteredCollectionsCache } from "./schema/collection-slugs-cache.js";
 import { compileUrlPattern } from "./schema/url-pattern.js";
 import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -398,8 +399,21 @@ export async function getEmDashCollection<T extends string, D = InferCollectionD
 	// Cursor-paginated calls are exempt: their limit is part of the
 	// pagination contract.
 	const bucketed = bucketFilter(filter);
+
+	// Preview and edit-mode requests skip `loadCollectionCached`. That path
+	// reduces every entry to a JSON snapshot (`entrySnapshot`) and rebuilds it
+	// with `reviveEntry`, which cannot carry the `edit` proxy and re-attaches
+	// the no-op — so annotations spread as `{...entry.edit.title}` would render
+	// nothing on list pages. `getEmDashEntry` has the same bypass for the same
+	// reason (see its `serveDrafts` branch). The request-scoped cache still
+	// collapses duplicate queries within the render.
+	const ctx = getRequestContext();
+	const serveDrafts = ctx?.editMode === true || ctx?.preview !== undefined;
+
 	const cached = await requestCached(collectionCacheKey(type, bucketed.fetchFilter), () =>
-		loadCollectionCached<T, D>(type, bucketed.fetchFilter),
+		serveDrafts
+			? getEmDashCollectionUncached<T, D>(type, bucketed.fetchFilter)
+			: loadCollectionCached<T, D>(type, bucketed.fetchFilter),
 	);
 	return bucketed.requestedLimit === undefined
 		? cached
@@ -1326,11 +1340,13 @@ const urlPatternCache: UrlPatternCache =
  * Call when collection URL patterns change (schema updates).
  *
  * Also busts the distributed schema cache (collection metadata such as
- * `commentsEnabled`, `supports`, fields read by `getCollectionInfo`), since
+ * `commentsEnabled`, `supports`, fields read by `getCollectionInfo`) and the
+ * per-isolate registered-collection-slugs cache used by term counting, since
  * every schema-mutation path already routes through here.
  */
 export function invalidateUrlPatternCache(): void {
 	urlPatternCache.patterns = null;
+	resetRegisteredCollectionsCache();
 	invalidateSchemaObjectCache();
 }
 

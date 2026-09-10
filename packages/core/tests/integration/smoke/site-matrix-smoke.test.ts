@@ -1,5 +1,5 @@
 import { execFile, spawn } from "node:child_process";
-import { rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
@@ -282,6 +282,54 @@ describe.sequential("Site runtime verification", () => {
 			},
 		);
 	}
+});
+
+const CLOUDFLARE_OPTIMIZER_SITE: SiteCase = {
+	name: "e2e/fixture-cloudflare",
+	dir: resolve(WORKSPACE_ROOT, "e2e/fixture-cloudflare"),
+	port: 4621,
+	startupTimeoutMs: 120_000,
+	waitPath: "/_emdash/api/setup/status",
+};
+
+const LATE_MANIFEST_OPTIMIZATION =
+	/(?:new )?dependenc(?:y|ies) (?:found|optimized):.*astro\/app\/manifest/;
+
+describe.sequential("Cloudflare dependency optimizer", () => {
+	it(
+		"pre-bundles dependencies imported by transformed server modules",
+		{ timeout: CLOUDFLARE_OPTIMIZER_SITE.startupTimeoutMs + 120_000 },
+		async () => {
+			rmSync(join(CLOUDFLARE_OPTIMIZER_SITE.dir, "node_modules/.vite"), {
+				recursive: true,
+				force: true,
+			});
+			const devLogPath = join(CLOUDFLARE_OPTIMIZER_SITE.dir, ".astro/dev.log");
+			rmSync(devLogPath, { force: true });
+			const server = await bootSite(CLOUDFLARE_OPTIMIZER_SITE);
+
+			try {
+				const frontendRes = await fetchWithRetry(`${server.baseUrl}/`);
+				expect([200, 302, 307, 308]).toContain(frontendRes.status);
+				await frontendRes.text();
+				const readOptimizerOutput = () =>
+					[server.output, existsSync(devLogPath) ? readFileSync(devLogPath, "utf8") : ""].join(
+						"\n",
+					);
+				const observationDeadline = Date.now() + 5_000;
+				while (Date.now() < observationDeadline) {
+					expect(readOptimizerOutput()).not.toMatch(LATE_MANIFEST_OPTIMIZATION);
+					await new Promise((resolveSleep) => setTimeout(resolveSleep, 100));
+				}
+				expect(readOptimizerOutput()).not.toMatch(LATE_MANIFEST_OPTIMIZATION);
+			} finally {
+				await killServer(server.process);
+				await execAsync("pnpm", ["exec", "astro", "dev", "stop"], {
+					cwd: CLOUDFLARE_OPTIMIZER_SITE.dir,
+				});
+			}
+		},
+	);
 });
 
 // ---------------------------------------------------------------------------

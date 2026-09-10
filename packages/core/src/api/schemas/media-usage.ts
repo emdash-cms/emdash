@@ -13,6 +13,14 @@ export const mediaUsageCoverageSchema = z
 	})
 	.meta({ id: "MediaUsageCoverage" });
 
+export const mediaUsageProgressSchema = z
+	.object({
+		status: z.enum(["indexing", "ready", "needs_attention"]),
+		readyCollections: z.number().int().min(0),
+		totalCollections: z.number().int().min(0),
+	})
+	.meta({ id: "MediaUsageProgress" });
+
 export const mediaUsageSummarySchema = z
 	.object({
 		count: z.number().int().min(0).nullable(),
@@ -182,6 +190,66 @@ export const mediaUsageWorkRetryConflictSchema = z.object({
 	]),
 });
 
+export const mediaUsageActivationStateSchema = z
+	.enum(["expanded", "activating", "active"])
+	.meta({ id: "MediaUsageActivationState" });
+
+export const mediaUsageActivationStatusSchema = z
+	.object({
+		state: mediaUsageActivationStateSchema,
+		collectionCursor: z.string().nullable(),
+		attemptCount: z.number().int().min(0),
+		drainConfirmedAt: z.string().nullable(),
+		lastAttemptedAt: z.string().nullable(),
+		lastErrorCode: z.literal("MEDIA_USAGE_ACTIVATION_FAILED").nullable(),
+		leaseExpiresAt: z.string().nullable(),
+		activatedAt: z.string().nullable(),
+		updatedAt: z.string(),
+	})
+	.meta({ id: "MediaUsageActivationStatus" });
+
+export const mediaUsageActivationAdvanceBody = z
+	.object({
+		writersDrained: z.literal(true),
+	})
+	.strict()
+	.meta({ id: "MediaUsageActivationAdvanceBody" });
+
+export const mediaUsageActivationAdvanceResponseSchema = z
+	.object({
+		outcome: z.enum(["activating", "active"]),
+		processedCollections: z.number().int().min(0).max(1),
+		activation: mediaUsageActivationStatusSchema,
+	})
+	.meta({ id: "MediaUsageActivationAdvanceResponse" });
+
+export const mediaUsageProgressAdvanceResponseSchema = z
+	.object({
+		activation: mediaUsageActivationStatusSchema,
+		progress: mediaUsageProgressSchema.nullable(),
+		nextRequestInMs: z.union([z.literal(0), z.literal(30_000), z.null()]),
+	})
+	.meta({ id: "MediaUsageProgressAdvanceResponse" });
+
+export const mediaUsageActivationConflictSchema = z.object({
+	success: z.literal(false),
+	error: z.discriminatedUnion("code", [
+		z.object({
+			code: z.literal("MEDIA_USAGE_ACTIVATION_BUSY"),
+			message: z.string(),
+			details: z.object({ leaseExpiresAt: z.string() }),
+		}),
+		z.object({
+			code: z.literal("MEDIA_USAGE_ACTIVATION_CONFLICT"),
+			message: z.string(),
+		}),
+		z.object({
+			code: z.literal("MEDIA_USAGE_ACTIVATION_VERSION_MISMATCH"),
+			message: z.string(),
+		}),
+	]),
+});
+
 export const mediaUsageCollectionDeletionStateSchema = z
 	.enum(["pending", "retry", "leased", "failed"])
 	.meta({ id: "MediaUsageCollectionDeletionState" });
@@ -227,11 +295,20 @@ export const mediaUsageCollectionDeletionRetryResponseSchema = z
 
 export type MediaUsageRepairRequest = z.infer<typeof mediaUsageRepairBody>;
 export type MediaUsageRepairResponse = z.infer<typeof mediaUsageRepairResponseSchema>;
+export type MediaUsageProgress = z.infer<typeof mediaUsageProgressSchema>;
+export type MediaUsageProgressAdvanceResponse = z.infer<
+	typeof mediaUsageProgressAdvanceResponseSchema
+>;
 export type MediaUsageWorkListQuery = z.infer<typeof mediaUsageWorkListQuery>;
 export type MediaUsageWorkItem = z.infer<typeof mediaUsageWorkItemSchema>;
 export type MediaUsageWorkListResponse = z.infer<typeof mediaUsageWorkListResponseSchema>;
 export type MediaUsageWorkRetryRequest = z.infer<typeof mediaUsageWorkRetryBody>;
 export type MediaUsageWorkRetryResponse = z.infer<typeof mediaUsageWorkRetryResponseSchema>;
+export type MediaUsageActivationStatus = z.infer<typeof mediaUsageActivationStatusSchema>;
+export type MediaUsageActivationAdvanceRequest = z.infer<typeof mediaUsageActivationAdvanceBody>;
+export type MediaUsageActivationAdvanceResponse = z.infer<
+	typeof mediaUsageActivationAdvanceResponseSchema
+>;
 export type MediaUsageCollectionDeletionListQuery = z.infer<
 	typeof mediaUsageCollectionDeletionListQuery
 >;

@@ -203,7 +203,7 @@ export function ContentTypeList({
 									<td colSpan={columnCount} className="px-4 py-8 text-center text-kumo-subtle">
 										{t`No content types yet.`}{" "}
 										<Link to="/content-types/new" className="text-kumo-link underline">
-											{t`Create your first one`}
+											{t`Create your first content type`}
 										</Link>
 									</td>
 								</tr>

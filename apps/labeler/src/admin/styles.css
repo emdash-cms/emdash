@@ -1,0 +1,32 @@
+@source "../../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
+
+@import "@cloudflare/kumo/styles";
+@import "tailwindcss";
+
+:root {
+	font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+	color: var(--text-color-kumo-default);
+	background: var(--color-kumo-canvas);
+}
+
+* {
+	box-sizing: border-box;
+	border-color: var(--color-kumo-line);
+}
+
+body {
+	margin: 0;
+	min-width: 320px;
+	min-height: 100vh;
+	background: var(--color-kumo-canvas);
+}
+
+button,
+a {
+	-webkit-tap-highlight-color: transparent;
+}
+
+pre {
+	white-space: pre-wrap;
+	overflow-wrap: anywhere;
+}

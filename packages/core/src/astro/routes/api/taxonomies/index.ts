@@ -12,6 +12,7 @@ import { handleError, requireDb, unwrapResult } from "#api/error.js";
 import { handleTaxonomyCreate, handleTaxonomyList } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createTaxonomyDefBody, localeFilterQuery } from "#api/schemas.js";
+import { taxonomyTag } from "#cache/chrome-tags.js";
 
 export const prerender = false;
 
@@ -41,7 +42,7 @@ export const GET: APIRoute = async ({ request, locals }) => {
 /**
  * Create a custom taxonomy definition
  */
-export const POST: APIRoute = async ({ request, locals }) => {
+export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
 
 	const dbErr = requireDb(emdash?.db);
@@ -55,6 +56,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		const result = await handleTaxonomyCreate(emdash.db, body);
+		if (!result.success) return unwrapResult(result, 201);
+		if (cache?.enabled) await cache.invalidate({ tags: [taxonomyTag(result.data.taxonomy.name)] });
 		return unwrapResult(result, 201);
 	} catch (error) {
 		return handleError(error, "Failed to create taxonomy", "TAXONOMY_CREATE_ERROR");

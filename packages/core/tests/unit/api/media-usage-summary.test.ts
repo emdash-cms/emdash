@@ -313,6 +313,41 @@ describe("media usage summary handler and routes", () => {
 		expect(queries).toHaveLength(1);
 	});
 
+	it("returns an exact total only for page-mode list requests", async () => {
+		const response = await invokeList("?page=1&limit=1", Role.CONTRIBUTOR);
+		const data = await readSuccess<{
+			items: MediaListBodyItem[];
+			totalCount?: number;
+		}>(response);
+
+		expect(response.status).toBe(200);
+		expect(data.items).toHaveLength(1);
+		expect(data.totalCount).toBe(2);
+		expect(queries).toHaveLength(2);
+	});
+
+	it("preserves the page total when usage summaries are requested", async () => {
+		const response = await invokeList("?page=1&limit=1&includeUsage=1", Role.CONTRIBUTOR);
+		const data = await readSuccess<{
+			items: MediaListBodyItem[];
+			totalCount?: number;
+		}>(response);
+
+		expect(data.totalCount).toBe(2);
+		expect(data.items[0]?.usage).toBeDefined();
+		expect(queries).toHaveLength(4);
+	});
+
+	it("rejects cursor plus page without running a media query", async () => {
+		const response = await invokeList("?page=1&cursor=cursor", Role.CONTRIBUTOR);
+
+		expect(response.status).toBe(400);
+		expect((await response.json()) as ErrorBody).toEqual(
+			expect.objectContaining({ error: expect.objectContaining({ code: "VALIDATION_ERROR" }) }),
+		);
+		expect(queries).toHaveLength(0);
+	});
+
 	it("attaches numeric usage counts to every list item for an authorized session", async () => {
 		const response = await invokeList("?includeUsage=1", Role.CONTRIBUTOR);
 		const data = await readSuccess<{ items: MediaListBodyItem[] }>(response);
@@ -532,6 +567,8 @@ function mediaItemFixture(): MediaItem {
 		size: null,
 		width: null,
 		height: null,
+		focalX: null,
+		focalY: null,
 		alt: null,
 		caption: null,
 		storageKey: "hero.png",
@@ -541,5 +578,6 @@ function mediaItemFixture(): MediaItem {
 		dominantColor: null,
 		createdAt: "2026-07-13T00:00:00.000Z",
 		authorId: null,
+		folderId: null,
 	};
 }

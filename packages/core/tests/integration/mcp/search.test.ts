@@ -20,6 +20,8 @@ import { FTSManager } from "../../../src/search/fts-manager.js";
 import {
 	connectMcpHarness,
 	extractJson,
+	currentRev,
+	revOf,
 	extractText,
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
@@ -91,7 +93,11 @@ describe("search", () => {
 		});
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id: "hello-world" },
+			arguments: {
+				collection: "post",
+				id: "hello-world",
+				_rev: await currentRev(harness.client, "post", "hello-world"),
+			},
 		});
 
 		const result = await harness.client.callTool({
@@ -117,7 +123,7 @@ describe("search", () => {
 		const id = extractJson<{ item: { id: string } }>(created).item.id;
 		await harness.client.callTool({
 			name: "content_publish",
-			arguments: { collection: "post", id },
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
 		});
 
 		const result = await harness.client.callTool({
@@ -172,6 +178,7 @@ describe("search", () => {
 			arguments: {
 				collection: "post",
 				id: extractJson<{ item: { id: string } }>(post).item.id,
+				_rev: revOf(post),
 			},
 		});
 		await harness.client.callTool({
@@ -179,6 +186,7 @@ describe("search", () => {
 			arguments: {
 				collection: "page",
 				id: extractJson<{ item: { id: string } }>(page).item.id,
+				_rev: revOf(page),
 			},
 		});
 
@@ -214,6 +222,7 @@ describe("search", () => {
 			arguments: {
 				collection: "post",
 				id: extractJson<{ item: { id: string } }>(created).item.id,
+				_rev: revOf(created),
 			},
 		});
 
@@ -246,6 +255,7 @@ describe("search", () => {
 			arguments: {
 				collection: "post",
 				id: extractJson<{ item: { id: string } }>(created).item.id,
+				_rev: revOf(created),
 			},
 		});
 
@@ -279,6 +289,7 @@ describe("search", () => {
 				arguments: {
 					collection: "post",
 					id: extractJson<{ item: { id: string } }>(c).item.id,
+					_rev: revOf(c),
 				},
 			});
 		}
@@ -309,6 +320,7 @@ describe("search", () => {
 			arguments: {
 				collection: "post",
 				id: extractJson<{ item: { id: string } }>(pubItem).item.id,
+				_rev: revOf(pubItem),
 			},
 		});
 
@@ -342,6 +354,7 @@ describe("search", () => {
 				arguments: {
 					collection: "post",
 					id: extractJson<{ item: { id: string } }>(c).item.id,
+					_rev: revOf(c),
 				},
 			});
 		}

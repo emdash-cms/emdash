@@ -46,6 +46,8 @@ export function sanitizeGalleryImages(
 		if (typeof record.caption === "string" && record.caption) image.caption = record.caption;
 		if (typeof record.width === "number") image.width = record.width;
 		if (typeof record.height === "number") image.height = record.height;
+		if (typeof record.focalX === "number") image.focalX = record.focalX;
+		if (typeof record.focalY === "number") image.focalY = record.focalY;
 		if (typeof record.blurhash === "string" && record.blurhash) image.blurhash = record.blurhash;
 		if (typeof record.dominantColor === "string" && record.dominantColor)
 			image.dominantColor = record.dominantColor;

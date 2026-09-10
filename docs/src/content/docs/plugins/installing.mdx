@@ -24,12 +24,18 @@ To install marketplace plugins, your site needs:
    On **Cloudflare Workers**, use the Cloudflare sandbox adapter:
 
    ```typescript title="astro.config.mjs"
+   import { defineConfig } from "astro/config";
    import { sandbox } from "@emdash-cms/cloudflare";
+   import emdash from "emdash/astro";
 
-   emdash({
-     marketplace: "https://marketplace.emdashcms.com",
-     sandboxRunner: sandbox(),
-   })
+   export default defineConfig({
+     integrations: [
+       emdash({
+         marketplace: "https://marketplace.emdashcms.com",
+         sandboxRunner: sandbox(),
+       }),
+     ],
+   });
    ```
 
    Sandboxed plugins use Worker Loader, which is available on Workers paid plans. Add the binding to `wrangler.jsonc` to enable them:
@@ -38,28 +44,33 @@ To install marketplace plugins, your site needs:
    "worker_loaders": [{ "binding": "LOADER" }],
    ```
 
-   The Cloudflare adapter reads this config at build time. If the binding is absent, it disables the sandbox runner and logs a single explanatory line, allowing the same project to deploy on the Workers free plan.
+   The Cloudflare adapter reads this config at build time. Without the binding, it disables the runner so the site can deploy on the Workers free plan. The marketplace and registry remain available to browse, but sandboxed plugins under `sandboxed: []` do not load and install requests fail with `SANDBOX_NOT_AVAILABLE`.
 
    On **Node.js**, install the workerd sandbox runner:
 
    ```bash
-   npm install @emdash-cms/sandbox-workerd
+   npm install @emdash-cms/sandbox-workerd workerd
    ```
 
    Then pass the runner explicitly:
 
    ```typescript title="astro.config.mjs"
-   emdash({
-     marketplace: "https://marketplace.emdashcms.com",
-     sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
-   })
+   import { defineConfig } from "astro/config";
+   import emdash from "emdash/astro";
+
+   export default defineConfig({
+     integrations: [
+       emdash({
+         marketplace: "https://marketplace.emdashcms.com",
+         sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
+       }),
+     ],
+   });
    ```
 
-   In development, install `miniflare` as a dev dependency for faster sandbox startup:
+   The runner includes Miniflare as an optional dependency. With optional dependencies enabled, development uses it automatically for faster sandbox startup.
 
-   ```bash
-   npm install -D miniflare
-   ```
+   The bindings, resource limits, and failure modes of each runner are described in [Plugin Sandbox](/deployment/plugin-sandbox/).
 
 2. **Admin access** — Only administrators can install or remove plugins.
 

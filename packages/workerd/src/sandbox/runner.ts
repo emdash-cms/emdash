@@ -362,6 +362,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	private shuttingDown = false;
 
 	/**
+	 * True once the crash budget is spent and scheduleRestart() stopped
+	 * scheduling retries. Giving up leaves needsRestart false, which at the
+	 * invocation site looks identical to a runner that has not started yet.
+	 */
+	private gaveUp = false;
+
+	/**
 	 * True when stopWorkerd() is intentionally tearing down the child
 	 * (e.g., on intentional restart() to reload plugins). The exit handler
 	 * uses this to skip crash recovery for intentional stops, otherwise
@@ -447,6 +454,21 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	}
 
 	/**
+	 * Why an invocation cannot reach workerd, for the message carried by
+	 * SandboxUnavailableError.
+	 *
+	 * Giving up is the one state no invocation retries out of: needsRestart
+	 * stays false, so ensureRunning() returns without starting anything and
+	 * workerd waits for a server restart, an install or an update.
+	 */
+	unavailableReason(): string {
+		if (this.gaveUp) {
+			return "workerd crashed 5 times in 60 seconds and the runner stopped retrying; restart the server";
+		}
+		return "workerd is not running";
+	}
+
+	/**
 	 * Ensure workerd is running. Called before first invocation.
 	 * Batches plugin loading: all plugins are registered via load(),
 	 * then workerd starts once on the first hook/route call.
@@ -467,6 +489,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		try {
 			await this.startupPromise;
 			this.needsRestart = false;
+			// A repeat load returns the cached instance without marking a
+			// restart, so it never drives the start that clears this.
+			this.gaveUp = false;
 		} finally {
 			// Always clear startupPromise so a failed start doesn't block
 			// subsequent retries. needsRestart stays true on failure (set above
@@ -594,9 +619,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.crashCount++;
 
 		if (this.crashCount > 5) {
+			this.gaveUp = true;
 			console.error(
 				"[emdash:workerd] workerd crashed 5 times in 60 seconds, giving up. " +
-					"Plugins will run unsandboxed. Restart the server to retry.",
+					"Sandboxed plugin hooks and routes now fail with SandboxUnavailableError. " +
+					"Restart the server to retry.",
 			);
 			return;
 		}
@@ -605,6 +632,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const delayMs = Math.min(1000 * 2 ** (this.crashCount - 1), 30_000);
 		console.warn(`[emdash:workerd] restarting in ${delayMs}ms (attempt ${this.crashCount}/5)`);
 
+		this.gaveUp = false;
 		this.restartTimer = setTimeout(() => {
 			this.restartTimer = null;
 			// Just mark as needing restart. The next plugin invocation will
@@ -944,7 +972,7 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	private async ensureReady(): Promise<void> {
 		await this.runner.ensureRunning();
 		if (!this.runner.isHealthy()) {
-			throw new SandboxUnavailableError(this.id, "workerd is not running");
+			throw new SandboxUnavailableError(this.id, this.runner.unavailableReason());
 		}
 	}
 
@@ -1050,15 +1078,16 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
  * Factory function for creating the workerd sandbox runner.
  *
  * Selects MiniflareDevRunner only when explicitly in development mode
- * (NODE_ENV === "development"). Any other value — including unset (which
- * is the default for `node server.js` and `astro preview` on self-hosted
- * deployments) — uses the production WorkerdSandboxRunner.
+ * (NODE_ENV === "development"). Any other value — including unset for
+ * `node server.js` and `"production"` from `astro preview` — uses the
+ * production WorkerdSandboxRunner.
  *
  * The dev runner skips production hardening (wall-time wrapper, child
  * process supervision, crash/restart with backoff), so falling back to
  * it silently in production would be a security regression.
  *
- * Operators who want the dev runner explicitly should set NODE_ENV=development.
+ * Operators who want the dev runner explicitly should set EMDASH_SANDBOX_DEV=1
+ * or NODE_ENV=development.
  */
 export const createSandboxRunner: SandboxRunnerFactory = (options) => {
 	const isDev = process.env.EMDASH_SANDBOX_DEV === "1" || process.env.NODE_ENV === "development";

@@ -1,5 +1,12 @@
 import pullRequestTemplate from "../../../../.github/PULL_REQUEST_TEMPLATE.md?raw";
-import type { Kind, StateId } from "./machine.js";
+import {
+	EVENTS,
+	STATES,
+	type CommandVerb,
+	type EventId,
+	type Kind,
+	type StateId,
+} from "./machine.js";
 import {
 	artifactsBranch,
 	fixBranch,
@@ -12,18 +19,83 @@ export function shouldPostReadonlyReply(dryRun?: boolean): boolean {
 	return dryRun !== true;
 }
 
-export function renderReadonlyReply(state: StateId | null): string {
+type HumanActor = "maintainer" | "reporter";
+
+function renderCommand(command: EventId): string {
+	const argument = EVENTS[command].arg ? ` <${EVENTS[command].arg}>` : "";
+	return `\`@emdashbot ${command.replaceAll("_", " ")}${argument}\``;
+}
+
+function availableCommands(state: StateId | null, actor: HumanActor): CommandVerb[] {
+	if (!state) return [];
+	return STATES[state].offeredCommands.filter((command) => EVENTS[command].actors.includes(actor));
+}
+
+function renderAvailableCommands(state: StateId | null, actor: HumanActor): string {
+	const commands = availableCommands(state, actor);
+	if (commands.length === 0) {
+		return "Use `@emdashbot status` to check the current state or `@emdashbot help` for command guidance.";
+	}
+	return `Available now: ${commands.map(renderCommand).join(" · ")}.`;
+}
+
+function renderHelpReply(state: StateId | null, actor: HumanActor): string {
+	const commands = availableCommands(state, actor);
+	const heading = state
+		? `Commands available while this issue is in state \`${state}\`:`
+		: "The issue has conflicting bot state labels. A maintainer can use `@emdashbot reset`.";
+	const entries = commands.map(
+		(command) => `- ${renderCommand(command)} — ${EVENTS[command].description}`,
+	);
+	return [
+		heading,
+		...(entries.length > 0 ? ["", ...entries] : []),
+		"",
+		"Use `@emdashbot status` to show the current state. Commands with an argument accept text after the verb.",
+	].join("\n");
+}
+
+export function renderCommandFeedback(
+	state: StateId | null,
+	event: EventId | null,
+	actor: HumanActor,
+): string {
+	const command = event ? renderCommand(event) : null;
+	const metadata = event ? EVENTS[event] : null;
+	const alternatives = renderAvailableCommands(state, actor);
+	if (command && metadata && !metadata.actors.includes(actor)) {
+		return `${command} can only be used by a maintainer.\n\n${alternatives}`;
+	}
+	if (!state) {
+		return `I can't act while this issue has conflicting bot state labels. A maintainer can use \`@emdashbot reset\`.\n\n${alternatives}`;
+	}
+	if (command) {
+		return `${command} isn't available while this issue is in state \`${state}\`.\n\n${alternatives}`;
+	}
+	return `I couldn't map that request to an action while this issue is in state \`${state}\`.\n\n${alternatives}`;
+}
+
+export function renderReadonlyReply(
+	state: StateId | null,
+	event: "status" | "help" = "status",
+	actor: HumanActor = "maintainer",
+): string {
+	if (event === "help") return renderHelpReply(state, actor);
 	switch (state) {
 		case "unmanaged":
 		case null:
 		case "triage":
-			return "Not currently working on this. Try `@emdashbot repro` (for a bug), `@emdashbot implement <directive>` (for a change), or `@emdashbot decline`.";
+			return "Not currently working on this. A maintainer can ask `@emdashbot triage`, `@emdashbot investigate <directive>`, or `@emdashbot work <directive>`.";
+		case "triaging":
+			return "Triaging this issue now. I’ll ask for missing information, request approval, or proceed with an obvious low-risk task.";
+		case "awaiting_approval":
+			return "Triage found useful work that needs a maintainer decision. Use `@emdashbot work` to continue.";
 		case "working":
-			return "Investigating now. I'll comment again when I have something to share.";
+			return "Working on this now. I’ll comment again when I have a candidate or need a decision.";
 		case "blocked":
-			return "I got stuck. A maintainer can `@emdashbot retry` or `@emdashbot implement <directive>` to give me a steer.";
+			return "The previous work needs attention. A maintainer can use `@emdashbot retry`, `@emdashbot work <directive>`, or `@emdashbot take over`.";
 		case "awaiting_feedback":
-			return "Waiting for you to verify the preview from my last comment. Reply `@emdashbot confirm` if it works, or describe what's still wrong.";
+			return "Waiting for you to verify the preview from my last comment. Reply naturally if it works or describe what is still wrong.";
 		case "in_review":
 			return "PR is open and under review.";
 		case "human_owned":
@@ -33,13 +105,13 @@ export function renderReadonlyReply(state: StateId | null): string {
 		case "declined":
 			return "I declined this. Reopen with `@emdashbot reopen` if circumstances change.";
 		case "failed":
-			return "My last attempt failed. A maintainer can `@emdashbot resume` if it saved a timeout checkpoint, start a fresh `@emdashbot retry`, or take it over.";
+			return "The previous run failed. Durable work is retained; a maintainer can use `@emdashbot retry` or take over.";
 		case "investigating":
 			return "Investigating now (reproduce + diagnose). I'll report a verdict with evidence.";
 		case "reproduced":
-			return "Reproduced it -- diagnosis in my last comment. A maintainer can `@emdashbot fix` to try a fix, or `@emdashbot decline`.";
+			return "Reproduced it. A maintainer can use `@emdashbot work` to continue from the diagnosis.";
 		case "diagnosed":
-			return "Root cause identified (couldn't confirm with a reproduction here) -- diagnosis in my last comment. A maintainer can `@emdashbot fix` to try a fix, or `@emdashbot decline`.";
+			return "Root cause identified without a local reproduction. A maintainer can use `@emdashbot work` to continue.";
 		case "not_reproduced":
 			return "I couldn't reproduce this; transcript above. Reply with steps that fail for you, or a maintainer can `@emdashbot decline`.";
 		case "needs_info":
@@ -49,7 +121,9 @@ export function renderReadonlyReply(state: StateId | null): string {
 		case "preview_building":
 			return "Building a preview so you can try the change.";
 		case "awaiting_reporter":
-			return "Try the preview from my last comment. Reply `@emdashbot confirm` if it works, or describe what needs to change.";
+			return "Try the preview from my last comment. Reply naturally if it works or describe what needs to change.";
+		case "needs_attention":
+			return "The last run or attached PR needs maintainer attention. Durable work is safe; use `@emdashbot retry`, `@emdashbot work`, or `@emdashbot take over`.";
 		default: {
 			const _exhaustive: never = state;
 			return `State: \`${String(_exhaustive)}\`.`;
@@ -83,6 +157,10 @@ export function renderAgentComment(
 	}
 
 	switch (decision.event) {
+		case "agent.auto_work":
+			return `${summary}\n\nThis is sufficiently clear and low risk to continue automatically.`;
+		case "agent.awaiting_approval":
+			return `${summary}\n\nA maintainer can continue with \`@emdashbot work\`.`;
 		case "agent.fix_ready":
 			// The fix loop routes fix_ready into preview_building, where the preview
 			// pipeline posts a deployed-preview link on preview.ready; a pkg.pr.new
@@ -98,18 +176,18 @@ export function renderAgentComment(
 				previewInstallCommand(anchorNumber, previewPackage),
 				"```",
 				"",
-				"Reply `@emdashbot confirm` if it works and I'll open the PR, or `@emdashbot revise <feedback>` to push changes.",
+				"Reply naturally if it works or describe what still needs to change.",
 			].join("\n");
 		case "agent.reproduced":
 			if (decision.to === "reproduced")
-				return `${summary}\n\nA maintainer can \`@emdashbot fix\` to try a fix, or \`@emdashbot decline\`.`;
-			return `${summary}\n\nReply \`@emdashbot implement <directive>\` if you want me to take another swing with guidance.`;
+				return `${summary}\n\nA maintainer can continue with \`@emdashbot work\`, or use \`@emdashbot decline\`.`;
+			return `${summary}\n\nA maintainer can continue with \`@emdashbot work <directive>\`.`;
 		case "agent.diagnosed":
-			return `${summary}\n\nI couldn't confirm this with a reproduction in my environment, but the diagnosis above is specific. A maintainer can \`@emdashbot fix\` to try a fix (the fix run verifies with a failing test first), or \`@emdashbot decline\`.`;
+			return `${summary}\n\nI couldn't confirm this with a reproduction in my environment, but the diagnosis is specific. A maintainer can continue with \`@emdashbot work\`, or use \`@emdashbot decline\`.`;
 		case "agent.not_reproduced":
 			return `${summary}\n\nReply with steps that fail for you, or close if it's no longer relevant.`;
 		case "agent.needs_info":
-			return `${summary}\n\nReply with the details above; a maintainer can \`@emdashbot investigate\` again once they arrive.`;
+			return `${summary}\n\nReply with the details above and I’ll re-triage automatically.`;
 		default:
 			return summary;
 	}
@@ -160,8 +238,8 @@ export function renderPreviewReadyAsk(input: {
 				`![${mdEscape(shot.description ?? shot.filename)}](https://raw.githubusercontent.com/${input.owner}/${input.repo}/${artifactsBranch(input.issueNumber)}/.bot-artifacts/${shot.filename})`,
 		);
 	const reporterAsk = input.reporterLogin
-		? `@${input.reporterLogin} could you try this? Reply \`@emdashbot confirm\` if it works as requested, or \`@emdashbot reject <details>\` if it does not.`
-		: "Could the reporter please try this? Reply `@emdashbot confirm` if it works as requested, or `@emdashbot reject <details>` if it does not.";
+		? `@${input.reporterLogin} could you try this? Reply naturally to say whether it works or explain what still needs to change.`
+		: "Could the reporter please try this? Reply naturally to say whether it works or explain what still needs to change.";
 	return [
 		`<!-- bot-ask: ${input.at} -->`,
 		"A candidate change is ready to preview.",
@@ -181,7 +259,7 @@ export function renderPreviewReadyAsk(input: {
 		...(shots.length > 0 ? ["**Screenshots:**", "", shots.join("\n\n"), ""] : []),
 		reporterAsk,
 		"",
-		"<sub>Maintainers can use the same commands on the reporter's behalf. Confirmation opens a draft PR; rejection reaps the branch for revision.</sub>",
+		"<sub>A maintainer can accept on the reporter's behalf. Acceptance opens a draft PR; requested changes start another candidate revision.</sub>",
 		"",
 		`Fix branch: \`${fixBranch(input.issueNumber)}\` · Artifacts branch: \`${artifactsBranch(input.issueNumber)}\``,
 	]
@@ -197,13 +275,18 @@ export interface PullRequestCopy {
 const TYPE_SECTION_HEADING_RE = /^## Type of change\b/im;
 const BUG_FIX_CHECKBOX_RE = /^- \[ ] Bug fix\b(.*)$/im;
 const FEATURE_CHECKBOX_RE = /^- \[ ] Feature\b(.*)$/im;
+const CHORE_CHECKBOX_RE = /^- \[ ] Chore\b(.*)$/im;
 const AI_DISCLOSURE_CHECKBOX_RE = /^- \[ ] This PR includes AI-generated code\b.*$/im;
 
 export function fillPullRequestTemplate(template: string, kind: Kind): string {
 	const typeSectionStart = template.search(TYPE_SECTION_HEADING_RE);
 	if (typeSectionStart === -1) throw new Error("pull request template is missing its type section");
-	const typeCheckbox = kind === "bug" ? BUG_FIX_CHECKBOX_RE : FEATURE_CHECKBOX_RE;
-	const typeLabel = kind === "bug" ? "Bug fix" : "Feature";
+	const [typeCheckbox, typeLabel] =
+		kind === "bug"
+			? [BUG_FIX_CHECKBOX_RE, "Bug fix"]
+			: kind === "enhancement"
+				? [FEATURE_CHECKBOX_RE, "Feature"]
+				: [CHORE_CHECKBOX_RE, "Chore"];
 	const templateBody = template.slice(typeSectionStart);
 	if (!typeCheckbox.test(templateBody)) {
 		throw new Error(`pull request template is missing its ${typeLabel} checkbox`);

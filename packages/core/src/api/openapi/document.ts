@@ -32,18 +32,31 @@ import {
 	contentResponseSchema,
 	contentScheduleBody,
 	contentTermsBody,
+	contentTermsResponseSchema,
 	contentTrashQuery,
 	contentTranslationsResponseSchema,
 	contentUpdateBody,
 	trashedContentListResponseSchema,
 } from "../schemas/content.js";
 import {
+	entryLockAcquireBody,
+	entryLockConflictSchema,
+	entryLockReleaseResponseSchema,
+	entryLockStatusSchema,
+} from "../schemas/entry-lock.js";
+import {
 	mediaUsageDetailsQuery,
 	mediaUsageDetailsResponseSchema,
+	mediaUsageProgressSchema,
+	mediaUsageProgressAdvanceResponseSchema,
 	mediaUsageCollectionDeletionListQuery,
 	mediaUsageCollectionDeletionListResponseSchema,
 	mediaUsageCollectionDeletionRetryBody,
 	mediaUsageCollectionDeletionRetryResponseSchema,
+	mediaUsageActivationStatusSchema,
+	mediaUsageActivationAdvanceBody,
+	mediaUsageActivationAdvanceResponseSchema,
+	mediaUsageActivationConflictSchema,
 	mediaUsageRepairBody,
 	mediaUsageRepairResponseSchema,
 	mediaUsageWorkListQuery,
@@ -56,17 +69,26 @@ import {
 	DEFAULT_MAX_UPLOAD_SIZE,
 	mediaConfirmBody,
 	mediaConfirmResponseSchema,
+	mediaDirectUploadBody,
 	mediaExistingResponseSchema,
+	mediaFolderBody,
+	mediaFolderIdSchema,
+	mediaFolderListQuery,
+	mediaFolderListResponseSchema,
+	mediaFolderResponseSchema,
 	mediaGetQuery,
 	mediaListQuery,
 	mediaListReadResponseSchema,
 	mediaListResponseSchema,
 	mediaReadResponseSchema,
+	mediaReplaceBody,
+	mediaReplaceResponseSchema,
 	mediaResponseSchema,
 	mediaStreamUploadResponseSchema,
 	mediaUpdateBody,
 	mediaUploadUrlBody,
 	mediaUploadUrlResponseSchema,
+	mediaUploadResponseSchema,
 } from "../schemas/media.js";
 import {
 	createMenuBody,
@@ -159,6 +181,7 @@ import {
 // ---------------------------------------------------------------------------
 
 const JSON_CONTENT = "application/json";
+const MULTIPART_CONTENT = "multipart/form-data";
 
 /** Standard error responses shared across all authenticated endpoints */
 function standardErrors(
@@ -178,6 +201,7 @@ function standardErrors(
 		404: "Not Found",
 		409: "Conflict",
 		413: "Payload Too Large",
+		422: "Unprocessable Entity",
 		500: "Internal Server Error",
 	};
 	for (const code of codes) {
@@ -192,6 +216,19 @@ function standardErrors(
 /** Common auth error responses (401 + 403) */
 const authErrors = standardErrors(401, 403);
 
+const entryPathParams = z.object({
+	collection: z.string().meta({ description: "Collection slug" }),
+	id: z.string().meta({ description: "Content ID or slug" }),
+});
+
+/** 409 that carries the edit lock's holder in `error.details` */
+const entryLockConflict = {
+	"409": {
+		description: "Another editor holds the entry's edit lock",
+		content: { [JSON_CONTENT]: { schema: entryLockConflictSchema } },
+	},
+};
+
 // ---------------------------------------------------------------------------
 // Content routes
 // ---------------------------------------------------------------------------
@@ -205,7 +242,7 @@ const contentPaths = {
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
-					collection: z.string().meta({ description: "Collection slug", example: "posts" }),
+					collection: z.string().meta({ description: "Collection slug", examples: ["posts"] }),
 				}),
 				query: contentListQuery,
 			},
@@ -244,7 +281,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 500),
+				...standardErrors(400, 422, 500),
 			},
 		},
 	},
@@ -302,7 +339,7 @@ const contentPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(400, 404, 409, 500),
+				...standardErrors(400, 404, 409, 422, 500),
 			},
 		},
 		delete: {
@@ -312,9 +349,12 @@ const contentPaths = {
 				"Moves the content item to trash. Use the permanent delete endpoint to remove permanently.",
 			tags: ["Content"],
 			requestParams: {
-				path: z.object({
-					collection: z.string().meta({ description: "Collection slug" }),
-					id: z.string().meta({ description: "Content ID or slug" }),
+				path: entryPathParams,
+				query: z.object({
+					overrideLock: z.enum(["true", "false"]).optional().meta({
+						description:
+							"Delete even though another editor holds this entry's edit lock. Without it the delete is refused with 409 ENTRY_LOCKED.",
+					}),
 				}),
 			},
 			responses: {
@@ -328,6 +368,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+				...entryLockConflict,
 			},
 		},
 	},
@@ -354,6 +395,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+				...entryLockConflict,
 			},
 		},
 	},
@@ -381,6 +423,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+				...entryLockConflict,
 			},
 		},
 	},
@@ -410,6 +453,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(400, 404, 500),
+				...entryLockConflict,
 			},
 		},
 		delete: {
@@ -418,9 +462,12 @@ const contentPaths = {
 			description: "Reverts a scheduled item to draft status.",
 			tags: ["Content"],
 			requestParams: {
-				path: z.object({
-					collection: z.string().meta({ description: "Collection slug" }),
-					id: z.string().meta({ description: "Content ID or slug" }),
+				path: entryPathParams,
+				query: z.object({
+					overrideLock: z.enum(["true", "false"]).optional().meta({
+						description:
+							"Unschedule even though another editor holds this entry's edit lock. Without it the request is refused with 409 ENTRY_LOCKED.",
+					}),
 				}),
 			},
 			responses: {
@@ -434,6 +481,7 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+				...entryLockConflict,
 			},
 		},
 	},
@@ -566,6 +614,81 @@ const contentPaths = {
 				},
 				...authErrors,
 				...standardErrors(404, 500),
+				...entryLockConflict,
+			},
+		},
+	},
+
+	"/_emdash/api/content/{collection}/{id}/lock": {
+		get: {
+			operationId: "getEntryLock",
+			summary: "Read the entry's edit lock",
+			description: "Reports who is holding the entry, if anyone, without changing the lease.",
+			tags: ["Content"],
+			requestParams: {
+				path: entryPathParams,
+			},
+			responses: {
+				"200": {
+					description: "Current lock state",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(entryLockStatusSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+		post: {
+			operationId: "acquireEntryLock",
+			summary: "Take or refresh the entry's edit lock",
+			description:
+				"Takes the lock for the caller, or reports who holds it. `heldByCaller` " +
+				"tells the two apart. The lease lasts seven minutes; repeating this call " +
+				"and every save on the entry extend it. `takeover` claims the lock from " +
+				"whoever holds it; their next heartbeat or save reports the new holder.",
+			tags: ["Content"],
+			requestParams: {
+				path: entryPathParams,
+			},
+			requestBody: {
+				content: { [JSON_CONTENT]: { schema: entryLockAcquireBody } },
+			},
+			responses: {
+				"200": {
+					description: "Lock state after the attempt",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(entryLockStatusSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
+			},
+		},
+		delete: {
+			operationId: "releaseEntryLock",
+			summary: "Release the caller's edit lock",
+			description:
+				"Releases the lock only when the caller holds it; `released` is false otherwise.",
+			tags: ["Content"],
+			requestParams: {
+				path: entryPathParams,
+				query: z.object({
+					token: z.string().optional().meta({
+						description:
+							"The session token sent on acquire. With it, only the tab that last claimed the lock releases it.",
+					}),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Whether a lock was released",
+					content: {
+						[JSON_CONTENT]: { schema: successEnvelope(entryLockReleaseResponseSchema) },
+					},
+				},
+				...authErrors,
+				...standardErrors(404, 500),
 			},
 		},
 	},
@@ -596,15 +719,44 @@ const contentPaths = {
 		},
 	},
 
-	"/_emdash/api/content/{collection}/{id}/terms": {
-		put: {
-			operationId: "setContentTerms",
-			summary: "Set taxonomy terms on a content item",
+	"/_emdash/api/content/{collection}/{id}/terms/{taxonomy}": {
+		get: {
+			operationId: "getContentTerms",
+			summary: "Get taxonomy terms assigned to a content item",
+			description:
+				"Returns the terms of one taxonomy that are assigned to the content item, resolved to the item's locale with fallback to the site default.",
 			tags: ["Content"],
 			requestParams: {
 				path: z.object({
 					collection: z.string().meta({ description: "Collection slug" }),
 					id: z.string().meta({ description: "Content ID or slug" }),
+					taxonomy: z.string().meta({ description: "Taxonomy name" }),
+				}),
+			},
+			responses: {
+				"200": {
+					description: "Terms assigned to the content item",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(contentTermsResponseSchema),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 404, 500),
+			},
+		},
+		post: {
+			operationId: "setContentTerms",
+			summary: "Set taxonomy terms on a content item",
+			description:
+				"Assign a set of terms to the content item for the named taxonomy, replacing any existing assignments for that taxonomy. Every term id must belong to the named taxonomy.",
+			tags: ["Content"],
+			requestParams: {
+				path: z.object({
+					collection: z.string().meta({ description: "Collection slug" }),
+					id: z.string().meta({ description: "Content ID or slug" }),
+					taxonomy: z.string().meta({ description: "Taxonomy name" }),
 				}),
 			},
 			requestBody: {
@@ -615,7 +767,7 @@ const contentPaths = {
 					description: "Terms updated",
 					content: {
 						[JSON_CONTENT]: {
-							schema: successEnvelope(z.object({ termIds: z.array(z.string()) })),
+							schema: successEnvelope(contentTermsResponseSchema),
 						},
 					},
 				},
@@ -701,6 +853,119 @@ function buildMediaPaths(maxUploadSize: number) {
 					...standardErrors(400, 500),
 				},
 			},
+			post: {
+				operationId: "uploadMedia",
+				summary: "Upload a media item",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [MULTIPART_CONTENT]: { schema: mediaDirectUploadBody } },
+				},
+				responses: {
+					"200": {
+						description: "Existing deduplicated media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaUploadResponseSchema) } },
+					},
+					"201": {
+						description: "Created media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaUploadResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(400, 413, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/folders": {
+			get: {
+				operationId: "listMediaFolders",
+				summary: "List media folders",
+				tags: ["Media"],
+				requestParams: { query: mediaFolderListQuery },
+				responses: {
+					"200": {
+						description: "Media folder list",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderListResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+				},
+			},
+			post: {
+				operationId: "createMediaFolder",
+				summary: "Create a media folder",
+				tags: ["Media"],
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaFolderBody } } },
+				responses: {
+					"201": {
+						description: "Created media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 409, 500),
+				},
+			},
+		},
+		"/_emdash/api/media/folders/{id}": {
+			get: {
+				operationId: "getMediaFolder",
+				summary: "Get a media folder",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				responses: {
+					"200": {
+						description: "Media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
+			put: {
+				operationId: "updateMediaFolder",
+				summary: "Update a media folder",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				requestBody: { content: { [JSON_CONTENT]: { schema: mediaFolderBody } } },
+				responses: {
+					"200": {
+						description: "Updated media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaFolderResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 409, 500),
+				},
+			},
+			delete: {
+				operationId: "deleteMediaFolder",
+				summary: "Delete a media folder",
+				description: "Deletes the folder and returns its media to the Main library.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: mediaFolderIdSchema.meta({ description: "Media folder ID" }) }),
+				},
+				responses: {
+					"200": {
+						description: "Deleted media folder",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(deleteResponseSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 404, 500),
+				},
+			},
 		},
 		"/_emdash/api/media/{id}": {
 			get: {
@@ -779,6 +1044,30 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/media/{id}/replace": {
+			put: {
+				operationId: "replaceMediaImage",
+				summary: "Replace a media image",
+				description:
+					"Overwrites a ready local image under its existing storage key and refreshes its file metadata while preserving its media ID, filename, and URL. The replacement may use different dimensions or an aspect ratio from the original.",
+				tags: ["Media"],
+				requestParams: {
+					path: z.object({ id: z.string().meta({ description: "Media ID" }) }),
+				},
+				requestBody: {
+					required: true,
+					content: { [MULTIPART_CONTENT]: { schema: mediaReplaceBody } },
+				},
+				responses: {
+					"200": {
+						description: "Replaced media item",
+						content: { [JSON_CONTENT]: { schema: successEnvelope(mediaReplaceResponseSchema) } },
+					},
+					...authErrors,
+					...standardErrors(400, 404, 413, 500),
+				},
+			},
+		},
 		"/_emdash/api/admin/media-usage/repair": {
 			post: {
 				operationId: "repairMediaUsage",
@@ -802,6 +1091,46 @@ function buildMediaPaths(maxUploadSize: number) {
 				},
 			},
 		},
+		"/_emdash/api/admin/media-usage/progress": {
+			get: {
+				operationId: "getMediaUsageProgress",
+				summary: "Get media usage indexing progress",
+				description:
+					"Returns aggregate indexing readiness for current content collections after controlled activation is active. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Aggregate media usage indexing progress",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageProgressSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(409),
+					...standardErrors(500),
+				},
+			},
+			post: {
+				operationId: "advanceMediaUsageProgress",
+				summary: "Advance media usage indexing",
+				description:
+					"Runs one bounded Media Usage maintenance step and returns the stored activation and indexing state. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Media Usage progress after one maintenance step",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageProgressAdvanceResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(409),
+					...standardErrors(500),
+				},
+			},
+		},
 		"/_emdash/api/admin/media-usage/work": {
 			get: {
 				operationId: "listMediaUsageWork",
@@ -819,6 +1148,52 @@ function buildMediaPaths(maxUploadSize: number) {
 					},
 					...authErrors,
 					...standardErrors(400, 404, 500),
+				},
+			},
+		},
+		"/_emdash/api/admin/media-usage/activation": {
+			get: {
+				operationId: "getMediaUsageActivation",
+				summary: "Get media usage activation status",
+				description:
+					"Returns the redacted status of controlled Media Usage capture activation. This operation is read-only and does not start or resume activation. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				responses: {
+					"200": {
+						description: "Media usage activation status",
+						content: {
+							[JSON_CONTENT]: { schema: successEnvelope(mediaUsageActivationStatusSchema) },
+						},
+					},
+					...authErrors,
+					...standardErrors(409, 500),
+				},
+			},
+			post: {
+				operationId: "advanceMediaUsageActivation",
+				summary: "Advance media usage activation",
+				description:
+					"Starts, resumes, or retries exactly one bounded activation batch after the operator confirms that all writers are drained. Continue setup through the Media Usage progress endpoint. Requires `schema:manage`; bearer tokens also require the `admin` scope.",
+				tags: ["Media"],
+				requestBody: {
+					required: true,
+					content: { [JSON_CONTENT]: { schema: mediaUsageActivationAdvanceBody } },
+				},
+				responses: {
+					"200": {
+						description: "Current media usage activation progress",
+						content: {
+							[JSON_CONTENT]: {
+								schema: successEnvelope(mediaUsageActivationAdvanceResponseSchema),
+							},
+						},
+					},
+					...authErrors,
+					...standardErrors(400, 500),
+					"409": {
+						description: "Activation is busy, changed ownership, or is incompatible",
+						content: { [JSON_CONTENT]: { schema: mediaUsageActivationConflictSchema } },
+					},
 				},
 			},
 		},
@@ -1458,7 +1833,7 @@ const taxonomyPaths = {
 			operationId: "getTaxonomy",
 			summary: "Get a taxonomy definition",
 			description:
-				"Definitions are per-locale; `locale` picks one, and without it the lowest-locale match is returned.",
+				"Definitions are per-locale; `locale` picks one. Without it the configured default locale is returned, falling back to the lowest locale code.",
 			tags: ["Taxonomies"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Taxonomy name" }) }),

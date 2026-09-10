@@ -34,9 +34,9 @@
 			"bucket_name": "emdash-media",
 		},
 	],
-	// Cron trigger drives the AI Search reindex queue flush.
+	// Cron triggers drive general maintenance.
 	"triggers": {
-		"crons": ["* * * * *", "*/2 * * * *"],
+		"crons": ["* * * * *"],
 	},
 	// Observability
 	"observability": {

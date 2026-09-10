@@ -1012,7 +1012,7 @@ EmDash uses Portable Text (structured JSON) instead of Markdown, enabling:
 
 ### Requirements
 
-- **Node 22.12.0+** required (Node 18 and 20 dropped)
+- **Node 22.16.0+** required (Node 18 and 20 dropped)
 - **Vite 7** under the hood
 - **Zod 4** for schemas
 

@@ -54,6 +54,7 @@ declare global {
 // Role level constants (matching @emdash-cms/auth)
 const ROLE_ADMIN = 50;
 const MCP_ENDPOINT_PATH = "/_emdash/api/mcp";
+const COMMENT_SUBMISSION_PATH = /^\/_emdash\/api\/comments\/[^/]+\/[^/]+\/?$/;
 
 function isUnsafeMethod(method: string): boolean {
 	return method !== "GET" && method !== "HEAD" && method !== "OPTIONS";
@@ -190,6 +191,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			const publicOrigin = getPublicOrigin(url, context.locals.emdash?.config);
 			const csrfError = checkPublicCsrf(context.request, url, publicOrigin);
 			if (csrfError) return csrfError;
+		}
+		if (method === "POST" && COMMENT_SUBMISSION_PATH.test(url.pathname)) {
+			return handlePublicRouteAuth(context, next);
 		}
 		return next();
 	}

@@ -357,6 +357,136 @@ describeEachDialect("MediaUsageRepository reads", (dialect) => {
 		]);
 	});
 
+	it("summarizes current collection indexing progress and terminal work", async () => {
+		await registerCollection(ctx, "pages");
+		await registerCollection(ctx, "posts");
+		await insertCollectionStatus(ctx, "pages", "complete", 0);
+		await insertCollectionStatus(ctx, "posts", "stale", 1);
+
+		const progress = () => repo.findCollectionProgress();
+		await expect(progress()).resolves.toBeNull();
+		await ctx.db
+			.updateTable("_emdash_media_usage_activation")
+			.set({ state: "active" })
+			.where("task_key", "=", "incremental_capture")
+			.execute();
+
+		await expect(progress()).resolves.toEqual({
+			status: "indexing",
+			readyCollections: 1,
+			totalCollections: 2,
+		});
+		await ctx.db
+			.insertInto("_emdash_media_usage_work")
+			.values({
+				collection_id: "collection-posts",
+				collection_slug: "posts",
+				content_id: "remaining-entry",
+				change_epoch: 1,
+				state: "pending",
+				next_attempt_at: "2026-08-16T00:00:00.000Z",
+			})
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "indexing",
+			readyCollections: 1,
+			totalCollections: 2,
+		});
+		await ctx.db
+			.updateTable("_emdash_media_usage_work")
+			.set({ state: "failed", last_error_code: "MEDIA_USAGE_PROCESSING_FAILED" })
+			.where("collection_id", "=", "collection-posts")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "needs_attention",
+			readyCollections: 1,
+			totalCollections: 2,
+		});
+
+		await ctx.db.deleteFrom("_emdash_media_usage_work").execute();
+		await ctx.db.deleteFrom("_emdash_media_usage_reconciliations").execute();
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ status: "complete", reconciliation_required: 0 })
+			.where("collection_id", "=", "collection-posts")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+		});
+
+		await ctx.db
+			.insertInto("_emdash_media_usage_reconciliations")
+			.values({
+				collection_id: "collection-posts",
+				collection_slug: "posts",
+				run_token: "obsolete-failed-run",
+				state: "failed",
+				next_attempt_at: "2026-08-16T00:00:00.000Z",
+				last_error_code: "MEDIA_USAGE_RECONCILIATION_FAILED",
+			})
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "ready",
+			readyCollections: 2,
+			totalCollections: 2,
+		});
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: null })
+			.where("collection_id", "=", "collection-pages")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "needs_attention",
+			readyCollections: 1,
+			totalCollections: 2,
+		});
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ capture_state: "active" })
+			.where("collection_id", "=", "collection-pages")
+			.execute();
+		await ctx.db
+			.insertInto("_emdash_media_usage_collection_deletions")
+			.values({
+				collection_id: "collection-posts",
+				collection_slug: "posts",
+				force_delete: 0,
+				state: "pending",
+				next_attempt_at: "2026-08-16T00:00:00.000Z",
+			})
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "indexing",
+			readyCollections: 1,
+			totalCollections: 1,
+		});
+		await ctx.db
+			.updateTable("_emdash_media_usage_collection_deletions")
+			.set({ state: "failed" })
+			.where("collection_id", "=", "collection-posts")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "needs_attention",
+			readyCollections: 1,
+			totalCollections: 1,
+		});
+
+		await ctx.db
+			.updateTable("_emdash_media_usage_index_status")
+			.set({ schema_version: 0 })
+			.where("collection_id", "=", "collection-pages")
+			.execute();
+		await expect(progress()).resolves.toEqual({
+			status: "needs_attention",
+			readyCollections: 0,
+			totalCollections: 1,
+		});
+	});
+
 	it("paginates complete entry groups with nested sources and occurrences", async () => {
 		await registerCollection(ctx, "pages");
 		await registerCollection(ctx, "posts");
@@ -496,6 +626,27 @@ async function registerCollection(ctx: DialectTestContext, slug: string): Promis
 	await ctx.db
 		.insertInto("_emdash_collections")
 		.values({ id: `collection-${slug}`, slug, label: slug, has_seo: 0 })
+		.execute();
+}
+
+async function insertCollectionStatus(
+	ctx: DialectTestContext,
+	slug: string,
+	status: string,
+	reconciliationRequired: number,
+): Promise<void> {
+	await ctx.db
+		.insertInto("_emdash_media_usage_index_status")
+		.values({
+			adapter_id: "content-media",
+			scope_type: "collection",
+			scope_key: slug,
+			status,
+			schema_version: 1,
+			collection_id: `collection-${slug}`,
+			reconciliation_required: reconciliationRequired,
+			capture_state: "active",
+		})
 		.execute();
 }
 

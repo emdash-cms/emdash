@@ -259,12 +259,13 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
 	 * import { untrustedPlugin } from "some-third-party-plugin";
 	 *
 	 * emdash({
 	 *   plugins: [trustedPlugin()],     // runs in host
 	 *   sandboxed: [untrustedPlugin()], // runs in isolate
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -275,8 +276,10 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -359,7 +362,8 @@ export interface EmDashConfig {
 	 * and uninstall plugins from a remote marketplace.
 	 *
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
-	 * Requires `sandboxRunner` to be configured (marketplace plugins run sandboxed).
+	 * Installing or updating plugins requires an available `sandboxRunner`.
+	 * Browsing remains available when no runner is configured.
 	 *
 	 * When `registry` is also configured, the registry replaces the marketplace
 	 * for the admin UI's browse and install flows. Existing marketplace-installed
@@ -367,9 +371,11 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
 	 *   marketplace: "https://marketplace.emdashcms.com",
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */
@@ -385,13 +391,15 @@ export interface EmDashConfig {
 	 *
 	 * @example
 	 * ```ts
+	 * import { sandbox } from "@emdash-cms/cloudflare";
+	 *
 	 * emdash({
 	 *   experimental: {
 	 *     registry: {
 	 *       aggregatorUrl: "https://registry.emdashcms.com",
 	 *     },
 	 *   },
-	 *   sandboxRunner: "@emdash-cms/sandbox-cloudflare",
+	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
 	 */

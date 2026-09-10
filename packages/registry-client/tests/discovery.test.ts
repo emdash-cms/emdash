@@ -1,7 +1,11 @@
 import { ClientResponseError } from "@atcute/client";
 import { describe, expect, it, vi } from "vitest";
 
-import { DiscoveryClient } from "../src/discovery/index.js";
+import {
+	DiscoveryClient,
+	registryLabelerPolicy,
+	registryLabelerPolicyKey,
+} from "../src/discovery/index.js";
 
 /**
  * Builds a fetch stub that records every call and returns canned responses.
@@ -90,6 +94,105 @@ describe("DiscoveryClient", () => {
 		expect(headers.get("atproto-accept-labelers")).toBeNull();
 	});
 
+	it("uses an explicit required listing policy and gives it a stable cache key", () => {
+		const policy = registryLabelerPolicy("did:plc:listing-labeler");
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, labelerPolicy: policy });
+
+		expect(client.labelerPolicy).toEqual({
+			enforcement: "required",
+			acceptLabelers: "did:plc:listing-labeler",
+		});
+		expect(registryLabelerPolicyKey(policy)).toBe("required\u0000did:plc:listing-labeler");
+	});
+
+	it("normalizes the legacy header into the one effective policy value", async () => {
+		const { fetch, calls } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				status: 200,
+				body: { packages: [] },
+			},
+		});
+		const client = new DiscoveryClient({
+			aggregatorUrl: aggregator,
+			acceptLabelers: "  did:plc:listing-labeler  ",
+			labelerPolicy: { enforcement: "required" },
+			fetch,
+		});
+
+		await client.searchPackages({});
+
+		expect(client.acceptLabelers).toBe("did:plc:listing-labeler");
+		expect(client.labelerPolicy.acceptLabelers).toBe("did:plc:listing-labeler");
+		expect(registryLabelerPolicyKey(client.labelerPolicy)).toBe(
+			"required\u0000did:plc:listing-labeler",
+		);
+		expect(new Headers(calls[0]!.init?.headers).get("atproto-accept-labelers")).toBe(
+			"did:plc:listing-labeler",
+		);
+	});
+
+	it("rejects conflicting legacy and explicit accepted-labeler values", () => {
+		expect(
+			() =>
+				new DiscoveryClient({
+					aggregatorUrl: aggregator,
+					acceptLabelers: "did:plc:one",
+					labelerPolicy: registryLabelerPolicy("did:plc:two"),
+				}),
+		).toThrow(/must match/);
+	});
+
+	it("normalizes an empty accepted-labeler value to the aggregator default", async () => {
+		const { fetch, calls } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.searchPackages": {
+				status: 200,
+				body: { packages: [] },
+			},
+		});
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, acceptLabelers: "  ", fetch });
+
+		await client.searchPackages({});
+
+		expect(client.acceptLabelers).toBeUndefined();
+		expect(client.labelerPolicy).toEqual({ enforcement: "required" });
+		expect(registryLabelerPolicyKey(client.labelerPolicy)).toBe("required\u0000aggregator-default");
+		expect(new Headers(calls[0]!.init?.headers).has("atproto-accept-labelers")).toBe(false);
+	});
+
+	it("maps ListingUnavailable to a publisher-content-free status", async () => {
+		const unsafeSentinel = "UNSAFE_PUBLISHER_TEXT_MUST_NOT_ESCAPE";
+		const { fetch } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.getPackage": {
+				status: 404,
+				body: {
+					error: "ListingUnavailable",
+					message: unsafeSentinel,
+					publisherControlled: unsafeSentinel,
+				},
+			},
+		});
+
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+		const result = await client.getPackageStatus({ did: "did:plc:abc", slug: "gallery" });
+
+		expect(result).toEqual({ status: "unavailable", reason: "listing-unavailable" });
+		expect(JSON.stringify(result)).not.toContain(unsafeSentinel);
+	});
+
+	it("does not downgrade other response failures to ListingUnavailable", async () => {
+		const { fetch } = buildFetchStub({
+			"/xrpc/com.emdashcms.experimental.aggregator.getPackage": {
+				status: 404,
+				body: { error: "NotFound", message: "missing" },
+			},
+		});
+
+		const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+		await expect(
+			client.getPackageStatus({ did: "did:plc:abc", slug: "gallery" }),
+		).rejects.toMatchObject({ error: "NotFound" });
+	});
+
 	it("throws ClientResponseError on non-2xx responses with the structured payload", async () => {
 		const { fetch } = buildFetchStub({
 			"/xrpc/com.emdashcms.experimental.aggregator.getPackage": {
@@ -147,6 +250,7 @@ describe("DiscoveryClient", () => {
 					did: "did:plc:abc",
 					package: "gallery",
 					version: "1.0.0",
+					artifactCaches: [],
 					indexedAt: "2026-04-01T00:00:00Z",
 					release: {},
 				},
@@ -252,6 +356,7 @@ describe("DiscoveryClient", () => {
 						did: "did:plc:abc",
 						package: "x",
 						version: "1.0.0",
+						artifactCaches: [],
 						indexedAt: "2026-04-01T00:00:00Z",
 						release: { not: "a valid release record" },
 					},
@@ -260,6 +365,28 @@ describe("DiscoveryClient", () => {
 			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
 			const result = await client.getLatestRelease({ did: "did:plc:abc", package: "x" });
 			expect(result.release).toBeNull();
+		});
+
+		it("accepts an older aggregator response without artifact cache descriptors", async () => {
+			const { fetch } = buildFetchStub({
+				"/xrpc/com.emdashcms.experimental.aggregator.getLatestRelease": {
+					status: 200,
+					body: {
+						uri: "at://did:plc:abc/com.emdashcms.experimental.package.release/gallery:1.0.0",
+						cid: CID,
+						did: "did:plc:abc",
+						package: "gallery",
+						version: "1.0.0",
+						indexedAt: "2026-04-01T00:00:00Z",
+						release: validRelease,
+					},
+				},
+			});
+			const client = new DiscoveryClient({ aggregatorUrl: aggregator, fetch });
+
+			await expect(
+				client.getLatestRelease({ did: "did:plc:abc", package: "gallery" }),
+			).resolves.toMatchObject({ artifactCaches: [] });
 		});
 
 		it("does NOT sanitise URL schemes — a javascript: author url passes lexicon validation", async () => {
@@ -300,6 +427,7 @@ describe("DiscoveryClient", () => {
 								did: "did:plc:abc",
 								package: "gallery",
 								version: "1.0.0",
+								artifactCaches: [],
 								indexedAt: "2026-04-01T00:00:00Z",
 								release: validRelease,
 							},
@@ -309,6 +437,7 @@ describe("DiscoveryClient", () => {
 								did: "did:plc:abc",
 								package: "gallery",
 								version: "0.9.0",
+								artifactCaches: [],
 								indexedAt: "2026-03-01T00:00:00Z",
 								release: { garbage: true },
 							},

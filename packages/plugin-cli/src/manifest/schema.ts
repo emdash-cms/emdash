@@ -104,7 +104,6 @@ export const AuthorSchema = z
 			.max(256, "author.name must be <= 256 characters")
 			.meta({ description: "Display name." }),
 		url: z
-			.string()
 			.url("author.url must be a valid URL")
 			.max(1024, "author.url must be <= 1024 characters")
 			.meta({
@@ -112,7 +111,6 @@ export const AuthorSchema = z
 			})
 			.optional(),
 		email: z
-			.string()
 			.email("author.email must be a valid email")
 			.max(256, "author.email must be <= 256 characters")
 			.meta({ description: "Author's contact email. Either this or `url` is recommended." })
@@ -135,7 +133,6 @@ export const AuthorSchema = z
 export const SecurityContactSchema = z
 	.object({
 		url: z
-			.string()
 			.url("security.url must be a valid URL")
 			.max(1024, "security.url must be <= 1024 characters")
 			.meta({
@@ -144,7 +141,6 @@ export const SecurityContactSchema = z
 			})
 			.optional(),
 		email: z
-			.string()
 			.email("security.email must be a valid email")
 			.max(256, "security.email must be <= 256 characters")
 			.meta({
@@ -237,8 +233,13 @@ export const KeywordsSchema = z
  */
 export const RepoSchema = z
 	.string()
-	.regex(/^https:\/\//, "repo must be an https:// URL (AT-URI source repos aren't supported yet)")
-	.url("repo must be a valid URL")
+	.check(
+		z.regex(
+			/^https:\/\//,
+			"repo must be an https:// URL (AT-URI source repos aren't supported yet)",
+		),
+		z.url("repo must be a valid URL"),
+	)
 	.max(1024, "repo must be <= 1024 characters")
 	.meta({
 		title: "Source repository",
@@ -703,9 +704,8 @@ const ArtifactLangSchema = z
 /**
  * A single media-artifact file reference. The `file` path is resolved relative
  * to the manifest at publish time; the CLI reads the bytes, computes the
- * checksum and pixel dimensions, uploads them to the publisher's artifact
- * hosting, and writes a `#artifact` record (url, checksum, contentType, width,
- * height, lang?) into the release. Only the authoring inputs live here — the
+ * checksum and pixel dimensions, uploads them to the publisher's PDS, and
+ * writes an image-artifact record into the release. Only the authoring inputs live here — the
  * derived fields never appear in the manifest.
  */
 export const ArtifactFileSchema = z
@@ -723,8 +723,7 @@ export const ArtifactFileSchema = z
 	.strict()
 	.meta({
 		title: "Artifact file reference",
-		description:
-			"A media file (PNG / JPEG / WebP / GIF / AVIF) bundled into a release as an icon, screenshot, or banner.",
+		description: "A PNG, JPEG, or WebP file published as an icon, screenshot, or banner.",
 	});
 
 /**

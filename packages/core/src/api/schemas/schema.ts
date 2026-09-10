@@ -156,6 +156,7 @@ export const createCollectionBody = z
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),
 		sortOrder: z.number().int().nullish(),
+		editLocking: z.boolean().optional(),
 	})
 	.meta({ id: "CreateCollectionBody" });
 
@@ -176,6 +177,9 @@ export const updateCollectionBody = z
 		commentsModeration: z.enum(["all", "first_time", "none"]).optional(),
 		commentsClosedAfterDays: z.number().int().min(0).optional(),
 		commentsAutoApproveUsers: z.boolean().optional(),
+		editLocking: z.boolean().optional(),
+		titleField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
+		dateField: z.string().min(1).max(63).regex(slugPattern, "Invalid field slug format").nullish(),
 	})
 	.meta({ id: "UpdateCollectionBody" });
 
@@ -266,8 +270,11 @@ export const collectionSchema = z
 		hasSeo: z.boolean(),
 		hidden: z.boolean(),
 		sortOrder: z.number().int().nullable(),
+		editLocking: z.boolean(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
+		titleField: z.string().nullish(),
+		dateField: z.string().nullish(),
 	})
 	.meta({ id: "Collection" });
 

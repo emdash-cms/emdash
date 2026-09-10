@@ -24,6 +24,8 @@ When writing, revising, or reviewing documentation, load the `writing-emdash-doc
 
 Before starting any work that involves editing code, run `pnpm lint:json | jq '.diagnostics | length'` and confirm it's clean -- if it's failing after your edits, your changes caused it.
 
+Run `pnpm build` from the repository root before `pnpm typecheck`. Package-scoped builds are not sufficient because typecheck resolves declaration output from other workspace packages.
+
 During work:
 
 - `pnpm lint:quick` after every edit (sub-second)
@@ -35,6 +37,21 @@ Before opening a PR: tests pass, lint clean, formatted, changeset added if a pub
 A changeset is user-facing documentation that lands verbatim in a package CHANGELOG. Review its usefulness to someone upgrading, not only its presence and frontmatter. Follow [.changeset/README.md](.changeset/README.md) for the canonical writing and review standard, including proportional detail and migration guidance for default or breaking changes.
 
 When opening a PR with `gh`/the API, copy `.github/PULL_REQUEST_TEMPLATE.md` into the body and fill every section -- the GitHub UI injects it automatically but the CLI does not, and PRs missing it are auto-closed. Check the AI-generated code disclosure box and name the model. Tick checklist items only for what you actually verified; for test-only/docs/CI PRs, note why changeset/i18n/Discussion items are n/a.
+
+Issues that refer to the interface must include a screenshot that shows the reported state. PRs that change the UI must include screenshots of the rendered result; include before-and-after images when the change is not clear from the result alone. Keep the behavior described in text and give every image useful alt text.
+
+Agents can attach local images with GitHub CLI 2.99.0 or later. The `--attach` flag is repeatable on `gh issue create|edit|comment` and `gh pr create|edit|comment`. For example:
+
+```bash
+gh issue create --body-file /tmp/emdash-issue.md \
+	--attach './interface-error.png#The settings screen showing the validation error'
+
+gh pr create --body-file /tmp/emdash-pr.md \
+	--attach './before.png#Settings screen before the change' \
+	--attach './after.png#Settings screen after the change'
+```
+
+To place an image at a specific point in the body, add `![descriptive alt text](./after.png)` to the body file and pass `--attach ./after.png`; `gh` replaces the local path with the uploaded asset URL. An attachment that is not referenced in the body is appended. CLI `--attach` uploads require repository write access. See [CONTRIBUTING.md § Interface screenshots](CONTRIBUTING.md#interface-screenshots).
 
 ## Architecture
 
@@ -160,7 +177,7 @@ Test representative upgrades from existing data, retry after partial completion,
 
 ## Indexes
 
-Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `scheduled_at` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
+Every content table gets indexes on: `status`, `slug`, `created_at`, `deleted_at`, `(deleted_at, scheduled_at)` (partial, `WHERE scheduled_at IS NOT NULL`), `live_revision_id`, `draft_revision_id`, `author_id`, `primary_byline_id`, `updated_at`, `locale`, `translation_group`. Foreign key columns always get an index.
 
 Naming: `idx_{table}_{column}` for single-column, `idx_{table}_{purpose}` for multi-column.
 
@@ -376,7 +393,7 @@ In libraries used in a Worker but not themselves Workers, install `@cloudflare/w
 # Testing
 
 - **Framework:** vitest. Tests in `packages/core/tests/`.
-- **No mocks for the DB.** SQLite (`better-sqlite3`) by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `EMDASH_TEST_PG` to a connection string for a role with `CREATEDB` to opt in).
+- **No mocks for the DB.** Node's built-in SQLite driver by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `EMDASH_TEST_PG` to a connection string for a role with `CREATEDB` to opt in).
 - **Utilities:** `tests/utils/test-db.ts` exposes `setupTestDatabase()`, `setupTestDatabaseWithCollections()`, `teardownTestDatabase()` for SQLite and `setupTestPostgresDatabase()` etc. for Postgres. Dialect-agnostic: `setupForDialect`, `setupForDialectWithCollections`, `teardownForDialect`, plus `describeEachDialect(name, fn)`. Use the dialect wrapper for query-builder code -- regressions tend to be dialect-specific.
 - **Structure:** `tests/unit/`, `tests/integration/`, `tests/e2e/` (Playwright). Test files mirror source structure. Each test gets a fresh DB.
 

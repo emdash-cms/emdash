@@ -41,7 +41,7 @@ const authenticationCredential = z.object({
 
 export const signupRequestBody = z
 	.object({
-		email: z.string().email(),
+		email: z.email(),
 	})
 	.meta({ id: "SignupRequestBody" });
 
@@ -55,7 +55,7 @@ export const signupCompleteBody = z
 
 export const inviteCreateBody = z
 	.object({
-		email: z.string().email(),
+		email: z.email(),
 		role: roleLevel.optional(),
 	})
 	.meta({ id: "InviteCreateBody" });
@@ -77,13 +77,13 @@ export const inviteCompleteBody = z
 
 export const magicLinkSendBody = z
 	.object({
-		email: z.string().email(),
+		email: z.email(),
 	})
 	.meta({ id: "MagicLinkSendBody" });
 
 export const passkeyOptionsBody = z
 	.object({
-		email: z.string().email().optional(),
+		email: z.email().optional(),
 	})
 	.meta({ id: "PasskeyOptionsBody" });
 

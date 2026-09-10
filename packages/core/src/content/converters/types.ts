@@ -70,6 +70,7 @@ export interface PortableTextImageBlock {
 	displayWidth?: number;
 	/** Display height for this instance (overrides original) */
 	displayHeight?: number;
+	alignment?: "left" | "center" | "right" | "wide" | "full";
 }
 
 /**
@@ -91,6 +92,8 @@ export interface PortableTextGalleryImage {
 	caption?: string;
 	width?: number;
 	height?: number;
+	focalX?: number;
+	focalY?: number;
 	/** LQIP blurhash placeholder (images only) */
 	blurhash?: string;
 	/** LQIP dominant-color placeholder, as a CSS color (images only) */

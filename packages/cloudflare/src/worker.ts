@@ -1,10 +1,9 @@
 /**
  * Cloudflare Worker entry for EmDash sites.
  *
- * Wraps the Astro Cloudflare server handler with a `scheduled()` handler so a
- * Cron Triggers drive general maintenance and the separately bounded Media
- * Usage lane without request side effects. Re-exports the `PluginBridge`
- * Durable Object so the sandbox binding resolves against the entry module.
+ * Wraps the Astro Cloudflare server handler with a `scheduled()` handler for
+ * general maintenance. Re-exports the `PluginBridge` Durable Object so the
+ * sandbox binding resolves against the entry module.
  *
  * The `@astrojs/cloudflare/entrypoints/server` import is resolved by the
  * consuming app's Astro build (it pulls the build-time `virtual:astro:app`
@@ -14,7 +13,7 @@
 // @ts-ignore - resolved against the consuming app's Astro build
 import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
-import { runScheduledMediaUsageTasks, runScheduledTasks } from "emdash/middleware";
+import { runScheduledTasks } from "emdash/middleware";
 
 export { PluginBridge } from "./sandbox/index.js";
 
@@ -40,59 +39,44 @@ async function invalidatePublishedTags(
 }
 
 /**
- * Build a Worker `scheduled()` handler. By default the every-two-minutes
- * expression runs Media Usage maintenance and every other expression runs
- * general maintenance. Configuring a general expression changes that lane
- * from catch-all to exact.
+ * Build a Worker `scheduled()` handler for general maintenance.
  */
 export interface ScheduledHandlerOptions {
 	generalCron?: string;
-	mediaUsageCron?: string;
 }
-
-const DEFAULT_MEDIA_USAGE_CRON = "*/2 * * * *";
 
 export function createScheduledHandler(
 	options?: ScheduledHandlerOptions,
 ): ExportedHandlerScheduledHandler {
 	const generalCron = options?.generalCron?.trim();
-	const mediaUsageCron = options?.mediaUsageCron?.trim() ?? DEFAULT_MEDIA_USAGE_CRON;
-	if ((options?.generalCron !== undefined && !generalCron) || !mediaUsageCron) {
+	if (options?.generalCron !== undefined && !generalCron) {
 		throw new Error("Configured scheduled-handler expressions must be non-empty");
-	}
-	if (generalCron === mediaUsageCron) {
-		throw new Error("General and Media Usage Cron expressions must differ");
 	}
 
 	return (controller, _env, ctx) => {
-		if (controller.cron === mediaUsageCron) {
-			ctx.waitUntil(
-				runScheduledMediaUsageTasks().catch((error: unknown) => {
-					console.error("[scheduled] Media Usage maintenance failed:", error);
-				}),
-			);
-			return;
-		}
 		if (generalCron !== undefined && controller.cron !== generalCron) {
 			console.warn(`[scheduled] Ignoring unexpected Cron expression: ${controller.cron}`);
 			return;
 		}
+
 		ctx.waitUntil(
-			// Invalidate incrementally as each collection batch publishes, so a
-			// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a
-			// large backlog) still purged the cache tags for everything it managed
-			// to publish — not just whatever completed before a single end-of-sweep
-			// purge that may never run.
-			runScheduledTasks({ onPublished: invalidatePublishedTags })
-				.then(({ published }) => {
+			(async () => {
+				try {
+					// Invalidate incrementally as each collection batch publishes, so a
+					// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a
+					// large backlog) still purged the cache tags for everything it managed
+					// to publish — not just whatever completed before a single end-of-sweep
+					// purge that may never run.
+					const { published } = await runScheduledTasks({
+						onPublished: invalidatePublishedTags,
+					});
 					if (published.length > 0) {
 						console.log(`[scheduled] Published ${published.length} scheduled item(s)`);
 					}
-					return undefined;
-				})
-				.catch((error: unknown) => {
+				} catch (error) {
 					console.error("[scheduled] runScheduledTasks failed:", error);
-				}),
+				}
+			})(),
 		);
 	};
 }

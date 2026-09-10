@@ -36,7 +36,6 @@ const {
 		return null;
 	});
 	const handlePluginApiRoute = vi.fn(async () => publicPluginResult);
-
 	return {
 		MOCK_RUNTIME: {
 			storage: { getPublicUrl },

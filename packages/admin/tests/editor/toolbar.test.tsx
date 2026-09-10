@@ -1,7 +1,7 @@
 import type { Editor } from "@tiptap/core";
 import { CellSelection } from "@tiptap/pm/tables";
-import { userEvent } from "@vitest/browser/context";
 import { describe, it, expect, vi } from "vitest";
+import { userEvent } from "vitest/browser";
 
 import {
 	PortableTextEditor,
@@ -41,6 +41,22 @@ vi.mock("../../src/components/MediaPickerModal", () => ({
 					}
 				>
 					Choose test image
+				</button>
+				<button
+					type="button"
+					onClick={() =>
+						onSelect({
+							id: "",
+							filename: "remote.jpg",
+							mimeType: "image/jpeg",
+							url: "https://media.example/remote.jpg",
+							provider: "external-url",
+							size: 0,
+							createdAt: "2026-08-16T00:00:00.000Z",
+						})
+					}
+				>
+					Choose external image
 				</button>
 				<button type="button" onClick={() => onOpenChange(false)}>
 					Cancel image picker
@@ -426,6 +442,23 @@ describe("Block insertion", () => {
 				alt: "Architecture diagram",
 				mediaId: "image-1",
 				provider: "local",
+			});
+		});
+	});
+
+	it("stores a canonical provider when inserting an external URL", async () => {
+		const { screen, editor } = await renderEditor();
+		editor.commands.focus("end");
+
+		getToolbarButton(screen, "Insert Image").element().click();
+		await screen.getByRole("button", { name: "Choose external image" }).click();
+
+		await vi.waitFor(() => {
+			const image = editor.getJSON().content?.find((node) => node.type === "image");
+			expect(image?.attrs).toMatchObject({
+				src: "https://media.example/remote.jpg",
+				mediaId: "",
+				provider: "external",
 			});
 		});
 	});
