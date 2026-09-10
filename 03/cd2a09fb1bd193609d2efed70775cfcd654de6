@@ -1,0 +1,21 @@
+e2e/tests/content-actions.spec.ts
+  s_669e4e36f3cd5c::t_10e58475ca8fb2 345
+packages/admin/tests/editor/table-resize.test.tsx
+  s_669e4e36f3cd5c::t_40ab8f1defdaee 203-204,211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "03cd2a09fb1bd193609d2efed70775cfcd654de6",
+  "prompts": {},
+  "sessions": {
+    "s_669e4e36f3cd5c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a078a9-4726-7920-a1ad-5cd32bdfaeff",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
