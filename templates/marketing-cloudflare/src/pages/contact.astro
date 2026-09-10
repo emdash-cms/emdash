@@ -75,7 +75,7 @@ const pageContent = page?.data.content;
 								<Icon name="ph:envelope" aria-hidden="true" />
 							</div>
 							<div class="contact-method-content">
-								<h4>Email</h4>
+								<h3>Email</h3>
 								<a href="mailto:hello@acme.example">hello@acme.example</a>
 							</div>
 						</div>
@@ -84,7 +84,7 @@ const pageContent = page?.data.content;
 								<Icon name="ph:lifebuoy" aria-hidden="true" />
 							</div>
 							<div class="contact-method-content">
-								<h4>Support</h4>
+								<h3>Support</h3>
 								<a href="mailto:support@acme.example">support@acme.example</a>
 							</div>
 						</div>
@@ -93,7 +93,7 @@ const pageContent = page?.data.content;
 								<Icon name="ph:currency-dollar" aria-hidden="true" />
 							</div>
 							<div class="contact-method-content">
-								<h4>Sales</h4>
+								<h3>Sales</h3>
 								<a href="mailto:sales@acme.example">sales@acme.example</a>
 							</div>
 						</div>
@@ -180,24 +180,33 @@ const pageContent = page?.data.content;
 
 <style>
 	.contact-form-section {
-		padding-bottom: var(--spacing-5xl);
+		padding-block: var(--spacing-4xl) var(--spacing-5xl);
+		background: color-mix(in srgb, var(--color-bg) 62%, var(--color-surface));
 	}
 
 	.contact-grid {
 		display: grid;
-		grid-template-columns: 1fr 1.5fr;
-		gap: var(--spacing-4xl);
+		max-width: 68rem;
+		grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+		gap: var(--spacing-3xl);
 		align-items: start;
+		margin-inline: auto;
 	}
 
 	.contact-info h2 {
-		font-size: var(--font-size-2xl);
-		margin-bottom: var(--spacing-md);
+		margin-block-end: var(--spacing-md);
+		font-size: var(--font-size-3xl);
+		font-weight: var(--font-weight-display);
+		line-height: 1.12;
+		letter-spacing: -0.035em;
+		text-wrap: balance;
 	}
 
 	.contact-info > p {
+		max-width: 30rem;
+		margin-block-end: var(--spacing-2xl);
 		color: var(--color-muted);
-		margin-bottom: var(--spacing-2xl);
+		line-height: var(--leading-normal);
 	}
 
 	.contact-methods {
@@ -213,18 +222,28 @@ const pageContent = page?.data.content;
 	}
 
 	.contact-icon {
-		font-size: 1.25rem;
+		width: 40px;
+		height: 40px;
+		color: var(--color-brand-strong);
+		background: var(--color-brand-soft);
+		font-size: 1.125rem;
 	}
 
-	.contact-method-content h4 {
+	.contact-method-content {
+		min-width: 0;
+	}
+
+	.contact-method-content h3 {
+		margin-block-end: var(--spacing-xs);
 		font-size: var(--font-size-sm);
 		font-weight: 600;
-		margin-bottom: var(--spacing-xs);
 	}
 
 	.contact-method-content a {
 		color: var(--color-brand);
-		font-size: var(--font-size-lg);
+		font-size: var(--font-size-base);
+		font-weight: 500;
+		overflow-wrap: anywhere;
 	}
 
 	.contact-method-content a:hover {
@@ -232,10 +251,13 @@ const pageContent = page?.data.content;
 	}
 
 	.contact-form-wrapper {
+		padding: var(--spacing-2xl);
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-lg);
-		padding: var(--spacing-2xl);
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-border) 34%, transparent),
+			var(--shadow-lg);
 	}
 
 	.contact-form {
@@ -246,7 +268,7 @@ const pageContent = page?.data.content;
 
 	.form-row {
 		display: grid;
-		grid-template-columns: 1fr 1fr;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
 		gap: var(--spacing-lg);
 	}
 
@@ -263,11 +285,13 @@ const pageContent = page?.data.content;
 
 	.form-field input,
 	.form-field textarea {
-		padding: var(--spacing-md);
+		width: 100%;
+		padding: 0.75rem var(--spacing-md);
 		font-family: inherit;
 		font-size: var(--font-size-base);
+		line-height: 1.5;
 		color: var(--color-text);
-		background: var(--color-bg);
+		background: var(--color-surface-raised);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		transition:
@@ -275,11 +299,14 @@ const pageContent = page?.data.content;
 			box-shadow var(--transition-fast);
 	}
 
-	.form-field input:focus,
-	.form-field textarea:focus {
-		outline: none;
+	.form-field input:focus-visible,
+	.form-field textarea:focus-visible {
+		outline: 2px solid transparent;
+		outline-offset: 2px;
 		border-color: var(--color-brand);
-		box-shadow: 0 0 0 3px var(--color-brand-ring);
+		box-shadow:
+			0 0 0 2px var(--color-surface),
+			0 0 0 4px var(--color-brand);
 	}
 
 	.form-field input::placeholder,
@@ -294,49 +321,70 @@ const pageContent = page?.data.content;
 
 	.form-error {
 		padding: var(--spacing-md);
+		color: var(--color-danger);
 		background: color-mix(in srgb, var(--color-danger) 10%, transparent);
 		border: 1px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
 		border-radius: var(--radius-sm);
-		color: var(--color-danger);
 		font-size: var(--font-size-sm);
 	}
 
 	.form-success {
-		text-align: center;
 		padding: var(--spacing-2xl);
+		text-align: center;
 	}
 
 	.success-icon {
-		width: 64px;
-		height: 64px;
 		display: flex;
+		width: 56px;
+		height: 56px;
 		align-items: center;
 		justify-content: center;
-		font-size: 2rem;
+		margin: 0 auto var(--spacing-lg);
 		color: var(--color-on-brand);
 		background: var(--color-success);
+		font-size: 1.75rem;
 		border-radius: var(--radius-full);
-		margin: 0 auto var(--spacing-lg);
 	}
 
 	.form-success h3 {
+		margin-block-end: var(--spacing-sm);
 		font-size: var(--font-size-xl);
-		margin-bottom: var(--spacing-sm);
 	}
 
 	.form-success p {
+		margin-block-end: var(--spacing-xl);
 		color: var(--color-muted);
-		margin-bottom: var(--spacing-xl);
 	}
 
 	@media (max-width: 768px) {
+		.contact-form-section {
+			padding-block: var(--spacing-3xl);
+		}
+
 		.contact-grid {
-			grid-template-columns: 1fr;
+			grid-template-columns: minmax(0, 1fr);
 			gap: var(--spacing-2xl);
 		}
 
 		.form-row {
-			grid-template-columns: 1fr;
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
+	@media (max-width: 480px) {
+		.contact-form-wrapper {
+			padding: var(--spacing-lg);
+		}
+
+		.form-success {
+			padding: var(--spacing-lg) 0;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.form-field input,
+		.form-field textarea {
+			transition: none;
 		}
 	}
 </style>
