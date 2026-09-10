@@ -1,0 +1,43 @@
+templates/marketing-cloudflare/AGENTS.md
+  s_81c53493e8c532::t_efeff991582eea 53-57,71,73-80
+templates/marketing/AGENTS-template.md
+  s_81c53493e8c532::t_1b2f8392c1a237 9-13,27,29-36
+templates/marketing/AGENTS.md
+  s_81c53493e8c532::t_d9898efb1e08ce 53-57,71,73-80
+templates/marketing-cloudflare/seed/seed.json
+  s_81c53493e8c532::t_a4347cf97337b3 223-233
+templates/marketing-cloudflare/src/components/MarketingBlocks.astro
+  s_81c53493e8c532::t_517e97fe2630ec 16,31
+templates/marketing-cloudflare/src/components/blocks/CallToAction.astro
+  s_81c53493e8c532::t_4ee25e77f77107 1-156
+templates/marketing-cloudflare/src/components/blocks/index.ts
+  s_81c53493e8c532::t_dbcb8204ed2cf6 6
+templates/marketing-cloudflare/src/plugins/marketing-blocks/index.ts
+  s_81c53493e8c532::t_7fb388125d9607 4,216-240
+templates/marketing/seed/seed.json
+  s_81c53493e8c532::t_a644d2f176adb3 223-233
+templates/marketing/src/components/MarketingBlocks.astro
+  s_81c53493e8c532::t_9233db50f25355 16,31
+templates/marketing/src/components/blocks/CallToAction.astro
+  s_81c53493e8c532::t_c83954024d722b 1-156
+templates/marketing/src/components/blocks/index.ts
+  s_81c53493e8c532::t_d4ac033512a55f 6
+templates/marketing/src/plugins/marketing-blocks/index.ts
+  s_81c53493e8c532::t_fafe876a141ae3 4,216-240
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ccb9b15f8159a4a992a2f182d21b58c576c9cbe5",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
