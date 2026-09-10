@@ -225,6 +225,8 @@ export interface Collection {
 	commentsClosedAfterDays: number;
 	/** Auto-approve comments from authenticated CMS users */
 	commentsAutoApproveUsers: boolean;
+	/** Whether opening an entry takes an edit lock. Defaults to true. */
+	editLocking: boolean;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -274,6 +276,8 @@ export interface CreateCollectionInput {
 	/** Explicit admin sidebar position (omit for the alphabetical fallback) */
 	sortOrder?: number | null;
 	commentsEnabled?: boolean;
+	/** Take an edit lock when an entry is opened (defaults to true) */
+	editLocking?: boolean;
 }
 
 /**
@@ -297,6 +301,8 @@ export interface UpdateCollectionInput {
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;
 	commentsAutoApproveUsers?: boolean;
+	/** Take an edit lock when an entry is opened */
+	editLocking?: boolean;
 	/** Field slug for the Title column; `null`/`""` clears back to the default. */
 	titleField?: string | null;
 	/** Datetime field slug for the Date column; `null`/`""` clears back to the default. */

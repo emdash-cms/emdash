@@ -327,7 +327,7 @@ Contributes typed metadata to `<head>` — meta tags, OpenGraph properties, allo
 | `link`     | `<link rel="canonical\|alternate" href="...">`     | canonical: singleton; alternate: `key` or `hreflang`  |
 | `jsonld`   | `<script type="application/ld+json">`              | `id` (if present)                                     |
 
-First contribution wins for any dedupe key. Link `rel` is restricted to a security-locked allowlist (`canonical`, `alternate`, `author`, `license`, `nlweb`, `site.standard.document`); `href` must be HTTP or HTTPS.
+First contribution wins for any dedupe key. `<EmDashHead>` composes contributions in the order plugins → site settings → template-provided base metadata, so plugin contributions override everything below them. On content pages, the entry's SEO panel values are folded into the page context before the base metadata is generated — they replace the template-provided fields (and are what your hook sees on the page context), while plugin contributions still win via first-wins dedup. Link `rel` is restricted to a security-locked allowlist (`canonical`, `alternate`, `author`, `license`, `nlweb`, `site.standard.document`); `href` must be HTTP or HTTPS.
 
 ### `page:fragments`
 

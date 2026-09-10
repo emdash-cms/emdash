@@ -67,6 +67,7 @@ describe("collection admin list column schemas", () => {
 				hasSeo: false,
 				hidden: false,
 				sortOrder: null,
+				editLocking: true,
 				createdAt: "2026-08-10T00:00:00.000Z",
 				updatedAt: "2026-08-10T00:00:00.000Z",
 			},

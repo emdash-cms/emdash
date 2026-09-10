@@ -62,6 +62,7 @@ function makeCollection(
 		fields: [],
 		hasSeo: false,
 		routable: true,
+		editLocking: true,
 		commentsEnabled: false,
 		commentsModeration: "first_time",
 		commentsClosedAfterDays: 90,
@@ -197,6 +198,7 @@ describe("ContentTypeEditor", () => {
 			description: undefined,
 			urlPattern: undefined,
 			routable: true,
+			editLocking: true,
 			supports: ["drafts", "revisions"], // default
 			hasSeo: false,
 		});
@@ -220,6 +222,7 @@ describe("ContentTypeEditor", () => {
 			description: "Blog posts",
 			urlPattern: undefined,
 			routable: true,
+			editLocking: true,
 			supports: ["drafts"],
 			hasSeo: false,
 			commentsEnabled: false,
@@ -523,6 +526,19 @@ describe("ContentTypeEditor", () => {
 		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
 
 		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ routable: false }));
+	});
+
+	it("saves whether the collection takes edit locks", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ editLocking: true });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByLabelText("Edit locking").click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ editLocking: false }));
 	});
 
 	it("shows validation error when pattern lacks {slug}", async () => {

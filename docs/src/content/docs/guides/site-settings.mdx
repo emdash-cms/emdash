@@ -171,6 +171,17 @@ const platforms = [
 
 ### SEO Meta Tags
 
+<Aside>
+	On server-rendered content pages that include the `<EmDashHead>` component and fetch their entry
+	through `getEmDashEntry()`, values from the entry's
+	SEO panel (description, image, canonical, noindex — and the title, which feeds
+	`og:title`/`twitter:title` but not the `<title>` element, which stays with the template) are
+	applied automatically. Editors' panel settings override whatever the template passed into the
+	page context, at no additional query cost. Hand-rolled meta tags like the component below bypass
+	that behavior, so prefer `<EmDashHead>` for content pages. Prerendered pages keep using
+	`getSeoMeta()`.
+</Aside>
+
 The following component builds document and Open Graph meta tags from site settings:
 
 ```astro title="src/components/SEO.astro"

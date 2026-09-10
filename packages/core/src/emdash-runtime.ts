@@ -84,6 +84,7 @@ import type {
 	UserInfo,
 } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
+import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
 import { isMissingTableError } from "./utils/db-errors.js";
 import { hashString } from "./utils/hash.js";
 import { createInitLock, type InitLock, initWithLock } from "./utils/init-lock.js";
@@ -1320,17 +1321,18 @@ export class EmDashRuntime {
 			coldStartReads.push(
 				phase("rt.seedcheck", "Auto-seed gate", async () => {
 					try {
-						const [collectionCount, setupOption] = await Promise.all([
-							readDb
-								.selectFrom("_emdash_collections")
-								.select((eb) => eb.fn.countAll<number>().as("count"))
-								.executeTakeFirstOrThrow(),
+						// Selecting the slugs instead of COUNT(*) costs the same
+						// round trip and primes the registered-collections cache,
+						// so the first render on this isolate skips its own lookup.
+						const [collectionRows, setupOption] = await Promise.all([
+							readDb.selectFrom("_emdash_collections").select("slug").execute(),
 							readDb
 								.selectFrom("options")
 								.select("value")
 								.where("name", "=", "emdash:setup_complete")
 								.executeTakeFirst(),
 						]);
+						primeRegisteredCollections(collectionRows.map((row) => row.slug));
 						const setupDone = (() => {
 							try {
 								return !!setupOption && JSON.parse(setupOption.value) === true;
@@ -1338,7 +1340,7 @@ export class EmDashRuntime {
 								return false;
 							}
 						})();
-						seedGate = { collectionCount: collectionCount.count, setupDone };
+						seedGate = { collectionCount: collectionRows.length, setupDone };
 					} catch (error) {
 						captureMissingManualSchema(error);
 						// Leave the "already set up" default so a read failure never

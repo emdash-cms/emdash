@@ -1,6 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { interpolateUrlPattern } from "../../i18n/resolve.js";
 import {
 	compilePattern,
 	matchPattern,
@@ -359,13 +360,23 @@ export class RedirectRepository {
 		newSlug: string,
 		contentId: string,
 		urlPattern: string | null,
+		oldPublishedAt?: string | null,
+		newPublishedAt?: string | null,
 	): Promise<Redirect | null> {
-		const oldUrl = urlPattern
-			? urlPattern.replace("{slug}", oldSlug).replace("{id}", contentId)
-			: `/${collection}/${oldSlug}`;
-		const newUrl = urlPattern
-			? urlPattern.replace("{slug}", newSlug).replace("{id}", contentId)
-			: `/${collection}/${newSlug}`;
+		const oldUrl = interpolateUrlPattern({
+			pattern: urlPattern,
+			collection,
+			slug: oldSlug,
+			id: contentId,
+			date: oldPublishedAt,
+		});
+		const newUrl = interpolateUrlPattern({
+			pattern: urlPattern,
+			collection,
+			slug: newSlug,
+			id: contentId,
+			date: newPublishedAt,
+		});
 
 		// A redirect from a URL to itself would make the page unreachable
 		if (oldUrl === newUrl) return null;

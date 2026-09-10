@@ -30,13 +30,12 @@
  */
 
 import type { ContentSeo } from "../database/repositories/types.js";
-import { buildSeoImageUrl } from "./media-url.js";
+import { buildSeoImageUrl, resolveSeoCanonicalUrl } from "./media-url.js";
 
 export { getHreflangAlternates, getHreflangAlternatesWithDb } from "./hreflang.js";
 export type { HreflangAlternate, HreflangOptions } from "./hreflang.js";
 
 const TRAILING_SLASH_RE = /\/$/;
-const ABSOLUTE_URL_RE = /^https?:\/\//i;
 
 /**
  * Content input for SEO functions.
@@ -138,16 +137,12 @@ export function getSeoMeta<T>(content: SeoContentInput<T>, options: SeoMetaOptio
 	// OG image: SEO image > default
 	const ogImage = seo.image ? buildSeoImageUrl(seo.image, siteUrl) : (defaultOgImage ?? null);
 
-	// Canonical: explicit > path-based > null
+	// Canonical: explicit > path-based > null. The explicit value goes
+	// through the same resolver as the <EmDashHead> overlay, so a panel
+	// canonical renders identically on both paths.
 	let canonical: string | null = null;
 	if (seo.canonical) {
-		// Ensure relative canonical paths get a leading slash so we don't
-		// produce "https://example.composts/x" when joined with siteUrl
-		if (siteUrl && !seo.canonical.startsWith("/") && !ABSOLUTE_URL_RE.test(seo.canonical)) {
-			canonical = `${siteUrl.replace(TRAILING_SLASH_RE, "")}/${seo.canonical}`;
-		} else {
-			canonical = seo.canonical;
-		}
+		canonical = resolveSeoCanonicalUrl(seo.canonical, siteUrl);
 	} else if (siteUrl && path) {
 		const safePath = path.startsWith("/") ? path : `/${path}`;
 		canonical = `${siteUrl.replace(TRAILING_SLASH_RE, "")}${safePath}`;

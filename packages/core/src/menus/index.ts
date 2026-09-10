@@ -14,7 +14,7 @@ import { sql } from "kysely";
 import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
-import { resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
+import { interpolateUrlPattern, resolveLocale, resolveLocaleChain } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { cachedQuery, CacheNamespace } from "../object-cache/index.js";
 import type { CacheHint } from "../query.js";
@@ -332,21 +332,10 @@ function resolveMenuItem(
 	};
 }
 
-const SLUG_PLACEHOLDER = /\{slug\}/g;
-const ID_PLACEHOLDER = /\{id\}/g;
-
-/**
- * Interpolate a URL pattern with entry data
- *
- * Replaces `{slug}` and `{id}` placeholders.
- */
-function interpolateUrlPattern(pattern: string, slug: string, id: string): string {
-	return pattern.replace(SLUG_PLACEHOLDER, slug).replace(ID_PLACEHOLDER, id);
-}
-
 interface ContentReferenceRow {
 	id: string;
 	slug: string;
+	published_at: string | null;
 	locale: string;
 	translation_group: string;
 }
@@ -354,6 +343,7 @@ interface ContentReferenceRow {
 interface ResolvedContentReference {
 	id: string;
 	slug: string;
+	publishedAt: string | null;
 }
 
 type ContentReferenceLookup = Map<string, Map<string, ResolvedContentReference>>;
@@ -371,7 +361,7 @@ async function resolveContentReferences(
 				validateIdentifier(collection, "menu item collection");
 				for (const batch of chunks([...referenceGroups], SQL_BATCH_SIZE)) {
 					const result = await sql<ContentReferenceRow>`
-						SELECT id, slug, locale, translation_group
+						SELECT id, slug, published_at, locale, translation_group
 						FROM ${sql.ref(`ec_${collection}`)}
 						WHERE translation_group IN (${sql.join(batch)})
 					`.execute(db);
@@ -383,16 +373,18 @@ async function resolveContentReferences(
 					}
 				}
 				for (const [referenceGroup, row] of localized) {
-					lookup.set(referenceGroup, { id: row.id, slug: row.slug });
+					lookup.set(referenceGroup, { id: row.id, slug: row.slug, publishedAt: row.published_at });
 				}
 
 				const unresolved = [...referenceGroups].filter((id) => !lookup.has(id));
 				for (const batch of chunks(unresolved, SQL_BATCH_SIZE)) {
-					const result = await sql<ResolvedContentReference>`
-						SELECT id, slug FROM ${sql.ref(`ec_${collection}`)}
+					const result = await sql<Pick<ContentReferenceRow, "id" | "slug" | "published_at">>`
+						SELECT id, slug, published_at FROM ${sql.ref(`ec_${collection}`)}
 						WHERE id IN (${sql.join(batch)})
 					`.execute(db);
-					for (const row of result.rows) lookup.set(row.id, row);
+					for (const row of result.rows) {
+						lookup.set(row.id, { id: row.id, slug: row.slug, publishedAt: row.published_at });
+					}
 				}
 			} catch (error) {
 				console.error(`Failed to resolve content URLs for ${collection}:`, error);
@@ -437,9 +429,13 @@ function resolveContentUrl(
 	if (!referenceGroup) return null;
 	const row = contentLookup.get(collection)?.get(referenceGroup);
 	if (!row) return null;
-	const pattern = urlPatterns.get(collection);
-	if (pattern) return interpolateUrlPattern(pattern, row.slug, row.id);
-	return `/${collection}/${row.slug}`;
+	return interpolateUrlPattern({
+		pattern: urlPatterns.get(collection) ?? null,
+		collection,
+		slug: row.slug,
+		id: row.id,
+		date: row.publishedAt,
+	});
 }
 
 interface TaxonomyReferenceRow {

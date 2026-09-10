@@ -11,6 +11,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentUpdateBody } from "#api/schemas.js";
 
@@ -112,14 +113,25 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	// Use the resolved ID (handles slug → ID resolution)
 	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
 
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
+		override: body.overrideLock,
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
+
 	// Only allow authorId changes if user has content:edit_any permission (editor+)
 	const canChangeAuthor =
 		body.authorId !== undefined && user && hasPermission(user, "content:edit_any");
-	const updateBody = canChangeAuthor ? body : { ...body, authorId: undefined };
+	const { overrideLock: _overrideLock, ...writeBody } = canChangeAuthor
+		? body
+		: { ...body, authorId: undefined };
 
 	// Pass _rev through for optimistic concurrency validation
 	const result = await emdash.handleContentUpdate(collection, resolvedId, {
-		...updateBody,
+		...writeBody,
 		locale,
 		_rev: body._rev,
 	});
@@ -171,6 +183,16 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 
 	// Use the resolved ID (handles slug → ID resolution)
 	const resolvedId = typeof deleteItem?.id === "string" ? deleteItem.id : id;
+
+	// DELETE carries no body, so the lock opt-out rides on the query string.
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
+		override: url.searchParams.get("overrideLock") === "true",
+	});
+	if (refusal) {
+		return apiError(refusal.code, refusal.message, mapErrorStatus(refusal.code), {
+			...refusal.details,
+		});
+	}
 
 	const result = await emdash.handleContentDelete(collection, resolvedId);
 
