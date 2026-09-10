@@ -1,0 +1,47 @@
+templates/marketing-cloudflare/AGENTS.md
+  s_81c53493e8c532::t_0512de86bcfb81 47,53-59,64,70-71
+templates/marketing-cloudflare/seed/seed.json
+  s_81c53493e8c532::t_a02e53bda86c32 6,32-96,111-112,126,150-464
+templates/marketing-cloudflare/src/components/BlogCover.astro
+  s_81c53493e8c532::t_dd95b98afd52ce 1-241
+templates/marketing-cloudflare/src/lib/blog.ts
+  s_81c53493e8c532::t_4c05d32138d4d5 1-75
+templates/marketing-cloudflare/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_39c0907c0c33f6 1-308
+templates/marketing-cloudflare/src/pages/blog/index.astro
+  s_81c53493e8c532::t_af2122018146df 1-467
+templates/marketing-cloudflare/src/pages/pricing.astro
+  s_81c53493e8c532::t_634882f2f538be 2
+templates/marketing/AGENTS-template.md
+  s_81c53493e8c532::t_7df6d6f29f2a18 3,9-15,20,26-27
+templates/marketing/AGENTS.md
+  s_81c53493e8c532::t_1a1a360c4eb8bb 47,53-59,64,70-71
+templates/marketing/seed/seed.json
+  s_81c53493e8c532::t_3f10dd7493b30d 6,32-96,111-112,126,150-464
+templates/marketing/src/components/BlogCover.astro
+  s_81c53493e8c532::t_25985382f35525 1-241
+templates/marketing/src/lib/blog.ts
+  s_81c53493e8c532::t_2a3b201b97af81 1-75
+templates/marketing/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_daaf4aa10a2577 1-308
+templates/marketing/src/pages/blog/index.astro
+  s_81c53493e8c532::t_4c3a10d3a63f09 1-467
+templates/marketing/src/pages/pricing.astro
+  s_81c53493e8c532::t_e4fe45ca58a5e6 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d6f2b45ea8b52a5e4c486b10e8f55dd09a70ee96",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
