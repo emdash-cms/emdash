@@ -46,15 +46,16 @@ Constraints worth remembering:
 
 Typography is **Inter** on `--font-body` with weights from 400 through 800. Hero, section, and default headings use 700 for a clear but neutral hierarchy. There is no mono font or serif. Headline tracking is tight (`--tracking-tight`).
 
-The default palette uses navy-tinted neutrals and one blue accent family:
+The component styles use the same token roles as the EmDash public site, with navy-tinted neutrals and one blue accent family:
 
 - `--color-bg: #f7f9fc` / `#0b1220` -- the light and dark canvas
 - `--color-surface: #ffffff` / `#121c2e` -- bordered cards and panels
-- `--color-brand: #1d4ed8` / `#60a5fa` -- links, focus, and selected states
-- `--color-brand-strong: #1e40af` / `#3b82f6` -- primary action backgrounds
+- `--color-primary: #1d4ed8` / `#60a5fa` -- links, focus, and selected states
+- `--heat-{4,8,12,16,20,40,90,100}` -- translucent through solid blue interaction treatments
+- `--button-primary-*` and `--button-secondary-*` -- shared button foreground and background roles
 - `--color-success`, `--color-warning`, `--color-danger` -- semantic colours (pricing checkmarks, form errors)
 
-The `--gradient-*` variables remain available for custom themes, but the defaults resolve to solid semantic colours. Blue is reserved for interactive emphasis, focus, and selected treatment; headings and decorative surfaces stay neutral.
+Blue is reserved for interactive emphasis, focus, and selected treatment; headings and decorative surfaces stay neutral.
 
 Shared utility classes keep the blocks consistent: `.section-header` / `.section-headline` / `.section-subheadline` for centred block intros, and `.icon-tile` for the 48px blue icon squares. Use them in new blocks rather than restyling per block.
 
@@ -64,25 +65,26 @@ Roundness is generous: `--radius` is 10px, `--radius-lg` 16px, plus a `--radius-
 
 Design tokens live in `src/styles/tokens.css` with their default values. To restyle the site, override tokens in `src/styles/theme.css` -- declarations there are unlayered, so they always beat the `@layer base` defaults. Don't edit `tokens.css` or `Base.astro` for visual changes.
 
-Colours are defined with `light-dark(<light>, <dark>)`, so each token carries both modes. Overriding with a plain colour changes light and dark at once; use `light-dark()` in the override to keep them distinct. There is no separate dark palette to maintain. The compatibility `--gradient-*` tokens resolve to solid colours by default and can be overridden when the new identity calls for a gradient.
+The base values live on `:root`. Dark values are repeated under `:root.dark` and `@media (prefers-color-scheme: dark)` for explicit and system themes. Update all three declarations when a colour differs by appearance.
 
 Webfonts are configured in `astro.config.mjs` under `fonts:`. To swap the typeface, change the `name:` for the entry bound to `cssVariable: "--font-body"`. Inter has 5 weights loaded (400-800) for hero impact -- if you swap, ensure the replacement has comparable weight range. Geist, Plus Jakarta Sans, Manrope, and DM Sans all work well as replacements. For a system font, or a separate heading face, override `--font-body` / `--font-heading` in `theme.css`. A softer voice (editorial, luxury) usually also wants `--font-weight-display: 700` or lower.
 
 CSS variables worth knowing (see `tokens.css` for the full list):
 
-- `--color-brand`, `--color-brand-strong`, `--color-brand-soft`, `--color-on-brand`, `--color-brand-ring`
-- `--color-accent`, `--color-accent-soft` (compatibility aliases)
-- `--gradient-brand`, `--gradient-brand-strong`, `--gradient-brand-soft`, `--gradient-headline`
+- `--heat-{4,8,12,16,20,40,90,100}`
+- `--color-primary`, `--color-primary-dark`, `--color-primary-light`, `--color-focus`
+- `--button-primary-*`, `--button-secondary-*`, `--button-disabled-*`
+- `--color-brand`, `--color-brand-strong`, `--color-brand-soft` (public-template compatibility aliases)
 - `--color-bg`, `--color-surface`, `--color-text`, `--color-muted`, `--color-border`
 - `--color-success`, `--color-warning`, `--color-danger`
 - `--font-body`, `--font-heading`, `--font-weight-heading` (700), `--font-weight-display` (700)
-- `--font-size-{xs,sm,base,lg,xl,2xl,3xl,4xl,5xl,6xl}` -- type scale up to 4rem for the largest hero
-- `--radius-sm` (10px), `--radius` (10px), `--radius-lg` (16px), `--radius-full`
+- `--font-size-{xs,sm,base,lg,xl,2xl,3xl,4xl,5xl,6xl}` -- type scale up to 4.5rem
+- `--radius-sm` (6px), `--radius` (10px), `--radius-lg` (16px), `--radius-full`
 - `--shadow-sm`, `--shadow`, `--shadow-lg`, `--shadow-xl`
 
 To re-brand, the highest-leverage moves are:
 
-1. Change `--color-brand` and its `-strong` / `-soft` shades, checking foreground contrast in both appearances.
+1. Change the `--heat-*` scale and `--button-primary-fg` in `theme.css`, checking foreground contrast in both appearances.
 2. Update the site title (logo wordmark) and tagline.
 3. Replace the hero illustration URL.
 4. Edit hero `headline` and `subheadline` blocks to specific, concrete copy.

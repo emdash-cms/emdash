@@ -182,9 +182,9 @@ const pageCtx = createPublicPageContext({
 					min-height: 100vh;
 					color: var(--color-text);
 					background: var(--color-bg);
-					font-family: var(--font-body);
+					font-family: var(--font-sans);
 					font-size: var(--font-size-base);
-					line-height: var(--leading-normal);
+					line-height: 1.6;
 					-webkit-font-smoothing: antialiased;
 				}
 
@@ -209,7 +209,7 @@ const pageCtx = createPublicPageContext({
 					outline-offset: 2px;
 					box-shadow:
 						0 0 0 2px var(--color-bg),
-						0 0 0 4px var(--color-brand);
+						0 0 0 4px var(--color-focus);
 				}
 
 				img {
@@ -224,10 +224,9 @@ const pageCtx = createPublicPageContext({
 				h4,
 				h5,
 				h6 {
-					font-family: var(--font-heading);
-					font-weight: var(--font-weight-heading);
-					line-height: var(--leading-snug);
-					letter-spacing: var(--tracking-snug);
+					font-weight: 700;
+					line-height: 1.2;
+					letter-spacing: -0.02em;
 					text-wrap: balance;
 				}
 
@@ -289,21 +288,22 @@ const pageCtx = createPublicPageContext({
 
 				.btn {
 					display: inline-flex;
-					min-height: 40px;
 					align-items: center;
 					justify-content: center;
-					gap: var(--spacing-sm);
-					padding: 9px var(--spacing-lg);
+					gap: var(--button-gap);
+					min-height: 36px;
+					padding: var(--button-padding-y) var(--button-padding-x);
 					font-family: inherit;
 					font-size: var(--font-size-sm);
-					font-weight: 600;
+					font-weight: 500;
 					line-height: 1.35;
-					border-radius: var(--radius-sm);
+					border: 0;
+					border-radius: var(--button-radius);
 					cursor: pointer;
 					transition:
+						color var(--transition-fast),
 						background var(--transition-fast),
-						border-color var(--transition-fast),
-						box-shadow var(--transition-fast),
+						opacity var(--transition-fast),
 						transform var(--transition-fast);
 				}
 
@@ -312,44 +312,48 @@ const pageCtx = createPublicPageContext({
 				}
 
 				.btn:active {
-					transform: scale(0.99);
+					transform: scale(0.995);
+				}
+
+				.btn[aria-disabled="true"],
+				.btn:disabled {
+					color: var(--button-disabled-fg);
+					background: var(--button-disabled-bg);
+					cursor: not-allowed;
+					opacity: 0.8;
+					transform: none;
 				}
 
 				.btn-primary {
-					color: var(--color-on-brand);
-					background: var(--color-brand-strong);
-					border: 1px solid var(--color-brand-strong);
+					color: var(--button-primary-fg);
+					background: var(--button-primary-bg);
 				}
 
 				.btn-primary:hover {
-					background: var(--color-brand);
-					border-color: var(--color-brand);
-					box-shadow: var(--shadow-lg);
+					background: var(--button-primary-bg-hover);
 				}
 
 				.btn-secondary {
-					color: var(--color-text);
-					background: var(--color-surface);
-					border: 1px solid var(--color-border);
+					color: var(--button-secondary-fg);
+					background: var(--button-secondary-bg);
 				}
 
 				.btn-secondary:hover {
-					background: var(--color-brand-ring);
-					border-color: var(--color-brand);
+					background: var(--button-secondary-bg-hover);
+				}
+
+				.btn-secondary:active {
+					background: var(--button-secondary-bg-active);
 				}
 
 				.btn-lg {
-					min-height: 44px;
-					padding: 10px var(--spacing-xl);
+					min-height: 40px;
+					padding: 10px 14px;
 					font-size: var(--font-size-base);
 				}
 
 				main {
 					min-height: calc(100vh - 200px);
-				}
-
-				html.js main {
-					padding-block-start: 78px;
 				}
 
 				@media (max-width: 768px) {

@@ -35,41 +35,32 @@ const iconMap: Record<string, string> = {
 
 <section class="features section" id={_key}>
 	<div class="features-container container">
-		{
-			(headline || subheadline) && (
-				<header class="features-header">
-					{headline && <h2 class="features-headline">{headline}</h2>}
-					{subheadline && (
-						<p class="features-subheadline">{subheadline}</p>
-					)}
-				</header>
-			)
-		}
+		{(headline || subheadline) && (
+			<header class="features-header">
+				{headline && <h2 class="features-headline">{headline}</h2>}
+				{subheadline && <p class="features-subheadline">{subheadline}</p>}
+			</header>
+		)}
 		<div class="features-grid">
-			{
-				features.map((feature) => (
-					<article class="feature-card">
-						<div class="feature-title-row">
-							<span class="feature-icon">
-								<Icon
-									name={iconMap[feature.icon] || "ph:sparkle"}
-									aria-hidden="true"
-								/>
-							</span>
-							<h3 class="feature-title">{feature.title}</h3>
-						</div>
-						<p class="feature-description">{feature.description}</p>
-					</article>
-				))
-			}
+			{features.map((feature) => (
+				<div class="feature-card">
+					<div class="feature-title-row">
+						<span class="feature-icon">
+							<Icon name={iconMap[feature.icon] || "ph:sparkle"} aria-hidden="true" />
+						</span>
+						<h3 class="feature-title">{feature.title}</h3>
+					</div>
+					<p class="feature-description">{feature.description}</p>
+				</div>
+			))}
 		</div>
 	</div>
 </section>
 
 <style>
 	.features.section {
-		padding-block: var(--spacing-4xl);
-		background: color-mix(in srgb, var(--color-bg) 62%, var(--color-surface));
+		padding: var(--spacing-4xl) 0;
+		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
 	}
 
 	.features-container {
@@ -79,47 +70,48 @@ const iconMap: Record<string, string> = {
 	}
 
 	.features-header {
-		max-width: 38rem;
-		margin-inline: auto;
+		max-width: 36rem;
+		margin: 0 auto;
 		text-align: center;
 	}
 
 	.features-headline {
 		font-size: var(--font-size-3xl);
-		font-weight: var(--font-weight-display);
+		font-weight: 700;
 		line-height: 1.12;
 		letter-spacing: -0.035em;
 		text-wrap: balance;
+		overflow-wrap: anywhere;
 	}
 
 	.features-subheadline {
 		max-width: 38rem;
 		margin: var(--spacing-md) auto 0;
-		color: var(--color-muted);
 		font-size: var(--font-size-base);
 		line-height: 1.65;
+		color: color-mix(in srgb, var(--color-text) 62%, transparent);
 		text-wrap: balance;
 	}
 
 	.features-grid {
 		display: grid;
 		grid-template-columns: repeat(3, minmax(0, 1fr));
-		align-items: stretch;
 		gap: var(--spacing-md);
+		align-items: stretch;
 	}
 
 	.feature-card {
+		position: relative;
 		display: flex;
-		min-width: 0;
 		min-height: 13.5rem;
 		flex-direction: column;
 		gap: 0.75rem;
 		padding: 2.75rem;
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-xl);
+		border-radius: 18px;
 		box-shadow:
-			0 0 0 4px color-mix(in srgb, var(--color-border) 34%, transparent),
+			0 0 0 4px var(--border-faint),
 			var(--shadow-sm);
 		transition:
 			background var(--transition-fast),
@@ -130,13 +122,15 @@ const iconMap: Record<string, string> = {
 	.feature-card:hover {
 		background: color-mix(in srgb, var(--color-surface) 92%, var(--color-bg));
 		border-color: color-mix(in srgb, var(--color-text) 14%, var(--color-border));
+		box-shadow:
+			0 0 0 4px var(--border-faint),
+			var(--shadow-sm);
 	}
 
 	.feature-title-row {
 		display: flex;
-		min-width: 0;
 		align-items: center;
-		gap: var(--spacing-sm);
+		gap: 0.5rem;
 	}
 
 	.feature-icon {
@@ -146,7 +140,7 @@ const iconMap: Record<string, string> = {
 		flex: 0 0 auto;
 		align-items: center;
 		justify-content: center;
-		color: var(--color-muted);
+		color: color-mix(in srgb, var(--color-text) 72%, transparent);
 		font-size: 1rem;
 		line-height: 1;
 	}
@@ -154,17 +148,67 @@ const iconMap: Record<string, string> = {
 	.feature-title {
 		min-width: 0;
 		font-size: var(--font-size-sm);
-		font-weight: 600;
+		font-weight: 500;
 		line-height: 1.35;
 		letter-spacing: -0.01em;
 		overflow-wrap: anywhere;
 	}
 
 	.feature-description {
-		color: var(--color-muted);
 		font-size: var(--font-size-sm);
 		line-height: 1.65;
+		color: color-mix(in srgb, var(--color-text) 62%, transparent);
 		overflow-wrap: anywhere;
+	}
+
+	:global(:root.dark) .feature-card {
+		border-color: color-mix(in srgb, var(--color-bg) 90%, var(--color-text));
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+			var(--shadow-sm);
+	}
+
+	:global(:root.dark) .feature-card:hover {
+		border-color: color-mix(in srgb, var(--color-bg) 84%, var(--color-text));
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+			var(--shadow-sm);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not(.light)) .feature-card {
+			border-color: color-mix(in srgb, var(--color-bg) 90%, var(--color-text));
+			box-shadow:
+				0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+				var(--shadow-sm);
+		}
+
+		:global(:root:not(.light)) .feature-card:hover {
+			border-color: color-mix(in srgb, var(--color-bg) 84%, var(--color-text));
+			box-shadow:
+				0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+				var(--shadow-sm);
+		}
+	}
+
+	@media (min-width: 768px) {
+		.features-headline {
+			font-size: var(--font-size-4xl);
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.features.section {
+			padding: var(--spacing-5xl) 0;
+		}
+
+		.features-container {
+			gap: var(--spacing-4xl);
+		}
+
+		.features-headline {
+			font-size: var(--font-size-5xl);
+		}
 	}
 
 	@media (max-width: 900px) {
@@ -179,7 +223,7 @@ const iconMap: Record<string, string> = {
 
 	@media (max-width: 600px) {
 		.features.section {
-			padding-block: var(--spacing-3xl);
+			padding: var(--spacing-3xl) 0;
 		}
 
 		.features-container {
@@ -187,7 +231,7 @@ const iconMap: Record<string, string> = {
 		}
 
 		.features-grid {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 		}
 
 		.feature-card {

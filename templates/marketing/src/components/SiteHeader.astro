@@ -1,4 +1,6 @@
 ---
+import { sanitizeHref } from "emdash";
+
 interface MenuItem {
 	label: string;
 	url: string;
@@ -17,39 +19,37 @@ interface Props {
 }
 
 const { siteTitle, siteLogo, menuItems } = Astro.props;
+const EXTERNAL_URL_REGEX = /^https?:\/\//i;
+
+function isExternalUrl(url?: string | null) {
+	return typeof url === "string" && EXTERNAL_URL_REGEX.test(url);
+}
+
+function getTarget(item: MenuItem) {
+	return item.target || (isExternalUrl(item.url) ? "_blank" : undefined);
+}
 
 function getRel(item: MenuItem) {
-	return item.target === "_blank" ? "noopener noreferrer" : undefined;
+	return getTarget(item) === "_blank" ? "noreferrer" : undefined;
 }
+
+const navItems = menuItems.map((item) => ({
+	...item,
+	url: sanitizeHref(item.url?.trim()),
+}));
 ---
 
 <header class="site-header" data-site-header data-scrolled="false">
-	<nav
-		class="site-nav"
-		data-site-nav
-		data-state="closed"
-		aria-label="Primary navigation"
-	>
+	<nav class="site-nav" data-site-nav data-state="closed" aria-label="Primary navigation">
 		<div class="site-nav-shell">
 			<div class="site-nav-inner">
 				<div class="site-brand-row">
-					<a
-						href="/"
-						class="site-logo"
-						aria-label={`${siteTitle} home`}
-						data-menu-close
-					>
-						{
-							siteLogo ? (
-								<img
-									src={siteLogo.url}
-									alt={siteLogo.alt || siteTitle}
-									class="site-logo-img"
-								/>
-							) : (
-								<span class="site-logo-text">{siteTitle}</span>
-							)
-						}
+					<a href="/" class="site-logo" aria-label={`${siteTitle} home`} data-menu-close>
+						{siteLogo ? (
+							<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="site-logo-img" />
+						) : (
+							<span class="site-logo-text">{siteTitle}</span>
+						)}
 					</a>
 
 					<button
@@ -60,33 +60,44 @@ function getRel(item: MenuItem) {
 						aria-controls="site-nav-panel"
 						data-menu-toggle
 					>
-						<svg
-							class="nav-toggle-icon nav-toggle-icon--menu"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path d="M4 7h16M4 12h16M4 17h16"></path>
+						<svg class="nav-toggle-icon nav-toggle-icon--menu" viewBox="0 0 24 24" aria-hidden="true">
+							<path d="M4 7h16M4 12h16M4 17h16" />
 						</svg>
-						<svg
-							class="nav-toggle-icon nav-toggle-icon--close"
-							viewBox="0 0 24 24"
-							aria-hidden="true"
-						>
-							<path d="m6 6 12 12M18 6 6 18"></path>
+						<svg class="nav-toggle-icon nav-toggle-icon--close" viewBox="0 0 24 24" aria-hidden="true">
+							<path d="m6 6 12 12M18 6 6 18" />
 						</svg>
 					</button>
 				</div>
 
-				{
-					menuItems.length > 0 && (
-						<div class="nav-center">
+				{navItems.length > 0 && (
+					<div class="nav-center">
+						<ul>
+							{navItems.map((item) => (
+								<li>
+									<a
+										href={item.url}
+										target={getTarget(item)}
+										rel={getRel(item)}
+									>
+										{item.label}
+									</a>
+								</li>
+							))}
+						</ul>
+					</div>
+				)}
+
+				<div class="nav-panel" id="site-nav-panel" data-nav-panel>
+					{navItems.length > 0 && (
+						<div class="nav-mobile-links">
 							<ul>
-								{menuItems.map((item) => (
+								{navItems.map((item) => (
 									<li>
 										<a
 											href={item.url}
-											target={item.target}
+											target={getTarget(item)}
 											rel={getRel(item)}
+											data-menu-close
 										>
 											{item.label}
 										</a>
@@ -94,36 +105,13 @@ function getRel(item: MenuItem) {
 								))}
 							</ul>
 						</div>
-					)
-				}
-
-				<div class="nav-panel" id="site-nav-panel" data-nav-panel>
-					{
-						menuItems.length > 0 && (
-							<div class="nav-mobile-links">
-								<ul>
-									{menuItems.map((item) => (
-										<li>
-											<a
-												href={item.url}
-												target={item.target}
-												rel={getRel(item)}
-												data-menu-close
-											>
-												{item.label}
-											</a>
-										</li>
-									))}
-								</ul>
-							</div>
-						)
-					}
+					)}
 
 					<div class="nav-actions">
-						<a href="/_emdash/admin" class="nav-action nav-admin" data-menu-close>
+						<a href="/_emdash/admin" class="nav-action nav-action--secondary" data-menu-close>
 							Admin
 						</a>
-						<a href="/signup" class="nav-action nav-cta" data-menu-close>
+						<a href="/signup" class="nav-action nav-action--primary" data-menu-close>
 							Get Started
 						</a>
 					</div>
@@ -195,7 +183,7 @@ function getRel(item: MenuItem) {
 		width: 100%;
 		max-width: var(--wide-width);
 		margin: 8px auto 0;
-		padding-inline: var(--spacing-lg);
+		padding: 0 var(--spacing-lg);
 		border: 1px solid transparent;
 		border-radius: 0;
 		transition:
@@ -212,10 +200,10 @@ function getRel(item: MenuItem) {
 	.site-header[data-scrolled="true"] .site-nav-shell,
 	.site-nav[data-state="active"] .site-nav-shell {
 		width: calc(100% - 16px);
-		max-width: var(--focused-width);
-		padding-inline: var(--spacing-md);
+		max-width: 920px;
+		padding: 0 var(--spacing-md);
 		border-color: var(--color-border);
-		border-radius: var(--radius-xl);
+		border-radius: 18px;
 		background: var(--color-surface);
 		background: color-mix(in srgb, var(--color-surface) 78%, transparent);
 		box-shadow: var(--shadow-lg);
@@ -223,12 +211,13 @@ function getRel(item: MenuItem) {
 	}
 
 	.site-nav-inner {
+		position: relative;
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
-		gap: var(--spacing-md);
-		padding-block: 12px;
+		gap: var(--spacing-lg);
+		padding: 12px 0;
 	}
 
 	.site-brand-row {
@@ -242,12 +231,12 @@ function getRel(item: MenuItem) {
 	.site-logo {
 		display: inline-flex;
 		min-width: 0;
-		max-width: calc(100% - 52px);
+		max-width: 100%;
 		align-items: center;
 		color: var(--color-text);
 		font-size: var(--font-size-xl);
-		font-weight: var(--font-weight-display);
-		letter-spacing: var(--tracking-tight);
+		font-weight: 700;
+		letter-spacing: -0.03em;
 		line-height: 1.2;
 	}
 
@@ -258,25 +247,25 @@ function getRel(item: MenuItem) {
 	}
 
 	.site-logo-img {
-		display: block;
+		height: clamp(28px, 3vw, 32px);
 		width: auto;
-		max-width: 100%;
-		height: 32px;
-		object-fit: contain;
+		display: block;
 	}
 
 	.nav-toggle {
-		display: none;
 		position: relative;
+		z-index: 2;
+		display: none;
 		width: 40px;
 		height: 40px;
-		flex: 0 0 auto;
 		align-items: center;
 		justify-content: center;
+		margin-block: -8px;
+		margin-inline-end: -10px;
 		color: var(--color-text);
 		background: transparent;
 		border: 0;
-		border-radius: var(--radius-sm);
+		border-radius: var(--button-radius);
 		cursor: pointer;
 		transition: background var(--transition-fast);
 	}
@@ -286,7 +275,7 @@ function getRel(item: MenuItem) {
 	}
 
 	.nav-toggle:hover {
-		background: var(--color-brand-ring);
+		background: var(--button-secondary-bg-hover);
 	}
 
 	.nav-toggle-icon {
@@ -330,26 +319,25 @@ function getRel(item: MenuItem) {
 	.nav-center a,
 	.nav-mobile-links a {
 		display: block;
-		color: var(--color-muted);
 		font-size: var(--font-size-sm);
 		font-weight: 500;
-		line-height: 1.4;
+		color: var(--color-muted);
 		transition: color var(--transition-fast);
 	}
 
 	.nav-center a:hover,
 	.nav-mobile-links a:hover {
-		color: var(--color-brand);
+		color: var(--color-text);
 	}
 
 	.nav-panel {
 		display: block;
 		width: 100%;
-		margin-block-end: var(--spacing-md);
+		margin-bottom: var(--spacing-md);
 		padding: var(--spacing-lg);
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
+		border-radius: 24px;
 		box-shadow: var(--shadow-xl);
 	}
 
@@ -362,7 +350,7 @@ function getRel(item: MenuItem) {
 	}
 
 	.nav-mobile-links {
-		margin-block-end: var(--spacing-xl);
+		margin-bottom: var(--spacing-xl);
 	}
 
 	.nav-mobile-links ul {
@@ -383,14 +371,15 @@ function getRel(item: MenuItem) {
 
 	.nav-action {
 		display: inline-flex;
-		min-height: 40px;
 		align-items: center;
 		justify-content: center;
-		padding: 9px 14px;
+		gap: 6px;
+		min-height: 36px;
+		padding: 8px 12px;
 		font-size: var(--font-size-sm);
-		font-weight: 600;
+		font-weight: 500;
 		line-height: 1.35;
-		border-radius: var(--radius-sm);
+		border-radius: var(--button-radius);
 		transition:
 			background var(--transition-fast),
 			color var(--transition-fast),
@@ -401,23 +390,29 @@ function getRel(item: MenuItem) {
 		transform: scale(0.99);
 	}
 
-	.nav-admin {
-		color: var(--color-muted);
+	.nav-action--secondary {
+		color: var(--color-text);
 		background: transparent;
 	}
 
-	.nav-admin:hover {
-		color: var(--color-text);
-		background: var(--color-brand-ring);
+	.nav-action--secondary:hover {
+		background: var(--button-secondary-bg-hover);
 	}
 
-	.nav-cta {
-		color: var(--color-on-brand);
-		background: var(--color-brand-strong);
+	.nav-action--primary {
+		color: var(--button-primary-fg);
+		background: var(--button-primary-bg);
 	}
 
-	.nav-cta:hover {
-		background: var(--color-brand);
+	.nav-action--primary:hover {
+		background: var(--button-primary-bg-hover);
+	}
+
+	@media (min-width: 640px) {
+		.nav-actions {
+			flex-direction: row;
+			justify-content: flex-end;
+		}
 	}
 
 	@media (min-width: 960px) {
@@ -425,15 +420,11 @@ function getRel(item: MenuItem) {
 			display: grid;
 			grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr) minmax(0, 1fr);
 			gap: var(--spacing-md);
-			padding-block: 14px;
+			padding: 14px 0;
 		}
 
 		.site-brand-row {
 			width: auto;
-		}
-
-		.site-logo {
-			max-width: 100%;
 		}
 
 		.nav-toggle,
@@ -457,10 +448,9 @@ function getRel(item: MenuItem) {
 
 		.nav-panel,
 		:global(html.js) .nav-panel,
-		:global(html.js) .site-nav[data-state="active"] .nav-panel {
+			:global(html.js) .site-nav[data-state="active"] .nav-panel {
 			display: flex;
-			min-width: 0;
-			width: auto;
+			width: fit-content;
 			justify-content: flex-end;
 			margin: 0;
 			padding: 0;
@@ -472,9 +462,13 @@ function getRel(item: MenuItem) {
 
 		.nav-actions {
 			width: auto;
-			flex-direction: row;
 			align-items: center;
 			justify-content: flex-end;
+			gap: var(--spacing-sm);
+		}
+
+		.site-header[data-scrolled="true"] .site-nav-shell {
+			padding: 0 var(--spacing-md);
 		}
 	}
 
@@ -482,9 +476,7 @@ function getRel(item: MenuItem) {
 		.site-nav-shell,
 		.nav-toggle,
 		.nav-toggle-icon,
-		.nav-action,
-		.nav-center a,
-		.nav-mobile-links a {
+		.nav-action {
 			transition: none;
 		}
 

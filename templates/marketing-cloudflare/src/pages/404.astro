@@ -16,50 +16,49 @@ import Base from "../layouts/Base.astro";
 
 <style>
 	.not-found {
-		display: flex;
-		min-height: calc(100vh - 240px);
-		max-width: var(--max-width);
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		margin-inline: auto;
-		padding: var(--spacing-4xl) var(--spacing-lg) var(--spacing-5xl);
 		text-align: center;
+		padding: var(--spacing-5xl) var(--spacing-lg);
+		max-width: var(--max-width);
+		margin: 0 auto;
 	}
 
 	.not-found-code {
-		margin-block-end: var(--spacing-lg);
-		color: color-mix(in srgb, var(--color-brand) 48%, var(--color-text));
-		font-size: clamp(6rem, 20vw, 10rem);
-		font-weight: var(--font-weight-display);
+		font-size: 10rem;
+		font-weight: 800;
 		line-height: 1;
 		letter-spacing: -0.05em;
-		text-shadow: 0 8px 28px var(--color-brand-ring);
+		background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
+		-webkit-background-clip: text;
+		-webkit-text-fill-color: transparent;
+		background-clip: text;
+		opacity: 0.3;
+		margin-bottom: var(--spacing-lg);
 	}
 
 	.not-found h1 {
-		margin-block-end: var(--spacing-md);
 		font-size: var(--font-size-3xl);
+		margin-bottom: var(--spacing-md);
 	}
 
 	.not-found p {
-		max-width: 32rem;
-		margin-block-end: var(--spacing-2xl);
-		color: var(--color-muted);
 		font-size: var(--font-size-lg);
-		line-height: var(--leading-normal);
+		color: var(--color-muted);
+		margin-bottom: var(--spacing-2xl);
 	}
 
 	.not-found-actions {
 		display: flex;
-		flex-wrap: wrap;
-		justify-content: center;
 		gap: var(--spacing-md);
+		justify-content: center;
+		flex-wrap: wrap;
 	}
 
 	@media (max-width: 480px) {
+		.not-found-code {
+			font-size: 6rem;
+		}
+
 		.not-found-actions {
-			width: 100%;
 			flex-direction: column;
 		}
 

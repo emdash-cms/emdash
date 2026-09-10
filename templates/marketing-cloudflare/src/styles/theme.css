@@ -1,32 +1,57 @@
 /*
-  theme.css -- your theme overrides. This is the file to edit to
-  retheme the site.
+  theme.css — public marketing template palette.
 
-  Every design token lives in src/styles/tokens.css (colors, gradients,
-  type scale, spacing, layout, shadows) with its default value. Override
-  any of them here: declarations in this file are unlayered, so they
-  always beat the @layer base defaults in tokens.css.
-
-  Colors are defined with light-dark(). Overriding with a plain color
-  changes light and dark mode at once; use light-dark(<light>, <dark>)
-  to set different values per mode.
-
-  Rebranding usually only needs --color-brand-* and --color-accent-* --
-  the gradient tokens follow automatically. For a flat, gradient-free
-  brand, set the --gradient-* tokens to solid colors.
-
-  Webfonts are loaded in astro.config.mjs (--font-body). Swap the loaded
-  font there; use overrides here for system fonts or a separate heading
-  face.
-
-  Example:
-
-  :root {
-    --color-brand: light-dark(#0d9488, #2dd4bf);
-    --color-accent: #f59e0b;
-    --font-weight-display: 700;
-  }
+  These unlayered declarations override the defaults declared inside
+  @layer base in tokens.css. The default uses navy-tinted neutrals and one
+  blue accent family.
 */
 
 :root {
+	--heat-100: #1d4ed8;
+	--heat-90: #1d4ed8e6;
+	--heat-40: #1d4ed866;
+	--heat-20: #1d4ed833;
+	--heat-12: #1d4ed81f;
+	--heat-8: #1d4ed814;
+	--heat-4: #1d4ed80a;
+	--color-primary: var(--heat-100);
+	--color-primary-dark: var(--heat-90);
+	--color-primary-light: var(--heat-12);
+	--color-accent: var(--heat-100);
+	--color-accent-light: var(--heat-12);
+	--button-primary-fg: #ffffff;
+}
+
+:root.dark {
+	--heat-100: #60a5fa;
+	--heat-90: #60a5fae6;
+	--heat-40: #60a5fa66;
+	--heat-20: #60a5fa33;
+	--heat-12: #60a5fa1f;
+	--heat-8: #60a5fa14;
+	--heat-4: #60a5fa0a;
+	--color-primary: var(--heat-100);
+	--color-primary-dark: var(--heat-90);
+	--color-primary-light: var(--heat-12);
+	--color-accent: var(--heat-100);
+	--color-accent-light: var(--heat-12);
+	--button-primary-fg: #0b1220;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not(.light) {
+		--heat-100: #60a5fa;
+		--heat-90: #60a5fae6;
+		--heat-40: #60a5fa66;
+		--heat-20: #60a5fa33;
+		--heat-12: #60a5fa1f;
+		--heat-8: #60a5fa14;
+		--heat-4: #60a5fa0a;
+		--color-primary: var(--heat-100);
+		--color-primary-dark: var(--heat-90);
+		--color-primary-light: var(--heat-12);
+		--color-accent: var(--heat-100);
+		--color-accent-light: var(--heat-12);
+		--button-primary-fg: #0b1220;
+	}
 }

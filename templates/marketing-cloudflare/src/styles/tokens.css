@@ -1,57 +1,93 @@
 /*
-  tokens.css -- the design tokens for this template. These are the
-  defaults; to customise the site, override any variable in
-  src/styles/theme.css rather than editing this file. Declarations in
-  theme.css are unlayered, so they always beat these @layer base
-  defaults without specificity tricks.
+  tokens.css -- the public marketing template design tokens.
 
-  Colours use light-dark(): the first value applies in light mode and
-  the second in dark mode. Overriding a colour with a plain value changes
-  both modes at once. Use light-dark(<light>, <dark>) to keep them distinct.
-
-  The default visual system uses navy-tinted neutrals and one blue accent.
-  Gradient variables remain available for compatibility, but resolve to
-  solid role colours until a custom theme overrides them.
-
-  --font-body is defined by the font pipeline in astro.config.mjs. To swap
-  the loaded webfont, edit the fonts entry there. Override --font-heading
-  in theme.css when headings need a separate face.
+  The structure matches the EmDash public site's token system. Override
+  values in theme.css to rebrand the template without changing component
+  styles. The default palette replaces the source orange with blue and
+  shifts the neutral surfaces toward navy.
 */
 
 @layer base {
 	:root {
 		color-scheme: light dark;
 
-		/* Colours */
-		--color-bg: light-dark(#f7f9fc, #0b1220);
-		--color-text: light-dark(#14213d, #f3f6fb);
-		--color-muted: light-dark(#5c6b82, #9aa9bd);
-		--color-border: light-dark(#dbe3ef, #2a3850);
-		--color-surface: light-dark(#ffffff, #121c2e);
-		--color-surface-raised: light-dark(#ffffff, #18243a);
-		--color-brand: light-dark(#1d4ed8, #60a5fa);
-		--color-brand-strong: light-dark(#1e40af, #3b82f6);
-		--color-brand-soft: light-dark(#dbeafe, #1e3a5f);
-		--color-accent: var(--color-brand);
-		--color-accent-soft: var(--color-brand-soft);
-		--color-on-brand: light-dark(#ffffff, #0b1220);
-		--color-brand-ring: color-mix(in srgb, var(--color-brand) 12%, transparent);
-		--color-success: light-dark(#15803d, #4ade80);
-		--color-warning: light-dark(#a16207, #facc15);
-		--color-danger: light-dark(#b91c1c, #f87171);
+		/* Accent scale */
+		--heat-4: #1d4ed80a;
+		--heat-8: #1d4ed814;
+		--heat-12: #1d4ed81f;
+		--heat-16: #1d4ed829;
+		--heat-20: #1d4ed833;
+		--heat-40: #1d4ed866;
+		--heat-90: #1d4ed8e6;
+		--heat-100: #1d4ed8ff;
 
-		/* Compatibility aliases and solid default treatments */
-		--gradient-brand: var(--color-brand);
+		/* Neutral scale */
+		--accent-black: #14213dff;
+		--accent-white: #ffffffff;
+		--surface: #ffffffff;
+		--surface-raised: #ffffffff;
+		--black-alpha-3: #14213d08;
+		--black-alpha-4: #14213d0a;
+		--black-alpha-6: #14213d0f;
+		--black-alpha-7: #14213d12;
+		--black-alpha-32: #14213d52;
+		--black-alpha-48: #14213d7a;
+		--black-alpha-56: #5c6b82ff;
+		--border-faint: #e8edf5ff;
+		--border-muted: #dbe3efff;
+		--border-loud: #ced8e7ff;
+		--background-base: #f7f9fcff;
+		--background-lighter: #fbfcfeff;
+
+		/* Semantic roles */
+		--color-bg: var(--background-base);
+		--color-text: var(--accent-black);
+		--color-muted: var(--black-alpha-56);
+		--color-border: var(--border-muted);
+		--color-surface: var(--surface);
+		--color-surface-raised: var(--surface-raised);
+		--color-primary: var(--heat-100);
+		--color-primary-dark: var(--heat-90);
+		--color-primary-light: var(--heat-12);
+		--color-accent: var(--heat-100);
+		--color-accent-light: var(--heat-12);
+		--color-success: #15803d;
+		--color-warning: #a16207;
+		--color-danger: #b91c1c;
+		--color-focus: var(--heat-100);
+
+		/* Public-template compatibility aliases */
+		--color-brand: var(--color-primary);
+		--color-brand-strong: #1e40af;
+		--color-brand-soft: #dbeafe;
+		--color-on-brand: #ffffff;
+		--color-brand-ring: var(--heat-12);
+		--gradient-brand: var(--color-primary);
 		--gradient-brand-strong: var(--color-brand-strong);
 		--gradient-brand-soft: var(--color-brand-soft);
 		--gradient-headline: var(--color-text);
 
+		/* Button roles */
+		--button-radius: 10px;
+		--button-gap: 6px;
+		--button-padding-y: 8px;
+		--button-padding-x: 12px;
+		--button-primary-bg: var(--heat-100);
+		--button-primary-bg-hover: var(--heat-90);
+		--button-primary-fg: var(--accent-white);
+		--button-secondary-bg: var(--black-alpha-4);
+		--button-secondary-bg-hover: var(--black-alpha-6);
+		--button-secondary-bg-active: var(--black-alpha-7);
+		--button-secondary-fg: var(--accent-black);
+		--button-disabled-bg: var(--black-alpha-3);
+		--button-disabled-fg: var(--black-alpha-48);
+
 		/* Typography */
+		--font-sans: var(--font-body);
 		--font-heading: var(--font-body);
+		--font-mono: ui-monospace, "SF Mono", monospace;
 		--font-weight-heading: 700;
 		--font-weight-display: 700;
-
-		/* Type scale */
 		--font-size-xs: 0.75rem;
 		--font-size-sm: 0.875rem;
 		--font-size-base: 1rem;
@@ -60,16 +96,12 @@
 		--font-size-2xl: 1.5rem;
 		--font-size-3xl: 2rem;
 		--font-size-4xl: 2.5rem;
-		--font-size-5xl: 3.25rem;
-		--font-size-6xl: 4rem;
-
-		/* Line heights */
+		--font-size-5xl: 3.5rem;
+		--font-size-6xl: 4.5rem;
 		--leading-tight: 1.1;
 		--leading-snug: 1.2;
 		--leading-normal: 1.6;
 		--leading-relaxed: 1.7;
-
-		/* Letter spacing */
 		--tracking-tight: -0.03em;
 		--tracking-snug: -0.02em;
 
@@ -88,7 +120,7 @@
 		--max-width: 720px;
 		--focused-width: 920px;
 		--wide-width: 1200px;
-		--radius-sm: 10px;
+		--radius-sm: 6px;
 		--radius: 10px;
 		--radius-lg: 16px;
 		--radius-xl: 18px;
@@ -100,29 +132,85 @@
 		--transition-slow: 300ms ease;
 
 		/* Shadows */
-		--shadow-sm: 0 1px 2px rgba(15, 31, 61, 0.06);
-		--shadow: 0 6px 20px -14px rgba(15, 31, 61, 0.28);
-		--shadow-lg: 0 12px 28px -18px rgba(15, 31, 61, 0.34);
-		--shadow-xl: 0 22px 48px -28px rgba(15, 31, 61, 0.42);
+		--shadow-sm: 0 1px 2px rgba(15, 31, 61, 0.04);
+		--shadow: 0 2px 2px rgba(15, 31, 61, 0.04);
+		--shadow-lg: 0 8px 16px -12px rgba(15, 31, 61, 0.2);
+		--shadow-xl: 0 18px 32px -24px rgba(15, 31, 61, 0.28);
 	}
 
-	/* Light-mode fallbacks for browsers without light-dark(). */
-	@supports not (color: light-dark(#000, #fff)) {
-		:root {
-			color-scheme: light;
-			--color-bg: #f7f9fc;
-			--color-text: #14213d;
-			--color-muted: #5c6b82;
-			--color-border: #dbe3ef;
-			--color-surface: #ffffff;
-			--color-surface-raised: #ffffff;
-			--color-brand: #1d4ed8;
-			--color-brand-strong: #1e40af;
-			--color-brand-soft: #dbeafe;
-			--color-on-brand: #ffffff;
-			--color-success: #15803d;
-			--color-warning: #a16207;
-			--color-danger: #b91c1c;
+	@media (prefers-color-scheme: dark) {
+		:root:not(.light) {
+			--accent-black: #f3f6fbff;
+			--accent-white: #ffffffff;
+			--surface: #121c2eff;
+			--surface-raised: #18243aff;
+			--black-alpha-3: #ffffff08;
+			--black-alpha-4: #ffffff0a;
+			--black-alpha-6: #ffffff0f;
+			--black-alpha-7: #ffffff12;
+			--black-alpha-32: #ffffff52;
+			--black-alpha-48: #ffffff7a;
+			--black-alpha-56: #9aa9bdff;
+			--border-faint: #1e2b42ff;
+			--border-muted: #2a3850ff;
+			--border-loud: #364761ff;
+			--background-base: #0b1220ff;
+			--background-lighter: #101a2cff;
+			--color-bg: var(--background-base);
+			--color-text: var(--accent-black);
+			--color-muted: var(--black-alpha-56);
+			--color-border: var(--border-muted);
+			--color-surface: var(--surface);
+			--color-surface-raised: var(--surface-raised);
+			--color-brand-strong: #3b82f6;
+			--color-brand-soft: #1e3a5f;
+			--color-on-brand: #0b1220;
+			--button-secondary-bg: var(--black-alpha-4);
+			--button-secondary-bg-hover: var(--black-alpha-6);
+			--button-secondary-bg-active: var(--black-alpha-7);
+			--button-secondary-fg: var(--accent-black);
+			--button-disabled-bg: var(--black-alpha-3);
+			--button-disabled-fg: var(--black-alpha-48);
+			--color-success: #4ade80;
+			--color-warning: #facc15;
+			--color-danger: #f87171;
 		}
+	}
+
+	:root.dark {
+		--accent-black: #f3f6fbff;
+		--accent-white: #ffffffff;
+		--surface: #121c2eff;
+		--surface-raised: #18243aff;
+		--black-alpha-3: #ffffff08;
+		--black-alpha-4: #ffffff0a;
+		--black-alpha-6: #ffffff0f;
+		--black-alpha-7: #ffffff12;
+		--black-alpha-32: #ffffff52;
+		--black-alpha-48: #ffffff7a;
+		--black-alpha-56: #9aa9bdff;
+		--border-faint: #1e2b42ff;
+		--border-muted: #2a3850ff;
+		--border-loud: #364761ff;
+		--background-base: #0b1220ff;
+		--background-lighter: #101a2cff;
+		--color-bg: var(--background-base);
+		--color-text: var(--accent-black);
+		--color-muted: var(--black-alpha-56);
+		--color-border: var(--border-muted);
+		--color-surface: var(--surface);
+		--color-surface-raised: var(--surface-raised);
+		--color-brand-strong: #3b82f6;
+		--color-brand-soft: #1e3a5f;
+		--color-on-brand: #0b1220;
+		--button-secondary-bg: var(--black-alpha-4);
+		--button-secondary-bg-hover: var(--black-alpha-6);
+		--button-secondary-bg-active: var(--black-alpha-7);
+		--button-secondary-fg: var(--accent-black);
+		--button-disabled-bg: var(--black-alpha-3);
+		--button-disabled-fg: var(--black-alpha-48);
+		--color-success: #4ade80;
+		--color-warning: #facc15;
+		--color-danger: #f87171;
 	}
 }

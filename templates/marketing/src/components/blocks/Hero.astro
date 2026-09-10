@@ -1,4 +1,6 @@
 ---
+import { sanitizeHref } from "emdash";
+
 interface Props {
 	node: {
 		_key?: string;
@@ -18,52 +20,43 @@ interface Props {
 const { node } = Astro.props;
 const { _key, headline, subheadline, image, centered } = node;
 const headingId = _key ? `${_key}-title` : "hero-title";
+const showVisual = Boolean(image || !centered);
 
 const primaryCta =
 	node.primaryCtaLabel && node.primaryCtaUrl
-		? { label: node.primaryCtaLabel, url: node.primaryCtaUrl }
+		? { label: node.primaryCtaLabel, url: sanitizeHref(node.primaryCtaUrl.trim()) }
 		: undefined;
 const secondaryCta =
 	node.secondaryCtaLabel && node.secondaryCtaUrl
-		? { label: node.secondaryCtaLabel, url: node.secondaryCtaUrl }
+		? { label: node.secondaryCtaLabel, url: sanitizeHref(node.secondaryCtaUrl.trim()) }
 		: undefined;
-const showVisual = Boolean(image || !centered);
 ---
 
-<section
-	class:list={[
-		"hero",
-		{ "hero-centered": centered, "hero-with-image": Boolean(image) },
-	]}
-	id={_key}
-	aria-labelledby={headingId}
->
-	<div class="hero-container">
-		<div class="hero-copy">
-			<h1 id={headingId} class="hero-headline">{headline}</h1>
-			{subheadline && <p class="hero-subheadline">{subheadline}</p>}
-			{
-				(primaryCta || secondaryCta) && (
+<section class:list={["hero", { "hero-centered": centered }]} id={_key} aria-labelledby={headingId}>
+	<div class="hero-section">
+		<div class="hero-container">
+			<div class="hero-copy">
+				<h1 id={headingId} class="hero-headline">{headline}</h1>
+				{subheadline && <p class="hero-subheadline">{subheadline}</p>}
+				{(primaryCta || secondaryCta) && (
 					<div class="hero-actions">
 						{primaryCta && (
 							<a href={primaryCta.url} class="btn btn-primary btn-lg">
-								{primaryCta.label}
+								<span>{primaryCta.label}</span>
 							</a>
 						)}
 						{secondaryCta && (
 							<a href={secondaryCta.url} class="btn btn-secondary btn-lg">
-								{secondaryCta.label}
+								<span>{secondaryCta.label}</span>
 							</a>
 						)}
 					</div>
-				)
-			}
-		</div>
+				)}
+			</div>
 
-		{
-			showVisual && (
-				<div class="hero-visual-wrap">
-					<div class:list={["hero-visual-frame", { "hero-fallback-frame": !image }] }>
+			{showVisual && (
+				<div class="hero-image-wrap">
+					<div class:list={["hero-image-frame", { "hero-image-frame--art": !image }] }>
 						{image ? (
 							<img
 								src={image.url}
@@ -76,7 +69,7 @@ const showVisual = Boolean(image || !centered);
 							<img
 								src="/hero-visual.svg"
 								alt=""
-								class="hero-art"
+								class="hero-image hero-art"
 								width="2048"
 								height="2048"
 								loading="eager"
@@ -85,52 +78,64 @@ const showVisual = Boolean(image || !centered);
 						)}
 					</div>
 				</div>
-			)
-		}
+			)}
+		</div>
 	</div>
 </section>
 
 <style>
 	.hero {
 		overflow: hidden;
-		background: color-mix(in srgb, var(--color-bg) 62%, var(--color-surface));
+		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
+	}
+
+	.hero-section {
+		position: relative;
 	}
 
 	.hero-container {
+		position: relative;
+		z-index: 10;
 		max-width: var(--wide-width);
-		margin-inline: auto;
-		padding: var(--spacing-3xl) var(--spacing-lg) var(--spacing-2xl);
+		margin: 0 auto;
+		padding: 8.5rem var(--spacing-lg) var(--spacing-xl);
+	}
+
+	.hero-centered {
+		text-align: center;
+	}
+
+	.hero-centered .hero-actions {
+		justify-content: center;
 	}
 
 	.hero-copy {
 		display: flex;
-		max-width: 46rem;
 		flex-direction: column;
 		align-items: flex-start;
 	}
 
 	.hero-centered .hero-copy {
 		align-items: center;
-		margin-inline: auto;
-		text-align: center;
+		max-width: 100%;
 	}
 
 	.hero-headline {
-		max-width: 100%;
-		font-size: 2rem;
-		font-weight: var(--font-weight-display);
-		line-height: 1.06;
-		letter-spacing: -0.04em;
+		max-width: var(--wide-width);
+		font-size: var(--font-size-4xl);
+		font-weight: 700;
+		line-height: 1.03;
+		letter-spacing: -0.045em;
 		text-wrap: balance;
 		overflow-wrap: anywhere;
 	}
 
 	.hero-subheadline {
-		max-width: 38rem;
-		margin-block-start: 0.875rem;
-		color: var(--color-muted);
-		font-size: var(--font-size-base);
-		line-height: 1.6;
+		max-width: 36rem;
+		margin-top: 0.75rem;
+		font-size: 0.9375rem;
+		line-height: 1.5;
+		color: color-mix(in srgb, var(--color-text) 62%, transparent);
 		text-wrap: balance;
 	}
 
@@ -138,83 +143,85 @@ const showVisual = Boolean(image || !centered);
 		display: flex;
 		width: 100%;
 		flex-direction: column;
-		align-items: stretch;
-		gap: 0.75rem;
-		margin-block-start: var(--spacing-lg);
-	}
-
-	.hero-centered .hero-actions {
 		align-items: center;
+		margin-top: var(--spacing-lg);
+		gap: 0.75rem;
 	}
 
 	.hero-actions :global(.btn) {
 		width: 100%;
 	}
 
-	.hero-visual-wrap {
+	.hero-image-wrap {
+		position: relative;
 		width: 100%;
-		margin-block-start: var(--spacing-3xl);
+		margin-top: var(--spacing-3xl);
 	}
 
-	.hero-visual-frame {
+	.hero-image-frame {
 		position: relative;
 		overflow: hidden;
 		width: 100%;
-		aspect-ratio: 5 / 3;
+		margin: 0 auto;
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius);
 		box-shadow:
-			0 0 0 4px var(--color-brand-ring),
-			var(--shadow-xl);
+			0 0 0 4px var(--border-faint),
+			0 20px 24px -4px rgba(0, 0, 0, 0.1),
+			0 8px 8px -4px rgba(0, 0, 0, 0.04);
 	}
 
-	.hero-image,
-	.hero-art {
+	:global(:root.dark) .hero-image-frame {
+		border-color: color-mix(in srgb, var(--color-bg) 90%, var(--color-text));
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+			0 20px 24px -4px rgba(0, 0, 0, 0.24),
+			0 8px 8px -4px rgba(0, 0, 0, 0.18);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not(.light)) .hero-image-frame {
+			border-color: color-mix(in srgb, var(--color-bg) 90%, var(--color-text));
+			box-shadow:
+				0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+				0 20px 24px -4px rgba(0, 0, 0, 0.24),
+				0 8px 8px -4px rgba(0, 0, 0, 0.18);
+		}
+	}
+
+	.hero-image-frame :global(.hero-image) {
 		display: block;
 		width: 100%;
-		height: 100%;
-	}
-
-	.hero-image {
+		height: auto;
+		aspect-ratio: 5 / 3;
 		object-fit: cover;
 	}
 
-	.hero-fallback-frame {
+	.hero-image-frame--art {
 		background: color-mix(in srgb, var(--color-surface) 82%, var(--color-bg));
 	}
 
-	.hero-art {
-		object-fit: contain;
+	.hero-image-frame :global(.hero-art) {
 		padding: clamp(0.5rem, 2vw, 1.5rem);
-	}
-
-	.hero-centered:not(.hero-with-image) .hero-container {
-		padding-block-end: var(--spacing-4xl);
+		object-fit: contain;
 	}
 
 	@media (min-width: 640px) {
 		.hero-actions {
 			width: auto;
 			flex-direction: row;
-			align-items: center;
 		}
 
 		.hero-actions :global(.btn) {
-			width: auto;
-		}
-	}
-
-	@media (min-width: 641px) {
-		.hero-headline {
-			font-size: 2.5rem;
+			width: fit-content;
 		}
 	}
 
 	@media (min-width: 1024px) {
 		.hero-container {
-			padding-block-start: var(--spacing-4xl);
-			padding-block-end: var(--spacing-3xl);
+			padding-top: 10rem;
+			padding-bottom: var(--spacing-xl);
 		}
 
 		.hero-headline {
@@ -222,16 +229,22 @@ const showVisual = Boolean(image || !centered);
 		}
 
 		.hero-subheadline {
-			margin-block-start: var(--spacing-md);
+			margin-top: var(--spacing-md);
 			font-size: var(--font-size-lg);
 		}
 
 		.hero-actions {
-			margin-block-start: var(--spacing-xl);
+			margin-top: var(--spacing-xl);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.hero-container {
+			padding-top: 7.5rem;
 		}
 
-		.hero-visual-wrap {
-			margin-block-start: var(--spacing-4xl);
+		.hero-headline {
+			font-size: var(--font-size-3xl);
 		}
 	}
 </style>
