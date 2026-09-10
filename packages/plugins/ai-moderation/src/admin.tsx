@@ -87,7 +87,7 @@ function StatusWidget() {
 			<div className="pt-2">
 				<a
 					href="/_emdash/admin/plugins/ai-moderation/settings"
-					className="text-xs text-primary hover:underline"
+					className="text-xs text-kumo-brand hover:underline"
 				>
 					Configure moderation
 				</a>
