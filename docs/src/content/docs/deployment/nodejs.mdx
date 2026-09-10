@@ -172,9 +172,8 @@ docker compose up -d
 
 ### Encryption key validation
 
-`EMDASH_ENCRYPTION_KEY` currently affects startup validation only. EmDash does not use it to encrypt
-or decrypt data. Plugin secret values remain unencrypted in the database even when this variable is
-set.
+`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets. If the variable is set, EmDash
+checks its format during startup, but plugin secret values remain unencrypted in the database.
 
 If you set the variable, generate a valid value and add the result to your environment:
 

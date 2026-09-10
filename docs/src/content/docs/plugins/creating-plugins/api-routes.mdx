@@ -130,13 +130,12 @@ routes: {
 ```
 
 <Aside type="caution">
-	Public routes skip authentication and token scope checks. Requests using methods other than GET,
-	HEAD, or OPTIONS still pass EmDash's browser-origin check. EmDash accepts these requests when they
-	include `X-EmDash-Request: 1`, have an `Origin` that matches the site's internal or configured
-	public origin, or have no `Origin` header. A cross-origin or malformed `Origin` is rejected with a
-	403 response. Non-browser clients such as webhook senders usually omit `Origin`, so anyone on the
-	internet can still call a public route. Validate all input and authenticate the payload when the
-	external service supports signatures or tokens.
+	A public route skips authentication and token scope checks, but it does not bypass EmDash's
+	protection against cross-origin browser requests. For requests that can change data, EmDash accepts
+	a matching site `Origin` or the `X-EmDash-Request: 1` header and rejects a different or malformed
+	`Origin` with a 403 response. Webhooks and other non-browser clients usually omit the `Origin`
+	header and remain allowed. Anyone on the internet can therefore call a public route. Validate all
+	input, and verify the service's signature or token when it provides one.
 </Aside>
 
 ### The authenticated caller

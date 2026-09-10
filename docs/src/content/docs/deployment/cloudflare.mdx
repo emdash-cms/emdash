@@ -456,9 +456,8 @@ the provider under **Settings → Email**.
 
 ### Encryption key validation
 
-`EMDASH_ENCRYPTION_KEY` currently affects startup validation only. EmDash does not use it to encrypt
-or decrypt data. Plugin secret values remain unencrypted in the database even when this variable is
-set.
+`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets. If the variable is set, EmDash
+checks its format during startup, but plugin secret values remain unencrypted in the database.
 
 If you set the variable, generate a valid value and store it as a Worker secret with the following
 commands:
@@ -487,9 +486,9 @@ needs to share the secret with your main site.
 | `EMDASH_IP_SALT` | Override for the auto-generated commenter-IP hash salt. |
 | `EMDASH_AUTH_SECRET` | Optional. If set, it is used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which takes precedence), keeping commenter-IP hashes stable for installs that already rely on it. Leave it unset for a new deployment. |
 
-EmDash reads secret environment variables at runtime through `process.env`. For Worker bindings,
-import `env` from `cloudflare:workers`. Do not read secrets through `import.meta.env`; Vite can inline
-build-time values into the server bundle.
+Read EmDash secrets from `process.env` at runtime. Read Worker bindings from `env`, imported from
+`cloudflare:workers`. Never read secrets through `import.meta.env`: Vite replaces those values at
+build time and can write them into the server bundle.
 
 For the complete inventory of every secret EmDash uses — including storage locations, rotation steps, and what breaks when a key is lost — see [Secrets & Key Management](/deployment/secrets/).
 
