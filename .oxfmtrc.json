@@ -5,6 +5,7 @@
 		"**/dist/**",
 		"**/node_modules/**",
 		"**/*.mdx",
+		"**/CHANGELOG.md",
 		"**/package.json",
 		"**/emdash-env.d.ts",
 		"**/worker-configuration.d.ts",

@@ -1,11 +1,7 @@
 import { env as workerEnv } from "cloudflare:workers";
 
-import type { AgentResult, OrchestratorDO, PublicProgressKind } from "./orchestrator.js";
+import type { AgentResult, PublicProgressKind } from "./orchestrator.js";
 import type { WorkPlanInput } from "./work-plan.js";
-
-interface InvestigationEnv {
-	Orchestrator: DurableObjectNamespace<OrchestratorDO>;
-}
 
 export async function applyInvestigationResult(
 	input: { issueNumber: number; runId: string },
@@ -13,8 +9,7 @@ export async function applyInvestigationResult(
 	ok: boolean,
 	pushed: boolean,
 ): Promise<true> {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer Flue-generated RPC class types.
-	const { Orchestrator } = workerEnv as unknown as InvestigationEnv;
+	const { Orchestrator } = workerEnv;
 	const stub = Orchestrator.getByName(`issue-${input.issueNumber}`);
 	await stub.applyAgentResult({ runId: input.runId, result, ok, pushed });
 	return true;
@@ -28,8 +23,7 @@ export async function recordInvestigationProgress(
 		detail?: string | null;
 	},
 ): Promise<boolean> {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer Flue-generated RPC class types.
-	const { Orchestrator } = workerEnv as unknown as InvestigationEnv;
+	const { Orchestrator } = workerEnv;
 	try {
 		return await Orchestrator.getByName(`issue-${input.issueNumber}`).recordPublicProgress({
 			runId: input.runId,
@@ -49,8 +43,7 @@ export async function recordWorkPlan(
 	input: { issueNumber: number; runId: string },
 	plan: WorkPlanInput,
 ): Promise<boolean> {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer Flue-generated RPC class types.
-	const { Orchestrator } = workerEnv as unknown as InvestigationEnv;
+	const { Orchestrator } = workerEnv;
 	return Orchestrator.getByName(`issue-${input.issueNumber}`).updateWorkPlan({
 		runId: input.runId,
 		...plan,
@@ -63,8 +56,7 @@ export async function prepareWorkPlanComment(input: {
 	issueTitle: string;
 	arg?: string | null;
 }): Promise<boolean> {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- Wrangler cannot infer Flue-generated RPC class types.
-	const { Orchestrator } = workerEnv as unknown as InvestigationEnv;
+	const { Orchestrator } = workerEnv;
 	return Orchestrator.getByName(`issue-${input.issueNumber}`).prepareWorkPlanComment({
 		runId: input.runId,
 		summary: input.arg?.trim() || input.issueTitle,

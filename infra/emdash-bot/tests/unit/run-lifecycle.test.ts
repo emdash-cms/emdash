@@ -112,6 +112,7 @@ describe("run lifecycle", () => {
 			"prepare",
 			"reproduce",
 			"diagnose",
+			"work",
 			"edit",
 			"finalize",
 			"verify",
@@ -119,6 +120,7 @@ describe("run lifecycle", () => {
 			"report",
 		]);
 		expect(snapshot.statuses).toContain("cancelled");
+		expect(snapshot.plans.work).toEqual(runPlan("work"));
 		expect(snapshot.plans.implement).toEqual(runPlan("implement"));
 	});
 });

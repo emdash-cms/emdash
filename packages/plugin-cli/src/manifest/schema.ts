@@ -104,7 +104,6 @@ export const AuthorSchema = z
 			.max(256, "author.name must be <= 256 characters")
 			.meta({ description: "Display name." }),
 		url: z
-			.string()
 			.url("author.url must be a valid URL")
 			.max(1024, "author.url must be <= 1024 characters")
 			.meta({
@@ -112,7 +111,6 @@ export const AuthorSchema = z
 			})
 			.optional(),
 		email: z
-			.string()
 			.email("author.email must be a valid email")
 			.max(256, "author.email must be <= 256 characters")
 			.meta({ description: "Author's contact email. Either this or `url` is recommended." })
@@ -135,7 +133,6 @@ export const AuthorSchema = z
 export const SecurityContactSchema = z
 	.object({
 		url: z
-			.string()
 			.url("security.url must be a valid URL")
 			.max(1024, "security.url must be <= 1024 characters")
 			.meta({
@@ -144,7 +141,6 @@ export const SecurityContactSchema = z
 			})
 			.optional(),
 		email: z
-			.string()
 			.email("security.email must be a valid email")
 			.max(256, "security.email must be <= 256 characters")
 			.meta({
@@ -237,8 +233,13 @@ export const KeywordsSchema = z
  */
 export const RepoSchema = z
 	.string()
-	.regex(/^https:\/\//, "repo must be an https:// URL (AT-URI source repos aren't supported yet)")
-	.url("repo must be a valid URL")
+	.check(
+		z.regex(
+			/^https:\/\//,
+			"repo must be an https:// URL (AT-URI source repos aren't supported yet)",
+		),
+		z.url("repo must be a valid URL"),
+	)
 	.max(1024, "repo must be <= 1024 characters")
 	.meta({
 		title: "Source repository",

@@ -139,7 +139,7 @@
 		// JSON or entries produce an empty allowlist.
 		"LISTING_ALLOWLIST": "[]",
 		// Invalid policy JSON makes projection reads fail closed.
-		"LISTING_MODERATION_POLICY": "{\"schemaVersion\":1,\"policyVersion\":\"listing-metadata-v1\",\"effectiveAt\":\"2026-08-24T00:00:00.000Z\",\"requiredPositiveSources\":[\"did:web:labels.emdashcms.com\"],\"acceptedStateSources\":[\"did:web:labels.emdashcms.com\"],\"redactionSources\":[\"did:web:labels.emdashcms.com\"],\"autoPass\":\"disabled\",\"prohibitedCategories\":[\"explicit-sexual-content\",\"hateful-or-dehumanizing-content\",\"graphic-violence\",\"phishing-or-credential-solicitation\",\"material-impersonation\",\"scam-or-spam\",\"malicious-or-deceptive-link\",\"misleading-media-or-claims\"]}",
+		"LISTING_MODERATION_POLICY": "{\"schemaVersion\":1,\"policyVersion\":\"listing-metadata-v2\",\"effectiveAt\":\"2026-09-09T00:00:00.000Z\",\"requiredPositiveSources\":[\"did:web:labels.emdashcms.com\"],\"acceptedStateSources\":[\"did:web:labels.emdashcms.com\"],\"redactionSources\":[\"did:web:labels.emdashcms.com\"],\"autoPass\":\"assisted\",\"prohibitedCategories\":[\"explicit-sexual-content\",\"hateful-or-dehumanizing-content\",\"graphic-violence\",\"phishing-or-credential-solicitation\",\"material-impersonation\",\"scam-or-spam\",\"malicious-or-deceptive-link\",\"misleading-media-or-claims\",\"moderation-manipulation\"]}",
 	},
 	// Required secrets, declared in config so `wrangler types` generates the
 	// typed binding and `wrangler deploy` validates the secret is set on the

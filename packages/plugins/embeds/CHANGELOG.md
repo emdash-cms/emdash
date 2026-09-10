@@ -1,5 +1,14 @@
 # @emdash-cms/plugin-embeds
 
+## 0.1.45
+
+### Patch Changes
+
+- [#2864](https://github.com/emdash-cms/emdash/pull/2864) [`ecdba4d`](https://github.com/emdash-cms/emdash/commit/ecdba4d1338447e1a267a3498764f9a1de2a0636) Thanks [@camc314](https://github.com/camc314)! - Updates Zod to 4.5 while keeping EmDash and native plugin schemas on one compatible version. Existing minute-precision ISO datetimes remain valid, and URL content fields continue to enforce configured length and pattern rules.
+
+- Updated dependencies []:
+  - @emdash-cms/blocks@0.37.0
+
 ## 0.1.44
 
 ### Patch Changes

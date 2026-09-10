@@ -77,8 +77,11 @@ interface ContentHookEvent {
 	content: Record<string, unknown>; // Content data
 	collection: string; // Collection slug
 	isNew: boolean; // True for creates, false for updates
+	id?: string; // ID of the existing item on updates; absent on creates
 }
 ```
+
+On an update, `content` holds only the submitted field values. Load the stored item with `ctx.content.get(event.collection, event.id)` when the hook needs to compare against it.
 
 #### Return Value
 

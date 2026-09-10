@@ -27,6 +27,7 @@ import { addVirtualWebAuthnAuthenticator } from "../fixtures/virtual-authenticat
 const ADMIN_URL_PATTERN = /\/_emdash\/admin\/?$/;
 const INVITE_URL_REGEX = /https?:\/\/[^\s]+\/admin\/invite\/accept\?token=[^\s]+/;
 const URL_IN_TEXT_REGEX = /https?:\/\/[^\s]+/;
+const PASSKEY_ACTION_REGEX = /^(Create passkey|Use another device|Use a security key)$/;
 
 const SERVER_INFO_PATH = join(tmpdir(), "emdash-pw-server.json");
 
@@ -144,8 +145,14 @@ test.describe("Invite Accept Page", () => {
 			await expect(admin.page.locator("text=You've been invited!")).toBeVisible();
 			await expect(admin.page.getByLabel("Email")).toHaveValue("invite-ui@example.com");
 			await expect(admin.page.locator("text=AUTHOR")).toBeVisible();
-			await expect(admin.page.locator("text=Create your passkey")).toBeVisible();
-			await expect(admin.page.getByRole("button", { name: "Create Account" })).toBeVisible();
+			await expect(
+				admin.page.getByRole("heading", {
+					name: "With a passkey, you don’t need to remember complex passwords",
+				}),
+			).toBeVisible();
+			await expect(
+				admin.page.getByRole("button", { name: PASSKEY_ACTION_REGEX }).first(),
+			).toBeVisible();
 		});
 	});
 });
@@ -206,7 +213,7 @@ test.describe("Full invite flow with passkey registration", () => {
 			await expect(page.getByLabel("Email")).toHaveValue(inviteEmail);
 			await expect(page.locator("text=AUTHOR")).toBeVisible();
 
-			// Step 5: Fill in name and click Create Account
+			// Step 5: Fill in name and create a passkey
 			const nameInput = page.getByLabel("Your name (optional)");
 			await nameInput.fill("Invited User");
 
@@ -215,10 +222,14 @@ test.describe("Full invite flow with passkey registration", () => {
 					return new URL(response.url()).pathname === "/_emdash/api/auth/invite/complete";
 				})
 				.then((response) => response.status());
-			await page.getByRole("button", { name: "Create Account" }).click();
+			await page.getByRole("button", { name: "Create passkey" }).click();
 			expect(await completionResponsePromise).toBe(200);
 
-			// Step 6: Wait for passkey flow to complete and redirect
+			// Step 6: Confirm the completed passkey flow and continue
+			await expect(page.getByRole("heading", { name: "Passkey created" })).toBeVisible();
+			await page.getByRole("button", { name: "Open the dashboard" }).click();
+
+			// Step 7: Wait for the dashboard redirect
 			await expect(page).toHaveURL(ADMIN_URL_PATTERN, { timeout: 60_000 });
 			const welcomeDialog = page.getByRole("dialog", { name: /Welcome to EmDash/ });
 			await expect(welcomeDialog).toBeVisible({ timeout: 15_000 });

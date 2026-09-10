@@ -1592,6 +1592,20 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("MP4", { exact: true })).toBeInTheDocument();
 		});
 
+		it("uses the file fallback when a provider image has no preview URL", async () => {
+			const screen = await renderStreamTab(
+				makeStreamProviderItem({
+					filename: "no-preview.jpg",
+					mimeType: "image/jpeg",
+					previewUrl: undefined,
+				}),
+			);
+
+			const item = screen.getByRole("button", { name: "no-preview.jpg" }).element();
+			expect(item.querySelector("img")).toBeNull();
+			await expect.element(screen.getByText("JPEG", { exact: true })).toBeInTheDocument();
+		});
+
 		it("shows a size the provider reports only under meta", async () => {
 			const screen = await renderStreamTab();
 			await screen.getByRole("tab", { name: "List view" }).click();

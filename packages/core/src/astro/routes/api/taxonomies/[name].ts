@@ -20,6 +20,7 @@ import {
 } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery, updateTaxonomyDefBody } from "#api/schemas.js";
+import { taxonomyTag } from "#cache/chrome-tags.js";
 
 export const prerender = false;
 
@@ -51,7 +52,7 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 /**
  * Update a taxonomy definition
  */
-export const PUT: APIRoute = async ({ params, request, locals }) => {
+export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { name } = params;
 	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name required", 400);
@@ -73,6 +74,8 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			...body,
 			locale: query.locale,
 		});
+		if (!result.success) return unwrapResult(result);
+		if (cache?.enabled) await cache.invalidate({ tags: [taxonomyTag(name)] });
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to update taxonomy", "TAXONOMY_UPDATE_ERROR");
@@ -82,7 +85,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 /**
  * Delete a taxonomy, its terms, and their content assignments
  */
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { name } = params;
 	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name required", 400);
@@ -95,6 +98,8 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 
 	try {
 		const result = await handleTaxonomyDelete(emdash.db, name);
+		if (!result.success) return unwrapResult(result);
+		if (cache?.enabled) await cache.invalidate({ tags: [taxonomyTag(name)] });
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to delete taxonomy", "TAXONOMY_DELETE_ERROR");

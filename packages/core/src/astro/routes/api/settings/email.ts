@@ -81,7 +81,7 @@ export const GET: APIRoute = async ({ locals }) => {
  * Validates the pipeline is configured and the provider works.
  */
 const testEmailBody = z.object({
-	to: z.string().email(),
+	to: z.email(),
 });
 
 export const POST: APIRoute = async ({ request, locals }) => {

@@ -135,7 +135,7 @@ describe("assessment Workflow foundation", () => {
 		).rejects.toBeInstanceOf(AssessmentWorkflowConfigurationError);
 	});
 
-	it("runs durable inference, policy, and atomic label finalization after preparation", async () => {
+	it("atomically issues an automatic positive label after clean durable inference", async () => {
 		const lifecycle = createD1AssessmentLifecycleStore(env.DB);
 		const params = await createAssessmentWorkflowParams({
 			subject: { uri: PROFILE_URI, cid: PROFILE_CID, kind: "profile" },
@@ -198,26 +198,27 @@ describe("assessment Workflow foundation", () => {
 				policy: {
 					...INITIAL_LISTING_POLICY_FIXTURE,
 					policyVersion: ASSESSMENT_VERSIONS.policyVersion,
+					autoPass: "assisted",
 				},
 				finalizer: issuer,
 				now: () => new Date("2026-08-24T10:30:01.000Z"),
 			},
 		);
 
-		expect(result).toMatchObject({ status: "review", runKey: params.runKey });
+		expect(result).toMatchObject({ status: "passed", runKey: params.runKey });
 		expect(moderate).toHaveBeenCalledOnce();
 		expect(step.calls.slice(-3)).toEqual([
 			"moderate displayed text and links",
 			"resolve assessment policy",
 			"finalize assessment and signed label",
 		]);
-		expect(await lifecycle.getRun(params.runKey)).toMatchObject({ state: "review" });
+		expect(await lifecycle.getRun(params.runKey)).toMatchObject({ state: "passed" });
 		const issued = await env.DB.prepare(
 			"SELECT val, cid FROM issued_labels WHERE assessment_id = ?",
 		)
 			.bind(params.runKey)
 			.first<{ val: string; cid: string }>();
-		expect(issued).toEqual({ val: "listing-review", cid: PROFILE_CID });
+		expect(issued).toEqual({ val: "listing-passed", cid: PROFILE_CID });
 	});
 
 	it("finalizes as an error when required display media cannot be acquired", async () => {
