@@ -191,7 +191,7 @@ function resizeColumn(view: EditorView, cellPosition: number, width: number, pre
 		colwidth[index] = width;
 		transaction.setNodeMarkup(tableStart + position, undefined, { ...target.attrs, colwidth });
 	}
-	if (transaction.docChanged) view.dispatch(transaction.setMeta(resizeKey, -1).scrollIntoView());
+	if (transaction.docChanged) view.dispatch(transaction.setMeta(resizeKey, -1));
 }
 
 function restoreResponsiveWidth(view: EditorView, cellPosition: number) {

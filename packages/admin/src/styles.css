@@ -440,7 +440,20 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	max-inline-size: 100%;
 	margin-block: 1rem;
 	overflow-x: auto;
+	overflow-y: hidden;
 	overscroll-behavior-inline: contain;
+	scrollbar-width: none;
+	background:
+		linear-gradient(to right, var(--color-kumo-base), transparent) left / 1rem 100% no-repeat local,
+		linear-gradient(to left, var(--color-kumo-base), transparent) right / 1rem 100% no-repeat local,
+		linear-gradient(to right, var(--color-kumo-line), transparent) left / 0.5rem 100% no-repeat
+			scroll,
+		linear-gradient(to left, var(--color-kumo-line), transparent) right / 0.5rem 100% no-repeat
+			scroll;
+}
+
+.ProseMirror .tableWrapper::-webkit-scrollbar {
+	display: none;
 }
 
 .ProseMirror.prose > p:last-child {

@@ -200,6 +200,7 @@ describe("direction-aware table resizing", () => {
 	it("enforces the visual minimum for valid sub-minimum stored widths", () => {
 		const { editor, host } = createEditor("ltr", { content: tableContent(Array(10).fill(1)) });
 		const table = host.querySelector<HTMLTableElement>("table")!;
+		const wrapper = table.closest<HTMLElement>(".tableWrapper")!;
 
 		expect(table.style.width).toBe("100%");
 		expect(table.style.minWidth).toBe("960px");
@@ -207,7 +208,8 @@ describe("direction-aware table resizing", () => {
 			Array(10).fill("96px"),
 		);
 		expect(tableColumnWidths(editor, 0)).toEqual([1, 1]);
-		expect(table.closest<HTMLElement>(".tableWrapper")!.scrollWidth).toBeGreaterThanOrEqual(960);
+		expect(wrapper.scrollWidth).toBeGreaterThanOrEqual(960);
+		expect(getComputedStyle(wrapper).overflowY).toBe("hidden");
 	});
 
 	it("measures automatic span segments after clamping neighboring rendered widths", () => {
@@ -227,11 +229,12 @@ describe("direction-aware table resizing", () => {
 		const { editor, host } = createEditor("ltr");
 		const firstCell = host.querySelector<HTMLTableCellElement>("td")!;
 		const { handle, inlineEnd } = activateHandle(firstCell, "ltr");
-		const transactions: Array<{ changed: boolean; handles: number }> = [];
+		const transactions: Array<{ changed: boolean; handles: number; scrolled: boolean }> = [];
 		editor.on("transaction", ({ transaction }) => {
 			transactions.push({
 				changed: transaction.docChanged,
 				handles: host.querySelectorAll("[data-emdash-resize-cell]").length,
+				scrolled: transaction.scrolledIntoView,
 			});
 		});
 
@@ -240,7 +243,7 @@ describe("direction-aware table resizing", () => {
 		mouse(window, "mousemove", inlineEnd + 32);
 		mouse(window, "mouseup", inlineEnd + 32);
 
-		expect(transactions).toEqual([{ changed: true, handles: 0 }]);
+		expect(transactions).toEqual([{ changed: true, handles: 0, scrolled: false }]);
 		expect(tableColumnWidths(editor, 0)).toEqual([160, 160]);
 		expect(editor.commands.undo()).toBe(true);
 		expect(tableColumnWidths(editor, 0)).toEqual([128, 128]);
