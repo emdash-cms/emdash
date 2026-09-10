@@ -1,0 +1,33 @@
+templates/marketing-cloudflare/astro.config.mjs
+  s_81c53493e8c532::t_7cd209e70110a3 45
+templates/marketing-cloudflare/src/components/SiteHeader.astro
+  s_81c53493e8c532::t_d2e7794be37ecd 2,52-57,242,256-275
+templates/marketing-cloudflare/src/components/blocks/CallToAction.astro
+  s_81c53493e8c532::t_5a0c878e8d84d1 65
+templates/marketing-cloudflare/src/components/blocks/Features.astro
+  s_81c53493e8c532::t_3ae3eb73267ef0 106,108,110,222-223,242
+templates/marketing/astro.config.mjs
+  s_81c53493e8c532::t_a2286225771cf8 36
+templates/marketing/src/components/SiteHeader.astro
+  s_81c53493e8c532::t_aa35df00fdc8e1 2,52-57,242,256-275
+templates/marketing/src/components/blocks/CallToAction.astro
+  s_81c53493e8c532::t_c62a7feb4c7edf 65
+templates/marketing/src/components/blocks/Features.astro
+  s_81c53493e8c532::t_6a52a830b2a2d6 106,108,110,222-223,242
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "703a2cac9f6e383204f18e02af8815ecc5a21789",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
