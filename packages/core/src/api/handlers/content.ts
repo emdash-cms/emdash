@@ -15,6 +15,7 @@ import {
 	isSystemOrderField,
 	type ContentRevisionPrecondition,
 } from "../../database/repositories/content.js";
+import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -1283,10 +1284,11 @@ export async function handleContentDelete(
 		const result = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return {
-				id: resolvedId,
-				deleted: await repo.delete(collection, resolvedId),
-			};
+			const deleted = await repo.delete(collection, resolvedId);
+			if (deleted) {
+				await new EntryLockRepository(trx).releaseEntry(collection, resolvedId);
+			}
+			return { id: resolvedId, deleted };
 		});
 
 		if (!result.deleted) {
@@ -1384,6 +1386,7 @@ export async function handleContentPermanentDelete(
 				// Clean up revisions for permanently deleted content
 				const revisionRepo = new RevisionRepository(trx);
 				await revisionRepo.deleteByEntry(collection, resolvedId);
+				await new EntryLockRepository(trx).releaseEntry(collection, resolvedId);
 			}
 
 			return wasDeleted;

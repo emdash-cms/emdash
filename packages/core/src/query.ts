@@ -43,6 +43,7 @@ import {
 import { primeSeoPanel } from "./page/seo-panel.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
+import { resetRegisteredCollectionsCache } from "./schema/collection-slugs-cache.js";
 import { compileUrlPattern } from "./schema/url-pattern.js";
 import type { TaxonomyTerm } from "./taxonomies/types.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -1349,11 +1350,13 @@ const urlPatternCache: UrlPatternCache =
  * Call when collection URL patterns change (schema updates).
  *
  * Also busts the distributed schema cache (collection metadata such as
- * `commentsEnabled`, `supports`, fields read by `getCollectionInfo`), since
+ * `commentsEnabled`, `supports`, fields read by `getCollectionInfo`) and the
+ * per-isolate registered-collection-slugs cache used by term counting, since
  * every schema-mutation path already routes through here.
  */
 export function invalidateUrlPatternCache(): void {
 	urlPatternCache.patterns = null;
+	resetRegisteredCollectionsCache();
 	invalidateSchemaObjectCache();
 }
 

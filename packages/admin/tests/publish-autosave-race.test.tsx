@@ -742,7 +742,11 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		fireEvent.click(dialog.getByRole("button", { name: "Save schedule", exact: true }).element());
 		await vi.advanceTimersByTimeAsync(0);
 		await vi.waitFor(() => {
-			expect(server!.requests.filter((request) => request.method === "POST")).toHaveLength(1);
+			expect(
+				server!.requests.filter(
+					(request) => request.method === "POST" && request.url.includes("/schedule"),
+				),
+			).toHaveLength(1);
 		});
 
 		fireEvent.click(scheduled.element());
@@ -754,7 +758,9 @@ describe("ContentEditPage publish and autosave ordering", () => {
 			server.requests
 				.filter(
 					(request) =>
-						request.method === "PUT" || request.method === "POST" || request.method === "DELETE",
+						request.method === "PUT" ||
+						((request.method === "POST" || request.method === "DELETE") &&
+							request.url.includes("/schedule")),
 				)
 				.map(({ method }) => method),
 		).toEqual(["POST", "DELETE"]);
