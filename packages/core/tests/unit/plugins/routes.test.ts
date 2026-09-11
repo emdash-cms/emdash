@@ -759,28 +759,3 @@ describe("parseRouteInput (#2146)", () => {
 		expect(result.data).toEqual({ received: { limit: 20, q: "hello" } });
 	});
 });
-
-describe("raw route body", () => {
-	it("validates text using the input schema", async () => {
-		const handler = new PluginRouteHandler(
-			createTestPlugin({
-				routes: {
-					webhook: {
-						body: "text",
-						input: z.string().transform((value) => value.toUpperCase()),
-						handler: async (ctx) => ctx.input,
-					},
-				},
-			}),
-			createMockFactoryOptions(),
-		);
-		const result = await handler.invoke("webhook", {
-			request: new Request("https://example.com", { method: "POST" }),
-			body: "plain text\r\n",
-		});
-		expect(result).toMatchObject({
-			success: true,
-			data: "PLAIN TEXT\r\n",
-		});
-	});
-});

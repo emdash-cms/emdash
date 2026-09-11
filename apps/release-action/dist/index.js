@@ -7766,6 +7766,14 @@ const meta = meta$1;
 
 //#endregion
 //#region ../../packages/plugin-types/dist/index.js
+const routeOptionsSchema = object({
+	body: _enum(["text", "bytes"]).optional(),
+	public: boolean().optional(),
+	permission: string().optional(),
+	cacheControl: string().min(1).optional()
+});
+const routeNameSchema = string().min(1).regex(/^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/, "Route name must be a safe path segment");
+const manifestRouteEntrySchema = routeOptionsSchema.extend({ name: routeNameSchema });
 /**
 * Zod schema for PluginManifest validation
 *
@@ -7873,17 +7881,6 @@ const manifestHookEntrySchema = object({
 	exclusive: boolean().optional(),
 	priority: number().int().optional(),
 	timeout: number().int().positive().optional()
-});
-/**
-* Structured route entry for manifest — name plus optional metadata.
-* Both plain strings and objects are accepted; strings are normalized
-* to `{ name }` objects via `normalizeManifestRoute()`.
-*/
-/** Route names must be safe path segments — alphanumeric, hyphens, underscores, forward slashes */
-const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
-const manifestRouteEntrySchema = object({
-	name: string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: boolean().optional()
 });
 /** Index field names must be valid identifiers to prevent SQL injection via JSON path expressions */
 const indexFieldName = string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/);
@@ -8018,7 +8015,7 @@ const pluginManifestSchema = object({
 	allowedHosts: array(string()),
 	storage: record(string(), storageCollectionSchema),
 	hooks: array(union([_enum(HOOK_NAMES), manifestHookEntrySchema])),
-	routes: array(union([string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"), manifestRouteEntrySchema])),
+	routes: array(union([routeNameSchema, manifestRouteEntrySchema])),
 	admin: pluginAdminConfigSchema
 });
 /**

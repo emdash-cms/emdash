@@ -17,6 +17,7 @@
  * auth token that encodes its ID and capabilities.
  */
 
+import { Buffer } from "node:buffer";
 import { execFileSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
@@ -1029,8 +1030,8 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
 				body: JSON.stringify({
-					input: input instanceof Uint8Array ? [...input] : input,
-					inputEncoding: input instanceof Uint8Array ? "bytes" : undefined,
+					input: input instanceof Uint8Array ? Buffer.from(input).toString("base64") : input,
+					inputEncoding: input instanceof Uint8Array ? "base64" : undefined,
 					request,
 				}),
 			});

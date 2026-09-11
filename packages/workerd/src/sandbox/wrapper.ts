@@ -448,7 +448,14 @@ export default {
 		if (url.pathname.startsWith("/route/")) {
 			const routeName = url.pathname.slice(7); // Remove "/route/"
 			const { input: encodedInput, inputEncoding, request: serializedRequest } = await request.json();
-			const input = inputEncoding === "bytes" ? new Uint8Array(encodedInput) : encodedInput;
+			let input = encodedInput;
+			if (inputEncoding === "base64") {
+				const binaryString = atob(encodedInput);
+				input = new Uint8Array(binaryString.length);
+				for (let i = 0; i < binaryString.length; i++) {
+					input[i] = binaryString.charCodeAt(i);
+				}
+			}
 			const ctx = createContext();
 
 			const route = routes[routeName];
@@ -462,20 +469,11 @@ export default {
 			}
 
 			try {
-				let validatedInput = input;
-				if (route.input) {
-					const parsed = route.input.safeParse(input);
-					if (!parsed.success) {
-						const error = { __emdashSandboxRouteError: true, error: { code: "VALIDATION_ERROR", message: "Invalid request body", status: 400 } };
-						return Response.json(error, { status: 400 });
-					}
-					validatedInput = parsed.data;
-				}
 				// user: authenticated caller for private routes, resolved by
 				// the host before dispatch.
 				const result = await handler(
 					{
-						input: validatedInput,
+						input,
 						request: serializedRequest,
 						requestMeta: serializedRequest?.meta,
 						user: serializedRequest?.user,

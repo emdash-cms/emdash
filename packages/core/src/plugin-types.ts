@@ -178,7 +178,7 @@ export interface SandboxedRequest {
  * Without a body mode or explicit type argument, input is unknown.
  */
 export interface SandboxedRouteContext<TInput = unknown> {
-	/** Decoded request input, after applying the optional input schema. */
+	/** Decoded request input. */
 	input: TInput;
 	request: SandboxedRequest;
 	requestMeta?: unknown;
@@ -207,7 +207,7 @@ export type RouteHandler<TInput = unknown> = (
 
 /**
  * Route entry — either a bare handler or the config form with
- * `public`, `input` schema, and so on. The build probe accepts both.
+ * `public`, `input`, and so on. The build probe accepts both.
  */
 interface RouteEntryOptions extends RouteOptions {
 	permission?: Permission;
@@ -221,11 +221,6 @@ export type RouteEntry<TInput = unknown> =
 				| { body?: undefined; input?: unknown; handler: RouteHandler<TInput> }
 				| { body: "text"; input?: undefined; handler: RouteHandler<string> }
 				| { body: "bytes"; input?: undefined; handler: RouteHandler<Uint8Array<ArrayBuffer>> }
-				| {
-						body: NonNullable<RouteOptions["body"]>;
-						input: ZodType<TInput>;
-						handler: RouteHandler<TInput>;
-				  }
 			));
 
 export interface SandboxedMcpTool {

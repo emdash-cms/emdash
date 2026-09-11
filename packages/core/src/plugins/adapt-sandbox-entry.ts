@@ -10,6 +10,8 @@
  *
  */
 
+import type { RouteOptions } from "@emdash-cms/plugin-types";
+
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
@@ -107,7 +109,7 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
  */
 function normalizeRouteEntry(
 	entry: RouteEntry,
-): Omit<PluginRoute, "handler"> & { handler: RouteHandler } {
+): RouteOptions & Omit<PluginRoute, "body" | "handler"> & { handler: RouteHandler } {
 	if (typeof entry === "function") return { handler: entry };
 	return {
 		...entry,
@@ -205,6 +207,7 @@ export function adaptSandboxEntry(
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
 			const normalized = normalizeRouteEntry(rawEntry);
 			const { handler, ...options } = normalized;
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the resolved contract erases the authoring-only input specialization
 			resolvedRoutes[routeName] = {
 				...options,
 				handler: async (ctx) => {
@@ -239,7 +242,7 @@ export function adaptSandboxEntry(
 					const { input: _, request: __, requestMeta: ___, user: ____, ...pluginCtx } = ctx;
 					return handler(routeCtx, pluginCtx);
 				},
-			};
+			} as PluginRoute;
 		}
 	}
 

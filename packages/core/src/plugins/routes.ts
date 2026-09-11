@@ -8,8 +8,8 @@
  *
  */
 
-import { z } from "zod";
 import type { RouteOptions } from "@emdash-cms/plugin-types";
+import { z } from "zod";
 
 import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
@@ -52,25 +52,14 @@ function guardConsumedRequestBody(request: Request): Request {
 	});
 }
 
-/**
- * Route metadata (public flag) without the handler.
- * Used by the catch-all route to decide auth before dispatch.
- */
 export interface RouteMeta extends RouteOptions {
 	public: boolean;
 }
 
-/**
- * Build RouteMeta from a route's `public`/`cacheControl` flags. Single source
- * of truth for the "cacheControl is only ever exposed on public routes"
- * invariant — used for trusted routes and manifest-declared sandboxed routes.
- */
 export function buildRouteMeta(route: RouteOptions): RouteMeta {
 	const meta: RouteMeta = { public: route.public === true };
 	if (route.body !== undefined) meta.body = route.body;
 	if (route.permission !== undefined) meta.permission = route.permission;
-	// Private responses are per-user and must never become cacheable, even if
-	// a route sets both flags.
 	if (meta.public && typeof route.cacheControl === "string" && route.cacheControl.length > 0) {
 		meta.cacheControl = route.cacheControl;
 	}

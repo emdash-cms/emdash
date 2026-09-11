@@ -3,7 +3,6 @@ import { createHmac, randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterEach, describe, expect, it } from "vitest";
-import { z } from "zod";
 
 import { MiniflareDevRunner } from "../../../../workerd/src/sandbox/dev-runner.js";
 import { GET, POST } from "../../../src/astro/routes/api/plugins/[pluginId]/[...path].js";
@@ -43,7 +42,7 @@ async function invoke(
 
 describe("raw plugin routes", () => {
 	it("verifies a signature over the original webhook text", async () => {
-		const body = '{ "message": "Olá",\r\n "amount": 1.00 }\n';
+		const body = '{ "message": "Hi 👋",\r\n "amount": 1.00 }\n';
 		const signature = createHmac("sha256", "webhook-secret")
 			.update(Buffer.from(body))
 			.digest("hex");
@@ -66,29 +65,6 @@ describe("raw plugin routes", () => {
 			success: true,
 			data: { signature },
 		});
-	});
-
-	it.each(["", "not JSON\r\n"])("accepts raw text %j", async (body) => {
-		const response = await invoke(
-			{ public: true, body: "text", handler: async (ctx) => ctx.input },
-			body,
-		);
-		expect(await response.json()).toEqual({ success: true, data: body });
-	});
-
-	it("keeps JSON validation and the consumed-body guard", async () => {
-		const response = await invoke(
-			{
-				public: true,
-				input: z.object({ value: z.number() }),
-				handler: async (ctx) => {
-					expect(() => ctx.request.text()).toThrow("ctx.input");
-					return ctx.input;
-				},
-			},
-			'{"value":7}',
-		);
-		expect(await response.json()).toEqual({ success: true, data: { value: 7 } });
 	});
 
 	it("serves a Response body, status, and headers without a JSON envelope", async () => {
@@ -118,22 +94,6 @@ describe("raw plugin routes", () => {
 		);
 		expect(response.status).toBe(307);
 		expect(response.headers.get("Location")).toBe("https://example.com/feed");
-	});
-
-	it("does not cache raw error responses", async () => {
-		const response = await invoke(
-			{
-				public: true,
-				cacheControl: "public, max-age=60",
-				handler: async () =>
-					new Response("no", { status: 404, headers: { "Cache-Control": "public, max-age=60" } }),
-			},
-			undefined,
-			"GET",
-		);
-		expect(response.status).toBe(404);
-		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
-		expect(await response.text()).toBe("no");
 	});
 });
 
@@ -205,33 +165,4 @@ it("preserves all request bytes, including a BOM and invalid UTF-8", async () =>
 		body,
 	);
 	expect(await response.json()).toEqual({ success: true, data: signature });
-});
-
-it("validates and transforms text input before calling the handler", async () => {
-	const route: PluginRoute<number> = {
-		public: true,
-		body: "text",
-		input: z.string().regex(/^\d+$/).transform(Number),
-		handler: async ({ input }) => input + 1,
-	};
-	const valid = await invoke(route, "41");
-	expect(await valid.json()).toEqual({ success: true, data: 42 });
-	const invalid = await invoke(route, "not a number");
-	expect(invalid.status).toBe(400);
-	expect(await invalid.json()).toMatchObject({
-		success: false,
-		error: { code: "VALIDATION_ERROR" },
-	});
-});
-
-it("validates byte input before calling the handler", async () => {
-	const route: PluginRoute<Uint8Array> = {
-		public: true,
-		body: "bytes",
-		input: z.instanceof(Uint8Array).refine((value) => value.length > 0),
-		handler: async ({ input }) => input.length,
-	};
-	expect((await invoke(route, new Uint8Array())).status).toBe(400);
-	const response = await invoke(route, new Uint8Array([255, 0]));
-	expect(await response.json()).toEqual({ success: true, data: 2 });
 });

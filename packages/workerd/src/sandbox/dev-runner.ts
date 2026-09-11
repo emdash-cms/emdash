@@ -13,6 +13,7 @@
  * - Faster startup
  */
 
+import { Buffer } from "node:buffer";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
 
@@ -299,8 +300,8 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
 				body: JSON.stringify({
-					input: input instanceof Uint8Array ? [...input] : input,
-					inputEncoding: input instanceof Uint8Array ? "bytes" : undefined,
+					input: input instanceof Uint8Array ? Buffer.from(input).toString("base64") : input,
+					inputEncoding: input instanceof Uint8Array ? "base64" : undefined,
 					request,
 				}),
 			});

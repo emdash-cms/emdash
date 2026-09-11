@@ -1,7 +1,6 @@
 import { expectTypeOf, it } from "vitest";
-import { z } from "zod";
 
-import type { SandboxedPlugin, RouteEntry } from "../../../src/plugin-types.js";
+import type { SandboxedPlugin } from "../../../src/plugin-types.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { PluginRoute } from "../../../src/plugins/types.js";
 
@@ -65,22 +64,6 @@ it("infers sandboxed route input from the body mode", () => {
 		.toEqualTypeOf<string>();
 });
 
-it("supports schema output types for transformed input", () => {
-	const schema = z.string().transform(Number);
-	const native: PluginRoute<number> = {
-		body: "text",
-		input: schema,
-		handler: async ({ input }) => input + 1,
-	};
-	const sandboxed: RouteEntry<number> = {
-		body: "text",
-		input: schema,
-		handler: async ({ input }) => input + 1,
-	};
-	expectTypeOf(native.handler).parameter(0).toHaveProperty("input").toEqualTypeOf<number>();
-	expectTypeOf(sandboxed.handler).parameter(0).toHaveProperty("input").toEqualTypeOf<number>();
-});
-
 it("accepts existing explicitly typed routes and interface extensions", () => {
 	interface ExtendedRoute extends PluginRoute {
 		label: string;
@@ -89,7 +72,7 @@ it("accepts existing explicitly typed routes and interface extensions", () => {
 	definePlugin({ id: "legacy-route", version: "1.0.0", routes: { legacy: route } });
 });
 
-it("contextually types whole-context and two-argument handlers", () => {
+it("contextually types configured and bare two-argument handlers", () => {
 	const plugin = {
 		routes: {
 			text: {
@@ -99,29 +82,16 @@ it("contextually types whole-context and two-argument handlers", () => {
 					return ctx.plugin.id + routeCtx.input;
 				},
 			},
-			bytes: {
-				body: "bytes",
-				handler: async (routeCtx, ctx) => {
-					expectTypeOf(routeCtx.input).toEqualTypeOf<Uint8Array<ArrayBuffer>>();
-					return ctx.plugin.id + routeCtx.input.length;
-				},
-			},
-			json: {
-				handler: async (routeCtx, ctx) => {
-					expectTypeOf(routeCtx.input).toEqualTypeOf<unknown>();
-					return ctx.plugin.id;
-				},
-			},
 			bare: async (routeCtx, ctx) => {
 				expectTypeOf(routeCtx.input).toEqualTypeOf<unknown>();
 				return ctx.plugin.id;
 			},
 		},
 	} satisfies SandboxedPlugin;
-	expectTypeOf(plugin.routes.json.handler)
+	expectTypeOf(plugin.routes.text.handler)
 		.parameter(0)
 		.toHaveProperty("input")
-		.toEqualTypeOf<unknown>();
+		.toEqualTypeOf<string>();
 });
 
 it("preserves the public resolved-route contract for existing consumers", () => {

@@ -305,7 +305,7 @@ export default {
 
 Route names remain under the plugin API prefix. To expose a conventional root URL such as `/sitemap.xml`, add an Astro route that forwards the public plugin route's response.
 
-For successful public GET and HEAD requests, a route's `cacheControl` option overrides the response's `Cache-Control` header. When neither is set, the default is `private, no-store`. Private routes, error responses, and other methods always use `private, no-store`.
+For successful GET and HEAD requests, a public route's `cacheControl` option overrides the response's `Cache-Control` header. Otherwise, EmDash preserves an explicit response header and defaults to `private, no-store` when none is set.
 
 ## Errors
 
@@ -387,15 +387,15 @@ handler: async (routeCtx, ctx) => {
 
 Set `body` on a route to choose how EmDash decodes the request into `routeCtx.input`. Native handlers receive the value in `ctx.input`.
 
-| Route option | Input before schema validation |
+| Route option | Input |
 | --- | --- |
 | Omitted | JSON for POST, PUT, and PATCH; query parameters for other methods |
 | `body: "text"` | UTF-8 string |
 | `body: "bytes"` | `Uint8Array` containing the original body bytes |
 
-An optional `input` schema validates or transforms the decoded value before the handler runs. Invalid input returns HTTP 400 with `VALIDATION_ERROR`. This applies to native and sandboxed routes. Without a schema, text and byte routes infer `string` and `Uint8Array` handler input types respectively.
+Text and byte routes infer `string` and `Uint8Array` handler input types respectively.
 
-Both body modes read the whole body into memory. An empty body produces `""` in text mode and an empty `Uint8Array` in bytes mode. Text mode uses `Request.text()`, which decodes UTF-8 and may remove a byte order mark or replace invalid sequences. Use bytes mode for webhook signatures: omit the input schema, verify the original bytes, then parse and validate the payload.
+Both body modes read the whole body into memory. An empty body produces `""` in text mode and an empty `Uint8Array` in bytes mode. Text mode uses `Request.text()`, which decodes UTF-8 and may remove a byte order mark or replace invalid sequences. Use bytes mode for webhook signatures: verify the original bytes, then parse and validate the payload.
 
 The following route verifies a hex-encoded HMAC-SHA256 signature with a secret stored in plugin settings:
 
@@ -430,8 +430,6 @@ export default {
 	},
 } satisfies SandboxedPlugin;
 ```
-
-Store the webhook secret under `settings:webhookSecret` through the plugin's [settings UI](/plugins/creating-plugins/settings/). Match the signature format and signed message to the webhook provider's protocol; some providers include a timestamp or prefix in the signed message. Validate the payload after verifying its signature. Public routes skip EmDash authentication and CSRF checks, so the handler must verify each request before making changes.
 
 ## Common patterns
 
@@ -545,7 +543,7 @@ interface SandboxedRequest {
 }
 
 interface SandboxedRouteContext {
-	input: unknown; // inferred as string or Uint8Array for a body mode without a schema
+	input: unknown; // inferred as string or Uint8Array when a body mode is set
 	request: SandboxedRequest;
 	requestMeta?: unknown;
 	user?: UserInfo; // authenticated caller on private routes; undefined on public routes

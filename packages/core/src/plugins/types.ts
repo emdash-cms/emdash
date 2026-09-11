@@ -1239,9 +1239,16 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 /**
  * Route definition
  */
-export interface PluginRoute<TInput = unknown> extends RouteOptions {
+type PluginRouteBody<TInput> = [TInput] extends [string]
+	? "text"
+	: [TInput] extends [Uint8Array<ArrayBuffer>]
+		? "bytes"
+		: undefined;
+
+export interface PluginRoute<TInput = unknown> extends Omit<RouteOptions, "body"> {
+	body?: PluginRouteBody<TInput>;
 	permission?: Permission;
-	/** Validate or transform the decoded input before invoking the handler. */
+	/** Validate or transform JSON or query input before invoking the handler. */
 	input?: z.ZodType<TInput>;
 	/** Return a Response for custom HTTP output, or a value for the JSON envelope. */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
@@ -1250,11 +1257,7 @@ export interface PluginRoute<TInput = unknown> extends RouteOptions {
 type PluginRouteDefinition<TInput = unknown> =
 	| (PluginRoute<TInput> & { body?: undefined })
 	| (PluginRoute<string> & { body: "text"; input?: undefined })
-	| (PluginRoute<Uint8Array<ArrayBuffer>> & { body: "bytes"; input?: undefined })
-	| (PluginRoute<TInput> & {
-			body: NonNullable<RouteOptions["body"]>;
-			input: z.ZodType<TInput>;
-	  });
+	| (PluginRoute<Uint8Array<ArrayBuffer>> & { body: "bytes"; input?: undefined });
 
 export interface PluginMcpToolDefinition {
 	description: string;

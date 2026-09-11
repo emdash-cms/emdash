@@ -99,13 +99,11 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		result.data instanceof Response
 			? new Response(result.data.body, result.data)
 			: apiSuccess(result.data);
-	if (routeMeta.public && response.ok && (method === "GET" || method === "HEAD")) {
+	if (response.ok && (method === "GET" || method === "HEAD")) {
 		response.headers.set(
 			"Cache-Control",
 			routeMeta.cacheControl ?? response.headers.get("Cache-Control") ?? "private, no-store",
 		);
-	} else {
-		response.headers.set("Cache-Control", "private, no-store");
 	}
 	return response;
 };

@@ -148,7 +148,6 @@ export interface SerializedRequest {
 }
 
 const SANDBOX_ROUTE_ERROR_DEFINITIONS = {
-	VALIDATION_ERROR: { message: "Invalid request body", status: 400 },
 	MEDIA_USAGE_ACTIVATION_IN_PROGRESS: {
 		message: "Media usage activation is in progress",
 		status: 503,
@@ -164,7 +163,7 @@ export type SandboxRouteErrorCode = keyof typeof SANDBOX_ROUTE_ERROR_DEFINITIONS
 export interface SandboxRouteErrorDetails {
 	code: SandboxRouteErrorCode;
 	message: string;
-	status: 400 | 503;
+	status: 503;
 }
 
 export interface SandboxRouteErrorEnvelope {
@@ -189,11 +188,7 @@ export function getSandboxRouteErrorDetails(error: unknown): SandboxRouteErrorDe
 	if (propertyCode && nameCode && propertyCode !== nameCode) return null;
 
 	const code = propertyCode ?? nameCode;
-	if (
-		!code ||
-		(error.status !== undefined && error.status !== SANDBOX_ROUTE_ERROR_DEFINITIONS[code].status)
-	)
-		return null;
+	if (!code || (error.status !== undefined && error.status !== 503)) return null;
 
 	return {
 		code,
