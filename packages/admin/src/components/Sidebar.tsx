@@ -597,7 +597,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 				</KumoSidebar.Group>
 
 				{/* Content — collections + media */}
-				{visibleContent.length > 0 && (
+				{visibleContent.length > 1 && (
 					<KumoSidebar.Group>
 						<KumoSidebar.GroupLabel>{t`Content`}</KumoSidebar.GroupLabel>
 						<KumoSidebar.Menu>{renderNavEntries(visibleContent)}</KumoSidebar.Menu>

@@ -16,5 +16,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-	await db.schema.alterTable("_emdash_collections").dropColumn("nav_group").execute();
+	if (await columnExists(db, "_emdash_collections", "nav_group")) {
+		await db.schema.alterTable("_emdash_collections").dropColumn("nav_group").execute();
+	}
 }
