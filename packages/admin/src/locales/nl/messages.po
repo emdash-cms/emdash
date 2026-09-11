@@ -209,12 +209,12 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {veld} other {velden}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:213
+#: packages/admin/src/components/Dashboard.tsx:214
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr "{0, plural, one {Mediabestand} other {Mediabestanden}}"
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:217
+#: packages/admin/src/components/Dashboard.tsx:218
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {Gebruiker} other {Gebruikers}}"
 
@@ -438,11 +438,11 @@ msgstr "{needsNewCollections, plural, one {# nieuwe collectie wordt aangemaakt} 
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Velden worden toegevoegd aan # bestaande collectie} other {Velden worden toegevoegd aan # bestaande collecties}}"
 
-#: packages/admin/src/components/Dashboard.tsx:102
+#: packages/admin/src/components/Dashboard.tsx:103
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:97
+#: packages/admin/src/components/Dashboard.tsx:98
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
@@ -496,11 +496,11 @@ msgstr "{total, plural, one {# item} other {# items}}"
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {# in totaal} other {# in totaal}}"
 
-#: packages/admin/src/components/Dashboard.tsx:201
+#: packages/admin/src/components/Dashboard.tsx:202
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr "{totalDrafts, plural, one {Concept} other {Concepten}}"
 
-#: packages/admin/src/components/Dashboard.tsx:207
+#: packages/admin/src/components/Dashboard.tsx:208
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {Ingepland} other {Ingepland}}"
 
@@ -2145,7 +2145,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:285
-#: packages/admin/src/components/Dashboard.tsx:269
+#: packages/admin/src/components/Dashboard.tsx:270
 #: packages/admin/src/components/PortableTextEditor.tsx:2981
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:422
@@ -2310,7 +2310,7 @@ msgstr "Kan niet automatisch kopiëren. Selecteer de URL hierboven en kopieer ha
 msgid "Could not insert section"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:124
+#: packages/admin/src/components/Dashboard.tsx:125
 msgid "Could not load dashboard data"
 msgstr "Kan dashboardgegevens niet laden"
 
@@ -2677,7 +2677,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:130
 #: packages/admin/src/components/ContentTypeList.tsx:358
-#: packages/admin/src/components/Dashboard.tsx:56
+#: packages/admin/src/components/Dashboard.tsx:57
 #: packages/admin/src/components/Sidebar.tsx:260
 #: packages/admin/src/components/Sidebar.tsx:413
 msgid "Dashboard"
@@ -3254,7 +3254,7 @@ msgid "draft, published, or archived"
 msgstr "concept, gepubliceerd of gearchiveerd"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:303
+#: packages/admin/src/components/Dashboard.tsx:304
 msgid "Drafts"
 msgstr "Concepten"
 
@@ -6421,7 +6421,7 @@ msgstr ""
 msgid "No bylines found"
 msgstr "Geen auteursvermeldingen gevonden"
 
-#: packages/admin/src/components/Dashboard.tsx:275
+#: packages/admin/src/components/Dashboard.tsx:276
 msgid "No collections configured"
 msgstr "Geen collecties geconfigureerd"
 
@@ -6607,7 +6607,7 @@ msgstr ""
 msgid "No public URL available"
 msgstr "Geen openbare URL beschikbaar"
 
-#: packages/admin/src/components/Dashboard.tsx:354
+#: packages/admin/src/components/Dashboard.tsx:355
 msgid "No recent activity"
 msgstr "Geen recente activiteit"
 
@@ -7358,7 +7358,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:859
 #: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:297
+#: packages/admin/src/components/Dashboard.tsx:298
 #: packages/admin/src/router.tsx:1179
 msgid "Published"
 msgstr "Gepubliceerd"
@@ -7467,7 +7467,7 @@ msgstr "Gereed"
 msgid "Ready to publish now or schedule for later"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:348
+#: packages/admin/src/components/Dashboard.tsx:349
 msgid "Recent Activity"
 msgstr "Recente activiteit"
 
@@ -7523,7 +7523,7 @@ msgstr ""
 msgid "Refresh status before continuing."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:125
+#: packages/admin/src/components/Dashboard.tsx:126
 msgid "Refresh the page or try again."
 msgstr "Vernieuw de pagina of probeer het opnieuw."
 
@@ -8219,7 +8219,7 @@ msgstr ""
 msgid "Scheduled publication"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:111
+#: packages/admin/src/components/Dashboard.tsx:112
 msgid "Scheduled publishing needs attention"
 msgstr ""
 
@@ -9093,7 +9093,7 @@ msgstr "Status"
 msgid "Status code"
 msgstr "Statuscode"
 
-#: packages/admin/src/components/Dashboard.tsx:401
+#: packages/admin/src/components/Dashboard.tsx:402
 msgid "Status: {status}"
 msgstr "Status: {status}"
 
@@ -9907,7 +9907,7 @@ msgstr "Niet-ondersteund elementtype voor widget: {0}"
 msgid "Until {0}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:368
+#: packages/admin/src/components/Dashboard.tsx:369
 #: packages/admin/src/components/MediaUsedIn.tsx:255
 msgid "Untitled"
 msgstr "Zonder titel"
@@ -10028,7 +10028,7 @@ msgstr "Bestanden uploaden"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "Upload afbeeldingen, video's en documenten om herbruikbare assets op één plek te bewaren."
 
-#: packages/admin/src/components/Dashboard.tsx:163
+#: packages/admin/src/components/Dashboard.tsx:164
 msgid "Upload Media"
 msgstr "Media uploaden"
 

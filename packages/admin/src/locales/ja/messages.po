@@ -209,12 +209,12 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, one {フィールド} other {フィールド}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:213
+#: packages/admin/src/components/Dashboard.tsx:214
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr "{0, plural, one {メディアファイル} other {メディアファイル}}"
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:217
+#: packages/admin/src/components/Dashboard.tsx:218
 msgid "{0, plural, one {User} other {Users}}"
 msgstr "{0, plural, one {ユーザー} other {ユーザー}}"
 
@@ -438,11 +438,11 @@ msgstr "{needsNewCollections, plural, one {#件のコンテンツタイプが作
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {既存のコンテンツタイプ#件にフィールドを追加します} other {既存のコンテンツタイプ#件にフィールドを追加します}}"
 
-#: packages/admin/src/components/Dashboard.tsx:102
+#: packages/admin/src/components/Dashboard.tsx:103
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {1件のコンテンツが公開予定時刻を過ぎており、公開スケジュール処理の最終実行から時間がたっています。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。} other {#件のコンテンツが公開予定時刻を過ぎており、公開スケジュール処理の最終実行から時間がたっています。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。}}"
 
-#: packages/admin/src/components/Dashboard.tsx:97
+#: packages/admin/src/components/Dashboard.tsx:98
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr "{overdueCount, plural, one {1件のコンテンツが公開予定時刻を過ぎていますが、公開スケジュール処理はまだ一度も完了していません。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。} other {#件のコンテンツが公開予定時刻を過ぎていますが、公開スケジュール処理はまだ一度も完了していません。`npx emdash doctor`を実行し、デプロイ済みのCron Triggerを確認してください。}}"
 
@@ -496,11 +496,11 @@ msgstr "{total, plural, one {#件} other {#件}}"
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, one {合計#件} other {合計#件}}"
 
-#: packages/admin/src/components/Dashboard.tsx:201
+#: packages/admin/src/components/Dashboard.tsx:202
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr "{totalDrafts, plural, one {下書き} other {下書き}}"
 
-#: packages/admin/src/components/Dashboard.tsx:207
+#: packages/admin/src/components/Dashboard.tsx:208
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {公開予定} other {公開予定}}"
 
@@ -2145,7 +2145,7 @@ msgstr "コンテンツ"
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:285
-#: packages/admin/src/components/Dashboard.tsx:269
+#: packages/admin/src/components/Dashboard.tsx:270
 #: packages/admin/src/components/PortableTextEditor.tsx:2981
 #: packages/admin/src/components/SectionEditor.tsx:215
 #: packages/admin/src/components/Sidebar.tsx:422
@@ -2310,7 +2310,7 @@ msgstr "自動的にコピーできませんでした。上のURLを選択して
 msgid "Could not insert section"
 msgstr "セクションを挿入できませんでした"
 
-#: packages/admin/src/components/Dashboard.tsx:124
+#: packages/admin/src/components/Dashboard.tsx:125
 msgid "Could not load dashboard data"
 msgstr "ダッシュボードデータを読み込めませんでした"
 
@@ -2677,7 +2677,7 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:130
 #: packages/admin/src/components/ContentTypeList.tsx:358
-#: packages/admin/src/components/Dashboard.tsx:56
+#: packages/admin/src/components/Dashboard.tsx:57
 #: packages/admin/src/components/Sidebar.tsx:260
 #: packages/admin/src/components/Sidebar.tsx:413
 msgid "Dashboard"
@@ -3254,7 +3254,7 @@ msgid "draft, published, or archived"
 msgstr "下書き、公開済み、またはアーカイブ済み"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:303
+#: packages/admin/src/components/Dashboard.tsx:304
 msgid "Drafts"
 msgstr "下書き"
 
@@ -6421,7 +6421,7 @@ msgstr ""
 msgid "No bylines found"
 msgstr "一致する執筆者はありません"
 
-#: packages/admin/src/components/Dashboard.tsx:275
+#: packages/admin/src/components/Dashboard.tsx:276
 msgid "No collections configured"
 msgstr "コンテンツタイプが設定されていません"
 
@@ -6607,7 +6607,7 @@ msgstr ""
 msgid "No public URL available"
 msgstr "利用可能な公開URLがありません"
 
-#: packages/admin/src/components/Dashboard.tsx:354
+#: packages/admin/src/components/Dashboard.tsx:355
 msgid "No recent activity"
 msgstr "最近の更新はありません"
 
@@ -7358,7 +7358,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:859
 #: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:297
+#: packages/admin/src/components/Dashboard.tsx:298
 #: packages/admin/src/router.tsx:1179
 msgid "Published"
 msgstr "公開済み"
@@ -7467,7 +7467,7 @@ msgstr "準備完了"
 msgid "Ready to publish now or schedule for later"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:348
+#: packages/admin/src/components/Dashboard.tsx:349
 msgid "Recent Activity"
 msgstr "最近の更新"
 
@@ -7523,7 +7523,7 @@ msgstr "ステータスを更新"
 msgid "Refresh status before continuing."
 msgstr "続行する前にステータスを更新してください。"
 
-#: packages/admin/src/components/Dashboard.tsx:125
+#: packages/admin/src/components/Dashboard.tsx:126
 msgid "Refresh the page or try again."
 msgstr "ページを再読み込みするか、もう一度お試しください。"
 
@@ -8219,7 +8219,7 @@ msgstr ""
 msgid "Scheduled publication"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:111
+#: packages/admin/src/components/Dashboard.tsx:112
 msgid "Scheduled publishing needs attention"
 msgstr "公開予約を確認してください"
 
@@ -9093,7 +9093,7 @@ msgstr "ステータス"
 msgid "Status code"
 msgstr "ステータスコード"
 
-#: packages/admin/src/components/Dashboard.tsx:401
+#: packages/admin/src/components/Dashboard.tsx:402
 msgid "Status: {status}"
 msgstr "ステータス：{status}"
 
@@ -9907,7 +9907,7 @@ msgstr "サポートされていないウィジェット要素タイプ：{0}"
 msgid "Until {0}"
 msgstr "{0}以前"
 
-#: packages/admin/src/components/Dashboard.tsx:368
+#: packages/admin/src/components/Dashboard.tsx:369
 #: packages/admin/src/components/MediaUsedIn.tsx:255
 msgid "Untitled"
 msgstr "無題"
@@ -10028,7 +10028,7 @@ msgstr "ファイルをアップロード"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr "画像、動画、ドキュメントをアップロードし、再利用できる素材を1か所で管理します。"
 
-#: packages/admin/src/components/Dashboard.tsx:163
+#: packages/admin/src/components/Dashboard.tsx:164
 msgid "Upload Media"
 msgstr "メディアをアップロード"
 
