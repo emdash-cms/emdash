@@ -2057,10 +2057,14 @@ export class EmDashRuntime {
 		// Warn regardless of whether there are plugins to load, so operators
 		// see the issue even if no marketplace plugins are installed yet.
 		if (!sandboxRunner.isAvailable()) {
+			const reason = sandboxRunner.unavailableReason?.();
 			console.warn(
-				"EmDash: Plugin sandbox is configured but not available on this platform. " +
-					"Sandboxed plugins will not be loaded. " +
-					"If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.",
+				reason
+					? `EmDash: Plugin sandbox is configured but not available on this platform: ${reason}. ` +
+							"Sandboxed plugins will not be loaded."
+					: "EmDash: Plugin sandbox is configured but not available on this platform. " +
+							"Sandboxed plugins will not be loaded. " +
+							"If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.",
 			);
 			return sandboxedPluginCache;
 		}

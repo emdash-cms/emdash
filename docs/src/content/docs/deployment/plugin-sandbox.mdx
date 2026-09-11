@@ -133,10 +133,10 @@ On Cloudflare Workers, `sandbox()` checks `wrangler.jsonc` at build time. Withou
 [emdash] Sandboxed plugins are disabled because wrangler.jsonc has no LOADER Worker Loader binding. Worker Loader requires a Workers paid plan.
 ```
 
-A selected runner can still be unavailable at runtime: on Cloudflare Workers when the deployed `LOADER` binding or `PluginBridge` export is missing, and on Node.js when `workerd` is not installed or its binary does not run. EmDash then logs the following warning when the runtime starts:
+A selected runner can still be unavailable at runtime: on Cloudflare Workers when the deployed `LOADER` binding or `PluginBridge` export is missing, and on Node.js when `workerd` is not installed or its binary does not run. EmDash then logs a warning with the cause the runner reports after the colon. The following warning is logged on Cloudflare Workers when the binding is missing:
 
 ```plain
-EmDash: Plugin sandbox is configured but not available on this platform. Sandboxed plugins will not be loaded. If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.
+EmDash: Plugin sandbox is configured but not available on this platform: the worker has no worker_loaders binding named LOADER. Sandboxed plugins will not be loaded.
 ```
 
 Plugins under `sandboxed: []` are not loaded, installed marketplace and registry plugins do not run, and a new install from the admin fails with the error code `SANDBOX_NOT_AVAILABLE`. The rest of the site is unaffected.
@@ -168,9 +168,9 @@ The Cloudflare adapter did not select a sandbox runner because the build-time Wr
 
 ### "Plugin sandbox is configured but not available on this platform"
 
-On Cloudflare Workers, check both requirements: `wrangler.jsonc` has a `worker_loaders` binding named `LOADER`, and `main` points to a file that exports `PluginBridge`. Deploying the binding needs the Workers Paid plan.
+The text after the colon names the cause. On Cloudflare Workers, `the worker has no worker_loaders binding named LOADER` means `wrangler.jsonc` needs a `worker_loaders` binding named `LOADER`, and `the worker entrypoint does not export PluginBridge` means the file `main` points to must export `PluginBridge`. Deploying the binding needs the Workers Paid plan.
 
-On Node.js, run the installed binary directly so the check cannot download a missing package:
+On Node.js, `workerd is missing or its binary does not run on this platform` means the runner could not run `workerd`. Run the installed binary directly so the check cannot download a missing package:
 
 ```bash
 ./node_modules/.bin/workerd --version
@@ -188,4 +188,4 @@ The runner has stopped restarting `workerd`. The `[emdash:workerd] workerd exite
 
 ### `SANDBOX_NOT_AVAILABLE` when installing a plugin
 
-The admin's install request was refused because the runner is missing or unavailable. Configure the runner for the platform, or fix the cause of the startup warning above, and redeploy.
+The admin's install request was refused because the runner is missing or unavailable. When a runner is configured, the error message ends with the same cause as the startup warning above. Configure the runner for the platform, or fix that cause, and redeploy.
