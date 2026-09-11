@@ -237,6 +237,15 @@ export interface SandboxRunner {
 	isHealthy(): boolean;
 
 	/**
+	 * Why the runner cannot run plugins, once isAvailable() or isHealthy()
+	 * has returned false. A lowercase clause without a final period: callers
+	 * append it to their own message after a colon.
+	 *
+	 * Making this required breaks runners implemented outside this repository.
+	 */
+	unavailableReason?(): string;
+
+	/**
 	 * Load a sandboxed plugin from code.
 	 *
 	 * @param manifest - Plugin manifest with metadata and capabilities
@@ -258,6 +267,11 @@ export interface SandboxRunner {
 	 * Called during shutdown or when reconfiguring.
 	 */
 	terminateAll(): Promise<void>;
+}
+
+export function withUnavailableReason(message: string, runner: SandboxRunner | null): string {
+	const reason = runner?.unavailableReason?.();
+	return reason ? `${message}: ${reason}` : message;
 }
 
 /**

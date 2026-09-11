@@ -166,6 +166,9 @@ const schemaUpdateCollectionToolSchema = z.object({
 	hasSeo: updateCollectionBody.shape.hasSeo.describe(
 		"Whether the collection supports SEO metadata",
 	),
+	group: updateCollectionBody.shape.group.describe(
+		"Admin sidebar folder shared with other collections of the same group; pass null to move the collection back inline",
+	),
 	commentsEnabled: updateCollectionBody.shape.commentsEnabled.describe(
 		"Whether comments are enabled for this collection",
 	),
@@ -975,7 +978,8 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
-			const { emdash, userId } = getExtra(extra);
+			const { emdash, userId, userRole } = getExtra(extra);
+			const actor = { id: userId, role: userRole };
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
@@ -993,7 +997,7 @@ export function createMcpServer(
 
 			// Publishing requires publish permission — create as draft then publish
 			if (args.status === "published") {
-				const user = { id: userId, role: getExtra(extra).userRole };
+				const user = { id: userId, role: userRole };
 				if (!hasPermission(user, "content:publish_own")) {
 					throw new EmDashAuthError(
 						"Insufficient permissions: publishing requires content:publish_own",
@@ -1008,6 +1012,7 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					actor,
 				});
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
@@ -1026,6 +1031,7 @@ export function createMcpServer(
 					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
+					actor,
 				}),
 			);
 		},
@@ -1103,6 +1109,7 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
 			const { emdash, userId, userRole } = getExtra(extra);
+			const actor = { id: userId, role: userRole };
 
 			// Fetch item to check ownership
 			const existing = await emdash.handleContentGet(args.collection, args.id, args.locale);
@@ -1146,7 +1153,7 @@ export function createMcpServer(
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
 						data,
 						slug: args.slug,
-						authorId: userId,
+						actor,
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
@@ -1176,7 +1183,7 @@ export function createMcpServer(
 					const updateResult = await emdash.handleContentUpdate(args.collection, resolvedId, {
 						data,
 						slug: args.slug,
-						authorId: userId,
+						actor,
 						locale: args.locale,
 						seo: args.seo,
 						bylines: args.bylines,
@@ -1196,7 +1203,7 @@ export function createMcpServer(
 				await emdash.handleContentUpdate(args.collection, resolvedId, {
 					data,
 					slug: args.slug,
-					authorId: userId,
+					actor,
 					locale: args.locale,
 					seo: args.seo,
 					bylines: args.bylines,
@@ -1883,6 +1890,9 @@ export function createMcpServer(
 				editLocking: createCollectionBody.shape.editLocking.describe(
 					"Take an edit lock when an entry is opened (default: true)",
 				),
+				group: createCollectionBody.shape.group.describe(
+					"Admin sidebar folder shared with other collections of the same group",
+				),
 			}),
 		},
 		async (args, extra) => {
@@ -1903,6 +1913,7 @@ export function createMcpServer(
 					supports: args.supports,
 					routable: args.routable,
 					editLocking: args.editLocking,
+					group: args.group,
 				});
 				ec.invalidateUrlPatternCache();
 				return jsonResult(collection);

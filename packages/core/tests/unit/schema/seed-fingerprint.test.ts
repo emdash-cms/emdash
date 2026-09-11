@@ -13,6 +13,14 @@ describe("seed collection capture fingerprint", () => {
 		);
 	});
 
+	it("changes when the collection moves into a sidebar group", async () => {
+		const bare = await buildSeedCollectionCaptureFingerprint(input, []);
+
+		expect(
+			await buildSeedCollectionCaptureFingerprint({ ...input, group: "Calendar" }, []),
+		).not.toBe(bare);
+	});
+
 	it("changes when edit locking is switched off", async () => {
 		const bare = await buildSeedCollectionCaptureFingerprint(input, []);
 

@@ -1,171 +1,322 @@
 ---
 title: REST API Reference
-description: HTTP endpoints for content, media, and schema management.
+description: The public HTTP contract, authentication rules, and complete OpenAPI operation inventory.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash exposes a REST API at `/_emdash/api/` for content management, media uploads, and schema operations.
-
-## Authentication
-
-API requests require authentication via a Bearer token in the `Authorization` header:
+EmDash exposes its supported application programming interface (API) under `/_emdash/api/`. Use the generated OpenAPI 3.1 document for request parameters, bodies, response schemas, status codes, and client generation:
 
 ```http
-Authorization: Bearer <token>
+GET /_emdash/api/openapi.json
 ```
 
-Generate tokens through the admin interface or programmatically.
+The document is generated from the same Zod schemas used by the API. It also reflects the configured maximum media upload size.
 
-## Response format
+## Public contract boundary
 
-All responses follow a consistent format. A successful response wraps the result in `data`:
+The OpenAPI document is the boundary of the supported REST API. EmDash also has routes for its admin interface and protocol workflows. A route that exists in the source tree but is absent from OpenAPI is not a supported REST operation for external clients.
 
-```json
-{
-  "success": true,
-  "data": { ... }
-}
-```
+This distinction applies to backup, byline administration, relation traversal, plugin management, setup, import, and authentication routes. Use the [backup guide](/guides/backups/) for backups and the [MCP byline tools](/reference/mcp-server/#byline-tools) for supported byline management. OAuth endpoints are protocol endpoints; discover them from the metadata described in the [MCP OAuth section](/reference/mcp-server/#oauth-discovery) instead of treating them as application REST endpoints.
 
-An error response includes a code, message, and optional details:
+## Authentication and authorization
 
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable message",
-    "details": { ... }
-  }
-}
-```
-
-## Content Endpoints
-
-### List Content
+Most operations accept either an EmDash session cookie or a Bearer token. Send a personal access token or OAuth access token in the `Authorization` header:
 
 ```http
-GET /_emdash/api/content/:collection
+Authorization: Bearer $EMDASH_TOKEN
 ```
 
-#### Parameters
+Bearer tokens are limited by their scopes and the associated user's role. Session requests use the user's role. See [user roles](/guides/authentication/#user-roles) and [token scopes](/reference/mcp-server/#scopes) for the authorization model.
 
-| Parameter    | Type     | Description                             |
-| ------------ | -------- | --------------------------------------- |
-| `collection` | `string` | Collection slug (path)                  |
-| `cursor`     | `string` | Pagination cursor (query)               |
-| `limit`      | `number` | Items per page (query, default: 50)     |
-| `status`     | `string` | Filter by status (query)                |
-| `orderBy`    | `string` | Field to sort by (query)                |
-| `order`      | `string` | Sort direction: `asc` or `desc` (query) |
+`GET` and `POST /_emdash/api/comments/{collection}/{contentId}` are public. The `GET` operation returns approved comments; the `POST` operation submits a comment for moderation. The remaining comment-moderation operations require authentication.
 
-#### Response
+### Cross-site request forgery protection
 
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "id": "01HXK5MZSN...",
-        "type": "posts",
-        "slug": "hello-world",
-        "data": { "title": "Hello World", ... },
-        "status": "published",
-        "createdAt": "2025-01-24T12:00:00Z",
-        "updatedAt": "2025-01-24T12:00:00Z"
-      }
-    ],
-    "nextCursor": "eyJpZCI6..."
-  }
-}
-```
-
-### Get Content
+For a state-changing request authenticated by a session cookie, include this header:
 
 ```http
-GET /_emdash/api/content/:collection/:id
+X-EmDash-Request: 1
 ```
 
-#### Response
+Bearer-token requests do not require the header because they do not use ambient browser credentials. Browser requests to a public write operation must either send the header or have an `Origin` that matches the EmDash site's public or request origin.
+
+## Response envelopes
+
+A successful JSON response sets `success` to `true` and places the operation-specific result in `data`:
 
 ```json
 {
-  "success": true,
-  "data": {
-    "item": {
-      "id": "01HXK5MZSN...",
-      "type": "posts",
-      "slug": "hello-world",
-      "data": { "title": "Hello World", ... },
-      "status": "published",
-      "createdAt": "2025-01-24T12:00:00Z",
-      "updatedAt": "2025-01-24T12:00:00Z"
-    }
-  }
-}
-```
-
-### Create Content
-
-```http
-POST /_emdash/api/content/:collection
-Content-Type: application/json
-```
-
-#### Request Body
-
-```json
-{
-  "data": {
-    "title": "New Post",
-    "content": [...]
-  },
-  "slug": "new-post",
-  "status": "draft"
-}
-```
-
-#### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "item": { ... }
-  }
-}
-```
-
-### Update Content
-
-```http
-PUT /_emdash/api/content/:collection/:id
-Content-Type: application/json
-```
-
-#### Request Body
-
-```json
-{
+	"success": true,
 	"data": {
-		"title": "Updated Title"
-	},
-	"status": "published"
+		"items": []
+	}
 }
 ```
 
-### Entry Edit Lock
+An error sets `success` to `false` and includes a stable machine-readable code and a message. Some errors also include structured `details`:
 
-```http
-GET    /_emdash/api/content/:collection/:id/lock
-POST   /_emdash/api/content/:collection/:id/lock
-DELETE /_emdash/api/content/:collection/:id/lock
+```json
+{
+	"success": false,
+	"error": {
+		"code": "NOT_FOUND",
+		"message": "Content item not found"
+	}
+}
 ```
 
-`POST` takes the lock for the caller, or reports who is holding it. `GET` reports
-the same without touching the lease.
+Use the status codes and error schemas on each OpenAPI operation. Common statuses are `400` for invalid input, `401` for missing or invalid credentials, `403` for insufficient scope or permission, `404` for a missing resource, `409` for a state conflict, `413` for an oversized upload, `422` for a save rejected by a plugin, and `500` for an internal failure.
+
+## Endpoint inventory
+
+The operation ID is stable within the generated contract and is commonly used as the method name by OpenAPI client generators. The following inventory is checked against the generated OpenAPI document.
+
+{/* rest-endpoint-inventory:start */}
+
+### Content
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/content/{collection}` | `listContent` | List content items |
+| `POST` | `/_emdash/api/content/{collection}` | `createContent` | Create a content item |
+| `GET` | `/_emdash/api/content/{collection}/{id}` | `getContent` | Get a content item |
+| `PUT` | `/_emdash/api/content/{collection}/{id}` | `updateContent` | Update a content item |
+| `DELETE` | `/_emdash/api/content/{collection}/{id}` | `deleteContent` | Delete a content item (soft delete) |
+| `POST` | `/_emdash/api/content/{collection}/{id}/publish` | `publishContent` | Publish a content item |
+| `POST` | `/_emdash/api/content/{collection}/{id}/unpublish` | `unpublishContent` | Unpublish a content item |
+| `POST` | `/_emdash/api/content/{collection}/{id}/schedule` | `scheduleContent` | Schedule content for future publishing |
+| `DELETE` | `/_emdash/api/content/{collection}/{id}/schedule` | `unscheduleContent` | Cancel scheduled publishing |
+| `POST` | `/_emdash/api/content/{collection}/{id}/duplicate` | `duplicateContent` | Duplicate a content item |
+| `POST` | `/_emdash/api/content/{collection}/{id}/restore` | `restoreContent` | Restore a content item from trash |
+| `DELETE` | `/_emdash/api/content/{collection}/{id}/permanent` | `permanentDeleteContent` | Permanently delete a content item |
+| `GET` | `/_emdash/api/content/{collection}/{id}/compare` | `compareContent` | Compare live and draft revisions |
+| `POST` | `/_emdash/api/content/{collection}/{id}/discard-draft` | `discardDraft` | Discard draft changes |
+| `GET` | `/_emdash/api/content/{collection}/{id}/lock` | `getEntryLock` | Read the entry's edit lock |
+| `POST` | `/_emdash/api/content/{collection}/{id}/lock` | `acquireEntryLock` | Take or refresh the entry's edit lock |
+| `DELETE` | `/_emdash/api/content/{collection}/{id}/lock` | `releaseEntryLock` | Release the caller's edit lock |
+| `GET` | `/_emdash/api/content/{collection}/{id}/translations` | `getContentTranslations` | Get translations for a content item |
+| `GET` | `/_emdash/api/content/{collection}/{id}/terms/{taxonomy}` | `getContentTerms` | Get taxonomy terms assigned to a content item |
+| `POST` | `/_emdash/api/content/{collection}/{id}/terms/{taxonomy}` | `setContentTerms` | Set taxonomy terms on a content item |
+| `GET` | `/_emdash/api/content/{collection}/authors` | `listContentAuthors` | List distinct authors of a collection's content |
+| `GET` | `/_emdash/api/content/{collection}/trash` | `listTrashedContent` | List trashed content items |
+
+### Media
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/media` | `listMedia` | List media items |
+| `POST` | `/_emdash/api/media` | `uploadMedia` | Upload a media item |
+| `GET` | `/_emdash/api/media/folders` | `listMediaFolders` | List media folders |
+| `POST` | `/_emdash/api/media/folders` | `createMediaFolder` | Create a media folder |
+| `GET` | `/_emdash/api/media/folders/{id}` | `getMediaFolder` | Get a media folder |
+| `PUT` | `/_emdash/api/media/folders/{id}` | `updateMediaFolder` | Update a media folder |
+| `DELETE` | `/_emdash/api/media/folders/{id}` | `deleteMediaFolder` | Delete a media folder |
+| `GET` | `/_emdash/api/media/{id}` | `getMedia` | Get a media item |
+| `PUT` | `/_emdash/api/media/{id}` | `updateMedia` | Update media metadata |
+| `DELETE` | `/_emdash/api/media/{id}` | `deleteMedia` | Delete a media item |
+| `GET` | `/_emdash/api/media/{id}/usage` | `getMediaUsage` | Get media usage details |
+| `PUT` | `/_emdash/api/media/{id}/replace` | `replaceMediaImage` | Replace a media image |
+| `POST` | `/_emdash/api/admin/media-usage/repair` | `repairMediaUsage` | Repair media usage indexes |
+| `GET` | `/_emdash/api/admin/media-usage/progress` | `getMediaUsageProgress` | Get media usage indexing progress |
+| `POST` | `/_emdash/api/admin/media-usage/progress` | `advanceMediaUsageProgress` | Advance media usage indexing |
+| `GET` | `/_emdash/api/admin/media-usage/work` | `listMediaUsageWork` | List durable media usage work |
+| `GET` | `/_emdash/api/admin/media-usage/activation` | `getMediaUsageActivation` | Get media usage activation status |
+| `POST` | `/_emdash/api/admin/media-usage/activation` | `advanceMediaUsageActivation` | Advance media usage activation |
+| `POST` | `/_emdash/api/admin/media-usage/work/retry` | `retryMediaUsageWork` | Retry one durable media usage job |
+| `GET` | `/_emdash/api/admin/media-usage/collection-deletions` | `listMediaUsageCollectionDeletions` | List durable collection deletions |
+| `POST` | `/_emdash/api/admin/media-usage/collection-deletions/retry` | `retryMediaUsageCollectionDeletion` | Retry one collection deletion |
+| `POST` | `/_emdash/api/media/upload-url` | `getMediaUploadUrl` | Get a media upload target |
+| `POST` | `/_emdash/api/media/{id}/confirm` | `confirmMediaUpload` | Confirm a media upload |
+| `PUT` | `/_emdash/api/media/{id}/upload` | `uploadPendingMedia` | Upload a pending media file through EmDash |
+
+### Schema
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/schema/collections` | `listCollections` | List all collections |
+| `POST` | `/_emdash/api/schema/collections` | `createCollection` | Create a collection |
+| `GET` | `/_emdash/api/schema/collections/{slug}` | `getCollection` | Get a collection |
+| `PUT` | `/_emdash/api/schema/collections/{slug}` | `updateCollection` | Update a collection |
+| `DELETE` | `/_emdash/api/schema/collections/{slug}` | `deleteCollection` | Delete a collection |
+| `GET` | `/_emdash/api/schema/collections/{slug}/fields` | `listFields` | List fields for a collection |
+| `POST` | `/_emdash/api/schema/collections/{slug}/fields` | `createField` | Create a field |
+| `GET` | `/_emdash/api/schema/collections/{slug}/fields/{fieldSlug}` | `getField` | Get a field |
+| `PUT` | `/_emdash/api/schema/collections/{slug}/fields/{fieldSlug}` | `updateField` | Update a field |
+| `DELETE` | `/_emdash/api/schema/collections/{slug}/fields/{fieldSlug}` | `deleteField` | Delete a field |
+| `POST` | `/_emdash/api/schema/collections/reorder` | `reorderCollections` | Reorder collections in the admin sidebar |
+| `POST` | `/_emdash/api/schema/collections/{slug}/fields/reorder` | `reorderFields` | Reorder fields in a collection |
+| `GET` | `/_emdash/api/schema/orphans` | `listOrphanedTables` | List orphaned content tables |
+| `POST` | `/_emdash/api/schema/orphans/{slug}` | `registerOrphanedTable` | Register an orphaned table as a collection |
+
+### Comments
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/comments/{collection}/{contentId}` | `listPublicComments` | List approved comments for content |
+| `POST` | `/_emdash/api/comments/{collection}/{contentId}` | `createComment` | Submit a new comment |
+| `GET` | `/_emdash/api/admin/comments` | `listAdminComments` | List comments for moderation |
+| `GET` | `/_emdash/api/admin/comments/counts` | `getCommentCounts` | Get comment status counts |
+| `POST` | `/_emdash/api/admin/comments/bulk` | `bulkCommentAction` | Bulk approve, spam, trash, or delete comments |
+| `GET` | `/_emdash/api/admin/comments/{id}` | `getComment` | Get a single comment |
+| `DELETE` | `/_emdash/api/admin/comments/{id}` | `deleteComment` | Permanently delete a comment |
+| `PUT` | `/_emdash/api/admin/comments/{id}/status` | `updateCommentStatus` | Change comment status |
+
+### Taxonomies
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/taxonomies` | `listTaxonomies` | List all taxonomy definitions |
+| `GET` | `/_emdash/api/taxonomies/{name}` | `getTaxonomy` | Get a taxonomy definition |
+| `PUT` | `/_emdash/api/taxonomies/{name}` | `updateTaxonomy` | Update a taxonomy definition |
+| `DELETE` | `/_emdash/api/taxonomies/{name}` | `deleteTaxonomy` | Delete a taxonomy, its terms, and their content assignments |
+| `GET` | `/_emdash/api/taxonomies/{name}/translations` | `listTaxonomyTranslations` | List every locale variant of a taxonomy definition |
+| `POST` | `/_emdash/api/taxonomies/{name}/reorder` | `reorderTerms` | Set the manual order of one sibling group of terms |
+| `GET` | `/_emdash/api/taxonomies/{name}/terms` | `listTerms` | List terms for a taxonomy |
+| `POST` | `/_emdash/api/taxonomies/{name}/terms` | `createTerm` | Create a term |
+| `GET` | `/_emdash/api/taxonomies/{name}/terms/{slug}` | `getTerm` | Get a term by slug |
+| `PUT` | `/_emdash/api/taxonomies/{name}/terms/{slug}` | `updateTerm` | Update a term |
+| `DELETE` | `/_emdash/api/taxonomies/{name}/terms/{slug}` | `deleteTerm` | Delete a term |
+
+### Menus
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/menus` | `listMenus` | List all menus with item counts |
+| `POST` | `/_emdash/api/menus` | `createMenu` | Create a menu |
+| `GET` | `/_emdash/api/menus/{name}` | `getMenu` | Get a menu with all items |
+| `PUT` | `/_emdash/api/menus/{name}` | `updateMenu` | Update a menu |
+| `DELETE` | `/_emdash/api/menus/{name}` | `deleteMenu` | Delete a menu and its items |
+| `POST` | `/_emdash/api/menus/{name}/items` | `createMenuItem` | Add an item to a menu |
+| `PUT` | `/_emdash/api/menus/{name}/items/{id}` | `updateMenuItem` | Update a menu item |
+| `DELETE` | `/_emdash/api/menus/{name}/items/{id}` | `deleteMenuItem` | Delete a menu item |
+| `POST` | `/_emdash/api/menus/{name}/reorder` | `reorderMenuItems` | Batch reorder menu items |
+
+### Sections
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/sections` | `listSections` | List sections |
+| `POST` | `/_emdash/api/sections` | `createSection` | Create a section |
+| `GET` | `/_emdash/api/sections/{slug}` | `getSection` | Get a section by slug |
+| `PUT` | `/_emdash/api/sections/{slug}` | `updateSection` | Update a section |
+| `DELETE` | `/_emdash/api/sections/{slug}` | `deleteSection` | Delete a section |
+
+### Widgets
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/widget-areas` | `listWidgetAreas` | List all widget areas |
+| `POST` | `/_emdash/api/widget-areas` | `createWidgetArea` | Create a widget area |
+| `GET` | `/_emdash/api/widget-areas/{name}` | `getWidgetArea` | Get a widget area with widgets |
+| `DELETE` | `/_emdash/api/widget-areas/{name}` | `deleteWidgetArea` | Delete a widget area and its widgets |
+| `POST` | `/_emdash/api/widget-areas/{name}/widgets` | `createWidget` | Add a widget to an area |
+| `PUT` | `/_emdash/api/widget-areas/{name}/widgets/{id}` | `updateWidget` | Update a widget |
+| `DELETE` | `/_emdash/api/widget-areas/{name}/widgets/{id}` | `deleteWidget` | Delete a widget |
+| `POST` | `/_emdash/api/widget-areas/{name}/reorder` | `reorderWidgets` | Reorder widgets in an area |
+
+### Settings
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/settings` | `getSettings` | Get site settings |
+| `PUT` | `/_emdash/api/settings` | `updateSettings` | Update site settings |
+
+### Search
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/search` | `search` | Full-text search across collections |
+| `GET` | `/_emdash/api/search/suggest` | `searchSuggest` | Autocomplete search suggestions |
+| `POST` | `/_emdash/api/search/rebuild` | `rebuildSearchIndex` | Rebuild the search index for a collection |
+| `POST` | `/_emdash/api/search/enable` | `enableSearch` | Enable or disable search for a collection |
+| `GET` | `/_emdash/api/search/stats` | `getSearchStats` | Get search index statistics |
+
+### Redirects
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/redirects` | `listRedirects` | List redirects |
+| `POST` | `/_emdash/api/redirects` | `createRedirect` | Create a redirect rule |
+| `GET` | `/_emdash/api/redirects/{id}` | `getRedirect` | Get a redirect |
+| `PUT` | `/_emdash/api/redirects/{id}` | `updateRedirect` | Update a redirect |
+| `DELETE` | `/_emdash/api/redirects/{id}` | `deleteRedirect` | Delete a redirect |
+| `GET` | `/_emdash/api/redirects/404s` | `listNotFoundEntries` | List 404 log entries |
+| `POST` | `/_emdash/api/redirects/404s` | `pruneNotFoundLog` | Prune old 404 log entries |
+| `DELETE` | `/_emdash/api/redirects/404s` | `clearNotFoundLog` | Clear all 404 log entries |
+| `GET` | `/_emdash/api/redirects/404s/summary` | `getNotFoundSummary` | Get 404 summary grouped by path |
+
+### Users
+
+| Method | Path | Operation | Summary |
+| --- | --- | --- | --- |
+| `GET` | `/_emdash/api/admin/users` | `listUsers` | List users |
+| `GET` | `/_emdash/api/admin/users/{id}` | `getUser` | Get user details |
+| `PUT` | `/_emdash/api/admin/users/{id}` | `updateUser` | Update a user |
+| `POST` | `/_emdash/api/admin/users/{id}/disable` | `disableUser` | Disable a user account |
+| `POST` | `/_emdash/api/admin/users/{id}/enable` | `enableUser` | Enable a user account |
+| `GET` | `/_emdash/api/admin/allowed-domains` | `listAllowedDomains` | List allowed email domains |
+| `POST` | `/_emdash/api/admin/allowed-domains` | `createAllowedDomain` | Add an allowed email domain |
+| `PUT` | `/_emdash/api/admin/allowed-domains/{domain}` | `updateAllowedDomain` | Update an allowed domain |
+| `DELETE` | `/_emdash/api/admin/allowed-domains/{domain}` | `deleteAllowedDomain` | Remove an allowed domain |
+
+{/* rest-endpoint-inventory:end */}
+
+## Content lifecycle and bylines
+
+Content reads return an opaque `_rev` token when one is available. Send `_rev` with `PUT /content/{collection}/{id}` to prevent overwriting a change made since the read. A stale token produces a conflict; read the item again before retrying. The CLI makes this check mandatory for `content update`, while the REST field remains optional for clients that deliberately choose an unconditional write.
+
+### Read and update an entry
+
+Read the entry before changing it:
+
+```http
+GET /_emdash/api/content/articles/01JARTICLE0000000000000000
+Authorization: Bearer $EMDASH_TOKEN
+```
+
+The response contains its fields, publication state, and revision token:
+
+```json
+{
+	"success": true,
+	"data": {
+		"item": {
+			"id": "01JARTICLE0000000000000000",
+			"type": "articles",
+			"slug": "launch-notes",
+			"status": "published",
+			"data": { "title": "Launch notes" }
+		},
+		"_rev": "opaque-revision-token"
+	}
+}
+```
+
+Send only the fields that need to change, together with the token from that read:
+
+```http
+PUT /_emdash/api/content/articles/01JARTICLE0000000000000000
+Authorization: Bearer $EMDASH_TOKEN
+Content-Type: application/json
+
+{
+	"data": { "title": "Updated launch notes" },
+	"_rev": "opaque-revision-token"
+}
+```
+
+Changing a published entry creates a draft while the previous version stays live. Call the compare operation to review both versions, then publish the draft or discard it. Unpublishing keeps the content and its publication date but removes it from the live site.
+
+Creation and update bodies accept byline credits, and content responses include the primary byline and ordered credits. The content list can filter by stored byline IDs and optionally include an author's inferred byline. Creating and managing the byline records themselves is available through the [MCP byline tools](/reference/mcp-server/#byline-tools), not the public REST contract.
+
+The lifecycle operations distinguish a soft delete from permanent deletion. Restore acts on trashed content; permanent deletion removes a trashed item and cannot be undone. Publish, unpublish, schedule, unschedule, compare, discard-draft, and duplicate are separate operations so clients can request one state transition at a time.
+
+### Entry edit lock
+
+Collections can take a seven-minute edit lock when an editor opens an entry. Use the three operations on `/content/{collection}/{id}/lock` to read, acquire or refresh, and release the lease.
+
+A read or acquire response shows whether locking is enabled, whether the caller holds the lease, and who currently holds it:
 
 ```json
 {
@@ -174,7 +325,7 @@ the same without touching the lease.
 		"enabled": true,
 		"heldByCaller": false,
 		"holder": {
-			"userId": "01JB...",
+			"userId": "01JUSER000000000000000000",
 			"userName": "Ada",
 			"acquiredAt": "2026-05-01T09:12:04.117Z",
 			"expiresAt": "2026-05-01T09:19:04.117Z"
@@ -183,236 +334,68 @@ the same without touching the lease.
 }
 ```
 
-`enabled` is `false` when the collection has edit locking switched off, and no
-lock is taken. The lease lasts seven minutes; repeating the `POST` and every save
-on the entry extend it. Send `{ "takeover": true }` to claim the lock from
-whoever holds it; their next `POST` or save reports the new holder.
+When a collection has edit locking disabled, `enabled` is `false` and no lease is taken. Acquiring the same lock again and saving the entry both extend a lease held by the caller.
 
-Send `{ "token": "<opaque string>" }` on `POST` to identify the editing session,
-and `?token=` on `DELETE`. With a token, only the session that last claimed the
-lock releases it, so a second tab of the same account keeps the lock when the
-first tab closes. `DELETE` releases the lock only when the caller holds it, and
-reports `{ "released": false }` otherwise.
+The acquire body can include an opaque `token` that identifies one editing session and `takeover: true` when the user chooses to replace another editor's lease. Pass the same token as a query parameter when releasing the lock. A second tab from the same account then cannot release the first tab's lease accidentally.
 
-While another user holds a live lock, `PUT`, `DELETE`, `/publish`, `/unpublish`,
-`/schedule` and `/discard-draft` on that entry return `409 ENTRY_LOCKED`. The
-`error.message` names the holder and `error.details` carries their `userId`,
-`userName`, `acquiredAt` and `expiresAt`. Send `"overrideLock": true` in the
-request body to write anyway, or `?overrideLock=true` on the `DELETE` routes,
-which have no body.
+When another user holds the lease, protected content writes return `409 ENTRY_LOCKED`. The error details identify the holder and expiry. To override the lock, send `"overrideLock": true` in the JSON body for a write that has a body, or `?overrideLock=true` for a `DELETE` operation that has no body.
 
-### Delete Content
+## Translations and relations
 
-```http
-DELETE /_emdash/api/content/:collection/:id
-```
+The public REST contract exposes content translations and taxonomy-definition translations. Content creation accepts `translationOf`, and taxonomy creation uses the same field to add a locale variant. The content-term operations return locale-aware assignments.
 
-#### Response
+`GET /taxonomies/{name}` returns the site's default-locale definition when `locale` is omitted, falling back to the lowest locale code only when the default locale has no definition. An update behaves differently: when `locale` is omitted, it changes the definition with the lowest locale code. Pass `locale` so a translated-taxonomy update reaches the intended definition. If that locale has no definition, the update returns `NOT_FOUND` instead of falling back to another locale. The translations operation returns every definition in the shared group and supplies the IDs accepted by `translationOf`.
 
-```json
-{
-	"success": true,
-	"data": {
-		"success": true
-	}
-}
-```
+Deleting a taxonomy removes every locale of its definition, all its terms, and all assignments of those terms to content. It does not delete the content entries themselves.
 
-## Media Endpoints
+The term-reorder operation changes one sibling group. The `ids` array may contain only part of that group; listed terms exchange their existing positions and omitted terms stay where they are. For example, reordering `[A, B, C]` with `ids: ["C", "A"]` produces `[C, B, A]`. Reordering does not change parent relationships, and one term order applies across every locale in its translation group.
 
-### List Media
+Menu, taxonomy-term, and byline translation routes are not in the public REST contract. Their supported translation listings are available through `menu_translations`, `taxonomy_term_translations`, and `byline_translations` on the [MCP server](/reference/mcp-server/#tool-inventory).
 
-```http
-GET /_emdash/api/media?includeUsage=1
-```
+EmDash has internal routes that support relation editing in the admin, but they are absent from OpenAPI. External REST clients should use the relation and reference fields described by the collection schema instead of calling those internal routes.
 
-#### Parameters
+## Media endpoints
 
-| Parameter      | Type     | Description                                                    |
-| -------------- | -------- | -------------------------------------------------------------- |
-| `cursor`       | `string` | Opaque pagination cursor                                       |
-| `page`         | `number` | Numbered page, starting at 1; cannot be combined with `cursor` |
-| `limit`        | `number` | Items per page, from 1 to 100 (default: 50)                    |
-| `mimeType`     | `string` | Filter by one or more comma-separated MIME types               |
-| `q`            | `string` | Case-insensitive filename search                               |
-| `folderId`     | `string` | Folder ID, or `unfiled` for the Main library                   |
-| `includeUsage` | `1`      | Include a coverage-aware `usage` summary on every returned item |
+Media operations cover listing, upload, metadata updates, image replacement, folders, usage information, and usage-index maintenance. The [media library guide](/guides/media-library/) explains the user-facing workflow and the meaning of usage coverage.
 
-Omit `folderId` to list media from the Main library and every folder. Use `folderId=unfiled` to
-list only media that is not assigned to a folder. A numbered request returns `totalCount`; cursor
-mode returns `nextCursor` when another page is available.
+### List and inspect media
 
-#### Response
+`GET /media` supports cursor or numbered-page pagination, MIME-type and filename filters, folders, and optional usage summaries. Omit `folderId` to include every folder, or pass `folderId=unfiled` to return only the Main library. Set `includeUsage=1` on a list or single-item read to include usage information; any other value is invalid.
 
-```json
-{
-	"success": true,
-	"data": {
-		"items": [
-			{
-				"id": "01HXK5MZSN...",
-				"filename": "photo.jpg",
-				"mimeType": "image/jpeg",
-				"size": 102400,
-				"width": 1920,
-				"height": 1080,
-				"folderId": null,
-				"url": "/_emdash/api/media/file/uploads/photo.jpg",
-				"createdAt": "2025-01-24T12:00:00Z",
-				"usage": {
-					"count": 3,
-					"coverage": {
-						"scope": "all_content_collections",
-						"status": "complete"
-					}
-				}
-			}
-		],
-		"nextCursor": "eyJpZCI6..."
-	}
-}
-```
+`usage.count` counts distinct active content rows or locales whose current indexed source references the media item. Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
 
-### Get Media
+Every usage result includes a coverage status:
 
-```http
-GET /_emdash/api/media/:id?includeUsage=1
-```
+| Status | Meaning |
+| --- | --- |
+| `complete` | Every registered collection has current usage coverage. |
+| `never` | No registered collection has completed an initial usage repair. |
+| `running` | A repair is in progress. |
+| `partial` | Only part of the registered collection set has current coverage. |
+| `failed` | Coverage failed across the registered collection set. |
+| `stale` | The index is older than the content it describes. |
+| `unknown` | The stored state is not recognized by this EmDash version. |
 
-`includeUsage` is optional on both list and get. Its only accepted value is `1`. When omitted,
-the `usage` property is omitted and the server does not run usage queries.
+Only `complete` supports treating a zero count as complete within the indexed field types. Counts are advisory during concurrent writes; they do not lock the media item or guarantee that deletion is safe. Usage indexing covers image and file fields, repeater image fields, and Portable Text image blocks in EmDash collections. It does not scan application code, rendered HTML, settings, menus, widgets, plugin data, external sites, or provider-only assets.
 
-### Usage Summaries
+### Direct multipart upload
 
-`usage.count` is the number of distinct active EmDash content rows or locales whose selected
-current indexed source references the media item. Repeated references and multiple source
-variants for the same content entry count once. Trashed content does not count.
-
-A numeric count can reveal draft-like content. It is returned only when a session user has
-`content:read_drafts`, or when an API token has `admin` scope and its associated user also has
-that permission. Other media readers receive `usage.count: null`; this is a successful redacted
-response, not an error.
-
-Every requested summary includes aggregate coverage for all currently registered content
-collections:
-
-| Status     | Meaning                                                               |
-| ---------- | --------------------------------------------------------------------- |
-| `complete` | Every registered collection has current, completed usage coverage     |
-| `never`    | No registered collection has completed an initial usage repair         |
-| `running`  | A usage repair is currently running                                    |
-| `partial`  | Coverage is mixed or only part of the registered scope was indexed     |
-| `failed`   | Coverage failed across the registered scope                            |
-| `stale`    | Indexed coverage is outdated                                           |
-| `unknown`  | Stored coverage contains a state this version does not recognize        |
-
-Only `complete` supports a scoped complete-zero statement within the supported fields
-described below. Counts with any other status are indexed projections and may over-report or
-under-report. Even complete results are advisory during concurrent writes; usage reads are not a
-transactional lock and must not be used as a deletion guarantee.
-
-### Get media usage details
-
-```http
-GET /_emdash/api/media/:id/usage?limit=50&cursor=...
-```
-
-This endpoint requires `media:read` and `content:read_drafts`. Token-authenticated callers also
-require `admin` scope; token scope does not bypass the associated user's permissions.
-
-`limit` controls content entry groups per page, from 1 to 100 (default: 50). Pagination never
-splits the sources or occurrences for one returned entry group.
-
-```json
-{
-	"data": {
-		"items": [
-			{
-				"collection": "posts",
-				"contentId": "01CONTENT...",
-				"title": "Launch notes",
-				"slug": "launch-notes",
-				"locale": "en",
-				"status": "published",
-				"scheduledAt": null,
-				"deletedAt": null,
-				"sources": [
-					{
-						"variant": "columns",
-						"occurrences": [
-							{
-								"fieldSlug": "hero",
-								"fieldPath": "hero",
-								"occurrenceIndex": 0,
-								"referenceType": "image_field"
-							}
-						]
-					}
-				]
-			}
-		],
-		"nextCursor": "eyJvcmRlclZhbHVlIjoicG9zdHMiLCJpZCI6IjAxLi4uIn0",
-		"coverage": {
-			"scope": "all_content_collections",
-			"status": "complete"
-		}
-	}
-}
-```
-
-Authorized details include active and trashed entries. A non-null `deletedAt` identifies a
-trashed entry. Sources are `columns` or `draft_overlay`; occurrences identify the supported field
-and path without exposing internal index metadata.
-
-Media usage covers local media references in top-level image and file fields, repeater image
-fields, and Portable Text image blocks stored in EmDash content collections. It does not scan
-custom code, rendered HTML, settings, menus, widgets, plugin-private data, external sites, or
-provider-only assets.
-
-### Upload Media
-
-Uploading media requires `media:upload`. Bearer tokens also require the `media:write` scope. The
-default maximum file size is 50 MB. Set
-[`maxUploadSize`](/reference/configuration/#maxuploadsize) to change the limit.
-
-Use one of the following upload methods:
-
-- Use a direct multipart upload when the client can send the file through EmDash.
-- Use the upload target flow for direct uploads to S3-compatible storage. Local storage and native
-  R2 return an EmDash upload URL instead.
-
-#### Direct multipart upload
-
-Send the file in the `file` field of a multipart request:
+Send a file through EmDash by posting it as the `file` field of a multipart request:
 
 ```bash
 curl --request POST \
-  --header "Authorization: Bearer $EMDASH_TOKEN" \
-  --header "X-EmDash-Request: 1" \
-  --form "file=@./photo.jpg;type=image/jpeg" \
-  https://example.com/_emdash/api/media
+	--header "Authorization: Bearer $EMDASH_TOKEN" \
+	--form "file=@./cover.jpg;type=image/jpeg" \
+	https://example.com/_emdash/api/media
 ```
 
-`curl` adds the multipart boundary to the `Content-Type` header. Do not set that header manually.
+`curl` adds the multipart boundary. Do not set the `Content-Type` header manually. The OpenAPI `MediaDirectUploadBody` schema lists the optional metadata fields and the response schemas distinguish a new upload from a deduplicated existing item.
 
-The endpoint also accepts the following optional multipart fields:
+The multipart body can also include image `width`, `height`, a `fieldId` whose MIME-type allowlist should be applied, and a downscaled `thumbnail` used to create a low-quality placeholder. A new file returns `201 Created` and is ready immediately. Identical bytes return the existing media item with `200 OK` and `deduplicated: true`.
 
-| Field       | Description                                                        |
-| ----------- | ------------------------------------------------------------------ |
-| `width`     | Image width in pixels                                               |
-| `height`    | Image height in pixels                                              |
-| `fieldId`   | Field whose configured MIME type allowlist applies to the upload   |
-| `thumbnail` | Downscaled image used to generate a low-quality image placeholder  |
+### Upload target flow
 
-A new upload returns `201 Created` with the stored media item and `folderId: null`. If the same
-file already exists, EmDash returns `200 OK` with `deduplicated: true`, the existing media item,
-and its current folder assignment. Direct multipart uploads are ready immediately and do not use
-the confirmation endpoint.
-
-#### Upload target flow
-
-The upload target flow keeps the media item in `pending` state until the final confirmation.
-Pending media does not appear in the standard media list or media library.
+Use the upload-target flow when the client can upload directly to S3-compatible storage. The media item remains pending and does not appear in the standard library until the confirmation succeeds.
 
 <Steps>
 
@@ -420,78 +403,27 @@ Pending media does not appear in the standard media list or media library.
 
 	```http
 	POST /_emdash/api/media/upload-url
-	Authorization: Bearer <token>
+	Authorization: Bearer $EMDASH_TOKEN
 	Content-Type: application/json
 
 	{
-		"filename": "photo.jpg",
+		"filename": "cover.jpg",
 		"contentType": "image/jpeg",
 		"size": 102400
 	}
 	```
 
-	`filename`, `contentType`, and `size` are required. The request also accepts the following
-	optional fields:
+	The response supplies `uploadUrl`, `method`, `headers`, `mediaId`, `storageKey`, and an expiry. When `contentHash` matches an existing file with the same MIME type and size, the response instead sets `existing: true`; use that media item and do not upload or confirm another copy.
 
-	| Field         | Description                                                                 |
-	| ------------- | --------------------------------------------------------------------------- |
-	| `contentHash` | `sha1:` plus 40 lowercase hexadecimal characters, used to find a match       |
-	| `fieldId`     | Field whose configured MIME type allowlist applies to the upload             |
+2. Upload the bytes
 
-	The response contains the URL, method, and headers for the file upload. `uploadUrl` is an
-	absolute signed URL when the storage adapter supports one. Otherwise, it is a root-relative
-	EmDash endpoint.
-
-	```json
-	{
-		"success": true,
-		"data": {
-			"uploadUrl": "/_emdash/api/media/01M0AFKJS0RJM3WV69QHAY7YA1/upload",
-			"method": "PUT",
-			"headers": {
-				"Content-Type": "image/jpeg",
-				"X-EmDash-Request": "1"
-			},
-			"mediaId": "01M0AFKJS0RJM3WV69QHAY7YA1",
-			"storageKey": "01M0AFKJS0K2YF0222NP6ENYWX.jpg",
-			"expiresAt": "2026-08-18T14:05:09.920Z"
-		}
-	}
-	```
-
-	If `contentHash` matches an existing media item with the same MIME type and size, the response
-	contains `existing: true`, `mediaId`, `storageKey`, and `url` instead of an upload target. Use the
-	returned media item and stop. Do not upload or confirm the file.
-
-2. Upload the file to `uploadUrl`
-
-	Start with the returned `method` and `headers`. Resolve a relative `uploadUrl` against the
-	EmDash site URL.
-
-	For a same-origin EmDash target, include the Bearer token in the upload request. For a signed URL
-	on another origin, send only the returned upload headers.
-
-	A same-origin upload returns the following response. A signed URL returns the storage provider's
-	response instead.
-
-	```json
-	{
-		"success": true,
-		"data": {
-			"uploaded": true,
-			"size": 102400
-		}
-	}
-	```
+	Use the returned method and headers. Resolve a root-relative URL against the EmDash site and include the Bearer token. Send only the returned upload headers to an absolute URL on another origin.
 
 3. Confirm the upload
 
-	Confirming checks the stored file and changes the media item from `pending` to `ready`. `size`,
-	`width`, and `height` are optional, but EmDash validates them when supplied.
-
 	```http
-	POST /_emdash/api/media/01M0AFKJS0RJM3WV69QHAY7YA1/confirm
-	Authorization: Bearer <token>
+	POST /_emdash/api/media/01JMEDIA000000000000000000/confirm
+	Authorization: Bearer $EMDASH_TOKEN
 	Content-Type: application/json
 
 	{
@@ -501,1407 +433,80 @@ Pending media does not appear in the standard media list or media library.
 	}
 	```
 
-	The response contains the ready media item:
-
-	```json
-	{
-		"success": true,
-		"data": {
-			"item": {
-				"id": "01M0AFKJS0RJM3WV69QHAY7YA1",
-				"filename": "photo.jpg",
-				"status": "ready",
-				"url": "/_emdash/api/media/file/01M0AFKJS0K2YF0222NP6ENYWX.jpg"
-			}
-		}
-	}
-	```
+	Confirmation verifies the stored object and changes the item from `pending` to `ready`. Supplied size and dimensions must match the uploaded file.
 
 </Steps>
 
-<Aside type="caution">
-	Do not send the EmDash Bearer token to an upload URL on another origin. A signed URL already
-	authorizes the storage upload. Sending the token would disclose it to the storage host.
-</Aside>
-
-#### Upload errors
-
-| Status | Code                   | Cause                                                                    |
-| ------ | ---------------------- | ------------------------------------------------------------------------ |
-| `400`  | `NO_FILE`              | The multipart request has no `file` field, or the upload body is missing |
-| `400`  | `INVALID_TYPE`         | The MIME type is not allowed or does not match the pending media item     |
-| `400`  | `VALIDATION_ERROR`     | Upload metadata is missing, invalid, or exceeds the configured size limit |
-| `400`  | `FILE_NOT_FOUND`       | Confirmation cannot find the uploaded object                             |
-| `400`  | `UPLOAD_SIZE_MISMATCH` | The declared, uploaded, and confirmed sizes do not match                  |
-| `400`  | `INVALID_STATE`        | The media item is not pending                                             |
-| `404`  | `NOT_FOUND`            | The media item does not exist                                             |
-| `409`  | `INVALID_STATE`        | The pending media item changed during confirmation                        |
-| `413`  | `PAYLOAD_TOO_LARGE`    | The direct or same-origin upload is too large                             |
-
-### Update Media
-
-```http
-PUT /_emdash/api/media/:id
-Content-Type: application/json
-```
-
-#### Request Body
-
-```json
-{
-	"alt": "Photo description",
-	"caption": "Photo caption",
-	"folderId": "01FOLDER..."
-}
-```
-
-Omit `folderId` to leave the current assignment unchanged. Set it to `null` or `unfiled` to return
-the media item to the Main library. Assigning owned media requires `media:edit_own`; assigning any
-media requires `media:edit_any`. Bearer tokens also require the `media:write` scope.
-
-### List Media Folders
-
-```http
-GET /_emdash/api/media/folders?limit=50&q=product&cursor=...
-```
-
-| Parameter | Type     | Description                                           |
-| --------- | -------- | ----------------------------------------------------- |
-| `cursor`  | `string` | Opaque pagination cursor                              |
-| `limit`   | `number` | Folders per page, from 1 to 100 (default: 50)         |
-| `q`       | `string` | Case-insensitive partial folder-name search (1–200 characters) |
-
-Returns folders in name order with an optional `nextCursor`. The endpoint requires `media:read`.
-
-### Get Media Folder
-
-```http
-GET /_emdash/api/media/folders/:id
-```
-
-Returns the folder with the requested ID. The endpoint requires `media:read` and returns 404 when
-the folder does not exist.
-
-### Create Media Folder
-
-```http
-POST /_emdash/api/media/folders
-Content-Type: application/json
-
-{
-	"name": "Product photos"
-}
-```
-
-Returns `201 Created` with the created folder:
-
-```json
-{
-	"success": true,
-	"data": {
-		"item": {
-			"id": "01HXK5MZSN...",
-			"name": "Product photos"
-		}
-	}
-}
-```
-
-Folder names are trimmed and must contain 1 to 200 characters. Names are compared after Unicode
-normalization and lowercasing, so `Photos`, `photos`, and `ＰＨＯＴＯＳ` are treated as duplicates.
-Creating, renaming, and deleting folders requires `media:edit_any`. Bearer tokens also require the
-`media:write` scope.
-
-### Rename Media Folder
-
-```http
-PUT /_emdash/api/media/folders/:id
-Content-Type: application/json
-
-{
-	"name": "Published product photos"
-}
-```
-
-Returns `200 OK` with the updated folder in the same response shape as creation.
-
-### Delete Media Folder
-
-```http
-DELETE /_emdash/api/media/folders/:id
-```
-
-Returns `200 OK` with `{ "deleted": true }` in the response `data`.
-
-Deleting a folder returns its media to the Main library. It does not delete media, change media
-IDs or URLs, or change media usage records.
-
-#### Folder errors
-
-| Status | Code               | Cause                                                   |
-| ------ | ------------------ | ------------------------------------------------------- |
-| `400`  | `INVALID_CURSOR`   | The folder-list cursor is invalid                       |
-| `400`  | `VALIDATION_ERROR` | A folder name, folder ID, or list parameter is invalid  |
-| `404`  | `NOT_FOUND`        | A folder or folder assignment target does not exist     |
-| `409`  | `CONFLICT`         | A folder already has the same normalized name           |
-
-### Delete Media
-
-```http
-DELETE /_emdash/api/media/:id
-```
-
-### Enable media usage tracking
-
-Sites with media usage tracking off must turn it on once. Pause direct database writes while EmDash prepares each collection. EmDash temporarily blocks its own content and schema writes during this step.
-
-Both endpoints require `schema:manage`. Bearer tokens also require the `admin` scope.
-
-For the admin procedure, see [Turn on media usage tracking](/guides/media-library/#turn-on-media-usage-tracking). The endpoints below provide the same procedure for API operators.
-
-#### Check the current state
-
-```http
-GET /_emdash/api/admin/media-usage/activation
-```
-
-This request does not change anything. It returns one of these states:
-
-- `expanded`: media usage tracking is off.
-- `activating`: EmDash is preparing the site's collections.
-- `active`: EmDash tracks changes to media references in content.
-
-Status responses do not include internal lock data or raw database errors.
-
-#### Start activation
-
-```http
-POST /_emdash/api/admin/media-usage/activation
-Content-Type: application/json
-X-EmDash-Request: 1
-
-{
-	"writersDrained": true
-}
-```
-
-The request prepares at most one collection. After it succeeds, advance setup and historical indexing through the progress endpoint below.
-
-Set `writersDrained` to `true` after application and direct database writes have stopped and any writes already in progress have finished.
-
-#### Enable tracking with the API
-
-1. Stop all direct database writers. Wait for writes already in progress to finish. EmDash fences its own writes during setup.
-2. Call the activation `GET` endpoint to check the current state.
-3. Call the activation `POST` endpoint once with `writersDrained: true`.
-4. Call the progress `POST` endpoint serially, following `nextRequestInMs`, until activation becomes `active`.
-5. Resume direct database writes after activation becomes `active`.
-6. Continue progress requests until historical indexing reports `ready` and `nextRequestInMs` is `null`.
-
-If `POST` times out or returns `409` or `500`, call `GET` before deciding what to do. If the state is
-still `activating` without `lastErrorCode`, another request may own the current batch. If `lastErrorCode` is set, keep writes stopped, check the application logs, fix the
-problem, and send one confirmed POST to retry. Do not edit EmDash's internal database tables.
+Local storage and native R2 return a same-origin EmDash upload target. S3-compatible storage may return a signed external URL. Pending items stay out of the standard media list until confirmation succeeds.
 
 <Aside type="caution">
-	After this process starts, it cannot be cancelled or reset. Test it in a staging environment and
-	follow your normal database backup policy before using it in production.
+	Do not send the EmDash Bearer token to an upload URL on another origin. The signed URL already authorizes the storage request; adding the token discloses it to the storage host.
 </Aside>
 
-When the state is `active`, EmDash tracks changes to media references in content. Existing content may still need progress requests before historical indexing is ready.
+### Upload errors
 
-#### Check historical indexing progress
+The following errors require a different recovery action:
 
-```http
-GET /_emdash/api/admin/media-usage/progress
-```
+| Status | Code | Action |
+| --- | --- | --- |
+| `400` | `NO_FILE` | Add the `file` field to a multipart request, or send the missing upload body. |
+| `400` | `INVALID_TYPE` | Use an allowed MIME type that matches the pending media item. |
+| `400` | `VALIDATION_ERROR` | Correct the missing or invalid metadata, including values above the configured size limit. |
+| `400` | `FILE_NOT_FOUND` | Upload the object to the returned target before confirming it. |
+| `400` | `UPLOAD_SIZE_MISMATCH` | Restart the flow with the correct size; the declared, uploaded, and confirmed sizes must agree. |
+| `400` or `409` | `INVALID_STATE` | Read the media item before retrying. It may no longer be pending, or another request may have changed it during confirmation. |
+| `404` | `NOT_FOUND` | Use an existing pending media ID. |
+| `413` | `PAYLOAD_TOO_LARGE` | Reduce the file size or increase [`maxUploadSize`](/reference/configuration/#maxuploadsize) before starting another upload. |
 
-After activation is active, this returns `indexing`, `ready`, or `needs_attention` together with the
-number of ready and total current content types. The endpoint does not inspect content rows or return
-work-item details. It requires `schema:manage`; bearer tokens also require the `admin` scope.
+### Media folders
 
-#### Advance setup and historical indexing
-
-```http
-POST /_emdash/api/admin/media-usage/progress
-X-EmDash-Request: 1
-```
-
-The request has no body. It runs one bounded maintenance step and returns the stored activation and progress state after that step.
-
-```json
-{
-	"success": true,
-	"data": {
-		"activation": {
-			"state": "active",
-			"collectionCursor": null,
-			"attemptCount": 2,
-			"drainConfirmedAt": "2026-08-24T12:00:00.000Z",
-			"lastAttemptedAt": "2026-08-24T12:00:01.000Z",
-			"lastErrorCode": null,
-			"leaseExpiresAt": null,
-			"activatedAt": "2026-08-24T12:00:01.000Z",
-			"updatedAt": "2026-08-24T12:00:02.000Z"
-		},
-		"progress": {
-			"status": "indexing",
-			"readyCollections": 1,
-			"totalCollections": 2
-		},
-		"nextRequestInMs": 0
-	}
-}
-```
-
-`progress` is `null` until activation is active. `nextRequestInMs` is `0` for an immediate successor, `30000` for a delayed retry, or `null` when the server knows of no successor. Send only one progress request at a time and wait for the returned delay.
-
-Closing the client does not discard completed work, but it stops future requests. To resume, read activation first, read progress when activation is active, then continue progress requests. After an ambiguous response, perform the same reads before retrying.
-
-### List media usage work
-
-```http
-GET /_emdash/api/admin/media-usage/work?collection=posts&state=failed&limit=50&cursor=...
-```
-
-Returns a bounded page of durable entry-indexing work for one current collection. The endpoint
-requires `schema:manage`; bearer tokens also require the `admin` scope.
-
-`collection` is required. `state` optionally filters `pending`, `retry`, `leased`, or `failed`
-work. `limit` defaults to 50 and is capped at 100. `cursor` is opaque and comes from the previous
-page's `nextCursor`. The endpoint does not calculate an exact backlog count.
-
-```json
-{
-	"success": true,
-	"data": {
-		"items": [
-			{
-				"collectionId": "01COLLECTION...",
-				"collectionSlug": "posts",
-				"contentId": "01CONTENT...",
-				"state": "failed",
-				"attemptCount": 5,
-				"nextAttemptAt": "2026-08-07T12:00:00.000Z",
-				"leaseExpiresAt": null,
-				"lastAttemptedAt": "2026-08-07T11:45:00.000Z",
-				"lastErrorCode": "MEDIA_USAGE_PROCESSING_FAILED",
-				"updatedAt": "2026-08-07T11:45:00.000Z"
-			}
-		],
-		"nextCursor": "eyJvcmRlclZhbHVlIjoiLi4uIn0"
-	}
-}
-```
-
-Responses omit work versions, lease tokens, raw database errors, indexed content, media
-references, and exact counts.
-
-### Retry media usage work
-
-```http
-POST /_emdash/api/admin/media-usage/work/retry
-Content-Type: application/json
-X-EmDash-Request: 1
-```
-
-Idempotently reopens or creates one durable entry job. It has the same authorization requirements
-as the list endpoint.
-
-```json
-{
-	"collectionId": "01COLLECTION...",
-	"contentId": "01CONTENT..."
-}
-```
-
-A successful response returns `changed` and the current pending item. `changed: false` means the
-job was already pending. A non-expired worker lease returns `409 WORK_LEASE_ACTIVE` with
-`details.leaseExpiresAt`; a concurrent mutation returns `409 WORK_CHANGED`. Neither conflict
-replaces newer work or exposes its lease token.
-
-The list returns only known durable work. Retry can create work for the supplied identity in an
-active collection even when no work row exists, but it does not scan for historical gaps. Use
-collection-scoped media usage repair after imports or direct database writes.
-Failed jobs remain visible and manually retryable. A `needs_attention` progress state stops automatic requests from the media usage tracking settings page until the underlying failure is resolved.
-
-### Recover Collection Deletion
-
-```http
-GET /_emdash/api/admin/media-usage/collection-deletions?state=failed&limit=50&cursor=...
-```
-
-Returns a bounded page of durable collection-deletion work. The list defaults to failed work;
-`limit` defaults to 50 and is capped at 100. Items include the immutable collection ID, slug,
-phase, attempts, eligibility/lease timestamps, stable error code, and update time. Lease tokens,
-raw database errors, content, media references, and exact backlog counts are never returned.
-
-```http
-POST /_emdash/api/admin/media-usage/collection-deletions/retry
-Content-Type: application/json
-X-EmDash-Request: 1
-
-{ "collectionId": "01COLLECTION..." }
-```
-
-Retry reopens failed, retrying, or expired-leased work without changing its phase. A live lease
-returns `409 WORK_LEASE_ACTIVE`; a concurrent state change returns `409 WORK_CHANGED`. Both routes
-require `schema:manage`, and bearer tokens also require the `admin` scope. They recover internal
-index cleanup only and never delete media assets.
+Folder names are trimmed, limited to 200 characters, and compared after Unicode normalization and lowercasing. Names such as `Photos`, `photos`, and `ＰＨＯＴＯＳ` therefore conflict. Deleting a folder returns its media to the Main library; it does not delete media, change media IDs or URLs, or change usage records.
 
 ### Repair media usage
 
-```http
-POST /_emdash/api/admin/media-usage/repair
-Content-Type: application/json
-X-EmDash-Request: 1
-```
+Media usage activation, progress, work queues, deletion cleanup, and repair are operator operations under `/_emdash/api/admin/media-usage/`. Session users need `schema:manage`; Bearer tokens also need the `admin` scope.
 
-Repairs the content media usage index for one collection or for all content collections. This is an admin/operator endpoint: session-authenticated callers need `schema:manage`, and bearer tokens must have the `admin` scope because the route is under `/_emdash/api/admin`.
+If tracking is off, pause direct database writers before activation. EmDash temporarily blocks content and schema writes sent through its APIs while setup runs, but it cannot stop another process that writes directly to the database.
 
-All-content repair runs synchronously and sequentially in the current version. It can be expensive on large sites, so callers should trigger it deliberately and wait for the response.
+<Steps>
 
-#### Request Body
+1. Stop direct database writers and wait for their in-progress writes to finish.
+2. Read the activation state. `expanded` means tracking is off, `activating` means EmDash is preparing collections, and `active` means new media-reference changes are tracked.
+3. Send one activation request with `{ "writersDrained": true }`.
+4. Send progress requests one at a time, waiting for each returned `nextRequestInMs`, until activation is `active`.
+5. Resume direct database writes.
+6. Continue progress requests until historical indexing is `ready` and `nextRequestInMs` is `null`.
 
-Repair one collection:
+</Steps>
 
-```json
-{
-	"scope": "collection",
-	"collection": "posts"
-}
-```
+If a write request times out or returns `409` or `500`, read the activation and progress state before retrying. Completed batches remain recorded. When `lastErrorCode` is set, keep direct writers stopped, resolve the reported problem, and send one confirmed retry. Activation cannot be cancelled or reset after it starts, so test this procedure against a staging copy and keep a current database backup.
 
-Repair all content collections:
+The work-list operations expose failed or delayed entry indexing without returning content, media references, lease tokens, raw database errors, or an exact backlog count. Retrying one item is idempotent. `409 WORK_LEASE_ACTIVE` means a worker is still processing the item; the response includes `details.leaseExpiresAt`, so wait until that time and read the item again before retrying. `409 WORK_CHANGED` means another request changed the work item; read its current state rather than overwriting the newer work.
 
-```json
-{
-	"scope": "all"
-}
-```
+The repair operation accepts either `{ "scope": "collection", "collection": "articles" }` or `{ "scope": "all" }`. An all-collection repair runs synchronously and sequentially, so it can take a long time on a large site. A `200` response can still report `partial`, `failed`, or `stale`; inspect `data.status`, the per-collection status, and the source counts before treating the repair as complete.
 
-The request body is required. Invalid slugs, unknown request keys, missing `scope`, and body-less requests return `400` instead of defaulting to all-content repair.
+## Pagination
 
-#### Response
+List operations describe their pagination parameters in OpenAPI. Most cursor-paginated operations accept an opaque `cursor` and a `limit` from 1 to 100, defaulting to 50. Return the previous response's `nextCursor` unchanged; do not inspect or construct it. Some media operations also support numbered pages, and some specialized lists use different limits, so generated clients should follow each operation's schema.
 
-The endpoint returns `200` when a repair invocation produces a structured result. Inspect `data.status`: `failed` and `stale` are repair-domain statuses, not transport errors.
+## Search tokenizers
 
-```json
-{
-	"data": {
-		"status": "complete",
-		"indexedSourceCount": 12,
-		"failedSourceCount": 0,
-		"skippedSourceCount": 0,
-		"deletedSourceCount": 1,
-		"collections": [
-			{
-				"collection": "posts",
-				"status": "complete",
-				"indexedSourceCount": 12,
-				"failedSourceCount": 0,
-				"skippedSourceCount": 0,
-				"deletedSourceCount": 1,
-				"lastErrorCode": null,
-				"startedAt": "2026-07-07T12:00:00.000Z",
-				"completedAt": "2026-07-07T12:00:01.000Z"
-			}
-		]
-	}
-}
-```
+The search-enable operation stores a tokenizer for each collection. Changing it on an enabled collection rebuilds that collection's index.
 
-Top-level response fields:
+| Value | Use |
+| --- | --- |
+| `porter unicode61` | The default for English content that benefits from Porter stemming. |
+| `unicode61` | Languages that use word separators but should not use English stemming. |
+| `trigram` | Text without spaces, including Japanese, Chinese, Thai, Khmer, Lao, and Burmese, or collections that need substring matching. Queries shorter than three Unicode characters return no matches. |
 
-| Field                | Type                                                | Description                                |
-| -------------------- | --------------------------------------------------- | ------------------------------------------ |
-| `status`             | `complete` \| `partial` \| `failed` \| `stale` | Aggregate repair status                    |
-| `indexedSourceCount` | `number`                                            | Sources indexed during repair              |
-| `failedSourceCount`  | `number`                                            | Sources that failed during repair          |
-| `skippedSourceCount` | `number`                                            | Sources skipped, including stale conflicts |
-| `deletedSourceCount` | `number`                                            | Stale usage rows deleted during repair     |
-| `collections`        | `array`                                             | Per-collection repair summaries            |
+Disabling search preserves the stored tokenizer for the next enable operation. The rebuild operation uses the collection's stored tokenizer and field weights.
 
-Collection summary fields:
+## Comments and redirects
 
-| Field                | Type                                                | Description                                  |
-| -------------------- | --------------------------------------------------- | -------------------------------------------- |
-| `collection`         | `string`                                            | Collection slug                              |
-| `status`             | `complete` \| `partial` \| `failed` \| `stale` | Collection repair status                     |
-| `indexedSourceCount` | `number`                                            | Sources indexed for this collection          |
-| `failedSourceCount`  | `number`                                            | Sources that failed for this collection      |
-| `skippedSourceCount` | `number`                                            | Sources skipped for this collection          |
-| `deletedSourceCount` | `number`                                            | Stale usage rows deleted for this collection |
-| `lastErrorCode`      | `string \| null`                                   | Last collection repair error, when available |
-| `startedAt`          | `string`                                            | Repair start time                            |
-| `completedAt`        | `string \| null`                                   | Completion time, or `null` for stale results |
+Public comment submissions enter the moderation queue. Admin comment operations list all statuses, return counts, update one status, perform bulk moderation, and permanently delete a comment. A `429` response means the submission rate limit was reached.
 
-Unknown collections return `200` with `data.status: "failed"` and a per-collection `lastErrorCode` such as `COLLECTION_NOT_FOUND`. Transport errors still use the standard error envelope, including `400`, `401`, `403`, `413`, and `500`.
-
-### Get Media File
-
-```http
-GET /_emdash/api/media/file/:key
-```
-
-Serves the actual file content. For local storage only.
-
-## Revision Endpoints
-
-### List Revisions
-
-```http
-GET /_emdash/api/content/:collection/:entryId/revisions
-```
-
-#### Parameters
-
-| Parameter | Type     | Description                           |
-| --------- | -------- | ------------------------------------- |
-| `limit`   | `number` | Max revisions to return (default: 50) |
-
-#### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "id": "01HXK5MZSN...",
-        "collection": "posts",
-        "entryId": "01HXK5MZSN...",
-        "data": { ... },
-        "createdAt": "2025-01-24T12:00:00Z"
-      }
-    ],
-    "total": 5
-  }
-}
-```
-
-### Get Revision
-
-```http
-GET /_emdash/api/revisions/:revisionId
-```
-
-### Restore Revision
-
-```http
-POST /_emdash/api/revisions/:revisionId/restore
-```
-
-Restores content to this revision's state and creates a new revision.
-
-## Schema Endpoints
-
-### List Collections
-
-```http
-GET /_emdash/api/schema/collections
-```
-
-#### Response
-
-```json
-{
-	"success": true,
-	"data": {
-		"items": [
-			{
-				"id": "01HXK5MZSN...",
-				"slug": "posts",
-				"label": "Posts",
-				"labelSingular": "Post",
-				"supports": ["drafts", "revisions", "preview"]
-			}
-		]
-	}
-}
-```
-
-### Get Collection
-
-```http
-GET /_emdash/api/schema/collections/:slug
-```
-
-#### Parameters
-
-| Parameter       | Type      | Description                       |
-| --------------- | --------- | --------------------------------- |
-| `includeFields` | `boolean` | Include field definitions (query) |
-
-### Create Collection
-
-```http
-POST /_emdash/api/schema/collections
-Content-Type: application/json
-```
-
-#### Request Body
-
-```json
-{
-	"slug": "products",
-	"label": "Products",
-	"labelSingular": "Product",
-	"description": "Product catalog",
-	"supports": ["drafts", "revisions"]
-}
-```
-
-### Update Collection
-
-```http
-PUT /_emdash/api/schema/collections/:slug
-Content-Type: application/json
-```
-
-### Delete Collection
-
-```http
-DELETE /_emdash/api/schema/collections/:slug
-```
-
-#### Parameters
-
-| Parameter | Type      | Description                                   |
-| --------- | --------- | --------------------------------------------- |
-| `force`   | `boolean` | Delete even if collection has content (query) |
-
-### List Fields
-
-```http
-GET /_emdash/api/schema/collections/:slug/fields
-```
-
-### Create Field
-
-```http
-POST /_emdash/api/schema/collections/:slug/fields
-Content-Type: application/json
-```
-
-#### Request Body
-
-```json
-{
-	"slug": "price",
-	"label": "Price",
-	"type": "number",
-	"required": true,
-	"validation": {
-		"min": 0
-	}
-}
-```
-
-### Update Field
-
-```http
-PUT /_emdash/api/schema/collections/:collectionSlug/fields/:fieldSlug
-Content-Type: application/json
-```
-
-### Delete Field
-
-```http
-DELETE /_emdash/api/schema/collections/:collectionSlug/fields/:fieldSlug
-```
-
-### Reorder Fields
-
-```http
-POST /_emdash/api/schema/collections/:slug/fields/reorder
-Content-Type: application/json
-```
-
-#### Request Body
-
-```json
-{
-	"fieldSlugs": ["title", "content", "author", "publishedAt"]
-}
-```
-
-## Schema Export
-
-### Export Schema (JSON)
-
-```http
-GET /_emdash/api/schema
-Accept: application/json
-```
-
-### Export Schema (TypeScript)
-
-```http
-GET /_emdash/api/schema?format=typescript
-Accept: text/typescript
-```
-
-Returns TypeScript interfaces for all collections.
-
-## Plugin Endpoints
-
-### List Plugins
-
-```http
-GET /_emdash/api/admin/plugins
-```
-
-### Get Plugin
-
-```http
-GET /_emdash/api/admin/plugins/:id
-```
-
-### Enable Plugin
-
-```http
-POST /_emdash/api/admin/plugins/:id/enable
-```
-
-### Disable Plugin
-
-```http
-POST /_emdash/api/admin/plugins/:id/disable
-```
-
-## Error Codes
-
-| Code                   | HTTP Status | Description              |
-| ---------------------- | ----------- | ------------------------ |
-| `NOT_FOUND`            | 404         | Resource not found       |
-| `VALIDATION_ERROR`     | 400         | Invalid input data       |
-| `UNAUTHORIZED`         | 401         | Missing or invalid token |
-| `FORBIDDEN`            | 403         | Insufficient permissions |
-| `CONTENT_LIST_ERROR`   | 500         | Failed to list content   |
-| `CONTENT_CREATE_ERROR` | 500         | Failed to create content |
-| `CONTENT_UPDATE_ERROR` | 500         | Failed to update content |
-| `SAVE_REJECTED`        | 422         | Save rejected by a plugin hook |
-| `CONTENT_HOOK_ERROR`   | 500         | Plugin hook failed during save |
-| `CONTENT_DELETE_ERROR` | 500         | Failed to delete content |
-| `MEDIA_LIST_ERROR`     | 500         | Failed to list media     |
-| `MEDIA_CREATE_ERROR`   | 500         | Failed to create media   |
-| `SCHEMA_CREATE_ERROR`  | 500         | Schema operation failed  |
-| `SLUG_CONFLICT`        | 409         | Slug already exists      |
-| `ENTRY_LOCKED`         | 409         | Another editor holds the entry's edit lock |
-| `RESERVED_SLUG`        | 400         | Slug is reserved         |
-
-## Search Endpoints
-
-### Global Search
-
-```http
-GET /_emdash/api/search?q=hello+world
-```
-
-#### Parameters
-
-| Parameter     | Type     | Description                      |
-| ------------- | -------- | -------------------------------- |
-| `q`           | `string` | Search query (required)          |
-| `collections` | `string` | Comma-separated collection slugs |
-| `status`      | `string` | Filter by status (default: published) |
-| `limit`       | `number` | Max results (default: 20)        |
-| `cursor`      | `string` | Pagination cursor                |
-
-#### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "items": [
-      {
-        "collection": "posts",
-        "id": "01HXK5MZSN...",
-        "slug": "hello-world",
-        "locale": "en",
-        "title": "Hello World",
-        "snippet": "...this is a <mark>hello</mark> <mark>world</mark> example...",
-        "score": 0.95
-      }
-    ],
-    "nextCursor": "eyJvZmZzZXQiOjIwfQ"
-  }
-}
-```
-
-### Search Suggestions
-
-```http
-GET /_emdash/api/search/suggest?q=hel&limit=5
-```
-
-Returns prefix-matched titles for autocomplete.
-
-### Configure Collection Search
-
-```http
-POST /_emdash/api/search/enable
-Content-Type: application/json
-
-{
-  "collection": "posts",
-  "enabled": true,
-  "tokenize": "trigram",
-  "weights": {
-    "title": 10,
-    "content": 1
-  }
-}
-```
-
-The optional `tokenize` field controls how SQLite FTS5 indexes the collection. Changing it on an
-enabled collection rebuilds and repopulates that collection's search index.
-
-| Value                | When to use |
-| -------------------- | ----------- |
-| `porter unicode61`   | Default. English-language content that benefits from Porter stemming, such as matching related word forms. Porter stemming is English-specific. |
-| `unicode61`          | Languages that use word separators but should not use English stemming. |
-| `trigram`            | Languages with text that is not separated by spaces, including Japanese, Chinese, Thai, Khmer, Lao, and Burmese, or when substring matching is needed. Queries shorter than three Unicode characters return no matches. |
-
-Omitting `tokenize` on a collection without a stored tokenizer uses `porter unicode61`. Disabling
-search preserves the configured tokenizer for the next enable operation.
-
-### Rebuild Search Index
-
-```http
-POST /_emdash/api/search/rebuild
-Content-Type: application/json
-
-{
-  "collection": "posts"
-}
-```
-
-Rebuilds the FTS index for the specified collection using its stored tokenizer and field weights.
-
-### Search Stats
-
-```http
-GET /_emdash/api/search/stats
-```
-
-Returns indexed document counts per collection.
-
-## Section Endpoints
-
-### List Sections
-
-```http
-GET /_emdash/api/sections
-GET /_emdash/api/sections?source=theme
-GET /_emdash/api/sections?search=newsletter
-```
-
-### Get Section
-
-```http
-GET /_emdash/api/sections/:slug
-```
-
-### Create Section
-
-```http
-POST /_emdash/api/sections
-Content-Type: application/json
-
-{
-  "slug": "my-section",
-  "title": "My Section",
-  "keywords": ["keyword1"],
-  "content": [...]
-}
-```
-
-### Update Section
-
-```http
-PUT /_emdash/api/sections/:slug
-```
-
-### Delete Section
-
-```http
-DELETE /_emdash/api/sections/:slug
-```
-
-## Settings Endpoints
-
-### Get All Settings
-
-```http
-GET /_emdash/api/settings
-```
-
-### Update Settings
-
-```http
-POST /_emdash/api/settings
-Content-Type: application/json
-
-{
-  "siteTitle": "My Site",
-  "tagline": "A great site",
-  "postsPerPage": 10
-}
-```
-
-## Menu Endpoints
-
-### List Menus
-
-```http
-GET /_emdash/api/menus
-```
-
-### Get Menu
-
-```http
-GET /_emdash/api/menus/:name
-```
-
-### Create Menu
-
-```http
-POST /_emdash/api/menus
-Content-Type: application/json
-
-{
-  "name": "footer",
-  "label": "Footer Navigation"
-}
-```
-
-### Update Menu
-
-```http
-PUT /_emdash/api/menus/:name
-```
-
-### Delete Menu
-
-```http
-DELETE /_emdash/api/menus/:name
-```
-
-### Add Menu Item
-
-```http
-POST /_emdash/api/menus/:name/items
-Content-Type: application/json
-
-{
-  "type": "page",
-  "referenceCollection": "pages",
-  "referenceId": "page_about",
-  "label": "About Us"
-}
-```
-
-### Reorder Menu Items
-
-```http
-POST /_emdash/api/menus/:name/reorder
-Content-Type: application/json
-
-{
-  "items": [
-    { "id": "item_1", "parentId": null, "sortOrder": 0 },
-    { "id": "item_2", "parentId": null, "sortOrder": 1 },
-    { "id": "item_3", "parentId": "item_2", "sortOrder": 0 }
-  ]
-}
-```
-
-## Taxonomy Endpoints
-
-### List Taxonomy Definitions
-
-```http
-GET /_emdash/api/taxonomies
-```
-
-### Get Taxonomy
-
-```http
-GET /_emdash/api/taxonomies/:name
-```
-
-A taxonomy has one definition per locale. `locale` selects which one to return.
-Omit it and EmDash returns the definition for the site's default locale, falling
-back to the lowest locale code when the default locale has no definition. The
-endpoint requires `taxonomies:read`.
-
-#### Parameters
-
-| Parameter | Type     | Description                      |
-| --------- | -------- | -------------------------------- |
-| `name`    | `string` | Taxonomy name (path)             |
-| `locale`  | `string` | Locale of the definition (query) |
-
-#### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "taxonomy": {
-      "id": "01HXK5MZSN...",
-      "name": "genre",
-      "label": "Genres",
-      "labelSingular": "Genre",
-      "hierarchical": true,
-      "collections": ["books", "movies"],
-      "locale": "en",
-      "translationGroup": "01HXK5MZSN..."
-    }
-  }
-}
-```
-
-`collections` lists only the collections that still exist. A collection that was
-deleted after being added to the taxonomy is filtered out of the response but
-kept in storage, so re-creating the collection restores the link.
-
-Every locale of a taxonomy shares one `translationGroup`. An untranslated
-taxonomy has its own `id` there, as above.
-
-### Create Taxonomy
-
-```http
-POST /_emdash/api/taxonomies
-Content-Type: application/json
-
-{
-  "name": "genre",
-  "label": "Genres",
-  "labelSingular": "Genre",
-  "hierarchical": true,
-  "collections": ["books", "movies"]
-}
-```
-
-### Update Taxonomy
-
-```http
-PUT /_emdash/api/taxonomies/:name
-Content-Type: application/json
-
-{
-  "label": "Categories",
-  "labelSingular": "Category",
-  "hierarchical": true,
-  "collections": ["books"]
-}
-```
-
-Every field is optional and an omitted field keeps its stored value. Send
-`"labelSingular": null` to clear it. Naming a collection that does not exist
-returns `VALIDATION_ERROR` and writes nothing. The response is the updated
-definition, in the same shape as [Get Taxonomy](#get-taxonomy). The endpoint
-requires `taxonomies:manage`.
-
-The request writes a single locale's definition, selected by `locale`. Pass it
-explicitly on a translated taxonomy: without it, the write lands on the
-definition with the lowest locale code. Addressing a locale that has no
-definition returns `NOT_FOUND` — unlike [Get Taxonomy](#get-taxonomy), this
-endpoint never falls back to another locale's row.
-
-Do not send `name` or `locale` in the body. Both identify the definition being
-written rather than a value to change, so the body rejects them with
-`VALIDATION_ERROR` instead of ignoring them. A taxonomy cannot be renamed,
-because its terms are keyed on `name`.
-
-### Delete Taxonomy
-
-```http
-DELETE /_emdash/api/taxonomies/:name
-```
-
-Deletes the taxonomy in every locale: each locale's definition, every term under
-that name, and every assignment of those terms to content. Content entries
-themselves are not deleted; they lose the term assignments.
-
-There is no `locale` parameter, and EmDash does not refuse the request when the
-taxonomy still has terms. The endpoint requires `taxonomies:manage`.
+Redirect operations manage redirect rules and the recorded 404 log separately. Pruning removes entries selected by the request body, while `DELETE /redirects/404s` clears the entire log. Neither operation deletes redirect rules.
 
 <Aside type="caution">
-	This endpoint deletes immediately and EmDash cannot restore the terms or their content
-	assignments afterwards. Back up the database before deleting a taxonomy in production.
+	Schema deletion, permanent content deletion, comment deletion, redirect-log clearing, and several media maintenance operations can remove data. Resolve the exact target and keep a current backup before sending an irreversible request.
 </Aside>
-
-#### Response
-
-```json
-{
-  "success": true,
-  "data": { "deleted": true }
-}
-```
-
-### List Taxonomy Translations
-
-```http
-GET /_emdash/api/taxonomies/:name/translations
-```
-
-Lists every locale that the taxonomy definition has been translated into. Any
-locale of the taxonomy returns the same list, so `locale` only chooses which
-definition resolves the group. The endpoint requires `taxonomies:read`.
-
-#### Response
-
-```json
-{
-  "success": true,
-  "data": {
-    "translationGroup": "01HXK5MZSN...",
-    "translations": [
-      { "id": "01HXK5MZSN...", "name": "genre", "label": "Genres", "locale": "en" },
-      { "id": "01HXK6P2QT...", "name": "genre", "label": "Géneros", "locale": "es" }
-    ]
-  }
-}
-```
-
-To add a locale, post to [Create Taxonomy](#create-taxonomy) with the same
-`name`, the new `locale`, and `translationOf` set to a definition `id` from this
-list.
-
-### List Terms
-
-```http
-GET /_emdash/api/taxonomies/:name/terms
-```
-
-Terms come back in their manual order (see [Reorder Terms](#reorder-terms)). A
-new term is added to the end of its sibling group.
-
-### Create Term
-
-```http
-POST /_emdash/api/taxonomies/:name/terms
-Content-Type: application/json
-
-{
-  "slug": "tutorials",
-  "label": "Tutorials",
-  "parentId": "term_abc",
-  "description": "How-to guides"
-}
-```
-
-### Update Term
-
-```http
-PUT /_emdash/api/taxonomies/:name/terms/:slug
-```
-
-### Delete Term
-
-```http
-DELETE /_emdash/api/taxonomies/:name/terms/:slug
-```
-
-### Reorder Terms
-
-```http
-POST /_emdash/api/taxonomies/:name/reorder
-Content-Type: application/json
-
-{
-  "parentId": "term_abc",
-  "ids": ["term_news", "term_featured"]
-}
-```
-
-Sets the order of one sibling group. `parentId` names the parent whose children
-are being ordered; omit it (or send `null`) for the top level, which for a flat
-taxonomy is every term. Reordering never changes a term's parent — use
-[Update Term](#update-term) for that.
-
-`ids` may be a subset of the group: the terms you list are permuted within the
-positions they already occupy, and every other member keeps its place. That
-matters when a locale doesn't render the whole group, and it means a stale list
-can't bury the terms it left out. An id outside the group is rejected with
-`REORDER_MISMATCH`, and at most 100 ids may be sent at once.
-
-Because the terms you leave out hold their absolute positions, a one-step move
-in a partial list can carry a term past siblings that list didn't include. If
-`[A, B, C]` is the full group and you send `["C", "A"]` — because `B` isn't
-translated into the locale you're working in — the result is `[C, B, A]`: `A`
-and `C` swapped as asked, and a listing that does show `B` sees `A` move two
-places rather than one.
-
-There is no `locale` parameter. A term holds one position across every locale it
-is translated into, so an id may be either a term id or a translation group, and
-ordering a taxonomy in one locale orders it in all of them. Sites that need
-different orders per locale should use separate taxonomies.
-
-### Set Entry Terms
-
-```http
-POST /_emdash/api/content/:collection/:id/terms/:taxonomy
-Content-Type: application/json
-
-{
-  "termIds": ["term_news", "term_featured"]
-}
-```
-
-## Widget Area Endpoints
-
-### List Widget Areas
-
-```http
-GET /_emdash/api/widget-areas
-```
-
-### Get Widget Area
-
-```http
-GET /_emdash/api/widget-areas/:name
-```
-
-### Create Widget Area
-
-```http
-POST /_emdash/api/widget-areas
-Content-Type: application/json
-
-{
-  "name": "sidebar",
-  "label": "Main Sidebar",
-  "description": "Appears on posts"
-}
-```
-
-### Delete Widget Area
-
-```http
-DELETE /_emdash/api/widget-areas/:name
-```
-
-### Add Widget
-
-```http
-POST /_emdash/api/widget-areas/:name/widgets
-Content-Type: application/json
-
-{
-  "type": "content",
-  "title": "About",
-  "content": [...]
-}
-```
-
-### Update Widget
-
-```http
-PUT /_emdash/api/widget-areas/:name/widgets/:id
-```
-
-### Delete Widget
-
-```http
-DELETE /_emdash/api/widget-areas/:name/widgets/:id
-```
-
-### Reorder Widgets
-
-```http
-POST /_emdash/api/widget-areas/:name/reorder
-Content-Type: application/json
-
-{
-  "widgetIds": ["widget_1", "widget_2", "widget_3"]
-}
-```
-
-## User Management Endpoints
-
-### List Users
-
-```http
-GET /_emdash/api/admin/users
-GET /_emdash/api/admin/users?role=40
-GET /_emdash/api/admin/users?search=john
-```
-
-### Get User
-
-```http
-GET /_emdash/api/admin/users/:id
-```
-
-### Update User
-
-```http
-PUT /_emdash/api/admin/users/:id
-Content-Type: application/json
-
-{
-  "name": "John Doe",
-  "role": 40
-}
-```
-
-### Enable User
-
-```http
-POST /_emdash/api/admin/users/:id/enable
-```
-
-### Disable User
-
-```http
-POST /_emdash/api/admin/users/:id/disable
-```
-
-## Authentication Endpoints
-
-### Setup Status
-
-```http
-GET /_emdash/api/setup/status
-```
-
-Returns whether setup is complete and if users exist.
-
-### Passkey Login
-
-```http
-POST /_emdash/api/auth/passkey/options
-```
-
-Get WebAuthn authentication options.
-
-```http
-POST /_emdash/api/auth/passkey/verify
-Content-Type: application/json
-
-{
-  "id": "credential-id",
-  "rawId": "...",
-  "response": {...},
-  "type": "public-key"
-}
-```
-
-Verify passkey and create session.
-
-### Magic Link
-
-```http
-POST /_emdash/api/auth/magic-link/send
-Content-Type: application/json
-
-{
-  "email": "user@example.com"
-}
-```
-
-```http
-GET /_emdash/api/auth/magic-link/verify?token=xxx
-```
-
-### Logout
-
-```http
-POST /_emdash/api/auth/logout
-```
-
-### Current User
-
-```http
-GET /_emdash/api/auth/me
-```
-
-### Invite User
-
-```http
-POST /_emdash/api/auth/invite
-Content-Type: application/json
-
-{
-  "email": "newuser@example.com",
-  "role": 30
-}
-```
-
-### Passkey Management
-
-```http
-GET /_emdash/api/auth/passkey
-```
-
-List user's passkeys.
-
-```http
-POST /_emdash/api/auth/passkey/register/options
-POST /_emdash/api/auth/passkey/register/verify
-```
-
-Register new passkey.
-
-```http
-PATCH /_emdash/api/auth/passkey/:id
-Content-Type: application/json
-
-{
-  "name": "MacBook Pro"
-}
-```
-
-Rename passkey.
-
-```http
-DELETE /_emdash/api/auth/passkey/:id
-```
-
-Delete passkey.
-
-## Import Endpoints
-
-### Analyze WordPress Export
-
-```http
-POST /_emdash/api/import/wordpress/analyze
-Content-Type: multipart/form-data
-
-file: <WXR file>
-```
-
-### Execute WordPress Import
-
-```http
-POST /_emdash/api/import/wordpress/execute
-Content-Type: application/json
-
-{
-  "analysisId": "...",
-  "options": {
-    "includeMedia": true,
-    "includeTaxonomies": true,
-    "includeMenus": true
-  }
-}
-```
-
-## Rate Limiting
-
-API endpoints may be rate-limited based on deployment configuration. When rate-limited, responses include:
-
-```http
-HTTP/1.1 429 Too Many Requests
-Retry-After: 60
-```
-
-## CORS
-
-The API supports CORS for browser requests. Configure allowed origins in your deployment.

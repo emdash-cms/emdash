@@ -27,7 +27,7 @@ describeEachDialect("listTablesLike schema scoping", (dialect) => {
 
 	it("finds content tables in the active schema", async () => {
 		const tables = await listTablesLike(ctx.db, "ec_%");
-		expect(tables.toSorted()).toEqual(["ec_page", "ec_post"]);
+		expect(tables).toEqual(["ec_page", "ec_post"]);
 	});
 
 	it("returns an empty list when nothing matches the pattern", async () => {

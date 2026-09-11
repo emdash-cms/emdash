@@ -20,6 +20,7 @@ import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
+import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 
@@ -1547,16 +1548,25 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				} = foldedHydrationSelects(db, type, "c");
 				const seoSelect = foldedSeoSelect(db, type, "c");
 				const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
+				// Keep collection-wide metadata in one result column for wide D1 collections.
+				const jsonObject = isPostgres(db) ? sql`json_build_object` : sql`json_object`;
+				const metadataSelect = sql`(
+					SELECT ${jsonObject}(
+						'bylinesExist', _emdash_bylines_exist,
+						'booleanFields', _emdash_boolean_fields
+					)
+					FROM (SELECT ${bylinesExistSelect}, ${booleanFieldsSelect}) AS metadata
+				) AS _emdash_entry_metadata`;
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${metadataSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${metadataSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND (c.slug = ${id} OR c.id = ${id})
@@ -1566,6 +1576,15 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const row = result.rows[0];
 				if (!row) {
 					return undefined;
+				}
+
+				const rawMetadata = row._emdash_entry_metadata;
+				const metadata: unknown =
+					typeof rawMetadata === "string" ? JSON.parse(rawMetadata) : rawMetadata;
+				delete row._emdash_entry_metadata;
+				if (isPlainObject(metadata)) {
+					row._emdash_bylines_exist = metadata.bylinesExist;
+					row[BOOLEAN_FIELDS_FOLDED_COLUMN] = metadata.booleanFields;
 				}
 
 				// Expand the folded SEO JSON column onto SEO_COLUMN_ALIASES so
@@ -1624,7 +1643,12 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							...mapRevisionData(parsed, parseFoldedBooleanFields(row)),
 						};
 						const revSeo = extractSeo(row);
-						if (revSeo) revEntryData.seo = revSeo;
+						if (revSeo) {
+							revEntryData.seo = revSeo;
+							// SEO comes from the content row, so the panel data is
+							// valid for the entry regardless of the revision shown.
+							primeSeoPanel(type, rowStr(row, "id"), revSeo);
+						}
 						stashFolded(revEntryData, row);
 						return {
 							id: revId,
@@ -1641,7 +1665,14 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				const entryData = mapRowToData(row, parseFoldedBooleanFields(row));
 				const entrySeo = extractSeo(row);
-				if (entrySeo) entryData.seo = entrySeo;
+				if (entrySeo) {
+					entryData.seo = entrySeo;
+					// Prime the request cache so <EmDashHead> can apply the panel
+					// values without its own _emdash_seo query. Keyed by the
+					// content-row id — the same value templates pass as
+					// page.content.id.
+					primeSeoPanel(type, rowStr(row, "id"), entrySeo);
+				}
 				stashFolded(entryData, row);
 				return {
 					id: entryId,
