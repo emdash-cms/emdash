@@ -39,9 +39,11 @@ The following table lists every hook, what triggers it, what it can modify, and 
 | `plugin:deactivate`     | When plugin is disabled               | Nothing           | No        |
 | `plugin:uninstall`      | When plugin is removed                | Nothing           | No        |
 
-## Content Hooks
+## Content hooks
 
 ### `content:beforeSave`
+
+**Capability:** `content:write`
 
 Runs before content is saved to the database. Use it to validate, transform, or enrich content. A sandboxed hook rejects a save by returning a version 1 hook result with a `SAVE_REJECTED` error and a plain-text `reason` of 1–500 characters. The API responds with `SAVE_REJECTED`, and the admin identifies the plugin and shows the reason as text. Empty, overlong, malformed, and unknown error results fail the save with a generic `CONTENT_HOOK_ERROR` response.
 
@@ -83,13 +85,30 @@ interface ContentHookEvent {
 
 On an update, `content` holds only the submitted field values. Load the stored item with `ctx.content.get(event.collection, event.id)` when the hook needs to compare against it.
 
-#### Return Value
+#### Return value
 
 - Return modified content object to apply changes
 - Return a sandbox hook error envelope to reject the save with a bounded plain-text reason
 - Return `void` to pass through unchanged
 
+A sandboxed hook returns this complete envelope to reject a save:
+
+```ts
+return {
+	__emdashSandboxHookResult: true,
+	version: 1,
+	error: {
+		code: "SAVE_REJECTED",
+		reason: "Add a summary before saving.",
+	},
+};
+```
+
+The host trims `reason` and accepts between 1 and 500 characters.
+
 ### `content:afterSave`
+
+**Capability:** `content:read`
 
 Runs after content is saved. Use for side effects like notifications, cache invalidation, or external syncing.
 
@@ -109,11 +128,17 @@ hooks: {
 }
 ```
 
-#### Return Value
+#### Event
+
+`content:afterSave` receives `content`, `collection`, and `isNew`. `content` is the complete saved entry, with its database ID in `content.id` and collection fields under `content.data`. The separate optional `id` used by `content:beforeSave` updates is absent after the save.
+
+#### Return value
 
 No return value expected.
 
 ### `content:beforeDelete`
+
+**Capability:** `content:read`
 
 Runs before content is deleted. Use to validate deletion or prevent it.
 
@@ -140,28 +165,64 @@ hooks: {
 interface ContentDeleteEvent {
 	id: string; // Entry ID
 	collection: string; // Collection slug
+	permanent?: false; // Present for native plugins; omitted in the sandbox runtime
 }
 ```
 
-#### Return Value
+`content:beforeDelete` only runs when an entry moves to trash. Native plugins receive `permanent: false`; the sandbox runtime sends only `id` and `collection`. Do not use this field to branch inside a sandboxed hook. Permanent deletion bypasses `content:beforeDelete`, so the hook cannot prevent an administrator from permanently deleting an entry that is already in the trash.
+
+#### Return value
 
 - Return `false` to cancel deletion
 - Return `true` or `void` to allow
 
 ### `content:afterDelete`
 
+**Capability:** `content:read`
+
 Runs after content is deleted. Use for cleanup tasks.
 
 ```ts
 hooks: {
   "content:afterDelete": async (event, ctx) => {
-    const { id, collection } = event;
+    const { id, collection, permanent } = event;
 
-    // Clean up related data
-    await ctx.storage.relatedItems.delete(`${collection}:${id}`);
+    if (permanent) {
+      await ctx.storage.relatedItems.delete(`${collection}:${id}`);
+    }
   },
 }
 ```
+
+The event contains `id`, `collection`, and `permanent`. `permanent` is `false` when the entry moves to trash and `true` when it is permanently deleted. Check it before removing data that a restored trashed entry would still need. This hook has no return value.
+
+### `content:afterPublish`
+
+Runs after an entry is published successfully, including an entry that EmDash publishes automatically at its scheduled time. Use it for work that depends on the published entry, such as notifying another service or refreshing an external search index.
+
+```ts
+hooks: {
+  "content:afterPublish": async (event, ctx) => {
+    ctx.log.info(`Published ${event.collection}/${event.content.id}`);
+  },
+}
+```
+
+The hook requires the `content:read` capability. EmDash runs it after the publish response, so its return value cannot change the entry or undo the publication. An error is logged; with `errorPolicy: "abort"`, later publish hooks do not run.
+
+### `content:afterUnpublish`
+
+Runs after an entry is unpublished successfully. Use it to remove or update copies of content held by external systems.
+
+```ts
+hooks: {
+  "content:afterUnpublish": async (event, ctx) => {
+    ctx.log.info(`Unpublished ${event.collection}/${event.content.id}`);
+  },
+}
+```
+
+This hook has the same `content:read` capability requirement, deferred execution, event shape, and no-return-value contract as `content:afterPublish`.
 
 ### `content:afterRestore`
 
@@ -208,13 +269,17 @@ interface ContentStateChangeEvent {
 }
 ```
 
-#### Return Value
+This event shape is shared by `content:afterPublish`, `content:afterUnpublish`, `content:afterRestore`, `content:afterSchedule`, and `content:afterUnschedule`. `content` is the complete entry after the state change, including its `id`, `slug`, and status; collection fields are under `content.data`.
+
+#### Return value
 
 No return value expected.
 
-## Media Hooks
+## Media hooks
 
 ### `media:beforeUpload`
+
+**Capability:** `media:write`
 
 Runs before a file is uploaded. Use to validate, rename, or reject files.
 
@@ -250,13 +315,15 @@ interface MediaUploadEvent {
 }
 ```
 
-#### Return Value
+#### Return value
 
 - Return modified file metadata to apply changes
 - Return `void` to pass through unchanged
 - Throw to reject the upload
 
 ### `media:afterUpload`
+
+**Capability:** `media:read`
 
 Runs after a file is uploaded. Use for processing, thumbnails, or metadata extraction.
 
@@ -290,7 +357,13 @@ interface MediaAfterUploadEvent {
 }
 ```
 
-## Lifecycle Hooks
+#### Return value
+
+No return value expected.
+
+## Lifecycle hooks
+
+Lifecycle hooks require no registration capability.
 
 ### `plugin:install`
 
@@ -332,6 +405,8 @@ hooks: {
 }
 ```
 
+`plugin:install`, `plugin:activate`, and `plugin:deactivate` receive an empty event object. They have no return value.
+
 ### `plugin:uninstall`
 
 Runs when a plugin is removed. Use for cleanup.
@@ -362,9 +437,13 @@ interface UninstallEvent {
 }
 ```
 
-## Cron Hook
+The uninstall hook has no return value.
+
+## Cron hook
 
 ### `cron`
+
+**Capability:** None required
 
 Fired when a scheduled task executes. Schedule tasks with `ctx.cron.schedule()`.
 
@@ -389,9 +468,11 @@ interface CronEvent {
 }
 ```
 
-## Email Hooks
+The cron hook has no return value.
 
-Email hooks run in order: `email:beforeSend`, then `email:deliver`, then `email:afterSend`.
+## Email hooks
+
+For messages sent by plugins, email hooks run in order: `email:beforeSend`, then `email:deliver`, then `email:afterSend`. System authentication messages go directly to `email:deliver`; they do not run through `email:beforeSend` or `email:afterSend`.
 
 ### `email:beforeSend`
 
@@ -422,11 +503,10 @@ interface EmailBeforeSendEvent {
 }
 ```
 
-#### Return Value
+#### Return value
 
 - Return modified message to transform
 - Return `false` to cancel delivery
-- Return `void` to pass through unchanged
 
 ### `email:deliver`
 
@@ -445,6 +525,17 @@ hooks: {
 }
 ```
 
+#### Event and return value
+
+```ts
+interface EmailDeliverEvent {
+	message: { to: string; subject: string; text: string; html?: string };
+	source: string;
+}
+```
+
+The hook has no return value. `source` is `"system"` for EmDash authentication messages and the plugin ID for messages sent by a plugin.
+
 ### `email:afterSend`
 
 **Capability:** `hooks.email-events:register`
@@ -462,9 +553,32 @@ hooks: {
 }
 ```
 
-## Comment Hooks
+#### Event and return value
+
+`email:afterSend` receives the same `message` and `source` fields as `email:deliver`. It has no return value.
+
+## Comment hooks
 
 Comment hooks run in order: `comment:beforeCreate`, then `comment:moderate`, then `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
+
+After a comment is stored, hooks receive this record shape:
+
+```ts
+interface StoredComment {
+	id: string;
+	collection: string;
+	contentId: string;
+	parentId: string | null;
+	authorName: string;
+	authorEmail: string;
+	authorUserId: string | null;
+	body: string;
+	status: string;
+	moderationMetadata: Record<string, unknown> | null;
+	createdAt: string;
+	updatedAt: string;
+}
+```
 
 ### `comment:beforeCreate`
 
@@ -502,7 +616,7 @@ interface CommentBeforeCreateEvent {
 }
 ```
 
-#### Return Value
+#### Return value
 
 - Return modified event to transform
 - Return `false` to reject
@@ -545,7 +659,7 @@ interface CommentModerateEvent {
 }
 ```
 
-#### Return Value
+#### Return value
 
 ```ts
 { status: "approved" | "pending" | "spam"; reason?: string }
@@ -555,14 +669,15 @@ interface CommentModerateEvent {
 
 **Capability:** `users:read`
 
-Fire-and-forget hook after a comment is stored. Use for notifications.
+Fire-and-forget hook after a comment is stored. Use for notifications. Sending email also requires the `email:send` capability and a configured `email:deliver` provider; without both, `ctx.email` is undefined.
 
 ```ts
 hooks: {
   "comment:afterCreate": async (event, ctx) => {
-    if (event.comment.status === "approved") {
-      await ctx.email?.send({
-        to: event.contentAuthor?.email,
+    const recipient = event.contentAuthor?.email;
+    if (event.comment.status === "approved" && recipient && ctx.email) {
+      await ctx.email.send({
+        to: recipient,
         subject: `New comment on "${event.content.title}"`,
         text: `${event.comment.authorName} commented: ${event.comment.body}`,
       });
@@ -570,6 +685,19 @@ hooks: {
   },
 }
 ```
+
+#### Event and return value
+
+```ts
+interface CommentAfterCreateEvent {
+	comment: StoredComment;
+	metadata: Record<string, unknown>;
+	content: { id: string; collection: string; slug: string; title?: string };
+	contentAuthor?: { id: string; name: string | null; email: string };
+}
+```
+
+The hook has no return value.
 
 ### `comment:afterModerate`
 
@@ -581,16 +709,53 @@ Fire-and-forget hook when an admin manually changes a comment's status.
 
 ```ts
 interface CommentAfterModerateEvent {
-	comment: { id: string; /* ... */ };
+	comment: StoredComment;
 	previousStatus: string;
 	newStatus: string;
 	moderator: { id: string; name: string | null };
 }
 ```
 
-## Page Hooks
+The hook has no return value.
+
+## Page hooks
 
 Page hooks run when rendering public pages. They allow plugins to inject metadata and scripts.
+
+Both page hooks receive the current public page context:
+
+```ts
+interface PublicPageContext {
+	url: string;
+	path: string;
+	locale: string | null;
+	kind: "content" | "custom";
+	pageType: string;
+	title: string | null;
+	pageTitle?: string | null;
+	description: string | null;
+	canonical: string | null;
+	image: string | null;
+	content?: { collection: string; id: string; slug: string | null };
+	seo?: {
+		ogTitle?: string | null;
+		ogDescription?: string | null;
+		ogImage?: string | null;
+		robots?: string | null;
+	};
+	articleMeta?: {
+		publishedTime?: string | null;
+		modifiedTime?: string | null;
+		author?: string | null;
+	};
+	siteName?: string;
+	breadcrumbs?: Array<{ name: string; url: string }>;
+	siteUrl?: string;
+}
+
+interface PageMetadataEvent { page: PublicPageContext }
+interface PageFragmentEvent { page: PublicPageContext }
+```
 
 ### `page:metadata`
 
@@ -603,14 +768,14 @@ hooks: {
   "page:metadata": async (event, ctx) => {
     return [
       { kind: "meta", name: "generator", content: "EmDash" },
-      { kind: "property", property: "og:site_name", content: event.page.siteName },
+      { kind: "property", property: "og:site_name", content: event.page.siteName ?? "My Site" },
       { kind: "jsonld", graph: { "@type": "WebSite", name: event.page.siteName } },
     ];
   },
 }
 ```
 
-#### Contribution Types
+#### Contribution types
 
 ```ts
 type PageMetadataContribution =
@@ -631,6 +796,8 @@ type PageMetadataContribution =
 ```
 
 The `key` field deduplicates contributions — only the last contribution with a given key is used.
+
+Return one contribution, an array of contributions, or `null` when the plugin has nothing to add.
 
 ### `page:fragments`
 
@@ -658,7 +825,7 @@ hooks: {
 }
 ```
 
-#### Contribution Types
+#### Contribution types
 
 ```ts
 type PageFragmentContribution =
@@ -686,7 +853,9 @@ type PageFragmentContribution =
 		};
 ```
 
-## Hook Configuration
+Return one fragment contribution, an array of contributions, or `null` when the plugin has nothing to add.
+
+## Hook configuration
 
 Hooks accept either a handler function or a configuration object:
 
@@ -706,7 +875,7 @@ hooks: {
 }
 ```
 
-### Configuration Options
+### Configuration options
 
 | Option         | Type       | Default   | Description                                          |
 | -------------- | ---------- | --------- | ---------------------------------------------------- |
@@ -716,7 +885,7 @@ hooks: {
 | `errorPolicy`  | `string`   | `"abort"` | `"continue"` to ignore errors                        |
 | `exclusive`    | `boolean`  | `false`   | Only one plugin can be the active provider (for provider-pattern hooks like `email:deliver`, `comment:moderate`) |
 
-## Plugin Context
+## Plugin context
 
 All hooks receive a context object with access to plugin APIs:
 
@@ -737,14 +906,14 @@ interface PluginContext {
 }
 ```
 
-See [Plugin Overview — Plugin Context](/plugins/overview/#plugin-context) for capability requirements and method details.
+See [Plugin capabilities](/plugins/creating-plugins/capabilities/) for the capability required by each context API.
 
 <Aside>
 	Context APIs are gated by plugin capabilities. Declare required capabilities in the plugin
 	definition.
 </Aside>
 
-## Error Handling
+## Error handling
 
 Errors in hooks are logged and handled based on `errorPolicy`:
 
@@ -766,7 +935,7 @@ hooks: {
 }
 ```
 
-## Execution Order
+## Execution order
 
 Hooks run in this order:
 
