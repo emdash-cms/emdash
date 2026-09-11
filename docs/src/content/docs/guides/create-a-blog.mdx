@@ -1,6 +1,6 @@
 ---
 title: Create a Blog
-description: Scaffold the EmDash blog template, publish a post, and understand how its Astro pages render content.
+description: Build a complete blog with posts, categories, and tags using EmDash.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
@@ -11,10 +11,8 @@ one post, and traces that post through the template code.
 
 ## Prerequisites
 
-Before starting, install:
-
-- [Node.js](https://nodejs.org/) in a version supported by Astro; and
-- pnpm, npm, Yarn, or Bun.
+Install [Node.js](https://nodejs.org/) 22.12 or later and
+[pnpm](https://pnpm.io/installation) before starting.
 
 You need a Cloudflare account only when you deploy the site. During local development, the template
 runs local versions of the database and file storage on your computer.
@@ -28,9 +26,9 @@ dependencies with pnpm:
 npm create emdash@latest my-blog -- --template cloudflare:blog --pm pnpm --yes
 ```
 
-The scaffolder also creates a local `.env` file with an `EMDASH_ENCRYPTION_KEY`. Keep this file out
-of version control. If the command reports that dependency installation failed, enter the project
-directory and run `pnpm install` before continuing.
+The scaffolder also creates a local `.env` file with an `EMDASH_ENCRYPTION_KEY`. The generated
+`.gitignore` excludes `.env` from version control. If the command reports that dependency
+installation failed, enter the project directory and run `pnpm install` before continuing.
 
 Start the local development server:
 
@@ -96,6 +94,11 @@ The dev server generates `emdash-env.d.ts` from this schema. As a result,
 Open `/posts/your-post-slug` on the local site. The post also appears on the home page and the posts
 archive. If it does not appear, confirm that the editor shows **Published**, rather than **Draft** or
 **Scheduled**.
+
+<Aside>
+	Posts created during this tutorial are stored only in the local development database. Deploying
+	the site does not copy them to production.
+</Aside>
 
 After publication, edits autosave to a new draft while the current post remains live. Select
 **Publish changes** when the revised draft should replace it. The
@@ -246,4 +249,5 @@ back to the current request origin during local development.
 
 At this point the blog has an authoring workflow, runtime post pages, taxonomy archives, media
 rendering, and a feed. Continue with [Querying Content](/guides/querying-content/) for filters and
-pagination, or [Media Library](/guides/media-library/) for asset editing and usage tracking.
+pagination, or [Media Library](/guides/media-library/) for asset editing and usage tracking. To
+draft or edit posts with an AI assistant, follow [AI Tools](/guides/ai-tools/).
