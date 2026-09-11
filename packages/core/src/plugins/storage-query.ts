@@ -243,6 +243,17 @@ export function buildCondition(
 		if (value.lt !== undefined) pushBound("<", value.lt);
 		if (value.lte !== undefined) pushBound("<=", value.lte);
 
+		// A filter with no defined bound contributes no SQL. Returning it would
+		// widen the caller's predicate to "match everything" — survivable in a
+		// read, but it strips the guard off a conditional write.
+		if (conditions.length === 0) {
+			throw new StorageQueryError(
+				`Range filter for field '${field}' has no defined bound`,
+				field,
+				"Provide at least one of gt, gte, lt, or lte, or omit the field.",
+			);
+		}
+
 		return {
 			sql: conditions.join(" AND "),
 			params,
@@ -268,6 +279,8 @@ export function buildWhereClause(
 
 	for (const [field, value] of Object.entries(where)) {
 		const condition = buildCondition(db, field, value);
+		// An empty slot in the join would emit `<cond> AND ` and fail to parse.
+		if (!condition.sql) continue;
 		conditions.push(condition.sql);
 		params.push(...condition.params);
 	}

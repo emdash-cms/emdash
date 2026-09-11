@@ -84,7 +84,7 @@ const result = await ctx.storage.submissions.query({
 // Exact match
 where: { status: "pending" }
 
-// Range
+// Range — needs at least one defined bound, or it throws StorageQueryError
 where: { createdAt: { gte: "2024-01-01" } }
 where: { score: { gt: 50, lte: 100 } }
 
@@ -155,6 +155,7 @@ Behavior to account for:
 - `delta` accepts integers. A float throws `TypeError`.
 - Pass at least one of `set` or `delta`. A field cannot appear in both.
 - A `dec` drives a field negative when the guard does not cover it. Pair `dec: k` with a `gte: k` guard to keep the field at or above zero.
+- A range filter in the guard needs at least one defined bound. `{ stock: { gte: undefined } }` throws `StorageQueryError` rather than leaving the write unguarded.
 - A losing writer that aborts instead of returning `{ applied: false }` throws `StorageSerializationError`, carrying the Postgres SQLSTATE (`40001` or `40P01`). Retry the call.
 
 ### Index Design

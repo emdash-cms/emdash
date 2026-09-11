@@ -14,6 +14,7 @@ import { it, expect, beforeEach, afterEach } from "vitest";
 
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
 import type { Database } from "../../../src/database/types.js";
+import { StorageQueryError } from "../../../src/plugins/storage-query.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -189,6 +190,20 @@ describeEachDialect("Plugin storage updateIf", (dialect) => {
 			repo.updateIf("p1", { where: { sku: "A" }, delta: { stock: undefined } }),
 		).rejects.toThrow(/set.*delta/i);
 		expect((await repo.get("p1"))?.stock).toBe(5);
+	});
+
+	it("updateIf() with an all-`undefined` guard throws instead of writing unguarded", async () => {
+		// An empty predicate contributes no SQL. Dropped silently, it would leave
+		// the UPDATE unguarded and drive stock past the bound the caller asked for.
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 0, tier: 1, name: "Alpha" });
+		await expect(
+			repo.updateIf("p1", {
+				where: { stock: { gte: undefined } },
+				delta: { stock: { dec: 1 } },
+			}),
+		).rejects.toThrow(StorageQueryError);
+		expect((await repo.get("p1"))?.stock).toBe(0);
 	});
 
 	it("updateIf() with an all-`undefined` set (no delta) throws and never writes", async () => {
