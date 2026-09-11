@@ -361,7 +361,7 @@ describe("Table conversion: PortableText ↔ ProseMirror", () => {
 			expect(table.rows[0].cells[0].content[0].marks).toContain("strong");
 		});
 
-		it("converts table with links to PT (preserves markDefs)", () => {
+		it("converts table links without collapsing different targets for one URL", () => {
 			const pmDoc = {
 				type: "doc",
 				content: [
@@ -390,6 +390,11 @@ describe("Table conversion: PortableText ↔ ProseMirror", () => {
 															},
 														],
 													},
+													{
+														type: "text",
+														text: "Same tab",
+														marks: [{ type: "link", attrs: { href: "https://example.com" } }],
+													},
 												],
 											},
 										],
@@ -414,12 +419,17 @@ describe("Table conversion: PortableText ↔ ProseMirror", () => {
 
 			const cell = table.rows[0].cells[0];
 			expect(cell.markDefs).toBeDefined();
-			expect(cell.markDefs).toHaveLength(1);
+			expect(cell.markDefs).toHaveLength(2);
 			expect(cell.markDefs![0]._type).toBe("link");
 			expect(cell.markDefs![0].href).toBe("https://example.com");
 
 			const linkMarkKey = cell.markDefs![0]._key;
 			expect(cell.content[0].marks).toContain(linkMarkKey);
+			expect(
+				cell.content.map(
+					(span) => cell.markDefs?.find((mark) => span.marks?.includes(mark._key))?.blank,
+				),
+			).toEqual([true, false]);
 		});
 	});
 
@@ -475,6 +485,112 @@ describe("Table conversion: PortableText ↔ ProseMirror", () => {
 			expect(table.rows[0].cells[0].content[0].text).toBe("Header");
 			expect(table.rows[1].cells[0].isHeader).toBe(false);
 			expect(table.rows[1].cells[0].content[0].text).toBe("Data");
+		});
+
+		it("preserves table identity, geometry, widths, alignment, and partial headers", () => {
+			const original = [
+				{
+					_type: "table",
+					_key: "table-stable",
+					rows: [
+						{
+							_type: "tableRow",
+							_key: "row-stable",
+							cells: [
+								{
+									_type: "tableCell",
+									_key: "cell-stable",
+									content: [{ _type: "span", _key: "span-1", text: "Wide" }],
+									isHeader: true,
+									colspan: 2,
+									rowspan: 2,
+									colwidth: [180, 240],
+									textAlign: "right",
+								},
+								{
+									_type: "tableCell",
+									_key: "cell-neighbor",
+									content: [{ _type: "span", _key: "span-2", text: "Neighbor" }],
+								},
+							],
+						},
+						{
+							_type: "tableRow",
+							_key: "row-second",
+							cells: [
+								{
+									_type: "tableCell",
+									_key: "cell-second",
+									content: [{ _type: "span", _key: "span-3", text: "Second" }],
+								},
+							],
+						},
+					],
+				},
+			];
+
+			const proseMirror = _portableTextToProsemirror(original);
+			const tableNode = proseMirror.content[0];
+			const firstRow = tableNode.content[0];
+			const firstCell = firstRow.content[0];
+
+			expect(tableNode.attrs).toMatchObject({ emdashKey: "table-stable" });
+			expect(firstRow.attrs).toMatchObject({ emdashKey: "row-stable" });
+			expect(firstCell.attrs).toMatchObject({
+				emdashKey: "cell-stable",
+				colspan: 2,
+				rowspan: 2,
+				colwidth: [180, 240],
+				textAlign: "right",
+			});
+
+			const roundTripped = _prosemirrorToPortableText(proseMirror);
+			const persisted = roundTripped[0] as {
+				_type: string;
+				_key: string;
+				rows: Array<{
+					_key: string;
+					cells: Array<Record<string, unknown>>;
+				}>;
+			};
+			expect(persisted).toMatchObject({ _type: "table", _key: "table-stable" });
+			expect(persisted.rows).toHaveLength(2);
+			expect(persisted.rows[0]?._key).toBe("row-stable");
+			expect(persisted.rows[0]?.cells).toHaveLength(2);
+			expect(persisted.rows[0]?.cells[0]).toMatchObject({
+				_key: "cell-stable",
+				isHeader: true,
+				colspan: 2,
+				rowspan: 2,
+				colwidth: [180, 240],
+				textAlign: "right",
+			});
+			expect(persisted).not.toHaveProperty("hasHeaderRow");
+		});
+
+		it("accepts legacy string cells without changing Contentful output", () => {
+			const legacy = [
+				{
+					_type: "table",
+					_key: "legacy-table",
+					rows: [
+						{
+							_type: "tableRow",
+							_key: "legacy-row",
+							cells: ["Name", "مرحبا"],
+						},
+					],
+					hasHeaderRow: true,
+				},
+			];
+
+			const proseMirror = _portableTextToProsemirror(legacy);
+			const cells = proseMirror.content[0].content[0].content;
+
+			expect(cells).toHaveLength(2);
+			expect(cells[0].type).toBe("tableHeader");
+			expect(cells[0].content[0].content[0].text).toBe("Name");
+			expect(cells[1].content[0].content[0].text).toBe("مرحبا");
 		});
 	});
 });

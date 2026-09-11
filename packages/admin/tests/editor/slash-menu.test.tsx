@@ -9,6 +9,7 @@
  * since there's no standalone export.
  */
 
+import { TableMap } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
 import { SuggestionPluginKey } from "@tiptap/suggestion";
 import { describe, it, expect, vi } from "vitest";
@@ -481,6 +482,61 @@ describe("Slash Command Menu", () => {
 		expect(titles).toContain("HTML");
 		expect(titles).toContain("Divider");
 		expect(titles).toContain("Table");
+	});
+
+	it("opens the shared table picker and preserves the query on Escape", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/table");
+		const menu = await waitForSlashMenu();
+		getSlashMenuItems(menu)
+			.find((item) => item.textContent?.includes("Table"))!
+			.click();
+
+		await expect.element(screen.getByRole("grid", { name: "Table size" })).toBeVisible();
+		expect(editor.getText()).toContain("/table");
+		await userEvent.keyboard("{Escape}");
+
+		await waitForSlashMenuClosed();
+		expect(editor.getText()).toContain("/table");
+		await vi.waitFor(() => expect(document.activeElement).toBe(pm));
+	});
+
+	it("closes the shared table picker when the editor becomes read-only", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/table");
+		const menu = await waitForSlashMenu();
+		getSlashMenuItems(menu)
+			.find((item) => item.textContent?.includes("Table"))!
+			.click();
+		await expect.element(screen.getByRole("grid", { name: "Table size" })).toBeVisible();
+
+		await screen.rerender(<PortableTextEditor editable={false} />);
+
+		await waitForSlashMenuClosed();
+		expect(editor.getText()).toContain("/table");
+	});
+
+	it("inserts the chosen table and removes the slash query in one undo", async () => {
+		const { screen, editor, pm } = await renderEditor();
+		await focusEditor(pm);
+		editor.commands.insertContent("/table");
+		const menu = await waitForSlashMenu();
+		getSlashMenuItems(menu)
+			.find((item) => item.textContent?.includes("Table"))!
+			.click();
+		await expect.element(screen.getByRole("grid", { name: "Table size" })).toBeVisible();
+
+		await userEvent.keyboard("{ArrowRight}{ArrowRight}{ArrowDown}{Enter}");
+
+		await waitForSlashMenuClosed();
+		const table = editor.state.doc.firstChild!;
+		expect(TableMap.get(table)).toMatchObject({ width: 3, height: 2 });
+		expect(table.firstChild?.firstChild?.type.spec.tableRole).toBe("header_cell");
+		expect(editor.getText()).not.toContain("/table");
+		expect(editor.commands.undo()).toBe(true);
+		expect(editor.getText()).toContain("/table");
 	});
 
 	it("shows descriptions for each command", async () => {

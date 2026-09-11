@@ -805,6 +805,15 @@ export interface HookConfig<THandler> {
 }
 
 /**
+ * Acting user that triggered a content hook. Present for authenticated
+ * saves; absent for unauthenticated or internal writes.
+ */
+export interface ActorInfo {
+	readonly id: string;
+	readonly role: number;
+}
+
+/**
  * Content hook event
  */
 export interface ContentHookEvent {
@@ -817,6 +826,12 @@ export interface ContentHookEvent {
 	 * `content:afterSave`, where `content.id` carries it.
 	 */
 	id?: string;
+	/**
+	 * The acting user for this save. Carries the same authenticated identity
+	 * used to set the revision author, so plugins (e.g. audit logs) can record
+	 * who made the change.
+	 */
+	actor?: ActorInfo;
 }
 
 /**

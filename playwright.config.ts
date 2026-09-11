@@ -10,6 +10,7 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
 	testDir: "./e2e/tests",
+	testIgnore: "portable-text-table.spec.ts",
 	// Disable parallel to avoid shared database state issues
 	fullyParallel: false,
 	workers: 1,

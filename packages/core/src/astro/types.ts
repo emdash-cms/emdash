@@ -37,9 +37,9 @@ export interface ManifestCollection {
 	titleField?: string;
 	dateField?: string;
 	/**
-	 * Omit the auto-generated sidebar entry in the admin. The collection is
-	 * still listed in the manifest so its routes, editor, and API keep working
-	 * — only the navigation link is dropped.
+	 * Omit the auto-generated sidebar entry and dashboard quick action in the
+	 * admin. The collection is still listed in the manifest so its routes,
+	 * editor, and API keep working.
 	 */
 	hidden?: boolean;
 	/** Valid custom field slugs to render in the admin content list. */
@@ -298,6 +298,7 @@ export interface EmDashHandlers {
 			taxonomies?: Record<string, string[]>;
 			createdAt?: string | null;
 			publishedAt?: string | null;
+			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
 
@@ -321,6 +322,7 @@ export interface EmDashHandlers {
 			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			_rev?: string;
+			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
 
