@@ -8,6 +8,7 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import { handleMediaDelete } from "../api/handlers/media.js";
 import {
 	handleRedirectCreate,
 	handleRedirectDelete,
@@ -1064,16 +1065,16 @@ export function createMediaAccessWithWrite(
 		},
 
 		async delete(id: string): Promise<boolean> {
-			const deleted = await mediaRepo.delete(id);
+			const result = await handleMediaDelete(db, id, storage);
 			// Plugins can delete media that's referenced by site settings
 			// (`logo`, `favicon`, `seo.defaultOgImage`); the worker-scoped
 			// resolved-URL cache must be dropped or it will keep serving
 			// 404s. Matches the invalidation in
 			// `EmDashRuntime.handleMediaDelete`.
-			if (deleted) {
+			if (result.success) {
 				invalidateSiteSettingsCache();
 			}
-			return deleted;
+			return result.success;
 		},
 	};
 }
