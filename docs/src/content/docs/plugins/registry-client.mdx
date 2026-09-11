@@ -19,7 +19,7 @@ The registry's discovery side is a public, read-only API. The `@emdash-cms/regis
 The `discovery` subpath carries no authentication or OAuth dependencies. Install the client and pin it to an exact version:
 
 ```sh
-npm install @emdash-cms/registry-client@0.3.4
+npm install @emdash-cms/registry-client@0.5.0
 ```
 
 ## List and resolve packages
@@ -80,13 +80,36 @@ The client exposes one method per aggregator query:
 - **`searchPackages({ q, capability?, limit?, cursor? })`** — free-text search, optionally filtered to packages declaring a given access category. Returns `{ packages, cursor? }`.
 - **`resolvePackage({ handle, slug })`** — resolve a package from a handle and slug.
 - **`getPackage({ did, slug })`** — fetch a package by its DID and slug.
-- **`listReleases({ did, package, limit?, cursor? })`** — every release for a package, newest version first.
-- **`getLatestRelease({ did, package })`** — the highest approved, non-withdrawn release version.
+- **`listReleases({ did, package, limit?, cursor? })`** — releases in descending semantic-version order, including yanked releases.
+- **`getLatestRelease({ did, package })`** — the highest non-yanked release selected by the aggregator.
 
 `getPackageStatus()` and `resolvePackageStatus()` wrap their corresponding package queries and
-map the safe `ListingUnavailable` response to `{ status: "unavailable" }`. Use these methods in
-a user interface that needs to distinguish an indexed but unapproved listing from a missing
-package without rendering publisher-controlled error content.
+map the safe `ListingUnavailable` response to `{ status: "unavailable" }`. A successful result has
+`{ status: "passed", value }`. Use these methods in a user interface that needs to distinguish an
+indexed but unavailable listing from a missing package without rendering publisher-controlled
+error content.
+
+Use the withdrawal helper before showing or selecting a release:
+
+```typescript title="src/lib/plugin.ts"
+import {
+	DiscoveryClient,
+	type ValidatedReleaseView,
+} from "@emdash-cms/registry-client/discovery";
+import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
+
+const discovery = new DiscoveryClient({
+	aggregatorUrl: "https://registry.emdashcms.com",
+});
+
+export function canShowRelease(release: ValidatedReleaseView) {
+	const result = evaluateRegistryReleaseWithdrawal(release, discovery.labelerPolicy);
+	return release.release !== null && !result.withdrawn;
+}
+```
+
+`withdrawn` is `true` when the applicable labels remove the release from use. Invalid label data
+fails closed: `withdrawn` and `malformed` are both `true`.
 
 ## Handling untrusted records
 
@@ -105,7 +128,7 @@ A release can declare environment requirements (an EmDash or Astro version range
 import { checkEnvCompatibility, hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { ValidatedReleaseView } from "@emdash-cms/registry-client/discovery";
 
-const host = hostEnvFromVersions("0.17.0", "5.6.0");
+const host = hostEnvFromVersions("0.37.0", "7.0.0");
 
 // Pass a getLatestRelease() result. The returned array is empty when the
 // release runs on this host.

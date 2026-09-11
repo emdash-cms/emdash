@@ -1,11 +1,11 @@
 ---
 title: Deploy to Node.js
-description: Deploy EmDash to any Node.js hosting platform.
+description: Deploy EmDash to a long-running Node.js server with persistent data services.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-EmDash runs on Node.js 22.16 or later. This guide uses SQLite with local or S3-compatible storage; libSQL and PostgreSQL work the same way on Node.js — see [Database Options](/deployment/database/).
+EmDash runs on Node.js 22.16 or later. This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
 
 ## Prerequisites
 
@@ -18,7 +18,7 @@ EmDash runs on Node.js 22.16 or later. This guide uses SQLite with local or S3-c
 	opening. Node.js 24 does not print this warning.
 </Aside>
 
-## Configuration
+## Configure the site
 
 Configure EmDash for Node.js deployment:
 
@@ -43,7 +43,7 @@ export default defineConfig({
 });
 ```
 
-## Build and Run
+## Build and run
 
 1. Build the project:
 
@@ -57,7 +57,7 @@ export default defineConfig({
    node ./dist/server/entry.mjs
    ```
 
-The server runs on `http://localhost:4321` by default. Migrations are applied on the first request. If the database is empty and setup hasn't been completed, your seed file (or the built-in default if you don't have one) is also applied on that first request.
+The server runs on `http://localhost:4321` by default. With the default `auto` migration mode, the first request applies pending core migrations. A fresh database also receives the embedded seed. [Manage core database migrations](/deployment/core-migrations/) explains how to migrate before restarting production traffic.
 
 ## Scheduled tasks
 
@@ -69,24 +69,18 @@ Keep at least one Node.js process running continuously in production. Scheduled 
 
 Marketplace plugins and the plugins listed under `sandboxed: []` need a sandbox runner. On Node.js, the runner is `@emdash-cms/sandbox-workerd`, which runs plugins in a `workerd` child process. [Plugin Sandbox](/deployment/plugin-sandbox/#nodejs) covers the installation, how the `workerd` process runs, and its failure modes.
 
-## Production Storage
+## Choose production data services
 
-For production, use S3-compatible storage instead of local filesystem:
+Use the following pattern when the database stays on a persistent volume and media moves to S3-compatible storage:
 
 ```js title="astro.config.mjs"
 import emdash, { s3 } from "emdash/astro";
 
 export default defineConfig({
 	integrations: [
-		emdash({
-			database: sqlite({ url: `file:${process.env.DATABASE_PATH}` }),
-			storage: s3({
-				endpoint: process.env.S3_ENDPOINT,
-				bucket: process.env.S3_BUCKET,
-				accessKeyId: process.env.S3_ACCESS_KEY_ID,
-				secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
-				publicUrl: process.env.S3_PUBLIC_URL, // Optional CDN URL
-			}),
+			emdash({
+				database: sqlite({ url: `file:${process.env.DATABASE_PATH}` }),
+				storage: s3(),
 		}),
 	],
 });
@@ -168,12 +162,13 @@ Start the stack in the background:
 docker compose up -d
 ```
 
-## Environment Variables
+## Runtime environment
+
+Read database and storage credentials from the process environment when the server starts. The following variables support the configuration above:
 
 ### Encryption key validation
 
-`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets. If the variable is set, EmDash
-checks its format during startup, but plugin secret values remain unencrypted in the database.
+`EMDASH_ENCRYPTION_KEY` does not currently encrypt plugin secrets or any other stored data. If the variable is set, EmDash checks its format during startup, but plugin secret values remain plaintext in the database.
 
 If you set the variable, generate a valid value and add the result to your environment:
 
@@ -198,7 +193,9 @@ process needs to share a secret with your main site.
 | `EMDASH_IP_SALT` | Override for the auto-generated commenter-IP hash salt. |
 | `EMDASH_AUTH_SECRET` | Optional. If set, used as the IP-salt source (unless `EMDASH_IP_SALT` is also set, which takes precedence), keeping commenter-IP hashes stable for installs that already rely on it. Leave it unset for a new deployment. |
 
-### Database and Storage
+See [Secrets and key management](/deployment/secrets/) for the key format, every supported secret, and the effects of rotation or loss.
+
+### Database and storage
 
 | Variable               | Description             | Example                    |
 | ---------------------- | ----------------------- | -------------------------- |
@@ -209,13 +206,14 @@ process needs to share a secret with your main site.
 | `S3_BUCKET`            | S3 bucket name          | `my-media-bucket`          |
 | `S3_ACCESS_KEY_ID`     | S3 access key           | `AKIA...`                  |
 | `S3_SECRET_ACCESS_KEY` | S3 secret key           | `...`                      |
+| `S3_REGION`            | S3 region               | `auto`                     |
 | `S3_PUBLIC_URL`        | Public URL for media    | `https://cdn.example.com`  |
 
 <Aside type="caution">
-Never commit secrets to your repository. Use your platform's secret management (environment variables, secret stores, etc.) for production.
+	Never commit secrets to the repository or bake them into the container image. Use the hosting platform's runtime secret manager.
 </Aside>
 
-## Persistent Storage
+## Persistent storage
 
 SQLite requires persistent disk storage. Ensure your hosting platform provides:
 
@@ -223,11 +221,13 @@ SQLite requires persistent disk storage. Ensure your hosting platform provides:
 - Write access to the database directory
 - Backup mechanisms for the database file
 
+Back up both the SQLite file and the upload directory. Stop the process before replacing either during recovery. See [Backups](/guides/backups/#sqlite-backup-and-recovery).
+
 <Aside type="caution">
 	Ephemeral filesystems will lose your database on restart. Use libSQL with a remote database or persistent storage.
 </Aside>
 
-## Health Checks
+## Health checks
 
 Add a health check endpoint for load balancers:
 
@@ -237,4 +237,16 @@ export const GET = () => {
 };
 ```
 
-Configure your platform to check `/health` for liveness probes.
+This endpoint proves that the Node.js process can serve Astro routes. It does not prove that the database, storage backend, migration state, or plugin sandbox is healthy. Verify those dependencies separately before sending traffic to a new release.
+
+## Verify before sending traffic
+
+After starting a new build, verify the same runtime services that production requests use:
+
+1. Request `/health` and one public content page. Both must return a successful response.
+2. Run `npx emdash migrate --check` from the built project. It must report no pending or unknown migrations for the configured database.
+3. Sign in to `/_emdash/admin`, create or edit a disposable draft, and publish it. Confirm that the public page shows the change.
+4. Upload a disposable media file and open its returned URL. Delete the file after verifying it.
+5. If the site uses sandboxed plugins, invoke one plugin route or hook and confirm that the server log has no sandbox-unavailable or `workerd` startup error.
+
+Keep the new instance out of the load balancer until every applicable check passes.

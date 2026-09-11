@@ -1,12 +1,11 @@
 ---
-title: Backups
-description: Download site backups, schedule automatic backups to storage, and restore with D1 Time Travel.
+title: Backups and recovery
+description: Export selected site data, create restorable database and media backups, and recover D1 or SQLite deployments.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Use a JSON backup when you need an offline copy of selected content data. Use a raw database backup
-or point-in-time recovery when you need to restore the site.
+Use a JSON backup when you need an offline copy of selected content data. EmDash cannot import that file. A recovery plan needs a raw database backup or point-in-time recovery and a separate copy of media binaries.
 
 ## What's in a backup
 
@@ -73,23 +72,45 @@ scheduled publishing) — on Cloudflare this is the Worker's cron trigger, on No
 scheduler. If your deployment has no cron trigger configured, use **Back up now** or the download
 button instead.
 
-## Point-in-time restore with D1 Time Travel
+## Back up and restore media objects
 
-If your site runs on Cloudflare D1, you already have full database point-in-time recovery — always on, no configuration:
+R2 and S3-compatible buckets need an object-level backup in addition to the database. The following AWS CLI example copies every object, including EmDash's `backups/` archives, to a local backup directory. For AWS S3, omit `--endpoint-url`.
 
 ```bash
-# See the current bookmark (do this before risky operations)
-npx wrangler d1 time-travel info my-database
+aws s3 sync s3://emdash-media ./emdash-media-backup \
+  --endpoint-url https://<account-id>.r2.cloudflarestorage.com
+```
 
-# Restore the database to a specific timestamp
+Use read-only bucket credentials for routine backup jobs. Store the backup outside the production account or failure domain, and record the database backup or Time Travel point created at the same time.
+
+Restore into an empty recovery bucket rather than overwriting production while it is serving requests:
+
+```bash
+aws s3 sync ./emdash-media-backup s3://emdash-media-recovery \
+  --endpoint-url https://<account-id>.r2.cloudflarestorage.com
+```
+
+Give the restore job write access only to the recovery bucket. Point a non-production deployment at that bucket, open several known media URLs, and upload and delete a disposable file. Switch the production binding or bucket configuration only after the restored database and media set pass their checks together.
+
+## Recover a D1 database with Time Travel
+
+Before a risky operation, ask Time Travel for the current bookmark and record it with the deployment or change record:
+
+```bash
+npx wrangler d1 time-travel info my-database
+```
+
+If recovery is required, stop writes to the site and inspect the available restore point before running the destructive restore command:
+
+```bash
 npx wrangler d1 time-travel restore my-database --timestamp=2026-07-08T13:00:00Z
 ```
 
-Time Travel keeps 30 days of history on the paid plan (7 days on free) with minute-level granularity. It restores the **entire database** — content, users, settings — which makes it the right tool for disaster recovery ("the import went wrong, take me back to an hour ago").
+Time Travel restores the entire database, including content, users, settings, plugin data, and migration records. It does not restore R2 media objects. After the command completes, deploy the application version that matches the restored database, reopen traffic, and verify sign-in, content reads, schema changes, and a write.
 
 See the [D1 Time Travel documentation](https://developers.cloudflare.com/d1/reference/time-travel/) for details.
 
-## Offsite database dumps
+## Create an offsite D1 dump
 
 For a complete SQL dump of the raw database (including users and auth tables), use Wrangler:
 
@@ -97,15 +118,28 @@ For a complete SQL dump of the raw database (including users and auth tables), u
 npx wrangler d1 export my-database --remote --output=backup.sql
 ```
 
-Restore that raw SQL dump with the following command:
+Keep the SQL file with the matching application version and the media backup created at the same time. Test recovery by importing the dump into a newly provisioned empty D1 database, updating a non-production binding to that database, and verifying the site.
+
+<Aside type="danger">
+	Do not execute a full dump against the existing production database. The dump contains schema and row creation statements that can conflict with existing objects or leave a mixed state. For recovery, create an empty D1 database, import the dump there, verify it, then change the production binding in a controlled deployment.
+</Aside>
+
+Import into the empty recovery database with the following command:
 
 ```bash
-npx wrangler d1 execute my-database --remote --file=backup.sql
+npx wrangler d1 execute my-recovery-database --remote --file=backup.sql
 ```
 
-On Node deployments, the database is a single SQLite file — copy it while the server is stopped, or use `sqlite3 emdash.db ".backup backup.db"` for a consistent online copy.
+## SQLite backup and recovery
 
-## JSON restore
+For an offline SQLite backup, stop every process that writes the database and copy the database file. For a consistent online backup, use SQLite's backup command:
 
+```bash
+sqlite3 emdash.db ".backup backup.db"
+```
+
+Back up the local upload directory or S3-compatible bucket separately. To recover, stop every server process, retain a copy of the damaged database, replace it with the verified backup, restore any required media objects, and start the matching application version. Verify sign-in, public content, an edit, and a media read before reopening traffic.
+
+## JSON exports cannot restore a site
 EmDash has no admin action, API endpoint, or CLI command for JSON restore. Use D1 Time Travel, a raw
 D1 SQL dump, or a copy of the SQLite database as described above.

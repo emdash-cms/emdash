@@ -1,11 +1,11 @@
 ---
-title: Plugin Sandbox
+title: Configure the plugin sandbox
 description: Run sandboxed plugins on Cloudflare Workers or Node.js, with the bindings, resource limits, and failure modes of each sandbox runner.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Sandboxed plugins run in an isolated runtime that a sandbox runner provides. Marketplace and registry installs always run sandboxed, and so do the plugins listed under `sandboxed: []` in the `emdash()` integration. Plugins listed under `plugins: []` run in the server process and do not use the runner.
+Sandboxed plugins need a platform runner in addition to their plugin declaration. Marketplace and registry installs always use that runner, as do plugins listed under `sandboxed: []`. Native plugins under `plugins: []` run in the EmDash server process and do not gain sandbox isolation.
 
 The runner depends on the deployment platform. On Cloudflare Workers, each plugin runs as a [Dynamic Worker](https://developers.cloudflare.com/dynamic-workers/) created through the Worker Loader binding. On Node.js, the server starts [`workerd`](https://github.com/cloudflare/workerd), the open-source Workers runtime, as a child process and runs each plugin as a service inside it. The `sandboxRunner` option of `emdash()` selects the runner. Without it, the plugins under `sandboxed: []` are never loaded, and a configured `marketplace` fails the build with "Marketplace requires `sandboxRunner` to be configured".
 
@@ -151,6 +151,10 @@ emdash({
 ```
 
 On Cloudflare Workers, the runtime refuses to start with `sandbox: false is not supported in Cloudflare Workers`.
+
+<Aside type="danger">
+	Do not deploy `sandbox: false` to production. The plugin then receives the server process's authority and is no longer constrained by the runner's isolation, host allowlist, or resource limits.
+</Aside>
 
 ## Troubleshooting
 
