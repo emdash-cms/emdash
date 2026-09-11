@@ -1,0 +1,21 @@
+templates/marketing-cloudflare/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_19d19fd3558849 89,92
+templates/marketing/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_9d45ce12e12e2d 89,92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d24be02c77cc50f97717ed88b10ad936e1e19852",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
