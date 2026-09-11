@@ -3,10 +3,10 @@ title: Add EmDash to an existing Astro project
 description: Configure a Node.js Astro site to edit and query EmDash content locally.
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
 
 This guide adds EmDash to an Astro project and verifies the integration with one published entry.
-It uses the Node.js adapter, SQLite, local media storage, and npm so the complete path works on one
+It uses the Node.js adapter, SQLite, and local media storage so the complete path works on one
 machine.
 
 ## Before you start
@@ -31,9 +31,23 @@ Commit or otherwise save the current project before changing its configuration.
 
 1. Install EmDash, the Node.js adapter, and React support:
 
+   <Tabs>
+   <TabItem label="npm">
    ```bash
    npm install emdash @astrojs/node @astrojs/react react react-dom
    ```
+   </TabItem>
+   <TabItem label="pnpm">
+   ```bash
+   pnpm add emdash @astrojs/node @astrojs/react react react-dom
+   ```
+   </TabItem>
+   <TabItem label="yarn">
+   ```bash
+   yarn add emdash @astrojs/node @astrojs/react react react-dom
+   ```
+   </TabItem>
+   </Tabs>
 
    EmDash uses React for the admin panel even when the public site has no React components.
 
