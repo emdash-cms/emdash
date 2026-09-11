@@ -93,7 +93,7 @@ The `PluginBridge` export is harmless when no sandboxed plugin is installed. Kee
 
 To run general maintenance on a schedule other than every minute, pass the same Cron expression to `createScheduledHandler({ generalCron: "..." })` and to `triggers.crons`. If they differ, the handler logs and ignores the unexpected trigger.
 
-## Build, migrate, and deploy
+## Build and deploy
 
 Build and deploy the site once to let Wrangler provision the named D1 database and R2 bucket. Wrangler uses the local login created by `pnpm wrangler login`.
 
@@ -102,26 +102,7 @@ pnpm build
 pnpm wrangler deploy
 ```
 
-Before opening the deployed site, inspect the D1 target and apply its core migrations. Unlike Wrangler, `emdash migrate` does not use the saved local login. It calls the Cloudflare API with `CLOUDFLARE_API_TOKEN` and requires the account ID from `--account-id`, `account_id` in Wrangler configuration, or `CLOUDFLARE_ACCOUNT_ID`; it does not prompt for an account. Replace the example account ID below with the 32-character ID for the account that owns `my-emdash-site`.
-
-```bash
-pnpm emdash migrate --status \
-  --account-id 0123456789abcdef0123456789abcdef \
-  --d1 my-emdash-site
-```
-
-After confirming the account and database, apply the migrations interactively and verify the result.
-
-```bash
-pnpm emdash migrate \
-  --account-id 0123456789abcdef0123456789abcdef \
-  --d1 my-emdash-site
-pnpm emdash migrate --check \
-  --account-id 0123456789abcdef0123456789abcdef \
-  --d1 my-emdash-site
-```
-
-The token needs D1 Edit permission. Non-interactive jobs also require the reviewed target fingerprint. For later releases, apply migrations before deploying the matching build. Serialize jobs by account and database UUID. [Manage core database migrations](/deployment/core-migrations/) is the canonical runbook for CI, runtime modes, partial failures, and rollback boundaries.
+With the default `auto` migration mode, EmDash applies pending core migrations when the deployed Worker receives its first request. Use [Manage core database migrations](/deployment/core-migrations/) when a deployment pipeline must apply migrations before new code receives traffic or when you need to inspect, check, or recover a migration.
 
 If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
@@ -129,9 +110,9 @@ To change the schema or content model of a site that is already deployed, see [E
 
 ## Place the Worker near D1
 
-Cloudflare runs a Worker near the visitor by default. EmDash server-rendered requests make several D1 round trips, so use [Targeted Placement](https://developers.cloudflare.com/workers/configuration/smart-placement/) when database latency matters more than the extra distance between the visitor and the Worker.
+Cloudflare runs a Worker near the visitor by default. EmDash server-rendered requests make several D1 round trips, so use [Targeted Placement](https://developers.cloudflare.com/workers/configuration/smart-placement/) to run the Worker near the D1 primary and make those requests faster.
 
-Wrangler accepts `placement.mode: "targeted"` with exactly one selector: `region`, `host`, or `hostname`. Select the value that targets the D1 primary location, and add the resulting `placement` object to `wrangler.jsonc`. Targeted Placement moves Worker execution; it does not enable D1 read replication or change EmDash's `session` setting. Measure response latency after deployment because placing the Worker closer to D1 can place it farther from some visitors.
+Wrangler accepts `placement.mode: "targeted"` with exactly one selector: `region`, `host`, or `hostname`. Select the value that targets the D1 primary location, and add the resulting `placement` object to `wrangler.jsonc`. Do not enable D1 read replicas with Targeted Placement. Keep EmDash's `session` setting at its default, `"disabled"`, so reads and writes use the nearby primary.
 
 ## Object cache
 
@@ -174,7 +155,7 @@ Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) p
    });
    ```
 
-   The `@astrojs/cloudflare` adapter detects `cacheCloudflare()` and enables Workers Cache in the generated deployment configuration. Do not duplicate the generated `cache.enabled` setting in the source `wrangler.jsonc`; inspect `.wrangler/deploy/config.json` after a build when you need to verify it.
+	The `@astrojs/cloudflare` adapter detects `cacheCloudflare()` and enables Workers Cache in the generated deployment configuration.
 
 2. Purge cached responses from Worker code with the platform API. This call does not need Cloudflare REST credentials.
 
@@ -396,27 +377,18 @@ The preview environment must repeat every binding the preview Worker uses. The c
 
 Use the preview UUID written by Wrangler. Repeat optional KV, AI Search, email, and other bindings when the preview uses those features. Add preview-only secrets with `pnpm wrangler secret put <NAME> --env preview`.
 
-Build once, inspect and apply migrations to the preview D1 binding, then deploy that build to the preview environment:
+Build and deploy the preview environment. Its first request applies pending core migrations through the default `auto` mode.
 
 ```bash
 pnpm build
-pnpm emdash migrate --status \
-  --wrangler-config wrangler.jsonc \
-  --wrangler-env preview
-pnpm emdash migrate \
-  --wrangler-config wrangler.jsonc \
-  --wrangler-env preview
 pnpm wrangler deploy --env preview
-pnpm emdash migrate --check \
-  --wrangler-config wrangler.jsonc \
-  --wrangler-env preview
 ```
 
 Verify the preview URL, admin sign-in, media upload, and any optional binding before sharing it. Never point a preview binding at a production database or bucket.
 
 ## Verify the deployment
 
-After deployment, request one public page, sign in to `/_emdash/admin`, upload and retrieve a test media file, and confirm the scheduled handler appears in `pnpm wrangler tail`. If deployment-managed migrations are enabled, rerun `emdash migrate --check` against the same database UUID.
+After deployment, request one public page, sign in to `/_emdash/admin`, upload and retrieve a test media file, and confirm the scheduled handler appears in `pnpm wrangler tail`.
 
 ## Troubleshooting
 
