@@ -21,6 +21,7 @@ const SAFE_INLINE_TYPES = new Set([
 	"image/gif",
 	"image/webp",
 	"image/avif",
+	"image/bmp",
 	"image/x-icon",
 	"video/mp4",
 	"video/webm",

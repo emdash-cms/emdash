@@ -156,6 +156,10 @@ describe("originalMediaHeaders", () => {
 		expect(h["Content-Security-Policy"]).toContain("sandbox");
 	});
 
+	it("renders image/bmp inline, same as the other safe raster types", () => {
+		expect(originalMediaHeaders("image/bmp")["Content-Disposition"]).toBe("inline");
+	});
+
 	it("forces attachment + sandbox for SVG and other active types", () => {
 		expect(originalMediaHeaders("image/svg+xml")["Content-Disposition"]).toBe("attachment");
 		expect(originalMediaHeaders("application/pdf")["Content-Disposition"]).toBe("attachment");
