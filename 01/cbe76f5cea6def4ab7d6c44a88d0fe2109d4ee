@@ -1,0 +1,41 @@
+packages/core/tests/integration/smoke/site-matrix-smoke.test.ts
+  s_81c53493e8c532::t_63d28716b976ea 389
+templates/marketing-cloudflare/AGENTS.md
+  s_81c53493e8c532::t_199f452011a454 61-64,103-105
+templates/marketing-cloudflare/src/components/MarketingBlocks.astro
+  s_81c53493e8c532::t_9c49420e7cdca3 2
+templates/marketing-cloudflare/src/pages/contact.astro
+  s_81c53493e8c532::t_1dffc556d5e97f 9,11
+templates/marketing-cloudflare/src/pages/pricing.astro
+  s_81c53493e8c532::t_e70aeb8093113d 2
+templates/marketing-cloudflare/src/plugins/marketing-blocks/index.ts
+  s_81c53493e8c532::t_99f7aaf4991212 2,13-14
+templates/marketing/AGENTS-template.md
+  s_81c53493e8c532::t_a3ac4de94fe0b7 17-20,59-61
+templates/marketing/AGENTS.md
+  s_81c53493e8c532::t_ae5f6191ef8ae4 61-64,103-105
+templates/marketing/src/components/MarketingBlocks.astro
+  s_81c53493e8c532::t_3ab475f9f377d4 2
+templates/marketing/src/pages/contact.astro
+  s_81c53493e8c532::t_e70ba36ee55f3b 9,11
+templates/marketing/src/pages/pricing.astro
+  s_81c53493e8c532::t_00419c93f03b88 2
+templates/marketing/src/plugins/marketing-blocks/index.ts
+  s_81c53493e8c532::t_089098a35faf96 2,13-14
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "01cbe76f5cea6def4ab7d6c44a88d0fe2109d4ee",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
