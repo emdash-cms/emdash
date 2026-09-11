@@ -2,6 +2,7 @@
 import { getEmDashCollection } from "../../query.js";
 import { getI18nConfig } from "../../i18n/config.js";
 import { getSiteSettings } from "../../settings/index.js";
+import { sanitizeHref } from "../../utils/url.js";
 import EmDashImage from "../EmDashImage.astro";
 import { buildLiveSearchResultUrl } from "../live-search-routing.js";
 import {
@@ -50,13 +51,15 @@ function getTitle(data: Record<string, unknown>): string | undefined {
 			// use the same token semantics as LiveSearch's routeMap — `:id`
 			// is the content ULID (`data.id`), `:slug` the bare slug.
 			const href = urlTemplate
-				? buildLiveSearchResultUrl(
-						{
-							collection: "posts",
-							id: typeof post.data.id === "string" ? post.data.id : post.id,
-							slug: typeof post.data.slug === "string" ? post.data.slug : post.id,
-						},
-						{ posts: urlTemplate },
+				? sanitizeHref(
+						buildLiveSearchResultUrl(
+							{
+								collection: "posts",
+								id: typeof post.data.id === "string" ? post.data.id : post.id,
+								slug: typeof post.data.slug === "string" ? post.data.slug : post.id,
+							},
+							{ posts: urlTemplate },
+						),
 					)
 				: `/posts/${post.id}`;
 			return (

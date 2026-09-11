@@ -44,4 +44,8 @@ describe("RecentPosts link URLs", () => {
 			"/posts/01ARZ3NDEKTSV4RRFFQ69G5FAV",
 		);
 	});
+
+	it("neutralizes a template with an unsafe URL scheme", async () => {
+		expect(await renderHref({ urlTemplate: "javascript:alert(1)/:slug" })).toBe("#");
+	});
 });

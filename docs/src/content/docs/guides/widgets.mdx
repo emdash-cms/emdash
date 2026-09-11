@@ -41,6 +41,8 @@ The following built-in component widgets are available:
 | `core:search` | A search form that submits to `/search` |
 | `core:archives` | Monthly or yearly post archive links |
 
+The `core:recent-posts` link template accepts the same tokens as LiveSearch's `routeMap`: `:collection`, `:id` (the content ULID), `:slug` (the bare slug), and `:path` (slug or ID). Without a template, links keep their existing shape, including any Astro i18n locale prefix.
+
 ## Place the area in a template
 
 Import `WidgetArea` from `emdash/ui`. The component fetches the named area, preserves the configured order, and renders nothing when the area is missing or empty.
