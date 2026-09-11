@@ -86,10 +86,10 @@ const readingTime = getReadingTime(post.data.content);
 	}
 
 	.article-shell {
-		--article-content-width: 52rem;
+		--article-content-width: 100%;
 
 		width: calc(100% - 3rem);
-		max-width: 61rem;
+		max-width: var(--focused-width);
 		margin-inline: auto;
 	}
 
