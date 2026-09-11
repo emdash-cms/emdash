@@ -33,6 +33,29 @@ pnpm add -D @emdash-cms/plugin-cli
 
 Replace `emdash-registry` with `emdash-plugin` everywhere you call it. Every subcommand keeps its name (`bundle`, `publish`, `login`, `whoami`, `switch`, `validate`), and `init`, `build`, and `dev` are added. See [The plugin CLI](/plugins/creating-plugins/cli/).
 
+### Renamed: capability names use resource-first spelling
+
+Earlier manifests used capability names such as `read:content` and `network:fetch`. The authoring manifest accepts only the current names, although the runtime still normalizes legacy names in already-published bundles during the compatibility window.
+
+#### What should I do?
+
+Replace every legacy name in the manifest:
+
+| Earlier name | Current name |
+| --- | --- |
+| `network:fetch` | `network:request` |
+| `network:fetch:any` | `network:request:unrestricted` |
+| `read:content` | `content:read` |
+| `write:content` | `content:write` |
+| `read:media` | `media:read` |
+| `write:media` | `media:write` |
+| `read:users` | `users:read` |
+| `email:provide` | `hooks.email-transport:register` |
+| `email:intercept` | `hooks.email-events:register` |
+| `page:inject` | `hooks.page-fragments:register` |
+
+Use `network:request` with a non-empty `allowedHosts` list. Use `network:request:unrestricted` with an empty list only when an operator chooses the destination at runtime. [Capabilities and security](/plugins/creating-plugins/capabilities/) explains the current permissions and network rules.
+
 ### Changed: sandboxed plugins are defined with `satisfies SandboxedPlugin`
 
 Earlier releases wrapped the plugin's hooks and routes in `definePlugin()` imported from `emdash`, with each handler's parameters annotated by hand.
@@ -166,11 +189,11 @@ These are removed. They were helper aliases for the previous `definePlugin` shap
 
 Use `SandboxedPlugin` from `emdash/plugin` for the same purpose. A sandboxed plugin's default export is already typed by its `satisfies SandboxedPlugin` annotation, so there is no replacement for `isStandardPluginDefinition`; identify a plugin by its structure (`{ hooks?, routes? }`) if you need to.
 
-### Renamed: the runtime `SandboxedPlugin` type is now `SandboxedPluginInstance`
+### Renamed: sandbox-runner handles use `SandboxedPluginInstance`
 
 This affects only authors of a custom `SandboxRunner`, such as `@emdash-cms/cloudflare`. Most plugin authors can skip it.
 
-`SandboxedPlugin` from `emdash` now refers to the author-facing source shape. The runtime handle returned by `SandboxRunner.load` is `SandboxedPluginInstance`.
+The author-facing `SandboxedPlugin` type is available only from the type-only `emdash/plugin` entry point. The runtime handle returned by `SandboxRunner.load` is exported from `emdash` as `SandboxedPluginInstance`.
 
 #### What should I do?
 
@@ -199,7 +222,20 @@ export default defineConfig({
 });
 ```
 
-If your plugin accepted configuration through its factory, that configuration moves to the admin UI's plugin settings. Read it at runtime through `ctx.kv` or settings instead. See [Settings](/plugins/creating-plugins/settings/).
+If your plugin accepted configuration through its factory, move that configuration to an admin settings page and read it from `ctx.kv`. Sandboxed plugin descriptors are plain objects and cannot receive constructor options. See [Settings](/plugins/creating-plugins/settings/).
+
+## Verify the migrated plugin
+
+Run the plugin's tests, validate the authoring manifest, and execute the complete build and bundle checks:
+
+```sh
+pnpm test
+pnpm exec emdash-plugin validate
+pnpm exec emdash-plugin build
+pnpm exec emdash-plugin bundle --validate-only
+```
+
+Then install the local package into a development site and exercise each migrated hook and route. The build can confirm their names and shapes, but it cannot confirm that a route returns the intended data or that a hook preserves content correctly.
 
 ## Next
 

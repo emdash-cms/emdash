@@ -1,555 +1,453 @@
 ---
-title: React admin pages and widgets
-description: Ship custom React components for plugin admin pages and dashboard widgets.
+title: React admin extensions
+description: Add generated settings, React pages and widgets, editor panels, and content-list columns to a native plugin.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-Native plugins can extend the admin panel with custom React pages, dashboard widgets, field widgets, and content-list columns — sandboxed plugins describe their UI as [Block Kit](/plugins/creating-plugins/block-kit/) instead, because shipping plugin JavaScript into the admin would break sandbox isolation.
+Native plugins can load trusted React components into the EmDash admin. The host keeps control of navigation, page routing, dashboard cards, editor layout, content tables, authentication, and error boundaries. The plugin supplies the components and the metadata needed to place them.
 
-If your plugin only needs a settings form, the auto-generated `admin.settingsSchema` form (see [Your first native plugin](/plugins/creating-native-plugins/your-first-native-plugin/#settings-ui)) covers most cases without writing any React. Reach for custom components when you need richer UI than `settingsSchema` provides.
+If the plugin only needs a settings form, start with `admin.settingsSchema`. It uses the host's form components and does not require a React entrypoint. Sandboxed plugins can also use this generated form; the custom React extensions on this page require a native plugin.
 
-## Admin entry point
+## Generated settings form
 
-Plugins with admin UI export `pages` and `widgets` objects from an `admin` entrypoint:
-
-```typescript title="src/admin.tsx"
-import { SEOSettingsPage } from "./components/SEOSettingsPage";
-import { SEODashboardWidget } from "./components/SEODashboardWidget";
-
-export const widgets = {
-	"seo-overview": SEODashboardWidget,
-};
-
-export const pages = {
-	"/settings": SEOSettingsPage,
-};
-```
-
-Configure the entry point in `package.json`:
-
-```json title="package.json"
-{
-	"exports": {
-		".": "./dist/index.js",
-		"./admin": "./dist/admin.js"
-	}
-}
-```
-
-Reference it from `definePlugin()`:
+Declare `settingsSchema` inside the runtime definition. The following schema produces a multiline text field, a select, a number input, a switch, and a write-only secret input:
 
 ```typescript title="src/index.ts"
-definePlugin({
-	id: "seo",
-	version: "1.0.0",
-
+return definePlugin({
+	id: "plugin-activity",
+	version: "0.1.0",
 	admin: {
-		entry: "@my-org/plugin-seo/admin",
-		pages: [{ path: "/settings", label: "SEO Settings", icon: "settings" }],
-		widgets: [{ id: "seo-overview", title: "SEO Overview", size: "half" }],
+		settingsSchema: {
+			projectName: {
+				type: "string",
+				label: "Project name",
+				description: "Name shown in activity exports",
+			},
+			notes: {
+				type: "string",
+				label: "Internal notes",
+				multiline: true,
+			},
+			mode: {
+				type: "select",
+				label: "Recording mode",
+				options: [
+					{ value: "creates", label: "New entries only" },
+					{ value: "all", label: "New and updated entries" },
+				],
+				default: "all",
+			},
+			retentionDays: {
+				type: "number",
+				label: "Retention in days",
+				min: 1,
+				max: 365,
+				default: 30,
+			},
+			enabled: {
+				type: "boolean",
+				label: "Record activity",
+				default: true,
+			},
+			exportToken: {
+				type: "secret",
+				label: "Export token",
+			},
+		},
 	},
 });
 ```
 
-The descriptor needs a matching `adminEntry` so EmDash knows where to find the components at build time:
+The available fields have the following options. `label` is required and `description` is optional for every type.
 
-```typescript
-adminEntry: "@my-org/plugin-seo/admin",
+| `type` | Value | Additional fields |
+| --- | --- | --- |
+| `string` | string | `default`, `multiline` |
+| `number` | number | `default`, `min`, `max` |
+| `boolean` | boolean | `default` |
+| `select` | string | required `options: Array<{ value, label }>` and optional `default` |
+| `secret` | string | no additional fields; the stored value is never returned to the browser |
+| `url` | string | `default`, `placeholder` |
+| `email` | string | `default`, `placeholder` |
+
+The form is available from the settings control on the plugin's card in **Plugins**. Reading or changing it requires `plugins:manage`.
+
+Settings use the plugin's namespaced KV store. A field named `retentionDays` is available to the plugin as `settings:retentionDays`:
+
+```typescript title="src/index.ts"
+const retentionDays =
+	(await ctx.kv.get<number>("settings:retentionDays")) ?? 30;
 ```
+
+Schema defaults fill the generated form when no value is stored, but EmDash does not write those defaults to KV. Apply the same fallback when the runtime reads the setting. Clearing a non-secret field deletes its stored value and returns the form to its default. Secret values are never sent back to the browser; the form reports only whether a secret is set and lets an administrator replace or clear it.
+
+Settings labels and descriptions render as declared. If those strings must change with the admin locale, build a custom React settings page instead.
+
+## React entrypoint
+
+A trusted React extension has three connected declarations:
+
+1. The descriptor's `adminEntry` tells Astro which module to bundle into the admin.
+2. The runtime's `admin.entry`, `admin.pages`, and `admin.widgets` describe the visible admin surfaces.
+3. The admin module exports component maps whose keys match the declared page paths and widget IDs.
+
+The descriptor only needs the module specifier. Page and widget metadata belongs in the runtime definition:
+
+```typescript title="src/index.ts"
+export function activityPlugin(): PluginDescriptor {
+	return {
+		id: "plugin-activity",
+		version: "0.1.0",
+		format: "native",
+		entrypoint: "@example/plugin-activity",
+		adminEntry: "@example/plugin-activity/admin",
+	};
+}
+
+export function createPlugin() {
+	return definePlugin({
+		id: "plugin-activity",
+		version: "0.1.0",
+		storage: {
+			events: { indexes: ["createdAt"] },
+		},
+		admin: {
+			entry: "@example/plugin-activity/admin",
+			pages: [{ path: "/activity", label: "Activity", icon: "clock" }],
+			widgets: [{ id: "recent-activity", title: "Recent activity" }],
+		},
+	});
+}
+```
+
+Keep `adminEntry` and `admin.entry` identical. The first is a build-time import; the second tells the runtime that the plugin uses trusted React admin components.
 
 ## Admin pages
 
-Admin pages are React components that mount under `/_emdash/admin/plugins/<plugin-id>/<path>`.
+Each page declaration has the following fields:
 
-### Page definition
+| Field | Required | Behavior |
+| --- | --- | --- |
+| `path` | Yes | Mounts the page at `/_emdash/admin/plugins/<plugin-id><path>`. Use a leading slash. |
+| `label` | Yes | Supplies the sidebar and command-palette label. |
+| `icon` | No | Names a Phosphor icon in kebab, snake, space-separated, or PascalCase form. Unknown names fall back to the plugin icon. |
 
-Declare each page under `admin.pages` with a path, label, and icon:
+The admin module maps each declared path to a React component. A trailing slash is treated as equivalent, and the plugin root opens the first exported page when no `/` page exists.
 
-```typescript
-admin: {
-	pages: [
-		{
-			path: "/settings",
-			label: "Settings",
-			icon: "settings",
-		},
-		{
-			path: "/reports",
-			label: "Reports",
-			icon: "chart",
-		},
-	],
-}
-```
+The following page loads a private plugin route. Use Kumo for controls and `apiFetch()` for plugin API requests; `apiFetch()` adds the `X-EmDash-Request: 1` header required by cookie-authenticated private routes.
 
-Declare labels in English. The admin runs them through its shared [Lingui](https://lingui.dev/) instance before rendering the sidebar and command palette, so a plugin that loads its own message catalog — with the English label as the message id — gets localized navigation for free. Labels that match one of the admin's own messages (`Settings`, `Dashboard`, …) pick up the admin's translations even without a plugin catalog; labels with no catalog entry anywhere render as declared.
+```tsx title="src/admin/ActivityPage.tsx"
+import { Button, Loader } from "@cloudflare/kumo";
+import { useLingui } from "@lingui/react";
+import { apiFetch, parseApiResponse } from "emdash/plugin-utils";
+import * as React from "react";
 
-```typescript title="src/admin.tsx"
-import { i18n } from "@lingui/core";
-
-// Merge the plugin's compiled catalog into the admin's i18n instance.
-// "Reports" now renders as "Berichte" when the admin locale is German.
-const catalogs: Record<string, Record<string, string>> = {
-	de: { Reports: "Berichte", Settings: "Einstellungen" },
-};
-
-function mergeCatalog() {
-	const messages = catalogs[i18n.locale];
-	if (messages && !("Reports" in i18n.messages)) i18n.load(i18n.locale, messages);
+interface ActivitySummary {
+	count: number;
 }
 
-mergeCatalog();
-// The admin's locale switcher *replaces* the catalog on change, so re-merge.
-// The sentinel check above keeps this from recursing (load() fires "change").
-i18n.on("change", mergeCatalog);
-```
+export function ActivityPage() {
+	const { i18n } = useLingui();
+	const [summary, setSummary] = React.useState<ActivitySummary>();
+	const [error, setError] = React.useState<string>();
 
-### Page component
+	const load = React.useCallback(async () => {
+		setError(undefined);
+		try {
+			const response = await apiFetch(
+				"/_emdash/api/plugins/plugin-activity/summary",
+			);
+			setSummary(
+				await parseApiResponse<ActivitySummary>(
+					response,
+					i18n._({ id: "activity.load-error", message: "Could not load activity" }),
+				),
+			);
+		} catch (cause) {
+			setError(cause instanceof Error ? cause.message : String(cause));
+		}
+	}, [i18n]);
 
-The following component reads and saves settings through the plugin API hook:
-
-```typescript title="src/components/SettingsPage.tsx"
-import { useState, useEffect } from "react";
-import { usePluginAPI } from "@emdash-cms/admin";
-
-export function SettingsPage() {
-	const api = usePluginAPI();
-	const [settings, setSettings] = useState<Record<string, unknown>>({});
-	const [saving, setSaving] = useState(false);
-
-	useEffect(() => {
-		api.get("settings").then(setSettings);
-	}, []);
-
-	const handleSave = async () => {
-		setSaving(true);
-		await api.post("settings/save", settings);
-		setSaving(false);
-	};
+	React.useEffect(() => {
+		void load();
+	}, [load]);
 
 	return (
-		<div>
-			<h1>Plugin Settings</h1>
-
-			<label>
-				Site Title
-				<input
-					type="text"
-					value={(settings.siteTitle as string) || ""}
-					onChange={(e) => setSettings({ ...settings, siteTitle: e.target.value })}
-				/>
-			</label>
-
-			<button onClick={handleSave} disabled={saving}>
-				{saving ? "Saving..." : "Save Settings"}
-			</button>
-		</div>
+		<section className="space-y-4">
+			<h1 className="text-2xl font-semibold">
+				{i18n._({ id: "activity.title", message: "Activity" })}
+			</h1>
+			{summary ? (
+				<p>
+					{i18n._({ id: "activity.count", message: "Event count" })}: {summary.count}
+				</p>
+			) : error ? (
+				<p role="alert" className="text-kumo-danger">{error}</p>
+			) : (
+				<Loader />
+			)}
+			<Button type="button" onClick={() => void load()}>
+				{i18n._({ id: "activity.refresh", message: "Refresh" })}
+			</Button>
+		</section>
 	);
 }
 ```
 
-### Plugin API hook
+Define the corresponding route in the native runtime. Native handlers receive one context argument:
 
-`usePluginAPI()` calls your plugin's routes with the plugin id prefix and the `X-EmDash-Request: 1` CSRF header added automatically:
-
-```typescript
-import { usePluginAPI } from "@emdash-cms/admin";
-
-function MyComponent() {
-	const api = usePluginAPI();
-
-	const data = await api.get("status");                       // GET /_emdash/api/plugins/<id>/status
-	await api.post("settings/save", { enabled: true });          // POST with JSON body
-	const result = await api.get("history?limit=50");            // query params supported
-}
+```typescript title="src/index.ts"
+routes: {
+	summary: {
+		permission: "plugins:read",
+		handler: async (ctx) => ({
+			count: await ctx.storage.events.count(),
+		}),
+	},
+},
 ```
+
+Private routes default to the administrator-only `plugins:manage` permission. Declare the narrowest existing permission that matches the operation. Use `public: true` only for an endpoint intended for unauthenticated internet traffic.
+
+Export the page from the admin entrypoint:
+
+```tsx title="src/admin/index.tsx"
+import type { PluginAdminExports } from "emdash";
+
+import { ActivityPage } from "./ActivityPage.js";
+
+export const pages: PluginAdminExports["pages"] = {
+	"/activity": ActivityPage,
+};
+```
+
+Page labels are passed through the admin's shared Lingui instance. A label such as `Settings` uses the admin's translation when one exists. A plugin can load its own message catalog into the shared instance for plugin-specific labels and component messages; otherwise the declared English message is the fallback.
+
+Load the plugin catalog when the admin entrypoint is imported, then load it again after the administrator changes locale. The following small German catalog uses the same IDs as the page and widget examples:
+
+```typescript title="src/admin/i18n.ts"
+import { i18n } from "@lingui/core";
+
+const catalogs: Record<string, Record<string, string>> = {
+	de: {
+		Activity: "Aktivität",
+		"activity.title": "Aktivität",
+		"activity.count": "Ereignisanzahl",
+		"activity.refresh": "Aktualisieren",
+		"activity.load-error": "Aktivität konnte nicht geladen werden",
+		"activity.unavailable": "Nicht verfügbar",
+		"activity.default-locale": "Standardsprache",
+	},
+};
+
+function loadPluginCatalog() {
+	const messages = catalogs[i18n.locale];
+	if (!messages || "activity.title" in i18n.messages) return;
+	i18n.load(i18n.locale, messages);
+}
+
+loadPluginCatalog();
+i18n.on("change", loadPluginCatalog);
+```
+
+Import the loader for its registration side effect before exporting components:
+
+```tsx title="src/admin/index.tsx"
+import "./i18n.js";
+
+// Page, widget, panel, and column exports follow.
+```
+
+The admin replaces its active catalog when the locale changes. The `change` listener restores the plugin messages, and the message-ID check prevents `i18n.load()` from triggering a loop. For more locales, generate the message objects with the plugin's Lingui build instead of maintaining them by hand. Keep `@lingui/core` and `@lingui/react` as peer dependencies so the plugin uses the host's shared instance.
 
 ## Dashboard widgets
 
-Widgets appear on the admin dashboard and provide at-a-glance information.
+A widget declaration has a required `id` and optional `title` and `size`:
 
-### Widget definition
-
-Declare each widget under `admin.widgets` with an id, title, and size:
-
-```typescript
+```typescript title="src/index.ts"
 admin: {
+	entry: "@example/plugin-activity/admin",
 	widgets: [
-		{
-			id: "seo-overview",
-			title: "SEO Overview",
-			size: "half",   // "full" | "half" | "third"
-		},
+		{ id: "recent-activity", title: "Recent activity", size: "half" },
 	],
-}
+},
 ```
 
-### Widget component
+Export a component under the same ID. This widget reads the same summary route as the page and supplies only the card content; EmDash supplies the surrounding dashboard card and heading.
 
-The following component fetches its data on mount and renders a compact summary:
+```tsx title="src/admin/index.tsx"
+import { useLingui } from "@lingui/react";
+import { useQuery } from "@tanstack/react-query";
+import type { PluginAdminExports } from "emdash";
+import { apiFetch, parseApiResponse } from "emdash/plugin-utils";
 
-```typescript title="src/components/SEOWidget.tsx"
-import { useState, useEffect } from "react";
-import { usePluginAPI } from "@emdash-cms/admin";
+interface ActivitySummary {
+	count: number;
+}
 
-export function SEOWidget() {
-	const api = usePluginAPI();
-	const [data, setData] = useState({ score: 0, issues: [] });
-
-	useEffect(() => {
-		api.get("analyze").then(setData);
-	}, []);
-
-	return (
-		<div className="widget-content">
-			<div className="score">{data.score}%</div>
-			<ul>
-				{data.issues.map((issue, i) => (
-					<li key={i}>{(issue as { message: string }).message}</li>
-				))}
-			</ul>
-		</div>
+async function loadSummary(fallbackMessage: string) {
+	const response = await apiFetch(
+		"/_emdash/api/plugins/plugin-activity/summary",
+	);
+	return parseApiResponse<ActivitySummary>(
+		response,
+		fallbackMessage,
 	);
 }
+
+function RecentActivityWidget() {
+	const { i18n } = useLingui();
+	const { data, isLoading, isError } = useQuery({
+		queryKey: ["plugin-activity", "summary"],
+		queryFn: () =>
+			loadSummary(
+				i18n._({ id: "activity.load-error", message: "Could not load activity" }),
+			),
+	});
+
+	return (
+		<p>
+			{i18n._({ id: "activity.count", message: "Event count" })}:{" "}
+			{isLoading
+				? "…"
+				: isError
+					? i18n._({ id: "activity.unavailable", message: "Unavailable" })
+					: (data?.count ?? 0)}
+		</p>
+	);
+}
+
+export const widgets: PluginAdminExports["widgets"] = {
+	"recent-activity": RecentActivityWidget,
+};
 ```
 
-### Widget sizes
-
-| Size    | Description               |
-| ------- | ------------------------- |
-| `full`  | Full dashboard width      |
-| `half`  | Half dashboard width      |
-| `third` | One-third dashboard width |
-
-Widgets wrap automatically based on screen width.
+The host places the component inside a dashboard card and renders `title` as its heading. Keep the component compact and do not add a second card shell. `size` accepts `full`, `half`, or `third`; it is stored as a layout hint, but the current dashboard renders plugin widgets in its responsive two-column grid without applying that hint.
 
 ## Content editor panels
 
-A trusted React plugin can add host-framed sections to the settings sidebar for saved content entries. EmDash owns the section heading and placement, applies collection and role filters, and isolates rendering failures so one plugin panel cannot unmount the editor.
+An editor panel adds a host-framed section to the settings sidebar of a saved entry. It does not mount for a new entry because no saved `entry` exists yet.
 
-Export a `contentEditorPanels` array from the plugin admin entry:
+Panels and content-list columns are discovered directly from the trusted admin module. They need `adminEntry` and `admin.entry` so the module loads, but they do not need entries in `admin.pages` or `admin.widgets`.
 
-```tsx title="src/admin.tsx"
-import type { ContentEditorPanelContext } from "@emdash-cms/admin";
+```tsx title="src/admin/index.tsx"
+import type {
+	ContentEditorPanelContext,
+	ContentEditorPanelExtension,
+} from "@emdash-cms/admin";
+import { useLingui } from "@lingui/react";
 
-function ContentInsights({ entry, locale }: ContentEditorPanelContext) {
+function ActivityPanel({ entry, collection, locale }: ContentEditorPanelContext) {
+	const { i18n } = useLingui();
+	const displayLocale =
+		locale ??
+		i18n._({ id: "activity.default-locale", message: "Default locale" });
+
 	return (
-		<p>
-			Analysis for {entry.slug} in {locale ?? "the default locale"}
+		<p className="text-sm text-kumo-subtle">
+			{collection}/{entry.slug} ({displayLocale})
 		</p>
 	);
 }
 
 export const contentEditorPanels = [
 	{
-		id: "content-insights",
-		title: "Content insights",
-		component: ContentInsights,
+		id: "activity-summary",
+		title: "Activity summary",
+		component: ActivityPanel,
 		collections: ["posts", "pages"],
-		minRole: 40,
 		order: 10,
 	},
-];
+] satisfies readonly ContentEditorPanelExtension[];
 ```
 
-Each panel receives the saved `entry`, its `collection`, and resolved `locale`. Panels are not mounted for new, unsaved entries. `collections` may be an array or a predicate and can be omitted to support every collection. Lower `order` values render first among contributed panels; ties are resolved deterministically by plugin and panel ID.
+Panel fields have the following behavior:
 
-Panel IDs must be unique within the plugin. Keep panel content responsive to the narrow settings sidebar and perform authorization in plugin API routes rather than relying on `minRole`, which only controls visibility.
+- `id`, `title`, and `component` are required. The ID must be unique among this plugin's panels.
+- `collections` is an array of collection names or a predicate. Omit it to show the panel for every collection.
+- `minRole` is a numeric visibility threshold. It does not authorize API calls.
+- `order` sorts lower values first. Ties use plugin ID and panel ID.
 
-<Aside type="note">
-	This extension point is available only to trusted React plugins. Sandboxed plugins cannot execute React components inside the host admin.
-</Aside>
+The component receives the saved `entry`, its `collection`, and the resolved `locale`. Keep its layout responsive to the narrow sidebar. EmDash isolates component and collection-predicate failures so one panel cannot unmount the editor.
 
 ## Content-list columns
 
-Trusted React plugins can add read-only columns to active content collection lists. EmDash keeps ownership of the table, pagination, row actions, and loading and empty states; the plugin supplies only the header metadata and cell content.
+A content-list column adds read-only cells to active collection lists. The host still owns pagination, row actions, loading and empty states, and the table itself. Columns are not shown in Trash.
 
-```typescript title="src/admin.tsx"
+The following column uses `visibleItems` to fetch one page of statuses. Every cell uses the same React Query key, so the requests share one result instead of issuing one request per row.
+
+```tsx title="src/admin/index.tsx"
+import { useQuery } from "@tanstack/react-query";
 import type {
 	ContentListColumnCellContext,
 	ContentListColumnExtension,
 } from "@emdash-cms/admin";
-import { useQuery } from "@tanstack/react-query";
 import { apiFetch, parseApiResponse } from "emdash/plugin-utils";
 
-async function fetchReviewStatuses(
+async function loadStatuses(
 	collection: string,
 	locale: string | undefined,
 	ids: readonly string[],
 ) {
 	const response = await apiFetch(
-		"/_emdash/api/plugins/editorial-workflow/review-statuses/batch",
+		"/_emdash/api/plugins/plugin-activity/statuses",
 		{
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
 			body: JSON.stringify({ collection, locale, ids }),
 		},
 	);
-	return parseApiResponse<Record<string, string>>(response, "Failed to load review statuses");
+	return parseApiResponse<Record<string, string>>(
+		response,
+		"Could not load activity statuses",
+	);
 }
 
-function ReviewStatusCell({
+function ActivityCell({
 	item,
 	visibleItems,
 	collection,
 	locale,
 }: ContentListColumnCellContext) {
-	const itemIds = visibleItems.map((visibleItem) => visibleItem.id);
-	const { data: reviewStatuses } = useQuery({
-		queryKey: ["editorial-workflow", "review-statuses", collection, locale ?? null, itemIds],
-		queryFn: () => fetchReviewStatuses(collection, locale, itemIds),
+	const ids = visibleItems.map((visibleItem) => visibleItem.id);
+	const { data } = useQuery({
+		queryKey: ["plugin-activity", "statuses", collection, locale ?? null, ids],
+		queryFn: () => loadStatuses(collection, locale, ids),
 	});
-	const reviewStatus = reviewStatuses?.[item.id];
-	return reviewStatus ? <span>{reviewStatus}</span> : <span>-</span>;
+
+	return <span>{data?.[item.id] ?? "-"}</span>;
 }
 
 export const contentListColumns = [
 	{
-		id: "review-status",
-		label: "Review status",
+		id: "activity",
+		label: "Activity",
+		cell: ActivityCell,
 		collections: ["posts", "pages"],
-		order: 10,
 		align: "end",
-		cell: ReviewStatusCell,
+		order: 10,
 	},
 ] satisfies readonly ContentListColumnExtension[];
 ```
 
-Every cell component mounts once per visible row. When a column needs data that is not already on `item`, use `visibleItems` to request the whole page in one batch. All cells in the example share the same React Query key, so they reuse one request instead of issuing one request per item.
-
 <Aside type="caution">
-	Do not fetch metadata using only `item.id` from inside a cell. A 20-row page would issue 20 requests. Add a batch plugin route and key the shared query by the visible item ids, collection, and locale.
+	Do not key remote data by only `item.id` inside a cell. Each visible row mounts a cell component, so that pattern creates one request per row. Batch the visible IDs in a plugin route and include the IDs, collection, and locale in the shared query key.
 </Aside>
 
-Column ids only need to be unique within the plugin. Contributions are ordered by `order`, then plugin id and column id. A plugin can also provide:
+Column fields have the following behavior:
 
-- `header`: a custom header component; `label` remains the host-rendered fallback.
-- `collections`: an array or predicate restricting where the column appears.
-- `minRole`: a visibility filter for the admin UI. This is not authorization; plugin API routes must still enforce access.
+- `id`, `label`, and `cell` are required. The ID must be unique among this plugin's columns.
+- `header` replaces the header content with a component; `label` remains the host fallback.
+- `collections`, `minRole`, and `order` behave like their panel equivalents.
+- `align` accepts `start` or `end` and uses logical alignment for left-to-right and right-to-left locales.
 
-Disabled or missing plugins are omitted. Invalid definitions, collection predicates that throw, and render failures are isolated so the host content list remains usable. Columns are not shown in Trash.
+Columns cannot add browser-only sorting or filtering. Those controls would affect only the loaded cursor page, not the full server-backed collection.
 
-Content-list columns are display-only. Server-backed sorting and filtering require a separate host data-provider contract; a browser comparator would only sort the currently loaded cursor pages and is therefore not supported by this API.
+## Disabled plugins
 
-## Export structure
+When an administrator disables the plugin, EmDash removes its pages, widgets, panels, and columns from the admin. Its private routes return not found, and its hooks stop running. Re-enabling the plugin rebuilds the hook pipeline and makes its trusted admin exports available again.
 
-The admin entry point exports each contribution directly:
+## Package the entrypoint
 
-```typescript title="src/admin.tsx"
-import { SettingsPage } from "./components/SettingsPage";
-import { ReportsPage } from "./components/ReportsPage";
-import { StatusWidget } from "./components/StatusWidget";
-import { OverviewWidget } from "./components/OverviewWidget";
-import { ReviewStatusCell } from "./components/ReviewStatusCell";
-
-export const pages = {
-	"/settings": SettingsPage,
-	"/reports": ReportsPage,
-};
-
-export const widgets = {
-	status: StatusWidget,
-	overview: OverviewWidget,
-};
-
-export const contentListColumns = [
-	{
-		id: "review-status",
-		label: "Review status",
-		collections: ["posts"],
-		cell: ReviewStatusCell,
-	},
-];
-```
-
-<Aside type="caution">
-	Page paths in `pages` should match the `path` values in `admin.pages`. A trailing slash is treated as equivalent, so `/settings` and `/settings/` resolve to the same page. Opening a plugin at its root resolves to the first registered page. Widget keys must match the `id` values in `admin.widgets`. Content-list columns are discovered directly from the trusted admin entry point and do not need a separate descriptor entry.
-</Aside>
-
-## Using admin components
-
-EmDash provides pre-built components for common patterns:
-
-```typescript
-import {
-	Card,
-	Button,
-	Input,
-	Select,
-	Toggle,
-	Table,
-	Pagination,
-	Alert,
-	Loading,
-} from "@emdash-cms/admin";
-
-function SettingsPage() {
-	return (
-		<Card title="Settings">
-			<Input label="API Key" type="password" />
-			<Toggle label="Enabled" defaultChecked />
-			<Button variant="primary">Save</Button>
-		</Card>
-	);
-}
-```
-
-## Auto-generated settings UI
-
-If your plugin only needs a settings form, use `admin.settingsSchema` without custom components:
-
-```typescript
-admin: {
-	settingsSchema: {
-		apiKey: { type: "secret", label: "API Key" },
-		enabled: { type: "boolean", label: "Enabled", default: true },
-	},
-},
-```
-
-EmDash generates a settings page automatically. Reach for custom React pages only when you need behaviour beyond a basic form.
-
-## Navigation
-
-Plugin pages appear in the admin sidebar under the plugin's name. The order matches the `admin.pages` array, as shown below:
-
-```typescript
-admin: {
-	pages: [
-		{ path: "/settings", label: "Settings", icon: "settings" },  // first
-		{ path: "/history", label: "History", icon: "history" },     // second
-		{ path: "/reports", label: "Reports", icon: "chart" },        // third
-	],
-}
-```
-
-## Build configuration
-
-Admin components need a separate build entry point. The following bundler configuration builds both the server and admin entrypoints:
-
-<Tabs>
-<TabItem label="tsdown">
-```typescript title="tsdown.config.ts"
-export default {
-	entry: {
-		index: "src/index.ts",
-		admin: "src/admin.tsx",
-	},
-	format: "esm",
-	dts: true,
-	external: ["react", "react-dom", "emdash", "@emdash-cms/admin"],
-};
-```
-</TabItem>
-<TabItem label="tsup">
-```typescript title="tsup.config.ts"
-export default {
-	entry: ["src/index.ts", "src/admin.tsx"],
-	format: "esm",
-	dts: true,
-	external: ["react", "react-dom", "emdash", "@emdash-cms/admin"],
-};
-```
-</TabItem>
-</Tabs>
-
-Keep React and EmDash admin as external dependencies to avoid bundling duplicates.
-
-## Plugin enable/disable
-
-When a plugin is disabled in the admin:
-
-- Sidebar links are hidden.
-- Dashboard widgets are not rendered.
-- Content-list columns are not rendered.
-- Admin pages return 404.
-- Backend hooks still execute (for data safety).
-
-Plugins can check their enabled state:
-
-```typescript
-const enabled = await ctx.kv.get<boolean>("_emdash:enabled");
-```
-
-## Complete example
-
-The following plugin defines a dashboard page, a settings page, and a widget, with the runtime and admin entrypoints in separate files. The `src/index.ts` file holds the descriptor and runtime:
-
-```typescript title="src/index.ts"
-import { definePlugin } from "emdash";
-import type { PluginDescriptor } from "emdash";
-
-export function analyticsPlugin(): PluginDescriptor {
-	return {
-		id: "analytics",
-		version: "1.0.0",
-		format: "native",
-		entrypoint: "@my-org/plugin-analytics",
-		adminEntry: "@my-org/plugin-analytics/admin",
-		adminPages: [
-			{ path: "/dashboard", label: "Dashboard", icon: "chart" },
-			{ path: "/settings", label: "Settings", icon: "settings" },
-		],
-		adminWidgets: [{ id: "events-today", title: "Events Today", size: "third" }],
-	};
-}
-
-export function createPlugin() {
-	return definePlugin({
-		id: "analytics",
-		version: "1.0.0",
-
-		capabilities: ["network:request"],
-		allowedHosts: ["api.analytics.example.com"],
-
-		storage: {
-			events: { indexes: ["type", "createdAt"] },
-		},
-
-		admin: {
-			entry: "@my-org/plugin-analytics/admin",
-			settingsSchema: {
-				trackingId: { type: "string", label: "Tracking ID" },
-				enabled: { type: "boolean", label: "Enabled", default: true },
-			},
-			pages: [
-				{ path: "/dashboard", label: "Dashboard", icon: "chart" },
-				{ path: "/settings", label: "Settings", icon: "settings" },
-			],
-			widgets: [{ id: "events-today", title: "Events Today", size: "third" }],
-		},
-
-		routes: {
-			stats: {
-				handler: async (ctx) => {
-					const today = new Date().toISOString().split("T")[0];
-					const count = await ctx.storage.events.count({
-						createdAt: { gte: today },
-					});
-					return { today: count };
-				},
-			},
-		},
-	});
-}
-
-export default createPlugin;
-```
-
-The `src/admin.tsx` file maps page paths and widget ids to their React components:
-
-```typescript title="src/admin.tsx"
-import { EventsWidget } from "./components/EventsWidget";
-import { DashboardPage } from "./components/DashboardPage";
-import { SettingsPage } from "./components/SettingsPage";
-
-export const widgets = {
-	"events-today": EventsWidget,
-};
-
-export const pages = {
-	"/dashboard": DashboardPage,
-	"/settings": SettingsPage,
-};
-```
+Export the admin module separately from the server runtime so Astro can bundle it for the browser with the host's React, Kumo, and Lingui instances. [Distributing native plugins](/plugins/creating-native-plugins/distributing/) provides the complete package layout, exports, peer dependencies, and build commands.

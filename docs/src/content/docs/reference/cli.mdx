@@ -5,7 +5,7 @@ description: Command-line interface for EmDash CMS.
 
 import { Aside } from "@astrojs/starlight/components";
 
-The EmDash CLI provides commands for managing an EmDash CMS instance — database setup, type generation, content CRUD, schema management, media, and more.
+The EmDash CLI provides commands for database setup, type generation, creating and editing content, schema management, media, and plugin development.
 
 ## Installation
 
@@ -21,31 +21,83 @@ Start your site with its package script, such as `pnpm dev`. The package script 
 
 ## Authentication
 
-Commands using the shared remote client resolve authentication in this order:
+Commands that connect to a running EmDash instance resolve authentication in this order:
 
 1. **`--token` flag** — explicit token on the command line
 2. **`EMDASH_TOKEN` env var**
 3. **Stored credentials** from `~/.config/emdash/auth.json` (saved by `emdash login`)
 4. **Dev bypass** — if the URL is localhost and no token is available, automatically authenticates via the dev bypass endpoint
 
-These commands accept `--url` (from `EMDASH_URL`, falling back to `http://localhost:4321`) and `--token` flags. Authentication commands have their own connection options. When targeting a local dev server, no token is needed.
+The `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, and `menu` commands connect to a running instance. Authentication commands have their own connection options. When targeting a local development server, no token is needed.
 
-## Common Flags
+## Common flags
 
-These flags are available on commands using the shared remote client:
+Connection flags vary by command. The grouped commands below mean every subcommand in that group.
 
-| Flag                    | Alias | Description                            | Default                          |
-| ----------------------- | ----- | -------------------------------------- | -------------------------------- |
-| `--url`                 | `-u`  | EmDash instance URL                    | `EMDASH_URL` or `http://localhost:4321` |
-| `--token`               | `-t`  | Auth token                             | From env/stored creds            |
-| `--header "Name: Value"` | `-H`  | Custom request header; may be repeated | From `EMDASH_HEADERS`/stored creds |
-| `--json`                |       | Output as JSON (for piping)            | Auto-detected from TTY           |
+| Flag                      | Alias | Available on | Description and default |
+| ------------------------- | ----- | ------------ | ----------------------- |
+| `--url`                   | `-u`  | `types`, `login`, `logout`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu` | Instance URL; defaults to `EMDASH_URL` or `http://localhost:4321` |
+| `--token`                 | `-t`  | `types`, `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu` | Token from the flag, `EMDASH_TOKEN`, or stored credentials |
+| `--header "Name: Value"` | `-H`  | `types`, `login`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu` | Repeatable header merged with `EMDASH_HEADERS` and stored headers |
+| `--json`                  |       | `whoami`, `content`, `schema`, `media`, `search`, `taxonomy`, `menu` | Write raw JSON instead of terminal-formatted output |
 
 ## Output
 
-For commands using the shared remote client, stdout is pretty-printed with consola when it is a TTY and becomes raw JSON when piped or when `--json` is set. `emdash migrate` emits JSON only with its explicit `--json` option.
+When a command writes results to an interactive terminal, it formats them for reading. The commands listed with `--json` above write raw JSON when the flag is set or their output is piped. `emdash migrate` emits JSON only with its explicit `--json` option.
 
 ## Commands
+
+### `emdash init`
+
+Initialize a local SQLite database from the template metadata in `package.json`. The command runs core migrations, then applies the optional SQL file named by `emdash.schema`. Run `emdash seed` separately for JSON seed data.
+
+```bash
+npx emdash init [options]
+```
+
+| Option       | Alias | Description                         | Default       |
+| ------------ | ----- | ----------------------------------- | ------------- |
+| `--database` | `-d`  | SQLite database path                | `./data.db`   |
+| `--cwd`      |       | Project working directory           | Current directory |
+| `--force`    | `-f`  | Reapply the template schema when collections already exist | `false` |
+
+Without `--force`, an initialized database is left unchanged. This command opens a local SQLite file directly; use `emdash migrate` for deployment-managed D1, PostgreSQL, libSQL, or Hyperdrive migrations.
+
+### `emdash doctor`
+
+Check a local SQLite database for connection, migration, collection, table, and user problems. If the project has a Wrangler configuration, the command also checks that a Cron Trigger and EmDash `scheduled()` handler are configured together.
+
+```bash
+npx emdash doctor [options]
+```
+
+| Option       | Alias | Description               | Default       |
+| ------------ | ----- | ------------------------- | ------------- |
+| `--database` | `-d`  | SQLite database path      | `./data.db`   |
+| `--cwd`      |       | Project working directory | Current directory |
+| `--json`     |       | Emit structured results   | `false`       |
+
+The command reports each check as pass, warning, or failure and exits non-zero when a check fails.
+
+### `emdash seed`
+
+Validate or apply a JSON seed to a local SQLite database. The command uses the positional path when provided, then `.emdash/seed.json`, then the `emdash.seed` path from `package.json`.
+
+```bash
+npx emdash seed [path] [options]
+```
+
+| Option             | Alias | Description                                            | Default                          |
+| ------------------ | ----- | ------------------------------------------------------ | -------------------------------- |
+| `--database`       | `-d`  | SQLite database path                                   | `./data.db`                      |
+| `--cwd`            |       | Project working directory                              | Current directory                |
+| `--validate`       |       | Validate the seed without changing the database        | `false`                          |
+| `--no-content`     |       | Skip entries, bylines, and taxonomy terms               | `false`                          |
+| `--on-conflict`    |       | Handle existing records with `skip`, `update`, or `error` | `skip`                         |
+| `--uploads-dir`    |       | Local directory used for seed media                    | `./uploads`                      |
+| `--media-base-url` |       | Base URL stored for local seed media                   | `/_emdash/api/media/file`        |
+
+Applying a seed runs core migrations first. Use `--validate` in continuous integration when you need to check the file without opening or creating the database.
 
 ### `emdash migrate`
 
@@ -100,6 +152,13 @@ See [Manage Core Database Migrations](/deployment/core-migrations/) for deployme
 
 The legacy command initializes and migrates a local SQLite database before starting Astro. That behavior does not use the database adapter configured by the site and is incompatible with Cloudflare D1 development. Existing invocations now print a deprecation warning before doing any database work.
 
+| Option       | Alias | Description                                      | Default       |
+| ------------ | ----- | ------------------------------------------------ | ------------- |
+| `--database` | `-d`  | Local SQLite database path                       | `./data.db`   |
+| `--types`    | `-t`  | Fetch remote types before starting Astro         | `false`       |
+| `--port`     | `-p`  | Astro development-server port                    | `4321`        |
+| `--cwd`      |       | Project working directory                        | Current directory |
+
 ### `emdash types`
 
 Generate TypeScript types from a running EmDash instance's schema.
@@ -110,12 +169,14 @@ npx emdash types [options]
 
 #### Options
 
-| Option     | Alias | Description              | Default              |
-| ---------- | ----- | ------------------------ | -------------------- |
-| `--url`    | `-u`  | EmDash instance URL    | `http://localhost:4321` |
-| `--token`  | `-t`  | Auth token               | From env/stored creds |
-| `--output` | `-o`  | Output path for types    | `.emdash/types.ts` |
-| `--cwd`    |       | Working directory        | Current directory    |
+| Option     | Alias | Description                        | Default                    |
+| ---------- | ----- | ---------------------------------- | -------------------------- |
+| `--url`    | `-u`  | EmDash instance URL                | `http://localhost:4321`     |
+| `--token`  | `-t`  | Auth token                         | From env or stored credentials |
+| `--header` | `-H`  | Custom request header; repeatable  | From env or stored credentials |
+| `--json`   |       | Accepted but does not change this command's files or progress output | — |
+| `--output` | `-o`  | Output path for types              | `.emdash/types.ts`          |
+| `--cwd`    |       | Working directory                  | Current directory          |
 
 #### Examples
 
@@ -147,9 +208,10 @@ npx emdash login [options]
 
 #### Options
 
-| Option  | Alias | Description           | Default                |
-| ------- | ----- | --------------------- | ---------------------- |
-| `--url` | `-u`  | EmDash instance URL | `http://localhost:4321` |
+| Option     | Alias | Description                       | Default                    |
+| ---------- | ----- | --------------------------------- | -------------------------- |
+| `--url`    | `-u`  | EmDash instance URL               | `http://localhost:4321`     |
+| `--header` | `-H`  | Custom request header; repeatable | From `EMDASH_HEADERS`       |
 
 #### Behavior
 
@@ -206,6 +268,7 @@ npx emdash content list posts --status published --limit 10
 | Option     | Description          |
 | ---------- | -------------------- |
 | `--status` | Filter by status     |
+| `--locale` | Filter by locale     |
 | `--limit`  | Maximum items        |
 | `--cursor` | Pagination cursor    |
 
@@ -216,9 +279,11 @@ npx emdash content get posts 01ABC123
 npx emdash content get posts 01ABC123 --raw
 ```
 
-| Option  | Description                                      |
-| ------- | ------------------------------------------------ |
-| `--raw` | Return raw Portable Text (skip markdown conversion) |
+| Option        | Description                                           |
+| ------------- | ----------------------------------------------------- |
+| `--locale`    | Locale to use when the ID argument is a slug          |
+| `--raw`       | Return raw Portable Text instead of Markdown          |
+| `--published` | Ignore a pending draft and return published data only |
 
 The response includes a `_rev` token. Pass it to `content update` to confirm you have seen the current state before overwriting it.
 
@@ -261,6 +326,8 @@ npx emdash content update posts 01ABC123 \
 | `--rev`           | Revision token from `get` (required)                     |
 | `--data`          | JSON string with content data                            |
 | `--file`          | Read data from a JSON file                               |
+| `--locale`        | Locale to use when the ID argument is a slug              |
+| `--draft`         | Keep the update as a draft instead of auto-publishing     |
 | `--override-lock` | Write even though another editor has the entry open      |
 
 If the item has changed since your `get`, the server returns 409 Conflict — re-read and try again.
@@ -278,17 +345,23 @@ npx emdash content delete posts 01ABC123
 
 Soft-deletes the content item (moves to trash).
 
+Pass `--override-lock` to delete an entry that another editor has open.
+
 #### `content publish <collection> <id>`
 
 ```bash
 npx emdash content publish posts 01ABC123
 ```
 
+Pass `--override-lock` to publish an entry that another editor has open.
+
 #### `content unpublish <collection> <id>`
 
 ```bash
 npx emdash content unpublish posts 01ABC123
 ```
+
+Pass `--override-lock` to unpublish an entry that another editor has open.
 
 #### `content schedule <collection> <id>`
 
@@ -300,6 +373,8 @@ npx emdash content schedule posts 01ABC123 --at 2026-03-01T09:00:00Z
 | ------ | ------------------------------- |
 | `--at` | ISO 8601 datetime (required)    |
 
+Pass `--override-lock` to schedule an entry that another editor has open.
+
 #### `content restore <collection> <id>`
 
 ```bash
@@ -307,6 +382,16 @@ npx emdash content restore posts 01ABC123
 ```
 
 Restores a trashed content item.
+
+#### `content translations <collection> <id>`
+
+List every translation in the entry's translation group:
+
+```bash
+npx emdash content translations posts 01ABC123
+```
+
+The result includes each translation's ID, locale, slug, status, and whether it is the requested entry.
 
 ### `emdash schema`
 
@@ -363,7 +448,7 @@ npx emdash schema add-field posts featured --type boolean --required
 
 | Option       | Description                                                                                      |
 | ------------ | ------------------------------------------------------------------------------------------------ |
-| `--type`     | Field type: string, text, number, integer, boolean, datetime, image, reference, portableText, json (required) |
+| `--type`     | Field type: string, text, url, number, integer, boolean, datetime, select, multiSelect, portableText, image, file, reference, json, slug, or repeater (required) |
 | `--label`    | Field label (defaults to field slug)                                                             |
 | `--required` | Whether the field is required                                                                    |
 
@@ -447,6 +532,7 @@ npx emdash search "hello" --collection posts --limit 5
 | Option         | Alias | Description          |
 | -------------- | ----- | -------------------- |
 | `--collection` | `-c`  | Filter by collection |
+| `--locale`     |       | Filter by locale     |
 | `--limit`      | `-l`  | Maximum results      |
 
 ### `emdash taxonomy`
@@ -502,6 +588,83 @@ npx emdash menu get primary
 
 Returns the menu with all its items.
 
+### `emdash plugin`
+
+Create, validate, bundle, and publish EmDash plugins. Marketplace login is separate from login to a CMS instance.
+
+#### `plugin init`
+
+Scaffold a sandboxed or native plugin:
+
+```bash
+npx emdash plugin init --dir ./my-plugin --name my-plugin --format sandboxed
+```
+
+| Option     | Description                                                        | Default           |
+| ---------- | ------------------------------------------------------------------ | ----------------- |
+| `--dir`    | Directory to create                                                 | Current directory |
+| `--name`   | Plugin package name or ID                                           | Interactive prompt |
+| `--format` | `sandboxed` or `native`                                             | Interactive prompt |
+| `--native` | Shortcut for `--format native`                                     | `false`           |
+
+#### `plugin bundle`
+
+Validate a plugin and create its marketplace tarball:
+
+```bash
+npx emdash plugin bundle --dir ./my-plugin --outDir ./artifacts
+```
+
+| Option           | Alias | Description                                  | Default           |
+| ---------------- | ----- | -------------------------------------------- | ----------------- |
+| `--dir`          |       | Plugin directory                             | Current directory |
+| `--outDir`       | `-o`  | Tarball output directory                     | `./dist`          |
+| `--validateOnly` |       | Run validation without creating a tarball    | `false`           |
+
+#### `plugin validate`
+
+Run the same validation as `plugin bundle` without creating a tarball:
+
+```bash
+npx emdash plugin validate --dir ./my-plugin
+```
+
+The optional `--dir` selects the plugin directory and defaults to the current directory.
+
+#### `plugin publish`
+
+Upload a bundle to the marketplace and, by default, wait for its processing result:
+
+```bash
+npx emdash plugin publish --tarball ./dist/my-plugin-1.0.0.tar.gz
+```
+
+| Option       | Description                                                    | Default                              |
+| ------------ | -------------------------------------------------------------- | ------------------------------------ |
+| `--tarball`  | Existing plugin tarball                                        | —                                    |
+| `--dir`      | Plugin directory used with `--build`                           | Current directory                    |
+| `--build`    | Build the plugin before upload                                 | `false`                              |
+| `--registry` | Marketplace base URL                                           | `https://marketplace.emdashcms.com`  |
+| `--no-wait`  | Exit after upload without waiting for the processing result    | `false`                              |
+
+Provide `--tarball`, or pass `--build` to build from `--dir` first.
+
+#### `plugin login`
+
+Authenticate to the marketplace through GitHub device flow. `--registry` selects a different marketplace and defaults to `https://marketplace.emdashcms.com`.
+
+```bash
+npx emdash plugin login
+```
+
+#### `plugin logout`
+
+Remove the saved marketplace credential. The optional `--registry` must identify the same marketplace used for login.
+
+```bash
+npx emdash plugin logout
+```
+
 ### `emdash export-seed`
 
 Export database schema and content as a seed file. Works directly on a local SQLite file.
@@ -517,9 +680,9 @@ npx emdash export-seed [options] > seed.json
 | `--database`     | `-d`  | Database file path                                   | `./data.db`       |
 | `--cwd`          |       | Working directory                                    | Current directory |
 | `--with-content` |       | Include content (all or comma-separated collections) |                   |
-| `--no-pretty`    |       | Disable JSON formatting                              | `false`           |
+| `--pretty` / `--no-pretty` |       | Enable or disable indented JSON output              | Pretty output enabled |
 
-#### Output Format
+#### Output format
 
 The exported seed file includes:
 
@@ -530,7 +693,11 @@ The exported seed file includes:
 - **Widget Areas**: Widget areas and widgets
 - **Content** (if requested): Entries with `$media` references and `$ref:` syntax for portability
 
-### `emdash secrets generate`
+### `emdash secrets`
+
+Generate and inspect the key used to encrypt plugin secrets.
+
+#### `secrets generate`
 
 Generate an `EMDASH_ENCRYPTION_KEY` for your deployment. The key is used to
 encrypt plugin secrets at rest.
@@ -552,7 +719,7 @@ npx emdash secrets generate --write .env
 Replacing a key in a deployment with existing encrypted data will leave
 those secrets unreadable, so the protection is intentional.
 
-### `emdash secrets fingerprint <key>`
+#### `secrets fingerprint <key>`
 
 Print the 8-character fingerprint (kid) of a key without exposing its
 value. This is useful in CI for verifying the right key was deployed. The following command prints a key's fingerprint:
@@ -561,11 +728,35 @@ value. This is useful in CI for verifying the right key was deployed. The follow
 npx emdash secrets fingerprint emdash_enc_v1_...
 ```
 
-## Generated Files
+### `emdash auth` (deprecated)
+
+<Aside type="caution" title="Deprecated command">
+	`emdash auth` is retained for scripts that still generate the legacy
+	`EMDASH_AUTH_SECRET`. New installations use `emdash secrets generate` to create the separate
+	`EMDASH_ENCRYPTION_KEY`.
+</Aside>
+
+#### `auth secret`
+
+Generate a legacy `EMDASH_AUTH_SECRET` value:
+
+```bash
+npx emdash auth secret
+```
+
+Existing installations can keep this variable to preserve stable commenter-IP hashes. It does not encrypt plugin secrets.
+
+## Generated files
+
+### `emdash-env.d.ts`
+
+The Astro integration generates `emdash-env.d.ts` in the project root when the local development server starts. It refreshes the file after schema changes made through the running development site. The declarations augment `EmDashCollections`, so calls such as `getEmDashCollection("posts")` infer the fields defined in the local database.
+
+This file is automatic and belongs to the local Astro development workflow. You do not need to run `emdash types` to create it.
 
 ### `.emdash/types.ts`
 
-The `emdash types` command generates TypeScript interfaces for each collection:
+The `emdash types` command fetches a running instance's schema and writes standalone TypeScript interfaces. Use it when the schema lives on a remote EmDash instance, when tooling needs a file at a custom path, or when the local Astro development server is not running:
 
 ```ts title=".emdash/types.ts"
 // Generated by EmDash CLI
@@ -575,15 +766,29 @@ import type { PortableTextBlock } from "emdash";
 
 export interface Post {
 	id: string;
+	slug: string | null;
+	status: string;
 	title: string;
-	content: PortableTextBlock[];
+	content?: PortableTextBlock[];
+	createdAt: Date;
+	updatedAt: Date;
 	publishedAt: Date | null;
+	bylines?: ContentBylineCredit[];
+	terms?: Record<string, TaxonomyTerm[]>;
 }
 ```
 
+The remote output contains standalone collection interfaces and does not augment `EmDashCollections`. It changes only when you run `emdash types`; `emdash-env.d.ts` uses module augmentation and refreshes as part of local development.
+
+<Aside type="caution">
+	The current remote output always includes `bylines` and `terms`, but does not import their
+	`ContentBylineCredit` and `TaxonomyTerm` types. Add both names to the generated `import type`
+	line before type-checking the file. Running `emdash types` again overwrites that manual fix.
+</Aside>
+
 ### `.emdash/schema.json`
 
-The command also writes a raw schema export for tooling:
+The command also writes a raw schema export named `schema.json` beside the selected TypeScript output. With the default output path, the file is `.emdash/schema.json`:
 
 ```json title=".emdash/schema.json"
 {
@@ -598,7 +803,7 @@ The command also writes a raw schema export for tooling:
 }
 ```
 
-## Environment Variables
+## Environment variables
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
@@ -626,7 +831,9 @@ Add common commands as `package.json` scripts for convenience:
 }
 ```
 
-## Exit Codes
+## General exit codes
+
+Most commands use `0` for success and `1` for an error. `emdash migrate` also uses codes `2`, `3`, `4`, and `130` for the specific outcomes listed in its [exit-code table](#exit-codes).
 
 | Code | Description                              |
 | ---- | ---------------------------------------- |

@@ -37,9 +37,9 @@ export interface ManifestCollection {
 	titleField?: string;
 	dateField?: string;
 	/**
-	 * Omit the auto-generated sidebar entry in the admin. The collection is
-	 * still listed in the manifest so its routes, editor, and API keep working
-	 * — only the navigation link is dropped.
+	 * Omit the auto-generated sidebar entry and dashboard quick action in the
+	 * admin. The collection is still listed in the manifest so its routes,
+	 * editor, and API keep working.
 	 */
 	hidden?: boolean;
 	/** Valid custom field slugs to render in the admin content list. */

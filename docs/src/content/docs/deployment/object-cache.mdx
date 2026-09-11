@@ -1,13 +1,13 @@
 ---
-title: Object Cache
+title: Configure the object cache
 description: Cache query results in Cloudflare KV or memory to serve reads without querying the database on every request.
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
-EmDash reads content and site configuration from the database on every request. The object cache stores those query results in a fast key/value store, so repeat requests are served from the cache instead of the database. It reduces read load on the database — useful on Cloudflare, where KV serves far more requests per second than D1.
+EmDash's per-request cache already deduplicates identical reads during one page render. The optional object cache keeps selected query results across requests, allowing a later request to avoid the same database read. It is useful when public traffic creates more database reads than the selected backend should handle.
 
-The object cache is optional and disabled by default. Enable it by adding an `objectCache` adapter to the `emdash()` integration.
+The database remains the source of truth. Cache reads fail open to the database, and writes invalidate the affected cache namespace. The object cache is disabled by default; enable it by adding an `objectCache` adapter to the `emdash()` integration.
 
 ## Overview
 
@@ -114,6 +114,8 @@ The object cache covers the reads that run on a typical page render:
 - Site settings, navigation menus, and taxonomy terms.
 
 Admin API requests, media files, and full HTML responses are not handled here. To cache rendered HTML at the edge, see [Deploy to Cloudflare](/deployment/cloudflare/).
+
+The object cache and an HTML edge cache solve different problems. A cache miss in the HTML layer still runs the Worker; the object cache can then prevent repeated content queries. A hit in the HTML layer does not run EmDash at all.
 
 ## Freshness
 

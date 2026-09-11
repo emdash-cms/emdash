@@ -62,13 +62,13 @@ export function filterNavItemsByRole<T extends { minRole?: number }>(
 }
 
 /**
- * Manifest collections that get an auto-generated sidebar entry, in manifest
- * order. Pure function — exported so tests can pin the `hidden` contract
- * without rendering the sidebar.
+ * Manifest collections that get an auto-generated sidebar entry and dashboard
+ * quick action, in manifest order. Pure function — exported so tests can pin
+ * the `hidden` contract without rendering the sidebar.
  *
  * A hidden collection is still shipped in the manifest and stays fully
- * routable at `/content/:collection`; it only loses its nav link, so a plugin
- * that owns the collection end to end can steer editors to its own admin UI.
+ * routable at `/content/:collection`, so a plugin that owns the collection end
+ * to end can steer editors to its own admin UI.
  */
 export function visibleCollectionEntries<T extends { hidden?: boolean }>(
 	collections: Record<string, T>,

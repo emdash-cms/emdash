@@ -667,6 +667,42 @@ describe("SEO", () => {
 			expect(meta.canonical).toBe("https://example.com/posts/my-post");
 		});
 
+		it("should absolutize root-relative explicit canonical with siteUrl", () => {
+			const content = createMockContent({
+				seo: {
+					title: null,
+					description: null,
+					image: null,
+					canonical: "/custom-path",
+					noIndex: false,
+				},
+			});
+
+			const meta = getSeoMeta(content, {
+				siteUrl: "https://example.com",
+			});
+
+			expect(meta.canonical).toBe("https://example.com/custom-path");
+		});
+
+		it("should pass protocol-relative explicit canonical through unchanged", () => {
+			const content = createMockContent({
+				seo: {
+					title: null,
+					description: null,
+					image: null,
+					canonical: "//other.example/page",
+					noIndex: false,
+				},
+			});
+
+			const meta = getSeoMeta(content, {
+				siteUrl: "https://example.com",
+			});
+
+			expect(meta.canonical).toBe("//other.example/page");
+		});
+
 		it("should prefer explicit canonical over path-based", () => {
 			const content = createMockContent({
 				seo: {

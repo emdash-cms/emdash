@@ -12,7 +12,10 @@ EmDash's Block Kit lets sandboxed plugins describe their admin UI as JSON. The h
 </Aside>
 
 <Aside type="tip">
-	Block Kit elements are also used for [Portable Text block editing fields](/plugins/creating-native-plugins/portable-text-components/). When a plugin declares `fields` on a block type, the editor renders a Block Kit form for editing block data (URL, title, parameters, etc.).
+	Native plugins also use Block Kit elements to describe [Portable Text block editing
+	fields](/plugins/creating-native-plugins/portable-text-components/). Sandboxed plugins cannot
+	register custom Portable Text block types because their rendering components would need to load
+	into the host site at build time.
 </Aside>
 
 ## How it works
@@ -24,43 +27,77 @@ EmDash's Block Kit lets sandboxed plugins describe their admin UI as JSON. The h
 5. When the user interacts (clicks a button, submits a form), the admin sends the interaction back to the plugin.
 6. The plugin returns new blocks, and the cycle repeats.
 
-```typescript
-import type { SandboxedPlugin } from "emdash/plugin";
+Add `@emdash-cms/blocks` and `zod` to the plugin when it defines a Block Kit page:
 
-interface BlockInteraction {
-	type: "page_load" | "block_action" | "form_submit";
-	page?: string;
-	action_id?: string;
-	values?: Record<string, unknown>;
+```sh
+pnpm add @emdash-cms/blocks zod
+```
+
+Declare the page in the plugin manifest so the admin has a navigation entry to load:
+
+```jsonc title="emdash-plugin.jsonc"
+"admin": {
+	"pages": [{ "path": "/settings", "label": "Settings", "icon": "settings" }],
+}
+```
+
+The following `admin` route validates the interaction, renders a form on page load, and stores its values on submit:
+
+```typescript title="src/plugin.ts"
+import type { SandboxedPlugin } from "emdash/plugin";
+import type { BlockResponse } from "@emdash-cms/blocks";
+import { z } from "zod";
+
+const interactionSchema = z.discriminatedUnion("type", [
+	z.object({ type: z.literal("page_load"), page: z.string() }),
+	z.object({
+		type: z.literal("block_action"),
+		action_id: z.string(),
+		block_id: z.string().optional(),
+		value: z.unknown().optional(),
+	}),
+	z.object({
+		type: z.literal("form_submit"),
+		action_id: z.string(),
+		block_id: z.string().optional(),
+		values: z.object({ api_url: z.url(), enabled: z.boolean() }),
+	}),
+]);
+
+function renderSettings(): BlockResponse {
+	return {
+		blocks: [
+			{ type: "header", text: "Save Log settings" },
+			{
+				type: "form",
+				block_id: "settings",
+				fields: [
+					{ type: "text_input", action_id: "api_url", label: "API URL" },
+					{ type: "toggle", action_id: "enabled", label: "Enabled", initial_value: true },
+				],
+				submit: { label: "Save", action_id: "save" },
+			},
+		],
+	};
 }
 
 export default {
 	routes: {
 		admin: {
 			handler: async (routeCtx, ctx) => {
-				const interaction = routeCtx.input as BlockInteraction;
+				const parsed = interactionSchema.safeParse(routeCtx.input);
+				if (!parsed.success) return { blocks: [] };
+				const interaction = parsed.data;
 
 				if (interaction.type === "page_load") {
-					return {
-						blocks: [
-							{ type: "header", text: "My Plugin Settings" },
-							{
-								type: "form",
-								block_id: "settings",
-								fields: [
-									{ type: "text_input", action_id: "api_url", label: "API URL" },
-									{ type: "toggle", action_id: "enabled", label: "Enabled", initial_value: true },
-								],
-								submit: { label: "Save", action_id: "save" },
-							},
-						],
-					};
+					return renderSettings();
 				}
 
 				if (interaction.type === "form_submit" && interaction.action_id === "save") {
-					await ctx.kv.set("settings", interaction.values);
+					await ctx.kv.set("settings:apiUrl", interaction.values.api_url);
+					await ctx.kv.set("settings:enabled", interaction.values.enabled);
 					return {
-						blocks: [/* ... updated blocks ... */],
+						...renderSettings(),
 						toast: { message: "Settings saved", type: "success" },
 					};
 				}
@@ -72,7 +109,7 @@ export default {
 } satisfies SandboxedPlugin;
 ```
 
-The route handler takes two arguments: `routeCtx` (with `input`, `request`, `requestMeta`) and `ctx` (the `PluginContext`). `satisfies SandboxedPlugin` infers both.
+The `admin` route is private by default. EmDash sends the correct CSRF header when the admin calls it. The handler still validates `routeCtx.input` because its TypeScript type is `unknown` and a caller can invoke a private plugin route outside the Block Kit page.
 
 ## Block types
 
@@ -86,11 +123,16 @@ The route handler takes two arguments: `routeCtx` (with `input`, `request`, `req
 | `actions`   | Horizontal row of buttons and controls                                                  |
 | `stats`     | Dashboard metric cards with trend indicators                                            |
 | `form`      | Input fields with conditional visibility and submit                                     |
-| `image`     | Block-level image with caption                                                          |
+| `image`     | Block-level image with alt text and an optional title                                  |
 | `context`   | Small muted help text                                                                   |
 | `columns`   | 2–3 column layout with nested blocks                                                    |
-| `empty`     | Empty-state placeholder with icon, title, description, optional command line, and action buttons |
+| `empty`     | Empty-state title with an optional description, command, and action buttons            |
 | `accordion` | Collapsible section wrapping nested blocks                                              |
+| `chart`     | Line or bar time series, or a chart with custom options                                |
+| `banner`    | Status or alert message with a title or description                                     |
+| `meter`     | Numeric value displayed against a minimum and maximum                                   |
+| `code`      | Read-only TypeScript, TSX, JSONC, Bash, or CSS code                                     |
+| `tab`       | Labeled panels containing nested blocks                                                  |
 
 ## Element types
 
@@ -102,16 +144,22 @@ The route handler takes two arguments: `routeCtx` (with `input`, `request`, `req
 | `select`        | Dropdown select                              |
 | `toggle`        | On/off switch                                |
 | `secret_input`  | Masked input for API keys and tokens         |
+| `checkbox`      | Select several values from a fixed list      |
+| `combobox`      | Searchable single-value selection            |
+| `date_input`    | Date value                                   |
+| `radio`         | Single choice from a visible option list     |
+
+The Portable Text field editor also supports `repeater` and `media_picker`. They are not form fields for a sandboxed plugin admin page.
 
 ## Builder helpers
 
-The `@emdash-cms/blocks` package exports builder helpers for cleaner code:
+The `@emdash-cms/blocks` package exports the same shapes through `blocks` and `elements` builder objects. Builders reduce property-name mistakes while returning ordinary JSON-compatible objects:
 
 ```typescript
 import { blocks, elements } from "@emdash-cms/blocks";
 
-const { header, form, section, stats } = blocks;
-const { textInput, toggle, select, button } = elements;
+const { header, form } = blocks;
+const { textInput, toggle, select } = elements;
 
 return {
 	blocks: [
@@ -154,6 +202,8 @@ Form fields can be conditionally shown based on other field values:
 ```
 
 The `api_key` field only appears when `auth_enabled` is toggled on. Conditions are evaluated client-side with no round-trip.
+
+`secret_input` uses `has_value: true` to show that a value already exists; it does not accept or return the stored value on page load. The field masks typing in the browser, but it does not encrypt a value written to `ctx.kv`. Follow [Secret settings](/plugins/creating-plugins/settings/#secret-values) before storing credentials.
 
 ## Try it
 
