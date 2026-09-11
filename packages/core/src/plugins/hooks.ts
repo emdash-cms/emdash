@@ -1253,9 +1253,11 @@ export class HookPipeline {
 	/**
 	 * Get all plugins that registered a handler for a given exclusive hook.
 	 */
-	getExclusiveHookProviders(hookName: string): Array<{ pluginId: string }> {
+	getExclusiveHookProviders(hookName: string): Array<{ pluginId: string; autoSelect: boolean }> {
 		const hooks = this.hooks.get(hookName as HookNameV2) ?? [];
-		return hooks.filter((h) => h.exclusive).map((h) => ({ pluginId: h.pluginId }));
+		return hooks
+			.filter((h) => h.exclusive)
+			.map((h) => ({ pluginId: h.pluginId, autoSelect: h.autoSelect }));
 	}
 
 	/**
@@ -1342,31 +1344,47 @@ export interface ExclusiveHookResolutionOptions {
 	getOptions?: (keys: string[]) => Promise<ReadonlyMap<string, string>>;
 	/** Write an option value to persistent storage. */
 	setOption: (key: string, value: string) => Promise<void>;
-	/** Delete an option from persistent storage. */
-	deleteOption: (key: string) => Promise<void>;
 	/**
 	 * Map of pluginId → hook names the plugin prefers to handle.
 	 * Used as a tiebreaker when no DB selection exists and multiple providers are active.
 	 */
 	preferredHints?: Map<string, string[]>;
+	/**
+	 * Providers whose selection must never be persisted (e.g. the dev-only
+	 * console email provider). Auto-selecting one sets the in-memory
+	 * selection only, and a persisted selection naming one (written by an
+	 * older version against a shared database) does not block re-resolution
+	 * in an environment where that provider is not registered.
+	 */
+	ephemeralProviders?: ReadonlySet<string>;
 }
 
 /** Options table key prefix for exclusive hook selections */
 const EXCLUSIVE_HOOK_KEY_PREFIX = "emdash:exclusive_hook:";
 
 /**
+ * Sentinel value stored in the options table when the admin explicitly
+ * chooses "no provider" for an exclusive hook. Distinguishes "explicitly
+ * disabled" from "no selection yet" so resolution does not auto-select
+ * a provider again on the next startup.
+ */
+export const EXCLUSIVE_HOOK_NONE_VALUE = "__none__";
+
+/**
  * Resolve exclusive hook selections.
  *
  * Shared algorithm used by both PluginManager and EmDashRuntime:
  * 1. If a DB selection exists and that plugin is active → keep it.
- * 2. If DB selection is stale (plugin inactive/gone) → clear it.
- * 3. If no selection and only one active provider → auto-select it.
+ * 2. If the selected provider is not currently registered → keep the DB
+ *    value, leave the in-memory selection unset (unless the selection
+ *    names an ephemeral provider, which is ignored and re-resolved).
+ * 3. If no selection and only one auto-select candidate → auto-select it.
  * 4. If preferred hints match an active provider → first match wins.
  * 5. If multiple providers and no hint → leave unselected (admin must choose).
  */
 export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions): Promise<void> {
-	const { pipeline, isActive, getOption, getOptions, setOption, deleteOption, preferredHints } =
-		opts;
+	const { pipeline, isActive, getOption, getOptions, setOption, preferredHints } = opts;
+	const ephemeralProviders = opts.ephemeralProviders;
 	const exclusiveHookNames = pipeline.getRegisteredExclusiveHooks();
 	if (exclusiveHookNames.length === 0) return;
 
@@ -1391,6 +1409,11 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 		const activeProviderIds = new Set(
 			providers.map((p) => p.pluginId).filter((id) => isActive(id)),
 		);
+		// Unconfigured built-ins register with autoSelect: false — they can be
+		// explicitly selected but never block or win sole-provider selection.
+		const autoSelectCandidates = new Set(
+			providers.filter((p) => p.autoSelect && isActive(p.pluginId)).map((p) => p.pluginId),
+		);
 
 		const key = `${EXCLUSIVE_HOOK_KEY_PREFIX}${hookName}`;
 		let currentSelection: string | null = null;
@@ -1405,28 +1428,36 @@ export async function resolveExclusiveHooks(opts: ExclusiveHookResolutionOptions
 			}
 		}
 
+		// Explicitly disabled by the admin ("None") — never auto-select.
+		if (currentSelection === EXCLUSIVE_HOOK_NONE_VALUE) {
+			pipeline.clearExclusiveSelection(hookName);
+			continue;
+		}
+
 		// If selection exists and the plugin is still active → keep it
 		if (currentSelection && activeProviderIds.has(currentSelection)) {
 			pipeline.setExclusiveSelection(hookName, currentSelection);
 			continue;
 		}
 
-		// Selection is stale or missing — clear it
-		if (currentSelection) {
-			try {
-				await deleteOption(key);
-			} catch {
-				// Non-fatal
-			}
+		// Selection exists but the provider is not currently registered —
+		// keep the DB value (providers may be registered conditionally, and
+		// deleting would silently revert the choice on the next restart).
+		// Ephemeral selections are the exception: they must not wedge
+		// delivery off outside the environment that wrote them.
+		if (currentSelection && !ephemeralProviders?.has(currentSelection)) {
+			continue;
 		}
 
-		// Auto-select if only one active provider
-		if (activeProviderIds.size === 1) {
-			const [onlyProvider] = activeProviderIds;
-			try {
-				await setOption(key, onlyProvider);
-			} catch {
-				// Non-fatal
+		// No usable selection — auto-select if only one candidate
+		if (autoSelectCandidates.size === 1) {
+			const [onlyProvider] = autoSelectCandidates;
+			if (!ephemeralProviders?.has(onlyProvider)) {
+				try {
+					await setOption(key, onlyProvider);
+				} catch {
+					// Non-fatal
+				}
 			}
 			pipeline.setExclusiveSelection(hookName, onlyProvider);
 			continue;

@@ -79,6 +79,7 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
 			dependencies: entry.dependencies ?? [],
 			errorPolicy: entry.errorPolicy ?? DEFAULT_ERROR_POLICY,
 			exclusive: entry.exclusive ?? false,
+			autoSelect: true,
 			handler: entry.handler,
 			pluginId,
 		};
@@ -91,6 +92,7 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
 		dependencies: [],
 		errorPolicy: DEFAULT_ERROR_POLICY,
 		exclusive: false,
+		autoSelect: true,
 		handler: entry,
 		pluginId,
 	};

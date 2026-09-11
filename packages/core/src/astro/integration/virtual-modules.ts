@@ -75,6 +75,9 @@ export const RESOLVED_VIRTUAL_ENV_ID = "\0" + VIRTUAL_ENV_ID;
 export const VIRTUAL_BUILD_ID = "virtual:emdash/build";
 export const RESOLVED_VIRTUAL_BUILD_ID = "\0" + VIRTUAL_BUILD_ID;
 
+export const VIRTUAL_SOCKETS_ID = "virtual:emdash/sockets";
+export const RESOLVED_VIRTUAL_SOCKETS_ID = "\0" + VIRTUAL_SOCKETS_ID;
+
 /**
  * Generates the config virtual module.
  */
@@ -506,6 +509,22 @@ export function generateEnvModule(adapterName: string | undefined): string {
 		return `export { env } from "cloudflare:workers";`;
 	}
 	return `export const env = undefined;`;
+}
+
+/**
+ * Generates the sockets virtual module.
+ *
+ * Under @astrojs/cloudflare, re-exports `connect` from `cloudflare:sockets`
+ * so the built-in SMTP transport can open TCP connections from a Worker. For
+ * any other adapter, exports `undefined` and the transport uses `node:net` /
+ * `node:tls`. A literal `cloudflare:sockets` import in core would fail to
+ * resolve when a Node site is built.
+ */
+export function generateSocketsModule(adapterName: string | undefined): string {
+	if (adapterName === "@astrojs/cloudflare") {
+		return `export { connect } from "cloudflare:sockets";`;
+	}
+	return `export const connect = undefined;`;
 }
 
 /**
