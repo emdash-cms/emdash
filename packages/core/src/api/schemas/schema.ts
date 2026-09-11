@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
+import { MAX_COLLECTION_GROUP_LENGTH, MAX_COLLECTION_LIST_COLUMNS } from "../../schema/types.js";
 import { compileUrlPattern } from "../../schema/url-pattern.js";
 import { slugPattern } from "./common.js";
 
@@ -141,6 +141,9 @@ const fieldValidation = z
 
 const fieldWidgetOptions = z.record(z.string(), z.unknown()).optional();
 
+/** Admin sidebar folder label; an empty string clears it like `null`. */
+const navGroupValue = z.string().trim().max(MAX_COLLECTION_GROUP_LENGTH);
+
 export const createCollectionBody = z
 	.object({
 		slug: z.string().min(1).max(63).regex(slugPattern, "Invalid slug format"),
@@ -157,6 +160,7 @@ export const createCollectionBody = z
 		hidden: z.boolean().optional(),
 		sortOrder: z.number().int().nullish(),
 		editLocking: z.boolean().optional(),
+		group: navGroupValue.nullish(),
 	})
 	.meta({ id: "CreateCollectionBody" });
 
@@ -173,6 +177,7 @@ export const updateCollectionBody = z
 		hasSeo: z.boolean().optional(),
 		hidden: z.boolean().optional(),
 		sortOrder: z.number().int().nullish(),
+		group: navGroupValue.nullish(),
 		commentsEnabled: z.boolean().optional(),
 		commentsModeration: z.enum(["all", "first_time", "none"]).optional(),
 		commentsClosedAfterDays: z.number().int().min(0).optional(),
@@ -271,6 +276,7 @@ export const collectionSchema = z
 		hidden: z.boolean(),
 		sortOrder: z.number().int().nullable(),
 		editLocking: z.boolean(),
+		group: z.string().nullish(),
 		createdAt: z.string(),
 		updatedAt: z.string(),
 		titleField: z.string().nullish(),

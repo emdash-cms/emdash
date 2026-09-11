@@ -175,6 +175,9 @@ export interface FieldWidgetOptions {
 
 export const MAX_COLLECTION_LIST_COLUMNS = 4;
 
+/** Longest admin sidebar folder label a collection may declare. */
+export const MAX_COLLECTION_GROUP_LENGTH = 100;
+
 /** Collection-level admin presentation options. */
 export interface CollectionAdminConfig {
 	/** Custom field slugs to show in the content list. */
@@ -217,6 +220,12 @@ export interface Collection {
 	 * order and follow. `undefined` means "no explicit position".
 	 */
 	sortOrder?: number;
+	/**
+	 * Admin sidebar folder. Collections sharing a group render under one
+	 * collapsible entry labelled with the group; `undefined` keeps the
+	 * collection inline.
+	 */
+	group?: string;
 	/** Whether comments are enabled for this collection */
 	commentsEnabled: boolean;
 	/** Moderation strategy: "all" | "first_time" | "none" */
@@ -275,6 +284,8 @@ export interface CreateCollectionInput {
 	hidden?: boolean;
 	/** Explicit admin sidebar position (omit for the alphabetical fallback) */
 	sortOrder?: number | null;
+	/** Admin sidebar folder shared with other collections of the same group */
+	group?: string | null;
 	commentsEnabled?: boolean;
 	/** Take an edit lock when an entry is opened (defaults to true) */
 	editLocking?: boolean;
@@ -297,6 +308,8 @@ export interface UpdateCollectionInput {
 	hidden?: boolean;
 	/** Explicit admin sidebar position; `null` clears it back to alphabetical */
 	sortOrder?: number | null;
+	/** Admin sidebar folder; `null` moves the collection back inline */
+	group?: string | null;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;

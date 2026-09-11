@@ -166,6 +166,9 @@ const schemaUpdateCollectionToolSchema = z.object({
 	hasSeo: updateCollectionBody.shape.hasSeo.describe(
 		"Whether the collection supports SEO metadata",
 	),
+	group: updateCollectionBody.shape.group.describe(
+		"Admin sidebar folder shared with other collections of the same group; pass null to move the collection back inline",
+	),
 	commentsEnabled: updateCollectionBody.shape.commentsEnabled.describe(
 		"Whether comments are enabled for this collection",
 	),
@@ -1883,6 +1886,9 @@ export function createMcpServer(
 				editLocking: createCollectionBody.shape.editLocking.describe(
 					"Take an edit lock when an entry is opened (default: true)",
 				),
+				group: createCollectionBody.shape.group.describe(
+					"Admin sidebar folder shared with other collections of the same group",
+				),
 			}),
 		},
 		async (args, extra) => {
@@ -1903,6 +1909,7 @@ export function createMcpServer(
 					supports: args.supports,
 					routable: args.routable,
 					editLocking: args.editLocking,
+					group: args.group,
 				});
 				ec.invalidateUrlPatternCache();
 				return jsonResult(collection);

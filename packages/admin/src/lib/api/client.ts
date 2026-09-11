@@ -147,6 +147,8 @@ export interface AdminManifest {
 			titleField?: string;
 			dateField?: string;
 			hidden?: boolean;
+			/** Sidebar folder shared with other collections of the same group */
+			group?: string;
 			listColumns?: string[];
 			fields: Record<
 				string,

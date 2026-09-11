@@ -43,6 +43,8 @@ export interface SchemaCollection {
 	hidden: boolean;
 	/** Explicit sidebar position; absent means the alphabetical fallback */
 	sortOrder?: number;
+	/** Sidebar folder shared with other collections of the same group */
+	group?: string;
 	commentsEnabled: boolean;
 	commentsModeration: "all" | "first_time" | "none";
 	commentsClosedAfterDays: number;
@@ -102,6 +104,7 @@ export interface CreateCollectionInput {
 	hidden?: boolean;
 	sortOrder?: number | null;
 	editLocking?: boolean;
+	group?: string | null;
 }
 
 export interface UpdateCollectionInput {
@@ -116,6 +119,7 @@ export interface UpdateCollectionInput {
 	hasSeo?: boolean;
 	hidden?: boolean;
 	sortOrder?: number | null;
+	group?: string | null;
 	commentsEnabled?: boolean;
 	commentsModeration?: "all" | "first_time" | "none";
 	commentsClosedAfterDays?: number;

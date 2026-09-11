@@ -42,6 +42,11 @@ export interface ManifestCollection {
 	 * editor, and API keep working.
 	 */
 	hidden?: boolean;
+	/**
+	 * Sidebar folder. Collections sharing a group render under one collapsible
+	 * entry labelled with the group.
+	 */
+	group?: string;
 	/** Valid custom field slugs to render in the admin content list. */
 	listColumns?: string[];
 	fields: Record<
