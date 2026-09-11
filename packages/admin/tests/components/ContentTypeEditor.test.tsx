@@ -199,6 +199,7 @@ describe("ContentTypeEditor", () => {
 			urlPattern: undefined,
 			routable: true,
 			editLocking: true,
+			hidden: false,
 			supports: ["drafts", "revisions"], // default
 			hasSeo: false,
 		});
@@ -223,7 +224,9 @@ describe("ContentTypeEditor", () => {
 			urlPattern: undefined,
 			routable: true,
 			editLocking: true,
+			icon: "",
 			group: null,
+			hidden: false,
 			supports: ["drafts"],
 			hasSeo: false,
 			commentsEnabled: false,
@@ -597,6 +600,25 @@ describe("ContentTypeEditor", () => {
 		await screen.getByLabelText("Group").fill("");
 		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
 		expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ group: null }));
+	});
+
+	it("saves the icon and navigation visibility", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ hidden: false, admin: { listColumns: ["title"] } });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByLabelText("Icon").fill(" trophy ");
+		await screen.getByLabelText("Hide from navigation").click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({
+				icon: "trophy",
+				hidden: true,
+			}),
+		);
 	});
 
 	it("shows validation error when pattern lacks {slug}", async () => {

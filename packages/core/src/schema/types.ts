@@ -183,6 +183,9 @@ export const MAX_COLLECTION_LIST_COLUMNS = 4;
 /** Longest admin sidebar folder label a collection may declare. */
 export const MAX_COLLECTION_GROUP_LENGTH = 100;
 
+/** Longest Phosphor icon name a collection may declare. */
+export const MAX_COLLECTION_ICON_LENGTH = 64;
+
 /** Collection-level admin presentation options. */
 export interface CollectionAdminConfig {
 	/** Custom field slugs to show in the content list. */

@@ -9,6 +9,7 @@ import {
 	FIELD_TYPES,
 	isIndexableFieldType,
 	MAX_COLLECTION_GROUP_LENGTH,
+	MAX_COLLECTION_ICON_LENGTH,
 	MAX_COLLECTION_LIST_COLUMNS,
 } from "../schema/types.js";
 import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
@@ -125,6 +126,13 @@ export function validateSeed(data: unknown): ValidationResult {
 						errors.push(
 							`${prefix}.group: must be at most ${MAX_COLLECTION_GROUP_LENGTH} characters`,
 						);
+					}
+				}
+				if (collection.icon !== undefined) {
+					if (typeof collection.icon !== "string") {
+						errors.push(`${prefix}.icon: must be a string`);
+					} else if (collection.icon.trim().length > MAX_COLLECTION_ICON_LENGTH) {
+						errors.push(`${prefix}.icon: must be at most ${MAX_COLLECTION_ICON_LENGTH} characters`);
 					}
 				}
 
