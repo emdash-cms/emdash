@@ -1,6 +1,6 @@
 ---
 title: Choose a database
-description: Choose and configure D1, Hyperdrive, PostgreSQL, libSQL, or SQLite for EmDash.
+description: Choose and configure SQLite, D1, Hyperdrive, PostgreSQL, or libSQL for EmDash.
 ---
 
 import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
@@ -11,13 +11,55 @@ Choose one database adapter for each deployment. The database holds the content 
 
 | Database       | Use it when                                                        | Runtime              |
 | -------------- | ------------------------------------------------------------------ | -------------------- |
+| **SQLite**     | One Node.js process has a persistent disk                           | Node.js or local dev |
 | **D1**         | The site runs on Cloudflare Workers and should use Cloudflare SQL   | Cloudflare Workers   |
 | **Hyperdrive** | The site runs on Workers and must use an existing PostgreSQL origin | Cloudflare Workers   |
 | **PostgreSQL** | Several Node.js processes need one shared database                  | Node.js              |
 | **libSQL**     | A Node.js deployment needs a remote SQLite-compatible database      | Node.js              |
-| **SQLite**     | One Node.js process has a persistent disk                           | Node.js or local dev |
 
 D1 is the default for the Cloudflare templates. SQLite is the simplest Node.js option, but it requires one writable persistent volume and operational database backups.
+
+## SQLite
+
+SQLite uses Node.js's built-in database driver and is the simplest option for Node.js deployments.
+
+```js title="astro.config.mjs"
+import { sqlite } from "emdash/db";
+
+export default defineConfig({
+	integrations: [
+		emdash({
+			database: sqlite({ url: "file:./data.db" }),
+		}),
+	],
+});
+```
+
+### Configuration
+
+| Option | Type     | Description                   |
+| ------ | -------- | ----------------------------- |
+| `url`  | `string` | File path with `file:` prefix |
+
+### File Path
+
+The `url` must start with `file:`:
+
+```js
+// Relative path
+database: sqlite({ url: "file:./data/emdash.db" });
+
+// Absolute path
+database: sqlite({ url: "file:/var/data/emdash.db" });
+
+// From environment variable
+database: sqlite({ url: `file:${process.env.DATABASE_PATH}` });
+```
+
+<Aside>
+	SQLite requires a persistent filesystem. It does not work on platforms with ephemeral storage
+	without additional configuration.
+</Aside>
 
 ## Cloudflare D1
 
@@ -456,48 +498,6 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA emdash
 ```
 
 Connect with both roles and verify they report the same `current_database()` and `current_schema()` before enabling `cachedBinding`. On a shared schema, `GRANT SELECT ON ALL TABLES` also exposes unrelated tables. Grant access to individual EmDash tables instead, and update those grants when collections or other schema objects are added.
-
-## SQLite
-
-SQLite uses Node.js's built-in database driver and is the simplest option for Node.js deployments.
-
-```js title="astro.config.mjs"
-import { sqlite } from "emdash/db";
-
-export default defineConfig({
-	integrations: [
-		emdash({
-			database: sqlite({ url: "file:./data.db" }),
-		}),
-	],
-});
-```
-
-### Configuration
-
-| Option | Type     | Description                   |
-| ------ | -------- | ----------------------------- |
-| `url`  | `string` | File path with `file:` prefix |
-
-### File Path
-
-The `url` must start with `file:`:
-
-```js
-// Relative path
-database: sqlite({ url: "file:./data/emdash.db" });
-
-// Absolute path
-database: sqlite({ url: "file:/var/data/emdash.db" });
-
-// From environment variable
-database: sqlite({ url: `file:${process.env.DATABASE_PATH}` });
-```
-
-<Aside>
-	SQLite requires a persistent filesystem. It does not work on platforms with ephemeral storage
-	without additional configuration.
-</Aside>
 
 ## Core migrations
 

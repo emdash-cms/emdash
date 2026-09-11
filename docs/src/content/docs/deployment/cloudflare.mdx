@@ -15,14 +15,9 @@ This guide deploys an EmDash site to Cloudflare Workers with D1 for its database
 
 ## Configure bindings
 
-The Cloudflare templates include the complete Worker entry point and Wrangler configuration. Before the first migration, create the production resources and let Wrangler write their binding details into the configuration:
+The Cloudflare templates include the complete Worker entry point and named D1 and R2 bindings. On the first deploy, Wrangler creates either resource if its configured name does not already exist. Keep the names in `wrangler.jsonc`; Wrangler reconnects later deploys to the same resources.
 
-```bash
-pnpm wrangler d1 create my-emdash-site --binding DB --update-config
-pnpm wrangler r2 bucket create my-emdash-media --binding MEDIA --update-config
-```
-
-If the account already has the resources, add their existing names and the D1 database UUID instead of creating replacements. The resulting `wrangler.jsonc` contains the following bindings:
+The template uses the following bindings:
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -36,7 +31,6 @@ If the account already has the resources, add their existing names and the D1 da
 		{
 			"binding": "DB",
 			"database_name": "my-emdash-site",
-			"database_id": "00000000-0000-0000-0000-000000000000",
 		},
 	],
 
@@ -50,8 +44,6 @@ If the account already has the resources, add their existing names and the D1 da
 	"triggers": { "crons": ["* * * * *"] },
 }
 ```
-
-Use the UUID written by `wrangler d1 create` in place of the all-zero example value.
 
 The `DB`, `MEDIA`, and `LOADER` names must match the EmDash adapters. The Cron Trigger runs scheduled publishing, plugin tasks, backups, and maintenance. See [Plugin sandbox](/deployment/plugin-sandbox/#cloudflare-workers) if the site uses sandboxed plugins.
 
@@ -72,7 +64,7 @@ export default defineConfig({
 	integrations: [
 		react(), // Required — the admin UI is a React app
 		emdash({
-			database: d1({ binding: "DB", session: "auto" }),
+			database: d1({ binding: "DB" }),
 			storage: r2({ binding: "MEDIA" }),
 			sandboxRunner: sandbox(),
 		}),
@@ -103,61 +95,43 @@ To run general maintenance on a schedule other than every minute, pass the same 
 
 ## Build, migrate, and deploy
 
-Build once, inspect the selected D1 target, apply pending core migrations, then deploy that build. The migration command does not create a missing D1 database.
+Build and deploy the site once to let Wrangler provision the named D1 database and R2 bucket. Wrangler uses the local login created by `pnpm wrangler login`.
 
 ```bash
 pnpm build
-pnpm emdash migrate --status \
-  --account-id "$CLOUDFLARE_ACCOUNT_ID" \
-  --d1 "$D1_DATABASE_ID"
+pnpm wrangler deploy
 ```
 
-After confirming the account and database, apply the migrations interactively and deploy the same build.
+Before opening the deployed site, inspect the D1 target and apply its core migrations. Unlike Wrangler, `emdash migrate` does not use the saved local login. It calls the Cloudflare API with `CLOUDFLARE_API_TOKEN` and requires the account ID from `--account-id`, `account_id` in Wrangler configuration, or `CLOUDFLARE_ACCOUNT_ID`; it does not prompt for an account. Replace the example account ID below with the 32-character ID for the account that owns `my-emdash-site`.
+
+```bash
+pnpm emdash migrate --status \
+  --account-id 0123456789abcdef0123456789abcdef \
+  --d1 my-emdash-site
+```
+
+After confirming the account and database, apply the migrations interactively and verify the result.
 
 ```bash
 pnpm emdash migrate \
-  --account-id "$CLOUDFLARE_ACCOUNT_ID" \
-  --d1 "$D1_DATABASE_ID"
-pnpm wrangler deploy
+  --account-id 0123456789abcdef0123456789abcdef \
+  --d1 my-emdash-site
 pnpm emdash migrate --check \
-  --account-id "$CLOUDFLARE_ACCOUNT_ID" \
-  --d1 "$D1_DATABASE_ID"
+  --account-id 0123456789abcdef0123456789abcdef \
+  --d1 my-emdash-site
 ```
 
-The migration command needs `CLOUDFLARE_API_TOKEN` with D1 Edit permission. Non-interactive jobs also require the reviewed target fingerprint. Serialize jobs by account and database UUID. [Manage core database migrations](/deployment/core-migrations/) is the canonical runbook for CI, runtime modes, partial failures, and rollback boundaries.
+The token needs D1 Edit permission. Non-interactive jobs also require the reviewed target fingerprint. For later releases, apply migrations before deploying the matching build. Serialize jobs by account and database UUID. [Manage core database migrations](/deployment/core-migrations/) is the canonical runbook for CI, runtime modes, partial failures, and rollback boundaries.
 
 If the database is empty (no collections) and the setup wizard hasn't been completed, EmDash also applies a seed file on first boot. The seed is read at build time from `.emdash/seed.json`, the path in `package.json#emdash.seed`, or `seed/seed.json` — whichever is found first — and inlined into the bundle. If none is present, a built-in default seed is used. Subsequent deploys against an existing database leave its content alone.
 
 To change the schema or content model of a site that is already deployed, see [Evolving a Deployed Site](/deployment/schema-evolution/).
 
-## Read replicas
+## Place the Worker near D1
 
-For globally distributed sites, enable D1 read replication to route read queries to nearby replicas instead of always hitting the primary database. This significantly reduces latency for visitors far from the primary region.
+Cloudflare runs a Worker near the visitor by default. EmDash server-rendered requests make several D1 round trips, so use [Targeted Placement](https://developers.cloudflare.com/workers/configuration/smart-placement/) when database latency matters more than the extra distance between the visitor and the Worker.
 
-```js title="astro.config.mjs"
-emdash({
-	database: d1({
-		binding: "DB",
-		session: "auto",
-	}),
-	storage: r2({ binding: "MEDIA" }),
-}),
-```
-
-You also need to enable read replication on the D1 database itself in the Cloudflare dashboard or via the REST API.
-
-<Aside type="caution">
-	Read replica sessions are incompatible with the
-	[`global_fetch_strictly_public`](https://developers.cloudflare.com/workers/configuration/compatibility-flags/#global-fetch-strictly-public)
-	compatibility flag. With that flag in your `wrangler.jsonc`, the internal request the D1 Sessions
-	API makes to route queries to replicas is silently blocked, and every SSR request hangs until the
-	Worker is killed — with nothing in the logs (`outcome: "canceled"`, no exceptions). The hang may
-	only begin once replicas finish provisioning, so it can pass an initial post-deploy check and
-	surface hours later. If your Worker needs that flag (for example, to fetch its own origin), keep
-	`session` disabled. See [#1273](https://github.com/emdash-cms/emdash/issues/1273).
-</Aside>
-
-See [Database Options — Read Replicas](/deployment/database/#read-replicas) for session modes and how bookmark-based consistency works.
+Wrangler accepts `placement.mode: "targeted"` with exactly one selector: `region`, `host`, or `hostname`. Select the value that targets the D1 primary location, and add the resulting `placement` object to `wrangler.jsonc`. Targeted Placement moves Worker execution; it does not enable D1 read replication or change EmDash's `session` setting. Measure response latency after deployment because placing the Worker closer to D1 can place it farther from some visitors.
 
 ## Object cache
 
@@ -183,17 +157,7 @@ Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) p
 
 <Steps>
 
-1. Turn on the platform cache in `wrangler.jsonc`.
-
-   ```jsonc title="wrangler.jsonc"
-   {
-    "cache": {
-      "enabled": true,
-    },
-   }
-   ```
-
-2. Use Astro's Cloudflare cache provider so route rules and `Astro.cache` set cache headers and invalidation uses `cache.purge()`.
+1. Use Astro's Cloudflare cache provider so route rules and `Astro.cache` set cache headers and invalidation uses `cache.purge()`.
 
    ```js title="astro.config.mjs"
    import { cacheCloudflare } from "@astrojs/cloudflare/cache";
@@ -210,9 +174,9 @@ Cloudflare's [Workers Cache](https://developers.cloudflare.com/workers/cache/) p
    });
    ```
 
-   With `cacheCloudflare()`, the `@astrojs/cloudflare` adapter also injects `"cache": { "enabled": true }` into the generated Wrangler config when it is missing. Listing it explicitly in `wrangler.jsonc` keeps the setting visible to operators.
+   The `@astrojs/cloudflare` adapter detects `cacheCloudflare()` and enables Workers Cache in the generated deployment configuration. Do not duplicate the generated `cache.enabled` setting in the source `wrangler.jsonc`; inspect `.wrangler/deploy/config.json` after a build when you need to verify it.
 
-3. Purge cached responses from Worker code with the platform API. This call does not need Cloudflare REST credentials.
+2. Purge cached responses from Worker code with the platform API. This call does not need Cloudflare REST credentials.
 
    ```ts
    import { cache } from "cloudflare:workers";
@@ -246,7 +210,7 @@ Also do not confuse either of those with **object cache** (`objectCache: kvCache
 
 ## Custom domains
 
-The first deployment receives a `workers.dev` URL. After the Worker responds successfully there, add a production custom domain as a Wrangler route:
+The first deployment receives a `workers.dev` URL. The custom domain must already be an active domain managed by Cloudflare in the same account as the Worker. After the Worker responds successfully at its `workers.dev` URL, add the production domain as a Wrangler route:
 
 ```jsonc title="wrangler.jsonc"
 {
@@ -294,7 +258,7 @@ To see what a deploy actually gets, read the generated config rather than `wrang
 	the adapter's passthrough endpoint in place rather than wrapping it.
 </Aside>
 
-Cloudflare bills these transforms as [Images transformations](https://developers.cloudflare.com/images/pricing/#images-transformed). Each unique combination of source image and parameters is billed once per calendar month, and repeat requests within that month are free. The Images Free plan covers 5,000 unique transformations per month. Past that limit, cached transformations are still served, but new ones return a `9422` error and the image request fails.
+Cloudflare bills these transforms as [Images transformations](https://developers.cloudflare.com/images/pricing/#images-transformed). Each unique combination of source image and parameters is billed once per calendar month, and repeat requests within that month are free. If a site has 500 source images and requests one thumbnail size and one hero size for every image, those two parameter sets count as 1,000 transformed images for that month. The Images Free plan covers 5,000 unique transformations per month. Past that limit, cached transformations are still served, but new ones return a `9422` error and the image request fails.
 
 ## Cloudflare Access authentication
 
