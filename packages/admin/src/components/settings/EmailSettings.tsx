@@ -294,7 +294,7 @@ export function EmailSettings() {
 											label={t`SMTP Host`}
 											value={smtpHost}
 											onChange={(event) => setSmtpHost(event.target.value)}
-											placeholder="smtp-relay.brevo.com"
+											placeholder={t`smtp-relay.brevo.com`}
 											required
 										/>
 										<Input
@@ -309,7 +309,7 @@ export function EmailSettings() {
 													else if (port === 587) setSmtpSecure("starttls");
 												}
 											}}
-											placeholder="465"
+											placeholder={t`465`}
 											required
 										/>
 										<Select
@@ -328,7 +328,7 @@ export function EmailSettings() {
 											label={t`Username`}
 											value={smtpUser}
 											onChange={(event) => setSmtpUser(event.target.value)}
-											placeholder="you@example.com"
+											placeholder={t`you@example.com`}
 											required
 										/>
 										<Input
@@ -353,14 +353,14 @@ export function EmailSettings() {
 											type="email"
 											value={smtpFromEmail}
 											onChange={(event) => setSmtpFromEmail(event.target.value)}
-											placeholder="noreply@example.com"
+											placeholder={t`noreply@example.com`}
 										/>
 										<Input
 											label={t`Reply-to email (optional)`}
 											type="email"
 											value={smtpReplyTo}
 											onChange={(event) => setSmtpReplyTo(event.target.value)}
-											placeholder="support@example.com"
+											placeholder={t`support@example.com`}
 										/>
 									</div>
 									<p className="text-sm leading-5 text-kumo-subtle">
@@ -387,7 +387,7 @@ export function EmailSettings() {
 											type="email"
 											value={cfFromEmail}
 											onChange={(event) => setCfFromEmail(event.target.value)}
-											placeholder="noreply@example.com"
+											placeholder={t`noreply@example.com`}
 											required
 										/>
 										<Input
@@ -395,7 +395,7 @@ export function EmailSettings() {
 											type="email"
 											value={cfReplyTo}
 											onChange={(event) => setCfReplyTo(event.target.value)}
-											placeholder="support@example.com"
+											placeholder={t`support@example.com`}
 										/>
 									</div>
 									<p className="text-xs text-kumo-subtle">
