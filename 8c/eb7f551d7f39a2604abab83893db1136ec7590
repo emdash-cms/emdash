@@ -1,0 +1,41 @@
+packages/core/tests/integration/smoke/site-matrix-smoke.test.ts
+  s_81c53493e8c532::t_21948fc24fd431 2-10,18,248-293,342-436
+templates/marketing-cloudflare/AGENTS.md
+  s_81c53493e8c532::t_21b1b8442fda0e 57,59
+templates/marketing-cloudflare/seed/seed.json
+  s_81c53493e8c532::t_64efd78255239b 32-81,260,358,456,605
+templates/marketing/AGENTS-template.md
+  s_81c53493e8c532::t_6d37a7893ebbc2 13,15
+templates/marketing/AGENTS.md
+  s_81c53493e8c532::t_ffa9bdff775e69 57,59
+templates/marketing/seed/seed.json
+  s_81c53493e8c532::t_b54d14c7f22d6d 32-81,260,358,456,605
+templates/marketing-cloudflare/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_87fb1464b56d2b 13-19
+templates/marketing-cloudflare/src/pages/blog/index.astro
+  s_81c53493e8c532::t_e08f97d0ef42a6 12-35,40,44-49,61-64,69-70,137-149,156-159,197-221,475-520,537-542,587-588
+templates/marketing-cloudflare/src/pages/pricing.astro
+  s_81c53493e8c532::t_7b2200d518d537 2
+templates/marketing/src/pages/blog/[slug].astro
+  s_81c53493e8c532::t_c890c2116fe401 13-19
+templates/marketing/src/pages/blog/index.astro
+  s_81c53493e8c532::t_5b0baec134a787 12-35,40,44-49,61-64,69-70,137-149,156-159,197-221,475-520,537-542,587-588
+templates/marketing/src/pages/pricing.astro
+  s_81c53493e8c532::t_b2c80662780cc8 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8ceb7f551d7f39a2604abab83893db1136ec7590",
+  "prompts": {},
+  "sessions": {
+    "s_81c53493e8c532": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08c0b-fe3c-77e1-b207-892826a15888",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
