@@ -1,5 +1,6 @@
 ---
 import { getEmDashCollection } from "../../query.js";
+import { sanitizeHref } from "../../utils/url.js";
 import { buildLiveSearchResultUrl } from "../live-search-routing.js";
 
 interface Props {
@@ -36,13 +37,15 @@ function getString(data: Record<string, unknown>, key: string): string | undefin
 			// use the same token semantics as LiveSearch's routeMap — `:id`
 			// is the content ULID (`data.id`), `:slug` the bare slug.
 			const href = urlTemplate
-				? buildLiveSearchResultUrl(
-						{
-							collection: "posts",
-							id: getString(post.data, "id") ?? post.id,
-							slug: getString(post.data, "slug") ?? post.id,
-						},
-						{ posts: urlTemplate },
+				? sanitizeHref(
+						buildLiveSearchResultUrl(
+							{
+								collection: "posts",
+								id: getString(post.data, "id") ?? post.id,
+								slug: getString(post.data, "slug") ?? post.id,
+							},
+							{ posts: urlTemplate },
+						),
 					)
 				: `/posts/${post.id}`;
 			return (
