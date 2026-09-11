@@ -23,7 +23,7 @@ Capabilities live in `emdash-plugin.jsonc`, alongside `slug` and the rest of the
 }
 ```
 
-Declare only what the plugin actually needs. Capability declarations are also what the marketplace shows site operators on the consent dialog — extra capabilities are friction at install time and a security flag in audits.
+Declare only what the plugin actually needs. The marketplace shows these capabilities to site operators before installation, so every extra declaration asks them to approve access the plugin does not use.
 
 ## Capability reference
 
@@ -42,7 +42,7 @@ Declare only what the plugin actually needs. Capability declarations are also wh
 | `hooks.email-events:register`       | Allows registering `email:beforeSend` / `email:afterSend` hooks                   |
 | `hooks.page-fragments:register`     | Allows registering the `page:fragments` hook (native plugins only)                |
 
-A few things worth knowing:
+The following rules affect which capabilities a plugin needs:
 
 - **Implications.** `content:write` automatically implies `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
 - **Taxonomies are a separate, read-only surface.** `taxonomies:read` grants access to taxonomy definitions, their terms, and the terms assigned to an entry via `ctx.taxonomies`. It is independent of `content:read` — declare both if the plugin reads content *and* its classification. There is no taxonomy *write* access from plugins.
@@ -65,19 +65,19 @@ Locale matching is case-insensitive and stores the casing from the site's locale
 
 ## Network host allowlists
 
-Plugins with `network:request` can only fetch hosts listed in `allowedHosts`. Wildcards are supported for subdomains:
+Plugins with `network:request` can only fetch hosts listed in `allowedHosts`. A leading `*.` matches both the named domain and its subdomains:
 
 ```jsonc title="emdash-plugin.jsonc"
 "capabilities": ["network:request"],
 "allowedHosts": [
 	"api.example.com",     // exact host
-	"*.cdn.example.com"    // any subdomain of cdn.example.com
+	"*.cdn.example.com"    // cdn.example.com and any subdomain
 ]
 ```
 
 The bridge checks the request URL's host against the allowlist before forwarding the request. A request to a host that wasn't declared throws inside the plugin without ever leaving the sandbox.
 
-`network:request:unrestricted` skips the allowlist check entirely. It's intended for plugins where the operator configures the destination URL at runtime (webhook senders, generic HTTP forwarders). Avoid it for plugins where the destination is part of the plugin's design — declare `network:request` with explicit hosts instead, so the consent dialog tells operators exactly where the plugin is going to call.
+`network:request:unrestricted` skips the manifest host allowlist. The sandbox bridge still accepts only HTTP and HTTPS, blocks known internal hosts and private literal addresses, rechecks every redirect, and removes credential headers when a redirect crosses origins. Use unrestricted access only when an operator supplies the destination at runtime. For fixed destinations, declare `network:request` with explicit hosts so the consent dialog names them.
 
 ## What the sandbox enforces
 
@@ -87,13 +87,13 @@ When a sandbox runner is active, the runtime enforces:
 
 1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.taxonomies`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
 
-2. **Storage and KV scoping.** Every storage and KV operation is scoped to the plugin's slug. A plugin can't read another plugin's KV or its storage collections, and it can only access storage collections it declared in the manifest.
+2. **Storage and KV scoping.** Every storage and KV operation is scoped to the runtime plugin ID. A plugin can't read another plugin's KV or storage collections, and it can access only collections declared in its manifest.
 
 3. **Network isolation.** Direct `fetch()` and other network primitives are blocked by the runner. The only way to reach the network is `ctx.http.fetch()`, which goes through the bridge's host validation.
 
 4. **No host bindings.** Sandboxed plugins don't see environment variables, the filesystem, or any platform bindings — even if your host worker has them. The plugin runtime is a clean isolate with only the bridge and the declared capabilities.
 
-5. **Resource limits.** The runner can enforce CPU, subrequest, wall-clock, and memory limits per invocation. The exact limits depend on which runner you're using; the Cloudflare runner uses the platform's Worker Loader limits (50ms CPU per invocation, 10 subrequests, 30 second wall-clock, ~128MB memory). The Node.js workerd runner (`@emdash-cms/sandbox-workerd`) enforces wall-clock time via `Promise.race`; CPU and memory limits are Cloudflare platform features and are not enforced by standalone workerd. Hooks that exceed the runner's limits are aborted; the EmDash hook timeout (`timeout` in the hook config) enforces a stricter ceiling on top of that.
+5. **Resource limits.** The Cloudflare runner defaults to 50 ms of CPU, 10 subrequests, and 30 seconds of wall time per invocation. Worker Loader enforces CPU and subrequests; the runner enforces wall time. Worker Loader has a platform memory ceiling, but its per-plugin `memoryMb` option is not currently enforceable. The Node.js workerd runner enforces only the 30-second wall-time default; it warns when a site configures CPU, memory, or subrequest limits that standalone workerd cannot enforce. A per-hook `timeout` applies only when the sandboxed-format plugin runs in process.
 
 </Steps>
 
@@ -101,8 +101,8 @@ When a sandbox runner is active, the runtime enforces:
 
 A few things the capability system doesn't and can't cover:
 
-- **Behaviour within a granted capability.** A plugin with `content:write` can edit any content, not only its own. Capabilities are coarse — they say "this plugin can write content," not "this plugin can write only the content it created." Audit-time review is the only check on what a plugin actually does within its grant.
-- **Entry edit locks.** `ctx.content.update()` writes through an entry's [edit lock](/reference/rest-api/#entry-edit-lock), so an editor who has that entry open in the admin does not stop a plugin write. `ctx.content.delete()` behaves the same way, and releases the lock along with the entry it trashes.
+- **Behaviour within a granted capability.** A plugin with `content:write` can edit any content, not only its own. Capabilities are coarse — they say "this plugin can write content," not "this plugin can write only the content it created." An operator must evaluate the plugin's code and publisher before granting that access.
+- **Entry edit locks.** `ctx.content.update()` and `ctx.content.delete()` are programmatic writes. An editor holding the entry's advisory edit lock does not block them. Coordinate plugin writes with editors when both may update the same entry.
 - **Operator trust on Node.js.** When the configured sandbox runner reports unavailable (no Cloudflare Worker Loader, no Node-side runner installed, etc.), `sandboxed: []` plugins are skipped at startup. You can move them into `plugins: []` to run them in-process — but then there's no V8 isolate, no resource limits, and the plugin can call `fetch()` directly or read environment variables. Treat that as native-level trust.
 - **Side channels.** Timing, log output, and stored data are all visible to anyone with appropriate access to the host environment. Don't use the sandbox as a confidentiality boundary against the operator running it.
 
@@ -110,14 +110,14 @@ A few things the capability system doesn't and can't cover:
 
 When an operator installs a sandboxed plugin from the marketplace, EmDash shows a consent dialog listing the declared capabilities. Updates that add capabilities — for example, a plugin that previously only read content now wants to make network requests — surface as a capability diff and require fresh approval before the new version takes effect.
 
-This is why declaring extra capabilities matters even if you "might use them later". They show up as friction at every install and update, and security audits flag plugins that ask for more than they obviously need. List exactly what the plugin uses, and add new capabilities in a real version when the plugin actually starts using them.
+Declaring capabilities for possible future use makes every installation or update ask for unnecessary access. List what the current version uses, then add a capability in the version that starts using it.
 
 ## Bundle-time validation
 
 `emdash-plugin bundle` and `emdash-plugin publish` perform additional checks:
 
 - Every declared capability must be in the recognised set (typos fail the build).
-- `network:request` requires a non-empty `allowedHosts`; `network:request:unrestricted` requires it to be empty. See [the manifest reference](/plugins/creating-plugins/manifest/#capabilities).
+- `network:request` requires a non-empty `allowedHosts`; `network:request:unrestricted` requires it to be empty. See [Capabilities and hosts](/plugins/creating-plugins/manifest/#capabilities-and-hosts).
 - The bundled `backend.js` can't import Node.js built-ins (`fs`, `path`, `child_process`, etc.) — sandbox runtimes don't provide them.
 
-See [Bundling and publishing](/plugins/creating-plugins/publishing/) for the full list of checks.
+See [the manifest reference](/plugins/creating-plugins/manifest/#trust-contract) for the authoring fields and [Bundling and publishing](/plugins/creating-plugins/publishing/#validation) for bundle checks.

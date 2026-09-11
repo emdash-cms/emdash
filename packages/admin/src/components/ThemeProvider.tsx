@@ -79,7 +79,11 @@ export function ThemeProvider({ children, defaultTheme = "system" }: ThemeProvid
 
 	const setTheme = React.useCallback((newTheme: Theme) => {
 		setThemeState(newTheme);
-		localStorage.setItem(STORAGE_KEY, newTheme);
+		if (newTheme === "system") {
+			localStorage.removeItem(STORAGE_KEY);
+		} else {
+			localStorage.setItem(STORAGE_KEY, newTheme);
+		}
 	}, []);
 
 	const value = React.useMemo(

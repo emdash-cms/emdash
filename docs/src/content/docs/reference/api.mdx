@@ -1,11 +1,30 @@
 ---
 title: JavaScript API Reference
-description: Programmatic API for querying and managing EmDash content.
+description: Site-template API for reading and presenting EmDash content.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash exports functions for querying content and working with preview, settings, menus, taxonomies, widget areas, sections, and search.
+This page covers the public API used by Astro pages, layouts, and components to read and present an EmDash site. It does not inventory every export from the `emdash` package root: database repositories, API handlers, migration utilities, plugin-authoring APIs, and other server internals have separate references or are intended for framework integration code.
+
+The **site-template API contract** in this reference lists every function imported from `emdash` by EmDash's maintained site templates. Type-only imports such as `MediaValue` belong to the relevant data-model documentation. Related functions are documented in the same sections when they help a site author, but the page does not cover unrelated root exports.
+
+## Site-template API contract
+
+The maintained templates call these runtime helpers:
+
+| Function | Used for |
+| -------- | -------- |
+| `decodeSlug` | Decoding a dynamic route parameter before lookup |
+| `getEmDashCollection` | Reading and filtering entries in a collection |
+| `getEmDashEntry` | Reading one entry by ID or slug |
+| `getMenu` | Rendering a navigation menu and its resolved links |
+| `getSeoMeta` | Resolving an entry's SEO panel values and template fallbacks |
+| `getSiteSettings` | Reading public site identity and other global settings |
+| `getTaxonomyTerms` | Rendering taxonomy navigation, filters, and term indexes |
+| `getTerm` | Reading one taxonomy term for an archive page |
+| `getTermsForEntries` | Batch-loading one taxonomy for a list of entries |
+| `search` | Searching published content across collections |
 
 ## Content queries
 
@@ -37,14 +56,25 @@ if (error) {
 The `options` parameter accepts the following filter:
 
 ```ts
+interface WhereRange {
+	gt?: string;
+	gte?: string;
+	lt?: string;
+	lte?: string;
+}
+
 interface CollectionFilter {
 	status?: "draft" | "published" | "archived";
 	limit?: number;
 	cursor?: string; // Keyset pagination — pass a previous `nextCursor`
 	offset?: number; // Offset pagination — skip N entries (use with `limit`)
-	where?: Record<string, string | string[]>; // Filter by field or taxonomy
+	where?: Record<string, string | string[] | WhereRange>;
+	orderBy?: Record<string, "asc" | "desc">;
+	locale?: string;
 }
 ```
+
+`cursor` and `offset` are mutually exclusive. The `where` keys can name content fields, taxonomies, or `byline`; range objects are available for ordered comparisons.
 
 #### Returns
 
@@ -54,6 +84,7 @@ The function resolves to a `CollectionResult`:
 interface CollectionResult<T> {
 	entries: ContentEntry<T>[]; // Empty array if error or none found
 	error?: Error; // Set if query failed
+	cacheHint: CacheHint; // Tags and last-modified time for Astro route caching
 	nextCursor?: string; // Cursor for the next keyset page, if any
 	hasMore?: boolean; // Whether more entries exist beyond this page (when `limit` is set)
 }
@@ -120,7 +151,7 @@ if (!post) {
 | `slugOrId`   | `string` | Entry slug or ID |
 | `options`    | `{ locale?: string }` | Optional. Locale for slug resolution |
 
-Preview mode is handled automatically — the middleware detects `_preview` tokens and serves draft content via `AsyncLocalStorage`. The optional `options` parameter only accepts a `locale` for slug resolution; preview state requires no parameter.
+Preview mode is handled automatically: when the request has a valid `_preview` token, the query serves draft content. The optional `options` parameter only accepts a `locale` for slug resolution; preview state requires no parameter.
 
 #### Returns
 
@@ -131,6 +162,8 @@ interface EntryResult<T> {
 	entry: ContentEntry<T> | null; // null if not found
 	error?: Error; // Set only for actual errors, not "not found"
 	isPreview: boolean; // true if draft content is being served
+	fallbackLocale?: string; // Set when locale fallback returned another locale
+	cacheHint: CacheHint; // Tags and last-modified time for Astro route caching
 }
 ```
 
@@ -157,6 +190,46 @@ if (!entry) {
 }
 ```
 
+### `getTranslations()`
+
+Fetch the available translations of one entry by collection slug and database ID:
+
+```ts
+import { getTranslations } from "emdash";
+
+const { translations, error } = await getTranslations("posts", post.data.id);
+```
+
+The result contains the shared `translationGroup`, a `translations` array, and an optional `error`. Each translation summary includes `id`, `locale`, `slug`, and `status`.
+
+### `resolveEmDashPath()`
+
+Resolve a public pathname against the URL patterns configured for routable collections:
+
+```ts
+import { resolveEmDashPath } from "emdash";
+
+const result = await resolveEmDashPath("/blog/hello-world");
+
+if (result) {
+	console.log(result.collection, result.entry.data.title);
+}
+```
+
+The result contains the matched `collection`, `entry`, and route `params`. The function returns `null` when no configured URL pattern matches.
+
+### `getEditMeta()`
+
+Read the non-enumerable visual-editing metadata attached to a Portable Text value:
+
+```ts
+import { getEditMeta } from "emdash";
+
+const meta = getEditMeta(post.data.content);
+```
+
+It returns `{ collection, id, field }` for an annotated value, or `undefined` when the value has no annotation.
+
 ## Content types
 
 ### `ContentEntry`
@@ -171,17 +244,46 @@ interface ContentEntry<T = Record<string, unknown>> {
 }
 ```
 
-The `edit` proxy provides visual editing annotations. Spread it onto elements to enable inline editing: `{...entry.edit.title}`. In production, this produces no output.
+The `edit` proxy provides visual editing annotations. Spread it onto elements to enable inline editing: `{...entry.edit.title}`. Outside edit mode, it produces no output.
 
 The `data` object contains all content fields plus system fields:
 
 - `id` - Unique identifier
 - `slug` - URL-friendly identifier
 - `status` - "draft" | "published" | "archived"
-- `createdAt` - ISO timestamp
-- `updatedAt` - ISO timestamp
-- `publishedAt` - Publication timestamp or null; retained when content is unpublished
+- `createdAt` - Creation time as a `Date`
+- `updatedAt` - Last update time as a `Date`
+- `publishedAt` - Publication time as a `Date`, or `null`; retained when content is unpublished
 - Plus all custom fields defined in your collection schema
+
+## URL helpers
+
+### `decodeSlug()` and `slugify()`
+
+Use `decodeSlug()` on a dynamic route parameter before passing it to a content query. It returns `undefined` for a missing parameter and otherwise applies `decodeURIComponent()`, which throws for malformed percent encoding:
+
+```ts
+function decodeSlug(raw: string | undefined): string | undefined;
+```
+
+```ts
+import { decodeSlug, getEmDashEntry } from "emdash";
+
+const slug = decodeSlug(Astro.params.slug);
+const { entry } = slug ? await getEmDashEntry("posts", slug) : { entry: null };
+```
+
+`slugify(value)` converts text to a lowercase, hyphen-separated slug. Use it when a template needs to construct a slug from a label; stored entry slugs already come from EmDash.
+
+### `sanitizeHref()` and `isSafeHref()`
+
+These helpers reject unsafe link schemes such as `javascript:`. `isSafeHref(value)` returns a boolean. `sanitizeHref(value)` returns the original safe URL or `"#"` when the value is empty or unsafe.
+
+```ts
+import { sanitizeHref } from "emdash";
+
+const href = sanitizeHref(menuItem.url);
+```
 
 ## Preview system
 
@@ -194,10 +296,12 @@ import { generatePreviewToken } from "emdash";
 
 const token = await generatePreviewToken({
 	contentId: "posts:01HXK5MZSN...",
-	secret: process.env.EMDASH_ADMIN_SECRET,
+	secret: process.env.EMDASH_PREVIEW_SECRET!,
 	expiresIn: 3600, // 1 hour
 });
 ```
+
+`contentId` must use the `collection:id` format. `expiresIn` accepts seconds or a duration ending in `s`, `m`, `h`, `d`, or `w` and defaults to `"1h"`. Keep the signing secret on the server.
 
 ### `verifyPreviewToken()`
 
@@ -208,7 +312,7 @@ import { verifyPreviewToken } from "emdash";
 
 const result = await verifyPreviewToken({
 	token,
-	secret: process.env.EMDASH_ADMIN_SECRET,
+	secret: process.env.EMDASH_PREVIEW_SECRET!,
 });
 
 if (result.valid) {
@@ -216,6 +320,37 @@ if (result.valid) {
 	// cid is "collection:id" format, e.g. "posts:my-draft-post"
 }
 ```
+
+Pass either `token` or `url` with the signing `secret`. An invalid token returns `{ valid: false, error }`, where `error` is `"none"`, `"malformed"`, `"invalid"`, or `"expired"`.
+
+### `parseContentId()`
+
+Split a preview payload's `collection:id` value into its two parts:
+
+```ts
+import { parseContentId } from "emdash";
+
+const parsed = parseContentId(result.payload.cid);
+```
+
+It returns `{ collection, id }` and throws when the value has no colon separator.
+
+### `getPreviewUrl()` and `buildPreviewUrl()`
+
+`getPreviewUrl()` creates and signs a preview URL. It accepts `collection`, `id`, and `secret`, plus optional `expiresIn`, `baseUrl`, `pathPattern`, and `locale` values:
+
+```ts
+import { getPreviewUrl } from "emdash";
+
+const previewUrl = await getPreviewUrl({
+	collection: "posts",
+	id: post.id,
+	secret: process.env.EMDASH_PREVIEW_SECRET!,
+	pathPattern: "/blog/{id}",
+});
+```
+
+Without `baseUrl`, it returns a site-relative URL. Use `buildPreviewUrl({ path, token, baseUrl? })` when a token already exists.
 
 ### `isPreviewRequest()`
 
@@ -229,6 +364,8 @@ if (isPreviewRequest(Astro.url)) {
 	// Verify and show preview content
 }
 ```
+
+`getPreviewToken()` returns the `_preview` query parameter or `null` when it is absent. The EmDash middleware verifies normal preview requests and supplies preview state to `getEmDashEntry()` automatically; these helpers are for custom preview routes and tooling.
 
 ## Content converters
 
@@ -249,6 +386,11 @@ const prosemirrorDoc = portableTextToProsemirror(portableText);
 Read site-wide settings with `getSiteSettings` and `getSiteSetting`:
 
 ```ts
+function getSiteSettings(): Promise<Partial<SiteSettings>>;
+function getSiteSetting<K extends SiteSettingKey>(key: K): Promise<SiteSettings[K] | undefined>;
+```
+
+```ts
 import { getSiteSettings, getSiteSetting } from "emdash";
 
 // Get all settings
@@ -260,9 +402,80 @@ const title = await getSiteSetting("title");
 
 Settings are read-only from the runtime API. Use the admin API to update them.
 
+`getSiteSettings()` returns a partial object because unset keys are omitted. Media settings such as the site logo and favicon are resolved to media-reference objects before the function returns.
+
+`getSiteSettingsWithCacheHint()` returns `{ data, cacheHint }`. Pass the hint to `Astro.cache.set()` when an Astro route cache should be invalidated after site settings change.
+
+## SEO
+
+Resolve the SEO panel values and content fallbacks for a page with `getSeoMeta()`:
+
+```ts
+function getSeoMeta<T>(content: SeoContentInput<T>, options?: SeoMetaOptions): SeoMeta;
+
+interface SeoMetaOptions {
+	siteTitle?: string;
+	siteUrl?: string;
+	titleSeparator?: string; // Default: " | "
+	path?: string;
+	defaultOgImage?: string;
+	defaultTitle?: string;
+	defaultDescription?: string;
+}
+
+interface SeoMeta {
+	title: string;
+	description: string | null;
+	ogTitle: string;
+	ogDescription: string | null;
+	ogImage: string | null;
+	canonical: string | null;
+	robots: string | null;
+}
+```
+
+```ts
+import { getSeoMeta } from "emdash";
+
+const meta = getSeoMeta(post, {
+	siteTitle: "Example Blog",
+	siteUrl: "https://example.com",
+	path: `/blog/${post.data.slug}`,
+});
+```
+
+It returns the resolved title, description, Open Graph values, canonical URL, and robots value. `getContentSeo(content)` returns the raw SEO object without applying template fallbacks.
+
+For translated content, `getHreflangAlternates(collection, entryId, { siteUrl? })` returns published, routable locale variants as `{ hreflang, href }` objects and adds an `x-default` entry. It returns an empty array when internationalization is disabled, the current entry is marked `noindex`, or no absolute site URL is available.
+
+## Comments
+
+Fetch approved comments and their count for an entry:
+
+```ts
+import { getCommentCount, getComments } from "emdash";
+
+const { items: comments, total } = await getComments({
+	collection: "posts",
+	contentId: post.data.id,
+	threaded: true,
+	reactions: true,
+	sort: "best",
+});
+
+const count = await getCommentCount("posts", post.data.id);
+```
+
+`threaded` nests replies below their parent. The default `sort` is `"oldest"`; `"best"` ranks top-level comments by reactions and enables reaction counts automatically. Server-rendered comment queries return at most 500 approved comments; use the REST API when a client needs pagination.
+
 ## Menus
 
 Fetch navigation menus and iterate their items, including nested children:
+
+```ts
+function getMenu(name: string, options?: { locale?: string }): Promise<Menu | null>;
+function getMenus(options?: { locale?: string }): Promise<MenuSummary[]>;
+```
 
 ```ts
 import { getMenu, getMenus } from "emdash";
@@ -282,9 +495,46 @@ if (primaryMenu) {
 }
 ```
 
+`getMenu(name, { locale? })` follows the configured locale fallback chain. `getMenus({ locale? })` lists menu summaries for the resolved request or configured locale; without internationalization it lists every locale. `getMenuWithCacheHint()` returns `{ data, cacheHint }` for routes using Astro's cache.
+
+## Bylines
+
+Fetch an author profile by ID or slug, or list entries credited to a byline:
+
+```ts
+import { getByline, getBylineBySlug, getEntriesByByline } from "emdash";
+
+const profile = await getBylineBySlug("jane-doe", { locale: "en" });
+const posts = profile
+	? await getEntriesByByline("posts", profile.translationGroup ?? profile.id)
+	: [];
+```
+
+`getByline(id)` returns one profile or `null`. The slug lookup accepts an optional locale and follows the locale fallback chain. Content queries already hydrate an entry's ordered credits into `entry.data.bylines`; use these standalone helpers for author pages and byline archives.
+
 ## Taxonomies
 
 Fetch taxonomy terms, a single term, an entry's terms, or entries by term:
+
+```ts
+function getTaxonomyTerms(
+	taxonomyName: string,
+	options?: { locale?: string; includeCounts?: boolean },
+): Promise<TaxonomyTerm[]>;
+
+function getTerm(
+	taxonomyName: string,
+	slug: string,
+	options?: { locale?: string; includeCounts?: boolean },
+): Promise<TaxonomyTerm | null>;
+
+function getTermsForEntries(
+	collection: string,
+	entryIds: string[],
+	taxonomyName: string,
+	options?: { locale?: string },
+): Promise<Map<string, TaxonomyTerm[]>>;
+```
 
 ```ts
 import { getTaxonomyTerms, getTerm, getEntryTerms, getEntriesByTerm } from "emdash";
@@ -301,6 +551,29 @@ const postCategories = await getEntryTerms("posts", "post-123", "category");
 // Get entries with a specific term
 const newsPosts = await getEntriesByTerm("posts", "category", "news");
 ```
+
+`getTaxonomyDefs({ locale? })` lists taxonomy definitions, while `getTaxonomyDef(name, { locale? })` returns one definition or `null`. Locale-aware definition and term lookups follow the configured fallback chain.
+
+`getTaxonomyTerms(name, { locale?, includeCounts? })` returns a tree for hierarchical taxonomies and includes visible-entry counts by default. Pass `includeCounts: false` when the template does not render counts. Content queries also hydrate assigned terms into each entry's `data.terms`; use `getEntryTerms()` when you only have a collection name and entry ID.
+
+For archive pages that render terms beside many entries, batch the lookup instead of calling `getEntryTerms()` in a loop:
+
+```ts
+import { getAllTermsForEntries, getTermsForEntries } from "emdash";
+
+const termsByPost = await getTermsForEntries(
+	"posts",
+	posts.map(post => post.data.id),
+	"category",
+);
+
+const allTermsByPost = await getAllTermsForEntries(
+	"posts",
+	posts.map(post => post.data.id),
+);
+```
+
+`getTermsForEntries()` returns a map from entry ID to the requested taxonomy's terms. `getAllTermsForEntries()` returns a map from entry ID to terms grouped by taxonomy name. `getTaxonomyTermsWithCacheHint()` returns `{ data, cacheHint }` for an Astro-cached route.
 
 ## Widget areas
 
@@ -321,6 +594,8 @@ if (sidebar) {
 	});
 }
 ```
+
+`getWidgetAreaWithCacheHint(name)` returns `{ data, cacheHint }` for routes using Astro's cache. Widget areas and their widgets are ordered by their configured sort order.
 
 ## Sections
 
@@ -345,6 +620,23 @@ const cta = await getSection("newsletter-cta");
 ## Search
 
 Run a global search across collections. Results include highlighted snippets:
+
+```ts
+function search(query: string, options?: SearchOptions): Promise<SearchResponse>;
+
+interface SearchOptions {
+	collections?: string[]; // Default: every searchable collection
+	status?: string; // Default: "published"
+	locale?: string; // Default: all locales
+	limit?: number; // Default: 20
+	cursor?: string;
+}
+
+interface SearchResponse {
+	items: SearchResult[];
+	nextCursor?: string;
+}
+```
 
 ```ts
 import { search } from "emdash";
@@ -375,24 +667,18 @@ if (results.nextCursor) {
 
 ## Error handling
 
-EmDash exports error classes for handling specific failures. The following example catches validation and schema errors:
+Content queries return operational errors in their result instead of throwing. A missing entry is not an operational error: `entry` is `null` and `error` remains undefined.
 
 ```ts
-import {
-  EmDashDatabaseError,
-  EmDashValidationError,
-  EmDashStorageError,
-  SchemaError,
-} from "emdash";
+const { entry, error } = await getEmDashEntry("posts", slug);
 
-try {
-  await repo.create({ ... });
-} catch (error) {
-  if (error instanceof EmDashValidationError) {
-    console.error("Validation failed:", error.message);
-  }
-  if (error instanceof SchemaError) {
-    console.error("Schema error:", error.code, error.details);
-  }
+if (error) {
+	return new Response("Content could not be loaded", { status: 500 });
+}
+
+if (!entry) {
+	return Astro.redirect("/404");
 }
 ```
+
+Helpers without a result envelope can throw when their input is invalid or a database operation fails. Handle those errors at the route boundary when the page can provide a useful fallback. The repository and handler error classes used by lower-level server integrations are outside this site-template API.

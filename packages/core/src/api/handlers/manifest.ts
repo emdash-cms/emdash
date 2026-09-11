@@ -170,6 +170,7 @@ export async function buildManifestCollections(
 				titleField: collection.titleField,
 				dateField: collection.dateField,
 				...(collection.hidden ? { hidden: true } : {}),
+				...(collection.group ? { group: collection.group } : {}),
 				listColumns: listColumns.length > 0 ? listColumns : undefined,
 				fields,
 			};

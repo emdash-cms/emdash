@@ -24,7 +24,7 @@ Publish directly from the CLI, or use the [automated release service](/plugins/c
 
 ## Choose a publishing method
 
-Both methods create the same signed package and release records. Choose where the release build should run.
+Both methods create publisher-owned package and release records. Choose where the release build should run and which credential should authorize it.
 
 | Method | Use it when | Account access |
 | --- | --- | --- |
@@ -66,9 +66,7 @@ emdash-plugin login alice.example.com
 emdash-plugin publish
 ```
 
-`publish` runs the same build and validation checks as `bundle`, creates the gzip archive, uploads it to your Personal Data Server (PDS), uploads any declared listing images, and writes the release record.
-
-Sites need a version of EmDash that supports PDS-hosted registry artifacts before they can install a blob-only release. Use the [external package URL](#use-an-external-package-url) path when the release must remain installable on older sites.
+`publish` runs the same build and validation checks as `bundle`, creates the gzip archive, uploads it to your personal data server (PDS), uploads any declared listing images, and writes the release record.
 
 ## Bundle
 
@@ -93,8 +91,8 @@ emdash-plugin bundle [--dir <path>] [--out-dir|-o <path>] [--validate-only]
 | `manifest.json` | Yes      | Generated manifest: id, version, capabilities, hosts, and the hooks and routes read from your source. You do not maintain this by hand. |
 | `backend.js`    | Yes      | The built, self-contained runtime file (`dist/plugin.mjs`). |
 | `README.md`     | No       | Plugin documentation.                                        |
-| `icon.png`      | No       | 256×256 PNG.                                                 |
-| `screenshots/`  | No       | Up to 5, max 1920×1080.                                       |
+| `icon.png`      | No       | Conventional bundle icon. Must be a readable PNG; 256×256 is recommended. |
+| `screenshots/`  | No       | Up to eight `.png`, `.jpg`, or `.jpeg` files; 1920×1080 or smaller is recommended. |
 
 ### Validation
 
@@ -103,8 +101,8 @@ emdash-plugin bundle [--dir <path>] [--out-dir|-o <path>] [--validate-only]
 - **Size caps (RFC 0001, decompressed):** total ≤ 256 KB, per-file ≤ 128 KB, ≤ 20 files. The gzipped tarball is a fraction of that.
 - **No Node built-ins in `backend.js`** — sandbox code can't import `fs`, `path`, `child_process`, etc. Use Web APIs, or move that logic to a native plugin.
 - **Capability sanity** — names must be in the recognised set.
-- **Trust-contract coherence** — the `network:request` / `allowedHosts` cross-rules from [the manifest](/plugins/creating-plugins/manifest/#capabilities).
-- **Asset limits** — icon 256×256, ≤ 5 screenshots at ≤ 1920×1080.
+- **Trust-contract coherence** — the `network:request` / `allowedHosts` cross-rules from [Capabilities and hosts](/plugins/creating-plugins/manifest/#capabilities-and-hosts).
+- **Conventional bundle assets** — an unreadable `icon.png` or screenshot is skipped. The CLI warns when the icon is not 256×256 or a screenshot exceeds 1920×1080, but dimensions alone do not fail the bundle. Every included file still counts toward the file and decompressed-size caps.
 
 To inspect the tarball before publishing, list its contents:
 
@@ -138,6 +136,8 @@ The following manifest block adds listing images. Paths are relative to `emdash-
 }
 ```
 
+Manifest-declared listing images are separate from the conventional `icon.png` and `screenshots/` files included in the tarball. Publishing uploads each declared image to the publisher's PDS and writes its blob reference into the release record. Each image is limited to 1 MiB and 8,192 pixels in either dimension; a release can declare up to eight screenshots. See [Release fields](/plugins/creating-plugins/manifest/#release-fields) for the complete shape.
+
 What `publish` does:
 
 <Steps>
@@ -170,9 +170,16 @@ emdash-plugin publish \\
   --local dist/gallery-1.0.0.tar.gz
 ```
 
-### Versions are immutable
+### Versions are immutable by default
 
-A published version cannot be overwritten or republished. Bump `version` before publishing again. The build reads `version` from `package.json` (see [the manifest reference](/plugins/creating-plugins/manifest/#version-lives-in-packagejson)). Bump **major** for a broadened [trust contract](/plugins/creating-plugins/manifest/#trust-contract), **minor** for new hooks or routes, and **patch** for fixes.
+`emdash-plugin publish` refuses to replace an existing release at the same slug and version. Bump `version` before publishing again. The build reads `version` from `package.json` (see [Keep one version value](/plugins/creating-plugins/manifest/#keep-one-version-value)). Bump **major** for a broadened [trust contract](/plugins/creating-plugins/manifest/#trust-contract), **minor** for new hooks or routes, and **patch** for fixes.
+
+<Aside type="caution" title="Overwriting can trigger a takedown">
+	The direct CLI exposes `--allow-overwrite` as a recovery option, but changing a release record at
+	an existing version breaks the registry's immutable-release expectation. Aggregators and labelers
+	may treat it as a takedown or replacement event. Automated releases are create-only. Prefer a new
+	version unless you are deliberately repairing a record and have checked the downstream effect.
+</Aside>
 
 ### Publisher mismatch
 

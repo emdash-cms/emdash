@@ -148,6 +148,21 @@ describe("generateManifest()", () => {
 		});
 	});
 
+	it("publishes the sidebar group for database collections", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "calendar_entries",
+			label: "Entries",
+			group: "Calendar",
+		});
+		await registry.createCollection({ slug: "team", label: "Team" });
+
+		const manifest = await generateManifest({}, {}, { db });
+
+		expect(manifest.collections.calendar_entries?.group).toBe("Calendar");
+		expect(manifest.collections.team).not.toHaveProperty("group");
+	});
+
 	it("keeps config collection fields when the database has the same slug", async () => {
 		const registry = new SchemaRegistry(db);
 		await registry.createCollection({

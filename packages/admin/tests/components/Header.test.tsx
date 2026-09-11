@@ -56,7 +56,7 @@ const { Header } = await import("../../src/components/Header");
 // Constants
 // ---------------------------------------------------------------------------
 
-const THEME_BUTTON_REGEX = /Toggle theme/;
+const THEME_BUTTON_REGEX = /Switch to (light|dark)/;
 const USER_MENU_REGEX = /Matt Kane/;
 
 // Mirror @emdash-cms/auth Role levels (kept inline, matching Header.tsx).
@@ -89,7 +89,7 @@ describe("Header", () => {
 				<Header />
 			</TestWrapper>,
 		);
-		// ThemeToggle renders a button with aria-label "Toggle theme (current: …)"
+		// ThemeToggle exposes its next action in the aria-label.
 		// (Kumo 2.x wraps `<Button title>` as a Tooltip popup, not a DOM title.)
 		const themeButton = screen.getByLabelText(THEME_BUTTON_REGEX);
 		await expect.element(themeButton).toBeInTheDocument();

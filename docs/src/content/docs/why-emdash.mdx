@@ -1,100 +1,120 @@
 ---
 title: Why EmDash
-description: Understand what problems EmDash solves and how it compares to other approaches.
+description: Evaluate EmDash's editing model, architecture, operating requirements, and trade-offs.
 ---
 
 import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
 
-EmDash is a CMS built for Astro. It gives editors an admin interface, serves content to your Astro site at runtime, and runs on a range of databases and hosts.
+EmDash is a content management system built for Astro. It adds an editor-facing admin panel to the
+same application as your website. Astro pages read the content from a database when they render.
 
-## What Makes EmDash Different
+This page explains that choice so you can decide whether it fits your project.
 
-### Astro-Native Architecture
+## How content reaches the site
 
-EmDash is built specifically for Astro, not adapted from a generic CMS. Content lives in the same deployment as your site and is queried through Astro's Live Content Collections within the same process.
+An editor creates or updates an entry in the admin panel. EmDash saves the entry in the configured
+database. When Astro renders a page, your page calls an EmDash query function and receives the
+published entry.
 
-### Familiar Content Model
+EmDash connects those queries to [Astro's Live Content Collections](https://docs.astro.build/en/guides/content-collections/#live-collections),
+which load content on demand instead of only during a build. A server-rendered page can therefore
+show a published edit on its next request. A prerendered page remains static until you rebuild it.
 
-If you've used WordPress, EmDash's concepts will feel familiar: collections (like post types), taxonomies, menus, widget areas, and a media library. The mental model transfers—the implementation uses modern tooling.
+Astro components still control the site's HTML and design. EmDash manages structured content; it is
+not a visual page builder.
 
-### Framework Integration
+## Who it is for
 
-EmDash is purpose-built for Astro. This tight integration enables type-safe queries, component-level caching, and integrated preview.
+EmDash is a good fit when all of the following are true:
 
-## Core Capabilities
+- The website is built with Astro.
+- Editors need to manage content without editing repository files.
+- Developers want the CMS and website in one application and deployment.
+- Developers can operate a database and media storage with the site.
+
+Common examples include agency-built sites handed to client editors, an Astro site maintained by a
+small development team, and a WordPress migration where the frontend is being rebuilt with Astro.
+
+EmDash does not run PHP, WordPress themes, or WordPress plugins. It can import WordPress content, and
+the migration guides explain how WordPress concepts and plugin behavior map to EmDash. The site
+design and any custom plugin behavior still need to be implemented for Astro and EmDash.
+
+## Editing and development
 
 <CardGrid>
-	<Card title="Single Deployment" icon="rocket">
-		Content and frontend deploy together. One codebase, one deployment, one system to manage.
+	<Card title="Editors use the admin panel" icon="pencil">
+		Editors work with forms generated from your collections and fields. Depending on their
+		permissions, they can manage drafts, publishing, media, taxonomies, menus, and widget areas.
 	</Card>
-	<Card title="Type Safety" icon="approve-check">
-		Generate TypeScript types from your content model for full autocomplete,
-		from query to template.
+	<Card title="Developers use Astro" icon="astro">
+		Developers write the pages, layouts, and components that display the content. EmDash query
+		functions return entries, errors, pagination information, and cache hints.
 	</Card>
-	<Card title="Live Updates" icon="star">
-		Built on Astro's Live Content Collections. Content changes appear instantly.
-	</Card>
-	<Card title="Cloud-Portable" icon="setting">
-		Runs on Cloudflare Workers with D1 and R2, and on Node.js with SQLite, libSQL, or
-		PostgreSQL and any S3-compatible storage.
+	<Card title="The content model can change" icon="setting">
+		Administrators can add collections and fields in the admin panel. Developers can export the
+		model as a seed file and generate TypeScript declarations for collection names and fields.
 	</Card>
 </CardGrid>
 
-## How It Compares
+Generated declarations describe the model at the time they were generated. During local
+development, EmDash refreshes `emdash-env.d.ts` when the model changes. Other workflows that use
+`emdash types` need to regenerate their output after a schema change.
 
-Different CMS approaches suit different needs:
+## Comparison with other Astro content sources
 
-| Aspect              | Traditional CMS  | Headless CMS    | EmDash              |
-| ------------------- | ---------------- | --------------- | --------------------- |
-| **Architecture**    | Monolithic       | Decoupled       | Integrated with Astro    |
-| **Frontend**        | Themes/templates | Bring your own  | Astro components         |
-| **Deployment**      | Single server    | CMS + frontend  | Single deployment        |
-| **Type safety**     | Runtime          | API types       | Full TypeScript          |
-| **Content updates** | Immediate        | Webhook/rebuild | Immediate (SSR)          |
-| **Plugin model**    | Same-process     | API extensions  | Native or sandboxed hooks |
+The following options solve different problems. A file-based collection keeps content in the
+repository. A separate headless CMS runs its own admin application and supplies content over a
+network API. EmDash keeps the admin and content runtime inside the Astro application.
 
-## Cloudflare Deployment
+| Decision | EmDash | File-based Astro collection | Separate headless CMS |
+| --- | --- | --- | --- |
+| Where editors work | Admin panel served by the Astro application | Repository files and development tools | CMS provider or separately operated admin application |
+| When pages load content | When a server-rendered page is requested | During development or a site build | During a build or request, through a network API |
+| Where the model is defined | EmDash database, through the admin panel or CLI | Source code in the repository | CMS configuration |
+| What the team operates | Astro application, database, and media storage | Astro application and build pipeline | Astro application plus the CMS account or service |
+| How releases are separated | Admin and frontend deploy together | Content and frontend usually build together | CMS and frontend deploy independently |
 
-EmDash runs on any platform with a supported SQL database (SQLite, libSQL, or PostgreSQL) and S3-compatible storage. It also supports Cloudflare-specific features:
+Choose file-based collections when content belongs in version control and contributors are
+comfortable with a Git workflow. Choose a separate headless CMS when several applications need one
+independently deployed content service. Choose EmDash when editors and the Astro site benefit from
+one application and your team accepts the shared deployment.
 
-- **D1** — SQLite at the edge with automatic replication
-- **R2** — S3-compatible storage with no egress fees
-- **Workers** — Global deployment with fast cold starts
+## Hosting and data
 
-## Plugin Migration
+EmDash supports two main deployment shapes:
 
-EmDash provides tools to help migrate WordPress plugin functionality:
+- **Cloudflare Workers:** Cloudflare D1 stores content and R2 stores media.
+- **Node.js:** SQLite, libSQL, or PostgreSQL stores content. The local filesystem or an
+  S3-compatible service stores media.
 
-- **Concept mapping** — WordPress hooks, filters, and APIs map to EmDash equivalents
-- **Migration guides** — Documentation for porting specific plugin patterns
-- **AI-assisted porting** — Documentation structured to help AI tools generate EmDash plugins from WordPress plugin code
+The database contains the content model as well as entries. Administrators can change that model
+while the site is running. Adding a field preserves existing entries, but the existing entries have
+no value for the new field until an editor or migration supplies one.
 
-Complex plugins still need human review, but for straightforward plugins, the migration guides reduce porting effort.
+<Aside type="caution" title="Schema changes affect stored data">
+	Deleting a field removes that field's values from every entry. Deleting a collection removes the
+	collection and all of its entries. Most field type changes require a planned content migration.
+	Back up production data and rehearse destructive changes before applying them.
+</Aside>
 
-## When to Use EmDash
+## Plugins
 
-**EmDash is designed for:**
+Plugins can react to content and media events and add settings, routes, admin pages, dashboard
+widgets, or editor controls. EmDash has two plugin formats with different trust boundaries:
 
-- New Astro projects that need a CMS
-- WordPress migrations where you want modern tooling
-- Sites with content editors who shouldn't touch code
-- Projects deploying to Cloudflare
-- Sites where type safety and developer experience matter
+- Native plugins run as part of the host application and have its access.
+- Standard-format plugins can run in an isolated runtime when you configure a sandbox runner and
+  grant the capabilities they need.
 
-**EmDash may not be right for:**
+Review the [plugin formats](/plugins/creating-plugins/choosing-a-format/) before choosing or building
+an extension.
 
-- Non-Astro projects (it's tightly coupled to Astro)
-- E-commerce (WooCommerce-scale features are not yet available)
-- Existing headless architectures you're happy with
-- Projects requiring WordPress's specific plugin ecosystem
+## Reasons to choose another approach
 
-## Get Started
+EmDash is unlikely to fit when the project is not built with Astro, all content must remain in the
+source repository, or several unrelated frontends need a CMS that deploys independently. It also
+adds operational work: the team is responsible for the database, media storage, backups, upgrades,
+and the application that serves the admin panel.
 
-<CardGrid>
-	<Card title="Quick Start" icon="rocket">
-		[Create your first site](/getting-started/) in under 5 minutes.
-	</Card>
-	<Card title="Migration Guide" icon="right-arrow">
-		[Migrate from WordPress](/migration/from-wordpress/) with content import and concept mapping.
-	</Card>
-</CardGrid>
+If this model fits, follow [Create your first EmDash site](/getting-started/) for a local tutorial or
+[Add EmDash to an existing Astro project](/existing-project/) for an existing application.

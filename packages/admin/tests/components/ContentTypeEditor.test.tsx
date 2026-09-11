@@ -223,6 +223,7 @@ describe("ContentTypeEditor", () => {
 			urlPattern: undefined,
 			routable: true,
 			editLocking: true,
+			group: null,
 			supports: ["drafts"],
 			hasSeo: false,
 			commentsEnabled: false,
@@ -539,6 +540,22 @@ describe("ContentTypeEditor", () => {
 		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
 
 		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ editLocking: false }));
+	});
+
+	it("saves a trimmed sidebar group and clears it with null", async () => {
+		const onSave = vi.fn();
+		const collection = makeCollection({ group: "Calendar" });
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps({ onSave })} collection={collection} />,
+		);
+
+		await screen.getByLabelText("Group").fill("  Club  ");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ group: "Club" }));
+
+		await screen.getByLabelText("Group").fill("");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ group: null }));
 	});
 
 	it("shows validation error when pattern lacks {slug}", async () => {

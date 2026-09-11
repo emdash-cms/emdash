@@ -22,6 +22,7 @@ import {
 	type MarketplaceVersionSummary,
 	type PluginBundle,
 } from "../../plugins/marketplace.js";
+import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
 import {
@@ -363,7 +364,10 @@ export async function handleMarketplaceInstall(
 			success: false,
 			error: {
 				code: "SANDBOX_NOT_AVAILABLE",
-				message: "Sandbox runner is required for marketplace plugins",
+				message: withUnavailableReason(
+					"Sandbox runner is required for marketplace plugins",
+					sandboxRunner,
+				),
 			},
 		};
 	}
@@ -584,7 +588,10 @@ export async function handleMarketplaceUpdate(
 	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
-			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },
+			error: {
+				code: "SANDBOX_NOT_AVAILABLE",
+				message: withUnavailableReason("Sandbox runner is required", sandboxRunner),
+			},
 		};
 	}
 

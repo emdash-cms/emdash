@@ -14,8 +14,10 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
+import type { ActorInfo as RootActorInfo } from "../../../src/index.js";
+import type { ActorInfo as PluginActorInfo } from "../../../src/plugin-types.js";
 import { PluginManager, createPluginManager } from "../../../src/plugins/manager.js";
-import type { PluginDefinition } from "../../../src/plugins/types.js";
+import type { ContentHookEvent, PluginDefinition } from "../../../src/plugins/types.js";
 
 // Test error message regex patterns
 const ALREADY_REGISTERED_REGEX = /already registered/;
@@ -265,6 +267,43 @@ describe("PluginManager", () => {
 			expect(plugin).toBeDefined();
 			expect(plugin!.id).toBe("my-plugin");
 			expect(plugin!.version).toBe("2.0.0");
+		});
+	});
+
+	describe("content hook dispatch", () => {
+		it("forwards the actor through the public manager facade", async () => {
+			const beforeSave = vi.fn(async (event: ContentHookEvent) => event.content);
+			const afterSave = vi.fn(async (_event: ContentHookEvent) => {});
+			manager.register(
+				createTestDefinition({
+					id: "actor-observer",
+					capabilities: ["content:write"],
+					hooks: {
+						"content:beforeSave": beforeSave,
+						"content:afterSave": afterSave,
+					},
+				}),
+			);
+			await manager.activate("actor-observer");
+			const actor: RootActorInfo = {
+				id: "editor-user",
+				role: 40,
+			};
+			const pluginActor: PluginActorInfo = actor;
+
+			await manager.runContentBeforeSave({ title: "Draft" }, "posts", false, "post-1", pluginActor);
+			await manager.runContentAfterSave(
+				{ id: "post-1", data: { title: "Draft" } },
+				"posts",
+				false,
+				pluginActor,
+			);
+
+			expect(beforeSave).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "post-1", actor }),
+				expect.anything(),
+			);
+			expect(afterSave).toHaveBeenCalledWith(expect.objectContaining({ actor }), expect.anything());
 		});
 	});
 

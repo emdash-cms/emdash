@@ -1,918 +1,286 @@
 ---
 title: MCP Server Reference
-description: Protocol details, tool specifications, and OAuth configuration for the MCP server.
+description: Authentication, protocol behavior, and the complete tool inventory for the MCP server.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
 
-EmDash includes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server at `/_emdash/api/mcp` that exposes content management operations as tools for AI assistants.
+EmDash exposes a built-in [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server at `/_emdash/api/mcp`. MCP clients use it to read and manage content, bylines, schemas, media, taxonomies, menus, revisions, and settings.
 
 <Aside>
-	Looking to connect Claude, ChatGPT, or another AI tool to your site? See the [AI Tools guide](/guides/ai-tools) for setup instructions and usage tips.
+	To connect Claude, ChatGPT, or another AI client, follow the [AI tools guide](/guides/ai-tools/).
 </Aside>
-
-This page covers the protocol details: authentication, transport, tool specifications, OAuth discovery, and error handling.
 
 ## Authentication
 
-The MCP server supports three authentication methods:
+The MCP endpoint requires a Bearer token. EmDash supports these token flows:
 
-| Method | How it works |
+| Method | Use |
 | --- | --- |
-| **OAuth 2.1 Authorization Code + PKCE** | Standard flow for MCP clients. User approves scopes in the browser. |
-| **Personal Access Token (PAT)** | Long-lived `ec_pat_*` tokens created in the admin panel. |
-| **Device Flow** | CLI-style flow where you approve a code in the browser. Used by `emdash login`. |
+| OAuth 2.1 Authorization Code with Proof Key for Code Exchange (PKCE) | Interactive MCP clients. The user approves the requested scopes in a browser. |
+| Personal access token | Long-lived access for a client or automation. Tokens use the `ec_pat_` prefix and are created in the admin. |
+| OAuth 2.0 Device Authorization Grant | Command-line clients that ask the user to approve a code in a browser. `emdash login` uses this flow. |
 
-Session cookies (from the admin UI) also work but aren't practical for external MCP clients.
+Session cookies do not authenticate the MCP endpoint.
 
 ### Scopes
 
-Tokens are scoped to limit what operations a client can perform. Scopes are requested during OAuth authorization and enforced on every tool call. On the authorization-code consent page, all requested scopes are selected by default for compatibility; the user can remove scopes before approval but cannot add scopes the client did not request. The effective grant is also restricted by the client's registered scopes and the user's role, and EmDash rejects an empty grant.
+OAuth and personal access tokens limit which tools a client can call. The user's role is checked separately, so a scope never grants a permission the user does not have.
 
-| Scope | Grants access to |
+| Scope | Access |
 | --- | --- |
-| `content:read` | List, get, compare, and search content. List taxonomies, taxonomy terms, and menus. |
-| `content:write` | Create, update, delete, publish, unpublish, schedule, unschedule, duplicate, and restore content. Implicitly grants `taxonomies:manage` and `menus:manage` for backwards compatibility with tokens issued before those scopes existed. |
-| `media:read` | List and get media items. |
-| `media:write` | Register (create), update, and delete media metadata. |
-| `schema:read` | List collections and get collection schemas. |
+| `content:read` | Read and search content, bylines, taxonomies, terms, menus, and revisions. Draft-like content also requires the user's `content:read_drafts` permission. |
+| `content:write` | Create and change content, bylines, and revisions. It also grants `taxonomies:manage` and `menus:manage` for compatibility with existing tokens. |
+| `media:read` | Read media records. |
+| `media:write` | Upload, register, update, and delete media. |
+| `schema:read` | Read collections and fields. |
 | `schema:write` | Create, update, and delete collections and fields. |
-| `taxonomies:manage` | Create, update, and delete taxonomy terms. |
-| `menus:manage` | Create, update, and delete navigation menus and their items. |
-| `settings:read` | Read site-wide settings. |
-| `settings:manage` | Update site-wide settings. |
-| `mcp:tools` | Invoke explicitly enabled MCP tools from any plugin. |
-| `mcp:tools:<pluginId>` | Invoke explicitly enabled MCP tools from one plugin. |
-| `admin` | Full access to all operations. |
+| `taxonomies:manage` | Create, update, and delete taxonomy definitions and terms. |
+| `menus:manage` | Create, update, and delete menus and menu items. |
+| `settings:read` | Read site settings. |
+| `settings:manage` | Update site settings. |
+| `mcp:tools` | Call MCP tools exposed by any enabled plugin. |
+| `mcp:tools:<pluginId>` | Call MCP tools exposed by one enabled plugin. |
+| `admin` | Call every core tool. Plugin tools still require `mcp:tools` or the plugin-specific scope. |
 
-The `admin` scope grants access to core operations, but it does not grant plugin MCP access. Plugin tools always require `mcp:tools` or the matching plugin-specific scope. Session-based auth has access based on the user's role and the plugin's explicit admin enablement.
+The authorization-code consent page lets the user remove requested scopes. EmDash also intersects the request with the client's registered scopes and the user's role, and refuses an empty grant.
 
-`content:write` implicitly grants `taxonomies:manage` and `menus:manage` so personal access tokens issued before those scopes were split out continue to work without re-issue. New tokens should request the granular scopes.
+### Role requirements
 
-### Role Requirements
+The following table shows the minimum role for the broad capability. Ownership checks can require a higher role when a user acts on another user's content.
 
-In addition to scopes, some tools require a minimum RBAC role. Both must be satisfied -- a token with the right scope still fails if the calling user's role is too low.
-
-Plugin tools use the permission declared by their underlying route. They are absent from `tools/list` until an administrator enables that plugin's MCP surface. Tool names use the deterministic `<pluginId>__<localName>` form, and invocations are recorded in the audit log with plugin, tool, route, and actor provenance.
-
-| Operation | Minimum role |
+| Capability | Minimum role |
 | --- | --- |
-| Content read | Subscriber (10) for published items; Contributor (20) for drafts, scheduled, trash, and revisions |
-| Content create | Contributor (20) |
-| Content edit own / delete own | Author (30) |
-| Content publish | Author (30) for own items; Editor (40) to act on others' items |
-| Schema read | Editor (40) |
-| Schema write | Admin (50) |
-| Taxonomies manage | Editor (40) |
-| Menus manage | Editor (40) |
-| Settings read | Editor (40) |
-| Settings manage | Admin (50) |
-| Media upload (`media_upload`) | Contributor (20) |
-| Media register (`media_create`) | Author (30) |
-| Media usage repair | Admin (50) |
+| Read published content, media, taxonomies, terms, and menus | Subscriber |
+| Read drafts, scheduled content, trash, comparisons, and revisions | Contributor |
+| Create content or upload media | Contributor |
+| Edit or publish owned content and register media | Author |
+| Manage bylines, taxonomies, menus, or all users' content | Editor |
+| Read schemas or settings | Editor |
+| Change schemas or settings, permanently delete content, or repair media usage | Admin |
 
-See the [Authentication guide](/guides/authentication#user-roles) for role definitions.
+See [user roles](/guides/authentication/#user-roles) for the complete role definitions.
 
 ## Transport
 
-The server uses the Streamable HTTP transport in **stateless mode**. Each request is independent -- there are no sessions or long-lived connections.
+The server uses stateless Streamable HTTP. Each request is independent; the server does not keep an MCP session or a Server-Sent Events connection.
+
+| Method | Endpoint | Behavior |
+| --- | --- | --- |
+| `POST` | `/_emdash/api/mcp` | Accepts JSON-RPC initialization, tool listing, and tool calls. |
+| `GET` | `/_emdash/api/mcp` | Returns `405 Method Not Allowed`. |
+| `DELETE` | `/_emdash/api/mcp` | Returns `405 Method Not Allowed`. |
+
+Responses use [JSON-RPC 2.0](https://www.jsonrpc.org/specification). Call `tools/list` to obtain the current input schemas and MCP annotations before constructing a tool request.
+
+## Tool inventory
+
+The following inventory matches the static tools returned by `tools/list`. The registered title is included because clients may display it instead of the tool name.
+
+{/* mcp-tool-inventory:start */}
+
+### Content tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `content_list` | List Content | `content:read` |
+| `content_get` | Get Content | `content:read` |
+| `content_create` | Create Content | `content:write` |
+| `content_update` | Update Content | `content:write` |
+| `content_delete` | Delete Content (Trash) | `content:write` |
+| `content_restore` | Restore Content | `content:write` |
+| `content_permanent_delete` | Permanently Delete Content | `content:write` |
+| `content_publish` | Publish Content | `content:write` |
+| `content_unpublish` | Unpublish Content | `content:write` |
+| `content_schedule` | Schedule Content | `content:write` |
+| `content_unschedule` | Cancel Scheduled Publication | `content:write` |
+| `content_compare` | Compare Live vs Draft | `content:read` |
+| `content_discard_draft` | Discard Draft | `content:write` |
+| `content_list_trashed` | List Trashed Content | `content:read` |
+| `content_duplicate` | Duplicate Content | `content:write` |
+| `content_translations` | Get Content Translations | `content:read` |
+
+### Byline tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `byline_list` | List Bylines | `content:read` |
+| `byline_get` | Get Byline | `content:read` |
+| `byline_create` | Create Byline | `content:write` |
+| `byline_update` | Update Byline | `content:write` |
+| `byline_delete` | Delete Byline | `content:write` |
+| `byline_translations` | List Byline Translations | `content:read` |
+
+### Schema tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `schema_list_collections` | List Collections | `schema:read` |
+| `schema_get_collection` | Get Collection Schema | `schema:read` |
+| `schema_create_collection` | Create Collection | `schema:write` |
+| `schema_delete_collection` | Delete Collection | `schema:write` |
+| `schema_update_collection` | Update Collection | `schema:write` |
+| `schema_create_field` | Add Field to Collection | `schema:write` |
+| `schema_delete_field` | Remove Field from Collection | `schema:write` |
+| `schema_update_field` | Update Field | `schema:write` |
+
+### Media tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `media_list` | List Media | `media:read` |
+| `media_create` | Register Uploaded Media | `media:write` |
+| `media_upload` | Upload Media | `media:write` |
+| `media_get` | Get Media Item | `media:read` |
+| `media_update` | Update Media Metadata | `media:write` |
+| `media_delete` | Delete Media | `media:write` |
+| `media_usage_repair` | Repair Media Usage Index | `admin` |
+
+### Search tool
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `search` | Search Content | `content:read` |
+
+### Taxonomy tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `taxonomy_list` | List Taxonomies | `content:read` |
+| `taxonomy_get` | Get Taxonomy Definition | `content:read` |
+| `taxonomy_create` | Create Taxonomy Definition | `taxonomies:manage` |
+| `taxonomy_update` | Update Taxonomy Definition | `taxonomies:manage` |
+| `taxonomy_delete` | Delete Taxonomy Definition | `taxonomies:manage` |
+| `taxonomy_list_terms` | List Taxonomy Terms | `content:read` |
+| `taxonomy_create_term` | Create Taxonomy Term | `taxonomies:manage` |
+| `taxonomy_update_term` | Update Taxonomy Term | `taxonomies:manage` |
+| `taxonomy_delete_term` | Delete Taxonomy Term | `taxonomies:manage` |
+| `taxonomy_term_translations` | List Term Translations | `content:read` |
+
+### Menu tools
+
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `menu_list` | List Menus | `content:read` |
+| `menu_get` | Get Menu with Items | `content:read` |
+| `menu_translations` | List Menu Translations | `content:read` |
+| `menu_create` | Create Menu | `menus:manage` |
+| `menu_update` | Update Menu | `menus:manage` |
+| `menu_delete` | Delete Menu | `menus:manage` |
+| `menu_set_items` | Set Menu Items | `menus:manage` |
 
-- **`POST /_emdash/api/mcp`** -- Send JSON-RPC tool calls
-- **`GET /_emdash/api/mcp`** -- Returns 405 (no SSE in stateless mode)
-- **`DELETE /_emdash/api/mcp`** -- Returns 405 (no session to close)
+### Revision tools
 
-Responses follow the [JSON-RPC 2.0](https://www.jsonrpc.org/specification) format. Errors use standard JSON-RPC error codes, with MCP-specific codes for scope and permission failures.
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `revision_list` | List Revisions | `content:read` |
+| `revision_restore` | Restore Revision | `content:write` |
 
-## Tools
+### Settings tools
 
-The server exposes tools across eight domains: content, schema, media, search, taxonomies, menus, revisions, and settings. Each tool returns results as JSON text content, or an error message with `isError: true` on failure.
+| Tool | Registered title | Required scope |
+| --- | --- | --- |
+| `settings_get` | Get Site Settings | `settings:read` |
+| `settings_update` | Update Site Settings | `settings:manage` |
 
-### Content Tools
+{/* mcp-tool-inventory:end */}
 
-The write tools do not honour an entry's [edit lock](/reference/rest-api/#entry-edit-lock). An editor who has the entry open in the admin is only protected by `_rev`.
+## Use the tool schemas
 
-#### `content_list`
+`tools/list` returns each tool's description, JSON input schema, and annotations. Read that metadata before constructing a call so your client uses the fields, allowed values, and limits supported by the installed EmDash version.
 
-List content items in a collection with optional filtering and pagination.
+For example, a client updating an article first calls `content_get` and keeps the returned `_rev`. It can then send this JSON-RPC request:
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug (e.g. `posts`, `pages`) |
-| `status` | `string` | No | Filter: `draft`, `published`, or `scheduled` |
-| `limit` | `integer` | No | Max items to return (1-100, default 50) |
-| `cursor` | `string` | No | Pagination cursor from a previous response |
-| `orderBy` | `string` | No | Field to sort by (e.g. `created_at`, `updated_at`) |
-| `order` | `string` | No | Sort direction: `asc` or `desc` (default `desc`) |
-| `locale` | `string` | No | Filter by locale (e.g. `en`, `fr`). Only relevant with i18n. |
+```json
+{
+	"jsonrpc": "2.0",
+	"id": 2,
+	"method": "tools/call",
+	"params": {
+		"name": "content_update",
+		"arguments": {
+			"collection": "articles",
+			"id": "01JARTICLE0000000000000000",
+			"data": { "title": "Updated title" },
+			"_rev": "opaque-revision-token"
+		}
+	}
+}
+```
 
-**Scope:** `content:read` | **Read-only:** Yes
+The result is returned as JSON text in the first content block. A tool with an output schema may also return the same value in `structuredContent`.
 
-#### `content_get`
+## Content lifecycle and bylines
 
-Get a single content item by ID or slug. Returns all field values, metadata, and a `_rev` token. `content_update`, `content_publish`, `content_unpublish` and `content_discard_draft` require that token, so read the item here before calling them.
+`content_get` returns an opaque `_rev` value. Pass it to `content_update`, `content_publish`, `content_unpublish`, or `content_discard_draft`. A stale value returns a conflict, so read the item again before retrying.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID (ULID) or slug |
-| `locale` | `string` | No | Locale for slug lookup. IDs are globally unique. |
+`content_update` is a partial update: omitted fields keep their current values. Updating a published item stages a draft while the live version remains unchanged. Use `content_compare` to review the live and draft values, then call `content_publish` to make the draft live or `content_discard_draft` to remove it. `content_delete` moves an item to trash; only `content_permanent_delete` removes a trashed item permanently.
 
-**Scope:** `content:read` | **Read-only:** Yes
+Bylines are reusable author or contributor credits. `byline_create` can create a guest credit or link a byline to a CMS user. Pass the returned byline ID in the `bylines` input accepted by `content_create` and `content_update`. Deleting a byline removes that credit from content and clears it as the primary byline.
 
-<Aside>
-	A write built on a stale `_rev` token fails with a conflict instead of overwriting a change you have not seen. Read the item again and retry with the new token.
-</Aside>
+MCP writes do not participate in the admin's [entry edit lock](/reference/rest-api/#entry-edit-lock). The `_rev` check protects the operations that accept it, but other write tools can change an entry while an editor has it open.
 
-#### `content_create`
+## Translations
 
-Create a new content item. The `data` object should contain field values matching the collection's schema -- use `schema_get_collection` to check what fields are available. Items are created as `draft` by default.
+Content, byline, taxonomy term, and menu translation tools return every locale variant in the relevant translation group. Use the creation tool's `translationOf` input when its schema provides one; `tools/list` is authoritative for the required fields.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `data` | `object` | Yes | Field values as key-value pairs |
-| `slug` | `string` | No | URL slug (auto-generated from title if omitted) |
-| `status` | `string` | No | Initial status: `draft` or `published` (default `draft`) |
-| `locale` | `string` | No | Locale for this content (defaults to site default) |
-| `translationOf` | `string` | No | ID of the item this is a translation of |
+`content_translations` accepts a collection and content ID or slug. The byline, taxonomy-term, and menu translation tools accept either one record's ID or the shared translation-group ID. A user without draft access sees only published content translations.
 
-**Scope:** `content:write`
+## Schemas, media, taxonomies, and menus
 
-#### `content_update`
+Schema tools change the database structure. Use `schema_get_collection` before creating content or changing fields; it returns the available field names, types, constraints, and validation rules. Collection and field deletion remove stored content or field values and cannot be undone.
 
-Update an existing content item. Only include fields you want to change -- unspecified fields are left unchanged. When `status` is not set, a change to a published item is staged as a draft: the response shows the new values while the live version keeps the old ones until `content_publish`.
+Use `media_upload` to send base64-encoded bytes or fetch a public HTTP or HTTPS URL. URL uploads reject private-network destinations and re-check redirects. Use `media_create` only when the file already exists at the supplied storage key and you need to register its metadata. Uploads are subject to the configured size and MIME-type limits, and identical bytes may return an existing media item with `deduplicated: true`.
 
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-| `data` | `object` | No | Field values to update |
-| `slug` | `string` | No | New URL slug |
-| `status` | `string` | No | New status: `draft` or `published` |
-| `_rev` | `string` | Yes | Revision token from `content_get`. The update fails with a conflict if the item changed since that read. |
+Taxonomy definitions describe the classification and the collections it applies to; terms are the individual values assigned to content. Hierarchical terms can use `parentId`, but a parent must belong to the same taxonomy and cannot create a cycle. A term with children must have those children removed or moved before deletion.
 
-**Scope:** `content:write`
+`menu_set_items` replaces a menu's complete item list in one atomic operation. The array order becomes the menu order. A nested item's `parentIndex` points to an earlier item in the same array, so place every parent before its children.
 
-#### `content_delete`
-
-Soft-delete a content item by moving it to the trash. Use `content_restore` to undo, or `content_permanent_delete` to remove it forever.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-
-**Scope:** `content:write` | **Destructive:** Yes
-
-#### `content_restore`
-
-Restore a soft-deleted content item from the trash.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-
-**Scope:** `content:write`
-
-#### `content_permanent_delete`
-
-Permanently and irreversibly delete a trashed content item. The item must be in the trash first.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-
-**Scope:** `content:write` | **Destructive:** Yes
-
-#### `content_publish`
-
-Publish a content item, making it live on the site. Creates a published revision from the current draft. Further edits create a new draft without affecting the live version until re-published. Re-publishing without `publishedAt` reuses the retained publication date.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-| `publishedAt` | `string` | No | ISO 8601 publication date. Setting it requires `content:publish_any`. |
-| `_rev` | `string` | Yes | Revision token from `content_get`. The call fails with a conflict if the item changed since that read. |
-
-**Scope:** `content:write`
-
-#### `content_unpublish`
-
-Revert a published item to draft status. It will no longer be visible on the live site, but its content and publication date are preserved.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-| `_rev` | `string` | Yes | Revision token from `content_get`. The call fails with a conflict if the item changed since that read. |
-
-**Scope:** `content:write`
-
-#### `content_schedule`
-
-Schedule a content item for future publication. It will be automatically published at the specified date/time.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-| `scheduledAt` | `string` | Yes | ISO 8601 datetime (e.g. `2026-06-01T09:00:00Z`) |
-
-**Scope:** `content:write`
-
-#### `content_unschedule`
-
-Cancel a previously scheduled publication. The item keeps its current status; only the `scheduledAt` timestamp is cleared. Idempotent -- calling on an item that isn't scheduled is a no-op.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-
-**Scope:** `content:write`
-
-#### `content_compare`
-
-Compare the published (live) version of a content item with its current draft. Returns both versions and a flag indicating whether there are changes.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-#### `content_discard_draft`
-
-Discard the current draft and revert to the last published version. Only works on items that have been published at least once.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-| `_rev` | `string` | Yes | Revision token from `content_get`. The call fails with a conflict if the item changed since that read. |
-
-**Scope:** `content:write` | **Destructive:** Yes
-
-#### `content_list_trashed`
-
-List soft-deleted content items in a collection's trash.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `limit` | `integer` | No | Max items (1-100, default 50) |
-| `cursor` | `string` | No | Pagination cursor |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-#### `content_duplicate`
-
-Create a copy of an existing content item. The duplicate is created as a draft with "(Copy)" appended to the title and an auto-generated slug.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug to duplicate |
-
-**Scope:** `content:write`
-
-#### `content_translations`
-
-Get all locale variants of a content item. Returns the translation group and a summary of each locale version. Only relevant when i18n is enabled.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-### Schema Tools
+`media_usage_repair` can process one collection or every collection and may run for a long time on a large site. Its `complete`, `partial`, `failed`, and `stale` statuses are successful tool responses. Inspect the returned status and counts instead of relying on `isError`; authentication, validation, and unexpected execution failures set `isError: true`.
 
 <Aside type="caution">
-	Schema tools modify the database structure. Creating or deleting collections and fields changes the underlying tables. These operations require Admin role.
+	Tools whose registered metadata has `destructiveHint: true` can delete stored data. Confirm the target and its current state before calling them.
 </Aside>
 
-#### `schema_list_collections`
+## Plugin tools
 
-List all content collections defined in the CMS. Returns slug, label, supported features, and timestamps.
+An administrator must enable each plugin's MCP surface. Enabled tools appear in `tools/list` as `<pluginId>__<localName>` and require `mcp:tools` or `mcp:tools:<pluginId>` for token-authenticated calls. EmDash also checks the permission declared by the plugin route and records the plugin, tool, route, and actor in the audit log.
 
-**No parameters.**
+Because plugin tools are installation-specific, they are not part of the static inventory above.
 
-**Scope:** `schema:read` | **Minimum role:** Editor | **Read-only:** Yes
+## OAuth discovery
 
-#### `schema_get_collection`
-
-Get detailed info about a collection including all field definitions. Fields describe the data model: name, type, constraints, and validation rules. Use this to understand what `content_create` and `content_update` expect.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `slug` | `string` | Yes | Collection slug (e.g. `posts`) |
-
-**Scope:** `schema:read` | **Minimum role:** Editor | **Read-only:** Yes
-
-#### `schema_create_collection`
-
-Create a new content collection. This creates a database table and schema definition. The slug must be lowercase alphanumeric with underscores, starting with a letter.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `slug` | `string` | Yes | Unique identifier (`/^[a-z][a-z0-9_]*$/`) |
-| `label` | `string` | Yes | Display name (plural, e.g. "Blog Posts") |
-| `labelSingular` | `string` | No | Singular display name |
-| `description` | `string` | No | Description of this collection |
-| `icon` | `string` | No | Icon name for the admin UI |
-| `supports` | `string[]` | No | Features: `drafts`, `revisions`, `preview`, `scheduling`, `search`, `seo` (default: `['drafts', 'revisions']`) |
-| `editLocking` | `boolean` | No | Take an edit lock when an entry is opened (default: `true`) |
-
-**Scope:** `schema:write` | **Minimum role:** Admin
-
-#### `schema_update_collection`
-
-Update an existing collection without deleting its table, fields, or content. Only provided settings change; omitted settings keep their current values. The collection slug cannot be changed.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `slug` | `string` | Yes | Collection slug to update |
-| `label` | `string` | No | New plural display name |
-| `labelSingular` | `string` | No | New singular display name |
-| `description` | `string` | No | New collection description |
-| `icon` | `string` | No | New admin UI icon name |
-| `supports` | `string[]` | No | Complete feature list to enable: `drafts`, `revisions`, `preview`, `scheduling`, `search`, `seo`; omitted preserves the current list |
-| `urlPattern` | `string \| null` | No | New public URL pattern; `null` clears it |
-| `hasSeo` | `boolean` | No | Whether the collection supports SEO metadata |
-| `commentsEnabled` | `boolean` | No | Whether comments are enabled |
-| `commentsModeration` | `string` | No | Moderation policy: `all`, `first_time`, or `none` |
-| `commentsClosedAfterDays` | `integer` | No | Close comments after this many days; `0` keeps them open |
-| `commentsAutoApproveUsers` | `boolean` | No | Automatically approve comments from authenticated users |
-| `editLocking` | `boolean` | No | Whether opening an entry takes an edit lock that refuses other editors' writes |
-
-**Scope:** `schema:write` | **Minimum role:** Admin
-
-#### `schema_delete_collection`
-
-Delete a collection and its database table. This is irreversible and deletes all content in the collection.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `slug` | `string` | Yes | Collection slug to delete |
-| `force` | `boolean` | No | Force deletion even if the collection has content |
-
-**Scope:** `schema:write` | **Minimum role:** Admin | **Destructive:** Yes
-
-#### `schema_create_field`
-
-Add a new field to a collection's schema. This adds a column to the database table.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `slug` | `string` | Yes | Field identifier (`/^[a-z][a-z0-9_]*$/`) |
-| `label` | `string` | Yes | Display name |
-| `type` | `string` | Yes | Data type (see below) |
-| `required` | `boolean` | No | Whether the field is required |
-| `unique` | `boolean` | No | Whether values must be unique |
-| `defaultValue` | `any` | No | Default value for new items |
-| `validation` | `object` | No | Constraints: `min`, `max`, `minLength`, `maxLength`, `pattern`, `options` |
-| `options` | `object` | No | Widget config: `collection` (for references), `rows` (for textarea) |
-| `searchable` | `boolean` | No | Include in full-text search index |
-| `indexed` | `boolean` | No | Enable indexed sorting by this field |
-| `translatable` | `boolean` | No | Whether this field is translatable (default true) |
-
-Field types: `string`, `text`, `number`, `integer`, `boolean`, `datetime`, `select`, `multiSelect`, `portableText`, `image`, `file`, `reference`, `json`, `slug`.
-
-For `select` and `multiSelect` types, provide allowed values in `validation.options`.
-
-**Scope:** `schema:write` | **Minimum role:** Admin
-
-#### `schema_update_field`
-
-Update an existing field without deleting its column or stored values. Only provided settings change; omitted settings keep their current values. `string`, `text`, and `slug` may be changed between one another. Other type changes and settings that require content or column migration are rejected with migration guidance. Invalid regular expressions and contradictory validation ranges are rejected before any schema metadata changes.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection containing the field |
-| `fieldSlug` | `string` | Yes | Field slug to update |
-| `label` | `string` | No | New display name |
-| `type` | `string` | No | New field type; only `string`, `text`, and `slug` aliases can be changed in place |
-| `required` | `boolean` | No | Whether the field is required; changing it requires a manual content migration |
-| `unique` | `boolean` | No | Whether field values must be unique; changing it requires a manual content migration |
-| `defaultValue` | `any` | No | Default value for new content |
-| `validation` | `object \| null` | No | Validation constraints; `null` clears them |
-| `widget` | `string` | No | Admin editor widget name |
-| `options` | `object` | No | Widget configuration |
-| `sortOrder` | `integer` | No | Field order in the content editor |
-| `searchable` | `boolean` | No | Whether full-text search indexes the field |
-| `indexed` | `boolean` | No | Create or remove a physical index for structured sorting |
-| `translatable` | `boolean` | No | Whether values vary by locale; changing to `false` requires a manual content migration |
-
-**Scope:** `schema:write` | **Minimum role:** Admin
-
-#### `schema_delete_field`
-
-Remove a field from a collection. This drops the column and deletes all data in that field. Irreversible.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `fieldSlug` | `string` | Yes | Field slug to remove |
-
-**Scope:** `schema:write` | **Minimum role:** Admin | **Destructive:** Yes
-
-### Media Tools
-
-#### `media_list`
-
-List uploaded media files with optional MIME type filtering and pagination.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `mimeType` | `string` | No | Filter by MIME type prefix (e.g. `image/`, `application/pdf`) |
-| `limit` | `integer` | No | Max items (1-100, default 50) |
-| `cursor` | `string` | No | Pagination cursor |
-
-**Scope:** `media:read` | **Read-only:** Yes
-
-#### `media_upload`
-
-Upload a media file from base64-encoded data or an external URL and register it in the media library. Returns the media item with `id`, `storageKey`, and `url` -- ready to reference from content fields (e.g. `featured_image`) via `content_create` / `content_update`.
-
-Uploads are deduplicated by content hash: re-uploading identical bytes returns the existing item with `deduplicated: true`. Image uploads are enriched automatically with dimensions, a blurhash placeholder, and the dominant color.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `filename` | `string` | Yes | Filename including extension (e.g. `cover.png`) |
-| `base64` | `string` | One of `base64` / `url` | Base64-encoded file contents |
-| `url` | `string` | One of `base64` / `url` | Public http(s) URL to fetch the file from |
-| `contentType` | `string` | With `base64` | MIME type (e.g. `image/png`). With `url` it defaults to the response's `Content-Type` header. |
-| `alt` | `string` | No | Alt text for accessibility |
-
-<Aside>
-	URL fetches are SSRF-guarded: the URL must resolve to a public host, and redirects are re-validated. Uploads are subject to the global MIME allowlist (images, video, audio, PDF) and the configured maximum upload size.
-</Aside>
-
-**Scope:** `media:write` | **Minimum role:** Contributor
-
-#### `media_create`
-
-Register a media file that has already been uploaded to storage. The caller is responsible for placing the file at `storageKey` (typically using a signed upload URL from the admin UI or a separate API). This tool persists the metadata record so the file is discoverable via `media_list` / `media_get` and can be referenced by content.
-
-<Aside>
-	To upload the file itself, use `media_upload` (base64 data or a public URL) instead.
-</Aside>
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `filename` | `string` | Yes | Original filename (e.g. `logo.png`) |
-| `mimeType` | `string` | Yes | MIME type (e.g. `image/png`) |
-| `storageKey` | `string` | Yes | Storage path/key the file was uploaded to |
-| `size` | `integer` | No | File size in bytes |
-| `width` | `integer` | No | Image width in pixels |
-| `height` | `integer` | No | Image height in pixels |
-| `contentHash` | `string` | No | Hash of the file contents (for dedupe) |
-| `blurhash` | `string` | No | Blurhash for image placeholders |
-| `dominantColor` | `string` | No | Hex color string for the image's dominant color |
-
-**Scope:** `media:write` | **Minimum role:** Author
-
-#### `media_get`
-
-Get details of a single media file by ID. Returns metadata including filename, MIME type, size, dimensions, alt text, and URL.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `id` | `string` | Yes | Media item ID |
-
-**Scope:** `media:read` | **Read-only:** Yes
-
-#### `media_update`
-
-Update metadata of an uploaded media file. The file itself cannot be changed.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `id` | `string` | Yes | Media item ID |
-| `alt` | `string` | No | Alt text for accessibility |
-| `caption` | `string` | No | Caption text |
-| `width` | `integer` | No | Image width in pixels |
-| `height` | `integer` | No | Image height in pixels |
-
-**Scope:** `media:write`
-
-#### `media_delete`
-
-Permanently delete a media file. Removes the database record and the file from storage. Content referencing this media will have broken references.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `id` | `string` | Yes | Media item ID |
-
-**Scope:** `media:write` | **Destructive:** Yes
-
-#### `media_usage_repair`
-
-Repair content media usage indexes for one collection or every collection. Repair runs synchronously and can be slow or expensive on large sites; prefer collection scope when possible.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `scope` | `"collection" \| "all"` | Yes | Whether to repair one collection or all collections |
-| `collection` | `string` | For collection scope | Collection slug; omit when `scope` is `all` |
-
-The result has a structured `status` of `complete`, `partial`, `failed`, or `stale`, plus aggregate and per-collection source counts. All four statuses are successful MCP tool results, so callers must inspect `status` rather than relying on `isError`. Authentication, validation, or unexpected repair errors return `isError: true`.
-
-**Scope:** `admin` | **Minimum role:** Admin
-
-### Search Tool
-
-#### `search`
-
-Full-text search across content collections. Collections must have `search` in their `supports` list and fields must be marked as `searchable`.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `query` | `string` | Yes | Search query text |
-| `collections` | `string[]` | No | Limit search to specific collection slugs |
-| `locale` | `string` | No | Filter results by locale |
-| `limit` | `integer` | No | Max results (1-50, default 20) |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-### Taxonomy Tools
-
-#### `taxonomy_list`
-
-List all taxonomy definitions (e.g. categories, tags). Returns name, label, whether hierarchical, and associated collections.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `locale` | `string` | No | Filter by locale (omit for all locale variants) |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-#### `taxonomy_get`
-
-Get a single taxonomy definition by name. Returns name, label, singular label, whether hierarchical, associated collections, locale, and translation group. Pass `locale` to resolve a specific translation.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Taxonomy name (e.g. `categories`, `tags`) |
-| `locale` | `string` | No | Locale to resolve the definition for |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-#### `taxonomy_create`
-
-Create a new taxonomy definition. Definitions are per-locale; pass `locale` when the same taxonomy name exists in multiple translations. `collections` names which content types the taxonomy applies to. If `translationOf` is set, the new definition joins the source's translation group and inherits `hierarchical` and `collections` from the source when those fields are omitted.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Taxonomy name (`/^[a-z][a-z0-9_]*$/`) |
-| `label` | `string` | Yes | Display name |
-| `labelSingular` | `string` | No | Singular display name |
-| `hierarchical` | `boolean` | No | Whether terms support parent/child relationships |
-| `collections` | `string[]` | No | Collection slugs this taxonomy applies to |
-| `locale` | `string` | No | Locale for this definition (e.g. `fr-fr`) |
-| `translationOf` | `string` | No | Existing taxonomy id to create this locale variant from |
-
-**Scope:** `taxonomies:manage` | **Minimum role:** Editor
-
-#### `taxonomy_update`
-
-Update an existing taxonomy definition. The taxonomy `name` cannot be changed. Pass `locale` to update a specific translation; otherwise the lowest matching locale is updated. Any field may be omitted to leave it unchanged.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Taxonomy name to update |
-| `label` | `string` | No | New display name |
-| `labelSingular` | `string \| null` | No | New singular display name; `null` to clear |
-| `hierarchical` | `boolean` | No | Whether terms support parent/child relationships |
-| `collections` | `string[]` | No | Collection slugs this taxonomy applies to |
-| `locale` | `string` | No | Locale of the definition to update |
-
-**Scope:** `taxonomies:manage` | **Minimum role:** Editor
-
-#### `taxonomy_delete`
-
-Delete a taxonomy definition and all of its terms in every locale, along with any content assignments those terms hold. This cannot be undone.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Taxonomy name to delete |
-
-**Scope:** `taxonomies:manage` | **Minimum role:** Editor | **Destructive:** Yes
-
-#### `taxonomy_list_terms`
-
-List terms in a taxonomy with pagination.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `taxonomy` | `string` | Yes | Taxonomy name (e.g. `categories`, `tags`) |
-| `limit` | `integer` | No | Max items (1-100, default 50) |
-| `cursor` | `string` | No | Pagination cursor |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-#### `taxonomy_create_term`
-
-Create a new term in a taxonomy. For hierarchical taxonomies, specify a `parentId` to create a child term. The parent's ancestor chain must not exceed 100 levels.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `taxonomy` | `string` | Yes | Taxonomy name |
-| `slug` | `string` | Yes | URL-safe identifier |
-| `label` | `string` | Yes | Display name |
-| `parentId` | `string` | No | Parent term ID (for hierarchical taxonomies) |
-| `description` | `string` | No | Description of the term |
-
-**Scope:** `taxonomies:manage` | **Minimum role:** Editor
-
-#### `taxonomy_update_term`
-
-Update an existing term in a taxonomy. Any field can be omitted to leave it unchanged. Renaming a slug must not collide with another term in the same taxonomy. Set `parentId` to `null` to detach from a parent. The new parent must exist, belong to the same taxonomy, and not introduce a cycle.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `taxonomy` | `string` | Yes | Taxonomy name |
-| `termSlug` | `string` | Yes | Current slug of the term to update |
-| `slug` | `string` | No | New slug (must be unique in the taxonomy) |
-| `label` | `string` | No | New display name |
-| `parentId` | `string \| null` | No | New parent term ID; `null` to detach |
-| `description` | `string` | No | New description |
-
-**Scope:** `taxonomies:manage` | **Minimum role:** Editor
-
-#### `taxonomy_delete_term`
-
-Permanently delete a term from a taxonomy. Any content tagged with the term loses the association. Cannot delete a term that has children -- delete children first.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `taxonomy` | `string` | Yes | Taxonomy name |
-| `termSlug` | `string` | Yes | Slug of the term to delete |
-
-**Scope:** `taxonomies:manage` | **Minimum role:** Editor | **Destructive:** Yes
-
-### Menu Tools
-
-#### `menu_list`
-
-List navigation menus. Menus are per-locale: pass `locale` to return one locale's
-rows only, or omit it to list every locale variant.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `locale` | `string` | No | Filter by locale (omit for all locale variants) |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-#### `menu_get`
-
-Get a menu by name including all its items in order. Items have a label, URL, type,
-and optional parent for nesting. When the same menu name exists in multiple locales,
-pass `locale` to resolve the intended translation.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Menu name (e.g. `main`, `footer`) |
-| `locale` | `string` | No | Locale to resolve the menu for |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-#### `menu_create`
-
-Create a new navigation menu. The `name` is the stable identifier used by site
-templates; `label` is the human-readable name shown in the admin. Menus are
-per-locale, so pass `locale` when the same menu name exists in multiple
-translations. Add items afterwards with `menu_set_items`. If `translationOf` is
-set, `locale` must also be set.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Stable identifier (`/^[a-z][a-z0-9_]*$/`) |
-| `label` | `string` | Yes | Display name for the admin |
-| `locale` | `string` | No | Locale for this menu (e.g. `fr-fr`) |
-| `translationOf` | `string` | No | Existing menu id to create this locale variant from |
-
-**Scope:** `menus:manage` | **Minimum role:** Editor
-
-#### `menu_update`
-
-Update a menu's label. The `name` (stable identifier) cannot be changed. On
-multi-locale installs, pass `locale` so the correct translation is updated.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Menu name to update |
-| `label` | `string` | Yes | New display label |
-| `locale` | `string` | No | Locale of the menu to update |
-
-**Scope:** `menus:manage` | **Minimum role:** Editor
-
-#### `menu_delete`
-
-Delete a menu and all its items. Cannot be undone. On multi-locale installs,
-pass `locale` so only the intended translation is removed.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Menu name to delete |
-| `locale` | `string` | No | Locale of the menu to delete |
-
-**Scope:** `menus:manage` | **Minimum role:** Editor | **Destructive:** Yes
-
-#### `menu_set_items`
-
-Replace the entire item list of a menu in one call. Atomic: existing items are
-deleted and the new list is inserted in the order provided. Use this rather
-than per-item add/remove operations so the resulting order and parent links are
-unambiguous. On multi-locale installs, pass `locale` so only the intended
-translation is rewritten.
-
-Items are positioned by array index. Nesting is expressed via `parentIndex` -- an item with `parentIndex: 0` is nested under the item at index `0`. The parent must appear earlier in the list. Items without `parentIndex` are top-level.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `name` | `string` | Yes | Menu name to update |
-| `locale` | `string` | No | Locale of the menu to rewrite |
-| `items` | `MenuItem[]` | Yes | Ordered list of menu items (see below) |
-
-Each `MenuItem` has:
-
-| Field | Type | Required | Description |
-| --- | --- | --- | --- |
-| `label` | `string` | Yes | Item display text |
-| `type` | `string` | Yes | One of `custom`, `page`, `post`, `taxonomy`, `collection` |
-| `customUrl` | `string` | No | URL for `type: "custom"` items (ignored otherwise) |
-| `referenceCollection` | `string` | No | Target collection slug for content references |
-| `referenceId` | `string` | No | Target content / term ID for references |
-| `titleAttr` | `string` | No | HTML `title` attribute |
-| `target` | `string` | No | HTML `target` attribute (e.g. `_blank`) |
-| `cssClasses` | `string` | No | Space-separated CSS classes |
-| `parentIndex` | `integer` | No | Array index of the parent item. Omit for top-level items. |
-
-**Scope:** `menus:manage` | **Minimum role:** Editor
-
-### Revision Tools
-
-#### `revision_list`
-
-List revision history for a content item, newest first. Requires the collection to support `revisions`.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `collection` | `string` | Yes | Collection slug |
-| `id` | `string` | Yes | Content item ID or slug |
-| `limit` | `integer` | No | Max revisions (1-50, default 20) |
-
-**Scope:** `content:read` | **Read-only:** Yes
-
-#### `revision_restore`
-
-Restore a content item to a previous revision. Replaces the current draft with the specified revision's data. Not automatically published -- use `content_publish` afterward if needed.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `revisionId` | `string` | Yes | Revision ID to restore |
-
-**Scope:** `content:write`
-
-### Settings Tools
-
-Site-wide settings -- title, tagline, logo, favicon, canonical URL, default page size, date and time formatting, social handles, and SEO defaults.
-
-#### `settings_get`
-
-Get all site-wide settings. Media references (`logo`, `favicon`, `seo.defaultOgImage`) include resolved URLs alongside the underlying `mediaId`. Unset values are omitted from the response.
-
-**No parameters.**
-
-**Scope:** `settings:read` | **Minimum role:** Editor | **Read-only:** Yes
-
-#### `settings_update`
-
-Update one or more site-wide settings. Partial update: only the fields provided are changed; omitted fields are left as-is. Returns the full settings object after the update.
-
-To set a media reference (`logo`, `favicon`, `seo.defaultOgImage`), pass an object with `mediaId` (and optional `alt`). The media item must already exist -- use `media_create` first.
-
-| Parameter | Type | Required | Description |
-| --- | --- | --- | --- |
-| `title` | `string` | No | Site title |
-| `tagline` | `string` | No | Short description shown alongside the title |
-| `logo` | `MediaRef` | No | Logo media reference (`{ mediaId, alt? }`) |
-| `favicon` | `MediaRef` | No | Favicon media reference |
-| `url` | `string` | No | Canonical site URL (http or https). Empty string clears it. |
-| `postsPerPage` | `integer` | No | Default page size for content listings (1-100) |
-| `dateFormat` | `string` | No | Date format token string |
-| `timezone` | `string` | No | IANA timezone identifier |
-| `social` | `object` | No | Social handles -- `twitter`, `github`, `facebook`, `instagram`, `linkedin`, `youtube` |
-| `seo` | `object` | No | SEO defaults (see below) |
-
-The `seo` object accepts:
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `titleSeparator` | `string` | Separator between page title and site title (e.g. `" \| "` for a vertical bar) |
-| `defaultOgImage` | `MediaRef` | Default Open Graph image when content has none |
-| `robotsTxt` | `string` | Custom `robots.txt` body. Omit to use the EmDash default. |
-| `googleVerification` | `string` | Google Search Console verification token |
-| `bingVerification` | `string` | Bing Webmaster Tools verification token |
-
-**Scope:** `settings:manage` | **Minimum role:** Admin
-
-## OAuth Discovery
-
-Most MCP clients handle this for you; this section is for building an MCP client against EmDash directly. Clients that support OAuth 2.1 discover how to authenticate from two metadata documents the server publishes:
-
-### Protected Resource Metadata
-
-Request the protected resource metadata at the following endpoint:
+MCP clients discover the authorization server from the protected-resource metadata:
 
 ```http
 GET /.well-known/oauth-protected-resource
 ```
 
-The server responds with the resource identifier, its authorization server, and supported scopes:
-
-```json
-{
-  "resource": "https://example.com/_emdash/api/mcp",
-  "authorization_servers": ["https://example.com/_emdash"],
-  "scopes_supported": [
-    "content:read", "content:write",
-    "media:read", "media:write",
-    "schema:read", "schema:write",
-    "taxonomies:manage", "menus:manage",
-    "settings:read", "settings:manage",
-    "admin"
-  ],
-  "bearer_methods_supported": ["header"]
-}
-```
-
-### Authorization Server Metadata
-
-Request the authorization server metadata at the following endpoint:
+The response identifies `/_emdash/api/mcp` as the protected resource and links to the authorization server. Clients then read its metadata at:
 
 ```http
 GET /.well-known/oauth-authorization-server/_emdash
 ```
 
-The server responds with the endpoints, scopes, and grant types it supports:
+That document supplies the current authorization, token, registration, and device-authorization endpoints, supported scopes, grant types, and the `S256` PKCE method. Use the discovered values instead of hard-coding the OAuth protocol routes.
 
-```json
-{
-  "issuer": "https://example.com/_emdash",
-  "authorization_endpoint": "https://example.com/_emdash/oauth/authorize",
-  "token_endpoint": "https://example.com/_emdash/api/oauth/token",
-  "scopes_supported": ["content:read", "content:write", "..."],
-  "response_types_supported": ["code"],
-  "grant_types_supported": [
-    "authorization_code",
-    "refresh_token",
-    "urn:ietf:params:oauth:grant-type:device_code"
-  ],
-  "code_challenge_methods_supported": ["S256"],
-  "token_endpoint_auth_methods_supported": ["none"],
-  "device_authorization_endpoint": "https://example.com/_emdash/api/oauth/device/code"
-}
-```
-
-When an unauthenticated request hits the MCP endpoint, the server returns:
+An unauthenticated MCP request returns a `401` response with the discovery URL:
 
 ```http
 HTTP/1.1 401 Unauthorized
 WWW-Authenticate: Bearer resource_metadata="https://example.com/.well-known/oauth-protected-resource"
 ```
 
-This triggers the standard MCP client discovery flow.
+## Errors
 
-## Error Handling
-
-Tool errors are returned as text content with `isError: true`. The message is prefixed with a stable `[CODE]`, and the same code is repeated in `_meta.code`:
+A tool failure has `isError: true`. The first text block starts with a stable code, and `_meta.code` repeats it for clients that read structured metadata:
 
 ```json
 {
-  "content": [{ "type": "text", "text": "[NOT_FOUND] Collection 'nonexistent' not found" }],
-  "isError": true,
-  "_meta": { "code": "NOT_FOUND" }
+	"content": [{ "type": "text", "text": "[NOT_FOUND] Collection 'articles' not found" }],
+	"isError": true,
+	"_meta": { "code": "NOT_FOUND" }
 }
 ```
 
-Scope and permission errors use the same tool error envelope:
-
-```json
-{
-  "content": [
-    { "type": "text", "text": "[INSUFFICIENT_SCOPE] Insufficient scope: requires content:write" }
-  ],
-  "isError": true,
-  "_meta": { "code": "INSUFFICIENT_SCOPE" }
-}
-```
-
-Transport-level errors (server misconfiguration, unhandled exceptions) return JSON-RPC error code `-32603` (Internal error) without leaking implementation details.
+Authentication failures use codes such as `INSUFFICIENT_SCOPE` and `INSUFFICIENT_PERMISSIONS`. Transport failures use the JSON-RPC internal-error code `-32603` and do not expose the underlying exception.
