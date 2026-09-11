@@ -424,10 +424,21 @@ export function ContentEditor({
 		() => (item ? JSON.stringify(item.bylines ?? []) : ""),
 		[item?.bylines],
 	);
+	const autosaveCompletionTokenRef = React.useRef(autosaveCompletionToken ?? 0);
 	React.useEffect(() => {
 		if (item) {
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
-			if (!isPublishingRef.current) {
+			const previousAutosaveToken = autosaveCompletionTokenRef.current;
+			const autosaveJustCompleted =
+				(autosaveCompletionToken ?? 0) > 0 &&
+				(autosaveCompletionToken ?? 0) !== previousAutosaveToken;
+			autosaveCompletionTokenRef.current = autosaveCompletionToken ?? 0;
+
+			// When an autosave resolves, the server payload is a snapshot from the
+			// moment the request was sent. Writing it back into formData would
+			// clobber edits made while the request was in flight, including nested
+			// repeater sub-fields. The pending autosave effect handles lastSavedData.
+			if (!isPublishingRef.current && !autosaveJustCompleted) {
 				setFormData(item.data);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);
@@ -442,10 +453,19 @@ export function ContentEditor({
 					bylines: nextBylines,
 				}),
 			);
-			pendingAutosaveStateRef.current = null;
-			setRejectedAutosaveState(null);
+			if (!autosaveJustCompleted) {
+				pendingAutosaveStateRef.current = null;
+				setRejectedAutosaveState(null);
+			}
 		}
-	}, [item?.updatedAt, itemDataString, itemBylinesString, item?.slug, item?.status]);
+	}, [
+		item?.updatedAt,
+		itemDataString,
+		itemBylinesString,
+		item?.slug,
+		item?.status,
+		autosaveCompletionToken,
+	]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 	const unsupportedPortableTextMarks = React.useMemo(() => {
