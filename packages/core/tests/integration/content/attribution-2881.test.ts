@@ -1,16 +1,12 @@
 /**
- * Issue #2881: content changes must record who made them.
- *
- * - Revision author (revisions.author_id) comes from the acting user when the
- *   client does not supply an owner override.
- * - Entry ownership (ec_*.author_id) changes only when an explicit owner is
- *   provided; it is never reassigned by routine authenticated writes.
- * - content:beforeSave / content:afterSave hooks receive the acting user as
- *   `event.actor`.
+ * Content attribution keeps the acting user separate from entry ownership.
+ * Authenticated revisions and save hooks receive the actor, while owner
+ * changes affect only the content row.
  */
 
 import { randomUUID } from "node:crypto";
 
+import { Role } from "@emdash-cms/auth";
 import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -34,8 +30,8 @@ vi.mock("../../../src/after.js", () => ({
 	},
 }));
 
-const actorA = { id: "user_a", role: 2 };
-const actorB = { id: "user_b", role: 2 };
+const actorA = { id: "user_a", role: Role.AUTHOR };
+const actorB = { id: "user_b", role: Role.EDITOR };
 
 async function flushDeferred(): Promise<void> {
 	const tasks = deferred.splice(0);
@@ -47,7 +43,7 @@ async function createPostCollection(registry: SchemaRegistry): Promise<void> {
 	await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
 }
 
-describe("revision attribution (#2881)", () => {
+describe("revision attribution", () => {
 	let db: ReturnType<typeof setupTestDatabase> extends Promise<infer T> ? T : never;
 	let runtime: EmDashRuntime;
 
@@ -127,11 +123,33 @@ describe("revision attribution (#2881)", () => {
 		const latest = await revisionRepo.findLatest("posts", id);
 		expect(latest?.authorId).toBe(actorB.id);
 	});
+
+	it("does not attribute an actorless revision to a new owner", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Explicit" },
+			slug: "actorless-owner-change",
+			authorId: "owner_1",
+		});
+		const id = created.data!.item.id;
+
+		const saved = await runtime.handleContentUpdate("posts", id, {
+			data: { title: "Explicit edited" },
+			authorId: "owner_2",
+		});
+		expect(saved.success).toBe(true);
+
+		const item = await new ContentRepository(db).findById("posts", id);
+		expect(item?.authorId).toBe("owner_2");
+
+		const latest = await new RevisionRepository(db).findLatest("posts", id);
+		expect(latest?.authorId).toBeNull();
+	});
 });
 
-describe("hook actor payloads (#2881)", () => {
+describe("hook actor payloads", () => {
 	const beforeEvents: ContentHookEvent[] = [];
 	const afterEvents: ContentHookEvent[] = [];
+	let mutateBeforeSaveActor = false;
 
 	let sqlite: Database.Database;
 	let runtime: EmDashRuntime;
@@ -154,6 +172,10 @@ describe("hook actor payloads (#2881)", () => {
 					hooks: {
 						"content:beforeSave": {
 							handler: (async (event) => {
+								const mutableActor = event.actor as { id: string; role: number } | undefined;
+								if (mutateBeforeSaveActor && mutableActor) {
+									mutableActor.id = "spoofed_by_hook";
+								}
 								beforeEvents.push(event);
 							}) as ContentBeforeSaveHandler,
 						},
@@ -177,6 +199,7 @@ describe("hook actor payloads (#2881)", () => {
 		deferred.length = 0;
 		beforeEvents.length = 0;
 		afterEvents.length = 0;
+		mutateBeforeSaveActor = false;
 		sqlite = new Database(":memory:");
 		runtime = await EmDashRuntime.create(createTrustedDeps());
 		const registry = new SchemaRegistry(runtime.db);
@@ -244,9 +267,29 @@ describe("hook actor payloads (#2881)", () => {
 		});
 		expect(afterEvents[0]?.content.id).toBe(item.id);
 	});
+
+	it("keeps revision and downstream hook attribution stable when a hook mutates its event", async () => {
+		const item = await repo.create({ type: "posts", data: { title: "Original" } });
+		const actor = { id: "authenticated_user", role: Role.EDITOR };
+		mutateBeforeSaveActor = true;
+
+		const result = await runtime.handleContentUpdate("posts", item.id, {
+			data: { title: "Changed" },
+			actor,
+		});
+		expect(result.success).toBe(true);
+
+		const latest = await new RevisionRepository(runtime.db).findLatest("posts", item.id);
+		expect(beforeEvents[0]?.actor?.id).toBe("spoofed_by_hook");
+		expect(latest?.authorId).toBe("authenticated_user");
+		expect(actor.id).toBe("authenticated_user");
+
+		await flushDeferred();
+		expect(afterEvents[0]?.actor).toEqual(actor);
+	});
 });
 
-describe("sandboxed hook actor payloads (#2881)", () => {
+describe("sandboxed hook actor payloads", () => {
 	const invokeHook = vi.fn<SandboxedPluginInstance["invokeHook"]>();
 
 	let sqlite: Database.Database;

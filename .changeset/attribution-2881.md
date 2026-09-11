@@ -1,9 +1,10 @@
 ---
 "emdash": patch
+"@emdash-cms/plugin-audit-log": patch
 ---
 
-Fixes content change attribution so revisions, entry ownership, and hook payloads no longer conflate the acting user.
+Fixes content attribution for authenticated REST, visual editing, and MCP saves.
 
-- The REST content routes and MCP `content_update` now pass the authenticated actor separately from the entry owner. `revisions.author_id` is set from the actor when the client does not supply one, so admin saves stop recording `NULL` authors.
-- `authorId` on `content_update` changes only `ec_{collection}.author_id`; the MCP no longer silently reassigns entry ownership on every edit.
-- `content:beforeSave` and `content:afterSave` hooks now receive `event.actor` with the acting user's `id` and `role`.
+- Revisions record the acting user without changing the entry owner. MCP updates preserve the existing owner, and actorless internal writes leave revision attribution unset instead of inferring it from ownership.
+- `content:beforeSave` and `content:afterSave` receive an actor snapshot with the authenticated user's `id` and `role`. The snapshot is isolated between hooks so one plugin cannot change the attribution seen by another.
+- The audit-log plugin stores the actor ID as `userId` on content create and update entries.

@@ -809,8 +809,8 @@ export interface HookConfig<THandler> {
  * saves; absent for unauthenticated or internal writes.
  */
 export interface ActorInfo {
-	id: string;
-	role: number;
+	readonly id: string;
+	readonly role: number;
 }
 
 /**

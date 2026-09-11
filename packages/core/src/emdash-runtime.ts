@@ -68,6 +68,7 @@ import type {
 	SandboxRunnerFactory,
 } from "./plugins/sandbox/types.js";
 import type {
+	ActorInfo,
 	ContentHookEvent,
 	ResolvedPlugin,
 	MediaItem,
@@ -2798,10 +2799,10 @@ export class EmDashRuntime {
 			locale?: string;
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
-			actor?: { id: string; role: number };
+			actor?: ActorInfo;
 		},
 	) {
-		const actor = body.actor;
+		const actor = body.actor ? { ...body.actor } : undefined;
 
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
@@ -2893,10 +2894,10 @@ export class EmDashRuntime {
 			 * Acting user for this save. Used for revision attribution and
 			 * passed to content hooks; never changes entry ownership.
 			 */
-			actor?: { id: string; role: number };
+			actor?: ActorInfo;
 		},
 	) {
-		const actor = body.actor;
+		const actor = body.actor ? { ...body.actor } : undefined;
 
 		// Resolve slug → ID if needed (before any lookups)
 		const repo = new ContentRepository(this.db);
@@ -2999,7 +3000,7 @@ export class EmDashRuntime {
 						collection,
 						entryId: resolvedId,
 						data: mergedData,
-						authorId: actor?.id ?? bodyWithoutRev.authorId ?? undefined,
+						authorId: actor?.id,
 					});
 
 					let staged: boolean;
@@ -4008,7 +4009,7 @@ export class EmDashRuntime {
 		collection: string,
 		isNew: boolean,
 		contentId?: string,
-		actor?: { id: string; role: number },
+		actor?: ActorInfo,
 	) {
 		let result = content;
 
@@ -4019,7 +4020,7 @@ export class EmDashRuntime {
 			try {
 				const event: ContentHookEvent = { content: result, collection, isNew };
 				if (contentId !== undefined) event.id = contentId;
-				if (actor !== undefined) event.actor = actor;
+				if (actor !== undefined) event.actor = { ...actor };
 				const hookResult = await plugin.invokeHook("content:beforeSave", event);
 				const inspection = inspectSandboxHookResult(hookResult);
 				if (inspection.kind === "error") {
@@ -4090,7 +4091,7 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
-		actor?: { id: string; role: number },
+		actor?: ActorInfo,
 	): void {
 		after(async () => {
 			// Trusted plugins
@@ -4112,7 +4113,7 @@ export class EmDashRuntime {
 					(async () => {
 						try {
 							const event: ContentHookEvent = { content, collection, isNew };
-							if (actor !== undefined) event.actor = actor;
+							if (actor !== undefined) event.actor = { ...actor };
 							await plugin.invokeHook("content:afterSave", event);
 						} catch (err) {
 							console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);

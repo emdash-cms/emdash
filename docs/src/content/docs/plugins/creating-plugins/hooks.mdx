@@ -187,7 +187,7 @@ Do not put HTML in `reason`. The admin renders the value as text.
 
 From the host process, throw `ContentSaveRejectedError` (exported from `emdash`) instead. The API returns `SAVE_REJECTED` with your message. Any other exception from either execution mode fails the save with a generic `CONTENT_HOOK_ERROR` response.
 
-**Event:** `{ content, collection, isNew, id }` — **Returns:** modified content, a sandbox hook error result, or `void`. On an update, `id` is the ID of the existing item and `content` holds only the submitted field values; load the stored item with `ctx.content.get(event.collection, event.id)`.
+**Event:** `{ content, collection, isNew, id, actor }` — **Returns:** modified content, a sandbox hook error result, or `void`. On an update, `id` is the ID of the existing item and `content` holds only the submitted field values; load the stored item with `ctx.content.get(event.collection, event.id)`. Authenticated REST, visual editing, and MCP saves include `actor.id` and the numeric `actor.role`. Internal writes without an authenticated user omit `actor`.
 
 ### `content:afterSave`
 
@@ -196,7 +196,9 @@ Runs after content is successfully saved. Use for side effects like notification
 ```typescript
 "content:afterSave": async (event, ctx) => {
 	const contentId = String(event.content.id);
-	ctx.log.info(`${event.isNew ? "Created" : "Updated"} ${event.collection}/${contentId}`);
+	ctx.log.info(`${event.isNew ? "Created" : "Updated"} ${event.collection}/${contentId}`, {
+		actorId: event.actor?.id,
+	});
 
 	if (ctx.http) {
 		await ctx.http.fetch("https://api.example.com/webhook", {
@@ -207,7 +209,7 @@ Runs after content is successfully saved. Use for side effects like notification
 },
 ```
 
-**Event:** `{ content, collection, isNew }` — **Returns:** `Promise<void>`
+**Event:** `{ content, collection, isNew, actor }` — **Returns:** `Promise<void>`. Authenticated saves include the same optional `actor` snapshot as `content:beforeSave`.
 
 ### `content:beforeDelete`
 
