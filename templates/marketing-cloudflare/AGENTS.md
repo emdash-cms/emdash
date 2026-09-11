@@ -58,6 +58,10 @@ More structured than the blog and portfolio templates: navy-tinted surfaces, a f
 | Contact          | `/contact`     | Left column with contact methods (Email / Support / Sales, each with a blue icon), right column with a form                                      |
 | Pricing redirect | `/pricing`     | Redirects to the pricing section at `/#pricing`                                                                                                  |
 
+## Contact form
+
+The seeded contact form validates required fields and reports a local success state. Connect the submission to an email or webhook service, and add CSRF protection and rate limiting before using it in production.
+
 ## Schema
 
 - `pages` collection: `title`, `content` (Portable Text containing marketing blocks).
@@ -96,9 +100,9 @@ Typography is **Inter** on `--font-body` with weights from 400 through 800. Hero
 
 The component styles use the same token roles as the EmDash public site, with navy-tinted neutrals and one blue accent family:
 
-- `--color-bg: #f7f9fc` / `#0b1220` -- the light and dark canvas
-- `--color-surface: #ffffff` / `#121c2e` -- bordered cards and panels
-- `--color-primary: #1d4ed8` / `#60a5fa` -- links, focus, and selected states
+- `--color-bg: var(--background-base)` (`#f7f9fc` / `#0a0a0a`) -- the light and dark canvas
+- `--color-surface: var(--surface)` (`#ffffff` / `#171717`) -- bordered cards and panels
+- `--color-primary: var(--heat-100)` (`#0075de` / `#0075de`) -- links, focus, and selected states
 - `--heat-{4,8,12,16,20,40,90,100}` -- translucent through solid blue interaction treatments
 - `--button-primary-*` and `--button-secondary-*` -- shared button foreground and background roles
 - `--color-success`, `--color-warning`, `--color-danger` -- semantic colours (pricing checkmarks, form errors)

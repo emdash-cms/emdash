@@ -386,7 +386,7 @@ describe.sequential("Marketing template frontend behavior", () => {
 				const pricingResponse = await fetch(`${server.baseUrl}/pricing`, {
 					redirect: "manual",
 				});
-				expect(pricingResponse.status).toBe(301);
+				expect(pricingResponse.status).toBe(302);
 				const pricingTarget = new URL(pricingResponse.headers.get("location")!, server.baseUrl);
 				expect(`${pricingTarget.pathname}${pricingTarget.hash}`).toBe("/#pricing");
 

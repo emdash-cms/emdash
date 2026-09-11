@@ -1,9 +1,5 @@
 /**
- * Marketing blocks plugin (inline, template-local).
- *
- * Registers the six marketing block types so editors can insert and edit them
- * in the admin's Portable Text editor. Block Kit `fields` describe the form
- * shown when inserting or editing a block.
+ * Registers the template's marketing block types for the Portable Text editor.
  *
  * Constraints worth knowing:
  *
@@ -14,11 +10,8 @@
  *   toggle. Nested repeaters are not allowed -- list-of-strings becomes a
  *   single multiline text field, split on newline at render time (see
  *   Pricing.astro for the pattern).
- * - There is no media picker element in the editor's plugin-block modal yet,
- *   so image fields (avatars, hero images) are URL strings entered by hand.
- *
- * Site-side rendering still goes through MarketingBlocks.astro --
- * componentsEntry auto-wiring is a separate cleanup.
+ * - The editor does not provide a media picker for plugin blocks, so image
+ *   fields are URL strings entered by hand.
  */
 
 import { definePlugin } from "emdash";

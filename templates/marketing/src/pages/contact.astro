@@ -6,18 +6,10 @@ import MarketingBlocks from "../components/MarketingBlocks.astro";
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", "contact");
 
-// `cache.set` only applies to GET responses; wrap defensively because
-// this route also handles POST submissions where the cache API may
-// reject the call.
-try {
+if (Astro.request.method === "GET" && Astro.cache?.enabled) {
 	Astro.cache.set(cacheHint);
-} catch {}
+}
 
-// Handle form submission
-// NOTE: This is demo code. For production, add:
-// - CSRF token validation
-// - Rate limiting (e.g., via Cloudflare or middleware)
-// - Actual email sending or webhook integration
 let formStatus: "idle" | "success" | "error" = "idle";
 let formMessage = "";
 
@@ -36,7 +28,6 @@ if (Astro.request.method === "POST") {
 			formStatus = "error";
 			formMessage = "Please enter a valid email address.";
 		} else {
-			// TODO: Replace with actual email/webhook integration
 			console.log("Contact form submission:", {
 				name,
 				email,
