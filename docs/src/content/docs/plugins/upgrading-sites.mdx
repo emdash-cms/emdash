@@ -22,16 +22,6 @@ For the full list of changes in each package, see its entry on the [releases pag
 
 ## Breaking changes
 
-### Changed: registry releases can use PDS blobs
-
-Earlier EmDash versions install package artifacts only from an external URL.
-
-Registry releases can now store the package bundle as a blob in the publisher's Personal Data Server (PDS). EmDash can download the bundle from the publisher's PDS or a cache tied to that exact signed release. It verifies the downloaded bytes before installation.
-
-#### What should I do?
-
-Upgrade EmDash before installing a release whose package artifact does not provide an external URL.
-
 ### Changed: three first-party plugins use a default export
 
 Earlier releases exposed first-party plugins as a named export and a factory call, for example `import { auditLogPlugin } from "@emdash-cms/plugin-audit-log"` used as `auditLogPlugin()`.

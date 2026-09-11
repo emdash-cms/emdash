@@ -5,23 +5,21 @@ description: Configure and install plugins from the experimental EmDash registry
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-The plugin registry is the supported catalog for sandboxed plugins. It uses the [AT Protocol](https://atproto.com/), the account and data network behind Bluesky. A publisher owns the package description and release records as signed data in an [Atmosphere account](/guides/atmosphere-auth/).
-
-An **aggregator** finds those records and provides the searchable catalog shown in the EmDash admin panel. **Labellers** review the names, descriptions, links, and images that the catalog displays. Each aggregator chooses which labellers must approve a record before it appears. As the site operator, you choose which aggregator to use.
+The plugin registry is the supported catalog for sandboxed plugins. It lets administrators browse and install plugins from the EmDash admin panel. Review the publisher, selected version, and requested permissions before installing a plugin.
 
 <Aside type="caution" title="Experimental">
-	Registry configuration, records, and client APIs can change in a minor release. Pin EmDash and
-	`@emdash-cms/registry-client` to exact versions while using the registry, and read their
-	changelogs before upgrading. The reference aggregator is `https://registry.emdashcms.com`.
+	Registry configuration can change in a minor release. Pin `emdash` to an exact version while
+	using the registry, and read its changelog before upgrading. EmDash runs the hosted registry at
+	`https://registry.emdashcms.com`.
 </Aside>
 
-When `experimental.registry` is configured, the admin panel labels the plugin catalog **Registry** and uses the aggregator for plugin browse and install requests. Review the publisher and requested permissions before installing any plugin.
+When `experimental.registry` is configured, the admin panel displays a **Registry** section for browsing and installing plugins.
 
 ## Enable the registry
 
-Registry plugins require configured storage and an available sandbox runner. Complete the platform-specific [plugin sandbox setup](/deployment/plugin-sandbox/) first.
+To install plugins from the registry, configure storage and an available sandbox runner. Complete the platform-specific [plugin sandbox setup](/deployment/plugin-sandbox/) first.
 
-The following Cloudflare Workers configuration selects the Cloudflare sandbox runner and the reference aggregator:
+Add the hosted registry and Cloudflare sandbox runner to the `emdash()` configuration in `astro.config.mjs`:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -40,24 +38,7 @@ export default defineConfig({
 });
 ```
 
-The aggregator URL must use HTTPS in production. Development also permits `http://localhost` and `http://127.0.0.1`.
-
-To declare accepted labellers or a minimum release age, replace the registry URL in the existing `emdash()` call with this object:
-
-```typescript
-registry: {
-	aggregatorUrl: "https://registry.emdashcms.com",
-	acceptLabelers: "did:web:labels.emdashcms.com",
-	policy: {
-		minimumReleaseAge: "48h",
-		minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
-	},
-},
-```
-
-- `acceptLabelers` sends a comma-separated declaration of labeller account identifiers, called DIDs, with each request. The aggregator rejects a declaration that omits a labeller required by its policy. Your declaration cannot make the aggregator accept a listing its own policy rejects.
-- `policy.minimumReleaseAge` prevents installation or selection of a release until it reaches the configured age. The delay gives labellers more time to remove a compromised release before it reaches your site. Use a duration such as `"48h"` or a number of seconds.
-- `policy.minimumReleaseAgeExclude` removes that delay for every package from one publisher DID, or for one `<did>/<slug>` package. Use an exemption only when you trust that publisher's release process and need its releases immediately, such as for plugins your own team publishes. Handles are not accepted because a publisher can change them.
+Use the bare hosted registry URL for the normal setup. See the [`experimental.registry` configuration reference](/reference/configuration/#experimentalregistry) for custom registry settings.
 
 ## Install a registry plugin
 
@@ -67,23 +48,13 @@ registry: {
 2. Search for a plugin and open its detail page.
 3. Select a release and review its publisher, metadata, requested permissions, and verification status.
 4. Select **Install**.
-5. Review the verified release identifiers and permissions in the consent dialog, then confirm.
+5. Review the verification status and permissions in the consent dialog, then confirm.
 
 </Steps>
 
-Before showing the consent dialog, EmDash reads the current package and release records from the publisher's account and confirms that they match the copies returned by the aggregator. A content identifier (CID) changes whenever a record changes, so this check ties the listing to the exact record the publisher signed.
-
-EmDash then downloads the plugin bundle and checks that its bytes match the release checksum. It also confirms that the plugin name, version, and permissions match the release you selected. If the publisher requires build provenance, EmDash verifies the supplied evidence that identifies the build which produced the bundle. The consent dialog shows these checks and the exact permissions before installation.
+Before showing the consent dialog, EmDash checks the downloaded bundle's checksum, name, version, and permissions. If the publisher requires build provenance, EmDash verifies that evidence too. Installation stops if a check fails. The consent dialog shows the verification status and exact permissions before installation.
 
 Registry updates repeat these checks. An update waits for confirmation when it adds permissions or MCP tools, or changes a route from authenticated to public. Uninstalling removes the bundle and preserves plugin storage data unless you select **Also delete plugin storage data**. See [Installing plugins](/plugins/installing/#update-a-plugin) for the shared update and uninstall steps.
-
-## Registry trust boundaries
-
-The reference labeller assesses the package names, descriptions, authors, links, and images displayed by the admin panel. It approves an exact record CID, not every future update from that publisher. It does not assess plugin bundles, source code, dependencies, software bills of materials, or build provenance.
-
-EmDash verifies the publisher records and installable bundle separately, but the aggregator still decides which approved releases its catalog offers. Point `aggregatorUrl` at an aggregator whose selection and labeller policy you trust.
-
-A withdrawal or takedown is a labeller decision that removes a release or listing from the catalog. A minimum release age provides more time for that decision to arrive before a new release becomes installable.
 
 ## Related pages
 
