@@ -27,7 +27,13 @@ import {
 	validateProjectName,
 	wantsHelp,
 } from "./flags.js";
-import { isDirNonEmpty, runCommand, sanitizePackageName, writeEncryptionKey } from "./utils.js";
+import {
+	isDirNonEmpty,
+	runCommand,
+	sanitizePackageName,
+	setWorkerLoader,
+	writeEncryptionKey,
+} from "./utils.js";
 
 const GITHUB_REPO = "emdash-cms/templates";
 
@@ -296,6 +302,26 @@ async function resolveShouldInstall(flags: ParsedFlags): Promise<boolean> {
 	return shouldInstall;
 }
 
+/**
+ * Resolve the Cloudflare-only sandboxed-plugins capability. It defaults off
+ * because Worker Loader is only available on Workers paid plans.
+ */
+async function resolveSandboxedPlugins(flags: ParsedFlags, platform: Platform): Promise<boolean> {
+	if (platform !== "cloudflare") return false;
+	if (flags.sandboxedPlugins !== undefined) return flags.sandboxedPlugins;
+	if (flags.yes) return false;
+
+	const enabled = await p.confirm({
+		message: "Enable sandboxed plugins? (Requires Worker Loader, available on Workers paid plans)",
+		initialValue: false,
+	});
+	if (p.isCancel(enabled)) {
+		p.cancel("Operation cancelled.");
+		process.exit(0);
+	}
+	return enabled;
+}
+
 async function main() {
 	// Short-circuit --help before strict parsing so a user typing
 	// `npm create emdash@latest --help --template nope` gets the help they
@@ -334,6 +360,7 @@ async function main() {
 	const templateConfig = getTemplateConfig(platform, templateKey);
 	const pm = await resolvePackageManager(flags);
 	const shouldInstall = await resolveShouldInstall(flags);
+	const enableSandboxedPlugins = await resolveSandboxedPlugins(flags, platform);
 
 	const installCmd = `${pm} install`;
 	const runCmd = (script: string) => (pm === "npm" ? `npm run ${script}` : `${pm} ${script}`);
@@ -381,6 +408,7 @@ async function main() {
 		const secretsFile = ".env";
 		const keyResult = writeEncryptionKey(projectDir, secretsFile);
 		ensureGitignored(projectDir, secretsFile);
+		const loaderResult = setWorkerLoader(projectDir, enableSandboxedPlugins);
 
 		s.stop("Project created!");
 
@@ -403,6 +431,16 @@ async function main() {
 			);
 		} else {
 			p.log.info(`Wrote ${pc.cyan("EMDASH_ENCRYPTION_KEY")} to ${pc.cyan(secretsFile)}.`);
+		}
+
+		if (loaderResult === "enabled") {
+			p.log.info(
+				`Enabled sandboxed plugins (${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")}; requires a Workers paid plan).`,
+			);
+		} else if (loaderResult === "disabled") {
+			p.log.info(
+				`Sandboxed plugins are disabled. Uncomment ${pc.cyan("worker_loaders")} in ${pc.cyan("wrangler.jsonc")} to enable them later on a Workers paid plan.`,
+			);
 		}
 
 		if (shouldInstall) {

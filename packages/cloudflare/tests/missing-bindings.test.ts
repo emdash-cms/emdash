@@ -3,6 +3,7 @@
  * and the wrangler key that declares it.
  */
 
+import { EmDashConfigurationError } from "emdash";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Every factory below reads its binding off `env` when it is called, so one
@@ -41,9 +42,12 @@ describe("missing binding diagnostics", () => {
 	});
 
 	it("names the D1 binding and the wrangler key that declares it", () => {
-		const { message } = thrown(() => createD1Dialect({ binding: "SITE_DB" }));
+		const error = thrown(() => createD1Dialect({ binding: "SITE_DB" }));
+		const { message } = error;
 		expect(message).toContain("SITE_DB");
 		expect(message).toContain("d1_databases");
+		expect(error).toBeInstanceOf(EmDashConfigurationError);
+		expect(error.code).toBe("BINDING_NOT_FOUND");
 	});
 
 	it("names the R2 binding and the wrangler key that declares it", () => {
@@ -57,30 +61,42 @@ describe("missing binding diagnostics", () => {
 	});
 
 	it("names the KV binding and the wrangler key that declares it", () => {
-		const { message } = thrown(() => createObjectCache({ binding: "SITE_CACHE" }));
+		const error = thrown(() => createObjectCache({ binding: "SITE_CACHE" }));
+		const { message } = error;
 		expect(message).toContain("SITE_CACHE");
 		expect(message).toContain("kv_namespaces");
+		expect(error).toBeInstanceOf(EmDashConfigurationError);
+		expect(error.code).toBe("BINDING_NOT_FOUND");
 	});
 
 	it("names the Durable Object binding and the wrangler key that declares it", () => {
-		const { message } = thrown(() => createDurableObjectDialect({ binding: "SITE_DO" }));
+		const error = thrown(() => createDurableObjectDialect({ binding: "SITE_DO" }));
+		const { message } = error;
 		expect(message).toContain("SITE_DO");
 		expect(message).toContain("durable_objects");
+		expect(error).toBeInstanceOf(EmDashConfigurationError);
+		expect(error.code).toBe("BINDING_NOT_FOUND");
 	});
 
 	it("names the Hyperdrive binding and the wrangler key that declares it", () => {
-		const { message } = thrown(() => createHyperdriveDialect({ binding: "SITE_PG" }));
+		const error = thrown(() => createHyperdriveDialect({ binding: "SITE_PG" }));
+		const { message } = error;
 		expect(message).toContain("SITE_PG");
 		expect(message).toContain("hyperdrive");
+		expect(error).toBeInstanceOf(EmDashConfigurationError);
+		expect(error.code).toBe("BINDING_NOT_FOUND");
 	});
 
 	it("separates a Hyperdrive binding without a connection string from an absent one", () => {
 		fakeEnv.SITE_PG = {};
 
-		const { message } = thrown(() => createHyperdriveDialect({ binding: "SITE_PG" }));
+		const error = thrown(() => createHyperdriveDialect({ binding: "SITE_PG" }));
+		const { message } = error;
 
 		expect(message).toContain("SITE_PG");
 		expect(message).toContain("connectionString");
 		expect(message).not.toContain("not found");
+		expect(error).toBeInstanceOf(EmDashConfigurationError);
+		expect(error.code).toBe("CONFIGURATION_ERROR");
 	});
 });
