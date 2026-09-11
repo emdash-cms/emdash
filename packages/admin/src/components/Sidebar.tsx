@@ -133,7 +133,7 @@ export function getSidebarTaxonomies<T extends LocalizedTaxonomyDefinition>(
 	return resolveTaxonomyDefinitions(taxonomies, activeLocale, defaultLocale);
 }
 
-interface NavItem extends GroupableNavItem {
+export interface NavItem extends GroupableNavItem {
 	to: string;
 	label: string;
 	icon: React.ElementType;
@@ -188,7 +188,7 @@ function writeFolderState(state: FolderState): void {
  * visits. A folder without a stored choice opens while it contains the
  * active item.
  */
-function useFolderState() {
+export function useFolderState() {
 	const [state, setState] = React.useState<FolderState>(readFolderState);
 	const setOpen = React.useCallback((label: string, open: boolean) => {
 		setState((prev) => {
@@ -233,7 +233,7 @@ function NavMenuLink({ item, isActive }: { item: NavItem; isActive: boolean }) {
  * folder button changes the stored choice, so Kumo's focus-driven expansion
  * is not recorded as a preference.
  */
-function NavFolderMenu({
+export function NavFolderMenu({
 	folder,
 	currentPath,
 	open,
