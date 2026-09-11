@@ -71,7 +71,8 @@ async function i18nFor(locale: string): Promise<I18n> {
 }
 
 function resolver(i18n: I18n, siteName: string) {
-	return (descriptor: MessageDescriptor): string => i18n._({ ...descriptor, values: { siteName } });
+	return (descriptor: MessageDescriptor): string =>
+		i18n._(descriptor.id, { siteName }, { message: descriptor.message });
 }
 
 /** Localized copy for the invite email, in the given locale. */
