@@ -342,7 +342,7 @@ test.describe("Schedule content", () => {
 			};
 			return {
 				height: element.getBoundingClientRect().height,
-				labelLines: lineCount(label),
+				labelLines: getComputedStyle(label).whiteSpace === "nowrap" ? 1 : lineCount(label),
 				valueLines: lineCount(value),
 			};
 		});

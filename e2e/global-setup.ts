@@ -328,6 +328,8 @@ export default async function globalSetup(): Promise<void> {
 		cwd: workDir,
 		env: {
 			...process.env,
+			// Keep Astro's agent-mode server in this process so teardown owns it.
+			ASTRO_DEV_BACKGROUND: "1",
 			EMDASH_TEST_DB: `file:${dbPath}`,
 			EMDASH_MARKETPLACE_URL: marketplaceUrl,
 		},
