@@ -196,6 +196,28 @@ export class MediaRepository {
 			.execute();
 	}
 
+	/**
+	 * Register a stored object for cleanup before its media row is removed,
+	 * so a failed storage delete is retried by the cleanup sweep instead of
+	 * leaving the object unreferenced and unreachable.
+	 */
+	async trackStorageKeyForCleanup(mediaId: string, storageKey: string): Promise<void> {
+		const now = new Date().toISOString();
+		await this.db
+			.insertInto("_emdash_media_upload_attempts")
+			.values({
+				media_id: mediaId,
+				storage_key: storageKey,
+				status: "cleanup",
+				created_at: now,
+				updated_at: now,
+			})
+			.onConflict((oc) =>
+				oc.column("storage_key").doUpdateSet({ status: "cleanup", updated_at: now }),
+			)
+			.execute();
+	}
+
 	async hasUploadAttempt(storageKey: string): Promise<boolean> {
 		const row = await this.db
 			.selectFrom("_emdash_media_upload_attempts")
@@ -235,6 +257,7 @@ export class MediaRepository {
 	async deleteCompletedUploadAttempts(): Promise<number> {
 		const result = await this.db
 			.deleteFrom("_emdash_media_upload_attempts")
+			.where("status", "=", "active")
 			.where((eb) =>
 				eb.exists(
 					eb

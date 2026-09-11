@@ -8,6 +8,8 @@ import { MediaRepository, type MediaItem } from "../../database/repositories/med
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { isValidFocalPointUpdate, type FocalPointUpdate } from "../../media/focal-point.js";
+import { removeUploadAttempt } from "../../media/upload-attempts.js";
+import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
 
 const FOREIGN_KEY_VIOLATION_RE = /foreign key constraint failed/i;
@@ -270,29 +272,38 @@ function isForeignKeyViolation(error: unknown): boolean {
 }
 
 /**
- * Delete media item
+ * Delete a media item and its stored object.
+ *
+ * The object is registered for cleanup before the row is removed, so when
+ * the storage delete fails the cleanup sweep retries it; `storageDeleted`
+ * tells the caller whether the object is already gone.
  */
 export async function handleMediaDelete(
 	db: Kysely<Database>,
 	id: string,
-): Promise<ApiResult<{ deleted: true; storageKey: string }>> {
+	storage?: Storage | null,
+): Promise<ApiResult<{ deleted: true; storageKey: string; storageDeleted: boolean }>> {
 	try {
 		const repo = new MediaRepository(db);
-		const storageKey = await repo.deleteWithStorageKey(id);
+		const notFound: ApiResult<never> = {
+			success: false,
+			error: { code: "NOT_FOUND", message: `Media item not found: ${id}` },
+		};
 
-		if (!storageKey) {
-			return {
-				success: false,
-				error: {
-					code: "NOT_FOUND",
-					message: `Media item not found: ${id}`,
-				},
-			};
-		}
+		const media = await repo.findById(id);
+		if (!media) return notFound;
+
+		if (storage) await repo.trackStorageKeyForCleanup(media.id, media.storageKey);
+		const storageKey = await repo.deleteWithStorageKey(id);
+		if (!storageKey) return notFound;
+
+		const storageDeleted = storage
+			? await removeUploadAttempt(storage, repo, storageKey, { allowUntracked: true })
+			: false;
 
 		return {
 			success: true,
-			data: { deleted: true, storageKey },
+			data: { deleted: true, storageKey, storageDeleted },
 		};
 	} catch {
 		return {

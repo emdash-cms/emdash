@@ -98,6 +98,11 @@ export const deleteResponseSchema = z.object({ deleted: z.literal(true) }).meta(
 	id: "DeleteResponse",
 });
 
+/** Media delete response: `storageDeleted` is false when the stored file survived and is retried by cleanup */
+export const mediaDeleteResponseSchema = deleteResponseSchema
+	.extend({ storageDeleted: z.boolean() })
+	.meta({ id: "MediaDeleteResponse" });
+
 /** Standard count response */
 export const countResponseSchema = z
 	.object({ count: z.number().int().min(0) })
