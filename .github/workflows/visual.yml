@@ -44,7 +44,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      - run: pnpm locale:extract
+        env:
+          EMDASH_PSEUDO_LOCALE: "1"
       - run: pnpm run --filter emdash... build
+        env:
+          EMDASH_PSEUDO_LOCALE: "1"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
@@ -57,6 +62,7 @@ jobs:
         id: run
         env:
           EMDASH_VISUAL: "1"
+          EMDASH_PSEUDO_LOCALE: "1"
         run: |
           set +e
           pnpm exec playwright test visual-regression --reporter=line
@@ -102,7 +108,7 @@ jobs:
 
           # Regenerate the accepted-state baselines (the candidates the Apply
           # workflow commits verbatim on accept). These are Linux/chromium PNGs.
-          EMDASH_VISUAL=1 pnpm exec playwright test visual-regression --update-snapshots --reporter=line || true
+          EMDASH_PSEUDO_LOCALE=1 EMDASH_VISUAL=1 pnpm exec playwright test visual-regression --update-snapshots --reporter=line || true
 
           # Real drift == the regeneration changed tracked baselines or added
           # new ones. Untracked new files count (bootstrap: a PR that adds a

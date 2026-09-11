@@ -248,6 +248,8 @@ tables, and sanitized HTML blocks. Pass custom components when a site adds its o
 blocks. If you replace the `htmlBlock` renderer, sanitize the HTML and allow only the iframe hosts
 the site intends to trust.
 
+`PortableText` shows tables as read-only placeholders in edit mode. To localize their initial label, pass `tablePlaceholder={translatedLabel}`. It defaults to `"Table (edit in admin)"` and does not affect published table content.
+
 ## Apply SEO and editing features
 
 For a collection with SEO support, `getSeoMeta()` resolves the editor's SEO title, description,
