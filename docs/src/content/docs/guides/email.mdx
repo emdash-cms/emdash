@@ -1,11 +1,11 @@
 ---
 title: Email Setup
-description: Configure email delivery for magic links, invites, and password recovery — in development and production.
+description: Configure email delivery for magic links, invites, and account recovery — in development and production.
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Steps } from "@astrojs/starlight/components";
 
-EmDash uses email for **magic link login**, **user invites**, and **account recovery**. Email delivery is handled by plugins, not by config-file settings — there is no SMTP block in `astro.config.mjs` or `wrangler.jsonc`.
+EmDash uses email for **magic link login**, **user invites**, and **account recovery**. A provider plugin delivers the mail; you choose and configure the provider by installing its plugin.
 
 This guide covers how the email pipeline works, what you get out of the box in development, and how to wire up a real provider for production.
 
@@ -25,11 +25,19 @@ The console provider is dev-only and never runs in production builds.
 
 ## Production: Install a Provider Plugin
 
+### Cloudflare Workers
+
+On Cloudflare, use the `cloudflareEmail()` plugin from `@emdash-cms/cloudflare/plugins`. It sends through Cloudflare Email Sending over a `send_email` Worker binding, so it needs no external account or API key. The [Cloudflare deployment guide](/deployment/cloudflare/#email) walks through onboarding the sender domain, adding the binding, and registering the plugin.
+
+### Node and other platforms
+
 The community-maintained [`emdash-smtp`](https://github.com/masonjames/emdash-smtp) plugin family covers generic SMTP plus hosted providers, including Amazon SES, Brevo, Mailgun, Postmark, Resend, SendGrid, Zoho, and more.
 
 ```bash
 pnpm add emdash-smtp
 ```
+
+The following configuration registers the plugin with EmDash:
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -48,22 +56,11 @@ export default defineConfig({
 
 Provider credentials are configured through the plugin's own settings — see its README for the provider matrix and setup details.
 
-<Aside type="note" title="Cloudflare Workers: prefer HTTP APIs over raw SMTP">
-	Workers cannot open raw SMTP connections on port 25, so on Cloudflare deployments choose an
-	HTTP-based provider (Resend, SendGrid, Mailgun, Postmark, SES via API, …) rather than generic
-	SMTP. HTTP providers are plain `fetch` calls and work on every Workers plan, including the free
-	tier.
-</Aside>
+## Where provider credentials live
 
-## Secrets on Cloudflare
+Provider plugins declare their API keys and passwords as plugin settings. Enter them on the plugin's settings page in the admin; EmDash stores them in the database alongside other plugin settings, and rotating a key means pasting the new value there. [Secrets & Key Management](/deployment/secrets/#plugin-secrets) describes the storage and its caveats.
 
-Store API keys as Worker secrets, never in `wrangler.jsonc` vars:
-
-```bash
-wrangler secret put RESEND_API_KEY
-```
-
-For local development put the same key in `.env` (note: if a `.dev.vars` file exists, Wrangler ignores `.env` entirely). Read it in code via `process.env.RESEND_API_KEY` — never `import.meta.env`, which is inlined at build time and would bake the build machine's value into the bundle.
+Whether a plugin can read a deployment secret (`wrangler secret put`, `.env`) instead depends on its format, so follow its README. Sandboxed plugins cannot access `process.env` or platform bindings. A native plugin can read `process.env`; it must not use `import.meta.env`, which is inlined at build time and bakes the build machine's value into the bundle.
 
 ## Selecting a Provider and Testing
 
