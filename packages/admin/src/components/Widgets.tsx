@@ -129,6 +129,7 @@ const CORE_WIDGET_META: Record<string, CoreWidgetMeta> = {
 			count: { label: msg`Number of posts` },
 			showThumbnails: { label: msg`Show thumbnails` },
 			showDate: { label: msg`Show date` },
+			urlTemplate: { label: msg`URL template (e.g. /blog/:slug)` },
 		},
 	},
 	"core:categories": {
