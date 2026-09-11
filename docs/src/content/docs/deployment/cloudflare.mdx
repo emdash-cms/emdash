@@ -476,8 +476,6 @@ standard SMTP server. Sandboxed plugins cannot open TCP sockets, so this lives
 in core and uses `cloudflare:sockets` on Workers or `node:net`/`node:tls` on
 Node.
 
-Configure via environment variables:
-
 Configure it under **Settings → Email** in the admin (the password is stored
 encrypted with `EMDASH_ENCRYPTION_KEY`), or via environment variables:
 

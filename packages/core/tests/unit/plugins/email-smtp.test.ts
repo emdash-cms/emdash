@@ -223,6 +223,42 @@ describe("deliverSmtp", () => {
 		);
 	});
 
+	it("splits a long non-ASCII subject into RFC 2047 encoded-words", async () => {
+		const script = [
+			makeReply(220, "ready"),
+			makeReply(250, "EHLO ok"),
+			makeReply(220, "TLS go"),
+			makeReply(250, "EHLO ok"),
+			makeReply(334, "Username"),
+			makeReply(334, "Password"),
+			makeReply(235, "ok"),
+			makeReply(250, "ok"),
+			makeReply(250, "ok"),
+			makeReply(354, "go"),
+			makeReply(250, "ok"),
+		];
+		const { socket, written } = mockSocket(script);
+		const subject = "مرحبا بكم في موقعنا — نشرة الأخبار الأسبوعية للمحررين والقراء".repeat(2);
+
+		await deliverSmtp(baseConfig, { ...message, subject }, mockCtx, async () => socket);
+
+		const subjectLine = written.join("").match(/^Subject: (.*)\r\n/m)?.[1];
+		expect(subjectLine).toBeDefined();
+		const words = subjectLine!.split(" ");
+		expect(words.length).toBeGreaterThan(1);
+		for (const word of words) {
+			expect(word).toMatch(/^=\?UTF-8\?B\?[A-Za-z0-9+/=]+\?=$/);
+			expect(word.length).toBeLessThanOrEqual(75);
+		}
+		// Decoding each word on its own proves no multi-byte character was split.
+		const decoder = new TextDecoder("utf-8", { fatal: true });
+		const decoded = words
+			.map((w) => atob(w.slice("=?UTF-8?B?".length, -"?=".length)))
+			.map((bin) => decoder.decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))))
+			.join("");
+		expect(decoded).toBe(subject);
+	});
+
 	it("throws on AUTH failure", async () => {
 		const script = [
 			makeReply(220, "ready"),

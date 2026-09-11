@@ -188,6 +188,16 @@ declare module "virtual:emdash/env" {
 	export const env: Record<string, unknown> | undefined;
 }
 
+declare module "virtual:emdash/sockets" {
+	import type { CloudflareConnect } from "./plugins/email-smtp.js";
+	/**
+	 * Raw TCP socket factory. Resolves to Cloudflare's `connect` (from
+	 * `cloudflare:sockets`) under @astrojs/cloudflare; `undefined` on Node,
+	 * where callers use `node:net` / `node:tls`.
+	 */
+	export const connect: CloudflareConnect | undefined;
+}
+
 declare module "virtual:emdash/build" {
 	/**
 	 * Epoch milliseconds at which this build's virtual modules were generated.

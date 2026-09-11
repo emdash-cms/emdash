@@ -11,6 +11,7 @@ import {
 	generateConfigModule,
 	generateDialectModule,
 	generateEnvModule,
+	generateSocketsModule,
 	generateSchedulerModule,
 	generateSeedModule,
 	RESOLVED_VIRTUAL_BUILD_ID,
@@ -125,6 +126,20 @@ describe("generateSchedulerModule", () => {
 	it("emits a NodeCronScheduler factory when no adapter is configured", () => {
 		const out = generateSchedulerModule(undefined, "build");
 		expect(out).toContain("export function createScheduler(executor)");
+	});
+});
+
+describe("generateSocketsModule", () => {
+	it("re-exports cloudflare:sockets' connect under the Cloudflare adapter", () => {
+		expect(generateSocketsModule("@astrojs/cloudflare")).toBe(
+			'export { connect } from "cloudflare:sockets";',
+		);
+	});
+
+	it("keeps cloudflare:sockets out of Node builds", () => {
+		const out = generateSocketsModule("@astrojs/node");
+		expect(out).toBe("export const connect = undefined;");
+		expect(out).not.toContain("cloudflare:sockets");
 	});
 });
 
