@@ -29,56 +29,56 @@
 					"type": "portableText"
 				}
 			]
-			},
-			{
-				"slug": "posts",
-				"label": "Posts",
-				"labelSingular": "Post",
-				"supports": ["drafts", "revisions", "search", "seo"],
-				"fields": [
-					{
-						"slug": "title",
-						"label": "Title",
-						"type": "string",
-						"required": true,
-						"searchable": true
-					},
-					{
-						"slug": "excerpt",
-						"label": "Excerpt",
-						"type": "text",
-						"searchable": true
-					},
-					{
-						"slug": "category",
-						"label": "Category",
-						"type": "string",
-						"searchable": true
-					},
-					{
-						"slug": "featured",
-						"label": "Featured",
-						"type": "boolean"
-					},
-					{
-						"slug": "featured_image",
-						"label": "Featured Image",
-						"type": "image"
-					},
-					{
-						"slug": "cover_style",
-						"label": "Cover Style",
-						"type": "string"
-					},
-					{
-						"slug": "content",
-						"label": "Content",
-						"type": "portableText",
-						"searchable": true
-					}
-				]
-			}
-		],
+		},
+		{
+			"slug": "posts",
+			"label": "Posts",
+			"labelSingular": "Post",
+			"supports": ["drafts", "revisions", "search", "seo"],
+			"fields": [
+				{
+					"slug": "title",
+					"label": "Title",
+					"type": "string",
+					"required": true,
+					"searchable": true
+				},
+				{
+					"slug": "excerpt",
+					"label": "Excerpt",
+					"type": "text",
+					"searchable": true
+				},
+				{
+					"slug": "category",
+					"label": "Category",
+					"type": "string",
+					"searchable": true
+				},
+				{
+					"slug": "featured",
+					"label": "Featured",
+					"type": "boolean"
+				},
+				{
+					"slug": "featured_image",
+					"label": "Featured Image",
+					"type": "image"
+				},
+				{
+					"slug": "cover_style",
+					"label": "Cover Style",
+					"type": "string"
+				},
+				{
+					"slug": "content",
+					"label": "Content",
+					"type": "portableText",
+					"searchable": true
+				}
+			]
+		}
+	],
 	"bylines": [
 		{
 			"id": "author-maya-chen",
@@ -257,9 +257,7 @@
 						}
 					]
 				},
-				"bylines": [
-					{ "byline": "author-maya-chen", "roleLabel": "Product lead" }
-				]
+				"bylines": [{ "byline": "author-maya-chen", "roleLabel": "Product lead" }]
 			},
 			{
 				"id": "post-trusted-workspace",
@@ -357,9 +355,7 @@
 						}
 					]
 				},
-				"bylines": [
-					{ "byline": "author-theo-grant", "roleLabel": "Design lead" }
-				]
+				"bylines": [{ "byline": "author-theo-grant", "roleLabel": "Design lead" }]
 			},
 			{
 				"id": "post-customer-conversations",
@@ -457,9 +453,7 @@
 						}
 					]
 				},
-				"bylines": [
-					{ "byline": "author-nina-patel", "roleLabel": "Co-founder" }
-				]
+				"bylines": [{ "byline": "author-nina-patel", "roleLabel": "Co-founder" }]
 			}
 		],
 		"pages": [
