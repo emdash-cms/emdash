@@ -1,40 +1,25 @@
 ---
 title: The plugin registry
-description: Install plugins from the experimental, federated EmDash plugin registry, and query it from your own site.
+description: Configure and install plugins from the experimental EmDash registry.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-The plugin registry is the decentralized successor to the central [marketplace](/plugins/installing/#from-the-marketplace). Publishers own their records, and anyone can run the index that makes them discoverable — the **aggregator**. Each aggregator defines which labellers must approve a listing before it appears. When you point your site at a registry, the admin dashboard browses and installs plugins from there instead of from the marketplace.
-
-It is built on the [AT Protocol](https://atproto.com/), the network behind [Bluesky](https://bsky.app).
+The plugin registry is the supported catalog for sandboxed plugins. It lets administrators browse and install plugins from the EmDash admin panel. Review the publisher, selected version, and requested permissions before installing a plugin.
 
 <Aside type="caution" title="Experimental">
-	The registry is experimental and under active development. It is intended to
-	replace the marketplace, but its behaviour and data shapes may change before
-	then — pin EmDash to an exact version while you depend on it, and check the
-	changelog before upgrading. The reference aggregator runs at
-	`registry.emdashcms.com`.
+	Registry configuration can change in a minor release. Pin `emdash` to an exact version while
+	using the registry, and read its changelog before upgrading. EmDash runs the hosted registry at
+	`https://registry.emdashcms.com`.
 </Aside>
 
-## Registry vs. marketplace
-
-Both the [marketplace](/plugins/installing/#from-the-marketplace) and the registry let an administrator browse, install, update, and remove sandboxed plugins from the admin dashboard. The install experience — capability consent, checksum verification, the sandbox runner — is the same. They differ in who controls the catalog and who you trust.
-
-| | Marketplace | Registry |
-| --- | --- | --- |
-| **Control** | One company owns and operates it | No central owner; anyone can run an aggregator |
-| **Discovery** | Served by the marketplace service | Served by an aggregator that indexes the network |
-| **Moderation** | The operator vets listings and can remove them | Labellers approve exact listing revisions and can issue blocks or takedowns |
-| **Who you trust** | The marketplace operator | The aggregator you point at and the labellers its policy requires |
-
-You configure one or the other for a given site. When `experimental.registry` is set, the admin's browse and install flows use the registry.
+When `experimental.registry` is configured, the admin panel displays a **Registry** section for browsing and installing plugins.
 
 ## Enable the registry
 
-The registry requires a `sandboxRunner`, because registry plugins always run sandboxed. See [Plugin Sandbox](/deployment/plugin-sandbox/) for the runner setup.
+To install plugins from the registry, configure storage and an available sandbox runner. Complete the platform-specific [plugin sandbox setup](/deployment/plugin-sandbox/) first.
 
-The following configuration points a site at the reference aggregator:
+Add the hosted registry and Cloudflare sandbox runner to the `emdash()` configuration in `astro.config.mjs`:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -42,73 +27,37 @@ import { sandbox } from "@emdash-cms/cloudflare";
 import emdash from "emdash/astro";
 
 export default defineConfig({
-  integrations: [
-    emdash({
-      sandboxRunner: sandbox(),
-      experimental: {
-        registry: "https://registry.emdashcms.com",
-      },
-    }),
-  ],
+	integrations: [
+		emdash({
+			sandboxRunner: sandbox(),
+			experimental: {
+				registry: "https://registry.emdashcms.com",
+			},
+		}),
+	],
 });
 ```
 
-The bare URL string is shorthand. Use the object form when you need to declare accepted labellers or set a release-age policy:
+Use the bare hosted registry URL for the normal setup. See the [`experimental.registry` configuration reference](/reference/configuration/#experimentalregistry) for custom registry settings.
 
-```typescript title="astro.config.mjs"
-emdash({
-  sandboxRunner: sandbox(),
-  experimental: {
-    registry: {
-      aggregatorUrl: "https://registry.emdashcms.com",
-      acceptLabelers: "did:web:labels.emdashcms.com",
-      policy: {
-        minimumReleaseAge: "48h",
-        minimumReleaseAgeExclude: ["did:plc:yourfirstpartydid"],
-      },
-    },
-  },
-})
-```
-
-The aggregator URL must be HTTPS in production (`http://localhost` is allowed in development).
-
-### Configuration options
-
-- **`acceptLabelers`** — an optional comma-separated list of bare labeller DIDs forwarded as a validated declaration and included in the client's cache identity. When set, the list must include every source required by the aggregator. The declaration cannot change the aggregator's approval, block, takedown, or withdrawal policy.
-- **`policy.minimumReleaseAge`** — hold back releases newer than this age when choosing the version to install or update to, widening the window for a takedown to land before a compromised release reaches your site. Accepts a duration string (`"24h"`, `"7d"`) or a number of seconds.
-- **`policy.minimumReleaseAgeExclude`** — DIDs exempt from the holdback, for publishers whose release tempo you have explicitly accepted (such as your own first-party plugins). Each entry is a bare publisher DID, or a `<did>/<slug>` pair to exempt a single package. Only DIDs are accepted, not handles.
-
-## Browse and install
+## Install a registry plugin
 
 <Steps>
-1. Open the admin panel and navigate to **Plugins > Registry**.
-2. Browse or search. Each approved result shows its listing name, approved author name or stable publisher DID, and latest version.
-3. Open a plugin to see its README, screenshots, declared access, and release history.
-4. Click **Install** and review the capability consent dialog.
-5. Confirm.
+
+1. Open **Registry** in the admin panel.
+2. Search for a plugin and open its detail page.
+3. Select a release and review its publisher, metadata, requested permissions, and verification status.
+4. Select **Install**.
+5. Review the verification status and permissions in the consent dialog, then confirm.
+
 </Steps>
 
-Installation verifies the downloaded bytes against the release checksum, confirms the bundle's plugin id and version match the release, and confirms its declared capabilities match what you approved. Updates and uninstalling work as they do for [marketplace plugins](/plugins/installing/#updates).
+Before showing the consent dialog, EmDash checks the downloaded bundle's checksum, name, version, and permissions. If the publisher requires build provenance, EmDash verifies that evidence too. Installation stops if a check fails. The consent dialog shows the verification status and exact permissions before installation.
 
-### Trust model
+Registry updates repeat these checks. An update waits for confirmation when it adds permissions or MCP tools, or changes a route from authenticated to public. Uninstalling removes the bundle and preserves plugin storage data unless you select **Also delete plugin storage data**. See [Installing plugins](/plugins/installing/#update-a-plugin) for the shared update and uninstall steps.
 
-The registry is decentralized, so trust is explicit. The reference labeller assesses only the publisher-controlled metadata and media shown in the admin. It does not fetch or assess plugin archives, source code, manifests, dependencies, software bills of materials, or provenance evidence. Its approval is bound to the exact content identifier (CID) of a profile or release record.
+## Related pages
 
-Plugin-code checks remain separate. Before activating a plugin, EmDash independently verifies that the artifact bytes hash to the approved release checksum, that the bundle addresses the plugin id and version it claims, and that its capabilities match the consent dialog.
-
-<Aside type="caution">
-	Point `aggregatorUrl` only at an aggregator you operate or trust with the same
-	authority as a central plugin source. `policy.minimumReleaseAge` widens the
-	takedown window. `acceptLabelers` declares the set sent with requests; the
-	aggregator's configured policy remains authoritative and rejects a declaration
-	that omits a required source.
-</Aside>
-
-## What to read next
-
-- [Installing Plugins](/plugins/installing/) — the marketplace and config-based install flows
-- [Bundling and publishing](/plugins/creating-plugins/publishing/) — publish your own plugin to the registry
-- [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) — publish verified releases from GitHub Actions
-- [Querying the registry](/plugins/registry-client/) — build a plugin directory or search page against the registry's discovery API
-- [Capabilities and security](/plugins/creating-plugins/capabilities/) — the sandbox trust contract
+- [Querying the registry](/plugins/registry-client/) documents the experimental read-only discovery client.
+- [Bundling and publishing](/plugins/creating-plugins/publishing/) covers publishing a sandboxed plugin.
+- [Capabilities and security](/plugins/creating-plugins/capabilities/) describes the sandbox permission model.

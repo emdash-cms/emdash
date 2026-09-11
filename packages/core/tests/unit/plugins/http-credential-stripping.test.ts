@@ -84,6 +84,112 @@ describe("createHttpAccess host allowlist matching", () => {
 	});
 });
 
+describe("createHttpAccess external target validation", () => {
+	const pluginId = "test-plugin";
+
+	it("rejects non-HTTP schemes before dispatch", async () => {
+		mockFetch.mockResolvedValue(okResponse());
+
+		const http = createHttpAccess(pluginId, ["*"]);
+		await expect(http.fetch("file:///etc/hosts")).rejects.toThrow("Scheme 'file:' is not allowed");
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it("reports malformed URLs without dispatch", async () => {
+		mockFetch.mockResolvedValue(okResponse());
+
+		const http = createHttpAccess(pluginId, ["*"]);
+		await expect(http.fetch("not a URL")).rejects.toThrow(
+			'blocked fetch to "invalid URL": Invalid URL',
+		);
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it("rejects disallowed hosts without resolving them", async () => {
+		const resolver = vi.fn(async () => ["93.184.216.34"]);
+		const previous = setDefaultDnsResolver(resolver);
+		mockFetch.mockResolvedValue(okResponse());
+
+		try {
+			const http = createHttpAccess(pluginId, ["api.example.com"]);
+			await expect(http.fetch("https://other.example.com/internal")).rejects.toThrow(
+				'is not allowed to fetch from host "other.example.com"',
+			);
+			expect(resolver).not.toHaveBeenCalled();
+			expect(mockFetch).not.toHaveBeenCalled();
+		} finally {
+			setDefaultDnsResolver(previous);
+		}
+	});
+
+	it("rejects private IP literals before dispatch", async () => {
+		mockFetch.mockResolvedValue(okResponse());
+
+		const http = createHttpAccess(pluginId, ["*"]);
+		await expect(http.fetch("http://127.0.0.1/internal")).rejects.toThrow(
+			"URLs targeting non-public IP addresses are not allowed",
+		);
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it.each(["http://[::]/internal", "http://100.100.100.200/internal"])(
+		"rejects non-public target %s before dispatch",
+		async (url) => {
+			mockFetch.mockResolvedValue(okResponse());
+
+			const http = createHttpAccess(pluginId, ["*"]);
+			await expect(http.fetch(url)).rejects.toThrow(
+				"URLs targeting non-public IP addresses are not allowed",
+			);
+			expect(mockFetch).not.toHaveBeenCalled();
+		},
+	);
+
+	it("rejects internal hostnames before dispatch", async () => {
+		mockFetch.mockResolvedValue(okResponse());
+
+		const http = createHttpAccess(pluginId, ["localhost"]);
+		await expect(http.fetch("http://localhost/internal")).rejects.toThrow(
+			"URLs targeting internal hosts are not allowed",
+		);
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it("rejects allowed hosts that resolve to private addresses before dispatch", async () => {
+		const previous = setDefaultDnsResolver(async () => ["10.0.0.1"]);
+		mockFetch.mockResolvedValue(okResponse());
+
+		try {
+			const http = createHttpAccess(pluginId, ["api.example.com"]);
+			await expect(http.fetch("https://api.example.com/internal")).rejects.toThrow(
+				"Hostname resolves to a non-public IP address",
+			);
+			expect(mockFetch).not.toHaveBeenCalled();
+		} finally {
+			setDefaultDnsResolver(previous);
+		}
+	});
+
+	it("validates redirect destinations before dispatch", async () => {
+		const previous = setDefaultDnsResolver(async (hostname) =>
+			hostname === "api.example.com" ? ["93.184.216.34"] : ["10.0.0.1"],
+		);
+		mockFetch
+			.mockResolvedValueOnce(redirectResponse("https://redirect.example.com/internal"))
+			.mockResolvedValueOnce(okResponse());
+
+		try {
+			const http = createHttpAccess(pluginId, ["api.example.com", "redirect.example.com"]);
+			await expect(http.fetch("https://api.example.com/start")).rejects.toThrow(
+				"Hostname resolves to a non-public IP address",
+			);
+			expect(mockFetch).toHaveBeenCalledTimes(1);
+		} finally {
+			setDefaultDnsResolver(previous);
+		}
+	});
+});
+
 describe("createHttpAccess credential stripping", () => {
 	const pluginId = "test-plugin";
 	const allowedHosts = ["a.example.com", "b.example.com"];
@@ -154,6 +260,16 @@ describe("createHttpAccess credential stripping", () => {
 
 describe("createUnrestrictedHttpAccess credential stripping", () => {
 	const pluginId = "unrestricted-plugin";
+
+	it("reports malformed URLs without dispatch", async () => {
+		mockFetch.mockResolvedValue(okResponse());
+
+		const http = createUnrestrictedHttpAccess(pluginId);
+		await expect(http.fetch("not a URL")).rejects.toThrow(
+			'blocked fetch to "invalid URL": Invalid URL',
+		);
+		expect(mockFetch).not.toHaveBeenCalled();
+	});
 
 	it("preserves credentials on same-origin redirect", async () => {
 		mockFetch

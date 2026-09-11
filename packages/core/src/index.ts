@@ -13,6 +13,8 @@ export type {
 	UserTable,
 	MediaTable,
 } from "./database/index.js";
+export { EmDashConfigurationError } from "./config/errors.js";
+export type { EmDashConfigurationErrorCode } from "./config/errors.js";
 
 // Repositories
 export {
@@ -124,6 +126,10 @@ export type {
 	PortableTextImageBlock,
 	PortableTextCodeBlock,
 	PortableTextHtmlBlock,
+	PortableTextTableAlignment,
+	PortableTextTableBlock,
+	PortableTextTableCell,
+	PortableTextTableRow,
 	PortableTextUnknownBlock,
 	ProseMirrorMark,
 	ProseMirrorNode,
@@ -297,6 +303,7 @@ export type {
 	HookName,
 	ResolvedHook,
 	ResolvedPluginHooks,
+	ActorInfo,
 	ContentHookEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,

@@ -4,6 +4,11 @@
  * Converts Portable Text to TipTap's ProseMirror JSON format for editing.
  */
 
+import {
+	UnsafePortableTextTableError,
+	portableTextTableToProseMirror,
+} from "@emdash-cms/admin/portable-text-table";
+
 import { sanitizeGalleryImages } from "./gallery.js";
 import {
 	UnsupportedPortableTextMarksError,
@@ -33,6 +38,10 @@ import type {
 	PortableTextGalleryBlock,
 	PortableTextCodeBlock,
 } from "./types.js";
+
+function generateKey(): string {
+	return Math.random().toString(36).substring(2, 11);
+}
 
 export interface PortableTextToProsemirrorOptions {
 	/**
@@ -134,7 +143,7 @@ export function portableTextToProsemirror(
 				}),
 			});
 		} else {
-			const converted = convertBlock(block, preserveIdentity);
+			const converted = convertBlock(block, `root:${i}`, preserveIdentity);
 			if (converted) {
 				content.push(converted);
 			}
@@ -222,7 +231,11 @@ function isCodeBlock(block: PortableTextBlock): block is PortableTextCodeBlock {
 /**
  * Convert a single Portable Text block to ProseMirror node
  */
-function convertBlock(block: PortableTextBlock, preserveIdentity: boolean): ProseMirrorNode | null {
+function convertBlock(
+	block: PortableTextBlock,
+	path: string,
+	preserveIdentity: boolean,
+): ProseMirrorNode | null {
 	if (isTextBlock(block)) {
 		return convertTextBlock(block, preserveIdentity);
 	}
@@ -285,6 +298,17 @@ function convertBlock(block: PortableTextBlock, preserveIdentity: boolean): Pros
 			type: PORTABLE_TEXT_BLOCK_NODE,
 			attrs: { [PORTABLE_TEXT_BLOCK_ATTR]: block },
 		};
+	}
+	if (block._type === "table") {
+		const result = portableTextTableToProseMirror(block, {
+			path,
+			createKey: generateKey,
+			spansToInline: (content, markDefs) => convertSpans(content, markDefs, preserveIdentity),
+		});
+		if (!result.ok) {
+			throw new UnsafePortableTextTableError(result.reason, result.raw, result.renderFallback);
+		}
+		return result.node;
 	}
 	return {
 		type: "paragraph",

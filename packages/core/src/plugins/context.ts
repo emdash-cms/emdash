@@ -710,11 +710,31 @@ function isHostAllowed(host: string, allowedHosts: string[]): boolean {
 	});
 }
 
+function tryParsePluginHttpTarget(url: string): URL | null {
+	try {
+		return new URL(url);
+	} catch {
+		return null;
+	}
+}
+
+async function validatePluginHttpTarget(pluginId: string, url: string): Promise<URL> {
+	try {
+		return await resolveAndValidateExternalUrl(url);
+	} catch (error) {
+		const message = error instanceof SsrfError ? error.message : "SSRF validation failed";
+		const target = tryParsePluginHttpTarget(url);
+		throw new Error(
+			`Plugin "${pluginId}": blocked fetch to "${target ? target.hostname : "invalid URL"}": ${message}`,
+			{ cause: error },
+		);
+	}
+}
+
 /**
- * Create HTTP access with host validation.
+ * Create HTTP access with host validation and SSRF protection.
  *
- * Uses redirect: "manual" to re-validate each redirect target against
- * the allowedHosts list, preventing redirects to unauthorized hosts.
+ * Uses redirect: "manual" to re-validate each redirect target before dispatch.
  */
 export function createHttpAccess(pluginId: string, allowedHosts: string[]): HttpAccess {
 	return {
@@ -731,13 +751,14 @@ export function createHttpAccess(pluginId: string, allowedHosts: string[]): Http
 			let currentInit = init;
 
 			for (let i = 0; i <= MAX_PLUGIN_REDIRECTS; i++) {
-				const hostname = new URL(currentUrl).hostname;
-				if (!isHostAllowed(hostname, allowedHosts)) {
+				const target = tryParsePluginHttpTarget(currentUrl);
+				if (target && !isHostAllowed(target.hostname, allowedHosts)) {
 					throw new Error(
-						`Plugin "${pluginId}" is not allowed to fetch from host "${hostname}". ` +
+						`Plugin "${pluginId}" is not allowed to fetch from host "${target.hostname}". ` +
 							`Allowed hosts: ${allowedHosts.join(", ")}`,
 					);
 				}
+				await validatePluginHttpTarget(pluginId, currentUrl);
 
 				const response = await globalThis.fetch(currentUrl, {
 					...currentInit,
@@ -782,17 +803,7 @@ export function createUnrestrictedHttpAccess(pluginId: string): HttpAccess {
 			let currentInit = init;
 
 			for (let i = 0; i <= MAX_PLUGIN_REDIRECTS; i++) {
-				// Validate each URL against SSRF rules (private IPs, metadata
-				// endpoints, wildcard DNS, resolved-IP private ranges).
-				try {
-					await resolveAndValidateExternalUrl(currentUrl);
-				} catch (e) {
-					const msg = e instanceof SsrfError ? e.message : "SSRF validation failed";
-					throw new Error(
-						`Plugin "${pluginId}": blocked fetch to "${new URL(currentUrl).hostname}": ${msg}`,
-						{ cause: e },
-					);
-				}
+				await validatePluginHttpTarget(pluginId, currentUrl);
 
 				const response = await globalThis.fetch(currentUrl, {
 					...currentInit,

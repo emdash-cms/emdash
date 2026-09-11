@@ -1,392 +1,127 @@
 ---
-title: Collections & Fields
-description: Define content types with collections and fields—supported field types, validation, and relationships.
+title: Collections and fields
+description: Choose collection behavior and field types, and understand how later changes affect content.
 ---
 
-import { Aside, Card, CardGrid, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-A collection is a content type (posts, pages, products). Its field definitions set the shape of each entry's data.
+A collection defines one kind of content and the form editors use to create it. Its fields define
+the values each entry can contain. For example, a Products collection could contain a title, price,
+description, product image, and reference to a Brand entry.
 
-## Creating collections
+Administrators manage collections under **Content Types**. Seed files can define the same collection
+settings when a site or environment is set up from configuration.
 
-Create collections through the admin panel under **Content Types**. Each collection has the following properties:
+## Collection identity
 
-| Property        | Description                                          |
-| --------------- | ---------------------------------------------------- |
-| `slug`          | URL-safe identifier (e.g., `posts`, `products`)      |
-| `label`         | Display name (e.g., "Blog Posts")                    |
-| `labelSingular` | Singular form (e.g., "Post")                         |
-| `description`   | Optional description for editors                     |
-| `icon`          | Lucide icon name for the admin sidebar               |
-| `supports`      | Features like drafts, revisions, preview, scheduling, search, seo |
+Every collection has a plural label, an optional singular label, and a slug. Labels appear in the
+admin panel. The slug identifies the collection in queries, API routes, seed files, and the database.
 
-<Aside type="note">
-	Some collection slugs are reserved: `content`, `media`, `users`, `revisions`, `taxonomies`,
-	`options`, `audit_logs`.
-</Aside>
-
-## Collection features
-
-When creating a collection, enable the features you need:
-
-| Feature      | Description                                    |
-| ------------ | ---------------------------------------------- |
-| `drafts`     | Enable draft/published workflow                |
-| `revisions`  | Track content history with version snapshots   |
-| `preview`    | Generate signed preview URLs for draft content |
-| `scheduling` | Schedule content to publish at a future date   |
-
-The following collection enables all four features:
+For example, a collection labelled **Blog Posts** can use **Blog Post** as its singular label and
+`posts` as its slug. Astro code then queries it by that slug:
 
 ```ts
-{
-  slug: "posts",
-  label: "Blog Posts",
-  labelSingular: "Post",
-  supports: ["drafts", "revisions", "preview", "scheduling"]
-}
+import { getEmDashCollection } from "emdash";
+
+const { entries: posts } = await getEmDashCollection("posts");
 ```
+
+Choose the slug before creating the collection. The admin panel does not rename collection slugs or
+field slugs later because existing queries and stored columns depend on them. Slugs start with a
+lowercase letter, contain only lowercase letters, numbers, and underscores, and have a maximum of 63
+characters. EmDash also rejects reserved names used by its own routes and entry data.
+
+## Collection behavior
+
+Collection settings control how editors and public pages use the entries:
+
+- **Routable** requires a public slug before an entry can be published. A URL pattern can combine
+  the entry slug or ID with its publication date to produce the public path.
+- **Drafts** lets editors save work before publishing it.
+- **Revisions** keeps snapshots of content history.
+- **Preview** provides signed preview URLs for unpublished content.
+- **Search** enables full-text search for fields marked as searchable.
+- **SEO** adds title, description, and image metadata fields and includes the collection in the
+  sitemap.
+- **Edit locking** holds an entry while one editor is working and refuses other writers until the
+  lock is released.
+- **Comments** can be enabled per collection, with moderation and automatic closing settings.
+- **Group** places the collection in a collapsible sidebar folder. Collections with the same group
+  share one folder, positioned where the first of them would appear. A taxonomy joins the folder when
+  every collection it is assigned to is shown in that folder.
+
+Enable behavior that the site actually uses. For example, turning on Preview supplies preview URLs,
+but the Astro page must still render the entry and its preview state correctly. See [Preview
+mode](/guides/preview/) for that complete flow.
 
 ## Field types
 
-EmDash supports 16 field types that map to SQLite column types.
+Choose a field type for the value editors enter and the way application code receives it. EmDash
+supports 16 field types:
 
-### Text fields
+| Content need | Field types | What editors work with |
+| --- | --- | --- |
+| Short or long text | `string`, `text`, `slug`, `url` | Text inputs, text areas, and URL values |
+| Numbers | `number`, `integer` | Decimal or whole-number inputs |
+| State and time | `boolean`, `datetime` | A switch or date-and-time picker |
+| Fixed choices | `select`, `multiSelect` | One or several choices from configured options |
+| Rich or structured data | `portableText`, `json`, `repeater` | Rich text, JSON, or a repeated group of sub-fields |
+| Media | `image`, `file` | An item selected from the media library |
+| Relationships | `reference` | An entry selected from another collection |
 
-<Tabs>
-  <TabItem label="string">
-    Short text input. Maps to `TEXT` column.
-    
-    ```ts
-    { slug: "title", type: "string", label: "Title" }
-    ```
-  </TabItem>
-  <TabItem label="text">
-    Multi-line textarea. Maps to `TEXT` column.
-    
-    ```ts
-    { slug: "excerpt", type: "text", label: "Excerpt" }
-    ```
-  </TabItem>
-  <TabItem label="slug">
-    URL-safe slug field. Maps to `TEXT` column.
-    
-    ```ts
-    { slug: "handle", type: "slug", label: "URL Handle" }
-    ```
-  </TabItem>
-</Tabs>
+The type is more than an editor control. It also determines how EmDash stores and validates the
+value and how generated TypeScript declarations describe it. The [field types
+reference](/reference/field-types/) lists each type's value shape and options.
 
-### Rich content
+## Field rules
 
-<Tabs>
-  <TabItem label="portableText">
-    Rich text editor (TipTap/ProseMirror). Stored as JSON.
-    
-    ```ts
-    { slug: "content", type: "portableText", label: "Content" }
-    ```
-    
-    Portable Text is a block-based format that preserves structure without embedding HTML.
-  </TabItem>
-  <TabItem label="json">
-    Arbitrary JSON data. Stored as JSON.
-    
-    ```ts
-    { slug: "metadata", type: "json", label: "Custom Metadata" }
-    ```
-  </TabItem>
-</Tabs>
+Every custom field has a label and slug. The following options further describe its behavior:
 
-### Numbers
+- **Required** prevents an entry from being saved without a value.
+- **Unique** prevents two entries in the collection from using the same value.
+- **Default value** supplies a starting value when appropriate.
+- **Validation** can limit text length, number ranges, patterns, choices, file types, or repeater
+  length according to the field type.
+- **Searchable** includes supported text fields in the collection's full-text search index.
+- **Indexed** creates a database index for sorting or filtering on a supported field.
+- **Translatable** controls whether each locale has its own value. A non-translatable value is shared
+  across translations of the same entry.
 
-<Tabs>
-  <TabItem label="number">
-    Decimal numbers. Maps to `REAL` column.
-    
-    ```ts
-    { slug: "price", type: "number", label: "Price" }
-    ```
-  </TabItem>
-  <TabItem label="integer">
-    Whole numbers. Maps to `INTEGER` column.
-    
-    ```ts
-    { slug: "quantity", type: "integer", label: "Stock Quantity" }
-    ```
-  </TabItem>
-</Tabs>
+Turn on **Indexed** when a query sorts or filters by that custom field. The index helps the database
+find matching or ordered entries, but it uses additional storage and adds work whenever content is
+created or updated. Do not index a field only because a page displays it.
 
-### Booleans and dates
+Indexes are available for `string`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`,
+`reference`, and `slug` fields. Rich text, JSON, repeaters, and multiple-choice values contain more
+complex data and cannot use this kind of index.
 
-<Tabs>
-  <TabItem label="boolean">
-    True/false toggle. Maps to `INTEGER` (0/1).
-    
-    ```ts
-    { slug: "featured", type: "boolean", label: "Featured Post" }
-    ```
-  </TabItem>
-  <TabItem label="datetime">
-    Date and time picker. Stored as ISO 8601 string.
-    
-    ```ts
-    { slug: "eventDate", type: "datetime", label: "Event Date" }
-    ```
-  </TabItem>
-</Tabs>
+References store the target entry's ID. Configure a reference with the target collection, and enable
+multiple values only when the field should hold several entry IDs. A reference lets code load or
+identify related content; it does not copy the target entry into the source entry.
 
-### Selection
+## Changing fields later
 
-<Tabs>
-  <TabItem label="select">
-    Single option from a list. Maps to `TEXT` column.
-    
-    ```ts
-    {
-      slug: "status",
-      type: "select",
-      label: "Product Status",
-      validation: {
-        options: ["active", "discontinued", "coming_soon"]
-      }
-    }
-    ```
-  </TabItem>
-  <TabItem label="multiSelect">
-    Multiple options from a list. Stored as JSON array.
-    
-    ```ts
-    {
-      slug: "features",
-      type: "multiSelect",
-      label: "Product Features",
-      validation: {
-        options: ["wireless", "waterproof", "eco-friendly"]
-      }
-    }
-    ```
-  </TabItem>
-</Tabs>
+Labels, validation, search settings, indexes, widget options, and display order can change without
+replacing the field. Adding a field keeps every existing entry, although those entries need a value
+for the new field if the site expects one.
 
-### Media and references
+<Aside type="caution" title="Some schema changes remove data or require migration">
+	Deleting a field drops its database column and removes that field's value from every entry.
+	Deleting a collection drops its content table and all entries in the collection. Back up
+	production data before either action.
 
-<Tabs>
-  <TabItem label="image">
-    Image picker from media library. Stores media ID as `TEXT`.
-    
-    ```ts
-    { slug: "featuredImage", type: "image", label: "Featured Image" }
-    ```
-  </TabItem>
-  <TabItem label="file">
-    File picker from media library. Stores media ID as `TEXT`.
-    
-    ```ts
-    { slug: "attachment", type: "file", label: "PDF Attachment" }
-    ```
-  </TabItem>
-  <TabItem label="reference">
-    Reference to another collection's entry. Stores entry ID as `TEXT`.
-    
-    ```ts
-    {
-      slug: "author",
-      type: "reference",
-      label: "Author",
-      options: {
-        collection: "authors"
-      }
-    }
-    ```
-  </TabItem>
-</Tabs>
-
-## Field properties
-
-Every field supports these properties:
-
-| Property       | Type        | Description                                  |
-| -------------- | ----------- | -------------------------------------------- |
-| `slug`         | `string`    | Column name in the database                  |
-| `label`        | `string`    | Display label in admin UI                    |
-| `type`         | `FieldType` | One of the 16 field types                    |
-| `required`     | `boolean`   | Whether the field must have a value          |
-| `unique`       | `boolean`   | Whether values must be unique across entries |
-| `indexed`      | `boolean`   | Allow efficient sorting and filtering by this field |
-| `defaultValue` | `unknown`   | Default value for new entries                |
-| `validation`   | `object`    | Type-specific validation rules               |
-| `widget`       | `string`    | Custom widget identifier                     |
-| `options`      | `object`    | Widget-specific configuration                |
-| `sortOrder`    | `number`    | Display order in the editor                  |
-
-<Aside type="caution">
-	Some field slugs are reserved and cannot be used: `id`, `slug`, `status`, `author_id`,
-	`primary_byline_id`, `created_at`, `updated_at`, `published_at`, `scheduled_at`, `deleted_at`,
-	`version`, `live_revision_id`, `draft_revision_id`, `terms`, `bylines`, `byline`.
+	The admin panel keeps the type and slug of an existing field fixed. The schema API only permits
+	in-place type changes among `string`, `text`, and `slug`. All other retypes can change the storage
+	shape and require a content migration. Changing `required` or `unique`, or changing a translatable
+	field to non-translatable, also requires a migration.
 </Aside>
 
-Set `indexed: true` when a collection query needs to use a custom field in `orderBy` or a field
-filter. Indexes are
-supported for `string`, `url`, `number`, `integer`, `boolean`, `datetime`, `select`, `reference`,
-and `slug` fields. EmDash rejects indexed JSON, rich content, and other non-scalar field types.
+The migration must convert existing values, update the model, and keep old and new application code
+compatible during deployment. Follow [Evolving a deployed site's
+schema](/deployment/schema-evolution/) before making one of these changes.
 
-<Aside type="caution">
-	Indexes improve ordered and filtered reads but use additional storage and add work to content
-	writes. Only index fields that are used for sorting or filtering.
-</Aside>
+## Related tasks
 
-## Validation rules
-
-The `validation` object varies by field type. Its full shape is:
-
-```ts
-interface FieldValidation {
-	required?: boolean; // All types
-	min?: number; // number, integer
-	max?: number; // number, integer
-	minLength?: number; // string, text
-	maxLength?: number; // string, text
-	pattern?: string; // string (regex)
-	options?: string[]; // select, multiSelect
-}
-```
-
-The following field requires a unique, pattern-matched email address:
-
-```ts
-{
-  slug: "email",
-  type: "string",
-  label: "Email Address",
-  required: true,
-  unique: true,
-  validation: {
-    pattern: "^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$"
-  }
-}
-```
-
-## Widget options
-
-The `options` object configures field-specific UI behavior. Its full shape is:
-
-```ts
-interface FieldWidgetOptions {
-	rows?: number; // text (textarea rows)
-	showPreview?: boolean; // image, file
-	collection?: string; // reference (target collection)
-	allowMultiple?: boolean; // reference (multiple refs)
-	[key: string]: unknown; // Custom widget options
-}
-```
-
-The following reference field links to multiple products:
-
-```ts
-{
-  slug: "relatedProducts",
-  type: "reference",
-  label: "Related Products",
-  options: {
-    collection: "products",
-    allowMultiple: true
-  }
-}
-```
-
-## Querying collections
-
-Use the provided query functions to fetch content. These follow Astro's live collections pattern, returning structured results. The following example shows the common query options:
-
-```ts
-import { getEmDashCollection, getEmDashEntry } from "emdash";
-
-// Get all entries - returns { entries, error }
-const { entries: posts } = await getEmDashCollection("posts");
-
-// Filter by status
-const { entries: drafts } = await getEmDashCollection("posts", {
-	status: "draft",
-});
-
-// Limit results
-const { entries: recent } = await getEmDashCollection("posts", {
-	limit: 5,
-});
-
-// Filter by taxonomy
-const { entries: newsPosts } = await getEmDashCollection("posts", {
-	where: { category: "news" },
-});
-
-// Get a single entry by slug - returns { entry, error, isPreview }
-const { entry: post } = await getEmDashEntry("posts", "my-post-slug");
-
-// Handle errors
-const { entries, error } = await getEmDashCollection("posts");
-if (error) {
-	console.error("Failed to load posts:", error);
-}
-```
-
-## Type generation
-
-Run `npx emdash types` to generate TypeScript types from your schema. The generated file contains one interface per collection:
-
-```ts title=".emdash/types.ts (generated)"
-export interface Post {
-	title: string;
-	content: PortableTextBlock[];
-	excerpt?: string;
-	featuredImage?: string;
-	author: string; // reference ID
-}
-
-export interface Product {
-	title: string;
-	price: number;
-	description: PortableTextBlock[];
-}
-```
-
-<Aside type="tip">
-	Re-run `emdash types` after modifying collections in the admin panel to keep types in sync.
-</Aside>
-
-## Database mapping
-
-Field types map to SQLite column types as follows:
-
-| Field Type     | SQLite Type | Notes                 |
-| -------------- | ----------- | --------------------- |
-| `string`       | `TEXT`      |                       |
-| `text`         | `TEXT`      |                       |
-| `slug`         | `TEXT`      |                       |
-| `url`          | `TEXT`      |                       |
-| `number`       | `REAL`      | 64-bit floating point |
-| `integer`      | `INTEGER`   | 64-bit signed integer |
-| `boolean`      | `INTEGER`   | 0 or 1                |
-| `datetime`     | `TEXT`      | ISO 8601 format       |
-| `select`       | `TEXT`      |                       |
-| `multiSelect`  | `JSON`      | Array of strings      |
-| `portableText` | `JSON`      | Block array           |
-| `image`        | `TEXT`      | Media ID              |
-| `file`         | `TEXT`      | Media ID              |
-| `reference`    | `TEXT`      | Entry ID              |
-| `json`         | `JSON`      | Arbitrary JSON        |
-| `repeater`     | `JSON`      | Array of sub-fields   |
-
-## Next steps
-
-<CardGrid>
-	<Card title="Content Model" icon="open-book">
-		Understand the [content model](/concepts/content-model/).
-	</Card>
-	<Card title="Taxonomies" icon="list-format">
-		Organize content with [categories and tags](/guides/taxonomies/).
-	</Card>
-	<Card title="Media Library" icon="seti:image">
-		Manage [images and files](/guides/media-library/).
-	</Card>
-</CardGrid>
+Use [Working with content](/guides/working-with-content/) to create and publish entries. Use
+[Querying content](/guides/querying-content/) to filter and sort them. Read [Content
+model](/concepts/content-model/) for generated types and seed files.

@@ -1,398 +1,184 @@
 ---
 title: Working with Content
-description: Create, edit, and manage content in the EmDash admin dashboard.
+description: Create, edit, publish, schedule, and safely delete content in the EmDash admin.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-This guide covers how to create, edit, and manage content using the EmDash admin dashboard.
+Use the EmDash admin to take an entry from its first draft to a published page. The editor keeps
+draft changes separate from the version visitors can see, so saving and publishing are two distinct
+actions.
 
-## Accessing the Admin
+## Open a collection
 
-Open your browser to `/_emdash/admin` on your site. Log in with the credentials you created during setup.
+Open `/_emdash/admin` on your site and sign in. Select a collection, such as **Posts** or **Pages**,
+in the sidebar.
 
-The dashboard displays:
+The collection page lists its entries. From here you can:
 
-- **Sidebar** - Navigation to collections, media, and settings
-- **Content list** - Entries in the selected collection
-- **Quick actions** - Create new content, bulk operations
+- select **Add New** to create an entry;
+- search by the entry title, slug, and fields marked as searchable;
+- filter by publishing state, author, byline, date, and locale;
+- select entries for bulk publishing, returning to draft, or moving to Trash; and
+- open **Trash** to restore or permanently delete an entry.
 
-## Creating Content
+The fields and publishing features available in the editor depend on the collection's content
+model. For example, a collection may support revisions, previews, taxonomies, or search.
 
-1. Click a collection name in the sidebar (e.g., **Posts**)
+## Create and publish an entry
 
-2. Click **New Post** (or the equivalent for your collection)
+<Steps>
+1. Select **Add New** on the collection page.
 
-3. Fill in the required fields:
-   - **Title** - The content's display name
-   - **Slug** - URL identifier (auto-generated from title, editable)
+2. Complete the required fields. If the collection has a title field, EmDash uses it to suggest a
+   slug. You can edit the slug before publishing.
 
-4. Add content using the rich text editor
+3. Add the body and any supporting fields, such as an excerpt, featured image, byline, categories,
+   or tags.
 
-5. Set metadata in the sidebar:
-   - **Status** - Draft, Published, or Archived
-   - **Publication date** - When to publish
-   - **Categories and tags** - Taxonomy assignments
+4. Select **Save**. The first save creates the entry as a draft and opens its permanent editor URL.
 
-6. Click **Save**
+5. Review the draft. If the collection supports previews, select **Preview** to see the rendered
+   page before publishing.
 
-Drafts are only visible in the admin. Change status to **Published** to make content visible on
-your site.
+6. Select **Publish**. The saved draft becomes the live version that public content queries return.
+</Steps>
 
-## Content Statuses
+The entry has a stable content ID and a separate slug. The ID continues to identify the same entry
+if its slug changes. Templates normally use the URL-facing identifier returned by
+`getEmDashCollection()`; the [querying content guide](/guides/querying-content/#entry-identifiers)
+explains both values.
 
-Every entry has one of three statuses:
+## Write rich text
 
-| Status        | Visibility | Use case         |
-| ------------- | ---------- | ---------------- |
-| **Draft**     | Admin only | Work in progress |
-| **Published** | Public     | Live content     |
-| **Archived**  | Admin only | Retired content  |
+Portable Text fields provide a block editor for headings, paragraphs, quotations, lists, links,
+images, galleries, code blocks, tables, HTML blocks, and reusable sections. Installed plugins may
+add more blocks.
 
-Change status using the dropdown in the editor sidebar.
+Use the toolbar to format the selected text. To insert a block, select the add-block control beside
+a paragraph or type `/` and search for a block by name. Image and gallery blocks open the same media
+picker used by image fields.
 
-## The Rich Text Editor
-
-EmDash's editor supports:
-
-- **Headings** - H2 through H6
-- **Formatting** - Bold, italic, underline, strikethrough
-- **Lists** - Ordered and unordered
-- **Links** - Internal and external
-- **Images** - Insert from media library
-- **Code blocks** - With syntax highlighting
-- **HTML blocks** - Raw HTML for custom embeds and widgets
-- **Embeds** - YouTube, Vimeo, Twitter
-- **Sections** - Reusable content blocks via `/section` command
-
-### Slash Commands
-
-Type `/` to access quick insert commands:
-
-| Command                      | Action                              |
-| ---------------------------- | ----------------------------------- |
-| `/section`                   | Insert a reusable section           |
-| `/image`                     | Insert an image from media library  |
-| `/code`                      | Insert a code block                 |
-| `/html`                      | Insert a raw HTML block             |
-
-### Keyboard Shortcuts
-
-| Action | Shortcut               |
-| ------ | ---------------------- |
-| Bold   | `Ctrl/Cmd + B`         |
-| Italic | `Ctrl/Cmd + I`         |
-| Link   | `Ctrl/Cmd + K`         |
-| Undo   | `Ctrl/Cmd + Z`         |
-| Redo   | `Ctrl/Cmd + Shift + Z` |
-| Save   | `Ctrl/Cmd + S`         |
-
-### Inserting Images
-
-1. Click the image button in the toolbar
-
-2. Select an existing image from the media library, or upload a new one
-
-3. Add alt text (required for accessibility)
-
-4. Adjust alignment and size options
-
-5. Click **Insert**
-
-### HTML Blocks
-
-Use `/html` to insert a raw HTML block. This is useful for embedding third-party widgets, custom markup, or content that doesn't fit the standard block types. HTML blocks are also created automatically when importing content from WordPress or Contentful that contains markup EmDash can't convert to native Portable Text blocks.
+When you select an image block, its settings let you replace or remove that use of the image and set
+its display size, alignment, alt text, caption, and optional tooltip. **Edit asset** opens the
+underlying Media Library item, where changing or replacing the asset can affect other entries that
+use it. See [Media Library](/guides/media-library/#edit-an-image-used-in-content) for that distinction.
 
 <Aside type="caution">
-	HTML blocks are sanitized before rendering on the frontend to prevent XSS attacks. By default, iframes are only allowed from `www.youtube.com` and `player.vimeo.com`. Iframes from other providers will be stripped during sanitization.
+	The standard Portable Text renderer sanitizes HTML blocks. It permits iframe content only from
+	YouTube and Vimeo. A custom HTML-block renderer must apply its own sanitization and provider
+	allowlist before inserting HTML into a page.
 </Aside>
 
-To allow iframes from additional providers, override the `htmlBlock` component in your Portable Text rendering:
+## Save draft changes
 
-```astro
----
-// src/components/MyHtmlBlock.astro
-import sanitizeHtml from "sanitize-html";
+After the first save, the editor autosaves changes two seconds after you stop typing. The **Save**
+button changes through **Saving...** to **Saved** so you can confirm that the server accepted the
+draft. Autosave replaces the current autosave revision instead of filling revision history with a
+checkpoint for every pause.
 
-const { node } = Astro.props;
+Select **Save** when you want a point in the editing sequence to remain in revision history. If a
+save fails, the editor keeps the unsaved fields in place and shows the error. Do not leave the page
+until the button returns to **Saved** or you have copied the unsaved work elsewhere.
 
-if (!node?.html) {
-  return null;
-}
+For a published entry, saving changes updates its draft only. Visitors continue to receive the
+previous live revision. Use **Preview draft** to check the pending version, **Live View** to check
+the public version, and **Publish changes** when the draft is ready to replace it.
 
-const sanitized = sanitizeHtml(node.html, {
-  allowedTags: [...sanitizeHtml.defaults.allowedTags, "img", "span", "iframe"],
-  allowedAttributes: {
-    ...sanitizeHtml.defaults.allowedAttributes,
-    "*": ["class", "id", "data-*", "style"],
-    iframe: ["src", "width", "height", "frameborder", "allow", "allowfullscreen"],
-    img: ["src", "srcset", "alt", "title", "width", "height", "loading"],
-  },
-  allowedIframeHostnames: [
-    "www.youtube.com",
-    "player.vimeo.com",
-    "iframe.videodelivery.net", // Cloudflare Stream
-    // Add your providers here
-  ],
-});
----
+Changing the slug of a published entry follows the same draft flow. The public URL changes when you
+publish the draft, not when autosave runs.
 
-<div class="html-block" set:html={sanitized} />
-```
+## Work with another editor
 
-Then pass it to `<PortableText>`:
+Opening an entry takes an edit lock for that entry and locale. If another person already has it
+open, EmDash identifies the lock holder and offers two choices:
 
-```astro
----
-import { PortableText } from "emdash/ui";
-import MyHtmlBlock from "../components/MyHtmlBlock.astro";
----
+- **Open read-only** shows the entry without accepting edits, so you cannot type work that will be
+  discarded.
+- **Take over** gives you the lock. The other person keeps what they typed, but within two minutes
+  their editor reports that you hold the entry. Their next save is refused.
 
-<PortableText
-  value={post.data.content}
-  components={{ type: { htmlBlock: MyHtmlBlock } }}
-/>
-```
+The lock is renewed while the entry is open and released when you leave the editor or close the tab.
+If the browser or computer closes without releasing it, the lock expires seven minutes after its
+last renewal.
 
-## Editing Content
+Locks are independent for each locale, so two people can edit different translations of the same
+entry. A script or API client is also refused while another editor holds the lock unless it uses the
+documented override. See [Entry edit lock](/reference/rest-api/#entry-edit-lock) for the complete
+API behavior.
 
-1. Navigate to the collection containing the content
+An administrator can turn locking off for a collection under **Content Types**, then the collection,
+then **Edit locking**.
 
-2. Click on the entry you want to edit
+## Publish or schedule changes
 
-3. Make your changes
+The publishing control reflects what will happen to the saved draft:
 
-4. Click **Save**
+- **Publish** makes a new draft live.
+- **Publish changes now** makes pending changes to a published entry live immediately.
+- **Schedule publication** sets when a new entry becomes live.
+- **Schedule changes** sets when pending changes replace the current live revision.
+- **Change schedule** or **Remove schedule** updates an existing schedule.
+- **Unpublish** removes the live revision from public queries and keeps an editable draft.
 
-Changes to published content appear immediately on your site.
+To schedule an entry, save it first, open the publishing menu, choose the relevant schedule action,
+and select a future date and time. The editor displays the time zone used for the schedule. Until
+that time, the current live revision stays public; for a new entry, nothing is public yet.
 
-### Revision History
+Node.js deployments run the scheduled-publishing sweep automatically. Cloudflare Workers require a
+Cron Trigger. The Cloudflare starter templates include it; existing deployments can follow
+[Scheduled publishing](/deployment/cloudflare/#scheduled-publishing) to verify the trigger.
 
-EmDash tracks changes to content. Access revision history from the editor sidebar:
+## Restore a revision
 
-1. Click **Revisions** in the editor sidebar
+Collections with revision support show **Revisions** in the settings panel. Expand it to see saved
+versions and the fields that changed between them. Select a revision to inspect its content, then
+select **Restore** if you want to use that version again.
 
-2. View the list of previous versions with timestamps
+Restoring creates a new revision containing the selected content. It does not erase the revisions
+that came before it, so you can still inspect the complete sequence afterward.
 
-3. Click a revision to preview it
+## Translate an entry
 
-4. Click **Restore** to revert to that version
+When [internationalization is enabled](/guides/internationalization/), the **Translations** panel
+shows the configured locales for the current entry.
 
-Restoring a revision creates a new revision with the restored content. The original revision
-history is preserved.
+<Steps>
+1. Open the source entry and find **Translations** in the settings panel.
 
-### Entry Open Elsewhere
+2. Select **Translate** for a locale that does not yet have an entry.
 
-Opening an entry takes an edit lock on it. If a colleague already has it open, EmDash says who
-and offers two choices:
+3. Edit the copied title, slug, body, and other translatable fields.
 
-- **Open read-only** shows the entry without accepting edits, so you cannot type work that will
-  be thrown away.
-- **Take over** gives you the lock. The other person keeps what they typed, but within two
-  minutes their editor tells them you hold the entry now, and their next save is refused.
+4. Select **Save**, then publish or schedule the translation when it is ready.
+</Steps>
 
-The lock is renewed while the entry is open and released when you leave the editor or close the
-tab. If the tab loses power or network instead, the lock expires seven minutes later.
+Each translation has its own slug, publishing state, schedule, and revision history. Use the locale
+selector on the collection page to view one language at a time.
 
-Locks are per entry and per locale, so two translations of the same entry can be edited at the
-same time. Scripts and API clients that write to a locked entry are refused; see
-[Entry Edit Lock](/reference/rest-api/#entry-edit-lock) in the REST API reference.
+## Move content to Trash
 
-Turn locking off for a collection under **Content Types** → your collection → **Edit locking**.
+Open an entry's actions or select one or more rows on the collection page, then choose **Move to
+Trash**. Trashed entries stop appearing in ordinary content queries but remain available on the
+collection's **Trash** tab.
 
-## Bulk Operations
-
-Perform actions on multiple entries at once:
-
-1. Use the checkboxes to select entries in the content list
-
-2. Click the **Bulk Actions** dropdown
-
-3. Select an action:
-   - **Publish** - Set all selected to published
-   - **Archive** - Set all selected to archived
-   - **Delete** - Move selected entries to Trash
-
-4. Confirm the action
-
-## Searching and Filtering
-
-### Search
-
-Use the search box to find content by title or content. Search is case-insensitive and matches partial words.
-
-### Filters
-
-Filter the content list by:
-
-- **Status** - Draft, Published, Archived
-- **Date range** - Created or modified dates
-- **Author** - Who created the content
-- **Taxonomy** - Category or tag assignments
-
-Click **Clear Filters** to reset.
-
-## Scheduling Content
-
-Schedule content to publish at a future date:
-
-1. Create or edit content
-
-2. Set status to **Draft**
-
-3. Set the **Publication date** to a future date and time
-
-4. Click **Save**
-
-When the publication date arrives, the content automatically becomes published.
-
-<Aside type="tip">
-	On Node.js deployments, EmDash runs the scheduled publishing sweep automatically. On Cloudflare
-	Workers, it needs a cron trigger to publish content on schedule. This is included by default in new templates. See
-	[Deploy to Cloudflare](/deployment/cloudflare/#scheduled-publishing) for more information.
-</Aside>
-
-## Deleting Content
-
-Delete content from the edit screen or content list to move it to Trash:
-
-### From the Editor
-
-1. Open the content you want to delete
-
-2. Click **Delete** in the toolbar
-
-3. Confirm the deletion
-
-### From the List
-
-1. Select entries using checkboxes
-
-2. Click **Bulk Actions** > **Delete**
-
-3. Confirm the deletion
-
-### Restore from Trash
-
-1. Open the collection that contained the entry.
-
-2. Select the **Trash** tab above the content list.
-
-3. Find the entry and select its **Restore** action.
-
-The entry returns to the collection with its previous content and status.
+From **Trash**, select **Restore** to return an entry to the collection.
 
 <Aside type="caution">
-	Administrators also see a separate **Permanently delete** action in Trash. Permanent deletion
-	cannot be undone.
+	An administrator can select **Delete Permanently** in Trash. Permanent deletion removes the entry
+	and its revisions and cannot be undone. Check that the entry is no longer needed before confirming.
 </Aside>
 
-## Content API
+## Automate content work
 
-For programmatic access, use the EmDash admin API.
+The REST API and EmDash CLI support the same draft and publishing workflow. Collection fields belong
+inside the request's `data` object. An update saves a draft revision; publishing is a separate action.
+Pass the latest `_rev` value when updating or publishing so the server rejects a stale write instead
+of replacing newer work.
 
-### Create Content
+Use the [REST API reference](/reference/rest-api/#content-endpoints) for request bodies, permissions,
+lock overrides, publishing, scheduling, restoring, and permanent deletion. Use the
+[CLI reference](/reference/cli/#emdash-content) for equivalent terminal commands.
 
-The following request creates a draft post:
-
-```bash
-POST /_emdash/api/content/posts
-Content-Type: application/json
-Authorization: Bearer YOUR_API_TOKEN
-
-{
-  "data": {
-    "title": "My New Post",
-    "content": [
-      {
-        "_type": "block",
-        "style": "normal",
-        "children": [{ "_type": "span", "text": "Post content goes here." }]
-      }
-    ]
-  },
-  "slug": "my-new-post",
-  "status": "draft"
-}
-```
-
-### Update Content
-
-The following request updates an existing post. Put collection fields inside `data`. Pass the
-opaque `_rev` from the latest GET response to reject the write if the entry changed in the
-meantime:
-
-```bash
-PUT /_emdash/api/content/posts/my-new-post
-Content-Type: application/json
-Authorization: Bearer YOUR_API_TOKEN
-
-{
-  "data": {
-    "title": "Updated Title"
-  },
-  "_rev": "REVISION_TOKEN"
-}
-```
-
-Updating content saves a draft revision. Publish that revision with the publish endpoint, using the
-new `_rev` returned by the update response:
-
-```bash
-POST /_emdash/api/content/posts/my-new-post/publish
-Content-Type: application/json
-Authorization: Bearer YOUR_API_TOKEN
-
-{
-  "_rev": "UPDATED_REVISION_TOKEN"
-}
-```
-
-### Delete Content
-
-The following request moves a post to Trash:
-
-```bash
-DELETE /_emdash/api/content/posts/my-new-post
-Authorization: Bearer YOUR_API_TOKEN
-```
-
-Restore it with `POST /_emdash/api/content/posts/my-new-post/restore`. Administrators can
-permanently delete it with `DELETE /_emdash/api/content/posts/my-new-post/permanent`.
-
-## Translating Content
-
-When [i18n is enabled](/guides/internationalization/), you can create translations of any content entry.
-
-### Creating a translation
-
-1. Open the content entry you want to translate
-
-2. In the editor sidebar, find the **Translations** panel
-
-3. Click **Translate** next to the target locale
-
-4. Edit the pre-filled content — adjust the title, slug, and body for the new language
-
-5. Click **Save**
-
-The new translation is linked to the original entry and starts as a draft. Publish it independently when the translation is ready.
-
-### Switching between translations
-
-The Translations panel shows all configured locales. Click **Edit** next to any existing translation to navigate to it directly. The current locale is marked with a checkmark.
-
-### Locale filter
-
-In the content list, use the locale dropdown in the toolbar to filter entries by language. Each entry shows its locale in a dedicated column.
-
-Each translation has its own slug, status, and revision history. Publish, schedule, and manage translations independently.
-
-See the [Internationalization guide](/guides/internationalization/) for full details on configuration, querying, and the language switcher.
-
-## Next Steps
-
-- [Querying Content](/guides/querying-content/) - Retrieve content in your templates
-- [Media Library](/guides/media-library/) - Upload and manage files
-- [Taxonomies](/guides/taxonomies/) - Organize content with categories and tags
-- [Internationalization](/guides/internationalization/) - Multilingual content and translations
+Continue with [Querying Content](/guides/querying-content/) to render published entries in an Astro
+site, or [Media Library](/guides/media-library/) to add and manage reusable files.

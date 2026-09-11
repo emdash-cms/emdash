@@ -622,7 +622,7 @@ In every mode, the toolbar can be dismissed in the browser via its × button (pe
 
 #### `experimental.registry`
 
-**Optional.** Use the experimental [plugin registry](/plugins/registry/) as the admin dashboard's source for browsing and installing plugins instead of the marketplace. Registry plugins run sandboxed, so this option requires a [`sandboxRunner`](/deployment/plugin-sandbox/).
+**Optional.** Use the experimental [plugin registry](/plugins/registry/) as the admin dashboard's source for browsing and installing plugins instead of the marketplace. Browsing works without a [`sandboxRunner`](/deployment/plugin-sandbox/), but installing or updating a registry plugin requires an available runner because registry plugins run sandboxed.
 
 Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
 

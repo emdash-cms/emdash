@@ -1,5 +1,5 @@
 ---
-title: Manage Core Database Migrations
+title: Manage core database migrations
 description: Run EmDash's internal schema migrations as a serialized deployment step.
 ---
 
@@ -8,6 +8,8 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 EmDash core migrations update EmDash's own tables and the standard columns on content tables. They do not create, remove, or rename your collections and fields; see [Evolving a Deployed Site](/deployment/schema-evolution/) for content-model changes.
 
 Runtime migration mode defaults to `auto`, so existing deployments keep applying pending core migrations on startup. Deployment-managed migrations let a build migrate its database before new application code receives traffic, then let the runtime verify or trust that deployment step.
+
+Core migrations are forward-only. They are written so a command can be retried after statements that definitely completed, but an interrupted remote command can leave an ambiguous result. The safe response is to inspect the same database with `emdash migrate --status`, not to assume that either the whole migration or none of it ran.
 
 ## Build, migrate, deploy, check
 
@@ -191,6 +193,60 @@ A conservative rollout is `auto` while introducing the deployment job, then `che
 Core migrations follow expand/deploy/contract sequencing. A deployment may temporarily run old and new application isolates against the expanded database, and a backfill may still be in progress. Do not contract a schema until every deployed version has stopped using it.
 
 Unknown applied migration records are tolerated by runtime `check` for this rolling-deployment direction only. The CLI's exact check reports them and apply refuses to mutate, because the database may be newer or may have a divergent migration history.
+
+## Rollback boundary
+
+Deploying the previous application artifact does not reverse a core migration. Before applying pending migrations, take a restorable database backup and record the application artifact that matches it. If the previous application cannot run against the migrated schema, restore the pre-migration database and application together. Do not delete rows from `_emdash_migrations` or run a migration's internal `down()` function as an operational rollback.
+
+## Repair mixed PostgreSQL ownership
+
+Use this runbook when an existing PostgreSQL site has created EmDash objects with more than one owner and later migrations fail with errors such as `must be owner of table`. Choose the canonical role that the primary EmDash connection will keep using. Take a restorable database backup and stop application traffic and schema changes before changing ownership.
+
+Inspect every table in the active schema:
+
+```sql
+SELECT
+  n.nspname AS schema_name,
+  c.relname AS table_name,
+  pg_get_userbyid(c.relowner) AS owner
+FROM pg_class AS c
+JOIN pg_namespace AS n ON n.oid = c.relnamespace
+WHERE n.nspname = current_schema()
+  AND c.relkind IN ('r', 'p')
+ORDER BY c.relname;
+```
+
+EmDash objects include `_emdash_*` and `_plugin_*` system tables, `ec_*` collection tables, and unprefixed tables such as `content_taxonomies`, `media`, `options`, `revisions`, and `taxonomies`. In a dedicated EmDash schema, every application table should have the canonical owner.
+
+EmDash also creates PostgreSQL functions used by media-usage triggers. Inspect function ownership and retain each function's argument signature for the repair command:
+
+```sql
+SELECT
+  n.nspname AS schema_name,
+  p.proname AS function_name,
+  pg_get_function_identity_arguments(p.oid) AS arguments,
+  pg_get_userbyid(p.proowner) AS owner
+FROM pg_proc AS p
+JOIN pg_namespace AS n ON n.oid = p.pronamespace
+WHERE n.nspname = current_schema()
+ORDER BY p.proname, arguments;
+```
+
+Transfer each mismatched object with a superuser or provider role that can change its ownership. Use the real schema, object, role, and function signature from the inventory instead of copying the example names unchanged:
+
+```sql
+ALTER TABLE emdash.content_taxonomies OWNER TO emdash_app;
+ALTER TABLE emdash.ec_posts OWNER TO emdash_app;
+ALTER FUNCTION emdash.emdash_media_usage_capture_work() OWNER TO emdash_app;
+```
+
+Changing a table's owner also covers its attached indexes, constraints, and triggers, but not independent trigger functions. Repeat both inventory queries until every EmDash table and function reports the canonical owner. Then connect as that role and verify `current_database()`, `current_schema()`, and the migration status before restarting traffic.
+
+For a non-superuser to transfer ownership, it must own or inherit ownership of the object, be able to `SET ROLE` to the new owner, and the new owner must have `CREATE` on the schema. Managed PostgreSQL providers may require their administrative role to perform the transfer.
+
+<Aside type="danger" title="Do not reassign unrelated objects">
+	`REASSIGN OWNED` changes every object owned by a role in the current database, including objects unrelated to EmDash, and can affect shared objects. Use targeted, schema-qualified `ALTER TABLE` and `ALTER FUNCTION` statements unless the old role was dedicated exclusively to this EmDash database.
+</Aside>
 
 ## Troubleshooting
 
