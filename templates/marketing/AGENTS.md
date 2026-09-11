@@ -56,7 +56,7 @@ More structured than the blog and portfolio templates: navy-tinted surfaces, a f
 | Blog             | `/blog`        | One featured post and a responsive grid of the remaining published posts                                                                         |
 | Blog post        | `/blog/[slug]` | Post title, author, cover, metadata, and Portable Text article content                                                                           |
 | Contact          | `/contact`     | Left column with contact methods (Email / Support / Sales, each with a blue icon), right column with a form                                      |
-| Pricing redirect | `/pricing`     | Redirects to `/blog`; the pricing section remains available at `/#pricing`                                                                       |
+| Pricing redirect | `/pricing`     | Redirects to the pricing section at `/#pricing`                                                                                                  |
 
 ## Schema
 

@@ -602,7 +602,7 @@
 							"headline": "Start shipping today.",
 							"body": "Bring your team together, move faster, and stay focused from first idea to launch.",
 							"primaryCtaLabel": "Start Free Trial",
-							"primaryCtaUrl": "/signup",
+							"primaryCtaUrl": "/#pricing",
 							"secondaryCtaLabel": "Request a Demo",
 							"secondaryCtaUrl": "/contact"
 						}

@@ -9,13 +9,43 @@ import {
 	type BlogPostData,
 } from "../../lib/blog";
 
-const { entries: posts, cacheHint } = await getEmDashCollection<"posts", BlogPostData>(
+const requestedCursor = Astro.url.searchParams.get("cursor");
+function isValidCursor(value: string): boolean {
+	if (value.length > 4096) return false;
+
+	try {
+		const decoded: unknown = JSON.parse(atob(value));
+		return (
+			typeof decoded === "object" &&
+			decoded !== null &&
+			typeof (decoded as { orderValue?: unknown }).orderValue === "string" &&
+			typeof (decoded as { id?: unknown }).id === "string"
+		);
+	} catch {
+		return false;
+	}
+}
+
+if (requestedCursor && !isValidCursor(requestedCursor)) return Astro.redirect("/blog", 302);
+
+const cursor = requestedCursor || undefined;
+const result = await getEmDashCollection<
+	"posts",
+	BlogPostData
+>(
 	"posts",
 	{
 		orderBy: { published_at: "desc" },
 		limit: 12,
+		cursor,
 	},
 );
+
+if (result.error) {
+	throw result.error;
+}
+
+const { entries: posts, cacheHint, nextCursor } = result;
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
@@ -28,11 +58,16 @@ function toStory(post: (typeof posts)[number]) {
 	};
 }
 
-const featuredPost = posts.find((post) => post.data.featured) ?? posts[0];
+const isFirstPage = !cursor;
+const featuredPost = isFirstPage
+	? (posts.find((post) => post.data.featured) ?? posts[0])
+	: undefined;
 const featuredStory = featuredPost ? toStory(featuredPost) : null;
 const latestStories = posts
 	.filter((post) => post.id !== featuredPost?.id)
 	.map(toStory);
+const newerHref = cursor ? "/blog" : undefined;
+const olderHref = nextCursor ? `/blog?cursor=${encodeURIComponent(nextCursor)}` : undefined;
 ---
 
 <Base
@@ -99,17 +134,29 @@ const latestStories = posts
 				</article>
 			) : (
 				<div class="empty-state">
-					<h2>No stories yet</h2>
-					<p>Publish your first story to start the journal.</p>
-					<a href="/_emdash/admin/content/posts/new" class="btn btn-primary">Write a story</a>
+					{isFirstPage ? (
+						<>
+							<h2>No stories yet</h2>
+							<p>Publish your first story to start the journal.</p>
+							<a href="/_emdash/admin/content/posts/new" class="btn btn-primary">Write a story</a>
+						</>
+					) : (
+						<>
+							<h2>No more stories</h2>
+							<p>This archive page is empty.</p>
+							<a href="/blog" class="btn btn-secondary">View newest stories</a>
+						</>
+					)}
 				</div>
 			)}
 
 			{latestStories.length > 0 && (
 				<section class="latest-stories" aria-labelledby="latest-stories-heading">
 					<header class="latest-header">
-						<p>More from the journal</p>
-						<h2 id="latest-stories-heading">Latest stories</h2>
+						<p>{isFirstPage ? "More from the journal" : "From the archive"}</p>
+						<h2 id="latest-stories-heading">
+							{isFirstPage ? "Latest stories" : "Older stories"}
+						</h2>
 					</header>
 					<div class="story-grid">
 						{latestStories.map(({ post, author, date, readingTime }) => (
@@ -146,6 +193,31 @@ const latestStories = posts
 						))}
 					</div>
 				</section>
+			)}
+
+			{(newerHref || olderHref) && (
+				<nav class="archive-pagination" aria-label="Blog pagination">
+					{newerHref && (
+						<a href={newerHref} class="archive-pagination-link" data-pagination="newer">
+							<svg viewBox="0 0 20 20" aria-hidden="true">
+								<path d="M16 10H5m4 4-4-4 4-4" />
+							</svg>
+							Newest stories
+						</a>
+					)}
+					{olderHref && (
+						<a
+							href={olderHref}
+							class="archive-pagination-link archive-pagination-link--older"
+							data-pagination="older"
+						>
+							Older stories
+							<svg viewBox="0 0 20 20" aria-hidden="true">
+								<path d="M4 10h11m-4-4 4 4-4 4" />
+							</svg>
+						</a>
+					)}
+				</nav>
 			)}
 		</div>
 	</section>
@@ -400,6 +472,52 @@ const latestStories = posts
 		color: var(--color-muted);
 	}
 
+	.archive-pagination {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-md);
+		margin-block-start: clamp(3.5rem, 7vw, 5rem);
+		padding-block-start: var(--spacing-xl);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.archive-pagination-link {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: 0.625rem 0.875rem;
+		color: var(--color-text);
+		background: var(--button-secondary-bg);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		border: 1px solid var(--color-border);
+		border-radius: var(--button-radius);
+		transition:
+			background var(--transition-fast),
+			border-color var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.archive-pagination-link--older {
+		margin-inline-start: auto;
+	}
+
+	.archive-pagination-link svg {
+		width: 1rem;
+		height: 1rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.7;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	:global([dir="rtl"]) .archive-pagination-link svg {
+		transform: scaleX(-1);
+	}
+
 	@media (hover: hover) {
 		.featured-link:hover :global(.blog-cover),
 		.card-link:hover :global(.blog-cover) {
@@ -415,6 +533,12 @@ const latestStories = posts
 			color: var(--button-primary-fg);
 			background: var(--button-primary-bg);
 			transform: translateX(2px);
+		}
+
+		.archive-pagination-link:hover {
+			background: var(--button-secondary-bg-hover);
+			border-color: var(--color-border-strong);
+			transform: translateY(-1px);
 		}
 	}
 
@@ -460,7 +584,8 @@ const latestStories = posts
 	@media (prefers-reduced-motion: reduce) {
 		.featured-link:hover :global(.blog-cover),
 		.card-link:hover :global(.blog-cover),
-		.featured-link:hover .story-arrow {
+		.featured-link:hover .story-arrow,
+		.archive-pagination-link:hover {
 			transform: none;
 		}
 	}

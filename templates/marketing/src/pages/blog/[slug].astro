@@ -10,7 +10,13 @@ import {
 	type BlogPostData,
 } from "../../lib/blog";
 
-const slug = decodeSlug(Astro.params.slug);
+let slug: string | undefined;
+try {
+	slug = decodeSlug(Astro.params.slug);
+} catch (error) {
+	if (error instanceof URIError) return Astro.redirect("/404");
+	throw error;
+}
 
 if (!slug) return Astro.redirect("/404");
 
