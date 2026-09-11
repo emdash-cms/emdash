@@ -16,6 +16,14 @@
 /* Scan Kumo component JS for Tailwind utility classes (e.g. Dialog centering) */
 @source "../node_modules/@cloudflare/kumo/dist/**/*.{js,jsx,ts,tsx}";
 
+/*
+ * Kumo assembles some of its own utility strings inside its local `cn()` helper
+ * at runtime. Those classes are not discoverable from the compiled Kumo JS by
+ * the Tailwind v4 scanner, so we keep them in a local safelist component for
+ * content scanning while keeping the runtime bundle unchanged.
+ */
+@source "./kumo-tailwind-safelist";
+
 /* Map Tailwind dark: variant to kumo's data-mode attribute */
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 

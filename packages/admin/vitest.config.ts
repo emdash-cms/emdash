@@ -18,6 +18,7 @@ export default defineConfig({
 	test: {
 		globals: true,
 		include: ["tests/**/*.test.{ts,tsx}"],
+		exclude: ["tests/**/*.node.test.{ts,tsx}"],
 		setupFiles: ["./tests/setup.ts"],
 		browser: {
 			enabled: true,
