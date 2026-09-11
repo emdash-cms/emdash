@@ -631,6 +631,21 @@ export interface EmDashConfig {
 		siteName?: string;
 		/** URL or path to a custom favicon for the admin panel. */
 		favicon?: string;
+		/**
+		 * Build-time allowlist of admin UI locales to ship.
+		 *
+		 * Only the listed locales are bundled; requests for other locales fall
+		 * back to the source locale (English). The source locale must always be
+		 * included.
+		 *
+		 * @example
+		 * ```ts
+		 * emdash({
+		 *   admin: { locales: ["en", "de"] },
+		 * })
+		 * ```
+		 */
+		locales?: string[];
 	};
 
 	/**
