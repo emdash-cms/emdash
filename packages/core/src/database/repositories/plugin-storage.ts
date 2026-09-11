@@ -42,9 +42,13 @@ function isDeltaLike(value: unknown): value is { inc?: unknown; dec?: unknown } 
 }
 
 /**
- * SQLSTATEs a losing concurrent `updateIf` writer aborts with under an
- * isolation level stricter than READ COMMITTED: `40001` (serialization_failure)
- * and `40P01` (deadlock_detected).
+ * SQLSTATEs a losing concurrent `updateIf` writer can abort with.
+ *
+ * `40001` (serialization_failure) is raised only above READ COMMITTED, where
+ * the loser cannot re-evaluate its guard against a newer snapshot. `40P01`
+ * (deadlock_detected) is not tied to isolation level: it needs only two
+ * transactions taking row locks in opposite order, which a caller reaches at
+ * READ COMMITTED by wrapping several `updateIf` calls in one transaction.
  */
 const SERIALIZATION_SQLSTATES = new Set(["40001", "40P01"]);
 
@@ -74,20 +78,24 @@ function errSqlState(err: unknown): string | undefined {
  * otherwise return it UNCHANGED.
  *
  * Pure and synchronous so it is unit-testable without provoking a live race —
- * `updateIf`'s catch is simply `throw mapSerializationFailure(err)`. See
- * {@link StorageSerializationError} for why these aborts happen only under an
- * isolation level stricter than READ COMMITTED.
+ * `updateIf`'s catch is simply `throw mapSerializationFailure(err)`. The two
+ * SQLSTATEs arise for different reasons, so each gets its own remedy: see
+ * {@link SERIALIZATION_SQLSTATES}.
  */
 export function mapSerializationFailure(err: unknown): unknown {
 	const sqlState = errSqlState(err);
 	if (sqlState !== undefined && SERIALIZATION_SQLSTATES.has(sqlState)) {
+		const cause =
+			sqlState === "40P01"
+				? `A deadlock can occur at any isolation level, typically when several ` +
+					`updateIf calls share one transaction and take row locks in opposite ` +
+					`order. Retry the call, or lock rows in a consistent order.`
+				: `Its { applied: false } contract assumes READ COMMITTED (the default); ` +
+					`above that the losing writer aborts instead of resolving to ` +
+					`{ applied: false }. Retry the call, or run it at READ COMMITTED.`;
 		return new StorageSerializationError(
-			`updateIf lost a concurrent race (SQLSTATE ${sqlState}). Its ` +
-				`{ applied: false } contract assumes READ COMMITTED (the default); under ` +
-				`REPEATABLE READ / SERIALIZABLE the losing writer aborts instead of ` +
-				`resolving to { applied: false }. Retry the call, or run it at READ ` +
-				`COMMITTED. The no-oversell safety invariant still holds — a losing ` +
-				`writer never applies.`,
+			`updateIf lost a concurrent race (SQLSTATE ${sqlState}). ${cause} The ` +
+				`no-oversell safety invariant still holds — a losing writer never applies.`,
 			{ cause: err, sqlState },
 		);
 	}
@@ -459,10 +467,10 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 	 * error rather than doing a no-op write that bumps `updated_at`.
 	 *
 	 * ISOLATION: the `{ applied: false }` contract assumes READ COMMITTED (the
-	 * default). Under REPEATABLE READ / SERIALIZABLE the losing concurrent
-	 * writers throw {@link StorageSerializationError} (SQLSTATE `40001` / `40P01`)
-	 * instead of resolving to `{ applied: false }`. The no-oversell SAFETY
-	 * invariant holds either way — a losing writer never applies.
+	 * default). A losing writer throws {@link StorageSerializationError} instead
+	 * when it aborts — see {@link SERIALIZATION_SQLSTATES} for when each SQLSTATE
+	 * applies. The no-oversell SAFETY invariant holds either way — a losing
+	 * writer never applies.
 	 */
 	async updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>> {
 		const { where, set, delta } = args;
@@ -542,10 +550,9 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
 		}
 
-		// The `{ applied: false }` contract holds only under READ COMMITTED. Under
-		// a stricter isolation level the losing concurrent writers abort with a
-		// serialization failure / deadlock instead; translate those to a typed,
-		// retryable error and rethrow everything else unchanged.
+		// A losing writer can abort instead of resolving to `{ applied: false }`;
+		// translate those aborts to a typed, retryable error and rethrow
+		// everything else unchanged.
 		let row: { data: string } | undefined;
 		try {
 			row = await query.returning("data").executeTakeFirst();

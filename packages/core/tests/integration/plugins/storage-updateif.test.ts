@@ -182,7 +182,7 @@ describeEachDialect("Plugin storage updateIf", (dialect) => {
 	it("updateIf() with an all-`undefined` delta (no set) throws and never writes", async () => {
 		// `{ stock: undefined }` has a key but no DEFINED entry — presence is
 		// derived from defined entries, so this hits the "at least one" guard
-		// instead of doing a no-op write that bumps updated_at (#reviewer flag).
+		// instead of doing a no-op write that bumps updated_at.
 		const repo = productsRepo();
 		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
 		await expect(

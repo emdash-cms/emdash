@@ -117,6 +117,46 @@ const total = await ctx.storage.submissions!.count();
 const pending = await ctx.storage.submissions!.count({ status: "pending" });
 ```
 
+### Conditional Updates
+
+`updateIf()` applies a write only when a guard matches. The guard and the arithmetic run in a single `UPDATE` statement, so concurrent guarded writes serialize correctly.
+
+The following example claims a submission for processing, and succeeds for exactly one caller when several run at once:
+
+```typescript
+const result = await ctx.storage.submissions!.updateIf("sub-123", {
+	where: { status: "pending" },
+	set: { status: "processing" },
+});
+
+if (result.applied) {
+	// result.data holds the updated document
+} else {
+	// The row was absent, or another caller claimed it first
+}
+```
+
+`where` takes the same operators as `query()`. `set` writes whole field values. `delta` applies an integer `inc` or `dec` to a field, counting from `0` when that field is absent.
+
+The following example records an attempt while the submission is still open:
+
+```typescript
+await ctx.storage.submissions!.updateIf("sub-123", {
+	where: { status: { in: ["pending", "processing"] } },
+	set: { lastAttemptAt: new Date().toISOString() },
+	delta: { attempts: { inc: 1 } },
+});
+```
+
+Behavior to account for:
+
+- The call returns `{ applied: true, data }` or `{ applied: false }`. An absent row and a failed guard both return `{ applied: false }`.
+- An absent row is never inserted.
+- `delta` accepts integers. A float throws `TypeError`.
+- Pass at least one of `set` or `delta`. A field cannot appear in both.
+- A `dec` drives a field negative when the guard does not cover it. Pair `dec: k` with a `gte: k` guard to keep the field at or above zero.
+- A losing writer that aborts instead of returning `{ applied: false }` throws `StorageSerializationError`, carrying the Postgres SQLSTATE (`40001` or `40P01`). Retry the call.
+
 ### Index Design
 
 | Query Pattern                            | Index Needed              |
@@ -153,6 +193,7 @@ interface StorageCollection<T = unknown> {
 	deleteMany(ids: string[]): Promise<number>;
 	query(options?: QueryOptions): Promise<PaginatedResult<{ id: string; data: T }>>;
 	count(where?: WhereClause): Promise<number>;
+	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;
 }
 ```
 

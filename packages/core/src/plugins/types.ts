@@ -218,10 +218,10 @@ export interface StorageCollection<T = unknown> {
 	 * guard failed (the two are intentionally indistinguishable). Never inserts.
 	 *
 	 * ISOLATION: the `applied: false` contract assumes READ COMMITTED (the
-	 * default). Under REPEATABLE READ / SERIALIZABLE the losing concurrent
-	 * writers throw `StorageSerializationError` (SQLSTATE `40001` / `40P01`)
-	 * instead of resolving to `applied: false` — the caller should retry (or run
-	 * at READ COMMITTED). The no-oversell SAFETY invariant holds either way: a
+	 * default). A losing writer throws `StorageSerializationError` instead when
+	 * it aborts — above READ COMMITTED with SQLSTATE `40001`, or at any level
+	 * with `40P01` if transactions take row locks in opposite order — and the
+	 * caller should retry. The no-oversell SAFETY invariant holds either way: a
 	 * losing writer never applies.
 	 */
 	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;

@@ -26,17 +26,20 @@ export class StorageQueryError extends Error {
 }
 
 /**
- * Error thrown when a guarded `updateIf` loses a concurrent race under an
- * isolation level stricter than READ COMMITTED.
+ * Error thrown when a guarded `updateIf` loses a concurrent race by aborting
+ * rather than resolving to `{ applied: false }`.
  *
  * `updateIf`'s `{ applied: false }` contract (row absent OR guard failed)
  * assumes READ COMMITTED — the default. There, a losing concurrent writer
  * re-evaluates the guard against the winner's freshly committed row and
- * cleanly resolves to `{ applied: false }`. Under REPEATABLE READ /
- * SERIALIZABLE the loser cannot re-read against a newer snapshot, so it aborts
- * with SQLSTATE `40001` (serialization_failure) or `40P01` (deadlock_detected)
- * instead. This error surfaces that abort so the caller can retry the write
- * (or run it at READ COMMITTED).
+ * cleanly resolves to `{ applied: false }`. Two aborts escape that contract:
+ *
+ * - `40001` (serialization_failure), only above READ COMMITTED, where the
+ *   loser cannot re-read against a newer snapshot.
+ * - `40P01` (deadlock_detected), at any isolation level, when transactions
+ *   take row locks in opposite order.
+ *
+ * This error surfaces either abort so the caller can retry the write.
  *
  * The no-oversell SAFETY invariant holds either way: a losing writer NEVER
  * applies its update — it either sees `{ applied: false }` or throws here.
