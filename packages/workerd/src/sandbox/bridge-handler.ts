@@ -173,6 +173,19 @@ async function dispatch(
 			return kvGet(db, pluginId, requireString(body, "key"));
 		case "kv/set":
 			return kvSet(db, pluginId, requireString(body, "key"), body.value);
+		case "kv/getVersioned":
+			return getStorageRepo(opts, "__kv").getVersioned(requireString(body, "key"));
+		case "kv/compareAndSet":
+			return getStorageRepo(opts, "__kv").compareAndSet(
+				requireString(body, "key"),
+				requireExpectedRevision(body),
+				body.value,
+			);
+		case "kv/compareAndDelete":
+			return getStorageRepo(opts, "__kv").compareAndDelete(
+				requireString(body, "key"),
+				requireString(body, "expectedRevision"),
+			);
 		case "kv/delete":
 			return kvDelete(db, pluginId, requireString(body, "key"));
 		case "kv/list":
@@ -309,6 +322,24 @@ async function dispatch(
 		case "storage/get":
 			validateStorageCollection(opts, requireString(body, "collection"));
 			return storageGet(opts, requireString(body, "collection"), requireString(body, "id"));
+		case "storage/getVersioned":
+			validateStorageCollection(opts, requireString(body, "collection"));
+			return getStorageRepo(opts, requireString(body, "collection")).getVersioned(
+				requireString(body, "id"),
+			);
+		case "storage/compareAndSet":
+			validateStorageCollection(opts, requireString(body, "collection"));
+			return getStorageRepo(opts, requireString(body, "collection")).compareAndSet(
+				requireString(body, "id"),
+				requireExpectedRevision(body),
+				body.data,
+			);
+		case "storage/compareAndDelete":
+			validateStorageCollection(opts, requireString(body, "collection"));
+			return getStorageRepo(opts, requireString(body, "collection")).compareAndDelete(
+				requireString(body, "id"),
+				requireString(body, "expectedRevision"),
+			);
 		case "storage/put":
 			validateStorageCollection(opts, requireString(body, "collection"));
 			return storagePut(
@@ -386,6 +417,12 @@ type UpdateManyItem = { id: string; data: Record<string, unknown> };
 type StorageItem = { id: string; data: unknown };
 
 const LOG_LEVELS = new Set<string>(["debug", "info", "warn", "error"]);
+
+function requireExpectedRevision(body: Record<string, unknown>): string | null {
+	const value = body.expectedRevision;
+	if (value === null || typeof value === "string") return value;
+	throw new Error("expectedRevision must be a string or null");
+}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -645,25 +682,7 @@ async function kvSet(
 	key: string,
 	value: unknown,
 ): Promise<void> {
-	const serialized = JSON.stringify(value);
-	const now = new Date().toISOString();
-	await db
-		.insertInto("_plugin_storage")
-		.values({
-			plugin_id: pluginId,
-			collection: "__kv",
-			id: key,
-			data: serialized,
-			created_at: now,
-			updated_at: now,
-		})
-		.onConflict((oc) =>
-			oc.columns(["plugin_id", "collection", "id"]).doUpdateSet({
-				data: serialized,
-				updated_at: now,
-			}),
-		)
-		.execute();
+	await new PluginStorageRepository(db, pluginId, "__kv", []).put(key, value);
 }
 
 async function kvDelete(db: Kysely<Database>, pluginId: string, key: string): Promise<boolean> {

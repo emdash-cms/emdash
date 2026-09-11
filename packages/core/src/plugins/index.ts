@@ -118,6 +118,9 @@ export type {
 	// Context APIs
 	PluginContext,
 	StorageCollection,
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
 	KVAccess,
 	ContentAccess,
 	ContentAccessWithWrite,

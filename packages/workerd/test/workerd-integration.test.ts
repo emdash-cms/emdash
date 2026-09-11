@@ -39,6 +39,7 @@ async function setupTables(db: Kysely<any>) {
 		.addColumn("collection", "text", (col) => col.notNull())
 		.addColumn("id", "text", (col) => col.notNull())
 		.addColumn("data", "text", (col) => col.notNull())
+		.addColumn("revision", "text", (col) => col.notNull().defaultTo("0"))
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.addColumn("updated_at", "text", (col) => col.notNull())
 		.addPrimaryKeyConstraint("pk_plugin_storage", ["plugin_id", "collection", "id"])
@@ -86,6 +87,21 @@ export default {
 				await ctx.kv.set("test-key", routeCtx.input.value);
 				const result = await ctx.kv.get("test-key");
 				return { stored: result };
+			}
+		},
+		"conditional-test": {
+			handler: async (_routeCtx, ctx) => {
+				const results = [];
+				for (const store of [ctx.kv, ctx.storage.records]) {
+					const created = await store.compareAndSet("__proto__", null, null);
+					const saved = await store.getVersioned("__proto__");
+					const conflict = await store.compareAndSet("__proto__", null, "overwrite");
+					const updated = await store.compareAndSet("__proto__", saved.revision, { status: "ready" });
+					const staleDelete = await store.compareAndDelete("__proto__", saved.revision);
+					const deleted = await store.compareAndDelete("__proto__", updated.revision);
+					results.push({ created, saved, conflict, updated, staleDelete, deleted, missing: await store.getVersioned("__proto__") });
+				}
+				return results;
 			}
 		}
 	}
@@ -252,6 +268,39 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		)) as any;
 
 		expect(result.stored).toBe("hello");
+	}, 30_000);
+
+	it("preserves versioned values and conditional results through the generated worker", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-conditional",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: { records: { indexes: [] } },
+			},
+			ECHO_PLUGIN,
+		);
+		const result = await plugin.invokeRoute(
+			"conditional-test",
+			{},
+			{
+				method: "POST",
+				url: "/api/conditional",
+				headers: {},
+			},
+		);
+		expect(result).toEqual(
+			[0, 1].map(() => ({
+				created: { applied: true, revision: expect.any(String) },
+				saved: { value: null, revision: expect.any(String) },
+				conflict: { applied: false },
+				updated: { applied: true, revision: expect.any(String) },
+				staleDelete: { applied: false },
+				deleted: { applied: true },
+				missing: null,
+			})),
+		);
 	}, 30_000);
 
 	it("handles plugin unload and reload", async () => {

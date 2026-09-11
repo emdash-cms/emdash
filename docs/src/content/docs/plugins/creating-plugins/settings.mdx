@@ -14,6 +14,10 @@ Every hook and route receives this KV interface on `ctx`:
 ```typescript
 interface KVAccess {
 	get<T>(key: string): Promise<T | null>;
+	getVersioned<T>(key: string): Promise<{ value: T; revision: string } | null>;
+	compareAndSet(key: string, expectedRevision: string | null, value: unknown):
+		Promise<{ applied: true; revision: string } | { applied: false }>;
+	compareAndDelete(key: string, expectedRevision: string): Promise<{ applied: boolean }>;
 	set(key: string, value: unknown): Promise<void>;
 	delete(key: string): Promise<boolean>;
 	list(prefix?: string): Promise<Array<{ key: string; value: unknown }>>;
@@ -21,6 +25,8 @@ interface KVAccess {
 ```
 
 KV is namespaced by plugin. Two plugins can use the same key without reading or overwriting each other's values.
+
+When concurrent requests can change the same key, use [conditional writes](/plugins/creating-plugins/storage/#conditional-writes) to reject updates based on a stale revision. The same methods work in native plugins and sandboxed plugins.
 
 Use prefixes to separate user settings from internal state and cached values:
 

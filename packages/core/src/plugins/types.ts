@@ -135,6 +135,18 @@ export interface PaginatedResult<T> {
 	hasMore: boolean;
 }
 
+export interface VersionedValue<T = unknown> {
+	value: T;
+	/** Opaque host revision, valid only for the key from which it was read. */
+	revision: string;
+}
+
+export type ConditionalWriteResult = { applied: true; revision: string } | { applied: false };
+
+export interface ConditionalDeleteResult {
+	applied: boolean;
+}
+
 /**
  * Storage collection interface - the API exposed to plugins
  * No async iterators - all operations return promises with pagination
@@ -145,6 +157,15 @@ export interface StorageCollection<T = unknown> {
 	put(id: string, data: T): Promise<void>;
 	delete(id: string): Promise<boolean>;
 	exists(id: string): Promise<boolean>;
+	/** A stored JSON null returns an envelope with value: null; only an absent row returns null. */
+	getVersioned(id: string): Promise<VersionedValue<T> | null>;
+	/** A null expected revision creates only when absent. Errors reject; conflicts return applied: false. */
+	compareAndSet(
+		id: string,
+		expectedRevision: string | null,
+		data: T,
+	): Promise<ConditionalWriteResult>;
+	compareAndDelete(id: string, expectedRevision: string): Promise<ConditionalDeleteResult>;
 
 	// Batch operations
 	getMany(ids: string[]): Promise<Map<string, T>>;
@@ -176,6 +197,14 @@ export type PluginStorage<T extends PluginStorageConfig> = {
  */
 export interface KVAccess {
 	get<T>(key: string): Promise<T | null>;
+	getVersioned<T>(key: string): Promise<VersionedValue<T> | null>;
+	/** A null expected revision creates only when absent. Errors reject; conflicts return applied: false. */
+	compareAndSet(
+		key: string,
+		expectedRevision: string | null,
+		value: unknown,
+	): Promise<ConditionalWriteResult>;
+	compareAndDelete(key: string, expectedRevision: string): Promise<ConditionalDeleteResult>;
 	set(key: string, value: unknown): Promise<void>;
 	delete(key: string): Promise<boolean>;
 	list(prefix?: string): Promise<Array<{ key: string; value: unknown }>>;

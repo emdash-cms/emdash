@@ -1,5 +1,15 @@
-import { sql, type Kysely, type SqlBool } from "kysely";
+import { sql, type Insertable, type Kysely, type SqlBool } from "kysely";
 
+import {
+	assertStorageKey,
+	assertStorageRevision,
+	serializeConditionalValue,
+} from "../../plugins/conditional-storage.js";
+import type {
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
+} from "../../plugins/types.js";
 import type { Database, OptionTable } from "../types.js";
 
 function escapeLike(value: string): string {
@@ -42,16 +52,19 @@ export class OptionsRepository {
 	 * Set an option value (creates or updates)
 	 */
 	async set<T = unknown>(name: string, value: T): Promise<void> {
-		const row: OptionTable = {
+		const row: Insertable<OptionTable> = {
 			name,
 			value: JSON.stringify(value),
+			revision: crypto.randomUUID(),
 		};
 
 		// Upsert: insert or replace
 		await this.db
 			.insertInto("options")
 			.values(row)
-			.onConflict((oc) => oc.column("name").doUpdateSet({ value: row.value }))
+			.onConflict((oc) =>
+				oc.column("name").doUpdateSet({ value: row.value, revision: row.revision }),
+			)
 			.execute();
 	}
 
@@ -64,9 +77,10 @@ export class OptionsRepository {
 	 * existed (regardless of its value — even an empty string or null).
 	 */
 	async setIfAbsent<T = unknown>(name: string, value: T): Promise<boolean> {
-		const row: OptionTable = {
+		const row: Insertable<OptionTable> = {
 			name,
 			value: JSON.stringify(value),
+			revision: crypto.randomUUID(),
 		};
 
 		const result = await this.db
@@ -78,6 +92,56 @@ export class OptionsRepository {
 		// SQLite reports numInsertedOrUpdatedRows; Postgres reports the same.
 		// When the ON CONFLICT branch fires and does nothing, the count is 0.
 		return (result.numInsertedOrUpdatedRows ?? 0n) > 0n;
+	}
+
+	async getVersioned<T = unknown>(name: string): Promise<VersionedValue<T> | null> {
+		assertStorageKey(name, 2048);
+		const row = await this.db
+			.selectFrom("options")
+			.select(["value", "revision"])
+			.where("name", "=", name)
+			.executeTakeFirst();
+		if (!row) return null;
+		return { value: JSON.parse(row.value), revision: row.revision };
+	}
+
+	async compareAndSet(
+		name: string,
+		expectedRevision: string | null,
+		value: unknown,
+	): Promise<ConditionalWriteResult> {
+		assertStorageKey(name, 2048);
+		if (expectedRevision !== null) assertStorageRevision(expectedRevision);
+		const serialized = serializeConditionalValue(value);
+		const revision = crypto.randomUUID();
+		const row =
+			expectedRevision === null
+				? await this.db
+						.insertInto("options")
+						.values({ name, value: serialized, revision })
+						.onConflict((oc) => oc.column("name").doNothing())
+						.returning("revision")
+						.executeTakeFirst()
+				: await this.db
+						.updateTable("options")
+						.set({ value: serialized, revision })
+						.where("name", "=", name)
+						.where("revision", "=", expectedRevision)
+						.returning("revision")
+						.executeTakeFirst();
+		return row ? { applied: true, revision: row.revision } : { applied: false };
+	}
+
+	async compareAndDelete(name: string, expectedRevision: string): Promise<ConditionalDeleteResult> {
+		assertStorageKey(name, 2048);
+		assertStorageRevision(expectedRevision);
+		const row = await this.db
+			.deleteFrom("options")
+			.where("name", "=", name)
+			.where("revision", "=", expectedRevision)
+			.returning("name")
+			.executeTakeFirst();
+		return { applied: row !== undefined };
 	}
 
 	/**
