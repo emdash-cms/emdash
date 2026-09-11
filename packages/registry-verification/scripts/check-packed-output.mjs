@@ -1,9 +1,12 @@
+import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { createReadStream } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pipeline } from "node:stream/promises";
+import { fileURLToPath } from "node:url";
 import { createGunzip } from "node:zlib";
 
 import { unpackTar } from "modern-tar/fs";
@@ -42,6 +45,17 @@ try {
 	if (publishedOutput.includes("createRequire(import.meta.url)")) {
 		throw new Error("Packed verifier output cannot be safely rebundled");
 	}
+	const requireUrl = publishedOutput.match(/createRequire\("([^"\n]+)"\)/)?.[1];
+	if (!requireUrl) {
+		throw new Error("Packed verifier output is missing the CJS interop shim");
+	}
+	// Check both path conventions regardless of the platform running this test.
+	fileURLToPath(requireUrl, { windows: true });
+	fileURLToPath(requireUrl, { windows: false });
+	const require = createRequire(requireUrl);
+	assert.equal(typeof require("crypto").createHash, "function");
+	assert.equal(typeof require("util").promisify, "function");
+
 	if (
 		publishedBundleOutput.includes("createRequire") ||
 		publishedBundleOutput.includes("@sigstore") ||
