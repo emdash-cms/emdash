@@ -7,7 +7,7 @@ import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
 
 Hooks let plugins run code in response to events. All hooks receive an event object and the plugin context, and they're declared at plugin definition time — there's no dynamic registration at runtime.
 
-This page covers sandboxed plugins. Hooks work identically in native plugins; native plugins can additionally register `page:fragments`.
+This page covers sandboxed plugins. Native plugins use the same hook names and event types, but they use the in-process hook pipeline and can additionally register `page:fragments`. Sandboxed save rejection and isolated-runner failure behavior are described below.
 
 ## Hook signature
 
@@ -24,7 +24,7 @@ async (event, ctx) => ReturnType;
 
 ## Hook configuration
 
-A hook can be declared as a bare handler or wrapped in a config object:
+A hook can be declared as a bare handler or wrapped in a config object. Prefer the bare form unless the plugin also supports deliberate in-process execution and needs the metadata described below.
 
 <Tabs>
 <TabItem label="Simple">
@@ -42,8 +42,6 @@ hooks: {
 	"content:afterSave": {
 		priority: 100,
 		timeout: 5000,
-		dependencies: ["audit-log"],
-		errorPolicy: "continue",
 		handler: async (event, ctx) => {
 			ctx.log.info("Content saved");
 		},
@@ -59,14 +57,32 @@ hooks: {
 | -------------- | ----------------------- | --------- | -------------------------------------------------------------------------------------------- |
 | `priority`     | `number`                | `100`     | Execution order. Lower numbers run first.                                                    |
 | `timeout`      | `number`                | `5000`    | Maximum execution time in milliseconds.                                                      |
-| `dependencies` | `string[]`              | `[]`      | Plugin ids that must run before this hook.                                                   |
-| `errorPolicy`  | `"abort" \| "continue"` | `"abort"` | Whether to stop the pipeline on error.                                                       |
 | `exclusive`    | `boolean`               | `false`   | Only one plugin can be the active provider. Used for `email:deliver` and `comment:moderate`. |
 | `handler`      | `function`              | —         | The hook handler function. Required.                                                         |
 
-<Aside type="tip">
-	Use `errorPolicy: "continue"` for non-critical hooks like notifications. Use `"abort"` (the default) when the hook's result is essential to the operation succeeding.
+<Aside type="caution" title="Isolated runners use their own ordering and timeout">
+	The authoring type also accepts `dependencies` and `errorPolicy`, and the in-process adapter uses all
+	of these configuration fields. An isolated sandbox runner currently invokes sandboxed plugins in load
+	order and applies its per-invocation wall-time limit. Do not use hook metadata to coordinate two
+	sandboxed plugins or to recover from an isolated hook failure.
 </Aside>
+
+## Required capabilities
+
+Several hooks expose protected data or can change an operation. EmDash registers them only when the manifest declares the matching capability:
+
+| Hooks | Capability | Reason |
+| --- | --- | --- |
+| `content:beforeSave` | `content:write` | The hook can replace submitted content. |
+| Other `content:*` hooks | `content:read` | Their events expose content or identify an entry. |
+| `media:beforeUpload` | `media:write` | The hook can replace upload metadata or stop the upload. |
+| `media:afterUpload` | `media:read` | Its event exposes the stored media item. |
+| `email:beforeSend`, `email:afterSend` | `hooks.email-events:register` | The hooks inspect email lifecycle events. |
+| `email:deliver` | `hooks.email-transport:register` | The hook becomes an email transport provider. |
+| All `comment:*` hooks | `users:read` | Comment events can contain author contact information and request metadata. |
+| `page:fragments` | `hooks.page-fragments:register` | The hook injects first-party page content and is native-only. |
+
+Lifecycle hooks, `cron`, and `page:metadata` have no registration capability. Declare the listed capability even when a hook only reads its event and does not call the matching `ctx` API. The declaration gives the operator an accurate consent prompt, gates the `ctx` API, and is required when the plugin runs in process. [Capabilities and security](/plugins/creating-plugins/capabilities/) explains the runtime effect.
 
 ## Lifecycle hooks
 
@@ -75,6 +91,8 @@ Run during plugin installation, activation, deactivation, and removal.
 ### `plugin:install`
 
 Runs once when the plugin is first added to a site.
+
+This example assumes the manifest declares an `items` storage collection:
 
 ```typescript
 "plugin:install": async (_event, ctx) => {
@@ -118,8 +136,11 @@ Runs when the plugin is removed from a site.
 "plugin:uninstall": async (event, ctx) => {
 	ctx.log.info("Uninstalling plugin...");
 	if (event.deleteData) {
-		const result = await ctx.storage.items.query({ limit: 1000 });
-		await ctx.storage.items.deleteMany(result.items.map((i) => i.id));
+		while (true) {
+			const result = await ctx.storage.items.query({ limit: 100 });
+			if (result.items.length === 0) break;
+			await ctx.storage.items.deleteMany(result.items.map((item) => item.id));
+		}
 	}
 },
 ```
@@ -174,12 +195,13 @@ Runs after content is successfully saved. Use for side effects like notification
 
 ```typescript
 "content:afterSave": async (event, ctx) => {
-	ctx.log.info(`${event.isNew ? "Created" : "Updated"} ${event.collection}/${event.content.id}`);
+	const contentId = String(event.content.id);
+	ctx.log.info(`${event.isNew ? "Created" : "Updated"} ${event.collection}/${contentId}`);
 
 	if (ctx.http) {
 		await ctx.http.fetch("https://api.example.com/webhook", {
 			method: "POST",
-			body: JSON.stringify({ event: "content:save", id: event.content.id }),
+			body: JSON.stringify({ event: "content:save", id: contentId }),
 		});
 	}
 },
@@ -201,7 +223,9 @@ Runs before content is deleted. Return `false` to cancel; `true` or `void` allow
 },
 ```
 
-**Event:** `{ id, collection }` — **Returns:** `boolean | void`
+**Event:** `{ id, collection, permanent: false }` — **Returns:** `boolean | void`
+
+This hook runs before an entry is moved to trash. Removing an entry permanently from trash does not run `content:beforeDelete` again.
 
 ### `content:afterDelete`
 
@@ -213,7 +237,7 @@ Runs after content is successfully deleted.
 },
 ```
 
-**Event:** `{ id, collection }` — **Returns:** `Promise<void>`
+**Event:** `{ id, collection, permanent }` — **Returns:** `Promise<void>`. `permanent` is `false` when the entry was moved to trash and `true` when the entry was removed permanently.
 
 ### `content:afterPublish`
 
@@ -312,6 +336,20 @@ Contributes typed metadata to `<head>` — meta tags, OpenGraph properties, allo
 		canonical: string | null;
 		image: string | null;
 		content?: { collection: string; id: string; slug: string | null };
+		seo?: {
+			ogTitle?: string | null;
+			ogDescription?: string | null;
+			ogImage?: string | null;
+			robots?: string | null;
+		};
+		articleMeta?: {
+			publishedTime?: string | null;
+			modifiedTime?: string | null;
+			author?: string | null;
+		};
+		siteName?: string;
+		breadcrumbs?: Array<{ name: string; url: string }>;
+		siteUrl?: string;
 	}
 }
 ```
@@ -324,10 +362,10 @@ Contributes typed metadata to `<head>` — meta tags, OpenGraph properties, allo
 | ---------- | -------------------------------------------------- | ----------------------------------------------------- |
 | `meta`     | `<meta name="..." content="...">`                  | `key` or `name`                                       |
 | `property` | `<meta property="..." content="...">`              | `key` or `property`                                   |
-| `link`     | `<link rel="canonical\|alternate" href="...">`     | canonical: singleton; alternate: `key` or `hreflang`  |
+| `link`     | `<link rel="<allowed value>" href="...">`           | canonical: singleton; alternate: `key` or `hreflang`  |
 | `jsonld`   | `<script type="application/ld+json">`              | `id` (if present)                                     |
 
-First contribution wins for any dedupe key. Link `rel` is restricted to a security-locked allowlist (`canonical`, `alternate`, `author`, `license`, `nlweb`, `site.standard.document`); `href` must be HTTP or HTTPS.
+First contribution wins for any dedupe key. `<EmDashHead>` composes contributions in the order plugins → site settings → template-provided base metadata, so plugin contributions override everything below them. On content pages, the entry's SEO panel values are folded into the page context before the base metadata is generated — they replace the template-provided fields (and are what your hook sees on the page context), while plugin contributions still win via first-wins dedup. Link `rel` is restricted to a security-locked allowlist (`canonical`, `alternate`, `author`, `license`, `nlweb`, `site.standard.document`); `href` must be HTTP or HTTPS.
 
 ### `page:fragments`
 
@@ -337,7 +375,7 @@ Sandboxed plugins can't use this hook because its output runs as first-party cod
 
 ## Hook execution order
 
-Hooks run in this order:
+When a sandboxed-format plugin runs in process, hooks use the shared hook pipeline:
 
 1. Hooks with lower `priority` values run first.
 2. For equal priorities, hooks run in plugin registration order.
@@ -358,30 +396,22 @@ Hooks run in this order:
 }
 ```
 
+An isolated sandbox runner invokes active sandboxed plugins in load order. Keep hooks independent: do not require one sandboxed plugin to run before another.
+
 ## Error handling
 
-When a hook throws or times out:
+Sandboxed hook failures depend on when the hook runs:
 
-- **`errorPolicy: "abort"`** — the entire pipeline stops and the originating operation may fail.
-- **`errorPolicy: "continue"`** — the error is logged and remaining hooks still run.
+- A thrown `content:beforeSave` error fails the save with `CONTENT_HOOK_ERROR`. Return the documented `SAVE_REJECTED` envelope when the editor should see a specific validation reason.
+- Returning `false` from `content:beforeDelete` stops the move to trash. If that hook throws, EmDash logs the error and continues the deletion.
+- Content after-hooks run after the operation succeeds. Their errors are logged and cannot roll the operation back.
+- Lifecycle, media, email, and comment hooks follow the contract of their originating operation. Use the [Hook reference](/reference/hooks/) to check a specific return value before relying on failure behavior.
 
-```typescript
-"content:afterSave": {
-	timeout: 5000,
-	errorPolicy: "continue",
-	handler: async (event, ctx) => {
-		await ctx.http!.fetch("https://unreliable-api.com/notify");
-	},
-},
-```
-
-<Aside type="tip">
-	`errorPolicy: "continue"` is right for analytics, notifications, and external syncs — the originating save still succeeds even if your hook fails.
-</Aside>
+An in-process plugin can use `errorPolicy: "abort"` or `"continue"` in the full config form. That setting is not a portable recovery control for an isolated sandboxed plugin.
 
 ## Timeouts
 
-Hooks default to 5000ms. Bump the timeout for slower work:
+The in-process hook pipeline defaults to 5,000 ms and accepts a longer `timeout` in the full config form:
 
 ```typescript
 "content:afterSave": {
@@ -393,7 +423,10 @@ Hooks default to 5000ms. Bump the timeout for slower work:
 ```
 
 <Aside type="caution">
-	The configured `timeout` is enforced at the EmDash runner level. The sandbox runner may also enforce its own resource limits (CPU, subrequests, wall-clock) that can terminate a hook before its `timeout` fires. See [Capabilities and security](/plugins/creating-plugins/capabilities/).
+	Isolated runners use their own invocation limit instead of this hook value. The supplied Cloudflare
+	and Node.js runners default to 30 seconds of wall time, and the Cloudflare runner can stop work sooner
+	when it reaches its CPU or subrequest limit. See [Capabilities and
+	security](/plugins/creating-plugins/capabilities/).
 </Aside>
 
 ## Hook reference
@@ -406,8 +439,8 @@ Hooks default to 5000ms. Bump the timeout for slower work:
 | `plugin:uninstall`       | Plugin removed                | `void`                               | No        |
 | `content:beforeSave`     | Before content save           | Modified content, rejection envelope, or `void` | No        |
 | `content:afterSave`      | After content save            | `void`                               | No        |
-| `content:beforeDelete`   | Before content delete         | `false` to cancel, else allow        | No        |
-| `content:afterDelete`    | After content delete          | `void`                               | No        |
+| `content:beforeDelete`   | Before content moves to trash | `false` to cancel, else allow        | No        |
+| `content:afterDelete`    | After trash or permanent delete | `void`                             | No        |
 | `content:afterPublish`   | After content publish         | `void`                               | No        |
 | `content:afterUnpublish`  | After content unpublish       | `void`                               | No        |
 | `content:afterRestore`    | After content restore         | `void`                               | No        |

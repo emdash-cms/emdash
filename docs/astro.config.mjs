@@ -6,6 +6,9 @@ import { defineConfig } from "astro/config";
 // https://astro.build/config
 export default defineConfig({
 	site: "https://docs.emdashcms.com",
+	redirects: {
+		"/introduction": "/why-emdash",
+	},
 	integrations: [
 		starlight({
 			title: "EmDash",
@@ -34,7 +37,6 @@ export default defineConfig({
 				{
 					label: "Start Here",
 					items: [
-						{ label: "Introduction", slug: "introduction" },
 						{ label: "Getting Started", slug: "getting-started" },
 						{ label: "Add to an Existing Project", slug: "existing-project" },
 						{ label: "Why EmDash?", slug: "why-emdash" },

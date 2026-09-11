@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
+    "prebuild": "node scripts/check-reference-inventories.mjs",
     "build": "astro build",
     "preview": "astro preview",
     "astro": "astro",

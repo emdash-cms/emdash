@@ -1,256 +1,176 @@
 ---
 title: Migrate from WordPress
-description: Import your WordPress content into EmDash with a step-by-step guide.
+description: Import WordPress content into EmDash and verify it before cutover.
 ---
 
-import { Aside, Card, CardGrid, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-EmDash migrates content from WordPress. Import your posts, pages, media, and taxonomies through the admin dashboard.
+Use the EmDash admin to analyze a WordPress site, prepare compatible collections, import content, copy media, and rewrite URLs. Keep the WordPress site available until the imported site has passed verification.
 
-## Before You Begin
+## Before you begin
 
-<CardGrid>
-	<Card title="Export your content" icon="document">
-		In WordPress, go to **Tools → Export** and download a complete export file (.xml).
-	</Card>
-	<Card title="Back up your site" icon="warning">
-		Keep your WordPress site running until you verify the migration succeeded.
-	</Card>
-</CardGrid>
+Prepare the following items:
 
-## Import Methods
+- A backup of the WordPress database and `wp-content/uploads`.
+- An EmDash site with storage configured if you plan to copy media.
+- An EmDash administrator account. WordPress import requires the `import:execute` permission.
+- Either a complete WordPress eXtended RSS (WXR) export or the EmDash Exporter plugin installed on the WordPress site.
 
-EmDash supports three methods for importing WordPress content:
+Record the current permalink structure, canonical origin, redirects, menus, active post types, taxonomies, and any plugin-owned fields that the new site must preserve.
 
-| Method           | Best for                       | Includes drafts | Requires auth |
-| ---------------- | ------------------------------ | --------------- | ------------- |
-| WXR file upload  | Complete migrations            | Yes             | No            |
-| WordPress.com    | WordPress.com hosted sites     | Yes             | OAuth         |
-| REST API (probe) | Checking content before export | No              | Optional      |
+## Choose an import method
 
-The WXR file upload is recommended for most migrations. It captures all content, including drafts, custom fields, and private posts.
+| Method | Use it when | Included data |
+| --- | --- | --- |
+| WXR upload | You can export from **Tools → Export** | Data represented in the export, including posts, pages, custom post types, taxonomy terms, reusable blocks, authors, and attachment URLs |
+| EmDash Exporter | You control the WordPress site and can install the exporter | Authenticated content plus supported comments, menus, site settings, SEO fields, taxonomies, and media metadata |
 
-## WXR File Import
+Entering a site URL without the exporter only probes the public WordPress REST API. The probe can detect WordPress and count public posts, pages, and media, but it cannot perform a direct REST import.
 
-<Steps>
+### Export a WXR file
 
-1. **Export from WordPress**
+In WordPress, open **Tools → Export**, select **All content**, and download the XML export file. A WXR file points to media on the WordPress origin; it does not contain the attachment bytes.
 
-   In your WordPress admin, go to **Tools → Export → All content → Download Export File**.
+### Connect the EmDash Exporter
 
-2. **Open the Import wizard**
+In WordPress, open **Tools → EmDash Migration** and generate a migration key. Paste the key into the EmDash import page.
 
-   In EmDash, go to **Admin → Settings → Import → WordPress**.
+You can also enter the WordPress site URL. When the exporter is detected, authorize EmDash through the WordPress application-password screen. On local HTTP development sites, enter the WordPress username and application password manually because the authorization callback requires HTTPS.
 
-3. **Upload your export file**
-
-   Drag and drop your `.xml` file or click to browse. The file is parsed in your browser.
-
-4. **Review detected content**
-
-   The wizard shows what was found:
-
-   ```
-   Found in export:
-   ├── Posts: 127 → posts [New collection]
-   ├── Pages: 12  → pages [Add fields]
-   └── Media: 89 attachments
-   ```
-
-5. **Configure mappings**
-
-   Toggle which post types to import. EmDash automatically:
-   - Creates new collections for unmapped post types
-   - Adds missing fields to existing collections
-   - Warns about field type conflicts
-
-6. **Execute the import**
-
-   Click **Import Content**. Progress displays as each item is processed.
-
-7. **Import media (optional)**
-
-   After content imports, choose whether to download media files. EmDash:
-   - Downloads from your WordPress URLs
-   - Deduplicates by content hash
-   - Rewrites URLs in your content automatically
-
-</Steps>
-
-<Aside type="tip">
-	Re-running the import is safe. Items are matched by WordPress ID, so you won't create duplicates.
-</Aside>
-
-## Content Conversion
-
-### Gutenberg to Portable Text
-
-EmDash converts Gutenberg blocks to [Portable Text](https://github.com/portabletext/portabletext), a structured content format.
-
-| Gutenberg Block  | Portable Text                | Notes                         |
-| ---------------- | ---------------------------- | ----------------------------- |
-| `core/paragraph` | `block` style="normal"       | Inline marks preserved        |
-| `core/heading`   | `block` style="h1-h6"        | Level from block attributes   |
-| `core/image`     | `image` block                | Media reference updated       |
-| `core/list`      | `block` with `listItem` type | Ordered and unordered         |
-| `core/quote`     | `block` style="blockquote"   | Citation included             |
-| `core/code`      | `code` block                 | Language attribute preserved  |
-| `core/embed`     | `embed` block                | URL and provider stored       |
-| `core/gallery`   | `gallery` block              | Array of image references     |
-| `core/columns`   | `columns` block              | Nested content preserved      |
-| Unknown blocks   | `htmlBlock`                  | Raw HTML preserved for review |
-
-Unknown blocks are stored as `htmlBlock` with the original HTML and block metadata. You can review and convert these manually or create custom Portable Text components to render them.
-
-### Classic Editor Content
-
-HTML from the Classic Editor is converted to Portable Text blocks. Inline styles (`<strong>`, `<em>`, `<a>`) become marks on spans.
-
-### Status Mapping
-
-| WordPress Status | EmDash Status |
-| ---------------- | --------------- |
-| `publish`        | `published`     |
-| `draft`          | `draft`         |
-| `pending`        | `pending`       |
-| `private`        | `private`       |
-| `future`         | `scheduled`     |
-| `trash`          | `archived`      |
-
-## Taxonomy Import
-
-Categories and tags import as taxonomies with hierarchy preserved:
-
-```
-WordPress:                    EmDash:
-├── Categories (hierarchical) ├── taxonomies table
-│   ├── News                  │   ├── category/news
-│   │   ├── Local             │   ├── category/local (parent: news)
-│   │   └── World             │   ├── category/world (parent: news)
-│   └── Sports                │   └── category/sports
-└── Tags (flat)               └── content_taxonomies junction
-    ├── featured                  ├── tag/featured
-    └── breaking                  └── tag/breaking
-```
-
-## Custom Fields and ACF
-
-WordPress post meta and ACF fields are analyzed during import:
+## Import through the admin
 
 <Steps>
 
-1. **Analysis phase**
+1. Open **Import WordPress** in the EmDash sidebar, or visit `/_emdash/admin/import/wordpress`.
 
-   The wizard detects custom fields and suggests EmDash field types:
+2. Upload the WXR file, paste the exporter migration key, or enter the WordPress URL.
 
-   ```
-   Custom Fields:
-   ├── subtitle (string, 45 posts)
-   ├── _yoast_wpseo_title → seo.title (string, 127 posts)
-   ├── _thumbnail_id → featuredImage (reference, 89 posts)
-   └── price (number, 23 posts)
-   ```
+3. Review the analysis. For each WordPress post type, confirm the target collection, required fields, and compatibility with any existing fields.
 
-2. **Field mapping**
+4. Map WordPress authors to EmDash users. An unmapped source author can be represented by a guest byline, so presentation credit does not depend on granting an EmDash login.
 
-   Internal WordPress fields (starting with `_edit_`, `_wp_`) are hidden by default. SEO plugin fields map to an `seo` object.
+5. For an exporter import, choose whether to import menus, site title and tagline, logo and favicon, and supported SEO values. These switches are not part of the WXR path.
 
-3. **Type inference**
+6. Start the import. EmDash creates missing compatible collections and fields before it creates entries.
 
-   EmDash infers field types from values:
-   - Numeric strings → `number`
-   - `"1"`, `"0"`, `"true"`, `"false"` → `boolean`
-   - ISO dates → `date`
-   - Serialized PHP/JSON → `json`
-   - WordPress IDs (e.g., `_thumbnail_id`) → `reference`
+7. If attachments were found, run the media step. EmDash downloads the source bytes, stores them through the configured storage adapter, and rewrites matching content URLs.
 
 </Steps>
 
-<Aside>
-	ACF repeater fields and flexible content import as JSON. Create matching Portable Text or array
-	fields in EmDash to structure this data.
+## Conversion behavior
+
+### Statuses
+
+The importer maps WordPress statuses as follows:
+
+| WordPress | EmDash |
+| --- | --- |
+| `publish` | `published` |
+| `draft` | `draft` |
+| `pending` | `draft` |
+| `private` | `draft` |
+| `future`, `trash`, or an unknown status | `draft` |
+
+Scheduled dates and WordPress visibility rules are not reconstructed from these statuses. Review every imported draft before publication.
+
+### Rich text and reusable blocks
+
+Gutenberg markup is converted to Portable Text. Classic HTML is processed by the same converter. Inspect complex blocks, embeds, shortcodes, page-builder markup, and plugin-defined blocks in the rendered EmDash site.
+
+WXR `wp_block` entries are imported as sections. They are not imported into an ordinary content collection.
+
+### Collections and fields
+
+The default post-type mappings include `post` to `posts` and `page` to `pages`. Custom post types use a sanitized collection slug. The prepare step adds the standard title, Portable Text content, excerpt, and featured-image fields that the analysis requires.
+
+Existing fields with compatible types are reused. A type mismatch blocks that collection mapping; the importer does not coerce an existing field to another type.
+
+### Custom fields and SEO data
+
+WXR analysis reports non-internal post-meta keys and suggests field names and types, but the WXR database import writes the standard imported fields rather than copying every arbitrary meta key. Treat the analysis as a checklist for fields that may need a separate conversion.
+
+The EmDash Exporter path can copy custom meta and Advanced Custom Fields (ACF) values when the target collection has matching fields. It can also create and populate the supported featured-image and Yoast or Rank Math SEO fields when their import switches are enabled. Review serialized PHP values, repeaters, flexible content, and plugin-specific structures rather than assuming their WordPress representation matches an EmDash field type.
+
+### Authors and bylines
+
+A mapped WordPress author becomes the entry owner. Presentation credits use bylines. If no user mapping exists, EmDash creates or reuses a guest byline based on the WordPress author identity.
+
+### Taxonomies
+
+Categories and tags are imported into the matching EmDash taxonomy definitions. The exporter path can create definitions for custom taxonomies. A WXR custom taxonomy without a matching EmDash definition is reported as missing and its assignments are skipped.
+
+### Media
+
+Media deduplication compares a SHA-1 hash of the downloaded bytes. An existing media row with the same hash is reused. Filenames and WordPress IDs are not the deduplication key.
+
+The source site must remain reachable while EmDash downloads attachments. Redirects from an attachment URL are validated before they are followed.
+
+## Retry a partial import
+
+The admin import is designed to skip existing entries, but its matching boundary matters:
+
+- Existing content is matched by collection, slug, and locale, not by WordPress ID.
+- If a source slug changed between attempts, inspect both entries and resolve the duplicate manually.
+- Rerunning the media step reuses already stored byte-identical files by content hash.
+- The exporter flow sends bounded chunks. Restarting the browser flow reruns content pages and rebuilds relationship maps from skipped entries.
+
+The admin does not persist a WXR resume file. The `--resume` flag on `emdash import wordpress` belongs to a separate CLI workflow that writes converted JSON files to disk; it does not resume an admin database import.
+
+<Aside type="caution">
+  Do not delete or redirect the WordPress origin after an interrupted import. First compare collection counts, inspect errors, finish media downloads, and verify rewritten links.
 </Aside>
 
-## URL Redirects
+## Verify before cutover
 
-After import, EmDash generates a redirect map:
+Check the imported site against the source:
 
-```json
-{
-	"redirects": [
-		{ "from": "/?p=123", "to": "/posts/hello-world" },
-		{ "from": "/2024/01/hello-world/", "to": "/posts/hello-world" },
-		{ "from": "/category/news/", "to": "/categories/news" }
-	],
-	"feeds": [
-		{ "from": "/feed/", "to": "/rss.xml" },
-		{ "from": "/feed/atom/", "to": "/atom.xml" }
-	]
-}
-```
+- Count entries by post type and status.
+- Open representative Gutenberg, Classic Editor, shortcode, and page-builder content.
+- Confirm featured images and inline media resolve from EmDash URLs.
+- Check authors, bylines, categories, tags, custom taxonomies, and translations.
+- Test menus, comments, site identity, and SEO fields when imported through the exporter.
+- Crawl old public URLs and prepare redirects for every changed route.
+- Verify drafts remain inaccessible to logged-out visitors.
 
-Apply these redirects to:
-
-- Cloudflare redirect rules
-- Your hosting platform's redirect config
-- Astro's `redirects` option in `astro.config.mjs`
-
-## Concept Mapping Reference
-
-Use this table when adapting WordPress patterns to EmDash:
-
-| WordPress               | EmDash                             | Notes                          |
-| ----------------------- | ------------------------------------ | ------------------------------ |
-| `register_post_type()`  | Collection in admin UI               | Created via dashboard or API   |
-| `register_taxonomy()`   | Taxonomy or array field              | Depends on complexity          |
-| `register_meta()`       | Field in collection schema           | Typed, not key-value           |
-| `WP_Query`              | `getCollection(filters)`             | Runtime queries                |
-| `get_post()`            | `getEntry(collection, id)`           | Returns entry or null          |
-| `wp_insert_post()`      | `POST /_emdash/api/content/{type}` | REST API                       |
-| `the_content`           | `<PortableText value={...} />`       | Portable Text rendering        |
-| `add_shortcode()`       | Portable Text custom block           | Custom component renderer      |
-| `register_block_type()` | Portable Text custom block           | Same as shortcodes             |
-| `add_menu_page()`       | Plugin admin page                    | Under `/_emdash/admin/`      |
-| `add_action/filter()`   | Plugin hooks                         | `hooks.content:beforeSave`     |
-| `wp_options`            | `ctx.kv`                             | Key-value store                |
-| `wp_postmeta`           | Collection fields                    | Structured, not key-value      |
-| `$wpdb`                 | `ctx.storage`                        | Direct storage access          |
-| Categories/Tags         | Taxonomies                           | Hierarchical support preserved |
-
-## API Import (Advanced)
-
-The WordPress import is available through the admin dashboard and the REST API. Use the admin dashboard import wizard for the best experience — it provides field mapping, conflict resolution, and progress tracking.
-
-The import API endpoints are under `/_emdash/api/import/wordpress/` for programmatic access.
+Keep the backup and WordPress deployment until the new site has run successfully in production and rollback is no longer required.
 
 ## Troubleshooting
 
-### "XML parsing error"
+### The XML file cannot be parsed
 
-The export file may be corrupted or incomplete. Re-export from WordPress.
+Export the file again from **Tools → Export** and confirm the download completed. Do not edit the XML with a tool that changes its encoding.
 
-### Media download failures
+### A collection is marked incompatible
 
-Some images may be behind authentication or have moved. The import continues, and failed URLs are logged for manual handling.
+An existing field has the same slug but a different type. Change the post-type mapping or reconcile the field under **Content Types** before retrying. The prepare step adds missing fields but does not change existing field types.
 
-### Field type conflicts
+### Media URLs fail to download
 
-If an existing collection has a field with an incompatible type, the import wizard shows the conflict. Either:
+Check that the source attachment is reachable without a WordPress session. Media behind authentication, removed files, and redirects to private network addresses fail individually and remain in the media error list.
 
-- Rename the EmDash field
-- Change the WordPress field mapping
-- Delete and recreate the collection
+## Adapt the theme
 
-### Large exports
+Use `getEmDashCollection()` for archive routes and `getEmDashEntry()` for a slug route. `entry.id` is the route identifier and is normally the slug; `entry.data.id` is the stored content ID used by relationship helpers.
 
-For exports over 100MB, consider:
+The following route renders an imported post:
 
-1. Export post types separately in WordPress
-2. Import each file sequentially
-3. Use the CLI with `--resume` for reliability
+```astro title="src/pages/posts/[slug].astro"
+---
+import { decodeSlug, getEmDashEntry } from "emdash";
+import { PortableText } from "emdash/ui";
 
-## Next Steps
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.redirect("/404");
 
-- **[Content Import](/migration/content-import/)** — Other import sources and methods
-- **[Plugin Porting](/migration/porting-plugins/)** — Migrate WordPress plugin functionality
-- **[Working with Content](/guides/working-with-content/)** — Query and render your imported content
+const { entry: post, error } = await getEmDashEntry("posts", slug);
+if (error) return new Response("Could not load the post", { status: 500 });
+if (!post) return Astro.redirect("/404");
+---
+
+<article>
+  <h1>{post.data.title}</h1>
+  <PortableText value={post.data.content} />
+</article>
+```
+
+Read [Porting WordPress themes](/themes/porting-wp-themes/) for route and component mapping. Read [Content import](/migration/content-import/) for the endpoint contracts and exact retry boundaries.

@@ -167,6 +167,7 @@ export async function getHreflangAlternatesWithDb(
 			collection,
 			slug: variant.slug || variant.id,
 			id: variant.id,
+			date: variant.publishedAt,
 		});
 		const localized = await localizePath(path, locale);
 		if (localized === null) continue;

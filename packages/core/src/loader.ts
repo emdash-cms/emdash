@@ -20,6 +20,7 @@ import { decodeCursor, encodeCursor } from "./database/repositories/types.js";
 import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig } from "./i18n/config.js";
 import type { Database } from "./index.js";
+import { primeSeoPanel } from "./page/seo-panel.js";
 import { getRequestContext } from "./request-context.js";
 import { isMissingColumnError, isMissingTableError } from "./utils/db-errors.js";
 
@@ -1624,7 +1625,12 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							...mapRevisionData(parsed, parseFoldedBooleanFields(row)),
 						};
 						const revSeo = extractSeo(row);
-						if (revSeo) revEntryData.seo = revSeo;
+						if (revSeo) {
+							revEntryData.seo = revSeo;
+							// SEO comes from the content row, so the panel data is
+							// valid for the entry regardless of the revision shown.
+							primeSeoPanel(type, rowStr(row, "id"), revSeo);
+						}
 						stashFolded(revEntryData, row);
 						return {
 							id: revId,
@@ -1641,7 +1647,14 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 
 				const entryData = mapRowToData(row, parseFoldedBooleanFields(row));
 				const entrySeo = extractSeo(row);
-				if (entrySeo) entryData.seo = entrySeo;
+				if (entrySeo) {
+					entryData.seo = entrySeo;
+					// Prime the request cache so <EmDashHead> can apply the panel
+					// values without its own _emdash_seo query. Keyed by the
+					// content-row id — the same value templates pass as
+					// page.content.id.
+					primeSeoPanel(type, rowStr(row, "id"), entrySeo);
+				}
 				stashFolded(entryData, row);
 				return {
 					id: entryId,

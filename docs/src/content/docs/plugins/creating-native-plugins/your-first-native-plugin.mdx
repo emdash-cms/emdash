@@ -1,348 +1,173 @@
 ---
 title: Your first native plugin
-description: Build a native EmDash plugin with the descriptor + createPlugin pattern.
+description: Scaffold, register, and run an in-process EmDash plugin.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-This guide walks through building a native plugin from scratch. Native plugins run in the same process as your Astro site with full access to the runtime, including React admin pages, Portable Text components, and page fragments.
+A native plugin is an npm package that EmDash imports into the same process as the Astro site. This tutorial creates a plugin that logs content saves, installs it in a site, and registers it in `astro.config.mjs`.
 
-If you haven't decided yet whether you want a native plugin instead of a sandboxed one, read [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) first. Native is the format for plugins that need React admin pages, Portable Text rendering components, or page fragments.
+Use the native format when the plugin needs an in-process feature such as React admin components, Astro rendering components, or trusted page fragments. If hooks, routes, storage, and Block Kit cover the feature, start with a sandboxed plugin. [Choosing a plugin format](/plugins/creating-plugins/choosing-a-format/) compares the formats.
 
-## Two pieces, in one or two files
+## Prerequisites
 
-Like sandboxed plugins, native plugins ship two pieces:
+Start with an EmDash site that uses pnpm and can run its development server. The site must already depend on `emdash`, which provides the `emdash` command used below.
 
-1. **A descriptor factory** — returns a `PluginDescriptor` with `format: "native"` plus admin-related entrypoints. Imported by `astro.config.mjs` at build time.
-2. **A `createPlugin(options)` function** — the runtime side. Returns a `definePlugin({ id, version, capabilities, hooks, routes, admin })` result.
+The commands call the site directory `my-emdash-site` and create `plugin-activity` beside it. Replace `my-emdash-site` with your site's directory name.
 
-Unlike sandboxed plugins, both pieces can live in the same file because they don't run in different environments — the whole plugin runs in-process. The package's `"."` export points at a file that exports both the descriptor factory and a `createPlugin` (or `default`) function:
+## Create and register the package
 
-```
-my-native-plugin/
-├── src/
-│   ├── index.ts          # Descriptor factory + createPlugin
-│   ├── admin.tsx         # React admin components (optional)
-│   └── astro/            # Astro components for PT block rendering (optional)
-│       └── index.ts
-├── package.json
-└── tsconfig.json
-```
+<Steps>
 
-## Set up the package
+1. Scaffold a native package next to the site.
 
-The following `package.json` declares the entrypoints and peer dependencies a native plugin needs:
+   ```bash
+   pnpm exec emdash plugin init --native --name @example/plugin-activity --dir ../plugin-activity
+   ```
 
-```json title="package.json"
-{
-	"name": "@my-org/plugin-analytics",
-	"version": "0.1.0",
-	"type": "module",
-	"main": "dist/index.js",
-	"exports": {
-		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js"
-		},
-		"./admin": {
-			"types": "./dist/admin.d.ts",
-			"import": "./dist/admin.js"
-		}
-	},
-	"files": ["dist"],
-	"peerDependencies": {
-		"emdash": "*",
-		"react": "^18.0.0"
-	}
-}
-```
+   The command removes the npm scope when it creates the plugin ID. The package name is `@example/plugin-activity`, while the plugin ID is `plugin-activity`.
 
-Keep `emdash` and `react` as peer dependencies so the host site provides the actual versions and you don't ship duplicates.
+2. Install the package dependencies.
 
-## Write the descriptor and runtime
+   ```bash
+   cd ../plugin-activity
+   pnpm install
+   ```
 
-The following `src/index.ts` defines the descriptor factory and the `createPlugin` runtime in one file:
+3. Replace the generated `src/index.ts` with a content-save hook.
+
+   ```typescript title="src/index.ts"
+   import { definePlugin } from "emdash";
+   import type { PluginDescriptor } from "emdash";
+
+   export interface ActivityPluginOptions {
+       logUpdates?: boolean;
+   }
+
+   export function activityPlugin(
+       options: ActivityPluginOptions = {},
+   ): PluginDescriptor<ActivityPluginOptions> {
+       return {
+           id: "plugin-activity",
+           version: "0.1.0",
+           format: "native",
+           entrypoint: "@example/plugin-activity",
+           options,
+       };
+   }
+
+   export function createPlugin(options: ActivityPluginOptions = {}) {
+       return definePlugin({
+           id: "plugin-activity",
+           version: "0.1.0",
+           capabilities: ["content:read"],
+           hooks: {
+               "content:afterSave": async (event, ctx) => {
+                   if (!event.isNew && options.logUpdates === false) return;
+
+                   ctx.log.info("Content saved", {
+                       collection: event.collection,
+                       contentId: event.content.id,
+                       isNew: event.isNew,
+                   });
+               },
+           },
+       });
+   }
+
+   export default createPlugin;
+   ```
+
+   `content:afterSave` requires the `content:read` capability. EmDash skips the hook when that capability is missing.
+
+4. Build the package.
+
+   ```bash
+   pnpm build
+   ```
+
+5. Install the local package in the site.
+
+   ```bash
+   cd ../my-emdash-site
+   pnpm add ../plugin-activity
+   ```
+
+6. Register the descriptor factory in the EmDash integration.
+
+   ```typescript title="astro.config.mjs"
+   import { defineConfig } from "astro/config";
+   import emdash from "emdash/astro";
+   import { activityPlugin } from "@example/plugin-activity";
+
+   export default defineConfig({
+       integrations: [
+           emdash({
+               plugins: [activityPlugin({ logUpdates: true })],
+           }),
+       ],
+   });
+   ```
+
+   Native descriptors belong in `plugins`, not `sandboxed`. EmDash rejects a native descriptor in the `sandboxed` array.
+
+7. Start the site and save an entry in the admin panel.
+
+   ```bash
+   pnpm dev
+   ```
+
+   The server log includes `Content saved` with the collection, content ID, and whether the entry was created.
+
+</Steps>
+
+## Descriptor and runtime boundary
+
+The package export has two jobs. EmDash uses each at a different stage:
+
+- The descriptor factory, `activityPlugin()`, runs while Astro evaluates its configuration. It returns serializable build-time metadata: `id`, `version`, `format`, `entrypoint`, and `options`. React and Astro entrypoints also belong on this descriptor.
+- The named `createPlugin()` export runs when EmDash initializes. EmDash imports it from `entrypoint`, passes the serialized `options`, and expects a resolved plugin from `definePlugin()`.
+
+The named `createPlugin` export is required. A default export may be useful to package consumers, but EmDash's native loader imports `createPlugin` by name.
+
+Keep `id` and `version` identical in the descriptor and `definePlugin()`. Use an unscoped, kebab-case plugin ID such as `plugin-activity`; keep the npm scope in the package name and `entrypoint`. This keeps the ID usable as the single plugin segment in API route URLs.
+
+[Plugin identity and versioning](/plugins/creating-native-plugins/distributing/#plugin-identity-and-version) lists the accepted ID and version forms.
+
+Runtime behavior belongs in `definePlugin()`:
+
+- `capabilities` and `allowedHosts`
+- `storage`
+- `hooks` and `routes`
+- `admin` settings, page, widget, and Portable Text declarations
+
+The descriptor carries the static entries that Astro must import or expose at build time. The focused guides show which admin fields need matching descriptor and runtime declarations.
+
+## Native route handlers
+
+Native route handlers receive one `RouteContext`. It combines validated input and request data with the regular `PluginContext`:
 
 ```typescript title="src/index.ts"
-import { definePlugin } from "emdash";
-import type { PluginDescriptor } from "emdash";
-
-export interface AnalyticsOptions {
-	enabled?: boolean;
-	maxEvents?: number;
-}
-
-export function analyticsPlugin(options: AnalyticsOptions = {}): PluginDescriptor {
-	return {
-		id: "analytics",
-		version: "0.1.0",
-		format: "native",
-		entrypoint: "@my-org/plugin-analytics",
-		options,
-		adminEntry: "@my-org/plugin-analytics/admin",
-		adminPages: [{ path: "/dashboard", label: "Dashboard", icon: "chart" }],
-		adminWidgets: [{ id: "events-today", title: "Events Today", size: "third" }],
-	};
-}
-
-export function createPlugin(options: AnalyticsOptions = {}) {
-	const maxEvents = options.maxEvents ?? 100;
-
-	return definePlugin({
-		id: "analytics",
-		version: "0.1.0",
-
-		capabilities: ["network:request"],
-		allowedHosts: ["api.analytics.example.com"],
-
-		storage: {
-			events: { indexes: ["type", "createdAt"] },
-		},
-
-		admin: {
-			entry: "@my-org/plugin-analytics/admin",
-			settingsSchema: {
-				trackingId: { type: "string", label: "Tracking ID" },
-				enabled: { type: "boolean", label: "Enabled", default: options.enabled ?? true },
-			},
-			pages: [{ path: "/dashboard", label: "Dashboard", icon: "chart" }],
-			widgets: [{ id: "events-today", title: "Events Today", size: "third" }],
-		},
-
-		hooks: {
-			"plugin:install": async (_event, ctx) => {
-				ctx.log.info("Analytics plugin installed", { maxEvents });
-			},
-
-			"content:afterSave": async (event, ctx) => {
-				const enabled = await ctx.kv.get<boolean>("settings:enabled");
-				if (enabled === false) return;
-
-				await ctx.storage.events.put(`evt_${Date.now()}`, {
-					type: "content:save",
-					contentId: event.content.id,
-					createdAt: new Date().toISOString(),
-				});
-			},
-		},
-
-		routes: {
-			stats: {
-				handler: async (ctx) => {
-					const today = new Date().toISOString().split("T")[0];
-					const count = await ctx.storage.events.count({
-						createdAt: { gte: today },
-					});
-					return { today: count };
-				},
-			},
-		},
-	});
-}
-
-export default createPlugin;
-```
-
-Key details of this configuration:
-
-- **`format: "native"` is required.** `"native"` is also the default, but stating it explicitly on every descriptor makes the format easy to spot.
-- **`entrypoint` is the package's main export.** EmDash imports it at runtime and calls the default export to construct the resolved plugin.
-- **`options` flow descriptor → `createPlugin`.** Anything the user passes when registering the plugin (`analyticsPlugin({ enabled: false })`) is preserved on the descriptor and forwarded to `createPlugin`. Sandboxed plugins don't have this surface — they read settings from KV instead.
-- **`id`, `version`, and `capabilities` appear twice.** Once on the descriptor, once on `definePlugin()`. They should match. The descriptor's copy is what `astro.config.mjs` sees at build time; the `definePlugin()` copy is what runs at request time.
-- **Native route handlers take a single argument** — `(ctx: RouteContext)` where `ctx.input`, `ctx.request`, `ctx.requestMeta`, and `ctx.user` (the authenticated caller on private routes) are merged with the regular `PluginContext` properties. This is the opposite of standard format's two-argument shape. See [API routes](/plugins/creating-plugins/api-routes/) for the full surface (everything else is identical).
-
-## Plugin id rules
-
-The `id` field must match `/^[a-z][a-z0-9_-]*$/` — start with a lowercase letter, then letters, digits, hyphens, or underscores. The id is used as a single path segment in plugin route URLs and as part of generated SQL identifiers for plugin storage indexes, so anything outside that pattern fails at runtime. The following values show which ids are accepted:
-
-```typescript
-// Valid
-"seo";
-"audit-log";
-"audit_log";
-"plugin-forms";
-
-// Invalid
-"@my-org/plugin-forms";  // scoped form not allowed at runtime
-"MyPlugin";              // no uppercase
-"42-plugin";             // can't start with a digit
-"my.plugin";             // no dots
-```
-
-Pair an unscoped `id` with a scoped npm package name in `entrypoint` — the package name and the plugin id are separate concerns.
-
-## Version format
-
-Use semantic versioning. The following values show which version strings are accepted:
-
-```typescript
-version: "1.0.0";       // valid
-version: "1.2.3-beta";  // valid (prerelease)
-version: "1.0";         // invalid (missing patch)
-```
-
-## Register the plugin
-
-In your site's `astro.config.mjs`, import the descriptor factory and pass it into the `plugins: []` array — native plugins always run in-process, never in `sandboxed: []`:
-
-```typescript title="astro.config.mjs"
-import { defineConfig } from "astro/config";
-import emdash from "emdash/astro";
-import { analyticsPlugin } from "@my-org/plugin-analytics";
-
-export default defineConfig({
-	integrations: [
-		emdash({
-			plugins: [
-				analyticsPlugin({ enabled: true, maxEvents: 500 }),
-			],
+routes: {
+	status: {
+		permission: "plugins:read",
+		handler: async (ctx) => ({
+			pluginId: ctx.plugin.id,
+			callerId: ctx.user?.id ?? null,
 		}),
-	],
-});
-```
-
-## Settings UI
-
-Native plugins can use `admin.settingsSchema` for an auto-generated settings form, which is the simplest path:
-
-```typescript
-admin: {
-	settingsSchema: {
-		apiKey: { type: "secret", label: "API Key" },
-		enabled: { type: "boolean", label: "Enabled", default: true },
-		maxItems: { type: "number", label: "Max items", min: 1, max: 1000, default: 100 },
 	},
 },
 ```
 
-Field types: `string`, `number`, `boolean`, `select`, `secret`, `url`, `email`. Each accepts `label`, `description`, `default`, plus type-specific extras like `min`/`max`/`options`. Settings are persisted to the same per-plugin KV store sandboxed plugins use — read them with `ctx.kv.get<T>("settings:<key>")` from anywhere.
+The equivalent sandboxed handler receives `(routeCtx, ctx)` as two arguments. Authentication, permissions, input schemas, and route URLs otherwise follow the shared [API routes](/plugins/creating-plugins/api-routes/) contract.
 
-The generated form appears behind the gear icon on the plugin's card in **Plugins** (admins only — editing plugin settings requires the `plugins:manage` permission). Secret fields are write-only: the admin never sees the stored value, only whether one is set.
+<Aside type="caution">
+	Capabilities gate the APIs exposed through `ctx`, but a native plugin has no isolation boundary. It can import host packages, access environment variables, call `fetch()` directly, and affect the host process. Install native packages only from publishers you trust.
+</Aside>
 
-For richer settings UI than `settingsSchema` provides, ship custom React pages — see [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/).
+## Add another surface
 
-## Complete example — audit log plugin
-
-The following plugin records every content create, update, and delete to indexed storage and exposes a recent-activity route:
-
-```typescript title="src/index.ts"
-import { definePlugin } from "emdash";
-import type { PluginDescriptor } from "emdash";
-
-interface AuditEntry {
-	timestamp: string;
-	action: "create" | "update" | "delete";
-	collection: string;
-	resourceId: string;
-	userId?: string;
-}
-
-export function auditLogPlugin(): PluginDescriptor {
-	return {
-		id: "audit-log",
-		version: "0.1.0",
-		format: "native",
-		entrypoint: "@emdash-cms/plugin-audit-log",
-	};
-}
-
-export function createPlugin() {
-	return definePlugin({
-		id: "audit-log",
-		version: "0.1.0",
-
-		storage: {
-			entries: {
-				indexes: [
-					"timestamp",
-					"action",
-					"collection",
-					["collection", "timestamp"],
-					["action", "timestamp"],
-				],
-			},
-		},
-
-		admin: {
-			settingsSchema: {
-				retentionDays: {
-					type: "number",
-					label: "Retention (days)",
-					description: "Days to keep entries. 0 = forever.",
-					default: 90,
-					min: 0,
-					max: 365,
-				},
-			},
-			pages: [{ path: "/history", label: "Audit History", icon: "history" }],
-			widgets: [{ id: "recent-activity", title: "Recent Activity", size: "half" }],
-		},
-
-		hooks: {
-			"content:afterSave": {
-				priority: 200,
-				handler: async (event, ctx) => {
-					const entry: AuditEntry = {
-						timestamp: new Date().toISOString(),
-						action: event.isNew ? "create" : "update",
-						collection: event.collection,
-						resourceId: event.content.id as string,
-					};
-					await ctx.storage.entries.put(`${Date.now()}-${event.content.id}`, entry);
-				},
-			},
-
-			"content:afterDelete": {
-				priority: 200,
-				handler: async (event, ctx) => {
-					await ctx.storage.entries.put(`${Date.now()}-${event.id}`, {
-						timestamp: new Date().toISOString(),
-						action: "delete",
-						collection: event.collection,
-						resourceId: event.id,
-					});
-				},
-			},
-		},
-
-		routes: {
-			recent: {
-				handler: async (ctx) => {
-					const result = await ctx.storage.entries.query({
-						orderBy: { timestamp: "desc" },
-						limit: 10,
-					});
-					return {
-						entries: result.items.map((item) => ({
-							id: item.id,
-							...(item.data as AuditEntry),
-						})),
-					};
-				},
-			},
-		},
-	});
-}
-
-export default createPlugin;
-```
-
-## Testing
-
-Test a native plugin by creating a minimal Astro site with the plugin registered:
-
-<Steps>
-1. Create a test site with EmDash installed.
-2. Register your plugin in `astro.config.mjs`, importing it directly from your local source path.
-3. Run the dev server and trigger hooks by creating, updating, or deleting content.
-4. Check the console for `ctx.log` output and verify storage via API routes.
-</Steps>
-
-For unit tests, mock the `PluginContext` interface and call hook handlers directly.
-
-## What's next
-
-- [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/) — ship custom React UI for the admin panel.
-- [Portable Text rendering components](/plugins/creating-native-plugins/portable-text-components/) — provide Astro components that render plugin-defined block types.
-- [Page fragments](/plugins/creating-native-plugins/page-fragments/) — inject scripts, stylesheets, or HTML into public pages.
-- [Distributing native plugins](/plugins/creating-native-plugins/distributing/) — npm packaging and versioning.
+- [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/) covers settings, custom pages, dashboard widgets, editor panels, and list columns.
+- [Portable Text rendering components](/plugins/creating-native-plugins/portable-text-components/) registers Astro components for plugin blocks.
+- [Page fragments](/plugins/creating-native-plugins/page-fragments/) adds trusted scripts or HTML to public pages.
+- [Distributing native plugins](/plugins/creating-native-plugins/distributing/) packages the build and source entrypoints for npm.
