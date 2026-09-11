@@ -12,6 +12,7 @@ const ADMIN_DASHBOARD_PATTERN = /\/_emdash\/admin\/?$/;
 const CONTENT_ID_EXTRACTION_PATTERN = /\/content\/[^/]+\/([^/]+)$/;
 const MENU_URL_PATTERN = /\/_emdash\/admin\/menus\//;
 const SETUP_PAGE_PATTERN = /\/_emdash\/admin\/setup/;
+const DEFAULT_LOCALE_SUFFIX_PATTERN = / \(default\)$/;
 
 export class AdminPage {
 	readonly page: Page;
@@ -559,12 +560,15 @@ export class AdminPage {
 	}
 
 	/**
-	 * Get the locale switcher select value from the content list.
+	 * Get the locale selected in the content list.
 	 */
 	async getLocaleFilterValue(): Promise<string | null> {
-		const select = this.page.locator("select").first();
+		const select = this.page.getByRole("combobox", { name: "Locale" });
 		if (await select.isVisible({ timeout: 3000 }).catch(() => false)) {
-			return select.inputValue();
+			const label = (await select.innerText()).trim();
+			return label === "All locales"
+				? ""
+				: label.replace(DEFAULT_LOCALE_SUFFIX_PATTERN, "").toLowerCase();
 		}
 		return null;
 	}
@@ -573,7 +577,11 @@ export class AdminPage {
 	 * Change the locale filter in the content list.
 	 */
 	async setLocaleFilter(locale: string): Promise<void> {
-		await this.page.locator("select").first().selectOption(locale);
+		await this.page.getByRole("combobox", { name: "Locale" }).click();
+		const label = locale
+			? new RegExp(`^${locale.toUpperCase()}(?: \\(default\\))?$`)
+			: "All locales";
+		await this.page.getByRole("option", { name: label }).click();
 		await this.waitForLoading();
 	}
 
