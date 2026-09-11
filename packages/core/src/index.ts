@@ -301,6 +301,7 @@ export type {
 	HookName,
 	ResolvedHook,
 	ResolvedPluginHooks,
+	ActorInfo,
 	ContentHookEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,

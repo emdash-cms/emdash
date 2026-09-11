@@ -15,6 +15,7 @@ import type {
 	ResolvedPlugin,
 	ResolvedHook,
 	PluginContext,
+	ActorInfo,
 	ContentHookEvent,
 	ContentDeleteEvent,
 	ContentStateChangeEvent,
@@ -488,13 +489,15 @@ export class HookPipeline {
 	/**
 	 * Run content:beforeSave hooks
 	 * Returns modified content from the pipeline. `id` is the existing item's
-	 * ID when updating.
+	 * ID when updating. `actor` is the authenticated user that triggered the
+	 * save, when one is available.
 	 */
 	async runContentBeforeSave(
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
 		id?: string,
+		actor?: ActorInfo,
 	): Promise<{
 		content: Record<string, unknown>;
 		results: HookResult<Record<string, unknown>>[];
@@ -511,6 +514,7 @@ export class HookPipeline {
 				isNew,
 			};
 			if (id !== undefined) event.id = id;
+			if (actor !== undefined) event.actor = { ...actor };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
@@ -550,6 +554,7 @@ export class HookPipeline {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		actor?: ActorInfo,
 	): Promise<HookResult<void>[]> {
 		const hooks = this.getTypedHooks("content:afterSave");
 		const results: HookResult<void>[] = [];
@@ -557,6 +562,7 @@ export class HookPipeline {
 		for (const hook of hooks) {
 			const { handler } = hook;
 			const event: ContentHookEvent = { content, collection, isNew };
+			if (actor !== undefined) event.actor = { ...actor };
 			const ctx = this.getContext(hook.pluginId);
 			const start = Date.now();
 
