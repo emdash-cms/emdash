@@ -1,4 +1,4 @@
-import { mkdir, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
 import { isDid, isHandle, type Handle } from "@atcute/lexicons/syntax";
@@ -9,7 +9,9 @@ import pc from "picocolors";
 import { resolveSources } from "./build/pipeline.js";
 import { runProfileSetup } from "./commands/profile.js";
 import { resolveHandleToDid } from "./manifest/publisher.js";
+import { installedCliVersion } from "./package-version.js";
 import { PackageProfileSetupError } from "./profile/setup.js";
+import { findRepositoryRoot } from "./release-prepare.js";
 
 export const DEFAULT_RELEASE_SERVICE_URL = "https://releases.emdashcms.com";
 export const DEFAULT_RELEASE_ACTION_REF = "main";
@@ -47,6 +49,7 @@ export interface SetupReleaseWorkflowOptions {
 export interface SetupReleaseWorkflowResult {
 	path: string;
 	publisherDid: string;
+	status: "created" | "replaced" | "reused";
 }
 
 export async function setupReleaseWorkflow(
@@ -67,26 +70,32 @@ export async function setupReleaseWorkflow(
 	);
 	const serviceUrl = validateServiceUrl(options.serviceUrl ?? DEFAULT_RELEASE_SERVICE_URL);
 	const actionRef = validateActionRef(options.actionRef ?? DEFAULT_RELEASE_ACTION_REF);
-	const workflowPath = join(sources.pluginDir, RELEASE_WORKFLOW_PATH);
-	if (!options.force) {
-		try {
-			await stat(workflowPath);
-			throw new ReleaseSetupError(
-				"WORKFLOW_EXISTS",
-				`${workflowPath} already exists. Re-run with --force to replace it.`,
-			);
-		} catch (error) {
-			if (error instanceof ReleaseSetupError) throw error;
-			if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
-		}
+	const cliVersion = await installedCliVersion();
+	const repositoryRoot = await findRepositoryRoot(sources.pluginDir);
+	const workflowPath = join(repositoryRoot, RELEASE_WORKFLOW_PATH);
+	const workflow = renderReleaseWorkflow({ serviceUrl, actionRef, cliVersion });
+	let existing: string | null = null;
+	try {
+		existing = await readFile(workflowPath, "utf8");
+	} catch (error) {
+		if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+	}
+	if (existing !== null && existing !== workflow && !options.force) {
+		throw new ReleaseSetupError(
+			"WORKFLOW_EXISTS",
+			`${workflowPath} already exists and differs from the shared EmDash workflow. Re-run with --force to replace it.`,
+		);
 	}
 	await options.beforeWrite?.({ publisherDid, pluginDir: sources.pluginDir });
+	if (existing === workflow && !options.force) {
+		return { path: workflowPath, publisherDid, status: "reused" };
+	}
 
-	await mkdir(join(sources.pluginDir, ".github", "workflows"), { recursive: true });
+	await mkdir(join(repositoryRoot, ".github", "workflows"), { recursive: true });
 	try {
-		await writeFile(workflowPath, renderReleaseWorkflow({ publisherDid, serviceUrl, actionRef }), {
+		await writeFile(workflowPath, workflow, {
 			encoding: "utf8",
-			flag: options.force ? "w" : "wx",
+			flag: options.force || existing !== null ? "w" : "wx",
 		});
 	} catch (error) {
 		if (
@@ -103,7 +112,11 @@ export async function setupReleaseWorkflow(
 		throw error;
 	}
 
-	return { path: workflowPath, publisherDid };
+	return {
+		path: workflowPath,
+		publisherDid,
+		status: existing === null ? "created" : "replaced",
+	};
 }
 
 async function resolvePublisherDid(
@@ -179,17 +192,22 @@ function validateActionRef(value: string): string {
 }
 
 function renderReleaseWorkflow(input: {
-	publisherDid: string;
 	serviceUrl: string;
 	actionRef: string;
+	cliVersion: string;
 }): string {
-	return `name: "Publish EmDash plugin"
+	return `name: "Publish EmDash plugins"
 
 on:
   push:
     tags:
-      - "v*"
+      - "*@*"
   workflow_dispatch:
+    inputs:
+      package:
+        description: "Plugin ID to publish"
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -224,33 +242,27 @@ jobs:
       - name: "Install dependencies"
         run: pnpm install --frozen-lockfile
 
-      - name: "Build plugin bundle"
-        id: bundle
+      - name: "Prepare plugin release"
+        id: prepare
         shell: bash
+        env:
+          EMDASH_RELEASE_SELECTOR: \${{ inputs.package || github.ref_name }}
         run: |
           set -euo pipefail
-          pnpm exec emdash-plugin bundle --dir . --out-dir .emdash-release
-          shopt -s nullglob
-          bundles=(.emdash-release/*.tar.gz)
-          if (( \${#bundles[@]} != 1 )); then
-            echo "Expected exactly one plugin bundle in .emdash-release, found \${#bundles[@]}" >&2
-            exit 1
-          fi
-          printf 'path=%s\\n' "\${bundles[0]}" >> "\${GITHUB_OUTPUT}"
+          pnpm dlx @emdash-cms/plugin-cli@${input.cliVersion} release prepare "\${EMDASH_RELEASE_SELECTOR}" --dir . --out-dir .emdash-release
 
       - name: "Create build provenance"
         id: attest
         uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3
         with:
-          subject-path: \${{ steps.bundle.outputs.path }}
+          subject-path: \${{ steps.prepare.outputs.bundle-file }}
 
       - name: "Publish plugin"
         uses: emdash-cms/emdash/apps/release-action@${input.actionRef}
         with:
           service-url: ${input.serviceUrl}
-          publisher-did: ${input.publisherDid}
-          connection-invitation: \${{ secrets.EMDASH_CONNECTION_INVITATION }}
-          bundle-file: \${{ steps.bundle.outputs.path }}
+          publisher-did: \${{ steps.prepare.outputs.publisher-did }}
+          bundle-file: \${{ steps.prepare.outputs.bundle-file }}
           provenance-file: \${{ steps.attest.outputs.bundle-path }}
 `;
 }
@@ -311,11 +323,16 @@ export const releaseSetupCommand = defineCommand({
 						yes: args.yes,
 					}),
 			});
-			consola.success(`Created ${pc.cyan(result.path)}`);
+			consola.success(
+				result.status === "reused"
+					? `Using shared workflow ${pc.cyan(result.path)}`
+					: `${result.status === "created" ? "Created" : "Replaced"} ${pc.cyan(result.path)}`,
+			);
 			consola.info("Review and commit the workflow when you are ready. Nothing was pushed.");
 			consola.info(
-				"Publish by pushing a version tag such as v1.2.3, or run the workflow from GitHub Actions.",
+				"Publish by pushing a package tag such as gallery@1.2.3, or run the workflow from GitHub Actions.",
 			);
+			consola.info("The first run links this repository workflow in the release dashboard.");
 		} catch (error) {
 			if (error instanceof ReleaseSetupError || error instanceof PackageProfileSetupError) {
 				consola.error(error.message);

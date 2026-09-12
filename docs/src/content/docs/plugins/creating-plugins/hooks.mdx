@@ -20,7 +20,7 @@ async (event, ctx) => ReturnType;
 - `event` — data about what just happened (content being saved, media uploaded, lifecycle transition, etc.)
 - `ctx` — the [`PluginContext`](/plugins/creating-plugins/your-first-plugin/) with storage, KV, logging, and capability-gated APIs
 
-`satisfies SandboxedPlugin` on the default export infers `event` from the hook name (the full canonical event type) and `ctx` as `PluginContext`, so handlers need no parameter annotations. To reference an event type by name in a helper, import it from `emdash/plugin`.
+Assigning the definition to a `SandboxedPlugin`-typed constant infers `event` from the hook name (the full canonical event type) and `ctx` as `PluginContext`, so handlers need no parameter annotations. Export that constant as default. To reference an event type by name in a helper, import it from `emdash/plugin`.
 
 ## Hook configuration
 

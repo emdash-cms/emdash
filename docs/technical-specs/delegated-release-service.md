@@ -132,7 +132,7 @@ interface PackageProfileExtension {
 
 The service normalizes omitted values to the protocol defaults. It validates the repository as a canonical HTTPS source URL and every approver as a DID. The release service can display this policy but cannot change it.
 
-`emdash-plugin release setup` creates a missing package profile or adds the extension to an existing valid profile through the publisher's local CLI session. It asks for confirmation in an interactive terminal and preserves existing package metadata. The service checks the signed extension before confirming a workflow and again before accepting that workflow's artifact uploads. A missing profile, missing extension, or repository mismatch returns `PACKAGE_PROFILE_REQUIRED` with the local setup command.
+`emdash-plugin release setup` creates a missing package profile or adds the extension to an existing valid profile through the publisher's local CLI session. It asks for confirmation in an interactive terminal and preserves existing package metadata. The service checks the signed extension before creating a workflow connection request and again before accepting that workflow's artifact uploads. A missing profile, missing extension, or repository mismatch returns `PACKAGE_PROFILE_REQUIRED` with the local setup command.
 
 The delegated path always requires supported provenance, even when `requireProvenance` is absent. The profile field communicates the publisher's requirement to every installer and non-delegated publisher. A supplied unsupported predicate is present-but-unverifiable and fails delegated publication.
 
@@ -166,6 +166,7 @@ interface GitHubWorkloadPolicy {
 	workflowRef: string;
 	allowedRefs?: string[];
 	allowedEnvironments?: string[];
+	repositoryConnection: boolean;
 	active: boolean;
 	stateVersion: number;
 }
@@ -173,7 +174,7 @@ interface GitHubWorkloadPolicy {
 
 Repository and owner IDs preserve the authorization boundary across GitHub renames or name reuse. This policy narrows who may submit an intent. It cannot weaken the signed package policy or change publisher records.
 
-Ref restrictions are exact by default. The only wildcard form is a trailing `*` under `refs/heads/` or `refs/tags/`; workflow repository and file paths remain exact. Choosing all version tags stores `refs/tags/*` for the trigger ref and only applies the same suffix to the workflow source ref when that source is also tag-based.
+Ref restrictions are exact by default. Trigger refs may use a trailing `*` under `refs/heads/` or `refs/tags/`; workflow repository and file paths remain exact. A reusable repository connection stores the workflow source as `refs/*`, but the separately checked trigger refs still limit which tags and branches can publish. Confirming another ref scope merges it with the marked connection. Existing unmarked workload policies remain package-scoped.
 
 ## Architecture
 
@@ -339,7 +340,7 @@ The following schemas describe required data and constraints. Exact SQL belongs 
 | `operations`                        | Kind, generation, attempt key, token hash, intent ID, phase, materialization digest, start/deadline, completion state                                 |
 | `audit_events`                      | Monotonic sequence, event type, actor realm, actor identity, subject, public-safe payload, timestamp                                                  |
 | `deadlines`                         | Kind, subject ID, scheduled time, generation                                                                                                          |
-| `workflow_connection_invitations`   | One-time SHA-256 token hash, package slug, expiry, creation time                                                                                      |
+| `workflow_connection_invitations`   | Legacy one-time SHA-256 token hash, package slug, expiry, creation time                                                                               |
 | `workflow_connection_requests`      | ULID, mutation key, connection key, package slug, normalized OIDC claims, state, ref scope, expected policy version, expiry and timestamps            |
 
 Sensitive values are encrypted individually with associated data binding the publisher DID, table, row identity, and key version. The database never stores an encryption master key.
@@ -392,11 +393,11 @@ Allowed transitions are explicit. Compare-and-set transition methods take the ex
 3. Hosted-service admission policy permits or rejects the publisher.
 4. The publisher authorizes the exact delegated release scope for create-only release records and gzip-package and image-blob uploads.
 5. The service verifies the returned grant and stores the encrypted session in the publisher object.
-6. The publisher creates a 30-minute workflow connection invitation for the plugin and stores the one-time value as the `EMDASH_CONNECTION_INVITATION` GitHub Actions secret.
-7. The permanent release Action runs in the intended GitHub Actions workflow. Its audience-bound OIDC token supplies the immutable repository and owner IDs, workflow file, ref, and environment.
-8. When no matching workload policy exists, the publisher object atomically consumes the package-bound invitation, stores a short-lived workflow connection request, and returns a browser approval URL. The Action writes that URL to the job summary and waits.
-9. The browser displays the human-readable repository, workflow file, branch or tag, and environment. For a tag-triggered release, the publisher chooses the current tag or all version tags. Confirmation creates the package-to-GitHub-workload policy; the OIDC request cannot create authority by itself. The publisher can reject a request without granting authority.
-10. The service fetches and validates the signed package profile.
+6. The permanent release Action runs in the intended GitHub Actions workflow. Its audience-bound OIDC token supplies the immutable repository and owner IDs, workflow file, ref, and environment.
+7. Before storing a connection request, the service fetches the initiating package profile and requires its canonical repository to match the OIDC repository. Unrelated GitHub principals cannot consume publisher onboarding capacity.
+8. When no matching repository workflow scope exists, the publisher object stores a short-lived workflow connection request and returns a browser approval URL. The Action writes that URL to the job summary and waits.
+9. The browser displays the human-readable repository, workflow file, branch or tag, environment, and initiating package. For a tag-triggered release, the publisher chooses the current tag or all package version tags. Confirmation creates or extends the package workload policy and marks it as a reusable repository connection; the OIDC request cannot create authority by itself. The publisher can reject a request without granting authority.
+10. A later package whose signed profile names the same repository reuses the confirmed repository, workflow, ref, and environment scope. The publisher object derives an unmarked package policy so the existing intent and revocation guards remain package-scoped. Unmarked policies created before this model are never used to derive another package's authority.
 11. Profile-listed approvers use the same Atmosphere login and enrol passkeys before approving a release.
 12. A dry-run submission verifies OIDC identity, request shape, service admission, and workload policy without reserving, rate-limiting, starting verification, or publishing a version. It does not fetch or validate the artifact or provenance document.
 
@@ -406,7 +407,7 @@ The publisher can revoke the delegation from the service or directly through the
 
 1. GitHub Actions builds and bundles the plugin.
 2. GitHub Actions creates SLSA provenance for the exact bundle.
-3. The Action requests or verifies its workflow connection with an OIDC token whose audience is the release service. A missing policy requires and consumes a publisher-created invitation before creating a pending request; a matching policy lets the run continue without an invitation.
+3. The Action requests or verifies its repository workflow connection with an OIDC token whose audience is the release service. The service validates the signed package-to-repository binding before creating a pending request. A matching marked repository workflow scope derives a policy for a new package without another browser decision. An unmatched tag or branch scope requires confirmation and is merged into the connection without removing existing scopes.
 4. After browser confirmation, the Action uploads the bundle and raw Sigstore file to private staging with fresh OIDC tokens. Each object is checksum-bound to the publisher, workload, package, version, and slot.
 5. The Action submits the package, version, staged source references, checksums, and idempotency key. Artifact descriptors contain internal HTTPS references and no PDS blobs.
 6. The Worker verifies request shape, OIDC signature and claims, and routes to the publisher object.
@@ -496,7 +497,7 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 | -------------------------------------- | ----------------------------------------------------------------- |
 | `POST /v1/release-intents`             | Submit or replay an OIDC-authenticated intent                     |
 | `POST /v1/release-intents/dry-run`     | Check OIDC and admission policy without creating an intent        |
-| `POST /v1/workflow-connections`        | Request a connection using OIDC and a one-time invitation         |
+| `POST /v1/workflow-connections`        | Request or reuse a repository workflow connection using OIDC      |
 | `GET /v1/release-intents/{id}`         | Read status using matching workload identity or publisher session |
 | `POST /v1/release-intents/{id}/cancel` | Cancel before publication                                         |
 
@@ -510,7 +511,7 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 | `DELETE /v1/publisher/delegation`                             | Revoke retained authority                                 |
 | `GET /v1/publisher/workloads`                                 | List package workload policies                            |
 | `POST /v1/publisher/workloads`                                | Create or replace an authorized policy                    |
-| `POST /v1/publisher/workflow-connection-invitations`          | Create a package-bound, 30-minute connection invitation   |
+| `POST /v1/publisher/workflow-connection-invitations`          | Create a legacy package-bound connection invitation       |
 | `GET /v1/publisher/workflow-connections`                      | List pending workflow connection requests                 |
 | `POST /v1/publisher/workflow-connections/{requestId}/confirm` | Confirm a request and create its workload policy          |
 | `DELETE /v1/publisher/workflow-connections/{requestId}`       | Reject and clear a pending connection request             |
@@ -519,7 +520,7 @@ Health endpoints are outside the versioned API. `GET /health` is configuration-i
 | `GET /v1/publisher/intents`                                   | List publisher intents with cursor pagination             |
 | `GET /v1/publisher/audit`                                     | List publisher-scoped audit events with cursor pagination |
 
-`POST /v1/workflow-connections` is the GitHub OIDC-authenticated endpoint used by the permanent Action and `release submit`. It returns an existing matching policy without requiring an invitation. For an unmatched workflow, it atomically consumes a valid package-bound invitation and records a pending request in the publisher shard. It cannot create a workload policy.
+`POST /v1/workflow-connections` is the GitHub OIDC-authenticated endpoint used by the permanent Action and `release submit`. It checks the signed package profile before recording an unmatched workflow request. A publisher confirmation marks the resulting policy as a repository workflow scope. Later package profiles that name the same repository reuse that scope and receive their own unmarked package policy. Existing unmarked policies stay package-scoped. The optional invitation field and publisher invitation endpoint remain available for workflows generated before repository connections.
 
 ### Approver API
 

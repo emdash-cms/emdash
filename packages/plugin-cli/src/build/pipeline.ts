@@ -285,6 +285,7 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			dts: false,
 			platform: "neutral",
 			external: [],
+			inlineOnly: false,
 			treeshake: true,
 		});
 	} catch (error) {
@@ -532,6 +533,7 @@ export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFil
 			dts: true,
 			platform: "neutral",
 			external: [],
+			inlineOnly: false,
 			minify: true,
 			treeshake: true,
 		});

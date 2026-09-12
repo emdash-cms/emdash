@@ -12946,6 +12946,7 @@ async function runAction(runtime, dependencies = {}) {
 	await setIntentOutputs(runtime, intent);
 	if (intent.state === "awaiting_approval") {
 		runtime.info(`Release intent ${intent.id} requires approval: ${intent.approvalUrl}`);
+		await runtime.writeSummary(`## Approve ${intent.packageSlug} ${intent.version}\n\n[Open EmDash to review and approve the release](${intent.approvalUrl})`);
 		return intent;
 	}
 	if (intent.state === "published" && intent.result) {

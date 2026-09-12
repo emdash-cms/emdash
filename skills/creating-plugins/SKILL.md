@@ -20,6 +20,12 @@ EmDash has two plugin formats:
 
 **Native is an escape hatch** for plugins that need React admin components, direct DB access, or custom Astro components. Native plugins can only run in `plugins: []` -- they cannot be sandboxed or published to the marketplace.
 
+## Scaffold a sandboxed plugin
+
+Start a new sandboxed plugin with `npx @emdash-cms/plugin-cli init <slug>`. The interactive command requires publisher, author, and security metadata, detects the package manager, validates the complete manifest before writing, and shows a project summary for confirmation. The generated repository contains `AGENTS.md` and `skills/creating-plugins/SKILL.md`; `.agents/skills` and `.claude/skills` point to the same canonical directory so Codex and Claude load identical instructions.
+
+For non-interactive scaffolding, pass `--yes` with `--publisher`, `--author-name`, and either `--security-email` or `--security-url`. Local publisher and Git identity defaults are used only with `--use-detected`.
+
 ## Plugin Anatomy
 
 Every plugin has two parts that **run in different contexts**:
@@ -221,15 +227,16 @@ When a marketplace plugin is installed, the admin sees a capability consent dial
 
 ## Publishing to the Marketplace
 
-Standard plugins can be published to the EmDash Marketplace for one-click installation:
+Publish a standard plugin locally with the plugin CLI:
 
 ```bash
-emdash plugin bundle --dir packages/plugins/my-plugin  # creates .tar.gz
-emdash plugin login                                      # authenticate via GitHub
-emdash plugin publish --tarball dist/my-plugin-1.0.0.tar.gz
+pnpm exec emdash-plugin login <atmosphere-handle>
+pnpm exec emdash-plugin publish
 ```
 
-See [Publishing Reference](./references/publishing.md) for bundle format, validation, and security audit details.
+For GitHub Actions, run `emdash-plugin release setup` from one plugin package. It prepares that package profile and creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. The first `<slug>@<version>` tag requests approval for the repository workflow through GitHub OpenID Connect. A manual run requests approval the first time its branch is used; confirmation adds that scope without replacing approved tags. Later packages reuse approved scopes when their signed profiles name the same repository. Prepare each package with `emdash-plugin profile setup --dir <package-directory>`.
+
+Read [Publishing](./references/publishing.md) before configuring local or delegated releases. It defines the manifest, profile, tag, provenance, and approval requirements.
 
 ## Package Exports
 

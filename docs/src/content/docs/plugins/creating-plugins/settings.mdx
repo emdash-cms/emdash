@@ -86,7 +86,7 @@ const interactionSchema = z.discriminatedUnion("type", [
 	}),
 ]);
 
-export default {
+const plugin: SandboxedPlugin = {
 	routes: {
 		admin: {
 			handler: async (routeCtx, ctx) => {
@@ -110,7 +110,9 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 
 async function renderSettings(ctx: PluginContext): Promise<BlockResponse> {
 	const apiKeyConfigured = (await ctx.kv.get<string>("settings:apiKey")) !== null;

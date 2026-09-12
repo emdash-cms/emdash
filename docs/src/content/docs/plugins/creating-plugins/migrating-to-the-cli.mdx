@@ -56,11 +56,11 @@ Replace every legacy name in the manifest:
 
 Use `network:request` with a non-empty `allowedHosts` list. Use `network:request:unrestricted` with an empty list only when an operator chooses the destination at runtime. [Capabilities and security](/plugins/creating-plugins/capabilities/) explains the current permissions and network rules.
 
-### Changed: sandboxed plugins are defined with `satisfies SandboxedPlugin`
+### Changed: sandboxed plugins use an explicit `SandboxedPlugin` annotation
 
 Earlier releases wrapped the plugin's hooks and routes in `definePlugin()` imported from `emdash`, with each handler's parameters annotated by hand.
 
-A sandboxed plugin is now a bare default export annotated with `satisfies SandboxedPlugin`. The type comes from `emdash/plugin`, a type-only entry point that the bundler erases. TypeScript infers each handler's `event` and `ctx` from the hook or route name, so handler parameters need no annotations.
+A sandboxed plugin assigns its definition to a `SandboxedPlugin`-typed constant and exports that constant as default. The type comes from `emdash/plugin`, a type-only entry point that the bundler erases. TypeScript infers each handler's `event` and `ctx` from the hook or route name, so handler parameters need no annotations. The explicit annotation also keeps generated declarations portable under isolated package-manager layouts.
 
 #### What should I do?
 
@@ -71,11 +71,13 @@ import { definePlugin, type ContentHookEvent, type PluginContext } from "emdash"
 import type { SandboxedPlugin } from "emdash/plugin";
 ```
 
-Replace the `definePlugin()` wrapper with a bare object and a `satisfies` annotation:
+Replace the `definePlugin()` wrapper with an explicitly typed constant:
 
-```ts del={1} ins={2} "} satisfies SandboxedPlugin;"
+```ts del={1} ins={2-4}
 export default definePlugin({ /* hooks, routes */ });
-export default { /* hooks, routes */ } satisfies SandboxedPlugin;
+const plugin: SandboxedPlugin = { /* hooks, routes */ };
+
+export default plugin;
 ```
 
 Remove the parameter annotations from every handler:
@@ -90,7 +92,7 @@ The result is one default-exported object:
 ```ts title="src/plugin.ts"
 import type { SandboxedPlugin } from "emdash/plugin";
 
-export default {
+const plugin: SandboxedPlugin = {
 	hooks: {
 		"content:beforeSave": {
 			handler: async (event, ctx) => {
@@ -98,7 +100,9 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
 To name an event type in a helper function, import it from `emdash/plugin`:
@@ -187,7 +191,7 @@ These are removed. They were helper aliases for the previous `definePlugin` shap
 
 #### What should I do?
 
-Use `SandboxedPlugin` from `emdash/plugin` for the same purpose. A sandboxed plugin's default export is already typed by its `satisfies SandboxedPlugin` annotation, so there is no replacement for `isStandardPluginDefinition`; identify a plugin by its structure (`{ hooks?, routes? }`) if you need to.
+Use `SandboxedPlugin` from `emdash/plugin` for the same purpose. A sandboxed plugin's exported definition is already typed by its `SandboxedPlugin` annotation, so there is no replacement for `isStandardPluginDefinition`; identify a plugin by its structure (`{ hooks?, routes? }`) if you need to.
 
 ### Renamed: sandbox-runner handles use `SandboxedPluginInstance`
 

@@ -10,6 +10,19 @@ CLI for authoring, building, and publishing EmDash plugins.
 npx @emdash-cms/plugin-cli init my-plugin
 ```
 
+Interactive setup collects the required publisher, author, and security metadata, detects the invoking package manager, and shows a project summary before writing. The scaffold includes `AGENTS.md`, a canonical `skills/creating-plugins` skill shared through `.agents/skills` and `.claude/skills` symlinks, a Claude instruction link, package scripts for every validation and publishing command, and pnpm build-script policy when pnpm is selected.
+
+Non-interactive setup requires explicit ownership metadata:
+
+```sh
+npx @emdash-cms/plugin-cli init my-plugin --yes \
+  --publisher did:plc:abc123def456 \
+  --author-name "Jane Doe" \
+  --security-email security@example.com
+```
+
+Pass `--package-manager npm|pnpm|yarn|bun` to override invocation detection. Pass `--use-detected` only when the command should use the active publisher session and local Git identity or repository metadata.
+
 Or install globally:
 
 ```sh
@@ -27,6 +40,7 @@ emdash-plugin bundle                         Pack dist/ + assets into a registry
 emdash-plugin publish                        Build, upload, and publish a release
 emdash-plugin profile setup                  Create or prepare the signed package profile
 emdash-plugin release setup                  Create the permanent GitHub release workflow
+emdash-plugin release prepare <slug[@ver]>   Prepare one repository package for GitHub Actions
 emdash-plugin release delegate               Print a publisher delegation browser handoff
 emdash-plugin release revoke                 Print an authority revocation browser handoff
 emdash-plugin release workload               Print a workload policy browser handoff
@@ -76,7 +90,7 @@ A typical plugin's `package.json` scripts:
 The plugin author writes two files:
 
 - `emdash-plugin.jsonc` — identity (slug, publisher) + trust contract (capabilities, allowedHosts, storage) + profile fields.
-- `src/plugin.ts` — runtime behaviour (hooks + routes), with `export default { ... } satisfies SandboxedPlugin` from `emdash/plugin`.
+- `src/plugin.ts` — runtime behaviour (hooks + routes), assigned to a `SandboxedPlugin`-typed constant from `emdash/plugin` and exported as default.
 
 `emdash-plugin build` produces:
 
@@ -99,7 +113,7 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 ## Delegated releases
 
-See [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the complete publisher journey, including release-service authorisation, workflow invitations, first-run approval, passkeys, and troubleshooting.
+See [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the complete publisher journey, including release-service authorisation, first-run repository approval, passkeys, and troubleshooting.
 
 Run the setup command from a public GitHub repository containing an EmDash plugin:
 
@@ -114,15 +128,15 @@ Set `repo` in `emdash-plugin.jsonc`, or enter the canonical GitHub repository UR
 
 Both setup commands accept `--repository <url>`, `--confirmation escalation-only|always`, and `--yes`. `release setup` also accepts `--service-url`, `--action-ref`, and `--force` for the generated workflow. The default hosted service is `https://releases.emdashcms.com`.
 
-After preparing the profile, `release setup` creates `.github/workflows/emdash-release.yml`. Review and commit that file. The command does not push or change an existing workflow; pass `--force` to replace one deliberately. In a non-interactive environment, pass `--yes` to accept the default approval policy. The command fails rather than creating or changing a profile when it cannot prompt and `--yes` is absent.
+After preparing the profile, `release setup` creates one `.github/workflows/emdash-release.yml` at the Git repository root. Nested plugin packages reuse that workflow. Review and commit the file. The command does not push or replace a different existing workflow; pass `--force` to replace one deliberately. In a non-interactive environment, pass `--yes` to accept the default approval policy. The command fails rather than creating or changing a profile when it cannot prompt and `--yes` is absent.
 
-The generated workflow builds the plugin, creates signed GitHub build provenance, and publishes on version tags or a manual run. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
+The generated workflow resolves `<slug>@<version>` package tags to a unique plugin manifest, builds that package, creates signed GitHub build provenance, and publishes it. Manual runs accept a plugin ID and use its manifest version. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
 
-Sign in to the release-service dashboard with the Atmosphere account that owns the plugin and authorize EmDash to create plugin releases. Enter the plugin ID under **Connect another GitHub Actions workflow**, then create an invitation. Add the one-time value to the GitHub repository as an Actions secret named `EMDASH_CONNECTION_INVITATION`.
+Sign in to the release-service dashboard with the Atmosphere account that owns the plugin and authorize EmDash to create plugin releases.
 
-Start the workflow within 30 minutes by pushing a version tag such as `v1.2.3`. The first run consumes the invitation, waits, and adds an approval link to the GitHub job summary. Open that link, check the repository, workflow file, branch or tag, and environment, then confirm the workflow. The same run continues after confirmation. If the invitation expires before the workflow consumes it, create another invitation and update the secret.
+Start the workflow by pushing a package tag such as `gallery@1.2.3`. The service verifies that the signed `gallery` profile names the GitHub repository, then the first run for that tag scope waits and adds a repository-approval link to the GitHub job summary. Open that link, check the repository, workflow file, branch or tag, and environment, then confirm the connection. The same run continues after confirmation.
 
-For a release started from a tag, the dashboard can authorize all version tags or only the current tag. Repository and workflow paths remain exact in both cases.
+For a release started from a tag, the dashboard can authorize all package version tags or only the current tag. A manual run requests approval the first time its branch is used. Confirming another scope extends the connection instead of replacing existing scopes. Repository and workflow paths remain exact. A later package reuses approved scopes when its signed profile names the same repository. Policies created by older package-scoped workflows are not reused for another package.
 
 The workflow uploads the bundle and raw Sigstore attestation to private, transient service storage with a fresh GitHub Actions OpenID Connect (OIDC) token for each request. The service verifies the exact bytes, uploads the plugin bundle to the publisher's personal data server (PDS), and publishes a release record containing the PDS blob. The published provenance URL points to the immutable verified attestation.
 
@@ -138,7 +152,7 @@ emdash-plugin release submit release.json \
   --publisher-did did:web:publisher.example.com
 ```
 
-Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. An unmatched custom workflow also reads its one-time invitation from `EMDASH_CONNECTION_INVITATION`. The default idempotency key uses the GitHub run ID, so a re-run reuses the existing intent. Pass `--idempotency-key` when separate runs or jobs must replay the same submission.
+Set `EMDASH_RELEASE_SERVICE_URL` and `EMDASH_PUBLISHER_DID` to omit the two target flags. The default idempotency key uses the GitHub run ID, so a re-run reuses the existing intent. Pass `--idempotency-key` when separate runs or jobs must replay the same submission.
 
 Each package or listing-image artifact in a hand-authored source record must use a checksum-bound HTTPS `url` and must not include `blob`. The published release record contains PDS blob references and no artifact source URLs.
 

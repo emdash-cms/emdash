@@ -1,82 +1,70 @@
-# Publishing to the Marketplace
+# Publishing sandboxed plugins
 
-Sandboxed plugins can be published to the EmDash Marketplace for one-click installation from the admin UI.
+Use `@emdash-cms/plugin-cli` for registry publishing. The package profile and release records belong to the Atmosphere account named by `publisher` in `emdash-plugin.jsonc`.
 
-## Bundle Format
+## Required package metadata
 
-Published plugins are `.tar.gz` tarballs:
+Before publishing, require:
 
-| File            | Required | Description                                     |
-| --------------- | -------- | ----------------------------------------------- |
-| `manifest.json` | Yes      | Metadata extracted from `definePlugin()`        |
-| `backend.js`    | No       | Bundled sandbox code (self-contained ES module) |
-| `admin.js`      | No       | Bundled admin UI code                           |
-| `README.md`     | No       | Plugin documentation                            |
-| `icon.png`      | No       | Plugin icon (256x256 PNG)                       |
-| `screenshots/`  | No       | Up to 5 screenshots (PNG/JPEG, max 1920x1080)   |
+- a unique plugin `slug`;
+- a publisher DID or Atmosphere handle;
+- a version in `package.json` or `emdash-plugin.jsonc`;
+- a license, at least one author, and at least one security contact;
+- declared capabilities and allowed hosts that match the plugin implementation;
+- a canonical public GitHub `repo` for delegated releases.
 
-## Package Exports for Bundling
+Run validation from the plugin directory:
 
-The bundle command uses `package.json` exports to find entrypoints:
-
-```json
-{
-	"exports": {
-		".": { "import": "./dist/index.mjs" },
-		"./sandbox": { "import": "./dist/sandbox-entry.mjs" },
-		"./admin": { "import": "./dist/admin.mjs" }
-	}
-}
+```sh
+pnpm exec emdash-plugin validate
 ```
 
-| Export        | Purpose                       | Built as                             |
-| ------------- | ----------------------------- | ------------------------------------ |
-| `"."`         | Main entry — extract manifest | Externals: `emdash`, `@emdash-cms/*` |
-| `"./sandbox"` | Backend code for the sandbox  | Fully self-contained (no externals)  |
-| `"./admin"`   | Admin UI components           | Fully self-contained                 |
+## Local publishing
 
-If `"./sandbox"` is missing, the command looks for `src/sandbox-entry.ts`.
+Use local publishing when the maintainer starts the release from their computer:
 
-## Build and Publish
-
-```bash
-# Bundle only (inspect first)
-emdash plugin bundle
-tar tzf dist/my-plugin-1.0.0.tar.gz
-
-# Publish (uploads to marketplace)
-emdash plugin publish
-
-# Build + publish in one step
-emdash plugin publish --build
+```sh
+pnpm exec emdash-plugin login alice.example.com
+pnpm exec emdash-plugin publish
 ```
 
-First-time publish authenticates via GitHub device authorization. Token stored in `~/.config/emdash/auth.json` (30-day expiry).
+`publish` builds and validates the bundle, uploads its files to the publisher's personal data server, and creates the package release record. Use `emdash-plugin bundle` to inspect a tarball without publishing it.
 
-## Validation
+## Automated repository releases
 
-The bundle command checks:
+Generate the shared workflow from one plugin package:
 
-- **Size limit** — Total bundle under 5MB
-- **No Node.js built-ins** — `backend.js` cannot import `fs`, `path`, etc.
-- **Sandbox-incompatible features** — Warns if the plugin declares `portableTextBlocks`, `admin.entry` (React components), or API `routes`, since these require trusted mode
-- **Icon dimensions** — 256x256 PNG (warns if wrong)
-- **Screenshot limits** — Max 5, max 1920x1080
+```sh
+pnpm exec emdash-plugin release setup
+```
 
-## Security Audit
+The command prepares the current signed package profile and writes `.github/workflows/emdash-release.yml` at the Git repository root. It does not push the file. The workflow is shared by all plugin packages in that repository and requires no Actions secret.
 
-Every published version is automatically audited for:
+The generated workflow publishes tags in `<slug>@<version>` form:
 
-- Data exfiltration patterns
-- Credential harvesting via settings
-- Obfuscated code
-- Resource abuse (crypto mining, etc.)
-- Suspicious network activity
+```sh
+git tag gallery@1.2.3
+git push origin gallery@1.2.3
+```
 
-Verdict: **pass**, **warn**, or **fail** — displayed on marketplace listing.
+The workflow runs `release prepare` through the exact plugin CLI version that generated it. The command finds exactly one `emdash-plugin.jsonc` whose slug matches the tag, requires the manifest version to match, builds that package, and writes its outputs for the provenance and release Actions. Duplicate slugs, missing packages, and version mismatches stop before attestation.
 
-## Version Requirements
+The first run uses GitHub OpenID Connect to request a repository connection. The service checks that the initiating package's signed profile names the same repository before creating the request. The publisher approves the repository, workflow file, ref scope, and environment in the release dashboard. A manual run requests approval the first time its branch is used; confirmation adds that scope without removing approved tags or branches.
 
-- Each version must have higher semver than the last
-- Cannot overwrite or republish an existing version
-- Plugin ID is auto-registered on first publish
+Prepare another package without changing the workflow:
+
+```sh
+pnpm exec emdash-plugin profile setup --dir packages/comments
+git tag comments@1.0.0
+git push origin comments@1.0.0
+```
+
+The later package reuses an approved repository scope only when its signed profile names that repository. Package approvals created by older workflows remain package-scoped until an unmatched package or ref is explicitly approved as a repository connection. Release confirmation remains package-specific: `escalation-only` requires approval when declared access increases, while `always` requires approval for every release.
+
+## Verification boundaries
+
+The release service verifies the GitHub repository and owner IDs, workflow, ref, environment, commit, run, runner, package profile, bundle checksum, manifest identity, declared access, and raw Sigstore provenance. It accepts artifacts only after the repository workflow and signed package profile both authorize the run.
+
+Metadata moderation and release verification are separate. Registry moderation covers displayed package metadata and media. Installation independently verifies release records, bundle checksums, and declared access.
+
+Use the public [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) guide for the complete publisher journey and troubleshooting.

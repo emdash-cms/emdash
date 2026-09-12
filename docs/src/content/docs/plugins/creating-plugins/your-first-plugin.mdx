@@ -27,24 +27,31 @@ You need:
    pnpm dlx @emdash-cms/plugin-cli init save-log
    ```
 
-   The command asks for the publisher, author, and security contact, then creates this structure:
+	   The command asks for the publisher, author, security contact, and source repository, then shows a project summary before creating this structure:
 
    ```text
-   save-log/
-   ├── emdash-plugin.jsonc
-   ├── package.json
+	   save-log/
+	   ├── .agents/
+	   │   └── skills -> ../skills
+	   ├── .claude/
+	   │   ├── CLAUDE.md -> ../AGENTS.md
+	   │   └── skills -> ../skills
+	   ├── AGENTS.md
+	   ├── emdash-plugin.jsonc
+	   ├── package.json
+	   ├── pnpm-workspace.yaml
    ├── src/
    │   └── plugin.ts
    ├── tests/
    │   └── plugin.test.ts
    ├── tsconfig.json
-   ├── README.md
+	   ├── README.md
+	   ├── skills/
+	   │   └── creating-plugins/SKILL.md
    └── .gitignore
    ```
 
-   If you skip an answer, the generated manifest contains a `TODO` value. Replace every `TODO` before validating or building the plugin.
-
-2. Install the generated package's dependencies.
+	2. Install the generated package's dependencies.
 
    ```sh
    cd save-log
@@ -88,7 +95,7 @@ Replace the generated `src/plugin.ts` with the following runtime definition:
 ```typescript title="src/plugin.ts"
 import type { SandboxedPlugin } from "emdash/plugin";
 
-export default {
+const plugin: SandboxedPlugin = {
 	hooks: {
 		"content:afterSave": {
 			handler: async (event, ctx) => {
@@ -116,10 +123,12 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
-`src/plugin.ts` default-exports a plain object. The type-only `SandboxedPlugin` import gives the hook and route their parameter types without adding the EmDash runtime to the bundle.
+`src/plugin.ts` assigns the definition to a `SandboxedPlugin`-typed constant and exports it as default. The annotation gives the hook and route their parameter types without adding the EmDash runtime to the bundle or producing package-manager-specific declaration paths.
 
 Hook handlers receive `(event, ctx)`. Route handlers receive `(routeCtx, ctx)`. The `health` route is public and read-only, so it can be checked without an admin session. Public routes are internet-facing; [API routes](/plugins/creating-plugins/api-routes/#authentication-and-csrf) explains the authentication and browser-origin rules before you expose real data or mutations.
 
@@ -140,13 +149,13 @@ describe("health route", () => {
 		}
 
 		const result = await route.handler({} as never, makeTestContext());
-		expect(result).toEqual({ ok: true, plugin: "test-plugin" });
+			expect(result).toEqual({ ok: true, plugin: "save-log" });
 	});
 });
 
 function makeTestContext() {
 	return {
-		plugin: { id: "test-plugin", version: "0.1.0" },
+		plugin: { id: "save-log", version: "0.1.0" },
 	} as unknown as import("emdash").PluginContext;
 }
 ```
@@ -156,9 +165,10 @@ function makeTestContext() {
 Run the generated test, validate the manifest, and build the npm artifacts.
 
 ```sh
-pnpm test
-pnpm exec emdash-plugin validate
-pnpm exec emdash-plugin build
+	pnpm run validate
+	pnpm run typecheck
+	pnpm run test
+	pnpm run build
 ```
 
 The build creates:

@@ -9,7 +9,7 @@ inputs:
     description: Publisher DID that owns the package.
     required: true
   connection-invitation:
-    description: Single-use invitation created by the publisher for the first workflow connection.
+    description: Legacy single-use package invitation from workflows created before repository connections.
     required: false
   release-file:
     description: Legacy path to a URL-source release JSON file. Cannot be combined with bundle or provenance inputs.
