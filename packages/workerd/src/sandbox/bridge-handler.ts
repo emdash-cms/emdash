@@ -20,6 +20,7 @@ import {
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
 	PluginStorageRepository,
+	StorageSerializationError,
 	resolveContentCreateLocale,
 } from "emdash";
 import type { Database, I18nConfig, SandboxEmailSendCallback } from "emdash";
@@ -147,6 +148,23 @@ export function createBridgeHandler(
 				return Response.json(
 					{ error: sandboxRouteError.error },
 					{ status: sandboxRouteError.error.status },
+				);
+			}
+			if (error instanceof StorageSerializationError) {
+				return Response.json(
+					{
+						error: {
+							name: "StorageSerializationError",
+							code: "STORAGE_SERIALIZATION_FAILURE",
+							retryable: true,
+							...(error.sqlState === "40001" || error.sqlState === "40P01"
+								? { sqlState: error.sqlState }
+								: {}),
+							message:
+								"Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+						},
+					},
+					{ status: 503 },
 				);
 			}
 			const message = error instanceof Error ? error.message : "Internal error";
@@ -309,6 +327,12 @@ async function dispatch(
 		case "storage/get":
 			validateStorageCollection(opts, requireString(body, "collection"));
 			return storageGet(opts, requireString(body, "collection"), requireString(body, "id"));
+		case "storage/updateIf":
+			validateStorageCollection(opts, requireString(body, "collection"));
+			return getStorageRepo(opts, requireString(body, "collection")).updateIf(
+				requireString(body, "id"),
+				body.args,
+			);
 		case "storage/put":
 			validateStorageCollection(opts, requireString(body, "collection"));
 			return storagePut(

@@ -26,6 +26,38 @@ export class StorageQueryError extends Error {
 }
 
 /**
+ * Error thrown when a guarded `updateIf` loses a concurrent race by aborting
+ * rather than resolving to `{ applied: false }`.
+ *
+ * `updateIf`'s `{ applied: false }` contract (row absent OR guard failed)
+ * assumes READ COMMITTED — the default. There, a losing concurrent writer
+ * re-evaluates the guard against the winner's freshly committed row and
+ * cleanly resolves to `{ applied: false }`. Two aborts escape that contract:
+ *
+ * - `40001` (serialization_failure), only above READ COMMITTED, where the
+ *   loser cannot re-read against a newer snapshot.
+ * - `40P01` (deadlock_detected), at any isolation level, when transactions
+ *   take row locks in opposite order.
+ *
+ * This error surfaces either abort so the caller can retry the write.
+ *
+ * The no-oversell SAFETY invariant holds either way: a losing writer NEVER
+ * applies its update — it either sees `{ applied: false }` or throws here.
+ */
+export class StorageSerializationError extends Error {
+	readonly code = "STORAGE_SERIALIZATION_FAILURE";
+	readonly retryable = true;
+	/** The Postgres SQLSTATE that triggered this error (`40001` / `40P01`). */
+	readonly sqlState?: string;
+
+	constructor(message: string, options?: { cause?: unknown; sqlState?: string }) {
+		super(message, { cause: options?.cause });
+		this.name = "StorageSerializationError";
+		this.sqlState = options?.sqlState;
+	}
+}
+
+/**
  * Check if a value is a range filter
  */
 export function isRangeFilter(value: WhereValue): value is RangeFilter {
@@ -213,6 +245,17 @@ export function buildCondition(
 		if (value.lt !== undefined) pushBound("<", value.lt);
 		if (value.lte !== undefined) pushBound("<=", value.lte);
 
+		// A filter with no defined bound contributes no SQL. Returning it would
+		// widen the caller's predicate to "match everything" — survivable in a
+		// read, but it strips the guard off a conditional write.
+		if (conditions.length === 0) {
+			throw new StorageQueryError(
+				`Range filter for field '${field}' has no defined bound`,
+				field,
+				"Provide at least one of gt, gte, lt, or lte, or omit the field.",
+			);
+		}
+
 		return {
 			sql: conditions.join(" AND "),
 			params,
@@ -238,6 +281,8 @@ export function buildWhereClause(
 
 	for (const [field, value] of Object.entries(where)) {
 		const condition = buildCondition(db, field, value);
+		// An empty slot in the join would emit `<cond> AND ` and fail to parse.
+		if (!condition.sql) continue;
 		conditions.push(condition.sql);
 		params.push(...condition.params);
 	}

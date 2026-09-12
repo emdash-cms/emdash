@@ -17,16 +17,55 @@ import {
 	getIndexedFields,
 	jsonOrderExtract,
 	StorageQueryError,
+	isInFilter,
+	StorageSerializationError,
 } from "../../plugins/storage-query.js";
+import { parseStorageUpdate } from "../../plugins/storage-update.js";
 import type {
 	StorageCollection,
 	QueryOptions,
 	PaginatedResult,
 	WhereClause,
+	UpdateIfResult,
 } from "../../plugins/types.js";
+import { pluginDataWriteExpr, pluginDataUpdateGuard } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
+
+/**
+ * SQLSTATEs a losing concurrent `updateIf` writer can abort with.
+ *
+ * `40001` (serialization_failure) is raised only above READ COMMITTED, where
+ * the loser cannot re-evaluate its guard against a newer snapshot. `40P01`
+ * (deadlock_detected) is not tied to isolation level: it needs only two
+ * transactions taking row locks in opposite order, which a caller reaches at
+ * READ COMMITTED by wrapping several `updateIf` calls in one transaction.
+ */
+const SERIALIZATION_SQLSTATES = new Set(["40001", "40P01"]);
+
+function errSqlState(err: unknown): string | undefined {
+	if (typeof err !== "object" || err === null) return undefined;
+	const code = (err as { code?: unknown }).code;
+	if (typeof code === "string") return code;
+	const cause = (err as { cause?: unknown }).cause;
+	if (typeof cause === "object" && cause !== null) {
+		const causeCode = (cause as { code?: unknown }).code;
+		if (typeof causeCode === "string") return causeCode;
+	}
+	return undefined;
+}
+
+export function mapSerializationFailure(err: unknown): unknown {
+	const sqlState = errSqlState(err);
+	if (sqlState !== undefined && SERIALIZATION_SQLSTATES.has(sqlState)) {
+		return new StorageSerializationError(
+			"Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+			{ cause: err, sqlState },
+		);
+	}
+	return err;
+}
 
 /**
  * Interleave a `?`-placeholder SQL string with its params into a single
@@ -371,6 +410,47 @@ export class PluginStorageRepository<T = unknown> implements StorageCollection<T
 		const result = await query.executeTakeFirst();
 		// Number() because the pg driver returns COUNT(*) (bigint) as a string.
 		return Number(result?.count ?? 0);
+	}
+
+	async updateIf(id: string, args: unknown): Promise<UpdateIfResult<T>> {
+		if (typeof id !== "string") throw new TypeError("Storage ID must be a string");
+		const { where, setEntries, deltaEntries } = parseStorageUpdate(args);
+
+		// Defensive empty-`in` guard: an empty `in: []` matches nothing. The shared
+		// where-translation would emit invalid `IN ()`; short-circuit to a no-op
+		// (matches nothing → applied:false) BEFORE building any SQL.
+		for (const value of Object.values(where)) {
+			if (isInFilter(value) && value.in.length === 0) {
+				return { applied: false };
+			}
+		}
+
+		const now = new Date().toISOString();
+		const dataExpr = pluginDataWriteExpr(this.db, setEntries, deltaEntries);
+
+		let query = this.db
+			.updateTable("_plugin_storage")
+			.set({ data: dataExpr, updated_at: now })
+			.where("plugin_id", "=", this.pluginId)
+			.where("collection", "=", this.collection)
+			.where("id", "=", id)
+			.where(pluginDataUpdateGuard(this.db, deltaEntries));
+
+		const whereResult = buildWhereClause(this.db, where);
+		if (whereResult.sql) {
+			query = query.where(rawWhereExpr(whereResult.sql, whereResult.params));
+		}
+
+		let row: { data: string } | undefined;
+		try {
+			row = await query.returning("data").executeTakeFirst();
+		} catch (err) {
+			throw mapSerializationFailure(err);
+		}
+		if (!row) return { applied: false };
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
+		const data = JSON.parse(row.data) as T;
+		return { applied: true, data };
 	}
 }
 

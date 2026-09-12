@@ -263,6 +263,7 @@ export interface SandboxedContentBeforeSaveConfig extends Omit<
 }
 
 export type { SandboxHookErrorEnvelope };
+export type { NumericDelta, UpdateIfArgs, UpdateIfResult } from "./plugins/types.js";
 
 /**
  * Re-export of event types so plugin authors can reference them

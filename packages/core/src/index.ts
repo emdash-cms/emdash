@@ -261,6 +261,7 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	StorageSerializationError,
 	ContentSaveRejectedError,
 	isContentSaveRejection,
 	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
@@ -288,6 +289,9 @@ export type {
 	PluginContext,
 	PluginStorageConfig,
 	StorageCollection,
+	NumericDelta,
+	UpdateIfArgs,
+	UpdateIfResult,
 	KVAccess,
 	ContentAccess,
 	ContentCreateOptions,
