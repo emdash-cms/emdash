@@ -107,6 +107,8 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 
 	const {
 		id,
+		displayName,
+		description,
 		version,
 		capabilities = [],
 		allowedHosts = [],
@@ -211,6 +213,8 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 
 	return {
 		id,
+		displayName,
+		description,
 		version,
 		capabilities: normalizedCapabilities,
 		allowedHosts,

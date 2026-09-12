@@ -75,7 +75,7 @@ function buildPluginInfo(
 
 	return {
 		id: plugin.id,
-		name: state?.displayName || plugin.id,
+		name: state?.displayName || plugin.displayName || plugin.id,
 		version: plugin.version,
 		package: undefined, // v2 doesn't have package field
 		enabled,
@@ -92,7 +92,7 @@ function buildPluginInfo(
 		installedAt: state?.installedAt?.toISOString(),
 		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
-		description: state?.description ?? undefined,
+		description: state?.description ?? plugin.description,
 		iconUrl:
 			isMarketplace && marketplaceUrl ? marketplaceIconUrl(marketplaceUrl, plugin.id) : undefined,
 		mcpToolsEnabled: state?.mcpToolsEnabled ?? false,
@@ -125,7 +125,7 @@ function buildSandboxedPluginInfo(
 
 	return {
 		id: entry.id,
-		name: state?.displayName || entry.id,
+		name: state?.displayName || entry.displayName || entry.id,
 		version: entry.version,
 		package: undefined, // v2 doesn't have package field
 		enabled,
@@ -140,7 +140,7 @@ function buildSandboxedPluginInfo(
 		installedAt: state?.installedAt?.toISOString(),
 		activatedAt: state?.activatedAt?.toISOString() ?? undefined,
 		deactivatedAt: state?.deactivatedAt?.toISOString() ?? undefined,
-		description: state?.description ?? undefined,
+		description: state?.description ?? entry.description,
 		mcpToolsEnabled: state?.mcpToolsEnabled ?? false,
 		mcpTools: entry.mcp?.tools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool) ?? [],
 	};

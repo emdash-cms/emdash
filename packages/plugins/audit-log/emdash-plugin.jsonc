@@ -2,6 +2,7 @@
 	"$schema": "../../plugin-cli/schemas/emdash-plugin.schema.json",
 
 	"slug": "audit-log",
+	"name": "Audit Log",
 	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6", // plugins.emdashcms.com
 
 	"license": "MIT",
