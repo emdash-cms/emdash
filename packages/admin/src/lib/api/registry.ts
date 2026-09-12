@@ -235,9 +235,9 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 
 /**
  * Returns whether a release should be considered installable given the
- * configured policy. Currently implements the minimum-release-age check
- * described in RFC 0001's "Pre-label gap and launch tempo" section,
- * plus the `minimumReleaseAgeExclude` allowlist.
+ * configured policy. Applies the `minimumReleaseAgeExclude` allowlist first,
+ * then the proven-first-release exemption, then the minimum-release-age
+ * holdback described in RFC 0001's "Pre-label gap and launch tempo" section.
  *
  * Returns `false` (release blocked) when the policy is configured but
  * the release is missing a valid `indexedAt` -- we fail closed rather

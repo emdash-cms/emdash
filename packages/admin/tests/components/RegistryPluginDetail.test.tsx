@@ -103,16 +103,18 @@ interface ReleaseOverrides {
 	extensions?: Record<string, unknown>;
 	labels?: unknown[];
 	indexedAt?: string;
+	version?: string;
 }
 
 function makeRelease(overrides: ReleaseOverrides = {}): RegistryReleaseView {
 	const cid = `bafyrei${"a".repeat(52)}`;
+	const version = overrides.version ?? "1.2.3";
 	return {
-		uri: "at://did:plc:acme/com.emdashcms.experimental.package.release/myplugin:1.2.3",
+		uri: `at://did:plc:acme/com.emdashcms.experimental.package.release/myplugin:${version}`,
 		cid,
 		did: "did:plc:acme",
 		package: "myplugin",
-		version: "1.2.3",
+		version,
 		indexedAt: overrides.indexedAt ?? "2025-03-01T00:00:00Z",
 		labels: overrides.labels ?? [],
 		release: {
@@ -364,6 +366,28 @@ describe("RegistryPluginDetail minimum release age", () => {
 
 		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
 		await expect.element(screen.getByText("Release is too new to install")).toBeInTheDocument();
+	});
+
+	it("defaults to an older age-qualified release when the newest release is too new", async () => {
+		setup(makePackage({ historicalReleaseCount: 2, releaseHistoryComplete: true }), [
+			makeRelease({ version: "2.0.0", indexedAt: new Date().toISOString() }),
+			makeRelease({ version: "1.0.0", indexedAt: "2025-03-01T00:00:00Z" }),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail
+					pluginId="acme.dev/myplugin"
+					config={{
+						...CONFIG,
+						policy: { minimumReleaseAgeSeconds: 48 * 60 * 60 },
+					}}
+				/>
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeEnabled();
+		await expect.element(screen.getByText("Version 1.0.0")).toBeInTheDocument();
+		expect(screen.getByText("Release is too new to install").query()).toBeNull();
 	});
 });
 
