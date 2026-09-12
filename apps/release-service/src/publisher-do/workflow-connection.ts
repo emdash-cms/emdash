@@ -305,7 +305,8 @@ export function workflowConnectionPolicy(
 	const allowedRefs = [...(sameConnection ? current.allowedRefs : []), ...requestedRefs].toSorted();
 	const requestedEnvironments = request.claim.environment ? [request.claim.environment] : [];
 	const allowedEnvironments =
-		request.claim.environment === null || (sameConnection && current.allowedEnvironments.length === 0)
+		request.claim.environment === null ||
+		(sameConnection && current.allowedEnvironments.length === 0)
 			? []
 			: [
 					...(sameConnection ? current.allowedEnvironments : []),

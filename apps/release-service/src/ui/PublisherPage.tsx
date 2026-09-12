@@ -756,9 +756,9 @@ export function PublisherPage() {
 										/>
 									) : (
 										<p className="mt-4 text-sm text-kumo-subtle">
-										{t(
-											"publisher.connection.scope.branch",
-											"This approval adds the branch to the repository connection. Existing tag and branch scopes remain active.",
+											{t(
+												"publisher.connection.scope.branch",
+												"This approval adds the branch to the repository connection. Existing tag and branch scopes remain active.",
 											)}
 										</p>
 									)}
