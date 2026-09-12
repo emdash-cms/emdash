@@ -460,8 +460,10 @@ describe("mapSerializationFailure", () => {
 		const err = mapped as StorageSerializationError;
 		expect(err.sqlState).toBe("40001");
 		expect(err.cause).toBe(original);
-		expect(err.message).toMatch(/40001/);
-		expect(err.message).toMatch(/READ COMMITTED/);
+		expect(err.code).toBe("STORAGE_SERIALIZATION_FAILURE");
+		expect(err.retryable).toBe(true);
+		expect(err.message).toMatch(/Restart the transaction/);
+		expect(err.message).not.toContain(original.message);
 	});
 
 	it("wraps a 40P01 (deadlock_detected) into StorageSerializationError, preserving cause", () => {
@@ -471,6 +473,8 @@ describe("mapSerializationFailure", () => {
 		const err = mapped as StorageSerializationError;
 		expect(err.sqlState).toBe("40P01");
 		expect(err.cause).toBe(original);
+		expect(err.message).toMatch(/retry/i);
+		expect(err.message).not.toMatch(/READ COMMITTED|REPEATABLE READ|SERIALIZABLE/);
 	});
 
 	it("detects the SQLSTATE nested on `.cause.code` too", () => {

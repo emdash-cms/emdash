@@ -138,8 +138,8 @@ export interface PaginatedResult<T> {
 /**
  * A single per-field integer delta for {@link StorageCollection.updateIf}.
  *
- * `inc`/`dec` values MUST be integers — this is enforced at runtime with
- * `Number.isInteger` (which also rejects `NaN`/`Infinity`), because a TS
+ * `inc`/`dec` values must be safe integers, enforced at runtime with
+ * `Number.isSafeInteger` (which also rejects `NaN`/`Infinity`), because a TS
  * `number` cannot forbid float literals. Deltas are applied entirely in-SQL
  * over the stored value with `COALESCE(<value>, 0) ± n`, so a delta on a
  * missing or JSON-`null` field starts from `0` (never corrupts the document).
@@ -215,14 +215,13 @@ export interface StorageCollection<T = unknown> {
 	 * `UPDATE … RETURNING`. This is the no-oversell primitive: the guard and the
 	 * arithmetic live in one statement, so N concurrent guarded decrements
 	 * serialize correctly. `applied: false` means the row was absent OR the
-	 * guard failed (the two are intentionally indistinguishable). Never inserts.
+	 * guard failed (the two are intentionally indistinguishable). Non-object
+	 * documents, invalid counters and unsafe arithmetic results also fail the
+	 * guard. Never inserts.
 	 *
-	 * ISOLATION: the `applied: false` contract assumes READ COMMITTED (the
-	 * default). A losing writer throws `StorageSerializationError` instead when
-	 * it aborts — above READ COMMITTED with SQLSTATE `40001`, or at any level
-	 * with `40P01` if transactions take row locks in opposite order — and the
-	 * caller should retry. The no-oversell SAFETY invariant holds either way: a
-	 * losing writer never applies.
+	 * Serialization failures and deadlocks throw `StorageSerializationError`.
+	 * Retry the write with a bounded policy; restart an explicit transaction
+	 * before retrying its operations.
 	 */
 	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;
 }

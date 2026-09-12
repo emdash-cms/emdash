@@ -181,9 +181,6 @@ describeEachDialect("Plugin storage updateIf", (dialect) => {
 	});
 
 	it("updateIf() with an all-`undefined` delta (no set) throws and never writes", async () => {
-		// `{ stock: undefined }` has a key but no DEFINED entry — presence is
-		// derived from defined entries, so this hits the "at least one" guard
-		// instead of doing a no-op write that bumps updated_at.
 		const repo = productsRepo();
 		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
 		await expect(
@@ -260,5 +257,185 @@ describeEachDialect("Plugin storage updateIf", (dialect) => {
 		});
 		expect(result).toEqual({ applied: false });
 		expect((await repo.get("p1"))?.stock).toBe(5);
+	});
+
+	it.each([
+		{ operator: "in", filter: { in: ["Alpha"], gte: "Z" } },
+		{ operator: "startsWith", filter: { startsWith: "A", gte: "Z" } },
+	])("uses $operator before range bounds as query() does", async ({ filter }) => {
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		const where = { name: filter };
+		expect((await repo.query({ where })).items).toHaveLength(1);
+		expect(await repo.updateIf("p1", { where, set: { name: "changed" } })).toEqual({
+			applied: true,
+			data: { sku: "A", stock: 5, tier: 1, name: "changed" },
+		});
+	});
+
+	it("enforces the defined range bound when another bound is undefined", async () => {
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		expect(
+			await repo.updateIf("p1", {
+				where: { stock: { gte: 6, lte: undefined } },
+				set: { name: "changed" },
+			}),
+		).toEqual({ applied: false });
+		expect((await repo.get("p1"))?.name).toBe("Alpha");
+		expect(
+			await repo.updateIf("p1", {
+				where: { stock: { gte: 5, lte: undefined } },
+				set: { name: "changed" },
+			}),
+		).toEqual({
+			applied: true,
+			data: { sku: "A", stock: 5, tier: 1, name: "changed" },
+		});
+	});
+
+	async function storedProduct(id = "p1") {
+		return db
+			.selectFrom("_plugin_storage")
+			.selectAll()
+			.where("plugin_id", "=", "shop")
+			.where("collection", "=", "products")
+			.where("id", "=", id)
+			.executeTakeFirstOrThrow();
+	}
+
+	it.each([
+		{ name: "missing guard", args: { set: { name: "changed" } } },
+		{ name: "array guard", args: { where: [], set: { name: "changed" } } },
+		{
+			name: "undefined range bound",
+			args: { where: { stock: { gte: undefined } }, set: { name: "changed" } },
+		},
+		{
+			name: "empty range",
+			args: { where: { stock: {} }, set: { name: "changed" } },
+		},
+		{
+			name: "non-finite guard",
+			args: { where: { stock: { gte: -Infinity } }, set: { name: "changed" } },
+		},
+		{ name: "array set", args: { where: {}, set: ["changed"] } },
+		{ name: "nonserializable set", args: { where: {}, set: { name: () => "changed" } } },
+		{ name: "unknown argument", args: { where: {}, set: { name: "changed" }, increment: 1 } },
+		{
+			name: "ambiguous delta",
+			args: { where: {}, delta: { stock: { inc: 1, dec: "invalid" } } },
+		},
+		{
+			name: "unsafe delta",
+			args: { where: {}, delta: { stock: { inc: Number.MAX_SAFE_INTEGER + 1 } } },
+		},
+		{
+			name: "non-object guard",
+			args: { where: new Date(0), set: { name: "changed" } },
+		},
+	])("rejects $name without modifying the stored row", async ({ args }) => {
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		const before = await storedProduct();
+		await expect(repo.updateIf("p1", args)).rejects.toThrow();
+		expect(await storedProduct()).toEqual(before);
+	});
+
+	it("rejects a sparse in filter with a TypeError without modifying the stored row", async () => {
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		const before = await storedProduct();
+		const values = [5];
+		values.length = 2;
+		await expect(
+			repo.updateIf("p1", { where: { stock: { in: values } }, set: { name: "changed" } }),
+		).rejects.toThrow(TypeError);
+		expect(await storedProduct()).toEqual(before);
+	});
+
+	it.each(["4", true, [], {}, 1.5, Number.MAX_SAFE_INTEGER + 1].map((stock) => ({ stock })))(
+		"does not overwrite an invalid stored counter: $stock",
+		async ({ stock }) => {
+			const repo = new PluginStorageRepository(db, "shop", "products", []);
+			await repo.put("p1", { stock });
+			const before = await storedProduct();
+			expect(await repo.updateIf("p1", { where: {}, delta: { stock: { inc: 1 } } })).toEqual({
+				applied: false,
+			});
+			expect(await storedProduct()).toEqual(before);
+		},
+	);
+
+	it.each([null, 1, "value", []].map((value) => ({ value })))(
+		"does not modify a non-object document: $value",
+		async ({ value }) => {
+			const repo = new PluginStorageRepository(db, "shop", "products", []);
+			await repo.put("p1", value);
+			const before = await storedProduct();
+			expect(await repo.updateIf("p1", { where: {}, set: { name: "changed" } })).toEqual({
+				applied: false,
+			});
+			expect(await storedProduct()).toEqual(before);
+		},
+	);
+
+	it.each([Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER])(
+		"rejects arithmetic beyond the safe boundary %s without modifying the row",
+		async (stock) => {
+			const repo = new PluginStorageRepository(db, "shop", "products", []);
+			await repo.put("p1", { stock });
+			const before = await storedProduct();
+			expect(
+				await repo.updateIf("p1", { where: {}, delta: { stock: { inc: Math.sign(stock) } } }),
+			).toEqual({ applied: false });
+			expect(await storedProduct()).toEqual(before);
+		},
+	);
+
+	it.each([Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER])(
+		"preserves the exact safe-integer boundary %s",
+		async (stock) => {
+			const repo = new PluginStorageRepository(db, "shop", "products", []);
+			await repo.put("p1", { stock: stock - Math.sign(stock) });
+			expect(
+				await repo.updateIf("p1", { where: {}, delta: { stock: { inc: Math.sign(stock) } } }),
+			).toEqual({ applied: true, data: { stock } });
+			expect(await repo.get("p1")).toEqual({ stock });
+		},
+	);
+
+	it("preserves negative deltas and ignores undefined entries beside a defined write", async () => {
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		expect(
+			await repo.updateIf("p1", {
+				where: {},
+				set: { name: undefined, stock: undefined },
+				delta: { stock: { inc: -2 }, tier: undefined },
+			}),
+		).toEqual({ applied: true, data: { sku: "A", stock: 3, tier: 1, name: "Alpha" } });
+	});
+
+	it("ignores undefined entries without validating their unused field paths", async () => {
+		const repo = productsRepo();
+		await repo.put("p1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		expect(
+			await repo.updateIf("p1", {
+				where: {},
+				set: { "unused.path": undefined, name: "changed" },
+				delta: { "another.path": undefined },
+			}),
+		).toEqual({ applied: true, data: { sku: "A", stock: 5, tier: 1, name: "changed" } });
+	});
+
+	it.each([1, { toString: () => "1" }])("rejects a non-string ID: %s", async (id) => {
+		const repo = productsRepo();
+		await repo.put("1", { sku: "A", stock: 5, tier: 1, name: "Alpha" });
+		const before = await storedProduct("1");
+		await expect(
+			repo.updateIf(id as unknown as string, { where: {}, set: { stock: 0 } }),
+		).rejects.toThrow(TypeError);
+		expect(await storedProduct("1")).toEqual(before);
 	});
 });

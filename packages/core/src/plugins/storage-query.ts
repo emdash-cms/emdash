@@ -45,6 +45,8 @@ export class StorageQueryError extends Error {
  * applies its update — it either sees `{ applied: false }` or throws here.
  */
 export class StorageSerializationError extends Error {
+	readonly code = "STORAGE_SERIALIZATION_FAILURE";
+	readonly retryable = true;
 	/** The Postgres SQLSTATE that triggered this error (`40001` / `40P01`). */
 	readonly sqlState?: string;
 

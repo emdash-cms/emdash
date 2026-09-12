@@ -14,6 +14,7 @@ import type { ColumnDataType, Kysely, RawBuilder } from "kysely";
 import { PostgresAdapter, sql } from "kysely";
 
 import type { DatabaseDialectType } from "../db/adapters.js";
+import type { Database } from "./types.js";
 import { validateIdentifier, validateJsonFieldName } from "./validate.js";
 
 export type { DatabaseDialectType };
@@ -354,8 +355,8 @@ export function pluginDataExtractExpr(
  *   `NOT NULL` constraint).
  * - **delta** field → `COALESCE(<numeric extract>, 0) + n`, where the extract
  *   is the type-guarded numeric form from {@link pluginDataExtractExpr} so a
- *   missing / null / non-number stored value coalesces to `0` on BOTH dialects
- *   instead of throwing (Postgres) or coercing oddly. Integer arithmetic stays
+ *   missing or null stored value coalesces to `0` on both dialects. The update
+ *   guard rejects invalid counters and unsafe results. Integer arithmetic stays
  *   integer (Postgres `to_jsonb(numeric)` and SQLite integer `+` both round-trip
  *   without a spurious `.0`).
  *
@@ -386,14 +387,11 @@ export function pluginDataWriteExpr(
 	}
 
 	for (const [field, n] of deltaEntries) {
-		// Type-guarded numeric extract over the ORIGINAL `data` column so the
-		// arithmetic is total (non-number → NULL → COALESCE 0), matching the
-		// numeric-correctness posture on both dialects.
 		const numericExtract = pluginDataExtractExpr(db, field, { numeric: true });
 		if (pg) {
 			expr = sql`jsonb_set(${expr}, ${sql.lit(`{${field}}`)}, to_jsonb(COALESCE(${sql.raw(numericExtract)}, 0) + ${n}))`;
 		} else {
-			expr = sql`json_set(${expr}, ${sql.lit(`$.${field}`)}, COALESCE(${sql.raw(numericExtract)}, 0) + ${n})`;
+			expr = sql`json_set(${expr}, ${sql.lit(`$.${field}`)}, cast(COALESCE(${sql.raw(numericExtract)}, 0) as integer) + cast(${n} as integer))`;
 		}
 	}
 
@@ -401,6 +399,29 @@ export function pluginDataWriteExpr(
 		return sql<string>`(${expr})::text`;
 	}
 	return sql<string>`${expr}`;
+}
+
+export function pluginDataUpdateGuard(
+	db: Kysely<Database>,
+	deltaEntries: Array<[string, number]>,
+): RawBuilder<boolean> {
+	const pg = isPostgres(db);
+	const conditions: RawBuilder<boolean>[] = [
+		pg ? sql`jsonb_typeof(data::jsonb) = 'object'` : sql`json_type(data) = 'object'`,
+	];
+	for (const [field, amount] of deltaEntries) {
+		const numeric = sql.raw(pluginDataExtractExpr(db, field, { numeric: true }));
+		const type = pg
+			? sql`jsonb_typeof(data::jsonb -> ${sql.lit(field)})`
+			: sql`json_type(data, ${sql.lit(`$.${field}`)})`;
+		const base = sql`coalesce(${numeric}, 0)`;
+		const integral = pg ? sql`${base} = trunc(${base})` : sql`${base} = cast(${base} as integer)`;
+		const lower = Math.max(Number.MIN_SAFE_INTEGER, Number.MIN_SAFE_INTEGER - amount);
+		const upper = Math.min(Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER - amount);
+		conditions.push(sql`((${type} is null or ${type} = 'null' or ${numeric} is not null)
+			and ${integral} and ${base} >= ${lower} and ${base} <= ${upper})`);
+	}
+	return sql`(${sql.join(conditions, sql` and `)})`;
 }
 
 /**
