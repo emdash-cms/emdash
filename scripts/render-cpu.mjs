@@ -7,15 +7,15 @@
  * workerd with query logging disabled, captures V8 CPU profiles through the
  * inspector protocol, and reports sampled active CPU per completed response.
  *
- * Each route gets a fresh workerd process. Warm-up requests initialize the
- * route and isolate; measured requests use unique query parameters to bypass
- * the response cache and consume the complete streamed body before profiling
- * stops.
+ * Worker startup, first-request, and warm-render CPU are separate measurements:
+ * Wrangler profiles module evaluation separately, every first-request sample runs in
+ * a fresh workerd process, and warm batches run only after route warm-up. All
+ * requests consume the complete streamed body before profiling stops.
  *
  * Usage:
  *   pnpm render-cpu
  *   pnpm render-cpu -- --skip-prepare
- *   pnpm render-cpu -- --route post --requests 25 --batches 3
+ *   pnpm render-cpu -- --route post --cold-runs 3 --requests 25 --batches 3
  */
 
 import { spawn, spawnSync } from "node:child_process";
@@ -31,11 +31,17 @@ const fixtureDir = resolve(repoRoot, "fixtures/perf-site");
 const querySnapshotPath = resolve(__dirname, "query-counts.snapshot.d1.json");
 const deployManifestPath = resolve(fixtureDir, ".wrangler/deploy/config.json");
 const buildMarkerPath = resolve(fixtureDir, "dist/.perf-target");
+const wranglerBin = resolve(
+	fixtureDir,
+	"node_modules/.bin",
+	process.platform === "win32" ? "wrangler.cmd" : "wrangler",
+);
 
 const HOST = "127.0.0.1";
 const PORT = 14321;
 const INSPECTOR_PORT = 14322;
 const BASE = `http://${HOST}:${PORT}`;
+const POST_REQUEST_SETTLE_MS = 250;
 
 const ROUTES = [
 	{ id: "home", path: "/", type: "collection" },
@@ -65,7 +71,9 @@ function parsePositiveInteger(value, flag) {
 function parseArgs(argv) {
 	const options = {
 		batches: 5,
+		coldRuns: 5,
 		requests: 50,
+		startupRuns: 3,
 		warmups: 5,
 		skipPrepare: false,
 		routeIds: /** @type {string[]} */ ([]),
@@ -76,7 +84,9 @@ function parseArgs(argv) {
 		if (arg === "--") continue;
 		else if (arg === "--skip-prepare") options.skipPrepare = true;
 		else if (arg === "--batches") options.batches = parsePositiveInteger(argv[++i], arg);
+		else if (arg === "--cold-runs") options.coldRuns = parsePositiveInteger(argv[++i], arg);
 		else if (arg === "--requests") options.requests = parsePositiveInteger(argv[++i], arg);
+		else if (arg === "--startup-runs") options.startupRuns = parsePositiveInteger(argv[++i], arg);
 		else if (arg === "--warmups") options.warmups = parsePositiveInteger(argv[++i], arg);
 		else if (arg === "--route") options.routeIds.push(argv[++i]);
 		else if (arg === "--output") options.output = resolve(argv[++i]);
@@ -145,10 +155,8 @@ function waitForPort(host, port, timeoutMs = 120_000) {
 
 function startServer() {
 	const child = spawn(
-		"pnpm",
+		wranglerBin,
 		[
-			"exec",
-			"wrangler",
 			"dev",
 			"--config",
 			generatedConfigPath(),
@@ -299,6 +307,29 @@ function summarizeProfile(profile) {
 	};
 }
 
+function profileStartupRun(outputDir, run) {
+	const profilePath = resolve(outputDir, `worker-startup-${run}.cpuprofile`);
+	const result = spawnSync(
+		wranglerBin,
+		["check", "startup", "--config", generatedConfigPath(), "--outfile", profilePath],
+		{
+			cwd: fixtureDir,
+			encoding: "utf8",
+			env: {
+				...process.env,
+				WRANGLER_LOG_PATH: "/tmp/emdash-render-cpu-wrangler.log",
+			},
+		},
+	);
+	if (result.status !== 0) {
+		throw new Error(
+			`Worker startup profile ${run} failed\n${result.stdout ?? ""}\n${result.stderr ?? ""}`,
+		);
+	}
+	const summary = summarizeProfile(JSON.parse(readFileSync(profilePath, "utf8")));
+	return { run, ...summary, profilePath };
+}
+
 function benchmarkUrl(path, nonce) {
 	const url = new URL(path, BASE);
 	url.searchParams.set("__emdash_cpu", nonce);
@@ -318,7 +349,21 @@ async function hit(path, nonce) {
 			`${path} returned ${response.status}: ${new TextDecoder().decode(body).slice(0, 200)}`,
 		);
 	}
-	return body.byteLength;
+	return {
+		bytes: body.byteLength,
+		serverTiming: response.headers.get("server-timing"),
+	};
+}
+
+function serverTimingValue(header, name) {
+	if (!header) return null;
+	const escapedName = name.replaceAll(".", "\\.");
+	const match = header.match(new RegExp(`(?:^|,\\s*)${escapedName};dur=([0-9.]+)`));
+	return match ? Number(match[1]) : null;
+}
+
+async function settleRequestWork() {
+	await new Promise((resolveWait) => setTimeout(resolveWait, POST_REQUEST_SETTLE_MS));
 }
 
 function median(values) {
@@ -332,13 +377,15 @@ function medianAbsoluteDeviation(values) {
 	return median(values.map((value) => Math.abs(value - center)));
 }
 
-function queryCountFor(route, snapshot) {
+function queryCountFor(route, snapshot, phase) {
 	const pathname = new URL(route.path, BASE).pathname;
-	return snapshot[`GET ${pathname} (warm)`];
+	return snapshot[`GET ${pathname} (${phase})`];
 }
 
-function regression(results) {
-	const points = results.filter((result) => Number.isFinite(result.queryCount));
+function regression(results, phase) {
+	const points = results
+		.map((result) => result[phase])
+		.filter((result) => Number.isFinite(result.queryCount));
 	if (points.length < 2) return null;
 	const meanX = points.reduce((sum, point) => sum + point.queryCount, 0) / points.length;
 	const meanY = points.reduce((sum, point) => sum + point.cpuPerResponseMs, 0) / points.length;
@@ -365,83 +412,162 @@ function regression(results) {
 	};
 }
 
-async function benchmarkRoute(route, options, outputDir, querySnapshot) {
-	process.stdout.write(`\n${route.id} (${route.type}, ${route.path})\n`);
+async function benchmarkColdRun(route, run, outputDir) {
 	const server = startServer();
+	let inspector;
+	try {
+		await server.ready;
+		inspector = await InspectorClient.connect(await inspectorWebSocketUrl());
+		await inspector.call("Profiler.enable");
+		await inspector.call("Profiler.start");
+		const wallStart = performance.now();
+		const response = await hit(route.path, `cold-${run}`);
+		const responseWallMs = performance.now() - wallStart;
+		await settleRequestWork();
+		const { profile } = await inspector.call("Profiler.stop");
+		const profilePath = resolve(outputDir, `${route.id}-first-request-${run}.cpuprofile`);
+		writeFileSync(profilePath, JSON.stringify(profile));
+		const summary = summarizeProfile(profile);
+		return {
+			run,
+			responseBytes: response.bytes,
+			responseWallMs,
+			cpuPerResponseMs: summary.activeMs,
+			gcPerResponseMs: summary.garbageCollectionMs,
+			serverTiming: response.serverTiming,
+			runtimeInitWallMs: serverTimingValue(response.serverTiming, "rt"),
+			renderWallMs: serverTimingValue(response.serverTiming, "render"),
+			dbCountAtHeaders: serverTimingValue(response.serverTiming, "db.count"),
+			dbWallAtHeadersMs: serverTimingValue(response.serverTiming, "db.total"),
+			...summary,
+			profilePath,
+		};
+	} catch (error) {
+		throw new Error(
+			`${route.id} first-request run ${run} failed: ${error.message}\n${server.getOutput()}`,
+			{ cause: error },
+		);
+	} finally {
+		inspector?.close();
+		await server.stop();
+	}
+}
+
+async function benchmarkWarmRoute(route, options, outputDir) {
+	const server = startServer();
+	let inspector;
 	try {
 		await server.ready;
 		for (let i = 0; i < options.warmups; i++) {
 			await hit(route.path, `warmup-${i}`);
 		}
 
-		const inspector = await InspectorClient.connect(await inspectorWebSocketUrl());
-		try {
-			await inspector.call("Profiler.enable");
-			const batches = [];
-			for (let batch = 0; batch < options.batches; batch++) {
-				await inspector.call("Profiler.start");
-				const wallStart = performance.now();
-				let responseBytes = 0;
-				for (let request = 0; request < options.requests; request++) {
-					responseBytes += await hit(route.path, `${batch}-${request}`);
-				}
-				const wallMs = performance.now() - wallStart;
-				const { profile } = await inspector.call("Profiler.stop");
-				const profilePath = resolve(outputDir, `${route.id}-batch-${batch + 1}.cpuprofile`);
-				writeFileSync(profilePath, JSON.stringify(profile));
-				const summary = summarizeProfile(profile);
-				const result = {
-					batch: batch + 1,
-					requests: options.requests,
-					responseBytes,
-					wallMs,
-					cpuPerResponseMs: summary.activeMs / options.requests,
-					gcPerResponseMs: summary.garbageCollectionMs / options.requests,
-					...summary,
-					profilePath,
-				};
-				batches.push(result);
-				process.stdout.write(
-					`  batch ${batch + 1}: ${result.cpuPerResponseMs.toFixed(3)}ms CPU/response (${summary.activeMs.toFixed(1)}ms active, ${summary.idleMs.toFixed(1)}ms idle)\n`,
-				);
+		inspector = await InspectorClient.connect(await inspectorWebSocketUrl());
+		await inspector.call("Profiler.enable");
+		const batches = [];
+		for (let batch = 0; batch < options.batches; batch++) {
+			await inspector.call("Profiler.start");
+			const wallStart = performance.now();
+			let responseBytes = 0;
+			for (let request = 0; request < options.requests; request++) {
+				responseBytes += (await hit(route.path, `${batch}-${request}`)).bytes;
 			}
-
-			const cpuValues = batches.map((batch) => batch.cpuPerResponseMs);
-			const gcValues = batches.map((batch) => batch.gcPerResponseMs);
-			return {
-				id: route.id,
-				path: route.path,
-				type: route.type,
-				queryCount: queryCountFor(route, querySnapshot),
-				cpuPerResponseMs: median(cpuValues),
-				cpuMadMs: medianAbsoluteDeviation(cpuValues),
-				gcPerResponseMs: median(gcValues),
-				batches,
+			const wallMs = performance.now() - wallStart;
+			await settleRequestWork();
+			const { profile } = await inspector.call("Profiler.stop");
+			const profilePath = resolve(outputDir, `${route.id}-warm-batch-${batch + 1}.cpuprofile`);
+			writeFileSync(profilePath, JSON.stringify(profile));
+			const summary = summarizeProfile(profile);
+			const result = {
+				batch: batch + 1,
+				requests: options.requests,
+				responseBytes,
+				wallMs,
+				cpuPerResponseMs: summary.activeMs / options.requests,
+				gcPerResponseMs: summary.garbageCollectionMs / options.requests,
+				...summary,
+				profilePath,
 			};
-		} finally {
-			inspector.close();
+			batches.push(result);
+			process.stdout.write(
+				`  warm batch ${batch + 1}: ${result.cpuPerResponseMs.toFixed(3)}ms CPU/response (${summary.activeMs.toFixed(1)}ms active, ${summary.idleMs.toFixed(1)}ms idle)\n`,
+			);
 		}
+
+		const cpuValues = batches.map((batch) => batch.cpuPerResponseMs);
+		const gcValues = batches.map((batch) => batch.gcPerResponseMs);
+		return {
+			cpuPerResponseMs: median(cpuValues),
+			cpuMadMs: medianAbsoluteDeviation(cpuValues),
+			gcPerResponseMs: median(gcValues),
+			batches,
+		};
 	} catch (error) {
-		throw new Error(`${route.id} benchmark failed: ${error.message}\n${server.getOutput()}`, {
+		throw new Error(`${route.id} warm benchmark failed: ${error.message}\n${server.getOutput()}`, {
 			cause: error,
 		});
 	} finally {
+		inspector?.close();
 		await server.stop();
 	}
 }
 
-function printSummary(results, fit) {
-	process.stdout.write("\nRoute CPU baseline (median):\n");
-	process.stdout.write("  route                queries   CPU/response   MAD       GC/response\n");
-	for (const result of results) {
+async function benchmarkRoute(route, options, outputDir, querySnapshot) {
+	process.stdout.write(`\n${route.id} (${route.type}, ${route.path})\n`);
+	const coldRuns = [];
+	for (let run = 1; run <= options.coldRuns; run++) {
+		const result = await benchmarkColdRun(route, run, outputDir);
+		coldRuns.push(result);
 		process.stdout.write(
-			`  ${result.id.padEnd(20)} ${String(result.queryCount ?? "?").padStart(7)}   ${result.cpuPerResponseMs.toFixed(3).padStart(9)}ms   ${result.cpuMadMs.toFixed(3).padStart(6)}ms   ${result.gcPerResponseMs.toFixed(3).padStart(9)}ms\n`,
+			`  first request ${run}: ${result.cpuPerResponseMs.toFixed(3)}ms CPU (${result.responseWallMs.toFixed(1)}ms response wall)\n`,
 		);
 	}
-	if (fit) {
+	const coldCpuValues = coldRuns.map((run) => run.cpuPerResponseMs);
+	const coldGcValues = coldRuns.map((run) => run.gcPerResponseMs);
+	const coldWallValues = coldRuns.map((run) => run.responseWallMs);
+	const warm = await benchmarkWarmRoute(route, options, outputDir);
+	return {
+		id: route.id,
+		path: route.path,
+		type: route.type,
+		firstRequest: {
+			queryCount: queryCountFor(route, querySnapshot, "cold"),
+			cpuPerResponseMs: median(coldCpuValues),
+			cpuMadMs: medianAbsoluteDeviation(coldCpuValues),
+			gcPerResponseMs: median(coldGcValues),
+			responseWallMs: median(coldWallValues),
+			runs: coldRuns,
+		},
+		warm: {
+			queryCount: queryCountFor(route, querySnapshot, "warm"),
+			...warm,
+		},
+	};
+}
+
+function printSummary(results, regressions, startup) {
+	process.stdout.write(
+		`\nWorker startup: ${startup.cpuMs.toFixed(3)}ms active CPU (MAD ${startup.cpuMadMs.toFixed(3)}ms)\n`,
+	);
+	process.stdout.write("\nRoute CPU baseline (median):\n");
+	process.stdout.write(
+		"  route                first q   first CPU   MAD       warm q   warm CPU   MAD\n",
+	);
+	for (const result of results) {
 		process.stdout.write(
-			`\nAcross page types: r=${fit.correlation.toFixed(3)}, R²=${fit.rSquared.toFixed(3)}, slope=${fit.slopeMsPerQuery.toFixed(3)}ms CPU/query.\n`,
+			`  ${result.id.padEnd(20)} ${String(result.firstRequest.queryCount ?? "?").padStart(7)}   ${result.firstRequest.cpuPerResponseMs.toFixed(3).padStart(8)}ms   ${result.firstRequest.cpuMadMs.toFixed(3).padStart(6)}ms   ${String(result.warm.queryCount ?? "?").padStart(6)}   ${result.warm.cpuPerResponseMs.toFixed(3).padStart(7)}ms   ${result.warm.cpuMadMs.toFixed(3).padStart(6)}ms\n`,
 		);
+	}
+	for (const [label, fit] of [
+		["First request", regressions.firstRequest],
+		["Warm render", regressions.warm],
+	]) {
+		if (!fit) continue;
+		process.stdout.write(
+			`${label}: r=${fit.correlation.toFixed(3)}, R²=${fit.rSquared.toFixed(3)}, slope=${fit.slopeMsPerQuery.toFixed(3)}ms CPU/query.\n`,
+		);
+	}
+	if (regressions.firstRequest || regressions.warm) {
 		process.stdout.write("Treat this as descriptive: page complexity is a confounder.\n");
 	}
 }
@@ -467,11 +593,29 @@ async function main() {
 		resolve("/tmp", `emdash-render-cpu-${shortSha || "working-tree"}-${runStamp}`);
 	mkdirSync(outputDir, { recursive: true });
 
+	const startupRuns = [];
+	for (let run = 1; run <= options.startupRuns; run++) {
+		const result = profileStartupRun(outputDir, run);
+		startupRuns.push(result);
+		process.stdout.write(`Worker startup ${run}: ${result.activeMs.toFixed(3)}ms active CPU\n`);
+	}
+	const startupCpuValues = startupRuns.map((run) => run.activeMs);
+	const startupGcValues = startupRuns.map((run) => run.garbageCollectionMs);
+	const startup = {
+		cpuMs: median(startupCpuValues),
+		cpuMadMs: medianAbsoluteDeviation(startupCpuValues),
+		gcMs: median(startupGcValues),
+		runs: startupRuns,
+	};
+
 	const results = [];
 	for (const route of selectedRoutes) {
 		results.push(await benchmarkRoute(route, options, outputDir, querySnapshot));
 	}
-	const fit = regression(results);
+	const regressions = {
+		firstRequest: regression(results, "firstRequest"),
+		warm: regression(results, "warm"),
+	};
 	const summary = {
 		generatedAt: startedAt.toISOString(),
 		gitSha: shortSha,
@@ -487,15 +631,19 @@ async function main() {
 		},
 		options: {
 			batches: options.batches,
+			coldRuns: options.coldRuns,
 			requests: options.requests,
+			startupRuns: options.startupRuns,
 			warmups: options.warmups,
+			postRequestSettleMs: POST_REQUEST_SETTLE_MS,
 		},
-		regression: fit,
+		startup,
+		regressions,
 		results,
 	};
 	const summaryPath = resolve(outputDir, "summary.json");
 	writeFileSync(summaryPath, JSON.stringify(summary, null, "\t") + "\n");
-	printSummary(results, fit);
+	printSummary(results, regressions, startup);
 	process.stdout.write(`Profiles and summary: ${outputDir}\n`);
 }
 
