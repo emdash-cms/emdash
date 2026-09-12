@@ -771,6 +771,70 @@ describe("Marketplace handlers", () => {
 			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(true);
 		});
 
+		it("includes all authority changes in the initial preflight response", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+
+			const encoder = new TextEncoder();
+			const oldManifest = mockManifest("test-seo", "1.0.0");
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: encoder.encode(JSON.stringify(oldManifest)),
+				contentType: "application/json",
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/backend.js",
+				body: encoder.encode("export default {};"),
+				contentType: "application/javascript",
+			});
+
+			const newManifest: PluginManifest = {
+				...mockManifest("test-seo", "2.0.0"),
+				capabilities: ["content:read", "network:request"],
+				routes: [{ name: "events/create", permission: "content:create", public: true }],
+				mcp: {
+					tools: [
+						{
+							name: "createEvent",
+							description: "Create a calendar event.",
+							route: "events/create",
+							permission: "content:create",
+							destructive: false,
+							inputSchema: { type: "object" },
+						},
+					],
+				},
+			};
+			const bundleBytes = await createMockBundle(newManifest);
+			const detail = mockPluginDetail("test-seo", "2.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+
+			const result = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				error: {
+					code: "CAPABILITY_ESCALATION",
+					details: {
+						capabilityChanges: { added: ["network:request"], removed: [] },
+						routeVisibilityChanges: { newlyPublic: ["events/create"] },
+						mcpTools: [expect.objectContaining({ name: "createEvent" })],
+					},
+				},
+			});
+		});
+
 		it("treats deprecated → current capability rename as no change", async () => {
 			// Installed version declared the legacy name; new version
 			// declares the canonical name. diffCapabilities normalizes

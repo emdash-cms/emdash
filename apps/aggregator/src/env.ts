@@ -14,6 +14,13 @@ export interface RecordsJob {
 	operation: "create" | "update" | "delete";
 	cid: string;
 	/**
+	 * Identifies whether the aggregator observed this operation from its live,
+	 * cursor-backed stream or reconstructed current state through backfill.
+	 * Missing values come from an older producer during a rolling deployment
+	 * and must be treated as incomplete history.
+	 */
+	source?: "jetstream" | "backfill";
+	/**
 	 * The Jetstream-supplied (unverified) record bytes. Compared against the
 	 * verified PDS copy after fetch as a Jetstream-correctness signal; the
 	 * verified copy always wins.

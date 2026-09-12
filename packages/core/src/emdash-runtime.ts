@@ -227,7 +227,7 @@ import { isContentSaveRejection } from "./plugins/save-rejection.js";
 import type { CronScheduler } from "./plugins/scheduler/types.js";
 import { PluginStateRepository } from "./plugins/state.js";
 import { syncDeclaredStorageIndexes } from "./plugins/storage-indexes.js";
-import { normalizeRegistryConfig } from "./registry/config.js";
+import { resolveManifestRegistryConfig } from "./registry/config.js";
 import { requestCached } from "./request-cache.js";
 import { getRequestContext } from "./request-context.js";
 import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
@@ -2606,11 +2606,14 @@ export class EmDashRuntime {
 					}
 				: undefined;
 
-		// Normalize the experimental registry config for browser consumption.
-		// Validation errors here surface as 500s from the manifest endpoint
-		// rather than being silently dropped -- a misconfigured registry
-		// should be loud, not invisible.
-		const registry = normalizeRegistryConfig(this.config.experimental?.registry) ?? undefined;
+		const { registry, error: registryConfigurationError } = resolveManifestRegistryConfig(
+			this.config.experimental?.registry,
+		);
+		if (registryConfigurationError) {
+			console.error(
+				`EmDash registry configuration error in ${registryConfigurationError.field} (${registryConfigurationError.code})`,
+			);
+		}
 
 		return {
 			version: VERSION,
@@ -2628,6 +2631,7 @@ export class EmDashRuntime {
 			},
 			marketplace: !!this.config.marketplace,
 			registry,
+			registryConfigurationError,
 		};
 	}
 

@@ -64,6 +64,9 @@ let upgradeEvidence: {
 	revisionCount: number;
 	currentCid: string | null;
 	invalidExpiryEpoch: number | null;
+	releaseHistoryComplete: number | null;
+	firstObservedSource: string | null;
+	releaseHistoryRows: number;
 };
 
 beforeAll(async () => {
@@ -74,6 +77,7 @@ beforeAll(async () => {
 		"0003_listing_projection.sql",
 		"0004_signed_label_ingest.sql",
 		"0005_restrictive_label_authority.sql",
+		"0006_release_history.sql",
 	]);
 	await applyD1Migrations(testEnv.DB, migrations.slice(0, 2));
 	await testEnv.DB.prepare(
@@ -103,6 +107,9 @@ beforeAll(async () => {
 	const projectionMigration = migrations[2];
 	if (!projectionMigration) throw new Error("projection migration fixture missing");
 	await applyD1Migrations(testEnv.DB, [projectionMigration], "projection_restart_probe");
+	const releaseHistoryMigration = migrations[5];
+	if (!releaseHistoryMigration) throw new Error("release history migration fixture missing");
+	await applyD1Migrations(testEnv.DB, [releaseHistoryMigration], "release_history_restart_probe");
 
 	const revision = await testEnv.DB.prepare(
 		`SELECT COUNT(*) AS revision_count,
@@ -125,6 +132,33 @@ beforeAll(async () => {
 					.bind(LABELER_DID, packageProfileUri(DID_A, "legacy"))
 					.first<{ exp_epoch: number | null }>()
 			)?.exp_epoch ?? null,
+		releaseHistoryComplete:
+			(
+				await testEnv.DB.prepare(
+					`SELECT release_history_complete FROM package_release_history
+					 WHERE did = ? AND package = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ release_history_complete: number }>()
+			)?.release_history_complete ?? null,
+		firstObservedSource:
+			(
+				await testEnv.DB.prepare(
+					`SELECT first_observed_source FROM package_release_history
+					 WHERE did = ? AND package = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ first_observed_source: string }>()
+			)?.first_observed_source ?? null,
+		releaseHistoryRows:
+			(
+				await testEnv.DB.prepare(
+					`SELECT COUNT(*) AS count FROM package_release_history
+					 WHERE did = ? AND package = 'legacy'`,
+				)
+					.bind(DID_A)
+					.first<{ count: number }>()
+			)?.count ?? 0,
 	};
 });
 
@@ -141,6 +175,7 @@ beforeEach(async () => {
 		"labels",
 		"release_duplicate_attempts",
 		"releases",
+		"package_release_history",
 		"packages",
 		"package_profile_heads",
 		"package_profile_revisions",
@@ -155,6 +190,9 @@ describe("revision migration and ingest", () => {
 			revisionCount: 1,
 			currentCid: PROFILE_CID_1,
 			invalidExpiryEpoch: null,
+			releaseHistoryComplete: 0,
+			firstObservedSource: "unknown",
+			releaseHistoryRows: 1,
 		});
 	});
 

@@ -15,6 +15,14 @@ The plugin registry is the supported catalog for sandboxed plugins. It lets admi
 
 When `experimental.registry` is configured, the admin panel displays a **Registry** section for browsing and installing plugins.
 
+## Plugin public names
+
+Every registry plugin has a public name made from its publisher's current Atmosphere account handle and its package slug. For example, a package with the slug `my-gallery` published by `example.com` appears as `@example.com/my-gallery`.
+
+The public name appears in registry results and under **Plugins** after installation. Select it to open the plugin detail page, or paste the complete name into registry search to find that exact package. EmDash resolves the handle to the publisher's stable account identifier before loading the package.
+
+If the handle conclusively stops resolving back to the publisher, EmDash displays **INVALID HANDLE** and prevents new installation from the package detail page. Existing installations remain in their current state so an identity lookup cannot disable a running site. Review the installed plugin and contact its publisher before updating it. A temporary lookup failure displays the stable publisher identifier with **Handle unavailable** instead of reporting an invalid handle.
+
 ## Enable the registry
 
 To install plugins from the registry, configure storage and an available sandbox runner. Complete the platform-specific [plugin sandbox setup](/deployment/plugin-sandbox/) first.
@@ -45,7 +53,7 @@ Use the bare hosted registry URL for the normal setup. See the [`experimental.re
 <Steps>
 
 1. Open **Registry** in the admin panel.
-2. Search for a plugin and open its detail page.
+2. Search by title, description, or a complete public name such as `@example.com/my-gallery`, then open the plugin's detail page.
 3. Select a release and review its publisher, metadata, requested permissions, and verification status.
 4. Select **Install**.
 5. Review the verification status and permissions in the consent dialog, then confirm.

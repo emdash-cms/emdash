@@ -53,7 +53,7 @@ msgstr ""
 msgid "\"{0}\" will be permanently deleted."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:591
+#: packages/admin/src/components/RegistryPluginDetail.tsx:596
 msgid "(pre-release)"
 msgstr "(إصدار أولي)"
 
@@ -61,7 +61,7 @@ msgstr "(إصدار أولي)"
 msgid "(synced)"
 msgstr "(متزامن)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:594
+#: packages/admin/src/components/RegistryPluginDetail.tsx:599
 msgid "(too new)"
 msgstr "(حديث جدًا)"
 
@@ -132,7 +132,7 @@ msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, few {# عناصر} many {# عنصرًا} other {# عنصر}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:439
+#: packages/admin/src/components/PluginManager.tsx:491
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr ""
 
@@ -158,7 +158,7 @@ msgstr "{0, plural, few {# قوائم سيتم استيرادها} many {# قا�
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:453
+#: packages/admin/src/components/PluginManager.tsx:505
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, few {# صلاحيات} many {# صلاحيةً} other {# صلاحية}}"
 
@@ -245,7 +245,7 @@ msgstr ""
 #. placeholder {0}: envLabel(m.key)
 #. placeholder {1}: m.required
 #. placeholder {2}: m.host
-#: packages/admin/src/components/RegistryPluginDetail.tsx:697
+#: packages/admin/src/components/RegistryPluginDetail.tsx:702
 msgid "{0} {1} required — you have {2}."
 msgstr ""
 
@@ -261,7 +261,7 @@ msgid "{0} added to this post."
 msgstr ""
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:505
+#: packages/admin/src/components/RegistryPluginDetail.tsx:506
 msgid "{0} banner"
 msgstr ""
 
@@ -281,17 +281,17 @@ msgid "{0} fallback"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:129
+#: packages/admin/src/components/PluginManager.tsx:133
 msgid "{0} has been deactivated"
 msgstr "تم إلغاء تفعيل {0}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:343
+#: packages/admin/src/components/PluginManager.tsx:386
 msgid "{0} has been removed"
 msgstr "تم إزالة {0}"
 
 #. placeholder {0}: displayName ?? slug
-#: packages/admin/src/components/RegistryPluginDetail.tsx:517
+#: packages/admin/src/components/RegistryPluginDetail.tsx:518
 msgid "{0} icon"
 msgstr ""
 
@@ -301,7 +301,7 @@ msgid "{0} installs"
 msgstr "{0} عمليات تثبيت"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:110
+#: packages/admin/src/components/PluginManager.tsx:114
 msgid "{0} is now active"
 msgstr "{0} أصبحت نشطة الآن"
 
@@ -332,7 +332,7 @@ msgid "{0} of {total} could not be updated"
 msgstr ""
 
 #. placeholder {0}: plugins?.length ?? 0
-#: packages/admin/src/components/PluginManager.tsx:193
+#: packages/admin/src/components/PluginManager.tsx:197
 msgid "{0} plugins"
 msgstr "{0} إضافة"
 
@@ -364,10 +364,9 @@ msgid "{0} updated everywhere it appears."
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#. placeholder {1}: updateInfo?.latest
-#: packages/admin/src/components/PluginManager.tsx:281
-msgid "{0} updated to v{1}"
-msgstr "تم تحديث {0} إلى الإصدار {1}"
+#: packages/admin/src/components/PluginManager.tsx:292
+msgid "{0} updated to v{installedVersion}"
+msgstr ""
 
 #. placeholder {0}: draft.description.length
 #: packages/admin/src/components/SeoPanel.tsx:215
@@ -375,7 +374,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 حرف"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:313
+#: packages/admin/src/lib/api/marketplace.ts:417
 msgid "{base} to: {0}"
 msgstr "{base} إلى: {0}"
 
@@ -478,11 +477,11 @@ msgstr ""
 msgid "{overflowCount, plural, one {# file was not added because the upload list is full.} other {# files were not added because the upload list is full.}}"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:95
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:98
 msgid "{pluginName} is requesting additional permissions:"
 msgstr "{pluginName} تطلب صلاحيات إضافية:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:96
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:99
 msgid "{pluginName} requires the following permissions:"
 msgstr "{pluginName} تتطلب الصلاحيات التالية:"
 
@@ -732,11 +731,11 @@ msgstr ""
 msgid "About inferred bylines"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:265
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:273
 msgid "Accept & Install"
 msgstr "قبول وتثبيت"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:264
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:272
 msgid "Accept & Update"
 msgstr "قبول وتحديث"
 
@@ -753,8 +752,8 @@ msgstr ""
 msgid "Access Denied"
 msgstr "الوصول مرفوض"
 
-#: packages/admin/src/lib/api/marketplace.ts:282
-#: packages/admin/src/lib/api/marketplace.ts:290
+#: packages/admin/src/lib/api/marketplace.ts:386
+#: packages/admin/src/lib/api/marketplace.ts:394
 msgid "Access your media library"
 msgstr "الوصول إلى مكتبة الوسائط"
 
@@ -939,7 +938,7 @@ msgstr "إضافة علامة noindex الذاتية"
 msgid "Add Passkey"
 msgstr "إضافة مفتاح مرور"
 
-#: packages/admin/src/components/PluginManager.tsx:219
+#: packages/admin/src/components/PluginManager.tsx:223
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "قم بإدراج إضافات لملف astro.config.mjs الخاص بك لتطوير وظائف EmDash."
 
@@ -1007,16 +1006,16 @@ msgstr ""
 msgid "After send:"
 msgstr "بعد الإرسال:"
 
-#: packages/admin/src/components/PluginManager.tsx:560
+#: packages/admin/src/components/PluginManager.tsx:612
 msgid "Agent access"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:354
+#: packages/admin/src/components/PluginManager.tsx:397
 msgid "Agent access for {0} has been updated"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:203
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:211
 msgid "Agent-callable MCP tools"
 msgstr ""
 
@@ -1095,7 +1094,7 @@ msgstr "جميع الأنواع"
 msgid "All uploads finished"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:562
+#: packages/admin/src/components/PluginManager.tsx:614
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr ""
 
@@ -1120,7 +1119,7 @@ msgstr "الأنواع المسموح بها"
 msgid "Already have an account?"
 msgstr "لديك حساب بالفعل؟"
 
-#: packages/admin/src/components/PluginManager.tsx:738
+#: packages/admin/src/components/PluginManager.tsx:809
 msgid "Also delete plugin storage data"
 msgstr "كذلك حذف بيانات تخزين الإضافة"
 
@@ -1161,8 +1160,9 @@ msgstr ""
 
 #: packages/admin/src/components/DialogError.tsx:14
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
-#: packages/admin/src/components/PluginManager.tsx:116
-#: packages/admin/src/components/PluginManager.tsx:135
+#: packages/admin/src/components/PluginManager.tsx:120
+#: packages/admin/src/components/PluginManager.tsx:139
+#: packages/admin/src/components/PluginManager.tsx:325
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
@@ -1206,7 +1206,7 @@ msgstr ""
 #: packages/admin/src/router.tsx:1999
 #: packages/admin/src/router.tsx:2015
 #: packages/admin/src/router.tsx:2040
-#: packages/admin/src/router.tsx:2546
+#: packages/admin/src/router.tsx:2565
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1400,7 +1400,7 @@ msgstr "تفويض"
 msgid "Authorize Device"
 msgstr "تفويض الجهاز"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:142
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:150
 msgid "Authorized approvers"
 msgstr ""
 
@@ -1408,7 +1408,7 @@ msgstr ""
 msgid "Authorizing..."
 msgstr "جاري التفويض..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:746
+#: packages/admin/src/components/RegistryPluginDetail.tsx:751
 msgid "Authors"
 msgstr "المؤلفون"
 
@@ -1507,7 +1507,7 @@ msgid "Back to marketplace"
 msgstr "العودة إلى السوق"
 
 #: packages/admin/src/components/PluginSettings.tsx:118
-#: packages/admin/src/components/RegistryPluginDetail.tsx:886
+#: packages/admin/src/components/RegistryPluginDetail.tsx:891
 msgid "Back to plugins"
 msgstr "العودة إلى الإضافات"
 
@@ -1591,7 +1591,7 @@ msgstr "منطقي"
 msgid "Brief summary shown below the title in search results"
 msgstr "ملخص مختصر يظهر أسفل العنوان في نتائج البحث"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:92
+#: packages/admin/src/components/RegistryBrowse.tsx:106
 msgid "Browse and install plugins published to the decentralized registry."
 msgstr "تصفّح وثبّت الإضافات المنشورة في المستودع اللامركزي."
 
@@ -1612,7 +1612,7 @@ msgstr "تصفح الملفات"
 msgid "Browse files to upload"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:63
+#: packages/admin/src/components/PluginManager.tsx:67
 msgid "Browse the <0>marketplace</0> to install plugins, or add them to your astro.config.mjs."
 msgstr ""
 
@@ -1681,7 +1681,7 @@ msgstr "يمكنه عرض المحتوى"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:1012
 #: packages/admin/src/components/BylineFieldEditor.tsx:315
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:256
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:264
 #: packages/admin/src/components/ConfirmDialog.tsx:99
 #: packages/admin/src/components/ContentList.tsx:545
 #: packages/admin/src/components/ContentList.tsx:1378
@@ -1703,7 +1703,7 @@ msgstr "يمكنه عرض المحتوى"
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/PluginManager.tsx:744
+#: packages/admin/src/components/PluginManager.tsx:815
 #: packages/admin/src/components/PortableTextEditor.tsx:4697
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:183
@@ -1747,11 +1747,11 @@ msgstr "لا يمكن حذف أقسام المظهر"
 msgid "Canonical URL"
 msgstr "الرابط الأساسي"
 
-#: packages/admin/src/components/PluginManager.tsx:536
+#: packages/admin/src/components/PluginManager.tsx:588
 msgid "Capabilities"
 msgstr "الإمكانيات"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:73
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:76
 msgid "Capability consent"
 msgstr "الموافقة على الصلاحية"
 
@@ -1839,7 +1839,7 @@ msgstr ""
 msgid "Change schedule"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:874
+#: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Changelog"
 msgstr ""
 
@@ -1855,7 +1855,23 @@ msgstr "تم تجاهل التغييرات"
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "الحرف بين عنوان الصفحة واسم الموقع (مثال: \"منشوري | موقعي\")"
 
-#: packages/admin/src/components/PluginManager.tsx:185
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:23
+msgid "Check experimental.registry in astro.config.mjs, then restart EmDash."
+msgstr ""
+
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:14
+msgid "Check experimental.registry.aggregatorUrl in astro.config.mjs, then restart EmDash."
+msgstr ""
+
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:17
+msgid "Check experimental.registry.policy.minimumReleaseAge in astro.config.mjs, then restart EmDash."
+msgstr ""
+
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:20
+msgid "Check experimental.registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
+msgstr ""
+
+#: packages/admin/src/components/PluginManager.tsx:189
 msgid "Check for updates"
 msgstr "التحقق من التحديثات"
 
@@ -2093,8 +2109,8 @@ msgstr "كتلة كود"
 msgid "Code block actions"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:519
-#: packages/admin/src/components/PluginManager.tsx:524
+#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:576
 msgid "Collapse details"
 msgstr "طي التفاصيل"
 
@@ -2632,8 +2648,8 @@ msgstr "قم بإنشاء أول واحد خاص بك"
 msgid "Create your first reusable content section to get started."
 msgstr "أنشئ أول قسم محتوى قابل لإعادة الاستخدام خاص بك للبدء."
 
-#: packages/admin/src/lib/api/marketplace.ts:280
-#: packages/admin/src/lib/api/marketplace.ts:289
+#: packages/admin/src/lib/api/marketplace.ts:384
+#: packages/admin/src/lib/api/marketplace.ts:393
 msgid "Create, update, and delete content"
 msgstr "إنشاء المحتوى وتعديله وحذفه"
 
@@ -2806,7 +2822,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr "عدد عشري"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:811
+#: packages/admin/src/components/RegistryPluginDetail.tsx:816
 msgid "Declared permissions"
 msgstr "الصلاحيات المُعلنة"
 
@@ -3092,7 +3108,7 @@ msgid "Describe what this section is for..."
 msgstr "قم بوصف الغرض من هذا القسم..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:424
-#: packages/admin/src/components/RegistryPluginDetail.tsx:871
+#: packages/admin/src/components/RegistryPluginDetail.tsx:876
 #: packages/admin/src/components/SectionEditor.tsx:295
 #: packages/admin/src/components/Sections.tsx:200
 #: packages/admin/src/components/Widgets.tsx:438
@@ -3111,8 +3127,8 @@ msgstr "الوجهة"
 msgid "Destination path"
 msgstr "رابط الوجهة"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:217
-#: packages/admin/src/components/PluginManager.tsx:581
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:225
+#: packages/admin/src/components/PluginManager.tsx:633
 msgid "Destructive"
 msgstr ""
 
@@ -3153,11 +3169,11 @@ msgstr "الأبعاد:"
 msgid "Disable"
 msgstr "تعطيل"
 
-#: packages/admin/src/components/PluginManager.tsx:513
+#: packages/admin/src/components/PluginManager.tsx:565
 msgid "Disable plugin"
 msgstr "تعطيل الإضافة"
 
-#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:623
 msgid "Disable plugin MCP tools"
 msgstr ""
 
@@ -3173,14 +3189,14 @@ msgstr "تعطيل المستخدم"
 msgid "Disable User?"
 msgstr "تعطيل المستخدم؟"
 
-#: packages/admin/src/components/PluginManager.tsx:402
+#: packages/admin/src/components/PluginManager.tsx:446
 #: packages/admin/src/components/Redirects.tsx:426
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:205
 msgid "Disabled"
 msgstr "معطل"
 
-#: packages/admin/src/components/PluginManager.tsx:631
+#: packages/admin/src/components/PluginManager.tsx:683
 msgid "Disabled:"
 msgstr "معطل:"
 
@@ -3344,7 +3360,7 @@ msgstr ""
 msgid "Download backups and schedule automatic backups to storage"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:550
+#: packages/admin/src/components/RegistryPluginDetail.tsx:559
 msgid "Download SBOM"
 msgstr ""
 
@@ -3710,11 +3726,11 @@ msgstr "تفعيل التعليقات"
 msgid "Enable full-text search on this collection"
 msgstr "تفعيل البحث النصي الكامل على هذه المجموعة"
 
-#: packages/admin/src/components/PluginManager.tsx:513
+#: packages/admin/src/components/PluginManager.tsx:565
 msgid "Enable plugin"
 msgstr "تفعيل الإضافة"
 
-#: packages/admin/src/components/PluginManager.tsx:572
+#: packages/admin/src/components/PluginManager.tsx:624
 msgid "Enable plugin MCP tools"
 msgstr ""
 
@@ -3803,7 +3819,7 @@ msgstr "أدخل رابط موقع WordPress الخاص بك"
 #: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2761
+#: packages/admin/src/router.tsx:2781
 msgid "Error"
 msgstr "خطأ"
 
@@ -3831,7 +3847,7 @@ msgstr ""
 msgid "Every place using this image will update to the selected version."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:657
+#: packages/admin/src/components/RegistryPluginDetail.tsx:662
 msgid "Every published release of this plugin has been withdrawn or could not be verified. Check back later, or contact the publisher."
 msgstr "كل الإصدارات المنشورة لهذه الإضافة تم سحبها أو تعذّر التحقق منها. تحقق لاحقًا أو تواصل مع الناشر."
 
@@ -3856,8 +3872,8 @@ msgstr "موجود"
 msgid "Exit distraction-free mode"
 msgstr "الخروج من وضع الخلو من التشتت"
 
-#: packages/admin/src/components/PluginManager.tsx:519
-#: packages/admin/src/components/PluginManager.tsx:524
+#: packages/admin/src/components/PluginManager.tsx:571
+#: packages/admin/src/components/PluginManager.tsx:576
 msgid "Expand details"
 msgstr "توسيع التفاصيل"
 
@@ -4033,7 +4049,7 @@ msgstr "فشل حذف عنصر الواجهة"
 msgid "Failed to delete widget area"
 msgstr "فشل حذف منطقة عناصر الواجهة"
 
-#: packages/admin/src/components/PluginManager.tsx:134
+#: packages/admin/src/components/PluginManager.tsx:138
 #: packages/admin/src/lib/api/plugins.ts:160
 msgid "Failed to disable plugin"
 msgstr "فشل في تعطيل الإضافة"
@@ -4058,7 +4074,7 @@ msgstr "فشل إغلاق رسالة الترحيب"
 msgid "Failed to duplicate"
 msgstr "فشل التكرار"
 
-#: packages/admin/src/components/PluginManager.tsx:115
+#: packages/admin/src/components/PluginManager.tsx:119
 #: packages/admin/src/lib/api/plugins.ts:146
 msgid "Failed to enable plugin"
 msgstr "فشل في تفعيل الإضافة"
@@ -4075,7 +4091,7 @@ msgstr "فشل تفعيل المستخدم"
 msgid "Failed to execute import"
 msgstr "فشل تنفيذ الاستيراد"
 
-#: packages/admin/src/lib/api/client.ts:321
+#: packages/admin/src/lib/api/client.ts:334
 msgid "Failed to fetch auth mode"
 msgstr ""
 
@@ -4100,7 +4116,7 @@ msgstr ""
 msgid "Failed to fetch entry terms"
 msgstr "فشل جلب مصطلحات المدخل"
 
-#: packages/admin/src/lib/api/client.ts:304
+#: packages/admin/src/lib/api/client.ts:317
 msgid "Failed to fetch manifest"
 msgstr "فشل جلب ملف البيان"
 
@@ -4207,8 +4223,8 @@ msgstr "فشل الاستيراد من ووردبريس"
 msgid "Failed to import media"
 msgstr "فشل استيراد الوسائط"
 
-#: packages/admin/src/lib/api/marketplace.ts:208
-#: packages/admin/src/lib/api/registry.ts:790
+#: packages/admin/src/lib/api/marketplace.ts:310
+#: packages/admin/src/lib/api/registry.ts:795
 msgid "Failed to install plugin"
 msgstr "فشل تثبيت الإضافة"
 
@@ -4256,11 +4272,11 @@ msgid "Failed to load plugin settings"
 msgstr ""
 
 #. placeholder {0}: error.message
-#: packages/admin/src/components/PluginManager.tsx:163
+#: packages/admin/src/components/PluginManager.tsx:167
 msgid "Failed to load plugins: {0}"
 msgstr "فشل في تحميل الإضافات: {0}"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:117
+#: packages/admin/src/components/RegistryBrowse.tsx:131
 msgid "Failed to load plugins. The registry aggregator may be unreachable."
 msgstr "فشل تحميل الإضافات. قد يكون مجمّع المستودع غير متاح."
 
@@ -4375,7 +4391,7 @@ msgstr "فشل إعادة كتابة الروابط"
 
 #: packages/admin/src/router.tsx:737
 #: packages/admin/src/router.tsx:1072
-#: packages/admin/src/router.tsx:2545
+#: packages/admin/src/router.tsx:2564
 msgid "Failed to save"
 msgstr "فشل الحفظ"
 
@@ -4420,8 +4436,8 @@ msgstr "فشل إرسال بريد التحقق"
 msgid "Failed to set entry terms"
 msgstr "فشل تعيين مصطلحات المدخل"
 
-#: packages/admin/src/lib/api/marketplace.ts:249
-#: packages/admin/src/lib/api/registry.ts:1004
+#: packages/admin/src/lib/api/marketplace.ts:353
+#: packages/admin/src/lib/api/registry.ts:1009
 msgid "Failed to uninstall plugin"
 msgstr "فشل إلغاء تثبيت الإضافة"
 
@@ -4458,8 +4474,9 @@ msgstr "فشل في تحديث النطاق"
 msgid "Failed to update media"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:232
-#: packages/admin/src/lib/api/registry.ts:879
+#: packages/admin/src/components/PluginManager.tsx:324
+#: packages/admin/src/lib/api/marketplace.ts:336
+#: packages/admin/src/lib/api/registry.ts:884
 msgid "Failed to update plugin"
 msgstr "فشل تحديث الإضافة"
 
@@ -4499,7 +4516,7 @@ msgstr ""
 msgid "Failed to verify authentication"
 msgstr "فشل التحقق من المصادقة"
 
-#: packages/admin/src/lib/api/registry.ts:762
+#: packages/admin/src/lib/api/registry.ts:767
 msgid "Failed to verify plugin"
 msgstr ""
 
@@ -4507,7 +4524,7 @@ msgstr ""
 msgid "Failed to verify registration"
 msgstr "فشل التحقق من التسجيل"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:873
+#: packages/admin/src/components/RegistryPluginDetail.tsx:878
 msgid "FAQ"
 msgstr ""
 
@@ -4811,7 +4828,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2781
+#: packages/admin/src/router.tsx:2801
 msgid "Go to Dashboard"
 msgstr "الذهاب إلى لوحة المعلومات"
 
@@ -4848,6 +4865,10 @@ msgstr "كاتب ضيف"
 #: packages/admin/src/routes/bylines.tsx:413
 msgid "Guest only"
 msgstr "ضيف فقط"
+
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:92
+msgid "Handle unavailable"
+msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:254
 msgid "Header column added"
@@ -4958,7 +4979,7 @@ msgstr "الرئيسية"
 msgid "Homepage"
 msgstr "الصفحة الرئيسية"
 
-#: packages/admin/src/components/PluginManager.tsx:433
+#: packages/admin/src/components/PluginManager.tsx:485
 msgid "Hooks"
 msgstr "المُشعرات"
 
@@ -5208,7 +5229,7 @@ msgstr "غير متوافق"
 msgid "Increase column width"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:107
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:115
 msgid "Independent verification"
 msgstr ""
 
@@ -5217,7 +5238,7 @@ msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:491
-#: packages/admin/src/components/RegistryPluginDetail.tsx:564
+#: packages/admin/src/components/RegistryPluginDetail.tsx:573
 msgid "Indexed"
 msgstr ""
 
@@ -5326,7 +5347,7 @@ msgid "Instagram"
 msgstr "إنستغرام"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:203
-#: packages/admin/src/components/RegistryPluginDetail.tsx:619
+#: packages/admin/src/components/RegistryPluginDetail.tsx:624
 msgid "Install"
 msgstr "تثبيت"
 
@@ -5342,27 +5363,31 @@ msgstr "تم حظر التثبيت"
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:872
+#: packages/admin/src/components/RegistryPluginDetail.tsx:877
 msgid "Installation"
+msgstr ""
+
+#: packages/admin/src/components/RegistryBrowse.tsx:226
+msgid "Installation is unavailable."
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:263
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:184
-#: packages/admin/src/components/RegistryBrowse.tsx:207
-#: packages/admin/src/components/RegistryPluginDetail.tsx:604
+#: packages/admin/src/components/RegistryBrowse.tsx:234
+#: packages/admin/src/components/RegistryPluginDetail.tsx:609
 msgid "Installed"
 msgstr "مثبَّت"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:600
+#: packages/admin/src/components/PluginManager.tsx:652
 msgid "Installed from marketplace (v{0})"
 msgstr "مثبَّت من السوق (الإصدار {0})"
 
-#: packages/admin/src/components/PluginManager.tsx:619
+#: packages/admin/src/components/PluginManager.tsx:671
 msgid "Installed:"
 msgstr "مثبَّت:"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:262
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:270
 msgid "Installing..."
 msgstr "جاري التثبيت..."
 
@@ -5370,6 +5395,10 @@ msgstr "جاري التثبيت..."
 #: packages/admin/src/components/FieldEditor.tsx:621
 msgid "Integer"
 msgstr "عدد صحيح"
+
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:79
+msgid "INVALID HANDLE"
+msgstr ""
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:151
 msgid "Invalid invite link"
@@ -5439,7 +5468,7 @@ msgstr "تم حذف العنصر"
 msgid "Item updated"
 msgstr "تم تحديث العنصر"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:476
+#: packages/admin/src/components/RegistryPluginDetail.tsx:477
 msgid "Its listing has not been approved for display. Check back later."
 msgstr ""
 
@@ -5545,7 +5574,7 @@ msgstr "اللغة"
 msgid "Large section heading"
 msgstr "عنوان قسم كبير"
 
-#: packages/admin/src/components/PluginManager.tsx:625
+#: packages/admin/src/components/PluginManager.tsx:677
 msgid "Last enabled:"
 msgstr "آخر تفعيل:"
 
@@ -5664,7 +5693,7 @@ msgstr "العرض المباشر"
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:207
 #: packages/admin/src/components/Redirects.tsx:560
-#: packages/admin/src/components/RegistryBrowse.tsx:165
+#: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
 #: packages/admin/src/routes/bylines.tsx:468
 msgid "Load more"
@@ -5684,7 +5713,7 @@ msgstr "تحميل المزيد"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2736
+#: packages/admin/src/router.tsx:2756
 msgid "Loading"
 msgstr ""
 
@@ -5700,8 +5729,8 @@ msgstr "جاري تحميل المجموعات..."
 msgid "Loading comments..."
 msgstr "جاري تحميل التعليقات..."
 
-#: packages/admin/src/router.tsx:2738
-#: packages/admin/src/router.tsx:2750
+#: packages/admin/src/router.tsx:2758
+#: packages/admin/src/router.tsx:2770
 msgid "Loading configuration..."
 msgstr "جارٍ تحميل الإعدادات..."
 
@@ -5739,7 +5768,7 @@ msgstr "جاري تحميل القائمة..."
 msgid "Loading menus..."
 msgstr "جاري تحميل القوائم..."
 
-#: packages/admin/src/components/PluginManager.tsx:154
+#: packages/admin/src/components/PluginManager.tsx:158
 msgid "Loading plugins..."
 msgstr "جاري تحميل الإضافات..."
 
@@ -5789,7 +5818,7 @@ msgstr "جارٍ تحميل عناصر الواجهة..."
 #: packages/admin/src/components/MediaUsedIn.tsx:204
 #: packages/admin/src/components/PortableTextEditor.tsx:2601
 #: packages/admin/src/components/Redirects.tsx:560
-#: packages/admin/src/components/RegistryBrowse.tsx:165
+#: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:169
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:206
 #: packages/admin/src/components/settings/BackupSettings.tsx:154
@@ -5882,13 +5911,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "الشريط الجانبي الرئيسي"
 
-#: packages/admin/src/lib/api/marketplace.ts:285
-#: packages/admin/src/lib/api/marketplace.ts:293
+#: packages/admin/src/lib/api/marketplace.ts:389
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Make network requests"
 msgstr "إجراء طلبات الشبكة"
 
-#: packages/admin/src/lib/api/marketplace.ts:286
-#: packages/admin/src/lib/api/marketplace.ts:294
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Make network requests to any host (unrestricted)"
 msgstr "إجراء طلبات الشبكة لأي مضيف (بدون قيود)"
 
@@ -5910,7 +5939,7 @@ msgstr "إدارة الكُتّاب في {entryLocale}"
 msgid "Manage content widgets in your widget areas"
 msgstr "إدارة عناصر واجهة المحتوى في مناطق الواجهة"
 
-#: packages/admin/src/components/PluginManager.tsx:174
+#: packages/admin/src/components/PluginManager.tsx:178
 msgid "Manage installed plugins. Enable or disable plugins to control their functionality."
 msgstr "إدارة الإضافات المثبَّتة. فعّل أو عطّل الإضافات للتحكم في وظائفها."
 
@@ -5966,8 +5995,8 @@ msgid "Markdown"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:190
-#: packages/admin/src/components/PluginManager.tsx:403
+#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:447
 #: packages/admin/src/components/Sidebar.tsx:478
 msgid "Marketplace"
 msgstr "السوق"
@@ -6418,7 +6447,7 @@ msgstr "جديد"
 msgid "New"
 msgstr "جديد"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:175
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:183
 msgid "NEW"
 msgstr "جديد"
 
@@ -6452,7 +6481,7 @@ msgstr ""
 msgid "New folder"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:186
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:194
 msgid "New public routes"
 msgstr "مسارات عامة جديدة"
 
@@ -6665,7 +6694,7 @@ msgstr "لا يوجد عناوين في المستند"
 msgid "No images in this gallery yet."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:655
+#: packages/admin/src/components/RegistryPluginDetail.tsx:660
 msgid "No installable releases"
 msgstr "لا توجد إصدارات قابلة للتثبيت"
 
@@ -6747,7 +6776,7 @@ msgstr "لم يتم تسجيل مفاتيح مرور"
 msgid "No passkeys registered yet."
 msgstr "لم يتم تسجيل مفاتيح مرور بعد."
 
-#: packages/admin/src/components/PluginManager.tsx:214
+#: packages/admin/src/components/PluginManager.tsx:218
 msgid "No plugins configured"
 msgstr "لم يتم تهيئة إضافات"
 
@@ -6755,11 +6784,11 @@ msgstr "لم يتم تهيئة إضافات"
 msgid "No plugins found"
 msgstr "لم يتم العثور على إضافات"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:139
+#: packages/admin/src/components/RegistryBrowse.tsx:153
 msgid "No plugins have been published to this registry yet."
 msgstr "لم يُنشر بعد أي إضافة في هذا المستودع."
 
-#: packages/admin/src/components/RegistryBrowse.tsx:138
+#: packages/admin/src/components/RegistryBrowse.tsx:152
 msgid "No plugins match \"{debouncedQuery}\"."
 msgstr "لا توجد إضافات تطابق \"{debouncedQuery}\"."
 
@@ -6767,7 +6796,7 @@ msgstr "لا توجد إضافات تطابق \"{debouncedQuery}\"."
 msgid "No preview"
 msgstr "لا يوجد معاينة"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:111
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:119
 msgid "No provenance was supplied; the signed publisher policy permits this."
 msgstr ""
 
@@ -6861,7 +6890,7 @@ msgstr ""
 msgid "None (top level)"
 msgstr "بدون (المستوى الأعلى)"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:690
+#: packages/admin/src/components/RegistryPluginDetail.tsx:695
 msgid "Not compatible with this environment"
 msgstr ""
 
@@ -7070,11 +7099,11 @@ msgstr "يَحل محل عنوان الصفحة في نتائج محركات ا�
 msgid "Ownership"
 msgstr "الملكية"
 
-#: packages/admin/src/components/PluginManager.tsx:609
+#: packages/admin/src/components/PluginManager.tsx:661
 msgid "Package"
 msgstr "الحزمة"
 
-#: packages/admin/src/router.tsx:2776
+#: packages/admin/src/router.tsx:2796
 msgid "Page Not Found"
 msgstr "الصفحة غير موجودة"
 
@@ -7088,7 +7117,7 @@ msgstr ""
 msgid "Page size"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:421
+#: packages/admin/src/components/PluginManager.tsx:473
 #: packages/admin/src/components/WordPressImport.tsx:1344
 msgid "Pages"
 msgstr "الصفحات"
@@ -7303,15 +7332,15 @@ msgstr ""
 msgid "Plugin column unavailable"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:823
+#: packages/admin/src/components/RegistryPluginDetail.tsx:828
 msgid "Plugin details"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:128
+#: packages/admin/src/components/PluginManager.tsx:132
 msgid "Plugin disabled"
 msgstr "تم تعطيل الإضافة"
 
-#: packages/admin/src/components/PluginManager.tsx:109
+#: packages/admin/src/components/PluginManager.tsx:113
 msgid "Plugin enabled"
 msgstr "تم تفعيل الإضافة"
 
@@ -7324,7 +7353,7 @@ msgstr "خطأ في الإضافة"
 msgid "Plugin error ({0})"
 msgstr "خطأ في الإضافة ({0})"
 
-#: packages/admin/src/components/PluginManager.tsx:353
+#: packages/admin/src/components/PluginManager.tsx:396
 msgid "Plugin MCP access updated"
 msgstr ""
 
@@ -7340,11 +7369,11 @@ msgstr ""
 msgid "Plugin not found"
 msgstr "لم يتم العثور على الإضافة"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:491
+#: packages/admin/src/components/RegistryPluginDetail.tsx:492
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:502
+#: packages/admin/src/components/PluginManager.tsx:554
 msgid "Plugin pages"
 msgstr ""
 
@@ -7352,13 +7381,22 @@ msgstr ""
 msgid "Plugin panel unavailable."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:89
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:92
 msgid "Plugin Permissions"
 msgstr "صلاحيات الإضافة"
 
-#: packages/admin/src/components/RegistryBrowse.tsx:90
+#: packages/admin/src/components/RegistryBrowse.tsx:104
 msgid "Plugin Registry"
 msgstr "مستودع الإضافات"
+
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:30
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:31
+msgid "Plugin registry configuration error"
+msgstr ""
+
+#: packages/admin/src/router.tsx:2247
+msgid "Plugin registry is not configured."
+msgstr ""
 
 #. placeholder {0}: response.status
 #: packages/admin/src/components/SandboxedPluginPage.tsx:40
@@ -7371,15 +7409,16 @@ msgstr "ردّت الإضافة بـ {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:342
+#: packages/admin/src/components/PluginManager.tsx:385
 msgid "Plugin uninstalled"
 msgstr "تم إلغاء تثبيت الإضافة"
 
-#: packages/admin/src/lib/api/registry.ts:919
+#: packages/admin/src/lib/api/marketplace.ts:198
+#: packages/admin/src/lib/api/registry.ts:924
 msgid "Plugin update requires re-consent"
 msgstr "تحديث الإضافة يستلزم الموافقة من جديد"
 
-#: packages/admin/src/components/PluginManager.tsx:280
+#: packages/admin/src/components/PluginManager.tsx:291
 msgid "Plugin updated"
 msgstr "تم تحديث الإضافة"
 
@@ -7388,9 +7427,9 @@ msgid "Plugin widget error"
 msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:218
-#: packages/admin/src/components/PluginManager.tsx:153
-#: packages/admin/src/components/PluginManager.tsx:162
-#: packages/admin/src/components/PluginManager.tsx:172
+#: packages/admin/src/components/PluginManager.tsx:157
+#: packages/admin/src/components/PluginManager.tsx:166
+#: packages/admin/src/components/PluginManager.tsx:176
 #: packages/admin/src/components/Sidebar.tsx:462
 #: packages/admin/src/components/Sidebar.tsx:626
 msgid "Plugins"
@@ -7425,7 +7464,7 @@ msgstr ""
 msgid "Posts Per Page"
 msgstr "المنشورات لكل صفحة"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:536
+#: packages/admin/src/components/RegistryPluginDetail.tsx:545
 msgid "Pre-release"
 msgstr "إصدار أولي"
 
@@ -7484,19 +7523,19 @@ msgstr "التنقل الرئيسي"
 msgid "Private"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:117
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:125
 msgid "Profile CID"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:110
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:118
 msgid "Provenance is verified against the signed release and artifact."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:133
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:141
 msgid "Provenance optional"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:132
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:140
 msgid "Provenance required"
 msgstr ""
 
@@ -7552,19 +7591,23 @@ msgstr ""
 msgid "Published At"
 msgstr "تم النشر في"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:528
+#: packages/admin/src/components/RegistryPluginDetail.tsx:537
 msgid "Published by <0/>"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:136
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:144
 msgid "Publisher approval required for every delegated release"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:137
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:145
 msgid "Publisher approval required only for permission escalation"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:129
+#: packages/admin/src/components/RegistryPluginDetail.tsx:645
+msgid "Publisher handle verification failed"
+msgstr ""
+
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:137
 msgid "Publisher release policy"
 msgstr ""
 
@@ -7611,17 +7654,17 @@ msgstr "قراءة ملفات الوسائط"
 msgid "Read site settings"
 msgstr "قراءة إعدادات الموقع"
 
-#: packages/admin/src/lib/api/marketplace.ts:284
-#: packages/admin/src/lib/api/marketplace.ts:292
+#: packages/admin/src/lib/api/marketplace.ts:388
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Read user accounts"
 msgstr "قراءة حسابات المستخدمين"
 
-#: packages/admin/src/lib/api/marketplace.ts:279
-#: packages/admin/src/lib/api/marketplace.ts:288
+#: packages/admin/src/lib/api/marketplace.ts:383
+#: packages/admin/src/lib/api/marketplace.ts:392
 msgid "Read your content"
 msgstr "قراءة المحتوى"
 
-#: packages/admin/src/lib/api/marketplace.ts:281
+#: packages/admin/src/lib/api/marketplace.ts:385
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -7724,15 +7767,16 @@ msgstr "فشل التسجيل"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "تم إلغاء التسجيل أو انتهت مهلته. يرجى المحاولة مجددًا."
 
+#: packages/admin/src/components/PluginManager.tsx:448
 #: packages/admin/src/components/Sidebar.tsx:471
 msgid "Registry"
 msgstr "المستودع"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:123
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:131
 msgid "Release CID"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:671
+#: packages/admin/src/components/RegistryPluginDetail.tsx:676
 msgid "Release is too new to install"
 msgstr "الإصدار حديث جدًا للتثبيت"
 
@@ -7962,7 +8006,7 @@ msgstr "المستودع"
 msgid "Request a new link"
 msgstr "طلب رابط جديد"
 
-#: packages/admin/src/lib/api/client.ts:292
+#: packages/admin/src/lib/api/client.ts:305
 msgid "Request failed"
 msgstr ""
 
@@ -8053,6 +8097,10 @@ msgstr ""
 msgid "Resize settings panel"
 msgstr ""
 
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:94
+msgid "Resolving publisher handle..."
+msgstr ""
+
 #: packages/admin/src/components/PortableTextEditor.tsx:4564
 msgid "Restart numbering"
 msgstr ""
@@ -8100,7 +8148,7 @@ msgstr "جاري الاستعادة..."
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2764
+#: packages/admin/src/router.tsx:2784
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "إعادة المحاولة"
@@ -8146,19 +8194,19 @@ msgstr "تمت الإعادة إلى النسخة المنشورة"
 msgid "Review"
 msgstr "مراجعة"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:88
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:91
 msgid "Review New Permissions"
 msgstr "مراجعة الصلاحيات الجديدة"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:93
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:96
 msgid "Review the independently verified release evidence and permissions for {pluginName} before continuing."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:86
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:89
 msgid "Review Verified Plugin"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:85
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:88
 msgid "Review Verified Update"
 msgstr ""
 
@@ -8243,8 +8291,8 @@ msgstr ""
 
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:213
-#: packages/admin/src/components/PluginManager.tsx:585
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:221
+#: packages/admin/src/components/PluginManager.tsx:637
 msgid "Route: {0} · Permission: {1}"
 msgstr ""
 
@@ -8364,12 +8412,12 @@ msgstr "جاري الحفظ..."
 msgid "Saving…"
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:540
+#: packages/admin/src/components/RegistryPluginDetail.tsx:549
 msgid "SBOM"
 msgstr ""
 
 #. placeholder {0}: sbom.format
-#: packages/admin/src/components/RegistryPluginDetail.tsx:538
+#: packages/admin/src/components/RegistryPluginDetail.tsx:547
 msgid "SBOM · {0}"
 msgstr ""
 
@@ -8445,7 +8493,7 @@ msgstr "النطاقات"
 #. placeholder {0}: i + 1
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:254
-#: packages/admin/src/components/RegistryPluginDetail.tsx:716
+#: packages/admin/src/components/RegistryPluginDetail.tsx:721
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:174
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:293
 msgid "Screenshot {0}"
@@ -8466,7 +8514,7 @@ msgid "Screenshot viewer"
 msgstr "عارض لقطات الشاشة"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:244
-#: packages/admin/src/components/RegistryPluginDetail.tsx:710
+#: packages/admin/src/components/RegistryPluginDetail.tsx:715
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:164
 msgid "Screenshots"
 msgstr "لقطات الشاشة"
@@ -8555,12 +8603,12 @@ msgid "Search pages and content..."
 msgstr "البحث في الصفحات والمحتوى..."
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:103
-#: packages/admin/src/components/RegistryBrowse.tsx:106
+#: packages/admin/src/components/RegistryBrowse.tsx:120
 msgid "Search plugins"
 msgstr "البحث في الإضافات"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:99
-#: packages/admin/src/components/RegistryBrowse.tsx:102
+#: packages/admin/src/components/RegistryBrowse.tsx:116
 msgid "Search plugins..."
 msgstr "البحث في الإضافات..."
 
@@ -8646,7 +8694,7 @@ msgstr "أقسام"
 msgid "Secure your account"
 msgstr "تأمين حسابك"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:875
+#: packages/admin/src/components/RegistryPluginDetail.tsx:880
 #: packages/admin/src/components/Settings.tsx:85
 msgid "Security"
 msgstr "الأمن"
@@ -8663,11 +8711,11 @@ msgstr "فشل التدقيق الأمني"
 msgid "Security audit flagged concerns"
 msgstr "التدقيق الأمني أشار إلى مخاوف"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:243
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:251
 msgid "Security audit flagged potential concerns with this plugin."
 msgstr "التدقيق الأمني أشار إلى مخاوف محتملة مع هذه الإضافة."
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:244
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:252
 msgid "Security audit flagged this plugin as potentially unsafe."
 msgstr "التدقيق الأمني صنّف هذه الإضافة على أنها غير آمنة محتملة."
 
@@ -8675,7 +8723,7 @@ msgstr "التدقيق الأمني صنّف هذه الإضافة على أنه
 msgid "Security audit passed"
 msgstr "نجح التدقيق الأمني"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:779
+#: packages/admin/src/components/RegistryPluginDetail.tsx:784
 msgid "Security contacts"
 msgstr "جهات الاتصال الأمني"
 
@@ -8727,7 +8775,7 @@ msgstr ""
 msgid "Select a menu..."
 msgstr "اختر قائمة..."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:396
+#: packages/admin/src/components/RegistryPluginDetail.tsx:397
 msgid "Select a release before verifying it"
 msgstr ""
 
@@ -8960,7 +9008,7 @@ msgstr "جاري الإعداد..."
 #: packages/admin/src/components/ContentEditor.tsx:1435
 #: packages/admin/src/components/ContentTypeEditor.tsx:392
 #: packages/admin/src/components/Header.tsx:101
-#: packages/admin/src/components/PluginManager.tsx:491
+#: packages/admin/src/components/PluginManager.tsx:543
 #: packages/admin/src/components/Settings.tsx:44
 #: packages/admin/src/components/Sidebar.tsx:500
 #: packages/admin/src/components/WordPressImport.tsx:1827
@@ -9239,7 +9287,7 @@ msgstr "ترتيب المظاهر"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:500
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:704
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:225
-#: packages/admin/src/components/PluginManager.tsx:597
+#: packages/admin/src/components/PluginManager.tsx:649
 #: packages/admin/src/components/Redirects.tsx:475
 #: packages/admin/src/components/SectionEditor.tsx:315
 msgid "Source"
@@ -9560,7 +9608,7 @@ msgstr "تم حذف القائمة."
 msgid "The name of your site, used in the header and metadata"
 msgstr "اسم موقعك، يُستخدم في الترويسة والبيانات الوصفية"
 
-#: packages/admin/src/router.tsx:2778
+#: packages/admin/src/router.tsx:2798
 msgid "The page you're looking for doesn't exist."
 msgstr "الصفحة التي تبحث عنها غير موجودة."
 
@@ -9575,6 +9623,11 @@ msgstr ""
 #: packages/admin/src/components/settings/GeneralSettings.tsx:185
 msgid "The public URL of your site (used for canonical links and sitemaps)"
 msgstr "الرابط العام لموقعك (يُستخدم للروابط الأساسية وخرائط الموقع)"
+
+#: packages/admin/src/components/RegistryBrowse.tsx:219
+#: packages/admin/src/components/RegistryPluginDetail.tsx:531
+msgid "The publisher identity cannot be verified."
+msgstr ""
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:192
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
@@ -9626,7 +9679,7 @@ msgstr "لا يمكن حذف الأقسام المزودة من مظهر. قم �
 msgid "Themes"
 msgstr "المظاهر"
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:205
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:213
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr ""
 
@@ -9736,7 +9789,7 @@ msgstr ""
 msgid "This plugin has no configurable settings."
 msgstr ""
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:474
+#: packages/admin/src/components/RegistryPluginDetail.tsx:475
 msgid "This plugin is not available yet"
 msgstr ""
 
@@ -9744,15 +9797,19 @@ msgstr ""
 msgid "This plugin requires no special permissions."
 msgstr "لا تتطلب هذه الإضافة صلاحيات خاصة."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:642
-msgid "This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying."
+#: packages/admin/src/components/PluginManager.tsx:458
+msgid "This publisher identity no longer resolves."
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:647
+msgid "This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle."
 msgstr ""
 
 #: packages/admin/src/components/Redirects.tsx:602
 msgid "This redirect rule will be permanently removed."
 msgstr "سيتم إزالة قاعدة إعادة التوجيه هذه بشكل نهائي."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:692
+#: packages/admin/src/components/RegistryPluginDetail.tsx:697
 msgid "This release requires a newer environment than your site currently runs. Upgrade before installing."
 msgstr ""
 
@@ -9789,7 +9846,7 @@ msgstr ""
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:189
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:197
 msgid "This update exposes the following routes without authentication:"
 msgstr "يكشف هذا التحديث المسارات التالية بدون مصادقة:"
 
@@ -9823,7 +9880,7 @@ msgstr "سيؤدي هذا إلى حذف \"{0}\" نهائيًا. لا يمكن ا
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "سيؤدي هذا إلى حذف هذا التعليق نهائيًا. لا يمكن التراجع عن هذا الإجراء."
 
-#: packages/admin/src/components/PluginManager.tsx:733
+#: packages/admin/src/components/PluginManager.tsx:804
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "سيؤدي هذا إلى إزالة الإضافة وحزمتها من موقعك."
 
@@ -10088,20 +10145,20 @@ msgid "Undo"
 msgstr "تراجع"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:191
-#: packages/admin/src/components/PluginManager.tsx:647
-#: packages/admin/src/components/PluginManager.tsx:747
+#: packages/admin/src/components/PluginManager.tsx:699
+#: packages/admin/src/components/PluginManager.tsx:818
 msgid "Uninstall"
 msgstr "إلغاء التثبيت"
 
-#: packages/admin/src/components/PluginManager.tsx:731
+#: packages/admin/src/components/PluginManager.tsx:802
 msgid "Uninstall {pluginName}?"
 msgstr "إلغاء تثبيت {pluginName}؟"
 
-#: packages/admin/src/components/PluginManager.tsx:726
+#: packages/admin/src/components/PluginManager.tsx:797
 msgid "Uninstall confirmation"
 msgstr "تأكيد إلغاء التثبيت"
 
-#: packages/admin/src/components/PluginManager.tsx:747
+#: packages/admin/src/components/PluginManager.tsx:818
 msgid "Uninstalling..."
 msgstr "جاري إلغاء التثبيت..."
 
@@ -10208,13 +10265,13 @@ msgid "Update this redirect rule."
 msgstr "تحديث قاعدة التحويل هذه."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/PluginManager.tsx:523
 msgid "Update to v{0}"
 msgstr "التحديث إلى الإصدار {0}"
 
 #: packages/admin/src/components/ContentList.tsx:869
 #: packages/admin/src/components/ContentSettingsPanel.tsx:998
-#: packages/admin/src/components/RegistryPluginDetail.tsx:559
+#: packages/admin/src/components/RegistryPluginDetail.tsx:568
 msgid "Updated"
 msgstr ""
 
@@ -10230,8 +10287,8 @@ msgstr "جاري تحديث روابط المحتوى..."
 msgid "Updating usage"
 msgstr ""
 
-#: packages/admin/src/components/CapabilityConsentDialog.tsx:261
-#: packages/admin/src/components/PluginManager.tsx:471
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:269
+#: packages/admin/src/components/PluginManager.tsx:523
 msgid "Updating..."
 msgstr "جاري التحديث..."
 
@@ -10255,8 +10312,8 @@ msgstr "ارفع صورة للبدء"
 msgid "Upload and delete media"
 msgstr "رفع وحذف الوسائط"
 
-#: packages/admin/src/lib/api/marketplace.ts:283
-#: packages/admin/src/lib/api/marketplace.ts:291
+#: packages/admin/src/lib/api/marketplace.ts:387
+#: packages/admin/src/lib/api/marketplace.ts:395
 msgid "Upload and manage media"
 msgstr "رفع الوسائط وإدارتها"
 
@@ -10486,7 +10543,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "يمكن للمستخدمين الذين لديهم عناوين بريد إلكتروني من هذه النطاقات التسجيل بدون دعوة. سيتم منحهم الدور الذي تم تحديده تلقائيًا."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:406
+#: packages/admin/src/components/PluginManager.tsx:451
 msgid "v{0} available"
 msgstr "الإصدار {0} متاح"
 
@@ -10495,7 +10552,11 @@ msgstr "الإصدار {0} متاح"
 msgid "Validation"
 msgstr "التحقق"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:413
+#: packages/admin/src/components/RegistryPluginIdentity.tsx:68
+msgid "Verified publisher"
+msgstr ""
+
+#: packages/admin/src/components/RegistryPluginDetail.tsx:414
 msgid "Verify the plugin before installing it"
 msgstr ""
 
@@ -10509,17 +10570,18 @@ msgstr "جاري التحقق من رابطك..."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:212
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:372
-#: packages/admin/src/components/RegistryPluginDetail.tsx:619
+#: packages/admin/src/components/RegistryPluginDetail.tsx:624
 msgid "Verifying..."
 msgstr "جاري التحقق..."
 
+#: packages/admin/src/components/CapabilityConsentDialog.tsx:103
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:331
-#: packages/admin/src/components/RegistryPluginDetail.tsx:573
+#: packages/admin/src/components/RegistryPluginDetail.tsx:582
 msgid "Version"
 msgstr "الإصدار"
 
 #. placeholder {0}: release.version
-#: packages/admin/src/components/RegistryPluginDetail.tsx:535
+#: packages/admin/src/components/RegistryPluginDetail.tsx:544
 msgid "Version {0}"
 msgstr "الإصدار {0}"
 
@@ -10534,7 +10596,7 @@ msgstr "فيديو"
 msgid "View email provider status and send test emails"
 msgstr "عرض حالة مزود البريد الإلكتروني وإرسال رسائل تجريبية."
 
-#: packages/admin/src/components/PluginManager.tsx:483
+#: packages/admin/src/components/PluginManager.tsx:535
 msgid "View in Marketplace"
 msgstr "عرض في السوق"
 
@@ -10555,11 +10617,11 @@ msgstr ""
 msgid "View Site"
 msgstr "عرض الموقع"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:737
+#: packages/admin/src/components/RegistryPluginDetail.tsx:742
 msgid "View source"
 msgstr "عرض المصدر"
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:978
+#: packages/admin/src/components/RegistryPluginDetail.tsx:983
 msgid "View the {license} license on spdx.org"
 msgstr "عرض رخصة {license} على spdx.org"
 
@@ -10606,10 +10668,6 @@ msgstr ""
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "تعذّر الاتصال بموقع WordPress على {0}. قد يعني هذا أن الموقع ليس WordPress، أو أن REST API معطل، أو أن الموقع غير متاح."
 
-#: packages/admin/src/components/RegistryPluginDetail.tsx:640
-msgid "We couldn't verify this publisher's identity"
-msgstr ""
-
 #: packages/admin/src/components/WordPressImport.tsx:1102
 msgid "We'll check what import options are available for your site."
 msgstr "سنقوم بالتحقق من خيارات الاستيراد المتاحة لموقعك."
@@ -10632,7 +10690,7 @@ msgid "WebAuthn is not supported in this browser"
 msgstr "WebAuthn غير مدعوم في هذا المتصفح"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
-#: packages/admin/src/components/RegistryPluginDetail.tsx:762
+#: packages/admin/src/components/RegistryPluginDetail.tsx:767
 msgid "Website"
 msgstr "الموقع الإلكتروني"
 
@@ -10762,7 +10820,7 @@ msgid "Widget updated"
 msgstr "تم تحديث عنصر الواجهة"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:427
+#: packages/admin/src/components/PluginManager.tsx:479
 #: packages/admin/src/components/Sidebar.tsx:426
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1175
@@ -11020,7 +11078,7 @@ msgid "Your Role"
 msgstr "دورك"
 
 #. placeholder {0}: formatHoldback(config.policy?.minimumReleaseAgeSeconds ?? 0)
-#: packages/admin/src/components/RegistryPluginDetail.tsx:673
+#: packages/admin/src/components/RegistryPluginDetail.tsx:678
 msgid "Your site requires releases to be at least {0} old before they can be installed. This release will become installable later."
 msgstr "يشترط موقعك أن تكون الإصدارات مضى عليها ما لا يقل عن {0} قبل تثبيتها. سيصبح هذا الإصدار قابلاً للتثبيت لاحقًا."
 

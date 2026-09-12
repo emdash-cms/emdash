@@ -56,12 +56,11 @@ export interface RegistryConfig {
 		 * Accepts a duration string (`"24h"`, `"48h"`, `"72h"`, `"7d"`) or a
 		 * number of seconds.
 		 *
-		 * Currently applies uniformly to all releases. A future addition
-		 * may exempt brand-new packages (those with no prior release
-		 * history) so the holdback doesn't block first-time publishing,
-		 * but that exemption is not implemented yet; use
-		 * {@link minimumReleaseAgeExclude} to allowlist trusted publishers
-		 * whose packages should install immediately.
+		 * A package's first release is exempt only when the aggregator
+		 * reports one release and confirms that its retained history is
+		 * complete. Missing or incomplete history keeps the holdback in
+		 * force. Use {@link minimumReleaseAgeExclude} to allowlist trusted
+		 * publishers whose packages should always install immediately.
 		 *
 		 * Defaults to `undefined` (no holdback). A future trust/moderation
 		 * RFC will specify the recommended default.

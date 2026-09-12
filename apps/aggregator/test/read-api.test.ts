@@ -39,6 +39,7 @@ beforeEach(async () => {
 	await testEnv.DB.prepare("DELETE FROM label_state").run();
 	await testEnv.DB.prepare("DELETE FROM labellers").run();
 	await testEnv.DB.prepare("DELETE FROM releases").run();
+	await testEnv.DB.prepare("DELETE FROM package_release_history").run();
 	await testEnv.DB.prepare("DELETE FROM packages").run();
 	await testEnv.DB.prepare("DELETE FROM package_profile_heads").run();
 	await testEnv.DB.prepare("DELETE FROM package_profile_revisions").run();
@@ -141,6 +142,16 @@ async function seedRelease(opts: SeedReleaseOpts): Promise<void> {
 		.run();
 }
 
+async function seedReleaseHistory(complete: boolean): Promise<void> {
+	await testEnv.DB.prepare(
+		`INSERT INTO package_release_history
+		   (did, package, release_history_complete, first_observed_at, first_observed_source)
+		 VALUES (?, ?, ?, ?, ?)`,
+	)
+		.bind(DID_A, "demo", complete ? 1 : 0, NOW.toISOString(), complete ? "jetstream" : "backfill")
+		.run();
+}
+
 async function seedTakedown(uri: string, cid: string | null = null): Promise<void> {
 	await testEnv.DB.prepare(
 		`INSERT INTO labellers
@@ -204,6 +215,39 @@ describe("getPackage", () => {
 		expect(res.status).toBe(404);
 		const body = (await res.json()) as { error: string };
 		expect(body.error).toBe("NotFound");
+	});
+
+	it("reports complete all-time release history including tombstones", async () => {
+		await seedPackage({ slug: "demo", latestVersion: "2.0.0" });
+		await seedRelease({ version: "1.0.0", tombstoned: true });
+		await seedRelease({ version: "2.0.0" });
+		await seedReleaseHistory(true);
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toMatchObject({
+			historicalReleaseCount: 2,
+			releaseHistoryComplete: true,
+		});
+	});
+
+	it("marks backfilled release history incomplete", async () => {
+		await seedPackage({ slug: "demo", latestVersion: "1.0.0" });
+		await seedRelease({ version: "1.0.0" });
+		await seedReleaseHistory(false);
+
+		const res = await SELF.fetch(
+			`https://test/xrpc/${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+		);
+
+		expect(res.status).toBe(200);
+		await expect(res.json()).resolves.toMatchObject({
+			historicalReleaseCount: 1,
+			releaseHistoryComplete: false,
+		});
 	});
 
 	it("returns 400 InvalidRequest on missing required params", async () => {
