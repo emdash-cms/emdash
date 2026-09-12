@@ -85,6 +85,7 @@ interface StorageCollection<T = unknown> {
 	// Basic CRUD
 	get(id: string): Promise<T | null>;
 	put(id: string, data: T): Promise<void>;
+	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;
 	delete(id: string): Promise<boolean>;
 	exists(id: string): Promise<boolean>;
 
@@ -98,6 +99,52 @@ interface StorageCollection<T = unknown> {
 	count(where?: WhereClause): Promise<number>;
 }
 ```
+
+## Conditional updates
+
+Use `updateIf()` to change an existing document only when its stored fields match a condition. The database checks the condition and applies the changes in one atomic operation. This method is available to native plugins and sandboxed plugins on Cloudflare and Workerd.
+
+Import its `NumericDelta`, `UpdateIfArgs`, and `UpdateIfResult` types with `import type` from `emdash` or `emdash/plugin`.
+
+The following call approves a pending submission and increments its review count in the same operation:
+
+```typescript
+const result = await ctx.storage.submissions.updateIf("sub_123", {
+	where: { status: "pending" },
+	set: { status: "approved" },
+	delta: { reviewCount: { inc: 1 } },
+});
+
+if (result.applied) {
+	ctx.log.info("Submission approved", { submission: result.data });
+}
+```
+
+A successful call returns `{ applied: true, data }` with the complete updated document. It returns `{ applied: false }` if the document is missing or the condition does not match. It never inserts a document.
+
+The arguments have the following behavior:
+
+- `where` is required and uses the same operators as [query filters](#where-clause-operators). An explicit `where: {}` adds no field conditions. Guard fields do not need declared query indexes because the update targets one document by ID.
+- A range filter needs at least one defined bound. Undefined bounds are ignored when another bound is defined. Numeric operands used by a guard must be finite.
+- `set` replaces each supplied top-level field value and leaves other fields unchanged. Values must be JSON-serializable.
+- `delta` applies exactly one `{ inc: number }` or `{ dec: number }` per field. Each operand must be a safe integer; negative operands are allowed.
+- A field cannot appear in both `set` and `delta`. Top-level `undefined` entries in either object are ignored. At least one defined field must remain.
+
+Malformed update arguments reject the promise without changing the document. The arguments object, `set`, `delta`, and each delta operation must be plain objects.
+
+### Integer counters
+
+A delta starts a missing or `null` counter at `0`. Existing counters and their results must be integers between `Number.MIN_SAFE_INTEGER` and `Number.MAX_SAFE_INTEGER`. A string, boolean, object, array, fractional number, unsafe integer, or out-of-range result causes the entire update to return `{ applied: false }`. A stored document that is not a JSON object also returns `{ applied: false }`. No fields change in either case.
+
+Deltas can produce negative values. To keep a counter nonnegative, pair a decrement of `n` with a `where` condition requiring that counter to be at least `n`.
+
+### Retry serialization failures
+
+PostgreSQL can reject concurrent writes with a serialization failure or deadlock. A deadlock can occur at any isolation level, including READ COMMITTED. In native plugins, these failures throw `StorageSerializationError` with `code: "STORAGE_SERIALIZATION_FAILURE"`, `retryable: true`, and an optional `sqlState` (`40001` or `40P01`). Import the error class from `emdash`.
+
+Use bounded retries with backoff for a standalone call. If the call is inside an explicit transaction, restart the entire transaction, including its reads; retrying the write inside the aborted transaction cannot succeed. Handle `{ applied: false }` as an unapplied update rather than a serialization error.
+
+Sandbox transports preserve the error name and retry metadata, but do not guarantee `instanceof StorageSerializationError`. Check `code` and `retryable` when handling errors across a sandbox boundary.
 
 ## Querying
 

@@ -119,7 +119,7 @@ const pending = await ctx.storage.submissions!.count({ status: "pending" });
 
 ### Conditional Updates
 
-`updateIf()` applies a write only when a guard matches. The guard and the arithmetic run in a single `UPDATE` statement, so concurrent guarded writes serialize correctly.
+`updateIf()` applies a write only when a guard matches. The guard and the arithmetic run in a single `UPDATE` statement, so concurrent guarded writes serialize correctly. It is available to native plugins and sandboxed plugins on Cloudflare and Workerd.
 
 The following example claims a submission for processing, and succeeds for exactly one caller when several run at once:
 
@@ -136,7 +136,7 @@ if (result.applied) {
 }
 ```
 
-`where` takes the same operators as `query()`. `set` writes whole field values. `delta` applies an integer `inc` or `dec` to a field, counting from `0` when that field is absent.
+`where` takes the same operators as `query()`. `set` writes JSON-serializable whole field values. `delta` applies a safe integer `inc` or `dec` to a field, counting from `0` when that field is absent or `null`.
 
 The following example records an attempt while the submission is still open:
 
@@ -152,11 +152,18 @@ Behavior to account for:
 
 - The call returns `{ applied: true, data }` or `{ applied: false }`. An absent row and a failed guard both return `{ applied: false }`.
 - An absent row is never inserted.
-- `delta` accepts integers. A float throws `TypeError`.
-- Pass at least one of `set` or `delta`. A field cannot appear in both.
+- `where` is required. Explicit `where: {}` adds no field conditions. Guard fields do not require query indexes because the update targets a document ID.
+- Malformed update arguments reject without writing. The arguments object, `set`, `delta`, and each delta operation must be plain objects.
+- Each delta contains exactly one `inc` or `dec` with a safe integer operand. Negative operands are allowed. Fractions and unsafe integer operands reject the call.
+- Pass at least one defined field in `set` or `delta`. Top-level `undefined` entries are ignored. A field cannot appear in both.
+- Existing non-null counters and all results must be safe integers. Invalid types, fractions, unsafe integers, overflow, and non-object documents return `{ applied: false }` without changing any fields.
 - A `dec` drives a field negative when the guard does not cover it. Pair `dec: k` with a `gte: k` guard to keep the field at or above zero.
-- A range filter in the guard needs at least one defined bound. `{ stock: { gte: undefined } }` throws `StorageQueryError` rather than leaving the write unguarded.
-- A losing writer that aborts instead of returning `{ applied: false }` throws `StorageSerializationError`, carrying the Postgres SQLSTATE (`40001` or `40P01`). Retry the call.
+- A range filter in the guard needs at least one defined bound. `{ stock: { gte: undefined } }` rejects the call. Undefined bounds are ignored when another bound is defined. Numeric operands used by a guard must be finite.
+- In native plugins, PostgreSQL serialization failures and deadlocks throw `StorageSerializationError` with `code: "STORAGE_SERIALIZATION_FAILURE"`, `retryable: true`, and optional `sqlState` (`40001` or `40P01`). Deadlocks can occur at READ COMMITTED too. Use bounded retries with backoff; inside an explicit transaction, restart the entire transaction, including its reads.
+
+Sandbox transports preserve the error name and retry metadata, but `instanceof StorageSerializationError` is not guaranteed there. Check `code` and `retryable` across sandbox boundaries.
+
+Import `NumericDelta`, `UpdateIfArgs`, and `UpdateIfResult` as types from `emdash` or `emdash/plugin`. Native plugins can import the runtime `StorageSerializationError` class from `emdash`; `emdash/plugin` supports type imports only.
 
 ### Index Design
 
