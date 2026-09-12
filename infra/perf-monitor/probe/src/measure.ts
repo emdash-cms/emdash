@@ -101,8 +101,8 @@ async function measureTtfb(url: string): Promise<{
 	const response = await fetch(url, {
 		method: "GET",
 		headers: {
+			Accept: "text/html",
 			"User-Agent": "emdash-perf-probe/1.0",
-			// Bust any edge cache
 			"Cache-Control": "no-cache",
 		},
 		redirect: "follow",
@@ -149,7 +149,7 @@ export async function measureRoutes(req: MeasureRequest): Promise<RouteResult[]>
 	for (const route of req.routes) {
 		const url = `${req.targetUrl}${route.path}`;
 
-		// Cold request -- add a unique query param to avoid any isolate reuse
+		// A distinct URL does not guarantee a fresh Worker isolate.
 		const coldUrl = url + (url.includes("?") ? "&" : "?") + `_perf_cold=${Date.now()}`;
 		const cold = await measureTtfb(coldUrl);
 
