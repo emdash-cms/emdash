@@ -97,14 +97,18 @@ export interface RadioElement {
 }
 
 /**
- * Sub-field types allowed inside a RepeaterElement. Limited to the scalar
- * inputs the admin widget currently renders inline.
+ * Sub-field types allowed inside a RepeaterElement: the scalar inputs the
+ * admin widget renders inline, plus the two structured fields (`portable_text`
+ * and `block_list`) so a repeater row can carry rich text or an ordered list
+ * of registered blocks (e.g. a column carrying its content).
  */
 export type RepeaterSubField =
 	| TextInputElement
 	| NumberInputElement
 	| SelectElement
-	| ToggleElement;
+	| ToggleElement
+	| PortableTextElement
+	| BlockListElement;
 
 /**
  * Array-of-objects field. Renders as a list of collapsible cards with inline
@@ -150,6 +154,46 @@ export interface MediaPickerElement {
 	placeholder?: string;
 }
 
+/**
+ * Rich-text field whose value is a Portable Text block array. The admin widget
+ * renders it as a nested instance of the standard Portable Text editor, so the
+ * value keeps its full structure -- blocks, spans, marks, markDefs and keys --
+ * and is never flattened to a string. The runtime block renderer
+ * (`renderElement`) deliberately returns `null` for `portable_text`; the value
+ * is persisted on the parent block and consumed by the plugin's own runtime
+ * component.
+ */
+export interface PortableTextElement {
+	type: "portable_text";
+	action_id: string;
+	label: string;
+	placeholder?: string;
+	initial_value?: Array<Record<string, unknown>>;
+}
+
+/**
+ * Ordered list of registered plugin blocks. The admin widget renders it as a
+ * list of cards with add (choosing from the same registered block catalog the
+ * document editor offers), edit (the chosen block's own Block Kit form),
+ * duplicate, delete, drag-and-drop reordering, and -- when several block lists
+ * are present in one form -- moving an item to a sibling list. Each stored
+ * item is an ordinary registered block object (`{ _type, _key, ...fields }`),
+ * never serialized HTML or a private document format. Like `repeater`, the
+ * runtime block renderer returns `null` for `block_list`.
+ */
+export interface BlockListElement {
+	type: "block_list";
+	action_id: string;
+	label: string;
+	/** Singular label used in the UI (e.g. "Block" → "Add Block"). */
+	item_label?: string;
+	/** Registered block types an item may use. Defaults to every registered block. */
+	allowed_types?: string[];
+	min_items?: number;
+	max_items?: number;
+	initial_value?: Array<Record<string, unknown>>;
+}
+
 export type Element =
 	| ButtonElement
 	| TextInputElement
@@ -162,7 +206,9 @@ export type Element =
 	| ComboboxElement
 	| RadioElement
 	| RepeaterElement
-	| MediaPickerElement;
+	| MediaPickerElement
+	| PortableTextElement
+	| BlockListElement;
 
 // ── Form Fields (elements + optional condition) ──────────────────────────────
 

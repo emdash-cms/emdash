@@ -33,9 +33,18 @@ const ELEMENT_TYPES = new Set([
 	"combobox",
 	"repeater",
 	"media_picker",
+	"portable_text",
+	"block_list",
 ]);
 
-const REPEATER_SUB_FIELD_TYPES = new Set(["text_input", "number_input", "select", "toggle"]);
+const REPEATER_SUB_FIELD_TYPES = new Set([
+	"text_input",
+	"number_input",
+	"select",
+	"toggle",
+	"portable_text",
+	"block_list",
+]);
 
 const COLUMN_FORMATS = new Set(["text", "badge", "relative_time", "number", "code"]);
 
@@ -580,6 +589,113 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 					path: `${path}.placeholder`,
 					message: "Field 'placeholder' must be a string",
 				});
+			}
+			break;
+		}
+		case "portable_text": {
+			if (value.placeholder !== undefined && typeof value.placeholder !== "string") {
+				errors.push({
+					path: `${path}.placeholder`,
+					message: "Field 'placeholder' must be a string",
+				});
+			}
+			if (value.initial_value !== undefined) {
+				if (!Array.isArray(value.initial_value)) {
+					errors.push({
+						path: `${path}.initial_value`,
+						message: "Field 'initial_value' must be an array of Portable Text blocks",
+					});
+				} else {
+					for (let i = 0; i < value.initial_value.length; i++) {
+						if (!isRecord(value.initial_value[i])) {
+							errors.push({
+								path: `${path}.initial_value[${i}]`,
+								message: "Each initial_value entry must be a Portable Text block object",
+							});
+						}
+					}
+				}
+			}
+			break;
+		}
+		case "block_list": {
+			if (value.item_label !== undefined && typeof value.item_label !== "string") {
+				errors.push({
+					path: `${path}.item_label`,
+					message: "Field 'item_label' must be a string",
+				});
+			}
+			if (value.allowed_types !== undefined) {
+				if (!Array.isArray(value.allowed_types)) {
+					errors.push({
+						path: `${path}.allowed_types`,
+						message: "Field 'allowed_types' must be an array of block type strings",
+					});
+				} else {
+					for (let i = 0; i < value.allowed_types.length; i++) {
+						const entry = value.allowed_types[i];
+						if (typeof entry !== "string" || entry.length === 0) {
+							errors.push({
+								path: `${path}.allowed_types[${i}]`,
+								message: "Each allowed_types entry must be a non-empty string",
+							});
+						}
+					}
+				}
+			}
+			const minOk =
+				value.min_items === undefined ||
+				(typeof value.min_items === "number" &&
+					Number.isInteger(value.min_items) &&
+					value.min_items >= 0);
+			if (!minOk) {
+				errors.push({
+					path: `${path}.min_items`,
+					message: "Field 'min_items' must be a non-negative integer",
+				});
+			}
+			const maxOk =
+				value.max_items === undefined ||
+				(typeof value.max_items === "number" &&
+					Number.isInteger(value.max_items) &&
+					value.max_items >= 0);
+			if (!maxOk) {
+				errors.push({
+					path: `${path}.max_items`,
+					message: "Field 'max_items' must be a non-negative integer",
+				});
+			}
+			if (
+				minOk &&
+				maxOk &&
+				value.min_items !== undefined &&
+				value.max_items !== undefined &&
+				typeof value.min_items === "number" &&
+				typeof value.max_items === "number" &&
+				value.min_items > value.max_items
+			) {
+				errors.push({
+					path: `${path}.min_items`,
+					message: "Field 'min_items' must be less than or equal to 'max_items'",
+				});
+			}
+			if (value.initial_value !== undefined) {
+				if (!Array.isArray(value.initial_value)) {
+					errors.push({
+						path: `${path}.initial_value`,
+						message: "Field 'initial_value' must be an array",
+					});
+				} else {
+					for (let i = 0; i < value.initial_value.length; i++) {
+						const entry = value.initial_value[i];
+						if (!isRecord(entry) || typeof entry._type !== "string" || entry._type.length === 0) {
+							errors.push({
+								path: `${path}.initial_value[${i}]`,
+								message: "Each initial_value entry must be a block object with a '_type' string",
+							});
+						}
+					}
+				}
 			}
 			break;
 		}
