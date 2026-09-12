@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-test",
-	"version": "0.0.0",
+	"version": "0.1.0",
 	"description": "Workerd-backed Vitest host for sandboxed EmDash plugins",
 	"type": "module",
 	"main": "dist/index.mjs",

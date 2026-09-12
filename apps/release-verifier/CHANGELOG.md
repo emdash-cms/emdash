@@ -1,5 +1,12 @@
 # @emdash-cms/release-verifier
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/registry-verification@0.3.1
+
 ## 0.0.1
 
 ### Patch Changes

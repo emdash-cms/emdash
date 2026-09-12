@@ -1,5 +1,14 @@
 # @emdash-cms/release-action
 
+## 0.0.2
+
+### Patch Changes
+
+- Updated dependencies [[`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de), [`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a), [`4cc150e`](https://github.com/emdash-cms/emdash/commit/4cc150e931313644a96b796627e5ec74b46c0aec)]:
+  - @emdash-cms/registry-client@0.6.0
+  - @emdash-cms/registry-lexicons@0.5.0
+  - @emdash-cms/registry-verification@0.3.1
+
 ## 0.0.1
 
 ### Patch Changes

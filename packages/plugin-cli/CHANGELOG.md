@@ -1,5 +1,25 @@
 # @emdash-cms/registry-cli
 
+## 0.11.0
+
+### Minor Changes
+
+- [#3081](https://github.com/emdash-cms/emdash/pull/3081) [`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds repository-level automated plugin releases. `emdash-plugin release setup` writes one shared `.github/workflows/emdash-release.yml` at the Git repository root, including when setup runs from a nested package. The workflow resolves `<slug>@<version>` tags to a unique plugin manifest, rejects version mismatches before attestation, and requests its first repository connection through GitHub OpenID Connect without an Actions secret.
+
+  Prepare later packages with `emdash-plugin profile setup --dir <package-directory>`. Their first release reuses approved repository workflow scopes when the signed package profile names the same repository. Tag and manual-run scopes accumulate after publisher confirmation instead of replacing each other. Existing package approvals remain package-scoped until the publisher explicitly confirms a repository connection; existing generated workflows and the legacy optional connection-invitation input remain supported.
+
+- [#3081](https://github.com/emdash-cms/emdash/pull/3081) [`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates `emdash-plugin init` to produce a validated, package-manager-aware plugin project. Interactive setup shows the resolved publisher, author, security contact, repository, target, and package manager before writing. Non-interactive setup requires explicit ownership flags unless `--use-detected` opts into the active publisher session and local Git metadata.
+
+  Generated projects pin the plugin CLI version, use bounded EmDash dependencies, include validation and publishing scripts, and add `AGENTS.md` with a local `creating-plugins` skill. `.agents/skills` and `.claude/skills` link to the same canonical skill directory, while `.claude/CLAUDE.md` links to `AGENTS.md`. pnpm projects include the reviewed `esbuild` install policy and use an explicit `SandboxedPlugin` annotation so declaration output remains portable. The scaffolder validates the complete manifest and parent paths before writing and stages new projects atomically.
+
+- [#3084](https://github.com/emdash-cms/emdash/pull/3084) [`b581ff8`](https://github.com/emdash-cms/emdash/commit/b581ff80af9d9ad73b11374b194da59ccf71d43d) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a workerd-backed Vitest host for sandboxed plugin tests and includes it in projects created by `emdash-plugin init`. `emdashPluginTest()` builds the plugin and configures D1, Worker Loader, and the production `PluginBridge`; `createPluginTestHost()` invokes hooks and routes through the production sandbox boundary and provides helpers for content fixtures, plugin storage, and KV assertions.
+
+### Patch Changes
+
+- Updated dependencies [[`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de), [`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a), [`4cc150e`](https://github.com/emdash-cms/emdash/commit/4cc150e931313644a96b796627e5ec74b46c0aec)]:
+  - @emdash-cms/registry-client@0.6.0
+  - @emdash-cms/registry-lexicons@0.5.0
+
 ## 0.10.0
 
 ### Minor Changes

@@ -1,5 +1,15 @@
 # @emdash-cms/plugin-audit-log
 
+## 0.2.2
+
+### Patch Changes
+
+- [#3057](https://github.com/emdash-cms/emdash/pull/3057) [`36a021c`](https://github.com/emdash-cms/emdash/commit/36a021c1185073e77da891d54a406ea9ce810826) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes content attribution for authenticated REST, visual editing, and MCP saves.
+
+  - Revisions record the acting user without changing the entry owner. MCP updates preserve the existing owner, and actorless internal writes leave revision attribution unset instead of inferring it from ownership.
+  - `content:beforeSave` and `content:afterSave` receive an actor snapshot with the authenticated user's `id` and `role`. The snapshot is isolated between hooks so one plugin cannot change the attribution seen by another.
+  - The audit-log plugin stores the actor ID as `userId` on content create and update entries.
+
 ## 0.2.1
 
 ### Patch Changes
