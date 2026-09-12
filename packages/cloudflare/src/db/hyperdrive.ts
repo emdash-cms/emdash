@@ -61,6 +61,7 @@
  */
 
 import { env, waitUntil } from "cloudflare:workers";
+import { EmDashConfigurationError } from "emdash";
 import { kyselyLogOption } from "emdash/database/instrumentation";
 import { FailFastPostgresDialect } from "emdash/database/pg-migration-lock";
 import { type Dialect, Kysely, PostgresDialect } from "kysely";
@@ -333,17 +334,19 @@ function requireBinding(config: HyperdriveConfig): HyperdriveBinding {
 			null,
 			2,
 		);
-		throw new Error(
+		throw new EmDashConfigurationError(
 			`Hyperdrive binding "${config.binding}" not found in environment. ` +
 				`Check your wrangler.jsonc configuration:\n\n${example}\n\n` +
 				`Hyperdrive also requires compatibility_flags: ["nodejs_compat"] and ` +
 				`compatibility_date >= "2024-09-23".`,
+			"BINDING_NOT_FOUND",
 		);
 	}
 	if (!binding.connectionString) {
-		throw new Error(
+		throw new EmDashConfigurationError(
 			`Hyperdrive binding "${config.binding}" is present but has no connectionString. ` +
 				`Ensure the binding points at a valid Hyperdrive configuration.`,
+			"CONFIGURATION_ERROR",
 		);
 	}
 	return binding;

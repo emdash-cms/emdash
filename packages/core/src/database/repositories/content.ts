@@ -973,7 +973,7 @@ export class ContentRepository {
 				collection: type,
 				entryId: id,
 				data: mergedData,
-				...(input.authorId ? { authorId: input.authorId } : {}),
+				...(input.revisionAuthorId ? { authorId: input.revisionAuthorId } : {}),
 			});
 
 			let staged: boolean;

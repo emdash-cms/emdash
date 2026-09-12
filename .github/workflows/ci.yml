@@ -258,13 +258,14 @@ jobs:
   test-e2e-rollup:
     name: E2E Tests
     if: always()
-    needs: [test-e2e, test-e2e-cloudflare, test-e2e-playground]
+    needs: [test-e2e, test-e2e-table, test-e2e-cloudflare, test-e2e-playground]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - name: Check E2E results
         run: |
           if [ "${{ needs.test-e2e.result }}" != "success" ] ||
+             [ "${{ needs.test-e2e-table.result }}" != "success" ] ||
              [ "${{ needs.test-e2e-cloudflare.result }}" != "success" ] ||
              [ "${{ needs.test-e2e-playground.result }}" != "success" ]; then
             echo "E2E tests failed or were cancelled"
@@ -303,6 +304,43 @@ jobs:
         if: failure()
         with:
           name: playwright-report-${{ matrix.shardIndex }}
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+
+  test-e2e-table:
+    name: Table E2E (${{ matrix.browser }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run --filter emdash... build
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ matrix.browser }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - run: pnpm exec playwright install ${{ matrix.browser }}
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - run: pnpm exec playwright install-deps ${{ matrix.browser }}
+      - run: pnpm run test:e2e:table --project=${{ matrix.browser }}
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: failure()
+        with:
+          name: playwright-table-${{ matrix.browser }}
           path: |
             playwright-report/
             test-results/

@@ -68,6 +68,7 @@ import type {
 	SandboxRunnerFactory,
 } from "./plugins/sandbox/types.js";
 import type {
+	ActorInfo,
 	ContentHookEvent,
 	ResolvedPlugin,
 	MediaItem,
@@ -233,7 +234,7 @@ import { publishDueContent, type PublishedRef } from "./scheduled-publish.js";
 import { FTSManager } from "./search/fts-manager.js";
 import { invalidateSiteSettingsCache } from "./settings/index.js";
 
-const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision"]);
+const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision", "actor"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
 
 /**
@@ -2057,10 +2058,14 @@ export class EmDashRuntime {
 		// Warn regardless of whether there are plugins to load, so operators
 		// see the issue even if no marketplace plugins are installed yet.
 		if (!sandboxRunner.isAvailable()) {
+			const reason = sandboxRunner.unavailableReason?.();
 			console.warn(
-				"EmDash: Plugin sandbox is configured but not available on this platform. " +
-					"Sandboxed plugins will not be loaded. " +
-					"If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.",
+				reason
+					? `EmDash: Plugin sandbox is configured but not available on this platform: ${reason}. ` +
+							"Sandboxed plugins will not be loaded."
+					: "EmDash: Plugin sandbox is configured but not available on this platform. " +
+							"Sandboxed plugins will not be loaded. " +
+							"If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.",
 			);
 			return sandboxedPluginCache;
 		}
@@ -2794,13 +2799,22 @@ export class EmDashRuntime {
 			locale?: string;
 			translationOf?: string;
 			taxonomies?: Record<string, string[]>;
+			actor?: ActorInfo;
 		},
 	) {
+		const actor = body.actor ? { ...body.actor } : undefined;
+
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
 		if (this.hooks.hasHooks("content:beforeSave")) {
 			try {
-				const hookResult = await this.hooks.runContentBeforeSave(body.data, collection, true);
+				const hookResult = await this.hooks.runContentBeforeSave(
+					body.data,
+					collection,
+					true,
+					undefined,
+					actor,
+				);
 				processedData = hookResult.content;
 			} catch (error) {
 				return beforeSaveFailure(error);
@@ -2808,7 +2822,13 @@ export class EmDashRuntime {
 		}
 
 		// Run beforeSave hooks (sandboxed plugins)
-		const sandboxResult = await this.runSandboxedBeforeSave(processedData, collection, true);
+		const sandboxResult = await this.runSandboxedBeforeSave(
+			processedData,
+			collection,
+			true,
+			undefined,
+			actor,
+		);
 		if (!sandboxResult.success) return sandboxResult;
 		processedData = sandboxResult.data;
 
@@ -2842,7 +2862,7 @@ export class EmDashRuntime {
 
 		// Run afterSave hooks (fire-and-forget)
 		if (result.success && result.data) {
-			this.runAfterSaveHooks(contentItemToRecord(result.data.item), collection, true);
+			this.runAfterSaveHooks(contentItemToRecord(result.data.item), collection, true, actor);
 		}
 
 		return result;
@@ -2870,8 +2890,15 @@ export class EmDashRuntime {
 			/** Replace the previous autosave revision after staging this save. */
 			skipRevision?: boolean;
 			_rev?: string;
+			/**
+			 * Acting user for this save. Used for revision attribution and
+			 * passed to content hooks; never changes entry ownership.
+			 */
+			actor?: ActorInfo;
 		},
 	) {
+		const actor = body.actor ? { ...body.actor } : undefined;
+
 		// Resolve slug → ID if needed (before any lookups)
 		const repo = new ContentRepository(this.db);
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
@@ -2895,7 +2922,7 @@ export class EmDashRuntime {
 				};
 			}
 		}
-		const { _rev: _discardedRev, ...bodyWithoutRev } = body;
+		const { _rev: _discardedRev, actor: _discardedActor, ...bodyWithoutRev } = body;
 
 		// Run beforeSave hooks if data is provided
 		let processedData = bodyWithoutRev.data;
@@ -2907,6 +2934,7 @@ export class EmDashRuntime {
 						collection,
 						false,
 						resolvedItem?.id,
+						actor,
 					);
 					processedData = hookResult.content;
 				} catch (error) {
@@ -2920,6 +2948,7 @@ export class EmDashRuntime {
 				collection,
 				false,
 				resolvedItem?.id,
+				actor,
 			);
 			if (!sandboxResult.success) return sandboxResult;
 			processedData = sandboxResult.data;
@@ -2971,7 +3000,7 @@ export class EmDashRuntime {
 						collection,
 						entryId: resolvedId,
 						data: mergedData,
-						authorId: bodyWithoutRev.authorId ?? undefined,
+						authorId: actor?.id,
 					});
 
 					let staged: boolean;
@@ -3109,7 +3138,7 @@ export class EmDashRuntime {
 
 		// Run afterSave hooks (fire-and-forget)
 		if (hydrated.success && hydrated.data) {
-			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false);
+			this.runAfterSaveHooks(contentItemToRecord(hydrated.data.item), collection, false, actor);
 		}
 
 		if (hydrated.success) {
@@ -3980,6 +4009,7 @@ export class EmDashRuntime {
 		collection: string,
 		isNew: boolean,
 		contentId?: string,
+		actor?: ActorInfo,
 	) {
 		let result = content;
 
@@ -3990,6 +4020,7 @@ export class EmDashRuntime {
 			try {
 				const event: ContentHookEvent = { content: result, collection, isNew };
 				if (contentId !== undefined) event.id = contentId;
+				if (actor !== undefined) event.actor = { ...actor };
 				const hookResult = await plugin.invokeHook("content:beforeSave", event);
 				const inspection = inspectSandboxHookResult(hookResult);
 				if (inspection.kind === "error") {
@@ -4060,12 +4091,13 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		isNew: boolean,
+		actor?: ActorInfo,
 	): void {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterSave")) {
 				try {
-					await this.hooks.runContentAfterSave(content, collection, isNew);
+					await this.hooks.runContentAfterSave(content, collection, isNew, actor);
 				} catch (err) {
 					console.error("EmDash afterSave hook error:", err);
 				}
@@ -4080,7 +4112,9 @@ export class EmDashRuntime {
 				tasks.push(
 					(async () => {
 						try {
-							await plugin.invokeHook("content:afterSave", { content, collection, isNew });
+							const event: ContentHookEvent = { content, collection, isNew };
+							if (actor !== undefined) event.actor = { ...actor };
+							await plugin.invokeHook("content:afterSave", event);
 						} catch (err) {
 							console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);
 						}

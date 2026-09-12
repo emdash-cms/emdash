@@ -17,6 +17,7 @@ import {
 	ssrfSafeFetch,
 	validateExternalUrl,
 } from "../../../src/import/ssrf.js";
+import { resolveAndValidateExternalUrlTarget } from "../../../src/security/ssrf.js";
 
 describe("ssrfSafeFetch HTTPS policy", () => {
 	afterEach(() => {
@@ -108,6 +109,57 @@ describe("validateExternalUrl", () => {
 		expect(() => validateExternalUrl("http://169.254.0.1/")).toThrow(SsrfError);
 	});
 
+	it("blocks shared address space (100.64.0.0/10)", () => {
+		expect(() => validateExternalUrl("http://100.64.0.0/")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://100.100.100.200/latest/meta-data/")).toThrow(
+			SsrfError,
+		);
+		expect(() => validateExternalUrl("http://100.127.255.255/")).toThrow(SsrfError);
+	});
+
+	it("preserves public IPv4 literals adjacent to shared address space", () => {
+		expect(validateExternalUrl("http://100.63.255.255/")).toBeInstanceOf(URL);
+		expect(validateExternalUrl("http://100.128.0.0/")).toBeInstanceOf(URL);
+	});
+
+	it.each([
+		"192.0.0.8",
+		"192.0.2.1",
+		"192.88.99.2",
+		"198.18.0.1",
+		"198.51.100.1",
+		"203.0.113.1",
+		"224.0.0.1",
+		"240.0.0.1",
+	])("blocks non-public IPv4 special-purpose address %s", (address) => {
+		expect(() => validateExternalUrl(`http://${address}/`)).toThrow(SsrfError);
+	});
+
+	it.each([
+		"191.255.255.255",
+		"192.0.1.0",
+		"192.0.1.255",
+		"192.0.3.0",
+		"192.88.98.255",
+		"192.88.100.0",
+		"198.17.255.255",
+		"198.20.0.0",
+		"198.51.99.255",
+		"198.51.101.0",
+		"203.0.112.255",
+		"203.0.114.0",
+		"223.255.255.255",
+	])("preserves IPv4 literal outside blocked range boundary %s", (address) => {
+		expect(validateExternalUrl(`http://${address}/`)).toBeInstanceOf(URL);
+	});
+
+	it.each(["192.0.0.9", "192.0.0.10", "192.31.196.1", "192.52.193.1", "192.175.48.1"])(
+		"preserves globally reachable IPv4 special-purpose address %s",
+		(address) => {
+			expect(validateExternalUrl(`http://${address}/`)).toBeInstanceOf(URL);
+		},
+	);
+
 	// =========================================================================
 	// IPv6 loopback
 	// =========================================================================
@@ -115,6 +167,58 @@ describe("validateExternalUrl", () => {
 	it("blocks IPv6 loopback [::1]", () => {
 		expect(() => validateExternalUrl("http://[::1]/")).toThrow(SsrfError);
 		expect(() => validateExternalUrl("http://[::1]:8080/")).toThrow(SsrfError);
+	});
+
+	it("blocks the IPv6 unspecified address [::]", () => {
+		expect(() => validateExternalUrl("http://[::]/")).toThrow(SsrfError);
+		expect(() => validateExternalUrl("http://[::]:8080/")).toThrow(SsrfError);
+	});
+
+	it.each([
+		"400::1",
+		"1fff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+		"64:ff9b:1::1",
+		"100::1",
+		"100:0:0:1::1",
+		"2001:1::4",
+		"2001:2::1",
+		"2001:4:111::1",
+		"2001:4:113::1",
+		"2001:5::1",
+		"2001:1ff:ffff:ffff:ffff:ffff:ffff:ffff",
+		"2001:40::1",
+		"2001:db8::1",
+		"2002::1",
+		"3ffe::1",
+		"3fff::1",
+		"4000::1",
+		"5f00::1",
+		"5f01::1",
+		"fe00::1",
+		"fe90::1",
+		"fec0::1",
+		"ff02::1",
+	])("blocks non-public IPv6 special-purpose address %s", (address) => {
+		expect(() => validateExternalUrl(`http://[${address}]/`)).toThrow(SsrfError);
+	});
+
+	it.each([
+		"2000::1",
+		"2001:1::1",
+		"2001:1::2",
+		"2001:1::3",
+		"2001:3::1",
+		"2001:4:112::1",
+		"2001:20::1",
+		"2001:2f:ffff::1",
+		"2001:30::1",
+		"2001:3f:ffff::1",
+		"2001:200::1",
+		"2606:4700:4700::1111",
+		"3ffd:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+		"3fff:1000::1",
+	])("preserves globally reachable IPv6 address %s", (address) => {
+		expect(validateExternalUrl(`http://[${address}]/`)).toBeInstanceOf(URL);
 	});
 
 	// =========================================================================
@@ -438,8 +542,7 @@ describe("normalizeIPv6MappedToIPv4", () => {
 		expect(normalizeIPv6MappedToIPv4("")).toBeNull();
 	});
 
-	it("returns null for dotted-decimal mapped form (handled separately)", () => {
-		// ::ffff:127.0.0.1 uses the dotted-decimal regex, not hex normalization
+	it("only normalizes hex addresses", () => {
 		expect(normalizeIPv6MappedToIPv4("::ffff:127.0.0.1")).toBeNull();
 	});
 });
@@ -530,6 +633,85 @@ describe("resolveAndValidateExternalUrl", () => {
 		});
 		expect(url).toBeInstanceOf(URL);
 		expect(url.hostname).toBe("example.com");
+	});
+
+	it.each([
+		"1.1.1.1",
+		"12.0.0.1",
+		"::ffff:1.1.1.1",
+		"::ffff:0:1.1.1.1",
+		"::1.1.1.1",
+		"64:ff9b::1.1.1.1",
+		"2001:4860:4860::8888",
+		"2001:4860:4860:0:0:0:0:8888",
+		"::ffff:808:808",
+		"0:0:0:0:0:ffff:808:808",
+		"0:0:0:0:0:ffff:8.8.8.8",
+		"0:0::ffff:8.8.8.8",
+		"::ffff:0:808:808",
+		"0:0:0:0:ffff:0:808:808",
+		"0:0:0:0:ffff:0:8.8.8.8",
+		"::808:808",
+		"0:0:0:0:0:0:808:808",
+		"0:0:0:0:0:0:8.8.8.8",
+		"64:ff9b::808:808",
+		"64:ff9b:0:0:0:0:808:808",
+		"64:ff9b:0:0:0:0:8.8.8.8",
+		"2001:4860:4860::8.8.8.8",
+		"2001:4860:4860:0:0:0:8.8.8.8",
+		"2001:4860:4860::127.0.0.1",
+	])("accepts strict public resolver address %s", async (address) => {
+		const target = await resolveAndValidateExternalUrlTarget("https://example.com/", {
+			resolver: resolver([address]),
+		});
+		expect(target.url).toBeInstanceOf(URL);
+		expect(target.addresses).toEqual([address]);
+	});
+
+	it.each([
+		"localhost",
+		"not-an-ip",
+		"1.1.1.",
+		"012.0.0.1",
+		"2001:4860:4860:0:0:0:0:8888::",
+		"2001:4860:4860::8.8.8.256",
+		"::ffff:008.8.8.8",
+		"2001:4860:4860:0:0:0:0:8.8.8.8",
+		"2001:4860:4860:0:0:8.8.8.8",
+		"2001:4860::8.8.8.8:1",
+		"2001:::4860:8888",
+		"2001::4860::8888",
+		"2001:4860:4860::8888%eth0",
+	])("rejects invalid resolver result %s", async (address) => {
+		await expect(
+			resolveAndValidateExternalUrl("https://attacker.example/", {
+				resolver: resolver([address]),
+			}),
+		).rejects.toThrow(SsrfError);
+	});
+
+	it.each([
+		"::ffff:7f00:1",
+		"0:0:0:0:0:ffff:7f00:1",
+		"0:0:0:0:0:ffff:127.0.0.1",
+		"0:0::ffff:127.0.0.1",
+		"::ffff:0:a9fe:a9fe",
+		"0:0:0:0:ffff:0:a9fe:a9fe",
+		"0:0:0:0:ffff:0:169.254.169.254",
+		"::a00:1",
+		"0:0:0:0:0:0:a00:1",
+		"0:0:0:0:0:0:10.0.0.1",
+		"64:ff9b::a00:1",
+		"64:ff9b:0:0:0:0:a00:1",
+		"64:ff9b:0:0:0:0:10.0.0.1",
+		"0:0:0:0:0:0:0:0",
+		"0:0:0:0:0:0:0:1",
+	])("rejects non-public resolver address %s alongside a public address", async (address) => {
+		await expect(
+			resolveAndValidateExternalUrl("https://attacker.example/", {
+				resolver: resolver(["8.8.8.8", address]),
+			}),
+		).rejects.toThrow(SsrfError);
 	});
 
 	it("rejects hostnames that resolve to loopback", async () => {
@@ -686,8 +868,8 @@ describe("cloudflareDohResolver", () => {
 
 	it("returns A and AAAA records from a valid Status=0 response", async () => {
 		stubFetch({
-			A: { body: { Status: 0, Answer: [{ data: "93.184.216.34" }] } },
-			AAAA: { body: { Status: 0, Answer: [{ data: "2606:4700::1" }] } },
+			A: { body: { Status: 0, Answer: [{ type: 1, data: "93.184.216.34" }] } },
+			AAAA: { body: { Status: 0, Answer: [{ type: 28, data: "2606:4700::1" }] } },
 		});
 
 		const ips = await cloudflareDohResolver("example.com");
@@ -712,7 +894,7 @@ describe("cloudflareDohResolver", () => {
 		// the check.
 		stubFetch({
 			A: { body: { Status: 2 } },
-			AAAA: { body: { Status: 0, Answer: [{ data: "2606:4700::1" }] } },
+			AAAA: { body: { Status: 0, Answer: [{ type: 28, data: "2606:4700::1" }] } },
 		});
 		await expect(cloudflareDohResolver("attacker.example")).rejects.toThrow();
 	});
@@ -720,7 +902,7 @@ describe("cloudflareDohResolver", () => {
 	it("fails closed on REFUSED (Status=5)", async () => {
 		stubFetch({
 			A: { body: { Status: 5 } },
-			AAAA: { body: { Status: 0, Answer: [{ data: "2606:4700::1" }] } },
+			AAAA: { body: { Status: 0, Answer: [{ type: 28, data: "2606:4700::1" }] } },
 		});
 		await expect(cloudflareDohResolver("attacker.example")).rejects.toThrow();
 	});
@@ -763,7 +945,12 @@ describe("cloudflareDohResolver", () => {
 			A: {
 				body: {
 					Status: 0,
-					Answer: [{ data: "93.184.216.34" }, { data: 12345 }, {}, { notData: "foo" }],
+					Answer: [
+						{ type: 1, data: "93.184.216.34" },
+						{ type: 1, data: 12345 },
+						{},
+						{ type: 1, notData: "foo" },
+					],
 				},
 			},
 			AAAA: { body: { Status: 0, Answer: [] } },
@@ -782,15 +969,18 @@ describe("cloudflareDohResolver", () => {
 				body: {
 					Status: 0,
 					Answer: [
-						{ data: "cdn.example.com." }, // CNAME target, not an IP
-						{ data: "93.184.216.34" }, // real A record
+						{ type: 5, data: "cdn.example.com." }, // CNAME target, not an IP
+						{ type: 1, data: "93.184.216.34" }, // real A record
 					],
 				},
 			},
 			AAAA: {
 				body: {
 					Status: 0,
-					Answer: [{ data: "other.example.com." }, { data: "2606:4700::1" }],
+					Answer: [
+						{ type: 5, data: "other.example.com." },
+						{ type: 28, data: "2606:4700::1" },
+					],
 				},
 			},
 		});
@@ -803,7 +993,7 @@ describe("cloudflareDohResolver", () => {
 			A: {
 				body: {
 					Status: 0,
-					Answer: [{ data: "target.example.com." }],
+					Answer: [{ type: 5, data: "target.example.com." }],
 				},
 			},
 			AAAA: { body: { Status: 0, Answer: [] } },
@@ -812,5 +1002,35 @@ describe("cloudflareDohResolver", () => {
 		// No IPs at all — the caller should treat this as "could not resolve"
 		// and fail closed, not pretend the CNAME target is an address.
 		expect(ips).toEqual([]);
+	});
+
+	it("filters IP-shaped answers whose DNS type does not match the query", async () => {
+		stubFetch({
+			A: {
+				body: {
+					Status: 0,
+					Answer: [
+						{ type: 5, data: "192.0.2.1" },
+						{ type: 28, data: "2606:4700::1" },
+						{ type: 1, data: "93.184.216.34" },
+					],
+				},
+			},
+			AAAA: {
+				body: {
+					Status: 0,
+					Answer: [
+						{ type: 5, data: "2606:4700::2" },
+						{ type: 1, data: "93.184.216.35" },
+						{ type: 28, data: "2606:4700::1" },
+					],
+				},
+			},
+		});
+
+		await expect(cloudflareDohResolver("example.com")).resolves.toEqual([
+			"93.184.216.34",
+			"2606:4700::1",
+		]);
 	});
 });

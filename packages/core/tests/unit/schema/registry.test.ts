@@ -285,6 +285,24 @@ describe("SchemaRegistry", () => {
 			expect(updated.hidden).toBe(true);
 		});
 
+		it("groups a collection into a sidebar folder and moves it back inline", async () => {
+			const created = await registry.createCollection({
+				slug: "calendar_entries",
+				label: "Entries",
+				group: "  Calendar ",
+			});
+			expect(created.group).toBe("Calendar");
+
+			const relabeled = await registry.updateCollection("calendar_entries", { label: "Dates" });
+			expect(relabeled.group).toBe("Calendar");
+
+			const inline = await registry.updateCollection("calendar_entries", { group: null });
+			expect(inline.group).toBeUndefined();
+
+			const blank = await registry.updateCollection("calendar_entries", { group: "" });
+			expect(blank.group).toBeUndefined();
+		});
+
 		it("persists collection admin list columns", async () => {
 			const created = await registry.createCollection({
 				slug: "tickets",

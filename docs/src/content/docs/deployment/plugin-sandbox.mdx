@@ -1,13 +1,13 @@
 ---
-title: Plugin Sandbox
+title: Configure the plugin sandbox
 description: Run sandboxed plugins on Cloudflare Workers or Node.js, with the bindings, resource limits, and failure modes of each sandbox runner.
 ---
 
 import { Aside, Steps } from "@astrojs/starlight/components";
 
-Sandboxed plugins run in an isolated runtime that a sandbox runner provides. Marketplace and registry installs always run sandboxed, and so do the plugins listed under `sandboxed: []` in the `emdash()` integration. Plugins listed under `plugins: []` run in the server process and do not use the runner.
+Sandboxed plugins need a platform runner in addition to their plugin declaration. Marketplace and registry installs always use that runner, as do plugins listed under `sandboxed: []`. Native plugins under `plugins: []` run in the EmDash server process and do not gain sandbox isolation.
 
-The runner depends on the deployment platform. On Cloudflare Workers, each plugin runs as a [Dynamic Worker](https://developers.cloudflare.com/dynamic-workers/) created through the Worker Loader binding. On Node.js, the server starts [`workerd`](https://github.com/cloudflare/workerd), the open-source Workers runtime, as a child process and runs each plugin as a service inside it. The `sandboxRunner` option of `emdash()` selects the runner. Without it, the plugins under `sandboxed: []` are never loaded, and a configured `marketplace` fails the build with "Marketplace requires `sandboxRunner` to be configured".
+The runner depends on the deployment platform. On Cloudflare Workers, each plugin runs as a [Dynamic Worker](https://developers.cloudflare.com/dynamic-workers/) created through the Worker Loader binding. On Node.js, the server starts [`workerd`](https://github.com/cloudflare/workerd), the open-source Workers runtime, as a child process and runs each plugin as a service inside it. The `sandboxRunner` option of `emdash()` selects the runner. Without it, plugins under `sandboxed: []` are not loaded. Marketplace and registry browsing remains available, but installing or updating a sandboxed plugin fails with `SANDBOX_NOT_AVAILABLE`.
 
 The following table summarizes what each runner needs and enforces.
 
@@ -20,11 +20,11 @@ The following table summarizes what each runner needs and enforces.
 
 ## Cloudflare Workers
 
-Dynamic Workers are available on the [Workers Paid plan](https://developers.cloudflare.com/dynamic-workers/pricing/). The runner needs the binding and the entry point export below; the `*-cloudflare` templates ship both.
+Dynamic Workers are available on the [Workers Paid plan](https://developers.cloudflare.com/dynamic-workers/pricing/). The `*-cloudflare` templates include the entry point export below but leave the binding commented out, so new projects deploy on the Workers free plan unless you enable sandboxed plugins during scaffolding.
 
 <Steps>
 
-1. Add the Worker Loader binding to `wrangler.jsonc`. The runner reads it under the name `LOADER`:
+1. Enable the Worker Loader binding in `wrangler.jsonc`. The runner reads it under the name `LOADER` and selects the Cloudflare sandbox only when this binding is present:
 
    ```jsonc title="wrangler.jsonc"
    {
@@ -35,6 +35,8 @@ Dynamic Workers are available on the [Workers Paid plan](https://developers.clou
    	],
    }
    ```
+
+   If the Wrangler config uses named environments, set `CLOUDFLARE_ENV` during the Astro build. The Cloudflare Vite plugin and `sandbox()` then read the same environment. Bindings are not inherited, so add `LOADER` to each named environment that runs sandboxed plugins.
 
 2. Export `PluginBridge` from the Worker entry point, and point `main` at that file. `PluginBridge` is the entrypoint through which sandboxed plugins reach content, media, storage, and email; the runner looks it up on the exports of the entry module:
 
@@ -96,15 +98,9 @@ Dynamic Workers are available on the [Workers Paid plan](https://developers.clou
    });
    ```
 
-3. For development, install `miniflare` as a dev dependency:
-
-   ```bash
-   npm install -D miniflare
-   ```
-
-   When `NODE_ENV` is `development`, which `astro dev` sets, and `miniflare` is installed, the runner hands the plugins to Miniflare, which manages its own `workerd` process; the crash policy below does not apply. `astro preview` sets `NODE_ENV` to `production` and `node ./dist/server/entry.mjs` leaves it unset; both use `workerd`.
-
 </Steps>
+
+The runner declares Miniflare as an optional dependency. Package managers install it by default. When `NODE_ENV` is `development`, which `astro dev` sets, the runner hands the plugins to Miniflare, which manages its own `workerd` process; the crash policy below does not apply. If optional dependencies were omitted, the runner uses `workerd` instead. `astro preview` sets `NODE_ENV` to `production` and `node ./dist/server/entry.mjs` leaves it unset; both use `workerd`.
 
 ### How the `workerd` process runs
 
@@ -131,10 +127,16 @@ When a hook or route exceeds the wall-time limit, the invocation fails with `Plu
 
 ## When the runner is unavailable
 
-A configured runner can still be unavailable: on Cloudflare Workers when the `worker_loaders` binding or the `PluginBridge` export is missing, on Node.js when `workerd` is not installed or its binary does not run. EmDash then logs the following warning when the runtime starts:
+On Cloudflare Workers, `sandbox()` checks `wrangler.jsonc` at build time. Without a `worker_loaders` binding named `LOADER`, it leaves the runner unset and logs the following warning:
 
 ```plain
-EmDash: Plugin sandbox is configured but not available on this platform. Sandboxed plugins will not be loaded. If using @emdash-cms/sandbox-workerd/sandbox, ensure workerd is installed.
+[emdash] Sandboxed plugins are disabled because wrangler.jsonc has no LOADER Worker Loader binding. Worker Loader requires a Workers paid plan.
+```
+
+A selected runner can still be unavailable at runtime: on Cloudflare Workers when the deployed `LOADER` binding or `PluginBridge` export is missing, and on Node.js when `workerd` is not installed or its binary does not run. EmDash then logs a warning with the cause the runner reports after the colon. The following warning is logged on Cloudflare Workers when the binding is missing:
+
+```plain
+EmDash: Plugin sandbox is configured but not available on this platform: the worker has no worker_loaders binding named LOADER. Sandboxed plugins will not be loaded.
 ```
 
 Plugins under `sandboxed: []` are not loaded, installed marketplace and registry plugins do not run, and a new install from the admin fails with the error code `SANDBOX_NOT_AVAILABLE`. The rest of the site is unaffected.
@@ -152,21 +154,29 @@ emdash({
 
 On Cloudflare Workers, the runtime refuses to start with `sandbox: false is not supported in Cloudflare Workers`.
 
+<Aside type="danger">
+	Do not deploy `sandbox: false` to production. The plugin then receives the server process's authority and is no longer constrained by the runner's isolation, host allowlist, or resource limits.
+</Aside>
+
 ## Troubleshooting
 
 Each entry is headed by the message as the server logs it, or by the error code the admin returns.
 
+### "[emdash] Sandboxed plugins are disabled because wrangler.jsonc has no LOADER Worker Loader binding"
+
+The Cloudflare adapter did not select a sandbox runner because the build-time Wrangler config has no `worker_loaders` binding named `LOADER`. This is the expected configuration on the Workers free plan. On a Workers paid plan, enable the binding in `wrangler.jsonc` and rebuild the site.
+
 ### "Plugin sandbox is configured but not available on this platform"
 
-On Cloudflare Workers, check both requirements: `wrangler.jsonc` has a `worker_loaders` binding named `LOADER`, and `main` points to a file that exports `PluginBridge`. Deploying the binding needs the Workers Paid plan.
+The text after the colon names the cause. On Cloudflare Workers, `the worker has no worker_loaders binding named LOADER` means `wrangler.jsonc` needs a `worker_loaders` binding named `LOADER`, and `the worker entrypoint does not export PluginBridge` means the file `main` points to must export `PluginBridge`. Deploying the binding needs the Workers Paid plan.
 
-On Node.js, run the binary the runner uses:
+On Node.js, `workerd is missing or its binary does not run on this platform` means the runner could not run `workerd`. Run the installed binary directly so the check cannot download a missing package:
 
 ```bash
-npx workerd --version
+./node_modules/.bin/workerd --version
 ```
 
-If the command fails, `workerd` is missing from `node_modules` or the installed binary does not run on this platform. Reinstall on the target platform with optional dependencies enabled.
+On Windows, run `node_modules\\.bin\\workerd.cmd --version`. If the command fails, `workerd` is missing from `node_modules` or the installed binary does not run on this platform. Reinstall on the target platform with optional dependencies enabled.
 
 ### "workerd failed to start within 10 seconds"
 
@@ -178,4 +188,4 @@ The runner has stopped restarting `workerd`. The `[emdash:workerd] workerd exite
 
 ### `SANDBOX_NOT_AVAILABLE` when installing a plugin
 
-The admin's install request was refused because the runner is missing or unavailable. Configure the runner for the platform, or fix the cause of the startup warning above, and redeploy.
+The admin's install request was refused because the runner is missing or unavailable. When a runner is configured, the error message ends with the same cause as the startup warning above. Configure the runner for the platform, or fix that cause, and redeploy.

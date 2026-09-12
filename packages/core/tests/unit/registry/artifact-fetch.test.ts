@@ -15,7 +15,7 @@ describe("registry artifact fetch", () => {
 	});
 
 	it("connects to the exact public address returned by validation", async () => {
-		setDefaultDnsResolver(async () => ["203.0.113.10", "2001:db8::10"]);
+		setDefaultDnsResolver(async () => ["93.184.216.34", "2606:4700:4700::1111"]);
 		const fetch = vi.fn<RegistryArtifactTransport["fetch"]>(async (input) => ({
 			response: new Response("artifact"),
 			connectedAddress: input.allowedAddresses[1]!,
@@ -31,13 +31,13 @@ describe("registry artifact fetch", () => {
 		expect(fetch).toHaveBeenCalledOnce();
 		expect(fetch.mock.calls[0]![0]).toMatchObject({
 			url: new URL("https://cdn.example/artifact.tgz"),
-			allowedAddresses: ["203.0.113.10", "2001:db8::10"],
+			allowedAddresses: ["93.184.216.34", "2606:4700:4700::1111"],
 			maxResponseBytes: 1024,
 		});
 	});
 
 	it("rejects a transport that connected outside the validated address set", async () => {
-		setDefaultDnsResolver(async () => ["203.0.113.10"]);
+		setDefaultDnsResolver(async () => ["93.184.216.34"]);
 		const cancel = vi.fn(async () => undefined);
 		setDefaultRegistryArtifactTransport({
 			async fetch() {

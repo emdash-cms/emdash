@@ -5,6 +5,7 @@ import {
 	Database,
 	Download,
 	Files,
+	Folder,
 	Folders,
 	IdentificationCard,
 	ImagesSquare,
@@ -45,6 +46,7 @@ describe("ADMIN_NAV_ICONS", () => {
 			contentTypes: Database,
 			plugins: Plug,
 			import: Download,
+			folder: Folder,
 		});
 	});
 });

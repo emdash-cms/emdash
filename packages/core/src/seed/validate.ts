@@ -5,7 +5,12 @@
  */
 
 import { getI18nConfig, resolveConfiguredLocale } from "../i18n/config.js";
-import { FIELD_TYPES, isIndexableFieldType, MAX_COLLECTION_LIST_COLUMNS } from "../schema/types.js";
+import {
+	FIELD_TYPES,
+	isIndexableFieldType,
+	MAX_COLLECTION_GROUP_LENGTH,
+	MAX_COLLECTION_LIST_COLUMNS,
+} from "../schema/types.js";
 import type { SeedFile, SeedMenuItem, ValidationResult } from "./types.js";
 
 const COLLECTION_FIELD_SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
@@ -112,6 +117,15 @@ export function validateSeed(data: unknown): ValidationResult {
 				}
 				if (collection.routable !== undefined && typeof collection.routable !== "boolean") {
 					errors.push(`${prefix}.routable: must be a boolean`);
+				}
+				if (collection.group !== undefined) {
+					if (typeof collection.group !== "string") {
+						errors.push(`${prefix}.group: must be a string`);
+					} else if (collection.group.trim().length > MAX_COLLECTION_GROUP_LENGTH) {
+						errors.push(
+							`${prefix}.group: must be at most ${MAX_COLLECTION_GROUP_LENGTH} characters`,
+						);
+					}
 				}
 
 				const declaredFieldSlugs = new Set(

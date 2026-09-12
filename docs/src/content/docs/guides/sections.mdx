@@ -1,146 +1,88 @@
 ---
 title: Sections
-description: Create and use reusable content blocks across your site.
+description: Create reusable Portable Text blocks and insert independent copies into content.
 ---
 
-import { Aside, Steps, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside, Steps } from "@astrojs/starlight/components";
 
-Sections are reusable content blocks that editors can insert into any content via slash commands. Use them for common patterns like CTAs, testimonials, feature grids, or any content that appears across multiple pages.
+Sections are reusable groups of Portable Text blocks. Editors can insert them into any Portable Text field, then change the inserted blocks without changing the source section.
 
-## Querying Sections
+Use sections for repeatable starting points such as a call to action, an author biography, or a standard notice. Use a [widget area](/guides/widgets/) when one centrally managed value should update everywhere it appears.
 
-### getSection
+## Create a section
 
-The following example fetches a single section by slug:
-
-```typescript
-import { getSection } from "emdash";
-
-const cta = await getSection("newsletter-cta");
-
-if (cta) {
-  console.log(cta.title);    // "Newsletter CTA"
-  console.log(cta.content);  // PortableTextBlock[]
-}
-```
-
-### getSections
-
-The following example fetches multiple sections with optional filters:
-
-```typescript
-import { getSections } from "emdash";
-
-// Get all sections
-const { items: all } = await getSections();
-
-// Filter by source
-const { items: themeSections } = await getSections({ source: "theme" });
-
-// Search by title/keywords
-const { items: results } = await getSections({ search: "newsletter" });
-```
-
-`getSections` returns `{ items: Section[], nextCursor?: string }` following the standard pagination pattern.
-
-## Section Structure
-
-A section has the following shape:
-
-```typescript
-interface Section {
-  id: string;
-  slug: string;
-  title: string;
-  description?: string;
-  keywords: string[];
-  content: PortableTextBlock[];
-  previewUrl?: string;
-  source: "theme" | "user" | "import";
-  themeId?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-```
-
-### Source Types
-
-| Source   | Description                                      |
-| -------- | ------------------------------------------------ |
-| `theme`  | Defined in seed file, managed by theme           |
-| `user`   | Created by editors in admin                      |
-| `import` | Imported from WordPress (reusable blocks)        |
-
-## Using Sections in Content
-
-Editors insert sections using the `/section` slash command in the rich text editor.
+Create and manage sections in **Sections** in the EmDash admin.
 
 <Steps>
 
-1. Type `/section` (or `/pattern`, `/block`, `/template`)
+1. Click **New Section** and enter a title, slug, and optional description.
 
-2. Search or browse available sections
+2. Add the content that editors should receive when they insert the section.
 
-3. Click to insert the section's content at the cursor position
+3. Add search keywords for terms that editors may use when looking for the section.
+
+4. Save the section.
 
 </Steps>
 
-The section's Portable Text content is copied into the document. The inserted content is self-contained: editors can customize it, and later changes to the section do not affect copies already placed in content.
+Section slugs contain lowercase letters, numbers, and hyphens. The slug identifies the section in templates and in the API; it is not a public page URL.
 
-<Aside type="tip">
-  For content that should stay synchronized, consider using [Widget Areas](/guides/widgets/) with component widgets instead.
-</Aside>
+## Insert a section into content
 
-## Creating Sections
+<Steps>
 
-### In the Admin UI
+1. Put the cursor in a Portable Text field and type `/section`.
 
-1. Navigate to **Sections** in the admin sidebar
+2. Search for the section by title, description, or keyword.
 
-2. Click **New Section**
+3. Select the section to insert its blocks at the cursor.
 
-3. Fill in:
-   - **Title** - Display name for the section
-   - **Slug** - URL identifier (auto-generated from title)
-   - **Description** - Help text for editors
+4. Edit the inserted content as needed, then save the entry.
 
-4. Add content using the rich text editor
+</Steps>
 
-5. Optionally set keywords for easier discovery
+The editor copies the section's Portable Text into the entry. Later edits to the library section do not change copies that have already been inserted.
 
-### Via Seed Files
+## Provide sections in a seed file
 
-The following seed file defines two sections for a theme:
+A theme or starter can provide sections in its seed file. Give every Portable Text block and span a stable `_key`, as in other seeded content.
+
+The following seed file adds a newsletter section:
 
 ```json title=".emdash/seed.json"
 {
+  "version": "1",
   "sections": [
     {
-      "slug": "hero-centered",
-      "title": "Centered Hero",
-      "description": "Full-width hero with centered heading and CTA",
-      "keywords": ["hero", "banner", "header"],
+      "slug": "newsletter-signup",
+      "title": "Newsletter signup",
+      "description": "A short newsletter call to action",
+      "keywords": ["newsletter", "subscribe", "email"],
+      "source": "theme",
       "content": [
         {
           "_type": "block",
-          "style": "h1",
-          "children": [{ "_type": "span", "text": "Welcome to Our Site" }]
+          "_key": "newsletter-heading",
+          "style": "h3",
+          "children": [
+            {
+              "_type": "span",
+              "_key": "newsletter-heading-text",
+              "text": "Receive new articles by email"
+            }
+          ]
         },
         {
           "_type": "block",
-          "children": [{ "_type": "span", "text": "Your tagline goes here." }]
-        }
-      ]
-    },
-    {
-      "slug": "newsletter-cta",
-      "title": "Newsletter CTA",
-      "keywords": ["newsletter", "subscribe", "email"],
-      "content": [
-        {
-          "_type": "block",
-          "style": "h3",
-          "children": [{ "_type": "span", "text": "Subscribe to our newsletter" }]
+          "_key": "newsletter-body",
+          "style": "normal",
+          "children": [
+            {
+              "_type": "span",
+              "_key": "newsletter-body-text",
+              "text": "Subscribe for occasional updates."
+            }
+          ]
         }
       ]
     }
@@ -148,127 +90,36 @@ The following seed file defines two sections for a theme:
 }
 ```
 
-### Via WordPress Import
+Run `emdash seed --validate` before applying a hand-written seed file. See [Seed Files](/themes/seed-files/) for application and conflict-handling options.
 
-WordPress reusable blocks (`wp_block` post type) are automatically imported as sections:
+Theme-provided sections use the `theme` source. Sections created in the admin use `user`, and WordPress reusable blocks imported by EmDash use `import`. See [Content Import](/migration/content-import/) for the import workflow.
 
-- Source is set to `"import"`
-- Gutenberg content converted to Portable Text
+## Render a section in a template
 
-## Rendering Sections Programmatically
+Most sites render section content as part of the entry into which it was copied. To render the current library value directly, fetch the section by slug and pass its content to `PortableText`.
 
-The following example renders a section's content server-side, outside the editor:
+The following component renders a centrally queried newsletter section:
 
-```astro
+```astro title="src/components/NewsletterSection.astro"
 ---
 import { getSection } from "emdash";
 import { PortableText } from "emdash/ui";
 
-const newsletter = await getSection("newsletter-cta");
+const section = await getSection("newsletter-signup");
 ---
 
-{newsletter && (
-  <aside class="cta-box">
-    <PortableText value={newsletter.content} />
+{section && (
+  <aside aria-label={section.title}>
+    <PortableText value={section.content} />
   </aside>
 )}
 ```
 
-## Admin UI Features
+This direct rendering path reads the library value on every render, so a later edit to the section affects every place that uses this component.
 
-The Sections library (`/_emdash/admin/sections`) provides:
+<Aside type="tip">
+	Use the direct rendering path only when synchronized output is the intended behavior. Inserting a
+	section in the editor is the better fit when each entry needs its own editable copy.
+</Aside>
 
-- **Grid view** with section previews
-- **Search** by title and keywords  
-- **Filter** by source
-- **Quick copy** slug to clipboard
-- **Edit** section content and metadata
-- **Delete** with confirmation (warns for theme sections)
-
-## API Reference
-
-### `getSection(slug)`
-
-Fetch a section by slug.
-
-**Parameters:**
-- `slug` — The section's unique identifier (string)
-
-**Returns:** `Promise<Section | null>`
-
-### `getSections(options?)`
-
-List sections with optional filters.
-
-**Parameters:**
-- `options.source` — Filter by source: `"theme"`, `"user"`, or `"import"`
-- `options.search` — Search title, description, and keywords
-- `options.limit` — Page size (default 50, max 100)
-- `options.cursor` — Pagination cursor from a previous `nextCursor`
-
-**Returns:** `Promise<{ items: Section[]; nextCursor?: string }>`
-
-## REST API
-
-### List Sections
-
-List sections, optionally filtered by source or search term:
-
-```http
-GET /_emdash/api/sections
-GET /_emdash/api/sections?source=theme
-GET /_emdash/api/sections?search=newsletter
-```
-
-### Get Section
-
-Fetch a single section by slug:
-
-```http
-GET /_emdash/api/sections/newsletter-cta
-```
-
-### Create Section
-
-Create a section with a POST request:
-
-```http
-POST /_emdash/api/sections
-Content-Type: application/json
-
-{
-  "slug": "my-section",
-  "title": "My Section",
-  "description": "Optional description",
-  "keywords": ["keyword1", "keyword2"],
-  "content": [...]
-}
-```
-
-### Update Section
-
-Update a section with a PUT request:
-
-```http
-PUT /_emdash/api/sections/my-section
-Content-Type: application/json
-
-{
-  "title": "Updated Title",
-  "content": [...]
-}
-```
-
-### Delete Section
-
-Delete a section by slug:
-
-```http
-DELETE /_emdash/api/sections/my-section
-```
-
-## Next Steps
-
-- [Working with Content](/guides/working-with-content/) - Learn about the rich text editor
-- [Widget Areas](/guides/widgets/) - For synchronized dynamic content
-- [Content Import](/migration/content-import/) - Import WordPress reusable blocks
+The [runtime API reference](/reference/api/#sections) documents section queries and pagination. For programmatic changes, authenticate with a Bearer token and add `X-EmDash-Request: 1` to every state-changing request. See the [section endpoints](/reference/rest-api/#section-endpoints) for request bodies and responses.

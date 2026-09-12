@@ -433,8 +433,9 @@ export interface CollectionTable {
 	date_field: string | null; // field slug (datetime) for the admin list Date column (NULL = default)
 	url_pattern: string | null; // URL pattern with {slug} placeholder (e.g. "/blog/{slug}")
 	routable: Generated<number>; // 0 or 1 — published entries require a slug when enabled
-	hidden: Generated<number>; // 0 or 1 — omit the auto-generated admin sidebar entry
+	hidden: Generated<number>; // 0 or 1 — omit the auto-generated sidebar entry and dashboard quick action
 	sort_order: number | null; // explicit admin sidebar position; NULL = alphabetical fallback
+	nav_group: string | null; // admin sidebar folder label; NULL = inline
 	comments_enabled: Generated<number>; // 0 or 1
 	comments_moderation: Generated<string>; // 'all' | 'first_time' | 'none'
 	comments_closed_after_days: Generated<number>; // 0 = never close

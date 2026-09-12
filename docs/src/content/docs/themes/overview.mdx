@@ -1,80 +1,64 @@
 ---
-title: Themes Overview
-description: Understand how EmDash themes work and how they bootstrap new sites.
+title: Themes
+description: Install or create an EmDash theme as an Astro template with a seed file.
 ---
 
-import { Aside, Card, CardGrid } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-An EmDash theme is a complete Astro site -- pages, layouts, components, styles -- distributed via `create-astro`. It also includes a **seed file** that bootstraps the database with collections, fields, menus, redirects, and sample content on first run.
+An EmDash theme is a complete Astro project distributed as a `create-astro` template. It contains the public routes and components, EmDash runtime configuration, and an optional seed file for the site's initial content model.
 
-## What a Theme Provides
+There is no runtime theme package or template hierarchy. After scaffolding, the theme files belong to the site and can be edited directly.
 
-A theme is a working Astro project with:
+## Theme contents
 
-- **Pages** — Astro routes for rendering content (homepage, blog posts, archives, etc.)
-- **Layouts** — Shared HTML structure
-- **Components** — Reusable UI elements (navigation, cards, footers)
-- **Styles** — CSS or Tailwind configuration
-- **A seed file** — JSON that tells the CMS what content types and fields to create
+Current EmDash templates use these paths:
 
-<Aside>
-	A theme declares exactly which collections and fields it needs via the seed file. Most themes
-	build on the standard **posts** and **pages** collections, adding fields and taxonomies as needed
-	rather than inventing entirely new content types.
-</Aside>
-
-## Theme Structure
-
-A theme has the following layout:
-
-```
-my-theme/
-├── package.json           # Theme metadata + EmDash config
-├── astro.config.mjs       # Astro integration setup
-├── src/
-│   ├── live.config.ts     # Live Collections configuration
-│   ├── pages/             # Astro routes
-│   ├── layouts/           # Layout components
-│   └── components/        # UI components
-└── .emdash/
-    ├── seed.json          # Schema + sample content
-    └── uploads/           # Optional local media files
+```text title="Template structure"
+astro.config.mjs
+package.json
+seed/
+└── seed.json
+src/
+├── components/
+├── layouts/
+├── live.config.ts
+├── pages/
+└── styles/
 ```
 
-## How Themes Bootstrap Sites
+- `astro.config.mjs` configures server output, the deployment adapter, EmDash, the database, and storage.
+- `src/live.config.ts` registers the `_emdash` live collection.
+- `src/pages/` defines public routes.
+- `seed/seed.json` can declare initial collections, fields, settings, taxonomies, bylines, menus, redirects, widget areas, sections, and sample content.
+- `package.json#emdash.seed` points to the seed file.
 
-Creating a site from a theme follows these steps:
+The blank template deliberately has no user seed and falls back to EmDash's built-in default seed. The other current templates point to `seed/seed.json`.
 
-1. `create-astro` scaffolds the project from the template
-2. Run `npm install` and `npm run dev`
-3. On first admin visit, the **Setup Wizard** runs automatically
-4. The wizard applies the seed file, creating collections, menus, redirects, and content
-5. The site is ready to use
+## Install a template
 
-<CardGrid>
-	<Card title="For Users" icon="laptop">
-		Pick a theme, run the wizard, start editing. No database knowledge required.
-	</Card>
-	<Card title="For Developers" icon="seti:config">
-		Themes are standard Astro projects. Customize freely after scaffolding.
-	</Card>
-</CardGrid>
-
-## Installing a Theme
-
-The following command scaffolds a site from an official theme template:
+The following command scaffolds the Node blog template:
 
 ```bash
 npm create astro@latest -- --template @emdash-cms/template-blog
 ```
 
-Community themes hosted on GitHub use the `github:` template prefix:
+Use the corresponding `-cloudflare` package for a Cloudflare Workers project:
 
 ```bash
-npm create astro@latest -- --template github:user/emdash-portfolio
+npm create astro@latest -- --template @emdash-cms/template-blog-cloudflare
 ```
 
-After scaffolding, install dependencies and start the dev server:
+Current template packages include:
+
+| Purpose | Node | Cloudflare |
+| --- | --- | --- |
+| Empty project shell | `@emdash-cms/template-blank` | No current counterpart |
+| Basic pages site | `@emdash-cms/template-starter` | `@emdash-cms/template-starter-cloudflare` |
+| Posts, pages, categories, tags, and widgets | `@emdash-cms/template-blog` | `@emdash-cms/template-blog-cloudflare` |
+| Project portfolio | `@emdash-cms/template-portfolio` | `@emdash-cms/template-portfolio-cloudflare` |
+| Marketing pages with custom Portable Text renderers | `@emdash-cms/template-marketing` | `@emdash-cms/template-marketing-cloudflare` |
+
+After scaffolding, install dependencies and start the generated site:
 
 ```bash
 cd my-site
@@ -82,58 +66,30 @@ npm install
 npm run dev
 ```
 
-Visit `http://localhost:4321/_emdash/admin` to complete the Setup Wizard.
+Open `http://localhost:4321/_emdash/admin`. The first visit redirects to setup, where you enter the site identity and administrator details. When the selected template has sample entries, the wizard also lets you include or omit them. Including them is useful while evaluating the design because the routes have realistic content to render.
 
-## The Setup Wizard
+## First setup
 
-The Setup Wizard runs automatically on first admin visit. It performs these steps:
+EmDash reads the seed at build time. It looks in this order:
 
-1. Prompts for site title, tagline, and admin credentials
-2. Offers an option to include sample content
-3. Applies the seed file to the database
-4. Redirects to the admin dashboard
+1. `.emdash/seed.json`.
+2. The path in `package.json#emdash.seed`.
+3. `seed/seed.json`.
+4. The built-in default seed when no user seed is found.
 
-<Aside type="tip">
-	Check "Include sample content" when exploring a theme for the first time. The sample content
-	demonstrates how the theme expects content to be structured.
+On the first admin visit, the setup wizard shows seed metadata and lets the administrator choose whether to include sample content. It applies the seed to an empty database and records setup completion. Later starts do not reapply the seed to an existing site.
+
+<Aside type="caution">
+  A seed is initial setup data, not a deployment migration system. After setup, change a live site's model through EmDash and export the resulting schema when the repository needs an updated baseline.
 </Aside>
 
-## Official Themes
+## Customize the installed site
 
-EmDash provides official starter themes, each available in local (SQLite + filesystem) and Cloudflare (D1 + R2) variants:
+Edit the generated project directly:
 
-| Theme | Description | Use Case |
-| ----- | ----------- | -------- |
-| `@emdash-cms/template-blog` | Minimal blog with posts, pages, categories, and dark mode | Personal blogs, simple sites |
-| `@emdash-cms/template-portfolio` | Editorial-style portfolio with projects, serif typography (Playfair Display), and image-focused layouts | Freelancers, agencies, creatives |
-| `@emdash-cms/template-marketing` | Bold marketing site with custom Portable Text blocks (hero, features, testimonials, pricing, FAQ) | Landing pages, SaaS sites, product marketing |
+- Change route files in `src/pages/`.
+- Change shared markup in `src/layouts/` and `src/components/`.
+- Change the initial model in `seed/seed.json` before first setup.
+- Manage an existing site's model under **Content Types** in the admin.
 
-### Cloudflare Variants
-
-For deployment on Cloudflare Workers with D1 and R2, append `-cloudflare` to the template name, as in the following commands:
-
-```bash
-npm create astro@latest -- --template @emdash-cms/template-blog-cloudflare
-npm create astro@latest -- --template @emdash-cms/template-portfolio-cloudflare
-npm create astro@latest -- --template @emdash-cms/template-marketing-cloudflare
-```
-
-These variants include `wrangler.jsonc` for deployment configuration.
-
-## Customizing After Install
-
-After the Setup Wizard completes, the site is a standard Astro project. Customize it like any Astro site:
-
-- Edit pages in `src/pages/`
-- Modify layouts in `src/layouts/`
-- Add collections via the admin UI
-- Install Astro integrations
-- Deploy anywhere Astro runs
-
-The seed file is only used during initial setup. After that, manage the content model in the admin panel or with the CLI.
-
-## Next Steps
-
-- **[Creating Themes](/themes/creating-themes/)** — Build your own EmDash theme
-- **[Seed File Format](/themes/seed-files/)** — Reference for seed file structure
-- **[Getting Started](/getting-started/)** — Create your first EmDash site
+Use [Creating themes](/themes/creating-themes/) to prepare a reusable template and [Seed files](/themes/seed-files/) for the complete seed contract.
