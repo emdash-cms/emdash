@@ -200,9 +200,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// visible.
 	const defaultVersion = React.useMemo(() => {
 		if (!pkg || releases.length === 0) return undefined;
-		const passes = releases.find((r) =>
-			releasePassesPolicy(r, { did: pkg.did, slug }, config.policy),
-		);
+		const passes = releases.find((r) => releasePassesPolicy(r, pkg, config.policy));
 		return (passes ?? releases[0])?.version;
 	}, [pkg, releases, slug, config.policy]);
 
