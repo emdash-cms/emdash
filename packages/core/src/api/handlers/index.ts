@@ -38,6 +38,9 @@ export {
 	type RecentItem,
 } from "./dashboard.js";
 
+// Core update check
+export { handleCoreUpdateStatus, type CoreUpdateStatus } from "./update-check.js";
+
 // Manifest generation
 export { generateManifest } from "./manifest.js";
 

@@ -89,6 +89,9 @@ export const Permissions = {
 	// Backups (full content export — admin-only, same tier as settings:manage)
 	"backups:manage": Role.ADMIN,
 
+	// Core update notice (admins act on it; editors can't update anyway)
+	"updates:read": Role.ADMIN,
+
 	// Search
 	"search:read": Role.SUBSCRIBER,
 	"search:manage": Role.ADMIN,
