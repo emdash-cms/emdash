@@ -2759,14 +2759,6 @@ msgstr ""
 msgid "Daily automatic backups"
 msgstr ""
 
-#: packages/admin/src/components/ThemeToggle.tsx:22
-msgid "dark"
-msgstr ""
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "Dark"
-msgstr ""
-
 #: packages/admin/src/components/FieldEditor.tsx:688
 #: packages/admin/src/components/ImageFieldRenderer.tsx:395
 msgid "Dark mode variant"
@@ -5611,14 +5603,6 @@ msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:203
 msgid "License"
-msgstr ""
-
-#: packages/admin/src/components/ThemeToggle.tsx:22
-msgid "light"
-msgstr ""
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "Light"
 msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:165
@@ -9366,6 +9350,14 @@ msgstr ""
 msgid "Swift"
 msgstr ""
 
+#: packages/admin/src/components/ThemeToggle.tsx:19
+msgid "Switch to dark"
+msgstr ""
+
+#: packages/admin/src/components/ThemeToggle.tsx:19
+msgid "Switch to light"
+msgstr ""
+
 #: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Synced"
 msgstr ""
@@ -9376,10 +9368,6 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:832
 msgid "System"
-msgstr ""
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "System ({resolvedLabel})"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:654
@@ -9624,10 +9612,6 @@ msgstr ""
 
 #: packages/admin/src/components/Sections.tsx:300
 msgid "Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that."
-msgstr ""
-
-#: packages/admin/src/components/ThemeToggle.tsx:33
-msgid "Theme: {label}"
 msgstr ""
 
 #: packages/admin/src/components/Sidebar.tsx:487
@@ -9887,11 +9871,6 @@ msgstr ""
 
 #: packages/admin/src/components/editor/TableControls.tsx:31
 msgid "Toggle header row"
-msgstr ""
-
-#: packages/admin/src/components/ThemeToggle.tsx:31
-#: packages/admin/src/components/ThemeToggle.tsx:42
-msgid "Toggle theme (current: {label})"
 msgstr ""
 
 #. placeholder {0}: newToken.info.name

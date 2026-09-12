@@ -2759,14 +2759,6 @@ msgstr ""
 msgid "Daily automatic backups"
 msgstr ""
 
-#: packages/admin/src/components/ThemeToggle.tsx:22
-msgid "dark"
-msgstr "深色"
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "Dark"
-msgstr "深色"
-
 #: packages/admin/src/components/FieldEditor.tsx:688
 #: packages/admin/src/components/ImageFieldRenderer.tsx:395
 msgid "Dark mode variant"
@@ -5615,14 +5607,6 @@ msgstr "库"
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:203
 msgid "License"
 msgstr "许可证"
-
-#: packages/admin/src/components/ThemeToggle.tsx:22
-msgid "light"
-msgstr "浅色"
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "Light"
-msgstr "浅色"
 
 #: packages/admin/src/components/Widgets.tsx:165
 msgid "Limit"
@@ -9372,6 +9356,14 @@ msgstr "Svelte"
 msgid "Swift"
 msgstr "Swift"
 
+#: packages/admin/src/components/ThemeToggle.tsx:19
+msgid "Switch to dark"
+msgstr ""
+
+#: packages/admin/src/components/ThemeToggle.tsx:19
+msgid "Switch to light"
+msgstr ""
+
 #: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Synced"
 msgstr "已同步"
@@ -9383,10 +9375,6 @@ msgstr "已同步通行密钥"
 #: packages/admin/src/components/ContentTypeEditor.tsx:832
 msgid "System"
 msgstr "系统"
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "System ({resolvedLabel})"
-msgstr "跟随系统（{resolvedLabel}）"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:654
 msgid "System Fields"
@@ -9631,10 +9619,6 @@ msgstr "主题区块"
 #: packages/admin/src/components/Sections.tsx:300
 msgid "Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that."
 msgstr "主题提供的区块无法删除。编辑区块以创建自定义副本，然后删除该副本。"
-
-#: packages/admin/src/components/ThemeToggle.tsx:33
-msgid "Theme: {label}"
-msgstr "主题：{label}"
 
 #: packages/admin/src/components/Sidebar.tsx:487
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
@@ -9894,11 +9878,6 @@ msgstr ""
 #: packages/admin/src/components/editor/TableControls.tsx:31
 msgid "Toggle header row"
 msgstr "切换表头行"
-
-#: packages/admin/src/components/ThemeToggle.tsx:31
-#: packages/admin/src/components/ThemeToggle.tsx:42
-msgid "Toggle theme (current: {label})"
-msgstr "切换主题（当前：{label}）"
 
 #. placeholder {0}: newToken.info.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:255

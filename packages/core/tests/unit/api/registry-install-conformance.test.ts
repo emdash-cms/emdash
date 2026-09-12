@@ -53,8 +53,13 @@ interface ConformanceContext {
 	options: AuthoritativeRecordReadOptions;
 }
 
-function createMemoryStorage(): Storage & { keys(): string[] } {
+function createMemoryStorage(options?: { deferDeletes?: boolean }): Storage & {
+	keys(): string[];
+	releaseDeletes(): void;
+} {
 	const values = new Map<string, { body: Uint8Array; contentType: string }>();
+	let deletesReleased = options?.deferDeletes !== true;
+	const pendingDeletes: Array<() => void> = [];
 	return {
 		async upload(input): Promise<UploadResult> {
 			let body: Uint8Array;
@@ -78,6 +83,9 @@ function createMemoryStorage(): Storage & { keys(): string[] } {
 			};
 		},
 		async delete(key): Promise<void> {
+			if (!deletesReleased) {
+				await new Promise<void>((resolve) => pendingDeletes.push(resolve));
+			}
 			values.delete(key);
 		},
 		async exists(key): Promise<boolean> {
@@ -94,6 +102,10 @@ function createMemoryStorage(): Storage & { keys(): string[] } {
 			throw new Error("Not implemented");
 		},
 		keys: () => [...values.keys()].toSorted(),
+		releaseDeletes() {
+			deletesReleased = true;
+			for (const resolve of pendingDeletes.splice(0)) resolve();
+		},
 	};
 }
 
@@ -322,7 +334,8 @@ describe("registry delegated-release conformance", () => {
 		},
 	);
 
-	it("updates with the same verification and CID-bound re-consent", async () => {
+	it("updates with CID-bound re-consent and keeps a concurrent downgrade bundle active", async () => {
+		storage = createMemoryStorage({ deferDeletes: true });
 		const initial = await createDelegatedReleaseConformanceFixture();
 		const context = await createContext(initial);
 		await mockAggregator(initial, context);
@@ -424,6 +437,57 @@ describe("registry delegated-release conformance", () => {
 		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
 			version: next.version,
 		});
+		expect(storage.keys()).toEqual(
+			expect.arrayContaining([
+				`registry/${installed.data.pluginId}/${initial.version}/manifest.json`,
+				`registry/${installed.data.pluginId}/${next.version}/manifest.json`,
+			]),
+		);
+
+		const retried = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{ authoritativeRecords: nextOptions },
+		);
+		expect(retried).toMatchObject({
+			success: false,
+			error: { code: "ALREADY_UP_TO_DATE" },
+		});
+		expect(storage.keys()).toContain(
+			`registry/${installed.data.pluginId}/${next.version}/manifest.json`,
+		);
+
+		await mockAggregator(initial, context);
+		artifactFetch(initial.artifactBytes);
+		const downgraded = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{ authoritativeRecords: context.options },
+		);
+		expect(downgraded).toMatchObject({
+			success: true,
+			data: { oldVersion: next.version, newVersion: initial.version },
+		});
+
+		storage.releaseDeletes();
+		await new Promise((resolve) => setImmediate(resolve));
+		await new Promise((resolve) => setImmediate(resolve));
+
+		expect(await new PluginStateRepository(db).get(installed.data.pluginId)).toMatchObject({
+			version: initial.version,
+		});
+		expect(storage.keys()).toEqual(
+			expect.arrayContaining([
+				`registry/${installed.data.pluginId}/${initial.version}/backend.js`,
+				`registry/${installed.data.pluginId}/${initial.version}/manifest.json`,
+			]),
+		);
 	});
 
 	it.each([

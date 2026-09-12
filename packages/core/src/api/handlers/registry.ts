@@ -1574,11 +1574,6 @@ export async function handleRegistryUpdate(
 
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
-		// Best-effort cleanup of the old bundle. Failures here don't roll
-		// back the upgrade (the new bundle is already stored and committed
-		// in the state row); the orphan is just storage we'll pay for.
-		deleteBundleFromR2(storage, pluginId, oldVersion, "registry").catch(() => {});
-
 		return {
 			success: true,
 			data: {
