@@ -68,6 +68,31 @@ const SANITIZE_PATTERN = /[^a-zA-Z0-9_-]/g;
 /** Pattern to collapse multiple hyphens */
 const MULTIPLE_HYPHENS_PATTERN = /-+/g;
 
+function isUntouchedBuiltInTaxonomy(definition: {
+	id: string;
+	name: string;
+	label: string;
+	label_singular: string | null;
+	hierarchical: number;
+	collections: string | null;
+}): boolean {
+	const expected =
+		definition.name === "category"
+			? { id: "taxdef_category", label: "Categories", labelSingular: "Category", hierarchical: 1 }
+			: definition.name === "tag"
+				? { id: "taxdef_tag", label: "Tags", labelSingular: "Tag", hierarchical: 0 }
+				: null;
+
+	return (
+		expected !== null &&
+		definition.id === expected.id &&
+		definition.label === expected.label &&
+		definition.label_singular === expected.labelSingular &&
+		definition.hierarchical === expected.hierarchical &&
+		definition.collections === '["posts"]'
+	);
+}
+
 /**
  * Apply a seed file to the database
  *
@@ -319,7 +344,7 @@ export async function applySeed(
 				if (onConflict === "error") {
 					throw new Error(`Conflict: taxonomy "${taxonomy.name}" (${defLocale}) already exists`);
 				}
-				if (onConflict === "update") {
+				if (onConflict === "update" || isUntouchedBuiltInTaxonomy(existingDef)) {
 					await db
 						.updateTable("_emdash_taxonomy_defs")
 						.set({
