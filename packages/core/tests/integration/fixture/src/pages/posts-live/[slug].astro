@@ -1,0 +1,24 @@
+---
+/**
+ * Mirrors src/pages/posts/[slug].astro but opts into the `live` prop on
+ * <Comments> / <CommentForm>, so tests can assert the opt-in markup/script
+ * without touching the rate-limited default route.
+ */
+import { getEmDashEntry } from "emdash";
+import { Comments, CommentForm } from "emdash/ui";
+
+const { slug } = Astro.params;
+if (!slug) return Astro.redirect("/404");
+const { entry: post } = await getEmDashEntry("posts", slug);
+if (!post) return new Response("Not found", { status: 404 });
+---
+
+<html>
+	<body>
+		<article>
+			<h1 id="title">{post.data.title}</h1>
+		</article>
+		<Comments collection="posts" contentId={post.data.id} threaded live />
+		<CommentForm collection="posts" contentId={post.data.id} live />
+	</body>
+</html>

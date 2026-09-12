@@ -131,3 +131,19 @@ export const commentCountsResponseSchema = z
 export const commentBulkResponseSchema = z
 	.object({ affected: z.number().int() })
 	.meta({ id: "CommentBulkResponse" });
+
+/**
+ * Response for a successful comment submission (POST). Extends the original
+ * `{ id, status, message }` shape with a `comment` payload so opt-in
+ * client-side scripts (`<Comments live>` / `<CommentForm live>`) can render
+ * the new comment without a page reload — additive only, existing consumers
+ * that read `id`/`status`/`message` are unaffected.
+ */
+export const commentSubmitResponseSchema = z
+	.object({
+		id: z.string(),
+		status: commentStatusValues,
+		message: z.string(),
+		comment: publicCommentSchema.extend({ status: commentStatusValues }),
+	})
+	.meta({ id: "CommentSubmitResponse" });

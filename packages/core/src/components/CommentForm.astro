@@ -29,6 +29,14 @@ interface Props {
 	 * without it the token is ignored.
 	 */
 	turnstileSiteKey?: string;
+	/**
+	 * Opt-in: on successful submission, dispatch a `ec:comment:created`
+	 * DOM event (instead of just clearing the textarea) so a sibling
+	 * `<Comments live>` list on the page can render the new comment without
+	 * a page reload. Has no effect unless the matching `<Comments>` also
+	 * sets `live`. Default off — zero behavior change for existing users.
+	 */
+	live?: boolean;
 }
 
 import { getCollectionInfo } from "../schema/query.js";
@@ -39,6 +47,7 @@ const {
 	parentId = null,
 	class: className,
 	turnstileSiteKey,
+	live = false,
 } = Astro.props;
 
 const enabled = (await getCollectionInfo(collection))?.commentsEnabled ?? false;
@@ -56,6 +65,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 			data-endpoint={endpoint}
 			data-user-name={user?.name ?? ""}
 			data-user-email={user?.email ?? ""}
+			{...(live ? { "data-ec-live": "" } : {})}
 		>
 			{user ? (
 				<div class="ec-comment-user-info">
@@ -187,6 +197,24 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 					"textarea[name='body']"
 				);
 				if (textarea) textarea.value = "";
+
+				// Opt-in live display: notify any matching <Comments live>
+				// section so it can insert the new comment without a reload.
+				if (form.hasAttribute("data-ec-live") && result?.data?.comment) {
+					// endpoint is `/_emdash/api/comments/{collection}/{contentId}`
+					const segments = endpoint.split("/");
+					const eventContentId = decodeURIComponent(segments.pop() || "");
+					const eventCollection = decodeURIComponent(segments.pop() || "");
+					document.dispatchEvent(
+						new CustomEvent("ec:comment:created", {
+							detail: {
+								collection: eventCollection,
+								contentId: eventContentId,
+								comment: result.data.comment,
+							},
+						})
+					);
+				}
 			} else {
 				statusEl.textContent =
 					result.error?.message ||
