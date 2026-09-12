@@ -254,6 +254,38 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(result.stored).toBe("hello");
 	}, 30_000);
 
+	it("refreshes bridge credentials when a plugin is reactivated", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-reactivation",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: ["kv-test"],
+				admin: {},
+			},
+			ECHO_PLUGIN,
+		);
+		const request = { method: "POST", url: "/api/test", headers: {} };
+		const invoke = (value: string) => plugin.invokeRoute("kv-test", { value }, request);
+		const originalToken = runner["plugins"].get(plugin.id)?.token;
+		if (!originalToken || !plugin.setActive) {
+			throw new Error("Plugin must have active credentials and support status changes");
+		}
+
+		await expect(invoke("before disable")).resolves.toEqual({ stored: "before disable" });
+
+		plugin.setActive(false);
+		expect(runner.validateToken(originalToken)).toBeNull();
+		await expect(invoke("while disabled")).rejects.toThrow("Invalid auth token");
+
+		plugin.setActive(true);
+		expect(runner.validateToken(originalToken)).toBeNull();
+		await expect(invoke("after reactivation")).resolves.toEqual({ stored: "after reactivation" });
+	}, 60_000);
+
 	it("handles plugin unload and reload", async () => {
 		const plugin1 = await runner.load(
 			{

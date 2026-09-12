@@ -783,14 +783,27 @@ export class EmDashRuntime {
 	async setPluginStatus(pluginId: string, status: "active" | "inactive"): Promise<void> {
 		this.pluginStates.set(pluginId, status);
 		if (status === "active") {
+			this.setSandboxedPluginActive(pluginId, true);
 			this.enabledPlugins.add(pluginId);
 			await this.rebuildHookPipeline();
 			await this._hooks.runPluginActivate(pluginId);
 		} else {
-			// Fire deactivate on the current pipeline while the plugin is still in it
-			await this._hooks.runPluginDeactivate(pluginId);
-			this.enabledPlugins.delete(pluginId);
-			await this.rebuildHookPipeline();
+			try {
+				// Deactivate hooks retain access until their cleanup has finished.
+				await this._hooks.runPluginDeactivate(pluginId);
+			} finally {
+				this.setSandboxedPluginActive(pluginId, false);
+				this.enabledPlugins.delete(pluginId);
+				await this.rebuildHookPipeline();
+			}
+		}
+	}
+
+	private setSandboxedPluginActive(pluginId: string, active: boolean): void {
+		for (const [key, plugin] of this.sandboxedPlugins) {
+			if (key.startsWith(`${pluginId}:`)) {
+				plugin.setActive?.(active);
+			}
 		}
 	}
 
@@ -1557,6 +1570,11 @@ export class EmDashRuntime {
 		const sandboxedPlugins = await phase("rt.sandbox", "Sandboxed plugins", () =>
 			EmDashRuntime.loadSandboxedPlugins(deps, db, storage, siteInfo),
 		);
+		for (const [key, plugin] of sandboxedPlugins) {
+			const pluginId = key.slice(0, key.lastIndexOf(":"));
+			const status = pluginStates.get(pluginId);
+			plugin.setActive?.(status === undefined || status === "active");
+		}
 
 		// Cold-start: load marketplace- and registry-installed plugins from
 		// site R2 via the sandbox runner. The two tiers only depend on the
