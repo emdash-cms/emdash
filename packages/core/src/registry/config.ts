@@ -362,6 +362,13 @@ export function normalizeRegistryConfig(
 	}
 
 	if (config.policy?.minimumReleaseAgeExclude !== undefined) {
+		if (!Array.isArray(config.policy.minimumReleaseAgeExclude)) {
+			throw new RegistryConfigurationError(
+				"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+				"experimental.registry.policy.minimumReleaseAgeExclude",
+				"must be an array of DIDs or <did>/<slug> entries",
+			);
+		}
 		// Normalize at load time so callers (browser and server) can do
 		// plain string compares without each one re-implementing the
 		// case-folding rule.

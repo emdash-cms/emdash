@@ -56,6 +56,23 @@ describe("normalizeRegistryConfig", () => {
 		});
 	});
 
+	it("returns a safe manifest diagnostic when release age exclusions are not an array", () => {
+		expect(
+			resolveManifestRegistryConfig({
+				aggregatorUrl: "https://registry.example.com",
+				policy: {
+					// @ts-expect-error - runtime validation covers untyped JavaScript configuration
+					minimumReleaseAgeExclude: "did:plc:publisher",
+				},
+			}),
+		).toEqual({
+			error: {
+				code: "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+				field: "experimental.registry.policy.minimumReleaseAgeExclude",
+			},
+		});
+	});
+
 	it("does not turn unexpected failures into configuration diagnostics", () => {
 		const input = {
 			aggregatorUrl: "https://registry.example.com",

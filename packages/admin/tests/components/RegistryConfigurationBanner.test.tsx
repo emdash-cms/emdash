@@ -44,4 +44,24 @@ describe("RegistryConfigurationBanner", () => {
 			)
 			.toBeInTheDocument();
 	});
+
+	it("does not name the wrong setting for a diagnostic from a newer server", async () => {
+		const screen = await render(
+			<RegistryConfigurationBanner
+				error={
+					{
+						code: "REGISTRY_FUTURE_SETTING_INVALID",
+						field: "experimental.registry.futureSetting",
+					} as never
+				}
+			/>,
+		);
+
+		await expect
+			.element(
+				screen.getByText("Check experimental.registry in astro.config.mjs, then restart EmDash."),
+			)
+			.toBeInTheDocument();
+		expect(screen.container.textContent).not.toContain("aggregatorUrl");
+	});
 });
