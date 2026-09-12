@@ -7,10 +7,10 @@
  * which independently verifies publisher records, artifact, manifest, and
  * provenance before any write.
  *
- * Identified in the URL by a `pluginId` that is `${handle}/${slug}`.
- * The router wraps this component when `manifest.registry` is set on
- * the same route the marketplace detail uses, so existing bookmarks /
- * sidebar entries stay stable.
+ * `pluginId` is `${publisher}/${slug}`, where `publisher` is a verified
+ * handle (with or without `@`) or a stable DID. The dedicated registry route
+ * renders this component; the marketplace detail route forwards matching
+ * legacy DID-based links for backward compatibility.
  */
 
 import { Badge, Button, LinkButton, Select, Tabs } from "@cloudflare/kumo";
@@ -54,10 +54,12 @@ import {
 	type SectionKey,
 } from "../lib/api/registry.js";
 import { renderMarkdown } from "../lib/markdown.js";
+import { registryIdentity } from "../lib/registry-identity.js";
 import { ArrowPrev } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
 import { PublisherIdentity } from "./PublisherHandle.js";
+import { RegistryPluginIdentity } from "./RegistryPluginIdentity.js";
 
 export interface RegistryPluginDetailProps {
 	/** `${handle}/${slug}` -- the pluginId param from the route. */
@@ -103,7 +105,8 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// historically, though atproto handles don't; the DID form
 	// definitely doesn't).
 	const slashIdx = pluginId.lastIndexOf("/");
-	const publisher = slashIdx > 0 ? pluginId.slice(0, slashIdx) : "";
+	const publisherParam = slashIdx > 0 ? pluginId.slice(0, slashIdx) : "";
+	const publisher = publisherParam.startsWith("@") ? publisherParam.slice(1) : publisherParam;
 	const slug = slashIdx > 0 ? pluginId.slice(slashIdx + 1) : "";
 	const isDid = publisher.startsWith("did:");
 
@@ -148,6 +151,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// A conclusive round-trip mismatch blocks the UI. Indeterminate lookup failures
 	// do not participate in trust decisions; the server verifies DID-bound records.
 	const publisherHandleInvalid = publisherHandleResolution?.status === "invalid";
+	const publicIdentity = pkg ? registryIdentity(pkg.did, slug, publisherHandleResolution) : null;
 
 	// `listReleases` returns releases in descending semver order. The aggregator
 	// contains only the aggregator's approved projection. Lexicon-invalid records
@@ -200,9 +204,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	// visible.
 	const defaultVersion = React.useMemo(() => {
 		if (!pkg || releases.length === 0) return undefined;
-		const passes = releases.find((r) =>
-			releasePassesPolicy(r, { did: pkg.did, slug }, config.policy),
-		);
+		const passes = releases.find((r) => releasePassesPolicy(r, pkg, config.policy));
 		return (passes ?? releases[0])?.version;
 	}, [pkg, releases, slug, config.policy]);
 
@@ -357,8 +359,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				}))
 			: [];
 
-	const policyOk =
-		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
+	const policyOk = release && pkg ? releasePassesPolicy(release, pkg, config.policy) : true;
 
 	// Environment compatibility: compare the selected release's `requires`
 	// constraints against the running host. `requires` is the lexicon's open
@@ -524,6 +525,14 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				</div>
 				<div className="min-w-0 flex-1">
 					<h1 className="truncate text-2xl font-semibold">{displayName ?? slug}</h1>
+					{publicIdentity ? (
+						<RegistryPluginIdentity
+							identity={publicIdentity}
+							invalidMessage={t`The publisher identity cannot be verified.`}
+							className="mt-1"
+							linked={false}
+						/>
+					) : null}
 					<p className="text-sm text-kumo-subtle">
 						<Trans>
 							Published by{" "}
@@ -578,11 +587,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						>
 							{releases.map((r) => {
 								const preRelease = isPreReleaseVersion(r.version);
-								const policyBlocked = !releasePassesPolicy(
-									r,
-									{ did: pkg.did, slug },
-									config.policy,
-								);
+								const policyBlocked = !releasePassesPolicy(r, pkg, config.policy);
 								return (
 									<Select.Option key={r.version} value={r.version}>
 										<span className="flex items-center gap-2">
@@ -637,9 +642,9 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				>
 					<Warning className="mt-0.5 h-5 w-5 shrink-0" />
 					<div>
-						<p className="font-medium">{t`We couldn't verify this publisher's identity`}</p>
+						<p className="font-medium">{t`Publisher handle verification failed`}</p>
 						<p className="mt-1 text-sm text-kumo-default">
-							{t`This publisher claims a name they couldn't prove they own — possibly impersonating someone else. Install is disabled. If you know the publisher and trust them, ask them to fix their identity setup before retrying.`}
+							{t`This publisher's handle does not resolve back to its identity. Installation is disabled until the publisher fixes their handle.`}
 						</p>
 					</div>
 				</div>

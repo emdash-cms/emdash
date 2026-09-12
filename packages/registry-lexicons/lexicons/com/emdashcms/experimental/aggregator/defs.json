@@ -48,6 +48,15 @@
 					"format": "datetime",
 					"description": "When the aggregator first indexed this package."
 				},
+				"historicalReleaseCount": {
+					"type": "integer",
+					"minimum": 0,
+					"description": "Number of package release versions retained in the aggregator's history, including releases the publisher later deleted."
+				},
+				"releaseHistoryComplete": {
+					"type": "boolean",
+					"description": "Whether the aggregator continuously observed this package from its first live profile creation. When false or absent, clients must not infer that historicalReleaseCount represents the package's complete registry history."
+				},
 				"labels": {
 					"type": "array",
 					"description": "Hydrated trusted label state attached by the aggregator's configured policy.",

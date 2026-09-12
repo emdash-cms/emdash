@@ -1,11 +1,13 @@
 import { useMatches } from "@tanstack/react-router";
 import * as React from "react";
 
+import type { AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { Header } from "./Header";
+import { RegistryConfigurationBanner } from "./RegistryConfigurationBanner.js";
 import { Sidebar, SidebarNav } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
 
@@ -39,6 +41,7 @@ export interface ShellProps {
 		}>;
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
+		registryConfigurationError?: AdminManifest["registryConfigurationError"];
 	};
 }
 
@@ -104,6 +107,11 @@ export function Shell({ children, manifest }: ShellProps) {
 			{/* Main content area — scrolls independently so sidebar stays full height */}
 			<div className="flex flex-1 flex-col overflow-hidden">
 				<Header />
+				{manifest.registryConfigurationError && (
+					<div className="px-6 pt-6">
+						<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
+					</div>
+				)}
 				<main
 					className={
 						fullBleed

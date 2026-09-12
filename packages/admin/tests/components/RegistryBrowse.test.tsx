@@ -10,11 +10,23 @@ vi.mock("@tanstack/react-router", async () => {
 	const actual = await vi.importActual("@tanstack/react-router");
 	return {
 		...actual,
-		Link: ({ children, ...props }: any) => <a {...props}>{children}</a>,
+		Link: ({ children, to, params, ...props }: any) => {
+			let href = String(to ?? "");
+			for (const [key, value] of Object.entries(params ?? {})) {
+				href = href.replace(`$${key}`, String(value));
+			}
+			return (
+				<a href={href} {...props}>
+					{children}
+				</a>
+			);
+		},
 	};
 });
 
 const mockSearchRegistryPackages = vi.fn();
+const mockResolveRegistryPackageStatus = vi.fn();
+const mockResolveDidToHandle = vi.fn();
 
 vi.mock("../../src/lib/api/registry", async () => {
 	const actual = await vi.importActual<typeof import("../../src/lib/api/registry")>(
@@ -23,6 +35,8 @@ vi.mock("../../src/lib/api/registry", async () => {
 	return {
 		...actual,
 		searchRegistryPackages: (...args: unknown[]) => mockSearchRegistryPackages(...args),
+		resolveRegistryPackageStatus: (...args: unknown[]) => mockResolveRegistryPackageStatus(...args),
+		resolveDidToHandle: (...args: unknown[]) => mockResolveDidToHandle(...args),
 	};
 });
 
@@ -50,6 +64,7 @@ function packageView(name: string): RegistryPackageView {
 describe("RegistryBrowse listing safety", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockResolveDidToHandle.mockResolvedValue({ status: "ok", handle: "example.com" });
 	});
 
 	it("does not flash cached publisher metadata while the required fresh search is pending", async () => {
@@ -111,5 +126,71 @@ describe("RegistryBrowse listing safety", () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 
 		expect(screen.getByRole("heading", { name: approved }).query()).not.toBeNull();
+	});
+
+	it("shows the canonical public name and links through the handle", async () => {
+		mockSearchRegistryPackages.mockResolvedValue({ packages: [packageView("My Gallery")] });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const screen = await render(
+			<QueryClientProvider client={queryClient}>
+				<RegistryBrowse config={CONFIG} />
+			</QueryClientProvider>,
+		);
+
+		await expect.element(screen.getByText("@example.com/unsafe")).toBeInTheDocument();
+		const link = screen.getByRole("link", { name: /My Gallery/ }).element() as HTMLAnchorElement;
+		expect(link.getAttribute("href")).toBe("/plugins/registry/@example.com/unsafe");
+	});
+
+	it("shows a conspicuous invalid-handle state without rendering an unverified handle", async () => {
+		mockSearchRegistryPackages.mockResolvedValue({ packages: [packageView("Unsafe Publisher")] });
+		mockResolveDidToHandle.mockResolvedValue({ status: "invalid" });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const screen = await render(
+			<QueryClientProvider client={queryClient}>
+				<RegistryBrowse config={CONFIG} />
+			</QueryClientProvider>,
+		);
+
+		await expect.element(screen.getByText("INVALID HANDLE")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("The publisher identity cannot be verified."))
+			.toBeInTheDocument();
+		expect(screen.container.textContent).not.toContain("mutable.example");
+	});
+
+	it("does not report a temporary or missing handle as invalid", async () => {
+		mockSearchRegistryPackages.mockResolvedValue({ packages: [packageView("Offline Publisher")] });
+		mockResolveDidToHandle.mockResolvedValue({ status: "missing" });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const screen = await render(
+			<QueryClientProvider client={queryClient}>
+				<RegistryBrowse config={CONFIG} />
+			</QueryClientProvider>,
+		);
+
+		await expect.element(screen.getByText("Handle unavailable")).toBeInTheDocument();
+		expect(screen.getByText("INVALID HANDLE").query()).toBeNull();
+	});
+
+	it("resolves an exact canonical-name search without sending it to free-text search", async () => {
+		mockSearchRegistryPackages.mockResolvedValue({ packages: [] });
+		mockResolveRegistryPackageStatus.mockResolvedValue({
+			status: "passed",
+			value: packageView("Exact Gallery"),
+		});
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const screen = await render(
+			<QueryClientProvider client={queryClient}>
+				<RegistryBrowse config={CONFIG} />
+			</QueryClientProvider>,
+		);
+
+		await screen.getByRole("searchbox").fill("@example.com/unsafe");
+		await expect
+			.element(screen.getByRole("heading", { name: "Exact Gallery" }))
+			.toBeInTheDocument();
+		expect(mockResolveRegistryPackageStatus).toHaveBeenCalledWith(CONFIG, "example.com", "unsafe");
+		expect(mockSearchRegistryPackages).toHaveBeenCalledTimes(1);
 	});
 });

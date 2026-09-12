@@ -2229,6 +2229,25 @@ const marketplaceDetailRoute = createRoute({
 	component: MarketplaceDetailPage,
 });
 
+const registryDetailRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/plugins/registry/$publisher/$slug",
+	component: RegistryDetailPage,
+});
+
+function RegistryDetailPage() {
+	const { t } = useLingui();
+	const { publisher, slug } = useParams({
+		from: "/_admin/plugins/registry/$publisher/$slug",
+	});
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	if (!manifest?.registry) return <NotFoundPage message={t`Plugin registry is not configured.`} />;
+	return <RegistryPluginDetail pluginId={`${publisher}/${slug}`} config={manifest.registry} />;
+}
+
 function MarketplaceDetailPage() {
 	const { pluginId } = useParams({ from: "/_admin/plugins/marketplace/$pluginId" });
 
@@ -2671,6 +2690,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	pluginManagerRoute,
 	pluginSettingsRoute,
 	marketplaceDetailRoute,
+	registryDetailRoute,
 	marketplaceBrowseRoute,
 	themeMarketplaceBrowseRoute,
 	themeMarketplaceDetailRoute,

@@ -270,6 +270,19 @@ export interface AdminManifest {
 			minimumReleaseAgeExclude?: string[];
 		};
 	};
+	/** Field-level diagnostic returned when registry configuration is invalid. */
+	registryConfigurationError?: {
+		code:
+			| "REGISTRY_AGGREGATOR_URL_REQUIRED"
+			| "REGISTRY_AGGREGATOR_URL_INVALID"
+			| "REGISTRY_AGGREGATOR_URL_FORBIDDEN"
+			| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
+			| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
+		field:
+			| "experimental.registry.aggregatorUrl"
+			| "experimental.registry.policy.minimumReleaseAge"
+			| "experimental.registry.policy.minimumReleaseAgeExclude";
+	};
 	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
