@@ -25,6 +25,36 @@ function isValidLocale(code: string): boolean {
 // Only true in dev when EMDASH_PSEUDO_LOCALE=1 is set.
 declare const __EMDASH_PSEUDO_LOCALE__: boolean;
 
+// Injected by the EmDash Vite integration from config.admin.locales.
+// Undefined when no allowlist is configured.
+declare const __EMDASH_ADMIN_LOCALES__: string[] | undefined;
+
+declare global {
+	// eslint-disable-next-line no-var -- globalThis augmentation
+	var __EMDASH_ADMIN_LOCALES__: string[] | undefined;
+}
+
+/**
+ * Read the configured locale allowlist.
+ *
+ * In production the admin package is consumed pre-built, so the Vite
+ * `__EMDASH_ADMIN_LOCALES__` define is no longer present. The host shell sets
+ * the same value on `globalThis` (via an inline script in `admin.astro`) so the
+ * runtime can still filter the locale switcher. In dev the Vite define also
+ * serves as a fallback.
+ */
+function getRuntimeLocaleAllowlist(): string[] | undefined {
+	const globalAllowlist =
+		typeof globalThis !== "undefined" ? globalThis.__EMDASH_ADMIN_LOCALES__ : undefined;
+	if (Array.isArray(globalAllowlist) && globalAllowlist.length > 0) {
+		return globalAllowlist;
+	}
+	if (typeof __EMDASH_ADMIN_LOCALES__ !== "undefined" && Array.isArray(__EMDASH_ADMIN_LOCALES__)) {
+		return __EMDASH_ADMIN_LOCALES__;
+	}
+	return undefined;
+}
+
 /**
  * The pseudo locale, injected into the supported list only when
  * EMDASH_PSEUDO_LOCALE=1 is set. Never available in production.
@@ -34,10 +64,20 @@ const PSEUDO_LOCALE =
 		? LOCALES.find((l) => l.code === "pseudo")
 		: undefined;
 
+const ADMIN_LOCALE_ALLOWLIST = getRuntimeLocaleAllowlist();
+const ACTIVE_ADMIN_LOCALES =
+	Array.isArray(ADMIN_LOCALE_ALLOWLIST) && ADMIN_LOCALE_ALLOWLIST.length > 0
+		? new Set(ADMIN_LOCALE_ALLOWLIST)
+		: undefined;
+
+function isActiveAdminLocale(code: string): boolean {
+	return ACTIVE_ADMIN_LOCALES === undefined || ACTIVE_ADMIN_LOCALES.has(code);
+}
+
 /** Available locales at runtime, validated against BCP 47. */
 export const SUPPORTED_LOCALES = [
-	...ENABLED_LOCALES.filter((l) => isValidLocale(l.code)),
-	...(PSEUDO_LOCALE ? [PSEUDO_LOCALE] : []),
+	...ENABLED_LOCALES.filter((l) => isValidLocale(l.code) && isActiveAdminLocale(l.code)),
+	...(PSEUDO_LOCALE && isActiveAdminLocale("pseudo") ? [PSEUDO_LOCALE] : []),
 ];
 
 export const SUPPORTED_LOCALE_CODES = new Set(SUPPORTED_LOCALES.map((l) => l.code));

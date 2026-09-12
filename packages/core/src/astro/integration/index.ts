@@ -30,6 +30,7 @@ import type { ResolvedPlugin } from "../../plugins/types.js";
 import { VERSION } from "../../version.js";
 import { setDevTypegenRefresh } from "../dev-typegen.js";
 import { local } from "../storage/adapters.js";
+import { getAdminLocaleCodes, resolveAdminDist, validateAdminLocales } from "./admin-locales.js";
 import { createDebouncedTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
@@ -421,6 +422,14 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		}
 	}
 
+	// Validate and canonicalize the admin locale allowlist against the
+	// locales actually shipped by the installed admin package.
+	const adminLocaleCodes = getAdminLocaleCodes(resolveAdminDist());
+	resolvedConfig.admin = {
+		...config.admin,
+		locales: validateAdminLocales(config.admin?.locales, adminLocaleCodes),
+	};
+
 	// Resolved plugins (populated at build time by importing entrypoints)
 	let _resolvedPlugins: ResolvedPlugin[] = [];
 
@@ -572,6 +581,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 							resolvedConfig,
 							pluginDescriptors,
 							astroConfig,
+							adminLocales: resolvedConfig.admin?.locales,
 						},
 						command,
 					),

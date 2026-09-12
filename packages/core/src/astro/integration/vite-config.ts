@@ -7,13 +7,18 @@
 
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, isAbsolute, relative, resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import type { AstroConfig } from "astro";
 import type { Plugin } from "vite";
 
 import { COMMIT, VERSION } from "../../version.js";
+import {
+	createAdminLocaleResolverPlugin,
+	resolveAdminDist,
+	resolveAdminSource,
+} from "./admin-locales.js";
 import type { EmDashConfig, PluginDescriptor } from "./runtime.js";
 import {
 	VIRTUAL_CONFIG_ID,
@@ -108,49 +113,6 @@ function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string): Plug
 	};
 }
 
-/**
- * Resolve path to the admin package dist directory.
- * Used for Vite alias to ensure the package is found in pnpm's isolated node_modules.
- */
-function resolveAdminDist(): string {
-	const require = createRequire(import.meta.url);
-	const adminPath = require.resolve("@emdash-cms/admin");
-	// Return the directory containing the built package (dist/)
-	return dirname(adminPath);
-}
-
-/**
- * Check whether child is inside parent without relying on simple prefix checks.
- */
-function isInside(parent: string, child: string): boolean {
-	const relativePath = relative(parent, child);
-	return relativePath === "" || (!relativePath.startsWith("..") && !isAbsolute(relativePath));
-}
-
-/**
- * Resolve path to the admin package source directory.
- * In dev mode inside this repo, we alias @emdash-cms/admin to the source so
- * Vite processes it directly — giving instant HMR instead of requiring a
- * rebuild + restart. External apps should use the built package surface.
- */
-function resolveAdminSource(projectRoot: string): string | undefined {
-	const require = createRequire(import.meta.url);
-	const adminPath = require.resolve("@emdash-cms/admin");
-	// dist/index.js -> go up to package root, then into src/
-	const packageRoot = resolve(dirname(adminPath), "..");
-	const repoRoot = resolve(packageRoot, "..", "..");
-	const srcEntry = resolve(packageRoot, "src", "index.ts");
-
-	try {
-		if (existsSync(srcEntry) && isInside(repoRoot, projectRoot)) {
-			return resolve(packageRoot, "src");
-		}
-	} catch {
-		// Not in local repo — fall back to dist
-	}
-	return undefined;
-}
-
 function resolveIntegrationShim(fileName: string): string {
 	const currentDir = dirname(fileURLToPath(import.meta.url));
 	const sourceShimPath = resolve(currentDir, "shims", fileName);
@@ -169,6 +131,8 @@ export interface VitePluginOptions {
 	pluginDescriptors: PluginDescriptor[];
 	/** Astro config */
 	astroConfig: AstroConfig;
+	/** Allowed admin UI locales (undefined ships all enabled locales) */
+	adminLocales?: string[];
 }
 
 /**
@@ -410,6 +374,7 @@ export function createViteConfig(
 			__EMDASH_PSEUDO_LOCALE__: JSON.stringify(
 				isDev && process.env["EMDASH_PSEUDO_LOCALE"] === "1",
 			),
+			__EMDASH_ADMIN_LOCALES__: JSON.stringify(options.adminLocales ?? null),
 		},
 		resolve: {
 			dedupe: ["@emdash-cms/admin", "react", "react-dom"],
@@ -458,6 +423,18 @@ export function createViteConfig(
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Monorepo has both vite 6 (docs) and vite 7 (core). tsgo resolves correctly.
 		plugins: [
 			createVirtualModulesPlugin(options, command),
+			// When an allowlist is set, redirect locale imports/chunks for
+			// excluded locales back to the source (English) catalog. This keeps
+			// the excluded locale chunks out of the production bundle.
+			...(options.adminLocales
+				? [
+						createAdminLocaleResolverPlugin({
+							adminDistPath,
+							adminSourcePath,
+							locales: options.adminLocales,
+						}),
+					]
+				: []),
 			// In dev mode with source alias, compile Lingui macros on the fly
 			// and redirect locale .mjs imports to dist/.
 			// In production, macros are pre-compiled by tsdown in the admin package.
