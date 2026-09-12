@@ -373,7 +373,7 @@ function PluginCard({
 		<>
 			<div
 				className={cn(
-					"rounded-lg border bg-kumo-base transition-colors",
+					"rounded-lg border border-kumo-border bg-kumo-base transition-colors",
 					!plugin.enabled && "opacity-75",
 					registryIdentity?.status === "invalid" && "border-kumo-danger",
 				)}

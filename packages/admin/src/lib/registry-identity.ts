@@ -38,12 +38,13 @@ export function registryIdentity(
 ): RegistryIdentity {
 	if (!resolution) return { status: "pending", did, slug };
 	if (resolution.status === "ok") {
+		const handle = resolution.handle.toLowerCase();
 		return {
 			status: "ok",
 			did,
 			slug,
-			handle: resolution.handle,
-			publicName: formatRegistryPublicName(resolution.handle, slug),
+			handle,
+			publicName: formatRegistryPublicName(handle, slug),
 		};
 	}
 	return { status: resolution.status, did, slug };

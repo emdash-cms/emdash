@@ -1,10 +1,29 @@
 import { describe, expect, it } from "vitest";
 
-import { formatRegistryPublicName, parseRegistryPublicName } from "../../src/lib/registry-identity";
+import {
+	formatRegistryPublicName,
+	parseRegistryPublicName,
+	registryIdentity,
+	registryIdentityPublisherParam,
+} from "../../src/lib/registry-identity";
 
 describe("registry public names", () => {
 	it("formats a verified publisher handle and package slug", () => {
 		expect(formatRegistryPublicName("Example.COM", "my-gallery")).toBe("@example.com/my-gallery");
+	});
+
+	it("normalizes resolver output before using the handle in a deep link", () => {
+		const identity = registryIdentity("did:plc:publisher", "my-gallery", {
+			status: "ok",
+			handle: "Example.COM",
+		});
+
+		expect(identity).toMatchObject({
+			status: "ok",
+			handle: "example.com",
+			publicName: "@example.com/my-gallery",
+		});
+		expect(registryIdentityPublisherParam(identity)).toBe("@example.com");
 	});
 
 	it("parses the canonical public-name form for exact search", () => {

@@ -1,14 +1,12 @@
 /**
- * Registry Browse
+ * Registry browse
  *
  * Grid of plugin cards backed by the experimental decentralized plugin
- * registry's aggregator. Search box debounces directly into the
- * aggregator's `searchPackages` XRPC -- the aggregator is a public,
- * read-only service, so no server proxy is involved.
+ * registry's public, read-only aggregator.
  *
- * Cards navigate to `/plugins/marketplace/$pluginId` (the same path the
- * marketplace browse uses); the router branches to the registry detail
- * component when `manifest.registry` is configured.
+ * Cards navigate to `/plugins/registry/$publisher/$slug`. A search that
+ * matches `@handle/slug` resolves that package directly; other input uses
+ * the aggregator's free-text `searchPackages` endpoint.
  */
 
 import { Badge, Button, Input } from "@cloudflare/kumo";
