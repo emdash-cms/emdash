@@ -5,6 +5,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 import type { PluginInfo, AdminManifest } from "../../src/lib/api";
 import type { PluginUpdateInfo } from "../../src/lib/api/marketplace";
+import { MarketplaceUpdateEscalationError } from "../../src/lib/api/marketplace";
 import { render } from "../utils/render.tsx";
 
 // Mock router
@@ -319,7 +320,7 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("Check for updates")).toBeInTheDocument();
 	});
 
-	it("confirms marketplace capability changes with the server contract field", async () => {
+	it("preflights marketplace updates before showing the exact authority changes", async () => {
 		mockFetchPlugins.mockResolvedValue([
 			makePlugin({
 				id: "mp-plugin",
@@ -336,6 +337,23 @@ describe("PluginManager", () => {
 				hasCapabilityChanges: true,
 			},
 		]);
+		mockUpdateMarketplacePlugin.mockRejectedValueOnce(
+			new MarketplaceUpdateEscalationError(
+				"ROUTE_VISIBILITY_ESCALATION",
+				"Review the update",
+				{ added: ["network:request"], removed: [] },
+				{ newlyPublic: ["webhook"] },
+				[
+					{
+						name: "sync",
+						description: "Sync content",
+						route: "sync",
+						permission: "content:write",
+						destructive: false,
+					},
+				],
+			),
+		);
 		const screen = await render(
 			<Wrapper>
 				<PluginManager />
@@ -346,12 +364,34 @@ describe("PluginManager", () => {
 		const updateButton = screen.getByText("Update to v2.0.0");
 		await expect.element(updateButton).toBeInTheDocument();
 		await updateButton.click();
+
+		await vi.waitFor(() => {
+			expect(mockUpdateMarketplacePlugin).toHaveBeenNthCalledWith(1, "mp-plugin", {
+				version: "2.0.0",
+			});
+		});
+		await expect.element(screen.getByText("Make network requests")).toBeInTheDocument();
+		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
+		await expect.element(screen.getByText("sync", { exact: true })).toBeInTheDocument();
+
+		mockCheckPluginUpdates.mockResolvedValue([
+			{
+				pluginId: "mp-plugin",
+				installed: "1.0.0",
+				latest: "3.0.0",
+				hasCapabilityChanges: true,
+			},
+		]);
+		await screen.getByText("Check for updates").click();
+		await expect.element(screen.getByText("Update to v3.0.0")).toBeInTheDocument();
 		await screen.getByText("Accept & Update").click();
 
 		await vi.waitFor(() => {
-			expect(mockUpdateMarketplacePlugin).toHaveBeenCalledWith("mp-plugin", {
+			expect(mockUpdateMarketplacePlugin).toHaveBeenNthCalledWith(2, "mp-plugin", {
+				version: "2.0.0",
 				confirmCapabilityChanges: true,
-				confirmMcpTools: false,
+				confirmRouteVisibilityChanges: true,
+				confirmMcpTools: true,
 			});
 		});
 	});

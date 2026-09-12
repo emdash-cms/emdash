@@ -36,11 +36,14 @@ import {
 } from "../lib/api";
 import {
 	checkPluginUpdates,
+	MarketplaceUpdateEscalationError,
+	MarketplaceUpdateMcpConsentRequiredError,
 	PluginMcpConsentRequiredError,
 	updateMarketplacePlugin,
 	uninstallMarketplacePlugin,
 	type PluginUpdateInfo,
 	type PluginMcpConsentTool,
+	type UpdatePluginOpts,
 } from "../lib/api/marketplace.js";
 import {
 	RegistryMcpConsentRequiredError,
@@ -250,6 +253,11 @@ function PluginCard({
 	const [showUninstallConfirm, setShowUninstallConfirm] = React.useState(false);
 	const [registryEscalation, setRegistryEscalation] =
 		React.useState<RegistryUpdateEscalationError | null>(null);
+	const [marketplaceEscalation, setMarketplaceEscalation] =
+		React.useState<MarketplaceUpdateEscalationError | null>(null);
+	const [marketplaceReviewedVersion, setMarketplaceReviewedVersion] = React.useState<string | null>(
+		null,
+	);
 	const [registryVerification, setRegistryVerification] =
 		React.useState<RegistryRecordVerificationSummary | null>(null);
 	const queryClient = useQueryClient();
@@ -261,16 +269,13 @@ function PluginCard({
 	const mcpTools = plugin.mcpTools ?? [];
 
 	const updateMutation = useMutation({
-		mutationFn: (opts: RegistryUpdateOpts) =>
-			isRegistry
-				? updateRegistryPlugin(plugin.id, opts)
-				: updateMarketplacePlugin(plugin.id, {
-						confirmCapabilityChanges: true,
-						confirmMcpTools: mcpUpdateTools.length > 0,
-					}),
+		mutationFn: (opts: RegistryUpdateOpts & UpdatePluginOpts) =>
+			isRegistry ? updateRegistryPlugin(plugin.id, opts) : updateMarketplacePlugin(plugin.id, opts),
 		onSuccess: () => {
 			setShowUpdateConsent(false);
 			setRegistryEscalation(null);
+			setMarketplaceEscalation(null);
+			setMarketplaceReviewedVersion(null);
 			setRegistryVerification(null);
 			setMcpUpdateTools([]);
 			void queryClient.invalidateQueries({ queryKey: ["plugins"] });
@@ -287,9 +292,25 @@ function PluginCard({
 				setRegistryVerification(err.verification ?? null);
 				setShowUpdateConsent(true);
 			}
+			if (err instanceof MarketplaceUpdateEscalationError) {
+				setMarketplaceEscalation(err);
+				setMcpUpdateTools(err.mcpTools);
+				setShowUpdateConsent(true);
+			}
 			if (err instanceof RegistryMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
 				setRegistryVerification(err.verification ?? null);
+				setShowUpdateConsent(true);
+			} else if (err instanceof MarketplaceUpdateMcpConsentRequiredError) {
+				setMarketplaceEscalation(
+					new MarketplaceUpdateEscalationError(
+						"CAPABILITY_ESCALATION",
+						err.message,
+						err.capabilityChanges,
+						err.routeVisibilityChanges,
+					),
+				);
+				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
 			} else if (err instanceof PluginMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
@@ -308,7 +329,12 @@ function PluginCard({
 			setRegistryVerification(null);
 			updateMutation.mutate({});
 		} else {
-			setShowUpdateConsent(true);
+			const targetVersion = updateInfo?.latest;
+			if (!targetVersion) return;
+			setMarketplaceEscalation(null);
+			setMarketplaceReviewedVersion(targetVersion);
+			setMcpUpdateTools([]);
+			updateMutation.mutate({ version: targetVersion });
 		}
 	};
 
@@ -325,7 +351,14 @@ function PluginCard({
 			}
 			updateMutation.mutate(opts);
 		} else {
-			updateMutation.mutate({});
+			if (!marketplaceReviewedVersion) return;
+			updateMutation.mutate({
+				version: marketplaceReviewedVersion,
+				confirmCapabilityChanges: (marketplaceEscalation?.capabilityChanges.added.length ?? 0) > 0,
+				confirmRouteVisibilityChanges:
+					(marketplaceEscalation?.routeVisibilityChanges?.newlyPublic.length ?? 0) > 0,
+				confirmMcpTools: mcpUpdateTools.length > 0,
+			});
 		}
 	};
 
@@ -657,14 +690,30 @@ function PluginCard({
 				<CapabilityConsentDialog
 					mode="update"
 					pluginName={plugin.name}
-					capabilities={plugin.capabilities}
-					newCapabilities={registryEscalation?.capabilityChanges.added ?? []}
-					newlyPublicRoutes={registryEscalation?.routeVisibilityChanges?.newlyPublic ?? []}
+					capabilities={[
+						...new Set([
+							...plugin.capabilities,
+							...(registryEscalation?.capabilityChanges.added ?? []),
+							...(marketplaceEscalation?.capabilityChanges.added ?? []),
+						]),
+					]}
+					newCapabilities={
+						registryEscalation?.capabilityChanges.added ??
+						marketplaceEscalation?.capabilityChanges.added ??
+						[]
+					}
+					newlyPublicRoutes={
+						registryEscalation?.routeVisibilityChanges?.newlyPublic ??
+						marketplaceEscalation?.routeVisibilityChanges?.newlyPublic ??
+						[]
+					}
 					mcpTools={mcpUpdateTools}
 					verification={registryVerification ?? undefined}
 					isPending={updateMutation.isPending}
 					error={
-						updateMutation.error instanceof RegistryUpdateEscalationError
+						updateMutation.error instanceof RegistryUpdateEscalationError ||
+						updateMutation.error instanceof MarketplaceUpdateEscalationError ||
+						updateMutation.error instanceof PluginMcpConsentRequiredError
 							? null
 							: getMutationError(updateMutation.error)
 					}
@@ -672,6 +721,8 @@ function PluginCard({
 					onCancel={() => {
 						setShowUpdateConsent(false);
 						setRegistryEscalation(null);
+						setMarketplaceEscalation(null);
+						setMarketplaceReviewedVersion(null);
 						setRegistryVerification(null);
 						setMcpUpdateTools([]);
 						updateMutation.reset();
