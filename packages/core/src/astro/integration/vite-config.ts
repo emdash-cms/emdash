@@ -536,6 +536,9 @@ export function createViteConfig(
 							// first rendered.
 							"emdash > @emdash-cms/admin > @lingui/react",
 							"emdash > @emdash-cms/admin > @cloudflare/kumo/primitives",
+							// System email copy resolution (invite, magic link) — reached
+							// only when one of those routes sends an email.
+							"emdash > @emdash-cms/admin > @lingui/core",
 							// React (commonly used, may be hoisted)
 							"react",
 							"react/jsx-dev-runtime",
