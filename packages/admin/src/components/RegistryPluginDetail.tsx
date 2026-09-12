@@ -7,10 +7,10 @@
  * which independently verifies publisher records, artifact, manifest, and
  * provenance before any write.
  *
- * Identified in the URL by a `pluginId` that is `${handle}/${slug}`.
- * The router wraps this component when `manifest.registry` is set on
- * the same route the marketplace detail uses, so existing bookmarks /
- * sidebar entries stay stable.
+ * `pluginId` is `${publisher}/${slug}`, where `publisher` is a verified
+ * handle (with or without `@`) or a stable DID. The dedicated registry route
+ * renders this component; the marketplace detail route forwards matching
+ * legacy DID-based links for backward compatibility.
  */
 
 import { Badge, Button, LinkButton, Select, Tabs } from "@cloudflare/kumo";
