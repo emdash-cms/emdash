@@ -728,9 +728,6 @@ export async function handleMarketplaceUpdate(
 
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
 
-		// Clean up old bundle from R2 (best-effort)
-		deleteBundleFromR2(storage, pluginId, oldVersion).catch(() => {});
-
 		return {
 			success: true,
 			data: {
