@@ -1,5 +1,23 @@
 # @emdash-cms/registry-client
 
+## 0.6.0
+
+### Minor Changes
+
+- [#3081](https://github.com/emdash-cms/emdash/pull/3081) [`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds repository-level automated plugin releases. `emdash-plugin release setup` writes one shared `.github/workflows/emdash-release.yml` at the Git repository root, including when setup runs from a nested package. The workflow resolves `<slug>@<version>` tags to a unique plugin manifest, rejects version mismatches before attestation, and requests its first repository connection through GitHub OpenID Connect without an Actions secret.
+
+  Prepare later packages with `emdash-plugin profile setup --dir <package-directory>`. Their first release reuses approved repository workflow scopes when the signed package profile names the same repository. Tag and manual-run scopes accumulate after publisher confirmation instead of replacing each other. Existing package approvals remain package-scoped until the publisher explicitly confirms a repository connection; existing generated workflows and the legacy optional connection-invitation input remain supported.
+
+- [#3078](https://github.com/emdash-cms/emdash/pull/3078) [`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a fail-closed first-release exemption to the plugin registry's optional minimum release age policy. A package's first release can install immediately only when the aggregator reports exactly one retained release and confirms that it continuously observed the package's release history.
+
+  Existing packages, backfilled packages, and packages with missing or incomplete history remain subject to the configured holdback. Deleted releases still count, and explicit publisher or package exemptions continue to work.
+
+### Patch Changes
+
+- Updated dependencies [[`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a), [`4cc150e`](https://github.com/emdash-cms/emdash/commit/4cc150e931313644a96b796627e5ec74b46c0aec)]:
+  - @emdash-cms/registry-lexicons@0.5.0
+  - @emdash-cms/registry-moderation@0.2.0
+
 ## 0.5.0
 
 ### Minor Changes

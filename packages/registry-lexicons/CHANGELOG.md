@@ -1,5 +1,15 @@
 # @emdash-cms/registry-lexicons
 
+## 0.5.0
+
+### Minor Changes
+
+- [#3078](https://github.com/emdash-cms/emdash/pull/3078) [`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a fail-closed first-release exemption to the plugin registry's optional minimum release age policy. A package's first release can install immediately only when the aggregator reports exactly one retained release and confirms that it continuously observed the package's release history.
+
+  Existing packages, backfilled packages, and packages with missing or incomplete history remain subject to the configured holdback. Deleted releases still count, and explicit publisher or package exemptions continue to work.
+
+- [#2742](https://github.com/emdash-cms/emdash/pull/2742) [`4cc150e`](https://github.com/emdash-cms/emdash/commit/4cc150e931313644a96b796627e5ec74b46c0aec) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `moderation-manipulation` findings so labelers can distinguish direct attempts to bypass automated moderation from quoted or descriptive discussion of prompt injection.
+
 ## 0.4.0
 
 ### Minor Changes

@@ -1,5 +1,76 @@
 # @emdash-cms/admin
 
+## 0.38.0
+
+### Minor Changes
+
+- [#3080](https://github.com/emdash-cms/emdash/pull/3080) [`7bbd8ea`](https://github.com/emdash-cms/emdash/commit/7bbd8eaa062a97026bf3efa19c9ee8b25ff5d84a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds public names for registry plugins in the `@publisher.example/plugin-slug` format. Registry results and installed-plugin cards display the verified public name and link to a handle-based detail URL, while exact public-name searches open the matching package.
+
+  When a publisher handle conclusively fails identity verification, the admin displays **INVALID HANDLE** and prevents installation. Temporary lookup failures fall back to the stable publisher identifier without marking the handle invalid.
+
+- [#3062](https://github.com/emdash-cms/emdash/pull/3062) [`3f516f4`](https://github.com/emdash-cms/emdash/commit/3f516f4732da476baaf619e930b9ead2826d063c) Thanks [@swissky](https://github.com/swissky)! - Adds a `group` setting to collections. Collections that share a group render as one collapsible folder in the admin sidebar, positioned where the first of them appears; a taxonomy joins the folder when every collection it is assigned to is shown in that folder. A folder you have not touched opens while one of its members is active; once you open or close it yourself, the sidebar remembers that choice in the browser. Set the group in the content type editor under Navigation, in seed files, or through the schema API and the MCP collection tools; leaving it empty keeps today's flat list.
+
+- [#2919](https://github.com/emdash-cms/emdash/pull/2919) [`b1ccecd`](https://github.com/emdash-cms/emdash/commit/b1ccecd5b036522db28365310c1644ad56a5fab3) Thanks [@danielmlr](https://github.com/danielmlr)! - Adds an edit lock per content entry, so two people no longer discover a collision only after both have done the work.
+
+  Opening an entry in the admin takes a lock on it. A second editor is told who has it and chooses between opening the entry read-only, where nothing they type can be lost to a refused save, and taking it over. After a take-over, the previous holder is told within two minutes that the entry moved on, their next save is refused, and a banner names who holds it now.
+
+  The lock lasts seven minutes. The admin renews it every two minutes while the entry is open, so a pause in typing does not lose it, and every save on the entry extends it too. Leaving the editor or closing the tab releases it, as does moving the entry to the trash; a tab that loses power or network lets it lapse.
+
+  #### Who is newly refused
+
+  Scripts, API tokens and the CLI that update, delete, publish, unpublish, schedule or discard an entry while an editor has it open in the admin now receive `409 ENTRY_LOCKED` where the write used to succeed. This applies to every collection once the migration has run. The response's `error.message` names the holder and `error.details` carries their `userId`, `userName`, `acquiredAt` and `expiresAt`. Pass `"overrideLock": true` in the request body to write anyway, or `?overrideLock=true` on `DELETE`, which has no body. The CLI takes `--override-lock` on `content update`, `content delete`, `content publish`, `content unpublish` and `content schedule`. The MCP content tools do not honour the lock yet.
+
+  Locks are per entry and per locale, so two translations of the same entry can be edited at once.
+
+  Take or read a lock directly through `GET`, `POST` and `DELETE` on `/_emdash/api/content/{collection}/{id}/lock`.
+
+  #### Turning it off
+
+  Locking is on for every collection. Switch it off under **Content Types** → your collection → **Edit locking**, with `editLocking: false` in a seed file, or through `schema_update_collection`:
+
+  ```json
+  { "slug": "posts", "editLocking": false }
+  ```
+
+  #### Upgrading
+
+  Includes database migration `075_entry_edit_locks`. Projects on the default `auto` runtime migration mode need no action. Projects that migrate as a deployment step: run `emdash migrate` before deploying this version.
+
+- [#1526](https://github.com/emdash-cms/emdash/pull/1526) [`0bcb1d9`](https://github.com/emdash-cms/emdash/commit/0bcb1d9ba13d645009f6624fc08fe2cd3543a127) Thanks [@swissky](https://github.com/swissky)! - Adds WordPress-style date tokens to collection URL patterns. `url_pattern` now supports `{year}`, `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}` (resolved from the entry's publish date, zero-padded) alongside `{slug}` and `{id}` — so you can reproduce permalinks like `/{year}/{month}/{day}/{slug}.html`. The tokens resolve everywhere the pattern is used: sitemap canonical URLs, hreflang alternates, navigation menu links, slug-change auto-redirects, and the admin's preview and "View published" links. Tokens stay literal when an entry has no publish date, so canonical URLs remain stable across edits.
+
+- [#2934](https://github.com/emdash-cms/emdash/pull/2934) [`91a4aef`](https://github.com/emdash-cms/emdash/commit/91a4aef76bd2a6c588a22faa44897c7459d81728) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Adds responsive, lossless Portable Text tables with an accessible size picker, complete row and column controls, merge and split, persistent column widths, HTML and spreadsheet clipboard support, keyboard navigation, and right-to-left resizing. Wide tables keep their horizontal position while resizing, hide native scrollbar chrome, and show edge shadows for hidden columns.
+
+  Use the compact, scrollable Table menu for structural actions, or press Backspace or Delete to remove selected full rows or columns. Undo restores the removed content and structure.
+
+  The editor toolbar no longer includes Spotlight Mode, leaving more room for table controls at the standard editor width.
+
+  The public renderer now preserves table headers, spans, alignment, and preferred widths. Existing legacy string-cell tables continue to render. `portableTextToProsemirror()` now returns real `table`, `tableRow`, `tableHeader`, and `tableCell` nodes, so custom ProseMirror schemas that consume its output must register the existing TipTap table extensions.
+
+  Pass a localized `tablePlaceholder` string to `PortableText` to set the inline editor's initial table label. Omitted values retain the English label.
+
+### Patch Changes
+
+- [#2979](https://github.com/emdash-cms/emdash/pull/2979) [`5f51e55`](https://github.com/emdash-cms/emdash/commit/5f51e550827e0e42c8118e0c1279faa69cb1deb1) Thanks [@ascorbic](https://github.com/ascorbic)! - Improves passkey account creation with device-aware guidance before the browser prompt. EmDash explains what a passkey is and where it is saved, detects when a built-in authenticator is unavailable, and guides users through Windows Hello, another device, or a security key. Compatible browsers receive a preference for the selected path, while the browser continues to control the secure passkey prompt.
+
+- [#3078](https://github.com/emdash-cms/emdash/pull/3078) [`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a fail-closed first-release exemption to the plugin registry's optional minimum release age policy. A package's first release can install immediately only when the aggregator reports exactly one retained release and confirms that it continuously observed the package's release history.
+
+  Existing packages, backfilled packages, and packages with missing or incomplete history remain subject to the configured holdback. Deleted releases still count, and explicit publisher or package exemptions continue to work.
+
+- [#3072](https://github.com/emdash-cms/emdash/pull/3072) [`a350627`](https://github.com/emdash-cms/emdash/commit/a3506272966ca6e5795a5675d40f8c16532ad2d5) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes the admin appearance toggle so every click changes the visible color scheme. The admin follows the system preference whenever the selected appearance matches it.
+
+- [#2971](https://github.com/emdash-cms/emdash/pull/2971) [`9d5d8ed`](https://github.com/emdash-cms/emdash/commit/9d5d8ed9df84c59a823b978f5c32ade7cc053d09) Thanks [@marks-zyz](https://github.com/marks-zyz)! - Completes the Brazilian Portuguese (`pt-BR`) admin translation. Brazilian Portuguese admins now see localized text throughout the admin instead of falling back to English for 1,170 of 2,292 strings.
+
+- [#3060](https://github.com/emdash-cms/emdash/pull/3060) [`d30207d`](https://github.com/emdash-cms/emdash/commit/d30207d391bfb10f8a0566992e02df246dfa8c02) Thanks [@swissky](https://github.com/swissky)! - Fixes the dashboard showing a "+ New …" quick action for collections marked `hidden`, matching the sidebar link the flag already removes.
+
+- [#3076](https://github.com/emdash-cms/emdash/pull/3076) [`dd5ef1a`](https://github.com/emdash-cms/emdash/commit/dd5ef1a23031055e230377480874974dd00d64a2) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes marketplace plugin updates so administrators review newly requested capabilities, public routes, and MCP tools before granting them. Update confirmation remains pinned to the version that was reviewed, so a newer release requires a separate review.
+
+- [#3077](https://github.com/emdash-cms/emdash/pull/3077) [`27e432e`](https://github.com/emdash-cms/emdash/commit/27e432e197b592cfe150c9d536cd0696e042a116) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes invalid plugin registry settings causing the admin manifest to fail with a generic server error. EmDash reports malformed `experimental.registry` fields while Astro loads the site configuration. If invalid registry settings reach the runtime, the admin remains available and shows which field to correct in `astro.config.mjs`.
+
+- Updated dependencies [[`da171b3`](https://github.com/emdash-cms/emdash/commit/da171b3d8d918066e91aa6068e72adbbcd3678de), [`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a), [`4cc150e`](https://github.com/emdash-cms/emdash/commit/4cc150e931313644a96b796627e5ec74b46c0aec)]:
+  - @emdash-cms/registry-client@0.6.0
+  - @emdash-cms/registry-lexicons@0.5.0
+  - @emdash-cms/blocks@0.38.0
+
 ## 0.37.0
 
 ### Minor Changes
