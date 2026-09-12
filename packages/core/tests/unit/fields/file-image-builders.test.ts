@@ -31,3 +31,24 @@ describe("image builder", () => {
 		expect(def.validation?.allowedMimeTypes).toBeUndefined();
 	});
 });
+
+describe("image field schema", () => {
+	it("keeps the focal point on the value", () => {
+		const value = {
+			id: "img123",
+			provider: "local",
+			focalX: 0.25,
+			focalY: 0.75,
+		};
+		expect(image().schema.parse(value)).toEqual(value);
+	});
+
+	it("keeps the focal point on a dark variant", () => {
+		const value = {
+			id: "img123",
+			provider: "local",
+			darkVariant: { id: "img456", provider: "local", focalX: 0.5, focalY: 0.1 },
+		};
+		expect(image().schema.parse(value)).toEqual(value);
+	});
+});
