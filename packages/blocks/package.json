@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
-    "@testing-library/react": "^16.3.0",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^4.6.0",
