@@ -13,6 +13,10 @@ import adminStylesUrl from "@emdash-cms/admin/styles.css?url";
 // (relative imports resolve to absolute paths which break client hydration)
 import AdminWrapper from "emdash/routes/PluginRegistry";
 import { Font } from "astro:assets";
+// EmDashConfig.fonts isn't part of serializableConfig (see integration/index.ts),
+// so Astro.locals.emdash.config.fonts is never available here - check Astro's own
+// font registry instead of guessing from EmDash's config.
+import { componentDataByCssVariable } from "virtual:astro:assets/fonts/internal";
 
 export const prerender = false;
 
@@ -84,7 +88,13 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 			})();
 		</script>
 		<link rel="stylesheet" href={adminStylesUrl} />
-		<Font cssVariable="--font-emdash" />
+		{/* fonts: false disables font injection and never registers --font-emdash
+		with Astro's Font API, so <Font> throws FontFamilyNotFound mid-stream -
+		after the 200 response has already started, producing an empty body.
+		Skip it and let the admin CSS's system-font fallback stack apply instead. */}
+		{componentDataByCssVariable.has("--font-emdash") && (
+			<Font cssVariable="--font-emdash" />
+		)}
 		{favicon ? (
 			<link rel="icon" href={favicon} type={faviconType} />
 		) : (
