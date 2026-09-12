@@ -2759,14 +2759,6 @@ msgstr "Taxonomies personnalisées"
 msgid "Daily automatic backups"
 msgstr "Sauvegardes automatiques quotidiennes"
 
-#: packages/admin/src/components/ThemeToggle.tsx:22
-msgid "dark"
-msgstr "sombre"
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "Dark"
-msgstr "Sombre"
-
 #: packages/admin/src/components/FieldEditor.tsx:688
 #: packages/admin/src/components/ImageFieldRenderer.tsx:395
 msgid "Dark mode variant"
@@ -5615,14 +5607,6 @@ msgstr "Bibliothèque"
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:203
 msgid "License"
 msgstr "Licence"
-
-#: packages/admin/src/components/ThemeToggle.tsx:22
-msgid "light"
-msgstr "clair"
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "Light"
-msgstr "Clair"
 
 #: packages/admin/src/components/Widgets.tsx:165
 msgid "Limit"
@@ -9372,6 +9356,14 @@ msgstr "Svelte"
 msgid "Swift"
 msgstr "Swift"
 
+#: packages/admin/src/components/ThemeToggle.tsx:19
+msgid "Switch to dark"
+msgstr ""
+
+#: packages/admin/src/components/ThemeToggle.tsx:19
+msgid "Switch to light"
+msgstr ""
+
 #: packages/admin/src/components/users/UserDetail.tsx:256
 msgid "Synced"
 msgstr "Synchronisé"
@@ -9383,10 +9375,6 @@ msgstr "Mot de passe synchronisé"
 #: packages/admin/src/components/ContentTypeEditor.tsx:832
 msgid "System"
 msgstr "Système"
-
-#: packages/admin/src/components/ThemeToggle.tsx:24
-msgid "System ({resolvedLabel})"
-msgstr "Système ({resolvedLabel})"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:654
 msgid "System Fields"
@@ -9631,10 +9619,6 @@ msgstr "Section du thème"
 #: packages/admin/src/components/Sections.tsx:300
 msgid "Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that."
 msgstr "Les sections fournies par un thème ne peuvent pas être supprimées. Modifiez la section pour créer une copie personnalisée, puis supprimez-la."
-
-#: packages/admin/src/components/ThemeToggle.tsx:33
-msgid "Theme: {label}"
-msgstr "Thème : {label}"
 
 #: packages/admin/src/components/Sidebar.tsx:487
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
@@ -9894,11 +9878,6 @@ msgstr ""
 #: packages/admin/src/components/editor/TableControls.tsx:31
 msgid "Toggle header row"
 msgstr "Basculer la ligne d'en-tête"
-
-#: packages/admin/src/components/ThemeToggle.tsx:31
-#: packages/admin/src/components/ThemeToggle.tsx:42
-msgid "Toggle theme (current: {label})"
-msgstr "Changer de thème (actuel : {label})"
 
 #. placeholder {0}: newToken.info.name
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:255
