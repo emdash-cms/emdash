@@ -1,5 +1,6 @@
 ---
 "@emdash-cms/plugin-cli": minor
+"@emdash-cms/registry-client": minor
 ---
 
 Adds repository-level automated plugin releases. `emdash-plugin release setup` writes one shared `.github/workflows/emdash-release.yml` at the Git repository root, including when setup runs from a nested package. The workflow resolves `<slug>@<version>` tags to a unique plugin manifest, rejects version mismatches before attestation, and requests its first repository connection through GitHub OpenID Connect without an Actions secret.
