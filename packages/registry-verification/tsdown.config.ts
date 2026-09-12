@@ -5,9 +5,13 @@ import { defineConfig } from "tsdown";
 const rebundleSafeRequire = {
 	name: "rebundle-safe-require",
 	renderChunk(code: string) {
+		// Consumers rebundle this artifact, so `import.meta.url` may no longer name
+		// a real file. The generated `require` only resolves Node builtins, so any
+		// absolute file URL is sufficient. The URL must include a synthetic drive
+		// letter: on Windows `fileURLToPath()` rejects driveless `file:///...` URLs.
 		return code.replace(
 			"createRequire(import.meta.url)",
-			'createRequire("file:///emdash-registry-verification.js")',
+			'createRequire("file:///C:/emdash-registry-verification.js")',
 		);
 	},
 };
