@@ -1,7 +1,11 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
-import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
+import type {
+	ContentFieldFilterValue,
+	ContentFieldFilters,
+	ContentTermFilters,
+} from "../../content-list-query.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
@@ -728,6 +732,7 @@ export class ContentRepository {
 		query = this.applySearchFilter(query, options.where, type);
 		query = this.applyDateFilter(query, options.where);
 		query = this.applyBylineFilter(query, options.where, type);
+		query = this.applyTermFilters(query, options.where, type);
 		query = this.applyFieldFilters(query, resolvedFieldFilters);
 
 		// Handle cursor pagination — decodeCursor throws InvalidCursorError
@@ -1429,6 +1434,56 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Restrict to entries carrying taxonomy terms: OR within a taxonomy, AND
+	 * across taxonomies.
+	 *
+	 * `content_taxonomies.entry_id` stores the ec_* row's **translation_group**,
+	 * not its id, so the correlation is on `translation_group`, unlike the
+	 * byline junction above, which stores the row id. Getting that wrong
+	 * matches nothing rather than erroring.
+	 *
+	 * `taxonomies.name` is the taxonomy, `taxonomies.slug` the term. The join is
+	 * on `taxonomies.translation_group`, which is what the junction stores, so a
+	 * term matches through any of its locale variants; `locale` narrows to one
+	 * when the list is scoped.
+	 */
+	private applyTermFilters<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
+		query: QB,
+		where: { termFilters?: ContentTermFilters; locale?: string } | undefined,
+		type: string,
+	): QB {
+		const filters = where?.termFilters;
+		if (!filters) return query;
+		const entries = Object.entries(filters);
+		if (entries.length === 0) return query;
+
+		const groupColumn = `${getTableName(type)}.translation_group`;
+
+		for (const [taxonomy, slugs] of entries) {
+			// A key that resolved to no slugs must match nothing rather than
+			// silently degrade to "no filter" and return the whole collection,
+			// the same way an empty byline set does above.
+			if (slugs.length === 0) {
+				query = query.where(() => sql<boolean>`1 = 0`);
+				continue;
+			}
+			query = query.where((eb: any) => {
+				let sub = eb
+					.selectFrom("content_taxonomies as ct")
+					.innerJoin("taxonomies as t", "t.translation_group", "ct.taxonomy_id")
+					.select("ct.entry_id")
+					.where("ct.collection", "=", type)
+					.whereRef("ct.entry_id", "=", groupColumn)
+					.where("t.name", "=", taxonomy)
+					.where("t.slug", "in", slugs);
+				if (where?.locale) sub = sub.where("t.locale", "=", where.locale);
+				return eb.exists(sub);
+			});
+		}
+		return query;
+	}
+
+	/**
 	 * Count content items
 	 */
 	async count(type: string, where?: FindManyOptions["where"]): Promise<number> {
@@ -1463,6 +1518,7 @@ export class ContentRepository {
 		query = this.applySearchFilter(query, where, type);
 		query = this.applyDateFilter(query, where);
 		query = this.applyBylineFilter(query, where, type);
+		query = this.applyTermFilters(query, where, type);
 		query = this.applyFieldFilters(query, resolvedFieldFilters);
 
 		const result = await query.executeTakeFirst();
