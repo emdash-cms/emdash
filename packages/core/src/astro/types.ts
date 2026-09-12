@@ -10,6 +10,7 @@ import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
+import type { ManifestRegistryConfigurationError } from "../registry/config.js";
 
 // Re-export core types
 export type {
@@ -214,6 +215,8 @@ export interface EmDashManifest {
 			minimumReleaseAgeExclude?: string[];
 		};
 	};
+	/** Safe field-level diagnostic when the registry configuration cannot be normalized. */
+	registryConfigurationError?: ManifestRegistryConfigurationError;
 	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.

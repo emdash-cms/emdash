@@ -27,6 +27,7 @@ import {
 import { buildMigrationManifest } from "../../migrations/manifest-builder.js";
 import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
+import { normalizeRegistryConfig } from "../../registry/config.js";
 import { VERSION } from "../../version.js";
 import { setDevTypegenRefresh } from "../dev-typegen.js";
 import { local } from "../storage/adapters.js";
@@ -328,6 +329,11 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		migrations: normalizeMigrationConfig(config.migrations),
 	};
 
+	// Validate environment-independent registry settings while Astro is still
+	// evaluating its config. The command-aware check in astro:config:setup
+	// applies the stricter production localhost policy.
+	normalizeRegistryConfig(resolvedConfig.experimental?.registry, { allowLocalhost: true });
+
 	// Validate marketplace URL
 	if (resolvedConfig.marketplace) {
 		const url = resolvedConfig.marketplace;
@@ -463,6 +469,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				astroCommand = command;
+				normalizeRegistryConfig(resolvedConfig.experimental?.registry, {
+					allowLocalhost: command === "dev" || command === "sync",
+				});
 				printBanner(logger);
 				// Capture the host's Astro version so the runtime can expose it
 				// to the admin and the registry install gate for `env:astro`

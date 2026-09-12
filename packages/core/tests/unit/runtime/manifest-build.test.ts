@@ -57,8 +57,7 @@ const configCollections = {
 	},
 };
 
-function buildRuntime(db: Kysely<Database>): EmDashRuntime {
-	const config: EmDashConfig = {};
+function buildRuntime(db: Kysely<Database>, config: EmDashConfig = {}): EmDashRuntime {
 	const pipelineFactoryOptions = { db } as const;
 	const hooks = createHookPipeline([], pipelineFactoryOptions);
 	const pipelineRef = { current: hooks };
@@ -336,6 +335,24 @@ describe("EmDashRuntime.getManifest()", () => {
 		const manifest = await runtime.getManifest();
 
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
+	});
+
+	it("keeps the admin manifest available with a safe registry configuration diagnostic", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const runtime = buildRuntime(db, {
+			experimental: { registry: { aggregatorUrl: "not a URL" } },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toEqual({
+			code: "REGISTRY_AGGREGATOR_URL_INVALID",
+			field: "experimental.registry.aggregatorUrl",
+		});
+		expect(log).toHaveBeenCalledWith(
+			"EmDash registry configuration error in experimental.registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
+		);
 	});
 
 	it("reports the configured content default independently of admin language", async () => {
