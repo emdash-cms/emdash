@@ -57,6 +57,97 @@ const BACKING_URL = ${JSON.stringify(options.backingServiceUrl)};
 const AUTH_TOKEN = ${JSON.stringify(options.authToken)};
 const INVOKE_TOKEN = ${JSON.stringify(options.invokeToken)};
 
+function storageObjectEntries(value) {
+	if (!value || typeof value !== "object" || Array.isArray(value) ||
+		(Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) ||
+		Object.getOwnPropertySymbols(value).length) {
+		throw new TypeError("Storage update objects must be plain objects");
+	}
+	return Object.entries(value);
+}
+
+function copyStorageCondition(value, ancestors = new Set()) {
+	if (value === null || typeof value === "string" || typeof value === "boolean") return value;
+	if (typeof value === "number" && Number.isFinite(value)) return value;
+	if (typeof value !== "object" || ancestors.has(value)) {
+		throw new TypeError("Storage conditions must contain finite JSON values without cycles");
+	}
+	ancestors.add(value);
+	let copied;
+	if (Array.isArray(value)) {
+		if (Object.getPrototypeOf(value) !== Array.prototype ||
+			Object.getOwnPropertySymbols(value).length ||
+			Object.keys(value).length !== value.length) {
+			throw new TypeError("Storage condition arrays must contain only indexed values");
+		}
+		copied = Array.from({ length: value.length }, (_, index) =>
+			copyStorageCondition(value[index], ancestors));
+	} else {
+		copied = Object.fromEntries(storageObjectEntries(value).map(([key, entry]) =>
+			[key, copyStorageCondition(entry, ancestors)]));
+	}
+	ancestors.delete(value);
+	return copied;
+}
+
+function copyStorageWhere(value) {
+	return Object.fromEntries(storageObjectEntries(value).map(([field, condition]) => {
+		if (condition === null || typeof condition !== "object") {
+			return [field, copyStorageCondition(condition)];
+		}
+		const filter = Object.fromEntries(storageObjectEntries(condition));
+		if (Array.isArray(filter.in)) {
+			return [field, { in: copyStorageCondition(filter.in) }];
+		}
+		if (typeof filter.startsWith === "string") {
+			return [field, { startsWith: filter.startsWith }];
+		}
+		const bounds = ["gt", "gte", "lt", "lte"]
+			.filter((key) => Object.hasOwn(filter, key))
+			.map((key) => [key, filter[key]]);
+		if (bounds.length === 0) return [field, copyStorageCondition(filter)];
+		const defined = bounds.filter(([, bound]) => bound !== undefined);
+		if (defined.length === 0) {
+			throw new TypeError("Storage range filter must contain a defined bound");
+		}
+		return [field, copyStorageCondition(Object.fromEntries(defined))];
+	}));
+}
+
+function marshalStorageUpdate(value) {
+	const entries = storageObjectEntries(value).map(([key, entry]) =>
+		[key, key === "set" || key === "delta" ? entry :
+			key === "where" ? copyStorageWhere(entry) : copyStorageCondition(entry)]);
+	return Object.fromEntries(entries.flatMap(([key, entry]) => {
+		if (key !== "set" && key !== "delta") return [[key, entry]];
+		if (entry === undefined) return [];
+		const fields = storageObjectEntries(entry)
+			.filter(([, fieldValue]) => fieldValue !== undefined)
+			.map(([field, fieldValue]) => {
+				if (key === "delta") return [field, copyStorageCondition(fieldValue)];
+				const serialized = JSON.stringify(fieldValue);
+				if (serialized === undefined) {
+					throw new TypeError("Storage set values must be JSON serializable");
+				}
+				return [field, JSON.parse(serialized)];
+			});
+		return [[key, Object.fromEntries(fields)]];
+	}));
+}
+
+function storageSerializationErrorDetails(value) {
+	if (!value || typeof value !== "object" ||
+		value.code !== "STORAGE_SERIALIZATION_FAILURE" || value.retryable !== true ||
+		(value.sqlState !== undefined && value.sqlState !== "40001" && value.sqlState !== "40P01")) return null;
+	return {
+		name: "StorageSerializationError",
+		code: "STORAGE_SERIALIZATION_FAILURE",
+		retryable: true,
+		...(value.sqlState === undefined ? {} : { sqlState: value.sqlState }),
+		message: "Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+	};
+}
+
 function sandboxRouteErrorDetails(value) {
 	if (!value || typeof value !== "object") return null;
 	const code =
@@ -105,6 +196,8 @@ async function bridgeCall(method, body) {
 		const text = await res.text();
 		try {
 			const payload = JSON.parse(text);
+			const storageDetails = storageSerializationErrorDetails(payload?.error);
+			if (storageDetails) throw Object.assign(new Error(storageDetails.message), storageDetails);
 			const details = sandboxRouteErrorDetails(payload?.error);
 			if (details) {
 				const error = Object.assign(new Error(details.message), details, {
@@ -113,7 +206,7 @@ async function bridgeCall(method, body) {
 				throw error;
 			}
 		} catch (error) {
-			if (sandboxRouteErrorDetails(error)) throw error;
+			if (sandboxRouteErrorDetails(error) || storageSerializationErrorDetails(error)) throw error;
 		}
 		throw new Error("Bridge call " + method + " failed: " + text);
 	}
@@ -137,6 +230,10 @@ function createContext() {
 		return {
 			get: (id) => bridgeCall("storage/get", { collection: collectionName, id }),
 			put: (id, data) => bridgeCall("storage/put", { collection: collectionName, id, data }),
+			updateIf: async (id, args) => {
+				if (typeof id !== "string") throw new TypeError("Storage ID must be a string");
+				return bridgeCall("storage/updateIf", { collection: collectionName, id, args: marshalStorageUpdate(args) });
+			},
 			delete: (id) => bridgeCall("storage/delete", { collection: collectionName, id }),
 			exists: async (id) => (await bridgeCall("storage/get", { collection: collectionName, id })) !== null,
 			query: (opts) => bridgeCall("storage/query", { collection: collectionName, ...opts }),

@@ -60,6 +60,19 @@ import pluginModule from "sandbox-plugin.js";
 const hooks = pluginModule?.hooks || pluginModule?.default?.hooks || {};
 const routes = pluginModule?.routes || pluginModule?.default?.routes || {};
 
+function storageSerializationErrorDetails(value) {
+	if (!value || typeof value !== "object" ||
+		value.code !== "STORAGE_SERIALIZATION_FAILURE" || value.retryable !== true ||
+		(value.sqlState !== undefined && value.sqlState !== "40001" && value.sqlState !== "40P01")) return null;
+	return {
+		name: "StorageSerializationError",
+		code: "STORAGE_SERIALIZATION_FAILURE",
+		retryable: true,
+		...(value.sqlState === undefined ? {} : { sqlState: value.sqlState }),
+		message: "Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+	};
+}
+
 function sandboxRouteErrorDetails(value) {
 	if (!value || typeof value !== "object") return null;
 	const code =
@@ -102,6 +115,15 @@ function createContext(env) {
 		return {
 			get: (id) => bridge.storageGet(collectionName, id),
 			put: (id, data) => bridge.storagePut(collectionName, id, data),
+			updateIf: async (id, args) => {
+				const result = await bridge.storageUpdateIf(collectionName, id, args);
+				if (result && typeof result === "object" && "__emdashStorageError" in result) {
+					const details = storageSerializationErrorDetails(result.__emdashStorageError);
+					if (!details) throw new Error("Invalid storage error response");
+					throw Object.assign(new Error(details.message), details);
+				}
+				return result;
+			},
 			delete: (id) => bridge.storageDelete(collectionName, id),
 			exists: async (id) => (await bridge.storageGet(collectionName, id)) !== null,
 			query: (opts) => bridge.storageQuery(collectionName, opts),

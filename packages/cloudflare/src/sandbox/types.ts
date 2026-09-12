@@ -3,7 +3,7 @@
  */
 
 import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
-import type { ContentCreateOptions } from "emdash";
+import type { ContentCreateOptions, UpdateIfArgs, UpdateIfResult } from "emdash";
 
 /**
  * Environment bindings required for sandbox runner.
@@ -151,6 +151,18 @@ interface BridgeMediaItem {
 	createdAt: string;
 }
 
+export interface StorageSerializationFailureDetails {
+	name: "StorageSerializationError";
+	code: "STORAGE_SERIALIZATION_FAILURE";
+	retryable: true;
+	sqlState?: "40001" | "40P01";
+	message: string;
+}
+
+export type StorageUpdateIfResponse =
+	| UpdateIfResult<unknown>
+	| { __emdashStorageError: StorageSerializationFailureDetails };
+
 /**
  * Type for the PluginBridge binding passed to sandboxed workers.
  * This is the RPC interface exposed by PluginBridge WorkerEntrypoint.
@@ -164,6 +176,11 @@ export interface PluginBridgeBinding {
 	// Storage
 	storageGet(collection: string, id: string): Promise<unknown>;
 	storagePut(collection: string, id: string, data: unknown): Promise<void>;
+	storageUpdateIf(
+		collection: string,
+		id: string,
+		args: UpdateIfArgs<unknown>,
+	): Promise<StorageUpdateIfResponse>;
 	storageDelete(collection: string, id: string): Promise<boolean>;
 	storageQuery(
 		collection: string,

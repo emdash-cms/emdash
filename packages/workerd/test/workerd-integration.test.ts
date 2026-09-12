@@ -10,7 +10,7 @@
 
 import Database from "better-sqlite3";
 import { createSandboxRouteError } from "emdash";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
@@ -86,6 +86,36 @@ export default {
 				await ctx.kv.set("test-key", routeCtx.input.value);
 				const result = await ctx.kv.get("test-key");
 				return { stored: result };
+			}
+		}
+	}
+};
+`;
+
+const UPDATE_IF_PLUGIN = `
+export default {
+	routes: {
+		reserve: {
+			handler: async (_routeCtx, ctx) => {
+				const store = ctx.storage.records;
+				await store.put("stock", { stock: 2, title: "retained" });
+				const outcomes = await Promise.all(Array.from({ length: 4 }, () =>
+					store.updateIf("stock", { where: { stock: { gte: 1 } }, delta: { stock: { dec: 1 } } })
+				));
+				return { outcomes, saved: await store.get("stock") };
+			}
+		},
+		retry: {
+			handler: async (_routeCtx, ctx) => {
+				try {
+					await ctx.storage.records.updateIf("stock", { where: {}, set: { stock: 1 } });
+					return { unexpectedSuccess: true };
+				} catch (error) {
+					return {
+						name: error.name, code: error.code, retryable: error.retryable,
+						sqlState: error.sqlState, message: error.message, hasCause: "cause" in error
+					};
+				}
 			}
 		}
 	}
@@ -252,6 +282,84 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		)) as any;
 
 		expect(result.stored).toBe("hello");
+	}, 30_000);
+
+	it("runs guarded decrements through the generated worker", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-update-if",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: { records: { indexes: ["stock"] } },
+			},
+			UPDATE_IF_PLUGIN,
+		);
+		const result = await plugin.invokeRoute(
+			"reserve",
+			{},
+			{
+				method: "POST",
+				url: "/api/reserve",
+				headers: {},
+			},
+		);
+		expect(result).toEqual({
+			outcomes: expect.arrayContaining([
+				{ applied: true, data: { stock: 1, title: "retained" } },
+				{ applied: true, data: { stock: 0, title: "retained" } },
+				{ applied: false },
+				{ applied: false },
+			]),
+			saved: { stock: 0, title: "retained" },
+		});
+	}, 30_000);
+
+	it("reconstructs safe storage retry metadata through the generated worker", async () => {
+		const updates = new WeakSet<QueryId>();
+		runner = new WorkerdSandboxRunner({
+			db: db.withPlugin({
+				transformQuery: ({ node, queryId }) => {
+					if (node.kind === "UpdateQueryNode") updates.add(queryId);
+					return node;
+				},
+				transformResult: async ({ result, queryId }) => {
+					if (updates.has(queryId)) {
+						throw Object.assign(new Error("private SQL and parameters"), { code: "40P01" });
+					}
+					return result;
+				},
+			}),
+		});
+		const plugin = await runner.load(
+			{
+				id: "test-update-retry",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: { records: { indexes: [] } },
+			},
+			UPDATE_IF_PLUGIN,
+		);
+		expect(
+			await plugin.invokeRoute(
+				"retry",
+				{},
+				{
+					method: "POST",
+					url: "/api/retry",
+					headers: {},
+				},
+			),
+		).toEqual({
+			name: "StorageSerializationError",
+			code: "STORAGE_SERIALIZATION_FAILURE",
+			retryable: true,
+			sqlState: "40P01",
+			hasCause: false,
+			message:
+				"Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+		});
 	}, 30_000);
 
 	it("handles plugin unload and reload", async () => {

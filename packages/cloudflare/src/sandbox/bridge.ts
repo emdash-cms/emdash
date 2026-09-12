@@ -16,12 +16,14 @@ import {
 	getSandboxRouteErrorDetails,
 	ulid,
 	PluginStorageRepository,
+	StorageSerializationError,
 	resolveContentCreateLocale,
 } from "emdash";
 import { Kysely } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
+import type { StorageUpdateIfResponse } from "./types.js";
 
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
@@ -347,6 +349,33 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		)
 			.bind(pluginId, collection, id, JSON.stringify(data))
 			.run();
+	}
+
+	async storageUpdateIf(
+		collection: string,
+		id: string,
+		args: unknown,
+	): Promise<StorageUpdateIfResponse> {
+		if (!this.ctx.props.storageCollections.includes(collection)) {
+			throw new Error(`Storage collection not declared: ${collection}`);
+		}
+		try {
+			return await this.getStorageRepo(collection).updateIf(id, args);
+		} catch (error) {
+			if (!(error instanceof StorageSerializationError)) throw error;
+			return {
+				__emdashStorageError: {
+					name: "StorageSerializationError",
+					code: "STORAGE_SERIALIZATION_FAILURE",
+					retryable: true,
+					...(error.sqlState === "40001" || error.sqlState === "40P01"
+						? { sqlState: error.sqlState }
+						: {}),
+					message:
+						"Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+				},
+			};
+		}
 	}
 
 	async storageDelete(collection: string, id: string): Promise<boolean> {
