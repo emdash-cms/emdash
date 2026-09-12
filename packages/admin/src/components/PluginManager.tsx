@@ -271,7 +271,8 @@ function PluginCard({
 	const updateMutation = useMutation({
 		mutationFn: (opts: RegistryUpdateOpts & UpdatePluginOpts) =>
 			isRegistry ? updateRegistryPlugin(plugin.id, opts) : updateMarketplacePlugin(plugin.id, opts),
-		onSuccess: () => {
+		onSuccess: (_result, opts) => {
+			const installedVersion = opts.version ?? updateInfo?.latest;
 			setShowUpdateConsent(false);
 			setRegistryEscalation(null);
 			setMarketplaceEscalation(null);
@@ -283,7 +284,7 @@ function PluginCard({
 			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
 				title: t`Plugin updated`,
-				description: t`${plugin.name} updated to v${updateInfo?.latest}`,
+				description: t`${plugin.name} updated to v${installedVersion}`,
 			});
 		},
 		onError: (err) => {
@@ -291,13 +292,11 @@ function PluginCard({
 				setRegistryEscalation(err);
 				setRegistryVerification(err.verification ?? null);
 				setShowUpdateConsent(true);
-			}
-			if (err instanceof MarketplaceUpdateEscalationError) {
+			} else if (err instanceof MarketplaceUpdateEscalationError) {
 				setMarketplaceEscalation(err);
 				setMcpUpdateTools(err.mcpTools);
 				setShowUpdateConsent(true);
-			}
-			if (err instanceof RegistryMcpConsentRequiredError) {
+			} else if (err instanceof RegistryMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
 				setRegistryVerification(err.verification ?? null);
 				setShowUpdateConsent(true);
@@ -315,6 +314,12 @@ function PluginCard({
 			} else if (err instanceof PluginMcpConsentRequiredError) {
 				setMcpUpdateTools(err.tools);
 				setShowUpdateConsent(true);
+			} else {
+				toastManager.add({
+					title: t`Failed to update plugin`,
+					description: err instanceof Error ? err.message : t`An error occurred`,
+					type: "error",
+				});
 			}
 		},
 	});
@@ -690,6 +695,7 @@ function PluginCard({
 				<CapabilityConsentDialog
 					mode="update"
 					pluginName={plugin.name}
+					version={isMarketplace ? (marketplaceReviewedVersion ?? undefined) : undefined}
 					capabilities={[
 						...new Set([
 							...plugin.capabilities,
