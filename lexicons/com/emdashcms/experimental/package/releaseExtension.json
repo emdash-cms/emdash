@@ -1,0 +1,135 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.package.releaseExtension",
+	"description": "EmDash-specific extension data embedded inside a release record under its `extensions` field. Carries the trust contract (declaredAccess) the sandbox enforces. EXPERIMENTAL: shape may change before stabilisation.",
+	"defs": {
+		"main": {
+			"type": "object",
+			"description": "Typed embedded object carrying the EmDash plugin's structured access manifest. Lives under the release record's `extensions` map keyed by this NSID. The `$type` field is required when embedded; clients use it to dispatch to this schema.",
+			"required": ["declaredAccess"],
+			"properties": {
+				"declaredAccess": {
+					"type": "ref",
+					"ref": "#declaredAccess",
+					"description": "Structured per-category access manifest. The sandbox enforces every operation declared here at runtime."
+				}
+			}
+		},
+		"declaredAccess": {
+			"type": "object",
+			"description": "Map of access category to a per-category block of named operations. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields. Within a known category, an unrecognised operation key is also a hard reject. Within an operation's constraint object, unrecognised keys are advisory and surfaced verbatim in install-consent UI. Note that the bundled manifest may use boolean `true` as sugar for an empty constraint object; on-PDS records canonicalise this to `{}` because Lexicon validation does not accept boolean values for typed object fields.",
+			"properties": {
+				"content": {
+					"type": "ref",
+					"ref": "#contentAccess",
+					"description": "Access to site content (posts, pages, custom collections)."
+				},
+				"media": {
+					"type": "ref",
+					"ref": "#mediaAccess",
+					"description": "Access to uploaded media assets."
+				},
+				"network": {
+					"type": "ref",
+					"ref": "#networkAccess",
+					"description": "Outbound HTTP requests."
+				},
+				"email": {
+					"type": "ref",
+					"ref": "#emailAccess",
+					"description": "Sending mail through the host's mail service."
+				}
+			}
+		},
+		"contentAccess": {
+			"type": "object",
+			"description": "Operations under content. Each operation value is a constraint object; an empty object grants the operation with no constraints applied.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#contentReadConstraints",
+					"description": "Plugin may read content records."
+				},
+				"write": {
+					"type": "ref",
+					"ref": "#contentWriteConstraints",
+					"description": "Plugin may create, update, or delete content records. Implies `read`."
+				}
+			}
+		},
+		"contentReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.read. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
+		},
+		"contentWriteConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.write. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
+		},
+		"mediaAccess": {
+			"type": "object",
+			"description": "Operations under media.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#mediaReadConstraints",
+					"description": "Plugin may read media metadata and fetch media bytes."
+				},
+				"write": {
+					"type": "ref",
+					"ref": "#mediaWriteConstraints",
+					"description": "Plugin may upload, modify, or delete media. Implies `read`."
+				}
+			}
+		},
+		"mediaReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for media.read. No constraint keys are normatively defined here."
+		},
+		"mediaWriteConstraints": {
+			"type": "object",
+			"description": "Constraint object for media.write. No constraint keys are normatively defined here."
+		},
+		"networkAccess": {
+			"type": "object",
+			"description": "Operations under network.",
+			"properties": {
+				"request": {
+					"type": "ref",
+					"ref": "#networkRequestConstraints",
+					"description": "Plugin may make outbound HTTP requests. Constraints scope the access; an empty object grants unrestricted requests."
+				}
+			}
+		},
+		"networkRequestConstraints": {
+			"type": "object",
+			"description": "Constraint object for network.request. Open shape — additional constraint keys (rate limits, etc.) may be declared and will be surfaced advisorily until normatively defined by a follow-on RFC.",
+			"properties": {
+				"allowedHosts": {
+					"type": "array",
+					"description": "Allow-list of outbound host patterns. Each entry is a hostname pattern with no scheme, path, or port; a leading '*.' wildcard is permitted for subdomains. Field absent means no host restriction; an empty array MUST NOT appear in records.",
+					"minLength": 1,
+					"maxLength": 64,
+					"items": {
+						"type": "string",
+						"maxLength": 256
+					}
+				}
+			}
+		},
+		"emailAccess": {
+			"type": "object",
+			"description": "Operations under email.",
+			"properties": {
+				"send": {
+					"type": "ref",
+					"ref": "#emailSendConstraints",
+					"description": "Plugin may send mail."
+				}
+			}
+		},
+		"emailSendConstraints": {
+			"type": "object",
+			"description": "Constraint object for email.send. No constraint keys are normatively defined here; vocabulary for rate limits and recipient allow-lists is reserved for a follow-on RFC."
+		}
+	}
+}
