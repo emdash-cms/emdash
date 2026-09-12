@@ -13,6 +13,7 @@ import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import type { CanonicalDeclaredAccess } from "@emdash-cms/plugin-types";
 import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import { isProvenFirstRelease } from "@emdash-cms/registry-client/listing-policy";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import {
@@ -732,7 +733,9 @@ export async function handleRegistryInstall(
 			const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
 				e.trim().toLowerCase(),
 			);
-			const exempt = releaseExemptFromMinimumAge(exclude, publisherDid, slug);
+			const exempt =
+				releaseExemptFromMinimumAge(exclude, publisherDid, slug) ||
+				isProvenFirstRelease(packageView);
 			if (!exempt) {
 				const indexedAt = Date.parse(releaseView.indexedAt);
 				if (!Number.isFinite(indexedAt)) {

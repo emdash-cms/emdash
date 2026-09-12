@@ -208,6 +208,7 @@ describe("processBackfillJob", () => {
 			rkey: "demo",
 			operation: "create",
 			cid: "bafyc1",
+			source: "backfill",
 		});
 		// jetstreamRecord intentionally not set on backfill jobs — the
 		// consumer's DLQ payload field would otherwise mislabel

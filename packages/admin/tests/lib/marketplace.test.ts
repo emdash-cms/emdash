@@ -10,6 +10,8 @@ import {
 	describeCapability,
 	CAPABILITY_LABELS,
 	PluginMcpConsentRequiredError,
+	MarketplaceUpdateEscalationError,
+	MarketplaceUpdateMcpConsentRequiredError,
 } from "../../src/lib/api/marketplace";
 
 describe("marketplace API client", () => {
@@ -223,6 +225,82 @@ describe("marketplace API client", () => {
 				}),
 			);
 			await expect(updateMarketplacePlugin("x")).rejects.toThrow("Capability mismatch");
+		});
+
+		it("throws a structured escalation error with the server-provided diff", async () => {
+			const tool = {
+				name: "sync",
+				description: "Sync content",
+				route: "sync",
+				permission: "content:write",
+				destructive: false,
+			};
+			fetchSpy.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "ROUTE_VISIBILITY_ESCALATION",
+							message: "Review the update",
+							details: {
+								capabilityChanges: {
+									added: ["network:request"],
+									removed: ["content:read"],
+								},
+								routeVisibilityChanges: { newlyPublic: ["webhook"] },
+								mcpTools: [tool],
+							},
+						},
+					}),
+					{ status: 409 },
+				),
+			);
+
+			const error = await updateMarketplacePlugin("my-plugin", { version: "2.0.0" }).catch(
+				(reason: unknown) => reason,
+			);
+			expect(error).toBeInstanceOf(MarketplaceUpdateEscalationError);
+			expect(error).toMatchObject({
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				capabilityChanges: {
+					added: ["network:request"],
+					removed: ["content:read"],
+				},
+				routeVisibilityChanges: { newlyPublic: ["webhook"] },
+				mcpTools: [tool],
+			});
+		});
+
+		it("preserves the complete update diff when MCP consent is required", async () => {
+			const tool = {
+				name: "sync",
+				description: "Sync content",
+				route: "sync",
+				permission: "content:write",
+				destructive: false,
+			};
+			fetchSpy.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "MCP_TOOL_CONSENT_REQUIRED",
+							details: {
+								mcpTools: [tool],
+								capabilityChanges: { added: ["network:request"], removed: [] },
+								routeVisibilityChanges: { newlyPublic: ["sync"] },
+							},
+						},
+					}),
+					{ status: 409 },
+				),
+			);
+
+			const error = await updateMarketplacePlugin("my-plugin").catch((reason: unknown) => reason);
+			expect(error).toBeInstanceOf(MarketplaceUpdateMcpConsentRequiredError);
+			expect(error).toMatchObject({
+				tools: [tool],
+				capabilityChanges: { added: ["network:request"], removed: [] },
+				routeVisibilityChanges: { newlyPublic: ["sync"] },
+			});
 		});
 	});
 

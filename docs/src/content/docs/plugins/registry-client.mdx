@@ -83,6 +83,12 @@ The client exposes one method per aggregator query:
 - **`listReleases({ did, package, limit?, cursor? })`** — releases in descending semantic-version order, including yanked releases.
 - **`getLatestRelease({ did, package })`** — the highest non-yanked release selected by the aggregator.
 
+`getPackage()` and `resolvePackage()` can return `historicalReleaseCount` and
+`releaseHistoryComplete`. These fields describe the aggregator's retained operational history,
+not publisher-signed metadata. Treat a count of one as a first release only when
+`releaseHistoryComplete` is `true`. Missing or incomplete evidence must not bypass a release-age
+policy.
+
 `getPackageStatus()` and `resolvePackageStatus()` wrap their corresponding package queries and
 map the safe `ListingUnavailable` response to `{ status: "unavailable" }`. A successful result has
 `{ status: "passed", value }`. Use these methods in a user interface that needs to distinguish an

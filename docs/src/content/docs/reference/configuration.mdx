@@ -653,6 +653,8 @@ emdash({
 
 See [The plugin registry](/plugins/registry/) for the full workflow, trust model, and how to query the registry from your own site.
 
+The release-age policy exempts a package's first release only when the registry reports one retained release and confirms that it observed the package continuously. A backfilled package, a deleted earlier release, or missing history evidence keeps the holdback in force. Explicit publisher and package exemptions apply regardless of history.
+
 ## Database adapters
 
 Import the adapters from `emdash/db`:
