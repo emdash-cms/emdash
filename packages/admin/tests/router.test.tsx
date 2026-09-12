@@ -1465,7 +1465,10 @@ describe("ContentEditPage – autosave cache patching", () => {
 			await expect.element(trigger).toHaveAttribute("data-returns-promise", "true");
 
 			await waitFor(() => {
-				expect(updateBody).toEqual({ publishedAt: "2020-06-01T08:45:00.000Z" });
+				expect(updateBody).toEqual({
+					publishedAt: "2020-06-01T08:45:00.000Z",
+					_rev: "revision-token",
+				});
 			});
 		} finally {
 			globalThis.fetch = fetchWithMocks;
