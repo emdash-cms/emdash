@@ -383,9 +383,7 @@ describe("RegistryPluginDetail independent install consent", () => {
 			</Wrapper>,
 		);
 
-		await expect
-			.element(screen.getByText("We couldn't verify this publisher's identity"))
-			.toBeInTheDocument();
+		await expect.element(screen.getByText("INVALID HANDLE")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
 		expect(mockVerifyRegistryPlugin).not.toHaveBeenCalled();
 	});
@@ -407,7 +405,7 @@ describe("RegistryPluginDetail lastUpdated and approved publisher identity", () 
 		await expect.element(screen.getByText("Indexed")).toBeInTheDocument();
 	});
 
-	it("renders an approved author name without resolving a mutable handle", async () => {
+	it("renders the canonical public name and approved author name", async () => {
 		setup(makePackage(), [makeRelease()]);
 		const screen = await render(
 			<Wrapper>
@@ -415,8 +413,7 @@ describe("RegistryPluginDetail lastUpdated and approved publisher identity", () 
 			</Wrapper>,
 		);
 		await expect.element(screen.getByText(/Published by/)).toHaveTextContent("Published by Acme");
-		expect(screen.container.querySelector("bdi")?.textContent).toBe("Acme");
-		expect(screen.container.textContent).not.toContain("acme.dev");
+		await expect.element(screen.getByText("@acme.dev/myplugin")).toBeInTheDocument();
 	});
 
 	it("renders a fixed unavailable state without publisher content or media requests", async () => {

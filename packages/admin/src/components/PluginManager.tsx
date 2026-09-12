@@ -56,6 +56,7 @@ import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { CaretNext } from "./ArrowIcons.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
+import { RegistryPluginIdentity, useRegistryPluginIdentity } from "./RegistryPluginIdentity.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
 export function MarketplaceInstallMessage() {
@@ -257,6 +258,10 @@ function PluginCard({
 
 	const isMarketplace = plugin.source === "marketplace";
 	const isRegistry = plugin.source === "registry";
+	const registryIdentity = useRegistryPluginIdentity(
+		isRegistry ? plugin.registryPublisherDid : undefined,
+		isRegistry ? plugin.registrySlug : undefined,
+	);
 	const hasUpdate = !!updateInfo && updateInfo.installed !== updateInfo.latest;
 	const mcpTools = plugin.mcpTools ?? [];
 
@@ -370,6 +375,7 @@ function PluginCard({
 				className={cn(
 					"rounded-lg border bg-kumo-base transition-colors",
 					!plugin.enabled && "opacity-75",
+					registryIdentity?.status === "invalid" && "border-kumo-danger",
 				)}
 			>
 				<div className="flex items-center gap-4 p-4">
@@ -401,15 +407,23 @@ function PluginCard({
 							<span className="text-xs text-kumo-subtle">v{plugin.version}</span>
 							{!plugin.enabled && <Badge variant="secondary">{t`Disabled`}</Badge>}
 							{isMarketplace && <Badge variant="secondary">{t`Marketplace`}</Badge>}
+							{isRegistry && <Badge variant="secondary">{t`Registry`}</Badge>}
 							{hasUpdate && (
 								<Badge variant="outline" className="border-kumo-brand text-kumo-link">
 									{t`v${updateInfo.latest} available`}
 								</Badge>
 							)}
 						</div>
+						{registryIdentity && (
+							<RegistryPluginIdentity
+								identity={registryIdentity}
+								invalidMessage={t`This publisher identity no longer resolves.`}
+								className="mt-0.5"
+							/>
+						)}
 
 						{/* Description */}
-						{plugin.description && (
+						{plugin.description && registryIdentity?.status !== "invalid" && (
 							<p className="mt-0.5 text-sm text-kumo-subtle line-clamp-1">{plugin.description}</p>
 						)}
 

@@ -56,6 +56,7 @@ vi.mock("../../src/lib/api", async () => {
 const mockCheckPluginUpdates = vi.fn<() => Promise<PluginUpdateInfo[]>>();
 const mockUpdateMarketplacePlugin = vi.fn<() => Promise<void>>();
 const mockUninstallMarketplacePlugin = vi.fn<() => Promise<void>>();
+const mockResolveDidToHandle = vi.fn();
 
 vi.mock("../../src/lib/api/marketplace", async () => {
 	const actual = await vi.importActual("../../src/lib/api/marketplace");
@@ -65,6 +66,16 @@ vi.mock("../../src/lib/api/marketplace", async () => {
 		updateMarketplacePlugin: (...args: unknown[]) => mockUpdateMarketplacePlugin(...(args as [])),
 		uninstallMarketplacePlugin: (...args: unknown[]) =>
 			mockUninstallMarketplacePlugin(...(args as [])),
+	};
+});
+
+vi.mock("../../src/lib/api/registry", async () => {
+	const actual = await vi.importActual<typeof import("../../src/lib/api/registry")>(
+		"../../src/lib/api/registry",
+	);
+	return {
+		...actual,
+		resolveDidToHandle: (...args: unknown[]) => mockResolveDidToHandle(...args),
 	};
 });
 
@@ -137,6 +148,7 @@ describe("PluginManager", () => {
 		mockCheckPluginUpdates.mockResolvedValue([]);
 		mockUpdateMarketplacePlugin.mockResolvedValue(undefined);
 		mockUninstallMarketplacePlugin.mockResolvedValue(undefined);
+		mockResolveDidToHandle.mockResolvedValue({ status: "ok", handle: "example.com" });
 	});
 
 	it("displays plugin list with names and versions", async () => {
@@ -149,6 +161,53 @@ describe("PluginManager", () => {
 		await expect.element(screen.getByText("v1.0.0")).toBeInTheDocument();
 		await expect.element(screen.getByText("SEO Helper")).toBeInTheDocument();
 		await expect.element(screen.getByText("v2.0.0")).toBeInTheDocument();
+	});
+
+	it("shows the canonical public name for an installed registry plugin", async () => {
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "r_abcdefghijklmnop",
+				name: "My Gallery",
+				source: "registry",
+				registryPublisherDid: "did:plc:publisher",
+				registrySlug: "my-gallery",
+			}),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("@example.com/my-gallery")).toBeInTheDocument();
+		await expect.element(screen.getByText("Registry")).toBeInTheDocument();
+		const publicNameLink = screen.getByRole("link", { name: "@example.com/my-gallery" });
+		expect((publicNameLink.element() as HTMLAnchorElement).getAttribute("href")).toBe(
+			"/plugins/registry/@example.com/my-gallery",
+		);
+	});
+
+	it("shows an invalid-handle warning for an installed registry plugin", async () => {
+		mockResolveDidToHandle.mockResolvedValue({ status: "invalid" });
+		mockFetchPlugins.mockResolvedValue([
+			makePlugin({
+				id: "r_abcdefghijklmnop",
+				name: "Editorial Workflow",
+				source: "registry",
+				registryPublisherDid: "did:plc:publisher",
+				registrySlug: "editorial-workflow",
+			}),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<PluginManager />
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByText("INVALID HANDLE")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("This publisher identity no longer resolves."))
+			.toBeInTheDocument();
 	});
 
 	it("enabled plugins show toggle in on state", async () => {
