@@ -4,7 +4,7 @@
  * Exports widgets and pages for the admin UI.
  */
 
-import { Switch } from "@cloudflare/kumo";
+import { Button, Switch } from "@cloudflare/kumo";
 import {
 	ShieldCheck,
 	CheckCircle,
@@ -58,7 +58,7 @@ function StatusWidget() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center py-8">
-				<CircleNotch className="h-5 w-5 animate-spin text-muted-foreground" />
+				<CircleNotch className="h-5 w-5 animate-spin text-kumo-subtle" />
 			</div>
 		);
 	}
@@ -71,7 +71,7 @@ function StatusWidget() {
 				</div>
 				<div>
 					<div className="font-medium">AI Moderation Active</div>
-					<div className="text-xs text-muted-foreground">
+					<div className="text-xs text-kumo-subtle">
 						{status?.categoryCount ?? 0} active categories
 					</div>
 				</div>
@@ -79,7 +79,7 @@ function StatusWidget() {
 
 			<div className="pt-2 border-t space-y-1">
 				<div className="flex justify-between text-sm">
-					<span className="text-muted-foreground">Auto-approve clean</span>
+					<span className="text-kumo-subtle">Auto-approve clean</span>
 					<span>{status?.autoApproveClean ? "Yes" : "No"}</span>
 				</div>
 			</div>
@@ -87,7 +87,7 @@ function StatusWidget() {
 			<div className="pt-2">
 				<a
 					href="/_emdash/admin/plugins/ai-moderation/settings"
-					className="text-xs text-primary hover:underline"
+					className="text-xs text-kumo-brand hover:underline"
 				>
 					Configure moderation
 				</a>
@@ -121,10 +121,10 @@ function CategoryDialog({ category, onSave, onClose }: CategoryDialogProps) {
 
 	return (
 		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-			<div className="bg-background border rounded-lg p-6 w-full max-w-md space-y-4">
+			<div className="bg-kumo-elevated border border-kumo-line rounded-lg p-6 w-full max-w-md space-y-4">
 				<div className="flex items-center justify-between">
 					<h3 className="text-lg font-semibold">{isEditing ? "Edit Category" : "Add Category"}</h3>
-					<button onClick={onClose} className="p-1 hover:bg-muted rounded">
+					<button onClick={onClose} className="p-1 hover:bg-kumo-fill rounded">
 						<X className="h-4 w-4" />
 					</button>
 				</div>
@@ -140,7 +140,7 @@ function CategoryDialog({ category, onSave, onClose }: CategoryDialogProps) {
 							}
 							disabled={isEditing}
 							placeholder="e.g. S10"
-							className="w-full px-3 py-2 border rounded-md bg-background text-sm disabled:opacity-50"
+							className="w-full px-3 py-2 border rounded-md bg-kumo-base text-sm disabled:opacity-50"
 						/>
 					</div>
 
@@ -153,7 +153,7 @@ function CategoryDialog({ category, onSave, onClose }: CategoryDialogProps) {
 								setForm({ ...form, name: e.target.value })
 							}
 							placeholder="e.g. Self-Promotion"
-							className="w-full px-3 py-2 border rounded-md bg-background text-sm"
+							className="w-full px-3 py-2 border rounded-md bg-kumo-base text-sm"
 						/>
 					</div>
 
@@ -166,7 +166,8 @@ function CategoryDialog({ category, onSave, onClose }: CategoryDialogProps) {
 							}
 							rows={3}
 							placeholder="Description for AI classification..."
-							className="w-full px-3 py-2 border rounded-md bg-background text-sm resize-none"
+							className="w-full px-3 py-2 border rounded-md bg-kumo-base text-sm"
+							style={{ resize: "none" }}
 						/>
 					</div>
 
@@ -180,7 +181,7 @@ function CategoryDialog({ category, onSave, onClose }: CategoryDialogProps) {
 									setForm({ ...form, action: val });
 								}
 							}}
-							className="w-full px-3 py-2 border rounded-md bg-background text-sm"
+							className="w-full px-3 py-2 border rounded-md bg-kumo-base text-sm"
 						>
 							<option value="block">Block (mark as spam)</option>
 							<option value="hold">Hold (pending review)</option>
@@ -190,20 +191,19 @@ function CategoryDialog({ category, onSave, onClose }: CategoryDialogProps) {
 				</div>
 
 				<div className="flex justify-end gap-2 pt-2">
-					<button onClick={onClose} className="px-4 py-2 border rounded-md hover:bg-muted text-sm">
+					<Button variant="secondary" onClick={onClose}>
 						Cancel
-					</button>
-					<button
+					</Button>
+					<Button
 						onClick={() => {
 							if (form.id && form.name && form.description) {
 								onSave(form);
 							}
 						}}
 						disabled={!form.id || !form.name || !form.description}
-						className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50 text-sm"
 					>
 						{isEditing ? "Save" : "Add"}
-					</button>
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -316,7 +316,7 @@ function SettingsPage() {
 	if (isLoading) {
 		return (
 			<div className="flex items-center justify-center py-16">
-				<CircleNotch className="h-6 w-6 animate-spin text-muted-foreground" />
+				<CircleNotch className="h-6 w-6 animate-spin text-kumo-subtle" />
 			</div>
 		);
 	}
@@ -327,22 +327,13 @@ function SettingsPage() {
 			<div className="flex items-center justify-between">
 				<div>
 					<h1 className="text-3xl font-bold">AI Moderation</h1>
-					<p className="text-muted-foreground mt-1">Configure AI-powered comment moderation</p>
+					<p className="text-kumo-subtle mt-1">Configure AI-powered comment moderation</p>
 				</div>
 				<div className="flex items-center gap-3">
-					{saveMessage && <span className="text-sm text-muted-foreground">{saveMessage}</span>}
-					<button
-						onClick={handleSave}
-						disabled={isSaving}
-						className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 disabled:opacity-50"
-					>
-						{isSaving ? (
-							<CircleNotch className="h-4 w-4 animate-spin" />
-						) : (
-							<FloppyDisk className="h-4 w-4" />
-						)}
+					{saveMessage && <span className="text-sm text-kumo-subtle">{saveMessage}</span>}
+					<Button onClick={handleSave} loading={isSaving} icon={<FloppyDisk className="h-4 w-4" />}>
 						{isSaving ? "Saving..." : "Save Settings"}
-					</button>
+					</Button>
 				</div>
 			</div>
 
@@ -351,12 +342,12 @@ function SettingsPage() {
 				<div className="border rounded-lg p-6 space-y-4 lg:col-span-2">
 					<div className="flex items-center justify-between">
 						<div className="flex items-center gap-2">
-							<ShieldCheck className="h-5 w-5 text-muted-foreground" />
+							<ShieldCheck className="h-5 w-5 text-kumo-subtle" />
 							<h2 className="text-lg font-semibold">Safety Categories</h2>
 						</div>
 						<button
 							onClick={() => setEditingCategory("new")}
-							className="inline-flex items-center gap-1 px-3 py-1.5 border rounded-md hover:bg-muted text-sm"
+							className="inline-flex items-center gap-1 px-3 py-1.5 border rounded-md hover:bg-kumo-fill text-sm"
 						>
 							<Plus className="h-3.5 w-3.5" />
 							Add Category
@@ -368,7 +359,7 @@ function SettingsPage() {
 							<div key={cat.id} className="flex items-center justify-between py-3">
 								<div className="flex-1 min-w-0">
 									<div className="flex items-center gap-2">
-										<span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded">
+										<span className="text-xs font-mono bg-kumo-fill px-1.5 py-0.5 rounded">
 											{cat.id}
 										</span>
 										<span className="font-medium">{cat.name}</span>
@@ -384,12 +375,12 @@ function SettingsPage() {
 											{cat.action}
 										</span>
 									</div>
-									<p className="text-sm text-muted-foreground mt-0.5 truncate">{cat.description}</p>
+									<p className="text-sm text-kumo-subtle mt-0.5 truncate">{cat.description}</p>
 								</div>
 								<div className="flex items-center gap-1 ms-4">
 									<button
 										onClick={() => setEditingCategory(cat)}
-										className="p-1.5 hover:bg-muted rounded"
+										className="p-1.5 hover:bg-kumo-fill rounded"
 										title="Edit"
 									>
 										<PencilSimple className="h-4 w-4" />
@@ -397,7 +388,7 @@ function SettingsPage() {
 									{!cat.builtin && (
 										<button
 											onClick={() => handleCategoryDelete(cat.id)}
-											className="p-1.5 hover:bg-muted rounded text-red-600"
+											className="p-1.5 hover:bg-kumo-fill rounded text-red-600"
 											title="Delete"
 										>
 											<Trash className="h-4 w-4" />
@@ -425,7 +416,7 @@ function SettingsPage() {
 				{/* Test Panel */}
 				<div className="border rounded-lg p-6 space-y-4 lg:col-span-2">
 					<div className="flex items-center gap-2">
-						<TestTube className="h-5 w-5 text-muted-foreground" />
+						<TestTube className="h-5 w-5 text-kumo-subtle" />
 						<h2 className="text-lg font-semibold">Test Panel</h2>
 					</div>
 
@@ -435,23 +426,21 @@ function SettingsPage() {
 							onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setTestText(e.target.value)}
 							rows={3}
 							placeholder="Paste a comment to test AI analysis..."
-							className="w-full px-3 py-2 border rounded-md bg-background text-sm resize-none"
+							className="w-full px-3 py-2 border rounded-md bg-kumo-base text-sm"
+							style={{ resize: "none" }}
 						/>
-						<button
+						<Button
+							variant="secondary"
 							onClick={handleTest}
-							disabled={isTesting || !testText.trim()}
-							className="inline-flex items-center gap-2 px-4 py-2 border rounded-md hover:bg-muted disabled:opacity-50 text-sm"
+							loading={isTesting}
+							disabled={!testText.trim()}
+							icon={<TestTube className="h-4 w-4" />}
 						>
-							{isTesting ? (
-								<CircleNotch className="h-4 w-4 animate-spin" />
-							) : (
-								<TestTube className="h-4 w-4" />
-							)}
 							{isTesting ? "Analyzing..." : "Analyze"}
-						</button>
+						</Button>
 
 						{testResult && (
-							<div className="p-4 bg-muted/50 rounded-md space-y-2">
+							<div className="p-4 bg-kumo-tint rounded-md space-y-2">
 								{testResult.guard && isRecord(testResult.guard) ? (
 									<div className="flex items-center gap-2">
 										{testResult.guard.safe ? (
@@ -461,7 +450,7 @@ function SettingsPage() {
 										)}
 										<span className="font-medium">{testResult.guard.safe ? "Safe" : "Unsafe"}</span>
 										{!testResult.guard.safe && Array.isArray(testResult.guard.categories) && (
-											<span className="text-sm text-muted-foreground">
+											<span className="text-sm text-kumo-subtle">
 												— Categories: {(testResult.guard.categories as string[]).join(", ")}
 											</span>
 										)}
@@ -474,7 +463,7 @@ function SettingsPage() {
 											: "Unknown error"}
 									</div>
 								) : (
-									<div className="text-sm text-muted-foreground">
+									<div className="text-sm text-kumo-subtle">
 										AI analysis not available (no active categories)
 									</div>
 								)}
