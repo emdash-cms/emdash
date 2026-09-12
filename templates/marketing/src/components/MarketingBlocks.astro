@@ -1,11 +1,5 @@
 ---
-/**
- * Custom Portable Text renderer for marketing blocks.
- *
- * This component maps custom block types (marketing.hero, marketing.features, etc.)
- * to their corresponding Astro components. Pass it to the PortableText component
- * via the `components` prop.
- */
+/** Maps marketing block types to their Astro renderers. */
 import type { PortableTextBlock } from "emdash";
 import { PortableText } from "emdash/ui";
 import Hero from "./blocks/Hero.astro";
@@ -13,6 +7,7 @@ import Features from "./blocks/Features.astro";
 import Testimonials from "./blocks/Testimonials.astro";
 import Pricing from "./blocks/Pricing.astro";
 import FAQ from "./blocks/FAQ.astro";
+import CallToAction from "./blocks/CallToAction.astro";
 
 interface Props {
 	value: PortableTextBlock[];
@@ -27,6 +22,7 @@ const marketingTypes = {
 	"marketing.testimonials": Testimonials,
 	"marketing.pricing": Pricing,
 	"marketing.faq": FAQ,
+	"marketing.cta": CallToAction,
 };
 ---
 

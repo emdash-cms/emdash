@@ -15,23 +15,25 @@ const { _key, headline, items } = node;
 ---
 
 <section class="faq section" id={_key}>
-	<div class="container">
+	<div class="faq-container container">
 		{headline && (
-			<header class="section-header">
-				<h2 class="section-headline">{headline}</h2>
+			<header class="faq-header">
+				<h2 class="faq-headline">{headline}</h2>
 			</header>
 		)}
-		<div class="faq-list">
+		<div class="faq-list" data-faq-list>
 			{items.map((item) => (
-				<details class="faq-item" name="faq">
-					<summary class="faq-question">
+				<details class="faq-item" name="faq" data-faq-item>
+					<summary class="faq-question" data-faq-trigger>
 						<span>{item.question}</span>
-						<svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+						<svg class="faq-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
 							<path d="M6 9l6 6 6-6" />
 						</svg>
 					</summary>
-					<div class="faq-answer">
-						<p>{item.answer}</p>
+					<div class="faq-answer" data-faq-answer>
+						<div class="faq-answer-inner">
+							<p>{item.answer}</p>
+						</div>
 					</div>
 				</details>
 			))}
@@ -39,29 +41,150 @@ const { _key, headline, items } = node;
 	</div>
 </section>
 
+<script is:inline>
+	(() => {
+		const lists = document.querySelectorAll("[data-faq-list]");
+		const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+		// oxlint-disable-next-line unicorn/consistent-function-scoping -- keep the helper inside the self-contained inline script
+		const getAnswer = (item) => item.querySelector("[data-faq-answer]");
+
+		function finishAnimation(answer) {
+			answer.getAnimations().forEach((animation) => animation.cancel());
+			answer.style.height = "";
+			answer.style.opacity = "";
+		}
+
+		function openItem(item) {
+			const answer = getAnswer(item);
+			if (!answer || item.open) return;
+
+			if (reduceMotion.matches) {
+				item.open = true;
+				return;
+			}
+
+			finishAnimation(answer);
+			item.open = true;
+
+			const targetHeight = answer.scrollHeight;
+			answer.style.height = `${targetHeight}px`;
+			answer.style.opacity = "1";
+
+			const animation = answer.animate(
+				[
+					{ height: "0px", opacity: 0 },
+					{ height: `${targetHeight}px`, opacity: 1 },
+				],
+				{ duration: 180, easing: "cubic-bezier(0.16, 1, 0.3, 1)" },
+			);
+
+			animation.onfinish = () => finishAnimation(answer);
+		}
+
+		function closeItem(item) {
+			const answer = getAnswer(item);
+			if (!answer || !item.open) return;
+
+			if (reduceMotion.matches) {
+				item.open = false;
+				return;
+			}
+
+			finishAnimation(answer);
+			const startHeight = answer.scrollHeight;
+			answer.style.height = "0px";
+			answer.style.opacity = "0";
+
+			const animation = answer.animate(
+				[
+					{ height: `${startHeight}px`, opacity: 1 },
+					{ height: "0px", opacity: 0 },
+				],
+				{ duration: 160, easing: "cubic-bezier(0.4, 0, 0.2, 1)" },
+			);
+
+			animation.onfinish = () => {
+				item.open = false;
+				finishAnimation(answer);
+			};
+		}
+
+		lists.forEach((list) => {
+			if (list.dataset.faqReady === "true") return;
+			list.dataset.faqReady = "true";
+
+			list.querySelectorAll("[data-faq-trigger]").forEach((trigger) => {
+				trigger.addEventListener("click", (event) => {
+					const item = trigger.closest("[data-faq-item]");
+					if (!item) return;
+
+					event.preventDefault();
+
+					if (item.open) {
+						closeItem(item);
+						return;
+					}
+
+					list.querySelectorAll("[data-faq-item][open]").forEach((openItemElement) => {
+						if (openItemElement !== item) closeItem(openItemElement);
+					});
+					openItem(item);
+				});
+			});
+		});
+	})();
+</script>
+
 <style>
-	.faq-list {
-		max-width: var(--max-width);
+	.faq.section {
+		padding: var(--spacing-4xl) 0;
+		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
+	}
+
+	.faq-container {
+		max-width: 64rem;
+	}
+
+	.faq-header {
+		max-width: none;
 		margin: 0 auto;
-		display: flex;
-		flex-direction: column;
-		gap: var(--spacing-md);
+		text-align: center;
+	}
+
+	.faq-headline {
+		font-size: clamp(1.25rem, 6vw, var(--font-size-4xl));
+		font-weight: 700;
+		line-height: 1.03;
+		letter-spacing: -0.045em;
+		text-wrap: balance;
+		overflow-wrap: anywhere;
+	}
+
+	.faq-list {
+		display: block;
+		width: 100%;
+		max-width: none;
+		margin: 0 auto;
+		padding: 0.75rem var(--spacing-xl);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		box-shadow:
+			0 0 0 4px var(--border-faint),
+			var(--shadow-sm);
+	}
+
+	.faq-header + .faq-list {
+		margin-top: var(--spacing-3xl);
 	}
 
 	.faq-item {
-		background: var(--color-surface);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius);
-		overflow: hidden;
-		transition: border-color var(--transition-fast);
+		border-block-end: 1px dashed var(--color-border);
 	}
 
-	.faq-item:hover {
-		border-color: var(--color-muted);
-	}
-
-	.faq-item[open] {
-		border-color: var(--color-brand-soft);
+	.faq-item:last-child {
+		border-block-end: 0;
 	}
 
 	.faq-question {
@@ -69,11 +192,22 @@ const { _key, headline, items } = node;
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--spacing-md);
-		padding: var(--spacing-lg);
+		padding: 1rem 0;
 		font-size: var(--font-size-base);
 		font-weight: 600;
+		line-height: 1.45;
 		cursor: pointer;
 		list-style: none;
+		transition: color var(--transition-fast);
+	}
+
+	.faq-question > span {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.faq-question:hover {
+		color: var(--color-primary);
 	}
 
 	.faq-question::-webkit-details-marker {
@@ -81,8 +215,8 @@ const { _key, headline, items } = node;
 	}
 
 	.faq-icon {
-		width: 20px;
-		height: 20px;
+		width: 18px;
+		height: 18px;
 		flex-shrink: 0;
 		color: var(--color-muted);
 		transition: transform var(--transition-base);
@@ -93,12 +227,60 @@ const { _key, headline, items } = node;
 	}
 
 	.faq-answer {
-		padding: 0 var(--spacing-lg) var(--spacing-lg);
+		overflow: hidden;
+	}
+
+	.faq-answer-inner {
+		padding: 0 0 1rem;
 	}
 
 	.faq-answer p {
-		font-size: var(--font-size-sm);
+		font-size: var(--font-size-base);
 		color: var(--color-muted);
-		line-height: var(--leading-relaxed);
+		line-height: 1.65;
+		overflow-wrap: anywhere;
+	}
+
+	:global(:root.dark) .faq-list {
+		border-color: color-mix(in srgb, var(--color-bg) 90%, var(--color-text));
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+			var(--shadow-sm);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not(.light)) .faq-list {
+			border-color: color-mix(in srgb, var(--color-bg) 90%, var(--color-text));
+			box-shadow:
+				0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+				var(--shadow-sm);
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.faq-headline {
+			font-size: 3.25rem;
+		}
+	}
+
+	@media (max-width: 600px) {
+		.faq.section {
+			padding: var(--spacing-3xl) 0;
+		}
+
+		.faq-list {
+			padding-inline: var(--spacing-lg);
+		}
+
+		.faq-header + .faq-list {
+			margin-top: var(--spacing-2xl);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.faq-question,
+		.faq-icon {
+			transition: none;
+		}
 	}
 </style>

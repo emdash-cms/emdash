@@ -1,32 +1,74 @@
 /*
-  theme.css -- your theme overrides. This is the file to edit to
-  retheme the site.
+  theme.css — public marketing template palette.
 
-  Every design token lives in src/styles/tokens.css (colors, gradients,
-  type scale, spacing, layout, shadows) with its default value. Override
-  any of them here: declarations in this file are unlayered, so they
-  always beat the @layer base defaults in tokens.css.
-
-  Colors are defined with light-dark(). Overriding with a plain color
-  changes light and dark mode at once; use light-dark(<light>, <dark>)
-  to set different values per mode.
-
-  Rebranding usually only needs --color-brand-* and --color-accent-* --
-  the gradient tokens follow automatically. For a flat, gradient-free
-  brand, set the --gradient-* tokens to solid colors.
-
-  Webfonts are loaded in astro.config.mjs (--font-body). Swap the loaded
-  font there; use overrides here for system fonts or a separate heading
-  face.
-
-  Example:
-
-  :root {
-    --color-brand: light-dark(#0d9488, #2dd4bf);
-    --color-accent: #f59e0b;
-    --font-weight-display: 700;
-  }
+  These unlayered declarations override the defaults declared inside
+  @layer base in tokens.css. The default uses navy-tinted neutrals and one
+  blue accent family.
 */
 
 :root {
+	--heat-100: #0075de;
+	--heat-90: #0075dee6;
+	--heat-40: #0075de66;
+	--heat-20: #0075de33;
+	--heat-12: #0075de1f;
+	--heat-8: #0075de14;
+	--heat-4: #0075de0a;
+	--color-primary: var(--heat-100);
+	--color-primary-dark: #005bab;
+	--color-primary-light: var(--heat-12);
+	--color-accent: #005bab;
+	--color-accent-light: var(--heat-12);
+	--color-brand-hover: #005bab;
+	--color-brand-strong: #005bab;
+	--color-brand-soft: #f2f9ff;
+	--button-primary-bg-hover: #006bcb;
+	--button-primary-bg-active: #005bab;
+	--button-primary-fg: #ffffff;
+}
+
+:root.dark {
+	--heat-100: #0075de;
+	--heat-90: #0075dee6;
+	--heat-40: #0075de66;
+	--heat-20: #0075de33;
+	--heat-12: #0075de1f;
+	--heat-8: #0075de14;
+	--heat-4: #0075de0a;
+	--color-primary: var(--heat-100);
+	--color-primary-dark: #005bab;
+	--color-primary-light: var(--heat-12);
+	--color-accent: var(--heat-100);
+	--color-accent-light: var(--heat-12);
+	--color-brand: #62aef0;
+	--color-brand-hover: #82c1f5;
+	--color-brand-strong: #62aef0;
+	--color-brand-soft: #1f1f1f;
+	--button-primary-bg-hover: var(--heat-90);
+	--button-primary-bg-active: #005bab;
+	--button-primary-fg: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root:not(.light) {
+		--heat-100: #0075de;
+		--heat-90: #0075dee6;
+		--heat-40: #0075de66;
+		--heat-20: #0075de33;
+		--heat-12: #0075de1f;
+		--heat-8: #0075de14;
+		--heat-4: #0075de0a;
+		--color-primary: var(--heat-100);
+		--color-primary-dark: #005bab;
+		--color-primary-light: var(--heat-12);
+		--color-accent: var(--heat-100);
+		--color-accent-light: var(--heat-12);
+		--color-brand: #62aef0;
+		--color-brand-hover: #82c1f5;
+		--color-brand-strong: #62aef0;
+		--color-brand-soft: #1f1f1f;
+		--button-primary-bg-hover: var(--heat-90);
+		--button-primary-bg-active: #005bab;
+		--button-primary-fg: #ffffff;
+	}
 }

@@ -1,55 +1,78 @@
 ---
+interface Testimonial {
+	quote: string;
+	author: string;
+	role?: string;
+	company?: string;
+	avatar?: string;
+}
+
 interface Props {
 	node: {
+		_key?: string;
 		headline?: string;
-		testimonials: Array<{
-			quote: string;
-			author: string;
-			role?: string;
-			company?: string;
-			avatar?: string;
-		}>;
+		testimonials: Testimonial[];
 	};
 }
 
 const { node } = Astro.props;
-const { headline, testimonials } = node;
+const { _key, headline, testimonials } = node;
+
+function getInitials(name: string) {
+	return name
+		.split(" ")
+		.map((part) => part[0])
+		.filter(Boolean)
+		.slice(0, 2)
+		.join("")
+		.toUpperCase();
+}
+
+function getAttribution(testimonial: Testimonial) {
+	if (testimonial.role && testimonial.company) return `${testimonial.role} at ${testimonial.company}`;
+	return testimonial.role || testimonial.company;
+}
+
+const testimonialItems = testimonials.map((testimonial) => ({
+	...testimonial,
+	attribution: getAttribution(testimonial),
+	avatarUrl: testimonial.avatar?.trim() || null,
+	initials: getInitials(testimonial.author),
+}));
 ---
 
-<section class="testimonials section">
-	<div class="container">
+<section class="testimonials section" id={_key}>
+	<div class="testimonials-container container">
 		{headline && (
-			<header class="section-header">
-				<h2 class="section-headline">{headline}</h2>
+			<header class="testimonials-header">
+				<h2 class="testimonials-headline">{headline}</h2>
 			</header>
 		)}
 		<div class="testimonials-grid">
-			{testimonials.map((testimonial) => (
-				<div class="testimonial-card">
-					<blockquote class="testimonial-quote">
-						"{testimonial.quote}"
+			{testimonialItems.map((testimonial) => (
+				<figure class="testimonial-item">
+					<blockquote class="testimonial-bubble">
+						<p>"{testimonial.quote}"</p>
 					</blockquote>
-					<div class="testimonial-author">
-						{testimonial.avatar && (
+					<figcaption class="testimonial-author">
+						{testimonial.avatarUrl ? (
 							<img
-								src={testimonial.avatar}
-								alt={testimonial.author}
+								src={testimonial.avatarUrl}
+								alt=""
 								class="testimonial-avatar"
 								loading="lazy"
 							/>
+						) : (
+							<span class="testimonial-avatar testimonial-avatar-fallback" aria-hidden="true">
+								{testimonial.initials}
+							</span>
 						)}
-						<div class="testimonial-info">
+						<span class="testimonial-meta">
 							<span class="testimonial-name">{testimonial.author}</span>
-							{(testimonial.role || testimonial.company) && (
-								<span class="testimonial-role">
-									{testimonial.role}
-									{testimonial.role && testimonial.company && " at "}
-									{testimonial.company}
-								</span>
-							)}
-						</div>
-					</div>
-				</div>
+							{testimonial.attribution && <span class="testimonial-role">{testimonial.attribution}</span>}
+						</span>
+					</figcaption>
+				</figure>
 			))}
 		</div>
 	</div>
@@ -57,58 +80,141 @@ const { headline, testimonials } = node;
 
 <style>
 	.testimonials {
-		background: var(--color-surface);
+		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
+	}
+
+	.testimonials.section {
+		padding: var(--spacing-4xl) 0;
+	}
+
+	.testimonials-container {
+		max-width: var(--wide-width);
+	}
+
+	.testimonials-header {
+		max-width: none;
+		margin: 0 auto var(--spacing-3xl);
+		text-align: center;
+	}
+
+	.testimonials-headline {
+		font-size: clamp(1.25rem, 6vw, var(--font-size-4xl));
+		font-weight: 700;
+		line-height: 1.03;
+		letter-spacing: -0.045em;
+		text-wrap: balance;
+		overflow-wrap: anywhere;
 	}
 
 	.testimonials-grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-xl);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--spacing-lg);
+		align-items: stretch;
 	}
 
-	.testimonial-card {
-		padding: var(--spacing-xl);
-		background: var(--color-bg);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
+	.testimonial-item {
 		display: flex;
 		flex-direction: column;
-		gap: var(--spacing-lg);
+		min-width: 0;
 	}
 
-	.testimonial-quote {
-		font-size: var(--font-size-lg);
-		line-height: var(--leading-normal);
-		color: var(--color-text);
+	.testimonial-bubble {
 		flex: 1;
+		padding: 0.75rem var(--spacing-md);
+		color: var(--color-text);
+		background: var(--color-surface);
+		border: 1px solid transparent;
+		border-radius: var(--radius-lg);
+		border-end-start-radius: var(--radius-sm);
+		box-shadow:
+			0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent),
+			var(--shadow-sm);
+	}
+
+	.testimonial-bubble p {
+		font-size: var(--font-size-base);
+		line-height: 1.65;
+		overflow-wrap: anywhere;
 	}
 
 	.testimonial-author {
 		display: flex;
 		align-items: center;
-		gap: var(--spacing-md);
+		gap: 0.625rem;
+		margin-top: var(--spacing-md);
+		min-width: 0;
 	}
 
 	.testimonial-avatar {
-		width: 48px;
-		height: 48px;
+		display: block;
+		width: 2rem;
+		height: 2rem;
+		aspect-ratio: 1;
+		flex: 0 0 auto;
+		background: var(--color-surface);
 		border-radius: var(--radius-full);
 		object-fit: cover;
+		object-position: center;
+		border: 1px solid transparent;
+		box-shadow:
+			0 1px 2px rgba(0, 0, 0, 0.06),
+			0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent);
 	}
 
-	.testimonial-info {
+	.testimonial-avatar-fallback {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-primary);
+		font-size: 0.625rem;
+		font-weight: 700;
+		line-height: 1;
+		background: var(--heat-8);
+	}
+
+	.testimonial-meta {
 		display: flex;
+		width: 100%;
+		min-width: 0;
 		flex-direction: column;
+		gap: 0.125rem;
 	}
 
 	.testimonial-name {
 		font-weight: 600;
 		font-size: var(--font-size-sm);
+		line-height: 1.35;
+		overflow-wrap: anywhere;
 	}
 
 	.testimonial-role {
-		font-size: var(--font-size-xs);
+		font-size: var(--font-size-sm);
+		line-height: 1.4;
 		color: var(--color-muted);
+		overflow-wrap: anywhere;
+	}
+
+	:global(:root.dark) .testimonial-bubble {
+		box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not(.light)) .testimonial-bubble {
+			box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-text) 10%, transparent);
+		}
+	}
+
+	@media (min-width: 768px) {
+		.testimonials.section {
+			padding: var(--spacing-4xl) 0;
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.testimonials-headline {
+			font-size: 3.25rem;
+		}
 	}
 
 	@media (max-width: 900px) {
@@ -118,6 +224,10 @@ const { headline, testimonials } = node;
 	}
 
 	@media (max-width: 600px) {
+		.testimonials-header {
+			margin-bottom: var(--spacing-xl);
+		}
+
 		.testimonials-grid {
 			grid-template-columns: 1fr;
 		}

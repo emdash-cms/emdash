@@ -1,0 +1,156 @@
+---
+import { sanitizeHref } from "emdash";
+
+interface Props {
+	node: {
+		_key?: string;
+		mutedHeadline?: string;
+		headline?: string;
+		body?: string;
+		primaryCtaLabel?: string;
+		primaryCtaUrl?: string;
+		secondaryCtaLabel?: string;
+		secondaryCtaUrl?: string;
+	};
+}
+
+const { node } = Astro.props;
+const mutedHeadline = node.mutedHeadline?.trim();
+const headline = node.headline?.trim();
+const body = node.body?.trim();
+const hasHeading = Boolean(mutedHeadline || headline);
+const headingId = node._key ? `${node._key}-heading` : undefined;
+
+function getCta(label?: string, url?: string) {
+	const trimmedLabel = label?.trim();
+	const trimmedUrl = url?.trim();
+
+	return trimmedLabel && trimmedUrl
+		? {
+				label: trimmedLabel,
+				url: sanitizeHref(trimmedUrl),
+			}
+		: null;
+}
+
+const primaryCta = getCta(node.primaryCtaLabel, node.primaryCtaUrl);
+const secondaryCta = getCta(node.secondaryCtaLabel, node.secondaryCtaUrl);
+---
+
+<section
+	class="call-to-action section"
+	id={node._key}
+	aria-labelledby={hasHeading ? headingId : undefined}
+>
+	<div class="cta-container">
+		{hasHeading && (
+			<h2 class="cta-heading" id={headingId}>
+				{mutedHeadline && <span class="cta-heading-muted">{mutedHeadline}</span>}
+				{mutedHeadline && headline && " "}
+				{headline}
+			</h2>
+		)}
+		{body && <p class="cta-body">{body}</p>}
+		{(primaryCta || secondaryCta) && (
+			<div class="cta-actions">
+				{primaryCta && (
+					<a href={primaryCta.url} class="btn btn-primary cta-button cta-button-primary">
+						<span>{primaryCta.label}</span>
+						<svg class="cta-icon cta-chevron" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<path d="m9 18 6-6-6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+						</svg>
+					</a>
+				)}
+				{secondaryCta && (
+					<a href={secondaryCta.url} class="btn btn-secondary cta-button cta-button-secondary">
+						<svg class="cta-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+							<path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+						</svg>
+						<span>{secondaryCta.label}</span>
+					</a>
+				)}
+			</div>
+		)}
+	</div>
+</section>
+
+<style>
+	.call-to-action.section {
+		padding-block: var(--spacing-2xl);
+		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
+	}
+
+	:global(.faq + .call-to-action.section),
+	:global(.faq + script + .call-to-action.section) {
+		padding-block-start: 0;
+	}
+
+	.cta-container {
+		max-width: 64rem;
+		margin-inline: auto;
+		padding-inline: var(--spacing-lg);
+	}
+
+	.cta-heading {
+		max-width: 32rem;
+		font-size: 1.875rem;
+		font-weight: 600;
+		line-height: 1.15;
+		letter-spacing: -0.03em;
+		text-wrap: balance;
+		overflow-wrap: anywhere;
+	}
+
+	.cta-heading-muted {
+		color: var(--color-muted);
+	}
+
+	.cta-body {
+		margin-block-start: var(--spacing-md);
+		font-size: var(--font-size-lg);
+		line-height: 1.55;
+		overflow-wrap: anywhere;
+	}
+
+	.cta-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.75rem;
+		margin-block-start: var(--spacing-xl);
+	}
+
+	.cta-button-primary {
+		padding-inline-end: var(--spacing-sm);
+	}
+
+	.cta-button-secondary {
+		padding-inline-start: 0.625rem;
+	}
+
+	.cta-icon {
+		width: 0.875rem;
+		height: 0.875rem;
+		flex: 0 0 auto;
+		opacity: 0.5;
+	}
+
+	:global([dir="rtl"]) .cta-chevron {
+		transform: scaleX(-1);
+	}
+
+	@media (min-width: 1024px) {
+		.cta-heading {
+			font-size: 2.25rem;
+		}
+	}
+
+	@media (max-width: 480px) {
+		.cta-actions {
+			flex-direction: column;
+		}
+
+		.cta-button {
+			width: 100%;
+		}
+	}
+</style>
