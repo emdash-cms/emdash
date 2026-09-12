@@ -218,6 +218,7 @@ import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request
 import {
 	buildRouteMeta,
 	parseRouteInput,
+	parseRouteInputWithRaw,
 	PluginRouteRegistry,
 	toRouteCallerInfo,
 	type RouteCallerInput,
@@ -3726,10 +3727,13 @@ export class EmDashRuntime {
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
-			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-			const body = await parseRouteInput(request);
+			// Body methods buffer the body text once so routes with `rawBody: true`
+			// can see the UTF-8 decoded payload (webhook signature verification)
+			// and parse JSON for `ctx.input` from the same buffer; GET/HEAD/DELETE
+			// parse the query string instead.
+			const { body, rawBody } = await parseRouteInputWithRaw(request);
 
-			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
+			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller, rawBody });
 		}
 
 		// Check sandboxed (marketplace) plugins second

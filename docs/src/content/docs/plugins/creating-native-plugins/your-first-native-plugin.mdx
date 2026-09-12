@@ -165,6 +165,29 @@ The equivalent sandboxed handler receives `(routeCtx, ctx)` as two arguments. Au
 	Capabilities gate the APIs exposed through `ctx`, but a native plugin has no isolation boundary. It can import host packages, access environment variables, call `fetch()` directly, and affect the host process. Install native packages only from publishers you trust.
 </Aside>
 
+### Raw request bodies (webhook signatures)
+
+The dispatcher parses the request body before your handler runs and exposes it as `ctx.input`; the body stream is consumed, so `ctx.request.text()` is unavailable. That's fine for normal routes — but webhook providers (Stripe, GitHub, Svix, …) sign the payload they send as UTF-8 text, and an HMAC computed over a re-serialized `ctx.input` will never match (whitespace and key order don't survive a parse/stringify round-trip).
+
+Routes that need the unparsed body opt in with `rawBody: true`:
+
+```typescript
+routes: {
+	"webhooks/provider": {
+		public: true,
+		rawBody: true,
+		handler: async (ctx) => {
+			const signature = ctx.request.headers.get("X-Signature") ?? "";
+			await verifyHmac(ctx.rawBody ?? "", signature, secret); // throw on mismatch
+			const event = JSON.parse(ctx.rawBody ?? "{}");
+			// ...
+		},
+	},
+},
+```
+
+`ctx.rawBody` is the delivered body as a UTF-8 decoded string — webhook payloads are UTF-8 text in practice, so signature libraries that accept a string (or `new TextEncoder().encode(ctx.rawBody)`) work directly; binary bodies are not preserved byte-exactly. `ctx.input` still works as usual (parsed from the same buffer). Non-JSON payloads — e.g. form-encoded webhook deliveries — arrive with `ctx.input` undefined but `ctx.rawBody` intact, so the handler can parse them itself. The flag is native-format only; sandboxed plugins receive requests across a serialization boundary and don't support it yet.
+
 ## Add another surface
 
 - [React admin pages and widgets](/plugins/creating-native-plugins/react-admin/) covers settings, custom pages, dashboard widgets, editor panels, and list columns.
