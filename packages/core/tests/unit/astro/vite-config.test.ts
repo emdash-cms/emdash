@@ -54,6 +54,19 @@ describe("createViteConfig admin aliasing", () => {
 		expect(replacement).toMatch(adminSourcePattern);
 	});
 
+	// Regression: Vite normalizes module ids to forward slashes (and, on
+	// case-insensitive filesystems, to their on-disk casing) before calling
+	// plugin hooks. The Lingui macro transform compares its own id against
+	// this same alias path with a plain id.startsWith(adminSourcePath) check,
+	// so a backslash-separated path here makes that check always fail —
+	// silently skipping macro compilation for every admin source file.
+	it("returns the admin source path with forward slashes only", () => {
+		const config = buildConfig(monorepoDemoRoot);
+		const replacement = getAdminAliasReplacement(config);
+
+		expect(replacement).not.toMatch(/\\/);
+	});
+
 	it("uses built admin dist for external app dev", () => {
 		const config = buildConfig(externalProjectRoot);
 		const replacement = getAdminAliasReplacement(config);
