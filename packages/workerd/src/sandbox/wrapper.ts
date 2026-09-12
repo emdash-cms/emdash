@@ -447,7 +447,15 @@ export default {
 		// Route invocation: POST /route/{routeName}
 		if (url.pathname.startsWith("/route/")) {
 			const routeName = url.pathname.slice(7); // Remove "/route/"
-			const { input, request: serializedRequest } = await request.json();
+			const { input: encodedInput, inputEncoding, request: serializedRequest } = await request.json();
+			let input = encodedInput;
+			if (inputEncoding === "base64") {
+				const binaryString = atob(encodedInput);
+				input = new Uint8Array(binaryString.length);
+				for (let i = 0; i < binaryString.length; i++) {
+					input[i] = binaryString.charCodeAt(i);
+				}
+			}
 			const ctx = createContext();
 
 			const route = routes[routeName];
@@ -472,6 +480,14 @@ export default {
 					},
 					ctx,
 				);
+				if (result instanceof Response) {
+					return Response.json({
+						status: result.status,
+						statusText: result.statusText,
+						headers: [...result.headers.entries()],
+						body: result.body === null ? null : Array.from(new Uint8Array(await result.arrayBuffer())),
+					}, { headers: { "X-EmDash-Raw-Response": "1" } });
+				}
 				return Response.json(result);
 			} catch (err) {
 				const sandboxError = sandboxRouteErrorResponse(err);

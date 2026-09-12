@@ -13,7 +13,12 @@ import {
 	capabilitiesToDeclaredAccess,
 	declaredAccessToCapabilities,
 } from "@emdash-cms/plugin-types";
+import {
+	manifestRouteEntrySchema as sharedManifestRouteEntrySchema,
+	routeNameSchema,
+} from "@emdash-cms/plugin-types";
 import { z } from "zod";
+export { normalizeManifestRoute } from "@emdash-cms/plugin-types";
 
 import type { PluginManifest } from "./types.js";
 
@@ -127,22 +132,10 @@ const manifestHookEntrySchema = z.object({
 	timeout: z.number().int().positive().optional(),
 });
 
-/**
- * Structured route entry for manifest — name plus optional metadata.
- * Both plain strings and objects are accepted; strings are normalized
- * to `{ name }` objects via `normalizeManifestRoute()`.
- */
-/** Route names must be safe path segments — alphanumeric, hyphens, underscores, forward slashes */
-const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
-
-const manifestRouteEntrySchema = z.object({
-	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: z.boolean().optional(),
-	permission: z
-		.string()
-		.refine((permission) => permission in Permissions)
-		.optional(),
-	cacheControl: z.string().min(1).optional(),
+const manifestRouteEntrySchema = sharedManifestRouteEntrySchema.extend({
+	permission: sharedManifestRouteEntrySchema.shape.permission.refine(
+		(permission) => permission === undefined || permission in Permissions,
+	),
 });
 
 const pluginJsonSchema = z.record(z.string(), z.unknown());
@@ -152,7 +145,7 @@ const pluginMcpConfigSchema = z.object({
 		z.object({
 			name: z.string().min(1).max(64).regex(mcpToolNamePattern, "Invalid MCP tool name"),
 			description: z.string().min(1),
-			route: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
+			route: routeNameSchema,
 			permission: z.string().refine((permission) => permission in Permissions),
 			destructive: z.boolean(),
 			inputSchema: pluginJsonSchema,
@@ -323,12 +316,7 @@ export const pluginManifestSchema = z.object({
 	 * structured objects with public metadata.
 	 * Plain strings are normalized to `{ name }` objects after parsing.
 	 */
-	routes: z.array(
-		z.union([
-			z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-			manifestRouteEntrySchema,
-		]),
-	),
+	routes: z.array(z.union([routeNameSchema, manifestRouteEntrySchema])),
 	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema,
 });
@@ -363,23 +351,6 @@ export function reconcileManifestAccess(manifest: ValidatedPluginManifest): Plug
 export function normalizeManifestHook(
 	entry: string | { name: string; exclusive?: boolean; priority?: number; timeout?: number },
 ): { name: string; exclusive?: boolean; priority?: number; timeout?: number } {
-	if (typeof entry === "string") {
-		return { name: entry };
-	}
-	return entry;
-}
-
-/**
- * Normalize a manifest route entry — plain strings become `{ name }` objects.
- */
-export function normalizeManifestRoute(
-	entry: string | { name: string; public?: boolean; permission?: string; cacheControl?: string },
-): {
-	name: string;
-	public?: boolean;
-	permission?: string;
-	cacheControl?: string;
-} {
 	if (typeof entry === "string") {
 		return { name: entry };
 	}

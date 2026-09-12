@@ -38,6 +38,8 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { extractRouteOptions } from "@emdash-cms/plugin-types";
+
 import type { ResolvedPlugin } from "../bundle/types.js";
 import { fileExists } from "../bundle/utils.js";
 import {
@@ -481,8 +483,7 @@ function assembleHook(entry: ProbedHookEntry, pluginId: string): ResolvedPlugin[
 function assembleRoute(entry: ProbedRouteEntry): ResolvedPlugin["routes"][string] {
 	return {
 		handler: entry.handler,
-		public: entry.public,
-		permission: entry.permission,
+		...extractRouteOptions(entry),
 	};
 }
 

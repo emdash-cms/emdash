@@ -95,13 +95,15 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		return apiError(code, message, status);
 	}
 
-	const response = apiSuccess(result.data);
-	// Public routes may opt in to CDN/browser caching for GET responses.
-	// getRouteMeta only ever exposes cacheControl on public routes, and errors
-	// above keep the default private, no-store. Astro serves HEAD via this GET
-	// export, which is fine: same headers, no body.
-	if (routeMeta.cacheControl && (method === "GET" || method === "HEAD")) {
-		response.headers.set("Cache-Control", routeMeta.cacheControl);
+	const response =
+		result.data instanceof Response
+			? new Response(result.data.body, result.data)
+			: apiSuccess(result.data);
+	if (response.ok && (method === "GET" || method === "HEAD")) {
+		response.headers.set(
+			"Cache-Control",
+			routeMeta.cacheControl ?? response.headers.get("Cache-Control") ?? "private, no-store",
+		);
 	}
 	return response;
 };

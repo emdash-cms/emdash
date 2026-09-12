@@ -2795,6 +2795,9 @@ importers:
       ulidx:
         specifier: ^2.4.1
         version: 2.4.1
+      zod:
+        specifier: 'catalog:'
+        version: 4.5.4
       workerd:
         specifier: '>=1.0.0'
         version: 1.20260507.1

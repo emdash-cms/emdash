@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readFile, rm, rmdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, rmdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -55,6 +55,23 @@ describe("bundlePlugin", () => {
 		expect(manifest.hooks).toContain("content:beforeSave");
 		// Routes are extracted from src/plugin.ts's default export.
 		expect(manifest.routes).toContain("admin");
+	});
+
+	it("preserves route options from plugin source in the bundled manifest", async () => {
+		const dir = join(outDir, "plugin");
+		await cp(FIXTURE, dir, { recursive: true });
+		await writeFile(
+			join(dir, "src/plugin.ts"),
+			`export default { routes: {
+			catalog: { body: "text", public: true, cacheControl: "public, max-age=60", handler: async () => ({ items: [] }) },
+			create: { permission: "content:create", handler: async () => ({ created: true }) },
+		} };`,
+		);
+		const result = await bundlePlugin({ dir, outDir: join(outDir, "bundle") });
+		expect(result.manifest.routes).toEqual([
+			{ name: "catalog", body: "text", public: true, cacheControl: "public, max-age=60" },
+			{ name: "create", permission: "content:create" },
+		]);
 	});
 
 	it("validateOnly returns the manifest but writes no tarball", async () => {

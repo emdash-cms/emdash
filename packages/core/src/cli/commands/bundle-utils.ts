@@ -11,6 +11,7 @@ import { resolve, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 
+import { extractManifestRoute } from "@emdash-cms/plugin-types";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
@@ -22,7 +23,6 @@ import type {
 	HookName,
 	ManifestHookEntry,
 	ManifestMcpTool,
-	ManifestRouteEntry,
 } from "../../plugins/types.js";
 
 // ── Constants ────────────────────────────────────────────────────────────────
@@ -159,22 +159,8 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		}
 	}
 
-	const routes: Array<ManifestRouteEntry | string> = Object.entries(plugin.routes).map(
-		([name, route]) => {
-			if (
-				route.public === undefined &&
-				route.permission === undefined &&
-				route.cacheControl === undefined
-			) {
-				return name;
-			}
-
-			const entry: ManifestRouteEntry = { name };
-			if (route.public !== undefined) entry.public = route.public;
-			if (route.permission !== undefined) entry.permission = route.permission;
-			if (route.cacheControl !== undefined) entry.cacheControl = route.cacheControl;
-			return entry;
-		},
+	const routes = Object.entries(plugin.routes).map(([name, route]) =>
+		extractManifestRoute(name, route),
 	);
 	const tools: ManifestMcpTool[] = Object.entries(plugin.mcp?.tools ?? {}).map(([name, tool]) => {
 		if (!MCP_TOOL_NAME_PATTERN.test(name)) throw new Error(`Invalid MCP tool name "${name}"`);

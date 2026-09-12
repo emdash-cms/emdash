@@ -10,6 +10,8 @@
  *
  */
 
+import type { RouteOptions } from "@emdash-cms/plugin-types";
+
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
@@ -105,22 +107,15 @@ function resolveSandboxedHook(entry: AnyHookEntry, pluginId: string): ResolvedHo
  * The wider type flows through to the runtime which validates at
  * invocation time.
  */
-function normalizeRouteEntry(entry: RouteEntry): {
-	handler: RouteHandler;
-	public?: boolean;
-	cacheControl?: string;
-	input?: PluginRoute["input"];
-	permission?: PluginRoute["permission"];
-} {
-	if (typeof entry === "function") {
-		return { handler: entry };
-	}
+function normalizeRouteEntry(
+	entry: RouteEntry,
+): RouteOptions & Omit<PluginRoute, "body" | "handler"> & { handler: RouteHandler } {
+	if (typeof entry === "function") return { handler: entry };
 	return {
-		handler: entry.handler,
-		public: entry.public,
-		permission: entry.permission,
-		cacheControl: entry.cacheControl,
-		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
+		...entry,
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- decoding and schema validation establish the handler input before invocation
+		handler: entry.handler as RouteHandler,
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- sandbox schemas are validated when the route is invoked
 		input: entry.input as PluginRoute["input"],
 	};
 }
@@ -211,18 +206,10 @@ export function adaptSandboxEntry(
 	if (definition.routes) {
 		for (const [routeName, rawEntry] of Object.entries(definition.routes)) {
 			const normalized = normalizeRouteEntry(rawEntry);
-			const {
-				handler,
-				public: publicFlag,
-				cacheControl,
-				input: inputSchema,
-				permission,
-			} = normalized;
+			const { handler, ...options } = normalized;
+			// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the resolved contract erases the authoring-only input specialization
 			resolvedRoutes[routeName] = {
-				input: inputSchema,
-				public: publicFlag,
-				permission,
-				cacheControl,
+				...options,
 				handler: async (ctx) => {
 					if (usesPublicRouteContext) {
 						// The incoming ctx already IS the public RouteContext
@@ -255,7 +242,7 @@ export function adaptSandboxEntry(
 					const { input: _, request: __, requestMeta: ___, user: ____, ...pluginCtx } = ctx;
 					return handler(routeCtx, pluginCtx);
 				},
-			};
+			} as PluginRoute;
 		}
 	}
 

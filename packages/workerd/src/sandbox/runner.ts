@@ -17,6 +17,7 @@
  * auth token that encodes its ID and capabilities.
  */
 
+import { Buffer } from "node:buffer";
 import { execFileSync, spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
@@ -47,6 +48,7 @@ import { createBackingServiceHandler } from "./backing-service.js";
 import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
+import { readRouteResponse } from "./route-response.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
 /** Replace non-alphanumeric chars for safe file/worker names */
@@ -1027,7 +1029,11 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
-				body: JSON.stringify({ input, request }),
+				body: JSON.stringify({
+					input: input instanceof Uint8Array ? Buffer.from(input).toString("base64") : input,
+					inputEncoding: input instanceof Uint8Array ? "base64" : undefined,
+					request,
+				}),
 			});
 			if (!res.ok) {
 				const text = await res.text();
@@ -1042,7 +1048,7 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 				}
 				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 			}
-			return res.json();
+			return readRouteResponse(res);
 		});
 	}
 

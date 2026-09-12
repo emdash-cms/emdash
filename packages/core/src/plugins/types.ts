@@ -11,6 +11,7 @@
 
 import type { Permission } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
+import type { RouteOptions } from "@emdash-cms/plugin-types";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
 // (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
@@ -1215,7 +1216,7 @@ export interface RequestMeta {
  * Route handler context extends plugin context with request-specific data
  */
 export interface RouteContext<TInput = unknown> extends PluginContext {
-	/** Validated input from request body */
+	/** Decoded request input, after applying the optional input schema. */
 	input: TInput;
 	/** Original request */
 	request: Request;
@@ -1238,26 +1239,25 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 /**
  * Route definition
  */
-export interface PluginRoute<TInput = unknown> {
-	/** Zod schema for input validation */
-	input?: z.ZodType<TInput>;
-	/**
-	 * Mark this route as publicly accessible (no authentication required).
-	 * Public routes skip session/token auth and CSRF checks.
-	 */
-	public?: boolean;
-	/** RBAC permission required to invoke the route. Legacy routes default to plugins:manage. */
+type PluginRouteBody<TInput> = [TInput] extends [string]
+	? "text"
+	: [TInput] extends [Uint8Array<ArrayBuffer>]
+		? "bytes"
+		: undefined;
+
+export interface PluginRoute<TInput = unknown> extends Omit<RouteOptions, "body"> {
+	body?: PluginRouteBody<TInput>;
 	permission?: Permission;
-	/**
-	 * `Cache-Control` header value for successful GET responses, e.g.
-	 * `"public, max-age=60, stale-while-revalidate=300"`. Only honored on
-	 * routes that are also `public: true` — authenticated responses always
-	 * keep the default `private, no-store`. Errors are never cached.
-	 */
-	cacheControl?: string;
-	/** Route handler */
+	/** Validate or transform JSON or query input before invoking the handler. */
+	input?: z.ZodType<TInput>;
+	/** Return a Response for custom HTTP output, or a value for the JSON envelope. */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }
+
+type PluginRouteDefinition<TInput = unknown> =
+	| (PluginRoute<TInput> & { body?: undefined })
+	| (PluginRoute<string> & { body: "text"; input?: undefined })
+	| (PluginRoute<Uint8Array<ArrayBuffer>> & { body: "bytes"; input?: undefined });
 
 export interface PluginMcpToolDefinition {
 	description: string;
@@ -1450,7 +1450,7 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	hooks?: PluginHooks;
 
 	/** API routes */
-	routes?: Record<string, PluginRoute>;
+	routes?: Record<string, PluginRouteDefinition>;
 
 	/** Routes explicitly exposed as agent-callable MCP tools. */
 	mcp?: PluginMcpConfig;

@@ -3727,7 +3727,10 @@ export class EmDashRuntime {
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
 			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-			const body = await parseRouteInput(request);
+			const body = await parseRouteInput(
+				request,
+				buildRouteMeta(trustedPlugin.routes[routeKey] ?? {}).body,
+			);
 
 			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
 		}
@@ -3735,7 +3738,13 @@ export class EmDashRuntime {
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
+			return this.handleSandboxedRoute(
+				sandboxedPlugin,
+				path,
+				request,
+				caller,
+				this.getPluginRouteMeta(pluginId, path)?.body,
+			);
 		}
 
 		return {
@@ -4242,7 +4251,8 @@ export class EmDashRuntime {
 		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
-		user?: UserInfo,
+		user: UserInfo | undefined,
+		bodyMode?: RouteMeta["body"],
 	): Promise<{
 		success: boolean;
 		data?: unknown;
@@ -4252,7 +4262,7 @@ export class EmDashRuntime {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
 
 		// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-		const body = await parseRouteInput(request);
+		const body = await parseRouteInput(request, bodyMode);
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);

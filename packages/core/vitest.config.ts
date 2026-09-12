@@ -40,6 +40,7 @@ export default defineConfig({
 		},
 	],
 	test: {
+		typecheck: { enabled: true, tsconfig: "tsconfig.type-tests.json" },
 		globals: true,
 		environment: "node",
 		include: ["tests/**/*.test.ts"],

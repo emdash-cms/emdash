@@ -24,6 +24,7 @@
  *   schema only has to validate one shape per entry.
  */
 
+import { routeOptionsSchema } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
 /** A function reference; the probe doesn't introspect signatures. */
@@ -86,12 +87,12 @@ const HookEntryConfigSchema = z.looseObject({
 
 export const HookEntrySchema = z.preprocess(normaliseEntry, HookEntryConfigSchema);
 
-const RouteEntryConfigSchema = z.looseObject({
-	handler: FunctionSchema,
-	public: z.boolean().optional(),
-	input: z.unknown().optional(),
-	permission: z.string().optional(),
-});
+const RouteEntryConfigSchema = routeOptionsSchema
+	.extend({
+		handler: FunctionSchema,
+		input: z.unknown().optional(),
+	})
+	.loose();
 
 export const RouteEntrySchema = z.preprocess(normaliseEntry, RouteEntryConfigSchema);
 
