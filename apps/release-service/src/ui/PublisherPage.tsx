@@ -1,11 +1,10 @@
-import { Badge, Button, Input, Popover, Select, Surface, Table } from "@cloudflare/kumo";
+import { Badge, Button, LinkButton, Popover, Select, Surface, Table } from "@cloudflare/kumo";
 import {
 	ReleaseServiceClient,
 	ReleaseServiceError,
 	createReleaseIdempotencyKey,
 	type PublisherApproverStatusResult,
 	type PublisherAuditEventResource,
-	type CreateWorkflowConnectionInvitationResult,
 	type PublisherResource,
 	type ReleaseIntentResource,
 	type WorkloadPolicyResource,
@@ -21,7 +20,6 @@ import { useT } from "./i18n.js";
 const GIT_REF_PREFIX_PATTERN = /^refs\/(?:heads|tags)\//;
 const WORKFLOW_CONNECTION_POLL_INTERVAL_MS = 5_000;
 const RELEASE_SETUP_COMMAND = "pnpm exec emdash-plugin release setup";
-const PROFILE_SETUP_COMMAND = "pnpm exec emdash-plugin profile setup";
 
 interface PublisherData {
 	publisher: PublisherResource;
@@ -263,6 +261,42 @@ function friendlyRef(ref: string): string {
 	return ref.replace(GIT_REF_PREFIX_PATTERN, "");
 }
 
+interface RepositoryConnectionGroup {
+	key: string;
+	packages: WorkloadPolicyResource[];
+	policy: WorkloadPolicyResource;
+	repositoryConnection: boolean;
+}
+
+function repositoryConnectionGroups(
+	workloads: WorkloadPolicyResource[],
+): RepositoryConnectionGroup[] {
+	const groups = new Map<string, RepositoryConnectionGroup>();
+	for (const workload of workloads) {
+		const key = JSON.stringify([
+			workload.repositoryId,
+			workload.repositoryOwnerId,
+			workflowFile(workload.repository, workload.workflowRef),
+		]);
+		const group = groups.get(key);
+		if (group) {
+			group.packages.push(workload);
+			if (workload.active) group.policy = workload;
+			if (workload.repositoryConnection) group.repositoryConnection = true;
+		} else {
+			groups.set(key, {
+				key,
+				packages: [workload],
+				policy: workload,
+				repositoryConnection: workload.repositoryConnection,
+			});
+		}
+	}
+	return [...groups.values()].toSorted((left, right) =>
+		left.policy.repository.localeCompare(right.policy.repository),
+	);
+}
+
 export function PublisherPage() {
 	const t = useT();
 	const client = useMemo(
@@ -278,9 +312,6 @@ export function PublisherPage() {
 	const [loginRequired, setLoginRequired] = useState(false);
 	const [error, setError] = useState<unknown>(null);
 	const [busy, setBusy] = useState(false);
-	const [invitationPackageSlug, setInvitationPackageSlug] = useState("");
-	const [connectionInvitation, setConnectionInvitation] =
-		useState<CreateWorkflowConnectionInvitationResult | null>(null);
 	const [connectionScopes, setConnectionScopes] = useState<
 		Record<string, WorkflowConnectionRefScope>
 	>({});
@@ -447,24 +478,6 @@ export function PublisherPage() {
 		}
 	}
 
-	async function createWorkflowConnectionInvitation(event: React.FormEvent<HTMLFormElement>) {
-		event.preventDefault();
-		setBusy(true);
-		setError(null);
-		setConnectionInvitation(null);
-		try {
-			setConnectionInvitation(
-				await client.createWorkflowConnectionInvitation(invitationPackageSlug, {
-					idempotencyKey: createReleaseIdempotencyKey("web-workflow-invitation"),
-				}),
-			);
-		} catch (cause) {
-			setError(cause);
-		} finally {
-			setBusy(false);
-		}
-	}
-
 	async function rejectWorkflowConnection(request: WorkflowConnectionRequestResource) {
 		setBusy(true);
 		setError(null);
@@ -472,6 +485,27 @@ export function PublisherPage() {
 			await client.rejectWorkflowConnection(request.id, {
 				idempotencyKey: createReleaseIdempotencyKey("web-workflow-reject"),
 			});
+			await refresh();
+		} catch (cause) {
+			setError(cause);
+		} finally {
+			setBusy(false);
+		}
+	}
+
+	async function disableRepositoryConnection(group: RepositoryConnectionGroup) {
+		setBusy(true);
+		setError(null);
+		try {
+			await Promise.all(
+				group.packages
+					.filter((workload) => workload.active)
+					.map((workload) =>
+						client.disableWorkload(workload.packageSlug, workload.stateVersion, {
+							idempotencyKey: createReleaseIdempotencyKey("web-workflow-disable"),
+						}),
+					),
+			);
 			await refresh();
 		} catch (cause) {
 			setError(cause);
@@ -522,6 +556,9 @@ export function PublisherPage() {
 	const delegation = data.publisher.delegation;
 	const publishingEnabled = delegation?.status === "active";
 	const publisherHandle = data.publisher.handle ? formatHandle(data.publisher.handle) : null;
+	const workloadGroups = repositoryConnectionGroups(data.workloads);
+	const connectionGroups = workloadGroups.filter((group) => group.repositoryConnection);
+	const legacyGroups = workloadGroups.filter((group) => !group.repositoryConnection);
 
 	return (
 		<div className="flex flex-col gap-6">
@@ -571,43 +608,9 @@ export function PublisherPage() {
 			<Surface className="rounded-xl border bg-kumo-base p-6">
 				<h2 className="text-xl font-semibold text-kumo-strong">
 					{data.workloads.length === 0
-						? t("publisher.workload.setupTitle", "2. Prepare your plugin")
-						: t("publisher.workload.addTitle", "Connect another GitHub Actions workflow")}
+						? t("publisher.workload.setupTitle", "2. Connect your GitHub repository")
+						: t("publisher.workload.addTitle", "Repository workflow")}
 				</h2>
-				{publishingEnabled ? (
-					<form
-						className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
-						onSubmit={createWorkflowConnectionInvitation}
-					>
-						<Input
-							className="flex-1"
-							label={t("publisher.connection.invitation.package", "Plugin ID")}
-							onChange={(event) => setInvitationPackageSlug(event.currentTarget.value)}
-							placeholder={t("publisher.connection.invitation.placeholder", "gallery")}
-							required
-							value={invitationPackageSlug}
-						/>
-						<Button disabled={busy} type="submit" variant="secondary">
-							{t("publisher.connection.invitation.create", "Create invitation")}
-						</Button>
-					</form>
-				) : null}
-				{connectionInvitation ? (
-					<div className="mt-4 rounded-lg bg-kumo-tint p-4" role="status">
-						<p className="text-sm font-medium text-kumo-strong">
-							{t("publisher.connection.invitation.secretLabel", "GitHub Actions secret value")}
-						</p>
-						<code className="mt-2 block break-all font-mono text-sm text-kumo-strong">
-							{connectionInvitation.invitationToken}
-						</code>
-						<p className="mt-2 text-sm text-kumo-subtle">
-							{t(
-								"publisher.connection.invitation.instructions",
-								"Add this one-time value to the repository as the EMDASH_CONNECTION_INVITATION Actions secret, then run the release workflow within 30 minutes.",
-							)}
-						</p>
-					</div>
-				) : null}
 				{!publishingEnabled ? (
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{t(
@@ -619,7 +622,7 @@ export function PublisherPage() {
 					<p className="mt-1 text-sm text-kumo-subtle">
 						{t(
 							"publisher.workload.reviewDescription",
-							"A release workflow is waiting for your approval. Check the GitHub details before allowing it to publish this plugin.",
+							"A repository workflow is waiting for approval. Check its GitHub identity before connecting it to your signed package profiles.",
 						)}
 					</p>
 				) : (
@@ -627,7 +630,7 @@ export function PublisherPage() {
 						<p className="text-kumo-subtle">
 							{t(
 								"publisher.workload.setupCommand",
-								"Run this once from your plugin project. It creates or updates its signed package profile before creating the GitHub workflow:",
+								"Run this once from the plugin repository. It prepares the current package profile and creates one shared GitHub workflow:",
 							)}
 						</p>
 						<div className="overflow-x-auto rounded-lg bg-kumo-tint px-4 py-3">
@@ -638,13 +641,13 @@ export function PublisherPage() {
 						<p className="text-kumo-subtle">
 							{t(
 								"publisher.workload.setupResult",
-								"Review and commit .github/workflows/emdash-release.yml, then push a version tag or start it from GitHub Actions.",
+								"Review and commit .github/workflows/emdash-release.yml, then push a package tag such as gallery@1.2.3 or start it from GitHub Actions.",
 							)}
 						</p>
 						<p className="text-kumo-subtle">
 							{t(
 								"publisher.workload.firstRun",
-								"The first run waits while you approve the repository, workflow, and release tags here.",
+								"The first run for each tag or branch scope appears here for approval. Later packages reuse those scopes when their signed profiles name the same repository.",
 							)}
 						</p>
 					</div>
@@ -673,9 +676,7 @@ export function PublisherPage() {
 									<div className="flex flex-wrap items-start justify-between gap-3">
 										<div>
 											<h3 className="font-semibold text-kumo-strong" id={headingId}>
-												{t("publisher.connection.title", "Approve workflow for {packageSlug}", {
-													packageSlug: request.packageSlug,
-												})}
+												{t("publisher.connection.title", "Connect GitHub repository")}
 											</h3>
 											<p className="mt-1 text-sm text-kumo-subtle">
 												{t(
@@ -686,12 +687,10 @@ export function PublisherPage() {
 											<p className="mt-2 text-sm text-kumo-subtle">
 												{t(
 													"publisher.connection.profileCheck",
-													"The package profile must link this plugin to the same repository. If setup is required, run this in the plugin project, then approve again:",
+													"The initiating {packageSlug} profile already names this repository. Future packages must pass the same signed-profile check.",
+													{ packageSlug: request.packageSlug },
 												)}
 											</p>
-											<code className="mt-2 block font-mono text-sm text-kumo-strong">
-												{PROFILE_SETUP_COMMAND}
-											</code>
 										</div>
 										<Badge variant="warning">
 											{t("publisher.connection.waiting", "Waiting for approval")}
@@ -735,7 +734,10 @@ export function PublisherPage() {
 										<Select
 											className="mt-4 max-w-sm"
 											items={{
-												version_tags: t("publisher.connection.scope.allTags", "All version tags"),
+												version_tags: t(
+													"publisher.connection.scope.allTags",
+													"All package version tags",
+												),
 												current_ref: t("publisher.connection.scope.currentTag", "Only this tag"),
 											}}
 											label={t(
@@ -756,7 +758,7 @@ export function PublisherPage() {
 										<p className="mt-4 text-sm text-kumo-subtle">
 											{t(
 												"publisher.connection.scope.branch",
-												"This approval covers only this branch.",
+												"This approval adds the branch to the repository connection. Existing tag and branch scopes remain active.",
 											)}
 										</p>
 									)}
@@ -766,7 +768,7 @@ export function PublisherPage() {
 											onClick={() => confirmWorkflowConnection(request)}
 											variant="primary"
 										>
-											{t("publisher.connection.approve", "Approve workflow")}
+											{t("publisher.connection.approve", "Connect repository")}
 										</Button>
 										<Button
 											disabled={busy}
@@ -787,49 +789,93 @@ export function PublisherPage() {
 				) : null}
 			</Surface>
 
-			{data.workloads.length > 0 ? (
-				<Surface className="overflow-x-auto rounded-xl border bg-kumo-base p-0">
-					<div className="p-6 pb-0">
-						<h2 className="text-xl font-semibold text-kumo-strong">
-							{t("publisher.workloads.title", "Connected GitHub workflows")}
-						</h2>
+			{connectionGroups.length > 0 ? (
+				<Surface className="rounded-xl border bg-kumo-base p-6">
+					<h2 className="text-xl font-semibold text-kumo-strong">
+						{t("publisher.workloads.title", "Connected repositories")}
+					</h2>
+					<p className="mt-1 text-sm text-kumo-subtle">
+						{t(
+							"publisher.workloads.description",
+							"Each repository workflow can publish packages whose signed profiles name the same repository.",
+						)}
+					</p>
+					<div className="mt-5 grid gap-4">
+						{connectionGroups.map((group) => {
+							const active = group.packages.some((workload) => workload.active);
+							return (
+								<div className="rounded-lg border bg-kumo-tint p-4" key={group.key}>
+									<div className="flex flex-wrap items-start justify-between gap-4">
+										<div>
+											<div className="flex flex-wrap items-center gap-2">
+												<h3 className="font-semibold text-kumo-strong">
+													{group.policy.repository}
+												</h3>
+												<Badge variant={active ? "success" : "neutral"}>
+													{active ? t("status.active", "Active") : t("status.disabled", "Disabled")}
+												</Badge>
+											</div>
+											<p className="mt-1 font-mono text-sm text-kumo-subtle">
+												{workflowFile(group.policy.repository, group.policy.workflowRef)}
+											</p>
+										</div>
+										{active ? (
+											<Button
+												disabled={busy}
+												onClick={() => disableRepositoryConnection(group)}
+												variant="secondary-destructive"
+											>
+												{t("publisher.workloads.disable", "Disable repository")}
+											</Button>
+										) : null}
+									</div>
+									<div className="mt-4 flex flex-wrap gap-2">
+										{group.packages.map((workload) => (
+											<Button
+												disabled={busy}
+												key={workload.packageSlug}
+												onClick={() => loadApproverStatus(workload.packageSlug)}
+												variant="outline"
+											>
+												{workload.packageSlug}
+											</Button>
+										))}
+									</div>
+								</div>
+							);
+						})}
 					</div>
-					<Table>
-						<Table.Header>
-							<Table.Row>
-								<Table.Head>{t("publisher.workloads.package", "Package")}</Table.Head>
-								<Table.Head>{t("publisher.workloads.repository", "Repository")}</Table.Head>
-								<Table.Head>{t("publisher.workloads.workflow", "Workflow")}</Table.Head>
-								<Table.Head>{t("publisher.workloads.status", "Status")}</Table.Head>
-								<Table.Head>{t("publisher.workloads.approvers", "Approval setup")}</Table.Head>
-							</Table.Row>
-						</Table.Header>
-						<Table.Body>
-							{data.workloads.map((workload) => (
-								<Table.Row key={workload.packageSlug}>
-									<Table.Cell>{workload.packageSlug}</Table.Cell>
-									<Table.Cell>{workload.repository}</Table.Cell>
-									<Table.Cell>{workflowFile(workload.repository, workload.workflowRef)}</Table.Cell>
-									<Table.Cell>
-										<Badge variant={workload.active ? "success" : "neutral"}>
-											{workload.active
-												? t("status.active", "Active")
-												: t("status.disabled", "Disabled")}
+				</Surface>
+			) : null}
+
+			{legacyGroups.length > 0 ? (
+				<Surface className="rounded-xl border bg-kumo-base p-6">
+					<h2 className="text-xl font-semibold text-kumo-strong">
+						{t("publisher.workloads.legacyTitle", "Package-scoped workflows")}
+					</h2>
+					<p className="mt-1 text-sm text-kumo-subtle">
+						{t(
+							"publisher.workloads.legacyDescription",
+							"These existing approvals remain limited to their packages. The first unmatched package or ref asks you to create a reusable repository connection.",
+						)}
+					</p>
+					<div className="mt-5 grid gap-3">
+						{legacyGroups.map((group) => (
+							<div className="rounded-lg border bg-kumo-tint p-4" key={group.key}>
+								<p className="font-semibold text-kumo-strong">{group.policy.repository}</p>
+								<p className="mt-1 font-mono text-sm text-kumo-subtle">
+									{workflowFile(group.policy.repository, group.policy.workflowRef)}
+								</p>
+								<div className="mt-3 flex flex-wrap gap-2">
+									{group.packages.map((workload) => (
+										<Badge key={workload.packageSlug} variant="neutral">
+											{workload.packageSlug}
 										</Badge>
-									</Table.Cell>
-									<Table.Cell>
-										<Button
-											disabled={busy}
-											onClick={() => loadApproverStatus(workload.packageSlug)}
-											variant="outline"
-										>
-											{t("publisher.workloads.checkApprovers", "Check approval readiness")}
-										</Button>
-									</Table.Cell>
-								</Table.Row>
-							))}
-						</Table.Body>
-					</Table>
+									))}
+								</div>
+							</div>
+						))}
+					</div>
 				</Surface>
 			) : null}
 
@@ -902,6 +948,9 @@ export function PublisherPage() {
 								<Table.Head>{t("publisher.intents.version", "Version")}</Table.Head>
 								<Table.Head>{t("publisher.intents.state", "Status")}</Table.Head>
 								<Table.Head>{t("publisher.intents.updated", "Updated")}</Table.Head>
+								<Table.Head>
+									<span className="sr-only">{t("publisher.intents.action", "Action")}</span>
+								</Table.Head>
 							</Table.Row>
 						</Table.Header>
 						<Table.Body>
@@ -910,15 +959,27 @@ export function PublisherPage() {
 									<Table.Cell>{intent.packageSlug}</Table.Cell>
 									<Table.Cell>{intent.version}</Table.Cell>
 									<Table.Cell>
-										<Badge variant={stateVariant(intent.state)}>
-											{stateLabel(t, intent.state)}
-										</Badge>
+										<div className="flex flex-col items-start gap-1">
+											<Badge variant={stateVariant(intent.state)}>
+												{stateLabel(t, intent.state)}
+											</Badge>
+											{intent.reasonCode ? (
+												<code className="text-xs text-kumo-subtle">{intent.reasonCode}</code>
+											) : null}
+										</div>
 									</Table.Cell>
 									<Table.Cell>
 										{new Intl.DateTimeFormat(document.documentElement.lang, {
 											dateStyle: "medium",
 											timeStyle: "short",
 										}).format(intent.updatedAt)}
+									</Table.Cell>
+									<Table.Cell>
+										{intent.approvalUrl ? (
+											<LinkButton href={intent.approvalUrl} size="sm" variant="outline">
+												{t("publisher.intents.review", "Review release")}
+											</LinkButton>
+										) : null}
 									</Table.Cell>
 								</Table.Row>
 							))}

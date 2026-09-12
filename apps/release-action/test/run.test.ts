@@ -388,6 +388,9 @@ describe("delegated release Action", () => {
 
 		expect(result.state).toBe("awaiting_approval");
 		expect(runtime.outputs.get("approval-url")).toBe(approvalUrl);
+		expect(runtime.summaries).toContain(
+			`## Approve gallery 1.2.3\n\n[Open EmDash to review and approve the release](${approvalUrl})`,
+		);
 		expect(runtime.failures).toEqual([]);
 	});
 

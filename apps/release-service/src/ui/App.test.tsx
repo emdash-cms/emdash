@@ -94,6 +94,7 @@ describe("release-service web surfaces", () => {
 								workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
 								allowedRefs: ["refs/heads/main"],
 								allowedEnvironments: [],
+								repositoryConnection: true,
 								active: true,
 								stateVersion: 1,
 								authorizedBy: PUBLISHER_DID,
@@ -175,14 +176,15 @@ describe("release-service web surfaces", () => {
 		expect(screen.queryByText(PUBLISHER_DID)).toBeNull();
 		expect(screen.getAllByText("gallery").length).toBeGreaterThan(0);
 		expect(screen.getByText("Awaiting approval")).toBeTruthy();
+		expect(screen.getByText("APPROVAL_REQUIRED")).toBeTruthy();
+		expect(screen.getByRole("link", { name: "Review release" })).toBeTruthy();
 		expect(screen.getByRole("heading", { name: "Account activity" })).toBeTruthy();
-		expect(
-			screen.getByRole("heading", { name: "Connect another GitHub Actions workflow" }),
-		).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Repository workflow" })).toBeTruthy();
+		expect(screen.getByRole("heading", { name: "Connected repositories" })).toBeTruthy();
 		expect(screen.getByText("pnpm exec emdash-plugin release setup")).toBeTruthy();
 		expect(
 			screen.getByText(
-				"Review and commit .github/workflows/emdash-release.yml, then push a version tag or start it from GitHub Actions.",
+				"Review and commit .github/workflows/emdash-release.yml, then push a package tag such as gallery@1.2.3 or start it from GitHub Actions.",
 			),
 		).toBeTruthy();
 		expect(screen.getAllByText("@publisher.example.com")).toHaveLength(1);
@@ -199,7 +201,7 @@ describe("release-service web surfaces", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Show older activity" }));
 		expect(await screen.findByText("Automated publishing turned off")).toBeTruthy();
 		expect(screen.getByText("GitHub workflow connected")).toBeTruthy();
-		fireEvent.click(screen.getByRole("button", { name: "Check approval readiness" }));
+		fireEvent.click(screen.getByRole("button", { name: "gallery" }));
 		expect(await screen.findByRole("heading", { name: "Approval readiness" })).toBeTruthy();
 		expect(screen.getByText("@approver.example.com")).toBeTruthy();
 	});
@@ -312,6 +314,7 @@ describe("release-service web surfaces", () => {
 							workflowRef: "example/gallery/.github/workflows/release.yml@refs/heads/main",
 							allowedRefs: ["refs/tags/*"],
 							allowedEnvironments: ["production"],
+							repositoryConnection: true,
 							active: true,
 							stateVersion: 1,
 							authorizedBy: PUBLISHER_DID,
@@ -326,23 +329,24 @@ describe("release-service web surfaces", () => {
 		);
 		renderApp("/publisher");
 
-		await screen.findByRole("heading", { name: "2. Prepare your plugin" });
-		expect(screen.getByText(/the package profile must link this plugin/i)).toBeTruthy();
-		expect(await screen.findByText("Approve workflow for gallery")).toBeTruthy();
+		await screen.findByRole("heading", { name: "2. Connect your GitHub repository" });
+		expect(
+			screen.getByText(/the initiating gallery profile already names this repository/i),
+		).toBeTruthy();
+		expect(await screen.findByText("Connect GitHub repository")).toBeTruthy();
 		expect(screen.getByText("example/gallery")).toBeTruthy();
 		expect(screen.getByText(".github/workflows/release.yml")).toBeTruthy();
 		expect(screen.getByText("v1.2.3")).toBeTruthy();
-		expect(screen.getByText("All version tags")).toBeTruthy();
-		fireEvent.click(screen.getByRole("button", { name: "Approve workflow" }));
+		expect(screen.getByText("All package version tags")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: "Connect repository" }));
 		await screen.findByRole("button", { name: "Check for workflow requests" });
 		const confirmationRequest = requests.find((request) => request.url.endsWith("/confirm"));
 		expect(confirmationRequest).toBeDefined();
 		expect(await confirmationRequest?.json()).toEqual({ refScope: "version_tags" });
 	});
 
-	it("creates a one-time workflow invitation and rejects a pending request", async () => {
+	it("does not ask for a workflow invitation and lets the publisher reject a pending request", async () => {
 		document.cookie = `__Host-emdash_publisher_csrf=${"C".repeat(43)}; Path=/; Secure`;
-		const invitationToken = `ewci1_${"I".repeat(43)}`;
 		const requests: Request[] = [];
 		let rejected = false;
 		const connectionRequest = {
@@ -389,13 +393,6 @@ describe("release-service web surfaces", () => {
 						},
 					});
 				}
-				if (path === "/v1/publisher/workflow-connection-invitations") {
-					return success({
-						invitationToken,
-						packageSlug: "gallery",
-						expiresAt: 1_800_001_800_000,
-					});
-				}
 				if (path === `/v1/publisher/workflow-connections/${connectionRequest.id}`) {
 					rejected = true;
 					return success({ rejected: true });
@@ -416,16 +413,9 @@ describe("release-service web surfaces", () => {
 		);
 		renderApp("/publisher");
 
-		fireEvent.change(await screen.findByLabelText("Plugin ID"), {
-			target: { value: "gallery" },
-		});
-		fireEvent.click(screen.getByRole("button", { name: "Create invitation" }));
-		expect(await screen.findByText(invitationToken)).toBeTruthy();
-		expect(screen.getByText(/EMDASH_CONNECTION_INVITATION/)).toBeTruthy();
-		const invitationRequest = requests.find((request) =>
-			request.url.endsWith("/workflow-connection-invitations"),
-		);
-		expect(await invitationRequest?.json()).toEqual({ packageSlug: "gallery" });
+		await screen.findByRole("heading", { name: "Connect GitHub repository" });
+		expect(screen.queryByLabelText("Plugin ID")).toBeNull();
+		expect(screen.queryByText(/EMDASH_CONNECTION_INVITATION/)).toBeNull();
 
 		fireEvent.click(screen.getByRole("button", { name: "Reject request" }));
 		await screen.findByRole("button", { name: "Check for workflow requests" });
@@ -516,7 +506,7 @@ describe("release-service web surfaces", () => {
 			});
 
 			const requestRegion = screen.getByRole("region", {
-				name: "Approve workflow for gallery",
+				name: "Connect GitHub repository",
 			});
 			expect(requestRegion.getAttribute("aria-current")).toBe("true");
 			expect(document.activeElement).toBe(requestRegion);

@@ -11,14 +11,20 @@ EmDash plugins extend the CMS with hooks, storage, settings, admin UI, API route
 
 EmDash has two plugin formats:
 
-| Type         | Format                                                  | Admin UI           | Where it runs                               |
-| ------------ | ------------------------------------------------------- | ------------------ | ------------------------------------------- |
-| **Standard** | `definePlugin({ hooks, routes })`                       | Block Kit          | Isolate on Cloudflare, in-process elsewhere |
-| **Native**   | `createPlugin()` / `definePlugin()` with `id`+`version` | React or Block Kit | Always in host isolate                      |
+| Type         | Format                                                  | Admin UI           | Where it runs                                 |
+| ------------ | ------------------------------------------------------- | ------------------ | --------------------------------------------- |
+| **Standard** | `definePlugin({ hooks, routes })`                       | Block Kit          | Isolated by a configured runner or in-process |
+| **Native**   | `createPlugin()` / `definePlugin()` with `id`+`version` | React or Block Kit | Always in host isolate                        |
 
 **Standard is the default.** Most plugins should use it. Standard plugins can be published to the marketplace and work in both trusted and sandboxed modes.
 
 **Native is an escape hatch** for plugins that need React admin components, direct DB access, or custom Astro components. Native plugins can only run in `plugins: []` -- they cannot be sandboxed or published to the marketplace.
+
+## Scaffold a sandboxed plugin
+
+Start a new sandboxed plugin with `npx @emdash-cms/plugin-cli init <slug>`. The interactive command requires publisher, author, and security metadata, detects the package manager, validates the complete manifest before writing, and shows a project summary for confirmation. The generated repository contains `AGENTS.md` and `skills/creating-plugins/SKILL.md`; `.agents/skills` and `.claude/skills` point to the same canonical directory so Codex and Claude load identical instructions.
+
+For non-interactive scaffolding, pass `--yes` with `--publisher`, `--author-name`, and either `--security-email` or `--security-url`. Local publisher and Git identity defaults are used only with `--use-detected`.
 
 ## Plugin Anatomy
 
@@ -116,28 +122,28 @@ Standard plugins work in either array. Native plugins only work in `plugins: []`
 
 EmDash has two execution modes. Plugin code is identical in both — only the enforcement changes.
 
-|                     | Trusted                                   | Sandboxed                                              |
-| ------------------- | ----------------------------------------- | ------------------------------------------------------ |
-| **Runs in**         | Main process                              | Isolated V8 isolate (Dynamic Worker Loader)            |
-| **Install method**  | `astro.config.mjs` (code change + deploy) | Admin UI (one-click from marketplace)                  |
-| **Capabilities**    | Advisory (not enforced)                   | Enforced at runtime via RPC bridge                     |
-| **Resource limits** | None                                      | CPU 50ms, 10 subrequests, 30s wall-time, ~128MB memory |
-| **Network access**  | Unrestricted                              | Blocked; only via `ctx.http` with `allowedHosts`       |
-| **Data access**     | Full database access                      | Scoped to declared capabilities                        |
-| **Node.js APIs**    | Full access                               | Not available (V8 isolate only)                        |
-| **Available on**    | All platforms                             | Cloudflare Workers only                                |
-| **Best for**        | First-party code, reviewed npm packages   | Third-party extensions, marketplace plugins            |
+|                     | Trusted                                                | Sandboxed                                              |
+| ------------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| **Runs in**         | Main process                                           | Isolated V8 runtime supplied by the configured runner  |
+| **Install method**  | `astro.config.mjs` (code change + deploy)              | Admin UI (one-click from marketplace)                  |
+| **Capabilities**    | Gated through `PluginContext`; not a security boundary | Enforced at runtime via RPC bridge                     |
+| **Resource limits** | None                                                   | Platform limits on Cloudflare; wall time on Node.js    |
+| **Network access**  | Unrestricted                                           | Blocked; only via `ctx.http` with `allowedHosts`       |
+| **Data access**     | Full database access                                   | Scoped to declared capabilities                        |
+| **Node.js APIs**    | Full access                                            | Not available (V8 isolate only)                        |
+| **Available on**    | All platforms                                          | Cloudflare Workers and Node.js with the workerd runner |
+| **Best for**        | First-party code, reviewed npm packages                | Third-party extensions, marketplace plugins            |
 
 ### Trusted Mode
 
 Trusted plugins are npm packages or local files added in `astro.config.mjs`. They run in-process with your Astro site.
 
-- **Capabilities are documentation only.** Declaring `["content:read"]` documents intent but isn't enforced — the plugin has full process access.
+- **`PluginContext` gates capabilities.** Declaring `["content:read"]` exposes only the corresponding context methods, but native code can bypass the context and use process APIs directly.
 - Only install from sources you trust. A malicious trusted plugin has the same access as your application code.
 
 ### Sandboxed Mode
 
-Sandboxed plugins run in isolated V8 isolates on Cloudflare Workers via [Dynamic Worker Loader](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/). Each plugin gets its own isolate.
+Sandboxed plugins run in isolated V8 runtimes through the configured platform runner. Cloudflare Workers uses [Dynamic Worker Loader](https://developers.cloudflare.com/workers/runtime-apis/bindings/worker-loader/); Node.js uses the workerd runner. Each plugin gets its own isolate.
 
 - **Capabilities are enforced.** If a plugin declares `["content:read"]`, it can only call `ctx.content.get()` and `ctx.content.list()`. Attempting `ctx.content.create()` throws a permission error.
 - **Network is blocked by default.** Direct `fetch()` calls fail. Plugins must use `ctx.http.fetch()`, which validates against `allowedHosts`.
@@ -146,11 +152,11 @@ Sandboxed plugins run in isolated V8 isolates on Cloudflare Workers via [Dynamic
 - **No Portable Text block types.** PT blocks require Astro components for site-side rendering (`componentsEntry`), which are loaded at build time from npm. Sandboxed plugins are installed at runtime and can't ship components. PT blocks are a native-plugin-only feature.
 - **Routes work.** Standard plugin routes are available in both trusted and sandboxed modes via the sandbox runner's `invokeRoute()` RPC.
 
-Sandboxing is not available on Node.js. All plugins run in trusted mode on non-Cloudflare platforms.
+On Cloudflare Workers, the sandbox runner uses Dynamic Workers through Worker Loader. On Node.js, `@emdash-cms/sandbox-workerd` runs plugins in workerd. Both paths isolate plugin code and enforce the host bridge; only Cloudflare enforces CPU and subrequest limits.
 
 ### Developing for Both Modes
 
-Write the same code. Develop locally in trusted mode (faster iteration, easier debugging). Deploy to sandboxed mode in production without code changes. With the standard format, the same entrypoint serves both modes -- no separate sandbox entry needed.
+Write the same code for trusted and sandboxed execution. Use `@emdash-cms/plugin-test` during development so Vitest builds the plugin and invokes it through Worker Loader, the production sandbox wrapper, and `PluginBridge`. Use an in-process site only when diagnosing whether a failure comes from plugin logic or the sandbox runtime.
 
 ```typescript
 // src/sandbox-entry.ts -- works in both trusted and sandboxed modes
@@ -175,6 +181,32 @@ export default definePlugin({
 ```
 
 Key constraint for sandbox compatibility: **no Node.js built-ins** (`fs`, `path`, `child_process`, etc.) in backend code. Use Web APIs instead.
+
+## Testing sandboxed plugins
+
+Add the EmDash test plugin to `vitest.config.ts`:
+
+```typescript
+import { emdashPluginTest } from "@emdash-cms/plugin-test/config";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+	plugins: [emdashPluginTest()],
+});
+```
+
+Create a fresh host in each test and dispose it afterward:
+
+```typescript
+import { createPluginTestHost } from "@emdash-cms/plugin-test";
+
+const host = await createPluginTestHost();
+await host.invokeHook("content:afterSave", event);
+await host.invokeRoute("health");
+await host.dispose();
+```
+
+The host runs the built plugin in a separate workerd isolate. Use `createCollection()` and `seedContent()` for content fixtures, `storage()` for declared plugin storage, and `kv` for key-value assertions. Capability and allowed-host failures cross the same RPC boundary as production. These tests do not render the admin application or reproduce Cloudflare's deployed CPU, memory, and subrequest limits.
 
 ## Capabilities
 
@@ -221,15 +253,16 @@ When a marketplace plugin is installed, the admin sees a capability consent dial
 
 ## Publishing to the Marketplace
 
-Standard plugins can be published to the EmDash Marketplace for one-click installation:
+Publish a standard plugin locally with the plugin CLI:
 
 ```bash
-emdash plugin bundle --dir packages/plugins/my-plugin  # creates .tar.gz
-emdash plugin login                                      # authenticate via GitHub
-emdash plugin publish --tarball dist/my-plugin-1.0.0.tar.gz
+pnpm exec emdash-plugin login <atmosphere-handle>
+pnpm exec emdash-plugin publish
 ```
 
-See [Publishing Reference](./references/publishing.md) for bundle format, validation, and security audit details.
+For GitHub Actions, run `emdash-plugin release setup` from one plugin package. It prepares that package profile and creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. The first `<slug>@<version>` tag requests approval for the repository workflow through GitHub OpenID Connect. A manual run requests approval the first time its branch is used; confirmation adds that scope without replacing approved tags. Later packages reuse approved scopes when their signed profiles name the same repository. Prepare each package with `emdash-plugin profile setup --dir <package-directory>`.
+
+Read [Publishing](./references/publishing.md) before configuring local or delegated releases. It defines the manifest, profile, tag, provenance, and approval requirements.
 
 ## Package Exports
 

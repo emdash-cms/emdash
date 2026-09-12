@@ -4,7 +4,7 @@
 		"outDir": "./dist",
 		"rootDir": "./src",
 		"lib": ["es2024", "dom", "esnext.typedarrays"],
-		"types": ["@cloudflare/vitest-pool-workers/types"]
+		"types": ["@cloudflare/vitest-plugin/types"]
 	},
 	"include": ["src/**/*", "tests/**/*"],
 	"exclude": ["node_modules", "dist", "tests"]

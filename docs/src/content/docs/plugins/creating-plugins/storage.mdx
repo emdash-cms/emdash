@@ -53,7 +53,7 @@ In `src/plugin.ts`, access collections via `ctx.storage`. The shape mirrors what
 ```typescript title="src/plugin.ts"
 import type { SandboxedPlugin } from "emdash/plugin";
 
-export default {
+const plugin: SandboxedPlugin = {
 	hooks: {
 		"content:afterSave": {
 			handler: async (event, ctx) => {
@@ -71,7 +71,9 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
 Accessing a collection that wasn't declared in the manifest throws — the bridge enforces this at the runtime level.
@@ -272,7 +274,7 @@ interface Submission {
 	createdAt: string;
 }
 
-export default {
+const plugin: SandboxedPlugin = {
 	hooks: {
 		"content:afterSave": {
 			handler: async (event, ctx) => {
@@ -288,7 +290,9 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
 Both imports are type-only, so a sandboxed plugin has no runtime dependency on `emdash`.

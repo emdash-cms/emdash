@@ -128,9 +128,10 @@ describe("GitHub workflow connection requests", () => {
 			replayed: false,
 			request: { state: "confirmed", refScope: "version_tags" },
 			policy: {
-				workflowRef: CLAIM.workflowRef,
+				workflowRef: `${CLAIM.repository}/.github/workflows/release.yml@refs/*`,
 				allowedRefs: ["refs/tags/*"],
 				allowedEnvironments: ["production"],
+				repositoryConnection: true,
 			},
 		});
 		if (!confirmed.ok) return;
@@ -148,6 +149,148 @@ describe("GitHub workflow connection requests", () => {
 				}),
 			),
 		).resolves.toMatchObject({ ok: true, status: "connected" });
+	});
+
+	it("reuses an approved repository workflow for another package", async () => {
+		await enablePublishing();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.requestWorkflowConnection(requestInput());
+		await expect(
+			publisher.confirmWorkflowConnection(PUBLISHER_DID, REQUEST_ID, "version_tags", NOW + 1),
+		).resolves.toMatchObject({ ok: true });
+		const policies = await publisher.listWorkloadPolicies(PUBLISHER_DID, null, 10);
+		expect(policies).toHaveLength(1);
+		expect(policies[0]).toMatchObject({ allowedRefs: ["refs/tags/*"] });
+		expect(evaluateWorkloadPolicy(identity("refs/tags/comments@1.0.0"), policies[0]!)).toEqual({
+			ok: true,
+		});
+
+		await expect(
+			publisher.requestWorkflowConnection(
+				requestInput({
+					requestId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+					mutationKey: "workflow-connection-request-0002",
+					connectionKey: "L".repeat(43),
+					invitationTokenHash: null,
+					packageSlug: "comments",
+					claim: { ...CLAIM, ref: "refs/tags/comments@1.0.0" },
+					now: NOW + 2,
+				}),
+			),
+		).resolves.toMatchObject({ ok: true, status: "connected" });
+		await expect(publisher.getWorkloadPolicy(PUBLISHER_DID, "comments")).resolves.toMatchObject({
+			packageSlug: "comments",
+			repository: CLAIM.repository,
+			workflowRef: `${CLAIM.repository}/.github/workflows/release.yml@refs/*`,
+			allowedRefs: ["refs/tags/*"],
+			repositoryConnection: false,
+		});
+	});
+
+	it("does not widen a legacy package policy into a repository connection", async () => {
+		await enablePublishing();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.putWorkloadPolicy({
+			publisherDid: PUBLISHER_DID,
+			packageSlug: "gallery",
+			repository: CLAIM.repository,
+			repositoryId: CLAIM.repositoryId,
+			repositoryOwnerId: CLAIM.repositoryOwnerId,
+			workflowRef: CLAIM.workflowRef,
+			allowedRefs: ["refs/tags/*"],
+			allowedEnvironments: ["production"],
+			active: true,
+			expectedVersion: null,
+			now: NOW,
+		});
+
+		await expect(
+			publisher.requestWorkflowConnection(
+				requestInput({
+					requestId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+					mutationKey: "workflow-connection-request-0002",
+					connectionKey: "L".repeat(43),
+					invitationTokenHash: null,
+					packageSlug: "comments",
+					claim: { ...CLAIM, ref: "refs/tags/comments@1.0.0" },
+					now: NOW + 1,
+				}),
+			),
+		).resolves.toMatchObject({ ok: true, status: "pending" });
+	});
+
+	it("keeps tag and manual-run scopes after both are approved", async () => {
+		await enablePublishing();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.requestWorkflowConnection(requestInput());
+		await publisher.confirmWorkflowConnection(PUBLISHER_DID, REQUEST_ID, "version_tags", NOW + 1);
+		await expect(
+			publisher.requestWorkflowConnection(
+				requestInput({
+					requestId: "01JABCDEFGHJKMNPQRSTVWXYZ3",
+					mutationKey: "workflow-connection-request-0004",
+					connectionKey: "N".repeat(43),
+					invitationTokenHash: null,
+					packageSlug: "comments",
+					claim: { ...CLAIM, ref: "refs/tags/comments@1.0.0" },
+					now: NOW + 2,
+				}),
+			),
+		).resolves.toMatchObject({ ok: true, status: "connected" });
+
+		const manualRequestId = "01JABCDEFGHJKMNPQRSTVWXYZ1";
+		await expect(
+			publisher.requestWorkflowConnection(
+				requestInput({
+					requestId: manualRequestId,
+					mutationKey: "workflow-connection-request-0002",
+					connectionKey: "L".repeat(43),
+					invitationTokenHash: null,
+					claim: { ...CLAIM, ref: "refs/heads/main" },
+					now: NOW + 2,
+				}),
+			),
+		).resolves.toMatchObject({ ok: true, status: "pending" });
+		await expect(
+			publisher.confirmWorkflowConnection(PUBLISHER_DID, manualRequestId, "current_ref", NOW + 3),
+		).resolves.toMatchObject({
+			ok: true,
+			policy: {
+				workflowRef: `${CLAIM.repository}/.github/workflows/release.yml@refs/*`,
+				allowedRefs: ["refs/heads/main", "refs/tags/*"],
+				repositoryConnection: true,
+			},
+		});
+
+		await expect(
+			publisher.requestWorkflowConnection(
+				requestInput({
+					requestId: "01JABCDEFGHJKMNPQRSTVWXYZ2",
+					mutationKey: "workflow-connection-request-0003",
+					connectionKey: "M".repeat(43),
+					invitationTokenHash: null,
+					claim: { ...CLAIM, ref: "refs/tags/gallery@2.0.0" },
+					now: NOW + 4,
+				}),
+			),
+		).resolves.toMatchObject({ ok: true, status: "connected" });
+		await expect(
+			publisher.requestWorkflowConnection(
+				requestInput({
+					requestId: "01JABCDEFGHJKMNPQRSTVWXYZ4",
+					mutationKey: "workflow-connection-request-0005",
+					connectionKey: "O".repeat(43),
+					invitationTokenHash: null,
+					packageSlug: "comments",
+					claim: { ...CLAIM, ref: "refs/heads/main" },
+					now: NOW + 5,
+				}),
+			),
+		).resolves.toMatchObject({
+			ok: true,
+			status: "connected",
+			policy: { allowedRefs: ["refs/heads/main", "refs/tags/*"] },
+		});
 	});
 
 	it("deduplicates matching requests and expires unconfirmed requests", async () => {

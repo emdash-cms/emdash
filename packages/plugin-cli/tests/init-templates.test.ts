@@ -12,12 +12,16 @@ import { describe, expect, it } from "vitest";
 
 import {
 	renderGitignore,
+	renderAgentsGuide,
+	renderCreatingPluginsSkill,
 	renderManifest,
 	renderPackageJson,
+	renderPnpmWorkspace,
 	renderPluginEntry,
 	renderReadme,
 	renderTest,
 	renderTsconfig,
+	renderVitestConfig,
 	type ScaffoldInputs,
 } from "../src/init/templates.js";
 import { ManifestSchema } from "../src/manifest/schema.js";
@@ -31,6 +35,9 @@ const FULL_INPUTS: ScaffoldInputs = {
 	security: { email: "security@example.com" },
 	description: "Image gallery plugin",
 	repo: "https://github.com/example/gallery",
+	packageManager: "npm",
+	packageManagerVersion: "11.6.2",
+	cliVersion: "0.10.0",
 };
 
 const MINIMAL_INPUTS: ScaffoldInputs = {
@@ -42,6 +49,9 @@ const MINIMAL_INPUTS: ScaffoldInputs = {
 	security: undefined,
 	description: undefined,
 	repo: undefined,
+	packageManager: "npm",
+	packageManagerVersion: "11.6.2",
+	cliVersion: "0.10.0",
 };
 
 describe("renderManifest (fully-populated)", () => {
@@ -172,10 +182,22 @@ describe("renderPackageJson", () => {
 
 	it("ships build/dev/typecheck/test scripts", () => {
 		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
+		expect(parsed.scripts.validate).toBe("emdash-plugin validate");
 		expect(parsed.scripts.build).toBe("emdash-plugin build");
 		expect(parsed.scripts.dev).toBe("emdash-plugin dev");
+		expect(parsed.scripts.bundle).toBe("emdash-plugin bundle");
+		expect(parsed.scripts.publish).toBe("emdash-plugin publish");
+		expect(parsed.scripts["release:setup"]).toBe("emdash-plugin release setup");
 		expect(parsed.scripts.typecheck).toBeDefined();
-		expect(parsed.scripts.test).toBeDefined();
+		expect(parsed.scripts.test).toContain("emdash-plugin validate");
+	});
+
+	it("pins the generating CLI and selected package manager", () => {
+		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
+		expect(parsed.packageManager).toBe("npm@11.6.2");
+		expect(parsed.devDependencies["@emdash-cms/plugin-cli"]).toBe("0.10.0");
+		expect(parsed.devDependencies["@emdash-cms/plugin-test"]).toBe("^0.1.0");
+		expect(parsed.devDependencies.emdash).toBe(">=0.12.0 <1.0.0");
 	});
 
 	it("ships npm-shape main/exports/files so the plugin is pnpm-add-able", () => {
@@ -207,6 +229,7 @@ describe("renderTsconfig", () => {
 		const parsed = JSON.parse(renderTsconfig());
 		expect(parsed.include).toContain("src/**/*");
 		expect(parsed.include).toContain("tests/**/*");
+		expect(parsed.include).toContain("vitest.config.ts");
 	});
 });
 
@@ -219,10 +242,10 @@ describe("renderPluginEntry", () => {
 		expect(source).not.toContain('import { definePlugin } from "emdash"');
 	});
 
-	it("default-exports a bare object with `satisfies SandboxedPlugin` and a hello route", () => {
+	it("default-exports an explicitly typed SandboxedPlugin with a hello route", () => {
 		const source = renderPluginEntry();
-		expect(source).toContain("export default {");
-		expect(source).toContain("satisfies SandboxedPlugin");
+		expect(source).toContain("const plugin: SandboxedPlugin = {");
+		expect(source).toContain("export default plugin");
 		expect(source).toContain("hello:");
 		expect(source).toContain("greeting:");
 		// definePlugin must not appear in the scaffold — it's
@@ -232,11 +255,25 @@ describe("renderPluginEntry", () => {
 });
 
 describe("renderTest", () => {
-	it("imports the plugin and exercises the hello route", () => {
-		const source = renderTest();
-		expect(source).toContain('from "../src/plugin.js"');
-		expect(source).toContain("hello");
+	it("exercises the hello route through the sandbox host", () => {
+		const source = renderTest(FULL_INPUTS);
+		expect(source).toContain('from "@emdash-cms/plugin-test"');
+		expect(source).toContain('host.invokeRoute("hello")');
 		expect(source).toContain("expect(result)");
+	});
+
+	it("expects the scaffolded plugin ID from the real host", () => {
+		const source = renderTest(FULL_INPUTS);
+		expect(source).toContain('pluginId: "gallery"');
+		expect(source).not.toContain('id: "test-plugin"');
+	});
+});
+
+describe("renderVitestConfig", () => {
+	it("configures the workerd-backed EmDash plugin host", () => {
+		const source = renderVitestConfig();
+		expect(source).toContain('from "@emdash-cms/plugin-test/config"');
+		expect(source).toContain("emdashPluginTest()");
 	});
 });
 
@@ -253,7 +290,7 @@ describe("renderGitignore", () => {
 describe("renderReadme", () => {
 	it("documents the publish path", () => {
 		const source = renderReadme(FULL_INPUTS);
-		expect(source).toContain("emdash-plugin publish");
+		expect(source).toContain("npm run publish");
 		expect(source).toContain("uploads artifacts to your PDS");
 	});
 
@@ -275,6 +312,27 @@ describe("renderReadme", () => {
 		expect(source).toContain('import myPlugin from "my-plugin"');
 		expect(source).toContain("sandboxed: [myPlugin]");
 		expect(source).not.toContain("import my-plugin");
+	});
+});
+
+describe("agent guidance", () => {
+	it("generates an AGENTS.md that routes plugin work to the bundled skill", () => {
+		expect(renderAgentsGuide()).toContain("skills/creating-plugins/SKILL.md");
+		expect(renderAgentsGuide()).toContain(".agents/skills");
+		expect(renderAgentsGuide()).toContain(".claude/skills");
+	});
+
+	it("generates a valid concise creating-plugins skill", () => {
+		const skill = renderCreatingPluginsSkill();
+		expect(skill).toContain("name: creating-plugins");
+		expect(skill).toContain("emdash-plugin.jsonc");
+		expect(skill).toContain("Use the package scripts");
+	});
+
+	it("allows the build scripts required by sandbox tests in pnpm projects", () => {
+		expect(renderPnpmWorkspace()).toContain("allowBuilds:");
+		expect(renderPnpmWorkspace()).toContain("esbuild: true");
+		expect(renderPnpmWorkspace()).toContain("workerd: true");
 	});
 });
 

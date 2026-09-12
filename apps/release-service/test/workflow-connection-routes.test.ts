@@ -164,20 +164,58 @@ async function createInvitation(
 	return token;
 }
 
+async function galleryProfile() {
+	return {
+		profileCid: "bafyprofile",
+		approverDids: [PUBLISHER_DID],
+		repository: "https://github.com/example/gallery",
+	};
+}
+
 describe("GitHub workflow connection routes", () => {
-	it("keeps a workflow pending when its package profile is missing", async () => {
+	it("accepts a secretless first request after verifying the signed package profile", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		await publisherHeaders();
 		await enablePublishing();
-		const invitationToken = await createInvitation(configuration);
-		await handleRequestWorkflowConnection(
-			workflowRequest(await workloadToken(), { invitationToken }),
-			"request-create",
+
+		const response = await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken()),
+			"request-secretless",
 			configuration,
-			{ keyResolver, now: () => NOW, requestId: () => REQUEST_ID },
+			{
+				keyResolver,
+				now: () => NOW,
+				requestId: () => REQUEST_ID,
+				loadCurrentApprovalPolicy: async () => ({
+					profileCid: "bafyprofile",
+					approverDids: [PUBLISHER_DID],
+					repository: "https://github.com/example/gallery",
+				}),
+			},
 		);
 
-		const confirmed = await handleConfirmWorkflowConnection(
+		expect(response.status).toBe(202);
+		await expect(response.json()).resolves.toMatchObject({
+			data: { status: "pending", request: { packageSlug: "gallery" } },
+		});
+	});
+
+	it("reuses the confirmed repository workflow for a later package tag", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		await publisherHeaders();
+		await enablePublishing();
+		await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken()),
+			"request-first-package",
+			configuration,
+			{
+				keyResolver,
+				now: () => NOW,
+				requestId: () => REQUEST_ID,
+				loadCurrentApprovalPolicy: galleryProfile,
+			},
+		);
+		await handleConfirmWorkflowConnection(
 			new Request(
 				`${TEST_BINDINGS.PUBLIC_ORIGIN}/v1/publisher/workflow-connections/${REQUEST_ID}/confirm`,
 				{
@@ -186,19 +224,97 @@ describe("GitHub workflow connection routes", () => {
 					body: JSON.stringify({ refScope: "version_tags" }),
 				},
 			),
-			"request-confirm",
+			"confirm-repository",
 			configuration,
 			{ requestId: REQUEST_ID },
+			{ now: () => NOW + 1, loadCurrentApprovalPolicy: galleryProfile },
+		);
+
+		const reused = await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken({ ref: "refs/tags/comments@1.0.0" }), {
+				mutationKey: "workflow-connection-request-0002",
+				packageSlug: "comments",
+			}),
+			"request-second-package",
+			configuration,
 			{
-				now: () => NOW + 1,
+				keyResolver,
+				now: () => NOW + 2,
+				requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ1",
+				loadCurrentApprovalPolicy: async () => ({
+					profileCid: "bafycomments",
+					approverDids: [PUBLISHER_DID],
+					repository: "https://github.com/example/gallery",
+				}),
+			},
+		);
+
+		expect(reused.status).toBe(200);
+		await expect(reused.json()).resolves.toMatchObject({
+			data: { status: "connected", policy: { packageSlug: "comments" } },
+		});
+	});
+
+	it("rejects a repository mismatch before it consumes onboarding capacity", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		await publisherHeaders();
+		await enablePublishing();
+
+		const response = await handleRequestWorkflowConnection(
+			workflowRequest(
+				await workloadToken({
+					repository: "unrelated/gallery",
+					repositoryId: "223456789",
+					repositoryOwnerId: "287654321",
+				}),
+			),
+			"request-mismatch",
+			configuration,
+			{
+				keyResolver,
+				now: () => NOW,
+				requestId: () => REQUEST_ID,
+				loadCurrentApprovalPolicy: async () => ({
+					profileCid: "bafyprofile",
+					approverDids: [PUBLISHER_DID],
+					repository: "https://github.com/example/gallery",
+				}),
+			},
+		);
+
+		expect(response.status).toBe(409);
+		await expect(response.json()).resolves.toMatchObject({
+			error: { code: "PACKAGE_PROFILE_REQUIRED" },
+		});
+		await expect(
+			env.PUBLISHER_DO.getByName(PUBLISHER_DID).listWorkflowConnectionRequests(
+				PUBLISHER_DID,
+				20,
+				NOW + 1,
+			),
+		).resolves.toEqual([]);
+	});
+
+	it("rejects a missing package profile before creating a workflow request", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		await publisherHeaders();
+		await enablePublishing();
+		const response = await handleRequestWorkflowConnection(
+			workflowRequest(await workloadToken()),
+			"request-create",
+			configuration,
+			{
+				keyResolver,
+				now: () => NOW,
+				requestId: () => REQUEST_ID,
 				loadCurrentApprovalPolicy: async () => {
 					throw new ApprovalAuthorityError("PROFILE_NOT_FOUND");
 				},
 			},
 		);
 
-		expect(confirmed.status).toBe(409);
-		await expect(confirmed.json()).resolves.toMatchObject({
+		expect(response.status).toBe(409);
+		await expect(response.json()).resolves.toMatchObject({
 			error: {
 				code: "PACKAGE_PROFILE_REQUIRED",
 				message: expect.stringContaining("emdash-plugin profile setup"),
@@ -208,33 +324,7 @@ describe("GitHub workflow connection routes", () => {
 		await expect(publisher.getWorkloadPolicy(PUBLISHER_DID, "gallery")).resolves.toBeNull();
 		await expect(
 			publisher.listWorkflowConnectionRequests(PUBLISHER_DID, 20, NOW + 2),
-		).resolves.toMatchObject([{ id: REQUEST_ID, state: "pending" }]);
-
-		const nonCanonical = await handleConfirmWorkflowConnection(
-			new Request(
-				`${TEST_BINDINGS.PUBLIC_ORIGIN}/v1/publisher/workflow-connections/${REQUEST_ID}/confirm`,
-				{
-					method: "POST",
-					headers: await publisherHeaders("workflow-connection-confirm-0002"),
-					body: JSON.stringify({ refScope: "version_tags" }),
-				},
-			),
-			"request-confirm-noncanonical",
-			configuration,
-			{ requestId: REQUEST_ID },
-			{
-				now: () => NOW + 2,
-				loadCurrentApprovalPolicy: async () => ({
-					profileCid: "bafyprofile",
-					approverDids: [PUBLISHER_DID],
-					repository: "https://github.com/example/gallery/",
-				}),
-			},
-		);
-		expect(nonCanonical.status).toBe(409);
-		await expect(nonCanonical.json()).resolves.toMatchObject({
-			error: { code: "PACKAGE_PROFILE_REQUIRED" },
-		});
+		).resolves.toEqual([]);
 	});
 
 	it("does not initialize a publisher shard before the account authorizes publishing", async () => {
@@ -265,7 +355,6 @@ describe("GitHub workflow connection routes", () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		await publisherHeaders();
 		await enablePublishing();
-		const invitationToken = await createInvitation(configuration);
 
 		for (let index = 0; index < 10; index += 1) {
 			const response = await handleRequestWorkflowConnection(
@@ -286,19 +375,25 @@ describe("GitHub workflow connection routes", () => {
 					keyResolver,
 					now: () => NOW + index,
 					requestId: () => `01JABCDEFGHJKMNPQRSTVWXY${index.toString(36).toUpperCase()}0`,
+					loadCurrentApprovalPolicy: galleryProfile,
 				},
 			);
-			expect(response.status).toBe(403);
+			expect(response.status).toBe(409);
 			await expect(response.json()).resolves.toMatchObject({
-				error: { code: "WORKFLOW_CONNECTION_INVITATION_REQUIRED" },
+				error: { code: "PACKAGE_PROFILE_REQUIRED" },
 			});
 		}
 
 		const legitimate = await handleRequestWorkflowConnection(
-			workflowRequest(await workloadToken(), { invitationToken }),
+			workflowRequest(await workloadToken()),
 			"request-legitimate",
 			configuration,
-			{ keyResolver, now: () => NOW + 10, requestId: () => REQUEST_ID },
+			{
+				keyResolver,
+				now: () => NOW + 10,
+				requestId: () => REQUEST_ID,
+				loadCurrentApprovalPolicy: galleryProfile,
+			},
 		);
 		expect(legitimate.status).toBe(202);
 		await expect(legitimate.json()).resolves.toMatchObject({
@@ -316,12 +411,17 @@ describe("GitHub workflow connection routes", () => {
 				workflowRequest(await workloadToken(), { invitationToken }),
 				"request-accepted",
 				configuration,
-				{ keyResolver, now: () => NOW + 1, requestId: () => REQUEST_ID },
+				{
+					keyResolver,
+					now: () => NOW + 1,
+					requestId: () => REQUEST_ID,
+					loadCurrentApprovalPolicy: galleryProfile,
+				},
 			),
 			handleRequestWorkflowConnection(
 				workflowRequest(
 					await workloadToken({
-						repository: "unrelated/gallery",
+						repository: "example/gallery",
 						repositoryId: "223456789",
 						repositoryOwnerId: "287654321",
 					}),
@@ -336,6 +436,7 @@ describe("GitHub workflow connection routes", () => {
 					keyResolver,
 					now: () => NOW + 2,
 					requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ1",
+					loadCurrentApprovalPolicy: galleryProfile,
 				},
 			),
 		]);
@@ -362,6 +463,7 @@ describe("GitHub workflow connection routes", () => {
 				keyResolver,
 				now: () => NOW + 30 * 60_000 + 1,
 				requestId: () => "01JABCDEFGHJKMNPQRSTVWXYZ2",
+				loadCurrentApprovalPolicy: galleryProfile,
 			},
 		);
 		expect(expired.status).toBe(410);
@@ -379,7 +481,12 @@ describe("GitHub workflow connection routes", () => {
 			workflowRequest(await workloadToken(), { invitationToken }),
 			"request-accepted",
 			configuration,
-			{ keyResolver, now: () => NOW + 1, requestId: () => REQUEST_ID },
+			{
+				keyResolver,
+				now: () => NOW + 1,
+				requestId: () => REQUEST_ID,
+				loadCurrentApprovalPolicy: galleryProfile,
+			},
 		);
 
 		const rejected = await handleRejectWorkflowConnection(
@@ -407,16 +514,20 @@ describe("GitHub workflow connection routes", () => {
 		).resolves.toEqual([]);
 	});
 
-	it("lets the first permanent workflow request publisher confirmation", async () => {
+	it("lets the first permanent workflow request publisher confirmation without a secret", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		await publisherHeaders();
 		await enablePublishing();
-		const invitationToken = await createInvitation(configuration);
 		const requested = await handleRequestWorkflowConnection(
-			workflowRequest(await workloadToken(), { invitationToken }),
+			workflowRequest(await workloadToken()),
 			"request-create",
 			configuration,
-			{ keyResolver, now: () => NOW, requestId: () => REQUEST_ID },
+			{
+				keyResolver,
+				now: () => NOW,
+				requestId: () => REQUEST_ID,
+				loadCurrentApprovalPolicy: galleryProfile,
+			},
 		);
 		expect(requested.status).toBe(202);
 		expect(await requested.json()).toMatchObject({

@@ -21,10 +21,10 @@ The publisher and approver interfaces use the same Atmosphere account identity a
 The service processes an automated release in this order:
 
 1. The publisher authorises the exact create-only release and blob OAuth scope.
-2. A GitHub Actions job presents a one-time invitation and a GitHub OIDC token.
-3. The publisher checks the repository, workflow file, ref, and environment before confirming the connection.
-4. The service verifies the signed package profile and its canonical repository before storing the workflow policy.
-5. Every workflow run presents a fresh GitHub OIDC token. The service compares its repository, owner, workflow, ref, environment, commit, run, and runner claims with the stored policy.
+2. A GitHub Actions job presents a GitHub OIDC token and the package selected by its `<slug>@<version>` tag.
+3. The service verifies the signed package profile and its canonical repository before creating a pending connection request.
+4. The publisher checks the repository, workflow file, ref, and environment before confirming the repository connection.
+5. Every workflow run presents a fresh GitHub OIDC token. The service compares its repository, owner, workflow, ref, environment, commit, run, and runner claims with the stored policy. Packages whose signed profiles name the same repository reuse approved tag and branch scopes.
 6. The Action uploads the bundle and raw Sigstore provenance to private R2 staging. Profile and workflow checks happen before these uploads.
 7. `ReleaseIntentWorkflow` verifies the profile revision, release-key absence, artifact bytes, bundle manifest, declared access, GitHub provenance, and approval policy.
 8. A release that expands declared access or uses `confirmation: always` waits for a profile-listed approver's passkey decision.
@@ -32,6 +32,8 @@ The service processes an automated release in this order:
 10. The service retains verified provenance at a checksum-addressed public route and removes transient staging objects.
 
 An ambiguous PDS create enters reconciliation. The Workflow reads the deterministic release key and accepts only the exact expected record as published.
+
+Confirming another tag or branch scope extends a repository connection without replacing existing scopes. Package policies created before repository connections remain package-scoped and cannot authorize another package.
 
 ## Authority boundaries
 

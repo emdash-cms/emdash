@@ -8,7 +8,18 @@
  * rejects (when the user has supplied all required fields).
  */
 
-import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import {
+	lstat,
+	mkdtemp,
+	readFile,
+	readdir,
+	readlink,
+	realpath,
+	rm,
+	stat,
+	symlink,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -27,6 +38,9 @@ const FULL_INPUTS: ScaffoldInputs = {
 	security: { email: "security@example.com" },
 	description: undefined,
 	repo: undefined,
+	packageManager: "npm",
+	packageManagerVersion: "11.6.2",
+	cliVersion: "0.10.0",
 };
 
 const MINIMAL_INPUTS: ScaffoldInputs = {
@@ -38,6 +52,9 @@ const MINIMAL_INPUTS: ScaffoldInputs = {
 	security: undefined,
 	description: undefined,
 	repo: undefined,
+	packageManager: "npm",
+	packageManagerVersion: "11.6.2",
+	cliVersion: "0.10.0",
 };
 
 describe("scaffold", () => {
@@ -60,7 +77,7 @@ describe("scaffold", () => {
 
 	it("writes the expected file tree", async () => {
 		const result = await scaffold({ targetDir, inputs: FULL_INPUTS, force: false });
-		expect(result.written).toHaveLength(7);
+		expect(result.written).toHaveLength(13);
 
 		// Spot-check the structure rather than pinning the array order.
 		const fileSet = new Set(result.written.map((p) => p.replace(`${targetDir}/`, "")));
@@ -71,6 +88,28 @@ describe("scaffold", () => {
 		expect(fileSet.has("README.md")).toBe(true);
 		expect(fileSet.has("src/plugin.ts")).toBe(true);
 		expect(fileSet.has("tests/plugin.test.ts")).toBe(true);
+		expect(fileSet.has("vitest.config.ts")).toBe(true);
+		expect(fileSet.has("AGENTS.md")).toBe(true);
+		expect(fileSet.has("skills/creating-plugins/SKILL.md")).toBe(true);
+		expect(fileSet.has(".agents/skills")).toBe(true);
+		expect(fileSet.has(".claude/skills")).toBe(true);
+		expect(fileSet.has(".claude/CLAUDE.md")).toBe(true);
+	});
+
+	it("links Codex and Claude skill discovery to the canonical skill directory", async () => {
+		await scaffold({ targetDir, inputs: FULL_INPUTS, force: false });
+		for (const directory of [".agents", ".claude"]) {
+			const link = join(targetDir, directory, "skills");
+			expect((await lstat(link)).isSymbolicLink()).toBe(true);
+			expect(await readlink(link)).toBe("../skills");
+			expect(await realpath(join(link, "creating-plugins", "SKILL.md"))).toBe(
+				await realpath(join(targetDir, "skills", "creating-plugins", "SKILL.md")),
+			);
+		}
+		expect(await readlink(join(targetDir, ".claude", "CLAUDE.md"))).toBe("../AGENTS.md");
+		expect(await realpath(join(targetDir, ".claude", "CLAUDE.md"))).toBe(
+			await realpath(join(targetDir, "AGENTS.md")),
+		);
 	});
 
 	it("produces a manifest that the loader accepts", async () => {
@@ -84,15 +123,22 @@ describe("scaffold", () => {
 		expect(manifest.license).toBe("MIT");
 	});
 
-	it("produces a minimal manifest that round-trips through the loader (with empty publisher)", async () => {
-		// Minimal scaffold writes TODO placeholders. The loader's JSONC
-		// parse succeeds; the schema rejects on `publisher` being empty.
-		// We catch that explicitly so the user knows what to fix.
-		await scaffold({ targetDir, inputs: MINIMAL_INPUTS, force: false });
-		await expect(loadManifest(targetDir)).rejects.toMatchObject({
-			name: "ManifestError",
-			code: "MANIFEST_VALIDATION_ERROR",
-		});
+	it("validates the rendered manifest before writing files", async () => {
+		await expect(
+			scaffold({
+				targetDir,
+				inputs: { ...FULL_INPUTS, repo: "http://example.com/gallery" },
+				force: false,
+			}),
+		).rejects.toMatchObject({ name: "InitError", code: "INVALID_MANIFEST" });
+		await expect(stat(targetDir)).rejects.toMatchObject({ code: "ENOENT" });
+	});
+
+	it("refuses to write a scaffold with missing required ownership metadata", async () => {
+		await expect(
+			scaffold({ targetDir, inputs: MINIMAL_INPUTS, force: false }),
+		).rejects.toMatchObject({ name: "InitError", code: "INVALID_MANIFEST" });
+		await expect(stat(targetDir)).rejects.toMatchObject({ code: "ENOENT" });
 	});
 
 	it("refuses to overwrite an existing file without --force", async () => {
@@ -126,6 +172,32 @@ describe("scaffold", () => {
 		const entries = await readdir(targetDir);
 		// Only the pre-existing file should be there.
 		expect(entries).toEqual(["package.json"]);
+	});
+
+	it("rejects a parent path occupied by a file before writing anything", async () => {
+		const { mkdir } = await import("node:fs/promises");
+		await mkdir(targetDir, { recursive: true });
+		await writeFile(join(targetDir, "src"), "occupied", "utf8");
+
+		await expect(scaffold({ targetDir, inputs: FULL_INPUTS, force: false })).rejects.toMatchObject({
+			name: "InitError",
+			code: "TARGET_FILE_EXISTS",
+		});
+		expect(await readdir(targetDir)).toEqual(["src"]);
+	});
+
+	it("does not follow a generated-file symlink when force is enabled", async () => {
+		const { mkdir } = await import("node:fs/promises");
+		await mkdir(targetDir, { recursive: true });
+		const outside = join(targetDir, "..", "outside-readme");
+		await writeFile(outside, "keep me", "utf8");
+		await symlink(outside, join(targetDir, "README.md"));
+
+		await expect(scaffold({ targetDir, inputs: FULL_INPUTS, force: true })).rejects.toMatchObject({
+			name: "InitError",
+			code: "TARGET_FILE_EXISTS",
+		});
+		expect(await readFile(outside, "utf8")).toBe("keep me");
 	});
 
 	it("overwrites existing files when --force is set", async () => {
@@ -167,6 +239,23 @@ describe("scaffold", () => {
 			"README.md",
 			"src/plugin.ts",
 			"tests/plugin.test.ts",
+			"vitest.config.ts",
+			"AGENTS.md",
+			"skills/creating-plugins/SKILL.md",
+			".agents/skills",
+			".claude/skills",
+			".claude/CLAUDE.md",
 		]);
+	});
+
+	it("adds pnpm install policy only for pnpm scaffolds", async () => {
+		const result = await scaffold({
+			targetDir,
+			inputs: { ...FULL_INPUTS, packageManager: "pnpm" },
+			force: false,
+		});
+		expect(result.written.map((path) => path.replace(`${targetDir}/`, ""))).toContain(
+			"pnpm-workspace.yaml",
+		);
 	});
 });
