@@ -2096,6 +2096,10 @@ export function InlinePortableTextEditor({
 	tablePlaceholder = TableBlockNode.options.placeholder,
 }: InlinePortableTextEditorProps) {
 	const initialRef = React.useRef(value);
+	// The editor document last known to be stored: the one the loaded content
+	// produced, then the one each successful save sent. `save()` does nothing
+	// while the current document is structurally equal to it (`Node.eq`).
+	const savedDocRef = React.useRef<Editor["state"]["doc"] | null>(null);
 	const savingRef = React.useRef(false);
 	const editorRef = React.useRef<ReturnType<typeof useEditor>>(null);
 
@@ -2159,9 +2163,9 @@ export function InlinePortableTextEditor({
 			// one that can still land.
 			if (savingRef.current && !options?.keepalive) return;
 
-			const current = JSON.stringify(getBlocks());
-			const initial = JSON.stringify(initialRef.current);
-			if (current === initial) return;
+			const doc = editorRef.current?.state.doc;
+			if (!doc || !savedDocRef.current || doc.eq(savedDocRef.current)) return;
+			const blocks = getBlocks();
 
 			savingRef.current = true;
 			try {
@@ -2171,13 +2175,14 @@ export function InlinePortableTextEditor({
 						method: "PUT",
 						credentials: "same-origin",
 						headers: { "Content-Type": "application/json", "X-EmDash-Request": "1" },
-						body: JSON.stringify({ data: { [field]: getBlocks() } }),
+						body: JSON.stringify({ data: { [field]: blocks } }),
 						keepalive: options?.keepalive ?? false,
 					},
 				);
 
 				if (res.ok) {
-					initialRef.current = getBlocks();
+					initialRef.current = blocks;
+					savedDocRef.current = doc;
 					document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "saved" } }));
 					document.dispatchEvent(
 						new CustomEvent("emdash:content-changed", {
@@ -2289,9 +2294,10 @@ export function InlinePortableTextEditor({
 		},
 	});
 
-	// Store editor ref for getBlocks
+	// Store editor ref for getBlocks, and record the loaded document as saved.
 	React.useEffect(() => {
 		editorRef.current = editor;
+		if (editor && !savedDocRef.current) savedDocRef.current = editor.state.doc;
 	}, [editor]);
 
 	// Slash menu command handler
