@@ -218,7 +218,7 @@ The result is returned as JSON text in the first content block. A tool with an o
 
 Bylines are reusable author or contributor credits. `byline_create` can create a guest credit or link a byline to a CMS user. Pass the returned byline ID in the `bylines` input accepted by `content_create` and `content_update`. Deleting a byline removes that credit from content and clears it as the primary byline.
 
-MCP writes do not participate in the admin's [entry edit lock](/reference/rest-api/#entry-edit-lock). The `_rev` check protects the operations that accept it, but other write tools can change an entry while an editor has it open.
+While another user holds an entry's [edit lock](/reference/rest-api/#entry-edit-lock) because they have it open in the admin, `content_update`, `content_delete`, `content_publish`, `content_unpublish`, `content_schedule`, `content_unschedule`, `content_discard_draft` and `revision_restore` fail with `ENTRY_LOCKED`, and the error names the holder. Reading the item again does not clear the refusal. Pass `overrideLock: true` to write anyway.
 
 ## Translations
 
@@ -280,6 +280,24 @@ A tool failure has `isError: true`. The first text block starts with a stable co
 	"content": [{ "type": "text", "text": "[NOT_FOUND] Collection 'articles' not found" }],
 	"isError": true,
 	"_meta": { "code": "NOT_FOUND" }
+}
+```
+
+A refusal from an entry's edit lock carries the holder in `_meta.details`:
+
+```json
+{
+	"content": [{ "type": "text", "text": "[ENTRY_LOCKED] Ada is holding this entry" }],
+	"isError": true,
+	"_meta": {
+		"code": "ENTRY_LOCKED",
+		"details": {
+			"userId": "01JB...",
+			"userName": "Ada",
+			"acquiredAt": "2026-05-01T09:12:04.117Z",
+			"expiresAt": "2026-05-01T09:19:04.117Z"
+		}
+	}
 }
 ```
 

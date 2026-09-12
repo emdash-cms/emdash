@@ -103,9 +103,11 @@ If the browser or computer closes without releasing it, the lock expires seven m
 last renewal.
 
 Locks are independent for each locale, so two people can edit different translations of the same
-entry. A script or API client is also refused while another editor holds the lock unless it uses the
-documented override. See [Entry edit lock](/reference/rest-api/#entry-edit-lock) for the complete
-API behavior.
+entry. A script, API client, or MCP client is also refused while another editor holds the lock
+unless it uses the documented override. See [Entry edit lock](/reference/rest-api/#entry-edit-lock)
+for the complete API behavior and
+[Content lifecycle and bylines](/reference/mcp-server/#content-lifecycle-and-bylines) for the MCP
+tools.
 
 An administrator can turn locking off for a collection under **Content Types**, then the collection,
 then **Edit locking**.
