@@ -72,6 +72,8 @@ interface PkgOverrides {
 	sections?: Record<string, unknown>;
 	lastUpdated?: string;
 	labels?: { val?: string; src?: string }[];
+	historicalReleaseCount?: number;
+	releaseHistoryComplete?: boolean;
 }
 
 function makePackage(overrides: PkgOverrides = {}): RegistryPackageView {
@@ -80,6 +82,8 @@ function makePackage(overrides: PkgOverrides = {}): RegistryPackageView {
 		handle: "acme.dev",
 		slug: "myplugin",
 		labels: overrides.labels ?? [],
+		historicalReleaseCount: overrides.historicalReleaseCount,
+		releaseHistoryComplete: overrides.releaseHistoryComplete,
 		profile: {
 			name: "My Plugin",
 			description: "A short description.",
@@ -98,6 +102,7 @@ interface ReleaseOverrides {
 	sbom?: { format?: string; url?: string; checksum?: string };
 	extensions?: Record<string, unknown>;
 	labels?: unknown[];
+	indexedAt?: string;
 }
 
 function makeRelease(overrides: ReleaseOverrides = {}): RegistryReleaseView {
@@ -108,7 +113,7 @@ function makeRelease(overrides: ReleaseOverrides = {}): RegistryReleaseView {
 		did: "did:plc:acme",
 		package: "myplugin",
 		version: "1.2.3",
-		indexedAt: "2025-03-01T00:00:00Z",
+		indexedAt: overrides.indexedAt ?? "2025-03-01T00:00:00Z",
 		labels: overrides.labels ?? [],
 		release: {
 			sbom: overrides.sbom,
@@ -313,6 +318,52 @@ describe("RegistryPluginDetail release withdrawal", () => {
 
 		await expect.element(screen.getByText("No installable releases")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+	});
+});
+
+describe("RegistryPluginDetail minimum release age", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+	});
+
+	it("allows a proven first release through the holdback", async () => {
+		setup(makePackage({ historicalReleaseCount: 1, releaseHistoryComplete: true }), [
+			makeRelease({ indexedAt: new Date().toISOString() }),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail
+					pluginId="acme.dev/myplugin"
+					config={{
+						...CONFIG,
+						policy: { minimumReleaseAgeSeconds: 48 * 60 * 60 },
+					}}
+				/>
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeEnabled();
+		expect(screen.getByText("Release is too new to install").query()).toBeNull();
+	});
+
+	it("keeps incomplete history held back", async () => {
+		setup(makePackage({ historicalReleaseCount: 1, releaseHistoryComplete: false }), [
+			makeRelease({ indexedAt: new Date().toISOString() }),
+		]);
+		const screen = await render(
+			<Wrapper>
+				<RegistryPluginDetail
+					pluginId="acme.dev/myplugin"
+					config={{
+						...CONFIG,
+						policy: { minimumReleaseAgeSeconds: 48 * 60 * 60 },
+					}}
+				/>
+			</Wrapper>,
+		);
+
+		await expect.element(screen.getByRole("button", { name: "Install" })).toBeDisabled();
+		await expect.element(screen.getByText("Release is too new to install")).toBeInTheDocument();
 	});
 });
 

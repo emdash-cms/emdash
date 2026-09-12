@@ -46,6 +46,8 @@ export interface PackageRow {
 	verified_at: string;
 	indexed_at: string | null;
 	labels_json?: string;
+	historical_release_count?: number;
+	release_history_complete?: number;
 }
 
 /** Subset of columns from `releases` we read for `releaseView`. */
@@ -140,6 +142,12 @@ export function packageView(row: PackageRow): AggregatorDefs.PackageView {
 	};
 	if (row.latest_version !== null) {
 		view.latestVersion = row.latest_version;
+	}
+	if (row.historical_release_count !== undefined) {
+		view.historicalReleaseCount = row.historical_release_count;
+	}
+	if (row.release_history_complete !== undefined) {
+		view.releaseHistoryComplete = row.release_history_complete === 1;
 	}
 	return view;
 }

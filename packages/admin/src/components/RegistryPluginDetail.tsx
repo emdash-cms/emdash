@@ -357,8 +357,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 				}))
 			: [];
 
-	const policyOk =
-		release && pkg ? releasePassesPolicy(release, { did: pkg.did, slug }, config.policy) : true;
+	const policyOk = release && pkg ? releasePassesPolicy(release, pkg, config.policy) : true;
 
 	// Environment compatibility: compare the selected release's `requires`
 	// constraints against the running host. `requires` is the lexicon's open
@@ -578,11 +577,7 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 						>
 							{releases.map((r) => {
 								const preRelease = isPreReleaseVersion(r.version);
-								const policyBlocked = !releasePassesPolicy(
-									r,
-									{ did: pkg.did, slug },
-									config.policy,
-								);
+								const policyBlocked = !releasePassesPolicy(r, pkg, config.policy);
 								return (
 									<Select.Option key={r.version} value={r.version}>
 										<span className="flex items-center gap-2">

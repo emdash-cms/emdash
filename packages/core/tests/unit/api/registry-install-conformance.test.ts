@@ -157,6 +157,11 @@ function pdsFetch(network: FakePublisherFixture): typeof fetch {
 async function mockAggregator(
 	fixture: DelegatedReleaseConformanceFixture,
 	context: ConformanceContext,
+	opts: {
+		indexedAt?: string;
+		historicalReleaseCount?: number;
+		releaseHistoryComplete?: boolean;
+	} = {},
 ): Promise<void> {
 	const direct = new DirectPdsClient({
 		did: fixture.publisherDid,
@@ -173,7 +178,7 @@ async function mockAggregator(
 		did: fixture.publisherDid,
 		package: fixture.packageSlug,
 		version: fixture.version,
-		indexedAt: "2026-01-01T00:00:00.000Z",
+		indexedAt: opts.indexedAt ?? "2026-01-01T00:00:00.000Z",
 		labels: [],
 		mirrors: [],
 		release: {
@@ -194,6 +199,12 @@ async function mockAggregator(
 		slug: fixture.packageSlug,
 		labels: [],
 		profile: { name: "Aggregator substitution" },
+		...(opts.historicalReleaseCount === undefined
+			? {}
+			: { historicalReleaseCount: opts.historicalReleaseCount }),
+		...(opts.releaseHistoryComplete === undefined
+			? {}
+			: { releaseHistoryComplete: opts.releaseHistoryComplete }),
 	});
 	getLatestRelease.mockResolvedValue(releaseView);
 	listReleases.mockResolvedValue({ releases: [releaseView] });
@@ -333,6 +344,61 @@ describe("registry delegated-release conformance", () => {
 			});
 		},
 	);
+
+	it("exempts a proven first release from the configured holdback", async () => {
+		const fixture = await createDelegatedReleaseConformanceFixture();
+		const context = await createContext(fixture);
+		await mockAggregator(fixture, context, {
+			indexedAt: new Date().toISOString(),
+			historicalReleaseCount: 1,
+			releaseHistoryComplete: true,
+		});
+		artifactFetch(fixture.artifactBytes);
+
+		const result = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			{
+				...registryConfig,
+				policy: { minimumReleaseAge: "48h" },
+			},
+			{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+
+		expect(result).toMatchObject({ success: true });
+	});
+
+	it.each([
+		["missing history evidence", {}],
+		["incomplete history", { historicalReleaseCount: 1, releaseHistoryComplete: false }],
+		["an earlier release", { historicalReleaseCount: 2, releaseHistoryComplete: true }],
+	])("holds back a new release with %s", async (_name, history) => {
+		const fixture = await createDelegatedReleaseConformanceFixture();
+		const context = await createContext(fixture);
+		await mockAggregator(fixture, context, {
+			indexedAt: new Date().toISOString(),
+			...history,
+		});
+
+		const result = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			{
+				...registryConfig,
+				policy: { minimumReleaseAge: "48h" },
+			},
+			{ did: fixture.publisherDid, slug: fixture.packageSlug, version: fixture.version },
+			{ verifyOnly: true, authoritativeRecords: context.options },
+		);
+
+		expect(result).toMatchObject({
+			success: false,
+			error: { code: "RELEASE_TOO_NEW" },
+		});
+	});
 
 	it("updates with CID-bound re-consent and keeps a concurrent downgrade bundle active", async () => {
 		storage = createMemoryStorage({ deferDeletes: true });
