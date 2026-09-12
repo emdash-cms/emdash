@@ -28,10 +28,15 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm build
 
-      - name: Regenerate snapshots
-        run: |
-          node scripts/query-counts.mjs --target sqlite --update
-          node scripts/query-counts.mjs --target d1 --update
+      - name: Regenerate SQLite snapshots
+        run: node scripts/query-counts.mjs --target sqlite --update
+
+      - name: Check admin client bundle
+        # Reuse the SQLite production build before the D1 run replaces dist/.
+        run: pnpm bundle:check:ci
+
+      - name: Regenerate D1 snapshots
+        run: node scripts/query-counts.mjs --target d1 --update
 
       - name: Detect snapshot drift
         id: drift

@@ -32,11 +32,14 @@ export default defineConfig({
 	plugins: [linguiMacroPlugin()],
 	// @tiptap/suggestion is intentionally bundled (devDependency)
 	inlineOnly: false,
+	// Generated icon buckets are package-owned chunks; normal root imports stay consumer-owned.
+	noExternal: /^@phosphor-icons\/react\//,
 	external: [
 		"react",
 		"react-dom",
 		"react/jsx-runtime",
 		"react/jsx-dev-runtime",
+		"@phosphor-icons/react",
 		// Keep TanStack external - Vite in consumer project will need to resolve these
 		"@tanstack/react-router",
 		"@tanstack/react-query",
