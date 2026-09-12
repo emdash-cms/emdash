@@ -53,7 +53,7 @@ Create a new plugin with `init`:
 npx @emdash-cms/plugin-cli init my-plugin
 ```
 
-This scaffolds `emdash-plugin.jsonc`, `src/plugin.ts`, `package.json`, `tsconfig.json`, a test, a README, `AGENTS.md`, a local `creating-plugins` skill, and package-manager configuration. `.agents/skills` and `.claude/skills` link to the canonical `skills` directory, and `.claude/CLAUDE.md` links to `AGENTS.md`, so Codex and Claude use the same project guidance. The source starts with one route assigned to a `SandboxedPlugin`-typed constant and exported as default.
+This scaffolds `emdash-plugin.jsonc`, `src/plugin.ts`, `package.json`, `tsconfig.json`, `vitest.config.ts`, a workerd-backed test, a README, `AGENTS.md`, a local `creating-plugins` skill, and package-manager configuration. `.agents/skills` and `.claude/skills` link to the canonical `skills` directory, and `.claude/CLAUDE.md` links to `AGENTS.md`, so Codex and Claude use the same project guidance. The source starts with one route assigned to a `SandboxedPlugin`-typed constant and exported as default. The test invokes that route through EmDash's production sandbox wrapper and host bridge.
 
 Interactive setup asks for the publisher, author, security contact, and source repository, then shows the complete project summary before writing. Required fields cannot be skipped.
 

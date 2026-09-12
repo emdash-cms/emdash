@@ -21,6 +21,7 @@ import {
 	renderReadme,
 	renderTest,
 	renderTsconfig,
+	renderVitestConfig,
 	type ScaffoldInputs,
 } from "../src/init/templates.js";
 import { ManifestSchema } from "../src/manifest/schema.js";
@@ -195,6 +196,7 @@ describe("renderPackageJson", () => {
 		const parsed = JSON.parse(renderPackageJson(FULL_INPUTS));
 		expect(parsed.packageManager).toBe("npm@11.6.2");
 		expect(parsed.devDependencies["@emdash-cms/plugin-cli"]).toBe("0.10.0");
+		expect(parsed.devDependencies["@emdash-cms/plugin-test"]).toBe("^0.1.0");
 		expect(parsed.devDependencies.emdash).toBe(">=0.12.0 <1.0.0");
 	});
 
@@ -227,6 +229,7 @@ describe("renderTsconfig", () => {
 		const parsed = JSON.parse(renderTsconfig());
 		expect(parsed.include).toContain("src/**/*");
 		expect(parsed.include).toContain("tests/**/*");
+		expect(parsed.include).toContain("vitest.config.ts");
 	});
 });
 
@@ -252,17 +255,25 @@ describe("renderPluginEntry", () => {
 });
 
 describe("renderTest", () => {
-	it("imports the plugin and exercises the hello route", () => {
+	it("exercises the hello route through the sandbox host", () => {
 		const source = renderTest(FULL_INPUTS);
-		expect(source).toContain('from "../src/plugin.js"');
-		expect(source).toContain("hello");
+		expect(source).toContain('from "@emdash-cms/plugin-test"');
+		expect(source).toContain('host.invokeRoute("hello")');
 		expect(source).toContain("expect(result)");
 	});
 
-	it("uses the scaffolded plugin ID in the test context", () => {
+	it("expects the scaffolded plugin ID from the real host", () => {
 		const source = renderTest(FULL_INPUTS);
-		expect(source).toContain('plugin: { id: "gallery"');
+		expect(source).toContain('pluginId: "gallery"');
 		expect(source).not.toContain('id: "test-plugin"');
+	});
+});
+
+describe("renderVitestConfig", () => {
+	it("configures the workerd-backed EmDash plugin host", () => {
+		const source = renderVitestConfig();
+		expect(source).toContain('from "@emdash-cms/plugin-test/config"');
+		expect(source).toContain("emdashPluginTest()");
 	});
 });
 
@@ -318,9 +329,10 @@ describe("agent guidance", () => {
 		expect(skill).toContain("Use the package scripts");
 	});
 
-	it("allows the esbuild install script for pnpm projects", () => {
+	it("allows the build scripts required by sandbox tests in pnpm projects", () => {
 		expect(renderPnpmWorkspace()).toContain("allowBuilds:");
 		expect(renderPnpmWorkspace()).toContain("esbuild: true");
+		expect(renderPnpmWorkspace()).toContain("workerd: true");
 	});
 });
 

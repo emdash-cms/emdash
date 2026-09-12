@@ -10,7 +10,7 @@ CLI for authoring, building, and publishing EmDash plugins.
 npx @emdash-cms/plugin-cli init my-plugin
 ```
 
-Interactive setup collects the required publisher, author, and security metadata, detects the invoking package manager, and shows a project summary before writing. The scaffold includes `AGENTS.md`, a canonical `skills/creating-plugins` skill shared through `.agents/skills` and `.claude/skills` symlinks, a Claude instruction link, package scripts for every validation and publishing command, and pnpm build-script policy when pnpm is selected.
+Interactive setup collects the required publisher, author, and security metadata, detects the invoking package manager, and shows a project summary before writing. The scaffold includes a workerd-backed Vitest host, `AGENTS.md`, a canonical `skills/creating-plugins` skill shared through `.agents/skills` and `.claude/skills` symlinks, a Claude instruction link, package scripts for every validation and publishing command, and pnpm build-script policy when pnpm is selected.
 
 Non-interactive setup requires explicit ownership metadata:
 
@@ -97,6 +97,8 @@ The plugin author writes two files:
 - `dist/plugin.mjs` (+ `dist/plugin.d.mts`) — runtime bytes the integration loads (in-process or in a sandbox isolate).
 - `dist/manifest.json` — wire-shape manifest including the hooks + routes harvested from probing `src/plugin.ts`.
 - `dist/index.mjs` (+ `dist/index.d.mts`) — descriptor module that default-exports a bare `PluginDescriptor`. Consumers import this directly.
+
+The generated `vitest.config.ts` builds the plugin with `@emdash-cms/plugin-test` and supplies D1, Worker Loader, and the production `PluginBridge` through `@cloudflare/vitest-plugin`. Generated tests invoke hooks and routes through the sandbox boundary instead of constructing a partial `PluginContext`.
 
 ## Publishing
 

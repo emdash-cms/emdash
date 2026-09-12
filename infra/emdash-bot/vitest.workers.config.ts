@@ -2,7 +2,7 @@
  * Workers-pool test config.
  *
  * Runs tests under tests/integration/ inside a real workerd isolate via
- * `@cloudflare/vitest-pool-workers`. Bindings (Sandbox, OrchestratorDO, AI, R2,
+ * `@cloudflare/vitest-plugin`. Bindings (Sandbox, OrchestratorDO, AI, R2,
  * KV-equivalent DO storage) come from wrangler.jsonc -- the same config dev and
  * prod read -- so tests exercise the same shapes as the deployed Worker.
  *
@@ -22,7 +22,7 @@
  * real Workers AI live in a separate suite.
  */
 
-import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import { defineConfig, type Plugin } from "vitest/config";
 
 // The Flue Vite plugin transforms `SKILL.md` directory imports into skill

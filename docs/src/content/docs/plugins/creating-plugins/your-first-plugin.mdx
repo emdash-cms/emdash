@@ -27,31 +27,32 @@ You need:
    pnpm dlx @emdash-cms/plugin-cli init save-log
    ```
 
-	   The command asks for the publisher, author, security contact, and source repository, then shows a project summary before creating this structure:
+   The command asks for the publisher, author, security contact, and source repository, then shows a project summary before creating this structure:
 
    ```text
-	   save-log/
-	   ├── .agents/
-	   │   └── skills -> ../skills
-	   ├── .claude/
-	   │   ├── CLAUDE.md -> ../AGENTS.md
-	   │   └── skills -> ../skills
-	   ├── AGENTS.md
-	   ├── emdash-plugin.jsonc
-	   ├── package.json
-	   ├── pnpm-workspace.yaml
+   save-log/
+   ├── .agents/
+   │   └── skills -> ../skills
+   ├── .claude/
+   │   ├── CLAUDE.md -> ../AGENTS.md
+   │   └── skills -> ../skills
+   ├── AGENTS.md
+   ├── emdash-plugin.jsonc
+   ├── package.json
+   ├── pnpm-workspace.yaml
+   ├── README.md
+   ├── skills/
+   │   └── creating-plugins/SKILL.md
    ├── src/
    │   └── plugin.ts
    ├── tests/
    │   └── plugin.test.ts
    ├── tsconfig.json
-	   ├── README.md
-	   ├── skills/
-	   │   └── creating-plugins/SKILL.md
+   ├── vitest.config.ts
    └── .gitignore
    ```
 
-	2. Install the generated package's dependencies.
+2. Install the generated package's dependencies.
 
    ```sh
    cd save-log
@@ -134,41 +135,40 @@ Hook handlers receive `(event, ctx)`. Route handlers receive `(routeCtx, ctx)`. 
 
 ## Update the generated test
 
-The scaffolded test expects the original `hello` route. Replace it with a test for the `health` route:
+The scaffolded test runs the original `hello` route through the workerd-backed plugin host. Replace it with a test for the `health` route:
 
 ```typescript title="tests/plugin.test.ts"
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
-import plugin from "../src/plugin.js";
+import { createPluginTestHost, type PluginTestHost } from "@emdash-cms/plugin-test";
+
+let host: PluginTestHost | undefined;
+
+afterEach(async () => {
+	await host?.dispose();
+	host = undefined;
+});
 
 describe("health route", () => {
 	it("identifies the running plugin", async () => {
-		const route = plugin.routes?.health;
-		if (!route || typeof route !== "object" || !("handler" in route)) {
-			throw new Error("health route handler not found");
-		}
-
-		const result = await route.handler({} as never, makeTestContext());
-			expect(result).toEqual({ ok: true, plugin: "save-log" });
+		host = await createPluginTestHost();
+		const result = await host.invokeRoute("health");
+		expect(result).toEqual({ ok: true, plugin: "save-log" });
 	});
 });
-
-function makeTestContext() {
-	return {
-		plugin: { id: "save-log", version: "0.1.0" },
-	} as unknown as import("emdash").PluginContext;
-}
 ```
+
+The test builds the plugin and invokes the route through Worker Loader and `PluginBridge`. The [sandboxed plugin testing guide](/plugins/creating-plugins/testing/) covers hooks, content fixtures, storage assertions, and the limits of local workerd tests.
 
 ## Validate and build
 
 Run the generated test, validate the manifest, and build the npm artifacts.
 
 ```sh
-	pnpm run validate
-	pnpm run typecheck
-	pnpm run test
-	pnpm run build
+pnpm run validate
+pnpm run typecheck
+pnpm run test
+pnpm run build
 ```
 
 The build creates:
@@ -243,4 +243,5 @@ Save an entry in the EmDash admin. The site log contains `Content save recorded`
 - [Block Kit](/plugins/creating-plugins/block-kit/) adds an admin page without shipping browser JavaScript.
 - [Settings](/plugins/creating-plugins/settings/) stores site-specific plugin configuration.
 - [Storage](/plugins/creating-plugins/storage/) covers indexed queries and pagination.
+- [Testing](/plugins/creating-plugins/testing/) runs hooks and routes through the production sandbox boundary.
 - [Bundling and publishing](/plugins/creating-plugins/publishing/) publishes the plugin to the registry.

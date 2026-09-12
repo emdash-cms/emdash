@@ -15,6 +15,7 @@
  *   .gitignore
  *   README.md
  *   tests/plugin.test.ts
+ *   vitest.config.ts
  *   AGENTS.md
  *   skills/creating-plugins/SKILL.md
  *   .agents/skills -> ../skills
@@ -256,6 +257,7 @@ export function renderPackageJson(input: ScaffoldInputs): string {
 		},
 		devDependencies: {
 			"@emdash-cms/plugin-cli": input.cliVersion,
+			"@emdash-cms/plugin-test": "^0.1.0",
 			emdash: ">=0.12.0 <1.0.0",
 			typescript: "^5.9.0",
 			vitest: "^4.1.0",
@@ -282,7 +284,7 @@ export function renderTsconfig(): string {
 			skipLibCheck: true,
 			types: [],
 		},
-		include: ["src/**/*", "tests/**/*"],
+		include: ["src/**/*", "tests/**/*", "vitest.config.ts"],
 		exclude: ["node_modules"],
 	};
 	return `${JSON.stringify(config, null, "\t")}\n`;
@@ -329,6 +331,9 @@ directory (rebuilds on save) and \`${addLocal}\`
 in the site. Then \`import ${importBinding} from "${input.slug}"\` and pass
 it into \`emdash({ sandboxed: [${importBinding}] })\`.
 
+\`${run("test")}\` builds the plugin and runs its tests in workerd through
+EmDash's production sandbox wrapper and host bridge.
+
 ## Publish
 
 \`\`\`sh
@@ -355,41 +360,37 @@ behaviour slip past consent.
 }
 
 /**
- * `tests/plugin.test.ts` — one passing test that exercises the
- * hello route. Uses a minimal stubbed PluginContext rather than
- * pulling in the runtime: the test asserts the handler returns the
- * expected shape, not that the runtime wires it up correctly.
+ * `tests/plugin.test.ts` — one passing test through the production sandbox boundary.
  */
 export function renderTest(input: ScaffoldInputs): string {
-	return `import { describe, expect, it } from "vitest";
+	return `import { afterEach, describe, expect, it } from "vitest";
 
-import plugin from "../src/plugin.js";
+import { createPluginTestHost, type PluginTestHost } from "@emdash-cms/plugin-test";
+
+let host: PluginTestHost | undefined;
+
+afterEach(async () => {
+\tawait host?.dispose();
+\thost = undefined;
+});
 
 describe("hello route", () => {
-\tit("returns a greeting", async () => {
-\t\tconst handler = plugin.routes?.hello;
-\t\tif (!handler || typeof handler !== "object" || !("handler" in handler)) {
-\t\t\tthrow new Error("hello route handler not found");
-\t\t}
-\t\tconst result = await handler.handler({} as never, makeTestContext());
+\tit("returns a greeting through the sandbox host", async () => {
+\t\thost = await createPluginTestHost();
+\t\tconst result = await host.invokeRoute("hello");
 \t\texpect(result).toEqual({ greeting: "hello", pluginId: ${JSON.stringify(input.slug)} });
 \t});
 });
-
-function makeTestContext() {
-\t// Minimal stub PluginContext: the hello route only reads
-\t// \`ctx.log.info\` and \`ctx.plugin.id\`. Real PluginContext has many
-\t// more methods; add them as your plugin grows.
-\treturn {
-\t\tplugin: { id: ${JSON.stringify(input.slug)}, version: "0.1.0" },
-\t\tlog: {
-\t\t\tinfo: () => {},
-\t\t\twarn: () => {},
-\t\t\terror: () => {},
-\t\t\tdebug: () => {},
-\t\t},
-\t} as unknown as import("emdash").PluginContext;
+`;
 }
+
+export function renderVitestConfig(): string {
+	return `import { emdashPluginTest } from "@emdash-cms/plugin-test/config";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+\tplugins: [emdashPluginTest()],
+});
 `;
 }
 
@@ -401,6 +402,7 @@ strictDepBuilds: true
 dangerouslyAllowAllBuilds: false
 allowBuilds:
   esbuild: true
+  workerd: true
 `;
 }
 
@@ -433,7 +435,9 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 
 ## Validation
 
-Use the package scripts in this repository. Before handing off a change, run validation, typecheck, tests, and build. A release also requires a version bump in \`package.json\` when runtime behavior or the trust contract changes.
+Use the package scripts in this repository. The test script builds the plugin and runs it inside workerd through EmDash's production sandbox wrapper and host bridge. Use \`createPluginTestHost()\` to invoke hooks and routes, create content fixtures, and inspect plugin KV or declared storage. Dispose the host after each test so its bindings reset.
+
+Before handing off a change, run validation, typecheck, tests, and build. A release also requires a version bump in \`package.json\` when runtime behavior or the trust contract changes.
 
 ## Publishing
 

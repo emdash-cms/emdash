@@ -301,7 +301,7 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
-    "@cloudflare/vitest-pool-workers": "catalog:",
+    "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",
     "@emdash-cms/blocks": "workspace:*",
     "@emdash-cms/registry-verification": "workspace:*",

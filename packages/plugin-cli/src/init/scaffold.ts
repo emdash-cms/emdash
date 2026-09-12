@@ -37,6 +37,7 @@ import {
 	renderReadme,
 	renderTest,
 	renderTsconfig,
+	renderVitestConfig,
 	type ScaffoldInputs,
 } from "./templates.js";
 
@@ -92,6 +93,7 @@ const BASE_FILES = [
 	"README.md",
 	"src/plugin.ts",
 	"tests/plugin.test.ts",
+	"vitest.config.ts",
 	"AGENTS.md",
 	"skills/creating-plugins/SKILL.md",
 ] as const;
@@ -269,6 +271,8 @@ function renderFile(file: ScaffoldFile, inputs: ScaffoldInputs): string {
 			return renderPluginEntry();
 		case "tests/plugin.test.ts":
 			return renderTest(inputs);
+		case "vitest.config.ts":
+			return renderVitestConfig();
 		case "AGENTS.md":
 			return renderAgentsGuide();
 		case "skills/creating-plugins/SKILL.md":

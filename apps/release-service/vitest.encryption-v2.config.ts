@@ -1,4 +1,4 @@
-import { cloudflareTest } from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 import { TEST_ACCESS_AUDIENCES, TEST_ASSERTION_KEYSET } from "./test/fixtures/oauth.js";

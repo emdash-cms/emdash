@@ -1,0 +1,12 @@
+{
+	"slug": "plugin-test-fixture",
+	"publisher": "did:plc:xyraubanwc5fwemkduw3upi6",
+	"license": "MIT",
+	"author": { "name": "EmDash" },
+	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
+	"capabilities": ["content:read"],
+	"allowedHosts": [],
+	"storage": {
+		"events": { "indexes": ["type"] },
+	},
+}

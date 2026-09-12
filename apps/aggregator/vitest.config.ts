@@ -1,7 +1,7 @@
 /**
  * Aggregator test config.
  *
- * Uses `@cloudflare/vitest-pool-workers` (v0.16+) so tests run inside a real
+ * Uses `@cloudflare/vitest-plugin` so tests run inside a real
  * workerd isolate with real D1, real DOs, and real Queues. The
  * `cloudflareTest` plugin reads `wrangler.jsonc` for binding shape, so the
  * test environment matches dev/prod by construction.
@@ -22,7 +22,7 @@
 
 import { fileURLToPath } from "node:url";
 
-import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-pool-workers";
+import { cloudflareTest, readD1Migrations } from "@cloudflare/vitest-plugin";
 import { defineConfig } from "vitest/config";
 
 const migrationsPath = fileURLToPath(new URL("./migrations", import.meta.url));

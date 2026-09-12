@@ -77,7 +77,7 @@ describe("scaffold", () => {
 
 	it("writes the expected file tree", async () => {
 		const result = await scaffold({ targetDir, inputs: FULL_INPUTS, force: false });
-		expect(result.written).toHaveLength(12);
+		expect(result.written).toHaveLength(13);
 
 		// Spot-check the structure rather than pinning the array order.
 		const fileSet = new Set(result.written.map((p) => p.replace(`${targetDir}/`, "")));
@@ -88,6 +88,7 @@ describe("scaffold", () => {
 		expect(fileSet.has("README.md")).toBe(true);
 		expect(fileSet.has("src/plugin.ts")).toBe(true);
 		expect(fileSet.has("tests/plugin.test.ts")).toBe(true);
+		expect(fileSet.has("vitest.config.ts")).toBe(true);
 		expect(fileSet.has("AGENTS.md")).toBe(true);
 		expect(fileSet.has("skills/creating-plugins/SKILL.md")).toBe(true);
 		expect(fileSet.has(".agents/skills")).toBe(true);
@@ -238,6 +239,7 @@ describe("scaffold", () => {
 			"README.md",
 			"src/plugin.ts",
 			"tests/plugin.test.ts",
+			"vitest.config.ts",
 			"AGENTS.md",
 			"skills/creating-plugins/SKILL.md",
 			".agents/skills",
