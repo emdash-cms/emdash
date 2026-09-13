@@ -90,8 +90,10 @@ export async function requestSignup(
 		expiresAt: new Date(Date.now() + TOKEN_EXPIRY_MS),
 	});
 
-	// Build verification URL
-	const url = new URL("/_emdash/api/auth/signup/verify", config.baseUrl);
+	// Build the verification URL pointing at the admin UI page, not the API
+	// endpoint: the page reads `?token=` and calls the API itself. Same shape
+	// as the invite link (see invite.ts).
+	const url = new URL(`${config.baseUrl}/admin/signup`);
 	url.searchParams.set("token", token);
 
 	// Send email
