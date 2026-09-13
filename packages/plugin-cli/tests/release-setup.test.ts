@@ -105,12 +105,13 @@ describe("setupReleaseWorkflow", () => {
 		await mkdir(join(dir, ".changeset"), { recursive: true });
 		await writeFile(
 			join(dir, ".changeset", "config.json"),
-			JSON.stringify({ baseBranch: "develop", privatePackages: { version: true, tag: false } }),
+			JSON.stringify({ baseBranch: "develop", privatePackages: { version: true, tag: true } }),
 			"utf8",
 		);
 
 		await expect(detectChangesets(dir)).resolves.toEqual({
 			baseBranch: "develop",
+			privatePackagesTag: true,
 			privatePackagesVersion: true,
 		});
 		expect(resolveReleaseTrigger("auto", true)).toBe("changesets");
@@ -120,7 +121,7 @@ describe("setupReleaseWorkflow", () => {
 		);
 	});
 
-	it("creates one Changesets and manual workflow without a tag trigger", async () => {
+	it("creates one Changesets caller and manual workflow without inferring branch releases", async () => {
 		await mkdir(join(dir, ".changeset"), { recursive: true });
 		await writeFile(
 			join(dir, ".changeset", "config.json"),
@@ -137,12 +138,14 @@ describe("setupReleaseWorkflow", () => {
 
 		expect(result.trigger).toBe("changesets");
 		expect(result.warnings).toContain(
-			"Changesets does not version private packages. Set privatePackages.version to true in .changeset/config.json before relying on automated plugin releases.",
+			"Changesets must version and tag private plugin packages. Set privatePackages.version and privatePackages.tag to true in .changeset/config.json before relying on Changesets releases.",
 		);
-		expect(workflow).toContain('branches:\n      - "main"');
+		expect(workflow).toContain("workflow_call:");
 		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).toContain("published-packages:");
 		expect(workflow).not.toContain("tags:");
-		expect(workflow).toContain('release plan --since "${EMDASH_RELEASE_BASE}"');
+		expect(workflow).not.toContain("push:");
+		expect(workflow).toContain('release plan --published-packages "${EMDASH_PUBLISHED_PACKAGES}"');
 		expect(workflow).toContain('release plan --package "${EMDASH_RELEASE_SELECTOR}"');
 		expect(workflow).toContain("selector: ${{ fromJSON(needs.plan.outputs.selectors) }}");
 		expect(workflow).toContain('EMDASH_RELEASE_SELECTOR: "${{ matrix.selector }}"');

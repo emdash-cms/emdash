@@ -26,6 +26,7 @@ export type ReleaseTriggerOption = "auto" | ReleaseTrigger;
 
 export interface ChangesetsConfiguration {
 	baseBranch: string;
+	privatePackagesTag: boolean;
 	privatePackagesVersion: boolean;
 }
 
@@ -122,6 +123,8 @@ export async function detectChangesets(
 	}
 	return {
 		baseBranch,
+		privatePackagesTag:
+			privatePackages !== undefined && Reflect.get(privatePackages, "tag") === true,
 		privatePackagesVersion:
 			privatePackages !== undefined && Reflect.get(privatePackages, "version") === true,
 	};
@@ -163,11 +166,11 @@ export async function setupReleaseWorkflow(
 	if (
 		trigger === "changesets" &&
 		changesets !== null &&
-		!changesets.privatePackagesVersion &&
+		(!changesets.privatePackagesVersion || !changesets.privatePackagesTag) &&
 		(await pluginPackageIsPrivate(sources.pluginDir))
 	) {
 		warnings.push(
-			"Changesets does not version private packages. Set privatePackages.version to true in .changeset/config.json before relying on automated plugin releases.",
+			"Changesets must version and tag private plugin packages. Set privatePackages.version and privatePackages.tag to true in .changeset/config.json before relying on Changesets releases.",
 		);
 	}
 	const workflowPath = join(repositoryRoot, RELEASE_WORKFLOW_PATH);
@@ -176,7 +179,6 @@ export async function setupReleaseWorkflow(
 		actionRef,
 		cliVersion,
 		trigger,
-		changesetsBaseBranch: changesets?.baseBranch,
 	});
 	let existing: string | null = null;
 	try {
@@ -316,7 +318,6 @@ function renderReleaseWorkflow(input: {
 	actionRef: string;
 	cliVersion: string;
 	trigger: ReleaseTrigger;
-	changesetsBaseBranch?: string;
 }): string {
 	if (input.trigger === "changesets") return renderChangesetsReleaseWorkflow(input);
 	const trigger =
@@ -404,14 +405,16 @@ function renderChangesetsReleaseWorkflow(input: {
 	serviceUrl: string;
 	actionRef: string;
 	cliVersion: string;
-	changesetsBaseBranch?: string;
 }): string {
 	return `name: "Publish EmDash plugins"
 
 on:
-  push:
-    branches:
-      - ${JSON.stringify(input.changesetsBaseBranch ?? "main")}
+  workflow_call:
+    inputs:
+      published-packages:
+        description: "Changesets Action published-packages JSON output"
+        required: true
+        type: string
   workflow_dispatch:
     inputs:
       package:
@@ -452,13 +455,13 @@ jobs:
 
       - name: "Plan Changesets plugin releases"
         id: changesets
-        if: \${{ github.event_name == 'push' }}
+        if: \${{ github.event_name == 'workflow_call' }}
         shell: bash
         env:
-          EMDASH_RELEASE_BASE: \${{ github.event.before }}
+          EMDASH_PUBLISHED_PACKAGES: \${{ inputs.published-packages }}
         run: |
           set -euo pipefail
-          pnpm dlx @emdash-cms/plugin-cli@${input.cliVersion} release plan --since "\${EMDASH_RELEASE_BASE}" --dir .
+          pnpm dlx @emdash-cms/plugin-cli@${input.cliVersion} release plan --published-packages "\${EMDASH_PUBLISHED_PACKAGES}" --dir .
 
       - name: "Plan manual plugin release"
         id: manual
@@ -590,11 +593,15 @@ export const releaseSetupCommand = defineCommand({
 			let trigger = resolveReleaseTrigger(args.trigger, changesets !== null);
 			if (args.trigger === "auto" && changesets && !args.yes && process.stdin.isTTY === true) {
 				const selected = await clack.select({
-					message: "How should automated plugin releases start?",
+					message: "How should EmDash plugins be released?",
 					options: [
-						{ value: "changesets", label: "Changesets version updates", hint: "recommended" },
-						{ value: "tags", label: "Package tags" },
-						{ value: "manual", label: "Manual runs only" },
+						{
+							value: "changesets",
+							label: "Follow Changesets releases",
+							hint: "publish matching EmDash plugins at the same versions",
+						},
+						{ value: "tags", label: "Follow package tags", hint: "<slug>@<version>" },
+						{ value: "manual", label: "Manual only", hint: "run from GitHub Actions" },
 					],
 					initialValue: "changesets",
 				});
@@ -627,7 +634,7 @@ export const releaseSetupCommand = defineCommand({
 			consola.info("Review and commit the workflow when you are ready. Nothing was pushed.");
 			consola.info(
 				result.trigger === "changesets"
-					? "Plugin version changes on the Changesets base branch will publish automatically."
+					? "Pass your Changesets Action published-packages output to this reusable workflow. See the delegated release guide for the caller job."
 					: result.trigger === "tags"
 						? "Publish by pushing a package tag such as gallery@1.2.3, or run the workflow from GitHub Actions."
 						: "Start a release from the workflow's Run workflow control.",

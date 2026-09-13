@@ -40,7 +40,31 @@ pnpm exec emdash-plugin release setup
 
 The command prepares the current signed package profile and writes `.github/workflows/emdash-release.yml` at the Git repository root. It does not push the file. The workflow is shared by all plugin packages in that repository and requires no Actions secret.
 
-When `.changeset/config.json` exists at the repository root, interactive setup offers Changesets version updates as the release trigger. The generated workflow watches the configured base branch and publishes plugin packages whose versions changed in that push. Set `privatePackages.version: true` when Changesets should version private plugin packages.
+When `.changeset/config.json` exists at the repository root, interactive setup offers **Follow Changesets releases**. The generated workflow accepts the Changesets Action published-package JSON and publishes packages that also contain `emdash-plugin.jsonc`.
+
+Connect Changesets Action v2 by exposing its outputs from the existing release job and calling the generated workflow:
+
+```yaml
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs['published-packages'] }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+For Changesets Action v1, set the normalized `published-packages` job output from `${{ steps.changesets.outputs.publishedPackages }}` instead. Private EmDash-only packages require both `privatePackages.version: true` and `privatePackages.tag: true`; add unrelated private packages to `ignore`.
 
 Without Changesets, the generated workflow publishes tags in `<slug>@<version>` form:
 

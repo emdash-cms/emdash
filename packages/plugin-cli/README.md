@@ -133,9 +133,11 @@ Both setup commands accept `--repository <url>`, `--confirmation escalation-only
 
 After preparing the profile, `release setup` creates one `.github/workflows/emdash-release.yml` at the Git repository root. Nested plugin packages reuse that workflow. Review and commit the file. The command does not push or replace a different existing workflow; pass `--force` to replace one deliberately. In a non-interactive environment, pass `--yes` to accept the default approval policy. The command fails rather than creating or changing a profile when it cannot prompt and `--yes` is absent.
 
-With the default `--trigger auto`, setup detects a valid `.changeset/config.json` at the Git repository root. Interactive setup asks whether Changesets version updates, package tags, or manual runs should start releases. Non-interactive setup selects Changesets when detected and package tags otherwise.
+With the default `--trigger auto`, setup detects a valid `.changeset/config.json` at the Git repository root. Interactive setup asks whether EmDash should follow Changesets releases, package tags, or manual runs. Non-interactive setup selects Changesets when detected and package tags otherwise.
 
-The Changesets variant watches its configured `baseBranch`. A push that changes one or more plugin package versions creates a release matrix from the corresponding `emdash-plugin.jsonc` files. Package metadata changes without a version bump are ignored. If the current plugin is private and Changesets is not configured with `privatePackages.version: true`, setup warns that Changesets will skip its version.
+The Changesets variant is a reusable workflow. Pass the existing Changesets Action `published-packages` output to it from a dependent job. It maps npm package names to `emdash-plugin.jsonc` slugs, ignores ordinary packages, verifies reported versions, and publishes matching plugins as a matrix. Changesets Action v1 names the step output `publishedPackages`; v2 names it `published-packages`.
+
+For private EmDash-only packages, set both `privatePackages.version` and `privatePackages.tag` to `true` in `.changeset/config.json`. Setup warns when either option is missing. See [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/#connect-a-changesets-workflow) for complete v1 and v2 caller examples.
 
 The package-tag variant resolves `<slug>@<version>` tags to a unique plugin manifest. Every variant builds the selected package, creates signed GitHub build provenance, and publishes it. Manual runs accept a plugin ID and use its manifest version. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
 

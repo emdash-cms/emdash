@@ -71,7 +71,7 @@ pnpm exec emdash-plugin validate
 
    The command creates `.github/workflows/emdash-release.yml`. It does not push the file and does not replace an existing workflow unless you pass `--force`.
 
-   If the repository contains `.changeset/config.json`, interactive setup offers Changesets version updates as the default trigger. That workflow watches the configured base branch and publishes plugin packages whose versions change in a push. Otherwise, the generated workflow runs for package tags matching `<slug>@<version>`. Both variants support `workflow_dispatch` and can be selected explicitly with `--trigger changesets|tags|manual`.
+   If the repository contains `.changeset/config.json`, interactive setup offers **Follow Changesets releases**. When Changesets releases a package containing `emdash-plugin.jsonc`, the reusable EmDash workflow publishes the same version. Connect it to the existing Changesets workflow as described below. Otherwise, the generated workflow runs for package tags matching `<slug>@<version>`. Both variants support manual runs and can be selected explicitly with `--trigger changesets|tags|manual`.
 
    The workflow grants each job only its required `contents`, `id-token`, and `attestations` permissions; pins third-party Actions to full commit identifiers; runs the exact plugin CLI version that generated the file; resolves each package from its manifest; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
 
@@ -83,7 +83,7 @@ pnpm exec emdash-plugin validate
 
 5. Start the release workflow.
 
-   With Changesets, merge the version pull request. A base-branch push that changes the package version starts the release automatically. Changes to dependencies or other package metadata without a version bump do not publish the plugin.
+   With Changesets, merge the version pull request and let its publish job complete. The Changesets Action passes the packages it released to the reusable EmDash workflow. Ordinary npm packages are ignored; packages containing `emdash-plugin.jsonc` publish the same version to EmDash.
 
    With the package-tag trigger, update the package version before creating the version tag. The following commands start a `1.2.3` release:
 
@@ -109,6 +109,56 @@ pnpm exec emdash-plugin validate
    The default Action setting returns successfully when the release reaches **Awaiting approval**. The service workflow continues waiting for the browser decision and publishes after approval.
 
 </Steps>
+
+## Connect a Changesets workflow
+
+The generated `.github/workflows/emdash-release.yml` accepts the Changesets Action published-package JSON through `workflow_call`. Add an output to the existing Changesets job, then call the EmDash workflow from a dependent job. Replace `release` and `changesets` when the existing job or step uses another ID.
+
+Changesets Action v2 uses the `published-packages` output. Add the following job output and caller to a workflow using Changesets CLI v3:
+
+```yaml title=".github/workflows/release.yml"
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs['published-packages'] }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+Changesets Action v1 uses the camel-case `publishedPackages` step output. Use this expression for a workflow using Changesets CLI v2:
+
+```yaml title=".github/workflows/release.yml"
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs.publishedPackages }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+Keep Changesets responsible for its version pull request and package publication. The EmDash caller runs only when Changesets reports `published: true`. For private EmDash-only packages, set both `privatePackages.version` and `privatePackages.tag` to `true` in `.changeset/config.json`. Add unrelated private applications and test fixtures to `ignore`.
 
 ## Add another package
 
