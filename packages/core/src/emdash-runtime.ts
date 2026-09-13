@@ -3105,31 +3105,14 @@ export class EmDashRuntime {
 		if (hydrated.success && hydrated.data) {
 			const contentIdsToRefresh = [resolvedId];
 			if (!usesDraftRevisions && processedData) {
-				try {
-					contentIdsToRefresh.push(
-						...(await findNonTranslatableSiblingContentIds(
-							this.db,
-							collection,
-							resolvedId,
-							hydrated.data.item.translationGroup,
-							processedData,
-						)),
-					);
-				} catch (error) {
-					console.error(
-						`[media-usage] Failed to discover synced i18n siblings for ${collection}/${resolvedId}:`,
-						error,
-					);
-					try {
-						await markContentMediaUsageCollectionStale(
-							this.db,
-							collection,
-							"CONTENT_USAGE_REFRESH_ERROR",
-						);
-					} catch (staleError) {
-						console.error(`[media-usage] Failed to mark ${collection} stale:`, staleError);
-					}
-				}
+				contentIdsToRefresh.push(
+					...(await this.findSyncedSiblingsForUsageRefresh(
+						collection,
+						resolvedId,
+						hydrated.data.item.translationGroup,
+						processedData,
+					)),
+				);
 			}
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, contentIdsToRefresh);
 		} else if (draftStorageChanged) {
@@ -3259,7 +3242,17 @@ export class EmDashRuntime {
 	) {
 		const result = await handleContentPublish(this.db, collection, id, options);
 		if (result.success && result.data) {
-			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
+			const { item } = result.data;
+			await this.refreshContentUsageAfterSuccessfulWrite(collection, [
+				item.id,
+				...(await this.findSyncedSiblingsForUsageRefresh(
+					collection,
+					item.id,
+					item.translationGroup,
+					item.data,
+					{ absentAsCleared: true },
+				)),
+			]);
 		}
 
 		// Run afterPublish hooks (fire-and-forget)
@@ -3585,6 +3578,40 @@ export class EmDashRuntime {
 					message: "Failed to restore revision",
 				},
 			};
+		}
+	}
+
+	private async findSyncedSiblingsForUsageRefresh(
+		collection: string,
+		contentId: string,
+		translationGroup: string | null | undefined,
+		data: Record<string, unknown>,
+		options: { absentAsCleared?: boolean } = {},
+	): Promise<string[]> {
+		try {
+			return await findNonTranslatableSiblingContentIds(
+				this.db,
+				collection,
+				contentId,
+				translationGroup,
+				data,
+				options,
+			);
+		} catch (error) {
+			console.error(
+				`[media-usage] Failed to discover synced i18n siblings for ${collection}/${contentId}:`,
+				error,
+			);
+			try {
+				await markContentMediaUsageCollectionStale(
+					this.db,
+					collection,
+					"CONTENT_USAGE_REFRESH_ERROR",
+				);
+			} catch (staleError) {
+				console.error(`[media-usage] Failed to mark ${collection} stale:`, staleError);
+			}
+			return [];
 		}
 	}
 
