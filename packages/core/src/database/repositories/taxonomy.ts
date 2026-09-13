@@ -749,7 +749,15 @@ export class TaxonomyRepository {
 	async clearEntryTerms(collection: string, entryId: string): Promise<number> {
 		const entryGroup = await this.resolveEntryTranslationGroup(collection, entryId);
 		if (!entryGroup) return 0;
+		return this.clearEntryGroupTerms(collection, entryGroup);
+	}
 
+	/**
+	 * Remove every term assignment held by an entry translation group. Takes the
+	 * group rather than an entry id, so it still works after the group's last
+	 * row has been deleted.
+	 */
+	async clearEntryGroupTerms(collection: string, entryGroup: string): Promise<number> {
 		const result = await this.db
 			.deleteFrom("content_taxonomies")
 			.where("collection", "=", collection)

@@ -1389,6 +1389,7 @@ export async function handleContentPermanentDelete(
 		// Wrap content delete + SEO/comment cleanup in a transaction
 		const deleted = await withTransaction(db, async (trx) => {
 			const trxRepo = new ContentRepository(trx);
+			const item = await trxRepo.findByIdIncludingTrashed(collection, resolvedId);
 			const wasDeleted = await trxRepo.permanentDelete(collection, resolvedId);
 
 			if (wasDeleted) {
@@ -1402,6 +1403,21 @@ export async function handleContentPermanentDelete(
 				const revisionRepo = new RevisionRepository(trx);
 				await revisionRepo.deleteByEntry(collection, resolvedId);
 				await new EntryLockRepository(trx).releaseEntry(collection, resolvedId);
+				// Term assignments are keyed by translation_group, so they belong to the
+				// group rather than to this row. They go only once no row of the group is
+				// left, trashed ones included, since a trashed row can still be restored.
+				if (item?.translationGroup) {
+					const groupSurvives = await trxRepo.hasTranslationsIncludingTrashed(
+						collection,
+						item.translationGroup,
+					);
+					if (!groupSurvives) {
+						await new TaxonomyRepository(trx).clearEntryGroupTerms(
+							collection,
+							item.translationGroup,
+						);
+					}
+				}
 			}
 
 			return wasDeleted;

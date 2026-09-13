@@ -1665,6 +1665,19 @@ export class ContentRepository {
 		return result.rows.map((row) => this.mapRow(type, row));
 	}
 
+	/** Whether any row of `translationGroup` exists, trashed rows included. */
+	async hasTranslationsIncludingTrashed(type: string, translationGroup: string): Promise<boolean> {
+		const tableName = getTableName(type);
+
+		const result = await sql<Record<string, unknown>>`
+			SELECT id FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			LIMIT 1
+		`.execute(this.db);
+
+		return result.rows.length > 0;
+	}
+
 	/**
 	 * Batch variant of {@link findTranslations}: every (non-deleted) locale
 	 * variant for any of `translationGroups`, in one `WHERE translation_group IN
