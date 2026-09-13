@@ -67,7 +67,7 @@ jobs:
 
 Private EmDash-only packages require `privatePackages.version: true` and `privatePackages.tag: true` in `.changeset/config.json`. Add unrelated private packages to `ignore`.
 
-Start the workflow by pushing a package tag such as `gallery@1.2.3`. The service checks that the signed package profile names the GitHub repository before creating a connection request. The Action writes an approval link to the job summary and waits. Open the link, sign in to the release service, and check the repository, workflow file, branch or tag, and environment reported by GitHub. After confirmation, the same Action run requests a fresh OIDC token and submits the release. Later packages reuse approved tag and branch scopes when their signed profiles name the same repository.
+Start the release using the source selected during setup: let Changesets publish the package, push a package tag such as `gallery@1.2.3`, or run the workflow manually. The service checks that the signed package profile names the GitHub repository before creating a connection request. The Action writes an approval link to the job summary and waits. Open the link, sign in to the release service, and check the repository, workflow file, branch or tag, and environment reported by GitHub. After confirmation, the same Action run requests a fresh OIDC token and submits the release. Later packages reuse approved tag and branch scopes when their signed profiles name the same repository.
 
 For tag-triggered releases, choose whether the workflow may publish all package version tags or only the current tag. The approval never grants authority by itself: the publisher's Atmosphere session must confirm the signed GitHub identity before the service creates a publishing policy.
 

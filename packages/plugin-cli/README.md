@@ -143,7 +143,7 @@ The package-tag variant resolves `<slug>@<version>` tags to a unique plugin mani
 
 Sign in to the release-service dashboard with the Atmosphere account that owns the plugin and authorize EmDash to create plugin releases.
 
-Start the workflow by pushing a package tag such as `gallery@1.2.3`. The service verifies that the signed `gallery` profile names the GitHub repository, then the first run for that tag scope waits and adds a repository-approval link to the GitHub job summary. Open that link, check the repository, workflow file, branch or tag, and environment, then confirm the connection. The same run continues after confirmation.
+Start the release using the source selected during setup: let Changesets publish the package, push a package tag such as `gallery@1.2.3`, or run the workflow manually. The service verifies that the signed `gallery` profile names the GitHub repository, then the first run for that ref scope waits and adds a repository-approval link to the GitHub job summary. Open that link, check the repository, workflow file, branch or tag, and environment, then confirm the connection. The same run continues after confirmation.
 
 For a release started from a tag, the dashboard can authorize all package version tags or only the current tag. A manual run requests approval the first time its branch is used. Confirming another scope extends the connection instead of replacing existing scopes. Repository and workflow paths remain exact. A later package reuses approved scopes when its signed profile names the same repository. Policies created by older package-scoped workflows are not reused for another package.
 
