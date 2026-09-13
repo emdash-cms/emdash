@@ -512,19 +512,21 @@ export async function publishContent(
 export async function unpublishContent(
 	collection: string,
 	id: string,
-	options?: { locale?: string },
+	options?: { locale?: string; _rev?: string },
 ): Promise<ContentItem> {
 	const params = new URLSearchParams();
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString() ? `?${params}` : "";
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/unpublish${query}`, {
 		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify({ _rev: options?._rev }),
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		"Failed to unpublish content",
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -541,8 +543,11 @@ export async function discardDraft(
 	const response = await apiFetch(`${API_BASE}/content/${collection}/${id}/discard-draft${query}`, {
 		method: "POST",
 	});
-	const data = await parseApiResponse<{ item: ContentItem }>(response, "Failed to discard draft");
-	return data.item;
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
+		response,
+		"Failed to discard draft",
+	);
+	return { ...data.item, _rev: data._rev };
 }
 
 /**
@@ -633,9 +638,9 @@ export async function restoreRevision(revisionId: string): Promise<ContentItem> 
 		await throwResponseError(response, i18n._(msg`Failed to restore revision`));
 	}
 
-	const data = await parseApiResponse<{ item: ContentItem }>(
+	const data = await parseApiResponse<{ item: ContentItem; _rev?: string }>(
 		response,
 		i18n._(msg`Failed to restore revision`),
 	);
-	return data.item;
+	return { ...data.item, _rev: data._rev };
 }
