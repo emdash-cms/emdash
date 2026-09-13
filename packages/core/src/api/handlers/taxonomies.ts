@@ -369,6 +369,15 @@ export async function handleTaxonomyCreate(
 					error: { code: "NOT_FOUND", message: "Source taxonomy for translation not found" },
 				};
 			}
+			if (source.name !== input.name) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `A translation of taxonomy '${source.name}' must use the same name`,
+					},
+				};
+			}
 			translationGroup = source.translation_group ?? source.id;
 			if (input.hierarchical === undefined) {
 				hierarchical = source.hierarchical === 1;
