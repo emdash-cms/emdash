@@ -211,4 +211,20 @@ describe("media file catch-all route", () => {
 
 		expect(response.headers.get("Cache-Control")).toBe("public, max-age=31536000, immutable");
 	});
+
+	it("serves image/bmp inline, same as the other safe raster types", async () => {
+		const { context } = mockMediaContext("photo.bmp", "image/bmp");
+
+		const response = await getMediaFile(context);
+
+		expect(response.headers.get("Content-Disposition")).toBe("inline");
+	});
+
+	it("forces attachment for a type outside SAFE_INLINE_TYPES", async () => {
+		const { context } = mockMediaContext("icon.svg", "image/svg+xml");
+
+		const response = await getMediaFile(context);
+
+		expect(response.headers.get("Content-Disposition")).toBe("attachment");
+	});
 });
