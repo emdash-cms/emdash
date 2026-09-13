@@ -40,6 +40,7 @@ emdash-plugin bundle                         Pack dist/ + assets into a registry
 emdash-plugin publish                        Build, upload, and publish a release
 emdash-plugin profile setup                  Create or prepare the signed package profile
 emdash-plugin release setup                  Create the permanent GitHub release workflow
+emdash-plugin release plan                   Plan repository releases for GitHub Actions
 emdash-plugin release prepare <slug[@ver]>   Prepare one repository package for GitHub Actions
 emdash-plugin release delegate               Print a publisher delegation browser handoff
 emdash-plugin release revoke                 Print an authority revocation browser handoff
@@ -128,11 +129,15 @@ The command reads the plugin metadata and publisher from `emdash-plugin.jsonc`. 
 
 Set `repo` in `emdash-plugin.jsonc`, or enter the canonical GitHub repository URL when prompted. The standalone `emdash-plugin profile setup` command prepares only the package profile.
 
-Both setup commands accept `--repository <url>`, `--confirmation escalation-only|always`, and `--yes`. `release setup` also accepts `--service-url`, `--action-ref`, and `--force` for the generated workflow. The default hosted service is `https://releases.emdashcms.com`.
+Both setup commands accept `--repository <url>`, `--confirmation escalation-only|always`, and `--yes`. `release setup` also accepts `--service-url`, `--action-ref`, `--trigger auto|changesets|tags|manual`, and `--force` for the generated workflow. The default hosted service is `https://releases.emdashcms.com`.
 
 After preparing the profile, `release setup` creates one `.github/workflows/emdash-release.yml` at the Git repository root. Nested plugin packages reuse that workflow. Review and commit the file. The command does not push or replace a different existing workflow; pass `--force` to replace one deliberately. In a non-interactive environment, pass `--yes` to accept the default approval policy. The command fails rather than creating or changing a profile when it cannot prompt and `--yes` is absent.
 
-The generated workflow resolves `<slug>@<version>` package tags to a unique plugin manifest, builds that package, creates signed GitHub build provenance, and publishes it. Manual runs accept a plugin ID and use its manifest version. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
+With the default `--trigger auto`, setup detects a valid `.changeset/config.json` at the Git repository root. Interactive setup asks whether Changesets version updates, package tags, or manual runs should start releases. Non-interactive setup selects Changesets when detected and package tags otherwise.
+
+The Changesets variant watches its configured `baseBranch`. A push that changes one or more plugin package versions creates a release matrix from the corresponding `emdash-plugin.jsonc` files. Package metadata changes without a version bump are ignored. If the current plugin is private and Changesets is not configured with `privatePackages.version: true`, setup warns that Changesets will skip its version.
+
+The package-tag variant resolves `<slug>@<version>` tags to a unique plugin manifest. Every variant builds the selected package, creates signed GitHub build provenance, and publishes it. Manual runs accept a plugin ID and use its manifest version. Private and internal GitHub repositories are not supported because their attestations use a private Sigstore trust root that the release verifier does not trust.
 
 Sign in to the release-service dashboard with the Atmosphere account that owns the plugin and authorize EmDash to create plugin releases.
 

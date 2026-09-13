@@ -40,7 +40,9 @@ pnpm exec emdash-plugin release setup
 
 The command prepares the current signed package profile and writes `.github/workflows/emdash-release.yml` at the Git repository root. It does not push the file. The workflow is shared by all plugin packages in that repository and requires no Actions secret.
 
-The generated workflow publishes tags in `<slug>@<version>` form:
+When `.changeset/config.json` exists at the repository root, interactive setup offers Changesets version updates as the release trigger. The generated workflow watches the configured base branch and publishes plugin packages whose versions changed in that push. Set `privatePackages.version: true` when Changesets should version private plugin packages.
+
+Without Changesets, the generated workflow publishes tags in `<slug>@<version>` form:
 
 ```sh
 git tag gallery@1.2.3
@@ -51,7 +53,7 @@ The workflow runs `release prepare` through the exact plugin CLI version that ge
 
 The first run uses GitHub OpenID Connect to request a repository connection. The service checks that the initiating package's signed profile names the same repository before creating the request. The publisher approves the repository, workflow file, ref scope, and environment in the release dashboard. A manual run requests approval the first time its branch is used; confirmation adds that scope without removing approved tags or branches.
 
-Prepare another package without changing the workflow:
+Prepare another package without changing the workflow. Changesets users add it to a changeset; package-tag users push its tag:
 
 ```sh
 pnpm exec emdash-plugin profile setup --dir packages/comments

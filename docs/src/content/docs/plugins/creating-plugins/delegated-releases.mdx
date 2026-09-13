@@ -71,7 +71,9 @@ pnpm exec emdash-plugin validate
 
    The command creates `.github/workflows/emdash-release.yml`. It does not push the file and does not replace an existing workflow unless you pass `--force`.
 
-   The generated workflow runs for package tags matching `<slug>@<version>` and through `workflow_dispatch`. It grants `contents: read`, `id-token: write`, and `attestations: write`; pins third-party Actions to full commit identifiers; runs the exact plugin CLI version that generated the file; resolves one package from its manifest; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
+   If the repository contains `.changeset/config.json`, interactive setup offers Changesets version updates as the default trigger. That workflow watches the configured base branch and publishes plugin packages whose versions change in a push. Otherwise, the generated workflow runs for package tags matching `<slug>@<version>`. Both variants support `workflow_dispatch` and can be selected explicitly with `--trigger changesets|tags|manual`.
+
+   The workflow grants each job only its required `contents`, `id-token`, and `attestations` permissions; pins third-party Actions to full commit identifiers; runs the exact plugin CLI version that generated the file; resolves each package from its manifest; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
 
    The workflow lives at the repository root and is shared by every plugin package in that repository. Running `release setup` from a nested package still writes `.github/workflows/emdash-release.yml` at the root.
 
@@ -81,7 +83,9 @@ pnpm exec emdash-plugin validate
 
 5. Start the release workflow.
 
-   Update the package version before creating the version tag. The following commands start a `1.2.3` release:
+   With Changesets, merge the version pull request. A base-branch push that changes the package version starts the release automatically. Changes to dependencies or other package metadata without a version bump do not publish the plugin.
+
+   With the package-tag trigger, update the package version before creating the version tag. The following commands start a `1.2.3` release:
 
    ```sh
    git tag gallery@1.2.3
@@ -114,14 +118,14 @@ Prepare the package profile from its source directory. The existing root workflo
 pnpm exec emdash-plugin profile setup --dir packages/comments
 ```
 
-Update the package version, then push its package tag:
+With Changesets, add the package to a changeset and merge its version pull request. With the package-tag trigger, update the package version and push its tag:
 
 ```sh
 git tag comments@1.0.0
 git push origin comments@1.0.0
 ```
 
-The workflow resolves `comments` to one `emdash-plugin.jsonc`, checks that the manifest version is `1.0.0`, and verifies that the signed profile names the connected repository before accepting artifact uploads. Duplicate package IDs and tag-version mismatches fail before attestation.
+The workflow resolves `comments` to one `emdash-plugin.jsonc`, checks the selected version, and verifies that the signed profile names the connected repository before accepting artifact uploads. Duplicate package IDs and version mismatches fail before attestation.
 
 ## What the release service verifies
 

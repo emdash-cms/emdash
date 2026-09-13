@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import { appendFile, lstat, readdir, readFile } from "node:fs/promises";
 import { dirname, join, relative, resolve, sep } from "node:path";
+import { promisify } from "node:util";
 
 import { isDid, isHandle, type Handle } from "@atcute/lexicons/syntax";
 import { isPluginSlug } from "@emdash-cms/plugin-types";
@@ -16,11 +18,14 @@ import { resolveHandleToDid } from "./manifest/publisher.js";
 const SKIPPED_DIRECTORIES = new Set([".astro", ".emdash-release", ".git", "dist", "node_modules"]);
 const MAX_DISCOVERED_DIRECTORIES = 10_000;
 const MAX_DISCOVERED_PLUGINS = 256;
+const MAX_GIT_OUTPUT_BYTES = 1024 * 1024;
+const execFileAsync = promisify(execFile);
 
 export type ReleasePrepareErrorCode =
 	| "PACKAGE_AMBIGUOUS"
 	| "PACKAGE_NOT_FOUND"
 	| "PUBLISHER_UNRESOLVED"
+	| "RELEASE_BASE_INVALID"
 	| "RELEASE_SELECTOR_INVALID"
 	| "VERSION_MISMATCH";
 
@@ -41,6 +46,13 @@ export interface PreparedRepositoryRelease {
 	pluginDirectory: string;
 	publisherDid: string;
 	bundleFile: string;
+}
+
+export interface PlannedRepositoryRelease {
+	packageName: string;
+	packageSlug: string;
+	pluginDirectory: string;
+	version: string;
 }
 
 interface ReleaseSelector {
@@ -106,6 +118,95 @@ async function discoverPluginDirectories(repositoryRoot: string): Promise<string
 		}
 	}
 	return plugins;
+}
+
+function repositoryPath(repositoryRoot: string, path: string): string {
+	return relative(repositoryRoot, path).split(sep).join("/");
+}
+
+async function resolveCommit(repositoryRoot: string, value: string): Promise<string> {
+	try {
+		const { stdout } = await execFileAsync(
+			"git",
+			["rev-parse", "--verify", "--end-of-options", `${value}^{commit}`],
+			{ cwd: repositoryRoot, maxBuffer: MAX_GIT_OUTPUT_BYTES },
+		);
+		return stdout.trim();
+	} catch {
+		throw new ReleasePrepareError(
+			"RELEASE_BASE_INVALID",
+			`Could not resolve release comparison base ${JSON.stringify(value)}.`,
+		);
+	}
+}
+
+async function changedPaths(repositoryRoot: string, since: string): Promise<Set<string>> {
+	const base = await resolveCommit(repositoryRoot, since);
+	try {
+		const { stdout } = await execFileAsync(
+			"git",
+			["diff", "--name-only", "-z", base, "HEAD", "--"],
+			{ cwd: repositoryRoot, encoding: "buffer", maxBuffer: MAX_GIT_OUTPUT_BYTES },
+		);
+		return new Set(stdout.toString("utf8").split("\0").filter(Boolean));
+	} catch {
+		throw new ReleasePrepareError(
+			"RELEASE_BASE_INVALID",
+			`Could not compare the repository with ${JSON.stringify(since)}.`,
+		);
+	}
+}
+
+async function versionAtCommit(
+	repositoryRoot: string,
+	commit: string,
+	packagePath: string,
+): Promise<string | null> {
+	try {
+		const { stdout } = await execFileAsync("git", ["show", `${commit}:${packagePath}`], {
+			cwd: repositoryRoot,
+			maxBuffer: MAX_GIT_OUTPUT_BYTES,
+		});
+		const parsed: unknown = JSON.parse(stdout);
+		if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+		const version = Reflect.get(parsed, "version");
+		return typeof version === "string" ? version : null;
+	} catch {
+		return null;
+	}
+}
+
+export async function planChangedRepositoryReleases(options: {
+	repositoryRoot: string;
+	since: string;
+}): Promise<PlannedRepositoryRelease[]> {
+	const repositoryRoot = resolve(options.repositoryRoot);
+	const base = await resolveCommit(repositoryRoot, options.since);
+	const changed = await changedPaths(repositoryRoot, base);
+	const planned: PlannedRepositoryRelease[] = [];
+	const slugs = new Set<string>();
+	for (const directory of await discoverPluginDirectories(repositoryRoot)) {
+		const packagePath = repositoryPath(repositoryRoot, join(directory, "package.json"));
+		if (!changed.has(packagePath)) continue;
+		const sources = await resolveSources(directory);
+		if (!sources.hasPackageJson || !sources.packageName) continue;
+		const previousVersion = await versionAtCommit(repositoryRoot, base, packagePath);
+		if (previousVersion === sources.manifest.version) continue;
+		if (slugs.has(sources.manifest.slug)) {
+			throw new ReleasePrepareError(
+				"PACKAGE_AMBIGUOUS",
+				`More than one ${sources.manifest.slug} plugin package was found in ${repositoryRoot}.`,
+			);
+		}
+		slugs.add(sources.manifest.slug);
+		planned.push({
+			packageName: sources.packageName,
+			packageSlug: sources.manifest.slug,
+			pluginDirectory: repositoryPath(repositoryRoot, sources.pluginDir) || ".",
+			version: sources.manifest.version,
+		});
+	}
+	return planned.toSorted((left, right) => left.packageSlug.localeCompare(right.packageSlug));
 }
 
 async function manifestSlug(directory: string): Promise<string | null> {
@@ -235,6 +336,60 @@ async function writeGitHubOutputs(path: string, release: PreparedRepositoryRelea
 		"utf8",
 	);
 }
+
+async function writeReleasePlan(path: string, selectors: readonly string[]): Promise<void> {
+	await appendFile(path, `selectors=${JSON.stringify(selectors)}\n`, "utf8");
+}
+
+export const releasePlanCommand = defineCommand({
+	meta: { name: "plan", description: "Plan repository plugin releases for GitHub Actions" },
+	args: {
+		dir: {
+			type: "string",
+			description: "Repository root (default: current repository)",
+			default: process.cwd(),
+		},
+		since: {
+			type: "string",
+			description: "Git revision before a Changesets version update",
+		},
+		package: {
+			type: "string",
+			description: "Plugin ID or <id>@<version> for a manual release",
+		},
+	},
+	async run({ args }) {
+		try {
+			if ((args.since ? 1 : 0) + (args.package ? 1 : 0) !== 1) {
+				throw new ReleasePrepareError(
+					"RELEASE_SELECTOR_INVALID",
+					"Pass exactly one of --since or --package.",
+				);
+			}
+			const repositoryRoot = await findRepositoryRoot(args.dir);
+			let selectors: string[];
+			if (args.package) {
+				const selector = parseReleaseSelector(args.package);
+				selectors = [`${selector.packageSlug}${selector.version ? `@${selector.version}` : ""}`];
+			} else {
+				selectors = (
+					await planChangedRepositoryReleases({ repositoryRoot, since: args.since! })
+				).map((release) => `${release.packageSlug}@${release.version}`);
+			}
+			const output = process.env["GITHUB_OUTPUT"];
+			if (output) await writeReleasePlan(output, selectors);
+			consola.info(
+				selectors.length === 0 ? "No plugin version changes found." : JSON.stringify(selectors),
+			);
+		} catch (error) {
+			if (error instanceof ReleasePrepareError) {
+				consola.error(error.message);
+				process.exit(1);
+			}
+			throw error;
+		}
+	},
+});
 
 export const releasePrepareCommand = defineCommand({
 	meta: { name: "prepare", description: "Prepare one repository package for GitHub Actions" },

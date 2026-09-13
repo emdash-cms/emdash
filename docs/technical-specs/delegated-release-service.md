@@ -134,6 +134,8 @@ The service normalizes omitted values to the protocol defaults. It validates the
 
 `emdash-plugin release setup` creates a missing package profile or adds the extension to an existing valid profile through the publisher's local CLI session. It asks for confirmation in an interactive terminal and preserves existing package metadata. The service checks the signed extension before creating a workflow connection request and again before accepting that workflow's artifact uploads. A missing profile, missing extension, or repository mismatch returns `PACKAGE_PROFILE_REQUIRED` with the local setup command.
 
+Setup writes one repository workflow. With Changesets, a base-branch push is planned by comparing package versions with the push's before commit and emits one matrix entry per changed plugin manifest. Without Changesets, `<slug>@<version>` tags select a package directly. Manual selection remains available in every generated workflow. Trigger selection does not change the service's workload identity, repository connection, provenance, or package-profile checks.
+
 The delegated path always requires supported provenance, even when `requireProvenance` is absent. The profile field communicates the publisher's requirement to every installer and non-delegated publisher. A supplied unsupported predicate is present-but-unverifiable and fails delegated publication.
 
 ### Signed release provenance

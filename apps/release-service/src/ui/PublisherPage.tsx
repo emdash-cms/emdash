@@ -641,7 +641,7 @@ export function PublisherPage() {
 						<p className="text-kumo-subtle">
 							{t(
 								"publisher.workload.setupResult",
-								"Review and commit .github/workflows/emdash-release.yml, then push a package tag such as gallery@1.2.3 or start it from GitHub Actions.",
+								"Review and commit .github/workflows/emdash-release.yml. Releases start from Changesets version updates, package tags, or the GitHub Actions workflow, depending on the selected trigger.",
 							)}
 						</p>
 						<p className="text-kumo-subtle">

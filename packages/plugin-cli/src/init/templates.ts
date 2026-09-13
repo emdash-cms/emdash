@@ -441,7 +441,7 @@ Before handing off a change, run validation, typecheck, tests, and build. A rele
 
 ## Publishing
 
-Use the local publish script for a release started from this computer. Use the release-setup script for GitHub Actions. The first automated release connects the repository workflow; later packages reuse it only when their signed profiles name the same repository.
+Use the local publish script for a release started from this computer. Use the release-setup script for GitHub Actions. Setup detects a root Changesets configuration and offers version updates as the trigger; otherwise it uses package tags. The first automated release connects the repository workflow; later packages reuse it only when their signed profiles name the same repository.
 
 For complete EmDash patterns and API details, use https://docs.emdashcms.com/plugins/creating-plugins/.
 `;
