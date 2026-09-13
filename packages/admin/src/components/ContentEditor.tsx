@@ -173,9 +173,15 @@ export interface ContentEditorProps {
 		slug?: string;
 		bylines?: BylineCreditInput[];
 	}) => void | Promise<void>;
-	onUnpublish?: () => void;
+	onUnpublish?: (payload?: {
+		data: Record<string, unknown>;
+		slug?: string;
+		bylines?: BylineCreditInput[];
+	}) => void | Promise<void>;
 	/** Callback to discard draft changes (revert to published version) */
 	onDiscardDraft?: () => void;
+	/** Callback when a revision is restored from the sidebar. */
+	onRevisionRestored?: (item: ContentItem) => void;
 	/** Callback to schedule for future publishing */
 	onSchedule?: (
 		scheduledAt: string,
@@ -279,6 +285,7 @@ export function ContentEditor({
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
+	onRevisionRestored,
 	onSchedule,
 	onUnschedule,
 	isScheduling,
@@ -741,6 +748,11 @@ export function ContentEditor({
 		() => (onUnschedule ? runScheduleChange((payload) => onUnschedule(payload)) : undefined),
 		[onUnschedule, runScheduleChange],
 	);
+	const handleUnpublish = React.useCallback(() => {
+		if (!onUnpublish) return;
+		const unpublish = onUnpublish;
+		void Promise.resolve(runScheduleChange((payload) => unpublish(payload))).catch(() => undefined);
+	}, [onUnpublish, runScheduleChange]);
 	const handlePublishedAtChange = React.useCallback(
 		(publishedAt: string) =>
 			onPublishedAtChange
@@ -980,7 +992,7 @@ export function ContentEditor({
 												isScheduling={isScheduling}
 												isUnscheduling={isUnscheduling}
 												onPublish={handlePublish}
-												onUnpublish={onUnpublish}
+												onUnpublish={handleUnpublish}
 												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
 												onUnschedule={onUnschedule ? handleUnschedule : undefined}
 												onMenuOpenChange={setPublishingMenuOpen}
@@ -1047,7 +1059,7 @@ export function ContentEditor({
 													isScheduling={isScheduling}
 													isUnscheduling={isUnscheduling}
 													onPublish={handlePublish}
-													onUnpublish={onUnpublish}
+													onUnpublish={handleUnpublish}
 													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
 													onUnschedule={onUnschedule ? handleUnschedule : undefined}
 													onMenuOpenChange={setPublishingMenuOpen}
@@ -1159,7 +1171,7 @@ export function ContentEditor({
 								isLoadingPreview={isLoadingPreview}
 								onPreview={handlePreview}
 								onPublish={handlePublish}
-								onUnpublish={onUnpublish}
+								onUnpublish={handleUnpublish}
 								onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
 								onUnschedule={onUnschedule ? handleUnschedule : undefined}
 								onMenuOpenChange={setPublishingMenuOpen}
@@ -1192,6 +1204,7 @@ export function ContentEditor({
 								onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
 								isUpdatingPublishedAt={isUpdatingPublishedAt}
 								onDiscardDraft={onDiscardDraft}
+								onRevisionRestored={onRevisionRestored}
 								onDelete={onDelete}
 								isDeleting={isDeleting}
 								currentUser={currentUser}
