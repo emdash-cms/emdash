@@ -3440,7 +3440,7 @@ export class EmDashRuntime {
 	}
 
 	async handleMediaDelete(id: string) {
-		const result = await handleMediaDelete(this.db, id);
+		const result = await handleMediaDelete(this.db, id, this.storage);
 		// Same reasoning as `handleMediaUpdate`: if the deleted media row
 		// was referenced by a setting, the cached resolved URL now points
 		// at a 404. Invalidation is unconditional on success — cheaper than

@@ -83,3 +83,36 @@ describe("plugin ctx.media.upload — metadata enrichment", () => {
 		expect(row?.blurhash).toBeNull();
 	});
 });
+
+describe("plugin ctx.media.delete", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		await teardownTestDatabase(db);
+	});
+
+	it("removes the stored file along with the record", async () => {
+		const storage = fakeStorage();
+		const media = createMediaAccessWithWrite(db, undefined, storage);
+		const uploaded = await media.upload(
+			"data.bin",
+			"application/octet-stream",
+			new Uint8Array([1, 2, 3, 4]).buffer,
+		);
+		expect(await storage.exists(uploaded.storageKey)).toBe(true);
+
+		expect(await media.delete(uploaded.mediaId)).toBe(true);
+
+		expect(await storage.exists(uploaded.storageKey)).toBe(false);
+		expect(await new MediaRepository(db).findById(uploaded.mediaId)).toBeNull();
+	});
+
+	it("returns false for an unknown id", async () => {
+		const media = createMediaAccessWithWrite(db, undefined, fakeStorage());
+		expect(await media.delete("missing")).toBe(false);
+	});
+});

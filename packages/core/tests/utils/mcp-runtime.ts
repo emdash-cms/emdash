@@ -25,6 +25,7 @@ import { createMcpServer } from "../../src/mcp/server.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../src/plugins/types.js";
 import { invalidateUrlPatternCache } from "../../src/query.js";
+import type { Storage } from "../../src/storage/types.js";
 
 // ---------------------------------------------------------------------------
 // Auth-injecting transport
@@ -96,6 +97,8 @@ export interface TestRuntimeOptions {
 	plugins?: ResolvedPlugin[];
 	/** Optional partial config override. Default: empty config. */
 	config?: Partial<EmDashConfig>;
+	/** Optional storage adapter for media tools. Default: none. */
+	storage?: Storage | null;
 }
 
 /**
@@ -135,7 +138,7 @@ export function createTestRuntime(
 
 	return new EmDashRuntime({
 		db,
-		storage: null,
+		storage: opts.storage ?? null,
 		configuredPlugins: plugins,
 		sandboxedPlugins: new Map(),
 		sandboxedPluginEntries: [],
