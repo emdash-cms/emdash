@@ -12,7 +12,6 @@ export default defineConfig({
 	integrations: [
 		starlight({
 			title: "EmDash",
-			tagline: "The Astro-native CMS",
 			disable404Route: true,
 			components: {
 				SkipLink: "./src/components/SkipLink.astro",

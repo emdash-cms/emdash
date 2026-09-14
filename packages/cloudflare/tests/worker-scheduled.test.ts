@@ -3,10 +3,18 @@ import { beforeEach, expect, it, vi } from "vitest";
 const scheduled = vi.hoisted(() => ({
 	general: vi.fn(async (_options?: unknown) => ({ published: [] })),
 }));
+const cache = vi.hoisted(() => ({
+	invalidate: vi.fn(async (_options?: unknown) => {}),
+}));
 
 vi.mock("@astrojs/cloudflare/entrypoints/server", () => ({ default: {} }));
 vi.mock("astro/app/entrypoint", () => ({
-	createApp: () => ({ pipeline: { getCacheProvider: async () => null } }),
+	createApp: () => ({
+		manifest: {
+			cacheConfig: { options: {} },
+			cacheProvider: async () => ({ default: () => cache }),
+		},
+	}),
 }));
 vi.mock("emdash/middleware", () => ({ runScheduledTasks: scheduled.general }));
 vi.mock("../src/sandbox/index.js", () => ({ PluginBridge: vi.fn() }));
@@ -16,6 +24,7 @@ import { createScheduledHandler } from "../src/worker.js";
 beforeEach(() => {
 	vi.restoreAllMocks();
 	scheduled.general.mockClear();
+	cache.invalidate.mockClear();
 });
 
 it("runs general maintenance for the configured Cron", async () => {
@@ -44,6 +53,28 @@ it("runs any configured trigger when no expression is specified", async () => {
 	await invoke(handler, "custom expression");
 
 	expect(scheduled.general).toHaveBeenCalledOnce();
+});
+
+it("invalidates cache tags after scheduled content is published", async () => {
+	scheduled.general.mockImplementationOnce(async (options) => {
+		const onPublished = (
+			options as {
+				onPublished: (published: Array<{ collection: string; id: string }>) => Promise<void>;
+			}
+		).onPublished;
+		await onPublished([
+			{ collection: "posts", id: "post-1" },
+			{ collection: "posts", id: "post-2" },
+		]);
+		return { published: [] };
+	});
+	const handler = createScheduledHandler();
+
+	await invoke(handler, "custom expression");
+
+	expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith({
+		tags: ["posts", "post-1", "post-2"],
+	});
 });
 
 it("rejects an empty configured expression", () => {

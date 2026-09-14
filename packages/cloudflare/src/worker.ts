@@ -20,19 +20,26 @@ export { PluginBridge } from "./sandbox/index.js";
 // The Astro App wraps the build manifest; reuse one per isolate so each tick
 // doesn't re-resolve the cache provider.
 let app: ReturnType<typeof createApp> | null = null;
+let cacheProvider: ReturnType<typeof loadCacheProvider> | null = null;
+
+async function loadCacheProvider() {
+	app ??= createApp();
+	const module = await app.manifest.cacheProvider?.();
+	return module?.default?.(app.manifest.cacheConfig?.options) ?? null;
+}
 
 /**
  * Purge edge-cache tags for content the sweep just published. Without a
  * request there's no `locals.cache`, so we reach the configured cache provider
- * through the Astro App pipeline — the same provider routes invalidate against.
+ * through the Astro App manifest — the same provider routes invalidate against.
  * A no-op when no cache provider is configured.
  */
 async function invalidatePublishedTags(
 	published: ReadonlyArray<{ collection: string; id: string }>,
 ): Promise<void> {
 	if (published.length === 0) return;
-	app ??= createApp();
-	const provider = await app.pipeline.getCacheProvider();
+	cacheProvider ??= loadCacheProvider();
+	const provider = await cacheProvider;
 	if (!provider) return;
 	const tags = [...new Set(published.flatMap((ref) => [ref.collection, ref.id]))];
 	await provider.invalidate({ tags });
