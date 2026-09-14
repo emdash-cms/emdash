@@ -106,6 +106,28 @@ it("does nothing when no cache provider is configured", async () => {
 	expect(cache.invalidate).not.toHaveBeenCalled();
 });
 
+it("retries cache provider loading after a transient failure", async () => {
+	const error = vi.spyOn(console, "error").mockImplementation(() => {});
+	astro.cacheProvider.mockRejectedValueOnce(new Error("provider unavailable"));
+	scheduled.general.mockImplementation(async (options) => {
+		const onPublished = (
+			options as {
+				onPublished: (published: Array<{ collection: string; id: string }>) => Promise<void>;
+			}
+		).onPublished;
+		await onPublished([{ collection: "posts", id: "post-1" }]);
+		return { published: [] };
+	});
+	const handler = createScheduledHandler();
+
+	await invoke(handler, "custom expression");
+	await invoke(handler, "custom expression");
+
+	expect(astro.cacheProvider).toHaveBeenCalledTimes(2);
+	expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith({ tags: ["posts", "post-1"] });
+	expect(error).toHaveBeenCalledOnce();
+});
+
 it("rejects an empty configured expression", () => {
 	expect(() => createScheduledHandler({ generalCron: "" })).toThrow(/non-empty/i);
 	expect(createScheduledHandler({ generalCron: " * * * * * " })).toBeTypeOf("function");

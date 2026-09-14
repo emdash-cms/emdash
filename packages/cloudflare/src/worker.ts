@@ -42,7 +42,12 @@ function getCacheProvider(): ReturnType<typeof loadCacheProvider> {
 		| ReturnType<typeof loadCacheProvider>
 		| undefined;
 	if (existing) return existing;
-	const provider = loadCacheProvider();
+	const provider = loadCacheProvider().catch((error: unknown) => {
+		if (runtimeGlobals[CACHE_PROVIDER_KEY] === provider) {
+			delete runtimeGlobals[CACHE_PROVIDER_KEY];
+		}
+		throw error;
+	});
 	runtimeGlobals[CACHE_PROVIDER_KEY] = provider;
 	return provider;
 }
