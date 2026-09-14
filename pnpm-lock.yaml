@@ -292,7 +292,7 @@ catalogs:
       specifier: ^4.1.5
       version: 4.1.5
     wrangler:
-      specifier: 4.131.1
+      specifier: ^4.125.0
       version: 4.131.1
     y-protocols:
       specifier: ^1.0.7
