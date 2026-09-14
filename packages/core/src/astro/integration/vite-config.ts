@@ -496,6 +496,9 @@ export function createViteConfig(
 							// EmDash direct deps
 							"emdash > @portabletext/toolkit",
 							"emdash > @unpic/placeholder",
+							"emdash > @atcute/client",
+							"emdash > @atcute/lexicons/syntax",
+							"emdash > @atcute/lexicons/validations",
 							"emdash > blurhash",
 							"emdash > croner",
 							"emdash > jose",
@@ -507,6 +510,7 @@ export function createViteConfig(
 							"emdash > mime/lite",
 							"emdash > modern-tar",
 							"emdash > sanitize-html",
+							"emdash > @tiptap/core",
 							"emdash > ulidx",
 							"emdash > upng-js",
 							"emdash > astro-portabletext",
@@ -517,6 +521,21 @@ export function createViteConfig(
 							"emdash > @emdash-cms/auth > @oslojs/crypto/ecdsa",
 							"emdash > @emdash-cms/auth > @oslojs/crypto/sha2",
 							"emdash > @emdash-cms/auth > @oslojs/webauthn",
+							// Registry routes are lazy, so their AT Protocol graph is not
+							// present during Vite's initial dependency scan.
+							"emdash > @emdash-cms/registry-lexicons > @atcute/atproto/types/label/defs",
+							"emdash > @emdash-cms/registry-client > @atcute/client",
+							"emdash > @emdash-cms/registry-client > @atcute/crypto",
+							"emdash > @emdash-cms/registry-client > @atcute/identity",
+							"emdash > @emdash-cms/registry-client > @atcute/identity-resolver",
+							"emdash > @emdash-cms/registry-client > @atcute/lexicons/syntax",
+							"emdash > @emdash-cms/registry-client > @atcute/lexicons/validations",
+							"emdash > @emdash-cms/registry-client > @atcute/multibase",
+							"emdash > @emdash-cms/registry-client > @atcute/repo",
+							"emdash > @emdash-cms/registry-client > @emdash-cms/registry-moderation > @atcute/cbor",
+							"emdash > @emdash-cms/registry-client > @emdash-cms/registry-moderation > @atcute/cid",
+							"emdash > @emdash-cms/registry-client > @emdash-cms/registry-moderation > @atcute/crypto",
+							"emdash > @emdash-cms/registry-client > @emdash-cms/registry-moderation > @atcute/multibase",
 							// Auth deps imported only on auth/login/callback routes, so
 							// the initial page scan misses them. Pre-bundle to avoid a
 							// re-optimize + reload cascade on first authenticated request.

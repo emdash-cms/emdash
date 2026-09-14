@@ -93,11 +93,7 @@ async function waitForOk(url: string, timeoutMs: number, token?: string): Promis
 	const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
 	while (Date.now() - start < timeoutMs) {
 		try {
-			const remainingMs = timeoutMs - (Date.now() - start);
-			const res = await fetch(url, {
-				headers,
-				signal: AbortSignal.timeout(Math.min(60_000, remainingMs)),
-			});
+			const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
 			if (res.ok) return res;
 			lastStatus = res.status;
 			lastBody = await res.text().catch(() => "");
@@ -405,7 +401,7 @@ export default async function globalSetup(): Promise<void> {
 			"/_emdash/api/schema/collections?includeFields=true",
 			"/_emdash/api/media",
 		]) {
-			await waitForOk(`${baseUrl}${path}`, 120_000, token);
+			await waitForOk(`${baseUrl}${path}`, 60_000, token);
 		}
 
 		// 6. Write server info

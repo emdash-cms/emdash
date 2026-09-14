@@ -18,6 +18,7 @@
 	"devDependencies": {
 		"@cloudflare/vite-plugin": "catalog:",
 		"@cloudflare/vitest-plugin": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
 		"@types/node": "catalog:",
 		"modern-tar": "^0.7.6",
 		"typescript": "catalog:",
