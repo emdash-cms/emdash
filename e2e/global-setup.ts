@@ -395,7 +395,7 @@ export default async function globalSetup(): Promise<void> {
 			"/_emdash/api/schema/collections?includeFields=true",
 			"/_emdash/api/media",
 		]) {
-			await waitForOk(`${baseUrl}${path}`, 60_000, token);
+			await waitForOk(`${baseUrl}${path}`, 120_000, token);
 		}
 
 		// 6. Write server info
