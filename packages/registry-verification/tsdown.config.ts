@@ -1,13 +1,19 @@
 import { defineConfig } from "tsdown";
 
-// Consumers rebundle this artifact, where import.meta.url may no longer name a file.
-// The generated require only resolves Node builtins, so a stable absolute base is sufficient.
-const rebundleSafeRequire = {
+const FALLBACK_REQUIRE_BASE = "file:///emdash-registry-verification.js";
+
+/**
+ * Consumers rebundle this artifact, where import.meta.url may no longer name
+ * a file. The generated require only resolves Node builtins, so any base
+ * createRequire accepts is sufficient. The real URL is tried first because
+ * the fixed fallback has no drive letter, which Node on Windows rejects.
+ */
+export const rebundleSafeRequire = {
 	name: "rebundle-safe-require",
 	renderChunk(code: string) {
 		return code.replace(
 			"createRequire(import.meta.url)",
-			'createRequire("file:///emdash-registry-verification.js")',
+			`((url) => { try { return createRequire(url); } catch { return createRequire(${JSON.stringify(FALLBACK_REQUIRE_BASE)}); } })(import.meta.url)`,
 		);
 	},
 };

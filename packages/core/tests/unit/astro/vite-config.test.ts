@@ -1,10 +1,43 @@
 import { existsSync } from "node:fs";
 import { basename, isAbsolute } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { AstroConfig } from "astro";
 import { describe, expect, it } from "vitest";
 
-import { createViteConfig } from "../../../src/astro/integration/vite-config.js";
+import {
+	createViteConfig,
+	isAdminSourceModule,
+	linguiMacroPlugin,
+} from "../../../src/astro/integration/vite-config.js";
+
+describe("linguiMacroPlugin on Windows paths", () => {
+	const adminSourcePath = "D:\\repo\\packages\\admin\\src";
+	const adminDistPath = fileURLToPath(new URL("../../../../admin/dist/", import.meta.url));
+
+	it("matches forward-slash Vite ids against a backslash source path", () => {
+		expect(isAdminSourceModule("D:/repo/packages/admin/src/App.tsx", adminSourcePath)).toBe(true);
+		expect(isAdminSourceModule("D:\\repo\\packages\\admin\\src\\App.tsx", adminSourcePath)).toBe(
+			true,
+		);
+		expect(isAdminSourceModule("D:/repo/packages/core/src/index.ts", adminSourcePath)).toBe(false);
+		expect(isAdminSourceModule(undefined, adminSourcePath)).toBe(false);
+	});
+
+	it("redirects locale catalogs imported from admin source given as a Windows path", () => {
+		const plugin = linguiMacroPlugin(adminSourcePath, adminDistPath);
+		const resolveId = plugin.resolveId as (id: string, importer?: string) => string | undefined;
+		const resolved = resolveId.call(
+			plugin,
+			"./de/messages.mjs",
+			"D:/repo/packages/admin/src/locales/useLocale.ts",
+		);
+		expect(resolved).toMatch(/[/\\]dist[/\\]locales[/\\]de[/\\]messages\.mjs$/);
+		expect(
+			resolveId.call(plugin, "./de/messages.mjs", "D:/repo/packages/core/src/index.ts"),
+		).toBeUndefined();
+	});
+});
 
 describe("createViteConfig admin aliasing", () => {
 	const monorepoDemoRoot = new URL("../../../../../demos/simple/", import.meta.url);
