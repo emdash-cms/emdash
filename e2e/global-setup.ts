@@ -92,15 +92,21 @@ async function waitForOk(url: string, timeoutMs: number, token?: string): Promis
 	let lastBody = "";
 	const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
 	while (Date.now() - start < timeoutMs) {
+		let retryDelayMs = 1000;
 		try {
 			const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
 			if (res.ok) return res;
 			lastStatus = res.status;
 			lastBody = await res.text().catch(() => "");
-		} catch {
+		} catch (error) {
 			// Server/optimizer not ready yet
+			if (error instanceof DOMException && error.name === "TimeoutError") {
+				retryDelayMs = 10_000;
+			}
 		}
-		await new Promise((r) => setTimeout(r, 1000));
+		const remainingMs = timeoutMs - (Date.now() - start);
+		if (remainingMs <= 0) break;
+		await new Promise((r) => setTimeout(r, Math.min(retryDelayMs, remainingMs)));
 	}
 	throw new Error(
 		`${url} did not return ok within ${timeoutMs}ms (last ${lastStatus}): ${lastBody.slice(0, 300)}`,
@@ -374,18 +380,6 @@ export default async function globalSetup(): Promise<void> {
 			if (match) sessionCookie = match[1]!;
 		}
 
-		const adminApiPaths = [
-			"/_emdash/api/schema/collections?includeFields=true",
-			"/_emdash/api/media",
-		];
-		for (const path of adminApiPaths) {
-			// Let cold route compilation continue while seed requests run. The
-			// bounded readiness check below still verifies the completed routes.
-			void fetch(`${baseUrl}${path}`, {
-				headers: { Authorization: `Bearer ${token}` },
-			}).catch(() => undefined);
-		}
-
 		// 5. Seed test data
 		console.log("[pw] Seeding test data...");
 		const seed = await seedTestData(baseUrl, token);
@@ -409,7 +403,10 @@ export default async function globalSetup(): Promise<void> {
 		// otherwise serves a cold 500 for these, rendering an empty admin and
 		// failing the first specs before the route finishes compiling.
 		console.log("[pw] Warming up admin API routes...");
-		for (const path of adminApiPaths) {
+		for (const path of [
+			"/_emdash/api/schema/collections?includeFields=true",
+			"/_emdash/api/media",
+		]) {
 			await waitForOk(`${baseUrl}${path}`, 60_000, token);
 		}
 
