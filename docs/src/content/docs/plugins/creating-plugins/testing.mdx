@@ -1,0 +1,110 @@
+---
+title: Test sandboxed plugins
+description: Run plugin hooks and routes through EmDash's production sandbox boundary in Vitest.
+---
+
+`@emdash-cms/plugin-test` builds a sandboxed plugin and runs its tests inside workerd. Tests use EmDash's production Cloudflare sandbox wrapper and `PluginBridge`, with local D1 and Worker Loader bindings supplied by `@cloudflare/vitest-plugin`.
+
+Projects created by `emdash-plugin init` include this setup. Existing plugin projects can install the test host as a development dependency:
+
+```sh
+pnpm add -D @emdash-cms/plugin-test vitest
+```
+
+If the project restricts dependency build scripts, allow `workerd` to install its platform binary. The generated pnpm policy includes this entry:
+
+```yaml title="pnpm-workspace.yaml"
+allowBuilds:
+  workerd: true
+```
+
+## Configure Vitest
+
+Add the EmDash test plugin to the project's Vitest configuration:
+
+```ts title="vitest.config.ts"
+import { emdashPluginTest } from "@emdash-cms/plugin-test/config";
+import { defineConfig } from "vitest/config";
+
+export default defineConfig({
+	plugins: [emdashPluginTest()],
+});
+```
+
+`emdashPluginTest()` runs the plugin build before Vitest starts. It reads the generated runtime and manifest, creates an isolated D1 database and Worker Loader binding, and exports the same `PluginBridge` used by Cloudflare deployments. Pass `{ dir: "./packages/gallery" }` when the Vitest configuration lives outside the plugin directory.
+
+## Test a route
+
+Create and dispose a host inside each test. Disposal stops the plugin and resets its test bindings:
+
+```ts title="tests/plugin.test.ts"
+import { afterEach, describe, expect, it } from "vitest";
+
+import { createPluginTestHost, type PluginTestHost } from "@emdash-cms/plugin-test";
+
+let host: PluginTestHost | undefined;
+
+afterEach(async () => {
+	await host?.dispose();
+	host = undefined;
+});
+
+describe("health route", () => {
+	it("identifies the plugin", async () => {
+		host = await createPluginTestHost();
+
+		await expect(host.invokeRoute("health")).resolves.toEqual({
+			ok: true,
+			plugin: "save-log",
+		});
+	});
+});
+```
+
+`invokeRoute()` accepts an input value and optional request properties. The default request is a `POST` to the plugin's route with empty headers and request metadata.
+
+## Test hooks and storage
+
+Invoke hooks with the event shape they receive from EmDash. The storage and KV readers inspect the state written through the bridge:
+
+```ts title="tests/plugin.test.ts"
+host = await createPluginTestHost();
+
+await host.invokeHook("content:afterSave", {
+	collection: "posts",
+	content: { id: "post-1", title: "First post" },
+});
+
+const events = await host.storage("events").list();
+expect(events).toHaveLength(1);
+expect(events[0]?.data).toMatchObject({
+	collection: "posts",
+	contentId: "post-1",
+});
+```
+
+Storage calls still enforce the collections declared in `emdash-plugin.jsonc`. Content, media, user, email, and network calls still enforce the plugin's declared capabilities and allowed hosts.
+
+## Seed content
+
+Create a collection and seed entries before invoking a route or hook that reads site content:
+
+```ts title="tests/plugin.test.ts"
+host = await createPluginTestHost();
+await host.createCollection({
+	slug: "posts",
+	label: "Posts",
+	fields: [{ slug: "title", label: "Title", type: "string" }],
+});
+await host.seedContent("posts", [{ title: "First" }, { title: "Second" }]);
+
+await expect(host.invokeRoute("post-count")).resolves.toEqual({ count: 2 });
+```
+
+The collection and entries use the real EmDash schema registry and content repository against D1.
+
+## Test boundaries
+
+The host covers the built plugin, isolate boundary, remote procedure call serialization, D1 behavior, capability checks, hooks, routes, KV, and declared storage. It does not render the EmDash admin application or reproduce Cloudflare's deployed CPU, memory, and subrequest limits. Use a disposable EmDash site for browser journeys, and verify limit-sensitive behavior on a Cloudflare preview or staging deployment.
+
+For Block Kit handlers, invoke the plugin's `admin` route and assert the returned block document. Use the [Block Playground](https://emdash-blocks.cto.cloudflare.dev/) or a browser journey to verify the rendered layout and interactions.

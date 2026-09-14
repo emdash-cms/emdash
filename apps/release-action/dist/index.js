@@ -1735,11 +1735,12 @@ function parsePolicy(value) {
 	const workflowRef = stringValue(value, "workflowRef");
 	const allowedRefs = parseStringArray(value["allowedRefs"]);
 	const allowedEnvironments = parseStringArray(value["allowedEnvironments"]);
+	const repositoryConnection = value["repositoryConnection"] ?? false;
 	const stateVersion = safeInteger(value, "stateVersion");
 	const authorizedBy = stringValue(value, "authorizedBy");
 	const createdAt = safeInteger(value, "createdAt");
 	const updatedAt = safeInteger(value, "updatedAt");
-	if (!packageSlug || !repository || !repositoryId || !repositoryOwnerId || !workflowRef || !allowedRefs || !allowedEnvironments || typeof value["active"] !== "boolean" || stateVersion === null || !authorizedBy || createdAt === null || updatedAt === null) throw invalidResponse();
+	if (!packageSlug || !repository || !repositoryId || !repositoryOwnerId || !workflowRef || !allowedRefs || !allowedEnvironments || typeof repositoryConnection !== "boolean" || typeof value["active"] !== "boolean" || stateVersion === null || !authorizedBy || createdAt === null || updatedAt === null) throw invalidResponse();
 	return {
 		packageSlug,
 		repository,
@@ -1748,6 +1749,7 @@ function parsePolicy(value) {
 		workflowRef,
 		allowedRefs,
 		allowedEnvironments,
+		repositoryConnection,
 		active: value["active"],
 		stateVersion,
 		authorizedBy,
@@ -12946,6 +12948,7 @@ async function runAction(runtime, dependencies = {}) {
 	await setIntentOutputs(runtime, intent);
 	if (intent.state === "awaiting_approval") {
 		runtime.info(`Release intent ${intent.id} requires approval: ${intent.approvalUrl}`);
+		await runtime.writeSummary(`## Approve ${intent.packageSlug} ${intent.version}\n\n[Open EmDash to review and approve the release](${intent.approvalUrl})`);
 		return intent;
 	}
 	if (intent.state === "published" && intent.result) {

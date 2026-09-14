@@ -110,6 +110,39 @@ export class PluginMcpConsentRequiredError extends Error {
 	}
 }
 
+export class MarketplaceUpdateEscalationError extends Error {
+	readonly code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION";
+	readonly capabilityChanges: { added: string[]; removed: string[] };
+	readonly routeVisibilityChanges?: { newlyPublic: string[] };
+	readonly mcpTools: PluginMcpConsentTool[];
+
+	constructor(
+		code: "CAPABILITY_ESCALATION" | "ROUTE_VISIBILITY_ESCALATION",
+		message: string,
+		capabilityChanges: { added: string[]; removed: string[] },
+		routeVisibilityChanges?: { newlyPublic: string[] },
+		mcpTools: PluginMcpConsentTool[] = [],
+	) {
+		super(message);
+		this.name = "MarketplaceUpdateEscalationError";
+		this.code = code;
+		this.capabilityChanges = capabilityChanges;
+		this.routeVisibilityChanges = routeVisibilityChanges;
+		this.mcpTools = mcpTools;
+	}
+}
+
+export class MarketplaceUpdateMcpConsentRequiredError extends PluginMcpConsentRequiredError {
+	constructor(
+		tools: PluginMcpConsentTool[],
+		readonly capabilityChanges: { added: string[]; removed: string[] },
+		readonly routeVisibilityChanges?: { newlyPublic: string[] },
+	) {
+		super(tools);
+		this.name = "MarketplaceUpdateMcpConsentRequiredError";
+	}
+}
+
 function isPluginMcpConsentTool(value: unknown): value is PluginMcpConsentTool {
 	if (!value || typeof value !== "object") return false;
 	return (
@@ -134,10 +167,79 @@ function getMcpConsentTools(body: unknown): PluginMcpConsentTool[] | null {
 	return valid.length > 0 ? valid : null;
 }
 
+function normaliseStringArray(value: unknown): string[] {
+	return Array.isArray(value)
+		? value.filter((item): item is string => typeof item === "string")
+		: [];
+}
+
+function getMarketplaceUpdateEscalation(body: unknown): MarketplaceUpdateEscalationError | null {
+	if (!body || typeof body !== "object") return null;
+	const error = Reflect.get(body, "error");
+	if (!error || typeof error !== "object") return null;
+	const code = Reflect.get(error, "code");
+	if (code !== "CAPABILITY_ESCALATION" && code !== "ROUTE_VISIBILITY_ESCALATION") return null;
+	const details = Reflect.get(error, "details");
+	if (!details || typeof details !== "object") return null;
+	const capabilityChanges = Reflect.get(details, "capabilityChanges");
+	if (!capabilityChanges || typeof capabilityChanges !== "object") return null;
+	const added = normaliseStringArray(Reflect.get(capabilityChanges, "added"));
+	const removed = normaliseStringArray(Reflect.get(capabilityChanges, "removed"));
+	const routeVisibilityChanges = Reflect.get(details, "routeVisibilityChanges");
+	const newlyPublic =
+		routeVisibilityChanges && typeof routeVisibilityChanges === "object"
+			? normaliseStringArray(Reflect.get(routeVisibilityChanges, "newlyPublic"))
+			: [];
+	const message = Reflect.get(error, "message");
+	const mcpTools = Reflect.get(details, "mcpTools");
+	const validMcpTools = Array.isArray(mcpTools) ? mcpTools.filter(isPluginMcpConsentTool) : [];
+	return new MarketplaceUpdateEscalationError(
+		code,
+		typeof message === "string" ? message : i18n._(msg`Plugin update requires re-consent`),
+		{ added, removed },
+		newlyPublic.length > 0 ? { newlyPublic } : undefined,
+		validMcpTools,
+	);
+}
+
+function getMarketplaceUpdateMcpConsent(
+	body: unknown,
+): MarketplaceUpdateMcpConsentRequiredError | null {
+	const tools = getMcpConsentTools(body);
+	if (!tools || !body || typeof body !== "object") return null;
+	const error = Reflect.get(body, "error");
+	if (!error || typeof error !== "object") return null;
+	const details = Reflect.get(error, "details");
+	if (!details || typeof details !== "object") return null;
+	const capabilityChanges = Reflect.get(details, "capabilityChanges");
+	const added =
+		capabilityChanges && typeof capabilityChanges === "object"
+			? normaliseStringArray(Reflect.get(capabilityChanges, "added"))
+			: [];
+	const removed =
+		capabilityChanges && typeof capabilityChanges === "object"
+			? normaliseStringArray(Reflect.get(capabilityChanges, "removed"))
+			: [];
+	const routeVisibilityChanges = Reflect.get(details, "routeVisibilityChanges");
+	const newlyPublic =
+		routeVisibilityChanges && typeof routeVisibilityChanges === "object"
+			? normaliseStringArray(Reflect.get(routeVisibilityChanges, "newlyPublic"))
+			: [];
+	return new MarketplaceUpdateMcpConsentRequiredError(
+		tools,
+		{ added, removed },
+		newlyPublic.length > 0 ? { newlyPublic } : undefined,
+	);
+}
+
 /** Update request body */
 export interface UpdatePluginOpts {
+	/** Exact version reviewed by the user */
+	version?: string;
 	/** User has confirmed new capabilities */
 	confirmCapabilityChanges?: boolean;
+	/** User has confirmed newly public routes */
+	confirmRouteVisibilityChanges?: boolean;
 	confirmMcpTools?: boolean;
 }
 
@@ -227,8 +329,10 @@ export async function updateMarketplacePlugin(
 			.clone()
 			.json()
 			.catch(() => null);
-		const mcpTools = getMcpConsentTools(body);
-		if (mcpTools) throw new PluginMcpConsentRequiredError(mcpTools);
+		const escalation = getMarketplaceUpdateEscalation(body);
+		if (escalation) throw escalation;
+		const mcpConsent = getMarketplaceUpdateMcpConsent(body);
+		if (mcpConsent) throw mcpConsent;
 		await throwResponseError(response, i18n._(msg`Failed to update plugin`));
 	}
 }

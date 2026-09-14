@@ -603,6 +603,37 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.error).toContain("Missing capability: network:fetch");
 		});
 
+		it("blocks private network targets before dispatch", async () => {
+			const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+			try {
+				const handler = makeHandler({ capabilities: ["network:fetch"], allowedHosts: ["*"] });
+				const result = await call(handler, "http/fetch", {
+					url: "http://127.0.0.1/internal",
+				});
+				expect(result.error).toContain("URLs targeting non-public IP addresses are not allowed");
+				expect(fetchSpy).not.toHaveBeenCalled();
+			} finally {
+				fetchSpy.mockRestore();
+			}
+		});
+
+		it.each(["http://[::]/internal", "http://100.100.100.200/internal"])(
+			"blocks non-public network target %s before dispatch",
+			async (url) => {
+				const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+				try {
+					const handler = makeHandler({ capabilities: ["network:fetch"], allowedHosts: ["*"] });
+					const result = await call(handler, "http/fetch", { url });
+					expect(result.error).toContain("URLs targeting non-public IP addresses are not allowed");
+					expect(fetchSpy).not.toHaveBeenCalled();
+				} finally {
+					fetchSpy.mockRestore();
+				}
+			},
+		);
+
 		it("rejects email send without email:send capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "email/send", {
@@ -615,6 +646,74 @@ describe("Bridge Handler Conformance", () => {
 	// ── Storage (document store) ──────────────────────────────────────────
 
 	describe("plugin storage", () => {
+		it("applies guarded writes only within the trusted plugin and collection", async () => {
+			const handler = makeHandler({ storageCollections: ["records"] });
+			const rows = [
+				{ plugin_id: "test-plugin", collection: "records" },
+				{ plugin_id: "test-plugin", collection: "other" },
+				{ plugin_id: "other-plugin", collection: "records" },
+			];
+			for (const row of rows) {
+				await db
+					.insertInto("_plugin_storage")
+					.values({
+						...row,
+						id: "constructor",
+						data: '{"state":"ready"}',
+						created_at: "2026-01-01",
+						updated_at: "2026-01-01",
+					})
+					.execute();
+			}
+			expect(
+				await call(handler, "storage/updateIf", {
+					pluginId: "other-plugin",
+					collection: "records",
+					id: "constructor",
+					args: { where: { state: "ready" }, set: { state: "running" } },
+				}),
+			).toEqual({ result: { applied: true, data: { state: "running" } } });
+			for (const row of rows) {
+				const current = await db
+					.selectFrom("_plugin_storage")
+					.select("data")
+					.where("plugin_id", "=", row.plugin_id)
+					.where("collection", "=", row.collection)
+					.where("id", "=", "constructor")
+					.executeTakeFirstOrThrow();
+				expect(JSON.parse(current.data)).toEqual({
+					state:
+						row.plugin_id === "test-plugin" && row.collection === "records" ? "running" : "ready",
+				});
+			}
+		});
+
+		it("rejects guarded writes to undeclared collections", async () => {
+			const handler = makeHandler({ storageCollections: ["records"] });
+			const result = await call(handler, "storage/updateIf", {
+				collection: "other",
+				id: "item",
+				args: { where: {}, set: { state: "running" } },
+			});
+			expect(result.error).toContain("Storage collection not declared: other");
+		});
+
+		it.each([
+			null,
+			{ where: [], set: { stock: 100 } },
+			{ where: { stock: {} }, set: { stock: 100 } },
+		])("rejects malformed guarded writes without changing the record: %s", async (args) => {
+			const handler = makeHandler({ storageCollections: ["records"] });
+			await call(handler, "storage/put", { collection: "records", id: "item", data: { stock: 2 } });
+			expect(
+				(await call(handler, "storage/updateIf", { collection: "records", id: "item", args }))
+					.error,
+			).toBeTypeOf("string");
+			expect(
+				(await call(handler, "storage/get", { collection: "records", id: "item" })).result,
+			).toEqual({ stock: 2 });
+		});
+
 		it("rejects access to undeclared storage collection", async () => {
 			const handler = makeHandler({ storageCollections: ["logs"] });
 			const result = await call(handler, "storage/get", {

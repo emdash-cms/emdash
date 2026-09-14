@@ -7,6 +7,8 @@ import type {
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
 	ContentCreateOptions,
+	UpdateIfArgs,
+	UpdateIfResult,
 	VersionedValue,
 } from "emdash";
 
@@ -156,6 +158,18 @@ interface BridgeMediaItem {
 	createdAt: string;
 }
 
+export interface StorageSerializationFailureDetails {
+	name: "StorageSerializationError";
+	code: "STORAGE_SERIALIZATION_FAILURE";
+	retryable: true;
+	sqlState?: "40001" | "40P01";
+	message: string;
+}
+
+export type StorageUpdateIfResponse =
+	| UpdateIfResult<unknown>
+	| { __emdashStorageError: StorageSerializationFailureDetails };
+
 /**
  * Type for the PluginBridge binding passed to sandboxed workers.
  * This is the RPC interface exposed by PluginBridge WorkerEntrypoint.
@@ -188,6 +202,11 @@ export interface PluginBridgeBinding {
 		id: string,
 		expectedRevision: string,
 	): Promise<ConditionalDeleteResult>;
+	storageUpdateIf(
+		collection: string,
+		id: string,
+		args: UpdateIfArgs<unknown>,
+	): Promise<StorageUpdateIfResponse>;
 	storageDelete(collection: string, id: string): Promise<boolean>;
 	storageQuery(
 		collection: string,

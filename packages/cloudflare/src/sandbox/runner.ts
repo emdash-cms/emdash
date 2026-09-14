@@ -139,6 +139,13 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		return !!getLoader() && !!getPluginBridge();
 	}
 
+	unavailableReason(): string {
+		const missing: string[] = [];
+		if (!getLoader()) missing.push("the worker has no worker_loaders binding named LOADER");
+		if (!getPluginBridge()) missing.push("the worker entrypoint does not export PluginBridge");
+		return missing.join(", and ");
+	}
+
 	/**
 	 * Worker Loader runs in-process, always healthy if available.
 	 */

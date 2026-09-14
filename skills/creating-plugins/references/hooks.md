@@ -118,7 +118,7 @@ Runs before save. Return modified content, or void to keep it unchanged. To reje
 }
 ```
 
-Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean }`
+Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item.
 Returns: `Record<string, unknown> | SandboxHookErrorEnvelope | void`
 
 ### `content:afterSave`
@@ -132,7 +132,7 @@ Runs after successful save. Side effects only — logging, notifications, syncin
 }
 ```
 
-Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean }`
+Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, actor?: { id: string, role: number } }`. Authenticated saves include a read-only actor snapshot; internal writes may omit it.
 Returns: `void`
 
 ### `content:beforeDelete`

@@ -321,6 +321,7 @@ async function exportCollections(db: Kysely<Database>): Promise<SeedCollection[]
 			editLocking: collection.editLocking === false ? false : undefined,
 			hidden: collection.hidden || undefined,
 			sortOrder: collection.sortOrder,
+			group: collection.group,
 			fields: fields.map(
 				(field): SeedField => ({
 					slug: field.slug,

@@ -1548,16 +1548,25 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				} = foldedHydrationSelects(db, type, "c");
 				const seoSelect = foldedSeoSelect(db, type, "c");
 				const booleanFieldsSelect = foldedBooleanFieldsSelect(db, type);
+				// Keep collection-wide metadata in one result column for wide D1 collections.
+				const jsonObject = isPostgres(db) ? sql`json_build_object` : sql`json_object`;
+				const metadataSelect = sql`(
+					SELECT ${jsonObject}(
+						'bylinesExist', _emdash_bylines_exist,
+						'booleanFields', _emdash_boolean_fields
+					)
+					FROM (SELECT ${bylinesExistSelect}, ${booleanFieldsSelect}) AS metadata
+				) AS _emdash_entry_metadata`;
 				const result = locale
 					? await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${metadataSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} AND c.locale = ${locale}) OR c.id = ${id})
 							LIMIT 1
 						`.execute(db)
 					: await sql<Record<string, unknown>>`
-							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
+							SELECT c.*, ${seoSelect}, ${termsSelect}, ${bylinesSelect}, ${metadataSelect}
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND (c.slug = ${id} OR c.id = ${id})
@@ -1567,6 +1576,15 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const row = result.rows[0];
 				if (!row) {
 					return undefined;
+				}
+
+				const rawMetadata = row._emdash_entry_metadata;
+				const metadata: unknown =
+					typeof rawMetadata === "string" ? JSON.parse(rawMetadata) : rawMetadata;
+				delete row._emdash_entry_metadata;
+				if (isPlainObject(metadata)) {
+					row._emdash_bylines_exist = metadata.bylinesExist;
+					row[BOOLEAN_FIELDS_FOLDED_COLUMN] = metadata.booleanFields;
 				}
 
 				// Expand the folded SEO JSON column onto SEO_COLUMN_ALIASES so

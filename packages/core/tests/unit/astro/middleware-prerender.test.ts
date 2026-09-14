@@ -97,6 +97,8 @@ const {
 	};
 });
 
+const mockCreateRuntime = vi.hoisted(() => vi.fn());
+
 vi.mock(
 	"virtual:emdash/config",
 	() => ({
@@ -138,7 +140,7 @@ vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual
 vi.mock("../../../src/emdash-runtime.js", () => ({
 	DB_INIT_DEADLINE_MS: 30_000,
 	EmDashRuntime: {
-		create: async () => MOCK_RUNTIME,
+		create: mockCreateRuntime,
 	},
 }));
 
@@ -162,8 +164,10 @@ vi.mock("../../../src/object-cache/index.js", async (importOriginal) => ({
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
 import onRequest from "../../../src/astro/middleware.js";
+import { EmDashConfigurationError } from "../../../src/config/errors.js";
 import { getDb } from "../../../src/loader.js";
 import { getRequestContext } from "../../../src/request-context.js";
+import { EmDashStorageError } from "../../../src/storage/types.js";
 
 /** Reset the globalThis-backed singletons between tests. */
 const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
@@ -172,6 +176,11 @@ function resetSetupVerified() {
 	delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
 	delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
 }
+
+beforeEach(() => {
+	resetSetupVerified();
+	mockCreateRuntime.mockReset().mockResolvedValue(MOCK_RUNTIME);
+});
 
 /** A getDb stub whose migrations-probe query throws `error`. */
 function getDbThatFailsProbe(error: Error) {
@@ -233,6 +242,66 @@ function createRequestContext({
 function createAnonymousPublicPageContext(locals: Record<string, unknown> = {}) {
 	return createRequestContext({ locals });
 }
+
+describe("astro middleware runtime initialization errors", () => {
+	it.each([
+		[
+			"D1",
+			new EmDashConfigurationError(
+				'D1 binding "SITE_DB" not found in environment. Check your wrangler.jsonc configuration.',
+				"BINDING_NOT_FOUND",
+			),
+		],
+		[
+			"R2",
+			new EmDashStorageError(
+				'R2 binding "SITE_MEDIA" not found. Make sure the binding is defined in wrangler.jsonc.',
+				"BINDING_NOT_FOUND",
+			),
+		],
+	])("returns the %s configuration failure from an EmDash API route", async (_kind, error) => {
+		mockCreateRuntime.mockRejectedValue(error);
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/dashboard",
+		});
+		const next = vi.fn(async () =>
+			Response.json(
+				{ success: false, error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" } },
+				{ status: 500 },
+			),
+		);
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(response.status).toBe(500);
+		expect(await response.json()).toEqual({
+			success: false,
+			error: { code: "BINDING_NOT_FOUND", message: error.message },
+		});
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("does not expose an arbitrary runtime initialization error", async () => {
+		mockCreateRuntime.mockRejectedValue(new Error("database password leaked here"));
+		const { context } = createRequestContext({
+			url: "https://example.com/_emdash/api/dashboard",
+		});
+		const next = vi.fn(async () =>
+			Response.json(
+				{ success: false, error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" } },
+				{ status: 500 },
+			),
+		);
+
+		const response = await onRequest(context as Parameters<typeof onRequest>[0], next);
+
+		expect(await response.json()).toEqual({
+			success: false,
+			error: { code: "NOT_CONFIGURED", message: "EmDash is not initialized" },
+		});
+		expect(next).toHaveBeenCalledTimes(1);
+	});
+});
 
 describe("astro middleware prerendered routes", () => {
 	beforeEach(() => {

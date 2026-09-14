@@ -21,6 +21,10 @@
     "./slugify": {
       "types": "./dist/slugify.d.ts",
       "default": "./dist/slugify.js"
+    },
+    "./portable-text-table": {
+      "types": "./dist/portable-text-table.d.ts",
+      "default": "./dist/portable-text-table.js"
     }
   },
   "scripts": {

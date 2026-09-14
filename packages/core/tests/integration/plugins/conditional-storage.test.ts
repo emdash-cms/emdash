@@ -1,7 +1,7 @@
 import { type Kysely, sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import { up as migrateRevisions } from "../../../src/database/migrations/076_plugin_storage_revisions.js";
+import { up as migrateRevisions } from "../../../src/database/migrations/077_plugin_storage_revisions.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { PluginStorageRepository } from "../../../src/database/repositories/plugin-storage.js";
 import type { Database } from "../../../src/database/types.js";

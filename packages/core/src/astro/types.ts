@@ -10,6 +10,7 @@ import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
+import type { ManifestRegistryConfigurationError } from "../registry/config.js";
 
 // Re-export core types
 export type {
@@ -37,11 +38,16 @@ export interface ManifestCollection {
 	titleField?: string;
 	dateField?: string;
 	/**
-	 * Omit the auto-generated sidebar entry in the admin. The collection is
-	 * still listed in the manifest so its routes, editor, and API keep working
-	 * — only the navigation link is dropped.
+	 * Omit the auto-generated sidebar entry and dashboard quick action in the
+	 * admin. The collection is still listed in the manifest so its routes,
+	 * editor, and API keep working.
 	 */
 	hidden?: boolean;
+	/**
+	 * Sidebar folder. Collections sharing a group render under one collapsible
+	 * entry labelled with the group.
+	 */
+	group?: string;
 	/** Valid custom field slugs to render in the admin content list. */
 	listColumns?: string[];
 	fields: Record<
@@ -209,6 +215,8 @@ export interface EmDashManifest {
 			minimumReleaseAgeExclude?: string[];
 		};
 	};
+	/** Safe field-level diagnostic when the registry configuration cannot be normalized. */
+	registryConfigurationError?: ManifestRegistryConfigurationError;
 	/**
 	 * Admin branding overrides for white-labeling.
 	 * Set via the `admin` config in `astro.config.mjs`.
@@ -298,6 +306,7 @@ export interface EmDashHandlers {
 			taxonomies?: Record<string, string[]>;
 			createdAt?: string | null;
 			publishedAt?: string | null;
+			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
 
@@ -321,6 +330,7 @@ export interface EmDashHandlers {
 			taxonomies?: Record<string, string[]>;
 			publishedAt?: string | null;
 			_rev?: string;
+			actor?: { id: string; role: number };
 		},
 	) => Promise<HandlerResponse>;
 

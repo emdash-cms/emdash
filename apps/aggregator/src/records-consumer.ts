@@ -477,11 +477,25 @@ export async function ingestPackageProfile(
 			   updated_at = excluded.updated_at`,
 		)
 		.bind(job.did, slug, verified.cid, nowIso);
+	const retainReleaseHistory = db
+		.prepare(
+			`INSERT INTO package_release_history
+			   (did, package, release_history_complete, first_observed_at, first_observed_source)
+			 VALUES (?, ?, ?, ?, ?)
+			 ON CONFLICT(did, package) DO NOTHING`,
+		)
+		.bind(
+			job.did,
+			slug,
+			job.source === "jetstream" && job.operation === "create" ? 1 : 0,
+			nowIso,
+			job.source ?? "unknown",
+		);
 
 	// The revision must exist before the current pointer moves. D1 batches are
 	// transactional, so a failure leaves both the old pointer and old mutable
 	// compatibility row intact.
-	await db.batch([retainRevision, updateCurrentPackage, moveCurrentPointer]);
+	await db.batch([retainRevision, updateCurrentPackage, retainReleaseHistory, moveCurrentPointer]);
 }
 
 export async function ingestPackageRelease(
@@ -618,10 +632,21 @@ export async function ingestPackageRelease(
 	// roll back together and the message retries to a clean state. Without
 	// the batch, an insert-success / refresh-failure could leave
 	// `packages.latest_version` permanently stale.
-	const batchResults = await db.batch([
-		insertStmt,
-		refreshPackageLatestStmt(db, job.did, record.package),
-	]);
+	const batchStatements = [insertStmt, refreshPackageLatestStmt(db, job.did, record.package)];
+	if (job.source !== "jetstream") {
+		// A release first encountered outside the cursor-backed stream proves
+		// that the aggregator cannot claim continuous history for this package.
+		batchStatements.push(
+			db
+				.prepare(
+					`UPDATE package_release_history
+					 SET release_history_complete = 0
+					 WHERE did = ? AND package = ?`,
+				)
+				.bind(job.did, record.package),
+		);
+	}
+	const batchResults = await db.batch(batchStatements);
 	const insertResult = batchResults[0];
 	if (!insertResult) {
 		// Defensive: D1.batch() guarantees one result per statement; if it
@@ -1053,14 +1078,29 @@ async function writeDeadLetter(
 	// envelope of operation+cid so the row is still inspectable.
 	const payload = JSON.stringify(job.jetstreamRecord ?? { operation: job.operation, cid: job.cid });
 	const payloadBytes = new TextEncoder().encode(payload);
-	await db
+	const retainDeadLetter = db
 		.prepare(
 			`INSERT INTO dead_letters
 			   (did, collection, rkey, reason, detail, payload, received_at)
 			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
 		)
-		.bind(job.did, job.collection, job.rkey, reason, detail, payloadBytes, now.toISOString())
-		.run();
+		.bind(job.did, job.collection, job.rkey, reason, detail, payloadBytes, now.toISOString());
+	const releaseIdentity =
+		job.collection === NSID.packageRelease ? parseReleaseRkey(job.rkey) : null;
+	if (!releaseIdentity) {
+		await retainDeadLetter.run();
+		return;
+	}
+	const markHistoryIncomplete = db
+		.prepare(
+			`INSERT INTO package_release_history
+			   (did, package, release_history_complete, first_observed_at, first_observed_source)
+			 VALUES (?, ?, 0, ?, ?)
+			 ON CONFLICT(did, package) DO UPDATE SET
+			   release_history_complete = 0`,
+		)
+		.bind(job.did, releaseIdentity.pkg, now.toISOString(), job.source ?? "unknown");
+	await db.batch([retainDeadLetter, markHistoryIncomplete]);
 }
 
 // ─── Production wiring ─────────────────────────────────────────────────────

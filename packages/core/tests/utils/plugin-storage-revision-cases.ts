@@ -1,7 +1,7 @@
 import { type Kysely, type KyselyPlugin, sql } from "kysely";
 import { expect, it } from "vitest";
 
-import { down, up } from "../../src/database/migrations/076_plugin_storage_revisions.js";
+import { down, up } from "../../src/database/migrations/077_plugin_storage_revisions.js";
 
 const STORES = [
 	{ table: "options", keys: ["name"], values: ["plugin:test:state"], data: "value" },

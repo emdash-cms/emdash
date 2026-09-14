@@ -11,9 +11,9 @@ const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{15,127}$/;
 const PACKAGE_SLUG_PATTERN = /^[A-Za-z][A-Za-z0-9_-]{0,63}$/;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
 const DECIMAL_ID_PATTERN = /^[1-9][0-9]*$/;
-const REF_PATTERN = /^refs\/[A-Za-z0-9._/-]{1,507}$/;
+const REF_PATTERN = /^refs\/[A-Za-z0-9.@_/-]{1,507}$/;
 const WORKFLOW_REF_PATTERN =
-	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9._/-]+$/;
+	/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+\/\.github\/workflows\/[A-Za-z0-9_./-]+\.ya?ml@refs\/[A-Za-z0-9.@_/-]+$/;
 const MAX_ACTIVE_REQUESTS = 10;
 const MAX_ACTIVE_INVITATIONS = 20;
 const MAX_REQUEST_LIFETIME_MS = 60 * 60_000;
@@ -286,26 +286,40 @@ export function workflowConnectionPolicyMatches(
 export function workflowConnectionPolicy(
 	request: StoredWorkflowConnectionRequest,
 	refScope: WorkflowConnectionRefScope,
+	current: StoredWorkloadPolicy | null = null,
 ) {
 	if (refScope === "version_tags" && !request.claim.ref.startsWith("refs/tags/")) {
 		throw new WorkflowConnectionError();
 	}
-	let workflowRef = request.claim.workflowRef;
-	if (refScope === "version_tags") {
-		const separator = workflowRef.lastIndexOf("@");
-		const workflowSourceRef = workflowRef.slice(separator + 1);
-		if (workflowSourceRef.startsWith("refs/tags/")) {
-			workflowRef = `${workflowRef.slice(0, separator + 1)}refs/tags/*`;
-		}
-	}
+	const separator = request.claim.workflowRef.lastIndexOf("@");
+	const workflowPath = request.claim.workflowRef.slice(0, separator);
+	const workflowRef = `${workflowPath}@refs/*`;
+	const requestedRefs = [refScope === "version_tags" ? "refs/tags/*" : request.claim.ref];
+	const sameConnection =
+		current?.repositoryConnection === true &&
+		current.active &&
+		current.repository === request.claim.repository &&
+		current.repositoryId === request.claim.repositoryId &&
+		current.repositoryOwnerId === request.claim.repositoryOwnerId &&
+		current.workflowRef.slice(0, current.workflowRef.lastIndexOf("@")) === workflowPath;
+	const allowedRefs = [...(sameConnection ? current.allowedRefs : []), ...requestedRefs].toSorted();
+	const requestedEnvironments = request.claim.environment ? [request.claim.environment] : [];
+	const allowedEnvironments =
+		request.claim.environment === null ||
+		(sameConnection && current.allowedEnvironments.length === 0)
+			? []
+			: [
+					...(sameConnection ? current.allowedEnvironments : []),
+					...requestedEnvironments,
+				].toSorted();
 	return {
 		packageSlug: request.packageSlug,
 		repository: request.claim.repository,
 		repositoryId: request.claim.repositoryId,
 		repositoryOwnerId: request.claim.repositoryOwnerId,
 		workflowRef,
-		allowedRefs: [refScope === "version_tags" ? "refs/tags/*" : request.claim.ref],
-		allowedEnvironments: request.claim.environment ? [request.claim.environment] : [],
+		allowedRefs: [...new Set(allowedRefs)],
+		allowedEnvironments: [...new Set(allowedEnvironments)],
 		active: true,
 	} as const;
 }
@@ -436,25 +450,24 @@ export class WorkflowConnectionStore {
 				)
 				.toArray()[0];
 			if (pending) return { ok: true, request: rowToRequest(pending), replayed: true } as const;
-			if (input.invitationTokenHash === null) {
-				return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_REQUIRED" } as const;
-			}
-			const invitation = this.storage.sql
-				.exec<WorkflowConnectionInvitationRow>(
-					`SELECT token_hash, package_slug, expires_at, created_at
-					 FROM workflow_connection_invitations WHERE token_hash = ?`,
-					input.invitationTokenHash,
-				)
-				.toArray()[0];
-			if (!invitation || invitation.package_slug !== input.packageSlug) {
-				return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_INVALID" } as const;
-			}
-			if (invitation.expires_at <= now) {
-				this.storage.sql.exec(
-					"DELETE FROM workflow_connection_invitations WHERE token_hash = ?",
-					input.invitationTokenHash,
-				);
-				return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_EXPIRED" } as const;
+			if (input.invitationTokenHash !== null) {
+				const invitation = this.storage.sql
+					.exec<WorkflowConnectionInvitationRow>(
+						`SELECT token_hash, package_slug, expires_at, created_at
+							 FROM workflow_connection_invitations WHERE token_hash = ?`,
+						input.invitationTokenHash,
+					)
+					.toArray()[0];
+				if (!invitation || invitation.package_slug !== input.packageSlug) {
+					return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_INVALID" } as const;
+				}
+				if (invitation.expires_at <= now) {
+					this.storage.sql.exec(
+						"DELETE FROM workflow_connection_invitations WHERE token_hash = ?",
+						input.invitationTokenHash,
+					);
+					return { ok: false, code: "WORKFLOW_CONNECTION_INVITATION_EXPIRED" } as const;
+				}
 			}
 			const active = this.storage.sql
 				.exec<{ count: number }>(
@@ -478,10 +491,12 @@ export class WorkflowConnectionStore {
 				input.expiresAt,
 				now,
 			);
-			this.storage.sql.exec(
-				"DELETE FROM workflow_connection_invitations WHERE token_hash = ?",
-				input.invitationTokenHash,
-			);
+			if (input.invitationTokenHash !== null) {
+				this.storage.sql.exec(
+					"DELETE FROM workflow_connection_invitations WHERE token_hash = ?",
+					input.invitationTokenHash,
+				);
+			}
 			return { ok: true, request: rowToRequest(this.#read(input.requestId)!), replayed: false };
 		});
 	}

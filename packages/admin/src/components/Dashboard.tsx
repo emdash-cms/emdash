@@ -18,6 +18,7 @@ import {
 } from "./ContentStatusBadge.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
+import { visibleCollectionEntries } from "./Sidebar.js";
 
 const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 	published: "published",
@@ -143,7 +144,7 @@ function DashboardCardInset({ className, ...props }: React.ComponentPropsWithout
 
 function QuickActions({ manifest }: { manifest: AdminManifest }) {
 	const { t } = useLingui();
-	const collections = Object.entries(manifest.collections);
+	const collections = visibleCollectionEntries(manifest.collections);
 
 	return (
 		<div className="flex flex-wrap items-center gap-2">

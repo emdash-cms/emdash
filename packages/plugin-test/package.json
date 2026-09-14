@@ -1,0 +1,65 @@
+{
+	"name": "@emdash-cms/plugin-test",
+	"version": "0.0.0",
+	"description": "Workerd-backed Vitest host for sandboxed EmDash plugins",
+	"type": "module",
+	"main": "dist/index.mjs",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.mts",
+			"default": "./dist/index.mjs"
+		},
+		"./config": {
+			"types": "./dist/config.d.mts",
+			"default": "./dist/config.mjs"
+		},
+		"./worker": {
+			"types": "./dist/worker.d.mts",
+			"default": "./dist/worker.mjs"
+		}
+	},
+	"files": [
+		"dist"
+	],
+	"scripts": {
+		"build": "tsdown",
+		"test": "vitest run",
+		"typecheck": "tsgo --noEmit",
+		"check": "publint"
+	},
+	"dependencies": {
+		"@cloudflare/vitest-plugin": "catalog:",
+		"@emdash-cms/cloudflare": "workspace:*",
+		"@emdash-cms/plugin-cli": "workspace:*",
+		"@emdash-cms/plugin-types": "workspace:*",
+		"emdash": "workspace:*",
+		"kysely": "catalog:"
+	},
+	"peerDependencies": {
+		"vite": "^8.0.0",
+		"vitest": "^4.1.0"
+	},
+	"devDependencies": {
+		"@arethetypeswrong/cli": "catalog:",
+		"@cloudflare/workers-types": "catalog:",
+		"publint": "catalog:",
+		"tsdown": "catalog:",
+		"typescript": "catalog:",
+		"vite": "catalog:",
+		"vitest": "catalog:"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/emdash-cms/emdash.git",
+		"directory": "packages/plugin-test"
+	},
+	"homepage": "https://github.com/emdash-cms/emdash",
+	"keywords": [
+		"emdash",
+		"plugin",
+		"vitest",
+		"workerd"
+	],
+	"author": "Matt Kane",
+	"license": "MIT"
+}

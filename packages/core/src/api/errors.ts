@@ -16,6 +16,8 @@ export const ErrorCode = {
 	CONFLICT: "CONFLICT",
 	SLUG_CONFLICT: "SLUG_CONFLICT",
 	NOT_CONFIGURED: "NOT_CONFIGURED",
+	BINDING_NOT_FOUND: "BINDING_NOT_FOUND",
+	CONFIGURATION_ERROR: "CONFIGURATION_ERROR",
 	UNAUTHORIZED: "UNAUTHORIZED",
 	FORBIDDEN: "FORBIDDEN",
 	RATE_LIMITED: "RATE_LIMITED",
@@ -504,6 +506,8 @@ export function mapErrorStatus(code: string | undefined): number {
 
 		// 500 Internal Server Error
 		case ErrorCode.NOT_CONFIGURED:
+		case ErrorCode.BINDING_NOT_FOUND:
+		case ErrorCode.CONFIGURATION_ERROR:
 		case ErrorCode.NO_STORAGE:
 		case ErrorCode.NO_DB:
 		case ErrorCode.STORAGE_NOT_CONFIGURED:

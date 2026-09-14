@@ -868,6 +868,7 @@ export async function findNonTranslatableSiblingContentIds(
 	updatedContentId: string,
 	translationGroup: string | null | undefined,
 	updatedData: Record<string, unknown> | undefined,
+	options: { absentAsCleared?: boolean } = {},
 ): Promise<string[]> {
 	if (!isI18nEnabled() || !updatedData || !translationGroup) return [];
 
@@ -887,7 +888,7 @@ export async function findNonTranslatableSiblingContentIds(
 		.execute();
 
 	const touchedNonTranslatableSlugs = fields
-		.filter((field) => field.slug in updatedData)
+		.filter((field) => options.absentAsCleared || field.slug in updatedData)
 		.map((field) => field.slug);
 	if (touchedNonTranslatableSlugs.length === 0) return [];
 

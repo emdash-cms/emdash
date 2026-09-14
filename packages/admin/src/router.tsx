@@ -883,6 +883,7 @@ function ContentEditPage() {
 		revisionTokensRef.current.set(rawItem.id, rawItem._rev);
 	}
 	const editorSaveQueueRef = React.useRef<Promise<void>>(Promise.resolve());
+	const unpublishRequestRef = React.useRef<Promise<void> | null>(null);
 	const serializeEditorSave = React.useCallback(<T,>(operation: () => Promise<T>) => {
 		const result = editorSaveQueueRef.current.then(operation);
 		editorSaveQueueRef.current = result.then(
@@ -1189,8 +1190,13 @@ function ContentEditPage() {
 	});
 
 	const unpublishMutation = useMutation({
-		mutationFn: () => unpublishContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: () => {
+		mutationFn: (_rev?: string) =>
+			unpublishContent(collection, id, {
+				locale: rawItem?.locale ?? activeLocale,
+				_rev,
+			}),
+		onSuccess: (unpublishedItem) => {
+			revisionTokensRef.current.set(id, unpublishedItem._rev);
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
@@ -1209,8 +1215,9 @@ function ContentEditPage() {
 
 	const discardDraftMutation = useMutation({
 		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: () => {
+		onSuccess: (discardedItem) => {
 			setConflictedEntryId((conflicted) => (conflicted === id ? "" : conflicted));
+			revisionTokensRef.current.set(id, discardedItem._rev);
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
@@ -1465,8 +1472,42 @@ function ContentEditPage() {
 		],
 	);
 	const handleUnpublish = React.useCallback(
-		() => unpublishMutation.mutate(),
-		[unpublishMutation.mutate],
+		async (payload?: {
+			data: Record<string, unknown>;
+			slug?: string;
+			bylines?: BylineCreditInput[];
+		}) => {
+			if (unpublishRequestRef.current) return unpublishRequestRef.current;
+
+			const request = (async () => {
+				const savedItem = await serializeEditorSave(async () => {
+					if (!payload) return;
+					return updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "editor",
+						changes: payload,
+					});
+				});
+				const currentToken = savedItem?._rev ?? revisionTokensRef.current.get(id);
+				await unpublishMutation.mutateAsync(currentToken);
+			})();
+			unpublishRequestRef.current = request;
+			void request
+				.catch(() => undefined)
+				.finally(() => {
+					if (unpublishRequestRef.current === request) unpublishRequestRef.current = null;
+				});
+			return request;
+		},
+		[
+			activeLocale,
+			id,
+			rawItem?.locale,
+			serializeEditorSave,
+			unpublishMutation.mutateAsync,
+			updateMutation.mutateAsync,
+		],
 	);
 	const handleDiscardDraft = React.useCallback(
 		() => discardDraftMutation.mutate(),
@@ -1545,6 +1586,14 @@ function ContentEditPage() {
 			updateBylineMutation.mutateAsync({ id: bylineId, ...input }),
 		[updateBylineMutation.mutateAsync],
 	);
+	const handleRevisionRestored = React.useCallback(
+		(restoredItem: ContentItem) => {
+			if (restoredItem._rev) {
+				revisionTokensRef.current.set(id, restoredItem._rev);
+			}
+		},
+		[id],
+	);
 
 	if (!manifest) {
 		return <LoadingScreen />;
@@ -1582,6 +1631,7 @@ function ContentEditPage() {
 			onPublish={handlePublish}
 			onUnpublish={handleUnpublish}
 			onDiscardDraft={handleDiscardDraft}
+			onRevisionRestored={handleRevisionRestored}
 			onSchedule={handleSchedule}
 			onUnschedule={handleUnschedule}
 			isScheduling={scheduleMutation.isPending}
@@ -2229,6 +2279,25 @@ const marketplaceDetailRoute = createRoute({
 	component: MarketplaceDetailPage,
 });
 
+const registryDetailRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/plugins/registry/$publisher/$slug",
+	component: RegistryDetailPage,
+});
+
+function RegistryDetailPage() {
+	const { t } = useLingui();
+	const { publisher, slug } = useParams({
+		from: "/_admin/plugins/registry/$publisher/$slug",
+	});
+	const { data: manifest } = useQuery({
+		queryKey: ["manifest"],
+		queryFn: fetchManifest,
+	});
+	if (!manifest?.registry) return <NotFoundPage message={t`Plugin registry is not configured.`} />;
+	return <RegistryPluginDetail pluginId={`${publisher}/${slug}`} config={manifest.registry} />;
+}
+
 function MarketplaceDetailPage() {
 	const { pluginId } = useParams({ from: "/_admin/plugins/marketplace/$pluginId" });
 
@@ -2671,6 +2740,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	pluginManagerRoute,
 	pluginSettingsRoute,
 	marketplaceDetailRoute,
+	registryDetailRoute,
 	marketplaceBrowseRoute,
 	themeMarketplaceBrowseRoute,
 	themeMarketplaceDetailRoute,

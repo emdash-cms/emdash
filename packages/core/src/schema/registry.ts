@@ -197,6 +197,7 @@ export async function buildSeedCollectionCaptureFingerprint(
 				hasSeo,
 				hidden: input.hidden ?? false,
 				sortOrder: input.sortOrder ?? null,
+				...(input.group ? { group: input.group } : {}),
 				commentsEnabled: input.commentsEnabled ?? false,
 				...(input.editLocking === false ? { editLocking: false } : {}),
 				urlPattern: input.urlPattern ?? null,
@@ -471,6 +472,7 @@ export class SchemaRegistry {
 				routable: input.routable === false ? 0 : 1,
 				hidden: input.hidden ? 1 : 0,
 				sort_order: input.sortOrder ?? null,
+				nav_group: input.group?.trim() || null,
 				comments_enabled: input.commentsEnabled ? 1 : 0,
 				edit_locking: input.editLocking === false ? 0 : 1,
 				url_pattern: input.urlPattern ?? null,
@@ -617,6 +619,7 @@ export class SchemaRegistry {
 					routable: input.routable === false ? 0 : 1,
 					hidden: input.hidden ? 1 : 0,
 					sort_order: input.sortOrder ?? null,
+					nav_group: input.group?.trim() || null,
 					comments_enabled: input.commentsEnabled ? 1 : 0,
 					edit_locking: input.editLocking === false ? 0 : 1,
 					url_pattern: input.urlPattern ?? null,
@@ -772,6 +775,7 @@ export class SchemaRegistry {
 			}
 			if (input.hidden !== undefined) updates.hidden = input.hidden ? 1 : 0;
 			if (input.sortOrder !== undefined) updates.sort_order = input.sortOrder;
+			if (input.group !== undefined) updates.nav_group = input.group?.trim() || null;
 			if (input.titleField !== undefined) updates.title_field = input.titleField || null;
 			if (input.dateField !== undefined) updates.date_field = input.dateField || null;
 			if (input.commentsEnabled !== undefined) {
@@ -1841,6 +1845,7 @@ export class SchemaRegistry {
 			routable: row.routable !== 0,
 			hidden: row.hidden === 1,
 			sortOrder: row.sort_order ?? undefined,
+			group: row.nav_group ?? undefined,
 			commentsEnabled: row.comments_enabled === 1,
 			commentsModeration:
 				moderation === "all" || moderation === "first_time" || moderation === "none"

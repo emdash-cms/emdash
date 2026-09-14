@@ -714,6 +714,7 @@ export interface ContentSettingsPanelProps {
 	onPublishedAtChange?: (publishedAt: string) => void | Promise<void>;
 	isUpdatingPublishedAt?: boolean;
 	onDiscardDraft?: () => void;
+	onRevisionRestored?: (item: ContentItem) => void;
 	onDelete?: () => void;
 	isDeleting?: boolean;
 	currentUser?: CurrentUserInfo;
@@ -766,6 +767,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onPublishedAtChange,
 	isUpdatingPublishedAt,
 	onDiscardDraft,
+	onRevisionRestored,
 	onDelete,
 	isDeleting,
 	currentUser,
@@ -1171,7 +1173,12 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				{!isNew && item && supportsRevisions && (
 					<SortableContentSettingsSection id="revisions" label={t`Revisions`} disclosure>
 						<div className="p-4">
-							<RevisionHistory collection={collection} entryId={item.id} reserveHeaderEnd />
+							<RevisionHistory
+								collection={collection}
+								entryId={item.id}
+								onRestored={onRevisionRestored}
+								reserveHeaderEnd
+							/>
 						</div>
 					</SortableContentSettingsSection>
 				)}

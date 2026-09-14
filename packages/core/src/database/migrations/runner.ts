@@ -78,7 +78,8 @@ import * as m072 from "./072_media_folders.js";
 import * as m073 from "./073_media_focal_point.js";
 import * as m074 from "./074_content_deleted_scheduled_index.js";
 import * as m075 from "./075_entry_edit_locks.js";
-import * as m076 from "./076_plugin_storage_revisions.js";
+import * as m076 from "./076_collection_nav_group.js";
+import * as m077 from "./077_plugin_storage_revisions.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -155,7 +156,8 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"073_media_focal_point": m073,
 	"074_content_deleted_scheduled_index": m074,
 	"075_entry_edit_locks": m075,
-	"076_plugin_storage_revisions": m076,
+	"076_collection_nav_group": m076,
+	"077_plugin_storage_revisions": m077,
 });
 
 /** Ordered names from the statically registered migration set. */

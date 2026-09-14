@@ -45,7 +45,7 @@
 	},
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
-		"@cloudflare/vitest-pool-workers": "catalog:",
+		"@cloudflare/vitest-plugin": "catalog:",
 		"@sigstore/bundle": "5.0.0",
 		"@sigstore/core": "4.0.1",
 		"@sigstore/protobuf-specs": "0.5.1",

@@ -368,6 +368,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	private gaveUp = false;
 
+	/** True when the last isAvailable() call could not run the workerd binary. */
+	private binaryFailed = false;
+
 	/**
 	 * True when stopWorkerd() is intentionally tearing down the child
 	 * (e.g., on intentional restart() to reload plugins). The exit handler
@@ -412,8 +415,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			// execFileSync (not execSync) so paths with spaces or shell
 			// metacharacters are passed verbatim, not shell-split.
 			execFileSync(bin, ["--version"], { stdio: "ignore", timeout: 5000 });
+			this.binaryFailed = false;
 			return true;
 		} catch {
+			this.binaryFailed = true;
 			return false;
 		}
 	}
@@ -454,14 +459,18 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	}
 
 	/**
-	 * Why an invocation cannot reach workerd, for the message carried by
-	 * SandboxUnavailableError.
+	 * Why the runner cannot run plugins: a binary the last isAvailable() call
+	 * could not run, or why an invocation cannot reach workerd, the message
+	 * SandboxUnavailableError carries.
 	 *
 	 * Giving up is the one state no invocation retries out of: needsRestart
 	 * stays false, so ensureRunning() returns without starting anything and
 	 * workerd waits for a server restart, an install or an update.
 	 */
 	unavailableReason(): string {
+		if (this.binaryFailed) {
+			return "workerd is missing or its binary does not run on this platform; reinstall with optional dependencies enabled";
+		}
 		if (this.gaveUp) {
 			return "workerd crashed 5 times in 60 seconds and the runner stopped retrying; restart the server";
 		}
@@ -1078,15 +1087,16 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
  * Factory function for creating the workerd sandbox runner.
  *
  * Selects MiniflareDevRunner only when explicitly in development mode
- * (NODE_ENV === "development"). Any other value — including unset (which
- * is the default for `node server.js` and `astro preview` on self-hosted
- * deployments) — uses the production WorkerdSandboxRunner.
+ * (NODE_ENV === "development"). Any other value — including unset for
+ * `node server.js` and `"production"` from `astro preview` — uses the
+ * production WorkerdSandboxRunner.
  *
  * The dev runner skips production hardening (wall-time wrapper, child
  * process supervision, crash/restart with backoff), so falling back to
  * it silently in production would be a security regression.
  *
- * Operators who want the dev runner explicitly should set NODE_ENV=development.
+ * Operators who want the dev runner explicitly should set EMDASH_SANDBOX_DEV=1
+ * or NODE_ENV=development.
  */
 export const createSandboxRunner: SandboxRunnerFactory = (options) => {
 	const isDev = process.env.EMDASH_SANDBOX_DEV === "1" || process.env.NODE_ENV === "development";

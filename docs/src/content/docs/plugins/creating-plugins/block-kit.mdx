@@ -81,7 +81,7 @@ function renderSettings(): BlockResponse {
 	};
 }
 
-export default {
+const plugin: SandboxedPlugin = {
 	routes: {
 		admin: {
 			handler: async (routeCtx, ctx) => {
@@ -106,7 +106,9 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
 The `admin` route is private by default. EmDash sends the correct CSRF header when the admin calls it. The handler still validates `routeCtx.input` because its TypeScript type is `unknown` and a caller can invoke a private plugin route outside the Block Kit page.

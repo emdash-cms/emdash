@@ -95,6 +95,24 @@ function createMockStorage(): Storage {
 	};
 }
 
+function deferStorageDeletes(storage: Storage): { releaseDeletes: () => void } {
+	const deleteImmediately = storage.delete.bind(storage);
+	let released = false;
+	const pending: Array<() => void> = [];
+	storage.delete = async (key: string): Promise<void> => {
+		if (!released) {
+			await new Promise<void>((resolve) => pending.push(resolve));
+		}
+		await deleteImmediately(key);
+	};
+	return {
+		releaseDeletes() {
+			released = true;
+			for (const resolve of pending.splice(0)) resolve();
+		},
+	};
+}
+
 function createMockSandboxRunner(): SandboxRunner & {
 	loadedPlugins: Array<{ manifest: PluginManifest; code: string }>;
 } {
@@ -734,6 +752,87 @@ describe("Marketplace handlers", () => {
 			expect(result.data?.oldVersion).toBe("1.0.0");
 			expect(result.data?.newVersion).toBe("2.0.0");
 			expect(result.data?.capabilityChanges.added).toContain("network:request");
+			expect(await storage.exists("marketplace/test-seo/1.0.0/manifest.json")).toBe(true);
+			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(true);
+
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			const retried = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{ confirmCapabilityChanges: true },
+			);
+			expect(retried).toMatchObject({
+				success: false,
+				error: { code: "ALREADY_UP_TO_DATE" },
+			});
+			expect(await storage.exists("marketplace/test-seo/2.0.0/manifest.json")).toBe(true);
+		});
+
+		it("includes all authority changes in the initial preflight response", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+
+			const encoder = new TextEncoder();
+			const oldManifest = mockManifest("test-seo", "1.0.0");
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: encoder.encode(JSON.stringify(oldManifest)),
+				contentType: "application/json",
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/backend.js",
+				body: encoder.encode("export default {};"),
+				contentType: "application/javascript",
+			});
+
+			const newManifest: PluginManifest = {
+				...mockManifest("test-seo", "2.0.0"),
+				capabilities: ["content:read", "network:request"],
+				routes: [{ name: "events/create", permission: "content:create", public: true }],
+				mcp: {
+					tools: [
+						{
+							name: "createEvent",
+							description: "Create a calendar event.",
+							route: "events/create",
+							permission: "content:create",
+							destructive: false,
+							inputSchema: { type: "object" },
+						},
+					],
+				},
+			};
+			const bundleBytes = await createMockBundle(newManifest);
+			const detail = mockPluginDetail("test-seo", "2.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+
+			const result = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+
+			expect(result).toMatchObject({
+				success: false,
+				error: {
+					code: "CAPABILITY_ESCALATION",
+					details: {
+						capabilityChanges: { added: ["network:request"], removed: [] },
+						routeVisibilityChanges: { newlyPublic: ["events/create"] },
+						mcpTools: [expect.objectContaining({ name: "createEvent" })],
+					},
+				},
+			});
 		});
 
 		it("treats deprecated → current capability rename as no change", async () => {
@@ -787,6 +886,70 @@ describe("Marketplace handlers", () => {
 			expect(result.success).toBe(true);
 			expect(result.data?.capabilityChanges.added).toEqual([]);
 			expect(result.data?.capabilityChanges.removed).toEqual([]);
+		});
+
+		it("keeps a downgraded bundle active when an earlier update finishes later", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+
+			const encoder = new TextEncoder();
+			const initialManifest = mockManifest("test-seo", "1.0.0");
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: encoder.encode(JSON.stringify(initialManifest)),
+				contentType: "application/json",
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/backend.js",
+				body: encoder.encode("export default {};"),
+				contentType: "application/javascript",
+			});
+			const deferredDeletes = deferStorageDeletes(storage);
+
+			const nextManifest = mockManifest("test-seo", "2.0.0");
+			const nextDetail = mockPluginDetail("test-seo", "2.0.0");
+			nextDetail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(nextDetail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(
+				new Response(await createMockBundle(nextManifest), { status: 200 }),
+			);
+			const updated = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+			expect(updated.success).toBe(true);
+
+			const initialDetail = mockPluginDetail("test-seo", "1.0.0");
+			initialDetail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(initialDetail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(
+				new Response(await createMockBundle(initialManifest), { status: 200 }),
+			);
+			const downgraded = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+			expect(downgraded).toMatchObject({
+				success: true,
+				data: { oldVersion: "2.0.0", newVersion: "1.0.0" },
+			});
+
+			deferredDeletes.releaseDeletes();
+			await new Promise((resolve) => setImmediate(resolve));
+			await new Promise((resolve) => setImmediate(resolve));
+
+			expect(await repo.get("test-seo")).toMatchObject({ version: "1.0.0" });
+			expect(await storage.exists("marketplace/test-seo/1.0.0/manifest.json")).toBe(true);
+			expect(await storage.exists("marketplace/test-seo/1.0.0/backend.js")).toBe(true);
 		});
 	});
 

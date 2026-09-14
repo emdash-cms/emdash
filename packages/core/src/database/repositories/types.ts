@@ -34,7 +34,10 @@ export interface UpdateContentInput {
 	slug?: string | null;
 	publishedAt?: string | null;
 	scheduledAt?: string | null;
+	/** Entry owner (`ec_{collection}.author_id`). */
 	authorId?: string | null;
+	/** Revision author, separate from entry ownership. */
+	revisionAuthorId?: string | null;
 	primaryBylineId?: string | null;
 }
 

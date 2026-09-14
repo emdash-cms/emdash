@@ -34,6 +34,8 @@ import { createScheduler as virtualCreateScheduler } from "virtual:emdash/schedu
 import { createStorage as virtualCreateStorage } from "virtual:emdash/storage";
 
 import { after } from "../after.js";
+import { apiError } from "../api/error.js";
+import { EmDashConfigurationError } from "../config/errors.js";
 import {
 	createRecorder,
 	flushRecorder,
@@ -67,6 +69,7 @@ import {
 	runWithContext,
 } from "../request-context.js";
 import type { PublishedRef } from "../scheduled-publish.js";
+import { EmDashStorageError } from "../storage/types.js";
 import { isMissingTableError } from "../utils/db-errors.js";
 import { createInitLock, type InitLock, initWithLock } from "../utils/init-lock.js";
 import type { EmDashConfig } from "./integration/runtime.js";
@@ -480,6 +483,17 @@ function migrationRequiredResponse(): Response {
 			headers: { "Retry-After": "60" },
 		},
 	);
+}
+
+function runtimeConfigurationErrorResponse(error: unknown, pathname: string): Response | null {
+	if (!pathname.startsWith("/_emdash/api/")) return null;
+	if (error instanceof EmDashConfigurationError) {
+		return apiError(error.code, error.message, 500);
+	}
+	if (error instanceof EmDashStorageError && error.code === "BINDING_NOT_FOUND") {
+		return apiError(error.code, error.message, 500);
+	}
+	return null;
 }
 
 /**
@@ -997,6 +1011,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					return migrationRequiredResponse();
 				}
 				console.error("EmDash middleware error:", error);
+				const configurationError = runtimeConfigurationErrorResponse(error, url.pathname);
+				if (configurationError) return configurationError;
 			}
 
 			// Ask the adapter for a request-scoped db. When it returns one, we stash

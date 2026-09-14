@@ -162,6 +162,7 @@ export function ContentTypeEditor({
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
 	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
 	const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true);
+	const [group, setGroup] = React.useState(collection?.group ?? "");
 	// SEO is managed via the separate `hasSeo` field; strip any legacy "seo" entry
 	// so it isn't sent back on save (the API enum rejects it).
 	const [supports, setSupports] = React.useState<string[]>(
@@ -204,6 +205,7 @@ export function ContentTypeEditor({
 			urlPattern !== (collection.urlPattern ?? "") ||
 			routable !== (collection.routable ?? true) ||
 			editLocking !== (collection.editLocking ?? true) ||
+			group !== (collection.group ?? "") ||
 			JSON.stringify([...supports].toSorted()) !==
 				JSON.stringify(collection.supports.filter((s) => s !== "seo").toSorted()) ||
 			hasSeo !== collection.hasSeo ||
@@ -222,6 +224,7 @@ export function ContentTypeEditor({
 		urlPattern,
 		routable,
 		editLocking,
+		group,
 		supports,
 		hasSeo,
 		commentsEnabled,
@@ -269,6 +272,7 @@ export function ContentTypeEditor({
 				urlPattern: urlPattern || undefined,
 				routable,
 				editLocking,
+				group: group.trim() || undefined,
 				supports,
 				hasSeo,
 			});
@@ -280,6 +284,7 @@ export function ContentTypeEditor({
 				urlPattern: urlPattern || undefined,
 				routable,
 				editLocking,
+				group: group.trim() || null,
 				supports,
 				hasSeo,
 				commentsEnabled,
@@ -468,6 +473,22 @@ export function ContentTypeEditor({
 								<p className="text-xs text-kumo-subtle mt-1">
 									{t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`}
 								</p>
+							</div>
+
+							<div className="space-y-3">
+								<Label>{t`Navigation`}</Label>
+								<div>
+									<Input
+										label={t`Group`}
+										value={group}
+										onChange={(e) => setGroup(e.target.value)}
+										placeholder={t`Calendar`}
+										disabled={isFromCode}
+									/>
+									<p className="text-xs text-kumo-subtle mt-1">
+										{t`Content types with the same group share a collapsible folder in the sidebar`}
+									</p>
+								</div>
 							</div>
 
 							<div className="space-y-3">

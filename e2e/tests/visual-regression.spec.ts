@@ -202,11 +202,66 @@ async function stabilize(admin: AdminPage): Promise<void> {
 	});
 }
 
+async function freezeTableVisual(admin: AdminPage): Promise<void> {
+	await admin.page.addStyleTag({ content: FREEZE_CSS });
+	await admin.page.evaluate(async () => {
+		await document.fonts.ready;
+	});
+}
+
+async function openTableVisual(
+	admin: AdminPage,
+	rows = 3,
+	columns = 3,
+	header = true,
+	locale: { code: string; dir: string } = LOCALES[0],
+	theme = "light",
+) {
+	await setLocale(admin, locale.code);
+	await admin.page.evaluate((mode) => localStorage.setItem("emdash-theme", mode), theme);
+	await openAdmin(admin, "/content/posts/new", locale.dir);
+	await freezeTableVisual(admin);
+	const page = admin.page;
+	await expect(page.locator("html")).toHaveAttribute("data-mode", theme);
+	const editor = page.locator("#field-body .ProseMirror");
+	if (locale.dir === "rtl") {
+		await editor.locator(":scope > p").first().click();
+		await page.keyboard.insertText("جدول");
+		await page.keyboard.press("Enter");
+	}
+	await page.locator("#field-body [data-emdash-table-trigger]").click();
+	await page.locator('[role="menu"]:visible').getByRole("menuitem").first().click();
+	if (!header) await page.getByRole("switch").click();
+	await page
+		.getByRole("gridcell")
+		.nth((rows - 1) * 10 + columns - 1)
+		.click();
+	await expect(editor.locator("table")).toHaveCSS("direction", locale.dir);
+	return { editor, table: editor.locator(".tableWrapper") };
+}
+
+async function visualAction(admin: AdminPage, name: string) {
+	const trigger = admin.page.locator("#field-body [data-emdash-table-trigger]");
+	if ((await trigger.getAttribute("aria-expanded")) !== "true") await trigger.click();
+	await admin.page.locator('[role="menu"]:visible').getByText(name, { exact: true }).click();
+}
+
+async function settleTableGeometry(admin: AdminPage): Promise<void> {
+	const page = admin.page;
+	if (await page.locator('[role="menu"]:visible').count()) await page.keyboard.press("Escape");
+	await expect(page.locator('[role="menu"]:visible')).toHaveCount(0);
+	await page.locator("#field-title").focus();
+	await expect(page.locator("#field-title")).toBeFocused();
+	await expect(page.locator("[data-emdash-table-bubble-menu]")).toBeHidden();
+}
+
+const tableShot = { animations: "disabled" as const, caret: "hide" as const };
+
 test.describe("visual regression", () => {
 	test.skip(!VISUAL_ENABLED, "Set EMDASH_VISUAL=1 to run visual regression snapshots");
 
 	// Freeze browser time, timezone, locale, and OS-level motion preferences.
-	test.use({ locale: "en-US", reducedMotion: "reduce", timezoneId: "UTC" });
+	test.use({ locale: "en-US", contextOptions: { reducedMotion: "reduce" }, timezoneId: "UTC" });
 
 	test.beforeEach(async ({ admin }) => {
 		await admin.devBypassAuth();
@@ -243,4 +298,225 @@ test.describe("visual regression", () => {
 			});
 		}
 	}
+
+	test("portable table pairwise states", async ({ admin, serverInfo }, testInfo) => {
+		test.setTimeout(120_000);
+		const page = admin.page;
+		let view = await openTableVisual(admin);
+		await settleTableGeometry(admin);
+		await expect(view.table).toHaveScreenshot("table-a-default.png", tableShot);
+		await visualAction(admin, "Delete table");
+		await page.locator("#field-body [data-emdash-table-trigger]").click();
+		await page.locator('[role="menu"]:visible').getByRole("menuitem").first().click();
+		await expect(page.locator(".kumo-popover-popup:visible")).toHaveScreenshot(
+			"table-a-picker-open.png",
+			tableShot,
+		);
+
+		await page.setViewportSize({ width: 375, height: 812 });
+		view = await openTableVisual(admin, 3, 3, true, LOCALES[1], "dark");
+		await view.table.locator("th").first().locator("p").click();
+		await expect(view.table).toHaveScreenshot("table-b-active-cell.png", tableShot);
+		await page.keyboard.press("Shift+ArrowLeft");
+		await expect(view.table.locator(".selectedCell")).toHaveCount(2);
+		await expect(view.table).toHaveScreenshot("table-b-multi-cell-selection.png", tableShot);
+		await page.setViewportSize({ width: 1280, height: 800 });
+		view = await openTableVisual(admin, 3, 3, false);
+		await view.table.locator("td").first().locator("p").click();
+		await expect(page.getByRole("group", { name: "Table controls" })).toHaveScreenshot(
+			"table-c-contextual-toolbar.png",
+			tableShot,
+		);
+		await page.getByRole("button", { name: "More table actions" }).click();
+		await expect(page.locator('[role="menu"]:visible')).toHaveScreenshot(
+			"table-c-full-menu.png",
+			tableShot,
+		);
+		view = await openTableVisual(admin, 3, 3, false, LOCALES[1], "dark");
+		await view.table.locator("td").first().locator("p").click();
+		await page.locator("#field-body [data-emdash-table-trigger]").click();
+		await expect(page.getByRole("menuitem", { name: "حذف الصف", exact: true })).toBeEnabled();
+		await expect(page.locator('[role="menu"]:visible')).toHaveScreenshot(
+			"table-d-delete-enabled.png",
+			tableShot,
+		);
+		await page.keyboard.press("Escape");
+		await visualAction(admin, "Select table");
+		await page.locator("#field-body [data-emdash-table-trigger]").click();
+		await expect(page.getByRole("menuitem", { name: /Delete.*rows/ })).toBeDisabled();
+		await expect(page.locator('[role="menu"]:visible')).toHaveScreenshot(
+			"table-d-delete-disabled.png",
+			tableShot,
+		);
+
+		await page.setViewportSize({ width: 320, height: 800 });
+		view = await openTableVisual(admin, 2, 10, true, LOCALES[1]);
+		for (const [cell, text] of [
+			[view.table.locator("th").first(), "First"],
+			[view.table.locator("th").last(), "Last"],
+		] as const) {
+			await cell.locator("p").click();
+			await page.keyboard.insertText(text);
+		}
+		await view.table.evaluate((wrapper) => {
+			wrapper.scrollLeft = 0;
+		});
+		await expect(view.table).toHaveScreenshot("table-e-scroll-start.png", tableShot);
+		await view.table.evaluate((wrapper) => {
+			wrapper.scrollLeft = -wrapper.scrollWidth;
+		});
+		expect(await view.table.evaluate((wrapper) => wrapper.scrollLeft)).toBeLessThan(0);
+		await expect(view.table).toHaveScreenshot("table-e-scroll-end.png", tableShot);
+		await page.setViewportSize({ width: 1440, height: 900 });
+		view = await openTableVisual(admin, 2, 10, true, LOCALES[1], "dark");
+		for (const [name, cell] of [
+			["table-f-resize-first-column.png", view.table.locator("th").first()],
+			["table-f-resize-last-column.png", view.table.locator("th").last()],
+		] as const) {
+			await cell.scrollIntoViewIfNeeded();
+			const box = await cell.boundingBox();
+			await page.mouse.move(box!.x + 1, box!.y + box!.height / 2);
+			await expect(cell.locator(".column-resize-handle")).toBeVisible();
+			await page.mouse.down();
+			await expect(view.table).toHaveScreenshot(name, tableShot);
+			await page.mouse.up();
+		}
+
+		await page.setViewportSize({ width: 768, height: 1024 });
+		view = await openTableVisual(admin, 3, 3, false);
+		await visualAction(admin, "Increase column width");
+		await settleTableGeometry(admin);
+		await expect(view.table).toHaveScreenshot("table-g-custom-widths.png", tableShot);
+		await visualAction(admin, "Reset column widths");
+		await settleTableGeometry(admin);
+		await expect(view.table).toHaveScreenshot("table-g-reset-widths.png", tableShot);
+		await page.setViewportSize({ width: 375, height: 812 });
+		view = await openTableVisual(admin, 3, 3, false, LOCALES[1], "dark");
+		await visualAction(admin, "تبديل صف الرأس");
+		await visualAction(admin, "Toggle header column");
+		await settleTableGeometry(admin);
+		await expect(view.table).toHaveScreenshot("table-h-header-row-column.png", tableShot);
+		await visualAction(admin, "تبديل صف الرأس");
+		await visualAction(admin, "Toggle header column");
+		await settleTableGeometry(admin);
+		await expect(view.table).toHaveScreenshot("table-h-body-only.png", tableShot);
+
+		await page.setViewportSize({ width: 1280, height: 800 });
+		view = await openTableVisual(admin, 3, 3, false);
+		await view.table.locator("td").first().locator("p").click();
+		await page.keyboard.press("Shift+ArrowRight");
+		await visualAction(admin, "Merge selected cells");
+		await expect(view.table).toHaveScreenshot("table-i-merged.png", tableShot);
+		await visualAction(admin, "Split merged cell");
+		await expect(view.table).toHaveScreenshot("table-i-split.png", tableShot);
+
+		await page.setViewportSize({ width: 1440, height: 900 });
+		view = await openTableVisual(admin, 3, 3, true, { code: "pseudo", dir: "ltr" }, "dark");
+		await expect(page.locator("html")).toHaveAttribute("lang", "pseudo");
+		await expect(page.locator("[data-emdash-editor-surface]")).toHaveScreenshot(
+			"table-k-full-editor.png",
+			tableShot,
+		);
+		await page.locator("#field-body").evaluate((field) => {
+			field.style.inlineSize = "360px";
+		});
+		await expect(page.locator("[data-emdash-editor-surface]")).toHaveScreenshot(
+			"table-k-split-pane-360.png",
+			tableShot,
+		);
+		await page.locator("#field-body [data-emdash-table-trigger]").click();
+		const pseudoMenu = page.locator('[role="menu"]:visible');
+		await expect(pseudoMenu.getByRole("menuitem").first()).toContainText("Śēĺēćţ ŕōŵ");
+		const menuBounds = (await pseudoMenu.boundingBox())!;
+		const viewport = page.viewportSize()!;
+		expect(menuBounds.x).toBeGreaterThanOrEqual(0);
+		expect(menuBounds.y).toBeGreaterThanOrEqual(0);
+		expect(menuBounds.x + menuBounds.width).toBeLessThanOrEqual(viewport.width);
+		expect(menuBounds.y + menuBounds.height).toBeLessThanOrEqual(viewport.height);
+		await expect(pseudoMenu).toHaveScreenshot("table-k-pseudo-menu.png", tableShot);
+
+		const slug = `visual-table-published-${testInfo.retry}`;
+		const response = await page.request.post("/_emdash/api/content/posts", {
+			headers: {
+				Authorization: `Bearer ${serverInfo.token}`,
+				"X-EmDash-Request": "1",
+			},
+			data: {
+				slug,
+				data: {
+					title: "Visual table",
+					body: [
+						{
+							_type: "table",
+							_key: "visual-table",
+							hasHeaderRow: true,
+							rows: [0, 1].map((row) => ({
+								cells: [0, 1, 2].map((column) => `خلية ${row}:${column}`),
+							})),
+						},
+					],
+				},
+			},
+		});
+		const created = (await response.json()) as { data: { item?: { id: string }; id?: string } };
+		const id = created.data.item?.id ?? created.data.id!;
+		await page.request.post(`/_emdash/api/content/posts/${id}/publish`, {
+			headers: { Authorization: `Bearer ${serverInfo.token}`, "X-EmDash-Request": "1" },
+			data: {},
+		});
+		await page.setViewportSize({ width: 320, height: 800 });
+		await setLocale(admin, "ar");
+		await page.evaluate(() => localStorage.setItem("emdash-theme", "light"));
+		await openAdmin(admin, `/content/posts/${id}`, "rtl");
+		await expect(page.locator("#field-body table")).toHaveCSS("direction", "rtl");
+		await freezeTableVisual(admin);
+		await expect(page.locator("#field-body .tableWrapper")).toHaveScreenshot(
+			"table-j-editor.png",
+			tableShot,
+		);
+		await page.goto(`/posts/${slug}`);
+		await page.locator("html").evaluate((html) => {
+			html.dir = "rtl";
+		});
+		await expect(page.locator("#body table")).toHaveCSS("direction", "rtl");
+		await freezeTableVisual(admin);
+		await expect(page.locator("#body .emdash-table-wrapper")).toHaveScreenshot(
+			"table-j-published.png",
+			tableShot,
+		);
+	});
+
+	test("portable table fine picker", async ({ admin }) => {
+		await admin.page.setViewportSize({ width: 320, height: 800 });
+		await admin.page.evaluate(() => localStorage.setItem("emdash-theme", "dark"));
+		await setLocale(admin, "en");
+		await openAdmin(admin, "/content/posts/new", "ltr");
+		await admin.page.locator("#field-body [data-emdash-table-trigger]").click();
+		await admin.page.locator('[role="menu"]:visible').getByRole("menuitem").first().click();
+		await freezeTableVisual(admin);
+		await expect(admin.page.locator(".kumo-popover-popup:visible")).toHaveScreenshot(
+			"table-l-fine-picker.png",
+			tableShot,
+		);
+	});
+});
+
+test.describe("visual regression coarse table picker", () => {
+	test.skip(!VISUAL_ENABLED, "Set EMDASH_VISUAL=1 to run visual regression snapshots");
+	test.use({ hasTouch: true, viewport: { width: 320, height: 800 } });
+
+	test("portable table coarse picker", async ({ admin }) => {
+		await admin.page.setViewportSize({ width: 1280, height: 800 });
+		await admin.devBypassAuth();
+		await admin.page.evaluate(() => localStorage.setItem("emdash-theme", "dark"));
+		await admin.goToNewContent("posts");
+		await admin.page.setViewportSize({ width: 320, height: 800 });
+		await admin.page.locator("#field-body [data-emdash-table-trigger]").tap();
+		await admin.page.locator('[role="menu"]:visible').getByRole("menuitem").first().tap();
+		await freezeTableVisual(admin);
+		await expect(admin.page.locator(".kumo-popover-popup:visible")).toHaveScreenshot(
+			"table-l-coarse-picker.png",
+			tableShot,
+		);
+	});
 });

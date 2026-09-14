@@ -213,6 +213,22 @@ describe("Dashboard", () => {
 			.toHaveAttribute("href", "/content/pages/new");
 	});
 
+	it("omits quick actions for hidden collections", async () => {
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+		const withHidden: AdminManifest = {
+			...manifest,
+			collections: {
+				...manifest.collections,
+				sync_runs: { ...manifest.collections.pages!, labelSingular: "Sync run", hidden: true },
+			},
+		};
+
+		const screen = await render(<Dashboard manifest={withHidden} />);
+
+		await expect.element(screen.getByRole("link", { name: "Page" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "Sync run" })).not.toBeInTheDocument();
+	});
+
 	it("uses the same heading level for every dashboard card title", async () => {
 		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
 

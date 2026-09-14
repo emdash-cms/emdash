@@ -13,6 +13,7 @@ import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import type { CanonicalDeclaredAccess } from "@emdash-cms/plugin-types";
 import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import { isProvenFirstRelease } from "@emdash-cms/registry-client/listing-policy";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import {
@@ -22,6 +23,7 @@ import {
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
 import {
@@ -468,7 +470,10 @@ export async function handleRegistryInstall(
 			success: false,
 			error: {
 				code: "SANDBOX_NOT_AVAILABLE",
-				message: "Sandbox runner is required for registry plugins",
+				message: withUnavailableReason(
+					"Sandbox runner is required for registry plugins",
+					sandboxRunner,
+				),
 			},
 		};
 	}
@@ -728,7 +733,9 @@ export async function handleRegistryInstall(
 			const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
 				e.trim().toLowerCase(),
 			);
-			const exempt = releaseExemptFromMinimumAge(exclude, publisherDid, slug);
+			const exempt =
+				releaseExemptFromMinimumAge(exclude, publisherDid, slug) ||
+				isProvenFirstRelease(packageView);
 			if (!exempt) {
 				const indexedAt = Date.parse(releaseView.indexedAt);
 				if (!Number.isFinite(indexedAt)) {
@@ -1229,7 +1236,10 @@ export async function handleRegistryUpdate(
 	if (!sandboxRunner || !sandboxRunner.isAvailable()) {
 		return {
 			success: false,
-			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },
+			error: {
+				code: "SANDBOX_NOT_AVAILABLE",
+				message: withUnavailableReason("Sandbox runner is required", sandboxRunner),
+			},
 		};
 	}
 	try {
@@ -1566,11 +1576,6 @@ export async function handleRegistryUpdate(
 		});
 
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
-
-		// Best-effort cleanup of the old bundle. Failures here don't roll
-		// back the upgrade (the new bundle is already stored and committed
-		// in the state row); the orphan is just storage we'll pay for.
-		deleteBundleFromR2(storage, pluginId, oldVersion, "registry").catch(() => {});
 
 		return {
 			success: true,

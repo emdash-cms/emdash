@@ -21,6 +21,11 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 */
 	handle: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.handleString()),
 	/**
+	 * Number of package release versions retained in the aggregator's history, including releases the publisher later deleted.
+	 * @minimum 0
+	 */
+	historicalReleaseCount: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.integer()),
+	/**
 	 * When the aggregator first indexed this package.
 	 */
 	indexedAt: /*#__PURE__*/ v.datetimeString(),
@@ -49,6 +54,10 @@ const _packageViewSchema = /*#__PURE__*/ v.object({
 	 * The signed profile record verbatim, passed through from the publisher's repo (carrying its $type, all required fields, etc.).
 	 */
 	profile: /*#__PURE__*/ v.unknown(),
+	/**
+	 * Whether the aggregator continuously observed this package from its first live profile creation. When false or absent, clients must not infer that historicalReleaseCount represents the package's complete registry history.
+	 */
+	releaseHistoryComplete: /*#__PURE__*/ v.optional(/*#__PURE__*/ v.boolean()),
 	/**
 	 * Package slug (the rkey of the profile record). Denormalised convenience.
 	 * @minLength 1

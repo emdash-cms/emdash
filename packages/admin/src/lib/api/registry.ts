@@ -30,6 +30,7 @@ import type {
 import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
 import {
+	isProvenFirstRelease,
 	registryLabelerPolicy,
 	registryLabelerPolicyKey,
 	type RegistryLabelerPolicy,
@@ -234,9 +235,9 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
 
 /**
  * Returns whether a release should be considered installable given the
- * configured policy. Currently implements the minimum-release-age check
- * described in RFC 0001's "Pre-label gap and launch tempo" section,
- * plus the `minimumReleaseAgeExclude` allowlist.
+ * configured policy. Applies the `minimumReleaseAgeExclude` allowlist first,
+ * then the proven-first-release exemption, then the minimum-release-age
+ * holdback described in RFC 0001's "Pre-label gap and launch tempo" section.
  *
  * Returns `false` (release blocked) when the policy is configured but
  * the release is missing a valid `indexedAt` -- we fail closed rather
@@ -244,7 +245,10 @@ async function getDiscoveryClient(config: RegistryClientConfig): Promise<Wrapped
  */
 export function releasePassesPolicy(
 	release: RegistryReleaseView,
-	pkg: { did: string; slug: string },
+	pkg: Pick<
+		RegistryPackageView,
+		"did" | "slug" | "historicalReleaseCount" | "releaseHistoryComplete"
+	>,
 	policy: RegistryClientConfig["policy"],
 	now: number = Date.now(),
 ): boolean {
@@ -252,6 +256,7 @@ export function releasePassesPolicy(
 	if (releaseExemptFromMinimumAge(policy.minimumReleaseAgeExclude, pkg.did, pkg.slug)) {
 		return true;
 	}
+	if (isProvenFirstRelease(pkg)) return true;
 	const indexedAt = Date.parse(release.indexedAt);
 	if (!Number.isFinite(indexedAt)) return false;
 	const ageSeconds = (now - indexedAt) / 1000;

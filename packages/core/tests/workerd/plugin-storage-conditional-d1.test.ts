@@ -3,7 +3,7 @@ import { Kysely, sql } from "kysely";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
-import { up } from "../../src/database/migrations/076_plugin_storage_revisions.js";
+import { up } from "../../src/database/migrations/077_plugin_storage_revisions.js";
 import type { Database } from "../../src/database/types.js";
 import type {
 	ConditionalDeleteResult,

@@ -41,6 +41,39 @@ export interface ManifestRegistryConfig {
 	};
 }
 
+export type RegistryConfigurationErrorCode =
+	| "REGISTRY_AGGREGATOR_URL_REQUIRED"
+	| "REGISTRY_AGGREGATOR_URL_INVALID"
+	| "REGISTRY_AGGREGATOR_URL_FORBIDDEN"
+	| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
+	| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
+
+export type RegistryConfigurationField =
+	| "experimental.registry.aggregatorUrl"
+	| "experimental.registry.policy.minimumReleaseAge"
+	| "experimental.registry.policy.minimumReleaseAgeExclude";
+
+export interface ManifestRegistryConfigurationError {
+	code: RegistryConfigurationErrorCode;
+	field: RegistryConfigurationField;
+}
+
+class RegistryConfigurationError extends Error {
+	constructor(
+		public readonly code: RegistryConfigurationErrorCode,
+		public readonly field: RegistryConfigurationField,
+		message: string,
+		options?: ErrorOptions,
+	) {
+		super(`EmDash registry configuration error in ${field}: ${message}`, options);
+		this.name = "RegistryConfigurationError";
+	}
+}
+
+interface RegistryConfigurationValidationOptions {
+	allowLocalhost?: boolean;
+}
+
 /**
  * Canonicalize a capabilities list for set-style comparison.
  *
@@ -169,15 +202,27 @@ export function parseDurationSeconds(duration: string | number): number {
  * own HTTPS bundle, defeating the checksum trust chain because the
  * attacker controls the unsigned transport that supplied the checksum.
  */
-export function validateAggregatorUrl(aggregatorUrl: string): URL {
+export function validateAggregatorUrl(
+	aggregatorUrl: string,
+	options: RegistryConfigurationValidationOptions = {},
+): URL {
 	let parsed: URL;
 	try {
 		parsed = new URL(aggregatorUrl);
-	} catch {
-		throw new Error(`registry.aggregatorUrl is not a valid URL: ${aggregatorUrl}`);
+	} catch (cause) {
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_INVALID",
+			"experimental.registry.aggregatorUrl",
+			"must be a valid URL",
+			{ cause },
+		);
 	}
 	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-		throw new Error(`registry.aggregatorUrl must use http or https: ${aggregatorUrl}`);
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+			"experimental.registry.aggregatorUrl",
+			"must use HTTP or HTTPS",
+		);
 	}
 	// Reject embedded credentials. The normalized aggregator URL ends
 	// up in the admin manifest and is shipped to every admin browser;
@@ -185,7 +230,11 @@ export function validateAggregatorUrl(aggregatorUrl: string): URL {
 	// so leaving them in would both leak the credentials and break the
 	// registry UI at runtime.
 	if (parsed.username || parsed.password) {
-		throw new Error("registry.aggregatorUrl must not contain embedded credentials (user:pass@)");
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+			"experimental.registry.aggregatorUrl",
+			"must not contain embedded credentials",
+		);
 	}
 
 	// WHATWG URL preserves the brackets on IPv6 hostnames -- strip them
@@ -205,18 +254,27 @@ export function validateAggregatorUrl(aggregatorUrl: string): URL {
 		hostname.startsWith("::ffff:127.") ||
 		hostname.startsWith("::ffff:7f00:");
 
-	if (!import.meta.env.DEV) {
+	const allowLocalhost = options.allowLocalhost ?? import.meta.env.DEV;
+	if (!allowLocalhost) {
 		if (parsed.protocol === "http:") {
-			throw new Error(`registry.aggregatorUrl must use https in production: ${aggregatorUrl}`);
+			throw new RegistryConfigurationError(
+				"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+				"experimental.registry.aggregatorUrl",
+				"must use HTTPS outside development",
+			);
 		}
 		if (isLocalhost) {
-			throw new Error(
-				`registry.aggregatorUrl points at localhost; allowed only in dev: ${aggregatorUrl}`,
+			throw new RegistryConfigurationError(
+				"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+				"experimental.registry.aggregatorUrl",
+				"must not point at localhost outside development",
 			);
 		}
 	} else if (parsed.protocol === "http:" && !isLocalhost) {
-		throw new Error(
-			`registry.aggregatorUrl must use https (http allowed only for localhost in dev): ${aggregatorUrl}`,
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
+			"experimental.registry.aggregatorUrl",
+			"must use HTTPS unless it points at localhost in development",
 		);
 	}
 
@@ -251,28 +309,30 @@ export function coerceRegistryConfig(
  * object. Returns `null` when `input` is undefined so callers can
  * spread the result directly into the manifest object.
  *
- * Throws if the aggregator URL is malformed, points at a forbidden host,
- * or `policy.minimumReleaseAge` is unparseable. These surface at
- * runtime startup as 500s from the manifest endpoint -- intended,
- * because the alternative is silently disabling the registry on
- * misconfigured sites.
- *
- * TODO: switch to a Zod schema for richer per-field error messages and
- * to surface misconfigurations to the admin UI as a banner instead of
- * a manifest 500.
+ * Throws a field-specific configuration error if the aggregator URL is
+ * malformed or forbidden, or a registry policy value cannot be normalized.
+ * The Astro integration uses this to fail during config loading. Runtime
+ * manifest generation uses {@link resolveManifestRegistryConfig} to expose
+ * recognized failures without exposing the configured value.
  */
 export function normalizeRegistryConfig(
 	input: RegistryConfigInput | undefined,
+	options: RegistryConfigurationValidationOptions = {},
 ): ManifestRegistryConfig | null {
 	const config = coerceRegistryConfig(input);
 	if (!config) return null;
 
-	const aggregatorUrl = config.aggregatorUrl?.trim();
+	const aggregatorUrl =
+		typeof config.aggregatorUrl === "string" ? config.aggregatorUrl.trim() : undefined;
 	if (!aggregatorUrl) {
-		throw new Error("registry.aggregatorUrl is required when registry is configured");
+		throw new RegistryConfigurationError(
+			"REGISTRY_AGGREGATOR_URL_REQUIRED",
+			"experimental.registry.aggregatorUrl",
+			"is required when the registry is configured",
+		);
 	}
 
-	validateAggregatorUrl(aggregatorUrl);
+	validateAggregatorUrl(aggregatorUrl, options);
 
 	const out: ManifestRegistryConfig = {
 		// Strip any trailing slash so `${aggregatorUrl}/xrpc/...` works
@@ -288,18 +348,45 @@ export function normalizeRegistryConfig(
 	let hasPolicy = false;
 
 	if (config.policy?.minimumReleaseAge !== undefined) {
-		policy.minimumReleaseAgeSeconds = parseDurationSeconds(config.policy.minimumReleaseAge);
+		try {
+			policy.minimumReleaseAgeSeconds = parseDurationSeconds(config.policy.minimumReleaseAge);
+		} catch (cause) {
+			throw new RegistryConfigurationError(
+				"REGISTRY_MINIMUM_RELEASE_AGE_INVALID",
+				"experimental.registry.policy.minimumReleaseAge",
+				'must be a duration such as "48h", "7d", or a non-negative number of seconds',
+				{ cause },
+			);
+		}
 		hasPolicy = true;
 	}
 
 	if (config.policy?.minimumReleaseAgeExclude !== undefined) {
+		if (!Array.isArray(config.policy.minimumReleaseAgeExclude)) {
+			throw new RegistryConfigurationError(
+				"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+				"experimental.registry.policy.minimumReleaseAgeExclude",
+				"must be an array of DIDs or <did>/<slug> entries",
+			);
+		}
 		// Normalize at load time so callers (browser and server) can do
 		// plain string compares without each one re-implementing the
 		// case-folding rule.
 		const list = config.policy.minimumReleaseAgeExclude.map((entry) => {
+			if (typeof entry !== "string") {
+				throw new RegistryConfigurationError(
+					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+					"experimental.registry.policy.minimumReleaseAgeExclude",
+					"minimumReleaseAgeExclude entry must be a DID or <did>/<slug>",
+				);
+			}
 			const trimmed = entry.trim();
 			if (!trimmed) {
-				throw new Error("registry.policy.minimumReleaseAgeExclude entries cannot be empty");
+				throw new RegistryConfigurationError(
+					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+					"experimental.registry.policy.minimumReleaseAgeExclude",
+					"entries cannot be empty",
+				);
 			}
 			const lower = trimmed.toLowerCase();
 			const [did, slug, ...extra] = lower.split("/");
@@ -309,8 +396,10 @@ export function normalizeRegistryConfig(
 				extra.length > 0 ||
 				(slug !== undefined && !REGISTRY_PACKAGE_SLUG_PATTERN.test(slug))
 			) {
-				throw new Error(
-					`registry.policy.minimumReleaseAgeExclude entry must be a DID or <did>/<slug>: ${trimmed}`,
+				throw new RegistryConfigurationError(
+					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
+					"experimental.registry.policy.minimumReleaseAgeExclude",
+					"minimumReleaseAgeExclude entry must be a DID or <did>/<slug>",
 				);
 			}
 			return lower;
@@ -326,4 +415,18 @@ export function normalizeRegistryConfig(
 	}
 
 	return out;
+}
+
+/** Normalize registry config without allowing a known config error to hide the admin. */
+export function resolveManifestRegistryConfig(input: RegistryConfigInput | undefined): {
+	registry?: ManifestRegistryConfig;
+	error?: ManifestRegistryConfigurationError;
+} {
+	try {
+		const registry = normalizeRegistryConfig(input);
+		return registry ? { registry } : {};
+	} catch (error) {
+		if (!(error instanceof RegistryConfigurationError)) throw error;
+		return { error: { code: error.code, field: error.field } };
+	}
 }

@@ -101,6 +101,8 @@ export type {
 	SandboxSaveRejectedError,
 } from "./sandbox/index.js";
 
+export { StorageSerializationError } from "./storage-query.js";
+
 // Types
 export type {
 	// Core types
@@ -118,6 +120,9 @@ export type {
 	// Context APIs
 	PluginContext,
 	StorageCollection,
+	NumericDelta,
+	UpdateIfArgs,
+	UpdateIfResult,
 	VersionedValue,
 	ConditionalWriteResult,
 	ConditionalDeleteResult,
@@ -148,6 +153,7 @@ export type {
 	HookName,
 	ResolvedHook,
 	ResolvedPluginHooks,
+	ActorInfo,
 	ContentHookEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,

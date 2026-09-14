@@ -22,6 +22,7 @@ import {
 	type MarketplaceVersionSummary,
 	type PluginBundle,
 } from "../../plugins/marketplace.js";
+import { withUnavailableReason } from "../../plugins/sandbox/types.js";
 import type { SandboxRunner } from "../../plugins/sandbox/types.js";
 import { PluginStateRepository } from "../../plugins/state.js";
 import {
@@ -363,7 +364,10 @@ export async function handleMarketplaceInstall(
 			success: false,
 			error: {
 				code: "SANDBOX_NOT_AVAILABLE",
-				message: "Sandbox runner is required for marketplace plugins",
+				message: withUnavailableReason(
+					"Sandbox runner is required for marketplace plugins",
+					sandboxRunner,
+				),
 			},
 		};
 	}
@@ -584,7 +588,10 @@ export async function handleMarketplaceUpdate(
 	if (!opts?.sandboxBypassed && (!sandboxRunner || !sandboxRunner.isAvailable())) {
 		return {
 			success: false,
-			error: { code: "SANDBOX_NOT_AVAILABLE", message: "Sandbox runner is required" },
+			error: {
+				code: "SANDBOX_NOT_AVAILABLE",
+				message: withUnavailableReason("Sandbox runner is required", sandboxRunner),
+			},
 		};
 	}
 
@@ -658,6 +665,21 @@ export async function handleMarketplaceUpdate(
 		const oldCaps = oldBundle?.manifest.capabilities ?? [];
 		const capabilityChanges = diffCapabilities(oldCaps, bundle.manifest.capabilities);
 		const hasEscalation = capabilityChanges.added.length > 0;
+		const routeVisibilityChanges = diffRouteVisibility(oldBundle?.manifest, bundle.manifest);
+		const hasNewPublicRoutes = routeVisibilityChanges.newlyPublic.length > 0;
+		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
+			a.name.localeCompare(b.name),
+		);
+		const hasMcpChanges = JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools);
+		const mcpTools = newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool);
+		const consentDetails = {
+			capabilityChanges,
+			routeVisibilityChanges: hasNewPublicRoutes ? routeVisibilityChanges : undefined,
+			mcpTools: hasMcpChanges ? mcpTools : undefined,
+		};
 
 		// If capabilities escalated, require explicit confirmation
 		if (hasEscalation && !opts?.confirmCapabilityChanges) {
@@ -666,42 +688,31 @@ export async function handleMarketplaceUpdate(
 				error: {
 					code: "CAPABILITY_ESCALATION",
 					message: "Plugin update requires new capabilities",
-					details: { capabilityChanges },
+					details: consentDetails,
 				},
 			};
 		}
 
 		// Diff route visibility — routes going from private to public are a
 		// security-sensitive change that exposes unauthenticated endpoints.
-		const routeVisibilityChanges = diffRouteVisibility(oldBundle?.manifest, bundle.manifest);
-		const hasNewPublicRoutes = routeVisibilityChanges.newlyPublic.length > 0;
-
 		if (hasNewPublicRoutes && !opts?.confirmRouteVisibilityChanges) {
 			return {
 				success: false,
 				error: {
 					code: "ROUTE_VISIBILITY_ESCALATION",
 					message: "Plugin update exposes new public (unauthenticated) routes",
-					details: { routeVisibilityChanges, capabilityChanges },
+					details: consentDetails,
 				},
 			};
 		}
 
-		const oldMcpTools = [...(oldBundle?.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
-			a.name.localeCompare(b.name),
-		);
-		const newMcpTools = [...(bundle.manifest.mcp?.tools ?? [])].toSorted((a, b) =>
-			a.name.localeCompare(b.name),
-		);
-		if (JSON.stringify(oldMcpTools) !== JSON.stringify(newMcpTools) && !opts?.confirmMcpTools) {
+		if (hasMcpChanges && !opts?.confirmMcpTools) {
 			return {
 				success: false,
 				error: {
 					code: "MCP_TOOL_CONSENT_REQUIRED",
 					message: "Plugin update changes its MCP tools",
-					details: {
-						mcpTools: newMcpTools.map(({ inputSchema: _, outputSchema: __, ...tool }) => tool),
-					},
+					details: consentDetails,
 				},
 			};
 		}
@@ -720,9 +731,6 @@ export async function handleMarketplaceUpdate(
 		});
 
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
-
-		// Clean up old bundle from R2 (best-effort)
-		deleteBundleFromR2(storage, pluginId, oldVersion).catch(() => {});
 
 		return {
 			success: true,

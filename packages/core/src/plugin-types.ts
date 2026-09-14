@@ -43,6 +43,7 @@ import type { ZodType } from "zod";
 
 import type { SandboxHookErrorEnvelope } from "./plugins/sandbox/hook-result.js";
 import type {
+	ActorInfo,
 	CommentAfterCreateEvent,
 	CommentAfterCreateHandler,
 	CommentAfterModerateEvent,
@@ -262,6 +263,7 @@ export interface SandboxedContentBeforeSaveConfig extends Omit<
 }
 
 export type { SandboxHookErrorEnvelope };
+export type { NumericDelta, UpdateIfArgs, UpdateIfResult } from "./plugins/types.js";
 
 /**
  * Re-export of event types so plugin authors can reference them
@@ -272,6 +274,7 @@ export type { SandboxHookErrorEnvelope };
  * portable `.d.mts`.
  */
 export type {
+	ActorInfo,
 	CommentAfterCreateEvent,
 	CommentAfterModerateEvent,
 	CommentBeforeCreateEvent,

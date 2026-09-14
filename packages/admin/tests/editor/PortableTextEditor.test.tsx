@@ -6,6 +6,7 @@
  * toolbar behaviour, focus modes, and editor lifecycle.
  */
 
+import { TableMap } from "@tiptap/pm/tables";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { describe, it, expect, vi } from "vitest";
@@ -106,8 +107,6 @@ vi.mock("../../src/components/editor/PluginBlockNode", async () => {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-const SPOTLIGHT_MODE_PATTERN = /Spotlight Mode/i;
 
 /** Wait for the ProseMirror editor to mount inside the container */
 async function waitForEditor(): Promise<HTMLElement> {
@@ -565,6 +564,222 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
 	});
 
+	it("keeps safe content editable when a section contains an unsafe table", async () => {
+		const onChange = vi.fn();
+		const { screen, editor, pm } = await renderAndGetEditor({
+			value: [textBlock("Safe content")],
+			onChange,
+		});
+		const unsafeSection = {
+			id: "section-table",
+			slug: "unsafe-table-section",
+			title: "Unsafe table section",
+			keywords: [],
+			content: [
+				{
+					_type: "table",
+					_key: "unsafe-table",
+					rows: [
+						{
+							_type: "tableRow",
+							_key: "row",
+							cells: [
+								{
+									_type: "tableCell",
+									_key: "cell",
+									content: [{ _type: "image", src: "/unsupported.png" }],
+								},
+							],
+						},
+					],
+				},
+			],
+			source: "user",
+			createdAt: "2026-09-07T00:00:00.000Z",
+			updatedAt: "2026-09-07T00:00:00.000Z",
+		};
+
+		await React.act(async () => {
+			sectionPickerProps.current?.onSelect(unsafeSection);
+		});
+
+		await expect.element(screen.getByRole("alert")).toHaveTextContent("Could not insert section");
+		expect(document.querySelector(".ProseMirror")).toBe(pm);
+		expect(editor.getText()).toBe("Safe content");
+
+		typeIntoEditor(editor, " still editable");
+		await vi.waitFor(() => expect(onChange).toHaveBeenCalled(), { timeout: 2000 });
+	});
+
+	it("rejects unsupported table-cell paste with localized guidance and no mutation", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) => (type === "text/html" ? '<img src="/unsupported.png">' : ""),
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		const alert = screen.getByRole("alert");
+		await expect
+			.element(alert)
+			.toHaveTextContent("Table cells accept text, links, and formatting only.");
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("reports an image inside pasted table HTML as unsupported cell content", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) =>
+				type === "text/html"
+					? '<table><tbody><tr><td><img src="/unsupported.png"></td></tr></tbody></table>'
+					: "",
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("Table cells accept text, links, and formatting only.");
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("distinguishes oversized table paste from unsupported cell content", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const html = `<table><tbody><tr>${"<td>Cell</td>".repeat(101)}</tr></tbody></table>`;
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) => (type === "text/html" ? html : ""),
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("This paste is too large. Paste fewer cells or less text at a time.");
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("announces bounded TSV paste dimensions through the stable status region", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", {
+			value: {
+				files: [],
+				items: [],
+				types: ["text/plain"],
+				getData: (type: string) => (type === "text/plain" ? "A\tB" : ""),
+			},
+		});
+		editor.view.dom.dispatchEvent(paste);
+		await expect.element(screen.getByRole("status")).toHaveTextContent("1 × 2 table pasted");
+		expect(TableMap.get(editor.state.doc.firstChild!)).toMatchObject({ width: 2, height: 1 });
+	});
+
+	it("reports malformed quoted TSV without mutating the selected table", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", {
+			value: {
+				files: [],
+				items: [],
+				types: ["text/tab-separated-values"],
+				getData: (type: string) =>
+					type === "text/tab-separated-values" || type === "text/plain" ? '"unfinished' : "",
+			},
+		});
+		editor.view.dom.dispatchEvent(paste);
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent(
+				"This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again.",
+			);
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("gives distinct guidance for malformed table geometry", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		const before = editor.getJSON();
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) =>
+				type === "text/html" ? '<table><tr><td colspan="101">Cell</td></tr></table>' : "",
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent(
+				"This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again.",
+			);
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("explains that tables cannot be pasted inside lists or quotes", async () => {
+		const { screen, editor } = await renderAndGetEditor();
+		const before = editor.getJSON();
+		const clipboardData = {
+			files: [],
+			items: [],
+			types: ["text/html", "text/plain"],
+			getData: (type: string) =>
+				type === "text/html"
+					? "<blockquote><table><tbody><tr><td>Cell</td></tr></tbody></table></blockquote>"
+					: "",
+		};
+		const paste = new Event("paste", { bubbles: true, cancelable: true });
+		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+
+		editor.view.dom.dispatchEvent(paste);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent(
+				"Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again.",
+			);
+		expect(editor.getJSON()).toEqual(before);
+	});
+
+	it("does not open block slash commands inside a table cell", async () => {
+		const { editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+		editor.commands.insertContent("/");
+
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(document.querySelector("[data-slash-command-menu]")).toBeNull();
+		expect(editor.isActive("table")).toBe(true);
+		expect(editor.getText()).toContain("/");
+	});
+
 	it("renders a paragraph from PT value", async () => {
 		await render(<PortableTextEditor value={[textBlock("Hello world")]} />);
 		const pm = await waitForEditor();
@@ -944,23 +1159,6 @@ describe("Editor component behaviour", () => {
 		expect(wrapper).toBeNull();
 	});
 
-	it("calls onFocusModeChange when spotlight button is clicked", async () => {
-		const onFocusModeChange = vi.fn();
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="normal"
-				onFocusModeChange={onFocusModeChange}
-				value={[textBlock("Test")]}
-			/>,
-		);
-		await waitForEditor();
-
-		// The spotlight button has aria-label containing "Spotlight Mode"
-		const spotlightBtn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await spotlightBtn.click();
-		expect(onFocusModeChange).toHaveBeenCalledWith("spotlight");
-	});
-
 	it("hides toolbar and footer in minimal mode", async () => {
 		await render(<PortableTextEditor minimal={true} value={[textBlock("Minimal")]} />);
 		await waitForEditor();
@@ -1156,11 +1354,9 @@ describe("Toolbar", () => {
 		await expect.element(redoBtn).toBeDisabled();
 	});
 
-	it("has spotlight mode button", async () => {
+	it("does not include a spotlight mode button", async () => {
 		const screen = await renderWithToolbar();
-		await expect
-			.element(screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN }))
-			.toBeInTheDocument();
+		expect(screen.getByRole("button", { name: /Spotlight Mode/i }).query()).toBeNull();
 	});
 
 	it("toggles bold aria-pressed when clicked", async () => {
@@ -1258,35 +1454,6 @@ describe("Toolbar", () => {
 			},
 			{ timeout: 2000 },
 		);
-	});
-
-	it("toggles spotlight mode button aria-pressed", async () => {
-		const onFocusModeChange = vi.fn();
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="normal"
-				onFocusModeChange={onFocusModeChange}
-				value={[textBlock("Test")]}
-			/>,
-		);
-		await waitForEditor();
-
-		const btn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "false");
-	});
-
-	it("spotlight button shows pressed when focusMode is spotlight", async () => {
-		const screen = await render(
-			<PortableTextEditor
-				focusMode="spotlight"
-				onFocusModeChange={() => {}}
-				value={[textBlock("Focused")]}
-			/>,
-		);
-		await waitForEditor();
-
-		const btn = screen.getByRole("button", { name: SPOTLIGHT_MODE_PATTERN });
-		await expect.element(btn).toHaveAttribute("aria-pressed", "true");
 	});
 
 	it("toolbar not present in minimal mode", async () => {
@@ -1451,6 +1618,10 @@ describe("Code block copy action", () => {
 				.element(screen.getByRole("button", { name: "Set language (current: JavaScript)" }))
 				.toBeInTheDocument();
 			const copyButton = screen.getByRole("button", { name: "Copy code" });
+			const status = copyButton
+				.element()
+				.closest(".emdash-code-block-node")!
+				.querySelector('[role="status"]')!;
 			await expect.element(copyButton).toBeInTheDocument();
 			vi.useFakeTimers();
 			await copyButton.click();
@@ -1458,9 +1629,9 @@ describe("Code block copy action", () => {
 				expect(clipboardWrite).toHaveBeenCalledWith("const greeting = 'hello';");
 			});
 			await expect.element(screen.getByRole("button", { name: "Copy code" })).toBeInTheDocument();
-			await expect.element(screen.getByRole("status")).toHaveTextContent("Copied");
+			await expect.element(status).toHaveTextContent("Copied");
 			await vi.advanceTimersByTimeAsync(1500);
-			await expect.element(screen.getByRole("status")).toHaveTextContent("");
+			await expect.element(status).toHaveTextContent("");
 		} finally {
 			vi.useRealTimers();
 			clipboardWrite.mockRestore();
@@ -1494,22 +1665,23 @@ describe("Code block copy action", () => {
 				],
 			});
 			const copyButton = screen.getByRole("button", { name: "Copy code" }).element();
+			const status = copyButton
+				.closest(".emdash-code-block-node")!
+				.querySelector('[role="status"]')!;
 			copyButton.click();
 			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(1));
 			copyButton.click();
 			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(2));
 
 			resolveSecond();
-			await expect.element(screen.getByRole("status")).toHaveTextContent("Copied");
+			await expect.element(status).toHaveTextContent("Copied");
 			rejectFirst(new DOMException("Denied", "NotAllowedError"));
-			await vi.waitFor(() =>
-				expect(screen.getByRole("status").element().textContent).toBe("Copied"),
-			);
+			await vi.waitFor(() => expect(status.textContent).toBe("Copied"));
 
 			copyButton.click();
 			await vi.waitFor(() => expect(clipboardWrite).toHaveBeenCalledTimes(3));
 			await expect.element(screen.getByRole("button", { name: "Retry copy" })).toBeVisible();
-			await expect.element(screen.getByRole("status")).toHaveTextContent("Copy failed");
+			await expect.element(status).toHaveTextContent("Copy failed");
 			expect(copyCommand).toHaveBeenCalledTimes(1);
 		} finally {
 			copyCommand.mockRestore();
@@ -1605,5 +1777,117 @@ describe("Code block copy action", () => {
 		await screen.getByPlaceholder("Language").fill("Custom Language");
 		clickPickerAction("Apply language");
 		await vi.waitFor(() => expect(storedLanguage()).toBe("custom-language"));
+	});
+
+	it("prevents block formatting that cannot survive inside a table cell", async () => {
+		const { editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 1, withHeaderRow: false }).run();
+
+		const changedToHeading = editor.chain().focus().toggleHeading({ level: 2 }).run();
+		const table = editor.getJSON().content?.find((node) => node.type === "table");
+		const cellContent = table?.content?.[0]?.content?.[0]?.content;
+
+		expect(changedToHeading).toBe(false);
+		expect(cellContent?.map((node) => node.type)).toEqual(["paragraph"]);
+	});
+
+	it("assigns stable unique keys to newly created table structures", async () => {
+		const { editor } = await renderAndGetEditor();
+		editor.chain().focus().insertTable({ rows: 1, cols: 2, withHeaderRow: false }).run();
+
+		const tableKeys = () => {
+			const keys: string[] = [];
+			editor.state.doc.descendants((node) => {
+				if (!["table", "tableRow", "tableCell", "tableHeader"].includes(node.type.name)) {
+					return;
+				}
+				keys.push(node.attrs.emdashKey);
+			});
+			return keys;
+		};
+		const initialKeys = tableKeys();
+
+		expect(initialKeys).toHaveLength(4);
+		expect(initialKeys.every((key) => typeof key === "string" && key.length > 0)).toBe(true);
+		expect(new Set(initialKeys).size).toBe(initialKeys.length);
+
+		editor.chain().focus().addRowAfter().run();
+		const expandedKeys = tableKeys();
+		expect(expandedKeys.slice(0, initialKeys.length)).toEqual(initialKeys);
+		expect(new Set(expandedKeys).size).toBe(expandedKeys.length);
+	});
+
+	it("does not erase opaque metadata when separate tables reuse structural keys", async () => {
+		const table = (key: string, text: string, source: string) => ({
+			_type: "table",
+			_key: key,
+			rows: [
+				{
+					_type: "tableRow",
+					_key: "shared-row",
+					cells: [
+						{
+							_type: "tableCell",
+							_key: "shared-cell",
+							source,
+							content: [{ _type: "span", _key: `${key}-span`, text }],
+						},
+					],
+				},
+			],
+		});
+		const { editor } = await renderAndGetEditor({
+			value: [
+				table("first-table", "First", "first-source"),
+				table("second-table", "Second", "second-source"),
+			],
+		});
+		let firstTextPosition = 0;
+		editor.state.doc.descendants((node, position) => {
+			if (node.isText && node.text === "First") firstTextPosition = position;
+		});
+
+		editor.chain().focus().setTextSelection(firstTextPosition).addRowAfter().run();
+
+		const tables = editor.getJSON().content?.filter((node) => node.type === "table") ?? [];
+		expect(tables[0]?.content?.[0]?.content?.[0]?.attrs?.emdashData).toEqual({
+			source: "first-source",
+		});
+		expect(tables[1]?.content?.[0]?.content?.[0]?.attrs?.emdashData).toEqual({
+			source: "second-source",
+		});
+		expect(tables[0]?.content?.[0]?.content?.[0]?.attrs?.emdashKey).toBe("shared-cell");
+		expect(tables[1]?.content?.[0]?.content?.[0]?.attrs?.emdashKey).toBe("shared-cell");
+	});
+
+	it("refuses to edit stored table cell content that cannot round-trip safely", async () => {
+		const screen = await render(
+			<PortableTextEditor
+				value={[
+					{
+						_type: "table",
+						_key: "unsafe-table",
+						rows: [
+							{
+								_type: "tableRow",
+								_key: "unsafe-row",
+								cells: [
+									{
+										_type: "tableCell",
+										_key: "unsafe-cell",
+										content: [{ _type: "image", src: "/lost.png" }],
+									},
+								],
+							},
+						],
+					},
+				]}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByRole("alert"))
+			.toHaveTextContent("This table cannot be edited safely");
+		expect(document.querySelector(".ProseMirror")).toBeNull();
 	});
 });
