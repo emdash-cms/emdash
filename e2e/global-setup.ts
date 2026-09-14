@@ -374,6 +374,18 @@ export default async function globalSetup(): Promise<void> {
 			if (match) sessionCookie = match[1]!;
 		}
 
+		const adminApiPaths = [
+			"/_emdash/api/schema/collections?includeFields=true",
+			"/_emdash/api/media",
+		];
+		for (const path of adminApiPaths) {
+			// Let cold route compilation continue while seed requests run. The
+			// bounded readiness check below still verifies the completed routes.
+			void fetch(`${baseUrl}${path}`, {
+				headers: { Authorization: `Bearer ${token}` },
+			}).catch(() => undefined);
+		}
+
 		// 5. Seed test data
 		console.log("[pw] Seeding test data...");
 		const seed = await seedTestData(baseUrl, token);
@@ -397,10 +409,7 @@ export default async function globalSetup(): Promise<void> {
 		// otherwise serves a cold 500 for these, rendering an empty admin and
 		// failing the first specs before the route finishes compiling.
 		console.log("[pw] Warming up admin API routes...");
-		for (const path of [
-			"/_emdash/api/schema/collections?includeFields=true",
-			"/_emdash/api/media",
-		]) {
+		for (const path of adminApiPaths) {
 			await waitForOk(`${baseUrl}${path}`, 60_000, token);
 		}
 
