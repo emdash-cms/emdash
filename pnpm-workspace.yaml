@@ -8,12 +8,6 @@ minimumReleaseAgeExclude:
   - "@rolldown/binding-*"
   - "@emnapi/core"
   - "@emnapi/runtime"
-  # Astro 7.0.0 and the whole @astrojs/* family (adapters, markdown-satteri,
-  # internal helpers, etc.) were published together on 2026-06-22 and are all
-  # still inside the 24h cooldown. Exclude them so the upgrade install doesn't
-  # stall. TEMPORARY: remove this scope exclusion once the cooldown has elapsed.
-  - astro
-  - "@astrojs/*"
 trustPolicy: no-downgrade
 strictDepBuilds: true
 dangerouslyAllowAllBuilds: false
