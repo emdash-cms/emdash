@@ -38,6 +38,8 @@ import type {
 	ToggleElement,
 	TabBlock,
 	TabPanel,
+	PortableTextElement,
+	BlockListElement,
 } from "./types.js";
 
 // ── Block Builders ───────────────────────────────────────────────────────────
@@ -374,6 +376,46 @@ function mediaPicker(
 	};
 }
 
+function portableText(
+	actionId: string,
+	label: string,
+	opts?: {
+		placeholder?: string;
+		initialValue?: Array<Record<string, unknown>>;
+	},
+): PortableTextElement {
+	return {
+		type: "portable_text",
+		action_id: actionId,
+		label,
+		...(opts?.placeholder !== undefined && { placeholder: opts.placeholder }),
+		...(opts?.initialValue !== undefined && { initial_value: opts.initialValue }),
+	};
+}
+
+function blockList(
+	actionId: string,
+	label: string,
+	opts?: {
+		itemLabel?: string;
+		allowedTypes?: string[];
+		minItems?: number;
+		maxItems?: number;
+		initialValue?: Array<Record<string, unknown>>;
+	},
+): BlockListElement {
+	return {
+		type: "block_list",
+		action_id: actionId,
+		label,
+		...(opts?.itemLabel !== undefined && { item_label: opts.itemLabel }),
+		...(opts?.allowedTypes !== undefined && { allowed_types: opts.allowedTypes }),
+		...(opts?.minItems !== undefined && { min_items: opts.minItems }),
+		...(opts?.maxItems !== undefined && { max_items: opts.maxItems }),
+		...(opts?.initialValue !== undefined && { initial_value: opts.initialValue }),
+	};
+}
+
 function timeseriesChart(opts: {
 	blockId?: string;
 	series: ChartSeries[];
@@ -532,4 +574,6 @@ export const elements = {
 	radio,
 	repeater,
 	mediaPicker,
+	portableText,
+	blockList,
 };

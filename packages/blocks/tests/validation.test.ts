@@ -159,6 +159,75 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("portable_text", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "portable_text",
+							action_id: "content",
+							label: "Content",
+							placeholder: "Write...",
+							initial_value: [
+								{
+									_type: "block",
+									_key: "b1",
+									style: "normal",
+									markDefs: [{ _key: "l1", _type: "link", href: "https://example.com" }],
+									children: [{ _type: "span", _key: "s1", text: "hello", marks: ["strong", "l1"] }],
+								},
+							],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("block_list", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "block_list",
+							action_id: "blocks",
+							label: "Blocks",
+							item_label: "Block",
+							allowed_types: ["acme.heading", "acme.text"],
+							min_items: 0,
+							max_items: 12,
+							initial_value: [{ _type: "acme.heading", _key: "k1", text: "Hi" }],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("repeater with portable_text and block_list sub-fields", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "repeater",
+							action_id: "columns",
+							label: "Columns",
+							item_label: "Column",
+							fields: [
+								{ type: "number_input", action_id: "width", label: "Width" },
+								{ type: "portable_text", action_id: "intro", label: "Intro" },
+								{ type: "block_list", action_id: "blocks", label: "Blocks" },
+							],
+						},
+					],
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("media_picker (minimal)", () => {
 			const result = validateBlocks([
 				{
@@ -268,6 +337,61 @@ describe("validateBlocks", () => {
 			const paths = result.errors.map((e) => e.path);
 			expect(paths).toContain("blocks[0].columns[0].key");
 			expect(paths).toContain("blocks[0].columns[0].label");
+		});
+
+		it("portable_text with non-array initial_value", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "portable_text",
+							action_id: "content",
+							label: "Content",
+							initial_value: "a plain string",
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0].path).toContain("initial_value");
+		});
+
+		it("block_list with an initial_value entry missing _type", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "block_list",
+							action_id: "blocks",
+							label: "Blocks",
+							initial_value: [{ text: "no type here" }],
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0].message).toContain("_type");
+		});
+
+		it("block_list with min_items greater than max_items", () => {
+			const result = validateBlocks([
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "block_list",
+							action_id: "blocks",
+							label: "Blocks",
+							min_items: 3,
+							max_items: 1,
+						},
+					],
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0].path).toContain("min_items");
 		});
 
 		it("table column with invalid format", () => {
