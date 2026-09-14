@@ -35,6 +35,28 @@ const pluginBlocks: NonNullable<PortableTextEditorProps["pluginBlocks"]> = [
 ];
 
 describe("plugin block modal", () => {
+	it("gives field-backed block forms enough horizontal space", async () => {
+		const screen = await render(
+			<PortableTextEditor
+				value={[
+					{
+						_type: "test.hero",
+						_key: "hero-1",
+						heading: "Before",
+					},
+				]}
+				onChange={vi.fn()}
+				pluginBlocks={pluginBlocks}
+			/>,
+		);
+
+		await screen.getByRole("button", { name: "Edit" }).click();
+
+		const dialog = screen.getByRole("dialog");
+		await expect.element(dialog).toBeVisible();
+		expect(dialog.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(700);
+	});
+
 	it("saves an edited block without submitting the surrounding content form", async () => {
 		const onPageSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
 		const onChange = vi.fn<NonNullable<PortableTextEditorProps["onChange"]>>();
