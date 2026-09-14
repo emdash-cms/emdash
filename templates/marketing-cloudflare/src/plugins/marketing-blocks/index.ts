@@ -1,9 +1,5 @@
 /**
- * Marketing blocks plugin (inline, template-local).
- *
- * Registers the five marketing block types so editors can insert and edit them
- * in the admin's Portable Text editor. Block Kit `fields` describe the form
- * shown when inserting or editing a block.
+ * Registers the template's marketing block types for the Portable Text editor.
  *
  * Constraints worth knowing:
  *
@@ -14,11 +10,8 @@
  *   toggle. Nested repeaters are not allowed -- list-of-strings becomes a
  *   single multiline text field, split on newline at render time (see
  *   Pricing.astro for the pattern).
- * - There is no media picker element in the editor's plugin-block modal yet,
- *   so image fields (avatars, hero images) are URL strings entered by hand.
- *
- * Site-side rendering still goes through MarketingBlocks.astro --
- * componentsEntry auto-wiring is a separate cleanup.
+ * - The editor does not provide a media picker for plugin blocks, so image
+ *   fields are URL strings entered by hand.
  */
 
 import { definePlugin } from "emdash";
@@ -141,6 +134,12 @@ const definition: PluginDefinition = {
 				fields: [
 					{ type: "text_input", action_id: "headline", label: "Headline" },
 					{
+						type: "text_input",
+						action_id: "subheadline",
+						label: "Subheadline",
+						multiline: true,
+					},
+					{
 						type: "repeater",
 						action_id: "plans",
 						label: "Plans",
@@ -205,6 +204,31 @@ const definition: PluginDefinition = {
 							},
 						],
 					},
+				],
+			},
+
+			{
+				type: "marketing.cta",
+				label: "Call to action",
+				category: "Sections",
+				description: "Closing call to action with two links",
+				fields: [
+					{ type: "text_input", action_id: "mutedHeadline", label: "Muted headline" },
+					{ type: "text_input", action_id: "headline", label: "Headline" },
+					{
+						type: "text_input",
+						action_id: "body",
+						label: "Body",
+						multiline: true,
+					},
+					{ type: "text_input", action_id: "primaryCtaLabel", label: "Primary CTA label" },
+					{ type: "text_input", action_id: "primaryCtaUrl", label: "Primary CTA URL" },
+					{
+						type: "text_input",
+						action_id: "secondaryCtaLabel",
+						label: "Secondary CTA label",
+					},
+					{ type: "text_input", action_id: "secondaryCtaUrl", label: "Secondary CTA URL" },
 				],
 			},
 		],

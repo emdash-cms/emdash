@@ -1,0 +1,492 @@
+---
+import type { MediaValue } from "emdash";
+import { Image } from "emdash/ui";
+
+interface Props {
+	image?: MediaValue;
+	style?: string;
+	label?: string;
+	variant?: "feature" | "card" | "hero";
+}
+
+const {
+	image,
+	style = "signal",
+	label = "Journal",
+	variant = "card",
+} = Astro.props;
+const styles = ["signal", "blueprint", "orbit"];
+const coverStyle = styles.includes(style) ? style : "signal";
+---
+
+<div class:list={["blog-cover", `blog-cover--${coverStyle}`, `blog-cover--${variant}`]}>
+	{image ? (
+		<div class="cover-media">
+			<Image image={image} />
+		</div>
+	) : (
+		<div class="cover-art" aria-hidden="true">
+			<div class="cover-grid"></div>
+			<span class="cover-label">{label}</span>
+
+			{coverStyle === "signal" && (
+				<svg class="cover-scene launch-scene" viewBox="0 0 640 360">
+					<rect class="scene-panel" x="68" y="54" width="504" height="252" rx="28" />
+					<text class="scene-overline" x="102" y="96">Release plan</text>
+					<g class="status-pill">
+						<rect x="428" y="75" width="110" height="34" rx="17" />
+						<circle cx="451" cy="92" r="5" />
+						<text x="466" y="97">On track</text>
+					</g>
+					<path class="timeline-line" d="M126 186H508" />
+					<g class="milestone milestone--complete">
+						<circle cx="132" cy="186" r="14" />
+						<path d="m125 186 5 5 9-11" />
+						<text x="105" y="225">Scope</text>
+					</g>
+					<g class="milestone milestone--complete">
+						<circle cx="256" cy="186" r="14" />
+						<path d="m249 186 5 5 9-11" />
+						<text x="239" y="225">Test</text>
+					</g>
+					<g class="milestone milestone--complete">
+						<circle cx="380" cy="186" r="14" />
+						<path d="m373 186 5 5 9-11" />
+						<text x="356" y="225">Ready</text>
+					</g>
+					<g class="milestone milestone--current">
+						<circle cx="504" cy="186" r="20" />
+						<circle cx="504" cy="186" r="7" />
+						<text x="487" y="225">Ship</text>
+					</g>
+					<rect class="quiet-line" x="102" y="262" width="190" height="8" rx="4" />
+					<rect class="quiet-line quiet-line--short" x="306" y="262" width="102" height="8" rx="4" />
+				</svg>
+			)}
+
+			{coverStyle === "blueprint" && (
+				<svg class="cover-scene workspace-scene" viewBox="0 0 640 360">
+					<rect class="scene-panel" x="76" y="45" width="488" height="270" rx="24" />
+					<path class="workspace-divider" d="M76 100h488M184 100v215M438 100v215" />
+					<circle class="window-dot" cx="106" cy="73" r="6" />
+					<circle class="window-dot window-dot--muted" cx="127" cy="73" r="6" />
+					<circle class="window-dot window-dot--muted" cx="148" cy="73" r="6" />
+					<g class="saved-pill">
+						<rect x="442" y="60" width="92" height="28" rx="14" />
+						<path d="m458 74 5 5 9-11" />
+						<text x="480" y="78">Saved</text>
+					</g>
+					<rect class="nav-line" x="101" y="128" width="54" height="8" rx="4" />
+					<rect class="nav-line nav-line--active" x="96" y="155" width="67" height="28" rx="8" />
+					<rect class="nav-line" x="101" y="202" width="45" height="8" rx="4" />
+					<rect class="nav-line" x="101" y="229" width="58" height="8" rx="4" />
+					<text class="scene-overline" x="210" y="136">Project brief</text>
+					<rect class="content-line content-line--strong" x="210" y="158" width="176" height="13" rx="6.5" />
+					<rect class="content-line" x="210" y="190" width="196" height="9" rx="4.5" />
+					<rect class="content-line" x="210" y="213" width="164" height="9" rx="4.5" />
+					<rect class="content-line" x="210" y="236" width="184" height="9" rx="4.5" />
+					<g class="version-card">
+						<rect x="210" y="264" width="112" height="29" rx="9" />
+						<circle cx="228" cy="279" r="5" />
+						<text x="240" y="283">Version 12</text>
+					</g>
+					<text class="scene-overline" x="462" y="136">Activity</text>
+					<path class="activity-line" d="M466 161v98" />
+					<circle class="avatar-dot avatar-dot--one" cx="466" cy="175" r="10" />
+					<circle class="avatar-dot avatar-dot--two" cx="466" cy="218" r="10" />
+					<circle class="avatar-dot avatar-dot--three" cx="466" cy="261" r="10" />
+					<rect class="activity-copy" x="486" y="169" width="48" height="7" rx="3.5" />
+					<rect class="activity-copy" x="486" y="212" width="37" height="7" rx="3.5" />
+					<rect class="activity-copy" x="486" y="255" width="44" height="7" rx="3.5" />
+				</svg>
+			)}
+
+			{coverStyle === "orbit" && (
+				<svg class="cover-scene conversation-scene" viewBox="0 0 640 360">
+					<path class="connection-line" d="M164 231 263 176M375 172l105 77M318 245v48" />
+					<circle class="connection-dot" cx="164" cy="231" r="6" />
+					<circle class="connection-dot" cx="480" cy="249" r="6" />
+					<circle class="connection-dot" cx="318" cy="293" r="6" />
+					<g class="small-bubble small-bubble--left">
+						<path d="M76 178h144a20 20 0 0 1 20 20v55a20 20 0 0 1-20 20h-54l-25 20 5-20H76a20 20 0 0 1-20-20v-55a20 20 0 0 1 20-20Z" />
+						<circle cx="91" cy="217" r="6" />
+						<rect x="107" y="210" width="91" height="8" rx="4" />
+						<rect x="107" y="232" width="63" height="8" rx="4" />
+					</g>
+					<g class="small-bubble small-bubble--right">
+						<path d="M440 199h124a20 20 0 0 1 20 20v49a20 20 0 0 1-20 20h-43l5 18-24-18h-62a20 20 0 0 1-20-20v-49a20 20 0 0 1 20-20Z" />
+						<circle cx="456" cy="236" r="6" />
+						<rect x="472" y="229" width="75" height="8" rx="4" />
+						<rect x="472" y="251" width="53" height="8" rx="4" />
+					</g>
+					<g class="main-bubble">
+						<path d="M226 55h184a28 28 0 0 1 28 28v109a28 28 0 0 1-28 28h-58l-34 30-6-30h-86a28 28 0 0 1-28-28V83a28 28 0 0 1 28-28Z" />
+						<text class="conversation-count" x="318" y="141" text-anchor="middle">100</text>
+						<text class="conversation-label" x="318" y="172" text-anchor="middle">conversations</text>
+					</g>
+					<g class="insight-pill">
+						<rect x="264" y="283" width="108" height="34" rx="17" />
+						<circle cx="286" cy="300" r="5" />
+						<text x="299" y="305">Patterns</text>
+					</g>
+				</svg>
+			)}
+		</div>
+	)}
+</div>
+
+<style>
+	.blog-cover {
+		position: relative;
+		isolation: isolate;
+		width: 100%;
+		overflow: hidden;
+		background: var(--cover-base);
+		border-radius: inherit;
+		transform: translateZ(0);
+		transition: transform var(--transition-slow);
+	}
+
+	.blog-cover--feature {
+		aspect-ratio: 16 / 11;
+	}
+
+	.blog-cover--card {
+		aspect-ratio: 16 / 10;
+	}
+
+	.blog-cover--hero {
+		aspect-ratio: 2 / 1;
+	}
+
+	.blog-cover--signal {
+		--cover-base: #071a33;
+		--cover-ink: #f5f9ff;
+		--cover-accent: #1683e4;
+		--cover-accent-soft: #77bdf7;
+		--cover-panel: #102f53;
+		--cover-line: #86a6c7;
+	}
+
+	.blog-cover--blueprint {
+		--cover-base: #dceeff;
+		--cover-ink: #0a3158;
+		--cover-accent: #0075de;
+		--cover-accent-soft: #7dbcf2;
+		--cover-panel: #f8fbff;
+		--cover-line: #7899b8;
+	}
+
+	.blog-cover--orbit {
+		--cover-base: #121722;
+		--cover-ink: #eff7ff;
+		--cover-accent: #62aef0;
+		--cover-accent-soft: #9acdf7;
+		--cover-panel: #1c2b41;
+		--cover-line: #8296ae;
+	}
+
+	.cover-media,
+	.cover-art {
+		position: absolute;
+		inset: 0;
+	}
+
+	.cover-media :global(img) {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+		outline: 1px solid oklch(0 0 0 / 0.1);
+		outline-offset: -1px;
+	}
+
+	:global(:root.dark) .cover-media :global(img) {
+		outline-color: oklch(1 0 0 / 0.1);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not(.light)) .cover-media :global(img) {
+			outline-color: oklch(1 0 0 / 0.1);
+		}
+	}
+
+	.cover-art {
+		color: var(--cover-ink);
+		background:
+			radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--cover-accent) 24%, transparent), transparent 30%),
+			var(--cover-base);
+	}
+
+	.blog-cover--blueprint .cover-art {
+		background:
+			radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--cover-accent) 23%, transparent), transparent 31%),
+			linear-gradient(145deg, #eaf5ff, var(--cover-base));
+	}
+
+	.blog-cover--orbit .cover-art {
+		background:
+			radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--cover-accent) 17%, transparent), transparent 40%),
+			linear-gradient(145deg, #10141c, var(--cover-base));
+	}
+
+	.cover-grid {
+		position: absolute;
+		inset: 0;
+		opacity: 0.13;
+		background-image:
+			linear-gradient(color-mix(in srgb, var(--cover-ink) 25%, transparent) 1px, transparent 1px),
+			linear-gradient(90deg, color-mix(in srgb, var(--cover-ink) 25%, transparent) 1px, transparent 1px);
+		background-size: clamp(24px, 5vw, 44px) clamp(24px, 5vw, 44px);
+		mask-image: linear-gradient(to bottom right, #000, transparent 86%);
+	}
+
+	.cover-label {
+		position: absolute;
+		z-index: 2;
+		inset-block-start: 8%;
+		inset-inline-start: 7%;
+		font-size: clamp(0.65rem, 1.3vw, 0.8rem);
+		font-weight: 650;
+		letter-spacing: 0.1em;
+		line-height: 1;
+		text-transform: uppercase;
+	}
+
+	.cover-scene {
+		position: absolute;
+		inset: 6% 5% 3%;
+		width: 90%;
+		height: 91%;
+		overflow: visible;
+		shape-rendering: geometricPrecision;
+	}
+
+	.scene-panel {
+		fill: color-mix(in srgb, var(--cover-panel) 92%, transparent);
+		stroke: color-mix(in srgb, var(--cover-ink) 22%, transparent);
+		stroke-width: 1.5;
+	}
+
+	.scene-overline,
+	.milestone text,
+	.status-pill text,
+	.saved-pill text,
+	.version-card text,
+	.insight-pill text,
+	.conversation-label {
+		fill: var(--cover-ink);
+		font-family: var(--font-sans);
+	}
+
+	.scene-overline {
+		font-size: 14px;
+		font-weight: 700;
+		letter-spacing: 0.1em;
+		text-transform: uppercase;
+	}
+
+	.status-pill rect,
+	.saved-pill rect,
+	.insight-pill rect {
+		fill: color-mix(in srgb, var(--cover-accent) 18%, var(--cover-panel));
+		stroke: color-mix(in srgb, var(--cover-accent) 55%, transparent);
+		stroke-width: 1;
+	}
+
+	.status-pill circle,
+	.saved-pill path,
+	.insight-pill circle {
+		fill: none;
+		stroke: var(--cover-accent-soft);
+		stroke-width: 2.5;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.status-pill circle,
+	.insight-pill circle {
+		fill: var(--cover-accent-soft);
+		stroke: none;
+	}
+
+	.status-pill text,
+	.saved-pill text,
+	.version-card text,
+	.insight-pill text {
+		font-size: 12px;
+		font-weight: 650;
+	}
+
+	.timeline-line {
+		fill: none;
+		stroke: color-mix(in srgb, var(--cover-ink) 28%, transparent);
+		stroke-width: 3;
+		stroke-linecap: round;
+	}
+
+	.milestone circle:first-child {
+		fill: var(--cover-panel);
+		stroke: var(--cover-accent-soft);
+		stroke-width: 3;
+	}
+
+	.milestone path {
+		fill: none;
+		stroke: var(--cover-accent-soft);
+		stroke-width: 2.5;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.milestone text {
+		font-size: 12px;
+		font-weight: 600;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.milestone--current circle:first-child {
+		fill: color-mix(in srgb, var(--cover-accent) 17%, var(--cover-panel));
+		stroke: var(--cover-accent);
+		stroke-width: 4;
+	}
+
+	.milestone--current circle:nth-child(2) {
+		fill: var(--cover-accent);
+	}
+
+	.quiet-line {
+		fill: color-mix(in srgb, var(--cover-line) 30%, transparent);
+	}
+
+	.quiet-line--short {
+		fill: color-mix(in srgb, var(--cover-accent) 40%, transparent);
+	}
+
+	.workspace-divider {
+		fill: none;
+		stroke: color-mix(in srgb, var(--cover-ink) 18%, transparent);
+		stroke-width: 1.5;
+	}
+
+	.window-dot {
+		fill: var(--cover-accent);
+	}
+
+	.window-dot--muted {
+		fill: color-mix(in srgb, var(--cover-line) 55%, transparent);
+	}
+
+	.nav-line,
+	.content-line,
+	.activity-copy {
+		fill: color-mix(in srgb, var(--cover-line) 36%, transparent);
+	}
+
+	.nav-line--active {
+		fill: color-mix(in srgb, var(--cover-accent) 17%, transparent);
+		stroke: color-mix(in srgb, var(--cover-accent) 30%, transparent);
+		stroke-width: 1;
+	}
+
+	.content-line--strong {
+		fill: color-mix(in srgb, var(--cover-ink) 68%, transparent);
+	}
+
+	.version-card rect {
+		fill: color-mix(in srgb, var(--cover-accent) 12%, transparent);
+		stroke: color-mix(in srgb, var(--cover-accent) 35%, transparent);
+		stroke-width: 1;
+	}
+
+	.version-card circle {
+		fill: var(--cover-accent);
+	}
+
+	.activity-line {
+		fill: none;
+		stroke: color-mix(in srgb, var(--cover-line) 32%, transparent);
+		stroke-width: 2;
+	}
+
+	.avatar-dot {
+		stroke: color-mix(in srgb, var(--cover-panel) 92%, transparent);
+		stroke-width: 3;
+	}
+
+	.avatar-dot--one {
+		fill: var(--cover-accent);
+	}
+
+	.avatar-dot--two {
+		fill: var(--cover-accent-soft);
+	}
+
+	.avatar-dot--three {
+		fill: color-mix(in srgb, var(--cover-ink) 55%, var(--cover-panel));
+	}
+
+	.connection-line {
+		fill: none;
+		stroke: color-mix(in srgb, var(--cover-accent) 34%, transparent);
+		stroke-width: 2;
+		stroke-dasharray: 6 7;
+	}
+
+	.connection-dot {
+		fill: var(--cover-accent);
+	}
+
+	.small-bubble path,
+	.main-bubble path {
+		fill: color-mix(in srgb, var(--cover-panel) 94%, transparent);
+		stroke: color-mix(in srgb, var(--cover-ink) 22%, transparent);
+		stroke-width: 1.5;
+	}
+
+	.small-bubble circle {
+		fill: var(--cover-accent);
+	}
+
+	.small-bubble rect {
+		fill: color-mix(in srgb, var(--cover-line) 42%, transparent);
+	}
+
+	.main-bubble path {
+		fill: color-mix(in srgb, var(--cover-accent) 13%, var(--cover-panel));
+		stroke: color-mix(in srgb, var(--cover-accent) 62%, transparent);
+		stroke-width: 2;
+	}
+
+	.conversation-count {
+		fill: var(--cover-ink);
+		font-family: var(--font-sans);
+		font-size: 68px;
+		font-weight: 700;
+		letter-spacing: -0.05em;
+	}
+
+	.conversation-label {
+		font-size: 14px;
+		font-weight: 650;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+	}
+
+	@media (max-width: 520px) {
+		.blog-cover--hero {
+			aspect-ratio: 4 / 3;
+		}
+
+		.cover-scene {
+			inset-inline: 2%;
+			width: 96%;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.blog-cover {
+			transition: none;
+		}
+	}
+</style>

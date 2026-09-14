@@ -34,20 +34,22 @@ const iconMap: Record<string, string> = {
 ---
 
 <section class="features section" id={_key}>
-	<div class="container">
+	<div class="features-container container">
 		{(headline || subheadline) && (
-			<header class="section-header">
-				{headline && <h2 class="section-headline">{headline}</h2>}
-				{subheadline && <p class="section-subheadline">{subheadline}</p>}
+			<header class="features-header">
+				{headline && <h2 class="features-headline">{headline}</h2>}
+				{subheadline && <p class="features-subheadline">{subheadline}</p>}
 			</header>
 		)}
 		<div class="features-grid">
 			{features.map((feature) => (
 				<div class="feature-card">
-					<div class="icon-tile feature-icon">
-						<Icon name={iconMap[feature.icon] || "ph:sparkle"} aria-hidden="true" />
+					<div class="feature-title-row">
+						<span class="feature-icon">
+							<Icon name={iconMap[feature.icon] || "ph:sparkle"} aria-hidden="true" />
+						</span>
+						<h3 class="feature-title">{feature.title}</h3>
 					</div>
-					<h3 class="feature-title">{feature.title}</h3>
 					<p class="feature-description">{feature.description}</p>
 				</div>
 			))}
@@ -56,54 +58,194 @@ const iconMap: Record<string, string> = {
 </section>
 
 <style>
+	.features.section {
+		padding: var(--spacing-4xl) 0;
+		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
+	}
+
+	.features-container {
+		display: flex;
+		flex-direction: column;
+		gap: var(--spacing-3xl);
+	}
+
+	.features-header {
+		max-width: 36rem;
+		margin: 0 auto;
+		text-align: center;
+	}
+
+	.features-headline {
+		font-size: var(--font-size-3xl);
+		font-weight: 700;
+		line-height: 1.12;
+		letter-spacing: -0.035em;
+		text-wrap: balance;
+		overflow-wrap: anywhere;
+	}
+
+	.features-subheadline {
+		max-width: 38rem;
+		margin: var(--spacing-md) auto 0;
+		font-size: var(--font-size-base);
+		line-height: 1.65;
+		color: color-mix(in srgb, var(--color-text) 62%, transparent);
+		text-wrap: balance;
+	}
+
 	.features-grid {
 		display: grid;
-		grid-template-columns: repeat(3, 1fr);
-		gap: var(--spacing-xl);
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+		gap: var(--spacing-md);
+		align-items: stretch;
 	}
 
 	.feature-card {
-		padding: var(--spacing-xl);
+		position: relative;
+		display: flex;
+		min-height: 10.75rem;
+		flex-direction: column;
+		justify-content: center;
+		gap: 0.75rem;
+		padding: 1.75rem 2.75rem;
 		background: var(--color-surface);
 		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
+		border-radius: 18px;
+		box-shadow:
+			0 0 0 4px var(--border-faint),
+			var(--shadow-sm);
 		transition:
-			transform var(--transition-base),
-			box-shadow var(--transition-base),
-			border-color var(--transition-base);
+			background var(--transition-fast),
+			border-color var(--transition-fast),
+			box-shadow var(--transition-fast);
 	}
 
 	.feature-card:hover {
-		transform: translateY(-4px);
-		box-shadow: var(--shadow-lg);
-		border-color: var(--color-brand-soft);
+		background: color-mix(in srgb, var(--color-surface) 92%, var(--color-bg));
+		border-color: color-mix(in srgb, var(--color-text) 14%, var(--color-border));
+		box-shadow:
+			0 0 0 4px var(--border-faint),
+			var(--shadow-sm);
+	}
+
+	.feature-title-row {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 	}
 
 	.feature-icon {
-		margin-bottom: var(--spacing-lg);
+		display: inline-flex;
+		width: 1rem;
+		height: 1rem;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		color: color-mix(in srgb, var(--color-text) 72%, transparent);
+		font-size: 1rem;
+		line-height: 1;
 	}
 
 	.feature-title {
-		font-size: var(--font-size-lg);
-		font-weight: var(--font-weight-heading);
-		margin-bottom: var(--spacing-sm);
+		min-width: 0;
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		line-height: 1.35;
+		letter-spacing: -0.01em;
+		overflow-wrap: anywhere;
 	}
 
 	.feature-description {
+		padding-inline-start: 1.5rem;
 		font-size: var(--font-size-sm);
-		color: var(--color-muted);
-		line-height: var(--leading-normal);
+		line-height: 1.65;
+		color: color-mix(in srgb, var(--color-text) 62%, transparent);
+		overflow-wrap: anywhere;
+	}
+
+	:global(:root.dark) .feature-card {
+		border-color: color-mix(in srgb, var(--color-bg) 90%, var(--color-text));
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+			var(--shadow-sm);
+	}
+
+	:global(:root.dark) .feature-card:hover {
+		border-color: color-mix(in srgb, var(--color-bg) 84%, var(--color-text));
+		box-shadow:
+			0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+			var(--shadow-sm);
+	}
+
+	@media (prefers-color-scheme: dark) {
+		:global(:root:not(.light)) .feature-card {
+			border-color: color-mix(in srgb, var(--color-bg) 90%, var(--color-text));
+			box-shadow:
+				0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+				var(--shadow-sm);
+		}
+
+		:global(:root:not(.light)) .feature-card:hover {
+			border-color: color-mix(in srgb, var(--color-bg) 84%, var(--color-text));
+			box-shadow:
+				0 0 0 4px color-mix(in srgb, var(--color-text) 5%, transparent),
+				var(--shadow-sm);
+		}
+	}
+
+	@media (min-width: 768px) {
+		.features-headline {
+			font-size: var(--font-size-4xl);
+		}
+	}
+
+	@media (min-width: 1024px) {
+		.features.section {
+			padding: var(--spacing-5xl) 0;
+		}
+
+		.features-container {
+			gap: var(--spacing-4xl);
+		}
+
+		.features-headline {
+			font-size: var(--font-size-5xl);
+		}
 	}
 
 	@media (max-width: 900px) {
 		.features-grid {
-			grid-template-columns: repeat(2, 1fr);
+			grid-template-columns: repeat(2, minmax(0, 1fr));
+		}
+
+		.feature-card {
+			min-height: 10.75rem;
+			padding: var(--spacing-xl) var(--spacing-2xl);
 		}
 	}
 
 	@media (max-width: 600px) {
+		.features.section {
+			padding: var(--spacing-3xl) 0;
+		}
+
+		.features-container {
+			gap: var(--spacing-2xl);
+		}
+
 		.features-grid {
 			grid-template-columns: 1fr;
+		}
+
+		.feature-card {
+			min-height: auto;
+			padding: var(--spacing-lg) var(--spacing-xl);
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.feature-card {
+			transition: none;
 		}
 	}
 </style>

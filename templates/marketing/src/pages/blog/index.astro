@@ -1,0 +1,592 @@
+---
+import { getEmDashCollection } from "emdash";
+import BlogCover from "../../components/BlogCover.astro";
+import Base from "../../layouts/Base.astro";
+import {
+	formatPostDate,
+	getPostAuthor,
+	getReadingTime,
+	type BlogPostData,
+} from "../../lib/blog";
+
+const requestedCursor = Astro.url.searchParams.get("cursor");
+function isValidCursor(value: string): boolean {
+	if (value.length > 4096) return false;
+
+	try {
+		const decoded: unknown = JSON.parse(atob(value));
+		return (
+			typeof decoded === "object" &&
+			decoded !== null &&
+			typeof (decoded as { orderValue?: unknown }).orderValue === "string" &&
+			typeof (decoded as { id?: unknown }).id === "string"
+		);
+	} catch {
+		return false;
+	}
+}
+
+if (requestedCursor && !isValidCursor(requestedCursor)) return Astro.redirect("/blog", 302);
+
+const cursor = requestedCursor || undefined;
+const result = await getEmDashCollection<
+	"posts",
+	BlogPostData
+>(
+	"posts",
+	{
+		orderBy: { published_at: "desc" },
+		limit: 12,
+		cursor,
+	},
+);
+
+if (result.error) {
+	throw result.error;
+}
+
+const { entries: posts, cacheHint, nextCursor } = result;
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+function toStory(post: (typeof posts)[number]) {
+	return {
+		post,
+		author: getPostAuthor(post.data),
+		date: formatPostDate(post.data.publishedAt),
+		readingTime: getReadingTime(post.data.content),
+	};
+}
+
+const isFirstPage = !cursor;
+const featuredPost = isFirstPage
+	? (posts.find((post) => post.data.featured) ?? posts[0])
+	: undefined;
+const featuredStory = featuredPost ? toStory(featuredPost) : null;
+const latestStories = posts
+	.filter((post) => post.id !== featuredPost?.id)
+	.map(toStory);
+const newerHref = cursor ? "/blog" : undefined;
+const olderHref = nextCursor ? `/blog?cursor=${encodeURIComponent(nextCursor)}` : undefined;
+---
+
+<Base
+	title="Blog"
+	description="Practical notes on product decisions, thoughtful design, and the habits that help teams do their best work."
+>
+	<section class="blog-page">
+		<div class="blog-shell">
+			<header class="blog-intro">
+				<p class="blog-kicker">From the team</p>
+				<h1>Ideas for building better work.</h1>
+				<p class="blog-description">
+					Practical notes on product decisions, thoughtful design, and the habits that
+					help teams do their best work.
+				</p>
+			</header>
+
+			{featuredStory ? (
+				<article class="featured-story">
+					<a href={`/blog/${featuredStory.post.id}`} class="featured-link">
+						<div class="featured-cover" {...featuredStory.post.edit.featured_image}>
+							<BlogCover
+								image={featuredStory.post.data.featured_image}
+								style={featuredStory.post.data.cover_style}
+								label={featuredStory.post.data.category}
+								variant="feature"
+							/>
+						</div>
+						<div class="featured-copy">
+							<div class="story-meta">
+								{featuredStory.post.data.category && (
+									<span class="story-category" {...featuredStory.post.edit.category}>
+										{featuredStory.post.data.category}
+									</span>
+								)}
+								<span>{featuredStory.readingTime} min read</span>
+							</div>
+							<h2 {...featuredStory.post.edit.title}>{featuredStory.post.data.title}</h2>
+							{featuredStory.post.data.excerpt && (
+								<p class="featured-excerpt" {...featuredStory.post.edit.excerpt}>
+									{featuredStory.post.data.excerpt}
+								</p>
+							)}
+							<div class="story-footer">
+								<div class="author">
+									<span class="author-avatar" aria-hidden="true">{featuredStory.author.initials}</span>
+									<span class="author-copy">
+										<strong>{featuredStory.author.name}</strong>
+										<span>
+											{featuredStory.author.role}
+											{featuredStory.author.role && featuredStory.date ? " · " : ""}
+											{featuredStory.date}
+										</span>
+									</span>
+								</div>
+								<span class="story-arrow" aria-hidden="true">
+									<svg viewBox="0 0 20 20">
+										<path d="M4 10h11m-4-4 4 4-4 4" />
+									</svg>
+								</span>
+							</div>
+						</div>
+					</a>
+				</article>
+			) : (
+				<div class="empty-state">
+					{isFirstPage ? (
+						<>
+							<h2>No stories yet</h2>
+							<p>Publish your first story to start the journal.</p>
+							<a href="/_emdash/admin/content/posts/new" class="btn btn-primary">Write a story</a>
+						</>
+					) : (
+						<>
+							<h2>No more stories</h2>
+							<p>This archive page is empty.</p>
+							<a href="/blog" class="btn btn-secondary">View newest stories</a>
+						</>
+					)}
+				</div>
+			)}
+
+			{latestStories.length > 0 && (
+				<section class="latest-stories" aria-labelledby="latest-stories-heading">
+					<header class="latest-header">
+						<p>{isFirstPage ? "More from the journal" : "From the archive"}</p>
+						<h2 id="latest-stories-heading">
+							{isFirstPage ? "Latest stories" : "Older stories"}
+						</h2>
+					</header>
+					<div class="story-grid">
+						{latestStories.map(({ post, author, date, readingTime }) => (
+							<article class="story-card">
+								<a href={`/blog/${post.id}`} class="card-link">
+									<div class="card-cover" {...post.edit.featured_image}>
+										<BlogCover
+											image={post.data.featured_image}
+											style={post.data.cover_style}
+											label={post.data.category}
+										/>
+									</div>
+									<div class="card-meta story-meta">
+										{post.data.category && (
+											<span class="story-category" {...post.edit.category}>
+												{post.data.category}
+											</span>
+										)}
+										<span>{readingTime} min read</span>
+									</div>
+									<h3 {...post.edit.title}>{post.data.title}</h3>
+									{post.data.excerpt && (
+										<p class="card-excerpt" {...post.edit.excerpt}>{post.data.excerpt}</p>
+									)}
+									<div class="card-author">
+										<span class="author-avatar" aria-hidden="true">{author.initials}</span>
+										<span>
+											<strong>{author.name}</strong>
+											{date && <small>{date}</small>}
+										</span>
+									</div>
+								</a>
+							</article>
+						))}
+					</div>
+				</section>
+			)}
+
+			{(newerHref || olderHref) && (
+				<nav class="archive-pagination" aria-label="Blog pagination">
+					{newerHref && (
+						<a href={newerHref} class="archive-pagination-link" data-pagination="newer">
+							<svg viewBox="0 0 20 20" aria-hidden="true">
+								<path d="M16 10H5m4 4-4-4 4-4" />
+							</svg>
+							Newest stories
+						</a>
+					)}
+					{olderHref && (
+						<a
+							href={olderHref}
+							class="archive-pagination-link archive-pagination-link--older"
+							data-pagination="older"
+						>
+							Older stories
+							<svg viewBox="0 0 20 20" aria-hidden="true">
+								<path d="M4 10h11m-4-4 4 4-4 4" />
+							</svg>
+						</a>
+					)}
+				</nav>
+			)}
+		</div>
+	</section>
+</Base>
+
+<style>
+	.blog-page {
+		min-height: calc(100vh - 12rem);
+		padding-block: clamp(8rem, 12vw, 10rem) clamp(5rem, 8vw, 7rem);
+		background: color-mix(in srgb, var(--color-bg) 50%, var(--color-surface));
+	}
+
+	.blog-shell {
+		width: calc(100% - 3rem);
+		max-width: 61rem;
+		margin-inline: auto;
+	}
+
+	.blog-intro {
+		max-width: 43rem;
+		margin-block-end: clamp(3.5rem, 8vw, 5.5rem);
+	}
+
+	.blog-kicker,
+	.latest-header p {
+		color: var(--color-primary);
+		font-size: 0.8125rem;
+		font-weight: 650;
+		letter-spacing: 0.08em;
+		line-height: 1.3;
+		text-transform: uppercase;
+	}
+
+	.blog-intro h1 {
+		max-width: 42rem;
+		margin-block-start: var(--spacing-md);
+		font-size: clamp(2.5rem, 7vw, 4.25rem);
+		font-weight: var(--font-weight-display);
+		line-height: 1.02;
+		letter-spacing: -0.045em;
+		text-wrap: balance;
+	}
+
+	.blog-description {
+		max-width: 39rem;
+		margin-block-start: var(--spacing-lg);
+		color: var(--color-muted);
+		font-size: clamp(1rem, 2vw, 1.125rem);
+		line-height: 1.6;
+		text-wrap: pretty;
+	}
+
+	.featured-link {
+		display: grid;
+		grid-template-columns: minmax(0, 1.16fr) minmax(18rem, 0.84fr);
+		align-items: center;
+		gap: clamp(2rem, 5vw, 4.5rem);
+		color: inherit;
+	}
+
+	.featured-cover,
+	.card-cover {
+		overflow: hidden;
+		border: 1px solid color-mix(in srgb, var(--color-border) 84%, transparent);
+		border-radius: var(--radius-lg);
+		box-shadow: var(--shadow-sm);
+	}
+
+	.story-meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.45rem 0.75rem;
+		color: var(--color-muted);
+		font-size: 0.8125rem;
+		font-weight: 500;
+		line-height: 1.4;
+	}
+
+	.story-category {
+		color: var(--color-primary);
+		font-weight: 650;
+	}
+
+	.featured-copy h2 {
+		margin-block-start: var(--spacing-md);
+		font-size: clamp(2rem, 4vw, 2.75rem);
+		font-weight: 700;
+		line-height: 1.08;
+		letter-spacing: -0.04em;
+		transition: color var(--transition-fast);
+	}
+
+	.featured-excerpt,
+	.card-excerpt {
+		color: var(--color-muted);
+		line-height: 1.6;
+		text-wrap: pretty;
+	}
+
+	.featured-excerpt {
+		margin-block-start: var(--spacing-md);
+	}
+
+	.story-footer {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-lg);
+		margin-block-start: var(--spacing-xl);
+	}
+
+	.author,
+	.card-author {
+		display: flex;
+		min-width: 0;
+		align-items: center;
+		gap: 0.75rem;
+	}
+
+	.author-avatar {
+		display: inline-flex;
+		width: 2.25rem;
+		height: 2.25rem;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-primary);
+		background: var(--color-primary-light);
+		font-size: 0.6875rem;
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		border: 1px solid var(--heat-20);
+		border-radius: 50%;
+	}
+
+	.author-copy,
+	.card-author > span:last-child {
+		display: flex;
+		min-width: 0;
+		flex-direction: column;
+	}
+
+	.author strong,
+	.card-author strong {
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		line-height: 1.35;
+	}
+
+	.author-copy > span,
+	.card-author small {
+		color: var(--color-muted);
+		font-size: var(--font-size-xs);
+		font-weight: 400;
+		line-height: 1.45;
+	}
+
+	.story-arrow {
+		display: inline-flex;
+		width: 2.25rem;
+		height: 2.25rem;
+		flex: 0 0 auto;
+		align-items: center;
+		justify-content: center;
+		color: var(--color-text);
+		background: var(--button-secondary-bg);
+		border-radius: 50%;
+		transition:
+			color var(--transition-fast),
+			background var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.story-arrow svg {
+		width: 1rem;
+		height: 1rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.7;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	.latest-stories {
+		margin-block-start: clamp(5rem, 10vw, 7.5rem);
+	}
+
+	.latest-header {
+		margin-block-end: var(--spacing-xl);
+	}
+
+	.latest-header h2 {
+		margin-block-start: var(--spacing-sm);
+		font-size: clamp(2rem, 4vw, 2.5rem);
+		line-height: 1.1;
+		letter-spacing: -0.035em;
+	}
+
+	.story-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: clamp(2.5rem, 6vw, 4rem) clamp(1.5rem, 4vw, 2.5rem);
+	}
+
+	.card-link {
+		display: flex;
+		height: 100%;
+		flex-direction: column;
+		color: inherit;
+	}
+
+	.card-cover {
+		margin-block-end: var(--spacing-lg);
+	}
+
+	.card-meta {
+		margin-block-end: var(--spacing-sm);
+	}
+
+	.story-card h3 {
+		font-size: clamp(1.375rem, 2.8vw, 1.75rem);
+		font-weight: 700;
+		line-height: 1.15;
+		letter-spacing: -0.035em;
+		transition: color var(--transition-fast);
+	}
+
+	.card-excerpt {
+		margin-block-start: var(--spacing-sm);
+		font-size: 0.9375rem;
+	}
+
+	.card-author {
+		margin-block-start: auto;
+		padding-block-start: var(--spacing-lg);
+	}
+
+	.empty-state {
+		padding: var(--spacing-3xl);
+		background: var(--color-surface);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+	}
+
+	.empty-state h2,
+	.empty-state p {
+		margin-block-end: var(--spacing-md);
+	}
+
+	.empty-state p {
+		color: var(--color-muted);
+	}
+
+	.archive-pagination {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-md);
+		margin-block-start: clamp(3.5rem, 7vw, 5rem);
+		padding-block-start: var(--spacing-xl);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	.archive-pagination-link {
+		display: inline-flex;
+		min-height: 2.75rem;
+		align-items: center;
+		gap: var(--spacing-sm);
+		padding: 0.625rem 0.875rem;
+		color: var(--color-text);
+		background: var(--button-secondary-bg);
+		font-size: var(--font-size-sm);
+		font-weight: 600;
+		border: 1px solid var(--color-border);
+		border-radius: var(--button-radius);
+		transition:
+			background var(--transition-fast),
+			border-color var(--transition-fast),
+			transform var(--transition-fast);
+	}
+
+	.archive-pagination-link--older {
+		margin-inline-start: auto;
+	}
+
+	.archive-pagination-link svg {
+		width: 1rem;
+		height: 1rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 1.7;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+	}
+
+	:global([dir="rtl"]) .archive-pagination-link svg {
+		transform: scaleX(-1);
+	}
+
+	@media (hover: hover) {
+		.featured-link:hover :global(.blog-cover),
+		.card-link:hover :global(.blog-cover) {
+			transform: scale(1.012);
+		}
+
+		.featured-link:hover h2,
+		.card-link:hover h3 {
+			color: var(--color-primary);
+		}
+
+		.featured-link:hover .story-arrow {
+			color: var(--button-primary-fg);
+			background: var(--button-primary-bg);
+			transform: translateX(2px);
+		}
+
+		.archive-pagination-link:hover {
+			background: var(--button-secondary-bg-hover);
+			border-color: var(--color-border-strong);
+			transform: translateY(-1px);
+		}
+	}
+
+	@media (max-width: 799px) {
+		.featured-link {
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--spacing-xl);
+		}
+
+		.featured-copy {
+			max-width: 38rem;
+		}
+	}
+
+	@media (max-width: 699px) {
+		.story-grid {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.story-card {
+			max-width: 36rem;
+		}
+	}
+
+	@media (max-width: 479px) {
+		.blog-page {
+			padding-block-start: 7.25rem;
+		}
+
+		.blog-intro {
+			margin-block-end: var(--spacing-2xl);
+		}
+
+		.story-footer {
+			align-items: flex-end;
+		}
+
+		.author-copy > span {
+			max-width: 12rem;
+		}
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.featured-link:hover :global(.blog-cover),
+		.card-link:hover :global(.blog-cover),
+		.featured-link:hover .story-arrow,
+		.archive-pagination-link:hover {
+			transform: none;
+		}
+	}
+</style>

@@ -33,6 +33,7 @@ export default defineConfig({
 					"lifebuoy",
 					"lightning",
 					"lock",
+					"phosphor-logo",
 					"shield-check",
 					"sparkle",
 					"star",
