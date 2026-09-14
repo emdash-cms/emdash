@@ -18,8 +18,7 @@ export default defineConfig({
 		...devices["Desktop Chrome"],
 	},
 	webServer: {
-		command:
-			"DEBUG=vite:deps ASTRO_DEV_BACKGROUND=0 ./node_modules/.bin/astro dev --host 127.0.0.1 --port 4450",
+		command: "ASTRO_DEV_BACKGROUND=0 ./node_modules/.bin/astro dev --host 127.0.0.1 --port 4450",
 		cwd: new URL("../../demos/playground/", import.meta.url).pathname,
 		url: "http://localhost:4450/playground",
 		reuseExistingServer: false,
