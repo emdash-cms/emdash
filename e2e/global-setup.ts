@@ -93,7 +93,11 @@ async function waitForOk(url: string, timeoutMs: number, token?: string): Promis
 	const headers = token ? { Authorization: `Bearer ${token}` } : undefined;
 	while (Date.now() - start < timeoutMs) {
 		try {
-			const res = await fetch(url, { headers, signal: AbortSignal.timeout(10_000) });
+			const remainingMs = timeoutMs - (Date.now() - start);
+			const res = await fetch(url, {
+				headers,
+				signal: AbortSignal.timeout(Math.min(60_000, remainingMs)),
+			});
 			if (res.ok) return res;
 			lastStatus = res.status;
 			lastBody = await res.text().catch(() => "");
@@ -336,11 +340,17 @@ export default async function globalSetup(): Promise<void> {
 		stdio: "pipe",
 	});
 
+	let serverOutput = "";
+	const appendServerOutput = (data: Buffer) => {
+		const chunk = data.toString();
+		serverOutput = (serverOutput + chunk).slice(-20_000);
+		if (process.env.DEBUG) process.stderr.write(`[pw:${PORT}] ${chunk}`);
+	};
 	server.stdout?.on("data", (data: Buffer) => {
-		if (process.env.DEBUG) process.stderr.write(`[pw:${PORT}] ${data.toString()}`);
+		appendServerOutput(data);
 	});
 	server.stderr?.on("data", (data: Buffer) => {
-		if (process.env.DEBUG) process.stderr.write(`[pw:${PORT}] ${data.toString()}`);
+		appendServerOutput(data);
 	});
 
 	try {
@@ -417,6 +427,9 @@ export default async function globalSetup(): Promise<void> {
 	} catch (error) {
 		server.kill("SIGTERM");
 		marketplaceServer.close();
-		throw error;
+		throw new Error(
+			`${error instanceof Error ? error.message : String(error)}\n\nServer output:\n${serverOutput}`,
+			{ cause: error },
+		);
 	}
 }
