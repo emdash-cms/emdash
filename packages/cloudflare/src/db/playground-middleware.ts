@@ -15,7 +15,6 @@
 
 import { defineMiddleware } from "astro:middleware";
 import { env } from "cloudflare:workers";
-import { loadSeed } from "emdash/seed";
 import { Kysely } from "kysely";
 import { ulid } from "ulidx";
 // @ts-ignore - virtual module populated by EmDash integration at build time
@@ -64,6 +63,7 @@ async function ensurePlaygroundInitialized(
 	const db = new Kysely<any>({ dialect });
 	try {
 		await getFullStub(binding, token).setTtlAlarm(ttl);
+		const { loadSeed } = await import("emdash/seed");
 		await initializePlayground(db, await loadSeed());
 		initializedSessions.add(token);
 	} finally {
