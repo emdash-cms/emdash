@@ -400,6 +400,12 @@ export function createViteConfig(
 	const useSyncExternalStoreWithSelectorShimPath = resolveIntegrationShim(
 		"use-sync-external-store-with-selector.js",
 	);
+	const configuredWatchIgnored = options.astroConfig.vite?.server?.watch?.ignored;
+	const watchIgnored = Array.isArray(configuredWatchIgnored)
+		? configuredWatchIgnored
+		: configuredWatchIgnored
+			? [configuredWatchIgnored]
+			: [];
 
 	return {
 		// Astro SSR routes resolve version.ts from source (not tsdown dist),
@@ -463,6 +469,11 @@ export function createViteConfig(
 			// In production, macros are pre-compiled by tsdown in the admin package.
 			...(useSource ? [linguiMacroPlugin(adminSourcePath, adminDistPath)] : []),
 		] as NonNullable<AstroConfig["vite"]>["plugins"],
+		server: {
+			watch: {
+				ignored: [...watchIgnored, "**/.wrangler/**"],
+			},
+		},
 		// Handle native modules for SSR.
 		// On Node: external keeps native addons out of the SSR bundle.
 		// On Cloudflare: skip — the adapter handles externalization, and setting

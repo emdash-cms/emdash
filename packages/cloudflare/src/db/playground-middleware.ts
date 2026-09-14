@@ -62,18 +62,12 @@ async function ensurePlaygroundInitialized(
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	const db = new Kysely<any>({ dialect });
 	try {
-		console.log("[playground] Initializing session");
 		await getFullStub(binding, token).setTtlAlarm(ttl);
-		console.log("[playground] Session TTL set");
 		const { loadSeed } = await import("emdash/seed");
-		const seed = await loadSeed();
-		console.log("[playground] Session seed loaded");
-		await initializePlayground(db, seed);
-		console.log("[playground] Session database initialized");
+		await initializePlayground(db, await loadSeed());
 		initializedSessions.add(token);
 	} finally {
 		await db.destroy();
-		console.log("[playground] Session database connection closed");
 	}
 }
 
