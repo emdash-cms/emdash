@@ -30,6 +30,7 @@
 		"react": ">=18"
 	},
 	"devDependencies": {
+		"astro": "catalog:",
 		"@atcute/lexicons": "catalog:",
 		"@cloudflare/kumo": "catalog:",
 		"@types/react": "^19.0.0",

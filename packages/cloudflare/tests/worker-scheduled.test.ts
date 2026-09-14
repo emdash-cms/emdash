@@ -6,13 +6,18 @@ const scheduled = vi.hoisted(() => ({
 const cache = vi.hoisted(() => ({
 	invalidate: vi.fn(async (_options?: unknown) => {}),
 }));
+const astro = vi.hoisted(() => ({
+	cacheProvider: vi.fn(
+		async (): Promise<{ default: (() => typeof cache) | null }> => ({ default: () => cache }),
+	),
+}));
 
 vi.mock("@astrojs/cloudflare/entrypoints/server", () => ({ default: {} }));
 vi.mock("astro/app/entrypoint", () => ({
 	createApp: () => ({
 		manifest: {
 			cacheConfig: { options: {} },
-			cacheProvider: async () => ({ default: () => cache }),
+			cacheProvider: astro.cacheProvider,
 		},
 	}),
 }));
@@ -23,8 +28,14 @@ import { createScheduledHandler } from "../src/worker.js";
 
 beforeEach(() => {
 	vi.restoreAllMocks();
+	delete (globalThis as Record<symbol, unknown>)[Symbol.for("@emdash-cms/cloudflare:astro-app")];
+	delete (globalThis as Record<symbol, unknown>)[
+		Symbol.for("@emdash-cms/cloudflare:cache-provider")
+	];
 	scheduled.general.mockClear();
 	cache.invalidate.mockClear();
+	astro.cacheProvider.mockReset();
+	astro.cacheProvider.mockResolvedValue({ default: () => cache });
 });
 
 it("runs general maintenance for the configured Cron", async () => {
@@ -75,6 +86,24 @@ it("invalidates cache tags after scheduled content is published", async () => {
 	expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith({
 		tags: ["posts", "post-1", "post-2"],
 	});
+});
+
+it("does nothing when no cache provider is configured", async () => {
+	astro.cacheProvider.mockResolvedValueOnce({ default: null });
+	scheduled.general.mockImplementationOnce(async (options) => {
+		const onPublished = (
+			options as {
+				onPublished: (published: Array<{ collection: string; id: string }>) => Promise<void>;
+			}
+		).onPublished;
+		await onPublished([{ collection: "posts", id: "post-1" }]);
+		return { published: [] };
+	});
+	const handler = createScheduledHandler();
+
+	await invoke(handler, "custom expression");
+
+	expect(cache.invalidate).not.toHaveBeenCalled();
 });
 
 it("rejects an empty configured expression", () => {

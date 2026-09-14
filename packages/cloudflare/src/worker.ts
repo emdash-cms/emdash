@@ -17,15 +17,34 @@ import { runScheduledTasks } from "emdash/middleware";
 
 export { PluginBridge } from "./sandbox/index.js";
 
-// The Astro App wraps the build manifest; reuse one per isolate so each tick
-// doesn't re-resolve the cache provider.
-let app: ReturnType<typeof createApp> | null = null;
-let cacheProvider: ReturnType<typeof loadCacheProvider> | null = null;
+const APP_KEY = Symbol.for("@emdash-cms/cloudflare:astro-app");
+const CACHE_PROVIDER_KEY = Symbol.for("@emdash-cms/cloudflare:cache-provider");
+const runtimeGlobals = globalThis as Record<symbol, unknown>;
+
+function getApp(): ReturnType<typeof createApp> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton values are scoped by private Symbol.for keys
+	const existing = runtimeGlobals[APP_KEY] as ReturnType<typeof createApp> | undefined;
+	if (existing) return existing;
+	const app = createApp();
+	runtimeGlobals[APP_KEY] = app;
+	return app;
+}
 
 async function loadCacheProvider() {
-	app ??= createApp();
+	const app = getApp();
 	const module = await app.manifest.cacheProvider?.();
 	return module?.default?.(app.manifest.cacheConfig?.options) ?? null;
+}
+
+function getCacheProvider(): ReturnType<typeof loadCacheProvider> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton values are scoped by private Symbol.for keys
+	const existing = runtimeGlobals[CACHE_PROVIDER_KEY] as
+		| ReturnType<typeof loadCacheProvider>
+		| undefined;
+	if (existing) return existing;
+	const provider = loadCacheProvider();
+	runtimeGlobals[CACHE_PROVIDER_KEY] = provider;
+	return provider;
 }
 
 /**
@@ -38,8 +57,7 @@ async function invalidatePublishedTags(
 	published: ReadonlyArray<{ collection: string; id: string }>,
 ): Promise<void> {
 	if (published.length === 0) return;
-	cacheProvider ??= loadCacheProvider();
-	const provider = await cacheProvider;
+	const provider = await getCacheProvider();
 	if (!provider) return;
 	const tags = [...new Set(published.flatMap((ref) => [ref.collection, ref.id]))];
 	await provider.invalidate({ tags });

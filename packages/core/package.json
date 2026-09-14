@@ -301,6 +301,7 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
+    "@astrojs/react": "catalog:",
     "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",
     "@emdash-cms/blocks": "workspace:*",
@@ -312,6 +313,7 @@
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
     "@vitest/ui": "^4.1.10",
+    "astro": "catalog:",
     "image-size": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",

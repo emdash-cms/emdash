@@ -146,6 +146,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "catalog:",
     "@astrojs/cloudflare": "catalog:",
+    "astro": "catalog:",
     "@cloudflare/kumo": "catalog:",
     "@cloudflare/workers-types": "catalog:",
     "@types/pg": "^8.16.0",
