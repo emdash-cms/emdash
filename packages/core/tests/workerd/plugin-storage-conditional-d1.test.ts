@@ -98,6 +98,79 @@ async function current(target: AtomicStore, key = "key"): Promise<VersionedValue
 }
 
 describe("conditional plugin storage through Cloudflare RPC and D1", () => {
+	it.each(["running", "ready"])(
+		"updateIf through RPC invalidates older revisions when setting state to %s",
+		async (state) => {
+			const target = store("collection");
+			await target.put("key", { state: "ready" });
+			const initial = await current(target);
+			expect(
+				await bridge().storageUpdateIf("records", "key", {
+					where: { state: "ready" },
+					set: { state },
+				}),
+			).toEqual({ applied: true, data: { state } });
+			const updated = await current(target);
+			expect(updated.revision).not.toBe(initial.revision);
+			expect(updated.value).toEqual({ state });
+			expect(await target.compareAndSet("key", initial.revision, "stale")).toEqual({
+				applied: false,
+			});
+			expect(await target.compareAndDelete("key", initial.revision)).toEqual({ applied: false });
+			expect(await current(target)).toEqual(updated);
+			expect((await target.compareAndSet("key", updated.revision, { state: "done" })).applied).toBe(
+				true,
+			);
+		},
+	);
+
+	it("failed and rejected updateIf RPC calls preserve a usable revision", async () => {
+		const target = store("collection");
+		await target.put("key", { state: "ready" });
+		const initial = await current(target);
+		const rpc = bridge();
+		expect(
+			await rpc.storageUpdateIf("records", "key", {
+				where: { state: "done" },
+				set: { state: "running" },
+			}),
+		).toEqual({ applied: false });
+		await expect(
+			awaitRpc(rpc.storageUpdateIf("records", "key", { where: {}, set: {} })),
+		).rejects.toThrow("Storage update requires at least one of set or delta");
+		expect(await current(target)).toEqual(initial);
+		expect((await target.compareAndSet("key", initial.revision, { state: "done" })).applied).toBe(
+			true,
+		);
+	});
+
+	it("updateIf through RPC invalidates revision 0 after a legacy upgrade", async () => {
+		await resetD1Schema(db);
+		await createLegacyPluginStorageTables(db);
+		await sql`INSERT INTO _plugin_storage (plugin_id, collection, id, data)
+			VALUES ('owner', 'records', 'key', ${'{"state":"ready"}'})`.execute(db);
+		await up(db);
+		const target = store("collection");
+		expect(await current(target)).toEqual({ value: { state: "ready" }, revision: "0" });
+		const rpc = bridge();
+		expect(
+			await rpc.storageUpdateIf("records", "key", {
+				where: { state: "done" },
+				set: { state: "running" },
+			}),
+		).toEqual({ applied: false });
+		expect((await current(target)).revision).toBe("0");
+		expect(
+			await rpc.storageUpdateIf("records", "key", {
+				where: { state: "ready" },
+				set: { state: "ready" },
+			}),
+		).toEqual({ applied: true, data: { state: "ready" } });
+		expect((await current(target)).revision).not.toBe("0");
+		expect(await target.compareAndSet("key", "0", "stale")).toEqual({ applied: false });
+		expect(await target.compareAndDelete("key", "0")).toEqual({ applied: false });
+	});
+
 	it("legacy KV reads propagate database failures through RPC", async () => {
 		const rpc = bridge();
 		await rpc.kvSet("key", "stored");

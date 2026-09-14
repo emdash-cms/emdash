@@ -61,6 +61,49 @@ describeEachDialect("conditional plugin storage", (dialect) => {
 		};
 	}
 
+	it.each(["running", "ready"])(
+		"updateIf invalidates older revisions when setting state to %s",
+		async (state) => {
+			const target = createStorageAccess(db, "owner", { jobs: { indexes: [] } }).jobs;
+			await target.put("key", { state: "ready" });
+			const initial = await target.getVersioned("key");
+			if (!initial) throw new Error("Missing value");
+			expect(await target.updateIf("key", { where: { state: "ready" }, set: { state } })).toEqual({
+				applied: true,
+				data: { state },
+			});
+			const updated = await target.getVersioned("key");
+			if (!updated) throw new Error("Missing updated value");
+			expect(updated.revision).not.toBe(initial.revision);
+			expect(updated.value).toEqual({ state });
+			expect(await target.compareAndSet("key", initial.revision, "stale")).toEqual({
+				applied: false,
+			});
+			expect(await target.compareAndDelete("key", initial.revision)).toEqual({ applied: false });
+			expect(await target.getVersioned("key")).toEqual(updated);
+			expect((await target.compareAndSet("key", updated.revision, { state: "done" })).applied).toBe(
+				true,
+			);
+		},
+	);
+
+	it("failed and rejected updateIf calls preserve a usable revision", async () => {
+		const target = createStorageAccess(db, "owner", { jobs: { indexes: [] } }).jobs;
+		await target.put("key", { state: "ready" });
+		const initial = await target.getVersioned("key");
+		if (!initial) throw new Error("Missing value");
+		expect(
+			await target.updateIf("key", { where: { state: "done" }, set: { state: "running" } }),
+		).toEqual({ applied: false });
+		await expect(target.updateIf("key", { where: {}, set: {} })).rejects.toThrow(
+			"Storage update requires at least one of set or delta",
+		);
+		expect(await target.getVersioned("key")).toEqual(initial);
+		expect((await target.compareAndSet("key", initial.revision, { state: "done" })).applied).toBe(
+			true,
+		);
+	});
+
 	for (const kind of ["collection", "kv"] as const) {
 		it(`${kind}: distinguishes an absent key from stored JSON null`, async () => {
 			const target = store(kind);
@@ -247,6 +290,44 @@ describeEachDialect("conditional plugin storage after a legacy upgrade", (dialec
 			? createStorageAccess(db, pluginId, { [collection]: { indexes: [] } })[collection]
 			: createKVAccess(new OptionsRepository(db), pluginId);
 	}
+
+	it("updateIf invalidates revision 0 only for the matching legacy record", async () => {
+		for (const [pluginId, collection, key] of [
+			["owner", "jobs", "key"],
+			["owner", "jobs", "neighbor"],
+			["owner", "other", "key"],
+			["other", "jobs", "key"],
+		]) {
+			await sql`INSERT INTO _plugin_storage (plugin_id, collection, id, data)
+				VALUES (${pluginId}, ${collection}, ${key}, ${'{"state":"ready"}'})`.execute(db);
+		}
+		await migrateRevisions(db);
+		const target = createStorageAccess(db, "owner", { jobs: { indexes: [] } }).jobs;
+		expect(await target.getVersioned("key")).toEqual({ value: { state: "ready" }, revision: "0" });
+		expect(
+			await target.updateIf("key", { where: { state: "done" }, set: { state: "running" } }),
+		).toEqual({ applied: false });
+		expect((await target.getVersioned("key"))?.revision).toBe("0");
+		expect(
+			await target.updateIf("key", { where: { state: "ready" }, set: { state: "ready" } }),
+		).toEqual({ applied: true, data: { state: "ready" } });
+		const updated = await target.getVersioned("key");
+		if (!updated) throw new Error("Missing updated value");
+		expect(updated.revision).not.toBe("0");
+		expect(updated.value).toEqual({ state: "ready" });
+		expect(await target.compareAndSet("key", "0", "stale")).toEqual({ applied: false });
+		expect(await target.compareAndDelete("key", "0")).toEqual({ applied: false });
+		for (const [pluginId, collection, key] of [
+			["owner", "jobs", "neighbor"],
+			["owner", "other", "key"],
+			["other", "jobs", "key"],
+		]) {
+			expect(await store("collection", pluginId, collection).getVersioned(key)).toEqual({
+				value: { state: "ready" },
+				revision: "0",
+			});
+		}
+	});
 
 	async function oldPut(
 		kind: "collection" | "kv",
