@@ -1075,6 +1075,162 @@ export class ContentRepository {
 	}
 
 	/**
+	 * Copy non-translatable field values to every other entry in the
+	 * translation group, trashed entries included.
+	 *
+	 * Only the fields present in `data` are copied. With `previous`, `data` is
+	 * the entry's complete new state and only the fields whose value differs
+	 * from `previous` are copied, an absent field as null. An entry that already
+	 * holds every copied value is left untouched, so its `updated_at` does not
+	 * move.
+	 *
+	 * On collections with revisions a changed entry also gets a new live
+	 * revision, because republishing and unpublishing read that revision rather
+	 * than the columns. A pending draft takes a value only where it still holds
+	 * the entry's previous value, so an unpublished edit to the field survives.
+	 */
+	async syncNonTranslatableFields(
+		type: string,
+		sourceId: string,
+		translationGroup: string,
+		data: Record<string, unknown>,
+		options: { previous?: Record<string, unknown> } = {},
+	): Promise<void> {
+		const tableName = getTableName(type);
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", (join) =>
+				join.onRef("field.collection_id", "=", "collection.id").on("field.translatable", "=", 0),
+			)
+			.select(["collection.supports", "field.slug as fieldSlug"])
+			.where("collection.slug", "=", type)
+			.execute();
+
+		const { previous } = options;
+		const values: Record<string, unknown> = {};
+		for (const { fieldSlug } of collectionRows) {
+			if (!fieldSlug) continue;
+			if (previous) {
+				if (!sameStoredValue(previous[fieldSlug], data[fieldSlug])) {
+					values[fieldSlug] = data[fieldSlug] ?? null;
+				}
+			} else if (fieldSlug in data) {
+				values[fieldSlug] = data[fieldSlug];
+			}
+		}
+		if (Object.keys(values).length === 0) return;
+
+		const supportsRaw = collectionRows[0]?.supports;
+		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
+		const usesRevisions = Array.isArray(supports) && supports.includes("revisions");
+
+		const siblings = await sql<Record<string, unknown>>`
+			SELECT * FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			AND id != ${sourceId}
+		`.execute(this.db);
+
+		let changed = false;
+		for (const row of siblings.rows) {
+			if (await this.syncSiblingValues(type, this.mapRow(type, row), values, usesRevisions)) {
+				changed = true;
+			}
+		}
+		if (changed) invalidateCollectionCache(type);
+	}
+
+	private async syncSiblingValues(
+		type: string,
+		initial: ContentItem,
+		values: Record<string, unknown>,
+		usesRevisions: boolean,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const revisionRepo = new RevisionRepository(this.db);
+		let sibling: ContentItem | null = initial;
+
+		for (let attempt = 0; sibling && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+			const current: ContentItem = sibling;
+			const changed: Record<string, unknown> = {};
+			for (const [field, value] of Object.entries(values)) {
+				if (!sameStoredValue(current.data[field], value)) changed[field] = value;
+			}
+			if (Object.keys(changed).length === 0) return false;
+
+			const assignments: ReturnType<typeof sql>[] = [];
+			for (const [field, value] of Object.entries(changed)) {
+				validateIdentifier(field, "content field name");
+				assignments.push(sql`${sql.ref(field)} = ${serializeValue(value)}`);
+			}
+
+			const createdRevisionIds: string[] = [];
+			const cleanUp = async () => {
+				for (const revisionId of createdRevisionIds) {
+					await this.deleteUnstagedRevision(revisionRepo, type, current.id, revisionId);
+				}
+			};
+
+			let synced: boolean;
+			try {
+				const live =
+					usesRevisions && current.liveRevisionId
+						? await revisionRepo.findById(current.liveRevisionId)
+						: null;
+				if (live) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: current.id,
+						data: { ...live.data, ...changed },
+					});
+					createdRevisionIds.push(revision.id);
+					assignments.push(sql`live_revision_id = ${revision.id}`);
+				}
+
+				const draft =
+					usesRevisions && current.draftRevisionId
+						? await revisionRepo.findById(current.draftRevisionId)
+						: null;
+				const carried: Record<string, unknown> = {};
+				for (const [field, value] of Object.entries(changed)) {
+					if (draft && sameStoredValue(draft.data[field], current.data[field])) {
+						carried[field] = value;
+					}
+				}
+				if (draft && Object.keys(carried).length > 0) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: current.id,
+						data: { ...draft.data, ...carried },
+					});
+					createdRevisionIds.push(revision.id);
+					assignments.push(sql`draft_revision_id = ${revision.id}`);
+				}
+
+				assignments.push(sql`updated_at = ${new Date().toISOString()}`, sql`version = version + 1`);
+				const result = await sql`
+					UPDATE ${sql.ref(tableName)}
+					SET ${sql.join(assignments, sql`, `)}
+					WHERE id = ${current.id}
+					AND version = ${current.version}
+					AND ${nullableColumnMatch("live_revision_id", current.liveRevisionId)}
+					AND ${nullableColumnMatch("draft_revision_id", current.draftRevisionId)}
+				`.execute(this.db);
+				synced = (result.numAffectedRows ?? 0n) > 0n;
+			} catch (error) {
+				await cleanUp();
+				throw error;
+			}
+
+			if (synced) return true;
+			await cleanUp();
+			sibling = await this.findByIdIncludingTrashed(type, current.id);
+		}
+
+		if (!sibling) return false;
+		throw new ContentMutationConflictError();
+	}
+
+	/**
 	 * Delete content (soft delete - moves to trash)
 	 */
 	async delete(type: string, id: string): Promise<boolean> {

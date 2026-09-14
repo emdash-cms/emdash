@@ -21,7 +21,7 @@ The publisher and approver interfaces use the same Atmosphere account identity a
 The service processes an automated release in this order:
 
 1. The publisher authorises the exact create-only release and blob OAuth scope.
-2. A GitHub Actions job presents a GitHub OIDC token and the package selected by its `<slug>@<version>` tag.
+2. A GitHub Actions job presents a GitHub OIDC token and the package selected by a Changesets version update, `<slug>@<version>` tag, or manual run.
 3. The service verifies the signed package profile and its canonical repository before creating a pending connection request.
 4. The publisher checks the repository, workflow file, ref, and environment before confirming the repository connection.
 5. Every workflow run presents a fresh GitHub OIDC token. The service compares its repository, owner, workflow, ref, environment, commit, run, and runner claims with the stored policy. Packages whose signed profiles name the same repository reuse approved tag and branch scopes.

@@ -260,7 +260,11 @@ pnpm exec emdash-plugin login <atmosphere-handle>
 pnpm exec emdash-plugin publish
 ```
 
-For GitHub Actions, run `emdash-plugin release setup` from one plugin package. It prepares that package profile and creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. The first `<slug>@<version>` tag requests approval for the repository workflow through GitHub OpenID Connect. A manual run requests approval the first time its branch is used; confirmation adds that scope without replacing approved tags. Later packages reuse approved scopes when their signed profiles name the same repository. Prepare each package with `emdash-plugin profile setup --dir <package-directory>`.
+For GitHub Actions, run `emdash-plugin release setup` from one plugin package. It prepares that package profile and creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. When `.changeset/config.json` exists, setup offers **Follow Changesets releases**. The generated reusable workflow accepts the Changesets Action published-package JSON, maps package names to plugin slugs, and publishes matching plugins at the same versions. Otherwise, package tags use `<slug>@<version>`. Select explicitly with `--trigger changesets|tags|manual`.
+
+To connect Changesets manually, expose its `published` and published-package step outputs from the existing release job, then call `./.github/workflows/emdash-release.yml` from a dependent job when `published == 'true'`. Changesets Action v1 uses `publishedPackages`; v2 uses `published-packages`. Private EmDash-only packages require `privatePackages.version: true` and `privatePackages.tag: true`. Read [Publishing](./references/publishing.md) for the complete caller blocks.
+
+The first automated release requests approval for the repository workflow through GitHub OpenID Connect. A manual run requests approval the first time its branch is used; confirmation adds that scope without replacing approved tags. Later packages reuse approved scopes when their signed profiles name the same repository. Prepare each package with `emdash-plugin profile setup --dir <package-directory>`.
 
 Read [Publishing](./references/publishing.md) before configuring local or delegated releases. It defines the manifest, profile, tag, provenance, and approval requirements.
 

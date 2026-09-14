@@ -16,10 +16,12 @@ import { resolveHandleToDid } from "./manifest/publisher.js";
 const SKIPPED_DIRECTORIES = new Set([".astro", ".emdash-release", ".git", "dist", "node_modules"]);
 const MAX_DISCOVERED_DIRECTORIES = 10_000;
 const MAX_DISCOVERED_PLUGINS = 256;
+const MAX_PUBLISHED_PACKAGES_BYTES = 256 * 1024;
 
 export type ReleasePrepareErrorCode =
 	| "PACKAGE_AMBIGUOUS"
 	| "PACKAGE_NOT_FOUND"
+	| "PUBLISHED_PACKAGES_INVALID"
 	| "PUBLISHER_UNRESOLVED"
 	| "RELEASE_SELECTOR_INVALID"
 	| "VERSION_MISMATCH";
@@ -41,6 +43,13 @@ export interface PreparedRepositoryRelease {
 	pluginDirectory: string;
 	publisherDid: string;
 	bundleFile: string;
+}
+
+export interface PlannedRepositoryRelease {
+	packageName: string;
+	packageSlug: string;
+	pluginDirectory: string;
+	version: string;
 }
 
 interface ReleaseSelector {
@@ -106,6 +115,136 @@ async function discoverPluginDirectories(repositoryRoot: string): Promise<string
 		}
 	}
 	return plugins;
+}
+
+interface PublishedPackage {
+	name: string;
+	version: string;
+}
+
+function parsePublishedPackages(value: string): PublishedPackage[] {
+	if (value.length === 0 || value.length > MAX_PUBLISHED_PACKAGES_BYTES) {
+		throw new ReleasePrepareError(
+			"PUBLISHED_PACKAGES_INVALID",
+			"Changesets published-packages output is invalid.",
+		);
+	}
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(value);
+	} catch {
+		throw new ReleasePrepareError(
+			"PUBLISHED_PACKAGES_INVALID",
+			"Changesets published-packages output is not valid JSON.",
+		);
+	}
+	if (!Array.isArray(parsed) || parsed.length > MAX_DISCOVERED_PLUGINS) {
+		throw new ReleasePrepareError(
+			"PUBLISHED_PACKAGES_INVALID",
+			"Changesets published-packages output must be a bounded array.",
+		);
+	}
+	const packages: PublishedPackage[] = [];
+	const names = new Set<string>();
+	for (const item of parsed) {
+		if (
+			item === null ||
+			typeof item !== "object" ||
+			Array.isArray(item) ||
+			Object.keys(item).toSorted().join(",") !== "name,version"
+		) {
+			throw new ReleasePrepareError(
+				"PUBLISHED_PACKAGES_INVALID",
+				"Each Changesets published package must contain only name and version.",
+			);
+		}
+		const name = Reflect.get(item, "name");
+		const version = Reflect.get(item, "version");
+		if (
+			typeof name !== "string" ||
+			name.length === 0 ||
+			name.length > 214 ||
+			typeof version !== "string" ||
+			version.length === 0 ||
+			version.length > 255 ||
+			names.has(name)
+		) {
+			throw new ReleasePrepareError(
+				"PUBLISHED_PACKAGES_INVALID",
+				"Changesets published package names and versions must be unique bounded strings.",
+			);
+		}
+		names.add(name);
+		packages.push({ name, version });
+	}
+	return packages;
+}
+
+async function packageName(directory: string): Promise<string | null> {
+	try {
+		const parsed: unknown = JSON.parse(await readFile(join(directory, "package.json"), "utf8"));
+		if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+		const name = Reflect.get(parsed, "name");
+		return typeof name === "string" ? name : null;
+	} catch {
+		return null;
+	}
+}
+
+function repositoryPath(repositoryRoot: string, path: string): string {
+	return relative(repositoryRoot, path).split(sep).join("/");
+}
+
+export async function planPublishedRepositoryReleases(options: {
+	repositoryRoot: string;
+	publishedPackages: string;
+}): Promise<PlannedRepositoryRelease[]> {
+	const repositoryRoot = resolve(options.repositoryRoot);
+	const published = parsePublishedPackages(options.publishedPackages);
+	const publishedNames = new Set(published.map((item) => item.name));
+	const directoriesByName = new Map<string, string[]>();
+	for (const directory of await discoverPluginDirectories(repositoryRoot)) {
+		const name = await packageName(directory);
+		if (!name || !publishedNames.has(name)) continue;
+		const directories = directoriesByName.get(name) ?? [];
+		directories.push(directory);
+		directoriesByName.set(name, directories);
+	}
+	const planned: PlannedRepositoryRelease[] = [];
+	const slugs = new Set<string>();
+	for (const item of published) {
+		const directories = directoriesByName.get(item.name) ?? [];
+		if (directories.length === 0) continue;
+		if (directories.length > 1) {
+			throw new ReleasePrepareError(
+				"PACKAGE_AMBIGUOUS",
+				`More than one EmDash plugin package uses the package name ${item.name}.`,
+			);
+		}
+		const directory = directories[0]!;
+		const sources = await resolveSources(directory);
+		if (!sources.hasPackageJson || !sources.packageName) continue;
+		if (sources.manifest.version !== item.version) {
+			throw new ReleasePrepareError(
+				"VERSION_MISMATCH",
+				`Changesets reported ${item.name}@${item.version}, but ${sources.manifest.slug} is ${sources.manifest.version}.`,
+			);
+		}
+		if (slugs.has(sources.manifest.slug)) {
+			throw new ReleasePrepareError(
+				"PACKAGE_AMBIGUOUS",
+				`More than one ${sources.manifest.slug} plugin package was found in ${repositoryRoot}.`,
+			);
+		}
+		slugs.add(sources.manifest.slug);
+		planned.push({
+			packageName: sources.packageName,
+			packageSlug: sources.manifest.slug,
+			pluginDirectory: repositoryPath(repositoryRoot, sources.pluginDir) || ".",
+			version: item.version,
+		});
+	}
+	return planned.toSorted((left, right) => left.packageSlug.localeCompare(right.packageSlug));
 }
 
 async function manifestSlug(directory: string): Promise<string | null> {
@@ -235,6 +374,65 @@ async function writeGitHubOutputs(path: string, release: PreparedRepositoryRelea
 		"utf8",
 	);
 }
+
+async function writeReleasePlan(path: string, selectors: readonly string[]): Promise<void> {
+	await appendFile(path, `selectors=${JSON.stringify(selectors)}\n`, "utf8");
+}
+
+export const releasePlanCommand = defineCommand({
+	meta: { name: "plan", description: "Plan repository plugin releases for GitHub Actions" },
+	args: {
+		dir: {
+			type: "string",
+			description: "Repository root (default: current repository)",
+			default: process.cwd(),
+		},
+		"published-packages": {
+			type: "string",
+			description: "Changesets Action published-packages JSON output",
+		},
+		package: {
+			type: "string",
+			description: "Plugin ID or <id>@<version> for a manual release",
+		},
+	},
+	async run({ args }) {
+		try {
+			if ((args["published-packages"] ? 1 : 0) + (args.package ? 1 : 0) !== 1) {
+				throw new ReleasePrepareError(
+					"RELEASE_SELECTOR_INVALID",
+					"Pass exactly one of --published-packages or --package.",
+				);
+			}
+			const repositoryRoot = await findRepositoryRoot(args.dir);
+			let selectors: string[];
+			if (args.package) {
+				const selector = parseReleaseSelector(args.package);
+				selectors = [`${selector.packageSlug}${selector.version ? `@${selector.version}` : ""}`];
+			} else {
+				selectors = (
+					await planPublishedRepositoryReleases({
+						repositoryRoot,
+						publishedPackages: args["published-packages"]!,
+					})
+				).map((release) => `${release.packageSlug}@${release.version}`);
+			}
+			const output = process.env["GITHUB_OUTPUT"];
+			if (output) await writeReleasePlan(output, selectors);
+			consola.info(
+				selectors.length === 0
+					? "No published EmDash plugin packages found."
+					: JSON.stringify(selectors),
+			);
+		} catch (error) {
+			if (error instanceof ReleasePrepareError) {
+				consola.error(error.message);
+				process.exit(1);
+			}
+			throw error;
+		}
+	},
+});
 
 export const releasePrepareCommand = defineCommand({
 	meta: { name: "prepare", description: "Prepare one repository package for GitHub Actions" },

@@ -23,6 +23,7 @@ emdash-plugin publish                        Build, upload, and publish a releas
 emdash-plugin update-package [--yes]         Preview or apply package-profile changes
 emdash-plugin profile setup                  Prepare the signed package profile for delegated releases
 emdash-plugin release setup                  Create the delegated-release GitHub Actions workflow
+emdash-plugin release plan                   Plan repository releases for GitHub Actions
 emdash-plugin release prepare <slug[@ver]>   Prepare one repository package for GitHub Actions
 emdash-plugin login <handle-or-did>          Sign in with your Atmosphere account
 emdash-plugin logout [--did <did>]           Revoke the active session
@@ -178,9 +179,18 @@ It accepts the `profile setup` flags plus the following workflow options:
 | --- | --- | --- |
 | `--service-url <origin>` | `https://releases.emdashcms.com` | HTTPS origin used by the generated Action. |
 | `--action-ref <ref>` | `main` | EmDash repository ref containing the release Action. |
+| `--trigger <mode>` | `auto` | Release source: `changesets`, `tags`, or `manual`. `auto` offers Changesets when `.changeset/config.json` exists. |
 | `--force` | `false` | Replace an existing generated workflow. Without it, setup leaves the existing file unchanged. |
 
-The command never pushes the generated workflow. The first `slug@version` package tag creates a repository connection request using GitHub OpenID Connect; no Actions secret is required. Follow [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) to review the workflow, authorise the release service, connect the repository, and publish the first release.
+When setup detects Changesets in an interactive terminal, it asks how EmDash plugins should be released. **Follow Changesets releases** publishes the same versions for packages containing `emdash-plugin.jsonc`. The other choices follow `<slug>@<version>` tags or allow manual runs only. In non-interactive use, `auto` selects Changesets when a valid root configuration exists and package tags otherwise.
+
+The Changesets variant is a reusable workflow. Add one caller job after the existing Changesets publish job and pass its official published-package JSON output. Private EmDash-only packages require `privatePackages.version: true` and `privatePackages.tag: true`; setup warns when either option is missing.
+
+The command never pushes the generated workflow. The first automated run creates a repository connection request using GitHub OpenID Connect; no Actions secret is required. Follow [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) to review the workflow, authorise the release service, connect the repository, and publish the first release.
+
+## `release plan`
+
+`release plan` is used by the generated workflow. With `--published-packages <json>`, it maps the Changesets Action output to packages containing `emdash-plugin.jsonc`, verifies their versions, and writes a JSON selector matrix to `GITHUB_OUTPUT`. With `--package <slug[@version]>`, it validates one manual selector. The command does not build or publish packages.
 
 ## `release prepare`
 

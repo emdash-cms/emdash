@@ -71,7 +71,9 @@ pnpm exec emdash-plugin validate
 
    The command creates `.github/workflows/emdash-release.yml`. It does not push the file and does not replace an existing workflow unless you pass `--force`.
 
-   The generated workflow runs for package tags matching `<slug>@<version>` and through `workflow_dispatch`. It grants `contents: read`, `id-token: write`, and `attestations: write`; pins third-party Actions to full commit identifiers; runs the exact plugin CLI version that generated the file; resolves one package from its manifest; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
+   If the repository contains `.changeset/config.json`, interactive setup offers **Follow Changesets releases**. When Changesets releases a package containing `emdash-plugin.jsonc`, the reusable EmDash workflow publishes the same version. Connect it to the existing Changesets workflow as described below. Otherwise, the generated workflow runs for package tags matching `<slug>@<version>`. Both variants support manual runs and can be selected explicitly with `--trigger changesets|tags|manual`.
+
+   The workflow grants each job only its required `contents`, `id-token`, and `attestations` permissions; pins third-party Actions to full commit identifiers; runs the exact plugin CLI version that generated the file; resolves each package from its manifest; builds one plugin bundle; creates GitHub build provenance for those exact bytes; and passes both files to the EmDash release Action.
 
    The workflow lives at the repository root and is shared by every plugin package in that repository. Running `release setup` from a nested package still writes `.github/workflows/emdash-release.yml` at the root.
 
@@ -81,7 +83,9 @@ pnpm exec emdash-plugin validate
 
 5. Start the release workflow.
 
-   Update the package version before creating the version tag. The following commands start a `1.2.3` release:
+   With Changesets, merge the version pull request and let its publish job complete. The Changesets Action passes the packages it released to the reusable EmDash workflow. Ordinary npm packages are ignored; packages containing `emdash-plugin.jsonc` publish the same version to EmDash.
+
+   With the package-tag trigger, update the package version before creating the version tag. The following commands start a `1.2.3` release:
 
    ```sh
    git tag gallery@1.2.3
@@ -106,6 +110,56 @@ pnpm exec emdash-plugin validate
 
 </Steps>
 
+## Connect a Changesets workflow
+
+The generated `.github/workflows/emdash-release.yml` accepts the Changesets Action published-package JSON through `workflow_call`. Add an output to the existing Changesets job, then call the EmDash workflow from a dependent job. Replace `release` and `changesets` when the existing job or step uses another ID.
+
+Changesets Action v2 uses the `published-packages` output. Add the following job output and caller to a workflow using Changesets CLI v3:
+
+```yaml title=".github/workflows/release.yml"
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs['published-packages'] }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+Changesets Action v1 uses the camel-case `publishedPackages` step output. Use this expression for a workflow using Changesets CLI v2:
+
+```yaml title=".github/workflows/release.yml"
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs.publishedPackages }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+Keep Changesets responsible for its version pull request and package publication. The EmDash caller runs only when Changesets reports `published: true`. For private EmDash-only packages, set both `privatePackages.version` and `privatePackages.tag` to `true` in `.changeset/config.json`. Add unrelated private applications and test fixtures to `ignore`.
+
 ## Add another package
 
 Prepare the package profile from its source directory. The existing root workflow and repository connection are reused:
@@ -114,14 +168,14 @@ Prepare the package profile from its source directory. The existing root workflo
 pnpm exec emdash-plugin profile setup --dir packages/comments
 ```
 
-Update the package version, then push its package tag:
+With Changesets, add the package to a changeset and merge its version pull request. With the package-tag trigger, update the package version and push its tag:
 
 ```sh
 git tag comments@1.0.0
 git push origin comments@1.0.0
 ```
 
-The workflow resolves `comments` to one `emdash-plugin.jsonc`, checks that the manifest version is `1.0.0`, and verifies that the signed profile names the connected repository before accepting artifact uploads. Duplicate package IDs and tag-version mismatches fail before attestation.
+The workflow resolves `comments` to one `emdash-plugin.jsonc`, checks the selected version, and verifies that the signed profile names the connected repository before accepting artifact uploads. Duplicate package IDs and version mismatches fail before attestation.
 
 ## What the release service verifies
 

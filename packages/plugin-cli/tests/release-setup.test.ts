@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,7 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	DEFAULT_RELEASE_ACTION_REF,
 	DEFAULT_RELEASE_SERVICE_URL,
+	detectChangesets,
 	RELEASE_WORKFLOW_PATH,
+	resolveReleaseTrigger,
 	setupReleaseWorkflow,
 } from "../src/release-setup.js";
 
@@ -41,6 +43,8 @@ describe("setupReleaseWorkflow", () => {
 		expect(workflow).toContain('description: "Plugin ID to publish"');
 		expect(workflow).toContain("id-token: write");
 		expect(workflow).toContain("attestations: write");
+		expect(workflow).toContain("group: emdash-release-${{ github.workflow }}-${{ github.ref }}");
+		expect(workflow).toContain("persist-credentials: false");
 		expect(workflow).toContain("if: ${{ github.event.repository.visibility != 'public' }}");
 		expect(workflow).toContain(
 			"EmDash releases currently require a public GitHub repository because private and internal repository attestations cannot yet be verified.",
@@ -95,6 +99,84 @@ describe("setupReleaseWorkflow", () => {
 		} finally {
 			await rm(repository, { recursive: true, force: true });
 		}
+	});
+
+	it("detects Changesets at the repository root and resolves the automatic trigger", async () => {
+		await mkdir(join(dir, ".changeset"), { recursive: true });
+		await writeFile(
+			join(dir, ".changeset", "config.json"),
+			JSON.stringify({ baseBranch: "develop", privatePackages: { version: true, tag: true } }),
+			"utf8",
+		);
+
+		await expect(detectChangesets(dir)).resolves.toEqual({
+			baseBranch: "develop",
+			privatePackagesTag: true,
+			privatePackagesVersion: true,
+		});
+		expect(resolveReleaseTrigger("auto", true)).toBe("changesets");
+		expect(resolveReleaseTrigger("auto", false)).toBe("tags");
+		expect(() => resolveReleaseTrigger("invalid", true)).toThrow(
+			"--trigger must be auto, changesets, tags, or manual",
+		);
+	});
+
+	it("creates one Changesets caller and manual workflow without inferring branch releases", async () => {
+		await mkdir(join(dir, ".changeset"), { recursive: true });
+		await writeFile(
+			join(dir, ".changeset", "config.json"),
+			JSON.stringify({ baseBranch: "main" }),
+			"utf8",
+		);
+
+		const result = await setupReleaseWorkflow({
+			dir,
+			trigger: "changesets",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		const workflow = await readFile(result.path, "utf8");
+
+		expect(result.trigger).toBe("changesets");
+		expect(result.warnings).toContain(
+			"Changesets must version and tag private plugin packages. Set privatePackages.version and privatePackages.tag to true in .changeset/config.json before relying on Changesets releases.",
+		);
+		expect(workflow).toContain("workflow_call:");
+		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).toContain("published-packages:");
+		expect(workflow).not.toContain("tags:");
+		expect(workflow).not.toContain("push:");
+		expect(workflow).toContain('release plan --published-packages "${EMDASH_PUBLISHED_PACKAGES}"');
+		expect(workflow).toContain('release plan --package "${EMDASH_RELEASE_SELECTOR}"');
+		expect(workflow).toContain("selector: ${{ fromJSON(needs.plan.outputs.selectors) }}");
+		expect(workflow).toContain('EMDASH_RELEASE_SELECTOR: "${{ matrix.selector }}"');
+		expect(workflow.match(/persist-credentials: false/g)).toHaveLength(2);
+	});
+
+	it("creates a manual-only workflow when requested", async () => {
+		const result = await setupReleaseWorkflow({
+			dir,
+			trigger: "manual",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		const workflow = await readFile(result.path, "utf8");
+
+		expect(result.trigger).toBe("manual");
+		expect(workflow).toContain("workflow_dispatch:");
+		expect(workflow).not.toContain("push:");
+	});
+
+	it("allows an explicit tag trigger when an unrelated Changesets config is invalid", async () => {
+		await mkdir(join(dir, ".changeset"), { recursive: true });
+		await writeFile(join(dir, ".changeset", "config.json"), "not json\n", "utf8");
+
+		const result = await setupReleaseWorkflow({
+			dir,
+			trigger: "tags",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+
+		expect(result.trigger).toBe("tags");
+		await expect(readFile(result.path, "utf8")).resolves.toContain('tags:\n      - "*@*"');
 	});
 
 	it("pins a manifest DID without doing a handle lookup", async () => {
