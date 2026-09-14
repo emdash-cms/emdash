@@ -1,3 +1,4 @@
+import type { Editor } from "@tiptap/core";
 import * as React from "react";
 import { describe, expect, it, vi } from "vitest";
 
@@ -5,6 +6,8 @@ import {
 	PortableTextEditor,
 	type PortableTextEditorProps,
 } from "../../src/components/PortableTextEditor";
+
+import "../../dist/styles.css";
 import { render } from "../utils/render";
 
 vi.mock("../../src/components/MediaPickerModal", () => ({
@@ -54,7 +57,34 @@ describe("plugin block modal", () => {
 
 		const dialog = screen.getByRole("dialog");
 		await expect.element(dialog).toBeVisible();
-		expect(dialog.element().getBoundingClientRect().width).toBeGreaterThanOrEqual(700);
+		expect(dialog.element().offsetWidth).toBe(768);
+	});
+
+	it("keeps URL-only embed insertion dialogs compact", async () => {
+		const urlOnlyBlock: (typeof pluginBlocks)[number] = {
+			type: "test.embed",
+			pluginId: "test-blocks",
+			label: "Test Embed",
+		};
+		let editor: Editor | null = null;
+		const screen = await render(
+			<PortableTextEditor
+				value={[]}
+				onChange={vi.fn()}
+				pluginBlocks={[urlOnlyBlock]}
+				onEditorReady={(instance) => {
+					editor = instance;
+				}}
+			/>,
+		);
+		await vi.waitFor(() => expect(editor).not.toBeNull());
+
+		(editor as Editor).commands.insertContent("/");
+		await screen.getByRole("button", { name: /Test Embed/ }).click();
+
+		const dialog = screen.getByRole("dialog");
+		await expect.element(dialog).toBeVisible();
+		expect(dialog.element().offsetWidth).toBe(288);
 	});
 
 	it("saves an edited block without submitting the surrounding content form", async () => {
