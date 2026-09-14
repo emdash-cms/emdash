@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { installedCliVersion } from "../src/package-version.js";
 import {
 	DEFAULT_RELEASE_ACTION_REF,
 	DEFAULT_RELEASE_SERVICE_URL,
@@ -31,6 +32,7 @@ describe("setupReleaseWorkflow", () => {
 
 	it("creates a shared package-tag and manual release workflow with provenance", async () => {
 		const resolvePublisherDid = vi.fn(async () => PUBLISHER_DID);
+		const cliVersion = await installedCliVersion();
 
 		const result = await setupReleaseWorkflow({ dir, resolvePublisherDid });
 		const workflow = await readFile(result.path, "utf8");
@@ -60,7 +62,7 @@ describe("setupReleaseWorkflow", () => {
 		);
 		expect(workflow).toContain("id: prepare\n        shell: bash");
 		expect(workflow).toContain(
-			'pnpm dlx @emdash-cms/plugin-cli@0.10.0 release prepare "${EMDASH_RELEASE_SELECTOR}" --dir . --out-dir .emdash-release',
+			`pnpm dlx @emdash-cms/plugin-cli@${cliVersion} release prepare "\${EMDASH_RELEASE_SELECTOR}" --dir . --out-dir .emdash-release`,
 		);
 		expect(workflow).toContain(
 			"uses: actions/attest-build-provenance@977bb373ede98d70efdf65b84cb5f73e068dcc2a # v3",
@@ -93,12 +95,34 @@ describe("setupReleaseWorkflow", () => {
 
 			expect(result.path).toBe(join(repository, RELEASE_WORKFLOW_PATH));
 			expect(workflow).toContain('tags:\n      - "*@*"');
-			expect(workflow).toContain("pnpm dlx @emdash-cms/plugin-cli@0.10.0 release prepare");
 			expect(workflow).not.toContain("EMDASH_CONNECTION_INVITATION");
 			expect(workflow).not.toContain("connection-invitation:");
 		} finally {
 			await rm(repository, { recursive: true, force: true });
 		}
+	});
+
+	it("pins every generated CLI invocation to the installed CLI version", async () => {
+		await mkdir(join(dir, ".changeset"), { recursive: true });
+		await writeFile(
+			join(dir, ".changeset", "config.json"),
+			JSON.stringify({ privatePackages: { version: true, tag: true } }),
+			"utf8",
+		);
+
+		const result = await setupReleaseWorkflow({
+			dir,
+			trigger: "changesets",
+			resolvePublisherDid: async () => PUBLISHER_DID,
+		});
+		const workflow = await readFile(result.path, "utf8");
+		const cliVersion = await installedCliVersion();
+		const pinnedVersions = Array.from(
+			workflow.matchAll(/pnpm dlx @emdash-cms\/plugin-cli@(\S+) release/g),
+			(match) => match[1],
+		);
+
+		expect(pinnedVersions).toEqual([cliVersion, cliVersion, cliVersion]);
 	});
 
 	it("detects Changesets at the repository root and resolves the automatic trigger", async () => {
