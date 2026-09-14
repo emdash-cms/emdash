@@ -18,7 +18,10 @@ export const GET: APIRoute = async ({ site }) => {
 	const docs = await getCollection("docs");
 
 	const lang = config.defaultLocale.lang;
-	const title = (lang ? config.title[lang] : undefined) ?? Object.values(config.title)[0] ?? "";
+	const title =
+		typeof config.title === "string"
+			? config.title
+			: ((lang ? config.title[lang] : undefined) ?? Object.values(config.title)[0] ?? "");
 	const lines: string[] = [`# ${title}`, "", `> ${TAGLINE}`];
 
 	for (const item of config.sidebar ?? []) {
