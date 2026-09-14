@@ -242,6 +242,10 @@ export const contentRevisionConditionBody = z.object({
 	overrideLock: overrideLockFlag,
 });
 
+export const revisionRestoreBody = z.object({
+	overrideLock: overrideLockFlag,
+});
+
 export const contentPublishBody = contentRevisionConditionBody
 	.extend({
 		// .optional() rather than .nullish(): publishing has no semantic

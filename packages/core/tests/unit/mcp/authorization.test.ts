@@ -12,12 +12,15 @@ import { Role } from "@emdash-cms/auth";
 import type { RoleLevel } from "@emdash-cms/auth";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type { Kysely } from "kysely";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 import type { EmDashHandlers } from "../../../src/astro/types.js";
+import type { Database } from "../../../src/database/types.js";
 import { createMcpServer, type PluginMcpRegistration } from "../../../src/mcp/server.js";
 import type { RouteCallerInput } from "../../../src/plugins/routes.js";
+import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 // ---------------------------------------------------------------------------
 // Test constants
@@ -40,6 +43,16 @@ const MEDIA_ID = "01MEDIA";
 // Mock EmDashHandlers
 // ---------------------------------------------------------------------------
 
+let db: Kysely<Database>;
+
+beforeAll(async () => {
+	db = await setupTestDatabase();
+});
+
+afterAll(async () => {
+	await teardownTestDatabase(db);
+});
+
 /** Create a minimal mock EmDashHandlers that returns content owned by `ownerId`. */
 function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	const contentItem = {
@@ -61,7 +74,7 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 	};
 
 	return {
-		db: {} as EmDashHandlers["db"],
+		db,
 		invalidateUrlPatternCache: vi.fn(),
 		handleContentGet: vi.fn().mockResolvedValue({
 			success: true,
