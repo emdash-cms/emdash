@@ -32,7 +32,7 @@
     "dev": "tsdown --watch",
     "prepublishOnly": "node --run build",
     "check": "publint && attw --pack --ignore-rules=cjs-resolves-to-esm --ignore-rules=no-resolution",
-    "test": "npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify && vitest",
+    "test": "vitest",
     "typecheck": "tsgo --noEmit",
     "locale:compile": "lingui compile --namespace es",
     "locale:copy": "node ./scripts/copy-locales.js",
