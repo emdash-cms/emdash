@@ -2074,16 +2074,7 @@ function PluginBlockModal({
 		? hasPluginBlockFormData(formValues)
 		: typeof formValues.id === "string" && formValues.id.trim().length > 0;
 
-	// Size the dialog based on field complexity. The default `sm` is right for
-	// simple URL embeds (one field) but cramps Block Kit forms with several
-	// fields or a repeater, which need room for inline sub-field inputs.
-	const dialogSize = (() => {
-		if (!hasFields) return "sm";
-		const fields = block?.fields ?? [];
-		if (fields.some((f) => f.type === "repeater")) return "xl";
-		if (fields.length > 3) return "lg";
-		return "base";
-	})();
+	const dialogSize = hasFields ? "xl" : "sm";
 
 	return (
 		<Dialog.Root open={!!block} onOpenChange={(open: boolean) => !open && onClose()}>

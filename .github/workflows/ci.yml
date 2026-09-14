@@ -135,6 +135,9 @@ jobs:
       # leave them unbuilt and their tests would fail to resolve workspace
       # links to dist/.
       - run: pnpm run --filter emdash... --filter "@emdash-cms/aggregator" --filter "@emdash-cms/labeler" --filter "@emdash-cms/plugin-cli" --filter "@emdash-cms/registry-*" --filter "@emdash-cms/plugin-types" build
+      - name: Check registry-verification package
+        if: matrix.shardIndex == 1
+        run: pnpm --filter @emdash-cms/registry-verification test:package
       - run: pnpm --filter emdash exec vitest run --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           EMDASH_TEST_PG: postgres://postgres:test@localhost:5432/emdash_test

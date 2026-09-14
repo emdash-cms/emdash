@@ -8163,7 +8163,7 @@ function createGzipDecoder() {
 //#endregion
 //#region ../../packages/registry-verification/dist/index.js
 var __commonJSMin = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
-var __require = /* @__PURE__ */ createRequire("file:///emdash-registry-verification.js");
+var __require = /* @__PURE__ */ createRequire("file:///C:/emdash-registry-verification.js");
 const DEFAULT_FETCH_LIMITS = {
 	headerTimeoutMs: 1e4,
 	totalTimeoutMs: 3e4,
