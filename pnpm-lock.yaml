@@ -91,7 +91,7 @@ catalogs:
       specifier: ^1.0.0
       version: 1.0.0
     '@cloudflare/workers-types':
-      specifier: 5.20260911.1
+      specifier: ^5.20260911.1
       version: 5.20260911.1
     '@iconify-json/ph':
       specifier: ^1.2.2
