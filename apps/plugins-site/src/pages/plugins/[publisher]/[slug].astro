@@ -1188,7 +1188,11 @@ function formatDate(value: string): string {
 </style>
 
 <script>
-	import { normalizeSiteOrigin, pluginAdminUrl } from "../../../lib/install.js";
+	import {
+		normalizeSiteOrigin,
+		pluginAdminUrl,
+		probeEmDashSite,
+	} from "../../../lib/install.js";
 
 	const COPY_FEEDBACK_MS = 2_000;
 	const SITE_STORAGE_KEY = "emdash:plugins-site:last-site-origin:v1";
@@ -1228,6 +1232,7 @@ function formatDate(value: string): string {
 	);
 	const savedSiteHost = dialog?.querySelector<HTMLElement>("[data-saved-site-host]");
 	const changeSite = dialog?.querySelector<HTMLButtonElement>("[data-change-site]");
+	const siteSubmit = siteForm?.querySelector<HTMLButtonElement>("button[type='submit']");
 
 	function readSavedSite(): string | undefined {
 		try {
@@ -1280,7 +1285,7 @@ function formatDate(value: string): string {
 		showSiteForm(readSavedSite());
 	});
 
-	siteForm?.addEventListener("submit", (event) => {
+	siteForm?.addEventListener("submit", async (event) => {
 		event.preventDefault();
 		if (!siteInput) return;
 		const origin = normalizeSiteOrigin(siteInput.value);
@@ -1295,10 +1300,37 @@ function formatDate(value: string): string {
 			return;
 		}
 
+		siteInput.removeAttribute("aria-invalid");
+		siteForm.setAttribute("aria-busy", "true");
+		if (siteError) siteError.textContent = "Checking this site…";
+		if (siteSubmit) {
+			siteSubmit.disabled = true;
+			siteSubmit.textContent = "Checking site…";
+		}
+
+		const controller = new AbortController();
+		const timeout = window.setTimeout(() => controller.abort(), 4_000);
+		const probe = await probeEmDashSite(origin, controller.signal);
+		window.clearTimeout(timeout);
+
+		if (probe === "registry-disabled") {
+			siteInput.setAttribute("aria-invalid", "true");
+			if (siteError) {
+				siteError.textContent =
+					"This EmDash site does not have the plugin registry enabled.";
+			}
+			siteForm.removeAttribute("aria-busy");
+			if (siteSubmit) {
+				siteSubmit.disabled = false;
+				siteSubmit.textContent = "Continue to your site";
+			}
+			return;
+		}
+
 		try {
 			localStorage.setItem(SITE_STORAGE_KEY, origin);
 		} catch {
-			// The handoff still works when browser storage is unavailable.
+			// Browser storage may be disabled; the handoff does not depend on it.
 		}
 		window.location.assign(destination);
 	});

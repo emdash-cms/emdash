@@ -90,6 +90,11 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/manifest.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/health",
+		entrypoint: resolveRoute("api/health.ts"),
+	});
+
 	// Auth mode endpoint (public — used by the login page to pick the right UI)
 	injectRoute({
 		pattern: "/_emdash/api/auth/mode",

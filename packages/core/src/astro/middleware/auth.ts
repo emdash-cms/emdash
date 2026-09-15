@@ -106,6 +106,7 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
+	"/_emdash/api/health",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
 	// Public site search — read-only. The query layer hardcodes status='published'
