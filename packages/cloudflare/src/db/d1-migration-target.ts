@@ -358,7 +358,12 @@ export async function resolveD1MigrationTarget(
 		}
 	} else {
 		if (!wranglerConfig) {
-			throw new Error("D1 migrations require an explicit database selector or Wrangler config.");
+			throw new Error(
+				"D1 migrations require an explicit database selector or Wrangler config. " +
+					"Pass --d1 <uuid-or-name>, or --wrangler-config <path> for the Wrangler config that " +
+					`declares the "${manifestConfig.binding}" binding. A Wrangler config in the project ` +
+					"root is not read unless it is named.",
+			);
 		}
 		const bindings = wranglerConfig.d1Databases.filter(
 			(binding) => binding.binding === manifestConfig.binding,
