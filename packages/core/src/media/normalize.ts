@@ -29,6 +29,7 @@ export function normalizeLegacyExternalMediaValue(value: MediaValue): MediaValue
  * Normalize a media field value into a consistent MediaValue shape.
  *
  * - `null`/`undefined` → `null`
+ * - Empty or whitespace-only string → `null`
  * - Bare URL string → `{ provider: "external", id: "", src: url }`
  * - Bare internal media URL → resolved via local provider's `get()`
  * - Bare local media ID → resolved via local provider's `get()`
@@ -42,6 +43,7 @@ export async function normalizeMediaValue(
 
 	// Bare string URL
 	if (typeof value === "string") {
+		if (value.trim() === "") return null;
 		return normalizeStringUrl(value, getProvider);
 	}
 
