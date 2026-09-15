@@ -77,6 +77,7 @@ describe("expandExtensionShorthand", () => {
 		expect(expandExtensionShorthand(".pdf")).toBe("application/pdf");
 		expect(expandExtensionShorthand(".PDF")).toBe("application/pdf");
 		expect(expandExtensionShorthand(".avif")).toBe("image/avif");
+		expect(expandExtensionShorthand(".bmp")).toBe("image/bmp");
 		expect(expandExtensionShorthand(".docx")).toBe(
 			"application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 		);
