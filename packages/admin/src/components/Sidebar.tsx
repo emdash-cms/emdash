@@ -1,4 +1,5 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
+import type { I18n } from "@lingui/core";
 import { useLingui } from "@lingui/react/macro";
 import { Gear, Palette, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -341,6 +342,19 @@ export function resolvePluginPageLabel(
 		.join(" ");
 }
 
+/**
+ * Wrap `translate` so a declared label reaches it only when the active catalog
+ * has an entry for it; any other label is returned as declared. Most plugin
+ * labels have no catalog entry, and passing one to Lingui logs an
+ * "Uncompiled message detected" warning on every render.
+ */
+export function declaredLabelTranslator(
+	i18n: Pick<I18n, "messages">,
+	translate: (id: string) => string,
+): (id: string) => string {
+	return (id) => (i18n.messages[id] === undefined ? id : translate(id));
+}
+
 /** Resolves a nav item's route path by substituting $param placeholders. */
 export function resolveItemPath(item: NavItem): string {
 	let path = item.to;
@@ -508,7 +522,11 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			const isBlocksMode = config.adminMode === "blocks";
 			for (const page of config.adminPages) {
 				if (!isBlocksMode && !resolvePluginPagePath(pluginPages, page.path)) continue;
-				const label = resolvePluginPageLabel(page.label, pluginId, (id) => i18n._(id));
+				const label = resolvePluginPageLabel(
+					page.label,
+					pluginId,
+					declaredLabelTranslator(i18n, (id) => i18n._(id)),
+				);
 				pluginItems.push({
 					to: `/plugins/${pluginId}${page.path}`,
 					label,
