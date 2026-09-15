@@ -132,6 +132,42 @@ describe("applySeed onConflict modes", () => {
 	});
 
 	describe("onConflict: skip (default)", () => {
+		it.each([
+			["category", "Categories", true],
+			["tag", "Tags", false],
+		] as const)(
+			"replaces the untouched built-in %s taxonomy definition",
+			async (name, label, builtInHierarchical) => {
+				const seed: SeedFile = {
+					version: "1",
+					taxonomies: [{ name, label, hierarchical: false, collections: ["projects"] }],
+				};
+
+				await applySeed(db, seed, { onConflict: "skip" });
+
+				const taxonomy = await db
+					.selectFrom("_emdash_taxonomy_defs")
+					.select(["collections", "hierarchical"])
+					.where("name", "=", name)
+					.executeTakeFirstOrThrow();
+				expect(taxonomy).toMatchObject({ collections: '["projects"]', hierarchical: 0 });
+
+				seed.taxonomies![0]!.collections = ["posts"];
+				seed.taxonomies![0]!.hierarchical = builtInHierarchical;
+				await applySeed(db, seed, { onConflict: "skip" });
+
+				const preservedTaxonomy = await db
+					.selectFrom("_emdash_taxonomy_defs")
+					.select(["collections", "hierarchical"])
+					.where("name", "=", name)
+					.executeTakeFirstOrThrow();
+				expect(preservedTaxonomy).toMatchObject({
+					collections: '["projects"]',
+					hierarchical: 0,
+				});
+			},
+		);
+
 		it("skips existing collections", async () => {
 			const seed = createTestSeed();
 			// First apply
