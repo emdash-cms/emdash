@@ -26,7 +26,8 @@
 	},
 	"dependencies": {
 		"emdash": "workspace:*",
-		"ulidx": "^2.4.1"
+		"ulidx": "^2.4.1",
+		"zod": "catalog:"
 	},
 	"peerDependencies": {
 		"kysely": ">=0.29.0",

@@ -72,10 +72,17 @@ describe("pluginManifestSchema — route entries", () => {
 		expect(result.success).toBe(true);
 	});
 
-	it("should accept route objects with cacheControl", () => {
+	it("should accept route objects with metadata", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
-			routes: [{ name: "catalog", public: true, cacheControl: "public, max-age=60" }],
+			routes: [
+				{
+					name: "catalog",
+					body: "bytes",
+					public: true,
+					cacheControl: "public, max-age=60",
+				},
+			],
 		});
 		expect(result.success).toBe(true);
 	});

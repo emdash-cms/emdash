@@ -2,8 +2,7 @@
  * Cache-Control for the plugin API catch-all (`/_emdash/api/plugins/{id}/*`).
  *
  * Public routes may opt in to caching via `cacheControl` on the route
- * definition. The header must only appear on successful GET/HEAD responses of
- * public routes — everything else keeps the API default `private, no-store`.
+ * definition. Successful GET/HEAD responses may also set the header directly.
  */
 
 import type { APIRoute } from "astro";
@@ -26,7 +25,6 @@ function createLocals({
 			user: null,
 			emdash: {
 				handlePluginApiRoute,
-				// Mirrors getRouteMeta: cacheControl is only ever present on public routes.
 				getPluginRouteMeta: () => ({ public: true, cacheControl }),
 			},
 		},
@@ -79,4 +77,27 @@ describe("plugin API catch-all Cache-Control", () => {
 		expect(res.status).toBe(404);
 		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 	});
+});
+
+it("honors caching declared by a public raw response", async () => {
+	const { locals } = createLocals({
+		result: {
+			success: true,
+			data: new Response("feed", { headers: { "Cache-Control": CACHE_VALUE } }),
+		},
+	});
+	const response = await invoke(GET, "GET", locals);
+	expect(response.headers.get("Cache-Control")).toBe(CACHE_VALUE);
+});
+
+it("lets the route cache option override raw response headers", async () => {
+	const { locals } = createLocals({
+		cacheControl: CACHE_VALUE,
+		result: {
+			success: true,
+			data: new Response("feed", { headers: { "Cache-Control": "public, max-age=1" } }),
+		},
+	});
+	const response = await invoke(GET, "GET", locals);
+	expect(response.headers.get("Cache-Control")).toBe(CACHE_VALUE);
 });

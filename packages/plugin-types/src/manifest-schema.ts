@@ -10,6 +10,9 @@
 
 import { z } from "zod";
 
+import { manifestRouteEntrySchema, routeNameSchema } from "./routes.js";
+export { normalizeManifestRoute } from "./routes.js";
+
 import { capabilitiesToDeclaredAccess, declaredAccessToCapabilities } from "./index.js";
 import type { PluginManifest } from "./index.js";
 
@@ -121,19 +124,6 @@ const manifestHookEntrySchema = z.object({
 	exclusive: z.boolean().optional(),
 	priority: z.number().int().optional(),
 	timeout: z.number().int().positive().optional(),
-});
-
-/**
- * Structured route entry for manifest — name plus optional metadata.
- * Both plain strings and objects are accepted; strings are normalized
- * to `{ name }` objects via `normalizeManifestRoute()`.
- */
-/** Route names must be safe path segments — alphanumeric, hyphens, underscores, forward slashes */
-const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
-
-const manifestRouteEntrySchema = z.object({
-	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: z.boolean().optional(),
 });
 
 // ── Sub-schemas ─────────────────────────────────────────────────
@@ -298,12 +288,7 @@ export const pluginManifestSchema = z.object({
 	 * structured objects with public metadata.
 	 * Plain strings are normalized to `{ name }` objects after parsing.
 	 */
-	routes: z.array(
-		z.union([
-			z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-			manifestRouteEntrySchema,
-		]),
-	),
+	routes: z.array(z.union([routeNameSchema, manifestRouteEntrySchema])),
 	admin: pluginAdminConfigSchema,
 });
 
@@ -333,19 +318,6 @@ export function reconcileManifestAccess(manifest: ValidatedPluginManifest): Plug
 export function normalizeManifestHook(
 	entry: string | { name: string; exclusive?: boolean; priority?: number; timeout?: number },
 ): { name: string; exclusive?: boolean; priority?: number; timeout?: number } {
-	if (typeof entry === "string") {
-		return { name: entry };
-	}
-	return entry;
-}
-
-/**
- * Normalize a manifest route entry — plain strings become `{ name }` objects.
- */
-export function normalizeManifestRoute(entry: string | { name: string; public?: boolean }): {
-	name: string;
-	public?: boolean;
-} {
 	if (typeof entry === "string") {
 		return { name: entry };
 	}

@@ -305,21 +305,15 @@ export interface ManifestHookEntry {
 	timeout?: number;
 }
 
-/**
- * Route entry in a plugin manifest. Either a plain route name or a structured
- * entry with the `public` flag set.
- */
-export interface ManifestRouteEntry {
-	name: string;
-	public?: boolean;
-	/** RBAC permission required to invoke this route. */
-	permission?: string;
-	/**
-	 * Cache-Control value for successful GET responses. Only honored on
-	 * routes that are also `public: true`.
-	 */
-	cacheControl?: string;
-}
+export {
+	extractManifestRoute,
+	extractRouteOptions,
+	manifestRouteEntrySchema,
+	routeNameSchema,
+	routeOptionsSchema,
+} from "./routes.js";
+export type { ManifestRouteEntry, RouteOptions } from "./routes.js";
+import type { ManifestRouteEntry } from "./routes.js";
 
 /** JSON Schema persisted in plugin manifests for cross-isolate discovery. */
 export type PluginJsonSchema = Record<string, unknown>;

@@ -216,7 +216,8 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		allowedHosts,
 		storage,
 		hooks: resolvedHooks,
-		routes,
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- the dispatcher decodes and validates input before invoking these handlers
+		routes: routes as ResolvedPlugin["routes"],
 		mcp,
 		admin,
 	};

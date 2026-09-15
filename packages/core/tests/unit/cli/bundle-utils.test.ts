@@ -86,12 +86,17 @@ describe("extractManifest", () => {
 		expect(manifest.routes).toEqual(["sync", "webhook"]);
 	});
 
-	it("emits structured route entries for public and cacheControl metadata", () => {
+	it("emits structured route entries with route metadata", () => {
 		const plugin = mockPlugin({
 			routes: {
 				sync: { handler: vi.fn() },
 				webhook: { handler: vi.fn(), public: true },
-				catalog: { handler: vi.fn(), public: true, cacheControl: "public, max-age=60" },
+				catalog: {
+					handler: vi.fn(),
+					body: "bytes",
+					public: true,
+					cacheControl: "public, max-age=60",
+				},
 			},
 		});
 
@@ -99,7 +104,12 @@ describe("extractManifest", () => {
 		expect(manifest.routes).toEqual([
 			"sync",
 			{ name: "webhook", public: true },
-			{ name: "catalog", public: true, cacheControl: "public, max-age=60" },
+			{
+				name: "catalog",
+				body: "bytes",
+				public: true,
+				cacheControl: "public, max-age=60",
+			},
 		]);
 	});
 
