@@ -1,5 +1,15 @@
 # @emdash-cms/admin
 
+## 0.39.0
+
+### Patch Changes
+
+- [#3125](https://github.com/emdash-cms/emdash/pull/3125) [`c783951`](https://github.com/emdash-cms/emdash/commit/c7839517c10562f6d422c838f3903c8c6085e737) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes the content editor's distraction-free mode shortcut so `⌘⇧\` (or `Ctrl+Shift+\`) toggles the mode both in and out, keeps the exit button visible without hovering, and no longer treats `Escape` as an exit trigger.
+- Updated dependencies [[`71901fc`](https://github.com/emdash-cms/emdash/commit/71901fc92b5a09bd5c1321759b2db1aaa9b0e730)]:
+  - @emdash-cms/registry-lexicons@0.5.1
+  - @emdash-cms/registry-client@0.6.1
+  - @emdash-cms/blocks@0.39.0
+
 ## 0.38.0
 
 ### Minor Changes
