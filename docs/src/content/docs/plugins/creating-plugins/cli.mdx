@@ -9,6 +9,16 @@ import { Steps } from "@astrojs/starlight/components";
 
 The CLI uses an [Atmosphere account](/plugins/creating-plugins/publishing/#your-atmosphere-account) as the publisher identity for package profiles and releases.
 
+## Install the CLI
+
+Plugins created with `pnpm dlx @emdash-cms/plugin-cli init` already include the CLI as a pinned development dependency. Add it to an existing plugin before using the other commands:
+
+```sh
+pnpm add -D @emdash-cms/plugin-cli
+```
+
+The examples use `pnpm exec emdash-plugin` so each command runs the version installed in the plugin. Use `pnpm dlx` for the one-off `init` command, not for repeated build, login, or release commands.
+
 ## Commands
 
 The CLI provides the following commands:
@@ -51,7 +61,7 @@ The following example shows the two scripts most plugins add to `package.json`:
 Create a new plugin with `init`:
 
 ```sh
-npx @emdash-cms/plugin-cli init my-plugin
+pnpm dlx @emdash-cms/plugin-cli init my-plugin
 ```
 
 This scaffolds `emdash-plugin.jsonc`, `src/plugin.ts`, `package.json`, `tsconfig.json`, `vitest.config.ts`, a workerd-backed test, a README, `AGENTS.md`, a local `creating-plugins` skill, and package-manager configuration. `.agents/skills` and `.claude/skills` link to the canonical `skills` directory, and `.claude/CLAUDE.md` links to `AGENTS.md`, so Codex and Claude use the same project guidance. The source starts with one route assigned to a `SandboxedPlugin`-typed constant and exported as default. The test invokes that route through EmDash's production sandbox wrapper and host bridge.
@@ -63,7 +73,7 @@ The CLI detects whether npm, pnpm, Yarn, or Bun launched it and generates matchi
 Non-interactive setup requires explicit ownership metadata. Use the following form in scripts:
 
 ```sh
-npx @emdash-cms/plugin-cli init my-plugin --yes \
+pnpm dlx @emdash-cms/plugin-cli init my-plugin --yes \
   --publisher did:plc:abc123def456 \
   --author-name "Jane Doe" \
   --security-email security@example.com

@@ -22,9 +22,11 @@ EmDash has two plugin formats:
 
 ## Scaffold a sandboxed plugin
 
-Start a new sandboxed plugin with `npx @emdash-cms/plugin-cli init <slug>`. The interactive command requires publisher, author, and security metadata, detects the package manager, validates the complete manifest before writing, and shows a project summary for confirmation. The generated repository contains `AGENTS.md` and `skills/creating-plugins/SKILL.md`; `.agents/skills` and `.claude/skills` point to the same canonical directory so Codex and Claude load identical instructions.
+Start a new sandboxed plugin with `pnpm dlx @emdash-cms/plugin-cli init <slug>`. The interactive command requires publisher, author, and security metadata, detects the package manager, validates the complete manifest before writing, and shows a project summary for confirmation. The generated repository contains `AGENTS.md` and `skills/creating-plugins/SKILL.md`; `.agents/skills` and `.claude/skills` point to the same canonical directory so Codex and Claude load identical instructions.
 
 For non-interactive scaffolding, pass `--yes` with `--publisher`, `--author-name`, and either `--security-email` or `--security-url`. Local publisher and Git identity defaults are used only with `--use-detected`.
+
+The scaffold pins `@emdash-cms/plugin-cli` as a development dependency. Add it with `pnpm add -D @emdash-cms/plugin-cli` when adopting an existing plugin, then run build, login, profile, and release commands through `pnpm exec emdash-plugin`. Reserve `pnpm dlx @emdash-cms/plugin-cli` for the one-off `init` command so repeated commands do not change CLI versions.
 
 ## Plugin Anatomy
 

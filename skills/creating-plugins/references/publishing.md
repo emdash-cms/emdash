@@ -6,6 +6,7 @@ Use `@emdash-cms/plugin-cli` for registry publishing. The package profile and re
 
 Before publishing, require:
 
+- `@emdash-cms/plugin-cli` installed in the plugin package;
 - a unique plugin `slug`;
 - a publisher DID or Atmosphere handle;
 - a version in `package.json` or `emdash-plugin.jsonc`;

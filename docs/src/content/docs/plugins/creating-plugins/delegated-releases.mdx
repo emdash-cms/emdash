@@ -21,7 +21,8 @@ Use [`emdash-plugin publish`](/plugins/creating-plugins/publishing/#publish) for
 Prepare the following before starting:
 
 - A public GitHub repository containing a sandboxed EmDash plugin.
-- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author, and a security contact. Set `repo` to the canonical GitHub URL, or enter it during interactive setup.
+- `@emdash-cms/plugin-cli` installed as a development dependency. Plugins created with the CLI already include it.
+- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author, and a security contact. Set `repo` to the canonical GitHub URL, or confirm the detected GitHub remote during interactive setup.
 - A version in `package.json`, or in `emdash-plugin.jsonc` for a registry-only plugin.
 - The Atmosphere account named by `publisher`.
 - A browser that supports passkeys. Release approval requires user verification.
