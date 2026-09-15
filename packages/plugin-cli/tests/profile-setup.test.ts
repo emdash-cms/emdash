@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import { promisify, stripVTControlCharacters } from "node:util";
 
 import { ClientResponseError } from "@atcute/client";
 import { NSID } from "@emdash-cms/registry-lexicons";
@@ -111,8 +111,9 @@ describe("package profile setup", () => {
 			true,
 		);
 
-		expect(success).toHaveBeenCalledWith(
-			expect.stringContaining("Published package profile for @publisher.example/gallery"),
+		expect(success).toHaveBeenCalledOnce();
+		expect(stripVTControlCharacters(String(success.mock.calls[0]?.[0]))).toContain(
+			"Published package profile for @publisher.example/gallery",
 		);
 		expect(info).toHaveBeenCalledWith("Next, publish a release:");
 		expect(info).toHaveBeenCalledWith(expect.stringContaining("emdash-plugin publish"));
