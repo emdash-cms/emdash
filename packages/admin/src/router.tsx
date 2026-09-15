@@ -71,6 +71,7 @@ import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
+import { EMPTY_TERM_FILTER, type TermFilterState } from "./components/TermFilters.js";
 import { ThemeMarketplaceBrowse } from "./components/ThemeMarketplaceBrowse";
 import { ThemeMarketplaceDetail } from "./components/ThemeMarketplaceDetail";
 import { Widgets } from "./components/Widgets";
@@ -387,6 +388,16 @@ function ContentListPage() {
 	const [authorFilter, setAuthorFilter] = React.useState("");
 	const [dateFilter, setDateFilter] = React.useState<ContentDateFilter>(EMPTY_DATE_FILTER);
 	const [bylineFilter, setBylineFilter] = React.useState<BylineFilterState>(EMPTY_BYLINE_FILTER);
+	const [termFilter, setTermFilter] = React.useState<TermFilterState>(EMPTY_TERM_FILTER);
+
+	// Only a taxonomy with a selection belongs in the query key or the request:
+	// an untouched control filters nothing, and an empty array would filter
+	// everything out.
+	const termApiParams = React.useMemo(() => {
+		const active = Object.entries(termFilter).filter(([, slugs]) => slugs.length > 0);
+		if (active.length === 0) return undefined;
+		return { termFilters: Object.fromEntries(active) };
+	}, [termFilter]);
 
 	// Only the parts that change the result set belong in the query key —
 	// `includeInferred` alone, with nothing selected, filters nothing.
@@ -433,6 +444,7 @@ function ContentListPage() {
 					author: authorFilter,
 					date: dateApiParams,
 					byline: bylineApiParams,
+					terms: termApiParams,
 				},
 			],
 			queryFn: ({ pageParam }) =>
@@ -447,6 +459,7 @@ function ContentListPage() {
 					authorId: authorFilter || undefined,
 					...dateApiParams,
 					...bylineApiParams,
+					...termApiParams,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,
@@ -675,6 +688,8 @@ function ContentListPage() {
 			dateFilter={dateFilter}
 			onDateFilterChange={setDateFilter}
 			bylineFilter={bylineFilter}
+			termFilter={termFilter}
+			onTermFilterChange={setTermFilter}
 			onBylineFilterChange={setBylineFilter}
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}

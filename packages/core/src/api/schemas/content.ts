@@ -123,6 +123,44 @@ export const contentFieldFiltersSchema = z
 		},
 	);
 
+/**
+ * Taxonomy-term filters: OR within a taxonomy, AND across taxonomies.
+ *
+ * Bounded the same way as indexed field filters, because both end up as
+ * operands in one statement: a cap on taxonomies, and a shared operand budget
+ * over the slugs.
+ */
+export const contentTermFiltersSchema = z
+	.record(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "must be a safe taxonomy name"),
+		z.array(z.string().min(1).max(200)).min(1, "a taxonomy filter needs at least one term slug"),
+	)
+	.refine((filters) => Object.keys(filters).length <= 10, {
+		message: "At most 10 taxonomy filters are allowed",
+	})
+	.refine(
+		(filters) =>
+			Object.values(filters).reduce<number>((total, slugs) => total + slugs.length, 0) <=
+			SQL_BATCH_SIZE,
+		{ message: `Taxonomy term filters have a total operand budget of ${SQL_BATCH_SIZE}` },
+	);
+
+const contentTermFiltersQuery = z
+	.string()
+	.max(8192)
+	.transform((value, ctx): unknown => {
+		try {
+			return JSON.parse(value);
+		} catch {
+			ctx.addIssue({ code: "custom", message: "must be valid JSON" });
+			return z.NEVER;
+		}
+	})
+	.pipe(contentTermFiltersSchema);
+
 const contentFieldFiltersQuery = z
 	.string()
 	.max(8192)
@@ -165,6 +203,12 @@ export const contentListQuery = cursorPaginationQuery
 		includeInferredBylines: booleanParam,
 		/** JSON-encoded indexed custom-field filters, combined with AND semantics. */
 		fieldFilters: contentFieldFiltersQuery.optional(),
+		/**
+		 * JSON-encoded taxonomy-term filters keyed by taxonomy name, e.g.
+		 * `{"topics":["rodeo","polo"],"places":["kentucky"]}`. An entry matches
+		 * any slug within a taxonomy and every taxonomy named.
+		 */
+		termFilters: contentTermFiltersQuery.optional(),
 	})
 	.transform(({ bylines, ...rest }) => ({
 		...rest,

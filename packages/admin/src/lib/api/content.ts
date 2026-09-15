@@ -183,6 +183,11 @@ export async function fetchContentList(
 		 * explicit credit. Off by default: the filter matches real credits.
 		 */
 		includeInferredBylines?: boolean;
+		/**
+		 * Taxonomy term slugs keyed by taxonomy name. An entry matches any slug
+		 * within a taxonomy and every taxonomy named: OR within, AND across.
+		 */
+		termFilters?: Record<string, string[]>;
 	},
 ): Promise<FindManyResult<ContentItem>> {
 	const params = new URLSearchParams();
@@ -194,6 +199,12 @@ export async function fetchContentList(
 	if (options?.order) params.set("order", options.order);
 	if (options?.search) params.set("q", options.search);
 	if (options?.authorId) params.set("authorId", options.authorId);
+	// Only send taxonomies that actually have a selection: an empty array is a
+	// filter that matches nothing, which is not what an untouched control means.
+	if (options?.termFilters) {
+		const active = Object.entries(options.termFilters).filter(([, slugs]) => slugs.length > 0);
+		if (active.length > 0) params.set("termFilters", JSON.stringify(Object.fromEntries(active)));
+	}
 	// A date range is only meaningful with a target field; send all three
 	// together so the server doesn't reject a half-specified filter.
 	if (options?.dateField && (options.dateFrom || options.dateTo)) {

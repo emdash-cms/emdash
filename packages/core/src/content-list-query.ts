@@ -27,3 +27,16 @@ export type ContentFieldFilterValue =
  * performs membership matching, and range bounds can be combined.
  */
 export type ContentFieldFilters = Record<string, ContentFieldFilterValue>;
+
+/**
+ * Taxonomy-term filters, keyed by taxonomy name.
+ *
+ * An entry matches a key when it carries **any** of that key's term slugs, and
+ * must match **every** key: OR within a taxonomy, AND across taxonomies. This
+ * mirrors `ContentFieldFilters`, which ANDs its keys, and matches how the
+ * filters read in a UI: two terms of one taxonomy widen a search, two
+ * taxonomies narrow it.
+ *
+ * Slugs are resolved per locale, as terms are elsewhere.
+ */
+export type ContentTermFilters = Record<string, string[]>;
