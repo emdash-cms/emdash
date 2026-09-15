@@ -31,6 +31,7 @@ import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
 
 import { buildPlugin, BuildError, type BuildLogger, type BuildResult } from "../build/api.js";
+import { formatPackageReleaseIdentifier } from "../package-identifier.js";
 import { CAPABILITY_RENAMES, isDeprecatedCapability, type PluginManifest } from "./types.js";
 import {
 	collectBundleEntries,
@@ -142,7 +143,9 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 	const manifest = build.wireManifest;
 	const resolvedPlugin = build.resolvedPlugin;
 
-	log.success?.(`Plugin: ${manifest.id}@${manifest.version}`);
+	log.success?.(
+		`Plugin: ${formatPackageReleaseIdentifier(build.manifest.publisher, manifest.id, manifest.version)}`,
+	);
 	log.info?.(
 		`  Capabilities: ${
 			manifest.capabilities.length > 0 ? manifest.capabilities.join(", ") : "(none)"

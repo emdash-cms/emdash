@@ -106,11 +106,14 @@ describe("package profile setup", () => {
 
 		printProfileSetupResult(
 			{ status: "created", profileUri: PROFILE_URI },
+			"@publisher.example/gallery",
 			"escalation-only",
 			true,
 		);
 
-		expect(success).toHaveBeenCalledWith(expect.stringContaining("Published package profile"));
+		expect(success).toHaveBeenCalledWith(
+			expect.stringContaining("Published package profile for @publisher.example/gallery"),
+		);
 		expect(info).toHaveBeenCalledWith("Next, publish a release:");
 		expect(info).toHaveBeenCalledWith(expect.stringContaining("emdash-plugin publish"));
 		expect(info).toHaveBeenCalledWith(expect.stringContaining("emdash-plugin release setup"));

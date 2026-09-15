@@ -176,7 +176,7 @@ export async function resolveSources(
 
 	log.info?.(`Manifest: ${loaded.path}`);
 	log.info?.(`Plugin entry: ${pluginEntry}`);
-	if (packageName) log.info?.(`Package: ${packageName}`);
+	if (packageName) log.info?.(`npm package: ${packageName}`);
 
 	return {
 		pluginDir: resolvedDir,

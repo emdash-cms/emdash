@@ -327,6 +327,8 @@ describe("agent guidance", () => {
 		expect(skill).toContain("name: creating-plugins");
 		expect(skill).toContain("emdash-plugin.jsonc");
 		expect(skill).toContain("Use the package scripts");
+		expect(skill).toContain("@<publisher-handle>/<slug>");
+		expect(skill).toContain("info <handle> <slug> --version <version> --watch");
 	});
 
 	it("allows the build scripts required by sandbox tests in pnpm projects", () => {

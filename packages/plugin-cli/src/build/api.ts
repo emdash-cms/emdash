@@ -40,6 +40,7 @@ import { join, resolve } from "node:path";
 import type { PluginManifest, ResolvedPlugin } from "../bundle/types.js";
 import { extractManifest } from "../bundle/utils.js";
 import type { NormalisedManifest } from "../manifest/translate.js";
+import { formatPackageReleaseIdentifier } from "../package-identifier.js";
 import {
 	buildRuntime,
 	probeAndAssemble,
@@ -201,7 +202,9 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
 			log.info?.("No package.json — skipping dist/index.mjs (registry-only plugin)");
 		}
 
-		log.success?.(`Plugin built: ${sources.manifest.slug}@${sources.manifest.version}`);
+		log.success?.(
+			`Plugin built: ${formatPackageReleaseIdentifier(sources.manifest.publisher, sources.manifest.slug, sources.manifest.version)}`,
+		);
 
 		return {
 			manifest: sources.manifest,

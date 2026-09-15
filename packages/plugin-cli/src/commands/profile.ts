@@ -12,6 +12,7 @@ import { probeEnvironment } from "../init/environment.js";
 import { resolveHandleToDid } from "../manifest/publisher.js";
 import { manifestToProfileInput, resolveSections } from "../manifest/translate.js";
 import { resumeSession } from "../oauth.js";
+import { formatPackageIdentifier } from "../package-identifier.js";
 import {
 	canonicalGitHubRepository,
 	PackageProfileSetupError,
@@ -76,19 +77,21 @@ export async function resolveProfileRepository(
 
 export function printProfileSetupResult(
 	result: { status: "created" | "ready" | "updated"; profileUri: string },
+	identifier: string,
 	confirmation: "always" | "escalation-only",
 	showNextSteps: boolean,
 ): void {
 	if (result.status === "ready") {
-		consola.success(`Package profile is ready: ${pc.dim(result.profileUri)}`);
+		consola.success(`Package profile is ready for ${pc.bold(identifier)}`);
 	} else {
-		consola.success(`Published package profile: ${pc.dim(result.profileUri)}`);
+		consola.success(`Published package profile for ${pc.bold(identifier)}`);
 		consola.info(
 			confirmation === "always"
 				? "Your Atmosphere account must approve every release."
 				: "Your Atmosphere account must approve releases when plugin permissions increase.",
 		);
 	}
+	consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
 	if (!showNextSteps) return;
 	consola.info("Next, publish a release:");
 	consola.info(`  Manually: ${pc.cyan("emdash-plugin publish")}`);
@@ -156,6 +159,10 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 			`The active CLI account does not own ${sources.manifest.slug}. Run \`emdash-plugin switch ${publisherDid}\` first.`,
 		);
 	}
+	const identifier = formatPackageIdentifier(
+		storedSession.handle ?? storedSession.did,
+		sources.manifest.slug,
+	);
 	const repository = await resolveProfileRepository({
 		configured: options.repository ?? sources.manifest.repo,
 		interactive,
@@ -181,19 +188,19 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 	};
 	const proposed = await setupPackageProfile(input);
 	if (proposed.status === "ready") {
-		printProfileSetupResult(proposed, confirmation, options.nextSteps !== false);
+		printProfileSetupResult(proposed, identifier, confirmation, options.nextSteps !== false);
 		return;
 	}
 	if (!interactive && options.yes !== true) {
 		throw new PackageProfileSetupError(
 			"INVALID_INPUT",
-			`The ${sources.manifest.slug} package profile needs setup. Run this command in a terminal, or pass --yes to accept the default approval policy.`,
+			`The ${identifier} package profile needs setup. Run this command in a terminal, or pass --yes to accept the default approval policy.`,
 		);
 	}
 	if (interactive) {
 		const action = proposed.status === "created" ? "Create" : "Update";
 		const answer = await clack.confirm({
-			message: `${action} the ${sources.manifest.slug} package profile and allow ${pc.cyan(canonicalGitHubRepository(repository) ?? repository)} to publish releases?`,
+			message: `${action} the ${identifier} package profile and allow ${pc.cyan(canonicalGitHubRepository(repository) ?? repository)} to publish releases?`,
 			initialValue: true,
 		});
 		cancelled(answer);
@@ -205,7 +212,7 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 		}
 	}
 	const result = await setupPackageProfile({ ...input, apply: true });
-	printProfileSetupResult(result, confirmation, options.nextSteps !== false);
+	printProfileSetupResult(result, identifier, confirmation, options.nextSteps !== false);
 }
 
 export async function runProfileSetup(options: RunProfileSetupOptions): Promise<void> {
