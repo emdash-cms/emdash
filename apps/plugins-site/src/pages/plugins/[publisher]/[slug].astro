@@ -162,12 +162,9 @@ function formatDate(value: string): string {
 					</p>
 				</div>
 				<div class="plugin-actions">
-					<a
-						class="button-primary"
-						href="https://docs.emdashcms.com/plugins/installing/#install-from-the-registry"
-					>
-						Installation guide
-					</a>
+					<button class="button-primary install-trigger" type="button">
+						Open in EmDash
+					</button>
 					{
 						repository && (
 							<a class="button-secondary" href={repository}>
@@ -372,6 +369,77 @@ function formatDate(value: string): string {
 				</aside>
 			</div>
 		</article>
+
+		<dialog
+			class="install-dialog"
+			data-install-dialog
+			data-publisher={plugin.did}
+			data-slug={plugin.slug}
+			aria-labelledby="install-dialog-title"
+			aria-describedby="install-dialog-description"
+		>
+			<div class="install-dialog-content">
+				<div class="install-dialog-heading">
+					<div>
+						<p class="section-kicker">Install on your site</p>
+						<h2 id="install-dialog-title">Open in EmDash</h2>
+					</div>
+					<form method="dialog">
+						<button class="dialog-close" value="cancel" aria-label="Close">
+							<svg viewBox="0 0 20 20" aria-hidden="true">
+								<path d="m5 5 10 10M15 5 5 15"></path>
+							</svg>
+						</button>
+					</form>
+				</div>
+
+				<p id="install-dialog-description" class="install-dialog-description">
+					Choose the EmDash site where you want to review this plugin. Nothing
+					is installed until you confirm its permissions in that site's admin.
+				</p>
+
+				<div class="saved-site" data-saved-site hidden>
+					<a class="button-primary" data-saved-site-link href="/">
+						Open in <span data-saved-site-host></span>
+					</a>
+					<button class="change-site" type="button" data-change-site>
+						Use a different site
+					</button>
+				</div>
+
+				<form class="install-site-form" data-install-site-form novalidate>
+					<label for="emdash-site-url">Your EmDash site</label>
+					<input
+						id="emdash-site-url"
+						name="site"
+						type="url"
+						inputmode="url"
+						autocomplete="url"
+						placeholder="https://cms.example.com"
+						aria-describedby="site-url-help site-url-error"
+						maxlength="2048"
+						required
+					/>
+					<p id="site-url-help" class="site-url-help">
+						This browser will remember the site. You can change it next time.
+					</p>
+					<p id="site-url-error" class="site-url-error" aria-live="polite"></p>
+					<button class="button-primary" type="submit">
+						Continue to your site
+					</button>
+				</form>
+
+				<div class="install-help">
+					<span>Need help?</span>
+					<a href="https://docs.emdashcms.com/plugins/installing/#install-from-the-registry">
+						Installation guide
+					</a>
+					<a href="https://docs.emdashcms.com/plugins/registry/">
+						Registry setup
+					</a>
+				</div>
+			</div>
+		</dialog>
 	</div>
 </BaseLayout>
 
@@ -572,6 +640,167 @@ function formatDate(value: string): string {
 		align-items: stretch;
 		flex-direction: column;
 		gap: 0.5rem;
+	}
+
+	.install-trigger {
+		cursor: pointer;
+		border: 0;
+	}
+
+	.install-dialog {
+		width: min(30rem, calc(100vw - 2rem));
+		max-width: none;
+		padding: 0;
+		color: var(--ink);
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 1.25rem;
+		box-shadow: 0 30px 90px rgb(0 0 0 / 24%);
+	}
+
+	.install-dialog::backdrop {
+		background: rgb(17 17 16 / 48%);
+		backdrop-filter: blur(3px);
+	}
+
+	.install-dialog-content {
+		padding: 1.75rem;
+	}
+
+	.install-dialog-heading {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.install-dialog-heading h2 {
+		margin: 0.25rem 0 0;
+		font-size: 1.65rem;
+		letter-spacing: -0.045em;
+	}
+
+	.dialog-close {
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0;
+		color: var(--muted);
+		cursor: pointer;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: 0.55rem;
+	}
+
+	.dialog-close:hover {
+		color: var(--ink);
+		background: var(--surface-soft);
+		border-color: var(--line);
+	}
+
+	.dialog-close svg {
+		width: 1rem;
+		height: 1rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-width: 1.5;
+	}
+
+	.install-dialog-description {
+		margin: 1.25rem 0 0;
+		color: var(--muted);
+		font-size: 0.92rem;
+		line-height: 1.55;
+	}
+
+	.install-site-form {
+		display: grid;
+		gap: 0.65rem;
+		margin-top: 1.5rem;
+	}
+
+	.install-site-form label {
+		font-size: 0.8rem;
+		font-weight: 600;
+	}
+
+	.install-site-form input {
+		width: 100%;
+		min-height: 3rem;
+		padding: 0.75rem 0.9rem;
+		color: var(--ink);
+		background: var(--page);
+		border: 1px solid var(--line);
+		border-radius: 0.65rem;
+		outline: none;
+	}
+
+	.install-site-form input:focus {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 3px var(--accent-soft);
+	}
+
+	.install-site-form input[aria-invalid="true"] {
+		border-color: #c9372c;
+	}
+
+	.site-url-help,
+	.site-url-error {
+		margin: 0;
+		font-size: 0.75rem;
+		line-height: 1.4;
+	}
+
+	.site-url-help {
+		color: var(--muted);
+	}
+
+	.site-url-error {
+		min-height: 1.05rem;
+		color: #c9372c;
+	}
+
+	.saved-site {
+		display: grid;
+		gap: 0.6rem;
+		margin-top: 1.5rem;
+	}
+
+	.change-site {
+		padding: 0.4rem;
+		color: var(--muted);
+		font-size: 0.78rem;
+		cursor: pointer;
+		background: transparent;
+		border: 0;
+	}
+
+	.change-site:hover {
+		color: var(--ink);
+		text-decoration: underline;
+		text-underline-offset: 0.2rem;
+	}
+
+	.install-help {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem 0.85rem;
+		margin-top: 1.4rem;
+		padding-top: 1.1rem;
+		color: var(--muted);
+		font-size: 0.75rem;
+		border-top: 1px solid var(--line-soft);
+	}
+
+	.install-help a {
+		color: var(--accent-ink);
+		text-underline-offset: 0.2rem;
+	}
+
+	.install-dialog [hidden] {
+		display: none;
 	}
 
 	.detail-grid {
@@ -959,7 +1188,10 @@ function formatDate(value: string): string {
 </style>
 
 <script>
+	import { normalizeSiteOrigin, pluginAdminUrl } from "../../../lib/install.js";
+
 	const COPY_FEEDBACK_MS = 2_000;
+	const SITE_STORAGE_KEY = "emdash:plugins-site:last-site-origin:v1";
 
 	document
 		.querySelectorAll<HTMLButtonElement>("[data-copy-identifier]")
@@ -984,4 +1216,94 @@ function formatDate(value: string): string {
 				}
 			});
 		});
+
+	const dialog = document.querySelector<HTMLDialogElement>("[data-install-dialog]");
+	const installTrigger = document.querySelector<HTMLButtonElement>(".install-trigger");
+	const siteForm = dialog?.querySelector<HTMLFormElement>("[data-install-site-form]");
+	const siteInput = dialog?.querySelector<HTMLInputElement>("#emdash-site-url");
+	const siteError = dialog?.querySelector<HTMLElement>("#site-url-error");
+	const savedSite = dialog?.querySelector<HTMLElement>("[data-saved-site]");
+	const savedSiteLink = dialog?.querySelector<HTMLAnchorElement>(
+		"[data-saved-site-link]",
+	);
+	const savedSiteHost = dialog?.querySelector<HTMLElement>("[data-saved-site-host]");
+	const changeSite = dialog?.querySelector<HTMLButtonElement>("[data-change-site]");
+
+	function readSavedSite(): string | undefined {
+		try {
+			const stored = localStorage.getItem(SITE_STORAGE_KEY);
+			const origin = stored ? normalizeSiteOrigin(stored) : undefined;
+			if (stored && !origin) localStorage.removeItem(SITE_STORAGE_KEY);
+			return origin;
+		} catch {
+			return undefined;
+		}
+	}
+
+	function destinationFor(origin: string): string | undefined {
+		const publisher = dialog?.dataset.publisher;
+		const slug = dialog?.dataset.slug;
+		if (!publisher || !slug) return undefined;
+		return pluginAdminUrl(origin, publisher, slug);
+	}
+
+	function showSiteForm(origin?: string) {
+		if (!siteForm || !savedSite || !siteInput) return;
+		savedSite.hidden = true;
+		siteForm.hidden = false;
+		siteInput.value = origin ?? "";
+		siteInput.removeAttribute("aria-invalid");
+		if (siteError) siteError.textContent = "";
+		queueMicrotask(() => siteInput.focus());
+	}
+
+	function showSavedSite(origin: string) {
+		if (!siteForm || !savedSite || !savedSiteLink || !savedSiteHost) return;
+		const destination = destinationFor(origin);
+		if (!destination) return showSiteForm(origin);
+		const host = new URL(origin).host;
+		siteForm.hidden = true;
+		savedSite.hidden = false;
+		savedSiteLink.href = destination;
+		savedSiteHost.textContent = host;
+	}
+
+	installTrigger?.addEventListener("click", () => {
+		if (!dialog) return;
+		const origin = readSavedSite();
+		if (origin) showSavedSite(origin);
+		else showSiteForm();
+		dialog.showModal();
+	});
+
+	changeSite?.addEventListener("click", () => {
+		showSiteForm(readSavedSite());
+	});
+
+	siteForm?.addEventListener("submit", (event) => {
+		event.preventDefault();
+		if (!siteInput) return;
+		const origin = normalizeSiteOrigin(siteInput.value);
+		const destination = origin ? destinationFor(origin) : undefined;
+		if (!origin || !destination) {
+			siteInput.setAttribute("aria-invalid", "true");
+			if (siteError) {
+				siteError.textContent =
+					"Enter an HTTPS site address, or a local HTTP address for development.";
+			}
+			siteInput.focus();
+			return;
+		}
+
+		try {
+			localStorage.setItem(SITE_STORAGE_KEY, origin);
+		} catch {
+			// The handoff still works when browser storage is unavailable.
+		}
+		window.location.assign(destination);
+	});
+
+	dialog?.addEventListener("click", (event) => {
+		if (event.target === dialog) dialog.close();
+	});
 </script>
