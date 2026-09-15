@@ -222,6 +222,9 @@ async function seedD1ViaDevBypass(events) {
 		cwd: fixtureDir,
 		env: {
 			...process.env,
+			// Astro auto-backgrounds dev servers when it detects an agent. Keep
+			// this process attached so the harness owns its exact lifecycle.
+			ASTRO_DEV_BACKGROUND: "0",
 			EMDASH_FIXTURE_TARGET: "d1",
 			EMDASH_QUERY_LOG: "1",
 		},
@@ -247,7 +250,12 @@ async function seedD1ViaDevBypass(events) {
 	const exited = new Promise((res) => child.once("exit", res));
 
 	try {
-		await waitForPort(HOST, PORT);
+		await Promise.race([
+			waitForPort(HOST, PORT),
+			exited.then((code) => {
+				throw new Error(`seed dev server exited before becoming ready (${code})`);
+			}),
+		]);
 		const r = await fetch(`${BASE}/_emdash/api/setup/dev-bypass`, {
 			method: "POST",
 			redirect: "manual",
@@ -358,7 +366,10 @@ async function hit(method, path, phase) {
 		try {
 			response = await fetch(`${BASE}${path}`, {
 				method,
-				headers: { "x-perf-phase": phase },
+				headers: {
+					accept: path === "/rss.xml" ? "application/rss+xml" : "text/html",
+					"x-perf-phase": phase,
+				},
 				redirect: "manual",
 			});
 		} catch (err) {
@@ -379,7 +390,7 @@ async function hit(method, path, phase) {
 // An untagged hit that triggers runtime init (migrations + auto-seed on
 // first boot). Events here land in "default" phase and are filtered out.
 async function warmup() {
-	const r = await fetch(BASE, { redirect: "manual" });
+	const r = await fetch(BASE, { headers: { accept: "text/html" }, redirect: "manual" });
 	await r.arrayBuffer();
 	process.stdout.write(`  warmup GET / -> ${r.status}\n`);
 }
