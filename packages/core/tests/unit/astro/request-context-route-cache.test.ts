@@ -26,7 +26,7 @@ function buildContext(opts: {
 	search?: string;
 	user?: { id: string; role: number } | null;
 	editCookie?: boolean;
-	cache: { set: (input: unknown) => void };
+	cache: { set: (input: unknown) => void } | undefined;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
@@ -94,5 +94,26 @@ describe("route-cache opt-out for preview and toolbar responses", () => {
 		await onRequest(context, async () => htmlResponse());
 
 		expect(cache.set).not.toHaveBeenCalled();
+	});
+});
+
+describe("requests without a route-cache handle", () => {
+	// Astro leaves `context.cache` undefined when its cache handler did not run
+	// for the request, e.g. the 404 render for a URL that matches no route.
+	it("serves a preview request instead of throwing", async () => {
+		const context = buildContext({ search: "?_preview=some-token", cache: undefined });
+
+		const response = await onRequest(context, async () => htmlResponse());
+
+		expect(await response.text()).toContain("hello");
+	});
+
+	it("serves an editor request with the toolbar instead of throwing", async () => {
+		const context = buildContext({ user: { id: "u1", role: 30 }, cache: undefined });
+
+		const response = await onRequest(context, async () => htmlResponse());
+
+		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
+		expect(await response.text()).toContain('id="emdash-toolbar"');
 	});
 });
