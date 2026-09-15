@@ -1,0 +1,45 @@
+{
+	"lexicon": 1,
+	"id": "com.emdashcms.experimental.aggregator.getPackage",
+	"description": "Get a single package by its canonical (did, slug) identity. EXPERIMENTAL.",
+	"defs": {
+		"main": {
+			"type": "query",
+			"description": "Returns the aggregator's view of one package, including the signed profile record, denormalised metadata for display, and any hydrated labels. Returns NotFound if the aggregator has no record of this (did, slug) pair, or if the package has been tombstoned.",
+			"parameters": {
+				"type": "params",
+				"required": ["did", "slug"],
+				"properties": {
+					"did": {
+						"type": "string",
+						"format": "did",
+						"description": "Publisher DID."
+					},
+					"slug": {
+						"type": "string",
+						"description": "Package slug.",
+						"minLength": 1,
+						"maxLength": 64
+					}
+				}
+			},
+			"output": {
+				"encoding": "application/json",
+				"schema": {
+					"type": "ref",
+					"ref": "com.emdashcms.experimental.aggregator.defs#packageView"
+				}
+			},
+			"errors": [
+				{
+					"name": "NotFound",
+					"description": "No package indexed under the given (did, slug)."
+				},
+				{
+					"name": "Tombstoned",
+					"description": "The package was indexed but has been deleted by the publisher."
+				}
+			]
+		}
+	}
+}
