@@ -15,6 +15,7 @@
 import type { RoleLevel } from "@emdash-cms/auth";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 
 import type { EmDashConfig } from "../../src/astro/integration/runtime.js";
@@ -69,6 +70,7 @@ function createAuthenticatedPair(authInfo: {
 	userId: string;
 	userRole: RoleLevel;
 	tokenScopes?: string[];
+	cache?: APIContext["cache"];
 }): [AuthInjectingTransport, InMemoryTransport] {
 	const clientTransport = new AuthInjectingTransport(authInfo);
 	const serverTransport = new InMemoryTransport();
@@ -249,6 +251,8 @@ export interface ConnectMcpOptions {
 	userId: string;
 	userRole: RoleLevel;
 	tokenScopes?: string[];
+	/** Route cache handed to the tools, as the MCP route passes Astro's `cache`. */
+	cache?: APIContext["cache"];
 	runtimeOptions?: TestRuntimeOptions;
 }
 
@@ -269,6 +273,7 @@ export async function connectMcpHarness(opts: ConnectMcpOptions): Promise<McpHar
 		userId: opts.userId,
 		userRole: opts.userRole,
 		tokenScopes: opts.tokenScopes,
+		cache: opts.cache,
 	});
 
 	const client = new Client({ name: "test", version: "1.0" });
