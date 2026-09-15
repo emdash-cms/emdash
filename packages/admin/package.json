@@ -17,6 +17,14 @@
       "types": "./dist/locales/index.d.ts",
       "default": "./dist/locales/index.js"
     },
+    "./locales/config": {
+      "types": "./dist/locales/config.d.ts",
+      "default": "./dist/locales/config.js"
+    },
+    "./locales/emails": {
+      "types": "./dist/locales/emails.d.ts",
+      "default": "./dist/locales/emails.js"
+    },
     "./locales/*": "./dist/locales/*",
     "./slugify": {
       "types": "./dist/slugify.d.ts",
