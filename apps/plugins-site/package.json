@@ -4,7 +4,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
+		"predev": "pnpm --filter @emdash-cms/registry-loader build",
 		"dev": "astro dev",
+		"prebuild": "pnpm --filter @emdash-cms/registry-loader build",
 		"build": "astro build",
 		"preview": "astro preview",
 		"deploy": "pnpm build && wrangler deploy",
