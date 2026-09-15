@@ -95,12 +95,33 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		return apiError(code, message, status);
 	}
 
-	const response = apiSuccess(result.data);
+	// A handler may return a Response directly (image, file, custom content
+	// type), sent as-is instead of JSON-wrapped (#2110). It is copied so its
+	// headers are mutable, and it keeps the envelope's caching rule: private
+	// routes always get private, no-store, and a public route without its own
+	// Cache-Control starts from that same default.
+	const passthrough = (result as { response?: unknown }).response;
+	const handlerSetCacheControl =
+		passthrough instanceof Response && passthrough.headers.has("Cache-Control");
+	let response: Response;
+	if (passthrough instanceof Response) {
+		response = new Response(passthrough.body, passthrough);
+		if (!routeMeta.public || !handlerSetCacheControl) {
+			response.headers.set("Cache-Control", "private, no-store");
+		}
+	} else {
+		response = apiSuccess(result.data);
+	}
 	// Public routes may opt in to CDN/browser caching for GET responses.
 	// getRouteMeta only ever exposes cacheControl on public routes, and errors
 	// above keep the default private, no-store. Astro serves HEAD via this GET
-	// export, which is fine: same headers, no body.
-	if (routeMeta.cacheControl && (method === "GET" || method === "HEAD")) {
+	// export, which is fine: same headers, no body. A Cache-Control the handler
+	// set on its own Response wins.
+	if (
+		routeMeta.cacheControl &&
+		(method === "GET" || method === "HEAD") &&
+		!handlerSetCacheControl
+	) {
 		response.headers.set("Cache-Control", routeMeta.cacheControl);
 	}
 	return response;

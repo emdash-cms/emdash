@@ -1354,7 +1354,17 @@ export interface PluginRoute<TInput = unknown> {
 	 * keep the default `private, no-store`. Errors are never cached.
 	 */
 	cacheControl?: string;
-	/** Route handler */
+	/**
+	 * Route handler. Return a JSON-serializable value to send the standard
+	 * `{ success, data }` envelope, or return a `Response` directly to serve
+	 * non-JSON content (an image, a file, a custom content type) verbatim.
+	 * A returned `Response` follows the same caching rule as the envelope:
+	 * private routes always send `private, no-store`, and on a public route
+	 * a `Cache-Control` the handler sets itself takes precedence over
+	 * `cacheControl`. Response passthrough applies to trusted (configured)
+	 * plugins; sandboxed plugin results cross a serialization boundary and
+	 * stay JSON-only.
+	 */
 	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
 }
 
