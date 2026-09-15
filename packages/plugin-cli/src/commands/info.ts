@@ -87,7 +87,18 @@ export const infoCommand = defineCommand({
 
 		for (;;) {
 			const result = await lookupPackage(client, publisher, args.slug);
-			if (result && (!args.version || result.latestVersion === args.version)) {
+			const releaseVisible =
+				result && args.version
+					? await hasVisibleReleaseForInfo(args.version, (cursor) =>
+							client.listReleases({
+								did: result.did,
+								package: result.slug,
+								limit: 100,
+								...(cursor === undefined ? {} : { cursor }),
+							}),
+						)
+					: result !== null;
+			if (result && releaseVisible) {
 				await printPackageInfo(client, result, args.json === true);
 				return;
 			}
@@ -251,6 +262,24 @@ export async function getLatestReleaseForInfo<T>(
 	} catch {
 		return null;
 	}
+}
+
+export async function hasVisibleReleaseForInfo(
+	version: string,
+	lookup: (
+		cursor: string | undefined,
+	) => Promise<{ releases: readonly { version: string }[]; cursor?: string }>,
+): Promise<boolean> {
+	let cursor: string | undefined;
+	const seenCursors = new Set<string>();
+	for (let pageIndex = 0; pageIndex < 100; pageIndex += 1) {
+		const page = await lookup(cursor);
+		if (page.releases.some((release) => release.version === version)) return true;
+		if (!page.cursor || seenCursors.has(page.cursor)) return false;
+		seenCursors.add(page.cursor);
+		cursor = page.cursor;
+	}
+	return false;
 }
 
 function hostingMode(artifact: unknown): string | null {
