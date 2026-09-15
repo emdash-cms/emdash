@@ -152,6 +152,8 @@ emdash-plugin info plugins.emdashcms.com audit-log --version 0.2.2 --watch
 
 Before approval, the command reads status directly from the labeler and prints only the package identifier and check state. It does not return unapproved package metadata from the aggregator. Once the package and release are public, it prints the approved details and canonical plugin-page URL. Stop watching with Ctrl-C without affecting the published records or listing checks.
 
+Use `--labeler-url <origin>` or `EMDASH_LABELER_URL` when checking a registry that uses a different labeler.
+
 ## `update-package`
 
 Use `update-package` to change an existing package profile without creating a release. It reads the profile fields in `emdash-plugin.jsonc`, fetches the current signed profile, and prints the proposed changes:

@@ -126,6 +126,8 @@ On first publish, pass `--license` and `--security-email` (or `--security-url`) 
 
 After publishing, the CLI prints the eventual public plugin-page URL and an `info --version <version> --watch` command. The status command reads the labeler's effective checks directly while the aggregator keeps unapproved package metadata out of public results. The plugin page remains unavailable until the listing is approved.
 
+`info` accepts `--labeler-url <origin>` or `EMDASH_LABELER_URL` for registries that use another labeler.
+
 ## Delegated releases
 
 See [Automated plugin releases](https://docs.emdashcms.com/plugins/creating-plugins/delegated-releases/) for the complete publisher journey, including release-service authorisation, first-run repository approval, passkeys, and troubleshooting.
