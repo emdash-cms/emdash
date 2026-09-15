@@ -55,6 +55,7 @@ import {
 	formatPublishingInstantWithZone,
 } from "../lib/publishing-datetime.js";
 import { cn } from "../lib/utils";
+import { ButtonGroup } from "./ButtonGroup.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentStatusIcon } from "./ContentStatusBadge.js";
@@ -538,66 +539,122 @@ export function PublishActions({
 		);
 	}
 
-	const triggerLabel =
-		state === "published-with-changes"
-			? t`Publish changes`
-			: state === "scheduled"
-				? t`Scheduled`
-				: state === "update-scheduled"
-					? t`Scheduled update`
-					: state === "published-scheduled"
-						? t`Scheduled publication`
-						: t`Publish`;
+	const primaryAction = actions.find((action) => action.kind === "publish");
+	const secondaryActions = actions.filter((action) => action.kind !== "publish");
+	const menuItems = (menuActions: PublishingAction[]) =>
+		menuActions.map(({ kind, label, Icon: ActionIcon, onSelect }) => (
+			<DropdownMenu.Item
+				key={kind}
+				icon={
+					<span className="me-2 flex h-lh shrink-0 items-center">
+						<ActionIcon className="size-4" aria-hidden="true" />
+					</span>
+				}
+				disabled={isScheduling || isUnscheduling}
+				onClick={onSelect}
+				className="px-2.5 py-1.5"
+			>
+				<Text as="span" bold>
+					{label}
+				</Text>
+			</DropdownMenu.Item>
+		));
+	const primaryLabel =
+		state === "draft" ? t`Publish` : hasDraftChanges ? t`Publish changes now` : t`Publish now`;
+
+	if (!primaryAction) {
+		return (
+			<DropdownMenu
+				open={open}
+				onOpenChange={(nextOpen) => {
+					setOpen(nextOpen);
+					onMenuOpenChange?.(nextOpen);
+				}}
+			>
+				<DropdownMenu.Trigger
+					render={
+						<Button
+							type="button"
+							variant="primary"
+							size={size}
+							aria-label={t`Publishing options`}
+							aria-haspopup="menu"
+							aria-expanded={open}
+						>
+							{t`Publishing options`}
+						</Button>
+					}
+				/>
+				<DropdownMenu.Content
+					align="end"
+					className="w-max max-w-[calc(100vw-2rem)] origin-[var(--transform-origin)] p-1.5 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none"
+				>
+					{menuItems(actions)}
+				</DropdownMenu.Content>
+			</DropdownMenu>
+		);
+	}
+
+	if (secondaryActions.length === 0) {
+		const action = actions[0]!;
+		return (
+			<Button
+				type="button"
+				variant="primary"
+				size={size}
+				onClick={action.onSelect}
+				icon={<action.Icon aria-hidden="true" />}
+				loading={isScheduling || isUnscheduling}
+			>
+				{state === "draft" && action.kind === "publish" ? t`Publish` : action.label}
+			</Button>
+		);
+	}
 
 	return (
-		<DropdownMenu
-			open={open}
-			onOpenChange={(nextOpen) => {
-				setOpen(nextOpen);
-				onMenuOpenChange?.(nextOpen);
-			}}
-		>
-			<DropdownMenu.Trigger
-				render={
-					<Button
-						type="button"
-						variant="primary"
-						size={size}
-						className={cn(fullWidth && "w-full", "[&>span:last-child]:w-full")}
-						loading={isScheduling || isUnscheduling}
-						aria-haspopup="menu"
-						aria-expanded={open}
-					>
-						<span className="relative flex w-full min-w-0 items-center justify-center">
-							<span className="max-w-full truncate px-5 text-center">{triggerLabel}</span>
-							<CaretDown className="absolute end-0 size-3 shrink-0" aria-hidden="true" />
-						</span>
-					</Button>
-				}
-			/>
-			<DropdownMenu.Content
-				align="end"
-				className="w-80 max-w-[calc(100vw-2rem)] origin-[var(--transform-origin)] p-1.5 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none"
+		<ButtonGroup aria-label={t`Publishing actions`} className={cn(fullWidth && "w-full")}>
+			<Button
+				type="button"
+				variant="primary"
+				size={size}
+				onClick={primaryAction.onSelect}
+				icon={<primaryAction.Icon aria-hidden="true" />}
+				loading={isScheduling || isUnscheduling}
+				className={cn(fullWidth && "flex-1", "justify-center")}
 			>
-				{actions.map(({ kind, label, Icon: ActionIcon, onSelect }) => (
-					<DropdownMenu.Item
-						key={kind}
-						icon={
-							<span className="me-2 flex h-lh shrink-0 items-center">
-								<ActionIcon className="size-4" aria-hidden="true" />
-							</span>
-						}
-						disabled={isScheduling || isUnscheduling}
-						onClick={onSelect}
-						className="px-2.5 py-1.5"
-					>
-						<Text as="span" bold>
-							{label}
-						</Text>
-					</DropdownMenu.Item>
-				))}
-			</DropdownMenu.Content>
-		</DropdownMenu>
+				{primaryLabel}
+			</Button>
+			<DropdownMenu
+				open={open}
+				onOpenChange={(nextOpen) => {
+					setOpen(nextOpen);
+					onMenuOpenChange?.(nextOpen);
+				}}
+			>
+				<DropdownMenu.Trigger
+					render={
+						<Button
+							type="button"
+							variant="primary"
+							size={size}
+							shape="square"
+							disabled={isScheduling || isUnscheduling}
+							aria-label={t`More publishing options`}
+							aria-haspopup="menu"
+							aria-expanded={open}
+						>
+							<CaretDown className="size-3" aria-hidden="true" />
+						</Button>
+					}
+				/>
+				<DropdownMenu.Content
+					align="end"
+					className="w-max max-w-[calc(100vw-2rem)] origin-[var(--transform-origin)] p-1.5 transition-[transform,scale,opacity] duration-150 data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 motion-reduce:transition-none"
+				>
+					{menuItems(secondaryActions)}
+				</DropdownMenu.Content>
+			</DropdownMenu>
+		</ButtonGroup>
 	);
 }
 
@@ -635,6 +692,7 @@ export function SettingsActionBar({
 	announceSaveStatus,
 }: SettingsActionBarProps) {
 	const { t } = useLingui();
+	const showPreview = supportsPreview && (!liveViewUrl || hasPendingChanges);
 
 	return (
 		<div className="flex shrink-0 flex-wrap items-stretch gap-2 border-b px-4 py-3">
@@ -661,7 +719,7 @@ export function SettingsActionBar({
 					</LinkButton>
 				</SettingsActionSlot>
 			)}
-			{!isNew && supportsPreview && (
+			{!isNew && showPreview && (
 				<SettingsActionSlot>
 					<PreviewButton
 						size="sm"

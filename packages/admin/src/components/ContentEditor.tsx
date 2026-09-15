@@ -861,6 +861,7 @@ export function ContentEditor({
 					date: item.publishedAt,
 				})
 			: null;
+	const showPreview = supportsPreview && (!liveViewUrl || hasPendingChanges);
 
 	// Scheduling — keyed off scheduledAt rather than status, since published
 	// posts can now have a pending schedule without changing status.
@@ -979,7 +980,7 @@ export function ContentEditor({
 											disabled={readOnly}
 											className="flex flex-wrap items-center justify-end gap-2"
 										>
-											{!isNew && supportsPreview && (
+											{!isNew && showPreview && (
 												<PreviewButton
 													hasPendingChanges={hasPendingChanges}
 													isLoadingPreview={isLoadingPreview}
@@ -1053,7 +1054,7 @@ export function ContentEditor({
 												{t`Live View`}
 											</LinkButton>
 										)}
-										{!isNew && supportsPreview && (
+										{!isNew && showPreview && (
 											<PreviewButton
 												size="sm"
 												hasPendingChanges={hasPendingChanges}

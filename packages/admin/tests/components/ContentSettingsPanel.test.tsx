@@ -1118,6 +1118,20 @@ describe("SettingsActionBar", () => {
 		expect(props.onPreview).toHaveBeenCalled();
 	});
 
+	it("replaces Preview with Live View for clean live content", async () => {
+		const screen = await render(
+			<SettingsActionBar
+				{...makeBarProps({
+					liveViewUrl: "https://example.com/my-post",
+					supportsPreview: true,
+				})}
+			/>,
+		);
+
+		await expect.element(screen.getByRole("link", { name: "Live View" })).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "Preview" }).query()).toBeNull();
+	});
+
 	it("gives every action an intrinsic flexible layout slot", async () => {
 		const screen = await render(
 			<SettingsActionBar
