@@ -40,10 +40,12 @@ emdash-plugin logout [--did <did>]           Revoke the active session
 emdash-plugin whoami                         Show stored sessions
 emdash-plugin switch <did>                   Switch the active publisher session
 emdash-plugin search <query>                 Free-text registry search
-emdash-plugin info <handle-or-did> <slug>    Show package details
+emdash-plugin info <handle-or-did> <slug>    Show package details or listing-check status
 ```
 
 Run `emdash-plugin <command> --help` for the current arguments and flags. Commands intended for scripts, including `validate`, `publish`, `update-package`, `search`, `info`, `login`, and `whoami`, provide JSON output where their help lists `--json`. Discovery commands accept `--registry-url <url>` or the `EMDASH_REGISTRY_URL` environment variable.
+
+Human-readable output identifies registry packages as `@<publisher-handle>/<slug>`. An npm package name is labelled **npm package** when build diagnostics need to show it.
 
 The following example shows the two scripts most plugins add to `package.json`:
 
@@ -139,6 +141,16 @@ emdash-plugin publish
 Pass `--url <https-url>` to use an externally hosted package bundle. The CLI downloads and validates the URL before publishing. Add `--local <path>` to verify that a local tarball matches the downloaded bytes.
 
 Follow [Bundling and publishing](/plugins/creating-plugins/publishing/) for the complete local release flow.
+
+## `info`
+
+`info` shows the approved package details from the aggregator. After publishing, pass the release version and `--watch` to follow the current profile and release listing checks:
+
+```sh
+emdash-plugin info plugins.emdashcms.com audit-log --version 0.2.2 --watch
+```
+
+Before approval, the command reads status directly from the labeler and prints only the package identifier and check state. It does not return unapproved package metadata from the aggregator. Once the package and release are public, it prints the approved details and canonical plugin-page URL. Stop watching with Ctrl-C without affecting the published records or listing checks.
 
 ## `update-package`
 

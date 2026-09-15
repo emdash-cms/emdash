@@ -262,6 +262,8 @@ pnpm exec emdash-plugin login <atmosphere-handle>
 pnpm exec emdash-plugin publish
 ```
 
+CLI output identifies registry packages as `@<publisher-handle>/<slug>`; npm package names appear only when explicitly labelled. After publishing, follow the printed `emdash-plugin info <handle> <slug> --version <version> --watch` command to track the exact profile and release through label checks. The command shows only identifiers and check state before approval, then prints the public plugin-page URL once the aggregator lists it.
+
 For GitHub Actions, run `emdash-plugin release setup` from one plugin package, not the monorepo root. Pass `--dir <plugin-directory>` when running it from elsewhere. It prepares that package profile and creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. If the manifest omits `repo`, setup detects a GitHub `origin` remote and pre-fills the repository prompt. When `.changeset/config.json` exists, setup offers **Follow Changesets releases**. The generated reusable workflow accepts the Changesets Action published-package JSON, maps package names to plugin slugs, and publishes matching plugins at the same versions. Otherwise, package tags use `<slug>@<version>`. Select explicitly with `--trigger changesets|tags|manual`.
 
 To connect Changesets manually, expose its `published` and published-package step outputs from the existing release job, then call `./.github/workflows/emdash-release.yml` from a dependent job when `published == 'true'`. Changesets Action v1 uses `publishedPackages`; v2 uses `published-packages`. Private EmDash-only packages require `privatePackages.version: true` and `privatePackages.tag: true`. Read [Publishing](./references/publishing.md) for the complete caller blocks.

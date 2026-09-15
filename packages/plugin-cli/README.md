@@ -66,10 +66,12 @@ emdash-plugin logout [--did <did>]           Revoke the active session
 emdash-plugin whoami                         Show stored sessions
 emdash-plugin switch <did>                   Switch the active publisher session
 emdash-plugin search <query>                 Free-text search
-emdash-plugin info <handle-or-did> <slug>    Show package details
+emdash-plugin info <handle-or-did> <slug>    Show package details or listing-check status
 ```
 
 The non-interactive output commands accept `--json` for machine-readable output. Discovery commands (`search`, `info`) accept `--registry-url <url>` (or `EMDASH_REGISTRY_URL`).
+
+Human-readable output identifies registry packages as `@<publisher-handle>/<slug>`. An npm package name is labelled **npm package** when build diagnostics need to show it.
 
 ## Development
 
@@ -121,6 +123,8 @@ emdash-plugin publish
 Pass `--url https://example.com/foo-1.0.0.tar.gz` to use an externally hosted bundle. The CLI downloads that URL to validate the bytes and compute the checksum. Listing images declared under `release.artifacts` are still uploaded to your PDS.
 
 On first publish, pass `--license` and `--security-email` (or `--security-url`) to bootstrap the package profile — or keep them in `emdash-plugin.jsonc` (see below).
+
+After publishing, the CLI prints the eventual public plugin-page URL and an `info --version <version> --watch` command. The status command reads the labeler's effective checks directly while the aggregator keeps unapproved package metadata out of public results. The plugin page remains unavailable until the listing is approved.
 
 ## Delegated releases
 

@@ -31,6 +31,8 @@ pnpm exec emdash-plugin publish
 
 `publish` builds and validates the bundle, uploads its files to the publisher's personal data server, and creates the package release record. Use `emdash-plugin bundle` to inspect a tarball without publishing it.
 
+The success output uses the registry identifier `@<publisher-handle>/<slug>`, prints the eventual plugin-page URL, and provides `emdash-plugin info <handle> <slug> --version <version> --watch`. Before approval, `info` reads the labeler's current checks and does not return unapproved package metadata from the aggregator.
+
 ## Automated repository releases
 
 Generate the shared workflow from one plugin package, not the monorepo root. Pass `--dir <plugin-directory>` when running the command from elsewhere:
