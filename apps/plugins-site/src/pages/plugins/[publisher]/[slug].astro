@@ -399,8 +399,8 @@ function formatDate(value: string): string {
 				</p>
 
 				<div class="saved-site" data-saved-site hidden>
-					<a class="button-primary" data-saved-site-link href="/">
-						Open in <span data-saved-site-host></span>
+					<a class="button-primary saved-site-link" data-saved-site-link href="/">
+						<span>Open in</span><span data-saved-site-host></span>
 					</a>
 					<button class="change-site" type="button" data-change-site>
 						Use a different site
@@ -766,6 +766,10 @@ function formatDate(value: string): string {
 		display: grid;
 		gap: 0.6rem;
 		margin-top: 1.5rem;
+	}
+
+	.saved-site-link {
+		gap: 0.3em;
 	}
 
 	.change-site {
@@ -1270,6 +1274,7 @@ function formatDate(value: string): string {
 		siteForm.hidden = true;
 		savedSite.hidden = false;
 		savedSiteLink.href = destination;
+		savedSiteLink.setAttribute("aria-label", `Open in ${host}`);
 		savedSiteHost.textContent = host;
 	}
 
