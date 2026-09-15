@@ -72,27 +72,27 @@ const PORT = 14321;
 const BASE = `http://${HOST}:${PORT}`;
 
 const ROUTES = [
-	["GET", "/"],
-	["GET", "/posts"],
-	["GET", "/posts/building-for-the-long-term"],
-	["GET", "/pages/about"],
-	["GET", "/category/development"],
-	["GET", "/tag/webdev"],
-	["GET", "/rss.xml"],
-	["GET", "/search?q=static"],
+	["GET", "/", "text/html"],
+	["GET", "/posts", "text/html"],
+	["GET", "/posts/building-for-the-long-term", "text/html"],
+	["GET", "/pages/about", "text/html"],
+	["GET", "/category/development", "text/html"],
+	["GET", "/tag/webdev", "text/html"],
+	["GET", "/rss.xml", "application/rss+xml"],
+	["GET", "/search?q=static", "text/html"],
 	// Byline-avatar list pages. /contributors uses the avatar storage key folded
 	// into byline hydration; /contributors-naive resolves each avatar with a
 	// per-byline media lookup. The gap between them is the N+1 the join removes.
-	["GET", "/contributors"],
-	["GET", "/contributors-naive"],
+	["GET", "/contributors", "text/html"],
+	["GET", "/contributors-naive", "text/html"],
 ];
 
 const TRACKED_PHASES = new Set(["cold", "warm"]);
 const VALID_TARGETS = new Set(["sqlite", "d1"]);
 const QUERY_LOG_PREFIX = "[emdash-query-log] ";
 // Emitted by stream-end-metrics.ts when the response body finishes
-// streaming — captures the FULL request cost, including queries issued
-// during body streaming that Server-Timing headers can't see.
+// streaming, including queries that Server-Timing headers can't see.
+// Deferred work that outlives the response body is not included.
 const STREAM_END_PREFIX = "[emdash-stream-end] ";
 
 /**
@@ -347,7 +347,7 @@ function startServer({ collectedEvents, streamEndSnapshots = [] }) {
 	return { ready, stop };
 }
 
-async function hit(method, path, phase) {
+async function hit(method, path, accept, phase) {
 	// Tiny retry for the very first hit against a just-spawned wrangler
 	// preview — "ready" fires before the HTTP listener actually accepts
 	// on some runs. We're not measuring these retry attempts (they're
@@ -358,7 +358,7 @@ async function hit(method, path, phase) {
 		try {
 			response = await fetch(`${BASE}${path}`, {
 				method,
-				headers: { "x-perf-phase": phase },
+				headers: { Accept: accept, "x-perf-phase": phase },
 				redirect: "manual",
 			});
 		} catch (err) {
@@ -507,8 +507,8 @@ async function runSqlite(events, streamEndSnapshots) {
 	try {
 		await server.ready;
 		await warmup();
-		for (const [m, p] of ROUTES) await hit(m, p, "cold");
-		for (const [m, p] of ROUTES) await hit(m, p, "warm");
+		for (const [m, p, accept] of ROUTES) await hit(m, p, accept, "cold");
+		for (const [m, p, accept] of ROUTES) await hit(m, p, accept, "warm");
 	} finally {
 		await server.stop();
 	}
@@ -534,13 +534,13 @@ async function runD1(events, streamEndSnapshots) {
 	if (skipBuild) assertExistingBuildMatchesTarget();
 	else buildFixture();
 
-	for (const [m, p] of ROUTES) {
+	for (const [m, p, accept] of ROUTES) {
 		process.stdout.write(`--- fresh isolate for ${m} ${p} ---\n`);
 		const server = startServer({ collectedEvents: events, streamEndSnapshots });
 		try {
 			await server.ready;
-			await hit(m, p, "cold");
-			await hit(m, p, "warm");
+			await hit(m, p, accept, "cold");
+			await hit(m, p, accept, "warm");
 		} finally {
 			await server.stop();
 		}
@@ -548,9 +548,8 @@ async function runD1(events, streamEndSnapshots) {
 }
 
 /**
- * Print the per-route stream-end snapshots (full request cost measured
- * when the body finished streaming). Informational only — not part of
- * the snapshot files, since timings are machine-dependent. The value is
+ * Print the per-route snapshots through the end of the response body.
+ * Timings are machine-dependent and are not saved in snapshot files. The value is
  * `dbCount` here vs. the header-time count: the difference is queries
  * issued during body streaming, invisible to Server-Timing.
  */
@@ -561,7 +560,7 @@ function reportStreamEnd(snapshots) {
 			`${a.method} ${a.route} ${a.phase}`.localeCompare(`${b.method} ${b.route} ${b.phase}`),
 		);
 	if (tracked.length === 0) return;
-	process.stdout.write("\nStream-end metrics (full request, incl. post-header queries):\n");
+	process.stdout.write("\nStream-end metrics (through end of response body):\n");
 	for (const s of tracked) {
 		const dbMs = typeof s.dbTotalMs === "number" ? s.dbTotalMs.toFixed(1) : "?";
 		const totalMs = typeof s.totalMs === "number" ? s.totalMs.toFixed(1) : "?";
