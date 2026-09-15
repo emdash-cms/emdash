@@ -1,5 +1,17 @@
 # @emdash-cms/registry-cli
 
+## 0.12.0
+
+### Minor Changes
+
+- [#3117](https://github.com/emdash-cms/emdash/pull/3117) [`54377c8`](https://github.com/emdash-cms/emdash/commit/54377c82fd223da68e29d958e2957cca24564583) Thanks [@ascorbic](https://github.com/ascorbic)! - Improves package-profile and release publishing output: commands use the `@handle/slug` registry identifier, link to the eventual public plugin page, and let `info --version <version> --watch` track effective label checks without exposing unapproved aggregator metadata. Missing manifests point to the plugin directory, GitHub repository prompts use a detected `origin` remote, setup failures omit stack traces, and a published profile shows both manual and GitHub Actions release commands.
+
+### Patch Changes
+
+- Updated dependencies [[`71901fc`](https://github.com/emdash-cms/emdash/commit/71901fc92b5a09bd5c1321759b2db1aaa9b0e730)]:
+  - @emdash-cms/registry-lexicons@0.5.1
+  - @emdash-cms/registry-client@0.6.1
+
 ## 0.11.0
 
 ### Minor Changes

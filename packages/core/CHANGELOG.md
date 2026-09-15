@@ -1,5 +1,21 @@
 # emdash
 
+## 0.39.0
+
+### Minor Changes
+
+- [#3120](https://github.com/emdash-cms/emdash/pull/3120) [`71901fc`](https://github.com/emdash-cms/emdash/commit/71901fc92b5a09bd5c1321759b2db1aaa9b0e730) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds `GET /_emdash/api/health` so external tools can confirm an EmDash site is reachable and whether its plugin registry is enabled. The anonymous response does not query the database and permits cross-origin reads.
+
+### Patch Changes
+
+- Updated dependencies [[`71901fc`](https://github.com/emdash-cms/emdash/commit/71901fc92b5a09bd5c1321759b2db1aaa9b0e730), [`c783951`](https://github.com/emdash-cms/emdash/commit/c7839517c10562f6d422c838f3903c8c6085e737)]:
+  - @emdash-cms/registry-lexicons@0.5.1
+  - @emdash-cms/admin@0.39.0
+  - @emdash-cms/registry-client@0.6.1
+  - @emdash-cms/registry-verification@0.3.2
+  - @emdash-cms/auth@0.39.0
+  - @emdash-cms/gutenberg-to-portable-text@0.39.0
+
 ## 0.38.0
 
 ### Minor Changes
