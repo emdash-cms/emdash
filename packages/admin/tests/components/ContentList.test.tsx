@@ -369,6 +369,19 @@ describe("ContentList", () => {
 			expect(badge.querySelector("svg")).not.toBeNull();
 		});
 
+		it("does not show pending badge when the entry has never been published", async () => {
+			const items = [
+				makeItem({
+					id: "1",
+					status: "scheduled",
+					draftRevisionId: "rev_draft",
+					liveRevisionId: null,
+				}),
+			];
+			const screen = await render(<ContentList {...defaultProps} items={items} />);
+			expect(screen.getByText("Pending changes").query()).toBeNull();
+		});
+
 		it("does not show pending badge when revisions match", async () => {
 			const items = [
 				makeItem({
