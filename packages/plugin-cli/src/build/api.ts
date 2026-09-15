@@ -77,6 +77,8 @@ export interface BuildOptions {
 	 * Defaults to `<dir>/dist`.
 	 */
 	outDir?: string;
+	/** Publisher handle or DID used for human-readable progress output. */
+	displayPublisher?: string;
 	/** Optional progress reporter. */
 	logger?: BuildLogger;
 }
@@ -203,7 +205,7 @@ export async function buildPlugin(options: BuildOptions): Promise<BuildResult> {
 		}
 
 		log.success?.(
-			`Plugin built: ${formatPackageReleaseIdentifier(sources.manifest.publisher, sources.manifest.slug, sources.manifest.version)}`,
+			`Plugin built: ${formatPackageReleaseIdentifier(options.displayPublisher ?? sources.manifest.publisher, sources.manifest.slug, sources.manifest.version)}`,
 		);
 
 		return {

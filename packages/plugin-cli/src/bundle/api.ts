@@ -95,6 +95,8 @@ export interface BundleOptions {
 	 * pre-publish checks. Default: `false`.
 	 */
 	validateOnly?: boolean;
+	/** Publisher handle or DID used for human-readable progress output. */
+	displayPublisher?: string;
 	/** Optional progress reporter. */
 	logger?: BundleLogger;
 }
@@ -132,7 +134,12 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 	// ── 1. Build dist/ via the shared pipeline ──
 	let build: BuildResult;
 	try {
-		build = await buildPlugin({ dir: pluginDir, outDir, logger: log });
+		build = await buildPlugin({
+			dir: pluginDir,
+			outDir,
+			logger: log,
+			displayPublisher: options.displayPublisher,
+		});
 	} catch (error) {
 		if (error instanceof BuildError) {
 			throw new BundleError(error.code, error.message);
@@ -144,7 +151,7 @@ export async function bundlePlugin(options: BundleOptions): Promise<BundleResult
 	const resolvedPlugin = build.resolvedPlugin;
 
 	log.success?.(
-		`Plugin: ${formatPackageReleaseIdentifier(build.manifest.publisher, manifest.id, manifest.version)}`,
+		`Plugin: ${formatPackageReleaseIdentifier(options.displayPublisher ?? build.manifest.publisher, manifest.id, manifest.version)}`,
 	);
 	log.info?.(
 		`  Capabilities: ${

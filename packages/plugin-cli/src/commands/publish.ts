@@ -268,6 +268,7 @@ async function runPublish(args: PublishArgs): Promise<void> {
 		try {
 			const bundled = await bundlePlugin({
 				dir: manifestLoad ? dirname(manifestLoad.path) : process.cwd(),
+				displayPublisher: session.handle ?? session.did,
 				logger: {
 					start: (message) => consola.start(message),
 					info: (message) => consola.info(message),
