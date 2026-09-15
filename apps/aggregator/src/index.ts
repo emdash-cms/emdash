@@ -19,6 +19,7 @@ import { isDid } from "@atcute/lexicons/syntax";
 
 import { drainBackfillDeadLetterBatch, processBackfillBatch } from "./backfill-consumer.js";
 import { discoverDids, enqueueBackfillJobs } from "./backfill.js";
+import { createProductionDidResolver, refreshStalePublisherHandles } from "./did-resolver.js";
 import type { BackfillJob, RecordsJob } from "./env.js";
 import { PROJECTION_COORDINATOR_NAME } from "./label-ingest-do.js";
 import { enforceRequiredLabelSourceHealth } from "./label-source-health.js";
@@ -363,6 +364,23 @@ export default {
 					error: error instanceof Error ? error.message : String(error),
 				});
 			}),
+		);
+		ctx.waitUntil(
+			(async () => {
+				try {
+					const result = await refreshStalePublisherHandles(
+						env.DB,
+						createProductionDidResolver(env),
+					);
+					if (result.unresolved > 0) {
+						console.warn("[aggregator] publisher handle refresh incomplete", result);
+					}
+				} catch (error) {
+					console.error("[aggregator] publisher handle refresh failed", {
+						error: error instanceof Error ? error.message : String(error),
+					});
+				}
+			})(),
 		);
 	},
 };
