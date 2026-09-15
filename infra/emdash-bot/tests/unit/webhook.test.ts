@@ -478,6 +478,52 @@ describe("normalizeWebhook", () => {
 			const r = normalizeWebhook({ eventType: "pull_request_review", payload });
 			expect(r.kind).toBe("skip");
 		});
+
+		const forkPullRequest = {
+			number: 120,
+			state: "open",
+			draft: false,
+			user: { login: "contributor", type: "User" },
+			head: { ref: "fix/gallery-media-usage", repo: { full_name: "contributor/emdash" } },
+			base: { repo: { full_name: "emdash-cms/emdash" } },
+		};
+
+		test.each(["submitted", "dismissed"])(
+			"%s on a fork PR the bot did not open refreshes its review label",
+			(action) => {
+				const payload: PullRequestReviewEvent = {
+					action,
+					review: { state: "approved", author_association: "MEMBER", user: { login: "alice" } },
+					pull_request: forkPullRequest,
+					sender: { login: "alice" },
+				};
+				expect(normalizeWebhook({ eventType: "pull_request_review", payload })).toEqual({
+					kind: "review_state",
+					pullRequestNumber: 120,
+					authorLogin: "contributor",
+					draft: false,
+				});
+			},
+		);
+
+		test("a review on a bot-authored, closed or same-repo PR changes no review label", () => {
+			const review = { state: "approved", author_association: "MEMBER", user: { login: "alice" } };
+			for (const pullRequest of [
+				{ ...forkPullRequest, user: { login: "dependabot[bot]", type: "Bot" } },
+				{ ...forkPullRequest, state: "closed" },
+				{
+					...forkPullRequest,
+					head: { ref: "fix/in-repo", repo: { full_name: "emdash-cms/emdash" } },
+				},
+			]) {
+				const payload: PullRequestReviewEvent = {
+					action: "submitted",
+					review,
+					pull_request: pullRequest,
+				};
+				expect(normalizeWebhook({ eventType: "pull_request_review", payload }).kind).toBe("skip");
+			}
+		});
 	});
 
 	describe("pull_request_review_comment", () => {

@@ -441,6 +441,72 @@ describe("POST /webhook/github (workers-pool)", () => {
 		},
 	);
 
+	test("a review on a contributor's PR moves its review label", async () => {
+		const pullRequestNumber = uniqueIssueNumber();
+		testEnv.GITHUB_APP_PRIVATE_KEY = await generatedPrivateKeyPem();
+		const repoUrl = `https://api.github.com/repos/${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}`;
+		const reads: Record<string, unknown> = {
+			[`${repoUrl}/pulls/${pullRequestNumber}/reviews?per_page=100&page=1`]: [
+				{
+					state: "COMMENTED",
+					submitted_at: "2026-09-14T10:22:00Z",
+					author_association: "NONE",
+					user: { login: "emdashbot[bot]", type: "Bot" },
+				},
+			],
+			[`${repoUrl}/pulls/${pullRequestNumber}/commits?per_page=100&page=1`]: [
+				{ parents: [{ sha: "a1" }], commit: { committer: { date: "2026-09-14T09:40:00Z" } } },
+			],
+			[`${repoUrl}/issues/${pullRequestNumber}/labels?per_page=100`]: [
+				{ name: "review/needs-review" },
+				{ name: "area/core" },
+			],
+		};
+		const writes: Array<{ method: string; url: string; body: unknown }> = [];
+		vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const method = init?.method ?? "GET";
+			const json = (body: unknown) => Promise.resolve(new Response(JSON.stringify(body)));
+			if (url.includes("/access_tokens")) return json({ token: "installation-token" });
+			if (method !== "GET") {
+				const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+				writes.push({ method, url, body });
+				return json([]);
+			}
+			if (url in reads) return json(reads[url]);
+			return Promise.resolve(new Response("unexpected request", { status: 500 }));
+		});
+
+		const res = await postWebhook({
+			eventType: "pull_request_review",
+			payload: {
+				action: "submitted",
+				pull_request: {
+					number: pullRequestNumber,
+					state: "open",
+					user: { login: "contributor", type: "User" },
+					head: { repo: { full_name: `contributor/${testEnv.GITHUB_REPO}` } },
+					base: { repo: { full_name: `${testEnv.GITHUB_OWNER}/${testEnv.GITHUB_REPO}` } },
+				},
+				review: { state: "commented", user: { login: "emdashbot[bot]", type: "Bot" } },
+			},
+		});
+
+		expect(res.status).toBe(202);
+		expect(writes).toEqual([
+			{
+				method: "POST",
+				url: `${repoUrl}/issues/${pullRequestNumber}/labels`,
+				body: { labels: ["review/awaiting-author"] },
+			},
+			{
+				method: "DELETE",
+				url: `${repoUrl}/issues/${pullRequestNumber}/labels/review%2Fneeds-review`,
+				body: null,
+			},
+		]);
+	});
+
 	test("top-level bot PR feedback resolves its head branch before durable admission", async () => {
 		const issueNumber = uniqueIssueNumber();
 		const pullRequestNumber = uniqueIssueNumber();

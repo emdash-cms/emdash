@@ -303,10 +303,11 @@ export async function getIssueLabels(
 	token: string,
 	ctx: RepoContext,
 	issueNumber: number,
+	signal?: AbortSignal,
 ): Promise<string[]> {
 	const res = await githubFetch(
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/labels?per_page=100`,
-		{ headers: authHeaders(token) },
+		{ headers: authHeaders(token), signal },
 	);
 	if (!res.ok) throw new Error(`getIssueLabels failed: ${res.status} ${await res.text()}`);
 	const json = await res.json<Array<{ name?: string }>>();
@@ -345,6 +346,7 @@ export async function addLabels(
 	ctx: RepoContext,
 	issueNumber: number,
 	labels: readonly string[],
+	signal?: AbortSignal,
 ): Promise<void> {
 	if (labels.length === 0) return;
 	const res = await githubFetch(
@@ -353,6 +355,7 @@ export async function addLabels(
 			method: "POST",
 			headers: authHeaders(token, { "content-type": "application/json" }),
 			body: JSON.stringify({ labels: [...labels] }),
+			signal,
 		},
 	);
 	if (!res.ok) throw new Error(`addLabels failed: ${res.status} ${await res.text()}`);
@@ -364,9 +367,10 @@ export async function removeLabel(
 	ctx: RepoContext,
 	issueNumber: number,
 	label: string,
+	signal?: AbortSignal,
 ): Promise<void> {
 	const url = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/labels/${encodeURIComponent(label)}`;
-	const res = await githubFetch(url, { method: "DELETE", headers: authHeaders(token) });
+	const res = await githubFetch(url, { method: "DELETE", headers: authHeaders(token), signal });
 	if (res.status === 404) return;
 	if (!res.ok) throw new Error(`removeLabel(${label}) failed: ${res.status} ${await res.text()}`);
 }
@@ -788,4 +792,76 @@ export async function getPullRequestReviewComments(
 		}
 		if (comments.length < 100) return result;
 	}
+}
+
+async function listPullRequestPages<T>(
+	token: string,
+	ctx: RepoContext,
+	prNumber: number,
+	resource: "reviews" | "commits",
+	signal?: AbortSignal,
+): Promise<T[]> {
+	const result: T[] = [];
+	for (let page = 1; ; page += 1) {
+		const res = await githubFetch(
+			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}/${resource}?per_page=100&page=${page}`,
+			{ headers: authHeaders(token), signal },
+		);
+		if (!res.ok) {
+			throw new Error(`listing PR ${resource} failed: ${res.status} ${await res.text()}`);
+		}
+		const items = await res.json<T[]>();
+		result.push(...items);
+		if (items.length < 100) return result;
+	}
+}
+
+export interface PullRequestReview {
+	readonly state: string;
+	readonly submittedAt: string | null;
+	readonly authorLogin: string | null;
+	readonly authorType: string | null;
+	readonly authorAssociation: string | null;
+}
+
+export async function listPullRequestReviews(
+	token: string,
+	ctx: RepoContext,
+	prNumber: number,
+	signal?: AbortSignal,
+): Promise<PullRequestReview[]> {
+	const reviews = await listPullRequestPages<{
+		state?: string;
+		submitted_at?: string | null;
+		author_association?: string | null;
+		user?: { login?: string; type?: string } | null;
+	}>(token, ctx, prNumber, "reviews", signal);
+	return reviews.map((review) => ({
+		state: review.state ?? "",
+		submittedAt: review.submitted_at ?? null,
+		authorLogin: review.user?.login ?? null,
+		authorType: review.user?.type ?? null,
+		authorAssociation: review.author_association ?? null,
+	}));
+}
+
+export interface PullRequestCommit {
+	readonly committedAt: string | null;
+	readonly parentCount: number;
+}
+
+export async function listPullRequestCommits(
+	token: string,
+	ctx: RepoContext,
+	prNumber: number,
+	signal?: AbortSignal,
+): Promise<PullRequestCommit[]> {
+	const commits = await listPullRequestPages<{
+		parents?: unknown[];
+		commit?: { committer?: { date?: string | null } | null };
+	}>(token, ctx, prNumber, "commits", signal);
+	return commits.map((commit) => ({
+		committedAt: commit.commit?.committer?.date ?? null,
+		parentCount: commit.parents?.length ?? 0,
+	}));
 }
