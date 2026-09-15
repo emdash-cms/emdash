@@ -11,7 +11,6 @@ import { resolveSources } from "./build/pipeline.js";
 import { runProfileSetup } from "./commands/profile.js";
 import { resolveHandleToDid } from "./manifest/publisher.js";
 import { installedCliVersion } from "./package-version.js";
-import { PackageProfileSetupError } from "./profile/setup.js";
 import { findRepositoryRoot } from "./release-prepare.js";
 
 export const DEFAULT_RELEASE_SERVICE_URL = "https://releases.emdashcms.com";
@@ -623,6 +622,7 @@ export const releaseSetupCommand = defineCommand({
 						repository: args.repository,
 						confirmation: args.confirmation,
 						yes: args.yes,
+						nextSteps: false,
 					}),
 			});
 			for (const warning of result.warnings) consola.warn(warning);
@@ -641,11 +641,8 @@ export const releaseSetupCommand = defineCommand({
 			);
 			consola.info("The first run links this repository workflow in the release dashboard.");
 		} catch (error) {
-			if (error instanceof ReleaseSetupError || error instanceof PackageProfileSetupError) {
-				consola.error(error.message);
-				process.exit(1);
-			}
-			throw error;
+			consola.error(error instanceof Error ? error.message : "Release setup failed.");
+			process.exit(1);
 		}
 	},
 });

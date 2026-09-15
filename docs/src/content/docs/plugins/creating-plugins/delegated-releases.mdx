@@ -21,7 +21,8 @@ Use [`emdash-plugin publish`](/plugins/creating-plugins/publishing/#publish) for
 Prepare the following before starting:
 
 - A public GitHub repository containing a sandboxed EmDash plugin.
-- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author, and a security contact. Set `repo` to the canonical GitHub URL, or enter it during interactive setup.
+- `@emdash-cms/plugin-cli` installed as a development dependency. Plugins created with the CLI already include it.
+- A valid [`emdash-plugin.jsonc`](/plugins/creating-plugins/manifest/) with `slug`, `publisher`, `license`, an author, and a security contact. Set `repo` to the canonical GitHub URL, or confirm the detected GitHub remote during interactive setup.
 - A version in `package.json`, or in `emdash-plugin.jsonc` for a registry-only plugin.
 - The Atmosphere account named by `publisher`.
 - A browser that supports passkeys. Release approval requires user verification.
@@ -44,13 +45,15 @@ pnpm exec emdash-plugin validate
 
    The CLI stores this local publishing session outside the project. GitHub Actions never receives it.
 
-2. Prepare the package profile and generate the workflow.
+2. Prepare the package profile and generate the workflow from the plugin directory.
 
    ```sh
    pnpm exec emdash-plugin release setup
    ```
 
    The command reads the package metadata from `emdash-plugin.jsonc`. If the package profile is missing, it offers to create it. If the profile exists without delegated-release settings, it offers to add them while preserving the existing package metadata.
+
+   In a monorepo, run the command inside the plugin package or pass `--dir <plugin-directory>`. If the manifest does not contain `repo`, setup detects the GitHub `origin` remote and pre-fills the repository prompt.
 
    Setup asks when a release needs approval:
 
@@ -65,7 +68,9 @@ pnpm exec emdash-plugin validate
    pnpm exec emdash-plugin profile setup
    ```
 
-   In a non-interactive terminal, pass `--yes` to accept the default approval policy. Pass `--repository <https-url>` when the manifest does not contain `repo`, and `--confirmation always` to require approval for every release.
+   After publishing the package profile, this command shows the manual and GitHub Actions release commands.
+
+   In a non-interactive terminal, pass `--yes` to accept the default approval policy. Pass `--repository <https-url>` when neither the manifest nor Git remote supplies the repository, and `--confirmation always` to require approval for every release.
 
 3. Review and commit the generated workflow.
 

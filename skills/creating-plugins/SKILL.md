@@ -22,9 +22,11 @@ EmDash has two plugin formats:
 
 ## Scaffold a sandboxed plugin
 
-Start a new sandboxed plugin with `npx @emdash-cms/plugin-cli init <slug>`. The interactive command requires publisher, author, and security metadata, detects the package manager, validates the complete manifest before writing, and shows a project summary for confirmation. The generated repository contains `AGENTS.md` and `skills/creating-plugins/SKILL.md`; `.agents/skills` and `.claude/skills` point to the same canonical directory so Codex and Claude load identical instructions.
+Start a new sandboxed plugin with `pnpm dlx @emdash-cms/plugin-cli init <slug>`. The interactive command requires publisher, author, and security metadata, detects the package manager, validates the complete manifest before writing, and shows a project summary for confirmation. The generated repository contains `AGENTS.md` and `skills/creating-plugins/SKILL.md`; `.agents/skills` and `.claude/skills` point to the same canonical directory so Codex and Claude load identical instructions.
 
 For non-interactive scaffolding, pass `--yes` with `--publisher`, `--author-name`, and either `--security-email` or `--security-url`. Local publisher and Git identity defaults are used only with `--use-detected`.
+
+The scaffold pins `@emdash-cms/plugin-cli` as a development dependency. Add it with `pnpm add -D @emdash-cms/plugin-cli` when adopting an existing plugin, then run build, login, profile, and release commands through `pnpm exec emdash-plugin`. Reserve `pnpm dlx @emdash-cms/plugin-cli` for the one-off `init` command so repeated commands do not change CLI versions.
 
 ## Plugin Anatomy
 
@@ -260,11 +262,11 @@ pnpm exec emdash-plugin login <atmosphere-handle>
 pnpm exec emdash-plugin publish
 ```
 
-For GitHub Actions, run `emdash-plugin release setup` from one plugin package. It prepares that package profile and creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. When `.changeset/config.json` exists, setup offers **Follow Changesets releases**. The generated reusable workflow accepts the Changesets Action published-package JSON, maps package names to plugin slugs, and publishes matching plugins at the same versions. Otherwise, package tags use `<slug>@<version>`. Select explicitly with `--trigger changesets|tags|manual`.
+For GitHub Actions, run `emdash-plugin release setup` from one plugin package, not the monorepo root. Pass `--dir <plugin-directory>` when running it from elsewhere. It prepares that package profile and creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. If the manifest omits `repo`, setup detects a GitHub `origin` remote and pre-fills the repository prompt. When `.changeset/config.json` exists, setup offers **Follow Changesets releases**. The generated reusable workflow accepts the Changesets Action published-package JSON, maps package names to plugin slugs, and publishes matching plugins at the same versions. Otherwise, package tags use `<slug>@<version>`. Select explicitly with `--trigger changesets|tags|manual`.
 
 To connect Changesets manually, expose its `published` and published-package step outputs from the existing release job, then call `./.github/workflows/emdash-release.yml` from a dependent job when `published == 'true'`. Changesets Action v1 uses `publishedPackages`; v2 uses `published-packages`. Private EmDash-only packages require `privatePackages.version: true` and `privatePackages.tag: true`. Read [Publishing](./references/publishing.md) for the complete caller blocks.
 
-The first automated release requests approval for the repository workflow through GitHub OpenID Connect. A manual run requests approval the first time its branch is used; confirmation adds that scope without replacing approved tags. Later packages reuse approved scopes when their signed profiles name the same repository. Prepare each package with `emdash-plugin profile setup --dir <package-directory>`.
+The first automated release requests approval for the repository workflow through GitHub OpenID Connect. A manual run requests approval the first time its branch is used; confirmation adds that scope without replacing approved tags. Later packages reuse approved scopes when their signed profiles name the same repository. Prepare each package with `emdash-plugin profile setup --dir <package-directory>`; after publishing the profile, the command prints the manual and GitHub Actions release choices.
 
 Read [Publishing](./references/publishing.md) before configuring local or delegated releases. It defines the manifest, profile, tag, provenance, and approval requirements.
 
