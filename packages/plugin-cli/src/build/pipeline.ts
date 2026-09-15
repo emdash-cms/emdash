@@ -130,7 +130,7 @@ export async function resolveSources(
 	if (!(await fileExists(manifestPath))) {
 		throw new BuildPipelineError(
 			"MISSING_MANIFEST",
-			`No ${MANIFEST_FILENAME} found in ${resolvedDir}. Scaffold one with: emdash-plugin init`,
+			`No ${MANIFEST_FILENAME} found in ${resolvedDir}. Run this command from a plugin directory, or pass --dir <plugin-directory>.`,
 		);
 	}
 
