@@ -863,3 +863,200 @@ describe("ContentEditPage publish and autosave ordering", () => {
 		});
 	});
 });
+
+describe("ContentEditPage actions during a save conflict", () => {
+	const conflictRefusal =
+		"This entry changed somewhere else. Save anyway, or reload to get the newer version.";
+	let server: ReturnType<typeof createSharedEntryServer> | undefined;
+
+	beforeEach(() => {
+		vi.useFakeTimers();
+	});
+
+	afterEach(() => {
+		server?.restore();
+		server = undefined;
+		vi.useRealTimers();
+	});
+
+	// One stored entry that refuses a save carrying a stale token, like the real
+	// handler. A save without a token is a blind write and goes through.
+	function createSharedEntryServer(
+		overrides: Partial<RevisionedContentItem> = {},
+		options: { holdFirstSave?: Promise<unknown> } = {},
+	) {
+		const entry = {
+			rev: "rev-initial",
+			data: { title: "Draft title", website: "" } as Record<string, unknown>,
+		};
+		let saves = 0;
+		const storedItem = () => makeItem({ ...overrides, _rev: entry.rev, data: entry.data });
+		const mock = createMockServer({
+			onContentGet: () => contentResponse(storedItem()),
+			onPut: async (request, index) => {
+				if (index === 0) await options.holdFirstSave;
+				const body = request.body ?? {};
+				if (body._rev && body._rev !== entry.rev) {
+					return errorResponse(
+						"CONFLICT",
+						"Content has been modified since last read (version conflict)",
+						409,
+					);
+				}
+				if (body.data) entry.data = body.data as Record<string, unknown>;
+				entry.rev = `rev-save-${++saves}`;
+				return contentResponse(storedItem());
+			},
+		});
+		// The draft revision holds what the server stored, never a refused payload.
+		const serveEntry = globalThis.fetch;
+		globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url === "/_emdash/api/revisions/revision-draft") {
+				await serveEntry(input, init);
+				return jsonResponse({
+					data: {
+						item: {
+							id: "revision-draft",
+							collection: "posts",
+							entryId: "post_1",
+							data: entry.data,
+							authorId: null,
+							createdAt: "2026-01-02T00:00:00Z",
+						},
+					},
+				});
+			}
+			return serveEntry(input, init);
+		}) as typeof fetch;
+		return {
+			...mock,
+			entry,
+			otherWriterSaves(data: Record<string, unknown>) {
+				entry.data = data;
+				entry.rev = "rev-moved";
+			},
+		};
+	}
+
+	async function enterConflict(screen: Awaited<ReturnType<typeof render>>) {
+		server!.otherWriterSaves({ title: "Other writer", website: "" });
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy");
+		await vi.advanceTimersByTimeAsync(2500);
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.toBeVisible();
+	}
+
+	function publishRequests() {
+		return server!.requests.filter(
+			(request) => request.method === "POST" && request.url.includes("/publish"),
+		);
+	}
+
+	it("refuses a publication date change and keeps the other writer's version", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		await enterConflict(screen);
+
+		await screen.getByRole("button", { name: /Change publication date/ }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Change publication date" });
+		await dialog.getByRole("textbox", { name: "Minute" }).fill("07");
+		fireEvent.click(dialog.getByRole("button", { name: "Save date", exact: true }).element());
+
+		await expect.element(dialog.getByText(conflictRefusal)).toBeVisible();
+		expect(server.requests.filter((request) => request.method === "PUT")).toHaveLength(1);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("disables the publishing menu until the writer decides", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		await enterConflict(screen);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+			.toBeDisabled();
+	});
+
+	it("disables unpublishing until the writer decides", async () => {
+		server = createSharedEntryServer({ draftRevisionId: null });
+		const screen = await renderEditPage("Unpublish Post");
+		await enterConflict(screen);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Unpublish Post", exact: true }))
+			.toBeDisabled();
+	});
+
+	it("does not publish from a menu that was open when the conflict arrived", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		server.otherWriterSaves({ title: "Other writer", website: "" });
+		await screen.getByRole("textbox", { name: "Title" }).fill("Writer copy");
+		const publishNowItem = await getPublishAction(screen, /Publish changes now/);
+
+		await vi.advanceTimersByTimeAsync(2500);
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.toBeVisible();
+		fireEvent.click(publishNowItem.element());
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(publishRequests()).toEqual([]);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("does not publish when the conflict arrives while the publish waits for autosave", async () => {
+		const autosave = deferredResponse();
+		server = createSharedEntryServer({}, { holdFirstSave: autosave.promise });
+		const screen = await renderEditPage();
+		server.otherWriterSaves({ title: "Other writer", website: "" });
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy");
+		await vi.advanceTimersByTimeAsync(2500);
+
+		await publishNow(screen);
+		autosave.resolve(new Response());
+		await vi.advanceTimersByTimeAsync(1000);
+
+		expect(publishRequests()).toEqual([]);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("does not save a submission that waited for the autosave the conflict refused", async () => {
+		const autosave = deferredResponse();
+		server = createSharedEntryServer({}, { holdFirstSave: autosave.promise });
+		const screen = await renderEditPage();
+		server.otherWriterSaves({ title: "Other writer", website: "" });
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		await title.fill("Writer copy");
+		await vi.advanceTimersByTimeAsync(2500);
+
+		fireEvent.submit(title.element().closest("form")!);
+		autosave.resolve(new Response());
+		await vi.advanceTimersByTimeAsync(1000);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.toBeVisible();
+		expect(server.requests.filter((request) => request.method === "PUT")).toHaveLength(1);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("publishes again once the writer saves anyway", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		await enterConflict(screen);
+
+		await screen.getByRole("button", { name: "Save anyway", exact: true }).click();
+		await vi.advanceTimersByTimeAsync(0);
+		await expect
+			.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+			.toBeEnabled();
+		await publishNow(screen);
+
+		await vi.waitFor(() => expect(publishRequests()).toHaveLength(1));
+		expect(server.entry.data).toMatchObject({ title: "Writer copy" });
+	});
+});

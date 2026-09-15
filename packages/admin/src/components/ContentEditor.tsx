@@ -519,6 +519,8 @@ export function ContentEditor({
 	// last autosave settled would otherwise flush a payload that is already saved.
 	const hasPendingSaveRef = React.useRef(false);
 	hasPendingSaveRef.current = Boolean(isDirty || saveFeedbackActive || autosaveFeedbackActive);
+	const hasSaveConflictRef = React.useRef(false);
+	hasSaveConflictRef.current = Boolean(hasSaveConflict);
 	const isContentOperationPending = Boolean(isSaving);
 	const isContentSaveBlocked =
 		isContentOperationPending || hasUnsupportedPortableTextMarks || readOnly;
@@ -676,7 +678,8 @@ export function ContentEditor({
 			isPublishingRef.current ||
 			!onPublish ||
 			hasInvalidUrls(formDataRef.current) ||
-			hasUnsupportedPortableTextMarks
+			hasUnsupportedPortableTextMarks ||
+			hasSaveConflictRef.current
 		)
 			return;
 		cancelPendingAutosave();
@@ -730,6 +733,13 @@ export function ContentEditor({
 			if (hasInvalidUrls(formDataRef.current) || hasUnsupportedPortableTextMarks) {
 				return Promise.reject(
 					new Error(invalidFieldsMessage ?? t`Fix invalid fields before changing the schedule`),
+				);
+			}
+			if (hasSaveConflictRef.current) {
+				return Promise.reject(
+					new Error(
+						t`This entry changed somewhere else. Save anyway, or reload to get the newer version.`,
+					),
 				);
 			}
 
@@ -1011,6 +1021,7 @@ export function ContentEditor({
 												canSchedule={canSchedule}
 												isScheduling={isScheduling}
 												isUnscheduling={isUnscheduling}
+												disabled={hasSaveConflict}
 												onPublish={handlePublish}
 												onUnpublish={handleUnpublish}
 												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
@@ -1078,6 +1089,7 @@ export function ContentEditor({
 													canSchedule={canSchedule}
 													isScheduling={isScheduling}
 													isUnscheduling={isUnscheduling}
+													disabled={hasSaveConflict}
 													onPublish={handlePublish}
 													onUnpublish={handleUnpublish}
 													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
@@ -1186,6 +1198,7 @@ export function ContentEditor({
 								canSchedule={canSchedule}
 								isScheduling={isScheduling}
 								isUnscheduling={isUnscheduling}
+								publishDisabled={hasSaveConflict}
 								liveViewUrl={liveViewUrl}
 								supportsPreview={supportsPreview}
 								isLoadingPreview={isLoadingPreview}
