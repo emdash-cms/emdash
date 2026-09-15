@@ -1113,16 +1113,20 @@ function ContentEditPage() {
 			const savedItem = await updateContent(
 				collection,
 				id,
-				{ publishedAt },
+				{ publishedAt, _rev: revisionTokensRef.current.get(id) },
 				{ locale: rawItem?.locale ?? activeLocale },
 			);
 			revisionTokensRef.current.set(id, savedItem._rev);
 			return savedItem;
 		},
 		onSuccess: () => {
+			setConflictedEntryId((current) => (current === id ? "" : current));
 			handleContentUpdateSuccess(id);
 		},
-		onError: (error) => handleContentUpdateError(error, id),
+		onError: async (error) => {
+			if (isSaveConflict(error) && (await recoverFromSaveConflict(id))) return;
+			handleContentUpdateError(error, id);
+		},
 	});
 
 	// Autosave mutation - skips revision creation
