@@ -23,6 +23,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import type {
 	BylineCreditInput,
@@ -884,22 +885,20 @@ export function ContentEditor({
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
 
-	// Escape exits distraction-free mode
-	React.useEffect(() => {
-		if (!isDistractionFree) return;
-
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				if (scheduleDialogOpen || publishingMenuOpen) return;
-				e.preventDefault();
-				e.stopPropagation();
-				setIsDistractionFree(false);
-			}
-		};
-
-		document.addEventListener("keydown", handleKeyDown, { capture: true });
-		return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
-	}, [isDistractionFree, publishingMenuOpen, scheduleDialogOpen]);
+	// The title advertises ⌘⇧\\ as the shortcut, so register it globally.
+	// It toggles both into and out of the mode, but is disabled while a
+	// publishing menu or schedule dialog is open.
+	const canToggleDistractionFree = !scheduleDialogOpen && !publishingMenuOpen;
+	useHotkeys(
+		"mod+shift+\\",
+		(e) => {
+			if (!canToggleDistractionFree) return;
+			e.preventDefault();
+			setIsDistractionFree((prev) => !prev);
+		},
+		{ enableOnFormTags: true, useKey: true },
+		[canToggleDistractionFree],
+	);
 
 	return (
 		<form
@@ -934,12 +933,13 @@ export function ContentEditor({
 				}
 			>
 				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
-					{/* In distraction-free mode the header is a hover-revealed overlay. */}
+					{/* In distraction-free mode the header is an always-visible overlay
+					    so readers can discover the exit affordance without hovering. */}
 					<div
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
-								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 mx-auto w-[calc(100%-4rem)] max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10"
+								? "fixed top-0 start-0 end-0 mx-auto w-[calc(100%-4rem)] max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10"
 								: cn(
 										"mx-auto mb-6 max-w-3xl",
 										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
@@ -1094,6 +1094,7 @@ export function ContentEditor({
 										type="button"
 										onClick={() => setIsDistractionFree(false)}
 										aria-label={t`Exit distraction-free mode`}
+										title={t`Exit distraction-free mode (⌘⇧\\)`}
 									>
 										<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
 									</Button>

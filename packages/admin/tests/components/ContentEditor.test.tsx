@@ -437,7 +437,7 @@ describe("ContentEditor", () => {
 				expect(backdrop?.classList.contains("pointer-events-none") ?? true).toBe(true);
 
 				// Exiting DF with the panel still active surfaces it in the sheet.
-				document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+				await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
@@ -1761,6 +1761,40 @@ describe("ContentEditor", () => {
 	});
 
 	describe("distraction-free mode", () => {
+		function dispatchDistractionFreeShortcut() {
+			document.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "\\",
+					shiftKey: true,
+					// `mod` maps to Ctrl on Linux/Windows and Cmd on macOS; firing both
+					// modifiers keeps the test deterministic across Playwright hosts.
+					ctrlKey: true,
+					metaKey: true,
+					bubbles: true,
+				}),
+			);
+		}
+
+		function getMainForm() {
+			return document.querySelector("form");
+		}
+
+		function isDistractionFree() {
+			return getMainForm()?.classList.toString().includes("fixed") ?? false;
+		}
+
+		it("toggles in and out with the advertised keyboard shortcut", async () => {
+			await renderEditor({ isNew: true });
+
+			expect(isDistractionFree()).toBe(false);
+
+			dispatchDistractionFreeShortcut();
+			await vi.waitFor(() => expect(isDistractionFree()).toBe(true));
+
+			dispatchDistractionFreeShortcut();
+			await vi.waitFor(() => expect(isDistractionFree()).toBe(false));
+		});
+
 		it("keeps the normal editor width and field chrome", async () => {
 			const screen = await renderEditor({
 				fields: {
@@ -1861,23 +1895,23 @@ describe("ContentEditor", () => {
 			expect(form?.classList.toString()).toContain("fixed");
 		});
 
-		it("escape exits distraction-free mode", async () => {
+		it("does not exit distraction-free mode with Escape", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });
 			await enterBtn.click();
 
 			// Verify we're in distraction-free mode
-			let form = document.querySelector("form");
-			expect(form?.classList.toString()).toContain("fixed");
+			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
 
 			// Press Escape
 			document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
-			// Wait for the state to update
-			await vi.waitFor(() => {
-				form = document.querySelector("form");
-				expect(form?.classList.toString()).not.toContain("fixed");
-			});
+			// Wait long enough that any errant state update would have been applied.
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Escape is reserved for other actions on the Posts page and must not
+			// leave distraction-free mode.
+			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
 		});
 
 		it("keeps Live View available in distraction-free mode", async () => {
