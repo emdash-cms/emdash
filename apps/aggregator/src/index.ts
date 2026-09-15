@@ -74,6 +74,7 @@ const RECONCILIATION_SUBJECTS_PATH = "/_internal/labeler/subjects";
 const RECONCILIATION_CURRENT_PATH = "/_internal/labeler/current";
 const LABEL_REPLAY_PATH = "/_admin/labels/replay";
 const HEALTH_PATH = "/health";
+const PLUGIN_DIRECTORY_URL = "https://plugins.emdashcms.com/";
 
 /**
  * Cap on the explicit DID list a single POST may submit. Lower than the
@@ -203,6 +204,7 @@ function parseBackfillBody(body: unknown): BackfillRequest | { error: string } {
 export default {
 	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
 		const url = new URL(request.url);
+		if (url.pathname === "/") return Response.redirect(PLUGIN_DIRECTORY_URL, 308);
 		if (url.pathname === HEALTH_PATH) return publicHealth(request, env);
 		if (url.pathname === RECONCILIATION_SUBJECTS_PATH) {
 			const denied = requireReconciliationAuth(request, env);
