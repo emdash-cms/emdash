@@ -8,12 +8,13 @@
  *
  */
 
+import type { RouteOptions } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
 import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
-import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./types.js";
+import type { ResolvedPlugin, RouteContext, UserInfo } from "./types.js";
 
 /**
  * Body-reading methods on `Request`. EmDash parses the request body once before
@@ -40,7 +41,7 @@ function guardConsumedRequestBody(request: Request): Request {
 				return () => {
 					throw new Error(
 						`[emdash] ctx.request.${prop}() is not available inside a plugin route handler: ` +
-							`EmDash has already parsed the request body and exposes it as ctx.input. ` +
+							`EmDash has already read the request body and exposes it as ctx.input. ` +
 							`Read ctx.input instead of ctx.request.${prop}().`,
 					);
 				};
@@ -51,34 +52,14 @@ function guardConsumedRequestBody(request: Request): Request {
 	});
 }
 
-/**
- * Route metadata (public flag) without the handler.
- * Used by the catch-all route to decide auth before dispatch.
- */
-export interface RouteMeta {
+export interface RouteMeta extends RouteOptions {
 	public: boolean;
-	permission?: string;
-	/**
-	 * Cache-Control value for successful GET responses. Only ever set for
-	 * public routes — authenticated responses must stay `private, no-store`.
-	 */
-	cacheControl?: string;
 }
 
-/**
- * Build RouteMeta from a route's `public`/`cacheControl` flags. Single source
- * of truth for the "cacheControl is only ever exposed on public routes"
- * invariant — used for trusted routes and manifest-declared sandboxed routes.
- */
-export function buildRouteMeta(route: {
-	public?: boolean;
-	permission?: string;
-	cacheControl?: string;
-}): RouteMeta {
+export function buildRouteMeta(route: RouteOptions): RouteMeta {
 	const meta: RouteMeta = { public: route.public === true };
+	if (route.body !== undefined) meta.body = route.body;
 	if (route.permission !== undefined) meta.permission = route.permission;
-	// Private responses are per-user and must never become cacheable, even if
-	// a route sets both flags.
 	if (meta.public && typeof route.cacheControl === "string" && route.cacheControl.length > 0) {
 		meta.cacheControl = route.cacheControl;
 	}
@@ -100,7 +81,12 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  * an object instead. Repeated keys (`?tag=a&tag=b`) become an array so array
  * schemas work; a single key stays a scalar.
  */
-export async function parseRouteInput(request: Request): Promise<unknown> {
+export async function parseRouteInput(
+	request: Request,
+	body?: RouteOptions["body"],
+): Promise<unknown> {
+	if (body === "text") return request.text();
+	if (body === "bytes") return new Uint8Array(await request.arrayBuffer());
 	if (BODY_METHODS.has(request.method.toUpperCase())) {
 		try {
 			return await request.json();
@@ -232,9 +218,6 @@ export class PluginRouteHandler {
 		const routeContext: RouteContext = {
 			...baseContext,
 			input: validatedInput,
-			// The body is already parsed into `input`; guard `ctx.request`'s
-			// body-reading methods so a re-read fails with an actionable message
-			// (#1293). Metadata extraction uses the original request (headers only).
 			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
 			user: options.user,
@@ -246,7 +229,7 @@ export class PluginRouteHandler {
 			return {
 				success: true,
 				data: result,
-				status: 200,
+				status: result instanceof Response ? result.status : 200,
 			};
 		} catch (error) {
 			if (error instanceof MediaUsageActivationWriteBlockedError) {
@@ -301,7 +284,7 @@ export class PluginRouteHandler {
 	 * Returns null if the route doesn't exist.
 	 */
 	getRouteMeta(name: string): RouteMeta | null {
-		const route: PluginRoute | undefined = this.plugin.routes[name];
+		const route = this.plugin.routes[name];
 		if (!route) return null;
 		return buildRouteMeta(route);
 	}

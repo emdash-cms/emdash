@@ -12,6 +12,7 @@ import { access, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 
+import { extractManifestRoute } from "@emdash-cms/plugin-types";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
@@ -20,7 +21,6 @@ import { capabilitiesToDeclaredAccess } from "./types.js";
 import type {
 	ManifestHookEntry,
 	ManifestMcpTool,
-	ManifestRouteEntry,
 	PluginManifest,
 	ResolvedPlugin,
 } from "./types.js";
@@ -153,11 +153,8 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		}
 	}
 
-	const routes: Array<ManifestRouteEntry | string> = Object.entries(plugin.routes).map(
-		([name, route]) =>
-			route.public !== undefined || route.permission !== undefined
-				? { name, public: route.public, permission: route.permission }
-				: name,
+	const routes = Object.entries(plugin.routes).map(([name, route]) =>
+		extractManifestRoute(name, route),
 	);
 	const tools: ManifestMcpTool[] = Object.entries(plugin.mcp?.tools ?? {}).map(([name, tool]) => {
 		if (!MCP_TOOL_NAME_PATTERN.test(name)) throw new Error(`Invalid MCP tool name "${name}"`);
