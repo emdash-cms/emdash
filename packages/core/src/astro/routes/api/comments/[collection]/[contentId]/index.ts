@@ -13,13 +13,12 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { createCommentBody } from "#api/schemas.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { sendCommentNotification } from "#comments/notifications.js";
-import { createComment, type CommentHookRunner } from "#comments/service.js";
 import { getTurnstileSecretKey, verifyTurnstileToken } from "#comments/turnstile.js";
 import { resolveSecretsCached } from "#config/secrets.js";
 import { CommentRepository } from "#db/repositories/comment.js";
 import { validateIdentifier } from "#db/validate.js";
 import { extractRequestMeta } from "#plugins/request-meta.js";
-import type { CollectionCommentSettings, ModerationDecision } from "#plugins/types.js";
+import type { CollectionCommentSettings } from "#plugins/types.js";
 
 export const prerender = false;
 
@@ -212,42 +211,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			resolvedParentId = parent.parentId ?? parent.id;
 		}
 
-		// Wire the comment service to the real hook pipeline
-		const hookRunner: CommentHookRunner = {
-			async runBeforeCreate(event) {
-				return emdash.hooks.runCommentBeforeCreate(event);
-			},
-			async runModerate(event) {
-				const result = await emdash.hooks.invokeExclusiveHook("comment:moderate", event);
-				if (!result) return { status: "pending" as const, reason: "No moderator configured" };
-				if (result.error) {
-					console.error(`[comments] Moderation error (${result.pluginId}):`, result.error.message);
-					return { status: "pending" as const, reason: "Moderation error" };
-				}
-				return result.result as ModerationDecision;
-			},
-			fireAfterCreate(event) {
-				emdash.hooks
-					.runCommentAfterCreate(event)
-					.catch((err) =>
-						console.error(
-							"[comments] afterCreate error:",
-							err instanceof Error ? err.message : err,
-						),
-					);
-			},
-			fireAfterModerate(event) {
-				emdash.hooks
-					.runCommentAfterModerate(event)
-					.catch((err) =>
-						console.error(
-							"[comments] afterModerate error:",
-							err instanceof Error ? err.message : err,
-						),
-					);
-			},
-		};
-
 		// Build content info for afterCreate hooks (e.g. email notifications)
 		const typedContent = contentRow as {
 			id: string;
@@ -270,8 +233,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			}
 		}
 
-		const result = await createComment(
-			emdash.db,
+		const result = await emdash.handleCommentCreate(
 			{
 				collection,
 				contentId,
@@ -284,7 +246,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				userAgent: meta.userAgent,
 			},
 			collectionSettings,
-			hookRunner,
 			{
 				id: typedContent.id,
 				collection,

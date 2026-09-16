@@ -4,10 +4,11 @@
 	"license": "MIT",
 	"author": { "name": "EmDash" },
 	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
-	"capabilities": ["content:read", "content:write"],
+	"capabilities": ["content:read", "content:write", "media:read", "users:read", "email:send"],
 	"allowedHosts": [],
 	"storage": {
 		"events": { "indexes": ["type"] },
+		"lifecycle": { "indexes": ["type"] },
 	},
 	"admin": {
 		"settingsSchema": {

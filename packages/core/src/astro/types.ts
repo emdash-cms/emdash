@@ -8,6 +8,7 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
+import type { MediaUploadInput } from "../api/handlers/media-upload.js";
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
 import type { ManifestRegistryConfigurationError } from "../registry/config.js";
@@ -402,6 +403,7 @@ export interface EmDashHandlers {
 	}) => Promise<HandlerResponse>;
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;
+	handleMediaUpload: (input: MediaUploadInput) => Promise<HandlerResponse>;
 
 	handleMediaCreate: (input: {
 		filename: string;

@@ -91,6 +91,8 @@ export interface SandboxOptions {
 		upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
 		delete(key: string): Promise<unknown>;
 	};
+	/** Worker Loader name suffix. The plugin's logical ID remains unchanged. */
+	isolateKey?: string;
 }
 
 /**

@@ -123,6 +123,7 @@ export default defineConfig({
 		"src/plugin-utils.ts",
 		// `emdash/plugin` — type-only subpath for sandboxed plugin authors.
 		"src/plugin-types.ts",
+		"src/plugin-test-runtime.ts",
 		// Standard plugin adapter (loaded by virtual:emdash/plugins at runtime)
 		"src/plugins/adapt-sandbox-entry.ts",
 		// Public source-exported subpaths -- compiled so consumers never

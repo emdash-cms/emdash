@@ -14,6 +14,13 @@ import {
 import { runMigrations } from "emdash/db";
 import { Kysely } from "kysely";
 
+export { createPluginRuntimeTestHost } from "./runtime-host.js";
+export type {
+	PluginRuntimeRouteRequest,
+	PluginRuntimeTestHost,
+	PluginRuntimeTestHostOptions,
+} from "./runtime-host.js";
+
 interface PluginTestBindings {
 	DB: D1Database;
 	EMDASH_PLUGIN_CODE: string;
