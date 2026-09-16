@@ -48,6 +48,9 @@ export interface PluginTestRequest {
 
 export interface PluginTestCollection extends CreateCollectionInput {
 	fields?: CreateFieldInput[];
+	commentsModeration?: "all" | "first_time" | "none";
+	commentsClosedAfterDays?: number;
+	commentsAutoApproveUsers?: boolean;
 }
 
 export interface PluginStorageTestEntry<T = unknown> {

@@ -19,6 +19,10 @@ import {
 	handleMediaUpload as uploadMedia,
 	type MediaUploadInput,
 } from "./api/handlers/media-upload.js";
+import {
+	handlePluginDisable as disablePlugin,
+	handlePluginEnable as enablePlugin,
+} from "./api/handlers/plugins.js";
 import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
@@ -144,6 +148,7 @@ import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
 } from "./comments/moderator.js";
+import { submitPublicComment } from "./comments/public-submission.js";
 import {
 	createComment,
 	moderateComment,
@@ -190,7 +195,7 @@ import {
 } from "./index.js";
 import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
-import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
+import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import { EmailPipeline } from "./plugins/email.js";
@@ -342,7 +347,7 @@ export interface RuntimeDependencies {
 	sandboxedPluginEntries: SandboxedPluginEntry[];
 	/** Factory function supplied by the active platform adapter. */
 	createSandboxRunner: SandboxRunnerFactory | null;
-	/** Clock used by scheduled task claiming and retry bookkeeping. */
+	/** Clock used by cron scheduling, task execution, and scheduled publishing. */
 	now?: () => Date;
 	/** Site values supplied by hosts that do not load Astro's virtual config. */
 	siteInfo?: {
@@ -386,6 +391,7 @@ export interface EmDashRuntimeParts {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
+		now?: () => Date;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -613,6 +619,7 @@ export class EmDashRuntime {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
+		now?: () => Date;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -692,9 +699,11 @@ export class EmDashRuntime {
 		onPublished?: (refs: PublishedRef[]) => Promise<void>,
 	): Promise<PublishedRef[]> {
 		await assertMediaUsageActivationWriteAllowed(this.db);
+		const currentTime = this.runtimeDeps.now?.() ?? new Date();
 		return publishDueContent(this.db, {
 			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
 			onPublished,
+			currentTime,
 		});
 	}
 
@@ -717,9 +726,19 @@ export class EmDashRuntime {
 			onPublished?: (refs: PublishedRef[]) => Promise<void>;
 		} = {},
 	): Promise<{ published: PublishedRef[] }> {
+		const { published } = await this.runScheduledTasksWithStats(options);
+		return { published };
+	}
+
+	async runScheduledTasksWithStats(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		} = {},
+	): Promise<{ processed: number; published: PublishedRef[] }> {
+		let processed = 0;
 		if (this.cronExecutor) {
 			try {
-				await this.cronExecutor.tick();
+				processed = await this.cronExecutor.tick();
 			} catch (error) {
 				console.error("[cron] Tick failed:", error);
 			}
@@ -753,7 +772,7 @@ export class EmDashRuntime {
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
 		await recordSchedulerHeartbeatSafely(this.db);
 
-		return { published };
+		return { processed, published };
 	}
 
 	/**
@@ -816,6 +835,37 @@ export class EmDashRuntime {
 			this.enabledPlugins.delete(pluginId);
 			await this.rebuildHookPipeline();
 		}
+	}
+
+	async handlePluginEnable(pluginId: string) {
+		const result = await enablePlugin(
+			this.db,
+			this.configuredPlugins,
+			this.sandboxedPluginEntries,
+			pluginId,
+		);
+		if (!result.success) return result;
+
+		const source = result.data.item.source;
+		if (source === "registry") await this.syncRegistryPlugins();
+		else if (source === "marketplace") await this.syncMarketplacePlugins();
+		await this.setPluginStatus(pluginId, "active");
+		await setCronTasksEnabled(this.db, pluginId, true);
+		return result;
+	}
+
+	async handlePluginDisable(pluginId: string) {
+		const result = await disablePlugin(
+			this.db,
+			this.configuredPlugins,
+			this.sandboxedPluginEntries,
+			pluginId,
+		);
+		if (!result.success) return result;
+
+		await this.setPluginStatus(pluginId, "inactive");
+		await setCronTasksEnabled(this.db, pluginId, false);
+		return result;
 	}
 
 	/** Dispatch teardown lifecycle while the runtime-installed isolate is still loaded. */
@@ -1676,6 +1726,7 @@ export class EmDashRuntime {
 			db,
 			getDb: resolveDb,
 			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
+			now: deps.now,
 			storage: storage ?? undefined,
 			siteInfo,
 		};
@@ -2113,6 +2164,7 @@ export class EmDashRuntime {
 					{
 						db,
 						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						now: deps.now,
 						mediaStorage: mediaStorage
 							? {
 									upload: (opts) =>
@@ -2265,6 +2317,7 @@ export class EmDashRuntime {
 					{
 						db,
 						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						now: deps.now,
 						mediaStorage: {
 							upload: (opts) =>
 								storage.upload({
@@ -3354,7 +3407,13 @@ export class EmDashRuntime {
 	}
 
 	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
-		const result = await handleContentSchedule(this.db, collection, id, scheduledAt);
+		const result = await handleContentSchedule(
+			this.db,
+			collection,
+			id,
+			scheduledAt,
+			this.runtimeDeps.now?.() ?? new Date(),
+		);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3427,7 +3486,12 @@ export class EmDashRuntime {
 				error: { code: "NO_STORAGE", message: "Storage not configured" },
 			};
 		}
-		const result = await uploadMedia(this.db, this.storage, input);
+		const result = await uploadMedia(this.db, this.storage, input, {
+			beforeUpload: async (file) => {
+				if (!this.hooks.hasHooks("media:beforeUpload")) return file;
+				return (await this.hooks.runMediaBeforeUpload(file)).file;
+			},
+		});
 		if (result.success && !result.data.deduplicated && this.hooks.hasHooks("media:afterUpload")) {
 			const item = result.data.item;
 			await this.hooks.runMediaAfterUpload({
@@ -3586,6 +3650,15 @@ export class EmDashRuntime {
 		contentInfo?: Parameters<typeof createComment>[4],
 	): Promise<CommentCreateResult | null> {
 		return createComment(this.db, input, settings, this.commentHooks(), contentInfo);
+	}
+
+	async handlePublicCommentSubmission(
+		collection: string,
+		contentId: string,
+		request: Request,
+		user?: UserInfo,
+	): Promise<Response> {
+		return submitPublicComment(this, collection, contentId, request, user);
 	}
 
 	async handleCommentModerate(

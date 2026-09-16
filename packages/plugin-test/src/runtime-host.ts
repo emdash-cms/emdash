@@ -89,11 +89,8 @@ export interface PluginRuntimeTestHost {
 			restore: EmDashRuntime["handleContentRestore"];
 		};
 		plugin: {
-			install(): Promise<void>;
 			activate(): Promise<void>;
 			deactivate(): Promise<void>;
-			update(version: string): Promise<void>;
-			uninstall(deleteData?: boolean): Promise<void>;
 		};
 		media: { upload: EmDashRuntime["handleMediaUpload"] };
 		comments: {
@@ -104,7 +101,11 @@ export interface PluginRuntimeTestHost {
 				authorEmail: string;
 				body: string;
 				parentId?: string | null;
-			}): ReturnType<EmDashRuntime["handleCommentCreate"]>;
+				website_url?: string;
+				turnstileToken?: string;
+				user?: UserInfo;
+				headers?: HeadersInit;
+			}): Promise<Response>;
 			moderate(
 				id: string,
 				status: "pending" | "approved" | "spam" | "trash",
@@ -223,11 +224,6 @@ function bindings(): RuntimeBindings {
 	return value;
 }
 
-function parseCommentModeration(value: string): "all" | "first_time" | "none" {
-	if (value === "all" || value === "first_time" || value === "none") return value;
-	throw new Error(`Invalid comment moderation mode: ${value}`);
-}
-
 export async function createPluginRuntimeTestHost(
 	options: PluginRuntimeTestHostOptions = {},
 ): Promise<PluginRuntimeTestHost> {
@@ -257,9 +253,7 @@ export async function createPluginRuntimeTestHost(
 	setI18nConfig(options.i18n ?? null);
 	let currentTime = new Date();
 	let disposed = false;
-	let installed = true;
 	let isolateGeneration = 0;
-	let activeVersion = manifest.version;
 	const entrypoint = `plugin-runtime-test-${crypto.randomUUID()}`;
 	const entry = {
 		id: manifest.id,
@@ -335,40 +329,20 @@ export async function createPluginRuntimeTestHost(
 			data: JSON.parse(row.data) as T,
 		}));
 	};
-	const updatePluginState = async (status: "active" | "inactive", version = activeVersion) => {
-		const now = currentTime.toISOString();
-		await bound.DB.prepare(
-			`INSERT INTO _plugin_state (plugin_id, status, version, installed_at, activated_at, deactivated_at, data, source, marketplace_version, display_name, description, registry_publisher_did, registry_slug, mcp_tools_enabled, mcp_tools_consent)
-			 VALUES (?, ?, ?, ?, ?, ?, NULL, 'config', NULL, NULL, NULL, NULL, NULL, 0, NULL)
-			 ON CONFLICT(plugin_id) DO UPDATE SET status = excluded.status, version = excluded.version, activated_at = excluded.activated_at, deactivated_at = excluded.deactivated_at`,
-		)
-			.bind(
-				manifest.id,
-				status,
-				version,
-				now,
-				status === "active" ? now : null,
-				status === "inactive" ? now : null,
-			)
-			.run();
-	};
-
 	const host: PluginRuntimeTestHost = {
 		get manifest() {
-			return activeVersion === manifest.version
-				? manifest
-				: { ...manifest, version: activeVersion };
+			return manifest;
 		},
 		transport: {
 			invokeHook: (name, event) => {
 				assertActive();
-				const plugin = runtime.sandboxedPlugins.get(`${manifest.id}:${activeVersion}`);
+				const plugin = runtime.sandboxedPlugins.get(`${manifest.id}:${manifest.version}`);
 				if (!plugin) throw new Error(`Plugin isolate is not loaded: ${manifest.id}`);
 				return plugin.invokeHook(name, event);
 			},
 			invokeRoute: (name, input = {}, request = {}) => {
 				assertActive();
-				const plugin = runtime.sandboxedPlugins.get(`${manifest.id}:${activeVersion}`);
+				const plugin = runtime.sandboxedPlugins.get(`${manifest.id}:${manifest.version}`);
 				if (!plugin) throw new Error(`Plugin isolate is not loaded: ${manifest.id}`);
 				return plugin.invokeRoute(name, input, {
 					url: request.url ?? `https://plugin.test/_emdash/api/plugins/${manifest.id}/${name}`,
@@ -398,10 +372,27 @@ export async function createPluginRuntimeTestHost(
 				await runtime.shutdown();
 				await createRuntime();
 			},
-			async collection({ fields = [], ...collection }) {
+			async collection({
+				fields = [],
+				commentsModeration,
+				commentsClosedAfterDays,
+				commentsAutoApproveUsers,
+				...collection
+			}) {
 				assertActive();
 				const registry = new SchemaRegistry(runtime.db);
 				await registry.createCollection(collection);
+				if (
+					commentsModeration !== undefined ||
+					commentsClosedAfterDays !== undefined ||
+					commentsAutoApproveUsers !== undefined
+				) {
+					await registry.updateCollection(collection.slug, {
+						commentsModeration,
+						commentsClosedAfterDays,
+						commentsAutoApproveUsers,
+					});
+				}
 				for (const field of fields) await registry.createField(collection.slug, field);
 				return { slug: collection.slug };
 			},
@@ -447,86 +438,30 @@ export async function createPluginRuntimeTestHost(
 				restore: (...args) => runtime.handleContentRestore(...args),
 			},
 			plugin: {
-				async install() {
-					if (!installed) {
-						await runtime.shutdown();
-						sandboxedPluginEntries.push(entry);
-						installed = true;
-						await createRuntime();
-					}
-					await updatePluginState("active");
-					await runtime.runPluginInstallLifecycle(manifest.id);
-				},
 				async activate() {
-					if (!installed) throw new Error("Cannot activate an uninstalled plugin");
-					await updatePluginState("active");
-					await runtime.setPluginStatus(manifest.id, "active");
+					const result = await runtime.handlePluginEnable(manifest.id);
+					if (!result.success) throw new Error(result.error.message);
 				},
 				async deactivate() {
-					if (!installed) throw new Error("Cannot deactivate an uninstalled plugin");
-					await updatePluginState("inactive");
-					await runtime.setPluginStatus(manifest.id, "inactive");
-				},
-				async update(version) {
-					if (!installed) throw new Error("Cannot update an uninstalled plugin");
-					await updatePluginState("active", version);
-					await runtime.shutdown();
-					activeVersion = version;
-					entry.version = version;
-					await createRuntime();
-					await runtime.runPluginActivateLifecycle(manifest.id);
-				},
-				async uninstall(deleteData = false) {
-					if (!installed) throw new Error("Plugin is already uninstalled");
-					await runtime.runPluginUninstallLifecycle(manifest.id, deleteData);
-					await runtime.shutdown();
-					sandboxedPluginEntries.length = 0;
-					installed = false;
-					await bound.DB.prepare("DELETE FROM _plugin_state WHERE plugin_id = ?")
-						.bind(manifest.id)
-						.run();
-					if (deleteData) {
-						await bound.DB.prepare("DELETE FROM _plugin_storage WHERE plugin_id = ?")
-							.bind(manifest.id)
-							.run();
-					}
-					await createRuntime();
+					const result = await runtime.handlePluginDisable(manifest.id);
+					if (!result.success) throw new Error(result.error.message);
 				},
 			},
 			media: { upload: (...args) => runtime.handleMediaUpload(...args) },
 			comments: {
 				async submit(input) {
-					const [collection, content] = await Promise.all([
-						runtime.db
-							.selectFrom("_emdash_collections")
-							.select([
-								"comments_enabled",
-								"comments_moderation",
-								"comments_closed_after_days",
-								"comments_auto_approve_users",
-							])
-							.where("slug", "=", input.collection)
-							.executeTakeFirst(),
-						new ContentRepository(runtime.db).findById(input.collection, input.contentId),
-					]);
-					if (!collection?.comments_enabled) throw new Error("Comments are not enabled");
-					if (!content || content.status !== "published") {
-						throw new Error("Published content not found");
-					}
-					return runtime.handleCommentCreate(
-						input,
-						{
-							commentsEnabled: true,
-							commentsModeration: parseCommentModeration(collection.comments_moderation),
-							commentsClosedAfterDays: collection.comments_closed_after_days,
-							commentsAutoApproveUsers: collection.comments_auto_approve_users === 1,
-						},
-						{
-							id: content.id,
-							collection: input.collection,
-							slug: content.slug ?? content.id,
-							title: typeof content.data.title === "string" ? content.data.title : undefined,
-						},
+					const { collection, contentId, user, headers: inputHeaders, ...body } = input;
+					const headers = new Headers(inputHeaders);
+					headers.set("Content-Type", "application/json");
+					return runtime.handlePublicCommentSubmission(
+						collection,
+						contentId,
+						new Request(`https://plugin.test/_emdash/api/comments/${collection}/${contentId}`, {
+							method: "POST",
+							headers,
+							body: JSON.stringify(body),
+						}),
+						user,
 					);
 				},
 				moderate: (id, status, moderator) =>
@@ -563,10 +498,15 @@ export async function createPluginRuntimeTestHost(
 				get: (collection, id) =>
 					new ContentRepository(runtime.db).findByIdIncludingTrashed(collection, id),
 				async list(collection) {
-					const result = await new ContentRepository(runtime.db).findMany(collection, {
-						limit: 100,
-					});
-					return result.items;
+					const repo = new ContentRepository(runtime.db);
+					const items: ContentItem[] = [];
+					let cursor: string | undefined;
+					do {
+						const result = await repo.findMany(collection, { limit: 100, cursor });
+						items.push(...result.items);
+						cursor = result.nextCursor;
+					} while (cursor);
+					return items;
 				},
 			},
 			storage: {
@@ -620,10 +560,7 @@ export async function createPluginRuntimeTestHost(
 				currentTime = next;
 			},
 			async run() {
-				if (!runtime.cronExecutor) throw new Error("Scheduled task executor is unavailable");
-				const processed = await runtime.cronExecutor.tick();
-				const { published } = await runtime.runScheduledTasks();
-				return { processed, published };
+				return runtime.runScheduledTasksWithStats();
 			},
 		},
 		async restart() {

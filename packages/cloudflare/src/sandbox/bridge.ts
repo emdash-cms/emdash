@@ -73,6 +73,7 @@ const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
  */
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 let cronRescheduleCallback: (() => void) | null = null;
+let cronNowCallback: (() => Date) | null = null;
 
 /**
  * Set the email send callback for all bridge instances.
@@ -84,6 +85,10 @@ export function setEmailSendCallback(callback: SandboxEmailSendCallback | null):
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
 	cronRescheduleCallback = callback;
+}
+
+export function setCronNowCallback(callback: (() => Date) | null): void {
+	cronNowCallback = callback;
 }
 
 function serializeValue(value: unknown): unknown {
@@ -1255,8 +1260,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		opts: { schedule: string; data?: Record<string, unknown> },
 	): Promise<void> {
 		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		await new CronAccessImpl(db, this.ctx.props.pluginId, () =>
-			cronRescheduleCallback?.(),
+		await new CronAccessImpl(
+			db,
+			this.ctx.props.pluginId,
+			() => cronRescheduleCallback?.(),
+			cronNowCallback ?? undefined,
 		).schedule(name, opts);
 	}
 

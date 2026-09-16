@@ -123,6 +123,7 @@ export interface BridgeHandlerOptions {
 	beforeContentWrite?: () => Promise<void>;
 	emailSend: () => SandboxEmailSendCallback | null;
 	cronReschedule?: () => void;
+	now?: () => Date;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
 }
@@ -356,13 +357,15 @@ async function dispatch(
 
 		// ── Cron ────────────────────────────────────────────────────────
 		case "cron/schedule":
-			return new CronAccessImpl(db, pluginId, opts.cronReschedule ?? (() => undefined)).schedule(
-				requireString(body, "name"),
-				{
-					schedule: requireString(body, "schedule"),
-					data: optionalRecord(body, "data"),
-				},
-			);
+			return new CronAccessImpl(
+				db,
+				pluginId,
+				opts.cronReschedule ?? (() => undefined),
+				opts.now,
+			).schedule(requireString(body, "name"), {
+				schedule: requireString(body, "schedule"),
+				data: optionalRecord(body, "data"),
+			});
 		case "cron/cancel":
 			return new CronAccessImpl(db, pluginId, opts.cronReschedule ?? (() => undefined)).cancel(
 				requireString(body, "name"),

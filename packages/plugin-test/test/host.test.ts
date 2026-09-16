@@ -80,7 +80,7 @@ describe("runtime plugin test host", () => {
 		await expect(runtimeHost.inspect.kv.get("restart-proof")).resolves.toEqual({ persisted: true });
 		await expect(runtimeHost.inspect.media(uploaded.data.item.id)).resolves.toMatchObject({
 			success: true,
-			data: { item: { filename: "restart.png" } },
+			data: { item: { filename: "checked-restart.png" } },
 		});
 		await expect(
 			runtimeHost.actions.content.update("posts", contentId, {
@@ -137,26 +137,6 @@ describe("runtime plugin test host", () => {
 		await expect(allowed.json()).resolves.toMatchObject({ data: { userId: user.id } });
 	});
 
-	it("replaces the plugin isolate on update and removes it on uninstall", async () => {
-		runtimeHost = await createPluginRuntimeTestHost();
-		const before = (await runtimeHost.transport.invokeRoute("isolate-id")) as {
-			isolateId: string;
-		};
-		await runtimeHost.actions.plugin.update("0.2.0");
-		const after = (await runtimeHost.transport.invokeRoute("isolate-id")) as {
-			isolateId: string;
-		};
-		expect(after.isolateId).not.toBe(before.isolateId);
-		expect(runtimeHost.manifest.version).toBe("0.2.0");
-		await expect(runtimeHost.inspect.pluginState()).resolves.toMatchObject({ version: "0.2.0" });
-
-		await runtimeHost.actions.plugin.uninstall(false);
-		await expect(runtimeHost.inspect.pluginState()).resolves.toBeNull();
-		await expect(runtimeHost.actions.routes.request("isolate-id")).resolves.toMatchObject({
-			status: 404,
-		});
-	});
-
 	it("runs lifecycle, media, comment, scheduler, and email journeys through the isolate", async () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		await runtimeHost.fixtures.collection({
@@ -176,8 +156,16 @@ describe("runtime plugin test host", () => {
 			role: "admin",
 		});
 
-		await runtimeHost.actions.plugin.install();
+		const due = "2030-01-02T03:04:05.000Z";
+		await runtimeHost.actions.routes.request("schedule-once", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { at: due },
+		});
 		await runtimeHost.actions.plugin.deactivate();
+		await expect(runtimeHost.inspect.scheduledTasks()).resolves.toContainEqual(
+			expect.objectContaining({ name: "runtime-test", enabled: 0 }),
+		);
 		await runtimeHost.actions.plugin.activate();
 		await expect(runtimeHost.inspect.pluginState()).resolves.toMatchObject({
 			pluginId: runtimeHost.manifest.id,
@@ -187,7 +175,7 @@ describe("runtime plugin test host", () => {
 			runtimeHost.inspect.storage
 				.list<{ type: string }>("lifecycle")
 				.then((entries) => entries.map((entry) => entry.data.type)),
-		).resolves.toEqual(["install", "activate", "deactivate", "activate"]);
+		).resolves.toEqual(["deactivate", "activate"]);
 
 		const media = await runtimeHost.actions.media.upload({
 			filename: "pixel.png",
@@ -196,6 +184,9 @@ describe("runtime plugin test host", () => {
 				"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
 		});
 		expect(media.success).toBe(true);
+		if (!media.success) throw new Error(media.error.message);
+		expect(media.data.item.filename).toBe("checked-pixel.png");
+		expect(media.data.item.size).toBe(69);
 
 		const submitted = await runtimeHost.actions.comments.submit({
 			collection: "posts",
@@ -204,10 +195,11 @@ describe("runtime plugin test host", () => {
 			authorEmail: "reader@example.com",
 			body: "Useful post",
 		});
-		expect(submitted?.comment.status).toBe("pending");
-		await runtimeHost.actions.comments.moderate(submitted!.comment.id, "approved", admin);
+		expect(submitted.status).toBe(201);
+		const submittedBody = (await submitted.json()) as { data: { id: string; status: string } };
+		expect(submittedBody.data.status).toBe("pending");
+		await runtimeHost.actions.comments.moderate(submittedBody.data.id, "approved", admin);
 
-		const due = "2030-01-02T03:04:05.000Z";
 		await runtimeHost.actions.routes.request("schedule-once", {
 			user: admin,
 			headers: { "X-EmDash-Request": "1" },
@@ -228,9 +220,130 @@ describe("runtime plugin test host", () => {
 			expect.objectContaining({ to: "author@example.com", subject: "Runtime host" }),
 		);
 		const events = await runtimeHost.inspect.storage.list("events");
+		expect(events).toContainEqual(
+			expect.objectContaining({
+				data: expect.objectContaining({ type: "media-uploaded", size: 69 }),
+			}),
+		);
 		expect(events.map((entry) => (entry.data as { type: string }).type)).toEqual(
 			expect.arrayContaining(["media-uploaded", "comment-created", "comment-moderated", "cron"]),
 		);
+	});
+
+	it("uses one controlled clock for scheduled content and one cron batch", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		const admin = await runtimeHost.fixtures.user({
+			email: "scheduler@example.com",
+			role: "admin",
+		});
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			routable: true,
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const content = await runtimeHost.fixtures.content("posts", {
+			slug: "scheduled-post",
+			data: { title: "Scheduled" },
+		});
+		const due = "2030-01-02T03:04:05.000Z";
+		const scheduled = await runtimeHost.actions.content.schedule("posts", content.id, due);
+		if (!scheduled.success) throw new Error(scheduled.error.message);
+
+		for (let index = 0; index < 11; index++) {
+			await runtimeHost.actions.routes.request("schedule-once", {
+				user: admin,
+				headers: { "X-EmDash-Request": "1" },
+				body: { at: due, name: `task-${index}` },
+			});
+		}
+
+		runtimeHost.scheduled.setTime("2030-01-02T03:04:06.000Z");
+		await expect(runtimeHost.scheduled.run()).resolves.toEqual({
+			processed: 10,
+			published: [{ collection: "posts", id: content.id }],
+		});
+		await expect(runtimeHost.inspect.scheduledTasks()).resolves.toHaveLength(1);
+	});
+
+	it("runs public comment policy and follows every content-list cursor", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			commentsEnabled: true,
+			commentsClosedAfterDays: 1,
+		});
+		await runtimeHost.fixtures.content("posts", {
+			id: "closed-post",
+			status: "published",
+			publishedAt: "2020-01-01T00:00:00.000Z",
+			data: {},
+		});
+
+		const response = await runtimeHost.actions.comments.submit({
+			collection: "posts",
+			contentId: "closed-post",
+			authorName: "Reader",
+			authorEmail: "reader@example.com",
+			body: "Too late",
+		});
+		expect(response.status).toBe(403);
+		await expect(response.json()).resolves.toMatchObject({ error: { code: "COMMENTS_CLOSED" } });
+
+		for (let index = 0; index < 101; index++) {
+			await runtimeHost.fixtures.content("posts", {
+				id: `post-${String(index).padStart(3, "0")}`,
+				data: {},
+			});
+		}
+		await expect(runtimeHost.inspect.content.list("posts")).resolves.toHaveLength(102);
+	});
+
+	it("removes a timezone-less one-shot after it runs", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		const admin = await runtimeHost.fixtures.user({
+			email: "local-scheduler@example.com",
+			role: "admin",
+		});
+		await runtimeHost.actions.routes.request("schedule-once", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { at: "2030-01-02T03:04:05", name: "local-time" },
+		});
+		runtimeHost.scheduled.setTime("2030-01-02T03:04:06.000Z");
+		await expect(runtimeHost.scheduled.run()).resolves.toMatchObject({ processed: 1 });
+		await expect(runtimeHost.inspect.scheduledTasks()).resolves.toEqual([]);
+	});
+
+	it("uses the controlled clock to schedule and advance recurring cron tasks", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		const admin = await runtimeHost.fixtures.user({
+			email: "recurring-scheduler@example.com",
+			role: "admin",
+		});
+		runtimeHost.scheduled.setTime("2030-01-02T03:04:05.000Z");
+		await runtimeHost.actions.routes.request("schedule-once", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { at: "@daily", name: "recurring" },
+		});
+		await expect(runtimeHost.inspect.scheduledTasks()).resolves.toContainEqual(
+			expect.objectContaining({
+				name: "recurring",
+				nextRunAt: "2030-01-03T00:00:00.000Z",
+			}),
+		);
+
+		runtimeHost.scheduled.setTime("2030-01-03T00:00:01.000Z");
+		await expect(runtimeHost.scheduled.run()).resolves.toMatchObject({ processed: 1 });
+		await expect(runtimeHost.inspect.scheduledTasks()).resolves.toContainEqual(
+			expect.objectContaining({
+				name: "recurring",
+				nextRunAt: "2030-01-04T00:00:00.000Z",
+			}),
+		);
+		await expect(runtimeHost.scheduled.run()).resolves.toMatchObject({ processed: 0 });
 	});
 
 	it("clears database and isolate state when disposed", async () => {

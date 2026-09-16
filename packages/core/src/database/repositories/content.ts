@@ -1712,13 +1712,18 @@ export class ContentRepository {
 	 * Sets status to 'scheduled' and stores the scheduled publish time.
 	 * The content will be auto-published when the scheduled time is reached.
 	 */
-	async schedule(type: string, id: string, scheduledAt: string): Promise<ContentItem> {
+	async schedule(
+		type: string,
+		id: string,
+		scheduledAt: string,
+		currentTime: Date = new Date(),
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
 		const normalizedScheduledAt = await this.datetimes.normalizeValue(type, scheduledAt);
 		const scheduledDate = new Date(normalizedScheduledAt);
-		if (scheduledDate <= new Date()) {
+		if (scheduledDate <= currentTime) {
 			throw new EmDashValidationError("Scheduled date must be in the future");
 		}
 
@@ -1802,9 +1807,13 @@ export class ContentRepository {
 	 * fan out unbounded publish/webhook work in a single tick (and blow a Worker
 	 * invocation's CPU/subrequest budget); the remainder drains on later ticks.
 	 */
-	async findReadyToPublish(type: string, limit?: number): Promise<ContentItem[]> {
+	async findReadyToPublish(
+		type: string,
+		limit?: number,
+		currentTime: Date = new Date(),
+	): Promise<ContentItem[]> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
 		// Embed an empty fragment when unbounded so callers that want every due
 		// row (manual flows, tests) keep the original behaviour.
@@ -1996,9 +2005,10 @@ export class ContentRepository {
 		promoteRevision = true,
 		requireSlug = true,
 		expectedRevision?: ContentRevisionPrecondition,
+		currentTime: Date = new Date(),
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
 		const existing = await this.findById(type, id);
 		if (!existing) {

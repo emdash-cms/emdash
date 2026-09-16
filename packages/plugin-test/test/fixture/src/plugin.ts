@@ -31,8 +31,16 @@ const plugin: SandboxedPlugin = {
 				});
 			},
 		},
+		"media:beforeUpload": async (event) => ({
+			...event.file,
+			name: `checked-${event.file.name}`,
+			size: event.file.size + 1,
+		}),
 		"media:afterUpload": async (event, ctx) =>
-			record(ctx, "events", "media-uploaded", { mediaId: event.media.id }),
+			record(ctx, "events", "media-uploaded", {
+				mediaId: event.media.id,
+				size: event.media.size,
+			}),
 		"comment:afterCreate": async (event, ctx) =>
 			record(ctx, "events", "comment-created", { commentId: event.comment.id }),
 		"comment:afterModerate": async (event, ctx) =>
@@ -99,7 +107,11 @@ const plugin: SandboxedPlugin = {
 					throw new Error("Expected an ISO timestamp");
 				}
 				const at = route.input.at;
-				await ctx.cron!.schedule("runtime-test", { schedule: at });
+				const name =
+					"name" in route.input && typeof route.input.name === "string"
+						? route.input.name
+						: "runtime-test";
+				await ctx.cron!.schedule(name, { schedule: at });
 				return { scheduled: true };
 			},
 		},

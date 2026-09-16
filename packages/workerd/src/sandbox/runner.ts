@@ -929,6 +929,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		return this.cronRescheduleCallback;
 	}
 
+	get now() {
+		return this.options.now;
+	}
+
 	/** Get the media storage adapter */
 	get mediaStorage() {
 		return this.options.mediaStorage ?? null;

@@ -27,7 +27,7 @@ import {
 	type I18nConfig,
 } from "emdash";
 
-import { setCronRescheduleCallback, setEmailSendCallback } from "./bridge.js";
+import { setCronNowCallback, setCronRescheduleCallback, setEmailSendCallback } from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
@@ -121,6 +121,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 
 		// Wire email send callback if provided at construction time
 		setEmailSendCallback(options.emailSend ?? null);
+		setCronNowCallback(options.now ?? null);
 	}
 
 	/**

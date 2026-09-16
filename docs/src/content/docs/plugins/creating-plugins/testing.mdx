@@ -8,7 +8,7 @@ description: Run plugin hooks and routes through EmDash's production sandbox bou
 Choose the host that matches the behavior under test:
 
 - `createPluginTestHost()` invokes a hook or route directly across the sandbox transport. Use it for serialization, capability enforcement, plugin storage, and route-handler logic.
-- `createPluginRuntimeTestHost()` runs real EmDash content, lifecycle, media, comment, scheduled-task, and plugin-route actions. Use it when the test must prove that a host action reaches the plugin.
+- `createPluginRuntimeTestHost()` runs real EmDash content, plugin activation, media, comment, scheduled-task, and plugin-route actions. Use it when the test must prove that a host action reaches the plugin.
 
 Projects created by `emdash-plugin init` include this setup. Existing plugin projects can install the test host as a development dependency:
 
@@ -156,9 +156,9 @@ The runtime host groups its API by boundary:
 
 - `transport` directly invokes the isolate for transport-level checks.
 - `fixtures` creates site, collection, field, user, content, and plugin state without firing hooks.
-- `actions` runs content state changes, plugin lifecycle transitions, media uploads, comment submission and moderation, and policy-checked plugin routes.
+- `actions` runs content state changes, plugin activation and deactivation, media uploads, public comment submission, comment moderation, and policy-checked plugin routes.
 - `inspect` reads content, plugin storage, KV, settings, plugin state, scheduled tasks, media, comments, and captured email.
-- `scheduled` controls the effective scheduler time and runs the production task executor.
+- `scheduled` controls the effective time for cron tasks and scheduled publishing, then runs one production maintenance batch.
 - `restart()` replaces the runtime and isolate while retaining D1, plugin storage, media storage, and plugin state.
 
 Call `dispose()` after each test. Disposal terminates the isolate and resets all bindings, so a later test cannot observe the previous host's database or media.
