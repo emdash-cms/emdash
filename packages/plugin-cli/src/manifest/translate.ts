@@ -9,7 +9,11 @@
 import { readFile } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 
-import type { PluginCapability, PluginStorageConfig } from "@emdash-cms/plugin-types";
+import type {
+	PluginAdminConfig,
+	PluginCapability,
+	PluginStorageConfig,
+} from "@emdash-cms/plugin-types";
 
 import type { ProfileBootstrap, ProfileInput } from "../publish/api.js";
 import {
@@ -37,6 +41,8 @@ import {
 export interface NormalisedAdmin {
 	pages: Array<{ path: string; label: string; icon?: string }>;
 	widgets: Array<{ id: string; title?: string; size?: "full" | "half" | "third" }>;
+	settingsSchema?: PluginAdminConfig["settingsSchema"];
+	fieldWidgets?: PluginAdminConfig["fieldWidgets"];
 }
 
 export interface NormalisedManifest {
@@ -307,6 +313,8 @@ export function normaliseManifest(manifest: Manifest, packageVersion?: string): 
 		admin: {
 			pages: manifest.admin?.pages ?? [],
 			widgets: manifest.admin?.widgets ?? [],
+			settingsSchema: manifest.admin?.settingsSchema,
+			fieldWidgets: manifest.admin?.fieldWidgets,
 		},
 	};
 }

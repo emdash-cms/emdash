@@ -13,6 +13,7 @@ import type {
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
 	ContentCreateOptions,
+	CronTaskInfo,
 	Database,
 	I18nConfig,
 	SandboxEmailSendCallback,
@@ -20,6 +21,8 @@ import type {
 } from "emdash";
 import {
 	ContentRepository,
+	CronAccessImpl,
+	createContentAccess,
 	createSandboxRouteError,
 	getSandboxRouteErrorDetails,
 	ulid,
@@ -37,10 +40,6 @@ import type { StorageUpdateIfResponse } from "./types.js";
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
 const MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX = /no such table.*_emdash_media_usage_activation/i;
 
-/** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
-const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
-
-/** System columns that plugins cannot directly write to */
 const SYSTEM_COLUMNS = new Set([
 	"id",
 	"slug",
@@ -58,6 +57,9 @@ const SYSTEM_COLUMNS = new Set([
 	"translation_group",
 ]);
 
+/** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
+const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
+
 /**
  * Module-level email send callback.
  *
@@ -68,6 +70,7 @@ const SYSTEM_COLUMNS = new Set([
  * @see runner.ts setEmailSendCallback()
  */
 let emailSendCallback: SandboxEmailSendCallback | null = null;
+let cronRescheduleCallback: (() => void) | null = null;
 
 /**
  * Set the email send callback for all bridge instances.
@@ -77,11 +80,10 @@ export function setEmailSendCallback(callback: SandboxEmailSendCallback | null):
 	emailSendCallback = callback;
 }
 
-/**
- * Serialize a value for D1 storage.
- * Mirrors core's serializeValue: objects/arrays → JSON strings,
- * booleans → 0/1, null/undefined → null, everything else passthrough.
- */
+export function setCronRescheduleCallback(callback: (() => void) | null): void {
+	cronRescheduleCallback = callback;
+}
+
 function serializeValue(value: unknown): unknown {
 	if (value === null || value === undefined) return null;
 	if (typeof value === "boolean") return value ? 1 : 0;
@@ -89,45 +91,31 @@ function serializeValue(value: unknown): unknown {
 	return value;
 }
 
-/**
- * Deserialize a row from D1 into a ContentItem matching core's plugin API.
- * Extracts system columns, deserializes JSON fields, and returns the
- * canonical shape: { id, type, data, createdAt, updatedAt, locale }.
- */
-function rowToContentItem(
-	collection: string,
-	row: Record<string, unknown>,
-): {
-	id: string;
-	type: string;
-	data: Record<string, unknown>;
-	createdAt: string;
-	updatedAt: string;
-	locale: string;
-} {
+function rowToContentItem(collection: string, row: Record<string, unknown>) {
 	const data: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(row)) {
-		if (!SYSTEM_COLUMNS.has(key)) {
-			// Attempt to parse JSON strings back to objects
-			if (typeof value === "string" && (value.startsWith("{") || value.startsWith("["))) {
-				try {
-					data[key] = JSON.parse(value);
-				} catch {
-					data[key] = value;
-				}
-			} else if (value !== null) {
+		if (SYSTEM_COLUMNS.has(key)) continue;
+		if (typeof value === "string" && (value.startsWith("{") || value.startsWith("["))) {
+			try {
+				data[key] = JSON.parse(value);
+			} catch {
 				data[key] = value;
 			}
+		} else if (value !== null) {
+			data[key] = value;
 		}
 	}
-
 	return {
 		id: typeof row.id === "string" ? row.id : String(row.id),
 		type: collection,
+		slug: typeof row.slug === "string" ? row.slug : null,
+		status: typeof row.status === "string" ? row.status : "draft",
 		data,
 		createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
 		updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString(),
 		locale: typeof row.locale === "string" ? row.locale : "en",
+		publishedAt: typeof row.published_at === "string" ? row.published_at : null,
+		scheduledAt: typeof row.scheduled_at === "string" ? row.scheduled_at : null,
 	};
 }
 
@@ -557,14 +545,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	async contentGet(
 		collection: string,
 		id: string,
-	): Promise<{
-		id: string;
-		type: string;
-		data: Record<string, unknown>;
-		createdAt: string;
-		updatedAt: string;
-		locale: string;
-	} | null> {
+	): ReturnType<ReturnType<typeof createContentAccess>["get"]> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:read")) {
 			throw new Error("Missing capability: content:read");
@@ -573,36 +554,23 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
 		try {
-			// Content tables use ec_${collection} naming (no leading underscore)
-			// Exclude soft-deleted items
-			const result = await this.env.DB.prepare(
+			return await createContentAccess(db).get(collection, id);
+		} catch {
+			const row = await this.env.DB.prepare(
 				`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
 			)
 				.bind(id)
 				.first();
-			if (!result) return null;
-			return rowToContentItem(collection, result);
-		} catch {
-			return null;
+			return row ? rowToContentItem(collection, row) : null;
 		}
 	}
 
 	async contentList(
 		collection: string,
-		opts: { limit?: number; cursor?: string } = {},
-	): Promise<{
-		items: Array<{
-			id: string;
-			type: string;
-			data: Record<string, unknown>;
-			createdAt: string;
-			updatedAt: string;
-			locale: string;
-		}>;
-		cursor?: string;
-		hasMore: boolean;
-	}> {
+		opts: Parameters<ReturnType<typeof createContentAccess>["list"]>[1] = {},
+	): ReturnType<ReturnType<typeof createContentAccess>["list"]> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:read")) {
 			throw new Error("Missing capability: content:read");
@@ -611,53 +579,15 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
-		const limit = Math.min(opts.limit ?? 50, 100);
-		try {
-			// Content tables use ec_${collection} naming (no leading underscore)
-			// Exclude soft-deleted items. Ordered by ULID (id DESC) for deterministic
-			// cursor pagination. ULIDs are time-sortable so this approximates created_at DESC.
-			let sql = `SELECT * FROM ec_${collection} WHERE deleted_at IS NULL`;
-			const params: unknown[] = [];
-
-			if (opts.cursor) {
-				sql += " AND id < ?";
-				params.push(opts.cursor);
-			}
-
-			sql += " ORDER BY id DESC LIMIT ?";
-			params.push(limit + 1);
-
-			const results = await this.env.DB.prepare(sql)
-				.bind(...params)
-				.all();
-
-			const rows = results.results ?? [];
-			const pageRows = rows.slice(0, limit);
-			const items = pageRows.map((row) => rowToContentItem(collection, row));
-			const hasMore = rows.length > limit;
-
-			return {
-				items,
-				cursor: hasMore && items.length > 0 ? items.at(-1)!.id : undefined,
-				hasMore,
-			};
-		} catch {
-			return { items: [], hasMore: false };
-		}
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createContentAccess(db).list(collection, opts);
 	}
 
 	async contentCreate(
 		collection: string,
 		data: Record<string, unknown>,
 		options?: ContentCreateOptions,
-	): Promise<{
-		id: string;
-		type: string;
-		data: Record<string, unknown>;
-		createdAt: string;
-		updatedAt: string;
-		locale: string;
-	}> {
+	): Promise<ReturnType<typeof rowToContentItem>> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:write")) {
 			throw new Error("Missing capability: content:write");
@@ -667,12 +597,9 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		const locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
 		await this.assertMediaUsageActivationWriteAllowed();
-
 		const id = ulid();
 		const now = new Date().toISOString();
-
-		// Build columns and values arrays — quote identifiers to avoid SQL keyword collisions
-		const columns: string[] = [
+		const columns = [
 			'"id"',
 			'"slug"',
 			'"status"',
@@ -694,49 +621,38 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			locale,
 			id,
 		];
-
-		// Append user data fields (skip system columns, quote identifiers)
 		for (const [key, value] of Object.entries(data)) {
 			if (!SYSTEM_COLUMNS.has(key) && COLLECTION_NAME_REGEX.test(key)) {
 				columns.push(`"${key}"`);
 				values.push(serializeValue(value));
 			}
 		}
-
 		const placeholders = columns.map(() => "?").join(", ");
-		const columnList = columns.join(", ");
-
 		await this.env.DB.prepare(
-			`INSERT INTO ec_${collection} (${columnList}) VALUES (${placeholders})`,
+			`INSERT INTO ec_${collection} (${columns.join(", ")}) VALUES (${placeholders})`,
 		)
 			.bind(...values)
 			.run();
-
-		// Re-read the created row
 		const created = await this.env.DB.prepare(
 			`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
 		)
 			.bind(id)
 			.first();
-
-		if (!created) {
-			return { id, type: collection, data: {}, createdAt: now, updatedAt: now, locale };
-		}
-		return rowToContentItem(collection, created);
+		return created
+			? rowToContentItem(collection, created)
+			: rowToContentItem(collection, {
+					id,
+					locale,
+					created_at: now,
+					updated_at: now,
+				});
 	}
 
 	async contentUpdate(
 		collection: string,
 		id: string,
 		data: Record<string, unknown>,
-	): Promise<{
-		id: string;
-		type: string;
-		data: Record<string, unknown>;
-		createdAt: string;
-		updatedAt: string;
-		locale: string;
-	}> {
+	): Promise<ReturnType<typeof rowToContentItem>> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:write")) {
 			throw new Error("Missing capability: content:write");
@@ -744,23 +660,26 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!COLLECTION_NAME_REGEX.test(collection)) {
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
-		await this.assertMediaUsageActivationWriteAllowed();
 		const db = new Kysely<Database>({
 			dialect: new D1Dialect({ database: this.env.DB }),
 		});
+		await this.assertMediaUsageActivationWriteAllowed();
 		const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
 			data,
 			status: typeof data.status === "string" ? data.status : undefined,
 			slug: data.slug === undefined ? undefined : typeof data.slug === "string" ? data.slug : null,
 		});
-		return {
+		return rowToContentItem(collection, {
+			...updated.data,
 			id: updated.id,
-			type: updated.type,
-			data: updated.data,
-			createdAt: updated.createdAt,
-			updatedAt: updated.updatedAt,
-			locale: updated.locale ?? "en",
-		};
+			slug: updated.slug,
+			status: updated.status,
+			created_at: updated.createdAt,
+			updated_at: updated.updatedAt,
+			published_at: updated.publishedAt,
+			scheduled_at: updated.scheduledAt,
+			locale: updated.locale,
+		});
 	}
 
 	async contentDelete(collection: string, id: string): Promise<boolean> {
@@ -772,8 +691,6 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
 		await this.assertMediaUsageActivationWriteAllowed();
-
-		// Soft-delete: set deleted_at timestamp
 		const now = new Date().toISOString();
 		const result = await this.env.DB.prepare(
 			`UPDATE ec_${collection} SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL`,
@@ -1264,6 +1181,28 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Email is not configured. No email provider is available.");
 		}
 		await emailSendCallback(message, pluginId);
+	}
+
+	async cronSchedule(
+		name: string,
+		opts: { schedule: string; data?: Record<string, unknown> },
+	): Promise<void> {
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		await new CronAccessImpl(db, this.ctx.props.pluginId, () =>
+			cronRescheduleCallback?.(),
+		).schedule(name, opts);
+	}
+
+	async cronCancel(name: string): Promise<void> {
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		await new CronAccessImpl(db, this.ctx.props.pluginId, () => cronRescheduleCallback?.()).cancel(
+			name,
+		);
+	}
+
+	async cronList(): Promise<CronTaskInfo[]> {
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return new CronAccessImpl(db, this.ctx.props.pluginId, () => cronRescheduleCallback?.()).list();
 	}
 
 	// =========================================================================

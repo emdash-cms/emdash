@@ -281,6 +281,9 @@ export {
 	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
 	createHttpAccess,
 	createUnrestrictedHttpAccess,
+	createContentAccess,
+	createContentAccessWithWrite,
+	CronAccessImpl,
 } from "./plugins/index.js";
 export type {
 	PluginDefinition,
@@ -298,6 +301,8 @@ export type {
 	KVAccess,
 	ContentAccess,
 	ContentCreateOptions,
+	ContentListOptions,
+	CronTaskInfo,
 	MediaAccess,
 	HttpAccess,
 	LogAccess,

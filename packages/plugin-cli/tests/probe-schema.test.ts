@@ -71,12 +71,24 @@ describe("parseProbedDefault", () => {
 			expect(result.routes?.ping).toEqual({ handler });
 		});
 
-		it("preserves config-form route fields including public", () => {
+		it("preserves config-form route fields including public cache metadata", () => {
 			const handler = (): void => {};
 			const result = parseProbedDefault(PLUGIN_ENTRY, {
-				routes: { ping: { handler, public: true } },
+				routes: {
+					ping: {
+						handler,
+						public: true,
+						permission: "content:read",
+						cacheControl: "public, max-age=60",
+					},
+				},
 			});
-			expect(result.routes?.ping).toEqual({ handler, public: true });
+			expect(result.routes?.ping).toEqual({
+				handler,
+				public: true,
+				permission: "content:read",
+				cacheControl: "public, max-age=60",
+			});
 		});
 
 		it("passes through unknown extra keys on the default export", () => {

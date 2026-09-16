@@ -73,6 +73,30 @@ describe("extractManifest", () => {
 		expect(manifest.routes.toSorted((a, b) => a.localeCompare(b))).toEqual(["admin", "api"]);
 	});
 
+	it("preserves public route authorization and cache metadata", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				routes: {
+					feed: {
+						handler: () => {},
+						public: true,
+						permission: "content:read",
+						cacheControl: "public, max-age=300",
+					},
+				},
+			}),
+		);
+
+		expect(manifest.routes).toEqual([
+			{
+				name: "feed",
+				public: true,
+				permission: "content:read",
+				cacheControl: "public, max-age=300",
+			},
+		]);
+	});
+
 	it("serializes explicitly declared MCP tools", () => {
 		const manifest = extractManifest(
 			minimalResolved({
@@ -115,6 +139,29 @@ describe("extractManifest", () => {
 		);
 		expect(manifest.admin).not.toHaveProperty("entry");
 		expect(manifest.admin.pages).toEqual([{ path: "/x" }]);
+	});
+
+	it("preserves settings and field widgets in the wire manifest", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				admin: {
+					settingsSchema: {
+						enabled: { type: "boolean", label: "Enabled", default: true },
+					},
+					fieldWidgets: [
+						{
+							name: "event-picker",
+							label: "Event",
+							fieldTypes: ["string"],
+							elements: [{ type: "input", action_id: "event" }],
+						},
+					],
+				},
+			}),
+		);
+
+		expect(manifest.admin.settingsSchema).toHaveProperty("enabled");
+		expect(manifest.admin.fieldWidgets?.[0]).toMatchObject({ name: "event-picker" });
 	});
 });
 

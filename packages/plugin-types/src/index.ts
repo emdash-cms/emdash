@@ -303,6 +303,8 @@ export interface ManifestHookEntry {
 	exclusive?: boolean;
 	priority?: number;
 	timeout?: number;
+	dependencies?: string[];
+	errorPolicy?: "continue" | "abort";
 }
 
 /**
@@ -392,6 +394,8 @@ export interface PluginAdminConfig {
 	 * sandboxed plugin declares any.
 	 */
 	portableTextBlocks?: Array<unknown>;
+	/** Sandboxed field widgets rendered from declarative Block Kit elements. */
+	fieldWidgets?: Array<unknown>;
 }
 
 /**

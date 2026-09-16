@@ -61,6 +61,22 @@ async function setupTables(db: Kysely<any>) {
 		.addColumn("live_revision_id", "text")
 		.addColumn("draft_revision_id", "text")
 		.execute();
+
+	await db.schema
+		.createTable("_emdash_cron_tasks")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("plugin_id", "text", (col) => col.notNull())
+		.addColumn("task_name", "text", (col) => col.notNull())
+		.addColumn("schedule", "text", (col) => col.notNull())
+		.addColumn("is_oneshot", "integer", (col) => col.notNull())
+		.addColumn("data", "text")
+		.addColumn("next_run_at", "text", (col) => col.notNull())
+		.addColumn("last_run_at", "text")
+		.addColumn("status", "text", (col) => col.notNull())
+		.addColumn("locked_at", "text")
+		.addColumn("enabled", "integer", (col) => col.notNull())
+		.addUniqueConstraint("uq_cron_plugin_task", ["plugin_id", "task_name"])
+		.execute();
 }
 
 /** Minimal plugin code that echoes back hook/route calls.
@@ -87,6 +103,12 @@ export default {
 				await ctx.kv.set("test-key", routeCtx.input.value);
 				const result = await ctx.kv.get("test-key");
 				return { stored: result };
+			}
+		},
+		"cron-test": {
+			handler: async (_routeCtx, ctx) => {
+				await ctx.cron.schedule("daily", { schedule: "@daily", data: { source: "workerd" } });
+				return ctx.cron.list();
 			}
 		},
 		"conditional-test": {
@@ -300,6 +322,29 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(result.stored).toBe("hello");
 	}, 30_000);
 
+	it("provides plugin-scoped cron through the production workerd bridge", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-cron",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+			},
+			ECHO_PLUGIN,
+		);
+
+		await expect(
+			plugin.invokeRoute("cron-test", {}, { method: "POST", url: "/api/cron", headers: {} }),
+		).resolves.toEqual([expect.objectContaining({ name: "daily", schedule: "@daily" })]);
+		expect(
+			await db
+				.selectFrom("_emdash_cron_tasks" as any)
+				.select("plugin_id" as any)
+				.executeTakeFirst(),
+		).toMatchObject({ plugin_id: "test-cron" });
+	}, 30_000);
+
 	it("preserves versioned values and conditional results through the generated worker", async () => {
 		const plugin = await runner.load(
 			{
@@ -509,7 +554,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				{
 					id: "test-content-write",
 					version: "1.0.0",
-					capabilities: ["write:content"],
+					capabilities: ["content:write"],
 					allowedHosts: [],
 					storage: {},
 				},
