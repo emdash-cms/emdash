@@ -545,6 +545,82 @@ export const AdminWidgetSchema = z
 		description: "A single dashboard widget declaration.",
 	});
 
+const settingBase = {
+	label: z.string().min(1),
+	description: z.string().optional(),
+};
+
+const SettingFieldSchema = z.discriminatedUnion("type", [
+	z.object({
+		...settingBase,
+		type: z.literal("string"),
+		default: z.string().optional(),
+		multiline: z.boolean().optional(),
+	}),
+	z.object({
+		...settingBase,
+		type: z.literal("number"),
+		default: z.number().optional(),
+		min: z.number().optional(),
+		max: z.number().optional(),
+	}),
+	z.object({ ...settingBase, type: z.literal("boolean"), default: z.boolean().optional() }),
+	z.object({
+		...settingBase,
+		type: z.literal("select"),
+		options: z.array(z.object({ value: z.string(), label: z.string() })),
+		default: z.string().optional(),
+	}),
+	z.object({ ...settingBase, type: z.literal("secret") }),
+	z.object({
+		...settingBase,
+		type: z.literal("url"),
+		default: z.string().optional(),
+		placeholder: z.string().optional(),
+	}),
+	z.object({
+		...settingBase,
+		type: z.literal("email"),
+		default: z.string().optional(),
+		placeholder: z.string().optional(),
+	}),
+]);
+
+const FIELD_TYPES = [
+	"string",
+	"text",
+	"number",
+	"integer",
+	"boolean",
+	"datetime",
+	"select",
+	"multiSelect",
+	"portableText",
+	"image",
+	"file",
+	"reference",
+	"json",
+	"slug",
+	"repeater",
+] as const;
+
+const FieldWidgetSchema = z.object({
+	name: z.string().min(1),
+	label: z.string().min(1),
+	fieldTypes: z.array(z.enum(FIELD_TYPES)),
+	elements: z
+		.array(
+			z
+				.object({
+					type: z.string(),
+					action_id: z.string(),
+					label: z.string().optional(),
+				})
+				.loose(),
+		)
+		.optional(),
+});
+
 /**
  * Admin surface block in the manifest. Both fields are optional;
  * plugins that don't expose admin UI at all simply omit the `admin`
@@ -557,6 +633,8 @@ export const AdminSchema = z
 			.array(AdminWidgetSchema)
 			.max(32, "admin.widgets[] must have <= 32 entries")
 			.optional(),
+		settingsSchema: z.record(z.string(), SettingFieldSchema).optional(),
+		fieldWidgets: z.array(FieldWidgetSchema).max(32).optional(),
 	})
 	.strict()
 	.meta({

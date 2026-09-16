@@ -11,7 +11,7 @@
  * - Exposes an HTTP fetch handler for hook/route invocation
  */
 
-import type { PluginManifest } from "emdash";
+import { normalizeCapabilities, type PluginManifest } from "emdash";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
@@ -38,8 +38,9 @@ export interface WrapperOptions {
 
 export function generatePluginWrapper(manifest: PluginManifest, options: WrapperOptions): string {
 	const site = options.site ?? { name: "", url: "", locale: "en" };
-	const hasReadUsers = manifest.capabilities.includes("read:users");
-	const hasEmailSend = manifest.capabilities.includes("email:send");
+	const capabilities = normalizeCapabilities(manifest.capabilities);
+	const hasReadUsers = capabilities.includes("users:read");
+	const hasEmailSend = capabilities.includes("email:send");
 
 	return `
 // =============================================================================
@@ -467,6 +468,12 @@ function createContext() {
 		send: (message) => bridgeCall("email/send", { message }),
 	} : undefined;
 
+	const cron = {
+		schedule: (name, opts) => bridgeCall("cron/schedule", { name, ...opts }),
+		cancel: (name) => bridgeCall("cron/cancel", { name }),
+		list: () => bridgeCall("cron/list", {}),
+	};
+
 	return {
 		plugin: {
 			id: ${JSON.stringify(manifest.id)},
@@ -483,6 +490,7 @@ function createContext() {
 		url,
 		users,
 		email,
+		cron,
 	};
 }
 

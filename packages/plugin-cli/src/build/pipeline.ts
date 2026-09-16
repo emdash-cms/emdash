@@ -270,6 +270,8 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 		admin: {
 			pages: entries.manifest.admin.pages,
 			widgets: entries.manifest.admin.widgets,
+			settingsSchema: entries.manifest.admin.settingsSchema,
+			fieldWidgets: entries.manifest.admin.fieldWidgets,
 		},
 	};
 
@@ -484,6 +486,7 @@ function assembleRoute(entry: ProbedRouteEntry): ResolvedPlugin["routes"][string
 		handler: entry.handler,
 		public: entry.public,
 		permission: entry.permission,
+		cacheControl: entry.cacheControl,
 	};
 }
 

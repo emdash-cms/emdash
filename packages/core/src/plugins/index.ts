@@ -40,6 +40,7 @@ export {
 	createSiteInfo,
 } from "./context.js";
 export type { PluginContextFactoryOptions } from "./context.js";
+export { CronAccessImpl } from "./cron.js";
 
 // Hooks
 export { HookPipeline, createHookPipeline } from "./hooks.js";
@@ -139,6 +140,7 @@ export type {
 	ContentItem,
 	ContentCreateOptions,
 	ContentWriteInput,
+	CronTaskInfo,
 	MediaItem,
 	ContentListOptions,
 	MediaListOptions,

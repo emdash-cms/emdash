@@ -44,6 +44,15 @@ async function runMigrations(db: Kysely<any>) {
 		.createTable("_emdash_fields")
 		.addColumn("collection_id", "text", (col) => col.notNull())
 		.addColumn("slug", "text", (col) => col.notNull())
+		.addColumn("type", "text", (col) => col.notNull())
+		.addColumn("validation", "text")
+		.addColumn("indexed", "integer", (col) => col.notNull().defaultTo(0))
+		.addColumn("translatable", "integer", (col) => col.notNull().defaultTo(1))
+		.execute();
+	await db.schema
+		.createTable("options")
+		.addColumn("name", "text", (col) => col.primaryKey())
+		.addColumn("value", "text", (col) => col.notNull())
 		.execute();
 
 	await db.schema
@@ -128,8 +137,22 @@ async function runMigrations(db: Kysely<any>) {
 	await db
 		.insertInto("_emdash_fields" as any)
 		.values([
-			{ collection_id: "posts", slug: "title" },
-			{ collection_id: "posts", slug: "body" },
+			{
+				collection_id: "posts",
+				slug: "title",
+				type: "string",
+				validation: null,
+				indexed: 0,
+				translatable: 1,
+			},
+			{
+				collection_id: "posts",
+				slug: "body",
+				type: "text",
+				validation: null,
+				indexed: 0,
+				translatable: 1,
+			},
 		])
 		.execute();
 }
@@ -312,12 +335,16 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			const created = createResult.result as {
 				id: string;
 				type: string;
+				slug: string | null;
+				status: string;
 				data: Record<string, unknown>;
 				locale: string;
+				publishedAt: string | null;
 			};
 			expect(created.type).toBe("posts");
 			expect(created.data.title).toBe("New Post");
 			expect(created.locale).toBe("en");
+			expect(created).toMatchObject({ slug: "new-post", status: "draft", publishedAt: null });
 			expect(created.id).toBeTruthy();
 			await expect(
 				db
@@ -350,11 +377,15 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			expect(updateResult.error).toBeUndefined();
 			const updated = updateResult.result as {
 				id: string;
+				slug: string | null;
+				status: string;
 				data: Record<string, unknown>;
 				locale: string;
+				publishedAt: string | null;
 			};
 			expect(updated.data.title).toBe("Updated Post");
 			expect(updated.locale).toBe("en");
+			expect(updated).toMatchObject({ slug: "new-post", status: "draft", publishedAt: null });
 
 			// Delete (soft-delete)
 			const deleteResult = await call(handler, "content/delete", {
@@ -526,7 +557,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			collection: "posts",
 			data: { title: "Should fail" },
 		});
-		expect(result.error).toContain("Missing capability: write:content");
+		expect(result.error).toContain("Missing capability: content:write");
 	});
 
 	it("write-only plugin cannot read content (no implicit upgrade)", async () => {
@@ -564,13 +595,13 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			collection: "pages",
 			id: "any",
 		});
-		expect(getResult.error).toContain("Missing capability: read:content");
+		expect(getResult.error).toContain("Missing capability: content:read");
 
 		// content/list should also fail
 		const listResult = await call(writeOnlyHandler, "content/list", {
 			collection: "pages",
 		});
-		expect(listResult.error).toContain("Missing capability: read:content");
+		expect(listResult.error).toContain("Missing capability: content:read");
 
 		// content/create should still succeed (has write:content)
 		const createResult = await call(writeOnlyHandler, "content/create", {
@@ -593,10 +624,10 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		});
 
 		const getResult = await call(writeOnlyHandler, "media/get", { id: "any" });
-		expect(getResult.error).toContain("Missing capability: read:media");
+		expect(getResult.error).toContain("Missing capability: media:read");
 
 		const listResult = await call(writeOnlyHandler, "media/list", {});
-		expect(listResult.error).toContain("Missing capability: read:media");
+		expect(listResult.error).toContain("Missing capability: media:read");
 	});
 
 	it("sandboxed-test plugin cannot send email (not in capabilities)", async () => {

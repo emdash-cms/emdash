@@ -59,7 +59,10 @@ import {
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
-import { inspectSandboxHookResult } from "./plugins/sandbox/hook-result.js";
+import {
+	createSandboxedPluginProxy,
+	getSandboxSaveRejectionDetails,
+} from "./plugins/sandbox/proxy.js";
 import { createSandboxRunnerOptions } from "./plugins/sandbox/runner-options.js";
 import { getSandboxRouteErrorDetails } from "./plugins/sandbox/types.js";
 import type {
@@ -69,7 +72,6 @@ import type {
 } from "./plugins/sandbox/types.js";
 import type {
 	ActorInfo,
-	ContentHookEvent,
 	ResolvedPlugin,
 	MediaItem,
 	PluginManifest,
@@ -118,44 +120,6 @@ function parseStringArray(raw: string | null | undefined): string[] {
 interface PageContributions {
 	metadata: PageMetadataContribution[];
 	fragments: PageFragmentContribution[];
-}
-
-const VALID_METADATA_KINDS = new Set(["meta", "property", "link", "jsonld"]);
-
-/** Security-critical allowlist for link rel values from sandboxed plugins */
-const VALID_LINK_REL = new Set([
-	"canonical",
-	"alternate",
-	"author",
-	"license",
-	"nlweb",
-	"site.standard.document",
-]);
-
-/**
- * Runtime validation for sandboxed plugin metadata contributions.
- * Sandboxed plugins return `unknown` across the RPC boundary — we must
- * verify the shape before passing to the metadata collector.
- */
-function isValidMetadataContribution(c: unknown): c is PageMetadataContribution {
-	if (!c || typeof c !== "object" || !("kind" in c)) return false;
-	const obj = c as Record<string, unknown>;
-	if (typeof obj.kind !== "string" || !VALID_METADATA_KINDS.has(obj.kind)) return false;
-
-	switch (obj.kind) {
-		case "meta":
-			return typeof obj.name === "string" && typeof obj.content === "string";
-		case "property":
-			return typeof obj.property === "string" && typeof obj.content === "string";
-		case "link":
-			return (
-				typeof obj.href === "string" && typeof obj.rel === "string" && VALID_LINK_REL.has(obj.rel)
-			);
-		case "jsonld":
-			return obj.graph != null && typeof obj.graph === "object";
-		default:
-			return false;
-	}
 }
 
 import { after } from "./after.js";
@@ -213,7 +177,7 @@ import {
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
-import { normalizeManifestRoute } from "./plugins/manifest-schema.js";
+import { HOOK_NAMES, normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
 import {
 	buildRouteMeta,
@@ -410,6 +374,17 @@ export interface EmDashRuntimeParts {
  */
 function beforeSaveFailure(error: unknown) {
 	if (isContentSaveRejection(error)) {
+		const sandbox = getSandboxSaveRejectionDetails(error);
+		if (sandbox) {
+			return {
+				success: false as const,
+				error: {
+					code: ErrorCode.SAVE_REJECTED,
+					message: error.message,
+					details: sandbox,
+				},
+			};
+		}
 		return {
 			success: false as const,
 			error: { code: ErrorCode.SAVE_REJECTED, message: error.message },
@@ -513,6 +488,7 @@ function getSeedHolder(): SeedHolder {
 }
 const storageCache = new Map<string, Storage>();
 const sandboxedPluginCache = new Map<string, SandboxedPluginInstance>();
+const sandboxedManifestCache = new Map<string, PluginManifest>();
 /**
  * Per-tier sets of `${pluginId}:${version}` keys present in
  * `sandboxedPluginCache`. Used during sync to know which entries belong
@@ -798,6 +774,26 @@ export class EmDashRuntime {
 		}
 	}
 
+	/** Dispatch teardown lifecycle while the runtime-installed isolate is still loaded. */
+	async runPluginUninstallLifecycle(pluginId: string, deleteData: boolean): Promise<void> {
+		const active = this.isPluginEnabled(pluginId);
+		if (active) {
+			try {
+				await this._hooks.runPluginDeactivate(pluginId);
+			} catch (error) {
+				console.error(`EmDash: Plugin ${pluginId} deactivate hook failed during uninstall:`, error);
+			}
+		}
+
+		try {
+			const results = await this._hooks.runPluginUninstall(pluginId, deleteData);
+			if (results.length > 0) return;
+			await this.findSandboxedPlugin(pluginId)?.invokeHook("plugin:uninstall", { deleteData });
+		} catch (error) {
+			console.error(`EmDash: Plugin ${pluginId} uninstall hook failed:`, error);
+		}
+	}
+
 	/**
 	 * Rebuild the hook pipeline from the current set of enabled plugins.
 	 *
@@ -888,6 +884,11 @@ export class EmDashRuntime {
 		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
+		const previouslyLoadedIds = new Set(
+			Array.from(keySet, (key) => key.slice(0, key.lastIndexOf(":"))),
+		);
+		const loadedPluginIds: string[] = [];
+		let pipelineChanged = false;
 
 		try {
 			const stateRepo = new PluginStateRepository(this.db);
@@ -941,8 +942,11 @@ export class EmDashRuntime {
 				}
 
 				sandboxedPluginCache.delete(key);
+				sandboxedManifestCache.delete(key);
 				this.sandboxedPlugins.delete(key);
+				this.removePluginFromLists(pluginId);
 				keySet.delete(key);
+				pipelineChanged = true;
 				if (pluginId) {
 					sandboxedRouteMetaCache.delete(pluginId);
 					marketplaceManifestCache.delete(pluginId);
@@ -965,8 +969,12 @@ export class EmDashRuntime {
 
 				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
 				sandboxedPluginCache.set(key, loaded);
+				sandboxedManifestCache.set(key, bundle.manifest);
 				this.sandboxedPlugins.set(key, loaded);
+				this.allPipelinePlugins.push(createSandboxedPluginProxy(bundle.manifest, loaded));
 				keySet.add(key);
+				loadedPluginIds.push(pluginId);
+				pipelineChanged = true;
 
 				// Cache manifest admin config for getManifest()
 				marketplaceManifestCache.set(pluginId, {
@@ -987,6 +995,16 @@ export class EmDashRuntime {
 					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
 				} else {
 					sandboxedRouteMetaCache.delete(pluginId);
+				}
+			}
+
+			if (pipelineChanged) {
+				await this.rebuildHookPipeline();
+				for (const pluginId of loadedPluginIds) {
+					if (!previouslyLoadedIds.has(pluginId)) {
+						await this._hooks.runPluginInstall(pluginId);
+					}
+					await this._hooks.runPluginActivate(pluginId);
 				}
 			}
 		} catch (error) {
@@ -1539,26 +1557,8 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Filter to currently enabled plugins for the initial pipeline
-		const enabledPluginList = allPipelinePlugins.filter((p) => enabledPlugins.has(p.id));
-
-		// Create hook pipeline. getDb travels here (not just via the email
-		// setContextFactory call below) so it survives rebuildHookPipeline(),
-		// which reconstructs the factory from pipelineFactoryOptions. Without it,
-		// toggling a plugin on an email-less deployment would silently revert
-		// plugin contexts to the singleton db — re-breaking connection-backed
-		// adapters. See #1622.
-		const pipelineFactoryOptions = {
-			db,
-			getDb: resolveDb,
-			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
-			storage: storage ?? undefined,
-			siteInfo,
-		};
-		const pipeline = createHookPipeline(enabledPluginList, pipelineFactoryOptions);
-
 		// Load sandboxed plugins (build-time, sandbox runner path)
-		const sandboxedPlugins = await phase("rt.sandbox", "Sandboxed plugins", () =>
+		const sandboxedPluginPool = await phase("rt.sandbox", "Sandboxed plugins", () =>
 			EmDashRuntime.loadSandboxedPlugins(deps, db, storage, siteInfo),
 		);
 
@@ -1576,7 +1576,7 @@ export class EmDashRuntime {
 						db,
 						storage,
 						deps,
-						sandboxedPlugins,
+						sandboxedPluginPool,
 						siteInfo,
 					),
 				),
@@ -1595,7 +1595,7 @@ export class EmDashRuntime {
 						db,
 						storage,
 						deps,
-						sandboxedPlugins,
+						sandboxedPluginPool,
 						siteInfo,
 					),
 				),
@@ -1604,6 +1604,41 @@ export class EmDashRuntime {
 		if (installedTierPhases.length > 0) {
 			await Promise.all(installedTierPhases);
 		}
+
+		const configuredSandboxIds = new Set(deps.sandboxedPluginEntries.map((entry) => entry.id));
+		const sandboxedPlugins = new Map(
+			[...sandboxedPluginPool].filter(([pluginKey]) => {
+				const pluginId = pluginKey.slice(0, pluginKey.lastIndexOf(":"));
+				return configuredSandboxIds.has(pluginId) || pluginStates.get(pluginId) === "active";
+			}),
+		);
+
+		// Add isolate-backed proxies to the same host pipeline as trusted
+		// plugins. The proxy carries only manifest metadata and RPC handlers;
+		// plugin code remains inside the configured runner.
+		for (const [pluginKey, instance] of sandboxedPlugins) {
+			const manifest = sandboxedManifestCache.get(pluginKey);
+			if (!manifest) continue;
+			allPipelinePlugins.push(createSandboxedPluginProxy(manifest, instance));
+			const status = pluginStates.get(manifest.id);
+			if (status === undefined || status === "active") enabledPlugins.add(manifest.id);
+		}
+
+		// Create hook pipeline. getDb travels here (not just via the email
+		// setContextFactory call below) so it survives rebuildHookPipeline(),
+		// which reconstructs the factory from pipelineFactoryOptions. Without it,
+		// toggling a plugin on an email-less deployment would silently revert
+		// plugin contexts to the singleton db — re-breaking connection-backed
+		// adapters. See #1622.
+		const pipelineFactoryOptions = {
+			db,
+			getDb: resolveDb,
+			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
+			storage: storage ?? undefined,
+			siteInfo,
+		};
+		const enabledPluginList = allPipelinePlugins.filter((p) => enabledPlugins.has(p.id));
+		const pipeline = createHookPipeline(enabledPluginList, pipelineFactoryOptions);
 
 		// Initialize media providers
 		const mediaProviders = new Map<string, MediaProvider>();
@@ -1743,6 +1778,7 @@ export class EmDashRuntime {
 				// Non-fatal — CMS works without cron
 			}
 		});
+		sandboxRunner?.setCronReschedule?.(() => cronScheduler?.reschedule());
 
 		const runtime = new EmDashRuntime({
 			db,
@@ -2023,11 +2059,6 @@ export class EmDashRuntime {
 			trailingSlash?: "always" | "never" | "ignore";
 		},
 	): Promise<Map<string, SandboxedPluginInstance>> {
-		// Return cached plugins if already loaded
-		if (sandboxedPluginCache.size > 0) {
-			return sandboxedPluginCache;
-		}
-
 		// Check if sandboxing is enabled
 		if (!deps.sandboxEnabled) {
 			return sandboxedPluginCache;
@@ -2096,6 +2127,21 @@ export class EmDashRuntime {
 			}
 
 			try {
+				const adminPages = entry.adminPages?.map((page) => ({
+					path: page.path,
+					label: page.label ?? page.path,
+					icon: page.icon,
+				}));
+				const adminWidgets: PluginDashboardWidget[] | undefined = entry.adminWidgets?.map(
+					(widget) => ({
+						id: widget.id,
+						title: widget.title,
+						size:
+							widget.size === "full" || widget.size === "half" || widget.size === "third"
+								? widget.size
+								: undefined,
+					}),
+				);
 				// Build manifest from entry's declared config
 				const manifest: PluginManifest = {
 					id: entry.id,
@@ -2103,14 +2149,23 @@ export class EmDashRuntime {
 					capabilities: entry.capabilities ?? [],
 					allowedHosts: entry.allowedHosts ?? [],
 					storage: entry.storage ?? {},
-					hooks: entry.hooks ?? [],
+					// Descriptors built before hook metadata was emitted must keep
+					// working. Invoking an absent hook is a no-op in both runners.
+					hooks: entry.hooks ?? [...HOOK_NAMES],
 					routes: entry.routes ?? [],
-					admin: {},
+					admin: {
+						pages: adminPages,
+						widgets: adminWidgets,
+						settingsSchema: entry.settingsSchema,
+						portableTextBlocks: entry.portableTextBlocks,
+						fieldWidgets: entry.fieldWidgets,
+					},
 					mcp: entry.mcp,
 				};
 
 				const plugin = await sandboxRunner.load(manifest, entry.code);
 				sandboxedPluginCache.set(pluginKey, plugin);
+				sandboxedManifestCache.set(pluginKey, manifest);
 				console.log(
 					`EmDash: Loaded sandboxed plugin ${pluginKey} with capabilities: [${manifest.capabilities.join(", ")}]`,
 				);
@@ -2220,6 +2275,7 @@ export class EmDashRuntime {
 
 					const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
 					cache.set(pluginKey, loaded);
+					sandboxedManifestCache.set(pluginKey, bundle.manifest);
 					keySet.add(pluginKey);
 
 					// Cache manifest admin config for getManifest()
@@ -2837,17 +2893,6 @@ export class EmDashRuntime {
 			}
 		}
 
-		// Run beforeSave hooks (sandboxed plugins)
-		const sandboxResult = await this.runSandboxedBeforeSave(
-			processedData,
-			collection,
-			true,
-			undefined,
-			actor,
-		);
-		if (!sandboxResult.success) return sandboxResult;
-		processedData = sandboxResult.data;
-
 		// Normalize media fields (fill dimensions, storageKey, etc.)
 		processedData = await this.normalizeMediaFields(collection, processedData);
 
@@ -2958,19 +3003,8 @@ export class EmDashRuntime {
 				}
 			}
 
-			// Run sandboxed beforeSave hooks
-			const sandboxResult = await this.runSandboxedBeforeSave(
-				processedData!,
-				collection,
-				false,
-				resolvedItem?.id,
-				actor,
-			);
-			if (!sandboxResult.success) return sandboxResult;
-			processedData = sandboxResult.data;
-
 			// Normalize media fields (fill dimensions, storageKey, etc.)
-			processedData = await this.normalizeMediaFields(collection, processedData);
+			processedData = await this.normalizeMediaFields(collection, processedData!);
 
 			// Validate field-level shape BEFORE the draft-revision write so
 			// invalid updates can't silently land in revision history.
@@ -3159,18 +3193,6 @@ export class EmDashRuntime {
 					},
 				};
 			}
-		}
-
-		// Run sandboxed beforeDelete hooks
-		const sandboxAllowed = await this.runSandboxedBeforeDelete(id, collection);
-		if (!sandboxAllowed) {
-			return {
-				success: false,
-				error: {
-					code: "DELETE_BLOCKED",
-					message: "Delete blocked by sandboxed plugin hook",
-				},
-			};
 		}
 
 		// Delete the content
@@ -4047,89 +4069,6 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	private async runSandboxedBeforeSave(
-		content: Record<string, unknown>,
-		collection: string,
-		isNew: boolean,
-		contentId?: string,
-		actor?: ActorInfo,
-	) {
-		let result = content;
-
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [id] = pluginKey.split(":");
-			if (!id || !this.isPluginEnabled(id)) continue;
-
-			try {
-				const event: ContentHookEvent = { content: result, collection, isNew };
-				if (contentId !== undefined) event.id = contentId;
-				if (actor !== undefined) event.actor = { ...actor };
-				const hookResult = await plugin.invokeHook("content:beforeSave", event);
-				const inspection = inspectSandboxHookResult(hookResult);
-				if (inspection.kind === "error") {
-					return {
-						success: false as const,
-						error: {
-							code: ErrorCode.SAVE_REJECTED,
-							message: "Save rejected by a sandboxed plugin",
-							details: { pluginId: id, reason: inspection.error.reason },
-						},
-					};
-				}
-				if (inspection.kind === "malformed") {
-					console.error(`EmDash: Sandboxed plugin ${id} returned an invalid hook result`);
-					return {
-						success: false as const,
-						error: {
-							code: ErrorCode.CONTENT_HOOK_ERROR,
-							message: "A plugin hook failed while saving content",
-						},
-					};
-				}
-				if (hookResult && typeof hookResult === "object" && !Array.isArray(hookResult)) {
-					// Sandbox returns unknown; convert to record by iterating own properties
-					const record: Record<string, unknown> = {};
-					for (const [k, v] of Object.entries(hookResult)) {
-						record[k] = v;
-					}
-					result = record;
-				}
-			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${id} beforeSave hook failed:`, error);
-				return {
-					success: false as const,
-					error: {
-						code: ErrorCode.CONTENT_HOOK_ERROR,
-						message: "A plugin hook failed while saving content",
-					},
-				};
-			}
-		}
-
-		return { success: true as const, data: result };
-	}
-
-	private async runSandboxedBeforeDelete(id: string, collection: string): Promise<boolean> {
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [pluginId] = pluginKey.split(":");
-			if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-			try {
-				const result = await plugin.invokeHook("content:beforeDelete", {
-					id,
-					collection,
-				});
-				if (result === false) {
-					return false;
-				}
-			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${pluginId} beforeDelete hook error:`, error);
-			}
-		}
-
-		return true;
-	}
-
 	private runAfterSaveHooks(
 		content: Record<string, unknown>,
 		collection: string,
@@ -4145,26 +4084,6 @@ export class EmDashRuntime {
 					console.error("EmDash afterSave hook error:", err);
 				}
 			}
-
-			// Sandboxed plugins
-			const tasks: Promise<void>[] = [];
-			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-				const [id] = pluginKey.split(":");
-				if (!id || !this.isPluginEnabled(id)) continue;
-
-				tasks.push(
-					(async () => {
-						try {
-							const event: ContentHookEvent = { content, collection, isNew };
-							if (actor !== undefined) event.actor = { ...actor };
-							await plugin.invokeHook("content:afterSave", event);
-						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${id} afterSave error:`, err);
-						}
-					})(),
-				);
-			}
-			await Promise.allSettled(tasks);
 		});
 	}
 
@@ -4178,24 +4097,6 @@ export class EmDashRuntime {
 					console.error("EmDash afterDelete hook error:", err);
 				}
 			}
-
-			// Sandboxed plugins
-			const tasks: Promise<void>[] = [];
-			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-				const [pluginId] = pluginKey.split(":");
-				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-				tasks.push(
-					(async () => {
-						try {
-							await plugin.invokeHook("content:afterDelete", { id, collection, permanent });
-						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} afterDelete error:`, err);
-						}
-					})(),
-				);
-			}
-			await Promise.allSettled(tasks);
 		});
 	}
 
@@ -4236,24 +4137,6 @@ export class EmDashRuntime {
 					console.error(`EmDash ${label} hook error:`, err);
 				}
 			}
-
-			// Sandboxed plugins
-			const tasks: Promise<void>[] = [];
-			for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-				const [pluginId] = pluginKey.split(":");
-				if (!pluginId || !this.isPluginEnabled(pluginId)) continue;
-
-				tasks.push(
-					(async () => {
-						try {
-							await plugin.invokeHook(name, { content, collection });
-						} catch (err) {
-							console.error(`EmDash: Sandboxed plugin ${pluginId} ${label} error:`, err);
-						}
-					})(),
-				);
-			}
-			await Promise.allSettled(tasks);
 		});
 	}
 
@@ -4368,26 +4251,6 @@ export class EmDashRuntime {
 			const results = await this.hooks.runPageFragments({ page });
 			for (const r of results) {
 				fragments.push(...r.contributions);
-			}
-		}
-
-		// Sandboxed plugins — metadata only, never fragments
-		for (const [pluginKey, plugin] of this.sandboxedPlugins) {
-			const [id] = pluginKey.split(":");
-			if (!id || !this.isPluginEnabled(id)) continue;
-
-			try {
-				const result = await plugin.invokeHook("page:metadata", { page });
-				if (result != null) {
-					const items = Array.isArray(result) ? result : [result];
-					for (const item of items) {
-						if (isValidMetadataContribution(item)) {
-							metadata.push(item);
-						}
-					}
-				}
-			} catch (error) {
-				console.error(`EmDash: Sandboxed plugin ${id} page:metadata error:`, error);
 			}
 		}
 

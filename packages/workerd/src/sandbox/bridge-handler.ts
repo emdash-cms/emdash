@@ -16,14 +16,23 @@
 
 import {
 	ContentRepository,
+	CronAccessImpl,
+	createContentAccess,
 	createHttpAccess,
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
+	normalizeCapabilities,
 	PluginStorageRepository,
 	StorageSerializationError,
 	resolveContentCreateLocale,
 } from "emdash";
-import type { Database, I18nConfig, SandboxEmailSendCallback } from "emdash";
+import type {
+	ContentFieldFilters,
+	ContentListOptions,
+	Database,
+	I18nConfig,
+	SandboxEmailSendCallback,
+} from "emdash";
 import type { Kysely } from "kysely";
 
 /**
@@ -112,6 +121,7 @@ export interface BridgeHandlerOptions {
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
 	emailSend: () => SandboxEmailSendCallback | null;
+	cronReschedule?: () => void;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
 }
@@ -123,6 +133,7 @@ export interface BridgeHandlerOptions {
 export function createBridgeHandler(
 	opts: BridgeHandlerOptions,
 ): (request: Request) => Promise<Response> {
+	const normalizedOpts = { ...opts, capabilities: normalizeCapabilities(opts.capabilities) };
 	return async (request: Request): Promise<Response> => {
 		try {
 			const url = new URL(request.url);
@@ -140,7 +151,7 @@ export function createBridgeHandler(
 				}
 			}
 
-			const result = await dispatch(opts, method, body);
+			const result = await dispatch(normalizedOpts, method, body);
 			return Response.json({ result });
 		} catch (error) {
 			const sandboxRouteError = createSandboxRouteErrorEnvelope(error);
@@ -211,13 +222,13 @@ async function dispatch(
 
 		// ── Content ─────────────────────────────────────────────────────
 		case "content/get":
-			requireCapability(opts, "read:content");
+			requireCapability(opts, "content:read");
 			return contentGet(db, requireString(body, "collection"), requireString(body, "id"));
 		case "content/list":
-			requireCapability(opts, "read:content");
+			requireCapability(opts, "content:read");
 			return contentList(db, requireString(body, "collection"), body);
 		case "content/create":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			const createOptions = optionalRecord(body, "options");
 			const locale = resolveContentCreateLocale(
 				createOptions ? optionalString(createOptions, "locale") : undefined,
@@ -231,7 +242,7 @@ async function dispatch(
 				locale,
 			);
 		case "content/update":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentUpdate(
 				db,
@@ -240,11 +251,11 @@ async function dispatch(
 				requireRecord(body, "data"),
 			);
 		case "content/delete":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
 		case "content/createMany":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
 			await opts.beforeContentWrite?.();
 			return contentCreateMany(
@@ -254,7 +265,7 @@ async function dispatch(
 				createManyLocale,
 			);
 		case "content/updateMany":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentUpdateMany(
 				db,
@@ -262,7 +273,7 @@ async function dispatch(
 				requireUpdateManyItems(body, "items"),
 			);
 		case "content/deleteMany":
-			requireCapability(opts, "write:content");
+			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentDeleteMany(
 				db,
@@ -291,13 +302,13 @@ async function dispatch(
 
 		// ── Media ───────────────────────────────────────────────────────
 		case "media/get":
-			requireCapability(opts, "read:media");
+			requireCapability(opts, "media:read");
 			return mediaGet(db, requireString(body, "id"));
 		case "media/list":
-			requireCapability(opts, "read:media");
+			requireCapability(opts, "media:read");
 			return mediaList(db, body);
 		case "media/upload":
-			requireCapability(opts, "write:media");
+			requireCapability(opts, "media:write");
 			return mediaUpload(
 				db,
 				requireString(body, "filename"),
@@ -307,12 +318,12 @@ async function dispatch(
 				opts.storage,
 			);
 		case "media/delete":
-			requireCapability(opts, "write:media");
+			requireCapability(opts, "media:write");
 			return mediaDelete(db, requireString(body, "id"), opts.storage);
 
 		// ── HTTP ────────────────────────────────────────────────────────
 		case "http/fetch":
-			requireCapability(opts, "network:fetch");
+			requireCapability(opts, "network:request");
 			return httpFetch(requireString(body, "url"), body.init, opts);
 
 		// ── Email ───────────────────────────────────────────────────────
@@ -327,14 +338,30 @@ async function dispatch(
 
 		// ── Users ───────────────────────────────────────────────────────
 		case "users/get":
-			requireCapability(opts, "read:users");
+			requireCapability(opts, "users:read");
 			return userGet(db, requireString(body, "id"));
 		case "users/getByEmail":
-			requireCapability(opts, "read:users");
+			requireCapability(opts, "users:read");
 			return userGetByEmail(db, requireString(body, "email"));
 		case "users/list":
-			requireCapability(opts, "read:users");
+			requireCapability(opts, "users:read");
 			return userList(db, body);
+
+		// ── Cron ────────────────────────────────────────────────────────
+		case "cron/schedule":
+			return new CronAccessImpl(db, pluginId, opts.cronReschedule ?? (() => undefined)).schedule(
+				requireString(body, "name"),
+				{
+					schedule: requireString(body, "schedule"),
+					data: optionalRecord(body, "data"),
+				},
+			);
+		case "cron/cancel":
+			return new CronAccessImpl(db, pluginId, opts.cronReschedule ?? (() => undefined)).cancel(
+				requireString(body, "name"),
+			);
+		case "cron/list":
+			return new CronAccessImpl(db, pluginId, opts.cronReschedule ?? (() => undefined)).list();
 
 		// ── Storage (document store, scoped to declared collections) ────
 		case "storage/get":
@@ -599,20 +626,12 @@ function requireOrderBy(
 }
 
 function requireCapability(opts: BridgeHandlerOptions, capability: string): void {
-	// Strict capability check matching the Cloudflare PluginBridge.
-	// We do NOT imply write → read here: a plugin that declares only
-	// write:content cannot call ctx.content.get/list. The plugin must
-	// declare read:content explicitly. This matches the Cloudflare bridge
-	// behavior and ensures sandboxed plugins behave the same on both runners.
-	//
-	// Note: the in-process PluginContextFactory in core does build the read
-	// API onto the write object, so a trusted plugin can read with only
-	// write:content. The sandbox bridges are stricter on purpose — they
-	// enforce the manifest as written.
-	//
-	// The one exception: network:fetch:any is documented as a strict
-	// superset of network:fetch, so the broader capability satisfies it.
-	if (capability === "network:fetch" && opts.capabilities.includes("network:fetch:any")) return;
+	if (
+		capability === "network:request" &&
+		opts.capabilities.includes("network:request:unrestricted")
+	) {
+		return;
+	}
 	if (!opts.capabilities.includes(capability)) {
 		// Error message matches Cloudflare PluginBridge format
 		throw new Error(`Missing capability: ${capability}`);
@@ -651,10 +670,14 @@ function rowToContentItem(
 ): {
 	id: string;
 	type: string;
+	slug: string | null;
+	status: string;
 	data: Record<string, unknown>;
 	createdAt: string;
 	updatedAt: string;
 	locale: string;
+	publishedAt: string | null;
+	scheduledAt: string | null;
 } {
 	const data: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(row)) {
@@ -674,10 +697,14 @@ function rowToContentItem(
 	return {
 		id: typeof row.id === "string" ? row.id : String(row.id),
 		type: collection,
+		slug: typeof row.slug === "string" ? row.slug : null,
+		status: typeof row.status === "string" ? row.status : "draft",
 		data,
 		createdAt: typeof row.created_at === "string" ? row.created_at : new Date().toISOString(),
 		updatedAt: typeof row.updated_at === "string" ? row.updated_at : new Date().toISOString(),
 		locale: typeof row.locale === "string" ? row.locale : "en",
+		publishedAt: typeof row.published_at === "string" ? row.published_at : null,
+		scheduledAt: typeof row.scheduled_at === "string" ? row.scheduled_at : null,
 	};
 }
 
@@ -744,27 +771,18 @@ async function contentGet(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<{
-	id: string;
-	type: string;
-	data: Record<string, unknown>;
-	createdAt: string;
-	updatedAt: string;
-	locale: string;
-} | null> {
+): ReturnType<ReturnType<typeof createContentAccess>["get"]> {
 	validateCollectionName(collection);
-	const table = `ec_${collection}`;
 	try {
+		return await createContentAccess(db).get(collection, id);
+	} catch {
 		const row = await asContentDb(db)
-			.selectFrom(table)
+			.selectFrom(`ec_${collection}`)
 			.where("id", "=", id)
 			.where("deleted_at", "is", null)
 			.selectAll()
 			.executeTakeFirst();
-		if (!row) return null;
-		return rowToContentItem(collection, row);
-	} catch {
-		return null;
+		return row ? rowToContentItem(collection, row) : null;
 	}
 }
 
@@ -772,44 +790,43 @@ async function contentList(
 	db: Kysely<Database>,
 	collection: string,
 	opts: Record<string, unknown>,
-): Promise<{
-	items: Array<{
-		id: string;
-		type: string;
-		data: Record<string, unknown>;
-		createdAt: string;
-		updatedAt: string;
-		locale: string;
-	}>;
-	cursor?: string;
-	hasMore: boolean;
-}> {
+): ReturnType<ReturnType<typeof createContentAccess>["list"]> {
 	validateCollectionName(collection);
-	const table = `ec_${collection}`;
 	const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 100));
 	try {
+		const where = optionalRecord(opts, "where");
+		const fieldFilters = where?.fieldFilters;
+		if (fieldFilters !== undefined && !isRecord(fieldFilters)) {
+			throw new Error("Parameter where.fieldFilters must be an object when provided");
+		}
+		const options: ContentListOptions = {
+			limit,
+			cursor: optionalString(opts, "cursor"),
+			orderBy: requireOrderBy(opts, "orderBy"),
+			where: where
+				? {
+						status: optionalString(where, "status"),
+						locale: optionalString(where, "locale"),
+						// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- repository validates the open custom-field filter vocabulary
+						fieldFilters: fieldFilters as ContentFieldFilters | undefined,
+					}
+				: undefined,
+		};
+		return await createContentAccess(db).list(collection, options);
+	} catch {
 		let query = asContentDb(db)
-			.selectFrom(table)
+			.selectFrom(`ec_${collection}`)
 			.where("deleted_at", "is", null)
 			.selectAll()
 			.orderBy("id", "desc");
-
-		if (typeof opts.cursor === "string") {
-			query = query.where("id", "<", opts.cursor);
-		}
-
+		if (typeof opts.cursor === "string") query = query.where("id", "<", opts.cursor);
 		const rows = await query.limit(limit + 1).execute();
-		const pageRows = rows.slice(0, limit);
-		const items = pageRows.map((row) => rowToContentItem(collection, row));
-		const hasMore = rows.length > limit;
-
+		const items = rows.slice(0, limit).map((row) => rowToContentItem(collection, row));
 		return {
 			items,
-			cursor: hasMore && items.length > 0 ? items.at(-1)!.id : undefined,
-			hasMore,
+			cursor: rows.length > limit && items.length > 0 ? items.at(-1)!.id : undefined,
+			hasMore: rows.length > limit,
 		};
-	} catch {
-		return { items: [], hasMore: false };
 	}
 }
 
@@ -818,14 +835,7 @@ async function contentCreate(
 	collection: string,
 	data: Record<string, unknown>,
 	locale?: string,
-): Promise<{
-	id: string;
-	type: string;
-	data: Record<string, unknown>;
-	createdAt: string;
-	updatedAt: string;
-	locale: string;
-}> {
+): Promise<ReturnType<typeof rowToContentItem>> {
 	validateCollectionName(collection);
 	const table = `ec_${collection}`;
 
@@ -866,14 +876,12 @@ async function contentCreate(
 		.executeTakeFirst();
 
 	if (!created) {
-		return {
+		return rowToContentItem(collection, {
 			id,
-			type: collection,
-			data: {},
-			createdAt: now,
-			updatedAt: now,
+			created_at: now,
+			updated_at: now,
 			locale: locale ?? "en",
-		};
+		});
 	}
 	return rowToContentItem(collection, created);
 }
@@ -883,28 +891,24 @@ async function contentUpdate(
 	collection: string,
 	id: string,
 	data: Record<string, unknown>,
-): Promise<{
-	id: string;
-	type: string;
-	data: Record<string, unknown>;
-	createdAt: string;
-	updatedAt: string;
-	locale: string;
-}> {
+): Promise<ReturnType<typeof rowToContentItem>> {
 	validateCollectionName(collection);
 	const updated = await new ContentRepository(db).updateDraftAware(collection, id, {
 		data,
 		status: typeof data.status === "string" ? data.status : undefined,
 		slug: data.slug === undefined ? undefined : typeof data.slug === "string" ? data.slug : null,
 	});
-	return {
+	return rowToContentItem(collection, {
+		...updated.data,
 		id: updated.id,
-		type: updated.type,
-		data: updated.data,
-		createdAt: updated.createdAt,
-		updatedAt: updated.updatedAt,
-		locale: updated.locale ?? "en",
-	};
+		slug: updated.slug,
+		status: updated.status,
+		created_at: updated.createdAt,
+		updated_at: updated.updatedAt,
+		published_at: updated.publishedAt,
+		scheduled_at: updated.scheduledAt,
+		locale: updated.locale,
+	});
 }
 
 async function contentDelete(
@@ -1467,7 +1471,7 @@ async function httpFetch(
 	headers: Record<string, string>;
 	bodyBase64: string;
 }> {
-	const hasAnyFetch = opts.capabilities.includes("network:fetch:any");
+	const hasAnyFetch = opts.capabilities.includes("network:request:unrestricted");
 	const httpAccess = hasAnyFetch
 		? createUnrestrictedHttpAccess(opts.pluginId)
 		: createHttpAccess(opts.pluginId, opts.allowedHosts || []);

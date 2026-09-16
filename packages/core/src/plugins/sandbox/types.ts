@@ -262,6 +262,9 @@ export interface SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void;
 
+	/** Wake a long-lived scheduler after a sandboxed plugin changes its tasks. */
+	setCronReschedule?(callback: (() => void) | null): void;
+
 	/**
 	 * Terminate all loaded sandboxed plugins.
 	 * Called during shutdown or when reconfiguring.

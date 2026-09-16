@@ -7,6 +7,8 @@ import type {
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
 	ContentCreateOptions,
+	ContentListOptions,
+	CronTaskInfo,
 	UpdateIfArgs,
 	UpdateIfResult,
 	VersionedValue,
@@ -111,10 +113,21 @@ export interface LoadedPluginManifest {
 interface BridgeContentItem {
 	id: string;
 	type: string;
+	slug: string | null;
+	status: string;
+	locale: string | null;
 	data: Record<string, unknown>;
+	seo?: {
+		title: string | null;
+		description: string | null;
+		image: string | null;
+		canonical: string | null;
+		noIndex: boolean;
+	};
 	createdAt: string;
 	updatedAt: string;
-	locale: string;
+	publishedAt: string | null;
+	scheduledAt?: string | null;
 }
 
 /**
@@ -220,7 +233,7 @@ export interface PluginBridgeBinding {
 	contentGet(collection: string, id: string): Promise<BridgeContentItem | null>;
 	contentList(
 		collection: string,
-		opts?: { limit?: number; cursor?: string },
+		opts?: ContentListOptions,
 	): Promise<{ items: BridgeContentItem[]; cursor?: string; hasMore: boolean }>;
 	contentCreate(
 		collection: string,
@@ -261,6 +274,13 @@ export interface PluginBridgeBinding {
 	): Promise<{ status: number; headers: Record<string, string>; text: string }>;
 	// Email
 	emailSend(message: { to: string; subject: string; text: string; html?: string }): Promise<void>;
+	// Cron
+	cronSchedule(
+		name: string,
+		opts: { schedule: string; data?: Record<string, unknown> },
+	): Promise<void>;
+	cronCancel(name: string): Promise<void>;
+	cronList(): Promise<CronTaskInfo[]>;
 	// Logging
 	log(level: "debug" | "info" | "warn" | "error", msg: string, data?: unknown): void;
 }

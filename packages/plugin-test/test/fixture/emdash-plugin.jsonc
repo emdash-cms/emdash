@@ -9,4 +9,17 @@
 	"storage": {
 		"events": { "indexes": ["type"] },
 	},
+	"admin": {
+		"settingsSchema": {
+			"enabled": { "type": "boolean", "label": "Enabled", "default": true },
+		},
+		"fieldWidgets": [
+			{
+				"name": "event-picker",
+				"label": "Event",
+				"fieldTypes": ["string"],
+				"elements": [{ "type": "input", "action_id": "event" }],
+			},
+		],
+	},
 }

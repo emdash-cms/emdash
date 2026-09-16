@@ -12,6 +12,17 @@ afterEach(async () => {
 describe("plugin test host", () => {
 	it("loads the built plugin through Worker Loader and persists host state", async () => {
 		host = await createPluginTestHost();
+		expect(host.manifest.routes).toContainEqual({
+			name: "hello",
+			public: true,
+			cacheControl: "public, max-age=60",
+		});
+		expect(host.manifest.routes).toContainEqual({
+			name: "content-count",
+			permission: "content:read",
+		});
+		expect(host.manifest.admin.settingsSchema).toHaveProperty("enabled");
+		expect(host.manifest.admin.fieldWidgets?.[0]).toMatchObject({ name: "event-picker" });
 
 		await expect(host.invokeRoute("hello")).resolves.toEqual({
 			pluginId: "plugin-test-fixture",
