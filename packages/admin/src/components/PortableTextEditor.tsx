@@ -3900,11 +3900,10 @@ function EditorBubbleMenu({
 	const handleSetLink = () => {
 		if (editor.isActive("image")) {
 			const trimmed = linkUrl.trim();
-			editor
-				.chain()
-				.focus()
-				.updateAttributes("image", { link: trimmed ? { href: trimmed } : null })
-				.run();
+			// Keep an existing "open in new tab" choice when only the URL changes.
+			const existing = editor.getAttributes("image").link as { blank?: boolean } | null;
+			const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
+			editor.chain().focus().updateAttributes("image", { link }).run();
 		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
@@ -4415,11 +4414,10 @@ function EditorToolbar({
 	const handleSetLink = () => {
 		if (editor.isActive("image")) {
 			const trimmed = linkUrl.trim();
-			editor
-				.chain()
-				.focus()
-				.updateAttributes("image", { link: trimmed ? { href: trimmed } : null })
-				.run();
+			// Keep an existing "open in new tab" choice when only the URL changes.
+			const existing = editor.getAttributes("image").link as { blank?: boolean } | null;
+			const link = trimmed ? { href: trimmed, ...(existing?.blank ? { blank: true } : {}) } : null;
+			editor.chain().focus().updateAttributes("image", { link }).run();
 		} else if (linkUrl.trim() === "") {
 			editor.chain().focus().extendMarkRange("link").unsetLink().run();
 		} else {
