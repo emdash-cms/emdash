@@ -44,16 +44,6 @@ vi.mock("../src/components/PluginManager", async (importOriginal) => ({
 	PluginManager: () => <div>Plugin manager content</div>,
 }));
 
-vi.mock("../src/components/MarketplaceBrowse", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../src/components/MarketplaceBrowse")>()),
-	MarketplaceBrowse: () => <div>Marketplace browse content</div>,
-}));
-
-vi.mock("../src/components/ThemeMarketplaceBrowse", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../src/components/ThemeMarketplaceBrowse")>()),
-	ThemeMarketplaceBrowse: () => <div>Theme marketplace content</div>,
-}));
-
 vi.mock("../src/components/Settings", () => ({
 	Settings: () => <div>Settings content</div>,
 }));
@@ -133,8 +123,8 @@ const WRAPPED_ROUTES: Array<[string, string]> = [
 const UNWRAPPED_ROUTES: Array<[string, string]> = [
 	["/content-types", "Content types content"],
 	["/plugins-manager", "Plugin manager content"],
-	["/plugins/marketplace", "Marketplace browse content"],
-	["/themes/marketplace", "Theme marketplace content"],
+	["/plugins/marketplace", "Marketplace browsing is no longer available."],
+	["/themes/marketplace", "Marketplace browsing is no longer available."],
 ];
 
 describe("admin-only routes show Access denied to non-admins", () => {
