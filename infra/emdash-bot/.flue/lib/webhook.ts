@@ -113,6 +113,7 @@ export function classifyActor({
 
 interface User {
 	login?: string;
+	type?: string;
 }
 
 interface Label {
@@ -139,9 +140,11 @@ interface CommentLike {
 interface PullRequest {
 	number?: number;
 	user?: User;
-	head?: { ref?: string };
+	head?: { ref?: string; repo?: { full_name?: string } | null };
+	base?: { repo?: { full_name?: string } };
 	labels?: Label[];
 	draft?: boolean;
+	state?: string;
 	/** True when closed via merge; false when closed without merging. */
 	merged?: boolean;
 	author_association?: string;
@@ -196,6 +199,7 @@ export type NormalizeResult =
 			event: Omit<NormalizedEvent, "anchorNumber">;
 	  }
 	| { kind: "cleanup"; anchor: string; anchorNumber: number; deliveryId?: string }
+	| { kind: "review_state"; pullRequestNumber: number; authorLogin: string; draft: boolean }
 	| { kind: "skip"; reason: string }
 	| { kind: "pong" };
 
@@ -425,8 +429,8 @@ function normalizeIssueComment(
 /**
  * Pull request events. We act on `opened` / `reopened` / `closed` for
  * bot-authored PRs as `pr.*` events the machine consumes (pr.opened,
- * pr.merged). For non-bot PRs we skip -- the bot doesn't manage PRs it
- * didn't open.
+ * pr.merged). For non-bot PRs we skip -- the bot doesn't manage the
+ * lifecycle of PRs it didn't open.
  *
  * The bot-owned head branch is the trusted link back to the issue lifecycle.
  */
@@ -474,12 +478,13 @@ function normalizePullRequestReview(
 	deliveryId?: string,
 ): NormalizeResult {
 	const action = readString(event?.action);
-	if (action !== "submitted")
-		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
 	const pr = asRecord(event?.pull_request);
 	const issueNumber = botFixIssueNumber(pr);
+	if (issueNumber === null) return normalizeReviewState(action, pr);
+	if (action !== "submitted")
+		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
 	const pullRequestNumber = readNumber(pr?.number);
-	if (issueNumber === null || !pullRequestNumber || pr?.state === "closed") {
+	if (!pullRequestNumber || pr?.state === "closed") {
 		return { kind: "skip", reason: "pull_request_review is not on an open emdashbot fix PR" };
 	}
 	const review = asRecord(event?.review);
@@ -516,6 +521,34 @@ function normalizePullRequestReview(
 		triggeringComment: { body, authorLogin, authorAssociation, actor },
 		...(deliveryId ? { deliveryId } : {}),
 	});
+}
+
+/**
+ * A review on a fork PR the bot did not open only refreshes that PR's review/*
+ * label (see review-state.ts). review-state.yml handles reviews on same-repo
+ * PRs itself. Bot-authored PRs carry no review label.
+ */
+function normalizeReviewState(
+	action: string | undefined,
+	pr: Record<string, unknown> | undefined,
+): NormalizeResult {
+	if (action !== "submitted" && action !== "dismissed") {
+		return { kind: "skip", reason: `pull_request_review.${action} not handled` };
+	}
+	const pullRequestNumber = readNumber(pr?.number);
+	if (!pullRequestNumber) return { kind: "skip", reason: "pull_request_review missing PR number" };
+	if (pr?.state === "closed") return { kind: "skip", reason: "pull_request_review on a closed PR" };
+	const headRepo = readString(asRecord(asRecord(pr?.head)?.repo)?.full_name);
+	if (headRepo && headRepo === readString(asRecord(asRecord(pr?.base)?.repo)?.full_name)) {
+		return { kind: "skip", reason: "pull_request_review on a same-repo PR" };
+	}
+	const author = asRecord(pr?.user);
+	const authorLogin = readString(author?.login);
+	if (!authorLogin) return { kind: "skip", reason: "pull_request_review missing PR author" };
+	if (readString(author?.type) === "Bot" || authorLogin.endsWith("[bot]")) {
+		return { kind: "skip", reason: "pull_request_review on a bot-authored PR" };
+	}
+	return { kind: "review_state", pullRequestNumber, authorLogin, draft: pr?.draft === true };
 }
 
 /**
