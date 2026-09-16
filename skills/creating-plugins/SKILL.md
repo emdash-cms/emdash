@@ -81,19 +81,19 @@ Declare host access in `emdash-plugin.jsonc`. Capabilities, allowed hosts, and s
 
 Use only canonical capability names:
 
-| Capability                       | API or hook registration                                               |
-| -------------------------------- | ---------------------------------------------------------------------- |
-| `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                              |
-| `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read           |
-| `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`             |
-| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                  |
-| `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read               |
-| `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                        |
-| `network:request:unrestricted`   | `ctx.http.fetch()` without a manifest host list                        |
-| `users:read`                     | `ctx.users.get()`, `getByEmail()`, `list()`; required by comment hooks |
-| `email:send`                     | `ctx.email.send()` when a transport is configured                      |
-| `hooks.email-transport:register` | Exclusive `email:deliver` hook                                         |
-| `hooks.email-events:register`    | `email:beforeSend` and `email:afterSend` hooks                         |
+| Capability                       | API or hook registration                                                |
+| -------------------------------- | ----------------------------------------------------------------------- |
+| `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                               |
+| `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read            |
+| `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`              |
+| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                   |
+| `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read                |
+| `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                         |
+| `network:request:unrestricted`   | `ctx.http.fetch()` without a manifest host list                         |
+| `users:read`                     | `ctx.users.get()`, `getByEmail()`, `list()`; required by comment hooks  |
+| `email:send`                     | `ctx.email.send()` when a transport is configured                       |
+| `hooks.email-transport:register` | Exclusive `email:deliver` hook                                          |
+| `hooks.email-events:register`    | `email:beforeSend` and `email:afterSend` hooks                          |
 | `hooks.page-fragments:register`  | Declares `page:fragments`; sandbox builds warn and the host excludes it |
 
 The old `read:*`, `write:*`, `network:fetch*`, `email:provide`, `email:intercept`, and `page:inject` names are deprecated. Validation warns about them and publishing rejects them.

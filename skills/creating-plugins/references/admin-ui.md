@@ -105,11 +105,11 @@ Core and the admin contain a declarative field-widget path. Declare the widget i
 				"fieldTypes": ["json"],
 				"elements": [
 					{ "type": "text_input", "action_id": "eventId", "label": "Event ID" },
-					{ "type": "toggle", "action_id": "featured", "label": "Featured" }
-				]
-			}
-		]
-	}
+					{ "type": "toggle", "action_id": "featured", "label": "Featured" },
+				],
+			},
+		],
+	},
 }
 ```
 
