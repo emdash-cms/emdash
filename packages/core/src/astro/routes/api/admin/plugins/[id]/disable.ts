@@ -9,6 +9,7 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, unwrapResult } from "#api/error.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
+import { disableRuntimePlugin } from "#plugins/lifecycle.js";
 
 export const prerender = false;
 
@@ -30,5 +31,5 @@ export const POST: APIRoute = async ({ params, locals }) => {
 		return apiError("INVALID_REQUEST", "Plugin ID required", 400);
 	}
 
-	return unwrapResult(await emdash.handlePluginDisable(id));
+	return unwrapResult(await disableRuntimePlugin(emdash, id));
 };

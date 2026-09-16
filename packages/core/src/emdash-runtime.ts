@@ -19,10 +19,6 @@ import {
 	handleMediaUpload as uploadMedia,
 	type MediaUploadInput,
 } from "./api/handlers/media-upload.js";
-import {
-	handlePluginDisable as disablePlugin,
-	handlePluginEnable as enablePlugin,
-} from "./api/handlers/plugins.js";
 import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
@@ -195,7 +191,7 @@ import {
 } from "./index.js";
 import { getDb } from "./loader.js";
 import { isRecord } from "./plugin-utils.js";
-import { CronExecutor, setCronTasksEnabled, type InvokeCronHookFn } from "./plugins/cron.js";
+import { CronExecutor, type InvokeCronHookFn } from "./plugins/cron.js";
 import { definePlugin } from "./plugins/define-plugin.js";
 import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/email-console.js";
 import { EmailPipeline } from "./plugins/email.js";
@@ -204,6 +200,7 @@ import {
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
+import { disableRuntimePlugin, enableRuntimePlugin } from "./plugins/lifecycle.js";
 import { HOOK_NAMES, normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
 import {
@@ -838,34 +835,11 @@ export class EmDashRuntime {
 	}
 
 	async handlePluginEnable(pluginId: string) {
-		const result = await enablePlugin(
-			this.db,
-			this.configuredPlugins,
-			this.sandboxedPluginEntries,
-			pluginId,
-		);
-		if (!result.success) return result;
-
-		const source = result.data.item.source;
-		if (source === "registry") await this.syncRegistryPlugins();
-		else if (source === "marketplace") await this.syncMarketplacePlugins();
-		await this.setPluginStatus(pluginId, "active");
-		await setCronTasksEnabled(this.db, pluginId, true);
-		return result;
+		return enableRuntimePlugin(this, pluginId);
 	}
 
 	async handlePluginDisable(pluginId: string) {
-		const result = await disablePlugin(
-			this.db,
-			this.configuredPlugins,
-			this.sandboxedPluginEntries,
-			pluginId,
-		);
-		if (!result.success) return result;
-
-		await this.setPluginStatus(pluginId, "inactive");
-		await setCronTasksEnabled(this.db, pluginId, false);
-		return result;
+		return disableRuntimePlugin(this, pluginId);
 	}
 
 	/** Dispatch teardown lifecycle while the runtime-installed isolate is still loaded. */
