@@ -1,4 +1,4 @@
-import { sql, type Kysely } from "kysely";
+import { PostgresAdapter, sql, type Kysely } from "kysely";
 
 import {
 	DatetimeNormalizationError,
@@ -45,8 +45,21 @@ interface ScanState extends DatetimeStorageReport {
 	write: boolean;
 }
 
+interface DatetimeColumnChange {
+	before: unknown;
+	after: unknown;
+	json: boolean;
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function serializedJson(value: unknown): string {
+	if (typeof value === "string") return value;
+	const serialized = JSON.stringify(value);
+	if (serialized === undefined) throw new Error("Could not serialize repeater datetime data");
+	return serialized;
 }
 
 function addSample(state: ScanState, sample: DatetimeStorageSample): void {
@@ -198,6 +211,7 @@ async function scanContentRows(
 ): Promise<void> {
 	validateIdentifier(schema.slug, "collection slug");
 	const table = `ec_${schema.slug}`;
+	const postgres = db.getExecutor().adapter instanceof PostgresAdapter;
 	const fieldColumns = schema.fields.map((field) => field.slug);
 	for (const column of fieldColumns) validateIdentifier(column, "content datetime field");
 	const columns = [...SYSTEM_DATETIME_COLUMNS, ...fieldColumns];
@@ -214,7 +228,7 @@ async function scanContentRows(
 		if (result.rows.length === 0) break;
 		for (const row of result.rows) {
 			const id = String(row.id);
-			const changes = new Map<string, { before: unknown; after: unknown }>();
+			const changes = new Map<string, DatetimeColumnChange>();
 			for (const column of SYSTEM_DATETIME_COLUMNS) {
 				const current = row[column];
 				if (current === null || current === undefined || current === "") continue;
@@ -222,7 +236,7 @@ async function scanContentRows(
 					const normalized = normalizeDatetime(current, state.timezone);
 					recordNormalization(state, `${table}/${id}.${column}`, current, normalized);
 					if (normalized.value !== current) {
-						changes.set(column, { before: current, after: normalized.value });
+						changes.set(column, { before: current, after: normalized.value, json: false });
 					}
 				} catch (error) {
 					recordError(state, `${table}/${id}.${column}`, current, error);
@@ -258,6 +272,7 @@ async function scanContentRows(
 					changes.set(field.slug, {
 						before: row[field.slug],
 						after: field.type === "repeater" ? JSON.stringify(after) : after,
+						json: field.type === "repeater",
 					});
 				} catch (error) {
 					recordError(state, `${table}/${id}.${field.slug}`, before, error);
@@ -274,10 +289,14 @@ async function scanContentRows(
 					const batch = changeEntries.slice(offset, offset + DATETIME_UPDATE_COLUMN_BATCH_SIZE);
 					const assignments = batch.map(([column, change]) => {
 						validateIdentifier(column, "content datetime column");
-						return sql`${sql.ref(column)} = ${change.after}`;
+						return change.json && postgres
+							? sql`${sql.ref(column)} = CAST(${change.after} AS JSON)`
+							: sql`${sql.ref(column)} = ${change.after}`;
 					});
-					const predicates = batch.map(
-						([column, change]) => sql`${sql.ref(column)} = ${change.before}`,
+					const predicates = batch.map(([column, change]) =>
+						change.json && postgres
+							? sql`CAST(${sql.ref(column)} AS JSONB) = CAST(${serializedJson(change.before)} AS JSONB)`
+							: sql`${sql.ref(column)} = ${change.before}`,
 					);
 					await sql`
 						UPDATE ${sql.ref(table)}
