@@ -489,7 +489,7 @@ const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
  */
 function normalizeDateBound(value: string | undefined, edge: "start" | "end"): string | undefined {
 	if (!value) return undefined;
-	if (!DATE_ONLY_RE.test(value)) return value;
+	if (!DATE_ONLY_RE.test(value)) return new Date(value).toISOString();
 	return edge === "start" ? `${value}T00:00:00.000Z` : `${value}T23:59:59.999Z`;
 }
 

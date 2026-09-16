@@ -263,6 +263,8 @@ export interface ContentEditorProps {
 	readOnly?: boolean;
 	/** Rendered above the fields; carries the edit-lock dialog and banner. */
 	notice?: React.ReactNode;
+	/** IANA timezone used to interpret datetime-local fields. */
+	timezone?: string;
 }
 
 /**
@@ -317,6 +319,7 @@ export function ContentEditor({
 	manifest,
 	readOnly = false,
 	notice,
+	timezone = "UTC",
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
@@ -1154,6 +1157,7 @@ export function ContentEditor({
 											}
 											manifest={manifest}
 											readOnly={readOnly}
+											timezone={timezone}
 										/>
 									);
 									return fieldEl;
@@ -1507,6 +1511,7 @@ interface FieldRendererProps {
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 	/** Render the value without accepting edits. */
 	readOnly?: boolean;
+	timezone: string;
 }
 
 /**
@@ -1524,6 +1529,7 @@ function FieldRenderer({
 	onBlockSidebarClose,
 	manifest,
 	readOnly = false,
+	timezone,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -1759,8 +1765,14 @@ function FieldRenderer({
 					label={label}
 					id={id}
 					type="datetime-local"
-					value={toDatetimeLocalInputValue(value)}
-					onChange={(e) => handleChange(fromDatetimeLocalInputValue(e.target.value))}
+					value={toDatetimeLocalInputValue(value, timezone)}
+					onChange={(e) => {
+						try {
+							handleChange(fromDatetimeLocalInputValue(e.target.value, timezone));
+						} catch {
+							handleChange(e.target.value);
+						}
+					}}
 					required={field.required}
 				/>
 			);
@@ -1834,6 +1846,7 @@ function FieldRenderer({
 					onChange={handleChange}
 					required={field.required}
 					subFields={subFields}
+					timezone={timezone}
 					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
 					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
 				/>

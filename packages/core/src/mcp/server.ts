@@ -1410,9 +1410,9 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
-				scheduledAt: z
-					.string()
-					.describe("ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')"),
+				scheduledAt: contentDateTimeInputSchema.describe(
+					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
+				),
 			}),
 		},
 		async (args, extra) => {

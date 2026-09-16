@@ -86,18 +86,7 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 			return z.preprocess((v) => (v === 0 || v === 1 ? Boolean(v) : v), z.boolean());
 
 		case "datetime":
-			// Accept every value that legitimately round-trips through the admin
-			// and seeds: ISO with `Z`, ISO with a timezone offset, a naive
-			// datetime (`YYYY-MM-DDTHH:mm[:ss]` -- what `<input type="datetime-local">`
-			// and many seeds produce), and a date-only value. The admin re-sends
-			// every loaded field on autosave, so a stored naive datetime must
-			// validate or the entry becomes unsavable through its own editor
-			// (#1368; same class as #867). `z.iso.*` retains semantic validation,
-			// so impossible dates are still rejected.
-			return z.iso
-				.datetime({ offset: true, local: true })
-				.or(z.iso.datetime({ offset: true, local: true, precision: -1 }))
-				.or(z.iso.date());
+			return z.iso.datetime({ offset: true }).or(z.iso.datetime({ offset: true, precision: -1 }));
 
 		case "select": {
 			const options = field.validation?.options;

@@ -134,6 +134,8 @@ export interface AdminManifest {
 	version: string;
 	/** Version of Astro the host is built with, when resolvable. */
 	astroVersion?: string;
+	/** IANA timezone used to interpret datetime-local editor values. */
+	timezone?: string;
 	hash: string;
 	collections: Record<
 		string,

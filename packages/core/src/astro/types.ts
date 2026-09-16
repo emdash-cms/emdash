@@ -135,6 +135,8 @@ export interface EmDashManifest {
 	 * registry plugin's `env:astro` requirement against the running host.
 	 */
 	astroVersion?: string;
+	/** IANA timezone used by datetime-local controls in the admin. */
+	timezone?: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;
 	/**

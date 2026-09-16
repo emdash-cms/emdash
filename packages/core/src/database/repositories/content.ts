@@ -2,12 +2,14 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
+import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
+import { ContentDatetimeNormalizer } from "../content-datetime.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 import { RevisionRepository } from "./revision.js";
@@ -316,7 +318,11 @@ function escapeRegExp(s: string): string {
  * Each field becomes a real column in the table.
  */
 export class ContentRepository {
-	constructor(private db: Kysely<Database>) {}
+	private readonly datetimes: ContentDatetimeNormalizer;
+
+	constructor(private db: Kysely<Database>) {
+		this.datetimes = new ContentDatetimeNormalizer(db);
+	}
 
 	/**
 	 * Create a new content item
@@ -328,7 +334,7 @@ export class ContentRepository {
 		const {
 			type,
 			slug,
-			data,
+			data: inputData,
 			status = "draft",
 			authorId,
 			primaryBylineId,
@@ -337,6 +343,13 @@ export class ContentRepository {
 			publishedAt,
 			createdAt,
 		} = input;
+		const data = await this.datetimes.normalizeData(type, inputData);
+		const normalizedCreatedAt = createdAt
+			? await this.datetimes.normalizeValue(type, createdAt)
+			: now;
+		const normalizedPublishedAt = publishedAt
+			? await this.datetimes.normalizeValue(type, publishedAt)
+			: null;
 
 		// Validate required fields
 		if (!type) {
@@ -375,9 +388,9 @@ export class ContentRepository {
 			status,
 			authorId || null,
 			primaryBylineId ?? null,
-			createdAt || now,
+			normalizedCreatedAt,
 			now,
-			publishedAt || null,
+			normalizedPublishedAt,
 			1,
 			locale || "en",
 			translationGroup,
@@ -847,15 +860,6 @@ export class ContentRepository {
 		return mappedResult;
 	}
 
-	private normalizeScheduledAt(value: string | null): string | null {
-		if (value === null) return null;
-		const scheduledDate = new Date(value);
-		if (isNaN(scheduledDate.getTime())) {
-			throw new EmDashValidationError("Invalid scheduled date");
-		}
-		return scheduledDate.toISOString();
-	}
-
 	/**
 	 * Update content
 	 */
@@ -876,11 +880,17 @@ export class ContentRepository {
 		}
 
 		if (input.publishedAt !== undefined) {
-			updates.published_at = input.publishedAt;
+			updates.published_at =
+				input.publishedAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.publishedAt);
 		}
 
 		if (input.scheduledAt !== undefined) {
-			updates.scheduled_at = this.normalizeScheduledAt(input.scheduledAt);
+			updates.scheduled_at =
+				input.scheduledAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.scheduledAt);
 		}
 
 		if (input.authorId !== undefined) {
@@ -893,7 +903,8 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			for (const [key, value] of Object.entries(writableContentData(input.data))) {
+			const data = await this.datetimes.normalizeData(type, writableContentData(input.data));
+			for (const [key, value] of Object.entries(data)) {
 				updates[key] = serializeValue(value);
 			}
 		}
@@ -930,7 +941,9 @@ export class ContentRepository {
 		id: string,
 		input: UpdateContentInput,
 	): Promise<ContentItem> {
-		const data = input.data ? writableContentData(input.data) : {};
+		const data = input.data
+			? await this.datetimes.normalizeData(type, writableContentData(input.data))
+			: {};
 		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
 		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;
 
@@ -1035,11 +1048,19 @@ export class ContentRepository {
 			liveMetadataChanged = true;
 		}
 		if (input.publishedAt !== undefined) {
-			assignments.push(sql`published_at = ${input.publishedAt}`);
+			const publishedAt =
+				input.publishedAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.publishedAt);
+			assignments.push(sql`published_at = ${publishedAt}`);
 			liveMetadataChanged = true;
 		}
 		if (input.scheduledAt !== undefined) {
-			assignments.push(sql`scheduled_at = ${this.normalizeScheduledAt(input.scheduledAt)}`);
+			const scheduledAt =
+				input.scheduledAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.scheduledAt);
+			assignments.push(sql`scheduled_at = ${scheduledAt}`);
 			liveMetadataChanged = true;
 		}
 		if (input.authorId !== undefined) {
@@ -1119,6 +1140,7 @@ export class ContentRepository {
 			}
 		}
 		if (Object.keys(values).length === 0) return;
+		const normalizedValues = await this.datetimes.normalizeData(type, values);
 
 		const supportsRaw = collectionRows[0]?.supports;
 		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
@@ -1132,7 +1154,9 @@ export class ContentRepository {
 
 		let changed = false;
 		for (const row of siblings.rows) {
-			if (await this.syncSiblingValues(type, this.mapRow(type, row), values, usesRevisions)) {
+			if (
+				await this.syncSiblingValues(type, this.mapRow(type, row), normalizedValues, usesRevisions)
+			) {
 				changed = true;
 			}
 		}
@@ -1985,6 +2009,12 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 		assertRevisionPrecondition(existing, expectedRevision);
+		const requestedPublishedAt = publishedAt
+			? await this.datetimes.normalizeValue(type, publishedAt)
+			: undefined;
+		const currentPublishedAt = existing.publishedAt
+			? await this.datetimes.normalizeValue(type, existing.publishedAt)
+			: null;
 		if (
 			requireDue &&
 			expectedScheduledAt !== undefined &&
@@ -2011,7 +2041,7 @@ export class ContentRepository {
 					provisionalRevisionId = revision.id;
 				}
 
-				const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+				const intendedPublishedAt = requestedPublishedAt ?? currentPublishedAt ?? now;
 				const duePredicate = requireDue
 					? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
 					: sql``;
@@ -2115,7 +2145,7 @@ export class ContentRepository {
 			if (requireSlug && !intendedSlug?.trim()) {
 				throw new EmDashValidationError("Cannot publish routable content without a slug");
 			}
-			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+			const intendedPublishedAt = requestedPublishedAt ?? currentPublishedAt ?? now;
 			if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
 				const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
 				if (conflict && conflict.id !== id) {
@@ -2490,6 +2520,15 @@ export class ContentRepository {
 			throw new EmDashValidationError(
 				`Filter value for field "${field}" exceeds ${MAX_FILTER_STRING_LENGTH} characters`,
 			);
+		}
+		if (type === "datetime") {
+			try {
+				return normalizeExplicitDatetime(value);
+			} catch {
+				throw new EmDashValidationError(
+					`Filter for datetime field "${field}" must use an ISO 8601 datetime with Z or an explicit offset`,
+				);
+			}
 		}
 		return value;
 	}

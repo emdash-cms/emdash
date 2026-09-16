@@ -192,7 +192,7 @@ Stored as SQLite INTEGER (0 or 1).
 
 ### `datetime`
 
-Date and time value. Stored in ISO 8601 format.
+An instant in time. API, MCP, and CLI writes must include `Z` or an explicit UTC offset. The admin interprets its date-and-time picker in the timezone configured under **Settings → General**.
 
 ```ts
 {
@@ -203,6 +203,8 @@ Date and time value. Stored in ISO 8601 format.
 ```
 
 **Storage format:** `2025-01-24T12:00:00.000Z`
+
+EmDash converts accepted input to UTC with three-digit milliseconds before storing it. For example, `2025-01-24T21:00:00+09:00` is stored as `2025-01-24T12:00:00.000Z`. Use a `string` field instead when the value is a calendar date or local wall-clock time rather than an instant.
 
 ## Selection types
 

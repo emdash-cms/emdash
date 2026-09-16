@@ -66,6 +66,7 @@ export function GeneralSettings() {
 		onSuccess: (_savedSettings, submittedSettings) => {
 			setSavedFormData(submittedSettings);
 			void queryClient.invalidateQueries({ queryKey: ["settings"] });
+			void queryClient.invalidateQueries({ queryKey: ["manifest"] });
 			toastManager.add({
 				title: t`Settings saved successfully`,
 				variant: "success",
