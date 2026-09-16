@@ -6,7 +6,7 @@
 import type { Hono } from "hono";
 
 import dashboardHtml from "./dashboard.html?raw";
-import { getDashboardPayload } from "./lib/dashboard.js";
+import { DashboardUnavailableError, getDashboardPayload } from "./lib/dashboard.js";
 import {
 	getPullRequestHeadBranch,
 	getPullRequestReviewComments,
@@ -32,6 +32,11 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			c.header("cache-control", "public, max-age=10, stale-while-revalidate=30");
 			return c.json(payload);
 		} catch (error) {
+			if (error instanceof DashboardUnavailableError) {
+				const retryAfter = Math.max(1, Math.ceil((error.retryAt - Date.now()) / 1_000));
+				c.header("retry-after", String(retryAfter));
+				c.header("cache-control", "no-store");
+			}
 			console.error("[dashboard] load failed", {
 				error: error instanceof Error ? error.message : String(error),
 			});

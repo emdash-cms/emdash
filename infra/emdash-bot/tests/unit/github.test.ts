@@ -3,6 +3,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
 	createIssueComment,
 	findIssueCommentByMarker,
+	getIssue,
 	getIssueComments,
 	getPullRequestReviewComments,
 	getPullRequestStatus,
@@ -74,6 +75,47 @@ describe("GitHub issue context requests", () => {
 
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 		expect(fetchMock.mock.calls[0]?.[0]).toContain("page=3");
+	});
+});
+
+describe("GitHub rate-limit backoff", () => {
+	afterEach(() => {
+		vi.useRealTimers();
+		vi.unstubAllGlobals();
+	});
+
+	test("does not retry before both GitHub retry headers allow it", async () => {
+		const now = Date.parse("2026-09-16T10:00:00Z");
+		vi.useFakeTimers();
+		vi.setSystemTime(now);
+		const fetchMock = vi
+			.fn<typeof fetch>()
+			.mockResolvedValueOnce(
+				new Response(JSON.stringify({ message: "API rate limit exceeded" }), {
+					status: 403,
+					headers: {
+						"content-type": "application/json",
+						"retry-after": "60",
+						"x-ratelimit-remaining": "0",
+						"x-ratelimit-reset": String(Math.floor((now + 120_000) / 1_000)),
+					},
+				}),
+			)
+			.mockResolvedValueOnce(
+				jsonResponse({ title: "Recovered", body: "", labels: [], comments: 0 }),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(getIssue("token", repo, 42)).rejects.toThrow(/rate limit/i);
+		vi.setSystemTime(now + 61_000);
+		await expect(getIssue("token", repo, 42)).rejects.toThrow(/rate limit/i);
+		expect(fetchMock).toHaveBeenCalledTimes(1);
+
+		vi.setSystemTime(now + 121_000);
+		await expect(getIssue("token", repo, 42)).resolves.toMatchObject({ title: "Recovered" });
+		expect(fetchMock).toHaveBeenCalledTimes(2);
+
+		vi.setSystemTime(now + 24 * 60 * 60_000);
 	});
 });
 

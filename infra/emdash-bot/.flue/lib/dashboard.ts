@@ -3,6 +3,7 @@ import {
 	mintInstallationToken,
 	readAppCreds,
 	readRepoContext,
+	GitHubRateLimitError,
 	type ManagedIssueSummary,
 } from "./github.js";
 import { KINDS, machineSnapshot, type Kind, type StateId } from "./machine.js";
@@ -12,10 +13,15 @@ import { runMachineSnapshot } from "./run-lifecycle.js";
 
 const DASHBOARD_CACHE_MS = 20_000;
 const DASHBOARD_ISSUE_LIMIT = 100;
+const DASHBOARD_BACKOFF_BASE_MS = 30_000;
+const DASHBOARD_BACKOFF_MAX_MS = 5 * 60_000;
 
 interface DashboardCache {
 	expiresAt: number;
-	value: Promise<DashboardPayload>;
+	retryAt: number;
+	failures: number;
+	value: DashboardPayload | null;
+	pending: Promise<DashboardPayload> | null;
 }
 
 declare global {
@@ -37,17 +43,76 @@ export interface DashboardPayload {
 	issues: DashboardIssue[];
 }
 
-export function getDashboardPayload(env: Env): Promise<DashboardPayload> {
+export class DashboardUnavailableError extends Error {
+	constructor(
+		readonly retryAt: number,
+		cause: unknown,
+	) {
+		super(cause instanceof Error ? cause.message : "Dashboard data is temporarily unavailable", {
+			cause,
+		});
+		this.name = "DashboardUnavailableError";
+	}
+}
+
+export async function getDashboardPayload(env: Env): Promise<DashboardPayload> {
+	const now = Date.now();
 	const cached = globalThis.emdashBotDashboardCache;
-	if (cached && cached.expiresAt > Date.now()) return cached.value;
-	const value = loadDashboardPayload(env).catch((error) => {
-		if (globalThis.emdashBotDashboardCache?.value === value) {
-			globalThis.emdashBotDashboardCache = undefined;
-		}
-		throw error;
-	});
-	globalThis.emdashBotDashboardCache = { expiresAt: Date.now() + DASHBOARD_CACHE_MS, value };
-	return value;
+	if (cached?.value && cached.expiresAt > now) return cached.value;
+	if (cached && cached.retryAt > now) {
+		if (cached.value) return cached.value;
+		throw new DashboardUnavailableError(cached.retryAt, "Dashboard refresh is backed off");
+	}
+	if (cached?.pending) return cached.pending;
+
+	let pending: Promise<DashboardPayload>;
+	pending = loadDashboardPayload(env)
+		.then((value) => {
+			if (globalThis.emdashBotDashboardCache?.pending === pending) {
+				globalThis.emdashBotDashboardCache = {
+					expiresAt: Date.now() + DASHBOARD_CACHE_MS,
+					retryAt: 0,
+					failures: 0,
+					value,
+					pending: null,
+				};
+			}
+			return value;
+		})
+		.catch((error: unknown) => {
+			const current = globalThis.emdashBotDashboardCache;
+			const failures = (current?.failures ?? 0) + 1;
+			const exponentialRetryAt =
+				Date.now() +
+				Math.min(
+					DASHBOARD_BACKOFF_BASE_MS * 2 ** Math.max(0, failures - 1),
+					DASHBOARD_BACKOFF_MAX_MS,
+				);
+			const retryAt = Math.max(
+				exponentialRetryAt,
+				error instanceof GitHubRateLimitError ? error.retryAt : 0,
+			);
+			const stale = current?.value ?? null;
+			if (current?.pending === pending) {
+				globalThis.emdashBotDashboardCache = {
+					expiresAt: current.expiresAt,
+					retryAt,
+					failures,
+					value: stale,
+					pending: null,
+				};
+			}
+			if (stale) return stale;
+			throw new DashboardUnavailableError(retryAt, error);
+		});
+	globalThis.emdashBotDashboardCache = {
+		expiresAt: cached?.expiresAt ?? 0,
+		retryAt: cached?.retryAt ?? 0,
+		failures: cached?.failures ?? 0,
+		value: cached?.value ?? null,
+		pending,
+	};
+	return pending;
 }
 
 export async function loadDashboardPayload(env: Env): Promise<DashboardPayload> {
@@ -56,14 +121,34 @@ export async function loadDashboardPayload(env: Env): Promise<DashboardPayload> 
 	if (!creds || !repo) throw new Error("GitHub credentials or repository context missing");
 	const token = await mintInstallationToken(creds);
 	const githubIssues = (await listOpenManagedIssues(token, repo)).slice(0, DASHBOARD_ISSUE_LIMIT);
-	const snapshots = await Promise.all(
+	const snapshots = await Promise.allSettled(
 		githubIssues.map((issue) =>
 			env.Orchestrator.getByName(`issue-${issue.number}`).getPublicSnapshot(),
 		),
 	);
 	const issues = githubIssues.flatMap((issue, index) => {
-		const snapshot = snapshots[index];
-		if (!snapshot) return [];
+		const settled = snapshots[index];
+		if (!settled) return [];
+		if (settled.status === "rejected") {
+			console.warn("[dashboard] issue snapshot unavailable", {
+				issueNumber: issue.number,
+				error: settled.reason instanceof Error ? settled.reason.message : String(settled.reason),
+			});
+		}
+		const snapshot =
+			settled.status === "fulfilled"
+				? settled.value
+				: ({
+						state: null,
+						kind: null,
+						run: null,
+						workPlan: null,
+						currentRunStartedAt: null,
+						prNumber: null,
+						pullRequest: null,
+						transitions: [],
+						progress: [],
+					} satisfies PublicIssueSnapshot);
 		const state = snapshot.state ?? stateFromLabels(issue.labels);
 		const kind = snapshot.kind ?? kindFromLabels(issue.labels);
 		if (!state || !kind) return [];

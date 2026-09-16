@@ -4,12 +4,68 @@
 const GITHUB_API = "https://api.github.com";
 const USER_AGENT = "emdash-bot";
 const GITHUB_REQUEST_TIMEOUT_MS = 30_000;
+const GITHUB_RATE_LIMIT_FALLBACK_MS = 60_000;
 
-function githubFetch(input: string, init: RequestInit = {}): Promise<Response> {
-	return fetch(input, {
+let githubBackoffUntil = 0;
+
+export class GitHubRateLimitError extends Error {
+	constructor(
+		readonly status: number,
+		readonly retryAt: number,
+		message: string,
+	) {
+		super(message);
+		this.name = "GitHubRateLimitError";
+	}
+}
+
+function retryHeaderAt(headers: Headers, now: number): number | null {
+	const candidates: number[] = [];
+	const retryAfter = headers.get("retry-after")?.trim();
+	if (retryAfter) {
+		const seconds = Number(retryAfter);
+		if (Number.isFinite(seconds) && seconds >= 0) {
+			candidates.push(now + seconds * 1_000);
+		} else {
+			const date = Date.parse(retryAfter);
+			if (Number.isFinite(date)) candidates.push(date);
+		}
+	}
+	const resetSeconds = Number(headers.get("x-ratelimit-reset"));
+	if (Number.isFinite(resetSeconds) && resetSeconds > 0) {
+		candidates.push(resetSeconds * 1_000);
+	}
+	return candidates.length > 0 ? Math.max(...candidates) : null;
+}
+
+async function githubFetch(input: string, init: RequestInit = {}): Promise<Response> {
+	const now = Date.now();
+	if (githubBackoffUntil > now) {
+		throw new GitHubRateLimitError(
+			429,
+			githubBackoffUntil,
+			`GitHub API rate limit backoff is active until ${new Date(githubBackoffUntil).toISOString()}`,
+		);
+	}
+	const response = await fetch(input, {
 		...init,
 		signal: init.signal ?? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
 	});
+	const retryAt = retryHeaderAt(response.headers, now);
+	const rateLimited =
+		response.status === 429 ||
+		(response.status === 403 &&
+			(response.headers.get("x-ratelimit-remaining") === "0" ||
+				response.headers.has("retry-after")));
+	if (!rateLimited) return response;
+
+	githubBackoffUntil = Math.max(retryAt ?? now + GITHUB_RATE_LIMIT_FALLBACK_MS, now + 1_000);
+	const body = await response.clone().text();
+	throw new GitHubRateLimitError(
+		response.status,
+		githubBackoffUntil,
+		`GitHub API rate limit exceeded: ${response.status} ${body}`,
+	);
 }
 
 export interface GitHubAppCreds {
