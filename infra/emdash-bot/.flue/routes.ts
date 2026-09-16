@@ -14,6 +14,7 @@ import {
 	readAppCreds,
 	readRepoContext,
 } from "./lib/github.js";
+import { syncReviewStateLabel } from "./lib/review-state.js";
 import {
 	normalizeWebhook,
 	resolvePullRequestWebhook,
@@ -181,6 +182,29 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 				cleanup: cleanup.kind,
 			});
 			return c.json({ anchor: result.anchor, cleanup }, 202);
+		}
+		if (result.kind === "review_state") {
+			const creds = readAppCreds(c.env);
+			const repo = readRepoContext(c.env);
+			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
+			try {
+				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+				const token = await mintInstallationToken(creds, signal);
+				const reviewState = await syncReviewStateLabel(token, repo, result, signal);
+				console.log("[webhook] review state", {
+					delivery: deliveryId,
+					pullRequest: result.pullRequestNumber,
+					reviewState,
+				});
+				return c.json({ pullRequest: result.pullRequestNumber, reviewState }, 202);
+			} catch (error) {
+				console.error("[webhook] review state update failed", {
+					delivery: deliveryId,
+					pullRequest: result.pullRequestNumber,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return c.text("review state update failed", 503);
+			}
 		}
 		if (result.kind !== "dispatch") return c.text("unsupported webhook result", 500);
 

@@ -1,5 +1,5 @@
 /**
- * Datetime fields represent instants. Storage migration 078 canonicalizes
+ * Datetime fields represent instants. Storage migration 079 canonicalizes
  * legacy naive/date-only values before this validation requires an explicit
  * offset, while the admin converts its datetime-local input using the site
  * timezone before sending it.
