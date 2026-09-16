@@ -4,13 +4,9 @@ Registry plugins run against a capability-gated host API, not the complete trust
 
 ## Cross-runner transport caveats
 
-### Generated settings do not reach `ctx.kv`
+### Plugin settings are not encrypted
 
-The plugin CLI carries `admin.settingsSchema` through registry manifests and generated descriptors, and the admin renders its generated form. The form stores values in the host options table. Cloudflare and Node/workerd sandbox bridges implement `ctx.kv` through plugin storage instead, so `ctx.kv.get("settings:<key>")` does not read values saved by the generated form.
-
-Use a Block Kit settings page whose private route validates the submitted values and writes them through `ctx.kv` when sandbox runtime code needs those values. Treat `settingsSchema` as display metadata only until the host unifies the storage path.
-
-A `secret` settings field is masked and write-only in admin responses, but the stored value is not encrypted. EmDash does not expose an encrypted settings or secrets API to registry plugins.
+The generated admin form and sandbox `ctx.kv` share the `settings:*` namespace across both runners. A `secret` settings field is masked and write-only in admin responses, but the stored value is not encrypted. EmDash does not expose an encrypted settings or secrets API to registry plugins.
 
 ### Cloudflare HTTP response bodies are text-decoded
 

@@ -87,9 +87,9 @@ export default plugin;
 
 Validate interactions before production side effects; `routeCtx.input` is `unknown`. Read [Block Kit](./block-kit.md) for exact interaction, block, and element shapes.
 
-The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor, so the host can generate a settings form. The current admin endpoint stores those values in the options table, while both sandbox bridges implement `ctx.kv` through plugin storage. A sandboxed plugin therefore cannot read admin-generated values with `ctx.kv.get("settings:<key>")` yet. Use a Block Kit settings form whose route writes through `ctx.kv` when the plugin needs to consume the value at runtime.
+The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor, so the host can generate a settings form. Both sandbox bridges route `settings:*` KV keys through the same options records as that form. Read a generated setting with `ctx.kv.get("settings:<key>")`; writes, deletes, list operations, and revision-based operations use the same namespace on Cloudflare and Node/workerd.
 
-The `secret` settings field is write-only in the admin response, but EmDash does not currently provide encrypted plugin settings. Do not store a credential in either generated settings or plain `ctx.kv` when encryption at rest is required.
+The `secret` settings field is write-only in the admin response, but EmDash does not currently provide encrypted plugin settings. Do not store a credential there when encryption at rest is required.
 
 ## Sandboxed declarative field widgets
 

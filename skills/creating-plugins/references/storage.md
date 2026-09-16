@@ -205,6 +205,6 @@ await ctx.kv.set("cache:summary", summary);
 const settings = await ctx.kv.list("settings:");
 ```
 
-The plugin CLI serializes `admin.settingsSchema`, but the generated admin settings endpoint and sandbox `ctx.kv` still use different storage paths. Values saved by the generated form are not visible through `ctx.kv.get("settings:<key>")` in either sandbox runner. Build a Block Kit settings page and persist validated values through `ctx.kv` when runtime code needs them.
+The plugin CLI serializes `admin.settingsSchema`, and both sandbox bridges route `settings:*` KV keys through the same options records as the generated admin form. Values saved in that form are available through `ctx.kv.get("settings:<key>")`. `set`, `delete`, `list`, `getVersioned`, `compareAndSet`, and `compareAndDelete` use the same namespace and remove stale values from the legacy KV storage path after a successful write or deletion.
 
-The generated form masks `secret` fields in reads, but this is not an encrypted settings store. `ctx.kv` values are also ordinary plugin data. Do not use either path for credentials that require encryption at rest.
+The generated form masks `secret` fields in reads, but this is not an encrypted settings store. Do not use it for credentials that require encryption at rest.
