@@ -215,9 +215,7 @@ function isRuntimeBindings(value: unknown): value is RuntimeBindings {
 
 function bindings(): RuntimeBindings {
 	const value: unknown = env;
-	if (
-		!isRuntimeBindings(value)
-	) {
+	if (!isRuntimeBindings(value)) {
 		throw new Error(
 			"EmDash plugin test bindings are unavailable; add emdashPluginTest() to Vitest",
 		);

@@ -157,11 +157,7 @@ interface PluginRuntimeTestHost {
 
 	transport: {
 		invokeHook(name: string, event: unknown): Promise<unknown>;
-		invokeRoute(
-			name: string,
-			input?: unknown,
-			request?: PluginTestRequest,
-		): Promise<unknown>;
+		invokeRoute(name: string, input?: unknown, request?: PluginTestRequest): Promise<unknown>;
 	};
 
 	fixtures: PluginTestFixtures;
@@ -211,16 +207,16 @@ EmDash capability work runs one shared behavioral vector against native executio
 
 Do not predict every domain API in the testing-foundation pull request. Extend the host with the owning capability:
 
-| Capability work | Test host addition |
-| --- | --- |
-| Schema and translations | Schema fixtures, translation groups, revision fixtures, and public-URL inspection |
-| Publication policy and actions | Actor and origin actions, revision conflicts, scheduler rejection, and reentrancy |
-| Block Kit | Validated page, widget, form, action, locale, and structured-link helpers |
-| HTTP and raw routes | External fetch interception, binary bodies, declared headers, body limits, and raw responses |
-| Taxonomies and redirects | Domain fixtures, assignment inspection, and versioned mutation state |
-| Comments | Submission, moderation, personal-data, and notification inspection |
-| Media | In-memory media storage, binary fixtures, byte limits, and metadata inspection |
-| Settings | Encrypted-value inspection, key rotation, tampering, and plaintext-absence checks |
+| Capability work                | Test host addition                                                                           |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| Schema and translations        | Schema fixtures, translation groups, revision fixtures, and public-URL inspection            |
+| Publication policy and actions | Actor and origin actions, revision conflicts, scheduler rejection, and reentrancy            |
+| Block Kit                      | Validated page, widget, form, action, locale, and structured-link helpers                    |
+| HTTP and raw routes            | External fetch interception, binary bodies, declared headers, body limits, and raw responses |
+| Taxonomies and redirects       | Domain fixtures, assignment inspection, and versioned mutation state                         |
+| Comments                       | Submission, moderation, personal-data, and notification inspection                           |
+| Media                          | In-memory media storage, binary fixtures, byte limits, and metadata inspection               |
+| Settings                       | Encrypted-value inspection, key rotation, tampering, and plaintext-absence checks            |
 
 Do not add database mocks, manifest-literal snapshot helpers, or convenience APIs that only construct an event and assert the handler arguments. A runtime test triggers a production action and checks the resulting behavior or state. Direct isolate tests remain available when the transport itself is the subject.
 
@@ -351,10 +347,7 @@ interface VersionedContentItem {
 }
 
 interface ContentAccess {
-	getVersioned?(
-		collection: string,
-		id: string,
-	): Promise<VersionedContentItem | null>;
+	getVersioned?(collection: string, id: string): Promise<VersionedContentItem | null>;
 
 	publish?(
 		collection: string,
@@ -380,10 +373,7 @@ interface ContentAccess {
 		options: { _rev: string },
 	): Promise<VersionedContentItem>;
 
-	getTrashedVersioned?(
-		collection: string,
-		id: string,
-	): Promise<VersionedContentItem | null>;
+	getTrashedVersioned?(collection: string, id: string): Promise<VersionedContentItem | null>;
 
 	restore?(
 		collection: string,
@@ -450,10 +440,7 @@ interface RedirectAccess {
 	list(options?: RedirectListOptions): Promise<PaginatedResult<RedirectInfo>>;
 	get(id: string): Promise<VersionedRedirect | null>;
 	create(input: RedirectCreateInput): Promise<VersionedRedirect>;
-	update(
-		id: string,
-		input: RedirectUpdateInput & { _rev: string },
-	): Promise<VersionedRedirect>;
+	update(id: string, input: RedirectUpdateInput & { _rev: string }): Promise<VersionedRedirect>;
 	delete(id: string, options: { _rev: string }): Promise<boolean>;
 }
 ```
@@ -694,17 +681,17 @@ Runtime-installed plugins do not choose root mounts. If conventional paths are r
 
 The capability order is driven by useful plugins rather than by the number of API methods. The following table maps the principal plugin ideas to the capabilities they need.
 
-| Plugin | Required capabilities | Result |
-| --- | --- | --- |
-| Content Guard | schema and content discovery, Block Kit links, editor panels, publication policy | Reports and optionally blocks accessibility, style, SEO-field, readability, and duplicate-content failures |
-| Site Doctor | public URL resolution, binary-safe HTTP, Block Kit links, redirects | Crawls rendered pages and offers bounded repairs for broken links, metadata, redirects, and accidental indexing states |
-| Content Operations Workbench | schema discovery, content writes, publication actions, taxonomy and redirect writes, editor actions | Previews and executes resumable field, taxonomy, redirect, and lifecycle operations |
-| Comment Shield | comment reads and moderation, existing comment hooks and storage | Applies deterministic spam, repetition, reputation, and rate rules without an external model |
-| Review Cycle | public URL and ownership reads, publication policy and actions, existing cron and email | Tracks review deadlines, sends reminders, and performs explicitly authorized lifecycle actions |
-| Retention Guard | publication policy, content identity, editor panels | Prevents unpublication or publication that violates a hold or retention rule |
-| Newsletter | raw routes, encrypted settings, public views, existing email and storage | Provides subscription, confirmation, unsubscribe, publish-triggered delivery, and an admin view |
-| GitHub content sync | encrypted settings, raw routes, translation creation, taxonomy writes, publication actions | Imports repository content into drafts and optionally publishes through the same policy boundary |
-| Media processor | binary-safe HTTP, media metadata and byte access | Performs duplicate detection, metadata extraction, privacy checks, OCR, or derivative creation |
+| Plugin                       | Required capabilities                                                                               | Result                                                                                                                 |
+| ---------------------------- | --------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| Content Guard                | schema and content discovery, Block Kit links, editor panels, publication policy                    | Reports and optionally blocks accessibility, style, SEO-field, readability, and duplicate-content failures             |
+| Site Doctor                  | public URL resolution, binary-safe HTTP, Block Kit links, redirects                                 | Crawls rendered pages and offers bounded repairs for broken links, metadata, redirects, and accidental indexing states |
+| Content Operations Workbench | schema discovery, content writes, publication actions, taxonomy and redirect writes, editor actions | Previews and executes resumable field, taxonomy, redirect, and lifecycle operations                                    |
+| Comment Shield               | comment reads and moderation, existing comment hooks and storage                                    | Applies deterministic spam, repetition, reputation, and rate rules without an external model                           |
+| Review Cycle                 | public URL and ownership reads, publication policy and actions, existing cron and email             | Tracks review deadlines, sends reminders, and performs explicitly authorized lifecycle actions                         |
+| Retention Guard              | publication policy, content identity, editor panels                                                 | Prevents unpublication or publication that violates a hold or retention rule                                           |
+| Newsletter                   | raw routes, encrypted settings, public views, existing email and storage                            | Provides subscription, confirmation, unsubscribe, publish-triggered delivery, and an admin view                        |
+| GitHub content sync          | encrypted settings, raw routes, translation creation, taxonomy writes, publication actions          | Imports repository content into drafts and optionally publishes through the same policy boundary                       |
+| Media processor              | binary-safe HTTP, media metadata and byte access                                                    | Performs duplicate detection, metadata extraction, privacy checks, OCR, or derivative creation                         |
 
 Existing audit-log, webhook-notifier, forms, AT Protocol, embeds, Field Kit, AI moderation, and Cloudflare search plugins are not repeated by this plan. Core already owns redirects, backups, content duplication, comment-author notifications, sitemaps, robots, baseline social metadata and JSON-LD, and 404 logging. The capabilities above let plugins inspect or operate those domains without replacing their core implementation.
 
@@ -877,20 +864,20 @@ Use separate worktrees for independent pull requests. One integration owner hand
 
 Each capability runs the smallest relevant tests during development and the complete matrix before its pull request is ready.
 
-| Boundary | Required evidence |
-| --- | --- |
-| Public contract | Type tests and manifest-schema fixtures accept valid authority and reject unknown or malformed declarations |
-| Declared access | Capability conversion, implication, consent diff, install, update, downgrade, and legacy-manifest tests |
-| Native context | Handler-layer behavior, supported SQLite and PostgreSQL parity where database code is shared |
-| Cloudflare sandbox | Real Worker Loader wrapper and bridge tests with D1 and configured media storage where relevant |
-| Node.js sandbox | Real workerd runner and authenticated backing-service tests |
-| Host event | A real runtime event or route reaches a real isolate and returns through the host boundary |
-| Registry artifact | Bundle, manifest, descriptor, registry record, installation preview, and installed state round-trip the capability |
-| Admin UI | Kumo rendering, Lingui strings, keyboard access, error isolation, and Arabic right-to-left behavior |
-| Concurrency | Stale revision, expected-state, duplicate creation, reentrancy, lost response, and bounded retry behavior |
-| Security | Capability denial, cross-plugin isolation, personal-data redaction, secret redaction, request limits, and unsafe URL/header/content rejection |
-| Performance | No logged-out query increase outside an explicitly mounted public view; review query-count snapshots |
-| Documentation | Public guide, API reference, canonical and generated skill, code samples, links, and upgrade implications agree with implementation |
+| Boundary           | Required evidence                                                                                                                             |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public contract    | Type tests and manifest-schema fixtures accept valid authority and reject unknown or malformed declarations                                   |
+| Declared access    | Capability conversion, implication, consent diff, install, update, downgrade, and legacy-manifest tests                                       |
+| Native context     | Handler-layer behavior, supported SQLite and PostgreSQL parity where database code is shared                                                  |
+| Cloudflare sandbox | Real Worker Loader wrapper and bridge tests with D1 and configured media storage where relevant                                               |
+| Node.js sandbox    | Real workerd runner and authenticated backing-service tests                                                                                   |
+| Host event         | A real runtime event or route reaches a real isolate and returns through the host boundary                                                    |
+| Registry artifact  | Bundle, manifest, descriptor, registry record, installation preview, and installed state round-trip the capability                            |
+| Admin UI           | Kumo rendering, Lingui strings, keyboard access, error isolation, and Arabic right-to-left behavior                                           |
+| Concurrency        | Stale revision, expected-state, duplicate creation, reentrancy, lost response, and bounded retry behavior                                     |
+| Security           | Capability denial, cross-plugin isolation, personal-data redaction, secret redaction, request limits, and unsafe URL/header/content rejection |
+| Performance        | No logged-out query increase outside an explicitly mounted public view; review query-count snapshots                                          |
+| Documentation      | Public guide, API reference, canonical and generated skill, code samples, links, and upgrade implications agree with implementation           |
 
 `@emdash-cms/plugin-test` retains direct hook and route invocation as a transport-level tool. Add runtime-backed helpers for capabilities that depend on host events, authorization, lifecycle, scheduling, or cache behavior. Documentation must state which boundary each helper proves.
 
