@@ -85,6 +85,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (!result.success) return unwrapResult(result);
 
 		await emdash.syncRegistryPlugins();
+		await emdash.runPluginActivateLifecycle(id);
 
 		return unwrapResult(result);
 	} catch (error) {

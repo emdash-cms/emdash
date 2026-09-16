@@ -7874,7 +7874,9 @@ const manifestHookEntrySchema = object({
 	name: _enum(HOOK_NAMES),
 	exclusive: boolean().optional(),
 	priority: number().int().optional(),
-	timeout: number().int().positive().optional()
+	timeout: number().int().positive().optional(),
+	dependencies: array(string().min(1)).optional(),
+	errorPolicy: _enum(["continue", "abort"]).optional()
 });
 /**
 * Structured route entry for manifest — name plus optional metadata.
@@ -7885,8 +7887,20 @@ const manifestHookEntrySchema = object({
 const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
 const manifestRouteEntrySchema = object({
 	name: string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: boolean().optional()
+	public: boolean().optional(),
+	permission: string().min(1).optional(),
+	cacheControl: string().min(1).optional()
 });
+const pluginJsonSchema = record(string(), unknown());
+const pluginMcpConfigSchema = object({ tools: array(object({
+	name: string().min(1),
+	description: string().min(1),
+	route: string().min(1),
+	permission: string().min(1),
+	destructive: boolean(),
+	inputSchema: pluginJsonSchema,
+	outputSchema: pluginJsonSchema.optional()
+})) });
 /** Index field names must be valid identifiers to prevent SQL injection via JSON path expressions */
 const indexFieldName = string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/);
 const storageCollectionSchema = object({
@@ -8021,6 +8035,7 @@ const pluginManifestSchema = object({
 	storage: record(string(), storageCollectionSchema),
 	hooks: array(union([_enum(HOOK_NAMES), manifestHookEntrySchema])),
 	routes: array(union([string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"), manifestRouteEntrySchema])),
+	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema
 });
 /**

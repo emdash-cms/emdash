@@ -191,7 +191,7 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		expect(runtime.hooks.getHookCount("page:fragments")).toBe(0);
 	});
 
-	it("loads registry-installed hooks into the host pipeline and runs first-install lifecycle", async () => {
+	it("loads a cold registry plugin without replaying install or activating twice", async () => {
 		const calls: string[] = [];
 		const invokeHook = vi.fn(async (name: string) => {
 			calls.push(name);
@@ -240,6 +240,9 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		});
 
 		await runtime.syncRegistryPlugins();
+		expect(calls).toEqual([]);
+
+		await runtime.setPluginStatus("registry-host", "active");
 		await runtime.hooks.runMediaAfterUpload({
 			id: "media-1",
 			filename: "image.png",
@@ -251,12 +254,26 @@ describe("EmDashRuntime sandboxed plugin host wiring", () => {
 		await runtime.runPluginUninstallLifecycle("registry-host", true);
 
 		expect(calls).toEqual([
-			"plugin:install",
 			"plugin:activate",
 			"media:afterUpload",
 			"plugin:deactivate",
 			"plugin:uninstall",
 		]);
+	});
+
+	it("runs first-install lifecycle exactly once when requested by an install flow", async () => {
+		const calls: string[] = [];
+		const invokeHook = vi.fn(async (name: string) => calls.push(name));
+		const deps = createDeps(invokeHook, {}, "sandbox-install-lifecycle");
+		deps.sandboxedPluginEntries[0]!.hooks = [
+			"plugin:install",
+			...(deps.sandboxedPluginEntries[0]!.hooks ?? []),
+		];
+		runtime = await EmDashRuntime.create(deps);
+
+		await runtime.runPluginInstallLifecycle("sandbox-install-lifecycle");
+
+		expect(calls).toEqual(["plugin:install", "plugin:activate"]);
 	});
 
 	it("orders sandboxed and trusted hooks by shared pipeline priority", async () => {

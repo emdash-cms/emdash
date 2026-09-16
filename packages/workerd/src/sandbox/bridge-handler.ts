@@ -22,6 +22,7 @@ import {
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
 	normalizeCapabilities,
+	OptionsRepository,
 	PluginStorageRepository,
 	StorageSerializationError,
 	resolveContentCreateLocale,
@@ -203,17 +204,23 @@ async function dispatch(
 		case "kv/set":
 			return kvSet(db, pluginId, requireString(body, "key"), body.value);
 		case "kv/getVersioned":
-			return getStorageRepo(opts, "__kv").getVersioned(requireString(body, "key"));
+			return kvGetVersioned(db, pluginId, requireString(body, "key"), opts);
 		case "kv/compareAndSet":
-			return getStorageRepo(opts, "__kv").compareAndSet(
+			return kvCompareAndSet(
+				db,
+				pluginId,
 				requireString(body, "key"),
 				requireExpectedRevision(body),
 				body.value,
+				opts,
 			);
 		case "kv/compareAndDelete":
-			return getStorageRepo(opts, "__kv").compareAndDelete(
+			return kvCompareAndDelete(
+				db,
+				pluginId,
 				requireString(body, "key"),
 				requireString(body, "expectedRevision"),
+				opts,
 			);
 		case "kv/delete":
 			return kvDelete(db, pluginId, requireString(body, "key"));
@@ -711,7 +718,21 @@ function rowToContentItem(
 // ── KV Operations ────────────────────────────────────────────────────────
 // Uses _plugin_storage with collection='__kv' (matching Cloudflare bridge)
 
+const SETTINGS_KEY_PREFIX = "settings:";
+
+function pluginOptionKey(pluginId: string, key: string): string {
+	return `plugin:${pluginId}:${key}`;
+}
+
+function isSettingsKey(key: string): boolean {
+	return key.startsWith(SETTINGS_KEY_PREFIX);
+}
+
 async function kvGet(db: Kysely<Database>, pluginId: string, key: string): Promise<unknown> {
+	if (isSettingsKey(key)) {
+		const value = await new OptionsRepository(db).get(pluginOptionKey(pluginId, key));
+		if (value !== null) return value;
+	}
 	const row = await db
 		.selectFrom("_plugin_storage")
 		.where("plugin_id", "=", pluginId)
@@ -733,10 +754,70 @@ async function kvSet(
 	key: string,
 	value: unknown,
 ): Promise<void> {
+	if (isSettingsKey(key)) {
+		await new OptionsRepository(db).set(pluginOptionKey(pluginId, key), value);
+		await kvDeleteLegacy(db, pluginId, key);
+		return;
+	}
 	await new PluginStorageRepository(db, pluginId, "__kv", []).put(key, value);
 }
 
-async function kvDelete(db: Kysely<Database>, pluginId: string, key: string): Promise<boolean> {
+async function kvGetVersioned(
+	db: Kysely<Database>,
+	pluginId: string,
+	key: string,
+	opts: BridgeHandlerOptions,
+) {
+	if (isSettingsKey(key)) {
+		const value = await new OptionsRepository(db).getVersioned(pluginOptionKey(pluginId, key));
+		if (value !== null) return value;
+	}
+	return getStorageRepo(opts, "__kv").getVersioned(key);
+}
+
+async function kvCompareAndSet(
+	db: Kysely<Database>,
+	pluginId: string,
+	key: string,
+	expectedRevision: string | null,
+	value: unknown,
+	opts: BridgeHandlerOptions,
+) {
+	if (!isSettingsKey(key)) {
+		return getStorageRepo(opts, "__kv").compareAndSet(key, expectedRevision, value);
+	}
+	const result = await new OptionsRepository(db).compareAndSet(
+		pluginOptionKey(pluginId, key),
+		expectedRevision,
+		value,
+	);
+	if (result.applied) await kvDeleteLegacy(db, pluginId, key);
+	return result;
+}
+
+async function kvCompareAndDelete(
+	db: Kysely<Database>,
+	pluginId: string,
+	key: string,
+	expectedRevision: string,
+	opts: BridgeHandlerOptions,
+) {
+	if (!isSettingsKey(key)) {
+		return getStorageRepo(opts, "__kv").compareAndDelete(key, expectedRevision);
+	}
+	const result = await new OptionsRepository(db).compareAndDelete(
+		pluginOptionKey(pluginId, key),
+		expectedRevision,
+	);
+	if (result.applied) await kvDeleteLegacy(db, pluginId, key);
+	return result;
+}
+
+async function kvDeleteLegacy(
+	db: Kysely<Database>,
+	pluginId: string,
+	key: string,
+): Promise<boolean> {
 	const result = await db
 		.deleteFrom("_plugin_storage")
 		.where("plugin_id", "=", pluginId)
@@ -744,6 +825,17 @@ async function kvDelete(db: Kysely<Database>, pluginId: string, key: string): Pr
 		.where("id", "=", key)
 		.executeTakeFirst();
 	return BigInt(result.numDeletedRows) > 0n;
+}
+
+async function kvDelete(db: Kysely<Database>, pluginId: string, key: string): Promise<boolean> {
+	if (isSettingsKey(key)) {
+		const [optionDeleted, legacyDeleted] = await Promise.all([
+			new OptionsRepository(db).delete(pluginOptionKey(pluginId, key)),
+			kvDeleteLegacy(db, pluginId, key),
+		]);
+		return optionDeleted || legacyDeleted;
+	}
+	return kvDeleteLegacy(db, pluginId, key);
 }
 
 async function kvList(
@@ -759,10 +851,19 @@ async function kvList(
 		.select(["id", "data"])
 		.execute();
 
-	return rows.map((r) => ({
-		key: r.id,
-		value: JSON.parse(r.data),
-	}));
+	const entries = new Map(rows.map((row) => [row.id, JSON.parse(row.data) as unknown]));
+	const optionPrefix = `plugin:${pluginId}:`;
+	const settingsPrefix = SETTINGS_KEY_PREFIX.startsWith(prefix)
+		? `${optionPrefix}${SETTINGS_KEY_PREFIX}`
+		: prefix.startsWith(SETTINGS_KEY_PREFIX)
+			? `${optionPrefix}${prefix}`
+			: null;
+	if (settingsPrefix) {
+		for (const [name, value] of await new OptionsRepository(db).getByPrefix(settingsPrefix)) {
+			entries.set(name.slice(optionPrefix.length), value);
+		}
+	}
+	return Array.from(entries, ([key, value]) => ({ key, value }));
 }
 
 // ── Content Operations ───────────────────────────────────────────────────
@@ -813,7 +914,8 @@ async function contentList(
 				: undefined,
 		};
 		return await createContentAccess(db).list(collection, options);
-	} catch {
+	} catch (error) {
+		if (opts.where !== undefined || opts.orderBy !== undefined) throw error;
 		let query = asContentDb(db)
 			.selectFrom(`ec_${collection}`)
 			.where("deleted_at", "is", null)

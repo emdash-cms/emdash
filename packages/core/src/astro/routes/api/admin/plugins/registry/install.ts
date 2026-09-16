@@ -115,6 +115,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Sync runtime so the new plugin becomes active without a worker restart.
 		await emdash.syncRegistryPlugins();
+		await emdash.runPluginInstallLifecycle(result.data.pluginId);
 
 		return unwrapResult(result, 201);
 	} catch (error) {

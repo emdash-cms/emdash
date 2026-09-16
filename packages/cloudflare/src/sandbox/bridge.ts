@@ -26,6 +26,7 @@ import {
 	createSandboxRouteError,
 	getSandboxRouteErrorDetails,
 	ulid,
+	OptionsRepository,
 	PluginStorageRepository,
 	StorageSerializationError,
 	resolveContentCreateLocale,
@@ -39,6 +40,7 @@ import type { StorageUpdateIfResponse } from "./types.js";
 /** Regex to validate collection names (prevent SQL injection) */
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
 const MISSING_MEDIA_USAGE_ACTIVATION_TABLE_REGEX = /no such table.*_emdash_media_usage_activation/i;
+const SETTINGS_KEY_PREFIX = "settings:";
 
 const SYSTEM_COLUMNS = new Set([
 	"id",
@@ -221,6 +223,25 @@ export interface PluginBridgeProps {
  * 3. Plugins call bridge methods which validate and proxy to the database
  */
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
+	private getOptionsRepo(): OptionsRepository {
+		return new OptionsRepository(
+			new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) }),
+		);
+	}
+
+	private pluginOptionKey(key: string): string {
+		return `plugin:${this.ctx.props.pluginId}:${key}`;
+	}
+
+	private async deleteLegacyKV(key: string): Promise<boolean> {
+		const result = await this.env.DB.prepare(
+			"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
+		)
+			.bind(this.ctx.props.pluginId, key)
+			.run();
+		return (result.meta?.changes ?? 0) > 0;
+	}
+
 	private async assertMediaUsageActivationWriteAllowed(): Promise<void> {
 		try {
 			const activation = await this.env.DB.prepare(
@@ -271,6 +292,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	 */
 	async kvGet(key: string): Promise<unknown> {
 		const { pluginId } = this.ctx.props;
+		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+			const value = await this.getOptionsRepo().get(this.pluginOptionKey(key));
+			if (value !== null) return value;
+		}
 		const result = await this.env.DB.prepare(
 			"SELECT data FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
 		)
@@ -286,6 +311,11 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 
 	async kvSet(key: string, value: unknown): Promise<void> {
 		const { pluginId } = this.ctx.props;
+		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+			await this.getOptionsRepo().set(this.pluginOptionKey(key), value);
+			await this.deleteLegacyKV(key);
+			return;
+		}
 		await this.env.DB.prepare(
 			"INSERT OR REPLACE INTO _plugin_storage (plugin_id, collection, id, data, revision, updated_at) VALUES (?, '__kv', ?, ?, ?, datetime('now'))",
 		)
@@ -294,6 +324,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	async kvGetVersioned(key: string): Promise<VersionedValue | null> {
+		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+			const value = await this.getOptionsRepo().getVersioned(this.pluginOptionKey(key));
+			if (value !== null) return value;
+		}
 		return this.getStorageRepo("__kv").getVersioned(key);
 	}
 
@@ -302,6 +336,15 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		expectedRevision: string | null,
 		value: unknown,
 	): Promise<ConditionalWriteResult> {
+		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+			const result = await this.getOptionsRepo().compareAndSet(
+				this.pluginOptionKey(key),
+				expectedRevision,
+				value,
+			);
+			if (result.applied) await this.deleteLegacyKV(key);
+			return result;
+		}
 		return this.getStorageRepo("__kv").compareAndSet(key, expectedRevision, value);
 	}
 
@@ -309,11 +352,24 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		key: string,
 		expectedRevision: string,
 	): Promise<ConditionalDeleteResult> {
+		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+			const result = await this.getOptionsRepo().compareAndDelete(
+				this.pluginOptionKey(key),
+				expectedRevision,
+			);
+			if (result.applied) await this.deleteLegacyKV(key);
+			return result;
+		}
 		return this.getStorageRepo("__kv").compareAndDelete(key, expectedRevision);
 	}
 
 	async kvDelete(key: string): Promise<boolean> {
 		const { pluginId } = this.ctx.props;
+		if (key.startsWith(SETTINGS_KEY_PREFIX)) {
+			const optionDeleted = await this.getOptionsRepo().delete(this.pluginOptionKey(key));
+			const legacyDeleted = await this.deleteLegacyKV(key);
+			return optionDeleted || legacyDeleted;
+		}
 		const result = await this.env.DB.prepare(
 			"DELETE FROM _plugin_storage WHERE plugin_id = ? AND collection = '__kv' AND id = ?",
 		)
@@ -330,10 +386,21 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			.bind(pluginId, prefix + "%")
 			.all<{ id: string; data: string }>();
 
-		return (results.results ?? []).map((row) => ({
-			key: row.id,
-			value: JSON.parse(row.data),
-		}));
+		const entries = new Map(
+			(results.results ?? []).map((row) => [row.id, JSON.parse(row.data) as unknown]),
+		);
+		const optionPrefix = `plugin:${pluginId}:`;
+		const settingsPrefix = SETTINGS_KEY_PREFIX.startsWith(prefix)
+			? `${optionPrefix}${SETTINGS_KEY_PREFIX}`
+			: prefix.startsWith(SETTINGS_KEY_PREFIX)
+				? `${optionPrefix}${prefix}`
+				: null;
+		if (settingsPrefix) {
+			for (const [name, value] of await this.getOptionsRepo().getByPrefix(settingsPrefix)) {
+				entries.set(name.slice(optionPrefix.length), value);
+			}
+		}
+		return Array.from(entries, ([key, value]) => ({ key, value }));
 	}
 
 	// =========================================================================
