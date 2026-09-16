@@ -273,7 +273,7 @@ With `false`, plugins declared in `sandboxed` and installed from the marketplace
 
 ### `marketplace`
 
-**Optional.** Base URL for the plugin marketplace shown in the admin. Marketplace plugins require `sandboxRunner` because they always run sandboxed.
+**Deprecated.** Base URL used to update plugins installed from the legacy Marketplace. Marketplace browsing and new installs are not shown in the admin. Existing Marketplace plugins remain updateable and uninstallable while this option is configured.
 
 ```js
 emdash({
@@ -282,7 +282,7 @@ emdash({
 });
 ```
 
-Production URLs must use HTTPS; HTTP is accepted only for `localhost` and `127.0.0.1` during development. When `experimental.registry` is also configured, the registry supplies new installs and updates while plugins already installed from the marketplace continue to run.
+Production URLs must use HTTPS; HTTP is accepted only for `localhost` and `127.0.0.1` during development. Keep this option until every Marketplace plugin has been replaced or uninstalled, then remove it. Follow [Migrate from Marketplace](/plugins/migrate-from-marketplace/) for the complete procedure.
 
 ### `fonts`
 
@@ -622,7 +622,9 @@ In every mode, the toolbar can be dismissed in the browser via its × button (pe
 
 #### `experimental.registry`
 
-**Optional.** Use the experimental [plugin registry](/plugins/registry/) as the admin dashboard's source for browsing and installing plugins instead of the marketplace. Browsing works without a [`sandboxRunner`](/deployment/plugin-sandbox/), but installing or updating a registry plugin requires an available runner because registry plugins run sandboxed.
+**Optional.** Customize the [plugin registry](/plugins/registry/) aggregator and policy. With no explicit value, EmDash uses `https://registry.emdashcms.com` when [`sandboxRunner`](#sandboxrunner) is configured and `sandbox` is not `false`.
+
+An explicit value displays registry browsing without a sandbox runner, but installing or updating a registry plugin still requires an available runner because registry plugins run sandboxed.
 
 Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
 

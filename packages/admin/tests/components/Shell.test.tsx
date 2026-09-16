@@ -44,4 +44,19 @@ describe("Shell", () => {
 
 		expect(document.querySelector("main")).toHaveClass("bg-kumo-elevated");
 	});
+
+	it("links marketplace-configured sites to the migration guide", async () => {
+		const screen = await render(
+			<Shell manifest={{ ...manifest, marketplace: true }}>
+				<div>Page content</div>
+			</Shell>,
+		);
+
+		await expect
+			.element(screen.getByText("Marketplace configuration is deprecated"))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("link", { name: "Migration guide" }))
+			.toHaveAttribute("href", "https://docs.emdashcms.com/plugins/migrate-from-marketplace/");
+	});
 });

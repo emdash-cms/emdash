@@ -1,8 +1,26 @@
 import { describe, expect, it } from "vitest";
 
 import emdash from "../../../../src/astro/integration/index.js";
+import {
+	DEFAULT_REGISTRY_AGGREGATOR_URL,
+	resolveRegistryConfigForSandbox,
+} from "../../../../src/registry/config.js";
 
 describe("registry integration configuration", () => {
+	it("uses the hosted registry by default when the plugin sandbox is enabled", () => {
+		expect(resolveRegistryConfigForSandbox(undefined, "./sandbox.mjs", true)).toBe(
+			DEFAULT_REGISTRY_AGGREGATOR_URL,
+		);
+		expect(resolveRegistryConfigForSandbox(undefined, "./sandbox.mjs", false)).toBeUndefined();
+		expect(resolveRegistryConfigForSandbox(undefined, undefined, true)).toBeUndefined();
+	});
+
+	it("keeps an explicitly configured registry when the plugin sandbox is enabled", () => {
+		const registry = { aggregatorUrl: "https://registry.example.com" };
+
+		expect(resolveRegistryConfigForSandbox(registry, "./sandbox.mjs", true)).toBe(registry);
+	});
+
 	it.each([
 		["a malformed aggregator URL", { aggregatorUrl: "not a URL" }, "aggregatorUrl"],
 		[

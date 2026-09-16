@@ -26,9 +26,6 @@ export default defineConfig({
 	integrations: [
 		emdash({
 			sandboxRunner: sandbox(),
-			experimental: {
-				registry: "https://registry.emdashcms.com",
-			},
 		}),
 	],
 });
@@ -54,9 +51,6 @@ export default defineConfig({
 	integrations: [
 		emdash({
 			sandboxRunner: "@emdash-cms/sandbox-workerd/sandbox",
-			experimental: {
-				registry: "https://registry.emdashcms.com",
-			},
 		}),
 	],
 });

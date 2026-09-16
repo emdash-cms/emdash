@@ -252,15 +252,14 @@ export interface AdminManifest {
 		translationGroup?: string | null;
 	}>;
 	/**
-	 * Marketplace registry URL. Present when `marketplace` is configured
-	 * in the EmDash integration. Enables marketplace features in the UI.
+	 * Whether legacy marketplace lifecycle support is configured. The admin
+	 * uses this to show migration guidance; marketplace discovery stays hidden.
+	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
-	marketplace?: string;
+	marketplace?: boolean;
 	/**
-	 * Experimental decentralized plugin registry. Present when
-	 * `experimental.registry` is configured in the EmDash integration.
-	 * When present, the admin UI uses the registry instead of the
-	 * centralized marketplace for browse and install.
+	 * Decentralized plugin registry. Defaults to the hosted aggregator when
+	 * the plugin sandbox is enabled, or reflects an explicit registry config.
 	 */
 	registry?: {
 		aggregatorUrl: string;

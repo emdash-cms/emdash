@@ -140,8 +140,9 @@ export interface ExperimentalConfig {
 	/**
 	 * Decentralized plugin registry.
 	 *
-	 * When set, replaces the centralized `marketplace` for the admin UI's
-	 * browse and install flows. The registry is an atproto-backed
+	 * When a sandbox runner is enabled, EmDash defaults this option to the
+	 * hosted registry. Set it explicitly to select a different aggregator or
+	 * policy. The registry is an atproto-backed
 	 * federation: package metadata lives in each publisher's PDS and
 	 * an aggregator (the `aggregatorUrl`) indexes the firehose and
 	 * exposes read-only XRPC endpoints for discovery.

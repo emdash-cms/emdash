@@ -12,6 +12,17 @@ import { isDid } from "@atcute/lexicons/syntax";
 
 import type { RegistryConfig, RegistryConfigInput } from "./types.js";
 
+export const DEFAULT_REGISTRY_AGGREGATOR_URL = "https://registry.emdashcms.com";
+
+export function resolveRegistryConfigForSandbox(
+	registry: RegistryConfigInput | undefined,
+	sandboxRunner: string | undefined,
+	sandboxEnabled: boolean,
+): RegistryConfigInput | undefined {
+	if (registry !== undefined) return registry;
+	return sandboxRunner && sandboxEnabled ? DEFAULT_REGISTRY_AGGREGATOR_URL : undefined;
+}
+
 /**
  * Shape returned in the admin manifest's `registry` field. The browser
  * consumes this directly -- all duration normalization and aggregator URL

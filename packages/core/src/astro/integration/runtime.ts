@@ -358,16 +358,13 @@ export interface EmDashConfig {
 	/**
 	 * Plugin marketplace URL
 	 *
-	 * When set, enables the marketplace features: browse, install, update,
-	 * and uninstall plugins from a remote marketplace.
+	 * Existing marketplace-installed plugins use this URL for updates.
+	 * Marketplace browsing and new installs are no longer shown in the admin.
 	 *
 	 * Must be an HTTPS URL in production, or localhost/127.0.0.1 in dev.
 	 * Installing or updating plugins requires an available `sandboxRunner`.
-	 * Browsing remains available when no runner is configured.
-	 *
-	 * When `registry` is also configured, the registry replaces the marketplace
-	 * for the admin UI's browse and install flows. Existing marketplace-installed
-	 * plugins continue to work; new installs and updates come from the registry.
+	 * Existing marketplace-installed plugins remain updateable and uninstallable.
+	 * New plugin discovery and installs use the registry.
 	 *
 	 * @example
 	 * ```ts
@@ -378,6 +375,10 @@ export interface EmDashConfig {
 	 *   sandboxRunner: sandbox(),
 	 * })
 	 * ```
+	 *
+	 * @deprecated Keep this option only while the site has plugins installed from
+	 * the legacy marketplace. Remove it after those plugins are replaced or
+	 * uninstalled.
 	 */
 	marketplace?: string;
 

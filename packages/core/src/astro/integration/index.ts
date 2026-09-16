@@ -27,7 +27,7 @@ import {
 import { buildMigrationManifest } from "../../migrations/manifest-builder.js";
 import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
-import { normalizeRegistryConfig } from "../../registry/config.js";
+import { normalizeRegistryConfig, resolveRegistryConfigForSandbox } from "../../registry/config.js";
 import { VERSION } from "../../version.js";
 import { setDevTypegenRefresh } from "../dev-typegen.js";
 import { local } from "../storage/adapters.js";
@@ -322,11 +322,25 @@ export function buildMiddlewareEntries(
  * Create the EmDash Astro integration
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
+	const registry = resolveRegistryConfigForSandbox(
+		config.experimental?.registry,
+		config.sandboxRunner,
+		config.sandbox !== false,
+	);
+
 	// Apply defaults
 	const resolvedConfig: EmDashConfig = {
 		...config,
 		storage: config.storage ?? DEFAULT_STORAGE,
 		migrations: normalizeMigrationConfig(config.migrations),
+		...(registry
+			? {
+					experimental: {
+						...config.experimental,
+						registry,
+					},
+				}
+			: {}),
 	};
 
 	// Validate environment-independent registry settings while Astro is still
