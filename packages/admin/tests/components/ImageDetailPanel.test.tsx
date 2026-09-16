@@ -777,4 +777,31 @@ describe("ImageDetailPanel", () => {
 			alignment: "full",
 		});
 	});
+
+	it("applies a link with the open-in-new-tab choice", async () => {
+		const { screen, onUpdate } = await renderPanel();
+
+		await screen.getByRole("textbox", { name: "Link URL" }).fill("https://example.com/promo");
+		await screen.getByRole("checkbox", { name: "Open in new tab" }).click();
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		expect(onUpdate).toHaveBeenCalledWith(
+			expect.objectContaining({ link: { href: "https://example.com/promo", blank: true } }),
+		);
+	});
+
+	it("clears the link when the URL is emptied", async () => {
+		const { screen, onUpdate } = await renderPanel({
+			...baseAttributes,
+			link: { href: "https://example.com/promo", blank: true },
+		});
+
+		await expect
+			.element(screen.getByRole("textbox", { name: "Link URL" }))
+			.toHaveValue("https://example.com/promo");
+		await screen.getByRole("textbox", { name: "Link URL" }).fill("");
+		await screen.getByRole("button", { name: "Apply" }).click();
+
+		expect(onUpdate).toHaveBeenCalledWith(expect.objectContaining({ link: null }));
+	});
 });

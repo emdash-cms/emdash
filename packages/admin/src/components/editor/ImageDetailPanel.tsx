@@ -5,7 +5,16 @@
  * Shows preview and allows editing alt text, caption, and link settings.
  */
 
-import { Button, Checkbox, Input, InputArea, Label, LinkButton, Select, Text } from "@cloudflare/kumo";
+import {
+	Button,
+	Checkbox,
+	Input,
+	InputArea,
+	Label,
+	LinkButton,
+	Select,
+	Text,
+} from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
 import {
 	X,
@@ -238,7 +247,13 @@ export function ImageDetailPanel({
 			displayWidth,
 			displayHeight,
 			alignment,
-			link: trimmedHref ? { href: trimmedHref, ...(linkBlank ? { blank: true } : {}) } : null,
+			// Only touch `link` when one is being set or an existing one cleared, so
+			// images without links keep their update payload unchanged.
+			...(trimmedHref || attributes.link
+				? {
+						link: trimmedHref ? { href: trimmedHref, ...(linkBlank ? { blank: true } : {}) } : null,
+					}
+				: {}),
 		});
 		onClose();
 	};
