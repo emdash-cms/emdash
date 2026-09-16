@@ -1,6 +1,6 @@
-# Hooks Reference
+# Hooks
 
-Hooks let plugins run code in response to events. Declared in `definePlugin({ hooks })`.
+Sandboxed plugins declare hooks in the typed default export from `src/plugin.ts`. The `SandboxedPlugin` type infers each event and return type from the hook name.
 
 ## Signature
 
@@ -13,26 +13,36 @@ async (event: EventType, ctx: PluginContext) => ReturnType;
 Simple handler or full config:
 
 ```typescript
-// Simple
-hooks: {
-	"content:afterSave": async (event, ctx) => {
-		ctx.log.info("Saved");
-	}
-}
+import type { SandboxedPlugin } from "emdash/plugin";
 
-// Full config
-hooks: {
-	"content:afterSave": {
-		priority: 100,      // Lower runs first (default: 100)
-		timeout: 5000,      // Max execution time ms (default: 5000)
-		dependencies: [],   // Plugin IDs that must run first
-		errorPolicy: "abort", // "abort" | "continue"
-		handler: async (event, ctx) => {
-			ctx.log.info("Saved");
-		}
-	}
-}
+const plugin: SandboxedPlugin = {
+	hooks: {
+		"content:afterSave": {
+			priority: 100,
+			timeout: 5000,
+			handler: async (event, ctx) => {
+				ctx.log.info("Saved", { id: event.content.id });
+			},
+		},
+	},
+};
+
+export default plugin;
 ```
+
+The plugin CLI manifest retains `priority`, `timeout`, and `exclusive`. Although the authoring type also accepts `dependencies` and `errorPolicy`, the current sandbox bundle manifest does not serialize those two fields. Do not rely on them for a registry-installed plugin.
+
+Put capabilities in `emdash-plugin.jsonc`, not in `src/plugin.ts`. The native hook pipeline skips hooks whose required capability is absent. The isolated sandbox dispatcher currently calls supported content hooks without applying that registration gate, which is a host defect rather than permission to omit the declaration.
+
+## Isolated sandbox support
+
+The current isolated runtime dispatches these hooks to Cloudflare and Node/workerd sandbox instances:
+
+- `content:beforeSave`, `content:afterSave`, `content:beforeDelete`, and `content:afterDelete`
+- `content:afterPublish`, `content:afterUnpublish`, `content:afterRestore`, `content:afterSchedule`, and `content:afterUnschedule`
+- `page:metadata`
+
+Plugin lifecycle, media, email, cron, and comment hooks are present in the authoring types and bundle manifest but are not invoked for isolated plugins. They work through the native/in-process hook pipeline. `page:fragments` is intentionally native-only.
 
 ## Lifecycle Hooks
 
@@ -280,15 +290,10 @@ Email hooks require specific capabilities. Without the required capability, hook
 Runs before email delivery. Return modified message, or `false` to cancel delivery. Handlers are chained — each receives the output of the previous one.
 
 ```typescript
-definePlugin({
-	id: "email-footer",
-	capabilities: ["hooks.email-events:register"],
-	hooks: {
-		"email:beforeSend": async (event, ctx) => {
-			return { ...event.message, text: event.message.text + "\n\n-- Sent via EmDash" };
-		},
-	},
-});
+// emdash-plugin.jsonc: "capabilities": ["hooks.email-events:register"]
+"email:beforeSend": async (event) => {
+	return { ...event.message, text: event.message.text + "\n\n-- Sent via EmDash" };
+},
 ```
 
 Event: `{ message: EmailMessage, source: string }`
@@ -301,24 +306,19 @@ Returns: `EmailMessage | false`
 Implements email transport (e.g. Resend, SMTP, SES). Selected by the admin in Settings > Email.
 
 ```typescript
-definePlugin({
-	id: "emdash-resend",
-	capabilities: ["hooks.email-transport:register", "network:request"],
-	allowedHosts: ["api.resend.com"],
-	hooks: {
-		"email:deliver": {
-			exclusive: true,
-			handler: async ({ message }, ctx) => {
-				const apiKey = await ctx.kv.get("settings:apiKey");
-				await ctx.http!.fetch("https://api.resend.com/emails", {
-					method: "POST",
-					headers: { Authorization: `Bearer ${apiKey}` },
-					body: JSON.stringify({ to: message.to, subject: message.subject, text: message.text }),
-				});
-			},
-		},
+// emdash-plugin.jsonc declares hooks.email-transport:register and network:request,
+// with api.resend.com in allowedHosts.
+"email:deliver": {
+	exclusive: true,
+	handler: async ({ message }, ctx) => {
+		const apiKey = await ctx.kv.get("settings:apiKey");
+		await ctx.http!.fetch("https://api.resend.com/emails", {
+			method: "POST",
+			headers: { Authorization: `Bearer ${apiKey}` },
+			body: JSON.stringify({ to: message.to, subject: message.subject, text: message.text }),
+		});
 	},
-});
+},
 ```
 
 Event: `{ message: EmailMessage, source: string }`
@@ -331,19 +331,77 @@ Returns: `void`
 Runs after successful delivery. Fire-and-forget — errors are logged but don't propagate.
 
 ```typescript
-definePlugin({
-	id: "email-logger",
-	capabilities: ["hooks.email-events:register"],
-	hooks: {
-		"email:afterSend": async (event, ctx) => {
-			ctx.log.info(`Email sent to ${event.message.to}`, { source: event.source });
-		},
-	},
-});
+// emdash-plugin.jsonc: "capabilities": ["hooks.email-events:register"]
+"email:afterSend": async (event, ctx) => {
+	ctx.log.info(`Email sent to ${event.message.to}`, { source: event.source });
+},
 ```
 
 Event: `{ message: EmailMessage, source: string }`
 Returns: `void`
+
+## Comment hooks
+
+Comment hooks currently run only through the native/in-process pipeline. All four require `users:read`. Their events include author email and request-derived information, so the native pipeline skips the hook when the capability is absent.
+
+### `comment:beforeCreate`
+
+Runs before storage. Return a modified event to enrich the comment or its moderator-only metadata, return `false` to reject the comment, or return nothing to keep it unchanged.
+
+```typescript
+"comment:beforeCreate": async (event) => {
+	if (event.comment.body.includes("blocked phrase")) return false;
+	return {
+		...event,
+		metadata: { ...event.metadata, reviewedBy: "rules-v1" },
+	};
+},
+```
+
+Event:
+
+```typescript
+{
+	comment: {
+		collection: string;
+		contentId: string;
+		parentId: string | null;
+		authorName: string;
+		authorEmail: string;
+		authorUserId: string | null;
+		body: string;
+		ipHash: string | null;
+		userAgent: string | null;
+	};
+	metadata: Record<string, unknown>;
+}
+```
+
+Returns: the event, `false`, or `void`.
+
+### `comment:moderate`
+
+The exclusive moderation provider decides the initial status after the enrichment pipeline.
+
+```typescript
+"comment:moderate": {
+	exclusive: true,
+	handler: async (event) => ({
+		status: event.priorApprovedCount > 0 ? "approved" : "pending",
+		reason: "First-time authors require review",
+	}),
+},
+```
+
+The event contains `comment`, `metadata`, collection comment settings, and `priorApprovedCount`. Return `{ status: "approved" | "pending" | "spam", reason?: string }`.
+
+### `comment:afterCreate`
+
+Runs after the comment is stored. The event contains the stored comment, moderation metadata, the target content summary, and the content author when available. Use it for notifications and other side effects. Returns `void`.
+
+### `comment:afterModerate`
+
+Runs after an administrator changes a comment's status. The event contains the stored comment, `previousStatus`, `newStatus`, and the moderator's `{ id, name }`. Returns `void`.
 
 ## Cron Hook
 
@@ -352,19 +410,16 @@ Returns: `void`
 Runs on a schedule. Configure schedules via `ctx.cron.schedule()` in `plugin:activate`.
 
 ```typescript
-definePlugin({
-	id: "cleanup",
-	hooks: {
-		"plugin:activate": async (_event, ctx) => {
-			await ctx.cron!.schedule("daily-cleanup", { schedule: "0 2 * * *" });
-		},
-		cron: async (event, ctx) => {
-			if (event.name === "daily-cleanup") {
-				// ... cleanup logic
-			}
-		},
+hooks: {
+	"plugin:activate": async (_event, ctx) => {
+		await ctx.cron!.schedule("daily-cleanup", { schedule: "0 2 * * *" });
 	},
-});
+	cron: async (event, ctx) => {
+		if (event.name === "daily-cleanup") {
+			// ... cleanup logic
+		}
+	},
+},
 ```
 
 Event: `{ name: string, data?: Record<string, unknown> }`
@@ -449,14 +504,15 @@ Placements: `"head"`, `"body:start"`, `"body:end"`
 
 1. Lower `priority` values run first
 2. Equal priorities: plugin registration order
-3. `dependencies` array forces ordering regardless of priority
+
+These ordering rules apply to the native/in-process pipeline. The current isolated dispatcher iterates sandbox instances directly and does not apply manifest `priority`; `dependencies` is not serialized by the plugin CLI.
 
 ## Error Handling
 
 - `errorPolicy: "abort"` (default) — pipeline stops, operation may fail
 - `errorPolicy: "continue"` — error logged, remaining hooks still run
 
-Use `"continue"` for non-critical operations (analytics, notifications, external syncs).
+These policies apply to the native/in-process pipeline. `errorPolicy` is not serialized by the current sandbox bundle.
 
 ## Quick Reference
 
@@ -475,11 +531,15 @@ Use `"continue"` for non-critical operations (analytics, notifications, external
 | `content:afterRestore`    | After restore        | `content:read`                   | `void`                                                  |
 | `content:afterSchedule`   | After schedule       | `content:read`                   | `void`                                                  |
 | `content:afterUnschedule` | After unschedule     | `content:read`                   | `void`                                                  |
-| `media:beforeUpload`      | Before upload        | —                                | Modified file info or `void`                            |
-| `media:afterUpload`       | After upload         | —                                | `void`                                                  |
+| `media:beforeUpload`      | Before upload        | `media:write`                    | Modified file info or `void`                            |
+| `media:afterUpload`       | After upload         | `media:read`                     | `void`                                                  |
 | `email:beforeSend`        | Before email send    | `hooks.email-events:register`    | Modified message or `false`                             |
 | `email:deliver`           | Email delivery       | `hooks.email-transport:register` | `void` (exclusive)                                      |
 | `email:afterSend`         | After email send     | `hooks.email-events:register`    | `void`                                                  |
+| `comment:beforeCreate`    | Before comment save  | `users:read`                     | Modified event, `false`, or `void`                      |
+| `comment:moderate`        | Initial moderation   | `users:read`                     | Moderation decision (exclusive)                         |
+| `comment:afterCreate`     | After comment save   | `users:read`                     | `void`                                                  |
+| `comment:afterModerate`   | After status change  | `users:read`                     | `void`                                                  |
 | `cron`                    | Scheduled task fires | —                                | `void`                                                  |
 | `page:metadata`           | Page render          | —                                | Metadata contributions                                  |
-| `page:fragments`          | Page render          | — (trusted only)                 | Fragment contributions                                  |
+| `page:fragments`          | Page render          | `hooks.page-fragments:register` (native only) | Fragment contributions                  |
