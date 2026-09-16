@@ -44,8 +44,6 @@ import { DeviceAuthorizePage } from "./components/DeviceAuthorizePage";
 import { EntryLockNotice } from "./components/EntryLockNotice";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
-import { MarketplaceBrowse } from "./components/MarketplaceBrowse";
-import { MarketplacePluginDetail } from "./components/MarketplacePluginDetail";
 import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
@@ -71,8 +69,6 @@ import { SetupWizard } from "./components/SetupWizard";
 import { Shell } from "./components/Shell";
 import { SignupPage } from "./components/SignupPage";
 import { TaxonomyManager } from "./components/TaxonomyManager";
-import { ThemeMarketplaceBrowse } from "./components/ThemeMarketplaceBrowse";
-import { ThemeMarketplaceDetail } from "./components/ThemeMarketplaceDetail";
 import { Widgets } from "./components/Widgets";
 import { WordPressImport } from "./components/WordPressImport";
 import {
@@ -2225,14 +2221,14 @@ function PluginManagerPage() {
 	return <PluginManager manifest={manifest} />;
 }
 
-// Marketplace browse route
-const marketplaceBrowseRoute = createRoute({
+const registryBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
-	path: "/plugins/marketplace",
-	component: MarketplaceBrowsePage,
+	path: "/plugins/registry",
+	component: RegistryBrowsePage,
 });
 
-function MarketplaceBrowsePage() {
+function RegistryBrowsePage() {
+	const { t } = useLingui();
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
 		queryFn: fetchManifest,
@@ -2246,15 +2242,6 @@ function MarketplaceBrowsePage() {
 		},
 	});
 
-	const installedIds = React.useMemo(() => {
-		if (!plugins) return new Set<string>();
-		return new Set(plugins.map((p) => p.id));
-	}, [plugins]);
-
-	// When `experimental.registry` is configured, the registry browse
-	// replaces the centralized marketplace browse on this route. Existing
-	// sidebar / deep links stay valid; users see the registry without any
-	// path change.
 	if (manifest?.registry) {
 		// Map installed registry plugins to their AT URIs for the
 		// "Installed" badge on browse cards.
@@ -2271,8 +2258,14 @@ function MarketplaceBrowsePage() {
 		);
 	}
 
-	return <MarketplaceBrowse installedPluginIds={installedIds} />;
+	return <NotFoundPage message={t`Plugin registry is not configured.`} />;
 }
+
+const marketplaceBrowseRoute = createRoute({
+	getParentRoute: () => adminLayoutRoute,
+	path: "/plugins/marketplace",
+	component: MarketplaceUnavailablePage,
+});
 
 // Marketplace plugin detail route
 const marketplaceDetailRoute = createRoute({
@@ -2301,45 +2294,20 @@ function RegistryDetailPage() {
 }
 
 function MarketplaceDetailPage() {
-	const { pluginId } = useParams({ from: "/_admin/plugins/marketplace/$pluginId" });
+	const { t } = useLingui();
 
-	const { data: manifest } = useQuery({
-		queryKey: ["manifest"],
-		queryFn: fetchManifest,
-	});
-
-	const { data: plugins } = useQuery({
-		queryKey: ["plugins"],
-		queryFn: async () => {
-			const { fetchPlugins } = await import("./lib/api/plugins.js");
-			return fetchPlugins();
-		},
-	});
-
-	const installedIds = React.useMemo(() => {
-		if (!plugins) return new Set<string>();
-		return new Set(plugins.map((p) => p.id));
-	}, [plugins]);
-
-	// Discriminate by param shape, not by the manifest flag. A registry
-	// pluginId is always `${handle}/${slug}` and contains exactly one `/`;
-	// a marketplace pluginId is a single segment with no `/`. This keeps
-	// deep links to marketplace-installed plugins working on sites that
-	// later opt into the registry, instead of unconditionally routing
-	// every visit to RegistryPluginDetail.
-	const looksLikeRegistryId = pluginId.includes("/");
-	if (manifest?.registry && looksLikeRegistryId) {
-		return <RegistryPluginDetail pluginId={pluginId} config={manifest.registry} />;
-	}
-
-	return <MarketplacePluginDetail pluginId={pluginId} installedPluginIds={installedIds} />;
+	return (
+		<NotFoundPage
+			message={t`Marketplace browsing is no longer available. Manage installed plugins from Plugins.`}
+		/>
+	);
 }
 
 // Theme marketplace browse route
 const themeMarketplaceBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/themes/marketplace",
-	component: ThemeMarketplaceBrowse,
+	component: MarketplaceUnavailablePage,
 });
 
 // Theme marketplace detail route
@@ -2350,8 +2318,12 @@ const themeMarketplaceDetailRoute = createRoute({
 });
 
 function ThemeDetailPage() {
-	const { themeId } = useParams({ from: "/_admin/themes/marketplace/$themeId" });
-	return <ThemeMarketplaceDetail themeId={themeId} />;
+	return <MarketplaceUnavailablePage />;
+}
+
+function MarketplaceUnavailablePage() {
+	const { t } = useLingui();
+	return <NotFoundPage message={t`Marketplace browsing is no longer available.`} />;
 }
 
 // WordPress import route
@@ -2742,6 +2714,7 @@ const adminRoutes = adminLayoutRoute.addChildren([
 	pluginManagerRoute,
 	pluginSettingsRoute,
 	marketplaceDetailRoute,
+	registryBrowseRoute,
 	registryDetailRoute,
 	marketplaceBrowseRoute,
 	themeMarketplaceBrowseRoute,

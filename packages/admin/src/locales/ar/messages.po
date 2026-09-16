@@ -100,7 +100,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr ""
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:2086
+#: packages/admin/src/router.tsx:2082
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, zero {لم تُحدَّث تعليقات} one {تعليق واحد محدَّث} two {تعليقان محدَّثان} few {# تعليقات محدَّثة} many {# تعليقًا محدَّثًا} other {# تعليق محدَّث}}"
 
@@ -142,7 +142,7 @@ msgid "{0, plural, one {# item} other {# items}}"
 msgstr "{0, plural, few {# عناصر} many {# عنصرًا} other {# عنصر}}"
 
 #. placeholder {0}: mcpTools.length
-#: packages/admin/src/components/PluginManager.tsx:491
+#: packages/admin/src/components/PluginManager.tsx:481
 msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr ""
 
@@ -168,7 +168,7 @@ msgstr "{0, plural, few {# قوائم سيتم استيرادها} many {# قا�
 
 #. placeholder {0}: plugin.capabilities.length
 #: packages/admin/src/components/MarketplaceBrowse.tsx:290
-#: packages/admin/src/components/PluginManager.tsx:505
+#: packages/admin/src/components/PluginManager.tsx:495
 msgid "{0, plural, one {# permission} other {# permissions}}"
 msgstr "{0, plural, few {# صلاحيات} many {# صلاحيةً} other {# صلاحية}}"
 
@@ -243,7 +243,7 @@ msgid "{0, plural, one {field} other {fields}}"
 msgstr "{0, plural, zero {حقول} one {حقل} two {حقلان} few {# حقول} many {# حقلًا} other {# حقل}}"
 
 #. placeholder {0}: stats.mediaCount
-#: packages/admin/src/components/Dashboard.tsx:214
+#: packages/admin/src/components/Dashboard.tsx:220
 msgid "{0, plural, one {Media file} other {Media files}}"
 msgstr ""
 
@@ -253,7 +253,7 @@ msgid "{0, plural, one {Row deleted} other {# rows deleted}}"
 msgstr ""
 
 #. placeholder {0}: stats.userCount
-#: packages/admin/src/components/Dashboard.tsx:218
+#: packages/admin/src/components/Dashboard.tsx:224
 msgid "{0, plural, one {User} other {Users}}"
 msgstr ""
 
@@ -301,7 +301,7 @@ msgid "{0} has been deactivated"
 msgstr "تم إلغاء تفعيل {0}"
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:386
+#: packages/admin/src/components/PluginManager.tsx:376
 msgid "{0} has been removed"
 msgstr "تم إزالة {0}"
 
@@ -332,17 +332,17 @@ msgid "{0} items will be imported"
 msgstr "سيتم استيراد {0} عنصر"
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:583
+#: packages/admin/src/router.tsx:579
 msgid "{0} of {total} could not be deleted"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:539
+#: packages/admin/src/router.tsx:535
 msgid "{0} of {total} could not be published"
 msgstr ""
 
 #. placeholder {0}: failedIds.length
-#: packages/admin/src/router.tsx:562
+#: packages/admin/src/router.tsx:558
 msgid "{0} of {total} could not be updated"
 msgstr ""
 
@@ -379,7 +379,7 @@ msgid "{0} updated everywhere it appears."
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:292
+#: packages/admin/src/components/PluginManager.tsx:282
 msgid "{0} updated to v{installedVersion}"
 msgstr ""
 
@@ -480,11 +480,11 @@ msgstr "{needsNewCollections, plural, few {سيتم انشاء # مجموعات 
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, few {سيتم إضافة حقول إلى # مجموعات موجودة حاليًا} many {سيتم إضافة حقول إلى # مجموعةً موجود حاليًا} other {سيتم إضافة حقول إلى # مجموعة موجودة حاليًا}}"
 
-#: packages/admin/src/components/Dashboard.tsx:103
+#: packages/admin/src/components/Dashboard.tsx:109
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:98
+#: packages/admin/src/components/Dashboard.tsx:104
 msgid "{overdueCount, plural, one {One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
 msgstr ""
 
@@ -554,11 +554,11 @@ msgstr "{total, plural, zero {لا عناصر} one {عنصر واحد} two {عن
 msgid "{total, plural, one {# total} other {# total}}"
 msgstr "{total, plural, other {إجمالي #}}"
 
-#: packages/admin/src/components/Dashboard.tsx:202
+#: packages/admin/src/components/Dashboard.tsx:208
 msgid "{totalDrafts, plural, one {Draft} other {Drafts}}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:208
+#: packages/admin/src/components/Dashboard.tsx:214
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr ""
 
@@ -763,7 +763,7 @@ msgstr "قبول الدعوة"
 msgid "Access denied"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2106
+#: packages/admin/src/router.tsx:2102
 msgid "Access Denied"
 msgstr "الوصول مرفوض"
 
@@ -953,7 +953,7 @@ msgstr "إضافة علامة noindex الذاتية"
 msgid "Add Passkey"
 msgstr "إضافة مفتاح مرور"
 
-#: packages/admin/src/components/PluginManager.tsx:223
+#: packages/admin/src/components/PluginManager.tsx:222
 msgid "Add plugins to your astro.config.mjs to extend EmDash functionality."
 msgstr "قم بإدراج إضافات لملف astro.config.mjs الخاص بك لتطوير وظائف EmDash."
 
@@ -1000,12 +1000,12 @@ msgid "admin"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:102
-#: packages/admin/src/components/Sidebar.tsx:618
+#: packages/admin/src/components/Sidebar.tsx:602
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "مسؤول"
 
-#: packages/admin/src/components/Sidebar.tsx:566
+#: packages/admin/src/components/Sidebar.tsx:550
 msgid "Admin navigation"
 msgstr "تنقل لوحة الإدارة"
 
@@ -1021,12 +1021,12 @@ msgstr ""
 msgid "After send:"
 msgstr "بعد الإرسال:"
 
-#: packages/admin/src/components/PluginManager.tsx:612
+#: packages/admin/src/components/PluginManager.tsx:590
 msgid "Agent access"
 msgstr ""
 
 #. placeholder {0}: plugin.name
-#: packages/admin/src/components/PluginManager.tsx:397
+#: packages/admin/src/components/PluginManager.tsx:387
 msgid "Agent access for {0} has been updated"
 msgstr ""
 
@@ -1109,7 +1109,7 @@ msgstr "جميع الأنواع"
 msgid "All uploads finished"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:614
+#: packages/admin/src/components/PluginManager.tsx:592
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr ""
 
@@ -1134,7 +1134,7 @@ msgstr "الأنواع المسموح بها"
 msgid "Already have an account?"
 msgstr "لديك حساب بالفعل؟"
 
-#: packages/admin/src/components/PluginManager.tsx:809
+#: packages/admin/src/components/PluginManager.tsx:787
 msgid "Also delete plugin storage data"
 msgstr "كذلك حذف بيانات تخزين الإضافة"
 
@@ -1177,7 +1177,7 @@ msgstr ""
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
 #: packages/admin/src/components/PluginManager.tsx:120
 #: packages/admin/src/components/PluginManager.tsx:139
-#: packages/admin/src/components/PluginManager.tsx:325
+#: packages/admin/src/components/PluginManager.tsx:315
 #: packages/admin/src/components/PluginSettings.tsx:75
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:85
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:108
@@ -1204,24 +1204,24 @@ msgstr ""
 #: packages/admin/src/components/TaxonomySidebar.tsx:416
 #: packages/admin/src/components/TaxonomySidebar.tsx:476
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:114
-#: packages/admin/src/router.tsx:471
-#: packages/admin/src/router.tsx:486
-#: packages/admin/src/router.tsx:500
-#: packages/admin/src/router.tsx:514
-#: packages/admin/src/router.tsx:738
-#: packages/admin/src/router.tsx:1075
-#: packages/admin/src/router.tsx:1162
-#: packages/admin/src/router.tsx:1187
-#: packages/admin/src/router.tsx:1211
-#: packages/admin/src/router.tsx:1235
-#: packages/admin/src/router.tsx:1281
-#: packages/admin/src/router.tsx:1300
-#: packages/admin/src/router.tsx:1331
-#: packages/admin/src/router.tsx:1352
-#: packages/admin/src/router.tsx:2051
-#: packages/admin/src/router.tsx:2067
-#: packages/admin/src/router.tsx:2092
-#: packages/admin/src/router.tsx:2617
+#: packages/admin/src/router.tsx:467
+#: packages/admin/src/router.tsx:482
+#: packages/admin/src/router.tsx:496
+#: packages/admin/src/router.tsx:510
+#: packages/admin/src/router.tsx:734
+#: packages/admin/src/router.tsx:1071
+#: packages/admin/src/router.tsx:1158
+#: packages/admin/src/router.tsx:1183
+#: packages/admin/src/router.tsx:1207
+#: packages/admin/src/router.tsx:1231
+#: packages/admin/src/router.tsx:1277
+#: packages/admin/src/router.tsx:1296
+#: packages/admin/src/router.tsx:1327
+#: packages/admin/src/router.tsx:1348
+#: packages/admin/src/router.tsx:2047
+#: packages/admin/src/router.tsx:2063
+#: packages/admin/src/router.tsx:2088
+#: packages/admin/src/router.tsx:2589
 #: packages/admin/src/routes/byline-schema.tsx:103
 #: packages/admin/src/routes/byline-schema.tsx:123
 #: packages/admin/src/routes/byline-schema.tsx:139
@@ -1465,7 +1465,7 @@ msgstr ""
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1161
+#: packages/admin/src/router.tsx:1157
 msgid "Autosave failed"
 msgstr "فشل الحفظ التلقائي"
 
@@ -1640,7 +1640,7 @@ msgid "Browse files to upload"
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:67
-msgid "Browse the <0>marketplace</0> to install plugins, or add them to your astro.config.mjs."
+msgid "Browse the <0>registry</0> to install plugins, or add them to your astro.config.mjs."
 msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
@@ -1730,7 +1730,7 @@ msgstr "يمكنه عرض المحتوى"
 #: packages/admin/src/components/MenuEditor.tsx:438
 #: packages/admin/src/components/MenuEditor.tsx:623
 #: packages/admin/src/components/MenuList.tsx:175
-#: packages/admin/src/components/PluginManager.tsx:815
+#: packages/admin/src/components/PluginManager.tsx:793
 #: packages/admin/src/components/PortableTextEditor.tsx:4688
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:367
 #: packages/admin/src/components/Redirects.tsx:183
@@ -1774,7 +1774,7 @@ msgstr "لا يمكن حذف أقسام المظهر"
 msgid "Canonical URL"
 msgstr "الرابط الأساسي"
 
-#: packages/admin/src/components/PluginManager.tsx:588
+#: packages/admin/src/components/PluginManager.tsx:566
 msgid "Capabilities"
 msgstr "الإمكانيات"
 
@@ -1874,7 +1874,7 @@ msgstr ""
 msgid "Changes apply everywhere this byline appears."
 msgstr ""
 
-#: packages/admin/src/router.tsx:1227
+#: packages/admin/src/router.tsx:1223
 msgid "Changes discarded"
 msgstr "تم تجاهل التغييرات"
 
@@ -1882,25 +1882,41 @@ msgstr "تم تجاهل التغييرات"
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
 msgstr "الحرف بين عنوان الصفحة واسم الموقع (مثال: \"منشوري | موقعي\")"
 
-#: packages/admin/src/components/RegistryConfigurationBanner.tsx:23
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:35
 msgid "Check experimental.registry in astro.config.mjs, then restart EmDash."
 msgstr ""
 
-#: packages/admin/src/components/RegistryConfigurationBanner.tsx:14
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:23
 msgid "Check experimental.registry.aggregatorUrl in astro.config.mjs, then restart EmDash."
 msgstr ""
 
-#: packages/admin/src/components/RegistryConfigurationBanner.tsx:17
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:26
 msgid "Check experimental.registry.policy.minimumReleaseAge in astro.config.mjs, then restart EmDash."
 msgstr ""
 
-#: packages/admin/src/components/RegistryConfigurationBanner.tsx:20
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:29
 msgid "Check experimental.registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr ""
 
 #: packages/admin/src/components/PluginManager.tsx:189
 msgid "Check for updates"
 msgstr "التحقق من التحديثات"
+
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:34
+msgid "Check registry in astro.config.mjs, then restart EmDash."
+msgstr ""
+
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:14
+msgid "Check registry.aggregatorUrl in astro.config.mjs, then restart EmDash."
+msgstr ""
+
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:17
+msgid "Check registry.policy.minimumReleaseAge in astro.config.mjs, then restart EmDash."
+msgstr ""
+
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:20
+msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
+msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:1113
 msgid "Check Site"
@@ -2136,8 +2152,8 @@ msgstr "كتلة كود"
 msgid "Code block actions"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:571
-#: packages/admin/src/components/PluginManager.tsx:576
+#: packages/admin/src/components/PluginManager.tsx:549
+#: packages/admin/src/components/PluginManager.tsx:554
 msgid "Collapse details"
 msgstr "طي التفاصيل"
 
@@ -2281,10 +2297,10 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:378
 #: packages/admin/src/components/comments/CommentDetail.tsx:103
 #: packages/admin/src/components/comments/CommentInbox.tsx:285
-#: packages/admin/src/components/Dashboard.tsx:270
+#: packages/admin/src/components/Dashboard.tsx:276
 #: packages/admin/src/components/PortableTextEditor.tsx:2925
 #: packages/admin/src/components/SectionEditor.tsx:215
-#: packages/admin/src/components/Sidebar.tsx:602
+#: packages/admin/src/components/Sidebar.tsx:586
 #: packages/admin/src/components/Widgets.tsx:899
 msgid "Content"
 msgstr "محتوى"
@@ -2302,7 +2318,7 @@ msgstr "أخطاء المحتوى ({0})"
 msgid "Content found:"
 msgstr "المحتوى الذي تم العثور عليه:"
 
-#: packages/admin/src/router.tsx:1274
+#: packages/admin/src/router.tsx:1270
 msgid "Content has been scheduled for publishing"
 msgstr "تمت جدولة المحتوى للنشر"
 
@@ -2314,7 +2330,7 @@ msgstr "تم تحديث المحتوى إلى المراجعة المحددة."
 msgid "Content ID:"
 msgstr "معرف المحتوى:"
 
-#: packages/admin/src/router.tsx:1181
+#: packages/admin/src/router.tsx:1177
 msgid "Content is now live"
 msgstr "المحتوى منشور الآن"
 
@@ -2326,11 +2342,11 @@ msgstr ""
 msgid "Content Read"
 msgstr "قراءة المحتوى"
 
-#: packages/admin/src/router.tsx:1205
+#: packages/admin/src/router.tsx:1201
 msgid "Content removed from public view"
 msgstr "أُزيل المحتوى من العرض العام"
 
-#: packages/admin/src/router.tsx:1293
+#: packages/admin/src/router.tsx:1289
 msgid "Content reverted to draft"
 msgstr "أُعيد المحتوى إلى المسودة"
 
@@ -2450,7 +2466,7 @@ msgstr "تعذّر النسخ تلقائيًا. يرجى تحديد الرابط
 msgid "Could not insert section"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:125
+#: packages/admin/src/components/Dashboard.tsx:131
 msgid "Could not load dashboard data"
 msgstr ""
 
@@ -2710,7 +2726,7 @@ msgid "Created {0}"
 msgstr "تم إنشاء {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:1325
+#: packages/admin/src/router.tsx:1321
 msgid "Created {0} translation"
 msgstr "تم إنشاء ترجمة {0}"
 
@@ -2813,9 +2829,9 @@ msgstr ""
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:130
 #: packages/admin/src/components/ContentTypeList.tsx:358
-#: packages/admin/src/components/Dashboard.tsx:57
+#: packages/admin/src/components/Dashboard.tsx:63
 #: packages/admin/src/components/Sidebar.tsx:393
-#: packages/admin/src/components/Sidebar.tsx:593
+#: packages/admin/src/components/Sidebar.tsx:577
 msgid "Dashboard"
 msgstr "لوحة المعلومات"
 
@@ -3155,7 +3171,7 @@ msgid "Destination path"
 msgstr "رابط الوجهة"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:225
-#: packages/admin/src/components/PluginManager.tsx:633
+#: packages/admin/src/components/PluginManager.tsx:611
 msgid "Destructive"
 msgstr ""
 
@@ -3196,11 +3212,11 @@ msgstr "الأبعاد:"
 msgid "Disable"
 msgstr "تعطيل"
 
-#: packages/admin/src/components/PluginManager.tsx:565
+#: packages/admin/src/components/PluginManager.tsx:543
 msgid "Disable plugin"
 msgstr "تعطيل الإضافة"
 
-#: packages/admin/src/components/PluginManager.tsx:623
+#: packages/admin/src/components/PluginManager.tsx:601
 msgid "Disable plugin MCP tools"
 msgstr ""
 
@@ -3216,14 +3232,14 @@ msgstr "تعطيل المستخدم"
 msgid "Disable User?"
 msgstr "تعطيل المستخدم؟"
 
-#: packages/admin/src/components/PluginManager.tsx:446
+#: packages/admin/src/components/PluginManager.tsx:436
 #: packages/admin/src/components/Redirects.tsx:426
 #: packages/admin/src/components/users/UserDetail.tsx:201
 #: packages/admin/src/components/users/UserList.tsx:205
 msgid "Disabled"
 msgstr "معطل"
 
-#: packages/admin/src/components/PluginManager.tsx:683
+#: packages/admin/src/components/PluginManager.tsx:661
 msgid "Disabled:"
 msgstr "معطل:"
 
@@ -3414,7 +3430,7 @@ msgid "draft, published, or archived"
 msgstr "مسودة، منشورة، أو مؤرشفة"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:71
-#: packages/admin/src/components/Dashboard.tsx:304
+#: packages/admin/src/components/Dashboard.tsx:310
 msgid "Drafts"
 msgstr "المسودات"
 
@@ -3753,11 +3769,11 @@ msgstr "تفعيل التعليقات"
 msgid "Enable full-text search on this collection"
 msgstr "تفعيل البحث النصي الكامل على هذه المجموعة"
 
-#: packages/admin/src/components/PluginManager.tsx:565
+#: packages/admin/src/components/PluginManager.tsx:543
 msgid "Enable plugin"
 msgstr "تفعيل الإضافة"
 
-#: packages/admin/src/components/PluginManager.tsx:624
+#: packages/admin/src/components/PluginManager.tsx:602
 msgid "Enable plugin MCP tools"
 msgstr ""
 
@@ -3846,7 +3862,7 @@ msgstr "أدخل رابط موقع WordPress الخاص بك"
 #: packages/admin/src/components/SetupWizard.tsx:532
 #: packages/admin/src/components/TaxonomyManager.tsx:947
 #: packages/admin/src/components/Widgets.tsx:769
-#: packages/admin/src/router.tsx:2833
+#: packages/admin/src/router.tsx:2806
 msgid "Error"
 msgstr "خطأ"
 
@@ -3903,8 +3919,8 @@ msgstr "الخروج من وضع الخلو من التشتت"
 msgid "Exit distraction-free mode (⌘⇧\\)"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:571
-#: packages/admin/src/components/PluginManager.tsx:576
+#: packages/admin/src/components/PluginManager.tsx:549
+#: packages/admin/src/components/PluginManager.tsx:554
 msgid "Expand details"
 msgstr "توسيع التفاصيل"
 
@@ -3991,14 +4007,14 @@ msgid "Failed to create term"
 msgstr "فشل إنشاء المصطلح"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:475
-#: packages/admin/src/router.tsx:1330
+#: packages/admin/src/router.tsx:1326
 msgid "Failed to create translation"
 msgstr "فشل إنشاء الترجمة"
 
-#: packages/admin/src/router.tsx:470
-#: packages/admin/src/router.tsx:499
-#: packages/admin/src/router.tsx:582
-#: packages/admin/src/router.tsx:1351
+#: packages/admin/src/router.tsx:466
+#: packages/admin/src/router.tsx:495
+#: packages/admin/src/router.tsx:578
+#: packages/admin/src/router.tsx:1347
 msgid "Failed to delete"
 msgstr "فشل الحذف"
 
@@ -4023,7 +4039,7 @@ msgid "Failed to delete collection"
 msgstr "فشل حذف المجموعة"
 
 #: packages/admin/src/lib/api/comments.ts:111
-#: packages/admin/src/router.tsx:2066
+#: packages/admin/src/router.tsx:2062
 msgid "Failed to delete comment"
 msgstr "فشل حذف التعليق"
 
@@ -4093,7 +4109,7 @@ msgstr ""
 msgid "Failed to disable user"
 msgstr "فشل تعطيل المستخدم"
 
-#: packages/admin/src/router.tsx:1234
+#: packages/admin/src/router.tsx:1230
 msgid "Failed to discard changes"
 msgstr "فشل تجاهل التغييرات"
 
@@ -4101,7 +4117,7 @@ msgstr "فشل تجاهل التغييرات"
 msgid "Failed to dismiss welcome"
 msgstr "فشل إغلاق رسالة الترحيب"
 
-#: packages/admin/src/router.tsx:513
+#: packages/admin/src/router.tsx:509
 msgid "Failed to duplicate"
 msgstr "فشل التكرار"
 
@@ -4122,7 +4138,7 @@ msgstr "فشل تفعيل المستخدم"
 msgid "Failed to execute import"
 msgstr "فشل تنفيذ الاستيراد"
 
-#: packages/admin/src/lib/api/client.ts:336
+#: packages/admin/src/lib/api/client.ts:338
 msgid "Failed to fetch auth mode"
 msgstr ""
 
@@ -4147,7 +4163,7 @@ msgstr ""
 msgid "Failed to fetch entry terms"
 msgstr "فشل جلب مصطلحات المدخل"
 
-#: packages/admin/src/lib/api/client.ts:319
+#: packages/admin/src/lib/api/client.ts:321
 msgid "Failed to fetch manifest"
 msgstr "فشل جلب ملف البيان"
 
@@ -4220,8 +4236,8 @@ msgstr "فشل جلب المصطلحات"
 #: packages/admin/src/lib/api/current-user.ts:22
 #: packages/admin/src/lib/api/users.ts:88
 #: packages/admin/src/lib/api/users.ts:93
-#: packages/admin/src/router.tsx:957
-#: packages/admin/src/router.tsx:1997
+#: packages/admin/src/router.tsx:953
+#: packages/admin/src/router.tsx:1993
 msgid "Failed to fetch user"
 msgstr "فشل جلب بيانات المستخدم"
 
@@ -4263,7 +4279,7 @@ msgstr "فشل تثبيت الإضافة"
 msgid "Failed to list byline fields"
 msgstr ""
 
-#: packages/admin/src/router.tsx:310
+#: packages/admin/src/router.tsx:306
 msgid "Failed to load admin"
 msgstr "فشل تحميل لوحة الإدارة"
 
@@ -4336,7 +4352,7 @@ msgstr "فشل تحميل عنصر الواجهة"
 msgid "Failed to lock the entry"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2091
+#: packages/admin/src/router.tsx:2087
 msgid "Failed to perform bulk action"
 msgstr "فشل تنفيذ الإجراء الجماعي"
 
@@ -4348,8 +4364,8 @@ msgstr "فشل الحذف النهائي للمحتوى"
 msgid "Failed to prepare import"
 msgstr "فشل تحضير الاستيراد"
 
-#: packages/admin/src/router.tsx:538
-#: packages/admin/src/router.tsx:1186
+#: packages/admin/src/router.tsx:534
+#: packages/admin/src/router.tsx:1182
 msgid "Failed to publish"
 msgstr "فشل النشر"
 
@@ -4399,7 +4415,7 @@ msgstr "فشل إعادة ترتيب عناصر الواجهة"
 msgid "Failed to replace media image"
 msgstr ""
 
-#: packages/admin/src/router.tsx:485
+#: packages/admin/src/router.tsx:481
 msgid "Failed to restore"
 msgstr "فشل الاستعادة"
 
@@ -4420,9 +4436,9 @@ msgstr "فشل إلغاء رمز API"
 msgid "Failed to rewrite URLs"
 msgstr "فشل إعادة كتابة الروابط"
 
-#: packages/admin/src/router.tsx:737
-#: packages/admin/src/router.tsx:1074
-#: packages/admin/src/router.tsx:2616
+#: packages/admin/src/router.tsx:733
+#: packages/admin/src/router.tsx:1070
+#: packages/admin/src/router.tsx:2588
 msgid "Failed to save"
 msgstr "فشل الحفظ"
 
@@ -4441,7 +4457,7 @@ msgstr ""
 msgid "Failed to save settings"
 msgstr "فشل في حفظ الإعدادات"
 
-#: packages/admin/src/router.tsx:1280
+#: packages/admin/src/router.tsx:1276
 msgid "Failed to schedule"
 msgstr "فشل الجدولة"
 
@@ -4472,15 +4488,15 @@ msgstr "فشل تعيين مصطلحات المدخل"
 msgid "Failed to uninstall plugin"
 msgstr "فشل إلغاء تثبيت الإضافة"
 
-#: packages/admin/src/router.tsx:1210
+#: packages/admin/src/router.tsx:1206
 msgid "Failed to unpublish"
 msgstr "فشل إلغاء النشر"
 
-#: packages/admin/src/router.tsx:1299
+#: packages/admin/src/router.tsx:1295
 msgid "Failed to unschedule"
 msgstr "فشل إلغاء الجدولة"
 
-#: packages/admin/src/router.tsx:561
+#: packages/admin/src/router.tsx:557
 msgid "Failed to update"
 msgstr ""
 
@@ -4505,7 +4521,7 @@ msgstr "فشل في تحديث النطاق"
 msgid "Failed to update media"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:324
+#: packages/admin/src/components/PluginManager.tsx:314
 #: packages/admin/src/lib/api/marketplace.ts:336
 #: packages/admin/src/lib/api/registry.ts:884
 msgid "Failed to update plugin"
@@ -4527,7 +4543,7 @@ msgstr ""
 msgid "Failed to update settings"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2050
+#: packages/admin/src/router.tsx:2046
 msgid "Failed to update status"
 msgstr "فشل تحديث الحالة"
 
@@ -4734,7 +4750,7 @@ msgstr ""
 msgid "Folder name must be between 1 and 200 characters"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1720
+#: packages/admin/src/router.tsx:1716
 msgid "Folder no longer exists"
 msgstr ""
 
@@ -4859,7 +4875,7 @@ msgid "Go"
 msgstr ""
 
 #: packages/admin/src/components/WordPressImport.tsx:2434
-#: packages/admin/src/router.tsx:2853
+#: packages/admin/src/router.tsx:2826
 msgid "Go to Dashboard"
 msgstr "الذهاب إلى لوحة المعلومات"
 
@@ -5010,7 +5026,7 @@ msgstr "الرئيسية"
 msgid "Homepage"
 msgstr "الصفحة الرئيسية"
 
-#: packages/admin/src/components/PluginManager.tsx:485
+#: packages/admin/src/components/PluginManager.tsx:475
 msgid "Hooks"
 msgstr "المُشعرات"
 
@@ -5142,7 +5158,7 @@ msgid "Images"
 msgstr "الصور"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:226
-#: packages/admin/src/components/Sidebar.tsx:496
+#: packages/admin/src/components/Sidebar.tsx:480
 #: packages/admin/src/components/WordPressImport.tsx:756
 msgid "Import"
 msgstr "استيراد"
@@ -5410,11 +5426,11 @@ msgid "Installed"
 msgstr "مثبَّت"
 
 #. placeholder {0}: plugin.marketplaceVersion || plugin.version
-#: packages/admin/src/components/PluginManager.tsx:652
+#: packages/admin/src/components/PluginManager.tsx:630
 msgid "Installed from marketplace (v{0})"
 msgstr "مثبَّت من السوق (الإصدار {0})"
 
-#: packages/admin/src/components/PluginManager.tsx:671
+#: packages/admin/src/components/PluginManager.tsx:649
 msgid "Installed:"
 msgstr "مثبَّت:"
 
@@ -5605,7 +5621,7 @@ msgstr "اللغة"
 msgid "Large section heading"
 msgstr "عنوان قسم كبير"
 
-#: packages/admin/src/components/PluginManager.tsx:677
+#: packages/admin/src/components/PluginManager.tsx:655
 msgid "Last enabled:"
 msgstr "آخر تفعيل:"
 
@@ -5744,7 +5760,7 @@ msgstr "تحميل المزيد"
 msgid "Load more folders"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2808
+#: packages/admin/src/router.tsx:2781
 msgid "Loading"
 msgstr ""
 
@@ -5760,8 +5776,8 @@ msgstr "جاري تحميل المجموعات..."
 msgid "Loading comments..."
 msgstr "جاري تحميل التعليقات..."
 
-#: packages/admin/src/router.tsx:2810
-#: packages/admin/src/router.tsx:2822
+#: packages/admin/src/router.tsx:2783
+#: packages/admin/src/router.tsx:2795
 msgid "Loading configuration..."
 msgstr "جارٍ تحميل الإعدادات..."
 
@@ -5952,7 +5968,7 @@ msgstr "إجراء طلبات الشبكة"
 msgid "Make network requests to any host (unrestricted)"
 msgstr "إجراء طلبات الشبكة لأي مضيف (بدون قيود)"
 
-#: packages/admin/src/components/Sidebar.tsx:610
+#: packages/admin/src/components/Sidebar.tsx:594
 msgid "Manage"
 msgstr "إدارة"
 
@@ -6026,11 +6042,21 @@ msgid "Markdown"
 msgstr ""
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:87
-#: packages/admin/src/components/PluginManager.tsx:194
-#: packages/admin/src/components/PluginManager.tsx:447
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/PluginManager.tsx:437
 msgid "Marketplace"
 msgstr "السوق"
+
+#: packages/admin/src/router.tsx:2326
+msgid "Marketplace browsing is no longer available."
+msgstr ""
+
+#: packages/admin/src/router.tsx:2301
+msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
+msgstr ""
+
+#: packages/admin/src/components/MarketplaceMigrationBanner.tsx:14
+msgid "Marketplace configuration is deprecated"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:666
 msgid "Max Items"
@@ -6220,6 +6246,10 @@ msgstr "محتوى علامة meta لتحقق Google Search Console"
 msgid "Meta titles, descriptions, and social images"
 msgstr "العناوين التعريفية والأوصاف والصور الاجتماعية"
 
+#: packages/admin/src/components/MarketplaceMigrationBanner.tsx:18
+msgid "Migration guide"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:1069
 msgid "Migration key"
 msgstr ""
@@ -6379,11 +6409,11 @@ msgstr "تحريك للأعلى"
 msgid "Moved {filename} to position {0}."
 msgstr ""
 
-#: packages/admin/src/router.tsx:558
+#: packages/admin/src/router.tsx:554
 msgid "Moved {total} items to draft"
 msgstr ""
 
-#: packages/admin/src/router.tsx:579
+#: packages/admin/src/router.tsx:575
 msgid "Moved {total} items to trash"
 msgstr ""
 
@@ -6470,7 +6500,7 @@ msgstr ""
 msgid "Never"
 msgstr "أبدًا"
 
-#: packages/admin/src/router.tsx:1325
+#: packages/admin/src/router.tsx:1321
 msgid "new"
 msgstr "جديد"
 
@@ -6510,6 +6540,10 @@ msgstr ""
 
 #: packages/admin/src/components/MediaLibrary.tsx:856
 msgid "New folder"
+msgstr ""
+
+#: packages/admin/src/components/MarketplaceMigrationBanner.tsx:15
+msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
 msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:194
@@ -6649,7 +6683,7 @@ msgstr ""
 msgid "No bylines found"
 msgstr "لم يُعثر على كُتّاب"
 
-#: packages/admin/src/components/Dashboard.tsx:276
+#: packages/admin/src/components/Dashboard.tsx:282
 msgid "No collections configured"
 msgstr "لم يتم تهيئة مجموعات"
 
@@ -6807,7 +6841,7 @@ msgstr "لم يتم تسجيل مفاتيح مرور"
 msgid "No passkeys registered yet."
 msgstr "لم يتم تسجيل مفاتيح مرور بعد."
 
-#: packages/admin/src/components/PluginManager.tsx:218
+#: packages/admin/src/components/PluginManager.tsx:217
 msgid "No plugins configured"
 msgstr "لم يتم تهيئة إضافات"
 
@@ -6835,7 +6869,7 @@ msgstr ""
 msgid "No public URL available"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:355
+#: packages/admin/src/components/Dashboard.tsx:361
 msgid "No recent activity"
 msgstr "لا يوجد نشاط حديث"
 
@@ -7130,11 +7164,11 @@ msgstr "يَحل محل عنوان الصفحة في نتائج محركات ا�
 msgid "Ownership"
 msgstr "الملكية"
 
-#: packages/admin/src/components/PluginManager.tsx:661
+#: packages/admin/src/components/PluginManager.tsx:639
 msgid "Package"
 msgstr "الحزمة"
 
-#: packages/admin/src/router.tsx:2848
+#: packages/admin/src/router.tsx:2821
 msgid "Page Not Found"
 msgstr "الصفحة غير موجودة"
 
@@ -7148,7 +7182,7 @@ msgstr ""
 msgid "Page size"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:473
+#: packages/admin/src/components/PluginManager.tsx:463
 #: packages/admin/src/components/WordPressImport.tsx:1344
 msgid "Pages"
 msgstr "الصفحات"
@@ -7384,7 +7418,7 @@ msgstr "خطأ في الإضافة"
 msgid "Plugin error ({0})"
 msgstr "خطأ في الإضافة ({0})"
 
-#: packages/admin/src/components/PluginManager.tsx:396
+#: packages/admin/src/components/PluginManager.tsx:386
 msgid "Plugin MCP access updated"
 msgstr ""
 
@@ -7404,7 +7438,7 @@ msgstr "لم يتم العثور على الإضافة"
 msgid "Plugin not found. The publisher or slug may be incorrect."
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:554
+#: packages/admin/src/components/PluginManager.tsx:532
 msgid "Plugin pages"
 msgstr ""
 
@@ -7420,12 +7454,13 @@ msgstr "صلاحيات الإضافة"
 msgid "Plugin Registry"
 msgstr "مستودع الإضافات"
 
-#: packages/admin/src/components/RegistryConfigurationBanner.tsx:30
-#: packages/admin/src/components/RegistryConfigurationBanner.tsx:31
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:43
+#: packages/admin/src/components/RegistryConfigurationBanner.tsx:44
 msgid "Plugin registry configuration error"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2299
+#: packages/admin/src/router.tsx:2261
+#: packages/admin/src/router.tsx:2292
 msgid "Plugin registry is not configured."
 msgstr ""
 
@@ -7440,7 +7475,7 @@ msgstr "ردّت الإضافة بـ {0}: {text}"
 msgid "Plugin tools: {0}"
 msgstr ""
 
-#: packages/admin/src/components/PluginManager.tsx:385
+#: packages/admin/src/components/PluginManager.tsx:375
 msgid "Plugin uninstalled"
 msgstr "تم إلغاء تثبيت الإضافة"
 
@@ -7449,7 +7484,7 @@ msgstr "تم إلغاء تثبيت الإضافة"
 msgid "Plugin update requires re-consent"
 msgstr "تحديث الإضافة يستلزم الموافقة من جديد"
 
-#: packages/admin/src/components/PluginManager.tsx:291
+#: packages/admin/src/components/PluginManager.tsx:281
 msgid "Plugin updated"
 msgstr "تم تحديث الإضافة"
 
@@ -7462,7 +7497,7 @@ msgstr ""
 #: packages/admin/src/components/PluginManager.tsx:166
 #: packages/admin/src/components/PluginManager.tsx:176
 #: packages/admin/src/components/Sidebar.tsx:462
-#: packages/admin/src/components/Sidebar.tsx:626
+#: packages/admin/src/components/Sidebar.tsx:610
 msgid "Plugins"
 msgstr "الإضافات"
 
@@ -7604,8 +7639,8 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:859
 #: packages/admin/src/components/ContentList.tsx:870
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
-#: packages/admin/src/components/Dashboard.tsx:298
-#: packages/admin/src/router.tsx:1181
+#: packages/admin/src/components/Dashboard.tsx:304
+#: packages/admin/src/router.tsx:1177
 msgid "Published"
 msgstr "منشور"
 
@@ -7614,7 +7649,7 @@ msgstr "منشور"
 msgid "Published {0}"
 msgstr "تم نشر {0}"
 
-#: packages/admin/src/router.tsx:535
+#: packages/admin/src/router.tsx:531
 msgid "Published {total} items"
 msgstr ""
 
@@ -7717,7 +7752,7 @@ msgstr "جاهز"
 msgid "Ready to publish now or schedule for later"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:349
+#: packages/admin/src/components/Dashboard.tsx:355
 msgid "Recent Activity"
 msgstr "النشاط الأخير"
 
@@ -7773,7 +7808,7 @@ msgstr ""
 msgid "Refresh status before continuing."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:126
+#: packages/admin/src/components/Dashboard.tsx:132
 msgid "Refresh the page or try again."
 msgstr ""
 
@@ -7798,7 +7833,8 @@ msgstr "فشل التسجيل"
 msgid "Registration was cancelled or timed out. Please try again."
 msgstr "تم إلغاء التسجيل أو انتهت مهلته. يرجى المحاولة مجددًا."
 
-#: packages/admin/src/components/PluginManager.tsx:448
+#: packages/admin/src/components/PluginManager.tsx:194
+#: packages/admin/src/components/PluginManager.tsx:438
 #: packages/admin/src/components/Sidebar.tsx:471
 msgid "Registry"
 msgstr "المستودع"
@@ -8037,7 +8073,7 @@ msgstr "المستودع"
 msgid "Request a new link"
 msgstr "طلب رابط جديد"
 
-#: packages/admin/src/lib/api/client.ts:307
+#: packages/admin/src/lib/api/client.ts:309
 msgid "Request failed"
 msgstr ""
 
@@ -8179,7 +8215,7 @@ msgstr "جاري الاستعادة..."
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:44
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:201
-#: packages/admin/src/router.tsx:2836
+#: packages/admin/src/router.tsx:2809
 #: packages/admin/src/routes/byline-schema.tsx:280
 msgid "Retry"
 msgstr "إعادة المحاولة"
@@ -8217,7 +8253,7 @@ msgstr ""
 msgid "Reusable content blocks you can insert into any content"
 msgstr "كتل محتوى قابلة لإعادة الاستخدام يمكنك إدراجها في أي محتوى"
 
-#: packages/admin/src/router.tsx:1228
+#: packages/admin/src/router.tsx:1224
 msgid "Reverted to published version"
 msgstr "تمت الإعادة إلى النسخة المنشورة"
 
@@ -8323,7 +8359,7 @@ msgstr ""
 #. placeholder {0}: tool.route
 #. placeholder {1}: tool.permission
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:221
-#: packages/admin/src/components/PluginManager.tsx:637
+#: packages/admin/src/components/PluginManager.tsx:615
 msgid "Route: {0} · Permission: {1}"
 msgstr ""
 
@@ -8478,7 +8514,7 @@ msgstr ""
 #: packages/admin/src/components/ContentList.tsx:861
 #: packages/admin/src/components/ContentSettingsPanel.tsx:545
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:1273
+#: packages/admin/src/router.tsx:1269
 msgid "Scheduled"
 msgstr "مجدول"
 
@@ -8492,7 +8528,7 @@ msgstr ""
 msgid "Scheduled publication"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:112
+#: packages/admin/src/components/Dashboard.tsx:118
 msgid "Scheduled publishing needs attention"
 msgstr ""
 
@@ -9039,9 +9075,9 @@ msgstr "جاري الإعداد..."
 #: packages/admin/src/components/ContentEditor.tsx:1474
 #: packages/admin/src/components/ContentTypeEditor.tsx:392
 #: packages/admin/src/components/Header.tsx:101
-#: packages/admin/src/components/PluginManager.tsx:543
+#: packages/admin/src/components/PluginManager.tsx:521
 #: packages/admin/src/components/Settings.tsx:44
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:484
 #: packages/admin/src/components/WordPressImport.tsx:1827
 msgid "Settings"
 msgstr "الإعدادات"
@@ -9318,7 +9354,7 @@ msgstr "ترتيب المظاهر"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:500
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:704
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:225
-#: packages/admin/src/components/PluginManager.tsx:649
+#: packages/admin/src/components/PluginManager.tsx:627
 #: packages/admin/src/components/Redirects.tsx:475
 #: packages/admin/src/components/SectionEditor.tsx:315
 msgid "Source"
@@ -9382,7 +9418,7 @@ msgstr "الحالة"
 msgid "Status code"
 msgstr "رمز الحالة"
 
-#: packages/admin/src/components/Dashboard.tsx:402
+#: packages/admin/src/components/Dashboard.tsx:408
 msgid "Status: {status}"
 msgstr ""
 
@@ -9639,7 +9675,7 @@ msgstr "تم حذف القائمة."
 msgid "The name of your site, used in the header and metadata"
 msgstr "اسم موقعك، يُستخدم في الترويسة والبيانات الوصفية"
 
-#: packages/admin/src/router.tsx:2850
+#: packages/admin/src/router.tsx:2823
 msgid "The page you're looking for doesn't exist."
 msgstr "الصفحة التي تبحث عنها غير موجودة."
 
@@ -9705,7 +9741,6 @@ msgstr "قسم مظهر"
 msgid "Theme-provided sections cannot be deleted. Edit the section to create a custom copy, then delete that."
 msgstr "لا يمكن حذف الأقسام المزودة من مظهر. قم بتعديل القسم لإنشاء نسخة مخصصة، ثم احذفها."
 
-#: packages/admin/src/components/Sidebar.tsx:487
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:77
 msgid "Themes"
 msgstr "المظاهر"
@@ -9828,7 +9863,7 @@ msgstr ""
 msgid "This plugin requires no special permissions."
 msgstr "لا تتطلب هذه الإضافة صلاحيات خاصة."
 
-#: packages/admin/src/components/PluginManager.tsx:458
+#: packages/admin/src/components/PluginManager.tsx:448
 msgid "This publisher identity no longer resolves."
 msgstr ""
 
@@ -9911,7 +9946,7 @@ msgstr "سيؤدي هذا إلى حذف \"{0}\" نهائيًا. لا يمكن ا
 msgid "This will permanently delete this comment. This action cannot be undone."
 msgstr "سيؤدي هذا إلى حذف هذا التعليق نهائيًا. لا يمكن التراجع عن هذا الإجراء."
 
-#: packages/admin/src/components/PluginManager.tsx:804
+#: packages/admin/src/components/PluginManager.tsx:782
 msgid "This will remove the plugin and its bundle from your site."
 msgstr "سيؤدي هذا إلى إزالة الإضافة وحزمتها من موقعك."
 
@@ -10026,7 +10061,7 @@ msgstr "جارٍ الترجمة..."
 #: packages/admin/src/components/MenuEditor.tsx:143
 #: packages/admin/src/components/TaxonomyManager.tsx:993
 #: packages/admin/src/components/TaxonomySidebar.tsx:471
-#: packages/admin/src/router.tsx:1324
+#: packages/admin/src/router.tsx:1320
 msgid "Translation created"
 msgstr "تم إنشاء الترجمة"
 
@@ -10176,20 +10211,20 @@ msgid "Undo"
 msgstr "تراجع"
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:191
-#: packages/admin/src/components/PluginManager.tsx:699
-#: packages/admin/src/components/PluginManager.tsx:818
+#: packages/admin/src/components/PluginManager.tsx:677
+#: packages/admin/src/components/PluginManager.tsx:796
 msgid "Uninstall"
 msgstr "إلغاء التثبيت"
 
-#: packages/admin/src/components/PluginManager.tsx:802
+#: packages/admin/src/components/PluginManager.tsx:780
 msgid "Uninstall {pluginName}?"
 msgstr "إلغاء تثبيت {pluginName}؟"
 
-#: packages/admin/src/components/PluginManager.tsx:797
+#: packages/admin/src/components/PluginManager.tsx:775
 msgid "Uninstall confirmation"
 msgstr "تأكيد إلغاء التثبيت"
 
-#: packages/admin/src/components/PluginManager.tsx:818
+#: packages/admin/src/components/PluginManager.tsx:796
 msgid "Uninstalling..."
 msgstr "جاري إلغاء التثبيت..."
 
@@ -10225,7 +10260,7 @@ msgstr "مفتاح مرور بدون اسم"
 msgid "Unpublish {itemLabel}"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1205
+#: packages/admin/src/router.tsx:1201
 msgid "Unpublished"
 msgstr "غير منشور"
 
@@ -10237,7 +10272,7 @@ msgstr "تم العثور على جداول محتوى غير مسجلة"
 msgid "Unresolved assignment"
 msgstr ""
 
-#: packages/admin/src/router.tsx:1292
+#: packages/admin/src/router.tsx:1288
 msgid "Unscheduled"
 msgstr "غير مجدول"
 
@@ -10251,7 +10286,7 @@ msgstr "نوع عنصر واجهة غير مدعوم: {0}"
 msgid "Until {0}"
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:369
+#: packages/admin/src/components/Dashboard.tsx:375
 #: packages/admin/src/components/MediaUsedIn.tsx:255
 msgid "Untitled"
 msgstr "بدون عنوان"
@@ -10296,7 +10331,7 @@ msgid "Update this redirect rule."
 msgstr "تحديث قاعدة التحويل هذه."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:523
+#: packages/admin/src/components/PluginManager.tsx:513
 msgid "Update to v{0}"
 msgstr "التحديث إلى الإصدار {0}"
 
@@ -10319,7 +10354,7 @@ msgid "Updating usage"
 msgstr ""
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:269
-#: packages/admin/src/components/PluginManager.tsx:523
+#: packages/admin/src/components/PluginManager.tsx:513
 msgid "Updating..."
 msgstr "جاري التحديث..."
 
@@ -10372,7 +10407,7 @@ msgstr "رفع ملفات"
 msgid "Upload images, videos, and documents to keep reusable assets in one place."
 msgstr ""
 
-#: packages/admin/src/components/Dashboard.tsx:164
+#: packages/admin/src/components/Dashboard.tsx:170
 msgid "Upload Media"
 msgstr "رفع وسائط"
 
@@ -10574,7 +10609,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "يمكن للمستخدمين الذين لديهم عناوين بريد إلكتروني من هذه النطاقات التسجيل بدون دعوة. سيتم منحهم الدور الذي تم تحديده تلقائيًا."
 
 #. placeholder {0}: updateInfo.latest
-#: packages/admin/src/components/PluginManager.tsx:451
+#: packages/admin/src/components/PluginManager.tsx:441
 msgid "v{0} available"
 msgstr "الإصدار {0} متاح"
 
@@ -10626,10 +10661,6 @@ msgstr "فيديو"
 #: packages/admin/src/components/settings/EmailSettings.tsx:59
 msgid "View email provider status and send test emails"
 msgstr "عرض حالة مزود البريد الإلكتروني وإرسال رسائل تجريبية."
-
-#: packages/admin/src/components/PluginManager.tsx:535
-msgid "View in Marketplace"
-msgstr "عرض في السوق"
 
 #: packages/admin/src/components/MediaLibrary.tsx:932
 #: packages/admin/src/components/MediaPickerModal.tsx:1215
@@ -10851,7 +10882,7 @@ msgid "Widget updated"
 msgstr "تم تحديث عنصر الواجهة"
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:168
-#: packages/admin/src/components/PluginManager.tsx:479
+#: packages/admin/src/components/PluginManager.tsx:469
 #: packages/admin/src/components/Sidebar.tsx:426
 #: packages/admin/src/components/Widgets.tsx:388
 #: packages/admin/src/components/WordPressImport.tsx:1175
@@ -10987,7 +11018,7 @@ msgstr ""
 msgid "You need Admin permissions to manage media usage tracking."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2107
+#: packages/admin/src/router.tsx:2103
 msgid "You need Editor permissions to moderate comments."
 msgstr "تحتاج إلى صلاحيات المحرر للإشراف على التعليقات."
 

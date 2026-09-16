@@ -7,7 +7,7 @@ import { Aside, Steps } from "@astrojs/starlight/components";
 
 Sandboxed plugins need a platform runner in addition to their plugin declaration. Marketplace and registry installs always use that runner, as do plugins listed under `sandboxed: []`. Native plugins under `plugins: []` run in the EmDash server process and do not gain sandbox isolation.
 
-The runner depends on the deployment platform. On Cloudflare Workers, each plugin runs as a [Dynamic Worker](https://developers.cloudflare.com/dynamic-workers/) created through the Worker Loader binding. On Node.js, the server starts [`workerd`](https://github.com/cloudflare/workerd), the open-source Workers runtime, as a child process and runs each plugin as a service inside it. The `sandboxRunner` option of `emdash()` selects the runner. Without it, plugins under `sandboxed: []` are not loaded. Marketplace and registry browsing remains available, but installing or updating a sandboxed plugin fails with `SANDBOX_NOT_AVAILABLE`.
+The runner depends on the deployment platform. On Cloudflare Workers, each plugin runs as a [Dynamic Worker](https://developers.cloudflare.com/dynamic-workers/) created through the Worker Loader binding. On Node.js, the server starts [`workerd`](https://github.com/cloudflare/workerd), the open-source Workers runtime, as a child process and runs each plugin as a service inside it. The `sandboxRunner` option of `emdash()` selects the runner and enables the hosted registry catalog. Without it, plugins under `sandboxed: []` are not loaded. An explicitly configured registry remains browseable, but installing or updating a sandboxed plugin fails with `SANDBOX_NOT_AVAILABLE`.
 
 The following table summarizes what each runner needs and enforces.
 

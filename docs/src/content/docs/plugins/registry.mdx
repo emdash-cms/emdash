@@ -1,19 +1,13 @@
 ---
 title: The plugin registry
-description: Configure and install plugins from the experimental EmDash registry.
+description: Discover, review, and install sandboxed plugins from the EmDash registry.
 ---
 
-import { Aside, Steps } from "@astrojs/starlight/components";
+import { Steps } from "@astrojs/starlight/components";
 
-The plugin registry is the supported catalog for sandboxed plugins. Anyone can browse published plugins at [plugins.emdashcms.com](https://plugins.emdashcms.com). Administrators can review and install them from the EmDash admin panel.
+The plugin registry is the supported catalog for sandboxed plugins. Anyone can browse published plugins at [plugins.emdashcms.com](https://plugins.emdashcms.com). Administrators can review and install them from the **Registry** section of the EmDash admin panel.
 
-<Aside type="caution" title="Experimental">
-	Registry configuration can change in a minor release. Pin `emdash` to an exact version while
-	using the registry, and read its changelog before upgrading. EmDash runs the hosted registry at
-	`https://registry.emdashcms.com`.
-</Aside>
-
-When `experimental.registry` is configured, the admin panel displays a **Registry** section for browsing and installing plugins.
+EmDash uses the hosted registry at `https://registry.emdashcms.com` by default when the site has an enabled plugin sandbox.
 
 ## Plugin public names
 
@@ -23,11 +17,11 @@ The public name appears in registry results and under **Plugins** after installa
 
 If the handle conclusively stops resolving back to the publisher, EmDash displays **INVALID HANDLE** and prevents new installation from the package detail page. Existing installations remain in their current state so an identity lookup cannot disable a running site. Review the installed plugin and contact its publisher before updating it. A temporary lookup failure displays the stable publisher identifier with **Handle unavailable** instead of reporting an invalid handle.
 
-## Enable the registry
+## Enable registry installs
 
 To install plugins from the registry, configure storage and an available sandbox runner. Complete the platform-specific [plugin sandbox setup](/deployment/plugin-sandbox/) first.
 
-Add the hosted registry and Cloudflare sandbox runner to the `emdash()` configuration in `astro.config.mjs`:
+Add the Cloudflare sandbox runner to the `emdash()` configuration in `astro.config.mjs`:
 
 ```typescript title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -38,15 +32,12 @@ export default defineConfig({
 	integrations: [
 		emdash({
 			sandboxRunner: sandbox(),
-			experimental: {
-				registry: "https://registry.emdashcms.com",
-			},
 		}),
 	],
 });
 ```
 
-Use the bare hosted registry URL for the normal setup. See the [`experimental.registry` configuration reference](/reference/configuration/#experimentalregistry) for custom registry settings.
+EmDash displays the **Registry** catalog after the sandbox runner is configured. See the [`registry` configuration reference](/reference/configuration/#registry) to select a different aggregator, set registry policy, or disable discovery.
 
 ## Install a registry plugin
 

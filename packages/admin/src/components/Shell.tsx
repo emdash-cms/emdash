@@ -108,7 +108,7 @@ export function Shell({ children, manifest }: ShellProps) {
 			<div className="flex flex-1 flex-col overflow-hidden">
 				<Header />
 				{manifest.registryConfigurationError && (
-					<div className="px-6 pt-6">
+					<div className="space-y-3 px-6 pt-6">
 						<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
 					</div>
 				)}

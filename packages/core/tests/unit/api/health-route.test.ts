@@ -48,6 +48,21 @@ describe("EmDash health endpoint", () => {
 		});
 	});
 
+	it("reports the registry as disabled when the top-level option is false", async () => {
+		const response = await GET({
+			locals: {
+				emdash: {
+					config: {
+						registry: false,
+						experimental: { registry: "https://registry.example.com" },
+					},
+				},
+			},
+		} as never);
+
+		await expect(response.json()).resolves.toMatchObject({ data: { registry: false } });
+	});
+
 	it("is registered as a core route", () => {
 		const routes: Array<{ pattern: string }> = [];
 		injectCoreRoutes((route) => routes.push(route));

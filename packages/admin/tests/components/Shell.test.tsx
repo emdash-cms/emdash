@@ -44,4 +44,16 @@ describe("Shell", () => {
 
 		expect(document.querySelector("main")).toHaveClass("bg-kumo-elevated");
 	});
+
+	it("does not show marketplace migration guidance outside the dashboard", async () => {
+		const screen = await render(
+			<Shell manifest={{ ...manifest, marketplace: true }}>
+				<div>Page content</div>
+			</Shell>,
+		);
+
+		await expect
+			.element(screen.getByText("Marketplace configuration is deprecated"))
+			.not.toBeInTheDocument();
+	});
 });

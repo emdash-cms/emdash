@@ -38,7 +38,11 @@ import { apiError } from "#api/error.js";
 
 import { verifyRegistryArtifactChecksum } from "../../../../../../registry/artifact-checksum.js";
 import { fetchRegistryArtifactUrl } from "../../../../../../registry/artifact-fetch.js";
-import { coerceRegistryConfig, validateAggregatorUrl } from "../../../../../../registry/config.js";
+import {
+	coerceRegistryConfig,
+	getRegistryConfigInput,
+	validateAggregatorUrl,
+} from "../../../../../../registry/config.js";
 import { resolveAndValidateExternalUrlTarget } from "../../../../../../security/ssrf.js";
 
 export const prerender = false;
@@ -244,7 +248,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
 		version = versionParam;
 	}
 
-	const registryConfig = coerceRegistryConfig(emdash.config.experimental?.registry);
+	const registryConfig = coerceRegistryConfig(
+		getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
+	);
 	if (!registryConfig) {
 		return apiError("REGISTRY_NOT_CONFIGURED", "Registry is not configured", 400);
 	}

@@ -23,7 +23,7 @@ Capabilities live in `emdash-plugin.jsonc`, alongside `slug` and the rest of the
 }
 ```
 
-Declare only what the plugin actually needs. The marketplace shows these capabilities to site operators before installation, so every extra declaration asks them to approve access the plugin does not use.
+Declare only what the plugin actually needs. The registry shows these capabilities to site operators before installation, so every extra declaration asks them to approve access the plugin does not use.
 
 ## Capability reference
 
@@ -108,7 +108,7 @@ A few things the capability system doesn't and can't cover:
 
 ## Capability consent
 
-When an operator installs a sandboxed plugin from the marketplace, EmDash shows a consent dialog listing the declared capabilities. Updates that add capabilities — for example, a plugin that previously only read content now wants to make network requests — surface as a capability diff and require fresh approval before the new version takes effect.
+When an operator installs a sandboxed plugin from the registry, EmDash shows a consent dialog listing the declared capabilities. Updates that add capabilities — for example, a plugin that previously only read content now wants to make network requests — surface as a capability diff and require fresh approval before the new version takes effect.
 
 Declaring capabilities for possible future use makes every installation or update ask for unnecessary access. List what the current version uses, then add a capability in the version that starts using it.
 

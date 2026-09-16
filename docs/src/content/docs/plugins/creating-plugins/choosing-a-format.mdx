@@ -14,13 +14,13 @@ Choose a sandboxed plugin unless the plugin needs a native-only integration. San
 |                                     | Sandboxed                                          | Native                                |
 | ----------------------------------- | -------------------------------------------------- | ------------------------------------- |
 | Authoring shape                     | `emdash-plugin.jsonc` + `src/plugin.ts`            | `definePlugin()` descriptor           |
-| Install method                      | One-click from the admin marketplace               | `npm install` + edit `astro.config`   |
+| Install method                      | One-click from the admin registry                  | `npm install` + edit `astro.config`   |
 | Runs in                             | An isolated runtime provided by a sandbox runner   | Same process as your Astro site       |
 | Capability-gated `ctx` APIs         | Enforced by the sandbox bridge                     | Gated by `PluginContext`, but not a security boundary |
 | Resource limits                     | Runner limits for CPU, subrequests, and wall time; platform memory ceiling | No per-plugin limits |
 | Network access                      | `ctx.http`, restricted to declared access          | `ctx.http` follows declarations; native code can also call `fetch()` |
 | Direct `fetch()` / `process.env`    | Blocked by the runner                              | Possible (plugin code shares the runtime) |
-| Distribution                        | `.tar.gz` bundle on the marketplace                | npm package                           |
+| Distribution                        | Signed release in the plugin registry              | npm package                           |
 | Admin UI                            | Block Kit (JSON-described) routes                  | React components, or Block Kit        |
 | Settings UI                         | Block Kit page + KV reads                          | `admin.settingsSchema` (auto-form) or Block Kit |
 | Portable Text rendering components  | Not available                                      | `componentsEntry` provides Astro components |

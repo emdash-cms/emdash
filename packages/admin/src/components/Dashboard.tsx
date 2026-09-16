@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 import type { AdminManifest } from "../lib/api";
+import { useCurrentUser } from "../lib/api/current-user.js";
 import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/dashboard";
 import { fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
@@ -16,6 +17,7 @@ import {
 	CONTENT_STATUS_ICONS,
 	type ContentStatusState,
 } from "./ContentStatusBadge.js";
+import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
 import { visibleCollectionEntries } from "./Sidebar.js";
@@ -30,6 +32,8 @@ const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 	archived: "archived",
 };
 
+const ROLE_ADMIN = 50;
+
 export interface DashboardProps {
 	manifest: AdminManifest;
 }
@@ -39,6 +43,7 @@ export interface DashboardProps {
  */
 export function Dashboard({ manifest }: DashboardProps) {
 	const { t } = useLingui();
+	const { data: user } = useCurrentUser();
 	const {
 		data: stats,
 		isLoading,
@@ -53,6 +58,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 	return (
 		<div className="space-y-6">
+			{manifest.marketplace && (user?.role ?? 0) >= ROLE_ADMIN && <MarketplaceMigrationBanner />}
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 				<h1 className="text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />

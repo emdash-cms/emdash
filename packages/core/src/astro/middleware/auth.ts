@@ -32,6 +32,7 @@ import { resolveApiToken, resolveOAuthToken } from "../../api/handlers/api-token
 import { hasScope } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
 import type { ExternalAuthConfig } from "../../auth/types.js";
+import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
 import { buildEmDashCsp, getConfiguredStorageEndpoint } from "./csp.js";
@@ -291,7 +292,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			response.headers.set(
 				"Content-Security-Policy",
 				buildEmDashCsp(
-					context.locals.emdash?.config.experimental?.registry,
+					getRegistryConfigInput(
+						context.locals.emdash?.config.registry,
+						context.locals.emdash?.config.experimental?.registry,
+					),
 					getConfiguredStorageEndpoint(
 						context.locals.emdash?.config.storage,
 						context.locals.emdash?.storage,
@@ -309,7 +313,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		response.headers.set(
 			"Content-Security-Policy",
 			buildEmDashCsp(
-				context.locals.emdash?.config.experimental?.registry,
+				getRegistryConfigInput(
+					context.locals.emdash?.config.registry,
+					context.locals.emdash?.config.experimental?.registry,
+				),
 				getConfiguredStorageEndpoint(
 					context.locals.emdash?.config.storage,
 					context.locals.emdash?.storage,

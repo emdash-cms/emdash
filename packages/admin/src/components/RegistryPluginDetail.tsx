@@ -884,7 +884,7 @@ function BackLink() {
 	const { t } = useLingui();
 	return (
 		<Link
-			to="/plugins/marketplace"
+			to="/plugins/registry"
 			className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
 		>
 			<ArrowPrev className="h-4 w-4" />
