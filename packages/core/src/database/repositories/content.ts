@@ -1716,11 +1716,8 @@ export class ContentRepository {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
-		// Validate scheduledAt is in the future
-		const scheduledDate = new Date(scheduledAt);
-		if (isNaN(scheduledDate.getTime())) {
-			throw new EmDashValidationError("Invalid scheduled date");
-		}
+		const normalizedScheduledAt = await this.datetimes.normalizeValue(type, scheduledAt);
+		const scheduledDate = new Date(normalizedScheduledAt);
 		if (scheduledDate <= new Date()) {
 			throw new EmDashValidationError("Scheduled date must be in the future");
 		}
@@ -1735,11 +1732,10 @@ export class ContentRepository {
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
-		// The due query compares ISO strings, so every stored schedule uses the same UTC form.
 		await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
-				scheduled_at = ${scheduledDate.toISOString()},
+				scheduled_at = ${normalizedScheduledAt},
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL

@@ -1,6 +1,6 @@
 ---
-"emdash": minor
-"@emdash-cms/admin": minor
+"emdash": patch
+"@emdash-cms/admin": patch
 ---
 
 Fixes datetime sorting and range queries by storing every content datetime as a UTC ISO string with fixed milliseconds. The admin converts date-and-time fields through the site's configured timezone, while API, MCP, and CLI writes now require `Z` or an explicit UTC offset.
