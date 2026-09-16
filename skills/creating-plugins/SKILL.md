@@ -9,10 +9,10 @@ Build against the API that reaches the intended execution mode. Source types and
 
 ## Choose a format
 
-| Format | Runtime source | Admin UI | Distribution |
-| --- | --- | --- | --- |
-| Sandboxed | `src/plugin.ts` default-exports a `SandboxedPlugin` | Block Kit pages and widgets | Plugin CLI and registry |
-| Native | `definePlugin()` / `createPlugin()` | React, Block Kit, and Astro components | Trusted site dependency only |
+| Format    | Runtime source                                      | Admin UI                               | Distribution                 |
+| --------- | --------------------------------------------------- | -------------------------------------- | ---------------------------- |
+| Sandboxed | `src/plugin.ts` default-exports a `SandboxedPlugin` | Block Kit pages and widgets            | Plugin CLI and registry      |
+| Native    | `definePlugin()` / `createPlugin()`                 | React, Block Kit, and Astro components | Trusted site dependency only |
 
 Use a sandboxed plugin unless the feature needs host-process access, React admin code, or Astro rendering components. Native plugins run with the site's authority and cannot be installed from the registry.
 
@@ -71,30 +71,30 @@ Declare host access in `emdash-plugin.jsonc`. Capabilities, allowed hosts, and s
 	"capabilities": ["content:read", "taxonomies:read", "media:write"],
 	"allowedHosts": [],
 	"storage": {
-		"jobs": { "indexes": ["status", "createdAt"] }
+		"jobs": { "indexes": ["status", "createdAt"] },
 	},
 	"admin": {
-		"pages": [{ "path": "/settings", "label": "Settings" }]
-	}
+		"pages": [{ "path": "/settings", "label": "Settings" }],
+	},
 }
 ```
 
 Use only canonical capability names:
 
-| Capability | API or hook registration |
-| --- | --- |
-| `content:read` | `ctx.content.get()`, `ctx.content.list()` |
-| `content:write` | `ctx.content.create()`, `update()`, `delete()`; implies read |
-| `taxonomies:read` | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()` |
-| `media:read` | `ctx.media.get()`, `ctx.media.list()` |
-| `media:write` | `ctx.media.upload()`, `ctx.media.delete()`; implies read |
-| `network:request` | `ctx.http.fetch()` restricted to `allowedHosts` |
-| `network:request:unrestricted` | `ctx.http.fetch()` without a manifest host list |
-| `users:read` | `ctx.users.get()`, `getByEmail()`, `list()`; required by comment hooks |
-| `email:send` | `ctx.email.send()` when a transport is configured |
-| `hooks.email-transport:register` | Exclusive `email:deliver` hook |
-| `hooks.email-events:register` | `email:beforeSend` and `email:afterSend` hooks |
-| `hooks.page-fragments:register` | Native-only `page:fragments` hook |
+| Capability                       | API or hook registration                                               |
+| -------------------------------- | ---------------------------------------------------------------------- |
+| `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                              |
+| `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read           |
+| `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`             |
+| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                  |
+| `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read               |
+| `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                        |
+| `network:request:unrestricted`   | `ctx.http.fetch()` without a manifest host list                        |
+| `users:read`                     | `ctx.users.get()`, `getByEmail()`, `list()`; required by comment hooks |
+| `email:send`                     | `ctx.email.send()` when a transport is configured                      |
+| `hooks.email-transport:register` | Exclusive `email:deliver` hook                                         |
+| `hooks.email-events:register`    | `email:beforeSend` and `email:afterSend` hooks                         |
+| `hooks.page-fragments:register`  | Native-only `page:fragments` hook                                      |
 
 The old `read:*`, `write:*`, `network:fetch*`, `email:provide`, `email:intercept`, and `page:inject` names are deprecated. Validation warns about them and publishing rejects them.
 
@@ -180,10 +180,10 @@ Read [Admin UI](./references/admin-ui.md) and [Portable Text blocks](./reference
 
 Both runners execute the same plugin bundle in a V8 isolate and gate host calls through a plugin-scoped bridge.
 
-| Runner | Isolation and limits | Host bridge |
-| --- | --- | --- |
-| Cloudflare | Dynamic Worker Loader; CPU, subrequest, and wall-time limits | Worker entrypoint RPC; D1 and configured R2 media binding |
-| Node.js | Managed workerd process; wall-time limit only | Authenticated local HTTP backing service; configured database and media adapter |
+| Runner     | Isolation and limits                                         | Host bridge                                                                     |
+| ---------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------- |
+| Cloudflare | Dynamic Worker Loader; CPU, subrequest, and wall-time limits | Worker entrypoint RPC; D1 and configured R2 media binding                       |
+| Node.js    | Managed workerd process; wall-time limit only                | Authenticated local HTTP backing service; configured database and media adapter |
 
 Write against the exported `PluginContext`, not extra methods found in one wrapper. The Node/workerd wrapper currently exposes `ctx.content.createMany()`, `updateMany()`, and `deleteMany()`, but the Cloudflare wrapper and public types do not. Those methods are not portable and must not appear in sandboxed plugin guidance.
 

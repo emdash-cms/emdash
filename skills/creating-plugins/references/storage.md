@@ -2,10 +2,10 @@
 
 Sandboxed plugins have two plugin-scoped data APIs:
 
-| API | Use |
-| --- | --- |
-| `ctx.storage.<collection>` | Queryable records declared in `emdash-plugin.jsonc` |
-| `ctx.kv` | Settings, cursors, cached values, and other key-value state |
+| API                        | Use                                                         |
+| -------------------------- | ----------------------------------------------------------- |
+| `ctx.storage.<collection>` | Queryable records declared in `emdash-plugin.jsonc`         |
+| `ctx.kv`                   | Settings, cursors, cached values, and other key-value state |
 
 Both use the host database and are isolated by runtime plugin ID. Neither needs a capability.
 
@@ -18,9 +18,9 @@ Declare every collection and query index in the manifest:
 	"storage": {
 		"submissions": {
 			"indexes": ["formId", "status", "createdAt", ["formId", "createdAt"]],
-			"uniqueIndexes": ["externalId"]
-		}
-	}
+			"uniqueIndexes": ["externalId"],
+		},
+	},
 }
 ```
 
@@ -43,10 +43,7 @@ interface StorageCollection<T = unknown> {
 		expectedRevision: string | null,
 		data: T,
 	): Promise<{ applied: true; revision: string } | { applied: false }>;
-	compareAndDelete(
-		id: string,
-		expectedRevision: string,
-	): Promise<{ applied: boolean }>;
+	compareAndDelete(id: string, expectedRevision: string): Promise<{ applied: boolean }>;
 	updateIf(id: string, args: UpdateIfArgs<T>): Promise<UpdateIfResult<T>>;
 
 	getMany(ids: string[]): Promise<Map<string, T>>;
@@ -108,12 +105,12 @@ if (!result.applied) {
 
 The operations have these preconditions:
 
-| Operation | Behavior |
-| --- | --- |
-| `getVersioned(key)` | Returns `{ value, revision }`, or `null` only when absent |
-| `compareAndSet(key, null, value)` | Creates only when absent |
-| `compareAndSet(key, revision, value)` | Replaces only when the current revision matches |
-| `compareAndDelete(key, revision)` | Deletes only when the current revision matches |
+| Operation                             | Behavior                                                  |
+| ------------------------------------- | --------------------------------------------------------- |
+| `getVersioned(key)`                   | Returns `{ value, revision }`, or `null` only when absent |
+| `compareAndSet(key, null, value)`     | Creates only when absent                                  |
+| `compareAndSet(key, revision, value)` | Replaces only when the current revision matches           |
+| `compareAndDelete(key, revision)`     | Deletes only when the current revision matches            |
 
 A stored JSON `null` still returns a versioned envelope. Every successful write changes the revision, including an equal-value `put()` or `set()`. Revisions are opaque, key-specific values; pass them back unchanged.
 
@@ -124,11 +121,7 @@ The versioned methods are also available on `ctx.kv`:
 ```typescript
 const current = await ctx.kv.getVersioned<number>("state:completed");
 const next = (current?.value ?? 0) + 1;
-const result = await ctx.kv.compareAndSet(
-	"state:completed",
-	current?.revision ?? null,
-	next,
-);
+const result = await ctx.kv.compareAndSet("state:completed", current?.revision ?? null, next);
 ```
 
 ## Predicate-guarded updates

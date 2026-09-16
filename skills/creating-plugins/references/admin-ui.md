@@ -11,12 +11,10 @@ Declare navigation and widget cards in `emdash-plugin.jsonc`:
 	"admin": {
 		"pages": [
 			{ "path": "/settings", "label": "Settings", "icon": "settings" },
-			{ "path": "/reports", "label": "Reports", "icon": "chart" }
+			{ "path": "/reports", "label": "Reports", "icon": "chart" },
 		],
-		"widgets": [
-			{ "id": "status", "title": "Plugin status", "size": "half" }
-		]
-	}
+		"widgets": [{ "id": "status", "title": "Plugin status", "size": "half" }],
+	},
 }
 ```
 

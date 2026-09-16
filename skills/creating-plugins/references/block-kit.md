@@ -58,25 +58,25 @@ routes: {
 
 ## Block Types
 
-| Type      | Description                                         |
-| --------- | --------------------------------------------------- |
-| `header`  | Large bold heading                                  |
-| `section` | Text with optional accessory element                |
-| `divider` | Horizontal rule                                     |
-| `fields`  | Two-column label/value grid                         |
-| `table`   | Data table with formatting, sorting, pagination     |
-| `actions` | Horizontal row of buttons and controls              |
-| `stats`   | Dashboard metric cards with trend indicators        |
-| `form`    | Input fields with conditional visibility and submit |
-| `image`   | Block-level image with alt text and optional title  |
-| `context` | Small muted help text                               |
-| `columns` | 2-3 column layout with nested blocks                |
-| `chart`   | Charts (timeseries line/bar, pie, custom ECharts)   |
-| `code`    | Syntax-highlighted code block                       |
-| `meter`   | Progress/quota meter bar                            |
-| `banner`  | Info, warning, or error inline messages             |
-| `empty`   | Empty state with optional command and actions        |
-| `accordion` | Collapsible section containing nested blocks      |
+| Type        | Description                                         |
+| ----------- | --------------------------------------------------- |
+| `header`    | Large bold heading                                  |
+| `section`   | Text with optional accessory element                |
+| `divider`   | Horizontal rule                                     |
+| `fields`    | Two-column label/value grid                         |
+| `table`     | Data table with formatting, sorting, pagination     |
+| `actions`   | Horizontal row of buttons and controls              |
+| `stats`     | Dashboard metric cards with trend indicators        |
+| `form`      | Input fields with conditional visibility and submit |
+| `image`     | Block-level image with alt text and optional title  |
+| `context`   | Small muted help text                               |
+| `columns`   | 2-3 column layout with nested blocks                |
+| `chart`     | Charts (timeseries line/bar, pie, custom ECharts)   |
+| `code`      | Syntax-highlighted code block                       |
+| `meter`     | Progress/quota meter bar                            |
+| `banner`    | Info, warning, or error inline messages             |
+| `empty`     | Empty state with optional command and actions       |
+| `accordion` | Collapsible section containing nested blocks        |
 
 ## Element Types
 

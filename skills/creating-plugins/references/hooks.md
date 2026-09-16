@@ -372,7 +372,7 @@ Event:
 		body: string;
 		ipHash: string | null;
 		userAgent: string | null;
-	};
+	}
 	metadata: Record<string, unknown>;
 }
 ```
@@ -516,30 +516,30 @@ These policies apply to the native/in-process pipeline. `errorPolicy` is not ser
 
 ## Quick Reference
 
-| Hook                      | Trigger              | Capability Required              | Return                                                  |
-| ------------------------- | -------------------- | -------------------------------- | ------------------------------------------------------- |
-| `plugin:install`          | First install        | —                                | `void`                                                  |
-| `plugin:activate`         | Plugin enabled       | —                                | `void`                                                  |
-| `plugin:deactivate`       | Plugin disabled      | —                                | `void`                                                  |
-| `plugin:uninstall`        | Plugin removed       | —                                | `void`                                                  |
-| `content:beforeSave`      | Before save          | `content:write`                  | Modified content, `SandboxHookErrorEnvelope`, or `void` |
-| `content:afterSave`       | After save           | `content:read`                   | `void`                                                  |
-| `content:beforeDelete`    | Before delete        | `content:read`                   | `false` to cancel                                       |
-| `content:afterDelete`     | After delete         | `content:read`                   | `void`                                                  |
-| `content:afterPublish`    | After publish        | `content:read`                   | `void`                                                  |
-| `content:afterUnpublish`  | After unpublish      | `content:read`                   | `void`                                                  |
-| `content:afterRestore`    | After restore        | `content:read`                   | `void`                                                  |
-| `content:afterSchedule`   | After schedule       | `content:read`                   | `void`                                                  |
-| `content:afterUnschedule` | After unschedule     | `content:read`                   | `void`                                                  |
-| `media:beforeUpload`      | Before upload        | `media:write`                    | Modified file info or `void`                            |
-| `media:afterUpload`       | After upload         | `media:read`                     | `void`                                                  |
-| `email:beforeSend`        | Before email send    | `hooks.email-events:register`    | Modified message or `false`                             |
-| `email:deliver`           | Email delivery       | `hooks.email-transport:register` | `void` (exclusive)                                      |
-| `email:afterSend`         | After email send     | `hooks.email-events:register`    | `void`                                                  |
-| `comment:beforeCreate`    | Before comment save  | `users:read`                     | Modified event, `false`, or `void`                      |
-| `comment:moderate`        | Initial moderation   | `users:read`                     | Moderation decision (exclusive)                         |
-| `comment:afterCreate`     | After comment save   | `users:read`                     | `void`                                                  |
-| `comment:afterModerate`   | After status change  | `users:read`                     | `void`                                                  |
-| `cron`                    | Scheduled task fires | —                                | `void`                                                  |
-| `page:metadata`           | Page render          | —                                | Metadata contributions                                  |
-| `page:fragments`          | Page render          | `hooks.page-fragments:register` (native only) | Fragment contributions                  |
+| Hook                      | Trigger              | Capability Required                           | Return                                                  |
+| ------------------------- | -------------------- | --------------------------------------------- | ------------------------------------------------------- |
+| `plugin:install`          | First install        | —                                             | `void`                                                  |
+| `plugin:activate`         | Plugin enabled       | —                                             | `void`                                                  |
+| `plugin:deactivate`       | Plugin disabled      | —                                             | `void`                                                  |
+| `plugin:uninstall`        | Plugin removed       | —                                             | `void`                                                  |
+| `content:beforeSave`      | Before save          | `content:write`                               | Modified content, `SandboxHookErrorEnvelope`, or `void` |
+| `content:afterSave`       | After save           | `content:read`                                | `void`                                                  |
+| `content:beforeDelete`    | Before delete        | `content:read`                                | `false` to cancel                                       |
+| `content:afterDelete`     | After delete         | `content:read`                                | `void`                                                  |
+| `content:afterPublish`    | After publish        | `content:read`                                | `void`                                                  |
+| `content:afterUnpublish`  | After unpublish      | `content:read`                                | `void`                                                  |
+| `content:afterRestore`    | After restore        | `content:read`                                | `void`                                                  |
+| `content:afterSchedule`   | After schedule       | `content:read`                                | `void`                                                  |
+| `content:afterUnschedule` | After unschedule     | `content:read`                                | `void`                                                  |
+| `media:beforeUpload`      | Before upload        | `media:write`                                 | Modified file info or `void`                            |
+| `media:afterUpload`       | After upload         | `media:read`                                  | `void`                                                  |
+| `email:beforeSend`        | Before email send    | `hooks.email-events:register`                 | Modified message or `false`                             |
+| `email:deliver`           | Email delivery       | `hooks.email-transport:register`              | `void` (exclusive)                                      |
+| `email:afterSend`         | After email send     | `hooks.email-events:register`                 | `void`                                                  |
+| `comment:beforeCreate`    | Before comment save  | `users:read`                                  | Modified event, `false`, or `void`                      |
+| `comment:moderate`        | Initial moderation   | `users:read`                                  | Moderation decision (exclusive)                         |
+| `comment:afterCreate`     | After comment save   | `users:read`                                  | `void`                                                  |
+| `comment:afterModerate`   | After status change  | `users:read`                                  | `void`                                                  |
+| `cron`                    | Scheduled task fires | —                                             | `void`                                                  |
+| `page:metadata`           | Page render          | —                                             | Metadata contributions                                  |
+| `page:fragments`          | Page render          | `hooks.page-fragments:register` (native only) | Fragment contributions                                  |
