@@ -430,7 +430,7 @@ export async function normalizeDatetimeStorage(
 	db: Kysely<Database>,
 ): Promise<DatetimeStorageReport> {
 	const preflight = await scan(db, false);
-	console.info(`[datetime migration] ${formatDatetimeStorageReport(preflight)}`);
+	console.error(`[datetime migration] ${formatDatetimeStorageReport(preflight)}`);
 	if (preflight.manualReviewCount > 0 || preflight.inspectionErrorCount > 0) {
 		throw new Error(
 			`Datetime migration requires manual review:\n${formatDatetimeStorageReport(preflight)}`,
