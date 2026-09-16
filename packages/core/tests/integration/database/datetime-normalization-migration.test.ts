@@ -17,6 +17,10 @@ import {
 
 const CREATED_AT = "2026-01-01T00:00:00.000Z";
 
+function parseJsonValue(value: unknown): unknown {
+	return typeof value === "string" ? JSON.parse(value) : value;
+}
+
 describeEachDialect("datetime normalization migration", (dialect) => {
 	let ctx: DialectTestContext;
 
@@ -92,11 +96,11 @@ describeEachDialect("datetime normalization migration", (dialect) => {
 		await normalizeDatetimeStorage(ctx.db);
 		await expect(normalizeDatetimeStorage(ctx.db)).resolves.toMatchObject({ noncanonicalCount: 0 });
 
-		const content = await sql<{ starts_at: string; sessions: string }>`
+		const content = await sql<{ starts_at: string; sessions: unknown }>`
 			SELECT starts_at, sessions FROM ec_events WHERE id = 'event-1'
 		`.execute(ctx.db);
 		expect(content.rows[0]?.starts_at).toBe("2026-08-21T16:00:00.000Z");
-		expect(JSON.parse(content.rows[0]!.sessions)).toEqual([
+		expect(parseJsonValue(content.rows[0]!.sessions)).toEqual([
 			{ begins_at: "2026-01-15T15:00:00.000Z" },
 		]);
 		const revision = await ctx.db
