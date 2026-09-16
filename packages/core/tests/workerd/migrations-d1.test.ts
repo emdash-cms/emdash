@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
 import { up as up016 } from "../../src/database/migrations/016_api_tokens.js";
 import { up as up036 } from "../../src/database/migrations/036_i18n_menus_and_taxonomies.js";
+import { up as up078 } from "../../src/database/migrations/078_menu_item_translation_groups.js";
 import {
 	MIGRATION_COUNT,
 	MIGRATION_NAMES,
@@ -212,6 +213,32 @@ describe("040 byline rebuild on D1", () => {
 		const columns = await listColumns(db, "_emdash_bylines");
 		expect(columns).toContain("locale");
 		expect(columns).toContain("translation_group");
+	});
+});
+
+describe("078 menu item translation groups on D1", () => {
+	it("backfills only null translation groups and can be replayed", async () => {
+		await runMigrations(db);
+		await sql`
+			INSERT INTO _emdash_menu_items (
+				id, menu_id, sort_order, type, custom_url, label, translation_group
+			) VALUES
+				('legacy-null', 'main', 0, 'custom', '/', 'Home', NULL),
+				('translated-item', 'main', 1, 'custom', '/about', 'About', 'shared-about')
+		`.execute(db);
+
+		await up078(db);
+		await up078(db);
+
+		const rows = await sql<{ id: string; translation_group: string }>`
+			SELECT id, translation_group
+			FROM _emdash_menu_items
+			ORDER BY sort_order
+		`.execute(db);
+		expect(rows.rows).toEqual([
+			{ id: "legacy-null", translation_group: "legacy-null" },
+			{ id: "translated-item", translation_group: "shared-about" },
+		]);
 	});
 });
 
