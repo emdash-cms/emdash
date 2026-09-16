@@ -13,6 +13,7 @@ import { ulid } from "ulidx";
 import { BylineRepository } from "../database/repositories/byline.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { MediaRepository } from "../database/repositories/media.js";
+import { OptionsRepository } from "../database/repositories/options.js";
 import { RedirectRepository } from "../database/repositories/redirect.js";
 import { RevisionRepository } from "../database/repositories/revision.js";
 import { TaxonomyRepository } from "../database/repositories/taxonomy.js";
@@ -25,6 +26,7 @@ import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/conte
 import { SchemaRegistry } from "../schema/registry.js";
 import { FTSManager } from "../search/fts-manager.js";
 import { setSiteSettings } from "../settings/index.js";
+import type { SiteSettings } from "../settings/types.js";
 import type { Storage } from "../storage/types.js";
 import type {
 	SeedFile,
@@ -37,6 +39,60 @@ import type {
 	SeedMediaReference,
 	SeedBylineAvatar,
 } from "./types.js";
+
+/**
+ * Apply seeded site settings while honoring `onConflict`.
+ *
+ * `skip` seeds each `site:*` key independently. A seeded key is written only
+ * if the matching option is absent, using `OptionsRepository.setIfAbsent`. On
+ * backends where `withTransaction` cannot guarantee rollback, this avoids the
+ * partial-write hazard of a multi-key upsert: an already-persisted key is
+ * never overwritten, and missing keys are still created. `update` overwrites
+ * the whole block, and `error` throws the first time it sees an existing key.
+ */
+async function applySiteSettings(
+	db: Kysely<Database>,
+	settings: Partial<SiteSettings>,
+	onConflict: Exclude<SeedApplyOptions["onConflict"], undefined>,
+	result: SeedApplyResult,
+): Promise<void> {
+	const entries = Object.entries(settings).filter(([, value]) => value !== undefined);
+	if (entries.length === 0) return;
+
+	if (onConflict === "update") {
+		await setSiteSettings(settings, db);
+		result.settings.applied += entries.length;
+		return;
+	}
+
+	const options = new OptionsRepository(db);
+
+	if (onConflict === "error") {
+		const prefixedKeys = entries.map(([key]) => `site:${key}`);
+		const existing = await options.getMany(prefixedKeys);
+		const conflictKey = prefixedKeys.find((key) => existing.has(key));
+		if (conflictKey) {
+			throw new Error(`Conflict: site setting "${conflictKey}" already exists`);
+		}
+
+		for (const [key, value] of entries) {
+			const applied = await options.setIfAbsent(`site:${key}`, value);
+			if (!applied) {
+				throw new Error(`Conflict: site setting "site:${key}" already exists`);
+			}
+			result.settings.applied++;
+		}
+		return;
+	}
+
+	// `skip`: create each missing key independently. Existing keys are left as-is.
+	for (const [key, value] of entries) {
+		const applied = await options.setIfAbsent(`site:${key}`, value);
+		if (applied) {
+			result.settings.applied++;
+		}
+	}
+}
 
 /**
  * Set a collection's `titleField`/`dateField`: a separate write run after the
@@ -170,8 +226,7 @@ export async function applySeed(
 
 	// 1. Site settings
 	if (seed.settings) {
-		await setSiteSettings(seed.settings, db);
-		result.settings.applied = Object.keys(seed.settings).length;
+		await applySiteSettings(db, seed.settings, onConflict, result);
 	}
 
 	// 2-3. Collections and Fields
