@@ -3,7 +3,16 @@
  */
 
 import type { D1Database, R2Bucket } from "@cloudflare/workers-types";
-import type { ContentCreateOptions } from "emdash";
+import type {
+	ConditionalDeleteResult,
+	ConditionalWriteResult,
+	ContentCreateOptions,
+	ContentListOptions,
+	CronTaskInfo,
+	UpdateIfArgs,
+	UpdateIfResult,
+	VersionedValue,
+} from "emdash";
 
 /**
  * Environment bindings required for sandbox runner.
@@ -104,10 +113,21 @@ export interface LoadedPluginManifest {
 interface BridgeContentItem {
 	id: string;
 	type: string;
+	slug: string | null;
+	status: string;
+	locale: string | null;
 	data: Record<string, unknown>;
+	seo?: {
+		title: string | null;
+		description: string | null;
+		image: string | null;
+		canonical: string | null;
+		noIndex: boolean;
+	};
 	createdAt: string;
 	updatedAt: string;
-	locale: string;
+	publishedAt: string | null;
+	scheduledAt?: string | null;
 }
 
 /**
@@ -151,6 +171,18 @@ interface BridgeMediaItem {
 	createdAt: string;
 }
 
+export interface StorageSerializationFailureDetails {
+	name: "StorageSerializationError";
+	code: "STORAGE_SERIALIZATION_FAILURE";
+	retryable: true;
+	sqlState?: "40001" | "40P01";
+	message: string;
+}
+
+export type StorageUpdateIfResponse =
+	| UpdateIfResult<unknown>
+	| { __emdashStorageError: StorageSerializationFailureDetails };
+
 /**
  * Type for the PluginBridge binding passed to sandboxed workers.
  * This is the RPC interface exposed by PluginBridge WorkerEntrypoint.
@@ -159,11 +191,35 @@ export interface PluginBridgeBinding {
 	// KV
 	kvGet(key: string): Promise<unknown>;
 	kvSet(key: string, value: unknown): Promise<void>;
+	kvGetVersioned(key: string): Promise<VersionedValue | null>;
+	kvCompareAndSet(
+		key: string,
+		expectedRevision: string | null,
+		value: unknown,
+	): Promise<ConditionalWriteResult>;
+	kvCompareAndDelete(key: string, expectedRevision: string): Promise<ConditionalDeleteResult>;
 	kvDelete(key: string): Promise<boolean>;
 	kvList(prefix?: string): Promise<Array<{ key: string; value: unknown }>>;
 	// Storage
 	storageGet(collection: string, id: string): Promise<unknown>;
 	storagePut(collection: string, id: string, data: unknown): Promise<void>;
+	storageGetVersioned(collection: string, id: string): Promise<VersionedValue | null>;
+	storageCompareAndSet(
+		collection: string,
+		id: string,
+		expectedRevision: string | null,
+		data: unknown,
+	): Promise<ConditionalWriteResult>;
+	storageCompareAndDelete(
+		collection: string,
+		id: string,
+		expectedRevision: string,
+	): Promise<ConditionalDeleteResult>;
+	storageUpdateIf(
+		collection: string,
+		id: string,
+		args: UpdateIfArgs<unknown>,
+	): Promise<StorageUpdateIfResponse>;
 	storageDelete(collection: string, id: string): Promise<boolean>;
 	storageQuery(
 		collection: string,
@@ -177,7 +233,7 @@ export interface PluginBridgeBinding {
 	contentGet(collection: string, id: string): Promise<BridgeContentItem | null>;
 	contentList(
 		collection: string,
-		opts?: { limit?: number; cursor?: string },
+		opts?: ContentListOptions,
 	): Promise<{ items: BridgeContentItem[]; cursor?: string; hasMore: boolean }>;
 	contentCreate(
 		collection: string,
@@ -218,6 +274,13 @@ export interface PluginBridgeBinding {
 	): Promise<{ status: number; headers: Record<string, string>; text: string }>;
 	// Email
 	emailSend(message: { to: string; subject: string; text: string; html?: string }): Promise<void>;
+	// Cron
+	cronSchedule(
+		name: string,
+		opts: { schedule: string; data?: Record<string, unknown> },
+	): Promise<void>;
+	cronCancel(name: string): Promise<void>;
+	cronList(): Promise<CronTaskInfo[]>;
 	// Logging
 	log(level: "debug" | "info" | "warn" | "error", msg: string, data?: unknown): void;
 }

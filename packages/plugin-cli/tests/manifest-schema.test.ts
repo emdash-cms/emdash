@@ -17,6 +17,7 @@ import { describe, expect, it } from "vitest";
 import {
 	ArtifactFileSchema,
 	ArtifactsSchema,
+	AdminSchema,
 	AuthorSchema,
 	LicenseSchema,
 	ManifestSchema,
@@ -26,6 +27,26 @@ import {
 	SectionsSchema,
 	SecurityContactSchema,
 } from "../src/manifest/schema.js";
+
+describe("AdminSchema", () => {
+	it("accepts settings and declarative field widgets", () => {
+		const admin = {
+			settingsSchema: {
+				enabled: { type: "boolean", label: "Enabled", default: true },
+			},
+			fieldWidgets: [
+				{
+					name: "event-picker",
+					label: "Event",
+					fieldTypes: ["string"],
+					elements: [{ type: "input", action_id: "event" }],
+				},
+			],
+		};
+
+		expect(AdminSchema.parse(admin)).toEqual(admin);
+	});
+});
 
 describe("LicenseSchema", () => {
 	it("accepts a typical SPDX expression", () => {

@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "0.37.0",
+  "version": "0.38.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -301,7 +301,8 @@
   "devDependencies": {
     "@apidevtools/swagger-parser": "^12.1.0",
     "@arethetypeswrong/cli": "catalog:",
-    "@cloudflare/vitest-pool-workers": "catalog:",
+    "@astrojs/react": "catalog:",
+    "@cloudflare/vitest-plugin": "catalog:",
     "@emdash-cms/atproto-test-utils": "workspace:*",
     "@emdash-cms/blocks": "workspace:*",
     "@emdash-cms/registry-verification": "workspace:*",
@@ -312,6 +313,7 @@
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
     "@vitest/ui": "^4.1.10",
+    "astro": "catalog:",
     "image-size": "catalog:",
     "publint": "catalog:",
     "tsdown": "catalog:",

@@ -1,6 +1,6 @@
 import { Sidebar as KumoSidebar, useSidebar } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { Gear, Palette, Storefront, Users } from "@phosphor-icons/react";
+import { Gear, Storefront, Users } from "@phosphor-icons/react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useLocation } from "@tanstack/react-router";
 import * as React from "react";
@@ -112,7 +112,7 @@ export interface SidebarNavProps {
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
 		commit?: string;
-		marketplace?: string;
+		marketplace?: boolean;
 		registry?: {
 			aggregatorUrl: string;
 		};
@@ -467,25 +467,9 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 
 	if (manifest.registry) {
 		adminItems.push({
-			to: "/plugins/marketplace",
+			to: "/plugins/registry",
 			label: t`Registry`,
 			icon: Storefront,
-			minRole: ROLE_ADMIN,
-		});
-	} else if (manifest.marketplace) {
-		adminItems.push({
-			to: "/plugins/marketplace",
-			label: t`Marketplace`,
-			icon: Storefront,
-			minRole: ROLE_ADMIN,
-		});
-	}
-
-	if (manifest.marketplace) {
-		adminItems.push({
-			to: "/themes/marketplace",
-			label: t`Themes`,
-			icon: Palette,
 			minRole: ROLE_ADMIN,
 		});
 	}

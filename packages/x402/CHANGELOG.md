@@ -1,5 +1,9 @@
 # @emdash-cms/x402
 
+## 0.38.0
+
+No changes in this release.
+
 ## 0.37.0
 
 ## 0.36.0

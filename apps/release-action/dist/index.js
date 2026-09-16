@@ -1735,11 +1735,12 @@ function parsePolicy(value) {
 	const workflowRef = stringValue(value, "workflowRef");
 	const allowedRefs = parseStringArray(value["allowedRefs"]);
 	const allowedEnvironments = parseStringArray(value["allowedEnvironments"]);
+	const repositoryConnection = value["repositoryConnection"] ?? false;
 	const stateVersion = safeInteger(value, "stateVersion");
 	const authorizedBy = stringValue(value, "authorizedBy");
 	const createdAt = safeInteger(value, "createdAt");
 	const updatedAt = safeInteger(value, "updatedAt");
-	if (!packageSlug || !repository || !repositoryId || !repositoryOwnerId || !workflowRef || !allowedRefs || !allowedEnvironments || typeof value["active"] !== "boolean" || stateVersion === null || !authorizedBy || createdAt === null || updatedAt === null) throw invalidResponse();
+	if (!packageSlug || !repository || !repositoryId || !repositoryOwnerId || !workflowRef || !allowedRefs || !allowedEnvironments || typeof repositoryConnection !== "boolean" || typeof value["active"] !== "boolean" || stateVersion === null || !authorizedBy || createdAt === null || updatedAt === null) throw invalidResponse();
 	return {
 		packageSlug,
 		repository,
@@ -1748,6 +1749,7 @@ function parsePolicy(value) {
 		workflowRef,
 		allowedRefs,
 		allowedEnvironments,
+		repositoryConnection,
 		active: value["active"],
 		stateVersion,
 		authorizedBy,
@@ -7872,7 +7874,9 @@ const manifestHookEntrySchema = object({
 	name: _enum(HOOK_NAMES),
 	exclusive: boolean().optional(),
 	priority: number().int().optional(),
-	timeout: number().int().positive().optional()
+	timeout: number().int().positive().optional(),
+	dependencies: array(string().min(1)).optional(),
+	errorPolicy: _enum(["continue", "abort"]).optional()
 });
 /**
 * Structured route entry for manifest — name plus optional metadata.
@@ -7883,8 +7887,20 @@ const manifestHookEntrySchema = object({
 const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
 const manifestRouteEntrySchema = object({
 	name: string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: boolean().optional()
+	public: boolean().optional(),
+	permission: string().min(1).optional(),
+	cacheControl: string().min(1).optional()
 });
+const pluginJsonSchema = record(string(), unknown());
+const pluginMcpConfigSchema = object({ tools: array(object({
+	name: string().min(1),
+	description: string().min(1),
+	route: string().min(1),
+	permission: string().min(1),
+	destructive: boolean(),
+	inputSchema: pluginJsonSchema,
+	outputSchema: pluginJsonSchema.optional()
+})) });
 /** Index field names must be valid identifiers to prevent SQL injection via JSON path expressions */
 const indexFieldName = string().regex(/^[a-zA-Z][a-zA-Z0-9_]*$/);
 const storageCollectionSchema = object({
@@ -8019,6 +8035,7 @@ const pluginManifestSchema = object({
 	storage: record(string(), storageCollectionSchema),
 	hooks: array(union([_enum(HOOK_NAMES), manifestHookEntrySchema])),
 	routes: array(union([string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"), manifestRouteEntrySchema])),
+	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema
 });
 /**
@@ -8161,7 +8178,7 @@ function createGzipDecoder() {
 //#endregion
 //#region ../../packages/registry-verification/dist/index.js
 var __commonJSMin = (cb, mod) => () => (mod || cb((mod = { exports: {} }).exports, mod), mod.exports);
-var __require = /* @__PURE__ */ createRequire("file:///emdash-registry-verification.js");
+var __require = /* @__PURE__ */ createRequire("file:///C:/emdash-registry-verification.js");
 const DEFAULT_FETCH_LIMITS = {
 	headerTimeoutMs: 1e4,
 	totalTimeoutMs: 3e4,
@@ -12946,6 +12963,7 @@ async function runAction(runtime, dependencies = {}) {
 	await setIntentOutputs(runtime, intent);
 	if (intent.state === "awaiting_approval") {
 		runtime.info(`Release intent ${intent.id} requires approval: ${intent.approvalUrl}`);
+		await runtime.writeSummary(`## Approve ${intent.packageSlug} ${intent.version}\n\n[Open EmDash to review and approve the release](${intent.approvalUrl})`);
 		return intent;
 	}
 	if (intent.state === "published" && intent.result) {

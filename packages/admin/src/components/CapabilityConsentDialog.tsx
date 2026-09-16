@@ -22,6 +22,8 @@ export interface CapabilityConsentDialogProps {
 	mode?: "install" | "update";
 	/** Plugin display name */
 	pluginName: string;
+	/** Exact plugin version under review */
+	version?: string;
 	/** Capabilities the plugin requests */
 	capabilities: string[];
 	/** Allowed network hosts (for network:fetch capability) */
@@ -49,6 +51,7 @@ export interface CapabilityConsentDialogProps {
 export function CapabilityConsentDialog({
 	mode,
 	pluginName,
+	version,
 	capabilities,
 	allowedHosts,
 	newCapabilities = [],
@@ -95,6 +98,11 @@ export function CapabilityConsentDialog({
 								? t`${pluginName} is requesting additional permissions:`
 								: t`${pluginName} requires the following permissions:`}
 					</p>
+					{version && (
+						<p className="mt-1 text-xs text-kumo-subtle">
+							{t`Version`} <bdi dir="ltr">{version}</bdi>
+						</p>
+					)}
 				</div>
 
 				{/* Capabilities list */}

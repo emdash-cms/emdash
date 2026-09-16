@@ -223,13 +223,10 @@ export const contentUpdateBody = z
 
 export const contentScheduleBody = z
 	.object({
-		scheduledAt: z
-			.string()
-			.min(1, "scheduledAt is required")
-			.meta({
-				description: "ISO 8601 datetime for scheduled publishing",
-				examples: ["2025-06-15T09:00:00Z"],
-			}),
+		scheduledAt: contentDateTime.meta({
+			description: "ISO 8601 datetime with Z or an explicit offset for scheduled publishing",
+			examples: ["2025-06-15T09:00:00Z"],
+		}),
 		overrideLock: overrideLockFlag,
 	})
 	.meta({ id: "ContentScheduleBody" });

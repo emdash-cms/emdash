@@ -7,6 +7,7 @@ import { promisify } from "node:util";
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 
+import { consumerEnvironment } from "../../utils/consumer-environment.js";
 import { ensureBuilt } from "../server.js";
 
 interface SiteCase {
@@ -156,11 +157,10 @@ describe("Site build verification", () => {
 				{
 					cwd: WORKSPACE_ROOT,
 					timeout: 240_000,
-					env: {
-						...process.env,
+					env: consumerEnvironment({
 						CI: "true",
 						NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(),
-					},
+					}),
 				},
 			);
 		} catch (error) {
@@ -194,13 +194,14 @@ async function bootSite(site: SiteCase): Promise<BootedServer> {
 	}
 
 	const baseUrl = `http://localhost:${site.port}`;
-	const serverProcess = spawn("pnpm", ["exec", "astro", "dev", "--port", String(site.port)], {
+	const astroBin = join(site.dir, "node_modules", ".bin", "astro");
+	const serverProcess = spawn(astroBin, ["dev", "--port", String(site.port)], {
 		cwd: site.dir,
-		env: {
-			...process.env,
+		env: consumerEnvironment({
+			ASTRO_DEV_BACKGROUND: "1",
 			CI: "true",
 			NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(),
-		},
+		}),
 		stdio: "pipe",
 	});
 

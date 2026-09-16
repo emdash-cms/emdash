@@ -17,22 +17,52 @@ import { runScheduledTasks } from "emdash/middleware";
 
 export { PluginBridge } from "./sandbox/index.js";
 
-// The Astro App wraps the build manifest; reuse one per isolate so each tick
-// doesn't re-resolve the cache provider.
-let app: ReturnType<typeof createApp> | null = null;
+const APP_KEY = Symbol.for("@emdash-cms/cloudflare:astro-app");
+const CACHE_PROVIDER_KEY = Symbol.for("@emdash-cms/cloudflare:cache-provider");
+const runtimeGlobals = globalThis as Record<symbol, unknown>;
+
+function getApp(): ReturnType<typeof createApp> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton values are scoped by private Symbol.for keys
+	const existing = runtimeGlobals[APP_KEY] as ReturnType<typeof createApp> | undefined;
+	if (existing) return existing;
+	const app = createApp();
+	runtimeGlobals[APP_KEY] = app;
+	return app;
+}
+
+async function loadCacheProvider() {
+	const app = getApp();
+	const module = await app.manifest.cacheProvider?.();
+	return module?.default?.(app.manifest.cacheConfig?.options) ?? null;
+}
+
+function getCacheProvider(): ReturnType<typeof loadCacheProvider> {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton values are scoped by private Symbol.for keys
+	const existing = runtimeGlobals[CACHE_PROVIDER_KEY] as
+		| ReturnType<typeof loadCacheProvider>
+		| undefined;
+	if (existing) return existing;
+	const provider = loadCacheProvider().catch((error: unknown) => {
+		if (runtimeGlobals[CACHE_PROVIDER_KEY] === provider) {
+			delete runtimeGlobals[CACHE_PROVIDER_KEY];
+		}
+		throw error;
+	});
+	runtimeGlobals[CACHE_PROVIDER_KEY] = provider;
+	return provider;
+}
 
 /**
  * Purge edge-cache tags for content the sweep just published. Without a
  * request there's no `locals.cache`, so we reach the configured cache provider
- * through the Astro App pipeline — the same provider routes invalidate against.
+ * through the Astro App manifest — the same provider routes invalidate against.
  * A no-op when no cache provider is configured.
  */
 async function invalidatePublishedTags(
 	published: ReadonlyArray<{ collection: string; id: string }>,
 ): Promise<void> {
 	if (published.length === 0) return;
-	app ??= createApp();
-	const provider = await app.pipeline.getCacheProvider();
+	const provider = await getCacheProvider();
 	if (!provider) return;
 	const tags = [...new Set(published.flatMap((ref) => [ref.collection, ref.id]))];
 	await provider.invalidate({ tags });

@@ -7,6 +7,7 @@ import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleRegistryInstall } from "#api/index.js";
 import { isParseError, parseBody } from "#api/parse.js";
 
+import { getRegistryConfigInput } from "../../../../../../registry/config.js";
 import { VERSION } from "../../../../../../version.js";
 
 export const prerender = false;
@@ -44,7 +45,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			emdash.db,
 			emdash.storage,
 			emdash.getSandboxRunner(),
-			emdash.config.experimental?.registry,
+			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
 			body,
 			{
 				configuredPluginIds: reservedPluginIds,

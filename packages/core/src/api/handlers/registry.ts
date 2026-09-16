@@ -13,6 +13,7 @@ import { canonicalizeDeclaredAccess } from "@emdash-cms/plugin-types";
 import type { CanonicalDeclaredAccess } from "@emdash-cms/plugin-types";
 import { checkEnvCompatibility, findSkippedEnvConstraints } from "@emdash-cms/registry-client/env";
 import type { HostEnv } from "@emdash-cms/registry-client/env";
+import { isProvenFirstRelease } from "@emdash-cms/registry-client/listing-policy";
 import { evaluateRegistryReleaseWithdrawal } from "@emdash-cms/registry-client/withdrawal";
 import { NSID } from "@emdash-cms/registry-lexicons";
 import {
@@ -732,7 +733,9 @@ export async function handleRegistryInstall(
 			const exclude = registryConfig.policy?.minimumReleaseAgeExclude?.map((e) =>
 				e.trim().toLowerCase(),
 			);
-			const exempt = releaseExemptFromMinimumAge(exclude, publisherDid, slug);
+			const exempt =
+				releaseExemptFromMinimumAge(exclude, publisherDid, slug) ||
+				isProvenFirstRelease(packageView);
 			if (!exempt) {
 				const indexedAt = Date.parse(releaseView.indexedAt);
 				if (!Number.isFinite(indexedAt)) {
@@ -1117,7 +1120,7 @@ export async function handleRegistryUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean },
+	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
 ): Promise<ApiResult<RegistryUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -1136,12 +1139,12 @@ export async function handleRegistryUninstall(
 		// registry-source rows (there's no shadow column like marketplace's
 		// `marketplaceVersion`). Use it verbatim for the R2 prefix.
 		const version = existing.version;
+		await opts?.beforeDelete?.();
 
-		// Order: optional storage cleanup → bundle delete → state row delete.
-		// The most failure-prone step runs first so a transient DB error
-		// (deadlock, contention) cascades to the outer catch with the state
-		// row and bundle intact — admin retries safely. Bundle delete is
-		// idempotent on misses.
+		// Lifecycle cleanup runs before every destructive step so the plugin can
+		// inspect its stored state. The database cleanup then runs before the
+		// idempotent bundle delete, leaving the state row and bundle intact if a
+		// transient database error makes the uninstall retryable.
 		let dataDeleted = false;
 		if (opts?.deleteData) {
 			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
@@ -1573,11 +1576,6 @@ export async function handleRegistryUpdate(
 		});
 
 		await syncDeclaredStorageIndexes(db, [bundle.manifest]);
-
-		// Best-effort cleanup of the old bundle. Failures here don't roll
-		// back the upgrade (the new bundle is already stored and committed
-		// in the state row); the orphan is just storage we'll pay for.
-		deleteBundleFromR2(storage, pluginId, oldVersion, "registry").catch(() => {});
 
 		return {
 			success: true,

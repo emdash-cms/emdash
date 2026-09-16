@@ -9,6 +9,16 @@ import { Steps } from "@astrojs/starlight/components";
 
 The CLI uses an [Atmosphere account](/plugins/creating-plugins/publishing/#your-atmosphere-account) as the publisher identity for package profiles and releases.
 
+## Install the CLI
+
+Plugins created with `pnpm dlx @emdash-cms/plugin-cli init` already include the CLI as a pinned development dependency. Add it to an existing plugin before using the other commands:
+
+```sh
+pnpm add -D @emdash-cms/plugin-cli
+```
+
+The examples use `pnpm exec emdash-plugin` so each command runs the version installed in the plugin. Use `pnpm dlx` for the one-off `init` command, not for repeated build, login, or release commands.
+
 ## Commands
 
 The CLI provides the following commands:
@@ -23,15 +33,19 @@ emdash-plugin publish                        Build, upload, and publish a releas
 emdash-plugin update-package [--yes]         Preview or apply package-profile changes
 emdash-plugin profile setup                  Prepare the signed package profile for delegated releases
 emdash-plugin release setup                  Create the delegated-release GitHub Actions workflow
+emdash-plugin release plan                   Plan repository releases for GitHub Actions
+emdash-plugin release prepare <slug[@ver]>   Prepare one repository package for GitHub Actions
 emdash-plugin login <handle-or-did>          Sign in with your Atmosphere account
 emdash-plugin logout [--did <did>]           Revoke the active session
 emdash-plugin whoami                         Show stored sessions
 emdash-plugin switch <did>                   Switch the active publisher session
 emdash-plugin search <query>                 Free-text registry search
-emdash-plugin info <handle-or-did> <slug>    Show package details
+emdash-plugin info <handle-or-did> <slug>    Show package details or listing-check status
 ```
 
 Run `emdash-plugin <command> --help` for the current arguments and flags. Commands intended for scripts, including `validate`, `publish`, `update-package`, `search`, `info`, `login`, and `whoami`, provide JSON output where their help lists `--json`. Discovery commands accept `--registry-url <url>` or the `EMDASH_REGISTRY_URL` environment variable.
+
+Human-readable output identifies registry packages as `@<publisher-handle>/<slug>`. An npm package name is labelled **npm package** when build diagnostics need to show it.
 
 The following example shows the two scripts most plugins add to `package.json`:
 
@@ -49,12 +63,25 @@ The following example shows the two scripts most plugins add to `package.json`:
 Create a new plugin with `init`:
 
 ```sh
-npx @emdash-cms/plugin-cli init my-plugin
+pnpm dlx @emdash-cms/plugin-cli init my-plugin
 ```
 
-This scaffolds `emdash-plugin.jsonc`, `src/plugin.ts`, `package.json`, `tsconfig.json`, a test, a README, and `.gitignore`. The source starts with one route and a bare default export annotated with `satisfies SandboxedPlugin`.
+This scaffolds `emdash-plugin.jsonc`, `src/plugin.ts`, `package.json`, `tsconfig.json`, `vitest.config.ts`, a workerd-backed test, a README, `AGENTS.md`, a local `creating-plugins` skill, and package-manager configuration. `.agents/skills` and `.claude/skills` link to the canonical `skills` directory, and `.claude/CLAUDE.md` links to `AGENTS.md`, so Codex and Claude use the same project guidance. The source starts with one route assigned to a `SandboxedPlugin`-typed constant and exported as default. The test invokes that route through EmDash's production sandbox wrapper and host bridge.
 
-A slug is the only required command-line input. Interactive setup asks for the publisher, author, and security contact. If any required answer is missing, the manifest contains a `TODO` value and is not ready to validate or build. Replace those values before using the plugin.
+Interactive setup asks for the publisher, author, security contact, and source repository, then shows the complete project summary before writing. Required fields cannot be skipped.
+
+The CLI detects whether npm, pnpm, Yarn, or Bun launched it and generates matching commands. Override the choice with `--package-manager`. A pnpm scaffold includes the reviewed build-script policy needed by `esbuild`.
+
+Non-interactive setup requires explicit ownership metadata. Use the following form in scripts:
+
+```sh
+pnpm dlx @emdash-cms/plugin-cli init my-plugin --yes \
+  --publisher did:plc:abc123def456 \
+  --author-name "Jane Doe" \
+  --security-email security@example.com
+```
+
+Pass `--use-detected` to opt into the active publisher session and local Git author or repository metadata. Without that flag, `--yes` does not copy identity-bearing local defaults.
 
 ## `build`
 
@@ -115,6 +142,18 @@ Pass `--url <https-url>` to use an externally hosted package bundle. The CLI dow
 
 Follow [Bundling and publishing](/plugins/creating-plugins/publishing/) for the complete local release flow.
 
+## `info`
+
+`info` shows the approved package details from the aggregator. After publishing, pass the release version and `--watch` to follow the current profile and release listing checks:
+
+```sh
+emdash-plugin info plugins.emdashcms.com audit-log --version 0.2.2 --watch
+```
+
+Before approval, the command reads status directly from the labeler and prints only the package identifier and check state. It does not return unapproved package metadata from the aggregator. Once the package and release are public, it prints the approved details and canonical plugin-page URL. Stop watching with Ctrl-C without affecting the published records or listing checks.
+
+Use `--labeler-url <origin>` or `EMDASH_LABELER_URL` when checking a registry that uses a different labeler.
+
 ## `update-package`
 
 Use `update-package` to change an existing package profile without creating a release. It reads the profile fields in `emdash-plugin.jsonc`, fetches the current signed profile, and prints the proposed changes:
@@ -135,7 +174,7 @@ The write uses the current record CID as a precondition. If another process chan
 
 `profile setup` prepares the publisher-owned package profile for automated releases. It creates a missing profile from `emdash-plugin.jsonc`, or adds delegated-release settings to an existing valid profile without replacing its package metadata.
 
-Run the interactive setup from the plugin directory:
+Run the interactive setup from the plugin directory. From elsewhere in a monorepo, pass `--dir <plugin-directory>`:
 
 ```sh
 emdash-plugin profile setup
@@ -144,15 +183,15 @@ emdash-plugin profile setup
 | Flag | Default | Description |
 | --- | --- | --- |
 | `--dir <path>` | Current directory | Plugin source directory. |
-| `--repository <url>` | Manifest `repo` | Canonical public GitHub repository URL. Interactive setup asks when neither value is present. |
+| `--repository <url>` | Manifest `repo`, then Git `origin` | Canonical public GitHub repository URL. Interactive setup pre-fills a detected GitHub remote or asks when none is available. |
 | `--confirmation <mode>` | `escalation-only` | Use `escalation-only` for permission increases or `always` for every release. |
 | `--yes`, `-y` | `false` | Accept the default policy without prompting. Required when a non-interactive run would change the profile. |
 
-The command uses the active CLI login to write the profile. It refuses to replace a different signed repository. Run `emdash-plugin switch <did>` when the active account does not match the manifest publisher.
+The command uses the active CLI login to write the profile. It refuses to replace a different signed repository. Run `emdash-plugin switch <did>` when the active account does not match the manifest publisher. After publishing the profile, it shows `emdash-plugin publish` for a manual release and `emdash-plugin release setup` for GitHub Actions.
 
 ## `release setup`
 
-`release setup` runs package-profile setup, then creates `.github/workflows/emdash-release.yml` for the release service.
+`release setup` runs package-profile setup from one plugin directory, then creates one shared `.github/workflows/emdash-release.yml` at the Git repository root. Nested plugin packages reuse the same workflow. Run it from a plugin directory or pass `--dir <plugin-directory>`; the repository root does not identify which package profile to prepare.
 
 ```sh
 emdash-plugin release setup
@@ -164,9 +203,30 @@ It accepts the `profile setup` flags plus the following workflow options:
 | --- | --- | --- |
 | `--service-url <origin>` | `https://releases.emdashcms.com` | HTTPS origin used by the generated Action. |
 | `--action-ref <ref>` | `main` | EmDash repository ref containing the release Action. |
+| `--trigger <mode>` | `auto` | Release source: `changesets`, `tags`, or `manual`. `auto` offers Changesets when `.changeset/config.json` exists. |
 | `--force` | `false` | Replace an existing generated workflow. Without it, setup leaves the existing file unchanged. |
 
-The command never pushes the generated workflow. Follow [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) to review it, authorise the release service, connect the workflow, and publish the first release.
+When setup detects Changesets in an interactive terminal, it asks how EmDash plugins should be released. **Follow Changesets releases** publishes the same versions for packages containing `emdash-plugin.jsonc`. The other choices follow `<slug>@<version>` tags or allow manual runs only. In non-interactive use, `auto` selects Changesets when a valid root configuration exists and package tags otherwise.
+
+The Changesets variant is a reusable workflow. Add one caller job after the existing Changesets publish job and pass its official published-package JSON output. Private EmDash-only packages require `privatePackages.version: true` and `privatePackages.tag: true`; setup warns when either option is missing.
+
+The command never pushes the generated workflow. The first automated run creates a repository connection request using GitHub OpenID Connect; no Actions secret is required. Follow [Automated plugin releases](/plugins/creating-plugins/delegated-releases/) to review the workflow, authorise the release service, connect the repository, and publish the first release.
+
+## `release plan`
+
+`release plan` is used by the generated workflow. With `--published-packages <json>`, it maps the Changesets Action output to packages containing `emdash-plugin.jsonc`, verifies their versions, and writes a JSON selector matrix to `GITHUB_OUTPUT`. With `--package <slug[@version]>`, it validates one manual selector. The command does not build or publish packages.
+
+## `release prepare`
+
+`release prepare` is the generated workflow's package resolver. It finds one plugin manifest in the repository, checks an optional tag version, builds the package, and writes its package, publisher, directory, and bundle outputs to `GITHUB_OUTPUT`.
+
+The generated workflow passes a package tag automatically:
+
+```sh
+emdash-plugin release prepare gallery@1.2.3
+```
+
+Pass a plain plugin ID for a manual workflow run. The command uses the version from that package's manifest. Duplicate plugin IDs, missing packages, and version mismatches fail before provenance is created.
 
 ## Programmatic API
 

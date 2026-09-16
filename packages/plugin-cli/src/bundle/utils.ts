@@ -137,7 +137,9 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		const hasMetadata =
 			resolved.exclusive ||
 			(resolved.priority !== undefined && resolved.priority !== 100) ||
-			(resolved.timeout !== undefined && resolved.timeout !== 5000);
+			(resolved.timeout !== undefined && resolved.timeout !== 5000) ||
+			(resolved.dependencies !== undefined && resolved.dependencies.length > 0) ||
+			resolved.errorPolicy === "continue";
 		if (hasMetadata) {
 			const entry: ManifestHookEntry = { name };
 			if (resolved.exclusive) entry.exclusive = true;
@@ -147,6 +149,10 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 			if (resolved.timeout !== undefined && resolved.timeout !== 5000) {
 				entry.timeout = resolved.timeout;
 			}
+			if (resolved.dependencies !== undefined && resolved.dependencies.length > 0) {
+				entry.dependencies = resolved.dependencies;
+			}
+			if (resolved.errorPolicy === "continue") entry.errorPolicy = "continue";
 			hooks.push(entry);
 		} else {
 			hooks.push(name);
@@ -155,8 +161,15 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 
 	const routes: Array<ManifestRouteEntry | string> = Object.entries(plugin.routes).map(
 		([name, route]) =>
-			route.public !== undefined || route.permission !== undefined
-				? { name, public: route.public, permission: route.permission }
+			route.public !== undefined ||
+			route.permission !== undefined ||
+			route.cacheControl !== undefined
+				? {
+						name,
+						public: route.public,
+						permission: route.permission,
+						cacheControl: route.cacheControl,
+					}
 				: name,
 	);
 	const tools: ManifestMcpTool[] = Object.entries(plugin.mcp?.tools ?? {}).map(([name, tool]) => {
@@ -197,6 +210,7 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 			settingsSchema: plugin.admin.settingsSchema,
 			pages: plugin.admin.pages,
 			widgets: plugin.admin.widgets,
+			fieldWidgets: plugin.admin.fieldWidgets,
 		},
 	};
 }

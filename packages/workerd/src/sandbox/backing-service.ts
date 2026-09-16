@@ -76,6 +76,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					db: runner.db,
 					beforeContentWrite: runner.beforeContentWrite,
 					emailSend: () => runner.emailSend,
+					cronReschedule: () => runner.cronReschedule?.(),
 					storage: runner.mediaStorage,
 				});
 				handlerCache.set(cacheKey, bridgeHandler);

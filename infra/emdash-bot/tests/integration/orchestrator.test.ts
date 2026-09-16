@@ -1,6 +1,6 @@
 // Workers-pool integration tests for OrchestratorDO.
 //
-// These run inside a real workerd isolate via @cloudflare/vitest-pool-workers,
+// These run inside a real workerd isolate via @cloudflare/vitest-plugin,
 // so `env.Orchestrator` is the actual DO namespace, storage is real (sqlite
 // inside miniflare), and lifecycle semantics (single-threaded per instance,
 // blockConcurrencyWhile, etc.) match production.

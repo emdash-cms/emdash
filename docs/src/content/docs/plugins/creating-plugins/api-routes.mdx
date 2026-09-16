@@ -29,7 +29,7 @@ const submissionsInput = z.object({
 	cursor: z.string().optional(),
 });
 
-export default {
+const plugin: SandboxedPlugin = {
 	routes: {
 		status: {
 			handler: async (_routeCtx, ctx) => {
@@ -56,10 +56,12 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
-`satisfies SandboxedPlugin` infers the route and plugin context types, so the parameters need no annotations. Sandboxed route handlers take **two arguments**: `(routeCtx, ctx)`.
+The `SandboxedPlugin` annotation infers the route and plugin context types, so the parameters need no annotations. Sandboxed route handlers take **two arguments**: `(routeCtx, ctx)`.
 
 - `routeCtx` carries request-shaped data: `{ input, request, requestMeta }`. Its `input` remains `unknown`, so validate it before use.
 - `ctx` is the same `PluginContext` you get inside hooks — `ctx.storage`, `ctx.kv`, `ctx.content`, `ctx.http`, `ctx.log`, etc.
@@ -181,7 +183,7 @@ const createEventInput = z.object({
 	startsAt: z.string().datetime(),
 });
 
-export default {
+const plugin: SandboxedPlugin = {
 	routes: {
 		"events/create": {
 			permission: "content:create",
@@ -204,7 +206,9 @@ export default {
 			},
 		},
 	},
-} satisfies SandboxedPlugin;
+};
+
+export default plugin;
 ```
 
 EmDash exposes this as `<pluginId>__createEvent`. The referenced route must be private and declare `permission`. Input schemas are required; output schemas are optional. Set `destructive: true` for tools that delete, overwrite, publish, charge, or otherwise perform a difficult-to-reverse action.

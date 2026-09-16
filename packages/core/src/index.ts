@@ -261,6 +261,7 @@ export {
 	PluginManager,
 	createPluginManager,
 	PluginRouteError,
+	StorageSerializationError,
 	ContentSaveRejectedError,
 	isContentSaveRejection,
 	// Scheduler (Node timer heartbeat — used by virtual:emdash/scheduler)
@@ -280,6 +281,9 @@ export {
 	// HTTP access for plugins (shared between in-process, Cloudflare, and workerd runners)
 	createHttpAccess,
 	createUnrestrictedHttpAccess,
+	createContentAccess,
+	createContentAccessWithWrite,
+	CronAccessImpl,
 } from "./plugins/index.js";
 export type {
 	PluginDefinition,
@@ -288,9 +292,17 @@ export type {
 	PluginContext,
 	PluginStorageConfig,
 	StorageCollection,
+	NumericDelta,
+	UpdateIfArgs,
+	UpdateIfResult,
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
 	KVAccess,
 	ContentAccess,
 	ContentCreateOptions,
+	ContentListOptions,
+	CronTaskInfo,
 	MediaAccess,
 	HttpAccess,
 	LogAccess,

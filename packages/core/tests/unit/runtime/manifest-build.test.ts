@@ -57,8 +57,7 @@ const configCollections = {
 	},
 };
 
-function buildRuntime(db: Kysely<Database>): EmDashRuntime {
-	const config: EmDashConfig = {};
+function buildRuntime(db: Kysely<Database>, config: EmDashConfig = {}): EmDashRuntime {
 	const pipelineFactoryOptions = { db } as const;
 	const hooks = createHookPipeline([], pipelineFactoryOptions);
 	const pipelineRef = { current: hooks };
@@ -330,12 +329,97 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(posts?.fields.body?.kind).toBe("json");
 	});
 
+	it("forwards declared validation on every field type", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "posts",
+			label: "Posts",
+			labelSingular: "Post",
+			source: "test",
+		});
+		await registry.createField("posts", {
+			slug: "title",
+			label: "Title",
+			type: "string",
+			validation: { minLength: 3, maxLength: 80 },
+		});
+		await registry.createField("posts", {
+			slug: "excerpt",
+			label: "Excerpt",
+			type: "text",
+			validation: { maxLength: 160 },
+		});
+		await registry.createField("posts", {
+			slug: "reading_minutes",
+			label: "Reading minutes",
+			type: "integer",
+			validation: { min: 1, max: 60 },
+		});
+		await registry.createField("posts", { slug: "subtitle", label: "Subtitle", type: "string" });
+
+		const runtime = buildRuntime(db);
+		const fields = (await runtime.getManifest()).collections.posts?.fields;
+
+		expect(fields?.title?.validation).toEqual({ minLength: 3, maxLength: 80 });
+		expect(fields?.excerpt?.validation).toEqual({ maxLength: 160 });
+		expect(fields?.reading_minutes?.validation).toEqual({ min: 1, max: 60 });
+		expect(fields?.subtitle?.validation).toBeUndefined();
+	});
+
 	it("reports the implicit English content locale when i18n is not configured", async () => {
 		const runtime = buildRuntime(db);
 
 		const manifest = await runtime.getManifest();
 
 		expect(manifest.contentLocale).toEqual({ defaultLocale: "en", implicit: true });
+	});
+
+	it("keeps the admin manifest available with a safe registry configuration diagnostic", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const runtime = buildRuntime(db, {
+			experimental: { registry: { aggregatorUrl: "not a URL" } },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toEqual({
+			code: "REGISTRY_AGGREGATOR_URL_INVALID",
+			field: "experimental.registry.aggregatorUrl",
+		});
+		expect(log).toHaveBeenCalledWith(
+			"EmDash registry configuration error in experimental.registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
+		);
+	});
+
+	it("reports top-level registry configuration fields", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const runtime = buildRuntime(db, {
+			registry: { aggregatorUrl: "not a URL" },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toEqual({
+			code: "REGISTRY_AGGREGATOR_URL_INVALID",
+			field: "registry.aggregatorUrl",
+		});
+		expect(log).toHaveBeenCalledWith(
+			"EmDash registry configuration error in registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
+		);
+	});
+
+	it("lets the top-level false option override legacy registry configuration", async () => {
+		const runtime = buildRuntime(db, {
+			registry: false,
+			experimental: { registry: { aggregatorUrl: "not a URL" } },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toBeUndefined();
 	});
 
 	it("reports the configured content default independently of admin language", async () => {

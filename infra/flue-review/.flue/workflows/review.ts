@@ -448,6 +448,24 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 				data,
 				payload.headSha,
 				payload.attemptId,
+				{
+					beforeRetry: async ({ retry, maxRetries, delayMs }) => {
+						const retryToken = creds ? await mintInstallationToken(creds) : undefined;
+						if (
+							!(await reportStage(
+								env,
+								retryToken,
+								payload,
+								runId,
+								"posting_review",
+								`GitHub rate limit wait completed after ${Math.ceil(delayMs / 1_000)} seconds. Retrying review publication (${retry} of ${maxRetries}).`,
+							))
+						) {
+							throw new Error("Review attempt is no longer active");
+						}
+						return retryToken;
+					},
+				},
 			);
 		} else {
 			logReviewEvent("log", payload, runId, "GitHub App credentials unavailable; skipping post");

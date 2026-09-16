@@ -19,6 +19,7 @@ import { promisify, stripVTControlCharacters } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { consumerEnvironment } from "../../utils/consumer-environment.js";
 import { ensureBuilt } from "../server.js";
 
 interface PackageManifest {
@@ -178,14 +179,6 @@ function parseWorkspaceNumber(key: string): number {
 		throw new Error(`Missing numeric ${key} in pnpm-workspace.yaml`);
 	}
 	return value;
-}
-
-function consumerEnvironment(overrides: NodeJS.ProcessEnv = {}): NodeJS.ProcessEnv {
-	const environment = { ...process.env, ...overrides };
-	for (const key of Object.keys(environment)) {
-		if (key === "VITEST" || key.startsWith("VITEST_")) delete environment[key];
-	}
-	return environment;
 }
 
 async function runPnpm(args: string[], cwd: string, timeout: number): Promise<string> {

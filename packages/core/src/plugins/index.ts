@@ -40,6 +40,7 @@ export {
 	createSiteInfo,
 } from "./context.js";
 export type { PluginContextFactoryOptions } from "./context.js";
+export { CronAccessImpl } from "./cron.js";
 
 // Hooks
 export { HookPipeline, createHookPipeline } from "./hooks.js";
@@ -101,6 +102,8 @@ export type {
 	SandboxSaveRejectedError,
 } from "./sandbox/index.js";
 
+export { StorageSerializationError } from "./storage-query.js";
+
 // Types
 export type {
 	// Core types
@@ -118,6 +121,12 @@ export type {
 	// Context APIs
 	PluginContext,
 	StorageCollection,
+	NumericDelta,
+	UpdateIfArgs,
+	UpdateIfResult,
+	VersionedValue,
+	ConditionalWriteResult,
+	ConditionalDeleteResult,
 	KVAccess,
 	ContentAccess,
 	ContentAccessWithWrite,
@@ -131,6 +140,7 @@ export type {
 	ContentItem,
 	ContentCreateOptions,
 	ContentWriteInput,
+	CronTaskInfo,
 	MediaItem,
 	ContentListOptions,
 	MediaListOptions,

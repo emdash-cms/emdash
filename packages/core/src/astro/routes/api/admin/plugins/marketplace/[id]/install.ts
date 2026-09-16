@@ -66,6 +66,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (!result.success) return unwrapResult(result);
 
 		await emdash.syncMarketplacePlugins();
+		await emdash.runPluginInstallLifecycle(id);
 
 		return unwrapResult(result, 201);
 	} catch (error) {

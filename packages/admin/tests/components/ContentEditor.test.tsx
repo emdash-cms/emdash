@@ -10,6 +10,7 @@ import {
 } from "../../src/components/ContentEditor";
 import { fetchBylines } from "../../src/lib/api";
 import type { BylineSummary, ContentItem } from "../../src/lib/api";
+import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.tsx";
 
 function makeByline(overrides: Partial<BylineSummary> = {}): BylineSummary {
@@ -437,7 +438,7 @@ describe("ContentEditor", () => {
 				expect(backdrop?.classList.contains("pointer-events-none") ?? true).toBe(true);
 
 				// Exiting DF with the panel still active surfaces it in the sheet.
-				document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+				await screen.getByRole("button", { name: "Exit distraction-free mode" }).click();
 				await expect
 					.element(screen.getByRole("navigation", { name: "Settings" }))
 					.toBeInTheDocument();
@@ -1020,6 +1021,130 @@ describe("ContentEditor", () => {
 			});
 			const textarea = screen.getByLabelText("Metadata");
 			await expect.element(textarea).toHaveValue(JSON.stringify(jsonData, null, 2));
+		});
+	});
+
+	describe("field constraints", () => {
+		it("caps string fields at maxLength and counts characters against it", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { summary: "Hello" } }),
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { maxLength: 160 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(input).toHaveAttribute("maxlength", "160");
+			await expect.element(screen.getByText("5 of 160 characters")).toBeInTheDocument();
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+
+			await userEvent.fill(input, "Hello world");
+			await expect.element(screen.getByText("11 of 160 characters")).toBeInTheDocument();
+		});
+
+		it("flags string content that already exceeds maxLength", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { summary: "x".repeat(170) } }),
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { maxLength: 160 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+			await expect.element(screen.getByText("170 of 160 characters")).toBeInTheDocument();
+		});
+
+		it("flags a cleared field against minLength, not an untouched one", async () => {
+			const screen = await renderEditor({
+				fields: {
+					summary: { kind: "string", label: "Summary", validation: { minLength: 10 } },
+				},
+			});
+			const input = screen.getByLabelText("Summary", { exact: true });
+			await expect.element(screen.getByText("At least 10 characters")).toBeInTheDocument();
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+
+			await userEvent.fill(input, "short");
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+
+			await userEvent.clear(input);
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+			await expect.element(screen.getByText("At least 10 characters")).toBeInTheDocument();
+		});
+
+		it("caps text fields at maxLength", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { body: "Some markdown" } }),
+				fields: {
+					body: { kind: "richText", label: "Body", validation: { maxLength: 500 } },
+				},
+			});
+			const textarea = screen.getByLabelText("Body");
+			await expect.element(textarea).toHaveAttribute("maxlength", "500");
+			await expect.element(screen.getByText("13 of 500 characters")).toBeInTheDocument();
+		});
+
+		it("shows the allowed range on number fields and flags values outside it", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { rating: 12 } }),
+				fields: {
+					rating: { kind: "number", label: "Rating", validation: { min: 1, max: 10 } },
+				},
+			});
+			const input = screen.getByLabelText("Rating", { exact: true });
+			await expect.element(input).toHaveAttribute("min", "1");
+			await expect.element(input).toHaveAttribute("max", "10");
+			await expect.element(screen.getByText("Between 1 and 10")).toBeInTheDocument();
+			await expect.element(input).toHaveAttribute("aria-invalid", "true");
+
+			await userEvent.fill(input, "7");
+			await expect.element(input).not.toHaveAttribute("aria-invalid");
+		});
+
+		it("renders no hint when a field declares no bounds", async () => {
+			const screen = await renderEditor({
+				fields: { title: { kind: "string", label: "Title" } },
+			});
+			const input = screen.getByLabelText("Title");
+			await expect.element(input).not.toHaveAttribute("maxlength");
+			expect(screen.container.textContent).not.toContain("characters");
+		});
+
+		it("passes the field's validation to plugin field widgets", async () => {
+			const seen: unknown[] = [];
+			const pluginAdmins: PluginAdmins = {
+				counter: {
+					fields: {
+						limited: ({ validation }: { validation?: Record<string, unknown> }) => {
+							seen.push(validation);
+							return <div data-testid="limited-widget" />;
+						},
+					},
+				},
+			};
+			const screen = await render(
+				<PluginAdminProvider pluginAdmins={pluginAdmins}>
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						isNew
+						onSave={vi.fn()}
+						fields={{
+							summary: {
+								kind: "string",
+								label: "Summary",
+								widget: "counter:limited",
+								validation: { maxLength: 160 },
+							},
+						}}
+					/>
+				</PluginAdminProvider>,
+			);
+			await expect.element(screen.getByTestId("limited-widget")).toBeInTheDocument();
+			expect(seen[0]).toEqual({ maxLength: 160 });
 		});
 	});
 
@@ -1761,6 +1886,40 @@ describe("ContentEditor", () => {
 	});
 
 	describe("distraction-free mode", () => {
+		function dispatchDistractionFreeShortcut() {
+			document.dispatchEvent(
+				new KeyboardEvent("keydown", {
+					key: "\\",
+					shiftKey: true,
+					// `mod` maps to Ctrl on Linux/Windows and Cmd on macOS; firing both
+					// modifiers keeps the test deterministic across Playwright hosts.
+					ctrlKey: true,
+					metaKey: true,
+					bubbles: true,
+				}),
+			);
+		}
+
+		function getMainForm() {
+			return document.querySelector("form");
+		}
+
+		function isDistractionFree() {
+			return getMainForm()?.classList.toString().includes("fixed") ?? false;
+		}
+
+		it("toggles in and out with the advertised keyboard shortcut", async () => {
+			await renderEditor({ isNew: true });
+
+			expect(isDistractionFree()).toBe(false);
+
+			dispatchDistractionFreeShortcut();
+			await vi.waitFor(() => expect(isDistractionFree()).toBe(true));
+
+			dispatchDistractionFreeShortcut();
+			await vi.waitFor(() => expect(isDistractionFree()).toBe(false));
+		});
+
 		it("keeps the normal editor width and field chrome", async () => {
 			const screen = await renderEditor({
 				fields: {
@@ -1861,23 +2020,23 @@ describe("ContentEditor", () => {
 			expect(form?.classList.toString()).toContain("fixed");
 		});
 
-		it("escape exits distraction-free mode", async () => {
+		it("does not exit distraction-free mode with Escape", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const enterBtn = screen.getByRole("button", { name: "Enter distraction-free mode" });
 			await enterBtn.click();
 
 			// Verify we're in distraction-free mode
-			let form = document.querySelector("form");
-			expect(form?.classList.toString()).toContain("fixed");
+			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
 
 			// Press Escape
 			document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 
-			// Wait for the state to update
-			await vi.waitFor(() => {
-				form = document.querySelector("form");
-				expect(form?.classList.toString()).not.toContain("fixed");
-			});
+			// Wait long enough that any errant state update would have been applied.
+			await new Promise((resolve) => setTimeout(resolve, 100));
+
+			// Escape is reserved for other actions on the Posts page and must not
+			// leave distraction-free mode.
+			expect(document.querySelector("form")?.classList.toString()).toContain("fixed");
 		});
 
 		it("keeps Live View available in distraction-free mode", async () => {
@@ -2496,15 +2655,58 @@ describe("ContentEditor", () => {
 
 			await expect.element(screen.getByRole("button", { name: "Save anyway" })).not.toBeDisabled();
 		});
+	});
 
-		it("leaves the rich text editor writable when the entry is not locked", async () => {
-			await renderEditor({
+	it("leaves the rich text editor writable when the entry is not locked", async () => {
+		await renderEditor({
+			isNew: false,
+			item: makeItem(),
+			fields: { content: { kind: "portableText", label: "Content" } },
+		});
+
+		expect(portableTextProps.current?.editable).toBe(true);
+	});
+
+	describe("autosave race with repeater sub-field", () => {
+		it("does not overwrite a sub-field input with a stale autosave payload", async () => {
+			const fields: Record<string, FieldDescriptor> = {
+				gallery: {
+					kind: "repeater",
+					label: "Gallery",
+					validation: {
+						subFields: [{ slug: "caption", type: "string", label: "Caption" }],
+					},
+				},
+			};
+
+			const screen = await renderEditor({
 				isNew: false,
-				item: makeItem(),
-				fields: { content: { kind: "portableText", label: "Content" } },
+				item: makeItem({ data: { gallery: [] } }),
+				fields,
+				onAutosave: vi.fn(),
+				supportsDrafts: true,
 			});
 
-			expect(portableTextProps.current?.editable).toBe(true);
+			await screen.getByRole("button", { name: "Add First Item", exact: true }).click();
+			const caption = screen.getByRole("textbox", { name: "Caption" });
+			await expect.element(caption).toBeVisible();
+			await caption.fill("Mobile view of the dashboard");
+
+			await screen.rerender(
+				<ContentEditor
+					collection="posts"
+					collectionLabel="Post"
+					fields={fields}
+					isNew={false}
+					item={makeItem({ data: { gallery: [{ caption: "Mobile view" }] } })}
+					onSave={vi.fn()}
+					onAutosave={vi.fn()}
+					supportsDrafts={true}
+					autosaveCompletionToken={1}
+				/>,
+			);
+
+			await expect.element(caption).toHaveValue("Mobile view of the dashboard");
 		});
 	});
 });
