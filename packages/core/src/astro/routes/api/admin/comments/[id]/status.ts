@@ -13,6 +13,8 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { commentStatusBody } from "#api/schemas.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
 import { lookupContentAuthor, sendCommentNotification } from "#comments/notifications.js";
+import { moderateComment, type CommentHookRunner } from "#comments/service.js";
+import type { ModerationDecision } from "#plugins/types.js";
 
 export const prerender = false;
 
@@ -36,6 +38,39 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 
 		const newStatus = body.status;
 
+		// Build hook runner for the service
+		const hookRunner: CommentHookRunner = {
+			async runBeforeCreate(event) {
+				return emdash.hooks.runCommentBeforeCreate(event);
+			},
+			async runModerate(event) {
+				const result = await emdash.hooks.invokeExclusiveHook("comment:moderate", event);
+				if (!result) return { status: "pending" as const, reason: "No moderator configured" };
+				if (result.error) return { status: "pending" as const, reason: "Moderation error" };
+				return result.result as ModerationDecision;
+			},
+			fireAfterCreate(event) {
+				emdash.hooks
+					.runCommentAfterCreate(event)
+					.catch((err) =>
+						console.error(
+							"[comments] afterCreate error:",
+							err instanceof Error ? err.message : err,
+						),
+					);
+			},
+			fireAfterModerate(event) {
+				emdash.hooks
+					.runCommentAfterModerate(event)
+					.catch((err) =>
+						console.error(
+							"[comments] afterModerate error:",
+							err instanceof Error ? err.message : err,
+						),
+					);
+			},
+		};
+
 		// Read the comment before updating so we know the previous status
 		const existing = await handleCommentGet(emdash.db, id);
 		if (!existing.success) {
@@ -43,10 +78,13 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		}
 		const previousStatus = existing.data.status;
 
-		const updated = await emdash.handleCommentModerate(id, newStatus, {
-			id: user!.id,
-			name: user!.name ?? null,
-		});
+		const updated = await moderateComment(
+			emdash.db,
+			id,
+			newStatus,
+			{ id: user!.id, name: user!.name ?? null },
+			hookRunner,
+		);
 
 		if (!updated) {
 			return apiError("NOT_FOUND", "Comment not found", 404);

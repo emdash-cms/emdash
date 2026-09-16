@@ -2333,8 +2333,9 @@ export function createMcpServer(
 				return respondError("NO_STORAGE", "Storage not configured");
 			}
 			try {
+				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
 				return unwrap(
-					await emdash.handleMediaUpload({
+					await handleMediaUpload(emdash.db, emdash.storage, {
 						filename: args.filename,
 						base64: args.base64,
 						url: args.url,

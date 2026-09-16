@@ -8,12 +8,8 @@
 import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
-import type { MediaUploadInput } from "../api/handlers/media-upload.js";
-import type { CommentCreateInput, CommentCreateResult } from "../comments/service.js";
 import type { ContentFieldFilters } from "../content-list-query.js";
-import type { Comment, CommentStatus } from "../database/repositories/comment.js";
 import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
-import type { CollectionCommentSettings } from "../plugins/types.js";
 import type { ManifestRegistryConfigurationError } from "../registry/config.js";
 
 // Re-export core types
@@ -406,7 +402,6 @@ export interface EmDashHandlers {
 	}) => Promise<HandlerResponse>;
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;
-	handleMediaUpload: (input: MediaUploadInput) => Promise<HandlerResponse>;
 
 	handleMediaCreate: (input: {
 		filename: string;
@@ -442,24 +437,6 @@ export interface EmDashHandlers {
 	) => Promise<HandlerResponse>;
 
 	handleMediaDelete: (id: string) => Promise<HandlerResponse>;
-
-	// Comment handlers
-	handleCommentCreate: (
-		input: CommentCreateInput,
-		settings: CollectionCommentSettings,
-		contentInfo?: {
-			id: string;
-			collection: string;
-			slug: string;
-			title?: string;
-			author?: { id: string; name: string | null; email: string };
-		},
-	) => Promise<CommentCreateResult | null>;
-	handleCommentModerate: (
-		id: string,
-		status: CommentStatus,
-		moderator: { id: string; name: string | null },
-	) => Promise<Comment | null>;
 
 	// Revision handlers
 	handleRevisionList: (
