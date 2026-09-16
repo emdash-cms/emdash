@@ -8,7 +8,7 @@ const STAGE_STALE_AFTER_MS: Record<ReviewStage, number> = {
 	hydrating: 3 * 60_000,
 	fetching_diff: 3 * 60_000,
 	model_review: REVIEW_STALE_AFTER_MS,
-	posting_review: 5 * 60_000,
+	posting_review: 65 * 60_000,
 };
 
 export type ReviewStage =
