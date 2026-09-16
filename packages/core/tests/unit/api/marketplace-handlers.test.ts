@@ -1019,13 +1019,31 @@ describe("Marketplace handlers", () => {
 					data: JSON.stringify({ foo: "bar" }),
 				})
 				.execute();
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: new TextEncoder().encode("{}"),
+				contentType: "application/json",
+			});
 
+			let cleanupSawState = false;
 			const result = await handleMarketplaceUninstall(db, storage, "test-seo", {
 				deleteData: true,
+				beforeDelete: async () => {
+					cleanupSawState =
+						(
+							await db
+								.selectFrom("_plugin_storage")
+								.select("id")
+								.where("plugin_id", "=", "test-seo")
+								.executeTakeFirst()
+						)?.id === "test-key" &&
+						(await storage.exists("marketplace/test-seo/1.0.0/manifest.json"));
+				},
 			});
 
 			expect(result.success).toBe(true);
 			expect(result.data?.dataDeleted).toBe(true);
+			expect(cleanupSawState).toBe(true);
 
 			// Verify plugin storage data was deleted
 			const storageRows = await db

@@ -38,6 +38,13 @@ async function setupTables(db: Kysely<any>) {
 		.addPrimaryKeyConstraint("pk_plugin_storage", ["plugin_id", "collection", "id"])
 		.execute();
 
+	await db.schema
+		.createTable("options")
+		.addColumn("name", "text", (col) => col.primaryKey())
+		.addColumn("value", "text", (col) => col.notNull())
+		.addColumn("revision", "text", (col) => col.notNull())
+		.execute();
+
 	// Users table (matches migration 001)
 	await db.schema
 		.createTable("users")
@@ -113,6 +120,28 @@ describe("Bridge Handler Conformance", () => {
 	// ── KV Operations ────────────────────────────────────────────────────
 
 	describe("KV operations", () => {
+		it("reads and writes admin-managed settings through ctx.kv", async () => {
+			await db
+				.insertInto("options" as any)
+				.values({
+					name: "plugin:test-plugin:settings:enabled",
+					value: JSON.stringify(false),
+					revision: "settings-revision",
+				})
+				.execute();
+			const handler = makeHandler({});
+
+			expect((await call(handler, "kv/get", { key: "settings:enabled" })).result).toBe(false);
+			await call(handler, "kv/set", { key: "settings:enabled", value: true });
+
+			expect(
+				await db
+					.selectFrom("options" as any)
+					.select("value" as any)
+					.where("name" as any, "=", "plugin:test-plugin:settings:enabled")
+					.executeTakeFirst(),
+			).toEqual({ value: JSON.stringify(true) });
+		});
 		it("set and get a value", async () => {
 			const handler = makeHandler({});
 			await call(handler, "kv/set", { key: "test", value: "hello" });
@@ -943,6 +972,24 @@ describe("Bridge Handler Conformance", () => {
 	// ── Limit clamping ────────────────────────────────────────────────────
 
 	describe("list endpoints clamp negative limit", () => {
+		it("does not discard invalid content filters or ordering", async () => {
+			await db.schema
+				.createTable("ec_posts")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("deleted_at", "text")
+				.addColumn("title", "text")
+				.execute();
+			const handler = makeHandler({ capabilities: ["content:read"] });
+
+			const result = await call(handler, "content/list", {
+				collection: "posts",
+				orderBy: { title: "sideways" },
+			});
+
+			expect(result.error).toContain(
+				'Parameter orderBy must be an object mapping field to "asc"|"desc"',
+			);
+		});
 		it("content/list clamps negative limit to 1", async () => {
 			await db.schema
 				.createTable("ec_posts")

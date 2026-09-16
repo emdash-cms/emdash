@@ -794,6 +794,15 @@ export class EmDashRuntime {
 		}
 	}
 
+	async runPluginInstallLifecycle(pluginId: string): Promise<void> {
+		await this._hooks.runPluginInstall(pluginId);
+		await this._hooks.runPluginActivate(pluginId);
+	}
+
+	async runPluginActivateLifecycle(pluginId: string): Promise<void> {
+		await this._hooks.runPluginActivate(pluginId);
+	}
+
 	/**
 	 * Rebuild the hook pipeline from the current set of enabled plugins.
 	 *
@@ -884,10 +893,6 @@ export class EmDashRuntime {
 		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
 
 		const keySet = source === "marketplace" ? marketplacePluginKeys : registryPluginKeys;
-		const previouslyLoadedIds = new Set(
-			Array.from(keySet, (key) => key.slice(0, key.lastIndexOf(":"))),
-		);
-		const loadedPluginIds: string[] = [];
 		let pipelineChanged = false;
 
 		try {
@@ -973,7 +978,6 @@ export class EmDashRuntime {
 				this.sandboxedPlugins.set(key, loaded);
 				this.allPipelinePlugins.push(createSandboxedPluginProxy(bundle.manifest, loaded));
 				keySet.add(key);
-				loadedPluginIds.push(pluginId);
 				pipelineChanged = true;
 
 				// Cache manifest admin config for getManifest()
@@ -1000,12 +1004,6 @@ export class EmDashRuntime {
 
 			if (pipelineChanged) {
 				await this.rebuildHookPipeline();
-				for (const pluginId of loadedPluginIds) {
-					if (!previouslyLoadedIds.has(pluginId)) {
-						await this._hooks.runPluginInstall(pluginId);
-					}
-					await this._hooks.runPluginActivate(pluginId);
-				}
 			}
 		} catch (error) {
 			console.error(`EmDash: Failed to sync ${source} plugins:`, error);

@@ -1120,7 +1120,7 @@ export async function handleRegistryUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean },
+	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
 ): Promise<ApiResult<RegistryUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -1139,12 +1139,12 @@ export async function handleRegistryUninstall(
 		// registry-source rows (there's no shadow column like marketplace's
 		// `marketplaceVersion`). Use it verbatim for the R2 prefix.
 		const version = existing.version;
+		await opts?.beforeDelete?.();
 
-		// Order: optional storage cleanup → bundle delete → state row delete.
-		// The most failure-prone step runs first so a transient DB error
-		// (deadlock, contention) cascades to the outer catch with the state
-		// row and bundle intact — admin retries safely. Bundle delete is
-		// idempotent on misses.
+		// Lifecycle cleanup runs before every destructive step so the plugin can
+		// inspect its stored state. The database cleanup then runs before the
+		// idempotent bundle delete, leaving the state row and bundle intact if a
+		// transient database error makes the uninstall retryable.
 		let dataDeleted = false;
 		if (opts?.deleteData) {
 			await db.deleteFrom("_plugin_storage").where("plugin_id", "=", pluginId).execute();
