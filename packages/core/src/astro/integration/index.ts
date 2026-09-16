@@ -322,31 +322,28 @@ export function buildMiddlewareEntries(
  * Create the EmDash Astro integration
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
-	const registry = resolveRegistryConfigForSandbox(
-		config.experimental?.registry,
-		config.sandboxRunner,
-		config.sandbox !== false,
-	);
+	const registry = resolveRegistryConfigForSandbox({
+		registry: config.registry,
+		experimentalRegistry: config.experimental?.registry,
+		sandboxRunner: config.sandboxRunner,
+		sandboxEnabled: config.sandbox !== false,
+	});
 
 	// Apply defaults
 	const resolvedConfig: EmDashConfig = {
 		...config,
 		storage: config.storage ?? DEFAULT_STORAGE,
 		migrations: normalizeMigrationConfig(config.migrations),
-		...(registry
-			? {
-					experimental: {
-						...config.experimental,
-						registry,
-					},
-				}
-			: {}),
+		registry: config.registry === false ? false : registry.input,
 	};
 
 	// Validate environment-independent registry settings while Astro is still
 	// evaluating its config. The command-aware check in astro:config:setup
 	// applies the stricter production localhost policy.
-	normalizeRegistryConfig(resolvedConfig.experimental?.registry, { allowLocalhost: true });
+	normalizeRegistryConfig(registry.input, {
+		allowLocalhost: true,
+		fieldPrefix: registry.fieldPrefix,
+	});
 
 	// Validate marketplace URL
 	if (resolvedConfig.marketplace) {
@@ -453,6 +450,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		auth: resolvedConfig.auth,
 		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,
+		registry: resolvedConfig.registry,
 		experimental: resolvedConfig.experimental,
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
@@ -483,8 +481,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				astroCommand = command;
-				normalizeRegistryConfig(resolvedConfig.experimental?.registry, {
+				normalizeRegistryConfig(registry.input, {
 					allowLocalhost: command === "dev" || command === "sync",
+					fieldPrefix: registry.fieldPrefix,
 				});
 				printBanner(logger);
 				// Capture the host's Astro version so the runtime can expose it

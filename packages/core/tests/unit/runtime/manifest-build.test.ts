@@ -392,6 +392,36 @@ describe("EmDashRuntime.getManifest()", () => {
 		);
 	});
 
+	it("reports top-level registry configuration fields", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+		const runtime = buildRuntime(db, {
+			registry: { aggregatorUrl: "not a URL" },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toEqual({
+			code: "REGISTRY_AGGREGATOR_URL_INVALID",
+			field: "registry.aggregatorUrl",
+		});
+		expect(log).toHaveBeenCalledWith(
+			"EmDash registry configuration error in registry.aggregatorUrl (REGISTRY_AGGREGATOR_URL_INVALID)",
+		);
+	});
+
+	it("lets the top-level false option override legacy registry configuration", async () => {
+		const runtime = buildRuntime(db, {
+			registry: false,
+			experimental: { registry: { aggregatorUrl: "not a URL" } },
+		});
+
+		const manifest = await runtime.getManifest();
+
+		expect(manifest.registry).toBeUndefined();
+		expect(manifest.registryConfigurationError).toBeUndefined();
+	});
+
 	it("reports the configured content default independently of admin language", async () => {
 		setI18nConfig({ defaultLocale: "ja", locales: ["ja", "en"] });
 		const runtime = buildRuntime(db);

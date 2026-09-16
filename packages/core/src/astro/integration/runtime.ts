@@ -21,10 +21,14 @@ import type {
 	ResolvedPlugin,
 	SettingField,
 } from "../../plugins/types.js";
-import type { ExperimentalConfig } from "../../registry/types.js";
+import type { ExperimentalConfig, RegistryConfigOption } from "../../registry/types.js";
 import type { StorageDescriptor } from "../storage/types.js";
 
-export type { ExperimentalConfig, RegistryConfig } from "../../registry/types.js";
+export type {
+	ExperimentalConfig,
+	RegistryConfig,
+	RegistryConfigOption,
+} from "../../registry/types.js";
 
 export type { ResolvedPlugin };
 export type { MediaProviderDescriptor };
@@ -383,26 +387,23 @@ export interface EmDashConfig {
 	marketplace?: string;
 
 	/**
+	 * Plugin registry discovery and installation.
+	 *
+	 * An enabled sandbox runner uses the hosted registry by default. Pass a
+	 * registry URL or configuration object to customize it, or `false` to
+	 * disable registry discovery while retaining the sandbox runner.
+	 *
+	 * @default "https://registry.emdashcms.com" when sandboxing is enabled
+	 */
+	registry?: RegistryConfigOption;
+
+	/**
 	 * Experimental features.
 	 *
 	 * These options are not yet stable. Shape, defaults, and behavior may
 	 * change between minor versions. Use only if you're comfortable
 	 * tracking the release notes and updating your config when an
 	 * experimental feature graduates or changes.
-	 *
-	 * @example
-	 * ```ts
-	 * import { sandbox } from "@emdash-cms/cloudflare";
-	 *
-	 * emdash({
-	 *   experimental: {
-	 *     registry: {
-	 *       aggregatorUrl: "https://registry.emdashcms.com",
-	 *     },
-	 *   },
-	 *   sandboxRunner: sandbox(),
-	 * })
-	 * ```
 	 */
 	experimental?: ExperimentalConfig;
 

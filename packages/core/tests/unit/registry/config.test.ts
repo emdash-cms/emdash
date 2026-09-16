@@ -34,10 +34,10 @@ describe("normalizeRegistryConfig", () => {
 		["a malformed URL", "not a URL", "REGISTRY_AGGREGATOR_URL_INVALID"],
 		["a forbidden target", "http://registry.example.com", "REGISTRY_AGGREGATOR_URL_FORBIDDEN"],
 	] as const)("returns a safe manifest diagnostic for %s", (_label, aggregatorUrl, code) => {
-		expect(resolveManifestRegistryConfig({ aggregatorUrl })).toEqual({
+		expect(resolveManifestRegistryConfig({ aggregatorUrl }, { fieldPrefix: "registry" })).toEqual({
 			error: {
 				code,
-				field: "experimental.registry.aggregatorUrl",
+				field: "registry.aggregatorUrl",
 			},
 		});
 	});

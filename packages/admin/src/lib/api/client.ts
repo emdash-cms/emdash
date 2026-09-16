@@ -278,6 +278,9 @@ export interface AdminManifest {
 			| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
 			| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
 		field:
+			| "registry.aggregatorUrl"
+			| "registry.policy.minimumReleaseAge"
+			| "registry.policy.minimumReleaseAgeExclude"
 			| "experimental.registry.aggregatorUrl"
 			| "experimental.registry.policy.minimumReleaseAge"
 			| "experimental.registry.policy.minimumReleaseAgeExclude";

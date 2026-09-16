@@ -1,6 +1,5 @@
 /**
- * Helpers for normalizing the experimental registry integration option
- * (`config.experimental.registry` in `astro.config.mjs`) into the shape
+ * Helpers for normalizing the registry integration option into the shape
  * exposed on the admin manifest.
  *
  * The integration option accepts a human-friendly duration string for
@@ -10,17 +9,39 @@
 
 import { isDid } from "@atcute/lexicons/syntax";
 
-import type { RegistryConfig, RegistryConfigInput } from "./types.js";
+import type { RegistryConfig, RegistryConfigInput, RegistryConfigOption } from "./types.js";
 
 export const DEFAULT_REGISTRY_AGGREGATOR_URL = "https://registry.emdashcms.com";
 
-export function resolveRegistryConfigForSandbox(
-	registry: RegistryConfigInput | undefined,
-	sandboxRunner: string | undefined,
-	sandboxEnabled: boolean,
+export interface ResolvedRegistryConfigInput {
+	input?: RegistryConfigInput;
+	fieldPrefix: RegistryConfigurationPrefix;
+}
+
+export function resolveRegistryConfigForSandbox(options: {
+	registry?: RegistryConfigOption;
+	experimentalRegistry?: RegistryConfigInput;
+	sandboxRunner?: string;
+	sandboxEnabled?: boolean;
+}): ResolvedRegistryConfigInput {
+	if (options.registry === false) return { fieldPrefix: "registry" };
+	if (options.registry !== undefined) {
+		return { input: options.registry, fieldPrefix: "registry" };
+	}
+	if (options.experimentalRegistry !== undefined) {
+		return { input: options.experimentalRegistry, fieldPrefix: "experimental.registry" };
+	}
+	if (options.sandboxRunner && options.sandboxEnabled !== false) {
+		return { input: DEFAULT_REGISTRY_AGGREGATOR_URL, fieldPrefix: "registry" };
+	}
+	return { fieldPrefix: "registry" };
+}
+
+export function getRegistryConfigInput(
+	registry: RegistryConfigOption | undefined,
+	experimentalRegistry: RegistryConfigInput | undefined,
 ): RegistryConfigInput | undefined {
-	if (registry !== undefined) return registry;
-	return sandboxRunner && sandboxEnabled ? DEFAULT_REGISTRY_AGGREGATOR_URL : undefined;
+	return resolveRegistryConfigForSandbox({ registry, experimentalRegistry }).input;
 }
 
 /**
@@ -59,10 +80,15 @@ export type RegistryConfigurationErrorCode =
 	| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
 	| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
 
+export type RegistryConfigurationPrefix = "registry" | "experimental.registry";
+
+type RegistryConfigurationFieldSuffix =
+	| "aggregatorUrl"
+	| "policy.minimumReleaseAge"
+	| "policy.minimumReleaseAgeExclude";
+
 export type RegistryConfigurationField =
-	| "experimental.registry.aggregatorUrl"
-	| "experimental.registry.policy.minimumReleaseAge"
-	| "experimental.registry.policy.minimumReleaseAgeExclude";
+	`${RegistryConfigurationPrefix}.${RegistryConfigurationFieldSuffix}`;
 
 export interface ManifestRegistryConfigurationError {
 	code: RegistryConfigurationErrorCode;
@@ -81,8 +107,16 @@ class RegistryConfigurationError extends Error {
 	}
 }
 
-interface RegistryConfigurationValidationOptions {
+export interface RegistryConfigurationValidationOptions {
 	allowLocalhost?: boolean;
+	fieldPrefix?: RegistryConfigurationPrefix;
+}
+
+function registryField(
+	options: RegistryConfigurationValidationOptions,
+	suffix: RegistryConfigurationFieldSuffix,
+): RegistryConfigurationField {
+	return `${options.fieldPrefix ?? "experimental.registry"}.${suffix}`;
 }
 
 /**
@@ -223,7 +257,7 @@ export function validateAggregatorUrl(
 	} catch (cause) {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_INVALID",
-			"experimental.registry.aggregatorUrl",
+			registryField(options, "aggregatorUrl"),
 			"must be a valid URL",
 			{ cause },
 		);
@@ -231,7 +265,7 @@ export function validateAggregatorUrl(
 	if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-			"experimental.registry.aggregatorUrl",
+			registryField(options, "aggregatorUrl"),
 			"must use HTTP or HTTPS",
 		);
 	}
@@ -243,7 +277,7 @@ export function validateAggregatorUrl(
 	if (parsed.username || parsed.password) {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-			"experimental.registry.aggregatorUrl",
+			registryField(options, "aggregatorUrl"),
 			"must not contain embedded credentials",
 		);
 	}
@@ -270,21 +304,21 @@ export function validateAggregatorUrl(
 		if (parsed.protocol === "http:") {
 			throw new RegistryConfigurationError(
 				"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-				"experimental.registry.aggregatorUrl",
+				registryField(options, "aggregatorUrl"),
 				"must use HTTPS outside development",
 			);
 		}
 		if (isLocalhost) {
 			throw new RegistryConfigurationError(
 				"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-				"experimental.registry.aggregatorUrl",
+				registryField(options, "aggregatorUrl"),
 				"must not point at localhost outside development",
 			);
 		}
 	} else if (parsed.protocol === "http:" && !isLocalhost) {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_FORBIDDEN",
-			"experimental.registry.aggregatorUrl",
+			registryField(options, "aggregatorUrl"),
 			"must use HTTPS unless it points at localhost in development",
 		);
 	}
@@ -297,7 +331,7 @@ export function validateAggregatorUrl(
  * `RegistryConfig` object shape.
  *
  * Users can pass a bare aggregator URL string for the common case
- * (`experimental.registry: "https://registry.emdashcms.com"`); the
+ * (`registry: "https://registry.emdashcms.com"`); the
  * normalizer handles either form transparently.
  *
  * Returns `undefined` for `undefined` input so callers can chain with
@@ -338,7 +372,7 @@ export function normalizeRegistryConfig(
 	if (!aggregatorUrl) {
 		throw new RegistryConfigurationError(
 			"REGISTRY_AGGREGATOR_URL_REQUIRED",
-			"experimental.registry.aggregatorUrl",
+			registryField(options, "aggregatorUrl"),
 			"is required when the registry is configured",
 		);
 	}
@@ -364,7 +398,7 @@ export function normalizeRegistryConfig(
 		} catch (cause) {
 			throw new RegistryConfigurationError(
 				"REGISTRY_MINIMUM_RELEASE_AGE_INVALID",
-				"experimental.registry.policy.minimumReleaseAge",
+				registryField(options, "policy.minimumReleaseAge"),
 				'must be a duration such as "48h", "7d", or a non-negative number of seconds',
 				{ cause },
 			);
@@ -376,7 +410,7 @@ export function normalizeRegistryConfig(
 		if (!Array.isArray(config.policy.minimumReleaseAgeExclude)) {
 			throw new RegistryConfigurationError(
 				"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-				"experimental.registry.policy.minimumReleaseAgeExclude",
+				registryField(options, "policy.minimumReleaseAgeExclude"),
 				"must be an array of DIDs or <did>/<slug> entries",
 			);
 		}
@@ -387,7 +421,7 @@ export function normalizeRegistryConfig(
 			if (typeof entry !== "string") {
 				throw new RegistryConfigurationError(
 					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-					"experimental.registry.policy.minimumReleaseAgeExclude",
+					registryField(options, "policy.minimumReleaseAgeExclude"),
 					"minimumReleaseAgeExclude entry must be a DID or <did>/<slug>",
 				);
 			}
@@ -395,7 +429,7 @@ export function normalizeRegistryConfig(
 			if (!trimmed) {
 				throw new RegistryConfigurationError(
 					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-					"experimental.registry.policy.minimumReleaseAgeExclude",
+					registryField(options, "policy.minimumReleaseAgeExclude"),
 					"entries cannot be empty",
 				);
 			}
@@ -409,7 +443,7 @@ export function normalizeRegistryConfig(
 			) {
 				throw new RegistryConfigurationError(
 					"REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID",
-					"experimental.registry.policy.minimumReleaseAgeExclude",
+					registryField(options, "policy.minimumReleaseAgeExclude"),
 					"minimumReleaseAgeExclude entry must be a DID or <did>/<slug>",
 				);
 			}
@@ -429,12 +463,15 @@ export function normalizeRegistryConfig(
 }
 
 /** Normalize registry config without allowing a known config error to hide the admin. */
-export function resolveManifestRegistryConfig(input: RegistryConfigInput | undefined): {
+export function resolveManifestRegistryConfig(
+	input: RegistryConfigInput | undefined,
+	options: RegistryConfigurationValidationOptions = {},
+): {
 	registry?: ManifestRegistryConfig;
 	error?: ManifestRegistryConfigurationError;
 } {
 	try {
-		const registry = normalizeRegistryConfig(input);
+		const registry = normalizeRegistryConfig(input, options);
 		return registry ? { registry } : {};
 	} catch (error) {
 		if (!(error instanceof RegistryConfigurationError)) throw error;
