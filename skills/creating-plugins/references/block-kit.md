@@ -406,7 +406,7 @@ The field-widget renderer currently supports only these elements:
 
 It stores an object keyed by each element's `action_id`. Use a `json` field for this composed value; other field types are accepted by the manifest schema but are not covered by an end-to-end save test. Other element types render an unsupported-element message.
 
-This path is available to config-declared standard descriptors, but it is not serialized by the current plugin CLI. `emdash-plugin.jsonc` accepts only `admin.pages` and `admin.widgets`, and the repository's browser E2E test covers a native React field widget rather than a registry declarative widget. Do not claim registry support until the built manifest contains `admin.fieldWidgets` and the rendered editor has been verified.
+`emdash-plugin.jsonc` accepts this field-widget definition, and the plugin CLI preserves it in the registry manifest and generated descriptor. The artifact transport is tested; the repository's browser E2E test still covers a native React field widget rather than a registry declarative widget. Verify the rendered editor and saved value for the selected elements.
 
 ## Conditional Fields
 

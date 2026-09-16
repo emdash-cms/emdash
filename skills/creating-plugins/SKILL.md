@@ -94,7 +94,7 @@ Use only canonical capability names:
 | `email:send`                     | `ctx.email.send()` when a transport is configured                      |
 | `hooks.email-transport:register` | Exclusive `email:deliver` hook                                         |
 | `hooks.email-events:register`    | `email:beforeSend` and `email:afterSend` hooks                         |
-| `hooks.page-fragments:register`  | Native-only `page:fragments` hook                                      |
+| `hooks.page-fragments:register`  | Declares `page:fragments`; sandbox builds warn and the host excludes it |
 
 The old `read:*`, `write:*`, `network:fetch*`, `email:provide`, `email:intercept`, and `page:inject` names are deprecated. Validation warns about them and publishing rejects them.
 
@@ -130,7 +130,7 @@ Routes are private by default. Every private invocation requires authentication,
 
 `routeCtx.request` is the portable `{ url, method, headers }` record. `routeCtx.requestMeta` carries `{ ip, userAgent, referer, geo }`, with unavailable values set to `null`. Validate `routeCtx.input`; the sandbox build does not preserve a route-level Zod parser.
 
-Core supports `cacheControl` on successful public `GET` and `HEAD` responses. Private responses and errors remain `private, no-store`. The current plugin CLI build pipeline does not retain `cacheControl` in a sandboxed bundle, so inspect `dist/manifest.json` and do not rely on it for a registry plugin until the generated route entry contains the value.
+Core supports `cacheControl` on successful public `GET` and `HEAD` responses. The plugin CLI preserves it in the bundle manifest and generated descriptor. Private responses and errors remain `private, no-store`.
 
 Expose an MCP tool explicitly under `mcp.tools`. Its route must be private and declare a permission. The tool needs an input Zod schema; the output schema is optional. Mark difficult-to-reverse operations `destructive: true`. Administrators review and enable plugin MCP tools separately, and callers need the route permission plus `mcp:tools` or `mcp:tools:<pluginId>` scope.
 
@@ -151,16 +151,16 @@ Both sandbox runners write the bytes through the configured media storage adapte
 
 ## Hooks
 
-Declare hooks in `src/plugin.ts`; declare any required capability in the manifest. The current isolated runtime dispatches the content save/delete/publish-state hooks and `page:metadata`. It does not dispatch plugin lifecycle, media, email, cron, or comment hooks to registry-installed or configured sandbox instances. Use those hooks only in a native or deliberately in-process plugin until the sandbox dispatcher is wired.
+Declare hooks in `src/plugin.ts`; declare any required capability in the manifest. Registry-installed and config-managed sandbox plugins enter the same host hook pipeline as trusted plugins while their handlers stay inside the runner isolate. The pipeline applies priority, dependencies, timeout, error policy, enable/disable state, exclusive-provider selection, and capability fencing.
 
-The native comment lifecycle is:
+The comment lifecycle is:
 
 1. `comment:beforeCreate` can enrich the event or return `false` to reject it.
 2. The exclusive `comment:moderate` provider returns `approved`, `pending`, or `spam`.
 3. `comment:afterCreate` runs after storage.
 4. `comment:afterModerate` runs after an administrator changes the status.
 
-All four comment hooks require `users:read` because their events contain author and request information. The types and bundle manifest accept these hooks for `SandboxedPlugin`, but an isolated plugin does not receive them today.
+All four comment hooks require `users:read` because their events contain author and request information. Lifecycle, media, email, comment, cron, content, and `page:metadata` hooks are dispatched to sandboxed plugins. `page:fragments` is the exception: the CLI accepts it with a trusted-only warning, and the sandbox proxy excludes it from host registration.
 
 Read [Hooks](./references/hooks.md) for event and return types.
 
@@ -168,9 +168,9 @@ Read [Hooks](./references/hooks.md) for event and return types.
 
 Sandboxed pages and dashboard widgets use Block Kit responses from a private `admin` route. The current validated block vocabulary includes `empty` and `accordion`; the element vocabulary includes `repeater` and `media_picker` in addition to the scalar form elements. A `tab` type and builder exist, but `validateBlocks()` currently rejects that block, so do not return it. Read [Block Kit](./references/block-kit.md) for exact shapes and where each element can render.
 
-Core and the admin also have a declarative field-widget path: a widget definition supplies Block Kit `elements`, and a schema field refers to `pluginId:widgetName`. The field editor currently renders `text_input`, `number_input`, `toggle`, `select`, and `media_picker` elements and combines their values into one object keyed by `action_id`. Use a `json` field for that object; other field types are accepted by the manifest schema but have no end-to-end proof that the composed value can be saved. Other element types show an unsupported-element message.
+Core and the admin also have a declarative field-widget path: declare the widget under `admin.fieldWidgets` in `emdash-plugin.jsonc`, then point a schema field at `pluginId:widgetName`. The plugin CLI preserves field widgets in registry manifests and generated descriptors. The field editor currently renders `text_input`, `number_input`, `toggle`, `select`, and `media_picker` elements and combines their values into one object keyed by `action_id`. Use a `json` field for that object; other field types are accepted by the manifest schema but have no end-to-end proof that the composed value can be saved. Other element types show an unsupported-element message.
 
-This field-widget path is not yet portable through the plugin CLI: `emdash-plugin.jsonc` accepts only admin pages and widgets, and the bundle pipeline does not serialize `fieldWidgets`. The repository's browser E2E coverage exercises a native React field widget, not a registry-installed declarative widget. Use declarative field widgets only for a config-declared standard plugin whose descriptor supplies `fieldWidgets`, and verify the rendered editor before depending on it.
+The registry transport is covered through the generated artifact boundary. The repository's browser E2E coverage still exercises a native React field widget rather than a registry-installed declarative widget, so verify the rendered editor and value persistence for the chosen elements.
 
 Custom Portable Text block definitions and their Astro render components remain native-only for plugin CLI and registry packages. Core can forward declarative block metadata from a config-declared standard descriptor, but the CLI warns that `portableTextBlocks` are ignored and does not serialize them. Do not describe registry Portable Text blocks as supported.
 
@@ -185,7 +185,11 @@ Both runners execute the same plugin bundle in a V8 isolate and gate host calls 
 | Cloudflare | Dynamic Worker Loader; CPU, subrequest, and wall-time limits | Worker entrypoint RPC; D1 and configured R2 media binding                       |
 | Node.js    | Managed workerd process; wall-time limit only                | Authenticated local HTTP backing service; configured database and media adapter |
 
-Write against the exported `PluginContext`, not extra methods found in one wrapper. The Node/workerd wrapper currently exposes `ctx.content.createMany()`, `updateMany()`, and `deleteMany()`, but the Cloudflare wrapper and public types do not. Those methods are not portable and must not appear in sandboxed plugin guidance.
+Both runners enforce canonical capability names and return a real WHATWG `Response` from `ctx.http.fetch()`. The Cloudflare bridge reconstructs that response from decoded text, so binary response bodies are not portable; the Node/workerd bridge preserves response bytes. Write against the exported `PluginContext`, not extra methods found in one wrapper. The Node/workerd wrapper still exposes undeclared `ctx.content.createMany()`, `updateMany()`, and `deleteMany()` methods that the Cloudflare wrapper and public types do not provide.
+
+## Remaining sandbox boundaries
+
+The sandbox contract is intentionally smaller than EmDash's full trusted runtime. Read [Sandbox boundaries](./references/sandbox-boundaries.md) before designing content lifecycle, localization, schema, media, comment, route, settings, or admin-editor features. It lists the current cross-runner transport caveats and APIs that do not exist yet; do not invent host calls around those gaps.
 
 ## Test the production boundary
 
@@ -200,7 +204,7 @@ await host.invokeRoute("health", {}, { user, meta });
 await host.dispose();
 ```
 
-The host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It supports content fixtures plus direct inspection of KV and declared storage. Because `invokeRoute()` bypasses the HTTP catch-all, it does not test route authentication, permissions, CSRF, response caching, MCP registration/consent, admin rendering, or media storage. It also does not reproduce deployed CPU, memory, and subrequest limits.
+The host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It preserves hook, route, MCP, settings, and field-widget manifest metadata, supports content fixtures, and exposes KV and declared storage for assertions. Because `invokeRoute()` bypasses the HTTP catch-all, it does not test route authentication, permissions, CSRF, response caching, MCP registration/consent, admin rendering, or media storage. It also does not reproduce deployed CPU, memory, and subrequest limits.
 
 ## References
 
@@ -210,4 +214,5 @@ The host builds the plugin and invokes it through Cloudflare Worker Loader, the 
 - [API routes and MCP tools](./references/api-routes.md)
 - [Block Kit](./references/block-kit.md)
 - [Portable Text blocks](./references/portable-text-blocks.md)
+- [Sandbox boundaries](./references/sandbox-boundaries.md)
 - [Publishing](./references/publishing.md)

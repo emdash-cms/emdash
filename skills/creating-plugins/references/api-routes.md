@@ -109,7 +109,7 @@ Return a JSON-serializable value. The HTTP endpoint wraps it in EmDash's `{ succ
 
 Return a stable application-level error object for expected validation and domain failures. Throw only for unexpected failures, and keep exception messages free of credentials, personal data, paths, and stack traces.
 
-Do not throw a `Response` to select a status code. `Response` does not cross both sandbox boundaries as a structured error. Authentication, authorization, CSRF, and missing-route statuses are assigned by the host before or around dispatch.
+Plugin routes do not expose raw or unwrapped HTTP responses. Do not return or throw a `Response` to select status or headers; the host wraps JSON-serializable results in its API envelope. Authentication, authorization, CSRF, and missing-route statuses are assigned before or around dispatch.
 
 ## Public caching
 
@@ -125,9 +125,7 @@ routes: {
 },
 ```
 
-The value is applied only to successful public `GET` and `HEAD` responses. Private responses, errors, and other methods remain `private, no-store`.
-
-This option is implemented by core for native and config-declared routes, but the current `@emdash-cms/plugin-cli` probe and manifest extraction do not retain it. For a CLI-built or registry plugin, inspect the route entry in `dist/manifest.json`; if `cacheControl` is absent, the response is not cacheable through this option.
+The value is applied only to successful public `GET` and `HEAD` responses. Private responses, errors, and other methods remain `private, no-store`. The plugin CLI carries `cacheControl` through the probe, bundle manifest, registry artifact, and generated descriptor.
 
 ## Request metadata
 
@@ -139,6 +137,18 @@ Both runners send the same normalized metadata:
 - `geo`: Cloudflare country, region, and city when available, otherwise `null`.
 
 Do not treat `userAgent`, `referer`, or geographic values as authenticated identity. Use `routeCtx.user` for the caller.
+
+## Content reads
+
+With `content:read`, both sandbox runners match the trusted read contract. `ctx.content.get()` and `ctx.content.list()` return content identity, slug, status, locale, data, created/updated/published/scheduled timestamps, and SEO metadata when enabled.
+
+`list()` accepts `limit`, `cursor`, `where`, and `orderBy`. Field filters, status filters, ordering, and cursor pagination reach the host repository on both runners; they are not evaluated inside the plugin isolate. Read only the fields the returned `ContentItem` exposes. Translation discovery and schema listing are separate missing APIs, described in [Sandbox boundaries](./sandbox-boundaries.md).
+
+## External HTTP responses
+
+`ctx.http.fetch()` returns a real WHATWG `Response` in both sandbox runners, so `ok`, `status`, `headers`, `text()`, and `json()` use the standard Web API.
+
+The Cloudflare bridge currently transports the upstream response body as decoded text before constructing the `Response`. Binary response methods such as `arrayBuffer()` and `blob()` therefore do not preserve arbitrary bytes on Cloudflare. The Node/workerd bridge base64-encodes response bytes. Use text or JSON responses for portable plugins until the Cloudflare bridge is binary-safe.
 
 ## Expose a route as an MCP tool
 
@@ -192,4 +202,4 @@ The optional output schema becomes structured MCP output. The bundle converts bo
 
 Installation and updates show the exact MCP tools for consent. Adding a tool or changing a route from private to public requires fresh approval. After installation, an administrator separately enables plugin MCP tools. A caller then needs the route permission and either the `mcp:tools` scope or `mcp:tools:<pluginId>`.
 
-The production core manifest parser preserves MCP declarations. `@emdash-cms/plugin-test` currently parses its fixture manifest through the shared plugin-types schema, which drops route `permission`, route `cacheControl`, and the MCP block. Its `invokeRoute()` also bypasses the HTTP catch-all. Use the test host for plugin execution and bridge behavior, not route authorization, response caching, MCP registration, or consent behavior.
+The production core parser, shared plugin-types parser, plugin CLI artifact, and generated descriptor preserve MCP declarations and route permission/cache metadata. `@emdash-cms/plugin-test` exposes the parsed manifest so tests can assert that transport. Its `invokeRoute()` still bypasses the HTTP catch-all, so use the host for plugin execution and bridge behavior, not route authorization, response caching, MCP registration, or consent behavior.

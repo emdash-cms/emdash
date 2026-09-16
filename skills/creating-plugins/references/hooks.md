@@ -30,19 +30,24 @@ const plugin: SandboxedPlugin = {
 export default plugin;
 ```
 
-The plugin CLI manifest retains `priority`, `timeout`, and `exclusive`. Although the authoring type also accepts `dependencies` and `errorPolicy`, the current sandbox bundle manifest does not serialize those two fields. Do not rely on them for a registry-installed plugin.
+The plugin CLI manifest retains `priority`, `timeout`, `dependencies`, `errorPolicy`, and `exclusive`. Registry-installed and config-managed sandbox hooks enter the shared host pipeline, so these settings apply consistently with trusted plugins.
 
-Put capabilities in `emdash-plugin.jsonc`, not in `src/plugin.ts`. The native hook pipeline skips hooks whose required capability is absent. The isolated sandbox dispatcher currently calls supported content hooks without applying that registration gate, which is a host defect rather than permission to omit the declaration.
+Put capabilities in `emdash-plugin.jsonc`, not in `src/plugin.ts`. The host pipeline skips sandboxed and trusted hooks whose required capability is absent.
 
 ## Isolated sandbox support
 
-The current isolated runtime dispatches these hooks to Cloudflare and Node/workerd sandbox instances:
+The current isolated runtime dispatches these hooks to Cloudflare and Node/workerd sandbox instances through the shared host pipeline:
 
+- `plugin:install`, `plugin:activate`, `plugin:deactivate`, and `plugin:uninstall`
 - `content:beforeSave`, `content:afterSave`, `content:beforeDelete`, and `content:afterDelete`
 - `content:afterPublish`, `content:afterUnpublish`, `content:afterRestore`, `content:afterSchedule`, and `content:afterUnschedule`
+- `media:beforeUpload` and `media:afterUpload`
+- `email:beforeSend`, `email:deliver`, and `email:afterSend`
+- `comment:beforeCreate`, `comment:moderate`, `comment:afterCreate`, and `comment:afterModerate`
+- `cron`
 - `page:metadata`
 
-Plugin lifecycle, media, email, cron, and comment hooks are present in the authoring types and bundle manifest but are not invoked for isolated plugins. They work through the native/in-process hook pipeline. `page:fragments` is intentionally native-only.
+`page:fragments` is the only declared hook excluded from sandbox registration. The plugin CLI accepts it and emits a trusted-only warning; the sandbox host proxy drops it before the hook pipeline is built.
 
 ## Lifecycle Hooks
 
@@ -128,7 +133,7 @@ Runs before save. Return modified content, or void to keep it unchanged. To reje
 }
 ```
 
-Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item.
+Event: `{ content: Record<string, unknown>, collection: string, isNew: boolean, id?: string, actor?: { id: string, role: number } }`. Authenticated REST, visual editing, and MCP saves include a read-only actor snapshot; internal writes may omit it. On updates, `id` identifies the existing item. The actor snapshot does not identify the request origin, so a hook cannot distinguish REST, visual editing, MCP, or another authenticated path from this field alone.
 Returns: `Record<string, unknown> | SandboxHookErrorEnvelope | void`
 
 ### `content:afterSave`
@@ -342,7 +347,7 @@ Returns: `void`
 
 ## Comment hooks
 
-Comment hooks currently run only through the native/in-process pipeline. All four require `users:read`. Their events include author email and request-derived information, so the native pipeline skips the hook when the capability is absent.
+Comment hooks run for sandboxed and trusted plugins through the shared pipeline. All four require `users:read`. Their events include author email and request-derived information, so the pipeline skips the hook when the capability is absent.
 
 ### `comment:beforeCreate`
 
@@ -467,9 +472,9 @@ Contribution types:
 
 Dedupe rules: first contribution wins per key. Canonical is singleton.
 
-### `page:fragments` (Trusted Only)
+### `page:fragments` (trusted only)
 
-Contributes raw HTML, scripts, or markup to `head`, `body:start`, or `body:end`. **Trusted plugins only.** Sandboxed plugins cannot register this hook — the manifest schema rejects it.
+Contributes raw HTML, scripts, or markup to `head`, `body:start`, or `body:end`. The sandbox authoring type and manifest schema accept the declaration, and the plugin CLI warns that it is trusted-only. The sandbox host proxy excludes the hook, so a registry-installed plugin never contributes these fragments.
 
 ```typescript
 "page:fragments": async (event, ctx) => {
@@ -504,15 +509,16 @@ Placements: `"head"`, `"body:start"`, `"body:end"`
 
 1. Lower `priority` values run first
 2. Equal priorities: plugin registration order
+3. `dependencies` forces a hook to wait for the named plugins regardless of priority
 
-These ordering rules apply to the native/in-process pipeline. The current isolated dispatcher iterates sandbox instances directly and does not apply manifest `priority`; `dependencies` is not serialized by the plugin CLI.
+These ordering rules apply to sandboxed and trusted hooks in the shared host pipeline.
 
 ## Error Handling
 
 - `errorPolicy: "abort"` (default) — pipeline stops, operation may fail
 - `errorPolicy: "continue"` — error logged, remaining hooks still run
 
-These policies apply to the native/in-process pipeline. `errorPolicy` is not serialized by the current sandbox bundle.
+These policies apply to sandboxed and trusted hooks in the shared host pipeline.
 
 ## Quick Reference
 

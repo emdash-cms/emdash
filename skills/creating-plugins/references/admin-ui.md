@@ -87,18 +87,29 @@ export default plugin;
 
 Validate interactions before production side effects; `routeCtx.input` is `unknown`. Read [Block Kit](./block-kit.md) for exact interaction, block, and element shapes.
 
-The plugin CLI does not serialize `admin.settingsSchema` for a sandboxed package. Build settings with Block Kit and store validated values in `ctx.kv`.
+The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor, so the host can generate a settings form. The current admin endpoint stores those values in the options table, while both sandbox bridges implement `ctx.kv` through plugin storage. A sandboxed plugin therefore cannot read admin-generated values with `ctx.kv.get("settings:<key>")` yet. Use a Block Kit settings form whose route writes through `ctx.kv` when the plugin needs to consume the value at runtime.
+
+The `secret` settings field is write-only in the admin response, but EmDash does not currently provide encrypted plugin settings. Do not store a credential in either generated settings or plain `ctx.kv` when encryption at rest is required.
 
 ## Sandboxed declarative field widgets
 
-Core and the admin contain a declarative field-widget path. A field widget definition has this shape:
+Core and the admin contain a declarative field-widget path. Declare the widget in the registry manifest:
 
-```typescript
-interface FieldWidgetConfig {
-	name: string;
-	label: string;
-	fieldTypes: FieldType[];
-	elements?: Element[];
+```jsonc title="emdash-plugin.jsonc"
+{
+	"admin": {
+		"fieldWidgets": [
+			{
+				"name": "event-picker",
+				"label": "Event",
+				"fieldTypes": ["json"],
+				"elements": [
+					{ "type": "text_input", "action_id": "eventId", "label": "Event ID" },
+					{ "type": "toggle", "action_id": "featured", "label": "Featured" }
+				]
+			}
+		]
+	}
 }
 ```
 
@@ -114,7 +125,9 @@ The current field-widget renderer supports:
 
 Other Block Kit element types display an unsupported-element message in this surface.
 
-This feature does not currently travel through the plugin CLI package boundary. `emdash-plugin.jsonc` rejects `admin.fieldWidgets`, the probe reads no admin definitions from `src/plugin.ts`, and manifest extraction omits them. The browser E2E fixture tests a native React color picker only. Use declarative widgets only in a config-declared standard plugin whose descriptor supplies `fieldWidgets`, then verify the real editor render and value persistence.
+`emdash-plugin.jsonc` accepts `admin.fieldWidgets`, and the plugin CLI carries the definitions through the bundle manifest and generated descriptor for registry installation. The artifact round-trip is covered by plugin CLI, shared manifest, and plugin-test tests. The browser E2E fixture still tests a native React color picker rather than a registry-installed declarative widget, so verify the real editor render and value persistence for the chosen elements.
+
+The sandbox admin context does not expose the administrator's active locale. Labels in manifest metadata and Block Kit responses are static strings from the plugin; there is no locale-aware callback or translation catalog handoff for registry plugins.
 
 ## Native React pages, widgets, and fields
 
