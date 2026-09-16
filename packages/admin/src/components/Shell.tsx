@@ -7,7 +7,6 @@ import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { Header } from "./Header";
-import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RegistryConfigurationBanner } from "./RegistryConfigurationBanner.js";
 import { Sidebar, SidebarNav } from "./Sidebar";
 import { WelcomeModal } from "./WelcomeModal";
@@ -42,7 +41,6 @@ export interface ShellProps {
 		}>;
 		i18n?: { defaultLocale: string; locales: string[] };
 		version?: string;
-		marketplace?: boolean;
 		registryConfigurationError?: AdminManifest["registryConfigurationError"];
 	};
 }
@@ -109,12 +107,9 @@ export function Shell({ children, manifest }: ShellProps) {
 			{/* Main content area — scrolls independently so sidebar stays full height */}
 			<div className="flex flex-1 flex-col overflow-hidden">
 				<Header />
-				{(manifest.marketplace || manifest.registryConfigurationError) && (
+				{manifest.registryConfigurationError && (
 					<div className="space-y-3 px-6 pt-6">
-						{manifest.marketplace && <MarketplaceMigrationBanner />}
-						{manifest.registryConfigurationError && (
-							<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
-						)}
+						<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
 					</div>
 				)}
 				<main

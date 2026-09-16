@@ -25,7 +25,10 @@ test.describe("Registry cutover", () => {
 		await expect(page.getByText("Marketplace browsing is no longer available.")).toBeVisible();
 	});
 
-	test("directs marketplace-configured sites to the migration guide", async ({ admin, page }) => {
+	test("shows marketplace migration guidance only on the admin dashboard", async ({
+		admin,
+		page,
+	}) => {
 		await admin.goto("/");
 		await admin.waitForShell();
 
@@ -34,6 +37,9 @@ test.describe("Registry cutover", () => {
 			"href",
 			"https://docs.emdashcms.com/plugins/migrate-from-marketplace/",
 		);
+
+		await admin.goto("/plugins/registry");
+		await expect(page.getByText("Marketplace configuration is deprecated")).toHaveCount(0);
 	});
 
 	test("does not expose legacy marketplace plugin details", async ({ admin, page }) => {

@@ -29,6 +29,7 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 const mockFetchDashboardStats = vi.fn<() => Promise<DashboardStats>>();
+const mockUseCurrentUser = vi.fn();
 
 vi.mock("../../src/lib/api/dashboard", async () => {
 	const actual = await vi.importActual("../../src/lib/api/dashboard");
@@ -37,6 +38,10 @@ vi.mock("../../src/lib/api/dashboard", async () => {
 		fetchDashboardStats: () => mockFetchDashboardStats(),
 	};
 });
+
+vi.mock("../../src/lib/api/current-user", () => ({
+	useCurrentUser: () => mockUseCurrentUser(),
+}));
 
 const { Dashboard } = await import("../../src/components/Dashboard");
 
@@ -69,6 +74,28 @@ function makeStats(collections: DashboardStats["collections"]): DashboardStats {
 describe("Dashboard", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockUseCurrentUser.mockReturnValue({ data: { role: 50 } });
+	});
+
+	it("shows marketplace migration guidance to admins", async () => {
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+
+		const screen = await render(<Dashboard manifest={{ ...manifest, marketplace: true }} />);
+
+		await expect
+			.element(screen.getByText("Marketplace configuration is deprecated"))
+			.toBeInTheDocument();
+	});
+
+	it("hides marketplace migration guidance from non-admins", async () => {
+		mockUseCurrentUser.mockReturnValue({ data: { role: 40 } });
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+
+		const screen = await render(<Dashboard manifest={{ ...manifest, marketplace: true }} />);
+
+		await expect
+			.element(screen.getByText("Marketplace configuration is deprecated"))
+			.not.toBeInTheDocument();
 	});
 
 	it("shows scheduled summary when collection stats include pending schedules", async () => {
