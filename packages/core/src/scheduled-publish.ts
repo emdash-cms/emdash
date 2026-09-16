@@ -44,6 +44,7 @@ export type ScheduledPublishFn = (
 		publishedAt?: string;
 		requireScheduledDue?: boolean;
 		expectedScheduledAt?: string;
+		currentTime?: Date;
 	},
 ) => Promise<{ success: boolean; error?: { code?: string } }>;
 
@@ -67,6 +68,8 @@ export interface PublishDueContentOptions {
 	 * `SCHEDULED_PUBLISH_BATCH_LIMIT`. Pass `0` (or a negative) for unbounded.
 	 */
 	limit?: number;
+	/** Clock value shared by due selection and the final publication fence. */
+	currentTime?: Date;
 }
 
 /**
@@ -89,7 +92,12 @@ export async function publishDueContent(
 	db: Kysely<Database>,
 	options: PublishDueContentOptions = {},
 ): Promise<PublishedRef[]> {
-	const { publish, onPublished, limit = SCHEDULED_PUBLISH_BATCH_LIMIT } = options;
+	const {
+		publish,
+		onPublished,
+		limit = SCHEDULED_PUBLISH_BATCH_LIMIT,
+		currentTime = new Date(),
+	} = options;
 	const published: PublishedRef[] = [];
 
 	let collections;
@@ -108,7 +116,7 @@ export async function publishDueContent(
 
 	for (const collection of collections) {
 		try {
-			const due = await repo.findReadyToPublish(collection.slug, batchLimit);
+			const due = await repo.findReadyToPublish(collection.slug, batchLimit, currentTime);
 			const batch: PublishedRef[] = [];
 			for (const item of due) {
 				// First publication of a scheduled draft should record the intended
@@ -119,6 +127,7 @@ export async function publishDueContent(
 					publishedAt,
 					requireScheduledDue: true,
 					expectedScheduledAt: item.scheduledAt ?? undefined,
+					currentTime,
 				});
 				if (result.success) {
 					batch.push({ collection: collection.slug, id: item.id });

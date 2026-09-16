@@ -15,6 +15,10 @@ import { z } from "zod";
 
 import { ErrorCode } from "./api/errors.js";
 import { buildManifestCollections } from "./api/handlers/manifest.js";
+import {
+	handleMediaUpload as uploadMedia,
+	type MediaUploadInput,
+} from "./api/handlers/media-upload.js";
 import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
 import type {
@@ -85,6 +89,8 @@ import type {
 	FieldWidgetConfig,
 	SettingField,
 	UserInfo,
+	CollectionCommentSettings,
+	ModerationDecision,
 } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
@@ -116,6 +122,14 @@ function parseStringArray(raw: string | null | undefined): string[] {
 	return parsed.filter((v): v is string => typeof v === "string");
 }
 
+function isModerationDecision(value: unknown): value is ModerationDecision {
+	if (typeof value !== "object" || value === null || !("status" in value)) return false;
+	if (value.status !== "pending" && value.status !== "approved" && value.status !== "spam") {
+		return false;
+	}
+	return !("reason" in value) || value.reason === undefined || typeof value.reason === "string";
+}
+
 /** Combined result from a single-pass page contribution collection */
 interface PageContributions {
 	metadata: PageMetadataContribution[];
@@ -130,7 +144,16 @@ import {
 	DEFAULT_COMMENT_MODERATOR_PLUGIN_ID,
 	defaultCommentModerate,
 } from "./comments/moderator.js";
+import { submitPublicComment } from "./comments/public-submission.js";
+import {
+	createComment,
+	moderateComment,
+	type CommentCreateInput,
+	type CommentCreateResult,
+	type CommentHookRunner,
+} from "./comments/service.js";
 import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
+import type { Comment, CommentStatus } from "./database/repositories/comment.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
@@ -177,6 +200,7 @@ import {
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
+import { disableRuntimePlugin, enableRuntimePlugin } from "./plugins/lifecycle.js";
 import { HOOK_NAMES, normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
 import {
@@ -320,6 +344,15 @@ export interface RuntimeDependencies {
 	sandboxedPluginEntries: SandboxedPluginEntry[];
 	/** Factory function supplied by the active platform adapter. */
 	createSandboxRunner: SandboxRunnerFactory | null;
+	/** Clock used by cron scheduling, task execution, and scheduled publishing. */
+	now?: () => Date;
+	/** Site values supplied by hosts that do not load Astro's virtual config. */
+	siteInfo?: {
+		name?: string;
+		url?: string;
+		locale?: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 }
 
 /**
@@ -355,6 +388,7 @@ export interface EmDashRuntimeParts {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
+		now?: () => Date;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -582,6 +616,7 @@ export class EmDashRuntime {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
+		now?: () => Date;
 		storage?: Storage;
 		siteInfo?: {
 			siteName?: string;
@@ -661,9 +696,11 @@ export class EmDashRuntime {
 		onPublished?: (refs: PublishedRef[]) => Promise<void>,
 	): Promise<PublishedRef[]> {
 		await assertMediaUsageActivationWriteAllowed(this.db);
+		const currentTime = this.runtimeDeps.now?.() ?? new Date();
 		return publishDueContent(this.db, {
 			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
 			onPublished,
+			currentTime,
 		});
 	}
 
@@ -686,9 +723,19 @@ export class EmDashRuntime {
 			onPublished?: (refs: PublishedRef[]) => Promise<void>;
 		} = {},
 	): Promise<{ published: PublishedRef[] }> {
+		const { published } = await this.runScheduledTasksWithStats(options);
+		return { published };
+	}
+
+	async runScheduledTasksWithStats(
+		options: {
+			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		} = {},
+	): Promise<{ processed: number; published: PublishedRef[] }> {
+		let processed = 0;
 		if (this.cronExecutor) {
 			try {
-				await this.cronExecutor.tick();
+				processed = await this.cronExecutor.tick();
 			} catch (error) {
 				console.error("[cron] Tick failed:", error);
 			}
@@ -722,7 +769,7 @@ export class EmDashRuntime {
 		await maybeRunScheduledBackup(this.db, this.storage ?? undefined);
 		await recordSchedulerHeartbeatSafely(this.db);
 
-		return { published };
+		return { processed, published };
 	}
 
 	/**
@@ -753,6 +800,19 @@ export class EmDashRuntime {
 		}
 	}
 
+	/** Stop background work and discard loaded sandbox isolates. */
+	async shutdown(): Promise<void> {
+		await this.stopCron();
+		await sandboxRunner?.terminateAll();
+		sandboxRunner = null;
+		sandboxedPluginCache.clear();
+		sandboxedManifestCache.clear();
+		sandboxedRouteMetaCache.clear();
+		marketplaceManifestCache.clear();
+		marketplacePluginKeys.clear();
+		registryPluginKeys.clear();
+	}
+
 	/**
 	 * Update in-memory plugin status and rebuild the hook pipeline.
 	 *
@@ -772,6 +832,14 @@ export class EmDashRuntime {
 			this.enabledPlugins.delete(pluginId);
 			await this.rebuildHookPipeline();
 		}
+	}
+
+	async handlePluginEnable(pluginId: string) {
+		return enableRuntimePlugin(this, pluginId);
+	}
+
+	async handlePluginDisable(pluginId: string) {
+		return disableRuntimePlugin(this, pluginId);
 	}
 
 	/** Dispatch teardown lifecycle while the runtime-installed isolate is still loaded. */
@@ -1305,13 +1373,13 @@ export class EmDashRuntime {
 			]);
 			storedLocaleCasingRepairVersion = siteOpts.get(LOCALE_CASING_REPAIR_OPTION);
 			return {
-				siteName: siteOpts.get("emdash:site_title") ?? undefined,
-				siteUrl: siteOpts.get("emdash:site_url") ?? undefined,
-				locale: siteOpts.get("emdash:locale") ?? undefined,
+				siteName: deps.siteInfo?.name ?? siteOpts.get("emdash:site_title") ?? undefined,
+				siteUrl: deps.siteInfo?.url ?? siteOpts.get("emdash:site_url") ?? undefined,
+				locale: deps.siteInfo?.locale ?? siteOpts.get("emdash:locale") ?? undefined,
 				// trailingSlash is a build-time Astro routing decision, not a
 				// user-editable setting, so it comes from the Astro config
 				// (virtual:emdash/config), not the options table.
-				trailingSlash: virtualConfig?.trailingSlash,
+				trailingSlash: deps.siteInfo?.trailingSlash ?? virtualConfig?.trailingSlash,
 			};
 		};
 
@@ -1632,6 +1700,7 @@ export class EmDashRuntime {
 			db,
 			getDb: resolveDb,
 			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
+			now: deps.now,
 			storage: storage ?? undefined,
 			siteInfo,
 		};
@@ -1697,7 +1766,7 @@ export class EmDashRuntime {
 
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
-				cronExecutor = new CronExecutor(resolveDb, invokeCronHook);
+				cronExecutor = new CronExecutor(resolveDb, invokeCronHook, deps.now);
 				// Plugin schedules are always database-backed. On long-lived runtimes this
 				// callback also wakes the timer; on Cloudflare the external Cron Trigger
 				// drives execution, so rescheduling is intentionally a no-op.
@@ -2069,6 +2138,7 @@ export class EmDashRuntime {
 					{
 						db,
 						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						now: deps.now,
 						mediaStorage: mediaStorage
 							? {
 									upload: (opts) =>
@@ -2221,6 +2291,7 @@ export class EmDashRuntime {
 					{
 						db,
 						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						now: deps.now,
 						mediaStorage: {
 							upload: (opts) =>
 								storage.upload({
@@ -3310,7 +3381,13 @@ export class EmDashRuntime {
 	}
 
 	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
-		const result = await handleContentSchedule(this.db, collection, id, scheduledAt);
+		const result = await handleContentSchedule(
+			this.db,
+			collection,
+			id,
+			scheduledAt,
+			this.runtimeDeps.now?.() ?? new Date(),
+		);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3374,6 +3451,33 @@ export class EmDashRuntime {
 
 	async handleMediaGet(id: string) {
 		return handleMediaGet(this.db, id);
+	}
+
+	async handleMediaUpload(input: MediaUploadInput) {
+		if (!this.storage) {
+			return {
+				success: false as const,
+				error: { code: "NO_STORAGE", message: "Storage not configured" },
+			};
+		}
+		const result = await uploadMedia(this.db, this.storage, input, {
+			beforeUpload: async (file) => {
+				if (!this.hooks.hasHooks("media:beforeUpload")) return file;
+				return (await this.hooks.runMediaBeforeUpload(file)).file;
+			},
+		});
+		if (result.success && !result.data.deduplicated && this.hooks.hasHooks("media:afterUpload")) {
+			const item = result.data.item;
+			await this.hooks.runMediaAfterUpload({
+				id: item.id,
+				filename: item.filename,
+				mimeType: item.mimeType,
+				size: item.size,
+				url: item.url,
+				createdAt: item.createdAt,
+			});
+		}
+		return result;
 	}
 
 	async handleMediaCreate(input: {
@@ -3474,6 +3578,69 @@ export class EmDashRuntime {
 			invalidateSiteSettingsCache();
 		}
 		return result;
+	}
+
+	private commentHooks(): CommentHookRunner {
+		return {
+			runBeforeCreate: (event) => this.hooks.runCommentBeforeCreate(event),
+			runModerate: async (event) => {
+				const result = await this.hooks.invokeExclusiveHook("comment:moderate", event);
+				if (!result) return { status: "pending", reason: "No moderator configured" };
+				if (result.error) {
+					console.error(`[comments] Moderation error (${result.pluginId}):`, result.error.message);
+					return { status: "pending", reason: "Moderation error" };
+				}
+				if (!isModerationDecision(result.result)) {
+					return { status: "pending", reason: "Invalid moderation result" };
+				}
+				return result.result;
+			},
+			fireAfterCreate: (event) => {
+				void this.hooks
+					.runCommentAfterCreate(event)
+					.catch((error) =>
+						console.error(
+							"[comments] afterCreate error:",
+							error instanceof Error ? error.message : error,
+						),
+					);
+			},
+			fireAfterModerate: (event) => {
+				void this.hooks
+					.runCommentAfterModerate(event)
+					.catch((error) =>
+						console.error(
+							"[comments] afterModerate error:",
+							error instanceof Error ? error.message : error,
+						),
+					);
+			},
+		};
+	}
+
+	async handleCommentCreate(
+		input: CommentCreateInput,
+		settings: CollectionCommentSettings,
+		contentInfo?: Parameters<typeof createComment>[4],
+	): Promise<CommentCreateResult | null> {
+		return createComment(this.db, input, settings, this.commentHooks(), contentInfo);
+	}
+
+	async handlePublicCommentSubmission(
+		collection: string,
+		contentId: string,
+		request: Request,
+		user?: UserInfo,
+	): Promise<Response> {
+		return submitPublicComment(this, collection, contentId, request, user);
+	}
+
+	async handleCommentModerate(
+		id: string,
+		status: CommentStatus,
+		moderator: { id: string; name: string | null },
+	): Promise<Comment | null> {
+		return moderateComment(this.db, id, status, moderator, this.commentHooks());
 	}
 
 	// =========================================================================

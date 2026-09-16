@@ -1072,6 +1072,8 @@ export interface PluginContextFactoryOptions {
 	 * If not provided, ctx.cron will not be available.
 	 */
 	cronReschedule?: () => void;
+	/** Clock used to calculate the first run of recurring plugin tasks. */
+	now?: () => Date;
 	/**
 	 * Email pipeline instance for ctx.email.
 	 * If not provided (or no provider configured), ctx.email will be undefined.
@@ -1100,6 +1102,7 @@ export class PluginContextFactory {
 	private site: SiteInfo;
 	private urlHelper: (path: string) => string;
 	private cronReschedule?: () => void;
+	private now: () => Date;
 	private emailPipeline?: EmailPipeline;
 	/**
 	 * Plugin IDs already warned about a missing media-write backend, so the
@@ -1117,6 +1120,7 @@ export class PluginContextFactory {
 		this.site = createSiteInfo(options.siteInfo ?? {});
 		this.urlHelper = createUrlHelper(this.site.url);
 		this.cronReschedule = options.cronReschedule;
+		this.now = options.now ?? (() => new Date());
 		this.emailPipeline = options.emailPipeline;
 	}
 
@@ -1197,7 +1201,7 @@ export class PluginContextFactory {
 		// the runtime provided a reschedule callback (i.e. cron is wired up).
 		let cron: CronAccess | undefined;
 		if (this.cronReschedule) {
-			cron = new CronAccessImpl(db, plugin.id, this.cronReschedule);
+			cron = new CronAccessImpl(db, plugin.id, this.cronReschedule, this.now);
 		}
 
 		// Email access — requires email:send capability AND a configured provider

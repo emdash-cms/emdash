@@ -14,6 +14,13 @@ import {
 import { runMigrations } from "emdash/db";
 import { Kysely } from "kysely";
 
+export { createPluginRuntimeTestHost } from "./runtime-host.js";
+export type {
+	PluginRuntimeRouteRequest,
+	PluginRuntimeTestHost,
+	PluginRuntimeTestHostOptions,
+} from "./runtime-host.js";
+
 interface PluginTestBindings {
 	DB: D1Database;
 	EMDASH_PLUGIN_CODE: string;
@@ -41,6 +48,9 @@ export interface PluginTestRequest {
 
 export interface PluginTestCollection extends CreateCollectionInput {
 	fields?: CreateFieldInput[];
+	commentsModeration?: "all" | "first_time" | "none";
+	commentsClosedAfterDays?: number;
+	commentsAutoApproveUsers?: boolean;
 }
 
 export interface PluginStorageTestEntry<T = unknown> {

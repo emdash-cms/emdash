@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import { cloudflareTest } from "@cloudflare/vitest-plugin";
 import { buildPlugin } from "@emdash-cms/plugin-cli";
-import type { Plugin } from "vite";
+import type { Plugin, PluginOption } from "vite";
 
 export interface EmDashPluginTestOptions {
 	/** Plugin source directory. Defaults to the current working directory. */
@@ -14,13 +14,36 @@ export interface EmDashPluginTestOptions {
 /**
  * Configure Vitest to build a sandboxed plugin and run tests inside workerd.
  */
-export function emdashPluginTest(options: EmDashPluginTestOptions = {}): Plugin {
+const runtimeVirtualModules: Record<string, string> = {
+	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
+	"virtual:emdash/scheduler": "export const createScheduler = null;",
+	"virtual:emdash/config": "export default {};",
+	"virtual:emdash/env": "export const env = undefined;",
+	"virtual:emdash/build": "export const buildTime = 0;",
+	"virtual:emdash/object-cache": "export const createObjectCacheBackend = null;",
+};
+
+function runtimeVirtualModulePlugin(): Plugin {
+	return {
+		name: "emdash-plugin-test-runtime-virtual-modules",
+		resolveId(id) {
+			if (Object.hasOwn(runtimeVirtualModules, id)) return `\0${id}`;
+			return null;
+		},
+		load(id) {
+			if (!id.startsWith("\0virtual:emdash/")) return null;
+			return runtimeVirtualModules[id.slice(1)] ?? null;
+		},
+	};
+}
+
+export function emdashPluginTest(options: EmDashPluginTestOptions = {}): PluginOption {
 	const pluginDir = resolve(options.dir ?? process.cwd());
 	const workerEntry = fileURLToPath(
 		new URL(import.meta.url.endsWith(".ts") ? "./worker.ts" : "./worker.mjs", import.meta.url),
 	);
 
-	return cloudflareTest(async () => {
+	const workerPlugin = cloudflareTest(async () => {
 		const build = await buildPlugin({ dir: pluginDir });
 		const [code, manifest] = await Promise.all([
 			readFile(build.files.runtime, "utf8"),
@@ -43,4 +66,6 @@ export function emdashPluginTest(options: EmDashPluginTestOptions = {}): Plugin 
 			},
 		};
 	});
+
+	return [runtimeVirtualModulePlugin(), workerPlugin];
 }

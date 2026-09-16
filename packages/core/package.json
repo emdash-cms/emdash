@@ -25,6 +25,10 @@
     "./plugin": {
       "types": "./dist/plugin-types.d.mts"
     },
+    "./plugin-test-runtime": {
+      "types": "./dist/plugin-test-runtime.d.mts",
+      "default": "./dist/plugin-test-runtime.mjs"
+    },
     "./middleware": {
       "types": "./dist/astro/middleware.d.mts",
       "default": "./dist/astro/middleware.mjs"

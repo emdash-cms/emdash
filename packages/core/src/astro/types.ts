@@ -403,6 +403,16 @@ export interface EmDashHandlers {
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;
 
+	handleMediaUpload: (input: {
+		filename: string;
+		base64?: string;
+		url?: string;
+		contentType?: string;
+		alt?: string;
+		authorId?: string;
+		maxUploadSize?: number;
+	}) => Promise<HandlerResponse>;
+
 	handleMediaCreate: (input: {
 		filename: string;
 		mimeType: string;

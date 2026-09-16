@@ -193,7 +193,7 @@ The sandbox contract is intentionally smaller than EmDash's full trusted runtime
 
 ## Test the production boundary
 
-Use `@emdash-cms/plugin-test` in `vitest.config.ts` and create a fresh host per test:
+Use `@emdash-cms/plugin-test` in `vitest.config.ts` and create a fresh transport host per test:
 
 ```typescript
 import { createPluginTestHost } from "@emdash-cms/plugin-test";
@@ -204,7 +204,11 @@ await host.invokeRoute("health", {}, { user, meta });
 await host.dispose();
 ```
 
-The host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It preserves hook, route, MCP, settings, and field-widget manifest metadata, supports content fixtures, and exposes KV and declared storage for assertions. Because `invokeRoute()` bypasses the HTTP catch-all, it does not test route authentication, permissions, CSRF, response caching, MCP registration/consent, admin rendering, or media storage. It also does not reproduce deployed CPU, memory, and subrequest limits.
+The direct host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It preserves hook, route, MCP, settings, and field-widget manifest metadata, supports content fixtures, and exposes KV and declared storage for assertions. Its `invokeHook()` and `invokeRoute()` methods test the transport. They do not prove that a host action emits the hook or applies route authentication, permissions, CSRF, and response caching.
+
+Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks. Actions call production runtime and handler boundaries. Inspectors read observable state without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
+
+The generated project keeps Worker Loader as its default fast test path. Add an opt-in Node/workerd job only for runner-sensitive behavior. Neither host reproduces deployed CPU, memory, and subrequest limits or renders the admin application.
 
 ## References
 

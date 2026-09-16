@@ -1538,6 +1538,7 @@ export async function handleContentSchedule(
 	collection: string,
 	id: string,
 	scheduledAt: string,
+	currentTime: Date = new Date(),
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const item = await withTransaction(db, async (trx) => {
@@ -1548,7 +1549,7 @@ export async function handleContentSchedule(
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
 				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
 			}
-			return repo.schedule(collection, resolvedId, scheduledAt);
+			return repo.schedule(collection, resolvedId, scheduledAt, currentTime);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1637,6 +1638,7 @@ export async function handleContentPublish(
 		requireScheduledDue?: boolean;
 		expectedScheduledAt?: string;
 		_rev?: string;
+		currentTime?: Date;
 	} = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
@@ -1662,6 +1664,7 @@ export async function handleContentPublish(
 				publishConfig.supportsRevisions,
 				publishConfig.routable,
 				expectedRevision,
+				options.currentTime,
 			);
 
 			if (
