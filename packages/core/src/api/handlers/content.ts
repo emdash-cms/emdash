@@ -5,7 +5,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import type { ContentFieldFilters } from "../../content-list-query.js";
+import type { ContentFieldFilters, ContentTermFilters } from "../../content-list-query.js";
 import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
@@ -536,6 +536,7 @@ export async function handleContentList(
 		bylinesNone?: boolean;
 		includeInferredBylines?: boolean;
 		fieldFilters?: ContentFieldFilters;
+		termFilters?: ContentTermFilters;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
@@ -547,6 +548,43 @@ export async function handleContentList(
 		if (params.authorId) where.authorId = params.authorId;
 		if (params.fieldFilters && Object.keys(params.fieldFilters).length > 0) {
 			where.fieldFilters = params.fieldFilters;
+		}
+
+		// A taxonomy that is not attached to this collection can never match,
+		// so it is a caller error rather than an empty result. Failing here is
+		// deliberate: an ignored filter parameter returns a complete, plausible,
+		// unfiltered list with a 200, which is the hardest kind of bug to see.
+		if (params.termFilters && Object.keys(params.termFilters).length > 0) {
+			const names = Object.keys(params.termFilters);
+			const attached = await db
+				.selectFrom("_emdash_taxonomy_defs")
+				.select(["name", "collections"])
+				.where("name", "in", names)
+				.execute();
+			const appliesHere = new Set(
+				attached
+					.filter((row) => {
+						if (!row.collections) return false;
+						try {
+							const list = JSON.parse(row.collections) as unknown;
+							return Array.isArray(list) && list.includes(collection);
+						} catch {
+							return false;
+						}
+					})
+					.map((row) => row.name),
+			);
+			const unknown = names.filter((name) => !appliesHere.has(name));
+			if (unknown.length > 0) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Taxonomy not applied to ${collection}: ${unknown.join(", ")}`,
+					},
+				};
+			}
+			where.termFilters = params.termFilters;
 		}
 
 		const bylineFilter = resolveBylineFilter(params, locale);

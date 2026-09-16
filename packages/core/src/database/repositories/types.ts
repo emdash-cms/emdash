@@ -1,4 +1,4 @@
-import type { ContentFieldFilters } from "../../content-list-query.js";
+import type { ContentFieldFilters, ContentTermFilters } from "../../content-list-query.js";
 import type { CustomFieldValue } from "../../schema/types.js";
 import { encodeBase64, decodeBase64 } from "../../utils/base64.js";
 
@@ -208,6 +208,11 @@ export interface FindManyOptions {
 		bylineFilter?: ContentBylineFilter;
 		/** AND-combined filters over custom fields explicitly marked as indexed. */
 		fieldFilters?: ContentFieldFilters;
+		/**
+		 * Restrict to entries carrying taxonomy terms: OR within a taxonomy,
+		 * AND across taxonomies. Keyed by taxonomy name, valued by term slug.
+		 */
+		termFilters?: ContentTermFilters;
 	};
 	orderBy?: {
 		field: string;
