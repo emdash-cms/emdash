@@ -970,6 +970,16 @@ describe("validateBlocks", () => {
 				policy,
 			);
 			expect(longString.errors[0]?.message).toContain("String exceeds maximum size");
+			const longUtf8String = validateBlockResponse(
+				{ blocks: [{ type: "context", text: "€".repeat(30_000) }] },
+				policy,
+			);
+			expect(longUtf8String.errors[0]?.message).toContain("String exceeds maximum size");
+			const oversizedKey = validateBlockResponse(
+				{ blocks: [], ["x".repeat(64 * 1024 + 1)]: true },
+				policy,
+			);
+			expect(oversizedKey.errors[0]?.message).toContain("Property name exceeds maximum size");
 
 			const largeResponse = validateBlockResponse(
 				{

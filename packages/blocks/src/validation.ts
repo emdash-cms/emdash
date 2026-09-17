@@ -153,12 +153,20 @@ function validateResponseBounds(response: unknown): ValidationError[] {
 			break;
 		}
 		if (typeof current.value === "string") {
+			if (current.value.length > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
+				errors.push({
+					path: current.path,
+					message: `String exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxStringBytes} bytes`,
+				});
+				break;
+			}
 			const contentBytes = TEXT_ENCODER.encode(current.value).byteLength;
 			if (contentBytes > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
 				errors.push({
 					path: current.path,
 					message: `String exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxStringBytes} bytes`,
 				});
+				break;
 			}
 			stringBytes += TEXT_ENCODER.encode(JSON.stringify(current.value)).byteLength;
 			if (stringBytes > BLOCK_RESPONSE_LIMITS.maxBytes) {
@@ -219,7 +227,21 @@ function validateResponseBounds(response: unknown): ValidationError[] {
 				});
 				break;
 			}
+			if (key.length > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
+				errors.push({
+					path: current.path,
+					message: `Property name exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxStringBytes} bytes`,
+				});
+				break;
+			}
 			const keyBytes = TEXT_ENCODER.encode(JSON.stringify(key)).byteLength;
+			if (keyBytes > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
+				errors.push({
+					path: current.path,
+					message: `Property name exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxStringBytes} bytes`,
+				});
+				break;
+			}
 			if (keyBytes > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
 				errors.push({
 					path: current.path,
