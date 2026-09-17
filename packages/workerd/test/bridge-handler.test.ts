@@ -13,6 +13,10 @@ import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
+import {
+	bytesOverLimit,
+	INVALID_PLUGIN_HTTP_BYTES,
+} from "../../core/tests/fixtures/plugin-http.js";
 import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
 
 // Set up an in-memory SQLite database with the minimum tables needed
@@ -1101,6 +1105,183 @@ describe("Bridge Handler Conformance", () => {
 			});
 			expect(result.error).toBeUndefined();
 			expect(result.result).toBeNull();
+		});
+	});
+
+	describe("HTTP response wire", () => {
+		it("serializes one bounded binary response representation", async () => {
+			const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+				new Response(INVALID_PLUGIN_HTTP_BYTES, {
+					status: 206,
+					statusText: "Partial Content",
+					headers: { "content-type": "application/octet-stream" },
+				}),
+			);
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["93.184.216.34"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://93.184.216.34/file",
+				});
+				expect(result.error).toBeUndefined();
+				expect(result.result).toMatchObject({
+					status: 206,
+					statusText: "Partial Content",
+					headers: [["content-type", "application/octet-stream"]],
+					finalUrl: "https://93.184.216.34/file",
+					redirected: false,
+					body: {
+						__emdashBytes: Buffer.from(INVALID_PLUGIN_HTTP_BYTES).toString("base64"),
+					},
+				});
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it("rejects an oversized decoded request before dispatch", async () => {
+			const handler = makeHandler({
+				capabilities: ["network:request"],
+				allowedHosts: ["api.example.com"],
+			});
+			const result = await call(handler, "http/fetch", {
+				url: "https://api.example.com/upload",
+				init: {
+					method: "POST",
+					bodyType: "base64",
+					body: Buffer.alloc(8 * 1024 * 1024 + 1).toString("base64"),
+				},
+			});
+			expect(result.error).toMatch(/request body exceeds the 8388608 byte limit/i);
+		});
+
+		it("rejects an oversized streamed response", async () => {
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValue(new Response(bytesOverLimit(8 * 1024 * 1024)));
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["93.184.216.34"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://93.184.216.34/oversized",
+				});
+				expect(result.error).toMatch(/response body exceeds the 8388608 byte limit/i);
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it.each([
+			{ status: 301, method: "POST", rewritten: true },
+			{ status: 302, method: "POST", rewritten: true },
+			{ status: 303, method: "PUT", rewritten: true },
+			{ status: 307, method: "POST", rewritten: false },
+			{ status: 308, method: "POST", rewritten: false },
+		])(
+			"applies Fetch method and body rules for a $status redirect",
+			async ({ status, method, rewritten }) => {
+				const fetchMock = vi
+					.fn<typeof fetch>()
+					.mockResolvedValueOnce(
+						new Response(null, {
+							status,
+							headers: { location: "https://93.184.216.34/final" },
+						}),
+					)
+					.mockResolvedValueOnce(new Response("ok"));
+				vi.stubGlobal("fetch", fetchMock);
+				try {
+					const handler = makeHandler({
+						capabilities: ["network:request"],
+						allowedHosts: ["93.184.216.34"],
+					});
+					const result = await call(handler, "http/fetch", {
+						url: "https://93.184.216.34/start",
+						init: {
+							method,
+							headers: [
+								["content-type", "application/octet-stream"],
+								["content-language", "en"],
+								["content-length", String(INVALID_PLUGIN_HTTP_BYTES.byteLength)],
+								["transfer-encoding", "chunked"],
+							],
+							bodyType: "base64",
+							body: Buffer.from(INVALID_PLUGIN_HTTP_BYTES).toString("base64"),
+						},
+					});
+					expect(result.error).toBeUndefined();
+					const redirectedInit = fetchMock.mock.calls[1]?.[1];
+					expect(redirectedInit?.method).toBe(rewritten ? "GET" : method);
+					if (rewritten) expect(redirectedInit?.body).toBeUndefined();
+					else expect(redirectedInit?.body).toBeInstanceOf(ArrayBuffer);
+					const headers = new Headers(redirectedInit?.headers);
+					expect(headers.get("content-type")).toBe(rewritten ? null : "application/octet-stream");
+					expect(headers.get("content-language")).toBe(rewritten ? null : "en");
+					expect(headers.get("content-length")).toBe(
+						rewritten ? null : String(INVALID_PLUGIN_HTTP_BYTES.byteLength),
+					);
+					expect(headers.get("transfer-encoding")).toBe(rewritten ? null : "chunked");
+				} finally {
+					vi.unstubAllGlobals();
+				}
+			},
+		);
+
+		it.each([
+			{ mode: "manual", expectedError: false },
+			{ mode: "error", expectedError: true },
+		] as const)("honors redirect mode $mode", async ({ mode, expectedError }) => {
+			const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+				new Response(null, {
+					status: 302,
+					headers: { location: "https://93.184.216.34/final" },
+				}),
+			);
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["93.184.216.34"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://93.184.216.34/start",
+					init: { redirect: mode },
+				});
+				if (expectedError) expect(result.error).toMatch(/redirect mode is "error"/i);
+				else expect(result.result).toMatchObject({ status: 302, redirected: false });
+				expect(fetchMock).toHaveBeenCalledOnce();
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
+		it("does not follow a non-redirect 3xx response with Location", async () => {
+			const fetchMock = vi.fn<typeof fetch>().mockResolvedValueOnce(
+				new Response(null, {
+					status: 304,
+					headers: { location: "https://93.184.216.34/final" },
+				}),
+			);
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["93.184.216.34"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://93.184.216.34/start",
+				});
+				expect(result.result).toMatchObject({ status: 304, redirected: false });
+				expect(fetchMock).toHaveBeenCalledOnce();
+			} finally {
+				vi.unstubAllGlobals();
+			}
 		});
 	});
 

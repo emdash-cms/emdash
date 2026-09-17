@@ -101,6 +101,70 @@ function sandboxRouteErrorDetails(value) {
 function createContext(env) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
+	const httpBodyLimit = 8 * 1024 * 1024;
+
+	async function readHttpBody(stream, label) {
+		if (!stream) return new Uint8Array();
+		const reader = stream.getReader();
+		const chunks = [];
+		let total = 0;
+		try {
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				total += value.byteLength;
+				if (total > httpBodyLimit) {
+					try { await reader.cancel(); } catch {}
+					throw new Error("Plugin HTTP " + label + " body exceeds the " + httpBodyLimit + " byte limit");
+				}
+				chunks.push(value);
+			}
+		} finally {
+			reader.releaseLock();
+		}
+		const bytes = new Uint8Array(total);
+		let offset = 0;
+		for (const chunk of chunks) {
+			bytes.set(chunk, offset);
+			offset += chunk.byteLength;
+		}
+		return bytes;
+	}
+
+	async function bufferHttpInit(init) {
+		if (!init?.body) return init;
+		const encoded = new Response(init.body);
+		const body = await readHttpBody(encoded.body, "request");
+		const headers = new Headers(init.headers);
+		if (!headers.has("content-type")) {
+			const contentType = encoded.headers.get("content-type");
+			if (contentType) headers.set("content-type", contentType);
+		}
+		return { ...init, headers: Array.from(headers.entries()), body };
+	}
+
+	function decorateHttpResponse(response, finalUrl, redirected) {
+		const clone = response.clone.bind(response);
+		Object.defineProperties(response, {
+			url: { configurable: true, value: finalUrl },
+			redirected: { configurable: true, value: redirected },
+			clone: {
+				configurable: true,
+				value: () => decorateHttpResponse(clone(), finalUrl, redirected),
+			},
+		});
+		return response;
+	}
+
+	function responseFromHttpWire(result) {
+		const nullBodyStatus = result.status === 101 || result.status === 204 || result.status === 205 || result.status === 304;
+		const response = new Response(nullBodyStatus ? null : result.body, {
+			status: result.status,
+			statusText: result.statusText,
+			headers: result.headers,
+		});
+		return decorateHttpResponse(response, result.finalUrl, result.redirected);
+	}
 	
 	// KV - proxies to bridge.kvGet/Set/Delete/List
 	const kv = {
@@ -176,11 +240,8 @@ function createContext(env) {
 	// HTTP access - proxies to bridge (capability + host enforced by bridge)
 	const http = {
 		fetch: async (url, init) => {
-			const result = await bridge.httpFetch(url, init);
-			return new Response(result.text, {
-				status: result.status,
-				headers: result.headers,
-			});
+			const result = await bridge.httpFetch(url, await bufferHttpInit(init));
+			return responseFromHttpWire(result);
 		}
 	};
 	

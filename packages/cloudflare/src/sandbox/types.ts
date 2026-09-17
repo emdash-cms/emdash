@@ -9,6 +9,7 @@ import type {
 	ContentCreateOptions,
 	ContentListOptions,
 	CronTaskInfo,
+	PluginHttpResponseWire,
 	UpdateIfArgs,
 	UpdateIfResult,
 	VersionedValue,
@@ -268,10 +269,7 @@ export interface PluginBridgeBinding {
 	): Promise<{ mediaId: string; storageKey: string; url: string }>;
 	mediaDelete(id: string): Promise<boolean>;
 	// Network
-	httpFetch(
-		url: string,
-		init?: RequestInit,
-	): Promise<{ status: number; headers: Record<string, string>; text: string }>;
+	httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire>;
 	// Email
 	emailSend(message: { to: string; subject: string; text: string; html?: string }): Promise<void>;
 	// Cron

@@ -8,11 +8,9 @@ Registry plugins run against a capability-gated host API, not the complete trust
 
 The generated admin form and sandbox `ctx.kv` share the `settings:*` namespace across both runners. A `secret` settings field is masked and write-only in admin responses, but the stored value is not encrypted. EmDash does not expose an encrypted settings or secrets API to registry plugins.
 
-### Cloudflare HTTP response bodies are text-decoded
+### HTTP bodies are buffered
 
-`ctx.http.fetch()` returns a real WHATWG `Response` in both runners. Node/workerd transports the upstream response bytes as base64 and reconstructs the response from bytes. The Cloudflare bridge calls `text()` and reconstructs the response from that string.
-
-Use `text()` and `json()` for portable responses. Arbitrary binary data read through `arrayBuffer()` or `blob()` is not byte-preserving on Cloudflare yet.
+`ctx.http.fetch()` preserves binary request and response bodies in both runners. Each decoded request or response body has an 8 MiB limit, and the complete response is buffered before plugin code receives it. The API does not expose a streaming response beyond that boundary.
 
 ### `page:fragments` is excluded at runtime
 

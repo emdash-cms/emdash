@@ -27,7 +27,12 @@ import {
 	type I18nConfig,
 } from "emdash";
 
-import { setCronNowCallback, setCronRescheduleCallback, setEmailSendCallback } from "./bridge.js";
+import {
+	setCronNowCallback,
+	setCronRescheduleCallback,
+	setEmailSendCallback,
+	setHttpFetchCallback,
+} from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
@@ -54,6 +59,7 @@ export interface PluginBridgeProps {
 	allowedHosts: string[];
 	storageCollections: string[];
 	i18nConfig?: I18nConfig | null;
+	httpFetchKey?: string;
 	storageConfig?: Record<
 		string,
 		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
@@ -113,11 +119,16 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	private httpFetchKey?: string;
 
 	constructor(options: SandboxOptions) {
 		this.options = options;
 		this.resolvedLimits = resolveLimits(options.limits);
 		this.siteInfo = options.siteInfo;
+		if (options.httpFetch) {
+			this.httpFetchKey = crypto.randomUUID();
+			setHttpFetchCallback(this.httpFetchKey, options.httpFetch);
+		}
 
 		// Wire email send callback if provided at construction time
 		setEmailSendCallback(options.emailSend ?? null);
@@ -165,6 +176,9 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 * @param code - The bundled plugin JavaScript code
 	 */
 	async load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance> {
+		if (this.httpFetchKey && this.options.httpFetch) {
+			setHttpFetchCallback(this.httpFetchKey, this.options.httpFetch);
+		}
 		const pluginId = `${manifest.id}:${manifest.version}`;
 
 		// Return cached plugin if available
@@ -194,6 +208,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			this.resolvedLimits,
 			this.siteInfo,
 			this.options.isolateKey,
+			this.httpFetchKey,
 		);
 
 		this.plugins.set(pluginId, plugin);
@@ -208,6 +223,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			await plugin.terminate();
 		}
 		this.plugins.clear();
+		if (this.httpFetchKey) setHttpFetchCallback(this.httpFetchKey, null);
 	}
 }
 
@@ -247,6 +263,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 			trailingSlash?: "always" | "never" | "ignore";
 		},
 		isolateKey?: string,
+		private readonly httpFetchKey?: string,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
 		this.workerName = isolateKey ? `${this.id}:${isolateKey}` : this.id;
@@ -292,6 +309,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 				storageCollections: Object.keys(this.manifest.storage || {}),
 				i18nConfig: getI18nConfig(),
 				storageConfig: this.manifest.storage,
+				httpFetchKey: this.httpFetchKey,
 			},
 		});
 

@@ -16,7 +16,7 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { getI18nConfig } from "emdash";
+import { getI18nConfig, PLUGIN_HTTP_MAX_REQUEST_BYTES } from "emdash";
 
 import { createBridgeHandler } from "./bridge-handler.js";
 import type { WorkerdSandboxRunner } from "./runner.js";
@@ -62,7 +62,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 			}
 
 			// Get or create bridge handler for this plugin
-			const cacheKey = claims.pluginId;
+			const cacheKey = `${claims.pluginId}:${claims.version}`;
 			let bridgeHandler = handlerCache.get(cacheKey);
 			if (!bridgeHandler) {
 				bridgeHandler = createBridgeHandler({
@@ -78,6 +78,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					emailSend: () => runner.emailSend,
 					cronReschedule: () => runner.cronReschedule?.(),
 					now: runner.now,
+					httpFetch: runner.httpFetch,
 					storage: runner.mediaStorage,
 				});
 				handlerCache.set(cacheKey, bridgeHandler);
@@ -114,7 +115,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 	};
 }
 
-const MAX_BRIDGE_BODY_BYTES = 10 * 1024 * 1024;
+const MAX_BRIDGE_BODY_BYTES = Math.ceil((PLUGIN_HTTP_MAX_REQUEST_BYTES * 4) / 3) + 64 * 1024;
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);

@@ -125,6 +125,34 @@ const plugin: SandboxedPlugin = {
 				return { sent: true };
 			},
 		},
+		"http-roundtrip": {
+			handler: async (route, ctx) => {
+				if (
+					typeof route.input !== "object" ||
+					route.input === null ||
+					!("url" in route.input) ||
+					typeof route.input.url !== "string"
+				) {
+					throw new Error("Expected an HTTP URL");
+				}
+				const requestBytes = new Uint8Array([0, 255, 195, 40]);
+				const response = await ctx.http!.fetch(route.input.url, {
+					method: "POST",
+					headers: { "content-type": "application/octet-stream" },
+					body: requestBytes,
+				});
+				const clone = response.clone();
+				return {
+					status: response.status,
+					statusText: response.statusText,
+					url: response.url,
+					redirected: response.redirected,
+					contentType: response.headers.get("content-type"),
+					bytes: [...new Uint8Array(await response.arrayBuffer())],
+					cloneBytes: [...new Uint8Array(await clone.arrayBuffer())],
+				};
+			},
+		},
 	},
 };
 

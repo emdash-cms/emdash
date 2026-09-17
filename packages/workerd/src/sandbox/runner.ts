@@ -355,6 +355,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Serializes concurrent ensureRunning() calls */
 	private startupPromise: Promise<void> | null = null;
+	private stoppingPromise: Promise<void> | null = null;
 
 	/** Crash restart state */
 	private crashCount = 0;
@@ -825,8 +826,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * this, every intentional reload (plugin install/uninstall) would
 	 * cascade into a phantom crash-restart cycle.
 	 */
-	private async stopWorkerd(): Promise<void> {
-		if (!this.workerdProcess) return;
+	private stopWorkerd(): Promise<void> {
+		if (this.stoppingPromise) return this.stoppingPromise;
+		if (!this.workerdProcess) return Promise.resolve();
 		this.healthy = false;
 		this.intentionalStop = true;
 
@@ -834,14 +836,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.workerdProcess = null;
 
 		// Fast path: process already exited (exitCode is set after exit)
-		if (proc.exitCode !== null) {
-			return;
-		}
-
-		// Force kill after 5 seconds if SIGTERM was ignored. The fallback
-		// timer is cleared on clean exit so it doesn't keep the Node event
-		// loop alive for up to 5s past termination.
-		return waitForProcessExit(proc);
+		// waitForProcessExit force-kills after five seconds if SIGTERM is ignored.
+		const completion = proc.exitCode === null ? waitForProcessExit(proc) : Promise.resolve();
+		this.stoppingPromise = completion;
+		return completion.finally(() => {
+			this.intentionalStop = false;
+			if (this.stoppingPromise === completion) this.stoppingPromise = null;
+		});
 	}
 
 	/**
@@ -931,6 +932,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	get now() {
 		return this.options.now;
+	}
+
+	get httpFetch() {
+		return this.options.httpFetch;
 	}
 
 	/** Get the media storage adapter */

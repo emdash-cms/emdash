@@ -185,7 +185,7 @@ Both runners execute the same plugin bundle in a V8 isolate and gate host calls 
 | Cloudflare | Dynamic Worker Loader; CPU, subrequest, and wall-time limits | Worker entrypoint RPC; D1 and configured R2 media binding                       |
 | Node.js    | Managed workerd process; wall-time limit only                | Authenticated local HTTP backing service; configured database and media adapter |
 
-Both runners enforce canonical capability names and return a real WHATWG `Response` from `ctx.http.fetch()`. The Cloudflare bridge reconstructs that response from decoded text, so binary response bodies are not portable; the Node/workerd bridge preserves response bytes. Write against the exported `PluginContext`, not extra methods found in one wrapper. The Node/workerd wrapper still exposes undeclared `ctx.content.createMany()`, `updateMany()`, and `deleteMany()` methods that the Cloudflare wrapper and public types do not provide.
+Both runners enforce canonical capability names and return a buffered WHATWG `Response` from `ctx.http.fetch()`. Request and response bodies are limited to 8 MiB of decoded bytes. Binary bodies, status text, headers, final URL, redirect state, and `clone()` behavior are portable across Cloudflare Worker Loader and Node/workerd. Write against the exported `PluginContext`, not extra methods found in one wrapper. The Node/workerd wrapper still exposes undeclared `ctx.content.createMany()`, `updateMany()`, and `deleteMany()` methods that the Cloudflare wrapper and public types do not provide.
 
 ## Remaining sandbox boundaries
 
@@ -207,6 +207,8 @@ await host.dispose();
 The direct host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It preserves hook, route, MCP, settings, and field-widget manifest metadata, supports content fixtures, and exposes KV and declared storage for assertions. Its `invokeHook()` and `invokeRoute()` methods test the transport. They do not prove that a host action emits the hook or applies route authentication, permissions, CSRF, and response caching.
 
 Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks. Actions call production runtime and handler boundaries. Inspectors read observable state without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
+
+For outbound HTTP tests, queue responses with `await host.http.respond(url, response)` before the plugin call and inspect decoded requests with `host.http.requests()`. Queue one response per expected call. The helper keeps external network access deterministic while the plugin still crosses the production Worker Loader wrapper and bridge.
 
 The generated project keeps Worker Loader as its default fast test path. Add an opt-in Node/workerd job only for runner-sensitive behavior. Neither host reproduces deployed CPU, memory, and subrequest limits or renders the admin application.
 

@@ -61,6 +61,8 @@ export type SandboxEmailSendCallback = (
 	pluginId: string,
 ) => Promise<void>;
 
+export type SandboxHttpFetchCallback = typeof fetch;
+
 /**
  * Options for creating a sandbox runner
  */
@@ -84,6 +86,8 @@ export interface SandboxOptions {
 	};
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
+	/** Optional host HTTP transport used by test hosts and custom runtimes. */
+	httpFetch?: SandboxHttpFetchCallback;
 	/**
 	 * Media storage adapter for sandboxed plugin uploads and deletes.
 	 * When provided, plugins with write:media can upload and delete files

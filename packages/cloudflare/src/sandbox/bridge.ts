@@ -16,6 +16,7 @@ import type {
 	CronTaskInfo,
 	Database,
 	I18nConfig,
+	PluginHttpResponseWire,
 	SandboxEmailSendCallback,
 	VersionedValue,
 } from "emdash";
@@ -74,6 +75,7 @@ const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
+const httpFetchCallbacks = new Map<string, typeof fetch>();
 
 /**
  * Set the email send callback for all bridge instances.
@@ -89,6 +91,11 @@ export function setCronRescheduleCallback(callback: (() => void) | null): void {
 
 export function setCronNowCallback(callback: (() => Date) | null): void {
 	cronNowCallback = callback;
+}
+
+export function setHttpFetchCallback(key: string, callback: typeof fetch | null): void {
+	if (callback) httpFetchCallbacks.set(key, callback);
+	else httpFetchCallbacks.delete(key);
 }
 
 function serializeValue(value: unknown): unknown {
@@ -209,6 +216,7 @@ export interface PluginBridgeProps {
 	allowedHosts: string[];
 	storageCollections: string[];
 	i18nConfig?: I18nConfig | null;
+	httpFetchKey?: string;
 	/** Per-collection storage config (matches manifest.storage entries) */
 	storageConfig?: Record<
 		string,
@@ -1095,16 +1103,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// Network Operations - capability-gated + host validation
 	// =========================================================================
 
-	async httpFetch(
-		url: string,
-		init?: RequestInit,
-	): Promise<{
-		status: number;
-		headers: Record<string, string>;
-		text: string;
-	}> {
-		const { capabilities, allowedHosts } = this.ctx.props;
-		return sandboxHttpFetch(url, init, { capabilities, allowedHosts });
+	async httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire> {
+		const { capabilities, allowedHosts, httpFetchKey } = this.ctx.props;
+		const fetchImpl = httpFetchKey ? httpFetchCallbacks.get(httpFetchKey) : undefined;
+		if (httpFetchKey && !fetchImpl) {
+			throw new Error("Plugin HTTP transport is unavailable");
+		}
+		return sandboxHttpFetch(url, init, { capabilities, allowedHosts, fetchImpl });
 	}
 
 	// =========================================================================

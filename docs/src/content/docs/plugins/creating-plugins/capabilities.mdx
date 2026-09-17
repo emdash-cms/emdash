@@ -79,6 +79,8 @@ The bridge checks the request URL's host against the allowlist before forwarding
 
 `network:request:unrestricted` skips the manifest host allowlist. The sandbox bridge still accepts only HTTP and HTTPS, blocks known internal hosts and private literal addresses, rechecks every redirect, and removes credential headers when a redirect crosses origins. Use unrestricted access only when an operator supplies the destination at runtime. For fixed destinations, declare `network:request` with explicit hosts so the consent dialog names them.
 
+`ctx.http.fetch()` buffers request and response bodies and limits each decoded body to 8 MiB. The returned WHATWG `Response` preserves binary bytes, status text, headers, final URL, redirect state, and `clone()` behavior in both sandbox runners. Read binary data with `arrayBuffer()` or `blob()`.
+
 ## What the sandbox enforces
 
 When a sandbox runner is active, the runtime enforces:
