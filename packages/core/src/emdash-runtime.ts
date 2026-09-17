@@ -4883,7 +4883,7 @@ export class EmDashRuntime {
 				}
 			}
 		};
-		if (afterPluginId) {
+		if (afterPluginId && this.findSandboxedPlugin(afterPluginId)) {
 			const pending = this.pendingPluginAfterHooks.get(afterPluginId) ?? [];
 			pending.push(invoke);
 			this.pendingPluginAfterHooks.set(afterPluginId, pending);
