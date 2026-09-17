@@ -8,6 +8,8 @@
 		"content:read",
 		"content:revisions:read",
 		"content:write",
+		"content:publish",
+		"content:restore",
 		"comments:moderate",
 		"taxonomies:read",
 		"taxonomies:write",
