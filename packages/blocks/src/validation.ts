@@ -137,6 +137,14 @@ function validateResponseBounds(response: unknown): ValidationError[] {
 	while (stack.length > 0) {
 		const current = stack.pop();
 		if (!current) break;
+		nodes++;
+		if (nodes > BLOCK_RESPONSE_LIMITS.maxNodes) {
+			errors.push({
+				path: current.path,
+				message: `Block response exceeds maximum node count ${BLOCK_RESPONSE_LIMITS.maxNodes}`,
+			});
+			break;
+		}
 		if (current.depth > BLOCK_RESPONSE_LIMITS.maxDepth) {
 			errors.push({
 				path: current.path,
@@ -145,14 +153,14 @@ function validateResponseBounds(response: unknown): ValidationError[] {
 			break;
 		}
 		if (typeof current.value === "string") {
-			const byteLength = TEXT_ENCODER.encode(current.value).byteLength;
-			if (byteLength > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
+			const contentBytes = TEXT_ENCODER.encode(current.value).byteLength;
+			if (contentBytes > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
 				errors.push({
 					path: current.path,
 					message: `String exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxStringBytes} bytes`,
 				});
 			}
-			stringBytes += byteLength;
+			stringBytes += TEXT_ENCODER.encode(JSON.stringify(current.value)).byteLength;
 			if (stringBytes > BLOCK_RESPONSE_LIMITS.maxBytes) {
 				errors.push({
 					path: "response",
@@ -162,16 +170,26 @@ function validateResponseBounds(response: unknown): ValidationError[] {
 			}
 			continue;
 		}
-		if (typeof current.value !== "object" || current.value === null) continue;
-		nodes++;
-		if (nodes > BLOCK_RESPONSE_LIMITS.maxNodes) {
-			errors.push({
-				path: current.path,
-				message: `Block response exceeds maximum node count ${BLOCK_RESPONSE_LIMITS.maxNodes}`,
-			});
+		if (typeof current.value === "bigint") {
+			errors.push({ path: current.path, message: "Block response must be JSON-serializable" });
 			break;
 		}
-
+		if (typeof current.value !== "object" || current.value === null) {
+			if (current.value === null) stringBytes += 4;
+			else if (typeof current.value === "number") {
+				stringBytes += Number.isFinite(current.value) ? String(current.value).length : 4;
+			} else if (typeof current.value === "boolean") {
+				stringBytes += current.value ? 4 : 5;
+			}
+			if (stringBytes > BLOCK_RESPONSE_LIMITS.maxBytes) {
+				errors.push({
+					path: "response",
+					message: `Block response exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxBytes} bytes`,
+				});
+				break;
+			}
+			continue;
+		}
 		if (Array.isArray(current.value)) {
 			if (current.value.length > BLOCK_RESPONSE_LIMITS.maxArrayItems) {
 				errors.push({
@@ -201,7 +219,7 @@ function validateResponseBounds(response: unknown): ValidationError[] {
 				});
 				break;
 			}
-			const keyBytes = TEXT_ENCODER.encode(key).byteLength;
+			const keyBytes = TEXT_ENCODER.encode(JSON.stringify(key)).byteLength;
 			if (keyBytes > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
 				errors.push({
 					path: current.path,

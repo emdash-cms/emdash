@@ -982,6 +982,26 @@ describe("validateBlocks", () => {
 			);
 			expect(largeResponse.errors[0]?.message).toContain("maximum size");
 
+			const primitiveHeavy = validateBlockResponse(
+				{
+					blocks: [
+						{
+							type: "chart",
+							config: {
+								chart_type: "custom",
+								options: {
+									series: Array.from({ length: 1_000 }, () =>
+										Array(1_000).fill(Number.MAX_SAFE_INTEGER),
+									),
+								},
+							},
+						},
+					],
+				},
+				policy,
+			);
+			expect(primitiveHeavy.errors[0]?.message).toContain("maximum node count");
+
 			const malformed = validateBlockResponse(
 				{ blocks: Array.from({ length: 100 }, () => ({ type: "unknown" })) },
 				policy,
