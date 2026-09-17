@@ -424,6 +424,44 @@ export interface ContentAccess {
 	delete?(collection: string, id: string): Promise<boolean>;
 }
 
+export interface VersionedContentItem {
+	item: ContentItem;
+	_rev: string;
+}
+
+export interface ContentPublicationAccess extends ContentAccess {
+	getVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	publish(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	unpublish(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	schedule(
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem>;
+	unschedule(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+}
+
+export interface ContentRestoreAccess {
+	getTrashedVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	restore(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+}
+
 /**
  * Taxonomy access interface — capability-gated on `taxonomies:read`.
  * Read-only: there is no plugin-facing taxonomy write API.
@@ -606,7 +644,15 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 	kv: KVAccess;
 
 	/** Content access - only if read:content or write:content capability */
-	content?: ContentAccess | ContentAccessWithWrite;
+	content?:
+		| ContentAccess
+		| ContentAccessWithWrite
+		| ContentPublicationAccess
+		| ContentRestoreAccess
+		| (ContentPublicationAccess & ContentRestoreAccess)
+		| (ContentAccessWithWrite & ContentPublicationAccess)
+		| (ContentAccessWithWrite & ContentRestoreAccess)
+		| (ContentAccessWithWrite & ContentPublicationAccess & ContentRestoreAccess);
 
 	/** Taxonomy access (read-only) - only if taxonomies:read capability */
 	taxonomies?: TaxonomyAccess;

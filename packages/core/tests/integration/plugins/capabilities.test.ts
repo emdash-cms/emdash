@@ -928,6 +928,53 @@ describe("Capability Enforcement Integration (v2)", () => {
 			expect("delete" in ctx.content!).toBe(true);
 		});
 
+		it("gates publication and restore actions independently", async () => {
+			const versioned = {
+				item: {
+					id: "entry-1",
+					type: "posts",
+					slug: "entry-1",
+					status: "draft",
+					locale: "en",
+					data: {},
+					createdAt: "2030-01-01T00:00:00.000Z",
+					updatedAt: "2030-01-01T00:00:00.000Z",
+					publishedAt: null,
+				},
+				_rev: "revision-1",
+			};
+			const contentActions = {
+				getVersioned: vi.fn().mockResolvedValue(versioned),
+				publish: vi.fn().mockResolvedValue(versioned),
+				unpublish: vi.fn().mockResolvedValue(versioned),
+				schedule: vi.fn().mockResolvedValue(versioned),
+				unschedule: vi.fn().mockResolvedValue(versioned),
+				getTrashedVersioned: vi.fn().mockResolvedValue(versioned),
+				restore: vi.fn().mockResolvedValue(versioned),
+			};
+			const factory = new PluginContextFactory({ db, contentActions });
+			const publisher = factory.createContext(
+				createTestPlugin({ id: "publisher", capabilities: ["content:publish"] }),
+			);
+			const restorer = factory.createContext(
+				createTestPlugin({ id: "restorer", capabilities: ["content:restore"] }),
+			);
+
+			expect(publisher.content).toBeDefined();
+			expect("get" in publisher.content!).toBe(true);
+			expect("publish" in publisher.content!).toBe(true);
+			expect("restore" in publisher.content!).toBe(false);
+			expect(restorer.content).toBeDefined();
+			expect("get" in restorer.content!).toBe(false);
+			expect("restore" in restorer.content!).toBe(true);
+
+		if (!publisher.content || !("publish" in publisher.content)) throw new Error("missing publish");
+		await publisher.content.publish("posts", "entry-1", { _rev: "revision-1" });
+		expect(contentActions.publish).toHaveBeenCalledWith("publisher", "posts", "entry-1", {
+			_rev: "revision-1",
+		});
+	});
+
 		it("always provides site info", () => {
 			const factory = new PluginContextFactory({ db });
 
