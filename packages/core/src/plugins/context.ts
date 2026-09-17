@@ -293,9 +293,12 @@ export function createSchemaAccess(db: Kysely<Database>): SchemaAccess {
 	const registry = new SchemaRegistry(db);
 	return {
 		async listCollections() {
-			return (await registry.listCollectionsWithFields()).map(
-				(collection) => collectionToSchemaInfo(collection)!,
-			);
+			const collections: CollectionSchemaInfo[] = [];
+			for (const collection of await registry.listCollectionsWithFields()) {
+				const info = collectionToSchemaInfo(collection);
+				if (info) collections.push(info);
+			}
+			return collections;
 		},
 		async getCollection(slug) {
 			return collectionToSchemaInfo(await registry.getCollectionWithFields(slug));
