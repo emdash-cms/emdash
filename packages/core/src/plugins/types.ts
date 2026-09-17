@@ -43,7 +43,7 @@ import type { z } from "astro/zod";
 // =============================================================================
 
 import type { ContentFieldFilters } from "../content-list-query.js";
-import type { FieldType, FieldValidation, FieldWidgetOptions } from "../schema/types.js";
+import type { FieldType } from "../schema/types.js";
 
 export type {
 	ContentFieldFilterScalar,
@@ -346,63 +346,6 @@ export interface ContentItem {
 	publishedAt: string | null;
 	/** Scheduled publication time, if set (e.g. scheduled items or scheduled draft changes). */
 	scheduledAt?: string | null;
-	authorId?: string | null;
-	translationGroup?: string | null;
-	liveRevisionId?: string | null;
-	draftRevisionId?: string | null;
-	version?: number;
-}
-
-export interface ContentTranslationSummary {
-	id: string;
-	locale: string | null;
-	slug: string | null;
-	status: string;
-	updatedAt: string;
-}
-
-export interface ContentRevisionInfo {
-	id: string;
-	collection: string;
-	entryId: string;
-	data: Record<string, unknown>;
-	createdAt: string;
-}
-
-export interface FieldSchemaInfo {
-	slug: string;
-	label: string;
-	type: FieldType;
-	required: boolean;
-	unique: boolean;
-	default?: unknown;
-	validation?: FieldValidation;
-	widget?: string;
-	options?: FieldWidgetOptions;
-	searchable: boolean;
-	indexed: boolean;
-	translatable: boolean;
-	sortOrder: number;
-}
-
-export interface CollectionSchemaInfo {
-	slug: string;
-	label: string;
-	labelSingular: string | null;
-	description: string | null;
-	supports: string[];
-	hasSeo: boolean;
-	titleField: string | null;
-	dateField: string | null;
-	urlPattern: string | null;
-	routable: boolean;
-	hidden: boolean;
-	fields: FieldSchemaInfo[];
-}
-
-export interface SchemaAccess {
-	listCollections(): Promise<CollectionSchemaInfo[]>;
-	getCollection(slug: string): Promise<CollectionSchemaInfo | null>;
 }
 
 export interface ContentListWhere {
@@ -440,20 +383,7 @@ export type ContentWriteInput = Record<string, unknown> & {
 export interface ContentCreateOptions {
 	/** Locale for the new content row. Defaults to the configured site locale, then `en`. */
 	locale?: string;
-	/** Existing row in the same collection whose translation group the new row joins. */
-	translationOf?: string;
 }
-
-export type PluginContentCreateCallback = (
-	pluginId: string,
-	collection: string,
-	data: ContentWriteInput,
-	options?: ContentCreateOptions & {
-		/** Save-hook origin supplied by sandbox transports to prevent hook re-entry. */
-		originHook?: "content:beforeSave" | "content:afterSave";
-		sandboxOrigin?: true;
-	},
-) => Promise<ContentItem>;
 
 /**
  * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
@@ -510,21 +440,6 @@ export interface ContentAccess {
 	// Read operations (requires read:content)
 	get(collection: string, id: string): Promise<ContentItem | null>;
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
-	getTranslations?(
-		collection: string,
-		id: string,
-	): Promise<{ translationGroup: string; translations: ContentTranslationSummary[] }>;
-	getPublicUrl?(collection: string, id: string): Promise<string | null>;
-	listRevisions?(
-		collection: string,
-		id: string,
-		options?: { limit?: number },
-	): Promise<ContentRevisionInfo[]>;
-	getRevision?(
-		collection: string,
-		id: string,
-		revisionId: string,
-	): Promise<ContentRevisionInfo | null>;
 
 	// Write operations (requires write:content) - optional on interface
 	create?(
@@ -534,6 +449,36 @@ export interface ContentAccess {
 	): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
+}
+
+export interface VersionedContentItem {
+	item: ContentItem;
+	_rev: string;
+}
+
+export interface ContentPublicationAccess extends ContentAccess {
+	getVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	publish(collection: string, id: string, options: { _rev: string }): Promise<VersionedContentItem>;
+	unpublish(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	schedule(
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem>;
+	unschedule(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+}
+
+export interface ContentRestoreAccess {
+	getTrashedVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	restore(collection: string, id: string, options: { _rev: string }): Promise<VersionedContentItem>;
 }
 
 /**
@@ -885,7 +830,16 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 	settings: SettingsAccess;
 
 	/** Content access - only if read:content or write:content capability */
-	content?: ContentAccess | ContentAccessWithWrite;
+	content?:
+		| ContentAccess
+		| ContentAccessWithWrite
+		| ContentPublicationAccess
+		| ContentRestoreAccess
+		| (ContentPublicationAccess & ContentRestoreAccess)
+		| (ContentAccessWithWrite & ContentPublicationAccess)
+		| (ContentAccessWithWrite & ContentRestoreAccess)
+		| (ContentAccessWithWrite & ContentPublicationAccess & ContentRestoreAccess);
+
 	/** Schema discovery - only if schema:read capability */
 	schema?: SchemaAccess;
 
