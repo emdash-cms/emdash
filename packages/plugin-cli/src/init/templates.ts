@@ -437,6 +437,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Create a translation with \`ctx.content.create(collection, data, { locale, translationOf })\`. The source must be an active row in the same collection. EmDash preserves its non-translatable fields, byline credits, taxonomy assignments, validation, and save hooks, and permits one active row per locale in the group.
 - With \`taxonomies:write\`, pass a taxonomy name and term fields to \`createTerm()\`. The method rejects \`parentId\` for a non-hierarchical taxonomy instead of ignoring it. Pass term IDs to \`addEntryTerms()\` and \`removeEntryTerms()\`; assignment methods apply deltas and do not replace existing terms.
 - Use \`hooks.content-policy:register\` for \`content:beforePublish\`, \`content:beforeSchedule\`, or \`content:beforeUnpublish\`. Return \`{ cancel: true, reason }\` to reject the action; this capability does not grant content reads, writes, or publication actions.
+- Use \`content:publish\` for revision-fenced publish, unpublish, schedule, and unschedule actions. Use \`content:restore\` separately for trashed reads and restore. Pass the latest \`_rev\` to every mutation.
 - Use \`ctx.storage\` for queryable records, \`ctx.settings\` for user configuration, and \`ctx.kv\` for internal key-value state.
 - Declare credentials as \`secret\` fields in \`admin.settingsSchema\`. The host encrypts them with \`EMDASH_ENCRYPTION_KEY\`; keep that key with operational backups.
 - Use Block Kit for sandboxed admin UI. Do not ship browser React components.

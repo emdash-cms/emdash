@@ -32,6 +32,8 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `content:read`                      | `ctx.content.get()`, `ctx.content.list()`, `ctx.content.getTranslations()`, `ctx.content.getPublicUrl()` |
 | `content:revisions:read`            | `ctx.content.listRevisions()`, `ctx.content.getRevision()` (implies `content:read`) |
 | `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` (implies `content:read`) |
+| `content:publish`                   | Versioned publish, unpublish, schedule, and unschedule operations (implies `content:read`) |
+| `content:restore`                   | Read and restore trashed content                                                   |
 | `comments:read`                     | `ctx.comments.get()`, `ctx.comments.list()`, `ctx.comments.count()` and comment personal data |
 | `comments:moderate`                 | `ctx.comments.setStatus()` with expected-status concurrency control (implies `comments:read`) |
 | `schema:read`                       | `ctx.schema.listCollections()`, `ctx.schema.getCollection()`                      |
@@ -54,7 +56,7 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 
 The following rules affect which capabilities a plugin needs:
 
-- **Implications.** `content:write` and `content:revisions:read` automatically imply `content:read`; `comments:moderate` implies `comments:read`; `taxonomies:write` implies `taxonomies:read`; `media:write` implies `media:read`; `redirects:write` implies `redirects:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
+- **Implications.** `content:write`, `content:revisions:read`, and `content:publish` automatically imply `content:read`; `comments:moderate` implies `comments:read`; `taxonomies:write` implies `taxonomies:read`; `media:write` implies `media:read`; `redirects:write` implies `redirects:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
 - **Media authorities are separate.** `media:read`, `media:bytes:read`, and `media:metadata:write` do not imply one another. Declare each operation the plugin uses. The existing `media:write` capability continues to imply `media:read` for compatibility.
 - **Taxonomies are separate from content.** Taxonomy capabilities do not grant `content:read` or `content:write`. Declare the matching content capability if the plugin also reads or edits entry fields.
 - **Publication policy is separate from content access.** `hooks.content-policy:register` lets a plugin inspect and reject publication state changes through policy hook events. It does not provide `ctx.content` or grant content editing or publication actions.
@@ -94,6 +96,29 @@ const translatedPost = await ctx.content.create(
 The source must be an active entry in the same collection. The new entry joins its translation group, inherits its byline credits and taxonomy assignments, and starts with the source values for fields marked as non-translatable. A value supplied for a non-translatable field does not replace the source value during translation creation. Content validation and save hooks run through the same runtime path as other content creates. EmDash does not re-enter the creating plugin's own `content:afterSave` hook, and content created from inside a save hook does not run save hooks again.
 
 Each translation group can contain one active entry per locale. Creating a second entry for the same group and locale throws a `CONFLICT` error. A missing source throws `NOT_FOUND`, an invalid or unconfigured locale throws `VALIDATION_ERROR`, and a save hook can stop the create with `SAVE_REJECTED`.
+## Change publication state
+
+Declare `content:publish` to publish, unpublish, schedule, or unschedule an entry. Each action requires the opaque `_rev` returned by `getVersioned()` or the preceding action. EmDash routes these methods through the same policy hooks, revision promotion, locale synchronization, redirects, media-usage updates, cache invalidation, and after-hooks as REST and MCP actions.
+
+The following route publishes the current draft only when the entry has not changed since it was read:
+
+```typescript title="src/plugin.ts"
+const current = await ctx.content!.getVersioned!("posts", postId);
+if (!current) return { ok: false, error: "NOT_FOUND" };
+
+try {
+	const published = await ctx.content!.publish!("posts", postId, {
+		_rev: current._rev,
+	});
+	return { ok: true, content: published.item, _rev: published._rev };
+} catch (error) {
+	return { ok: false, error: "PUBLISH_FAILED" };
+}
+```
+
+`schedule()` accepts `{ scheduledAt, _rev }`; the other publication methods accept `{ _rev }`. These methods do not accept a `publishedAt` override.
+
+Declare `content:restore` separately to read and restore trashed entries. `getTrashedVersioned()` returns `null` for a live or missing entry. Pass its `_rev` to `restore()` so a concurrent change returns a conflict instead of restoring stale state.
 
 ### Creating and assigning taxonomy terms
 
