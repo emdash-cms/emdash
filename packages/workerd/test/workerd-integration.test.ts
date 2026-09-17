@@ -227,6 +227,12 @@ export default {
 	routes: {
 		"state": {
 			handler: async (_route, ctx) => ({ isolateId: isolateId ??= crypto.randomUUID(), sawSave: await ctx.kv.get("saw-save") })
+		},
+		"publish": {
+			handler: async (route, ctx) => {
+				const current = await ctx.content.getVersioned("posts", route.input.id);
+				return ctx.content.publish("posts", route.input.id, { _rev: current._rev });
+			}
 		}
 	}
 };
@@ -300,11 +306,14 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					version: "1.0.0",
 					options: {},
 					code: RUNTIME_HOST_PLUGIN,
-					capabilities: ["content:write"],
+					capabilities: ["content:write", "content:publish"],
 					allowedHosts: [],
 					storage: {},
 					hooks: ["content:beforeSave"],
-					routes: [{ name: "state", public: true }],
+					routes: [
+						{ name: "state", public: true },
+						{ name: "publish", public: true },
+					],
 				},
 			],
 			createSandboxRunner: (options) => new WorkerdSandboxRunner(options),
@@ -323,6 +332,20 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				data: { item: { data: { title: "Original [workerd]" } } },
 			});
 			if (!created.success) return;
+			const published = await runtime.handlePluginApiRoute(
+				"runtime-workerd",
+				"POST",
+				"/publish",
+				new Request("https://test.local/publish", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ id: created.data.item.id }),
+				}),
+			);
+			expect(published).toMatchObject({
+				success: true,
+				data: { item: { id: created.data.item.id, status: "published" } },
+			});
 			const first = await runtime.handlePluginApiRoute(
 				"runtime-workerd",
 				"GET",
