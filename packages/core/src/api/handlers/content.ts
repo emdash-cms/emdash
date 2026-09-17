@@ -1390,12 +1390,14 @@ export async function handleContentRestore(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
-): Promise<ApiResult<{ restored: true; item: ContentItem }>> {
+	options: { _rev?: string } = {},
+): Promise<ApiResult<{ restored: true; item: ContentItem; _rev: string }>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveIdIncludingTrashed(repo, collection, id)) ?? id;
-			return repo.restore(collection, resolvedId);
+			return repo.restore(collection, resolvedId, expectedRevision);
 		});
 
 		if (!item) {
@@ -1410,9 +1412,15 @@ export async function handleContentRestore(
 
 		return {
 			success: true,
-			data: { restored: true, item },
+			data: { restored: true, item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
 		if (isTranslationLocaleConflict(error, collection)) {
 			return {
 				success: false,
