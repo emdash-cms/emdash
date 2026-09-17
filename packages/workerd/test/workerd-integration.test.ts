@@ -269,6 +269,12 @@ export default {
 					return { name: error.name, code: error.code, message: error.message };
 				}
 			}
+		},
+		"publish": {
+			handler: async (route, ctx) => {
+				const current = await ctx.content.getVersioned("posts", route.input.id);
+				return ctx.content.publish("posts", route.input.id, { _rev: current._rev });
+			}
 		}
 	}
 };
@@ -373,6 +379,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 						{ name: "state", public: true },
 						{ name: "translate", public: true },
 						{ name: "translate-error", public: true },
+						{ name: "publish", public: true },
 					],
 				},
 			],
@@ -449,6 +456,20 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				);
 				expect(failed).toMatchObject({ success: true, data: { name: code, code } });
 			}
+			const published = await runtime.handlePluginApiRoute(
+				"runtime-workerd",
+				"POST",
+				"/publish",
+				new Request("https://test.local/publish", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ id: created.data.item.id }),
+				}),
+			);
+			expect(published).toMatchObject({
+				success: true,
+				data: { item: { id: created.data.item.id, status: "published" } },
+			});
 			const first = await runtime.handlePluginApiRoute(
 				"runtime-workerd",
 				"GET",
