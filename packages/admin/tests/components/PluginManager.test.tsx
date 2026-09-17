@@ -462,7 +462,9 @@ describe("PluginManager", () => {
 				version: "2.0.0",
 			});
 		});
-		await expect.element(screen.getByText("Make network requests")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Connect to network hosts and load external plugin admin images"))
+			.toBeInTheDocument();
 		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
 		await expect.element(screen.getByText("sync", { exact: true })).toBeInTheDocument();
 

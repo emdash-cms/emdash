@@ -367,12 +367,18 @@ describe("describeCapability", () => {
 
 	it("appends allowed hosts for network:fetch", () => {
 		const result = describeCapability("network:fetch", ["api.example.com", "cdn.example.com"]);
-		expect(result).toBe("Make network requests to: api.example.com, cdn.example.com");
+		expect(result).toBe(
+			"Connect to network hosts and load external plugin admin images to: api.example.com, cdn.example.com",
+		);
 	});
 
 	it("ignores empty allowed hosts for network:fetch", () => {
-		expect(describeCapability("network:fetch", [])).toBe("Make network requests");
-		expect(describeCapability("network:fetch")).toBe("Make network requests");
+		expect(describeCapability("network:fetch", [])).toBe(
+			"Connect to network hosts and load external plugin admin images",
+		);
+		expect(describeCapability("network:fetch")).toBe(
+			"Connect to network hosts and load external plugin admin images",
+		);
 	});
 
 	it("ignores allowed hosts for non-fetch capabilities", () => {
