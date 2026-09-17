@@ -16,6 +16,10 @@ function toolbarScript(html: string): string {
 	return html.slice(start + openTag.length, end);
 }
 
+function actionToolbar(): string {
+	return renderToolbar({ editMode: true, isPreview: false, actionToken: "signed-action-token" });
+}
+
 describe("renderToolbar", () => {
 	afterEach(() => vi.useRealTimers());
 	it("renders toolbar with edit mode off", () => {
@@ -49,11 +53,7 @@ describe("renderToolbar", () => {
 	});
 
 	it("publishes through the dedicated visual-editing boundary", () => {
-		const html = renderToolbar({
-			editMode: true,
-			isPreview: false,
-			actionToken: "signed-action-token",
-		});
+		const html = actionToolbar();
 		expect(html).toContain("/_emdash/api/visual-editing/content/");
 		expect(html).not.toContain("X-EmDash-Action-Origin");
 		expect(html).toContain('"X-EmDash-Visual-Action": visualActionToken');
@@ -61,11 +61,7 @@ describe("renderToolbar", () => {
 	});
 
 	it("renews the action token and shows recovery when attestation expires", () => {
-		const html = renderToolbar({
-			editMode: true,
-			isPreview: false,
-			actionToken: "signed-action-token",
-		});
+		const html = actionToolbar();
 		expect(html).toContain("/_emdash/api/visual-editing/action-token");
 		expect(html).toContain("scheduleVisualActionTokenRefresh(240000)");
 		expect(html).toContain("Editing session expired. Refresh the page to continue.");
@@ -74,11 +70,7 @@ describe("renderToolbar", () => {
 
 	it("keeps renewal retries bounded and stops after authentication expires", async () => {
 		vi.useFakeTimers();
-		const html = renderToolbar({
-			editMode: true,
-			isPreview: false,
-			actionToken: "signed-action-token",
-		});
+		const html = actionToolbar();
 		const script = toolbarScript(html);
 		const refreshStart = script.indexOf("var visualActionToken");
 		const refreshEnd = script.indexOf("var dismissBtn");
@@ -135,11 +127,7 @@ describe("renderToolbar", () => {
 		],
 	])("distinguishes publish %s from token expiry", async (_label, error, expected) => {
 		vi.useFakeTimers();
-		const html = renderToolbar({
-			editMode: true,
-			isPreview: false,
-			actionToken: "signed-action-token",
-		});
+		const html = actionToolbar();
 		const script = toolbarScript(html);
 		const refreshStart = script.indexOf("var visualActionToken");
 		const refreshEnd = script.indexOf("var dismissBtn");
