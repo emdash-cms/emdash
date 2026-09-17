@@ -301,6 +301,14 @@ function createContext(originHook) {
 		}
 	});
 
+	async function contentAction(promise) {
+		const result = await promise;
+		if (result && result.__emdashContentActionError === true && result.error) {
+			throw Object.assign(new Error(result.error.message), result.error, { name: result.error.code });
+		}
+		return result;
+	}
+
 	const content = ${hasContentAccess} ? {
 		get: (collection, id) => bridgeCall("content/get", { collection, id }),
 		list: (collection, opts) => bridgeCall("content/list", { collection, ...opts }),
@@ -321,15 +329,15 @@ function createContext(originHook) {
 			deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids })
 		} : {}),
 		...(${hasContentPublish} ? {
-			getVersioned: (collection, id) => bridgeCall("content/getVersioned", { collection, id }),
-			publish: (collection, id, options) => bridgeCall("content/publish", { collection, id, revision: options._rev }),
-			unpublish: (collection, id, options) => bridgeCall("content/unpublish", { collection, id, revision: options._rev }),
-			schedule: (collection, id, options) => bridgeCall("content/schedule", { collection, id, scheduledAt: options.scheduledAt, revision: options._rev }),
-			unschedule: (collection, id, options) => bridgeCall("content/unschedule", { collection, id, revision: options._rev })
+			getVersioned: (collection, id) => contentAction(bridgeCall("content/getVersioned", { collection, id })),
+			publish: (collection, id, options) => contentAction(bridgeCall("content/publish", { collection, id, revision: options._rev })),
+			unpublish: (collection, id, options) => contentAction(bridgeCall("content/unpublish", { collection, id, revision: options._rev })),
+			schedule: (collection, id, options) => contentAction(bridgeCall("content/schedule", { collection, id, scheduledAt: options.scheduledAt, revision: options._rev })),
+			unschedule: (collection, id, options) => contentAction(bridgeCall("content/unschedule", { collection, id, revision: options._rev }))
 		} : {}),
 		...(${hasContentRestore} ? {
-			getTrashedVersioned: (collection, id) => bridgeCall("content/getTrashedVersioned", { collection, id }),
-			restore: (collection, id, options) => bridgeCall("content/restore", { collection, id, revision: options._rev })
+			getTrashedVersioned: (collection, id) => contentAction(bridgeCall("content/getTrashedVersioned", { collection, id })),
+			restore: (collection, id, options) => contentAction(bridgeCall("content/restore", { collection, id, revision: options._rev }))
 		} : {})
 	} : undefined;
 
