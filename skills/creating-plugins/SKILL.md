@@ -86,6 +86,7 @@ Use only canonical capability names:
 | `content:read`                   | `ctx.content.get()`, `list()`, `getTranslations()`, `getPublicUrl()`     |
 | `content:revisions:read`         | `ctx.content.listRevisions()`, `getRevision()`; implies content read     |
 | `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read             |
+| `hooks.content-policy:register`  | Publication, scheduling, and unpublication policy hooks                  |
 | `comments:read`                  | `ctx.comments.get()`, `list()`, `count()`; exposes comment personal data |
 | `comments:moderate`              | `ctx.comments.setStatus()` with expected status; implies read            |
 | `schema:read`                    | `ctx.schema.listCollections()`, `getCollection()`                        |
@@ -176,6 +177,8 @@ With `media:metadata:write`, `ctx.media!.updateMetadata!()` changes only alt tex
 ## Hooks
 
 Declare hooks in `src/plugin.ts`; declare any required capability in the manifest. Registry-installed and config-managed sandbox plugins enter the same host hook pipeline as trusted plugins while their handlers stay inside the runner isolate. The pipeline applies priority, dependencies, timeout, error policy, enable/disable state, exclusive-provider selection, and capability fencing.
+
+`hooks.content-policy:register` enables `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` without granting content read, write, or publication-action access. Return `{ cancel: true, reason }` to reject an action. Policy events include the action origin and the authenticated actor when one exists. Scheduled publication runs `content:beforePublish` again; a rejection unschedules the entry and lists the entry and reason on the dashboard until it is rescheduled, published, deleted, or dismissed.
 
 The comment lifecycle is:
 

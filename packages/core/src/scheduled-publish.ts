@@ -131,7 +131,7 @@ export async function publishDueContent(
 				});
 				if (result.success) {
 					batch.push({ collection: collection.slug, id: item.id });
-				} else if (result.error?.code === "NOT_DUE") {
+				} else if (result.error?.code === "NOT_DUE" || result.error?.code === "PUBLISH_REJECTED") {
 					// Unscheduled or rescheduled between selection and publish — the
 					// editor changed their mind; skip quietly, not a failure.
 				} else {

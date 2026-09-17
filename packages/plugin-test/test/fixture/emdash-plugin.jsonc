@@ -13,6 +13,7 @@
 		"taxonomies:write",
 		"redirects:write",
 		"schema:read",
+		"hooks.content-policy:register",
 		"media:read",
 		"media:bytes:read",
 		"media:metadata:write",

@@ -361,6 +361,9 @@ describe("describeCapability", () => {
 		expect(describeCapability("write:media")).toBe("Upload and manage media");
 		expect(describeCapability("comments:read")).toContain("author email addresses");
 		expect(describeCapability("redirects:write")).toBe("Change where visitors are sent");
+		expect(describeCapability("hooks.content-policy:register")).toBe(
+			"Review and block publishing, scheduling, and unpublishing content",
+		);
 	});
 
 	it("returns raw capability string for unknown capabilities", () => {
@@ -392,6 +395,7 @@ describe("CAPABILITY_LABELS", () => {
 			"comments:read",
 			"comments:moderate",
 			"schema:read",
+			"hooks.content-policy:register",
 			"taxonomies:read",
 			"taxonomies:write",
 			"redirects:read",

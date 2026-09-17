@@ -1,3 +1,5 @@
+import { VISUAL_ACTION_TOKEN_INVALID } from "./action-token.js";
+
 /**
  * EmDash Visual Editing Toolbar
  *
@@ -9,10 +11,11 @@
 interface ToolbarConfig {
 	editMode: boolean;
 	isPreview: boolean;
+	actionToken?: string;
 }
 
 export function renderToolbar(config: ToolbarConfig): string {
-	const { editMode, isPreview } = config;
+	const { editMode, isPreview, actionToken = "" } = config;
 
 	return `
 <!-- EmDash Visual Editing Toolbar -->
@@ -549,6 +552,59 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   var isEditMode = toolbar.getAttribute("data-edit-mode") === "true";
+  var visualActionToken = ${JSON.stringify(actionToken)};
+  var visualActionTokenErrorCode = ${JSON.stringify(VISUAL_ACTION_TOKEN_INVALID)};
+  var visualActionRefreshTimer = null;
+
+  function showVisualActionRecovery() {
+    if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
+    visualActionRefreshTimer = null;
+    statusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--error">Editing session expired. Refresh the page to continue.</span>';
+    publishBtn.disabled = true;
+    publishBtn.textContent = "Refresh page";
+  }
+
+  function showPublishError(message) {
+    statusEl.textContent = message || "Publish failed. Check your permissions and try again.";
+    publishBtn.disabled = false;
+    publishBtn.textContent = "Publish";
+  }
+
+  function scheduleVisualActionTokenRefresh(delay) {
+    if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
+    visualActionRefreshTimer = setTimeout(function() {
+      visualActionRefreshTimer = null;
+      refreshVisualActionToken();
+    }, delay);
+  }
+
+  function refreshVisualActionToken() {
+    return ecFetch("/_emdash/api/visual-editing/action-token", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { "X-EmDash-Visual-Action": visualActionToken },
+    })
+    .then(function(res) {
+      if (res.status === 401 || res.status === 403) {
+        showVisualActionRecovery();
+        return null;
+      }
+      if (!res.ok) throw new Error("Visual action token renewal failed");
+      return res.json();
+    })
+    .then(function(body) {
+      if (!body) return;
+      if (!body.data || !body.data.token) throw new Error("Visual action token renewal returned no token");
+      visualActionToken = body.data.token;
+      scheduleVisualActionTokenRefresh(240000);
+    })
+    .catch(function(error) {
+      console.error("Visual action token renewal failed:", error);
+      scheduleVisualActionTokenRefresh(30000);
+    });
+  }
+
+  if (visualActionToken) scheduleVisualActionTokenRefresh(240000);
 
   var dismissBtn = document.getElementById("emdash-tb-dismiss");
   if (dismissBtn) {
@@ -679,9 +735,10 @@ export function renderToolbar(config: ToolbarConfig): string {
     publishBtn.disabled = true;
     publishBtn.textContent = "Publishing\u2026";
 
-    ecFetch("/_emdash/api/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
+    ecFetch("/_emdash/api/visual-editing/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
       method: "POST",
       credentials: "same-origin",
+      headers: { "X-EmDash-Visual-Action": visualActionToken },
     })
     .then(function(res) {
       if (res.ok) {
@@ -691,9 +748,18 @@ export function renderToolbar(config: ToolbarConfig): string {
           location.reload();
         }
       } else {
-        publishBtn.disabled = false;
-        publishBtn.textContent = "Publish";
-        console.error("Publish failed:", res.status);
+        if (res.status === 401) {
+          showVisualActionRecovery();
+          return;
+        }
+        return res.json().catch(function() { return null; }).then(function(body) {
+          if (body && body.error && body.error.code === visualActionTokenErrorCode) {
+            showVisualActionRecovery();
+            return;
+          }
+          showPublishError(body && body.error && body.error.message);
+          console.error("Publish failed:", res.status);
+        });
       }
     })
     .catch(function(err) {

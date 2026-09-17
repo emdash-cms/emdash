@@ -176,6 +176,7 @@ describe("Cloudflare generated plugin context", () => {
 						body: await response.json(),
 						redirects: await ctx.redirects.list({ limit: 1 }),
 						canWriteRedirects: typeof ctx.redirects.create === "function",
+						content: ctx.content,
 					};
 				},
 			},
@@ -211,6 +212,7 @@ describe("Cloudflare generated plugin context", () => {
 			body: { ok: true },
 			redirects: { items: [{ source: "/old" }], hasMore: false },
 			canWriteRedirects: true,
+			content: undefined,
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });
 	});

@@ -22,6 +22,7 @@ import { resolveSecretsCached } from "#config/secrets.js";
 
 import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
 import { getRequestContext, runWithContext } from "../../request-context.js";
+import { generateVisualEditingActionToken } from "../../visual-editing/action-token.js";
 import { EDIT_PARAM, renderToolbarBootstrap } from "../../visual-editing/toolbar-bootstrap.js";
 import { renderToolbar } from "../../visual-editing/toolbar.js";
 
@@ -35,6 +36,17 @@ const toolbarMode: ToolbarMode = virtualConfig?.toolbar ?? "server";
  * such as the 404 page for a URL that matches no route.
  */
 type RouteCache = APIContext["cache"] | undefined;
+
+async function renderEditorToolbar(
+	context: APIContext,
+	config: { editMode: boolean; isPreview: boolean },
+): Promise<string> {
+	const { emdash, user } = context.locals;
+	if (!emdash?.db || !user) return renderToolbar(config);
+	const { previewSecret } = await resolveSecretsCached(emdash.db);
+	const actionToken = await generateVisualEditingActionToken(previewSecret, user.id);
+	return renderToolbar({ ...config, actionToken });
+}
 
 /**
  * Opt the current request out of Astro's route cache (e.g. Workers Cache on
@@ -254,7 +266,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// opt-out) in every toolbar mode, so the server toolbar is safe to
 			// inject here even in client mode.
 			if (isEditor && toolbarMode !== false) {
-				const toolbarHtml = renderToolbar({
+				const toolbarHtml = await renderEditorToolbar(context, {
 					editMode,
 					isPreview: !!preview,
 				});
@@ -289,7 +301,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// toolbar (response becomes `private, no-store` and route-cache
 		// opted out).
 		const response = await next();
-		const toolbarHtml = renderToolbar({
+		const toolbarHtml = await renderEditorToolbar(context, {
 			editMode: false,
 			isPreview: false,
 		});

@@ -28,6 +28,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"comments:read",
 	"comments:moderate",
 	"schema:read",
+	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
 	"redirects:read",
@@ -102,6 +103,9 @@ export const HOOK_NAMES = [
 	"content:afterSave",
 	"content:beforeDelete",
 	"content:afterDelete",
+	"content:beforePublish",
+	"content:beforeSchedule",
+	"content:beforeUnpublish",
 	"content:afterPublish",
 	"content:afterUnpublish",
 	"content:afterRestore",
@@ -275,6 +279,7 @@ const declaredAccessSchema = z.object({
 			read: accessConstraints.optional(),
 			revisionsRead: accessConstraints.optional(),
 			write: accessConstraints.optional(),
+			policy: accessConstraints.optional(),
 		})
 		.optional(),
 	comments: z

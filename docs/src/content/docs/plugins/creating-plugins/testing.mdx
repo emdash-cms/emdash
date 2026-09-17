@@ -157,7 +157,7 @@ The runtime host groups its API by boundary:
 - `transport` directly invokes the isolate for transport-level checks.
 - `fixtures` creates site, collection, field, user, byline, taxonomy, content, redirect, binary media, and plugin state without firing hooks.
 - `actions` runs content state changes, plugin activation and deactivation, generated settings updates, media uploads, public comment submission, comment moderation, and policy-checked plugin routes.
-- `inspect` reads content, redirects, byline credits, taxonomy assignments, plugin storage, KV, raw persisted setting envelopes, plugin state, scheduled tasks, media metadata and bytes, comments, and captured email.
+- `inspect` reads content, redirects, byline credits, taxonomy assignments, plugin storage, KV, raw persisted setting envelopes, plugin state, scheduled tasks, publication-policy rejections, media metadata and bytes, comments, and captured email. Use `inspect.scheduledPolicyRejections()` to verify that a scheduler veto was persisted for administrator attention.
 - `scheduled` controls the effective time for cron tasks and scheduled publishing, then runs one production maintenance batch.
 - `restart()` replaces the runtime and isolate while retaining D1, plugin storage, media storage, and plugin state.
 
@@ -194,7 +194,7 @@ await expect(host.inspect.mediaBytes(fixture.id)).resolves.toEqual(
 );
 ```
 
-The runtime host exposes shipped operations only. Capability-specific helpers for publication policy, Block Kit interactions, binary HTTP, raw routes, and expanded comment administration belong to the releases that add those capabilities.
+The runtime host exposes shipped operations only. Capability-specific helpers for Block Kit interactions, binary HTTP, raw routes, and expanded comment administration belong to the releases that add those capabilities.
 
 Use `createPluginRuntimeTestHost()` for translation creation. The direct transport host does not run the runtime-owned translation lifecycle that copies shared fields and attribution.
 

@@ -59,6 +59,9 @@ import type {
 	ContentAfterScheduleHandler,
 	ContentAfterUnpublishHandler,
 	ContentAfterUnscheduleHandler,
+	ContentBeforePublishHandler,
+	ContentBeforeScheduleHandler,
+	ContentBeforeUnpublishHandler,
 	ContentBeforeDeleteHandler,
 	ContentBeforeSaveHandler,
 	ContentDeleteEvent,
@@ -110,6 +113,9 @@ export interface HookHandlers {
 	"content:afterSave": ContentAfterSaveHandler;
 	"content:beforeDelete": ContentBeforeDeleteHandler;
 	"content:afterDelete": ContentAfterDeleteHandler;
+	"content:beforePublish": ContentBeforePublishHandler;
+	"content:beforeSchedule": ContentBeforeScheduleHandler;
+	"content:beforeUnpublish": ContentBeforeUnpublishHandler;
 	"content:afterPublish": ContentAfterPublishHandler;
 	"content:afterUnpublish": ContentAfterUnpublishHandler;
 	"content:afterRestore": ContentAfterRestoreHandler;
@@ -318,4 +324,10 @@ export type {
 	RedirectStatus,
 	RedirectUpdateInput,
 	VersionedRedirect,
+} from "./plugins/types.js";
+export type {
+	ContentActionOrigin,
+	ContentPolicyDecision,
+	ContentPolicyEvent,
+	ContentSchedulePolicyEvent,
 } from "./plugins/types.js";

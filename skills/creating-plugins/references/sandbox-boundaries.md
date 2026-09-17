@@ -22,17 +22,17 @@ The sandbox authoring type and manifest schema accept `page:fragments`, and the 
 
 The following surfaces do not exist in the current sandbox contract. Do not invent bridge calls, use internal REST routes as substitutes, or claim registry portability for them.
 
-### Content lifecycle and policy
+### Content lifecycle
 
 - `ctx.content` has `get`, `list`, `create`, `update`, and `delete`. It has no publish, unpublish, schedule, unschedule, trash, or restore methods.
-- Content hooks observe saves, deletes, and completed publication-state changes. There are no pre-publish, pre-unpublish, pre-schedule, or pre-restore policy hooks that can approve, reject, or transform those operations.
-- Content save events may include `actor: { id, role }`, but they do not include the actor's origin. A hook cannot distinguish REST, visual editing, MCP, or another authenticated path from the actor snapshot.
+- `hooks.content-policy:register` provides synchronous `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` hooks. It does not add publication methods to `ctx.content`.
+- Publication policy events identify API, MCP, visual-editor, plugin, scheduler, and system origins. Authenticated human actions also include `actor: { id, role, source }`.
 - `ctx.content.create()` accepts `{ locale, translationOf }` to add an active locale to an existing entry's translation group. It cannot create a second active entry for the same group and locale. `ctx.content.getTranslations()` lists the active locale siblings.
 
 ### Schema and taxonomies
 
-- There is no schema or collection-definition listing API on `PluginContext`.
-- `ctx.taxonomies` is read-only. It cannot create, update, delete, reorder, or assign terms.
+- `ctx.schema` is read-only. It cannot create, update, reorder, or delete collections or fields.
+- `taxonomies:write` can create terms and add or remove entry assignments. It cannot update, delete, or reorder terms.
 
 ### Comments and media
 

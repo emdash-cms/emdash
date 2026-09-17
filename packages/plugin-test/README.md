@@ -31,6 +31,7 @@ const result = await host.actions.content.create("posts", { data: {} });
 if (!result.success) throw new Error(result.error.message);
 await host.restart();
 await host.inspect.content.get("posts", result.data.item.id);
+await host.inspect.scheduledPolicyRejections();
 await host.dispose();
 ```
 

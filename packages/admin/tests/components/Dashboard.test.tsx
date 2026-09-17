@@ -29,6 +29,8 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 const mockFetchDashboardStats = vi.fn<() => Promise<DashboardStats>>();
+const mockDismissScheduledPolicyRejection =
+	vi.fn<(collection: string, id: string, revision: string) => Promise<void>>();
 const mockUseCurrentUser = vi.fn();
 
 vi.mock("../../src/lib/api/dashboard", async () => {
@@ -36,6 +38,8 @@ vi.mock("../../src/lib/api/dashboard", async () => {
 	return {
 		...actual,
 		fetchDashboardStats: () => mockFetchDashboardStats(),
+		dismissScheduledPolicyRejection: (collection: string, id: string, revision: string) =>
+			mockDismissScheduledPolicyRejection(collection, id, revision),
 	};
 });
 
@@ -75,6 +79,7 @@ describe("Dashboard", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockUseCurrentUser.mockReturnValue({ data: { role: 50 } });
+		mockDismissScheduledPolicyRejection.mockResolvedValue();
 	});
 
 	it("shows marketplace migration guidance to admins", async () => {
@@ -193,6 +198,126 @@ describe("Dashboard", () => {
 		await expect
 			.element(screen.getByText("Scheduled publishing needs attention"))
 			.not.toBeInTheDocument();
+	});
+
+	it("warns when a publication policy blocks scheduled content", async () => {
+		const stats = makeStats([]);
+		stats.policyRejectedScheduled = 2;
+		stats.policyRejections = [
+			{
+				collection: "posts",
+				id: "post-1",
+				pluginId: "content-guard",
+				reason: "Approval is required.",
+				rejectedAt: "2030-01-01T00:00:00.000Z",
+				_rev: "rejection-revision",
+			},
+		];
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect
+			.element(screen.getByText("Publication policy blocked scheduled content"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Approval is required.")).toBeInTheDocument();
+		await expect.element(screen.getByText("posts/post-1")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("One more blocked entry is not shown."))
+			.toBeInTheDocument();
+		await screen.getByRole("button", { name: "Dismiss" }).click();
+		expect(mockDismissScheduledPolicyRejection).toHaveBeenCalledWith(
+			"posts",
+			"post-1",
+			"rejection-revision",
+		);
+	});
+
+	it("refreshes a stale policy rejection after dismissal conflicts", async () => {
+		const staleStats = makeStats([]);
+		staleStats.policyRejectedScheduled = 1;
+		staleStats.policyRejections = [
+			{
+				collection: "posts",
+				id: "post-1",
+				pluginId: "content-guard",
+				reason: "Stale reason.",
+				rejectedAt: "2030-01-01T00:00:00.000Z",
+				_rev: "stale-revision",
+			},
+		];
+		const currentStats = makeStats([]);
+		currentStats.policyRejectedScheduled = 1;
+		currentStats.policyRejections = [
+			{
+				...staleStats.policyRejections[0]!,
+				reason: "Current reason.",
+				_rev: "current-revision",
+			},
+		];
+		mockFetchDashboardStats.mockResolvedValueOnce(staleStats).mockResolvedValueOnce(currentStats);
+		mockDismissScheduledPolicyRejection.mockRejectedValueOnce(
+			new Error("The rejection changed before it could be dismissed"),
+		);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+		await screen.getByRole("button", { name: "Dismiss" }).click();
+
+		await expect.element(screen.getByText("Current reason.")).toBeInTheDocument();
+		await expect
+			.element(screen.getByText("The rejection changed before it could be dismissed"))
+			.toBeInTheDocument();
+		expect(mockFetchDashboardStats).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not offer dismissal to authors", async () => {
+		mockUseCurrentUser.mockReturnValue({ data: { role: 30 } });
+		const stats = makeStats([]);
+		stats.policyRejectedScheduled = 1;
+		stats.policyRejections = [
+			{
+				collection: "posts",
+				id: "post-1",
+				pluginId: "content-guard",
+				reason: "Approval is required.",
+				rejectedAt: "2030-01-01T00:00:00.000Z",
+				_rev: "rejection-revision",
+			},
+		];
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("Approval is required.")).toBeInTheDocument();
+		await expect.element(screen.getByRole("button", { name: "Dismiss" })).not.toBeInTheDocument();
+	});
+
+	it("shows policy rejections and scheduler outages independently", async () => {
+		const stats = makeStats([
+			{
+				slug: "posts",
+				label: "Posts",
+				total: 1,
+				published: 0,
+				draft: 1,
+				scheduled: 1,
+				overdueScheduled: 1,
+			},
+		]);
+		stats.policyRejectedScheduled = 1;
+		stats.policyRejections = [];
+		stats.schedulerHealth = { status: "stale", lastCompletedAt: null };
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect
+			.element(screen.getByText("Publication policy blocked scheduled content"))
+			.toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Scheduled publishing needs attention"))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText(/scheduler heartbeat is stale/i)).toBeInTheDocument();
 	});
 
 	it("renders dashboard data from an older API without scheduler health", async () => {

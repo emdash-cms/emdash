@@ -161,6 +161,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"comments:read",
 		"comments:moderate",
 		"schema:read",
+		"hooks.content-policy:register",
 		"taxonomies:read",
 		"taxonomies:write",
 		"redirects:read",

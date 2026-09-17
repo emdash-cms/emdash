@@ -40,7 +40,7 @@ The current isolated runtime dispatches these hooks to Cloudflare and Node/worke
 
 - `plugin:install`, `plugin:activate`, `plugin:deactivate`, and `plugin:uninstall`
 - `content:beforeSave`, `content:afterSave`, `content:beforeDelete`, and `content:afterDelete`
-- `content:afterPublish`, `content:afterUnpublish`, `content:afterRestore`, `content:afterSchedule`, and `content:afterUnschedule`
+- `content:beforePublish`, `content:beforeSchedule`, `content:beforeUnpublish`, `content:afterPublish`, `content:afterUnpublish`, `content:afterRestore`, `content:afterSchedule`, and `content:afterUnschedule`
 - `media:beforeUpload` and `media:afterUpload`
 - `email:beforeSend`, `email:deliver`, and `email:afterSend`
 - `comment:beforeCreate`, `comment:moderate`, `comment:afterCreate`, and `comment:afterModerate`
@@ -180,6 +180,24 @@ Runs after successful delete.
 
 Event: `{ id: string, collection: string }`
 Returns: `void`
+
+### Publication policy hooks
+
+`content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` require `hooks.content-policy:register`. This authority is independent of `content:read`, `content:write`, and publication actions.
+
+Return `void` to allow the action or `{ cancel: true, reason }` to reject it. The reason must contain 1–500 plain-text characters. Invalid decisions and unexpected abort-policy errors stop the action with a generic failure. Explicit cancellations return `PUBLISH_REJECTED`, `SCHEDULE_REJECTED`, or `UNPUBLISH_REJECTED`.
+
+```typescript
+"content:beforePublish": async (event) => {
+	if (event.content.approvalStatus !== "approved") {
+		return { cancel: true, reason: "Approve this entry before publishing." };
+	}
+},
+```
+
+Events contain `{ content, collection, origin, actor? }`; `content:beforeSchedule` also contains `scheduledAt`. Human origins are `api`, `mcp`, or `visual-editor` and include the same value in `actor.source`. The visual-editor origin requires the signed short-lived token from an authenticated toolbar render. Other origins are `plugin` (with `pluginId`), `scheduler`, and `system`.
+
+Scheduled content runs `content:beforePublish` again when it becomes due. An explicit scheduler rejection unschedules the entry and lists its reason on the dashboard until the entry is rescheduled, published, deleted, or the record is dismissed. There is no `content:beforeUnschedule`, so an administrator can always cancel a future publication.
 
 ### `content:afterPublish`
 
@@ -532,6 +550,9 @@ These policies apply to sandboxed and trusted hooks in the shared host pipeline.
 | `content:afterSave`       | After save           | `content:read`                                | `void`                                                  |
 | `content:beforeDelete`    | Before delete        | `content:read`                                | `false` to cancel                                       |
 | `content:afterDelete`     | After delete         | `content:read`                                | `void`                                                  |
+| `content:beforePublish`   | Before publish       | `hooks.content-policy:register`               | `void` or cancellation                                  |
+| `content:beforeSchedule`  | Before schedule      | `hooks.content-policy:register`               | `void` or cancellation                                  |
+| `content:beforeUnpublish` | Before unpublish     | `hooks.content-policy:register`               | `void` or cancellation                                  |
 | `content:afterPublish`    | After publish        | `content:read`                                | `void`                                                  |
 | `content:afterUnpublish`  | After unpublish      | `content:read`                                | `void`                                                  |
 | `content:afterRestore`    | After restore        | `content:read`                                | `void`                                                  |

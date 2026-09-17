@@ -20,6 +20,19 @@ function makeManifest(storage: Record<string, { indexes: Array<string | string[]
 	};
 }
 
+describe("pluginManifestSchema — content policy", () => {
+	it("accepts the policy capability and all synchronous publication hooks", () => {
+		expect(
+			pluginManifestSchema.safeParse({
+				...makeManifest({}),
+				declaredAccess: { content: { policy: {} } },
+				capabilities: ["hooks.content-policy:register"],
+				hooks: ["content:beforePublish", "content:beforeSchedule", "content:beforeUnpublish"],
+			}).success,
+		).toBe(true);
+	});
+});
+
 describe("pluginManifestSchema — route entries", () => {
 	it("preserves taxonomy write authority during reconciliation", () => {
 		const result = pluginManifestSchema.safeParse({

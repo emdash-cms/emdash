@@ -1,4 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { createContext, runInContext, runInNewContext } from "node:vm";
+
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
 
@@ -6,6 +8,7 @@ import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
 const EDIT_TOGGLE_CHECKED_REGEX = /id="emdash-edit-toggle"\s+checked/;
 
 describe("renderToolbar", () => {
+	afterEach(() => vi.useRealTimers());
 	it("renders toolbar with edit mode off", () => {
 		const html = renderToolbar({ editMode: false, isPreview: false });
 		expect(html).toContain('id="emdash-toolbar"');
@@ -34,6 +37,127 @@ describe("renderToolbar", () => {
 		const html = renderToolbar({ editMode: true, isPreview: false });
 		expect(html).toContain('id="emdash-tb-publish"');
 		expect(html).toContain('style="display:none"');
+	});
+
+	it("publishes through the dedicated visual-editing boundary", () => {
+		const html = renderToolbar({
+			editMode: true,
+			isPreview: false,
+			actionToken: "signed-action-token",
+		});
+		expect(html).toContain("/_emdash/api/visual-editing/content/");
+		expect(html).not.toContain("X-EmDash-Action-Origin");
+		expect(html).toContain('"X-EmDash-Visual-Action": visualActionToken');
+		expect(html).toContain('visualActionToken = "signed-action-token"');
+	});
+
+	it("renews the action token and shows recovery when attestation expires", () => {
+		const html = renderToolbar({
+			editMode: true,
+			isPreview: false,
+			actionToken: "signed-action-token",
+		});
+		expect(html).toContain("/_emdash/api/visual-editing/action-token");
+		expect(html).toContain("scheduleVisualActionTokenRefresh(240000)");
+		expect(html).toContain("Editing session expired. Refresh the page to continue.");
+		expect(html).toContain("res.status === 401 || res.status === 403");
+	});
+
+	it("keeps renewal retries bounded and stops after authentication expires", async () => {
+		vi.useFakeTimers();
+		const html = renderToolbar({
+			editMode: true,
+			isPreview: false,
+			actionToken: "signed-action-token",
+		});
+		const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
+		const refreshStart = script.indexOf("var visualActionToken");
+		const refreshEnd = script.indexOf("var dismissBtn");
+		expect(refreshStart).toBeGreaterThanOrEqual(0);
+		expect(refreshEnd).toBeGreaterThan(refreshStart);
+		const statusEl = { innerHTML: "" };
+		const publishBtn = { disabled: false, textContent: "Publish" };
+		const ecFetch = vi
+			.fn()
+			.mockResolvedValueOnce({ ok: false, status: 500 })
+			.mockResolvedValueOnce({ ok: false, status: 500 })
+			.mockResolvedValueOnce({ ok: false, status: 401 });
+
+		runInNewContext(script.slice(refreshStart, refreshEnd), {
+			statusEl,
+			publishBtn,
+			ecFetch,
+			setTimeout,
+			clearTimeout,
+			console,
+		});
+		expect(vi.getTimerCount()).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(240_000);
+		expect(ecFetch).toHaveBeenCalledTimes(1);
+		expect(vi.getTimerCount()).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(30_000);
+		expect(ecFetch).toHaveBeenCalledTimes(2);
+		expect(vi.getTimerCount()).toBe(1);
+
+		await vi.advanceTimersByTimeAsync(30_000);
+		expect(ecFetch).toHaveBeenCalledTimes(3);
+		expect(vi.getTimerCount()).toBe(0);
+		expect(statusEl.innerHTML).toContain("Editing session expired");
+		expect(publishBtn).toEqual({ disabled: true, textContent: "Refresh page" });
+	});
+
+	it.each([
+		[
+			"permission denial",
+			{ code: "FORBIDDEN", message: "You cannot publish this entry" },
+			{ disabled: false, textContent: "Publish", status: "You cannot publish this entry", timers: 1 },
+		],
+		[
+			"expired attestation",
+			{ code: "VISUAL_ACTION_TOKEN_INVALID", message: "Token expired" },
+			{ disabled: true, textContent: "Refresh page", status: "Editing session expired", timers: 0 },
+		],
+	])("distinguishes publish %s from token expiry", async (_label, error, expected) => {
+		vi.useFakeTimers();
+		const html = renderToolbar({
+			editMode: true,
+			isPreview: false,
+			actionToken: "signed-action-token",
+		});
+		const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
+		const refreshStart = script.indexOf("var visualActionToken");
+		const refreshEnd = script.indexOf("var dismissBtn");
+		const publishStart = script.indexOf("function publish(");
+		const publishEnd = script.indexOf("// Edit mode toggle");
+		const statusEl = { innerHTML: "", textContent: "" };
+		const publishBtn = { disabled: false, textContent: "Publish" };
+		const ecFetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 403,
+			json: () => Promise.resolve({ success: false, error }),
+		});
+		const context = createContext({
+			statusEl,
+			publishBtn,
+			ecFetch,
+			setTimeout,
+			clearTimeout,
+			console,
+			pendingSavePromise: null,
+		});
+		runInContext(script.slice(refreshStart, refreshEnd), context);
+		runInContext(`${script.slice(publishStart, publishEnd)}\npublish("posts", "post-1");`, context);
+		await vi.advanceTimersByTimeAsync(0);
+
+		expect(ecFetch).toHaveBeenCalledTimes(1);
+		expect(publishBtn).toMatchObject({
+			disabled: expected.disabled,
+			textContent: expected.textContent,
+		});
+		expect(`${statusEl.innerHTML}${statusEl.textContent}`).toContain(expected.status);
+		expect(vi.getTimerCount()).toBe(expected.timers);
 	});
 
 	it("includes save status element", () => {

@@ -54,6 +54,7 @@ export type PluginCapability =
 	| "comments:moderate"
 	// Schema
 	| "schema:read"
+	| "hooks.content-policy:register"
 	// Taxonomies
 	| "taxonomies:read"
 	| "taxonomies:write"
@@ -198,6 +199,7 @@ export interface DeclaredAccess {
 		read?: AccessConstraints;
 		revisionsRead?: AccessConstraints;
 		write?: AccessConstraints;
+		policy?: AccessConstraints;
 	};
 	comments?: { read?: AccessConstraints; moderate?: AccessConstraints };
 	schema?: { read?: AccessConstraints };
@@ -254,6 +256,7 @@ export function capabilitiesToDeclaredAccess(
 		out.redirects = { read: {} };
 		if (caps.has("redirects:write")) out.redirects.write = {};
 	}
+	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
 		if (caps.has("media:write")) out.media.write = {};
@@ -308,6 +311,7 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 		caps.add("comments:read");
 	}
 	if (declaredAccess.schema?.read) caps.add("schema:read");
+	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.taxonomies?.write) {
 		caps.add("taxonomies:write");

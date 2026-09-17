@@ -341,6 +341,8 @@ describe("agent guidance", () => {
 		expect(skill).toContain("visitor destinations");
 		expect(skill).toContain("host.fixtures.redirect()");
 		expect(skill).toContain("host.inspect.redirects()");
+		expect(skill).toContain("hooks.content-policy:register");
+		expect(skill).toContain("this capability does not grant content reads");
 		expect(skill).toContain("Node/workerd parity opt-in");
 		expect(skill).toContain("schema:read");
 		expect(skill).toContain("content:revisions:read");

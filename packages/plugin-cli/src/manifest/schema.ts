@@ -351,6 +351,7 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"comments:read",
 	"comments:moderate",
 	"schema:read",
+	"hooks.content-policy:register",
 	"taxonomies:read",
 	"taxonomies:write",
 	"redirects:read",

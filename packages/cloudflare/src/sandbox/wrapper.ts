@@ -44,6 +44,10 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
 		capabilities.push("comments:read");
 	}
+	const hasContentAccess =
+		capabilities.includes("content:read") ||
+		capabilities.includes("content:write") ||
+		capabilities.includes("content:revisions:read");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 	const hasReadComments = capabilities.includes("comments:read");
@@ -337,7 +341,7 @@ function createContext(env, originHook) {
 		storage,
 		kv,
 		settings,
-		content,
+		content: ${hasContentAccess} ? content : undefined,
 		schema,
 		taxonomies,
 		redirects,

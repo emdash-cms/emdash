@@ -125,6 +125,11 @@
 					"type": "ref",
 					"ref": "#contentWriteConstraints",
 					"description": "Plugin may create, update, or delete content records. Implies `read`."
+				},
+				"policy": {
+					"type": "ref",
+					"ref": "#contentPolicyConstraints",
+					"description": "Plugin may inspect and reject publication, scheduling, and unpublication. Does not imply content read or write access."
 				}
 			}
 		},
@@ -178,6 +183,10 @@
 		"schemaReadConstraints": {
 			"type": "object",
 			"description": "Constraint object for schema.read. No constraint keys are normatively defined here."
+		},
+		"contentPolicyConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.policy. No constraint keys are normatively defined here; the operation grants only registration of synchronous publication policy hooks."
 		},
 		"taxonomiesAccess": {
 			"type": "object",

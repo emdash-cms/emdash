@@ -8,6 +8,7 @@ import {
 	ContentRepository,
 	MediaRepository,
 	OptionsRepository,
+	SCHEDULED_POLICY_REJECTION_PREFIX,
 	RevisionRepository,
 	SchemaRegistry,
 	UserRepository,
@@ -20,6 +21,7 @@ import {
 	type RedirectInfo,
 	type RedirectStatus,
 	type SandboxOptions,
+	type ScheduledPolicyRejection,
 	type Storage,
 	createContentAccess,
 } from "emdash";
@@ -210,6 +212,7 @@ export interface PluginRuntimeTestHost {
 		};
 		pluginState(): Promise<Record<string, unknown> | null>;
 		scheduledTasks(): Promise<Array<Record<string, unknown>>>;
+		scheduledPolicyRejections(): Promise<ScheduledPolicyRejection[]>;
 		media(id: string): ReturnType<EmDashRuntime["handleMediaGet"]>;
 		mediaBytes(id: string): Promise<Uint8Array | null>;
 		comments(): Promise<Array<Record<string, unknown>>>;
@@ -762,6 +765,15 @@ export async function createPluginRuntimeTestHost(
 					.where("plugin_id", "=", manifest.id)
 					.orderBy("next_run_at", "asc")
 					.execute();
+			},
+			async scheduledPolicyRejections() {
+				return [
+					...(
+						await optionRepo.getByPrefix<ScheduledPolicyRejection>(
+							SCHEDULED_POLICY_REJECTION_PREFIX,
+						)
+					).values(),
+				];
 			},
 			media: (id) => runtime.handleMediaGet(id),
 			async mediaBytes(id) {
