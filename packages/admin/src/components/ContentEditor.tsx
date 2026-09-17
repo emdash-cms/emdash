@@ -1012,13 +1012,8 @@ export function ContentEditor({
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
 												publishingState={publishingState}
-												canSchedule={canSchedule}
-												isScheduling={isScheduling}
-												isUnscheduling={isUnscheduling}
 												onPublish={handlePublish}
 												onUnpublish={handleUnpublish}
-												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-												onUnschedule={onUnschedule ? handleUnschedule : undefined}
 												onMenuOpenChange={setPublishingMenuOpen}
 											/>
 											<MobileSettingsButton />
@@ -1079,13 +1074,8 @@ export function ContentEditor({
 													isLive={isLive}
 													hasPendingChanges={hasPendingChanges}
 													publishingState={publishingState}
-													canSchedule={canSchedule}
-													isScheduling={isScheduling}
-													isUnscheduling={isUnscheduling}
 													onPublish={handlePublish}
 													onUnpublish={handleUnpublish}
-													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-													onUnschedule={onUnschedule ? handleUnschedule : undefined}
 													onMenuOpenChange={setPublishingMenuOpen}
 													size="sm"
 												/>
@@ -1189,17 +1179,12 @@ export function ContentEditor({
 								isLive={isLive}
 								hasPendingChanges={hasPendingChanges}
 								publishingState={publishingState}
-								canSchedule={canSchedule}
-								isScheduling={isScheduling}
-								isUnscheduling={isUnscheduling}
 								liveViewUrl={liveViewUrl}
 								supportsPreview={supportsPreview}
 								isLoadingPreview={isLoadingPreview}
 								onPreview={handlePreview}
 								onPublish={handlePublish}
 								onUnpublish={handleUnpublish}
-								onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
-								onUnschedule={onUnschedule ? handleUnschedule : undefined}
 								onMenuOpenChange={setPublishingMenuOpen}
 								announceSaveStatus={!isDistractionFree}
 							/>
@@ -1226,6 +1211,11 @@ export function ContentEditor({
 								isLive={isLive}
 								hasPendingChanges={hasPendingChanges}
 								publishingState={publishingState}
+								canSchedule={canSchedule}
+								isScheduling={isScheduling}
+								isUnscheduling={isUnscheduling}
+								onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+								onUnschedule={onUnschedule ? handleUnschedule : undefined}
 								supportsRevisions={supportsRevisions}
 								onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
 								isUpdatingPublishedAt={isUpdatingPublishedAt}
