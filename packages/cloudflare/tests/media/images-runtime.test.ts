@@ -41,6 +41,14 @@ describe("cloudflare images credential resolution", () => {
 		expect(accountHashFrom(thumbnailUrl(provider, "img-id"))).toBe("workers-hash");
 	});
 
+	it("prefers a direct config value over both the Workers binding and process.env", () => {
+		fakeEnv.CF_IMAGES_ACCOUNT_HASH = "workers-hash";
+		process.env.CF_IMAGES_ACCOUNT_HASH = "node-hash";
+
+		const provider = createMediaProvider({ accountHash: "direct-hash" });
+		expect(accountHashFrom(thumbnailUrl(provider, "img-id"))).toBe("direct-hash");
+	});
+
 	it("throws the existing missing-variable error when neither source has the value", () => {
 		const provider = createMediaProvider({});
 		expect(() => thumbnailUrl(provider, "img-id")).toThrow("Missing CF_IMAGES_ACCOUNT_HASH");

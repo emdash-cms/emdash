@@ -96,6 +96,17 @@ describe("cloudflare stream credential resolution", () => {
 		);
 	});
 
+	it("prefers a direct config value over both the Workers binding and process.env", () => {
+		fakeEnv.CF_ACCOUNT_ID = "wrkracc1";
+		process.env.CF_ACCOUNT_ID = "nodeacc1";
+		process.env.CF_STREAM_TOKEN = "node-token";
+
+		const directProvider = createMediaProvider({ accountId: "directac" });
+		expect(new URL(thumbnailUrl(directProvider, "video-id")).hostname).toBe(
+			"customer-directac.cloudflarestream.com",
+		);
+	});
+
 	it("throws the existing missing-variable error when neither source has the value", () => {
 		expect(() => createMediaProvider({})).toThrow("Missing CF_ACCOUNT_ID");
 	});
