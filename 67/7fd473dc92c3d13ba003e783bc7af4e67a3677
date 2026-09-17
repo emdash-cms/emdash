@@ -1,0 +1,63 @@
+e2e/tests/content-actions.spec.ts
+  s_e69d097f84a6bd::t_e76588ef23c62b 158-160,186,188,196-201,203-204,259-261,263,268-272,360-361,378,399-401,403,405-409
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_e69d097f84a6bd::t_db585b637a1a88 11,17,108-111,113-115,121-124,126-128,138-171,173-184,201,203,213,224,247,255-260,273,280,378,384,389,395,398-399,408-409,414,416-422,425-429,431-436,438-448,450,456,469-471,476-478,518,529-531,536-538,595,688-691,693-695,721
+packages/admin/tests/components/SaveButton.test.tsx
+  s_e69d097f84a6bd::t_54648feab6954d 13-20
+packages/admin/tests/publish-button-locale.test.tsx
+  s_e69d097f84a6bd::t_7a243d8c04801c 7-8,25-26,162,183-187,195,197-198,200-201,248,295-296,305,380
+packages/admin/tests/unpublish-discard-revision-token.test.tsx
+  s_e69d097f84a6bd::t_2ea549d7803842 319-330,364-368,395,406,409-411,467,487-489
+.changeset/safe-publishing-actions.md
+  s_12ff11085afac9::t_64f719c7980e9e 1-5
+docs/src/content/docs/guides/working-with-content.mdx
+  s_12ff11085afac9::t_7282a2fd6a8a9e 39,44-45,76-79,81-82,85-86,115,117-122,124-126
+e2e/fixtures/admin.ts
+  s_12ff11085afac9::t_2c1b9224c6ddfa 15,337,339,346-348
+e2e/tests/accessibility.spec.ts
+  s_12ff11085afac9::t_eae6d126108fb9 219,221-222
+e2e/tests/content-crud.spec.ts
+  s_12ff11085afac9::t_cb340eb1312d5e 210,215-218
+e2e/tests/revisions.spec.ts
+  s_12ff11085afac9::t_eb5f19eee256fa 171,174-177
+packages/admin/src/components/ContentEditor.tsx
+  s_12ff11085afac9::t_9a180f5e3771a7 15,34,40-41,60,326-329,514-519,526-558,708-715,725-728,731,733-734,737-738,741,749,782,798,801,903-906,909-928,932-958,965-966,977-1003,1006-1008,1010-1015,1018,1028-1030,1060,1074-1075,1142-1145,1154,1166-1168,1173-1175,1216-1236
+packages/admin/src/components/ContentEditorHeader.tsx
+  s_12ff11085afac9::t_8f3b0e2b1c213f 20,33,38-44,48,74,83-85,102-103,105-108
+packages/admin/src/components/SaveButton.tsx
+  s_12ff11085afac9::t_55e13d54410e3c 17,24,34
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_12ff11085afac9::t_c3974060f9a7a7 1170,1182,1184,1188,1191-1223,1352,1440,1442-1444,1500-1610,1708,1712,1723-1724,1732,1736,1738-1740,1757-1762,1775,1943,1959-1961,1986,2005-2007,2014,2021,2034-2035,2039,2052-2053,2055-2057,2127,2150,2159,2167,2202,2212-2216,2221,2230-2232,2236,2250,2252,2259,2271,2273,2276,2289,2306,2322,2335-2338,2341,2352,2357,2368-2371,2662-2664
+packages/admin/tests/components/ContentEditorHeader.test.tsx
+  s_12ff11085afac9::t_d0102931cf4ff2 32
+packages/admin/tests/components/ContentEditorMemo.test.tsx
+  s_12ff11085afac9::t_65387c361cfda6 12,23,82-86
+packages/admin/tests/components/ContentSettingsPanel.test.tsx
+  s_12ff11085afac9::t_5e49a5299ce681 11-12,173,243,255-256,277-280,1039,1044-1060,1062-1066,1068,1070-1075,1078,1081-1083,1085-1089,1093-1095,1098-1099,1101-1102
+packages/admin/tests/publish-autosave-race.test.tsx
+  s_12ff11085afac9::t_b280036fb784c3 260-265,267-269,275-283,437,460,465,488,493-494,505,578-580,582,584,607,610,717,741,751,753,769
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "677fd473dc92c3d13ba003e783bc7af4e67a3677",
+  "prompts": {},
+  "sessions": {
+    "s_12ff11085afac9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb5-4f63-7e11-88f3-2d9c9913ceed",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e69d097f84a6bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb0-d849-7f03-a16d-059c8a9c7288",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
