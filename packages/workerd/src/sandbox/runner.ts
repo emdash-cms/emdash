@@ -568,7 +568,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		if (!entry) return;
 		this.plugins.delete(pluginId);
 		this.freePorts.push(entry.port);
-		this.backingService?.removePlugin(pluginId);
+		this.backingService?.removePlugin(entry.manifest.id, entry.manifest.version);
 		if (this.plugins.size === 0) {
 			void this.stopWorkerd();
 		} else {

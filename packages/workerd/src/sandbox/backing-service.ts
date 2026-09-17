@@ -23,7 +23,7 @@ import type { WorkerdSandboxRunner } from "./runner.js";
 
 export interface BackingServiceHandler {
 	handler: (req: IncomingMessage, res: ServerResponse) => void;
-	removePlugin: (pluginId: string) => void;
+	removePlugin: (pluginId: string, version: string) => void;
 }
 
 /** Error carrying an HTTP status code, used to surface request-level failures. */
@@ -109,8 +109,8 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 
 	return {
 		handler,
-		removePlugin(pluginId: string) {
-			handlerCache.delete(pluginId);
+		removePlugin(pluginId: string, version: string) {
+			handlerCache.delete(`${pluginId}:${version}`);
 		},
 	};
 }
