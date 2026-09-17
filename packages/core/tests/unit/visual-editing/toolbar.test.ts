@@ -112,7 +112,12 @@ describe("renderToolbar", () => {
 		[
 			"permission denial",
 			{ code: "FORBIDDEN", message: "You cannot publish this entry" },
-			{ disabled: false, textContent: "Publish", status: "You cannot publish this entry", timers: 1 },
+			{
+				disabled: false,
+				textContent: "Publish",
+				status: "You cannot publish this entry",
+				timers: 1,
+			},
 		],
 		[
 			"expired attestation",
