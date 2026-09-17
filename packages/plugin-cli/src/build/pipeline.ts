@@ -272,6 +272,8 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			widgets: entries.manifest.admin.widgets,
 			settingsSchema: entries.manifest.admin.settingsSchema,
 			fieldWidgets: entries.manifest.admin.fieldWidgets,
+			editorPanels: entries.manifest.admin.editorPanels,
+			editorActions: entries.manifest.admin.editorActions,
 		},
 	};
 
@@ -342,8 +344,32 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 	if (parsed.mcp) {
 		resolvedPlugin.mcp = parsed.mcp;
 	}
+	validateEditorExtensionRoutes(resolvedPlugin);
 
 	return resolvedPlugin;
+}
+
+export function validateEditorExtensionRoutes(plugin: ResolvedPlugin): void {
+	for (const [kind, extensions] of [
+		["editor panel", plugin.admin.editorPanels],
+		["editor action", plugin.admin.editorActions],
+	] as const) {
+		for (const extension of extensions ?? []) {
+			const route = plugin.routes[extension.route];
+			if (!route) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" references missing route "${extension.route}".`,
+				);
+			}
+			if (route.public === true) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" must reference a private route.`,
+				);
+			}
+		}
+	}
 }
 
 /**

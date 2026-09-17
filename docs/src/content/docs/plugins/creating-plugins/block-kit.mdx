@@ -1,6 +1,6 @@
 ---
 title: Block Kit
-description: Declarative UI blocks for sandboxed plugin admin pages and widgets.
+description: Declarative UI blocks for sandboxed plugin pages, widgets, and saved-entry extensions.
 ---
 
 import { Aside } from "@astrojs/starlight/components";
@@ -140,7 +140,7 @@ const plugin: SandboxedPlugin = {
 export default plugin;
 ```
 
-`routeCtx.ui` contains the surface (`admin-page` or `dashboard-widget`), locale, and text direction. The admin locale is separate from `ctx.site.locale`, which describes the site's default content locale. Manifest page labels remain static strings.
+`routeCtx.ui` contains the surface, locale, and text direction. The admin locale is separate from `ctx.site.locale`, which describes the site's default content locale. Manifest labels remain static strings.
 
 ## Navigation links
 
@@ -179,6 +179,57 @@ The available targets are:
 External links open in a new tab with `noopener noreferrer`. Link elements do not accept `action_id` and cannot appear as form fields. Use a button when the interaction must call the plugin route.
 
 Block images use the same browser-resource policy. Root-relative image URLs are allowed. An external image must use HTTPS and its hostname must appear in the plugin's `allowedHosts`. A plugin with `network:request:unrestricted` can load an HTTPS image from any hostname. Other external images cause the complete Block Kit response to be rejected.
+
+## Saved-entry panels and actions
+
+Declare an editor panel when a plugin needs to show information beside a saved entry. Panels start collapsed and call their private route only when an editor opens them.
+
+The following manifest adds a panel for posts and a confirmed repair action:
+
+```jsonc title="emdash-plugin.jsonc"
+"admin": {
+	"editorPanels": [
+		{
+			"id": "content-health",
+			"title": "Content health",
+			"route": "editor/content-health",
+			"collections": ["posts"],
+		},
+	],
+	"editorActions": [
+		{
+			"id": "repair-metadata",
+			"label": "Repair metadata",
+			"route": "editor/repair-metadata",
+			"placement": "overflow",
+			"style": "danger",
+			"confirm": {
+				"title": "Repair metadata?",
+				"text": "This changes the saved entry.",
+				"confirm": "Repair",
+				"deny": "Cancel",
+			},
+		},
+	],
+}
+```
+
+Each referenced route must be private. Its `permission` controls which editors can invoke the extension. The host also reloads the saved entry and checks its owner before calling the plugin.
+
+Editor extension routes receive an attested `routeCtx.ui` value. For `content-editor-panel` and `content-editor-action` surfaces, `routeCtx.ui.entry` contains the collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the selected declaration. The context does not contain field values or unsaved editor state. Use `ctx.content` with the `content:read` capability when the plugin needs the saved content.
+
+A panel receives `{ type: "panel_load" }` when it opens. Its later button and form interactions use the usual `block_action` and `form_submit` shapes. Return a validated `BlockResponse` from every panel interaction.
+
+An editor action receives `{ type: "editor_action" }`. Return an object containing an optional toast and at most one terminal effect:
+
+```typescript title="src/plugin.ts"
+return {
+	toast: { type: "success", message: "Metadata repaired" },
+	refresh: true,
+};
+```
+
+Use `refresh: true` to reload the entry or `navigate` with a structured link target. A response cannot request both. EmDash rejects unknown commands, unsafe navigation, and responses over the Block Kit limits before applying an effect.
 
 ## Block types
 

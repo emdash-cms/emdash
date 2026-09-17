@@ -1,9 +1,11 @@
+import { getLocaleDir, resolveLocale } from "@emdash-cms/admin/locales";
 import { Permissions, type Permission, type RoleLevel } from "@emdash-cms/auth";
+import { validateContentEditorPanelInteraction } from "@emdash-cms/blocks/server";
 
-import { requirePerm } from "../api/authorize.js";
+import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
 import { requireScope } from "../auth/scopes.js";
-import type { EmDashRuntime } from "../emdash-runtime.js";
+import type { EmDashRuntime, PluginEditorExtensionDispatch } from "../emdash-runtime.js";
 import type { UserInfo } from "./types.js";
 
 function toRoleLevel(value: number): RoleLevel | null {
@@ -24,6 +26,7 @@ export interface PluginApiRequestContext {
 	request: Request;
 	user?: UserInfo | null;
 	tokenScopes?: string[];
+	editorDispatch?: PluginEditorExtensionDispatch;
 }
 
 /** Dispatch a request through the production plugin-route policy boundary. */
@@ -34,6 +37,7 @@ export async function dispatchPluginApiRequest({
 	request,
 	user,
 	tokenScopes,
+	editorDispatch,
 }: PluginApiRequestContext): Promise<Response> {
 	const method = request.method.toUpperCase();
 	const routeMeta = runtime.getPluginRouteMeta(pluginId, path);
@@ -64,7 +68,14 @@ export async function dispatchPluginApiRequest({
 	}
 
 	const caller = routeMeta.public ? undefined : (user ?? undefined);
-	const result = await runtime.handlePluginApiRoute(pluginId, method, path, request, caller);
+	const result = await runtime.handlePluginApiRoute(
+		pluginId,
+		method,
+		path,
+		request,
+		caller,
+		editorDispatch,
+	);
 	if (!result.success) {
 		const code = result.error?.code ?? "PLUGIN_ERROR";
 		const message =
@@ -80,4 +91,130 @@ export async function dispatchPluginApiRequest({
 		response.headers.set("Cache-Control", routeMeta.cacheControl);
 	}
 	return response;
+}
+
+export interface PluginEditorExtensionApiRequestContext {
+	runtime: EmDashRuntime;
+	pluginId: string;
+	kind: "panel" | "action";
+	extensionId: string;
+	collection: string;
+	entryId: string;
+	request: Request;
+	user?: UserInfo | null;
+	tokenScopes?: string[];
+}
+
+/** Dispatch a saved-entry extension through ownership, route, and isolate policy. */
+export async function dispatchPluginEditorExtensionApiRequest({
+	runtime,
+	pluginId,
+	kind,
+	extensionId,
+	collection,
+	entryId,
+	request,
+	user,
+	tokenScopes,
+}: PluginEditorExtensionApiRequestContext): Promise<Response> {
+	const definition = runtime.getPluginEditorExtension(pluginId, kind, extensionId, collection);
+	if (!definition) return apiError("NOT_FOUND", "Plugin editor extension not found", 404);
+
+	const routeMeta = runtime.getPluginRouteMeta(pluginId, definition.extension.route);
+	if (!routeMeta || routeMeta.public) {
+		return apiError(
+			"INVALID_PLUGIN_EDITOR_EXTENSION",
+			"Plugin editor extension must reference a private route",
+			500,
+		);
+	}
+
+	const requestedLocale = new URL(request.url).searchParams.get("locale") || undefined;
+	const contentResult = await runtime.handleContentGet(collection, entryId, requestedLocale);
+	if (!contentResult.success) {
+		return contentResult.error?.code === "NOT_FOUND"
+			? apiError("NOT_FOUND", "Content item not found", 404)
+			: apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
+	}
+	const contentData = contentResult.data;
+	const item =
+		typeof contentData === "object" && contentData !== null && "item" in contentData
+			? contentData.item
+			: null;
+	if (typeof item !== "object" || item === null) {
+		return apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
+	}
+	const authorId = "authorId" in item && typeof item.authorId === "string" ? item.authorId : "";
+	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
+		user == null ? user : undefined;
+	if (user) {
+		const ownerRole = toRoleLevel(user.role);
+		if (ownerRole === null) {
+			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
+		}
+		ownershipUser = { id: user.id, role: ownerRole };
+	}
+	const ownershipDenied = requireOwnerPerm(
+		ownershipUser,
+		authorId,
+		"content:edit_own",
+		"content:edit_any",
+	);
+	if (ownershipDenied) return ownershipDenied;
+
+	const canonicalId = "id" in item && typeof item.id === "string" ? item.id : null;
+	const canonicalLocale = "locale" in item && typeof item.locale === "string" ? item.locale : null;
+	const version = "version" in item && typeof item.version === "number" ? item.version : null;
+	if (!canonicalId || version === null) {
+		return apiError("CONTENT_GET_ERROR", "Content item has invalid identity", 500);
+	}
+
+	let input: unknown;
+	if (kind === "panel") {
+		try {
+			input = await request.json();
+		} catch {
+			return apiError("INVALID_REQUEST", "Editor panel interaction must be JSON", 400);
+		}
+		const validation = validateContentEditorPanelInteraction(input);
+		if (!validation.valid) {
+			return apiError("INVALID_PLUGIN_UI_CONTEXT", "Invalid editor panel interaction", 400);
+		}
+	} else {
+		input = { type: "editor_action" };
+	}
+
+	const headers = new Headers(request.headers);
+	headers.set("Content-Type", "application/json");
+	const pluginRequest = new Request(request.url, {
+		method: "POST",
+		headers,
+		body: JSON.stringify(input),
+	});
+	const locale = resolveLocale(request);
+	return dispatchPluginApiRequest({
+		runtime,
+		pluginId,
+		path: definition.extension.route,
+		request: pluginRequest,
+		user,
+		tokenScopes,
+		editorDispatch: {
+			kind,
+			policy: definition.policy,
+			ui: {
+				surface: kind === "panel" ? "content-editor-panel" : "content-editor-action",
+				locale,
+				direction: getLocaleDir(locale),
+				contentLocale: canonicalLocale ?? undefined,
+				extensionId,
+				entry: {
+					collection,
+					id: canonicalId,
+					locale: canonicalLocale,
+					version,
+				},
+			},
+		},
+	});
 }

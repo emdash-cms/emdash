@@ -514,6 +514,22 @@ return {
 }
 ```
 
+## Saved-entry panels and actions
+
+`admin.editorPanels` and `admin.editorActions` point to private plugin routes. Panel routes return Block Kit and receive `panel_load`, `block_action`, or `form_submit`. Action routes receive `editor_action` and return only these bounded fields:
+
+```typescript
+{
+	toast?: { message: string; type: "success" | "error" | "info" };
+	refresh?: true;
+	navigate?: LinkTarget;
+}
+```
+
+Use either `refresh` or `navigate`, not both. Navigation uses the same structured target validator as `link` elements. A danger action declaration must include a confirmation dialog.
+
+For both surfaces, `routeCtx.ui.entry` contains the host-reloaded collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the manifest declaration. Saved field values and unsaved editor state are not included.
+
 ## Links and admin locale
 
 Use a structured link target instead of returning an admin URL:

@@ -215,6 +215,8 @@ export type {
 	PluginAdminConfig,
 	PluginAdminPage,
 	PluginDashboardWidget,
+	PluginEditorPanel,
+	PluginEditorAction,
 	PluginAdminExports,
 	FieldWidgetConfig,
 	PortableTextBlockConfig,

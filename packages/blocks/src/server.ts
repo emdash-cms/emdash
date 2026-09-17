@@ -13,6 +13,8 @@ export {
 	normalizePluginPagePath,
 	validateBlockResponse,
 	validateBlocks,
+	validateContentEditorActionResponse,
+	validateContentEditorPanelInteraction,
 } from "./validation.js";
 export type { BlockValidationPolicy, ValidationError } from "./validation.js";
 
@@ -55,7 +57,10 @@ export type {
 	FormSubmit,
 	PageLoad,
 	BlockInteraction,
+	ContentEditorPanelInteraction,
+	ContentEditorActionInvocation,
 	PluginUiContext,
+	ContentEditorActionResponse,
 	// Response
 	BlockResponse,
 } from "./types.js";

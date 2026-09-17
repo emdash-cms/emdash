@@ -117,6 +117,14 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern:
+			"/_emdash/api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId]",
+		entrypoint: resolveRoute(
+			"api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId].ts",
+		),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/revisions",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/revisions.ts"),
 	});

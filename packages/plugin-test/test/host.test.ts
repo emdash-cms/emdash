@@ -393,6 +393,99 @@ describe("runtime plugin test host", () => {
 			"INVALID_BLOCK_RESPONSE",
 		);
 	});
+
+	it("invokes saved-entry panels and actions with host-attested identity", async () => {
+		runtimeHost = await createPluginRuntimeTestHost({
+			i18n: { defaultLocale: "en", locales: ["en", "ar"] },
+		});
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const entry = await runtimeHost.fixtures.content("posts", {
+			data: { title: "Saved entry" },
+			locale: "en",
+		});
+
+		const panel = await runtimeHost.admin.loadEditorPanel("entry-context", "posts", entry.id, {
+			locale: "ar",
+			contentLocale: "en",
+		});
+		expect(panel.blocks[0]).toMatchObject({
+			type: "fields",
+			fields: [
+				{ label: "Surface", value: "content-editor-panel" },
+				{ label: "Extension", value: "entry-context" },
+				{ label: "Collection", value: "posts" },
+				{ label: "Entry", value: entry.id },
+				{ label: "Content locale", value: "en" },
+				{ label: "Version", value: expect.any(String) },
+			],
+		});
+		await runtimeHost.actions.content.update("posts", entry.id, {
+			data: { title: "Updated entry" },
+			locale: "en",
+		});
+		const refreshedPanel = await runtimeHost.admin.loadEditorPanel(
+			"entry-context",
+			"posts",
+			entry.id,
+			{ locale: "ar", contentLocale: "en" },
+		);
+		expect(refreshedPanel.blocks[0]).toMatchObject({
+			type: "fields",
+			fields: expect.arrayContaining([{ label: "Version", value: "2" }]),
+		});
+
+		await expect(
+			runtimeHost.admin.invokeEditorAction("refresh-entry", "posts", entry.id, {
+				locale: "ar",
+				contentLocale: "en",
+			}),
+		).resolves.toEqual({
+			refresh: true,
+			toast: { type: "success", message: `posts/${entry.id} refreshed` },
+		});
+		await expect(
+			runtimeHost.admin.actEditorPanel("entry-context", "posts", entry.id, "invalid"),
+		).rejects.toThrow("INVALID_BLOCK_RESPONSE");
+		await expect(
+			runtimeHost.admin.invokeEditorAction("invalid-action", "posts", entry.id),
+		).rejects.toThrow("INVALID_EDITOR_ACTION_RESPONSE");
+	});
+
+	it("authorizes editor extensions against the saved entry owner", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const [owner, otherAuthor] = await Promise.all([
+			runtimeHost.fixtures.user({ email: "owner@example.test", role: "author" }),
+			runtimeHost.fixtures.user({ email: "other@example.test", role: "author" }),
+		]);
+		const entry = await runtimeHost.fixtures.content("posts", {
+			data: { title: "Owned entry" },
+			authorId: owner.id,
+		});
+
+		await expect(
+			runtimeHost.admin.loadEditorPanel("entry-context", "posts", entry.id, { user: owner }),
+		).resolves.toHaveProperty("blocks");
+		await expect(
+			runtimeHost.admin.loadEditorPanel("entry-context", "posts", entry.id, {
+				user: otherAuthor,
+			}),
+		).rejects.toThrow("(403)");
+		await expect(
+			runtimeHost.admin.loadEditorPanel("missing", "posts", entry.id, { user: owner }),
+		).rejects.toThrow("(404)");
+		await expect(
+			runtimeHost.admin.loadEditorPanel("entry-context", "pages", entry.id, { user: owner }),
+		).rejects.toThrow("(404)");
+	});
 });
 
 describe("plugin test host", () => {
@@ -409,6 +502,14 @@ describe("plugin test host", () => {
 		});
 		expect(host.manifest.admin.settingsSchema).toHaveProperty("enabled");
 		expect(host.manifest.admin.fieldWidgets?.[0]).toMatchObject({ name: "event-picker" });
+		expect(host.manifest.admin.editorPanels?.[0]).toMatchObject({
+			id: "entry-context",
+			route: "entry-context",
+		});
+		expect(host.manifest.admin.editorActions?.[0]).toMatchObject({
+			id: "refresh-entry",
+			route: "refresh-entry",
+		});
 
 		await expect(host.invokeRoute("hello")).resolves.toEqual({
 			pluginId: "plugin-test-fixture",
