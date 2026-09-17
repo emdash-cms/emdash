@@ -466,6 +466,9 @@ describe("PluginManager", () => {
 		await expect
 			.element(screen.getByText("Edit media alt text, captions, and focal points"))
 			.toBeInTheDocument();
+		await expect
+			.element(screen.getByText("Connect to network hosts and load external plugin admin images"))
+			.toBeInTheDocument();
 		await expect.element(screen.getByText("webhook")).toBeInTheDocument();
 		await expect.element(screen.getByText("sync", { exact: true })).toBeInTheDocument();
 
