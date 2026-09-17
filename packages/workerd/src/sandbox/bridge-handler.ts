@@ -75,6 +75,17 @@ function contentCreateErrorDetails(error: unknown): { code: string; message: str
 		: null;
 }
 
+const CONTENT_ACTION_ERROR_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
+const CONTENT_ACTION_METHODS = new Set([
+	"content/getVersioned",
+	"content/publish",
+	"content/unpublish",
+	"content/schedule",
+	"content/unschedule",
+	"content/getTrashedVersioned",
+	"content/restore",
+]);
+
 /**
  * Schema view of a content table (ec_${collection}) for kysely. The standard
  * system columns are typed; user-defined fields are addressed via the open
@@ -212,9 +223,10 @@ export function createBridgeHandler(
 		secretRedactor: opts.secretRedactor ?? createPluginSecretRedactor(),
 	};
 	return async (request: Request): Promise<Response> => {
+		let method = "";
 		try {
 			const url = new URL(request.url);
-			const method = url.pathname.slice(1);
+			method = url.pathname.slice(1);
 
 			let body: Record<string, unknown> = {};
 			if (request.method === "POST") {
@@ -287,6 +299,20 @@ export function createBridgeHandler(
 					{ error: { name: contentCreateError.code, ...contentCreateError } },
 					{ status },
 				);
+			}
+			if (
+				CONTENT_ACTION_METHODS.has(method) &&
+				error instanceof Error &&
+				"code" in error &&
+				typeof error.code === "string" &&
+				CONTENT_ACTION_ERROR_CODE_REGEX.test(error.code)
+			) {
+				return Response.json({
+					result: {
+						__emdashContentActionError: true,
+						error: { code: error.code, message: error.message },
+					},
+				});
 			}
 			const message = error instanceof Error ? error.message : "Internal error";
 			return new Response(JSON.stringify({ error: message }), {
