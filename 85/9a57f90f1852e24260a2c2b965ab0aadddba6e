@@ -1,0 +1,49 @@
+packages/admin/src/components/Shell.tsx
+  s_e69d097f84a6bd::t_bb075a911b8991 21-22,65-67,110,114
+packages/admin/src/components/Sidebar.tsx
+  s_e69d097f84a6bd::t_8006cd705e2c60 1,3,29,31,89,373,375,384-389,627-660
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_e69d097f84a6bd::t_d15485625845e6 1,144-151,161,1138-1155,1347,1354,1360,1395,1402,1404,1558,1573-1588,1621,1625-1626,1628-1629,2016,2019,2027-2030,2072,2280,2340,2425,2569,2571,2599,2604,2606,2612,2714
+packages/admin/tests/components/Header.test.tsx
+  s_e69d097f84a6bd::t_837cb586e038c8 5,21-24,56-57,64-69,84-96,125-144,154-183
+docs/technical-specs/editor-publishing-toolbar.md
+  s_12ff11085afac9::t_cde8ef0a827578 1-581
+packages/admin/src/components/AdminUtilities.tsx
+  s_12ff11085afac9::t_e989b74c598944 1-104
+packages/admin/src/components/ContentEditor.tsx
+  s_12ff11085afac9::t_badbda2b213303 16,40-44,318,327-329,331-340,342-344,912-962,967-968,982,986,991-1005,1069
+packages/admin/src/components/ContentEditorHeader.tsx
+  s_12ff11085afac9::t_67d99d94424529 1-113
+packages/admin/src/components/Header.tsx
+  s_12ff11085afac9::t_eeb6d8f7e15062 1,3,5,34
+packages/admin/src/router.tsx
+  s_12ff11085afac9::t_bae5828821b8aa 689,831
+packages/admin/tests/components/ContentEditorHeader.test.tsx
+  s_12ff11085afac9::t_f9301860109824 1-58
+packages/admin/tests/components/Shell.test.tsx
+  s_12ff11085afac9::t_b9d0815b7a0795 2,7-11,14,29-31,34-36,47-79
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "859a57f90f1852e24260a2c2b965ab0aadddba6e",
+  "prompts": {},
+  "sessions": {
+    "s_12ff11085afac9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb5-4f63-7e11-88f3-2d9c9913ceed",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e69d097f84a6bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb0-d849-7f03-a16d-059c8a9c7288",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
