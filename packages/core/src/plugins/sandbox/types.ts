@@ -10,6 +10,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import type { ContentActionCallbacks } from "../context.js";
 import type {
 	ContentCreateOptions,
 	ContentItem,
@@ -283,6 +284,7 @@ export interface SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void;
 	setContentCreate?(callback: SandboxContentCreateCallback | null): void;
+	setContentActions?(callback: ContentActionCallbacks | null): void;
 
 	/** Wake a long-lived scheduler after a sandboxed plugin changes its tasks. */
 	setCronReschedule?(callback: (() => void) | null): void;

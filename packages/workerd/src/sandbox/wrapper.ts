@@ -40,13 +40,18 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const site = options.site ?? { name: "", url: "", locale: "en" };
 	const capabilities = normalizeCapabilities(manifest.capabilities);
 	const hasContentAccess =
-		capabilities.includes("content:read") || capabilities.includes("content:write");
+		capabilities.includes("content:read") ||
+		capabilities.includes("content:write") ||
+		capabilities.includes("content:publish") ||
+		capabilities.includes("content:restore");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 	const hasContentRead = capabilities.some((capability) =>
 		["content:read", "content:write", "content:revisions:read"].includes(capability),
 	);
 	const hasContentWrite = capabilities.includes("content:write");
+	const hasContentPublish = capabilities.includes("content:publish");
+	const hasContentRestore = capabilities.includes("content:restore");
 	const hasSchemaRead = capabilities.includes("schema:read");
 	const hasRevisionRead = capabilities.includes("content:revisions:read");
 
@@ -296,33 +301,41 @@ function createContext(originHook) {
 		}
 	});
 
-	const content = ${hasContentRead} ? {
+	const content = ${hasContentAccess} ? {
 		get: (collection, id) => bridgeCall("content/get", { collection, id }),
 		list: (collection, opts) => bridgeCall("content/list", { collection, ...opts }),
-		getTranslations: (collection, id) => bridgeCall("content/translations", { collection, id }),
-		getPublicUrl: (collection, id) => bridgeCall("content/publicUrl", { collection, id }),
-		...(${hasRevisionRead} ? {
-			listRevisions: (collection, id, options) => bridgeCall("content/listRevisions", { collection, id, options }),
-			getRevision: (collection, id, revisionId) => bridgeCall("content/getRevision", { collection, id, revisionId })
+		...(${hasContentRead} ? {
+			getTranslations: (collection, id) => bridgeCall("content/translations", { collection, id }),
+			getPublicUrl: (collection, id) => bridgeCall("content/publicUrl", { collection, id }),
+			...(${hasRevisionRead} ? {
+				listRevisions: (collection, id, options) => bridgeCall("content/listRevisions", { collection, id, options }),
+				getRevision: (collection, id, revisionId) => bridgeCall("content/getRevision", { collection, id, revisionId })
+			} : {})
 		} : {}),
 		...(${hasContentWrite} ? {
-			create: (collection, data, options) => bridgeCall("content/create", {
-				collection,
-				data,
-				options,
-				originHook
-			}),
+			create: (collection, data, options) => bridgeCall("content/create", { collection, data, options }),
 			update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
 			delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
 			createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
 			updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
 			deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids })
+		} : {}),
+		...(${hasContentPublish} ? {
+			getVersioned: (collection, id) => bridgeCall("content/getVersioned", { collection, id }),
+			publish: (collection, id, options) => bridgeCall("content/publish", { collection, id, revision: options._rev }),
+			unpublish: (collection, id, options) => bridgeCall("content/unpublish", { collection, id, revision: options._rev }),
+			schedule: (collection, id, options) => bridgeCall("content/schedule", { collection, id, scheduledAt: options.scheduledAt, revision: options._rev }),
+			unschedule: (collection, id, options) => bridgeCall("content/unschedule", { collection, id, revision: options._rev })
+		} : {}),
+		...(${hasContentRestore} ? {
+			getTrashedVersioned: (collection, id) => bridgeCall("content/getTrashedVersioned", { collection, id }),
+			restore: (collection, id, options) => bridgeCall("content/restore", { collection, id, revision: options._rev })
 		} : {})
 	} : undefined;
 
 	const schema = ${hasSchemaRead} ? {
 		listCollections: () => bridgeCall("schema/listCollections", {}),
-		getCollection: (slug) => bridgeCall("schema/getCollection", { slug }),
+		getCollection: (slug) => bridgeCall("schema/getCollection", { slug })
 	} : undefined;
 
 	// Taxonomy access (read-only) - capability enforced by the bridge

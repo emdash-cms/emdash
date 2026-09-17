@@ -422,6 +422,33 @@ export interface ContentAccess {
 	): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
+	getVersioned?(collection: string, id: string): Promise<VersionedContentItem | null>;
+	publish?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	unpublish?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	schedule?(
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem>;
+	unschedule?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	getTrashedVersioned?(collection: string, id: string): Promise<VersionedContentItem | null>;
+	restore?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
 }
 
 export interface VersionedContentItem {
@@ -636,15 +663,7 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 	kv: KVAccess;
 
 	/** Content access - only if read:content or write:content capability */
-	content?:
-		| ContentAccess
-		| ContentAccessWithWrite
-		| ContentPublicationAccess
-		| ContentRestoreAccess
-		| (ContentPublicationAccess & ContentRestoreAccess)
-		| (ContentAccessWithWrite & ContentPublicationAccess)
-		| (ContentAccessWithWrite & ContentRestoreAccess)
-		| (ContentAccessWithWrite & ContentPublicationAccess & ContentRestoreAccess);
+	content?: ContentAccess | ContentAccessWithWrite;
 
 	/** Schema discovery - only if schema:read capability */
 	schema?: SchemaAccess;

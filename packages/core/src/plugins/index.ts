@@ -40,7 +40,7 @@ export {
 	createSiteInfo,
 } from "./context.js";
 export { createContentAccess } from "./content-access.js";
-export type { PluginContextFactoryOptions } from "./context.js";
+export type { ContentActionCallbacks, PluginContextFactoryOptions } from "./context.js";
 export { CronAccessImpl } from "./cron.js";
 
 // Hooks
@@ -141,6 +141,9 @@ export type {
 	KVAccess,
 	ContentAccess,
 	ContentAccessWithWrite,
+	ContentPublicationAccess,
+	ContentRestoreAccess,
+	VersionedContentItem,
 	MediaAccess,
 	MediaAccessWithWrite,
 	HttpAccess,
