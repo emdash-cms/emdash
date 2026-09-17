@@ -75,6 +75,22 @@ function makeStats(collections: DashboardStats["collections"]): DashboardStats {
 	};
 }
 
+function policyStats(reason = "Approval is required.", revision = "rejection-revision") {
+	const stats = makeStats([]);
+	stats.policyRejectedScheduled = 1;
+	stats.policyRejections = [
+		{
+			collection: "posts",
+			id: "post-1",
+			pluginId: "content-guard",
+			reason,
+			rejectedAt: "2030-01-01T00:00:00.000Z",
+			_rev: revision,
+		},
+	];
+	return stats;
+}
+
 describe("Dashboard", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -201,18 +217,8 @@ describe("Dashboard", () => {
 	});
 
 	it("warns when a publication policy blocks scheduled content", async () => {
-		const stats = makeStats([]);
+		const stats = policyStats();
 		stats.policyRejectedScheduled = 2;
-		stats.policyRejections = [
-			{
-				collection: "posts",
-				id: "post-1",
-				pluginId: "content-guard",
-				reason: "Approval is required.",
-				rejectedAt: "2030-01-01T00:00:00.000Z",
-				_rev: "rejection-revision",
-			},
-		];
 		mockFetchDashboardStats.mockResolvedValue(stats);
 
 		const screen = await render(<Dashboard manifest={manifest} />);
@@ -234,27 +240,8 @@ describe("Dashboard", () => {
 	});
 
 	it("refreshes a stale policy rejection after dismissal conflicts", async () => {
-		const staleStats = makeStats([]);
-		staleStats.policyRejectedScheduled = 1;
-		staleStats.policyRejections = [
-			{
-				collection: "posts",
-				id: "post-1",
-				pluginId: "content-guard",
-				reason: "Stale reason.",
-				rejectedAt: "2030-01-01T00:00:00.000Z",
-				_rev: "stale-revision",
-			},
-		];
-		const currentStats = makeStats([]);
-		currentStats.policyRejectedScheduled = 1;
-		currentStats.policyRejections = [
-			{
-				...staleStats.policyRejections[0]!,
-				reason: "Current reason.",
-				_rev: "current-revision",
-			},
-		];
+		const staleStats = policyStats("Stale reason.", "stale-revision");
+		const currentStats = policyStats("Current reason.", "current-revision");
 		mockFetchDashboardStats.mockResolvedValueOnce(staleStats).mockResolvedValueOnce(currentStats);
 		mockDismissScheduledPolicyRejection.mockRejectedValueOnce(
 			new Error("The rejection changed before it could be dismissed"),
@@ -272,18 +259,7 @@ describe("Dashboard", () => {
 
 	it("does not offer dismissal to authors", async () => {
 		mockUseCurrentUser.mockReturnValue({ data: { role: 30 } });
-		const stats = makeStats([]);
-		stats.policyRejectedScheduled = 1;
-		stats.policyRejections = [
-			{
-				collection: "posts",
-				id: "post-1",
-				pluginId: "content-guard",
-				reason: "Approval is required.",
-				rejectedAt: "2030-01-01T00:00:00.000Z",
-				_rev: "rejection-revision",
-			},
-		];
+		const stats = policyStats();
 		mockFetchDashboardStats.mockResolvedValue(stats);
 
 		const screen = await render(<Dashboard manifest={manifest} />);

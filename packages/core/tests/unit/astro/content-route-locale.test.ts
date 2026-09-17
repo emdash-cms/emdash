@@ -147,6 +147,20 @@ function ctx(opts: {
 	} as unknown as APIContext;
 }
 
+function visualCtx(
+	emdash: ReturnType<typeof buildEmdash>,
+	path: string,
+	token?: string,
+): APIContext {
+	return ctx({
+		user: editor,
+		emdash,
+		method: "POST",
+		headers: token ? { "X-EmDash-Visual-Action": token } : undefined,
+		url: `http://localhost/_emdash/api/visual-editing/${path}`,
+	});
+}
+
 describe("PUT /content/:collection/:id forwards locale to handleContentGet", () => {
 	it("passes locale=en when query param is present", async () => {
 		const emdash = buildEmdash();
@@ -224,14 +238,7 @@ describe("POST /content/:collection/:id/publish forwards locale to handleContent
 
 	it("rejects the visual-editing route without server attestation", async () => {
 		const emdash = buildEmdash();
-		const res = await postVisualPublish(
-			ctx({
-				user: editor,
-				emdash,
-				method: "POST",
-				url: "http://localhost/_emdash/api/visual-editing/content/post/hello/publish",
-			}),
-		);
+		const res = await postVisualPublish(visualCtx(emdash, "content/post/hello/publish"));
 		expect(res.status).toBe(403);
 		await expect(res.json()).resolves.toMatchObject({
 			error: { code: "VISUAL_ACTION_TOKEN_INVALID" },
@@ -243,15 +250,7 @@ describe("POST /content/:collection/:id/publish forwards locale to handleContent
 		const emdash = buildEmdash();
 		const { previewSecret } = await resolveSecretsCached(db);
 		const token = await generateVisualEditingActionToken(previewSecret, editor.id);
-		const res = await postVisualPublish(
-			ctx({
-				user: editor,
-				emdash,
-				method: "POST",
-				headers: { "X-EmDash-Visual-Action": token },
-				url: "http://localhost/_emdash/api/visual-editing/content/post/hello/publish",
-			}),
-		);
+		const res = await postVisualPublish(visualCtx(emdash, "content/post/hello/publish", token));
 		expect(res.status).toBe(200);
 		expect(emdash.handleContentPublish).toHaveBeenCalledWith(
 			"post",
@@ -268,13 +267,7 @@ describe("POST /content/:collection/:id/publish forwards locale to handleContent
 			const originalToken = await generateVisualEditingActionToken(previewSecret, editor.id);
 			vi.setSystemTime(new Date("2030-01-01T00:04:00.000Z"));
 			const response = await refreshVisualActionToken(
-				ctx({
-					user: editor,
-					emdash,
-					method: "POST",
-					headers: { "X-EmDash-Visual-Action": originalToken },
-					url: "http://localhost/_emdash/api/visual-editing/action-token",
-				}),
+				visualCtx(emdash, "action-token", originalToken),
 			);
 			expect(response.status).toBe(200);
 			const body = await response.json();
@@ -297,15 +290,7 @@ describe("POST /content/:collection/:id/publish forwards locale to handleContent
 		["invalid", "not-a-token"],
 	])("rejects %s attestation when renewing a visual action token", async (_label, token) => {
 		const emdash = buildEmdash();
-		const response = await refreshVisualActionToken(
-			ctx({
-				user: editor,
-				emdash,
-				method: "POST",
-				headers: token ? { "X-EmDash-Visual-Action": token } : undefined,
-				url: "http://localhost/_emdash/api/visual-editing/action-token",
-			}),
-		);
+		const response = await refreshVisualActionToken(visualCtx(emdash, "action-token", token));
 		expect(response.status).toBe(403);
 		await expect(response.json()).resolves.toMatchObject({
 			error: { code: "VISUAL_ACTION_TOKEN_INVALID" },
