@@ -1,3 +1,4 @@
+import type { BlockInteraction, BlockResponse } from "@emdash-cms/blocks/server";
 import { createDialect } from "@emdash-cms/cloudflare/db/d1";
 import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
 import { pluginManifestSchema } from "@emdash-cms/plugin-types";
@@ -50,11 +51,31 @@ export interface PluginRuntimeRouteRequest extends PluginTestRequest {
 	tokenScopes?: string[];
 }
 
+export interface PluginRuntimeAdminRequestOptions {
+	locale?: string;
+	user?: UserInfo;
+}
+
 export interface PluginRuntimeTestHost {
 	readonly manifest: PluginManifest;
 	transport: {
 		invokeHook(name: string, event: unknown): Promise<unknown>;
 		invokeRoute(name: string, input?: unknown, request?: PluginTestRequest): Promise<unknown>;
+	};
+	admin: {
+		loadPage(path: string, options?: PluginRuntimeAdminRequestOptions): Promise<BlockResponse>;
+		loadWidget(id: string, options?: PluginRuntimeAdminRequestOptions): Promise<BlockResponse>;
+		act(
+			page: string,
+			actionId: string,
+			options?: PluginRuntimeAdminRequestOptions & { blockId?: string; value?: unknown },
+		): Promise<BlockResponse>;
+		submit(
+			page: string,
+			actionId: string,
+			values: Record<string, unknown>,
+			options?: PluginRuntimeAdminRequestOptions & { blockId?: string },
+		): Promise<BlockResponse>;
 	};
 	fixtures: {
 		site(input: {
@@ -267,6 +288,8 @@ export async function createPluginRuntimeTestHost(
 		routes: manifest.routes,
 		settingsSchema: manifest.admin.settingsSchema,
 		fieldWidgets: manifest.admin.fieldWidgets,
+		adminPages: manifest.admin.pages,
+		adminWidgets: manifest.admin.widgets,
 	};
 	const sandboxedPluginEntries = [entry];
 	const emailTransport = definePlugin({
@@ -303,6 +326,21 @@ export async function createPluginRuntimeTestHost(
 	} satisfies Parameters<typeof EmDashRuntime.create>[0];
 
 	let runtime = await EmDashRuntime.create(deps);
+	let adminUserPromise: Promise<UserInfo> | undefined;
+	const getAdminUser = () =>
+		(adminUserPromise ??= new UserRepository(runtime.db)
+			.create({
+				email: `plugin-admin-${crypto.randomUUID()}@example.test`,
+				name: "Plugin test admin",
+				role: "admin",
+			})
+			.then((user) => ({
+				id: user.id,
+				email: user.email,
+				name: user.name,
+				role: user.role,
+				createdAt: user.createdAt,
+			})));
 	const createRuntime = async (): Promise<void> => {
 		runtime = await EmDashRuntime.create(deps);
 	};
@@ -329,6 +367,43 @@ export async function createPluginRuntimeTestHost(
 			data: JSON.parse(row.data) as T,
 		}));
 	};
+	const invokeAdmin = async (
+		interaction: BlockInteraction,
+		adminOptions: PluginRuntimeAdminRequestOptions = {},
+	): Promise<BlockResponse> => {
+		assertActive();
+		const headers = new Headers({
+			"Content-Type": "application/json",
+			"X-EmDash-Request": "1",
+		});
+		if (adminOptions.locale) headers.set("Cookie", `emdash-locale=${adminOptions.locale}`);
+		const response = await dispatchPluginApiRequest({
+			runtime,
+			pluginId: manifest.id,
+			path: "/admin",
+			request: new Request(`https://plugin.test/_emdash/api/plugins/${manifest.id}/admin`, {
+				method: "POST",
+				headers,
+				body: JSON.stringify(interaction),
+			}),
+			user: adminOptions.user ?? (await getAdminUser()),
+		});
+		if (!response.ok) {
+			throw new Error(`Plugin admin request failed (${response.status}): ${await response.text()}`);
+		}
+		const body: unknown = await response.json();
+		if (
+			typeof body !== "object" ||
+			body === null ||
+			!("data" in body) ||
+			typeof body.data !== "object" ||
+			body.data === null
+		) {
+			throw new Error("Plugin admin response did not contain Block Kit data");
+		}
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- the production route validates BlockResponse before returning a successful envelope
+		return body.data as BlockResponse;
+	};
 	const host: PluginRuntimeTestHost = {
 		get manifest() {
 			return manifest;
@@ -350,8 +425,37 @@ export async function createPluginRuntimeTestHost(
 					headers: request.headers ?? {},
 					meta: request.meta ?? { ip: null, userAgent: null, referer: null, geo: null },
 					user: request.user,
+					ui: request.ui,
 				});
 			},
+		},
+		admin: {
+			loadPage: (path, adminOptions) =>
+				invokeAdmin({ type: "page_load", page: path }, adminOptions),
+			loadWidget: (id, adminOptions) =>
+				invokeAdmin({ type: "page_load", page: `widget:${id}` }, adminOptions),
+			act: (page, actionId, adminOptions = {}) =>
+				invokeAdmin(
+					{
+						type: "block_action",
+						action_id: actionId,
+						page,
+						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
+						...(adminOptions.value !== undefined && { value: adminOptions.value }),
+					},
+					adminOptions,
+				),
+			submit: (page, actionId, values, adminOptions = {}) =>
+				invokeAdmin(
+					{
+						type: "form_submit",
+						action_id: actionId,
+						values,
+						page,
+						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
+					},
+					adminOptions,
+				),
 		},
 		fixtures: {
 			async site(input) {

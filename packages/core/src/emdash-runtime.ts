@@ -7,8 +7,14 @@
  * Created once per worker lifetime, cached and reused across requests.
  */
 
+import { getLocaleDir, resolveLocale } from "@emdash-cms/admin/locales";
 import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
+import {
+	validateBlockResponse,
+	type BlockValidationPolicy,
+	type PluginUiContext,
+} from "@emdash-cms/blocks/server";
 import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
@@ -548,6 +554,8 @@ const marketplaceManifestCache = new Map<
 		};
 		mcp?: PluginMcpManifestConfig;
 		storage?: PluginManifest["storage"];
+		allowedHosts?: string[];
+		capabilities?: PluginCapability[];
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
@@ -1055,6 +1063,8 @@ export class EmDashRuntime {
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
 					storage: bundle.manifest.storage,
+					allowedHosts: bundle.manifest.allowedHosts,
+					capabilities: bundle.manifest.capabilities,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -1175,6 +1185,8 @@ export class EmDashRuntime {
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
 					storage: bundle.manifest.storage,
+					allowedHosts: bundle.manifest.allowedHosts,
+					capabilities: bundle.manifest.capabilities,
 				});
 				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
@@ -2354,6 +2366,8 @@ export class EmDashRuntime {
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
 						storage: bundle.manifest.storage,
+						allowedHosts: bundle.manifest.allowedHosts,
+						capabilities: bundle.manifest.capabilities,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2427,6 +2441,8 @@ export class EmDashRuntime {
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
 						storage: bundle.manifest.storage,
+						allowedHosts: bundle.manifest.allowedHosts,
+						capabilities: bundle.manifest.capabilities,
 					});
 					if (bundle.manifest.routes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
@@ -3858,6 +3874,105 @@ export class EmDashRuntime {
 	// Plugin Routes
 	// =========================================================================
 
+	private getSandboxedAdminDefinition(pluginId: string): {
+		pages: string[];
+		widgets: string[];
+		policy: BlockValidationPolicy;
+	} | null {
+		const entry = this.sandboxedPluginEntries.find((candidate) => candidate.id === pluginId);
+		if (entry) {
+			const pages = (entry.adminPages ?? []).map((page) => page.path);
+			const imageHosts = entry.capabilities.includes("network:request:unrestricted")
+				? ["*"]
+				: entry.allowedHosts;
+			return {
+				pages,
+				widgets: (entry.adminWidgets ?? []).map((widget) => widget.id),
+				policy: { pluginPagePaths: pages, allowedImageHosts: imageHosts },
+			};
+		}
+
+		const manifest = marketplaceManifestCache.get(pluginId);
+		if (!manifest) return null;
+		const pages = (manifest.admin?.pages ?? []).map((page) => page.path);
+		const imageHosts = manifest.capabilities?.includes("network:request:unrestricted")
+			? ["*"]
+			: (manifest.allowedHosts ?? []);
+		return {
+			pages,
+			widgets: (manifest.admin?.widgets ?? []).map((widget) => widget.id),
+			policy: { pluginPagePaths: pages, allowedImageHosts: imageHosts },
+		};
+	}
+
+	private resolvePluginUiContext(
+		definition: { pages: string[]; widgets: string[] },
+		body: unknown,
+		request: Request,
+	): { context?: PluginUiContext; error?: { code: string; message: string } } {
+		if (typeof body !== "object" || body === null || !("page" in body)) return {};
+		const page = body.page;
+		if (typeof page !== "string") {
+			return {
+				error: { code: "INVALID_PLUGIN_UI_CONTEXT", message: "Plugin UI page must be a string" },
+			};
+		}
+
+		let surface: PluginUiContext["surface"];
+		if (page.startsWith("widget:")) {
+			if (!definition.widgets.includes(page.slice("widget:".length))) {
+				return {
+					error: {
+						code: "INVALID_PLUGIN_UI_CONTEXT",
+						message: "Plugin dashboard widget is not declared",
+					},
+				};
+			}
+			surface = "dashboard-widget";
+		} else {
+			if (!definition.pages.includes(page)) {
+				return {
+					error: {
+						code: "INVALID_PLUGIN_UI_CONTEXT",
+						message: "Plugin admin page is not declared",
+					},
+				};
+			}
+			surface = "admin-page";
+		}
+
+		const locale = resolveLocale(request);
+		return { context: { surface, locale, direction: getLocaleDir(locale) } };
+	}
+
+	private validateSandboxedAdminResponse(
+		pluginId: string,
+		definition: { policy: BlockValidationPolicy },
+		result: {
+			success: boolean;
+			data?: unknown;
+			error?: { code: string; message: string };
+			status?: number;
+		},
+	) {
+		if (!result.success) return result;
+		const validation = validateBlockResponse(result.data, definition.policy);
+		if (validation.valid) return result;
+
+		console.error(
+			`EmDash: Sandboxed plugin ${pluginId} returned invalid Block Kit content:`,
+			validation.errors,
+		);
+		return {
+			success: false,
+			status: 502,
+			error: {
+				code: "INVALID_BLOCK_RESPONSE",
+				message: "Plugin returned invalid Block Kit content",
+			},
+		};
+	}
+
 	/**
 	 * Get route metadata for a plugin route without invoking the handler.
 	 * Used by the catch-all route to decide auth before dispatch.
@@ -3937,6 +4052,14 @@ export class EmDashRuntime {
 		// (the catch-all only forwards the caller after private-route auth)
 		// and for machine tokens with no bound user.
 		const caller = user ? toRouteCallerInfo(user) : undefined;
+		const body = await parseRouteInput(request);
+		const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
+		const adminDefinition =
+			routeKey === "admin" ? this.getSandboxedAdminDefinition(pluginId) : null;
+		const uiResult = adminDefinition
+			? this.resolvePluginUiContext(adminDefinition, body, request)
+			: {};
+		if (uiResult.error) return { success: false, status: 400, error: uiResult.error };
 
 		// Check trusted (configured) plugins first — this must match the
 		// resolution order in getPluginRouteMeta to avoid auth/execution mismatches.
@@ -3950,18 +4073,31 @@ export class EmDashRuntime {
 			});
 			routeRegistry.register(trustedPlugin);
 
-			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
-
-			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-			const body = await parseRouteInput(request);
-
-			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
+			const result = await routeRegistry.invoke(pluginId, routeKey, {
+				request,
+				body,
+				user: caller,
+				ui: uiResult.context,
+			});
+			return adminDefinition
+				? this.validateSandboxedAdminResponse(pluginId, adminDefinition, result)
+				: result;
 		}
 
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
+			const result = await this.handleSandboxedRoute(
+				sandboxedPlugin,
+				path,
+				request,
+				body,
+				caller,
+				uiResult.context,
+			);
+			return adminDefinition
+				? this.validateSandboxedAdminResponse(pluginId, adminDefinition, result)
+				: result;
 		}
 
 		return {
@@ -4329,7 +4465,9 @@ export class EmDashRuntime {
 		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
+		body: unknown,
 		user?: UserInfo,
+		ui?: PluginUiContext,
 	): Promise<{
 		success: boolean;
 		data?: unknown;
@@ -4337,9 +4475,6 @@ export class EmDashRuntime {
 		status?: number;
 	}> {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
-
-		// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-		const body = await parseRouteInput(request);
 
 		try {
 			const headers = sanitizeHeadersForSandbox(request.headers);
@@ -4350,6 +4485,7 @@ export class EmDashRuntime {
 				headers,
 				meta,
 				user,
+				ui,
 			});
 			return { success: true, data: result };
 		} catch (error) {

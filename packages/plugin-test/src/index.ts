@@ -1,3 +1,4 @@
+import type { PluginUiContext } from "@emdash-cms/blocks/server";
 import { createDialect } from "@emdash-cms/cloudflare/db/d1";
 import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
 import { pluginManifestSchema } from "@emdash-cms/plugin-types";
@@ -16,6 +17,7 @@ import { Kysely } from "kysely";
 
 export { createPluginRuntimeTestHost } from "./runtime-host.js";
 export type {
+	PluginRuntimeAdminRequestOptions,
 	PluginRuntimeRouteRequest,
 	PluginRuntimeTestHost,
 	PluginRuntimeTestHostOptions,
@@ -44,6 +46,8 @@ export interface PluginTestRequest {
 		role: number;
 		createdAt: string;
 	};
+	/** Transport-level UI context. Use runtimeHost.admin for host-attested tests. */
+	ui?: PluginUiContext;
 }
 
 export interface PluginTestCollection extends CreateCollectionInput {
@@ -170,6 +174,7 @@ export async function createPluginTestHost(): Promise<PluginTestHost> {
 				headers: request.headers ?? {},
 				meta: request.meta ?? DEFAULT_META,
 				user: request.user,
+				ui: request.ui,
 			});
 		},
 		async createCollection({ fields = [], ...collection }) {

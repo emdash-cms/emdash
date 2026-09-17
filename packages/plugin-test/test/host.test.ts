@@ -353,6 +353,43 @@ describe("runtime plugin test host", () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		await expect(runtimeHost.inspect.content.list("temporary")).rejects.toThrow();
 	});
+
+	it("loads validated Block Kit pages and widgets with host-attested locale context", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+
+		const [pageResponse, widgetResponse] = await Promise.all([
+			runtimeHost.admin.loadPage("/overview", { locale: "ar" }),
+			runtimeHost.admin.loadWidget("status", { locale: "en" }),
+		]);
+
+		expect(pageResponse.blocks[0]).toMatchObject({
+			type: "fields",
+			fields: [
+				{ label: "Surface", value: "admin-page" },
+				{ label: "Locale", value: "ar" },
+				{ label: "Direction", value: "rtl" },
+			],
+		});
+		expect(widgetResponse.blocks[0]).toMatchObject({
+			type: "fields",
+			fields: [
+				{ label: "Surface", value: "dashboard-widget" },
+				{ label: "Locale", value: "en" },
+				{ label: "Direction", value: "ltr" },
+			],
+		});
+	});
+
+	it("rejects undeclared UI surfaces and unsafe browser resources before rendering", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+
+		await expect(runtimeHost.admin.loadPage("/undeclared")).rejects.toThrow(
+			"Plugin admin page is not declared",
+		);
+		await expect(runtimeHost.admin.act("/overview", "unsafe-image")).rejects.toThrow(
+			"INVALID_BLOCK_RESPONSE",
+		);
+	});
 });
 
 describe("plugin test host", () => {

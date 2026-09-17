@@ -113,6 +113,73 @@ export default plugin;
 
 The `admin` route is private by default. EmDash sends the correct CSRF header when the admin calls it. The handler still validates `routeCtx.input` because its TypeScript type is `unknown` and a caller can invoke a private plugin route outside the Block Kit page.
 
+EmDash validates every page and widget response before the admin renders it. An invalid block, unsafe URL, or link to an undeclared plugin page fails the request instead of reaching the browser.
+
+## UI locale and direction
+
+Read `routeCtx.ui` when a page or widget needs to return text for the administrator's active locale. The host derives this value from the admin locale cookie or request language and verifies the requested page or widget against the plugin manifest.
+
+```typescript title="src/plugin.ts"
+import type { SandboxedPlugin } from "emdash/plugin";
+
+const plugin: SandboxedPlugin = {
+	routes: {
+		admin: {
+			handler: async (routeCtx) => {
+				if (!routeCtx.ui) return { blocks: [] };
+
+				const heading = routeCtx.ui.locale === "ar" ? "حالة المحتوى" : "Content status";
+				return {
+					blocks: [{ type: "header", text: heading }],
+				};
+			},
+		},
+	},
+};
+
+export default plugin;
+```
+
+`routeCtx.ui` contains the surface (`admin-page` or `dashboard-widget`), locale, and text direction. The admin locale is separate from `ctx.site.locale`, which describes the site's default content locale. Manifest page labels remain static strings.
+
+## Navigation links
+
+Use a `link` element to navigate without dispatching a Block Kit action. EmDash constructs internal URLs from structured targets, so plugins do not need to know admin route paths.
+
+```typescript title="src/plugin.ts"
+return {
+	blocks: [
+		{
+			type: "actions",
+			elements: [
+				{
+					type: "link",
+					label: "Edit article",
+					target: { kind: "content", collection: "posts", id: "01K5POSTEXAMPLE", locale: "en" },
+					appearance: "primary",
+				},
+				{
+					type: "link",
+					label: "Plugin settings",
+					target: { kind: "plugin-settings" },
+				},
+			],
+		},
+	],
+};
+```
+
+The available targets are:
+
+- `content`, with a collection, saved entry ID, and optional content locale;
+- `plugin-page`, with a path declared by the same plugin;
+- `plugin-settings`; and
+- `external`, with an absolute HTTP, HTTPS, or `mailto:` URL.
+
+External links open in a new tab with `noopener noreferrer`. Link elements do not accept `action_id` and cannot appear as form fields. Use a button when the interaction must call the plugin route.
+
+Block images use the same browser-resource policy. Root-relative image URLs are allowed. An external image must use HTTPS and its hostname must appear in the plugin's `allowedHosts`. A plugin with `network:request:unrestricted` can load an HTTPS image from any hostname. Other external images cause the complete Block Kit response to be rejected.
+
 ## Block types
 
 | Type        | Description                                                                             |
@@ -134,13 +201,14 @@ The `admin` route is private by default. EmDash sends the correct CSRF header wh
 | `banner`    | Status or alert message with a title or description                                     |
 | `meter`     | Numeric value displayed against a minimum and maximum                                   |
 | `code`      | Read-only TypeScript, TSX, JSONC, Bash, or CSS code                                     |
-| `tab`       | Labeled panels containing nested blocks                                                  |
+| `tab`       | Reserved type; the response validator rejects it                                         |
 
 ## Element types
 
 | Type            | Description                                  |
 | --------------- | -------------------------------------------- |
 | `button`        | Action button with optional confirmation dialog |
+| `link`          | Host-resolved internal or external navigation    |
 | `text_input`    | Single-line or multiline text input          |
 | `number_input`  | Numeric input with min/max                   |
 | `select`        | Dropdown select                              |
@@ -161,7 +229,7 @@ The `@emdash-cms/blocks` package exports the same shapes through `blocks` and `e
 import { blocks, elements } from "@emdash-cms/blocks";
 
 const { header, form } = blocks;
-const { textInput, toggle, select } = elements;
+const { textInput, toggle, select, link } = elements;
 
 return {
 	blocks: [
@@ -178,6 +246,7 @@ return {
 			],
 			submit: { label: "Save", actionId: "save" },
 		}),
+		blocks.actions([link("Open settings", { kind: "plugin-page", path: "/settings" })]),
 	],
 };
 ```

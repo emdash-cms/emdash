@@ -7,6 +7,7 @@
  *
  */
 
+import type { PluginUiContext } from "@emdash-cms/blocks/server";
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
@@ -144,6 +145,8 @@ export interface SerializedRequest {
 	headers: Record<string, string>;
 	/** Normalized request metadata extracted before RPC serialization */
 	meta: RequestMeta;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
 	/**
 	 * Authenticated caller for private routes, resolved by the host before
 	 * dispatch. Undefined for public routes and unbound machine tokens.

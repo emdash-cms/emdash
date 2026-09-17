@@ -386,16 +386,16 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"media:read": msg`Access your media library`,
 	"media:write": msg`Upload and manage media`,
 	"users:read": msg`Read user accounts`,
-	"network:request": msg`Make network requests`,
-	"network:request:unrestricted": msg`Make network requests to any host (unrestricted)`,
+	"network:request": msg`Connect to network hosts and load external plugin admin images`,
+	"network:request:unrestricted": msg`Connect to any network host and load external plugin admin images (unrestricted)`,
 	// Legacy aliases (still emitted by older installed manifests)
 	"read:content": msg`Read your content`,
 	"write:content": msg`Create, update, and delete content`,
 	"read:media": msg`Access your media library`,
 	"write:media": msg`Upload and manage media`,
 	"read:users": msg`Read user accounts`,
-	"network:fetch": msg`Make network requests`,
-	"network:fetch:any": msg`Make network requests to any host (unrestricted)`,
+	"network:fetch": msg`Connect to network hosts and load external plugin admin images`,
+	"network:fetch:any": msg`Connect to any network host and load external plugin admin images (unrestricted)`,
 };
 
 /** Capability names that grant scoped network access (legacy + canonical). */

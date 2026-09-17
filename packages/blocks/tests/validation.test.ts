@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { validateBlocks } from "../src/validation.js";
+import { validateBlockResponse, validateBlocks } from "../src/validation.js";
 
 describe("validateBlocks", () => {
 	// ── Valid blocks ─────────────────────────────────────────────────────────
@@ -816,6 +816,135 @@ describe("validateBlocks", () => {
 			expect(paths).toContain("blocks[0].columns[0].format");
 			expect(paths).toContain("blocks[0].rows");
 			expect(paths).toContain("blocks[0].page_action_id");
+		});
+	});
+
+	describe("host browser policy", () => {
+		const policy = {
+			allowedImageHosts: ["images.example.com", "*.cdn.example.com"],
+			pluginPagePaths: ["/settings"],
+		};
+
+		it("accepts declared links and approved image resources", () => {
+			const result = validateBlockResponse(
+				{
+					blocks: [
+						{ type: "image", url: "https://images.example.com/report.png", alt: "Report" },
+						{
+							type: "actions",
+							elements: [
+								{
+									type: "link",
+									label: "Settings",
+									target: { kind: "plugin-page", path: "/settings" },
+								},
+								{
+									type: "link",
+									label: "Documentation",
+									target: { kind: "external", url: "https://docs.example.com" },
+								},
+							],
+						},
+					],
+					toast: { type: "success", message: "Loaded" },
+				},
+				policy,
+			);
+
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it("accepts HTTPS images under an unrestricted browser policy", () => {
+			expect(
+				validateBlockResponse(
+					{
+						blocks: [
+							{ type: "image", url: "https://assets.example.test/report.png", alt: "Report" },
+						],
+					},
+					{ allowedImageHosts: ["*"], pluginPagePaths: [] },
+				),
+			).toEqual({ valid: true, errors: [] });
+		});
+
+		it("matches wildcard image hosts using the sandbox network-host rules", () => {
+			for (const url of [
+				"https://cdn.example.com/report.png",
+				"https://assets.cdn.example.com/report.png",
+			]) {
+				expect(
+					validateBlockResponse(
+						{ blocks: [{ type: "image", url, alt: "Report" }] },
+						{ allowedImageHosts: ["*.cdn.example.com"], pluginPagePaths: [] },
+					),
+				).toEqual({ valid: true, errors: [] });
+			}
+		});
+
+		it.each([
+			["unapproved image host", { type: "image", url: "https://tracker.test/pixel", alt: "" }],
+			[
+				"unapproved chart image",
+				{
+					type: "chart",
+					config: {
+						chart_type: "custom",
+						options: {
+							series: [{ type: "scatter", symbol: "image://https://tracker.test/pixel" }],
+						},
+					},
+				},
+			],
+			[
+				"undeclared plugin page",
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "link",
+							label: "Secret",
+							target: { kind: "plugin-page", path: "/secret" },
+						},
+					],
+				},
+			],
+			[
+				"active external protocol",
+				{
+					type: "actions",
+					elements: [
+						{
+							type: "link",
+							label: "Run",
+							target: { kind: "external", url: "javascript:alert(1)" },
+						},
+					],
+				},
+			],
+		])("rejects %s", (_label, block) => {
+			const result = validateBlockResponse({ blocks: [block] }, policy);
+			expect(result.valid).toBe(false);
+		});
+
+		it("rejects links in form fields and links carrying action ids", () => {
+			const result = validateBlocks([
+				{
+					type: "form",
+					fields: [
+						{
+							type: "link",
+							label: "Not a field",
+							action_id: "escape",
+							target: { kind: "external", url: "https://example.com" },
+						},
+					],
+					submit: { label: "Save", action_id: "save" },
+				},
+			]);
+			expect(result.valid).toBe(false);
+			expect(result.errors.map((error) => error.path)).toEqual(
+				expect.arrayContaining(["blocks[0].fields[0].action_id", "blocks[0].fields[0].type"]),
+			);
 		});
 	});
 });

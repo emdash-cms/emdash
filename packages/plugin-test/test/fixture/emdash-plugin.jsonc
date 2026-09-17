@@ -18,6 +18,8 @@
 		"lifecycle": { "indexes": ["type"] },
 	},
 	"admin": {
+		"pages": [{ "path": "/overview", "label": "Overview" }],
+		"widgets": [{ "id": "status", "title": "Status", "size": "half" }],
 		"settingsSchema": {
 			"enabled": { "type": "boolean", "label": "Enabled", "default": true },
 		},

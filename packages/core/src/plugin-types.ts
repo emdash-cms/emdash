@@ -39,6 +39,7 @@
  */
 
 import type { Permission } from "@emdash-cms/auth";
+import type { PluginUiContext } from "@emdash-cms/blocks/server";
 import type { ZodType } from "zod";
 
 import type { SandboxHookErrorEnvelope } from "./plugins/sandbox/hook-result.js";
@@ -90,6 +91,8 @@ import type {
 	UninstallHandler,
 	UserInfo,
 } from "./plugins/types.js";
+
+export type { PluginUiContext } from "@emdash-cms/blocks/server";
 
 /**
  * Map from hook name to its handler signature. Adding or changing a
@@ -181,6 +184,8 @@ export interface SandboxedRouteContext {
 	input: unknown;
 	request: SandboxedRequest;
 	requestMeta?: unknown;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
 	/**
 	 * Authenticated caller, if the route is private. Resolved and
 	 * authorized by the host before dispatch — trust it over any user id

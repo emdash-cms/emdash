@@ -52,6 +52,49 @@ const plugin: SandboxedPlugin = {
 			record(ctx, "events", "cron", { name: event.name, scheduledAt: event.scheduledAt }),
 	},
 	routes: {
+		admin: {
+			permission: "plugins:manage",
+			handler: async (route) => {
+				if (
+					typeof route.input === "object" &&
+					route.input !== null &&
+					"action_id" in route.input &&
+					route.input.action_id === "unsafe-image"
+				) {
+					return {
+						blocks: [{ type: "image", url: "https://tracker.example/pixel.gif", alt: "" }],
+					};
+				}
+				return {
+					blocks: [
+						{
+							type: "fields",
+							fields: [
+								{ label: "Surface", value: route.ui?.surface ?? "missing" },
+								{ label: "Locale", value: route.ui?.locale ?? "missing" },
+								{ label: "Direction", value: route.ui?.direction ?? "missing" },
+							],
+						},
+						{
+							type: "actions",
+							elements: [
+								{
+									type: "link",
+									label: "Plugin overview",
+									target: { kind: "plugin-page", path: "/overview" },
+								},
+								{
+									type: "link",
+									label: "Documentation",
+									target: { kind: "external", url: "https://docs.example.test/plugin" },
+								},
+							],
+						},
+						{ type: "image", url: "/plugin-assets/status.png", alt: "Plugin status" },
+					],
+				};
+			},
+		},
 		"isolate-id": {
 			public: true,
 			cacheControl: "public, max-age=60",

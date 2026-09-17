@@ -16,17 +16,24 @@ import { SectionBlockComponent } from "./blocks/section.js";
 import { StatsBlockComponent } from "./blocks/stats.js";
 import { TabBlockComponent } from "./blocks/tab.js";
 import { TableBlockComponent } from "./blocks/table.js";
-import type { Block, BlockInteraction } from "./types.js";
+import type { Block, BlockInteraction, LinkTargetResolver } from "./types.js";
 
 function renderBlock(
 	block: Block,
 	onAction: (interaction: BlockInteraction) => void,
+	resolveLinkTarget?: LinkTargetResolver,
 ): React.ReactNode {
 	switch (block.type) {
 		case "header":
 			return <HeaderBlockComponent block={block} />;
 		case "section":
-			return <SectionBlockComponent block={block} onAction={onAction} />;
+			return (
+				<SectionBlockComponent
+					block={block}
+					onAction={onAction}
+					resolveLinkTarget={resolveLinkTarget}
+				/>
+			);
 		case "divider":
 			return <DividerBlockComponent />;
 		case "fields":
@@ -34,7 +41,13 @@ function renderBlock(
 		case "table":
 			return <TableBlockComponent block={block} onAction={onAction} />;
 		case "actions":
-			return <ActionsBlockComponent block={block} onAction={onAction} />;
+			return (
+				<ActionsBlockComponent
+					block={block}
+					onAction={onAction}
+					resolveLinkTarget={resolveLinkTarget}
+				/>
+			);
 		case "stats":
 			return <StatsBlockComponent block={block} />;
 		case "form":
@@ -44,7 +57,13 @@ function renderBlock(
 		case "context":
 			return <ContextBlockComponent block={block} />;
 		case "columns":
-			return <ColumnsBlockComponent block={block} onAction={onAction} />;
+			return (
+				<ColumnsBlockComponent
+					block={block}
+					onAction={onAction}
+					resolveLinkTarget={resolveLinkTarget}
+				/>
+			);
 		case "chart":
 			return <ChartBlockComponent block={block} />;
 		case "meter":
@@ -54,11 +73,29 @@ function renderBlock(
 		case "code":
 			return <CodeBlockComponent block={block} />;
 		case "tab":
-			return <TabBlockComponent block={block} onAction={onAction} />;
+			return (
+				<TabBlockComponent
+					block={block}
+					onAction={onAction}
+					resolveLinkTarget={resolveLinkTarget}
+				/>
+			);
 		case "empty":
-			return <EmptyBlockComponent block={block} onAction={onAction} />;
+			return (
+				<EmptyBlockComponent
+					block={block}
+					onAction={onAction}
+					resolveLinkTarget={resolveLinkTarget}
+				/>
+			);
 		case "accordion":
-			return <AccordionBlockComponent block={block} onAction={onAction} />;
+			return (
+				<AccordionBlockComponent
+					block={block}
+					onAction={onAction}
+					resolveLinkTarget={resolveLinkTarget}
+				/>
+			);
 		default: {
 			const _exhaustive: never = block;
 			return null;
@@ -69,13 +106,14 @@ function renderBlock(
 export interface BlockRendererProps {
 	blocks: Block[];
 	onAction: (interaction: BlockInteraction) => void;
+	resolveLinkTarget?: LinkTargetResolver;
 }
 
-export function BlockRenderer({ blocks, onAction }: BlockRendererProps) {
+export function BlockRenderer({ blocks, onAction, resolveLinkTarget }: BlockRendererProps) {
 	return (
 		<div className="flex flex-col gap-4">
 			{blocks.map((block, i) => (
-				<div key={block.block_id ?? i}>{renderBlock(block, onAction)}</div>
+				<div key={block.block_id ?? i}>{renderBlock(block, onAction, resolveLinkTarget)}</div>
 			))}
 		</div>
 	);
