@@ -42,7 +42,10 @@ import type {
 	CronAccess,
 	EmailAccess,
 	ContentAccess,
+	ContentPublicationAccess,
+	ContentRestoreAccess,
 	ContentAccessWithWrite,
+	VersionedContentItem,
 	MediaAccess,
 	MediaAccessWithWrite,
 	HttpAccess,
@@ -1023,6 +1026,7 @@ export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
 	contentCreate?: PluginContentCreateCallback;
+	contentActions?: ContentActionCallbacks;
 	/**
 	 * Resolver for the database connection, preferred over `db` when present.
 	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
@@ -1074,6 +1078,49 @@ export interface PluginContextFactoryOptions {
 	trustedProxyHeaders?: string[];
 }
 
+export interface ContentActionCallbacks {
+	getVersioned(
+		pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null>;
+	publish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	unpublish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	schedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem>;
+	unschedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	getTrashedVersioned(
+		pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null>;
+	restore(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+}
+
 /**
  * Factory for creating plugin contexts
  */
@@ -1081,6 +1128,7 @@ export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
 	private beforeContentWrite?: () => Promise<void>;
 	private contentCreate?: PluginContentCreateCallback;
+	private contentActions?: ContentActionCallbacks;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -1103,6 +1151,7 @@ export class PluginContextFactory {
 		this.resolveDb = options.getDb ?? (() => fixedDb);
 		this.beforeContentWrite = options.beforeContentWrite;
 		this.contentCreate = options.contentCreate;
+		this.contentActions = options.contentActions;
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -1134,7 +1183,13 @@ export class PluginContextFactory {
 		// Note: capabilities reach this point already normalized to the
 		// canonical names by definePlugin / adaptSandboxEntry. Deprecated
 		// names ("read:content", "write:content") never appear here.
-		let content: ContentAccess | ContentAccessWithWrite | undefined;
+		let content:
+			| ContentAccess
+			| ContentAccessWithWrite
+			| ContentPublicationAccess
+			| ContentRestoreAccess
+			| (ContentAccessWithWrite & ContentPublicationAccess & ContentRestoreAccess)
+			| undefined;
 		if (capabilities.has("content:write")) {
 			content = createContentAccessWithWrite(
 				db,
@@ -1152,6 +1207,31 @@ export class PluginContextFactory {
 				site: this.site,
 				revisions: capabilities.has("content:revisions:read"),
 			});
+		}
+		if (capabilities.has("content:publish") && this.contentActions) {
+			content = Object.assign(content ?? createContentAccess(db), {
+				getVersioned: (collection: string, id: string) =>
+					this.contentActions!.getVersioned(plugin.id, collection, id),
+				publish: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.publish(plugin.id, collection, id, options),
+				unpublish: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.unpublish(plugin.id, collection, id, options),
+				schedule: (
+					collection: string,
+					id: string,
+					options: { scheduledAt: string; _rev: string },
+				) => this.contentActions!.schedule(plugin.id, collection, id, options),
+				unschedule: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.unschedule(plugin.id, collection, id, options),
+			});
+		}
+		if (capabilities.has("content:restore") && this.contentActions) {
+			content = Object.assign(content ?? {}, {
+				getTrashedVersioned: (collection: string, id: string) =>
+					this.contentActions!.getTrashedVersioned(plugin.id, collection, id),
+				restore: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.restore(plugin.id, collection, id, options),
+			}) as ContentRestoreAccess;
 		}
 
 		const schema = capabilities.has("schema:read") ? createSchemaAccess(db) : undefined;
