@@ -26,7 +26,10 @@ body {
 	max-width: 640px;
 	margin: 0 auto;
 	padding: 2rem 1rem;
-	font-family: system-ui, -apple-system, sans-serif;
+	font-family:
+		system-ui,
+		-apple-system,
+		sans-serif;
 	color: var(--fg);
 }
 
