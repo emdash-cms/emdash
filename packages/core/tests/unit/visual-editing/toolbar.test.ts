@@ -7,6 +7,15 @@ import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
 // Regex patterns for HTML validation
 const EDIT_TOGGLE_CHECKED_REGEX = /id="emdash-edit-toggle"\s+checked/;
 
+function toolbarScript(html: string): string {
+	const openTag = "<script>";
+	const closeTag = "</script>";
+	const start = html.indexOf(openTag);
+	const end = html.indexOf(closeTag, start + openTag.length);
+	if (start < 0 || end < 0) throw new Error("Toolbar script was not rendered");
+	return html.slice(start + openTag.length, end);
+}
+
 describe("renderToolbar", () => {
 	afterEach(() => vi.useRealTimers());
 	it("renders toolbar with edit mode off", () => {
@@ -70,7 +79,7 @@ describe("renderToolbar", () => {
 			isPreview: false,
 			actionToken: "signed-action-token",
 		});
-		const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
+		const script = toolbarScript(html);
 		const refreshStart = script.indexOf("var visualActionToken");
 		const refreshEnd = script.indexOf("var dismissBtn");
 		expect(refreshStart).toBeGreaterThanOrEqual(0);
@@ -131,7 +140,7 @@ describe("renderToolbar", () => {
 			isPreview: false,
 			actionToken: "signed-action-token",
 		});
-		const script = html.match(/<script>([\s\S]*?)<\/script>/)?.[1] ?? "";
+		const script = toolbarScript(html);
 		const refreshStart = script.indexOf("var visualActionToken");
 		const refreshEnd = script.indexOf("var dismissBtn");
 		const publishStart = script.indexOf("function publish(");
