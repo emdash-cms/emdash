@@ -1,4 +1,9 @@
-import type { BlockInteraction, BlockResponse } from "@emdash-cms/blocks/server";
+import type {
+	BlockInteraction,
+	BlockResponse,
+	ContentEditorActionResponse,
+	ContentEditorPanelInteraction,
+} from "@emdash-cms/blocks/server";
 import { createDialect } from "@emdash-cms/cloudflare/db/d1";
 import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
 import { pluginManifestSchema, reconcileManifestAccess } from "@emdash-cms/plugin-types";
@@ -30,6 +35,7 @@ import { runMigrations } from "emdash/db";
 import {
 	BylineRepository,
 	dispatchPluginApiRequest,
+	dispatchPluginEditorExtensionApiRequest,
 	EmDashRuntime,
 	getI18nConfig,
 	handlePluginSettingsUpdate,
@@ -82,6 +88,7 @@ export interface PluginRuntimeMediaFixture {
 
 export interface PluginRuntimeAdminRequestOptions {
 	locale?: string;
+	contentLocale?: string;
 	user?: UserInfo;
 }
 
@@ -105,6 +112,33 @@ export interface PluginRuntimeTestHost {
 			values: Record<string, unknown>,
 			options?: PluginRuntimeAdminRequestOptions & { blockId?: string },
 		): Promise<BlockResponse>;
+		loadEditorPanel(
+			panelId: string,
+			collection: string,
+			entryId: string,
+			options?: PluginRuntimeAdminRequestOptions,
+		): Promise<BlockResponse>;
+		actEditorPanel(
+			panelId: string,
+			collection: string,
+			entryId: string,
+			actionId: string,
+			options?: PluginRuntimeAdminRequestOptions & { blockId?: string; value?: unknown },
+		): Promise<BlockResponse>;
+		submitEditorPanel(
+			panelId: string,
+			collection: string,
+			entryId: string,
+			actionId: string,
+			values: Record<string, unknown>,
+			options?: PluginRuntimeAdminRequestOptions & { blockId?: string },
+		): Promise<BlockResponse>;
+		invokeEditorAction(
+			actionId: string,
+			collection: string,
+			entryId: string,
+			options?: PluginRuntimeAdminRequestOptions,
+		): Promise<ContentEditorActionResponse>;
 	};
 	fixtures: {
 		site(input: {
@@ -389,6 +423,8 @@ export async function createPluginRuntimeTestHost(
 		fieldWidgets: manifest.admin.fieldWidgets,
 		adminPages: manifest.admin.pages,
 		adminWidgets: manifest.admin.widgets,
+		editorPanels: manifest.admin.editorPanels,
+		editorActions: manifest.admin.editorActions,
 	};
 	const sandboxedPluginEntries = [entry];
 	const emailTransport = definePlugin({
@@ -503,6 +539,48 @@ export async function createPluginRuntimeTestHost(
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- the production route validates BlockResponse before returning a successful envelope
 		return body.data as BlockResponse;
 	};
+	const invokeEditorExtension = async <T>(
+		kind: "panel" | "action",
+		extensionId: string,
+		collection: string,
+		entryId: string,
+		input: ContentEditorPanelInteraction | Record<string, never>,
+		adminOptions: PluginRuntimeAdminRequestOptions = {},
+	): Promise<T> => {
+		assertActive();
+		const headers = new Headers({
+			"Content-Type": "application/json",
+			"X-EmDash-Request": "1",
+		});
+		if (adminOptions.locale) headers.set("Cookie", `emdash-locale=${adminOptions.locale}`);
+		const localeSearch = adminOptions.contentLocale
+			? `?locale=${encodeURIComponent(adminOptions.contentLocale)}`
+			: "";
+		const response = await dispatchPluginEditorExtensionApiRequest({
+			runtime,
+			pluginId: manifest.id,
+			kind,
+			extensionId,
+			collection,
+			entryId,
+			request: new Request(
+				`https://plugin.test/_emdash/api/content/${collection}/${entryId}/plugin-extensions/${manifest.id}/${kind}/${extensionId}${localeSearch}`,
+				{ method: "POST", headers, body: JSON.stringify(input) },
+			),
+			user: adminOptions.user ?? (await getAdminUser()),
+		});
+		if (!response.ok) {
+			throw new Error(
+				`Plugin editor ${kind} request failed (${response.status}): ${await response.text()}`,
+			);
+		}
+		const body: unknown = await response.json();
+		if (typeof body !== "object" || body === null || !("data" in body)) {
+			throw new Error("Plugin editor extension response did not contain data");
+		}
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- production dispatch validates the response before returning success
+		return body.data as T;
+	};
 	const host: PluginRuntimeTestHost = {
 		get manifest() {
 			return manifest;
@@ -553,6 +631,52 @@ export async function createPluginRuntimeTestHost(
 						page,
 						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
 					},
+					adminOptions,
+				),
+			loadEditorPanel: (panelId, collection, entryId, adminOptions) =>
+				invokeEditorExtension<BlockResponse>(
+					"panel",
+					panelId,
+					collection,
+					entryId,
+					{ type: "panel_load" },
+					adminOptions,
+				),
+			actEditorPanel: (panelId, collection, entryId, actionId, adminOptions = {}) =>
+				invokeEditorExtension<BlockResponse>(
+					"panel",
+					panelId,
+					collection,
+					entryId,
+					{
+						type: "block_action",
+						action_id: actionId,
+						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
+						...(adminOptions.value !== undefined && { value: adminOptions.value }),
+					},
+					adminOptions,
+				),
+			submitEditorPanel: (panelId, collection, entryId, actionId, values, adminOptions = {}) =>
+				invokeEditorExtension<BlockResponse>(
+					"panel",
+					panelId,
+					collection,
+					entryId,
+					{
+						type: "form_submit",
+						action_id: actionId,
+						values,
+						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
+					},
+					adminOptions,
+				),
+			invokeEditorAction: (actionId, collection, entryId, adminOptions) =>
+				invokeEditorExtension<ContentEditorActionResponse>(
+					"action",
+					actionId,
+					collection,
+					entryId,
+					{},
 					adminOptions,
 				),
 		},

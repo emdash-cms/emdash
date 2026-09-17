@@ -13,6 +13,7 @@ import type { Element } from "@emdash-cms/blocks";
 import {
 	normalizePluginPagePath,
 	validateBlockResponse,
+	validateContentEditorActionResponse,
 	type BlockValidationPolicy,
 	type PluginUiContext,
 } from "@emdash-cms/blocks/server";
@@ -103,6 +104,8 @@ import type {
 	PluginCapability,
 	PluginStorageConfig,
 	PluginMcpManifestConfig,
+	PluginEditorAction,
+	PluginEditorPanel,
 	PublicPageContext,
 	PageMetadataContribution,
 	PageFragmentContribution,
@@ -318,6 +321,10 @@ export interface SandboxedPluginEntry {
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** Saved-entry Block Kit panels. */
+	editorPanels?: PluginManifest["admin"]["editorPanels"];
+	/** Saved-entry host-rendered actions. */
+	editorActions?: PluginManifest["admin"]["editorActions"];
 	/** Settings schema for the auto-generated admin settings form */
 	settingsSchema?: Record<string, SettingField>;
 	/** Portable Text block types contributed to the editor (declarative Block Kit) */
@@ -331,6 +338,24 @@ export interface SandboxedPluginEntry {
 	 * Weaker than an existing admin DB selection — config order wins when no selection exists.
 	 */
 	preferred?: string[];
+}
+
+export type ResolvedPluginEditorExtension =
+	| {
+			kind: "panel";
+			extension: PluginEditorPanel;
+			policy: BlockValidationPolicy;
+	  }
+	| {
+			kind: "action";
+			extension: PluginEditorAction;
+			policy: BlockValidationPolicy;
+	  };
+
+export interface PluginEditorExtensionDispatch {
+	ui: PluginUiContext;
+	kind: "panel" | "action";
+	policy: BlockValidationPolicy;
 }
 
 /**
@@ -639,6 +664,8 @@ const marketplaceManifestCache = new Map<
 			pages?: PluginAdminPage[];
 			widgets?: PluginDashboardWidget[];
 			settingsSchema?: Record<string, SettingField>;
+			editorPanels?: PluginManifest["admin"]["editorPanels"];
+			editorActions?: PluginManifest["admin"]["editorActions"];
 		};
 		mcp?: PluginMcpManifestConfig;
 		storage?: PluginManifest["storage"];
@@ -1377,6 +1404,8 @@ export class EmDashRuntime {
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
+						editorPanels: bundle.manifest.admin?.editorPanels,
+						editorActions: bundle.manifest.admin?.editorActions,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -2357,6 +2386,8 @@ export class EmDashRuntime {
 					settingsSchema: entry.settingsSchema,
 					portableTextBlocks: entry.portableTextBlocks,
 					fieldWidgets: entry.fieldWidgets,
+					editorPanels: entry.editorPanels,
+					editorActions: entry.editorActions,
 				});
 				plugins.push(resolved);
 				console.log(
@@ -2503,6 +2534,8 @@ export class EmDashRuntime {
 						settingsSchema: entry.settingsSchema,
 						portableTextBlocks: entry.portableTextBlocks,
 						fieldWidgets: entry.fieldWidgets,
+						editorPanels: entry.editorPanels,
+						editorActions: entry.editorActions,
 					},
 					mcp: entry.mcp,
 				};
@@ -2745,6 +2778,8 @@ export class EmDashRuntime {
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
+						editorPanels: bundle.manifest.admin?.editorPanels,
+						editorActions: bundle.manifest.admin?.editorActions,
 					});
 					resolved.push(adapted);
 					console.log(
@@ -2878,6 +2913,8 @@ export class EmDashRuntime {
 					fieldTypes: string[];
 					elements?: Element[];
 				}>;
+				editorPanels?: PluginManifest["admin"]["editorPanels"];
+				editorActions?: PluginManifest["admin"]["editorActions"];
 			}
 		> = {};
 
@@ -2889,10 +2926,13 @@ export class EmDashRuntime {
 			const hasAdminEntry = !!plugin.admin?.entry;
 			const hasAdminPages = (plugin.admin?.pages?.length ?? 0) > 0;
 			const hasWidgets = (plugin.admin?.widgets?.length ?? 0) > 0;
+			const hasEditorExtensions =
+				(plugin.admin?.editorPanels?.length ?? 0) > 0 ||
+				(plugin.admin?.editorActions?.length ?? 0) > 0;
 			let adminMode: "react" | "blocks" | "none" = "none";
 			if (hasAdminEntry) {
 				adminMode = "react";
-			} else if (hasAdminPages || hasWidgets) {
+			} else if (hasAdminPages || hasWidgets || hasEditorExtensions) {
 				adminMode = "blocks";
 			}
 
@@ -2904,6 +2944,8 @@ export class EmDashRuntime {
 				dashboardWidgets: plugin.admin?.widgets ?? [],
 				portableTextBlocks: plugin.admin?.portableTextBlocks,
 				fieldWidgets: plugin.admin?.fieldWidgets,
+				editorPanels: plugin.admin?.editorPanels,
+				editorActions: plugin.admin?.editorActions,
 			};
 		}
 
@@ -2914,6 +2956,8 @@ export class EmDashRuntime {
 
 			const hasAdminPages = (entry.adminPages?.length ?? 0) > 0;
 			const hasWidgets = (entry.adminWidgets?.length ?? 0) > 0;
+			const hasEditorExtensions =
+				(entry.editorPanels?.length ?? 0) > 0 || (entry.editorActions?.length ?? 0) > 0;
 
 			manifestPlugins[entry.id] = {
 				version: entry.version,
@@ -2923,11 +2967,13 @@ export class EmDashRuntime {
 				// contribute portableTextBlocks/fieldWidgets with adminMode "none" —
 				// the admin reads those from the manifest regardless, so don't gate
 				// admin contributions on `adminMode`.
-				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
+				adminMode: hasAdminPages || hasWidgets || hasEditorExtensions ? "blocks" : "none",
 				adminPages: entry.adminPages ?? [],
 				dashboardWidgets: entry.adminWidgets ?? [],
 				portableTextBlocks: entry.portableTextBlocks,
 				fieldWidgets: entry.fieldWidgets,
+				editorPanels: entry.editorPanels,
+				editorActions: entry.editorActions,
 			};
 		}
 
@@ -2943,14 +2989,18 @@ export class EmDashRuntime {
 			const widgets = meta.admin?.widgets;
 			const hasAdminPages = (pages?.length ?? 0) > 0;
 			const hasWidgets = (widgets?.length ?? 0) > 0;
+			const hasEditorExtensions =
+				(meta.admin?.editorPanels?.length ?? 0) > 0 || (meta.admin?.editorActions?.length ?? 0) > 0;
 
 			manifestPlugins[pluginId] = {
 				version: meta.version,
 				enabled,
 				sandboxed: true,
-				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
+				adminMode: hasAdminPages || hasWidgets || hasEditorExtensions ? "blocks" : "none",
 				adminPages: pages ?? [],
 				dashboardWidgets: widgets ?? [],
+				editorPanels: meta.admin?.editorPanels,
+				editorActions: meta.admin?.editorActions,
 			};
 		}
 
@@ -4919,6 +4969,108 @@ export class EmDashRuntime {
 		};
 	}
 
+	getPluginEditorExtension(
+		pluginId: string,
+		kind: "panel" | "action",
+		extensionId: string,
+		collection: string,
+	): ResolvedPluginEditorExtension | null {
+		if (!this.isPluginEnabled(pluginId)) return null;
+
+		let panels: PluginEditorPanel[] | undefined;
+		let actions: PluginEditorAction[] | undefined;
+		let pages: string[] = [];
+		let capabilities: readonly PluginCapability[] = [];
+		let allowedHosts: readonly string[] = [];
+
+		const configured = this.configuredPlugins.find((plugin) => plugin.id === pluginId);
+		if (configured) {
+			if (configured.admin.entry) return null;
+			panels = configured.admin.editorPanels;
+			actions = configured.admin.editorActions;
+			pages = (configured.admin.pages ?? []).map((page) => page.path);
+			capabilities = configured.capabilities;
+			allowedHosts = configured.allowedHosts;
+		} else {
+			const entry = this.sandboxedPluginEntries.find((candidate) => candidate.id === pluginId);
+			if (entry) {
+				panels = entry.editorPanels;
+				actions = entry.editorActions;
+				pages = (entry.adminPages ?? []).map((page) => page.path);
+				capabilities = entry.capabilities;
+				allowedHosts = entry.allowedHosts;
+			} else {
+				const manifest = marketplaceManifestCache.get(pluginId);
+				if (!manifest) return null;
+				panels = manifest.admin?.editorPanels;
+				actions = manifest.admin?.editorActions;
+				pages = (manifest.admin?.pages ?? []).map((page) => page.path);
+				capabilities = manifest.capabilities ?? [];
+				allowedHosts = manifest.allowedHosts ?? [];
+			}
+		}
+
+		const policy = {
+			pluginPagePaths: pages,
+			allowedImageHosts: allowedBrowserImageHosts(capabilities, allowedHosts),
+		};
+		if (kind === "panel") {
+			const matches = panels?.filter((panel) => panel.id === extensionId) ?? [];
+			const extension = matches[0];
+			if (
+				matches.length !== 1 ||
+				!extension ||
+				(extension.collections && !extension.collections.includes(collection))
+			) {
+				return null;
+			}
+			return { kind, extension, policy };
+		}
+		const matches = actions?.filter((action) => action.id === extensionId) ?? [];
+		const extension = matches[0];
+		if (
+			matches.length !== 1 ||
+			!extension ||
+			(extension.collections && !extension.collections.includes(collection)) ||
+			(extension.style === "danger" && !extension.confirm)
+		) {
+			return null;
+		}
+		return { kind, extension, policy };
+	}
+
+	private validatePluginEditorExtensionResponse(
+		pluginId: string,
+		dispatch: PluginEditorExtensionDispatch,
+		result: {
+			success: boolean;
+			data?: unknown;
+			error?: { code: string; message: string };
+			status?: number;
+		},
+	) {
+		if (!result.success) return result;
+		const validation =
+			dispatch.kind === "panel"
+				? validateBlockResponse(result.data, dispatch.policy)
+				: validateContentEditorActionResponse(result.data, dispatch.policy);
+		if (validation.valid) return result;
+
+		console.error(
+			`EmDash: Plugin ${pluginId} returned an invalid content editor ${dispatch.kind} response:`,
+			validation.errors,
+		);
+		return {
+			success: false,
+			status: 502,
+			error: {
+				code:
+					dispatch.kind === "panel" ? "INVALID_BLOCK_RESPONSE" : "INVALID_EDITOR_ACTION_RESPONSE",
+				message: "Plugin returned an invalid editor extension response",
+			},
+		};
+	}
+
 	/**
 	 * Get route metadata for a plugin route without invoking the handler.
 	 * Used by the catch-all route to decide auth before dispatch.
@@ -4986,6 +5138,7 @@ export class EmDashRuntime {
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
+		editorDispatch?: PluginEditorExtensionDispatch,
 		invalidateContentCache?: PluginContentCacheInvalidator,
 	) {
 		if (!this.isPluginEnabled(pluginId)) {
@@ -5002,7 +5155,7 @@ export class EmDashRuntime {
 		const body = await parseRouteInput(request);
 		const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 		const adminDefinition =
-			routeKey === "admin" ? this.getSandboxedAdminDefinition(pluginId) : null;
+			!editorDispatch && routeKey === "admin" ? this.getSandboxedAdminDefinition(pluginId) : null;
 		const uiResult = adminDefinition
 			? this.resolvePluginUiContext(adminDefinition, body, request)
 			: {};
@@ -5025,11 +5178,13 @@ export class EmDashRuntime {
 				request,
 				body,
 				user: caller,
-				ui: uiResult.context,
+				ui: editorDispatch?.ui ?? uiResult.context,
 			});
-			return adminDefinition
-				? this.validateSandboxedAdminResponse(pluginId, adminDefinition, result)
-				: result;
+			return editorDispatch
+				? this.validatePluginEditorExtensionResponse(pluginId, editorDispatch, result)
+				: adminDefinition
+					? this.validateSandboxedAdminResponse(pluginId, adminDefinition, result)
+					: result;
 		}
 
 		// Check sandboxed (marketplace) plugins second
@@ -5041,12 +5196,14 @@ export class EmDashRuntime {
 				request,
 				body,
 				caller,
-				uiResult.context,
+				editorDispatch?.ui ?? uiResult.context,
 				invalidateContentCache,
 			);
-			return adminDefinition
-				? this.validateSandboxedAdminResponse(pluginId, adminDefinition, result)
-				: result;
+			return editorDispatch
+				? this.validatePluginEditorExtensionResponse(pluginId, editorDispatch, result)
+				: adminDefinition
+					? this.validateSandboxedAdminResponse(pluginId, adminDefinition, result)
+					: result;
 		}
 
 		return {
@@ -5214,6 +5371,7 @@ export class EmDashRuntime {
 			route,
 			internalRequest,
 			caller,
+			undefined,
 			invalidateContentCache,
 		);
 		await audit.log({

@@ -442,13 +442,14 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Declare credentials as \`secret\` fields in \`admin.settingsSchema\`. The host encrypts them with \`EMDASH_ENCRYPTION_KEY\`; keep that key with operational backups.
 - Use Block Kit for sandboxed admin UI. Do not ship browser React components.
 - Use structured Block Kit links for navigation. Read \`routeCtx.ui\` for the host-attested admin locale and direction; external images require HTTPS plus a hostname in \`allowedHosts\` or \`network:request:unrestricted\`.
+- Declare saved-entry panels and actions under \`admin.editorPanels\` and \`admin.editorActions\`. Point each declaration at a private route. The host reloads and authorizes the saved entry before attaching identity to \`routeCtx.ui\`; read saved field data through capability-gated \`ctx.content\`.
 - Treat public routes as internet-facing and validate their inputs.
 
 ## Validation
 
 Use the package scripts in this repository. The default test script builds the plugin and runs it through Worker Loader, EmDash's production sandbox wrapper, and the host bridge.
 
-Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, cache behavior, or Block Kit response validation. Use its \`admin\` helpers for pages, widgets, actions, forms, and host-attested locale context. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
+Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, cache behavior, or Block Kit response validation. Its \`admin\` helpers cover pages, widgets, saved-entry panels, confirmed editor actions, forms, and host-attested locale context. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
 
 For generated secret settings, call \`actions.plugin.updateSettings()\` and verify \`inspect.settings.raw()\` contains an envelope without the plaintext.
 

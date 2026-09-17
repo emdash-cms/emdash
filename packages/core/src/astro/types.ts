@@ -10,6 +10,10 @@ import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type {
+	PluginEditorExtensionDispatch,
+	ResolvedPluginEditorExtension,
+} from "../emdash-runtime.js";
+import type {
 	PluginContentCacheInvalidator,
 	RouteCallerInput,
 	RouteMeta,
@@ -103,6 +107,8 @@ export interface ManifestPlugin {
 		title?: string;
 		size?: string;
 	}>;
+	editorPanels?: import("../plugins/types.js").PluginEditorPanel[];
+	editorActions?: import("../plugins/types.js").PluginEditorAction[];
 	fieldWidgets?: Array<{
 		name: string;
 		label: string;
@@ -504,8 +510,15 @@ export interface EmDashHandlers {
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
+		editorDispatch?: PluginEditorExtensionDispatch,
 		invalidateContentCache?: PluginContentCacheInvalidator,
 	) => Promise<HandlerResponse>;
+	getPluginEditorExtension: (
+		pluginId: string,
+		kind: "panel" | "action",
+		extensionId: string,
+		collection: string,
+	) => ResolvedPluginEditorExtension | null;
 
 	// Public-only plugin API route handler for SSR page components.
 	handlePublicPluginApiRoute: (

@@ -344,6 +344,8 @@ describe("agent guidance", () => {
 		expect(skill).toContain("hooks.content-policy:register");
 		expect(skill).toContain("this capability does not grant content reads");
 		expect(skill).toContain("structured Block Kit links");
+		expect(skill).toContain("admin.editorPanels");
+		expect(skill).toContain("saved-entry panels");
 		expect(skill).toContain("routeCtx.ui");
 		expect(skill).toContain("`admin` helpers");
 		expect(skill).toContain("Node/workerd parity opt-in");

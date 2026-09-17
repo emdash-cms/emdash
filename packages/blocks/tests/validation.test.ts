@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { validateBlockResponse, validateBlocks } from "../src/validation.js";
+import {
+	validateBlockResponse,
+	validateBlocks,
+	validateContentEditorActionResponse,
+	validateContentEditorPanelInteraction,
+} from "../src/validation.js";
 
 describe("validateBlocks", () => {
 	// ── Valid blocks ─────────────────────────────────────────────────────────
@@ -1114,5 +1119,62 @@ describe("validateBlocks", () => {
 			);
 			expect(malformed.errors).toHaveLength(50);
 		});
+	});
+});
+
+describe("validateContentEditorActionResponse", () => {
+	const policy = { pluginPagePaths: ["/reports"] };
+
+	it("accepts one bounded host effect and an optional toast", () => {
+		expect(
+			validateContentEditorActionResponse(
+				{ refresh: true, toast: { message: "Entry updated", type: "success" } },
+				policy,
+			),
+		).toEqual({ valid: true, errors: [] });
+		expect(
+			validateContentEditorActionResponse(
+				{ navigate: { kind: "plugin-page", path: "/reports" } },
+				policy,
+			),
+		).toEqual({ valid: true, errors: [] });
+	});
+
+	it.each([
+		["false refresh", { refresh: false }],
+		["multiple terminal effects", { refresh: true, navigate: { kind: "plugin-settings" } }],
+		["unknown command", { reload: true }],
+		["undeclared plugin page", { navigate: { kind: "plugin-page", path: "/secret" } }],
+		["active external URL", { navigate: { kind: "external", url: "javascript:alert(1)" } }],
+	])("rejects %s", (_label, response) => {
+		expect(validateContentEditorActionResponse(response, policy).valid).toBe(false);
+	});
+
+	it("applies the shared response bounds", () => {
+		const result = validateContentEditorActionResponse(
+			{ toast: { message: "x".repeat(64 * 1024 + 1), type: "info" } },
+			policy,
+		);
+		expect(result.valid).toBe(false);
+		expect(result.errors[0]?.message).toContain("maximum size");
+	});
+});
+
+describe("validateContentEditorPanelInteraction", () => {
+	it.each([
+		{ type: "panel_load" },
+		{ type: "block_action", action_id: "refresh", value: 1 },
+		{ type: "form_submit", action_id: "save", values: { enabled: true } },
+	])("accepts bounded editor interactions", (interaction) => {
+		expect(validateContentEditorPanelInteraction(interaction)).toEqual({ valid: true, errors: [] });
+	});
+
+	it.each([
+		{ type: "panel_load", entry: { id: "forged" } },
+		{ type: "block_action", action_id: "" },
+		{ type: "form_submit", action_id: "save", values: [] },
+		{ type: "page_load", page: "/forged" },
+	])("rejects malformed or host-owned fields", (interaction) => {
+		expect(validateContentEditorPanelInteraction(interaction).valid).toBe(false);
 	});
 });

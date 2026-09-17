@@ -1,6 +1,9 @@
 export { EmDashRuntime } from "./emdash-runtime.js";
 export type { RuntimeDependencies } from "./emdash-runtime.js";
-export { dispatchPluginApiRequest } from "./plugins/http-route-dispatch.js";
+export {
+	dispatchPluginApiRequest,
+	dispatchPluginEditorExtensionApiRequest,
+} from "./plugins/http-route-dispatch.js";
 export {
 	handlePluginSettingsGet,
 	handlePluginSettingsUpdate,

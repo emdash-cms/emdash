@@ -427,21 +427,57 @@ export interface PageLoad {
 	page: string;
 }
 
-/** Context derived and attached by the EmDash host for Block Kit requests. */
-export interface PluginUiContext {
-	surface: "admin-page" | "dashboard-widget" | "content-editor-panel";
+interface PluginUiContextBase {
 	locale: string;
 	direction: "ltr" | "rtl";
 	contentLocale?: string;
 }
 
+/** Context derived and attached by the EmDash host for Block Kit requests. */
+export type PluginUiContext = PluginUiContextBase &
+	(
+		| {
+				surface: "admin-page" | "dashboard-widget";
+				entry?: never;
+				extensionId?: never;
+		  }
+		| {
+				surface: "content-editor-panel" | "content-editor-action";
+				/** Saved entry identity resolved by the host for this invocation. */
+				entry: {
+					collection: string;
+					id: string;
+					locale: string | null;
+					version: number;
+				};
+				/** Manifest-declared panel or action selected by the host. */
+				extensionId: string;
+		  }
+	);
+
 export type LinkTargetResolver = (target: LinkTarget) => string | null;
 
 export type BlockInteraction = BlockAction | FormSubmit | PageLoad;
+
+export type ContentEditorPanelInteraction =
+	| { type: "panel_load" }
+	| Omit<BlockAction, "page">
+	| Omit<FormSubmit, "page">;
+
+export interface ContentEditorActionInvocation {
+	type: "editor_action";
+}
 
 // ── Response ─────────────────────────────────────────────────────────────────
 
 export interface BlockResponse {
 	blocks: Block[];
 	toast?: { message: string; type: "success" | "error" | "info" };
+}
+
+/** Bounded host effects returned by a content-editor action route. */
+export interface ContentEditorActionResponse {
+	toast?: { message: string; type: "success" | "error" | "info" };
+	refresh?: true;
+	navigate?: LinkTarget;
 }

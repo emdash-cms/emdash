@@ -40,6 +40,7 @@ import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/d
 import { getEntryTitle } from "../lib/entryTitle.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
+import { resolveSandboxedEditorActions } from "../lib/sandboxed-editor-extensions.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
 import { cn, slugify } from "../lib/utils";
 import { getLocaleDir } from "../locales/config.js";
@@ -58,6 +59,7 @@ import { PluginFieldErrorBoundary } from "./PluginFieldErrorBoundary.js";
 import { PublishingScheduleDialog } from "./PublishingDateTimeEditor.js";
 import { RepeaterField } from "./RepeaterField.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
+import { SandboxedContentEditorActions } from "./SandboxedContentEditorActions.js";
 import { SaveButton } from "./SaveButton.js";
 
 /** Autosave debounce delay in milliseconds */
@@ -259,6 +261,8 @@ export interface ContentEditorProps {
 	onSeoChange?: (seo: ContentSeoInput) => void;
 	/** Admin manifest for resolving plugin field widgets */
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
+	/** Re-fetch host state after a plugin action requests an entry refresh. */
+	onEntryRefresh?: () => void | Promise<void>;
 	/** Show the entry without accepting edits. */
 	readOnly?: boolean;
 	/** Rendered above the fields; carries the edit-lock dialog and banner. */
@@ -317,6 +321,7 @@ export function ContentEditor({
 	hasSeo = false,
 	onSeoChange,
 	manifest,
+	onEntryRefresh,
 	readOnly = false,
 	notice,
 	timezone = "UTC",
@@ -888,6 +893,10 @@ export function ContentEditor({
 
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
+	const sandboxedEditorActions = React.useMemo(
+		() => (!isNew && item ? resolveSandboxedEditorActions(manifest?.plugins, collection) : []),
+		[collection, isNew, item, manifest?.plugins],
+	);
 
 	// The title advertises ⌘⇧\\ as the shortcut, so register it globally.
 	// It toggles both into and out of the mode, but is disabled while a
@@ -1024,6 +1033,18 @@ export function ContentEditor({
 											<MobileSettingsButton />
 										</fieldset>
 									)}
+									{item && sandboxedEditorActions.length > 0 ? (
+										<fieldset disabled={readOnly} className="contents">
+											<SandboxedContentEditorActions
+												actions={sandboxedEditorActions}
+												collection={collection}
+												entryId={item.id}
+												locale={item.locale ?? entryLocale}
+												isMobile={isBelowLg}
+												onEntryRefresh={onEntryRefresh}
+											/>
+										</fieldset>
+									) : null}
 									<Button
 										variant="ghost"
 										shape="square"

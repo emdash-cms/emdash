@@ -108,6 +108,18 @@ describe("core media route injection", () => {
 		expect(patterns).toContain("/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]");
 	});
 
+	it("injects the saved-entry plugin extension route", () => {
+		const routes: Array<{ pattern: string; entrypoint: string }> = [];
+		injectCoreRoutes((route) => routes.push(route));
+
+		expect(routes).toContainEqual(
+			expect.objectContaining({
+				pattern:
+					"/_emdash/api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId]",
+			}),
+		);
+	});
+
 	it("registers the media replacement route with PUT only", () => {
 		const routes: Array<{ pattern: string; entrypoint: string }> = [];
 		injectCoreRoutes((route) => routes.push(route));
