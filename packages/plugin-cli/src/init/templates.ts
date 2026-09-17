@@ -441,13 +441,14 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Use \`ctx.storage\` for queryable records, \`ctx.settings\` for user configuration, and \`ctx.kv\` for internal key-value state.
 - Declare credentials as \`secret\` fields in \`admin.settingsSchema\`. The host encrypts them with \`EMDASH_ENCRYPTION_KEY\`; keep that key with operational backups.
 - Use Block Kit for sandboxed admin UI. Do not ship browser React components.
+- Use structured Block Kit links for navigation. Read \`routeCtx.ui\` for the host-attested admin locale and direction; external images require HTTPS plus a hostname in \`allowedHosts\` or \`network:request:unrestricted\`.
 - Treat public routes as internet-facing and validate their inputs.
 
 ## Validation
 
 Use the package scripts in this repository. The default test script builds the plugin and runs it through Worker Loader, EmDash's production sandbox wrapper, and the host bridge.
 
-Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, or cache behavior. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
+Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, cache behavior, or Block Kit response validation. Use its \`admin\` helpers for pages, widgets, actions, forms, and host-attested locale context. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
 
 For generated secret settings, call \`actions.plugin.updateSettings()\` and verify \`inspect.settings.raw()\` contains an envelope without the plaintext.
 

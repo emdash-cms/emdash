@@ -133,7 +133,7 @@ export default {
 		"echo": {
 			handler: async (routeCtx, ctx) => {
 				const kvValue = await ctx.kv.get("last-hook");
-				return { input: routeCtx.input, kvValue };
+				return { input: routeCtx.input, kvValue, ui: routeCtx.ui };
 			}
 		},
 		"kv-test": {
@@ -436,11 +436,13 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				method: "POST",
 				url: "/api/test",
 				headers: {},
+				ui: { surface: "dashboard-widget", locale: "ar", direction: "rtl" },
 			},
 		)) as any;
 
 		expect(result).toBeDefined();
 		expect(result.input).toEqual({ hello: "world" });
+		expect(result.ui).toEqual({ surface: "dashboard-widget", locale: "ar", direction: "rtl" });
 	}, 30_000);
 
 	it("preserves bounded media bytes and metadata through a real workerd process", async () => {

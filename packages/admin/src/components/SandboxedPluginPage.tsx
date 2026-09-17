@@ -12,6 +12,7 @@ import { CircleNotch, WarningCircle } from "@phosphor-icons/react";
 import { useCallback, useEffect, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
+import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
 
 interface SandboxedPluginPageProps {
 	pluginId: string;
@@ -29,10 +30,12 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	const sendInteraction = useCallback(
 		async (interaction: BlockInteraction) => {
 			try {
+				const requestInteraction =
+					interaction.type === "page_load" ? interaction : { ...interaction, page };
 				const response = await apiFetch(`${API_BASE}/plugins/${pluginId}/admin`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(interaction),
+					body: JSON.stringify(requestInteraction),
 				});
 
 				if (!response.ok) {
@@ -54,7 +57,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
 			}
 		},
-		[pluginId],
+		[page, pluginId, t],
 	);
 
 	// Initial page load
@@ -111,7 +114,11 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				</div>
 			)}
 
-			<BlockRenderer blocks={blocks} onAction={handleAction} />
+			<BlockRenderer
+				blocks={blocks}
+				onAction={handleAction}
+				resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
+			/>
 		</div>
 	);
 }

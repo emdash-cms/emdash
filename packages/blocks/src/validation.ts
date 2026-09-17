@@ -22,6 +22,7 @@ const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
 
 const ELEMENT_TYPES = new Set([
 	"button",
+	"link",
 	"text_input",
 	"number_input",
 	"select",
@@ -42,8 +43,11 @@ const COLUMN_FORMATS = new Set(["text", "badge", "relative_time", "number", "cod
 const CODE_LANGUAGES = new Set(["ts", "tsx", "jsonc", "bash", "css"]);
 
 const BUTTON_STYLES = new Set(["primary", "danger", "secondary"]);
+const LINK_APPEARANCES = new Set(["inline", "primary", "secondary"]);
+const EXTERNAL_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
+const TRAILING_DOT_PATTERN = /\.$/;
 
 /**
  * RFC 6838-style image MIME type or image-prefix.
@@ -91,13 +95,151 @@ function validateInitialValueInOptions(
 	}
 }
 
-interface ValidationError {
+export interface ValidationError {
 	path: string;
 	message: string;
 }
 
+export interface BlockValidationPolicy {
+	allowedImageHosts?: readonly string[];
+	pluginPagePaths?: readonly string[];
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function hostMatches(hostname: string, pattern: string): boolean {
+	const normalizedHost = hostname.replace(TRAILING_DOT_PATTERN, "").toLowerCase();
+	const normalizedPattern = pattern.replace(TRAILING_DOT_PATTERN, "").toLowerCase();
+	if (normalizedPattern === "*") return true;
+	if (normalizedPattern.startsWith("*.")) {
+		const suffix = normalizedPattern.slice(2);
+		return normalizedHost === suffix || normalizedHost.endsWith(`.${suffix}`);
+	}
+	return normalizedHost === normalizedPattern;
+}
+
+function validateImageUrl(
+	value: string,
+	path: string,
+	errors: ValidationError[],
+	policy: BlockValidationPolicy,
+): void {
+	if (value.startsWith("/") && !value.startsWith("//") && !value.includes("\\")) return;
+
+	let parsed: URL;
+	try {
+		parsed = new URL(value);
+	} catch {
+		errors.push({ path, message: "Image URL must be a root-relative or absolute URL" });
+		return;
+	}
+
+	if (parsed.protocol !== "https:") {
+		errors.push({ path, message: "External image URLs must use HTTPS" });
+		return;
+	}
+	if (!(policy.allowedImageHosts ?? []).some((host) => hostMatches(parsed.hostname, host))) {
+		errors.push({ path, message: `Image host '${parsed.hostname}' is not allowed` });
+	}
+}
+
+function validateChartResources(
+	value: unknown,
+	path: string,
+	errors: ValidationError[],
+	policy: BlockValidationPolicy,
+): void {
+	if (typeof value === "string" && value.startsWith("image://")) {
+		validateImageUrl(value.slice("image://".length), path, errors, policy);
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (let i = 0; i < value.length; i++) {
+			validateChartResources(value[i], `${path}[${i}]`, errors, policy);
+		}
+		return;
+	}
+	if (!isRecord(value)) return;
+	for (const [key, nested] of Object.entries(value)) {
+		if (key === "image" && typeof nested === "string") {
+			validateImageUrl(nested, `${path}.${key}`, errors, policy);
+		} else {
+			validateChartResources(nested, `${path}.${key}`, errors, policy);
+		}
+	}
+}
+
+function validateLinkTarget(
+	value: unknown,
+	path: string,
+	errors: ValidationError[],
+	policy?: BlockValidationPolicy,
+): void {
+	if (!isRecord(value) || typeof value.kind !== "string") {
+		errors.push({ path, message: "Link target must be an object with a kind" });
+		return;
+	}
+
+	switch (value.kind) {
+		case "content":
+			if (typeof value.collection !== "string" || value.collection.length === 0) {
+				errors.push({ path: `${path}.collection`, message: "Content collection must be a string" });
+			}
+			if (typeof value.id !== "string" || value.id.length === 0) {
+				errors.push({ path: `${path}.id`, message: "Content id must be a string" });
+			}
+			if (value.locale !== undefined && typeof value.locale !== "string") {
+				errors.push({ path: `${path}.locale`, message: "Content locale must be a string" });
+			}
+			break;
+		case "plugin-page": {
+			if (
+				typeof value.path !== "string" ||
+				!value.path.startsWith("/") ||
+				value.path.startsWith("//") ||
+				value.path.includes("\\") ||
+				value.path.split("/").some((segment) => segment === "." || segment === "..")
+			) {
+				errors.push({
+					path: `${path}.path`,
+					message: "Plugin page path must start with one slash",
+				});
+			} else if (policy?.pluginPagePaths && !policy.pluginPagePaths.includes(value.path)) {
+				errors.push({
+					path: `${path}.path`,
+					message: `Plugin page '${value.path}' is not declared by this plugin`,
+				});
+			}
+			break;
+		}
+		case "plugin-settings":
+			break;
+		case "external": {
+			if (typeof value.url !== "string") {
+				errors.push({ path: `${path}.url`, message: "External URL must be a string" });
+				break;
+			}
+			try {
+				const url = new URL(value.url);
+				if (!EXTERNAL_LINK_PROTOCOLS.has(url.protocol)) {
+					errors.push({
+						path: `${path}.url`,
+						message: `External URL protocol '${url.protocol}' is not allowed`,
+					});
+				}
+			} catch {
+				errors.push({ path: `${path}.url`, message: "External URL must be absolute" });
+			}
+			break;
+		}
+		default:
+			errors.push({
+				path: `${path}.kind`,
+				message: `Unknown link target kind '${value.kind}'`,
+			});
+	}
 }
 
 function validateConfirmDialog(value: unknown, path: string, errors: ValidationError[]): void {
@@ -137,7 +279,12 @@ function validateConfirmDialog(value: unknown, path: string, errors: ValidationE
 	}
 }
 
-function validateElement(value: unknown, path: string, errors: ValidationError[]): void {
+function validateElement(
+	value: unknown,
+	path: string,
+	errors: ValidationError[],
+	policy?: BlockValidationPolicy,
+): void {
 	if (!isRecord(value)) {
 		errors.push({ path, message: "Element must be an object" });
 		return;
@@ -152,7 +299,7 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 		return;
 	}
 
-	if (typeof value.action_id !== "string") {
+	if (type !== "link" && typeof value.action_id !== "string") {
 		errors.push({
 			path: `${path}.action_id`,
 			message: "Required field 'action_id' must be a string",
@@ -179,6 +326,25 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 			if (value.confirm !== undefined) {
 				validateConfirmDialog(value.confirm, `${path}.confirm`, errors);
 			}
+			break;
+		}
+		case "link": {
+			if ("action_id" in value) {
+				errors.push({
+					path: `${path}.action_id`,
+					message: "Link elements cannot declare an action_id",
+				});
+			}
+			if (
+				value.appearance !== undefined &&
+				(typeof value.appearance !== "string" || !LINK_APPEARANCES.has(value.appearance))
+			) {
+				errors.push({
+					path: `${path}.appearance`,
+					message: `Field 'appearance' must be one of: ${[...LINK_APPEARANCES].join(", ")}`,
+				});
+			}
+			validateLinkTarget(value.target, `${path}.target`, errors, policy);
 			break;
 		}
 		case "text_input": {
@@ -490,7 +656,7 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 						});
 						continue;
 					}
-					validateElement(sub, subPath, errors);
+					validateElement(sub, subPath, errors, policy);
 				}
 			}
 			if (value.item_label !== undefined && typeof value.item_label !== "string") {
@@ -586,10 +752,19 @@ function validateElement(value: unknown, path: string, errors: ValidationError[]
 	}
 }
 
-function validateFormField(value: unknown, path: string, errors: ValidationError[]): void {
-	validateElement(value, path, errors);
+function validateFormField(
+	value: unknown,
+	path: string,
+	errors: ValidationError[],
+	policy?: BlockValidationPolicy,
+): void {
+	validateElement(value, path, errors, policy);
 
 	if (!isRecord(value)) return;
+	if (value.type === "link") {
+		errors.push({ path: `${path}.type`, message: "Link elements cannot be used as form fields" });
+		return;
+	}
 
 	if (value.condition !== undefined) {
 		const cond = value.condition;
@@ -656,7 +831,12 @@ function validateChartSeries(value: unknown, path: string, errors: ValidationErr
 	}
 }
 
-function validateChartConfig(value: unknown, path: string, errors: ValidationError[]): void {
+function validateChartConfig(
+	value: unknown,
+	path: string,
+	errors: ValidationError[],
+	policy?: BlockValidationPolicy,
+): void {
 	if (!isRecord(value)) {
 		errors.push({ path, message: "Required field 'config' must be an object" });
 		return;
@@ -738,12 +918,18 @@ function validateChartConfig(value: unknown, path: string, errors: ValidationErr
 					message: "Required field 'options' must be an object",
 				});
 			}
+			if (policy) validateChartResources(value.options, `${path}.options`, errors, policy);
 			break;
 		}
 	}
 }
 
-function validateBlock(value: unknown, path: string, errors: ValidationError[]): void {
+function validateBlock(
+	value: unknown,
+	path: string,
+	errors: ValidationError[],
+	policy?: BlockValidationPolicy,
+): void {
 	if (!isRecord(value)) {
 		errors.push({ path, message: "Block must be an object" });
 		return;
@@ -783,7 +969,7 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 				});
 			}
 			if (value.accessory !== undefined) {
-				validateElement(value.accessory, `${path}.accessory`, errors);
+				validateElement(value.accessory, `${path}.accessory`, errors, policy);
 			}
 			break;
 		}
@@ -911,7 +1097,7 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 				});
 			} else {
 				for (let i = 0; i < value.elements.length; i++) {
-					validateElement(value.elements[i], `${path}.elements[${i}]`, errors);
+					validateElement(value.elements[i], `${path}.elements[${i}]`, errors, policy);
 				}
 			}
 			break;
@@ -971,7 +1157,7 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 				});
 			} else {
 				for (let i = 0; i < value.fields.length; i++) {
-					validateFormField(value.fields[i], `${path}.fields[${i}]`, errors);
+					validateFormField(value.fields[i], `${path}.fields[${i}]`, errors, policy);
 				}
 			}
 			if (!isRecord(value.submit)) {
@@ -1001,7 +1187,7 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 					path: `${path}.url`,
 					message: "Required field 'url' must be a string",
 				});
-			}
+			} else if (policy) validateImageUrl(value.url, `${path}.url`, errors, policy);
 			if (typeof value.alt !== "string") {
 				errors.push({
 					path: `${path}.alt`,
@@ -1047,14 +1233,14 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 						continue;
 					}
 					for (let j = 0; j < col.length; j++) {
-						validateBlock(col[j], `${path}.columns[${i}][${j}]`, errors);
+						validateBlock(col[j], `${path}.columns[${i}][${j}]`, errors, policy);
 					}
 				}
 			}
 			break;
 		}
 		case "chart": {
-			validateChartConfig(value.config, `${path}.config`, errors);
+			validateChartConfig(value.config, `${path}.config`, errors, policy);
 			break;
 		}
 		case "meter": {
@@ -1166,7 +1352,7 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 					});
 				} else {
 					for (let i = 0; i < value.actions.length; i++) {
-						validateElement(value.actions[i], `${path}.actions[${i}]`, errors);
+						validateElement(value.actions[i], `${path}.actions[${i}]`, errors, policy);
 					}
 				}
 			}
@@ -1186,7 +1372,7 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 				});
 			} else {
 				for (let i = 0; i < value.blocks.length; i++) {
-					validateBlock(value.blocks[i], `${path}.blocks[${i}]`, errors);
+					validateBlock(value.blocks[i], `${path}.blocks[${i}]`, errors, policy);
 				}
 			}
 			if (value.default_open !== undefined && typeof value.default_open !== "boolean") {
@@ -1200,7 +1386,10 @@ function validateBlock(value: unknown, path: string, errors: ValidationError[]):
 	}
 }
 
-export function validateBlocks(blocks: unknown): {
+export function validateBlocks(
+	blocks: unknown,
+	policy?: BlockValidationPolicy,
+): {
 	valid: boolean;
 	errors: ValidationError[];
 } {
@@ -1212,7 +1401,36 @@ export function validateBlocks(blocks: unknown): {
 	}
 
 	for (let i = 0; i < blocks.length; i++) {
-		validateBlock(blocks[i], `blocks[${i}]`, errors);
+		validateBlock(blocks[i], `blocks[${i}]`, errors, policy);
+	}
+
+	return { valid: errors.length === 0, errors };
+}
+
+export function validateBlockResponse(
+	response: unknown,
+	policy: BlockValidationPolicy,
+): { valid: boolean; errors: ValidationError[] } {
+	if (!isRecord(response)) {
+		return { valid: false, errors: [{ path: "response", message: "Response must be an object" }] };
+	}
+
+	const result = validateBlocks(response.blocks, policy);
+	const errors = [...result.errors];
+	if (response.toast !== undefined) {
+		if (!isRecord(response.toast)) {
+			errors.push({ path: "toast", message: "Toast must be an object" });
+		} else {
+			if (typeof response.toast.message !== "string") {
+				errors.push({ path: "toast.message", message: "Toast message must be a string" });
+			}
+			if (!new Set(["success", "error", "info"]).has(String(response.toast.type))) {
+				errors.push({
+					path: "toast.type",
+					message: "Toast type must be success, error, or info",
+				});
+			}
+		}
 	}
 
 	return { valid: errors.length === 0, errors };

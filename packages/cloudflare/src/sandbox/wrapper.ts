@@ -433,6 +433,7 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 					request: serializedRequest,
 					requestMeta: serializedRequest.meta,
 					user: serializedRequest.user,
+					ui: serializedRequest.ui,
 				},
 				ctx,
 			);

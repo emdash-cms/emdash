@@ -12,6 +12,7 @@ import { useLingui } from "@lingui/react/macro";
 import { useCallback, useEffect, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
+import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
 
 interface SandboxedPluginWidgetProps {
 	pluginId: string;
@@ -23,14 +24,17 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 	const [blocks, setBlocks] = useState<Block[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const page = `widget:${widgetId}`;
 
 	const sendInteraction = useCallback(
 		async (interaction: BlockInteraction) => {
 			try {
+				const requestInteraction =
+					interaction.type === "page_load" ? interaction : { ...interaction, page };
 				const response = await apiFetch(`${API_BASE}/plugins/${pluginId}/admin`, {
 					method: "POST",
 					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify(interaction),
+					body: JSON.stringify(requestInteraction),
 				});
 
 				if (!response.ok) {
@@ -46,16 +50,14 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 				setError(t`Failed to load widget`);
 			}
 		},
-		[pluginId],
+		[page, pluginId, t],
 	);
 
 	// Initial widget load
 	useEffect(() => {
 		setLoading(true);
-		void sendInteraction({ type: "page_load", page: `widget:${widgetId}` }).finally(() =>
-			setLoading(false),
-		);
-	}, [sendInteraction, widgetId]);
+		void sendInteraction({ type: "page_load", page }).finally(() => setLoading(false));
+	}, [page, sendInteraction]);
 
 	const handleAction = useCallback(
 		(interaction: BlockInteraction) => {
@@ -82,5 +84,11 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 		return <p className="text-sm text-kumo-subtle">{t`No content`}</p>;
 	}
 
-	return <BlockRenderer blocks={blocks} onAction={handleAction} />;
+	return (
+		<BlockRenderer
+			blocks={blocks}
+			onAction={handleAction}
+			resolveLinkTarget={(target) => resolvePluginLinkTarget(pluginId, target)}
+		/>
+	);
 }

@@ -127,7 +127,7 @@ Other Block Kit element types display an unsupported-element message in this sur
 
 `emdash-plugin.jsonc` accepts `admin.fieldWidgets`, and the plugin CLI carries the definitions through the bundle manifest and generated descriptor for registry installation. The artifact round-trip is covered by plugin CLI, shared manifest, and plugin-test tests. The browser E2E fixture still tests a native React color picker rather than a registry-installed declarative widget, so verify the real editor render and value persistence for the chosen elements.
 
-The sandbox admin context does not expose the administrator's active locale. Labels in manifest metadata and Block Kit responses are static strings from the plugin; there is no locale-aware callback or translation catalog handoff for registry plugins.
+The sandbox admin route receives `routeCtx.ui` with the host-attested admin locale, text direction, and surface. Use it to select localized text in a runtime Block Kit response. Labels in manifest metadata remain static strings; registry plugins do not hand translation catalogs to the host.
 
 ## Native React pages, widgets, and fields
 

@@ -13,6 +13,11 @@ export type {
 	ConfirmDialog,
 	// Elements
 	ButtonElement,
+	LinkElement,
+	LinkTarget,
+	LinkTargetResolver,
+	NavigationElement,
+	ActionElement,
 	TextInputElement,
 	NumberInputElement,
 	SelectElement,
@@ -62,6 +67,7 @@ export type {
 	FormSubmit,
 	PageLoad,
 	BlockInteraction,
+	PluginUiContext,
 	// Response
 	BlockResponse,
 } from "./types.js";

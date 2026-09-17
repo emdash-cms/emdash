@@ -251,8 +251,16 @@ export function adaptSandboxEntry(
 						request: requestShape,
 						requestMeta: ctx.requestMeta,
 						user: ctx.user,
+						ui: ctx.ui,
 					};
-					const { input: _, request: __, requestMeta: ___, user: ____, ...pluginCtx } = ctx;
+					const {
+						input: _,
+						request: __,
+						requestMeta: ___,
+						user: ____,
+						ui: _____,
+						...pluginCtx
+					} = ctx;
 					return handler(routeCtx, pluginCtx);
 				},
 			};

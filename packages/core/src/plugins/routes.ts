@@ -8,6 +8,7 @@
  *
  */
 
+import type { PluginUiContext } from "@emdash-cms/blocks/server";
 import { z } from "zod";
 
 import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
@@ -176,6 +177,8 @@ export interface InvokeRouteOptions {
 	 * `ctx.user`. Undefined for public routes and unbound machine tokens.
 	 */
 	user?: UserInfo;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
 }
 
 /**
@@ -240,6 +243,7 @@ export class PluginRouteHandler {
 			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
 			user: options.user,
+			ui: options.ui,
 		};
 
 		// Execute handler
