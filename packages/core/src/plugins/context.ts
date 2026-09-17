@@ -750,7 +750,7 @@ export function createHttpAccess(
 }
 
 /**
- * Create unrestricted HTTP access (for plugins with network:fetch:any capability).
+ * Create unrestricted HTTP access (for plugins with network:request:unrestricted capability).
  * No host validation, but applies SSRF protection on redirect targets to
  * prevent plugins from being tricked into reaching internal services.
  */
