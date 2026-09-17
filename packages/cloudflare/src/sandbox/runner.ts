@@ -30,6 +30,7 @@ import {
 
 import {
 	setContentActionsCallback,
+	flushContentActionCallbacks,
 	setCronNowCallback,
 	setCronRescheduleCallback,
 	setEmailSendCallback,
@@ -371,11 +372,15 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	 * Wall-time is enforced here.
 	 */
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
-		return this.withWallTimeLimit(`hook:${hookName}`, () => {
-			const worker = this.createWorker();
-			const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-			return entrypoint.invokeHook(hookName, event);
-		});
+		try {
+			return await this.withWallTimeLimit(`hook:${hookName}`, () => {
+				const worker = this.createWorker();
+				const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
+				return entrypoint.invokeHook(hookName, event);
+			});
+		} finally {
+			void flushContentActionCallbacks(this.manifest.id);
+		}
 	}
 
 	/**
@@ -389,14 +394,18 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		input: unknown,
 		request: SerializedRequest,
 	): Promise<unknown> {
-		return this.withWallTimeLimit(`route:${routeName}`, async () => {
-			const worker = this.createWorker();
-			const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-			const result = await entrypoint.invokeRoute(routeName, input, request);
-			const envelope = getSandboxRouteErrorEnvelope(result);
-			if (envelope) throw createSandboxRouteError(envelope.error.code);
-			return result;
-		});
+		try {
+			return await this.withWallTimeLimit(`route:${routeName}`, async () => {
+				const worker = this.createWorker();
+				const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
+				const routeResult = await entrypoint.invokeRoute(routeName, input, request);
+				const envelope = getSandboxRouteErrorEnvelope(routeResult);
+				if (envelope) throw createSandboxRouteError(envelope.error.code);
+				return routeResult;
+			});
+		} finally {
+			void flushContentActionCallbacks(this.manifest.id);
+		}
 	}
 
 	/**

@@ -1014,25 +1014,29 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	 */
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		await this.ensureReady();
-		return this.withWallTimeLimit(`hook:${hookName}`, async () => {
-			const res = await fetch(`http://127.0.0.1:${this.port}/hook/${hookName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-				},
-				body: JSON.stringify({ event }),
+		try {
+			return await this.withWallTimeLimit(`hook:${hookName}`, async () => {
+				const res = await fetch(`http://127.0.0.1:${this.port}/hook/${hookName}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+					},
+					body: JSON.stringify({ event }),
+				});
+				if (!res.ok) {
+					const text = await res.text();
+					throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
+				}
+				const hookResult: unknown = await res.json();
+				if (!isRecord(hookResult)) {
+					throw new Error(`Plugin ${this.id} hook ${hookName} returned a non-object response`);
+				}
+				return hookResult.value;
 			});
-			if (!res.ok) {
-				const text = await res.text();
-				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
-			}
-			const result: unknown = await res.json();
-			if (!isRecord(result)) {
-				throw new Error(`Plugin ${this.id} hook ${hookName} returned a non-object response`);
-			}
-			return result.value;
-		});
+		} finally {
+			void this.runner.contentActions?.flush(this.manifest.id);
+		}
 	}
 
 	/**
@@ -1044,30 +1048,34 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 		request: SerializedRequest,
 	): Promise<unknown> {
 		await this.ensureReady();
-		return this.withWallTimeLimit(`route:${routeName}`, async () => {
-			const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-				},
-				body: JSON.stringify({ input, request }),
+		try {
+			return await this.withWallTimeLimit(`route:${routeName}`, async () => {
+				const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+					},
+					body: JSON.stringify({ input, request }),
+				});
+				if (!res.ok) {
+					const text = await res.text();
+					let envelope = null;
+					try {
+						envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+					} catch {
+						// The generic route error below preserves non-protocol failures.
+					}
+					if (envelope) {
+						throw createSandboxRouteError(envelope.error.code);
+					}
+					throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
+				}
+				return res.json();
 			});
-			if (!res.ok) {
-				const text = await res.text();
-				let envelope = null;
-				try {
-					envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
-				} catch {
-					// The generic route error below preserves non-protocol failures.
-				}
-				if (envelope) {
-					throw createSandboxRouteError(envelope.error.code);
-				}
-				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
-			}
-			return res.json();
-		});
+		} finally {
+			void this.runner.contentActions?.flush(this.manifest.id);
+		}
 	}
 
 	/**

@@ -3,7 +3,7 @@ import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
 import { env } from "cloudflare:workers";
 import { OptionsRepository, type Database, type PluginManifest, type SandboxOptions } from "emdash";
 import { Kysely } from "kysely";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
 	createPluginRuntimeTestHost,
@@ -525,6 +525,13 @@ describe("runtime plugin test host", () => {
 			_rev: trashed._rev,
 		});
 		expect(restored.item.id).toBe(content.id);
+		await vi.waitFor(async () => {
+			for (const action of ["publish", "unpublish", "schedule", "unschedule", "restore"]) {
+				await expect(
+					runtimeHost!.inspect.storage.get("events", `action:${action}:${content.id}`),
+				).resolves.toMatchObject({ type: "content-action", action, contentId: content.id });
+			}
+		});
 	});
 
 	it("runs public comment policy and follows every content-list cursor", async () => {

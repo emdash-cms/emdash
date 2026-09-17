@@ -136,6 +136,7 @@ describe("Bridge Handler Conformance", () => {
 				_rev: "revision-2",
 			};
 			const actions = {
+				flush: vi.fn().mockResolvedValue(undefined),
 				getVersioned: vi.fn().mockResolvedValue(versioned),
 				publish: vi.fn().mockResolvedValue(versioned),
 				unpublish: vi.fn().mockResolvedValue(versioned),

@@ -16,6 +16,14 @@ function policyActor(event: ContentPolicyEvent) {
 	return { origin: event.origin, actor: event.actor };
 }
 
+async function recordContentAction(ctx: PluginContext, action: string, contentId: string) {
+	await ctx.storage.events!.put(`action:${action}:${contentId}`, {
+		type: "content-action",
+		action,
+		contentId,
+	});
+}
+
 const plugin: SandboxedPlugin = {
 	hooks: {
 		"plugin:install": async (_event, ctx) => record(ctx, "lifecycle", "install"),
@@ -83,31 +91,16 @@ const plugin: SandboxedPlugin = {
 			const reason = await ctx.kv.get("policy:content:beforeUnpublish");
 			return typeof reason === "string" ? { cancel: true, reason } : undefined;
 		},
-		"content:afterPublish": async (event, ctx) =>
-			record(ctx, "events", "content-action", {
-				action: "publish",
-				contentId: event.content.id,
-			}),
-		"content:afterUnpublish": async (event, ctx) =>
-			record(ctx, "events", "content-action", {
-				action: "unpublish",
-				contentId: event.content.id,
-			}),
-		"content:afterSchedule": async (event, ctx) =>
-			record(ctx, "events", "content-action", {
-				action: "schedule",
-				contentId: event.content.id,
-			}),
-		"content:afterUnschedule": async (event, ctx) =>
-			record(ctx, "events", "content-action", {
-				action: "unschedule",
-				contentId: event.content.id,
-			}),
-		"content:afterRestore": async (event, ctx) =>
-			record(ctx, "events", "content-action", {
-				action: "restore",
-				contentId: event.content.id,
-			}),
+		"content:afterPublish": (event, ctx) =>
+			recordContentAction(ctx, "publish", String(event.content.id)),
+		"content:afterUnpublish": (event, ctx) =>
+			recordContentAction(ctx, "unpublish", String(event.content.id)),
+		"content:afterSchedule": (event, ctx) =>
+			recordContentAction(ctx, "schedule", String(event.content.id)),
+		"content:afterUnschedule": (event, ctx) =>
+			recordContentAction(ctx, "unschedule", String(event.content.id)),
+		"content:afterRestore": (event, ctx) =>
+			recordContentAction(ctx, "restore", String(event.content.id)),
 		"media:beforeUpload": async (event) => ({
 			...event.file,
 			name: `checked-${event.file.name}`,

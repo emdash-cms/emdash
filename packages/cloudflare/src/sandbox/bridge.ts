@@ -90,6 +90,10 @@ export function setContentActionsCallback(callback: ContentActionCallbacks | nul
 	contentActionsCallback = callback;
 }
 
+export function flushContentActionCallbacks(pluginId: string): Promise<void> {
+	return contentActionsCallback?.flush(pluginId) ?? Promise.resolve();
+}
+
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
 	cronRescheduleCallback = callback;
 }
