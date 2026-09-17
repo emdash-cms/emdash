@@ -5,7 +5,7 @@ export { cn, formatRelativeTime } from "./utils.js";
 
 // Builders and validation
 export { blocks, elements } from "./builders.js";
-export { validateBlocks } from "./validation.js";
+export { BLOCK_RESPONSE_LIMITS, validateBlocks } from "./validation.js";
 
 // Re-export all types
 export type {

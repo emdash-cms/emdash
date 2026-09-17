@@ -94,6 +94,34 @@ describe("SandboxedPluginPage navigation", () => {
 			page: "/overview",
 		});
 	});
+
+	it("ignores a stale response after navigating to another plugin page", async () => {
+		const overview = Promise.withResolvers<Response>();
+		const reports = Promise.withResolvers<Response>();
+		vi.stubGlobal(
+			"fetch",
+			vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+				if (typeof init?.body !== "string") throw new Error("Expected JSON request body");
+				const interaction = JSON.parse(init.body) as { page: string };
+				return interaction.page === "/overview" ? overview.promise : reports.promise;
+			}),
+		);
+		const screen = await render(<SandboxedPluginPage pluginId="content-guard" page="/overview" />);
+		await screen.rerender(<SandboxedPluginPage pluginId="content-guard" page="/reports" />);
+
+		reports.resolve(
+			Response.json({ data: { blocks: [{ type: "header", text: "Reports page" }] } }),
+		);
+		await expect.element(screen.getByRole("heading", { name: "Reports page" })).toBeVisible();
+
+		overview.resolve(
+			Response.json({ data: { blocks: [{ type: "header", text: "Overview page" }] } }),
+		);
+		await expect
+			.element(screen.getByRole("heading", { name: "Overview page" }))
+			.not.toBeInTheDocument();
+		await expect.element(screen.getByRole("heading", { name: "Reports page" })).toBeVisible();
+	});
 });
 
 describe("resolvePluginLinkTarget", () => {

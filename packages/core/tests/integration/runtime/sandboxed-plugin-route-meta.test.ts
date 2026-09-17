@@ -8,13 +8,18 @@ import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
 import { describe, expect, it, vi } from "vitest";
 
-import { EmDashRuntime, type RuntimeDependencies } from "../../../src/emdash-runtime.js";
+import {
+	EmDashRuntime,
+	type RuntimeDependencies,
+	type SandboxedPluginEntry,
+} from "../../../src/emdash-runtime.js";
 import type { SandboxedPluginInstance } from "../../../src/plugins/sandbox/types.js";
 
 let currentInvokeRoute: SandboxedPluginInstance["invokeRoute"] = async () => undefined;
 
 function createDeps(
 	invokeRoute: SandboxedPluginInstance["invokeRoute"] = vi.fn(),
+	access: Partial<Pick<SandboxedPluginEntry, "allowedHosts" | "capabilities">> = {},
 ): RuntimeDependencies {
 	currentInvokeRoute = invokeRoute;
 	const entrypoint = `test-sandboxed-route-meta-${randomUUID()}`;
@@ -41,8 +46,8 @@ function createDeps(
 				version: randomUUID(),
 				options: {},
 				code: "",
-				capabilities: [],
-				allowedHosts: [],
+				capabilities: access.capabilities ?? [],
+				allowedHosts: access.allowedHosts ?? [],
 				storage: {},
 				routes: [{ name: "ping", public: true }, { name: "admin" }],
 				adminPages: [{ path: "/overview", label: "Overview" }],
@@ -130,7 +135,9 @@ describe("EmDashRuntime — config-declared sandboxed plugin route metadata", ()
 		const invokeRoute = vi.fn(async () => ({
 			blocks: [{ type: "image", url: "https://tracker.example/pixel.gif", alt: "" }],
 		}));
-		const runtime = await EmDashRuntime.create(createDeps(invokeRoute));
+		const runtime = await EmDashRuntime.create(
+			createDeps(invokeRoute, { allowedHosts: ["tracker.example"] }),
+		);
 		try {
 			const undeclared = await runtime.handlePluginApiRoute(
 				"demo",
@@ -165,4 +172,38 @@ describe("EmDashRuntime — config-declared sandboxed plugin route metadata", ()
 			await runtime.stopCron();
 		}
 	});
+
+	it.each([
+		["scoped", ["network:request"], ["tracker.example"]],
+		["legacy scoped", ["network:fetch"], ["tracker.example"]],
+		["unrestricted", ["network:request:unrestricted"], []],
+	] as const)(
+		"accepts HTTPS images with %s network authority",
+		async (_label, capabilities, allowedHosts) => {
+			const invokeRoute = vi.fn(async () => ({
+				blocks: [{ type: "image", url: "https://tracker.example/pixel.gif", alt: "Status" }],
+			}));
+			const runtime = await EmDashRuntime.create(
+				createDeps(invokeRoute, {
+					capabilities: [...capabilities],
+					allowedHosts: [...allowedHosts],
+				}),
+			);
+			try {
+				await expect(
+					runtime.handlePluginApiRoute(
+						"demo",
+						"POST",
+						"/admin",
+						new Request("https://example.test/_emdash/api/plugins/demo/admin", {
+							method: "POST",
+							body: JSON.stringify({ type: "page_load", page: "/overview" }),
+						}),
+					),
+				).resolves.toMatchObject({ success: true });
+			} finally {
+				await runtime.stopCron();
+			}
+		},
+	);
 });

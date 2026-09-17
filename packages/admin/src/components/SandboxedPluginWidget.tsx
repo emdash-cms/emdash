@@ -9,7 +9,7 @@ import { SkeletonLine } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
 import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
@@ -25,9 +25,15 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const page = `widget:${widgetId}`;
+	const requestGeneration = useRef(0);
 
 	const sendInteraction = useCallback(
-		async (interaction: BlockInteraction) => {
+		async (interaction: BlockInteraction, showLoading = false) => {
+			const generation = ++requestGeneration.current;
+			if (showLoading) {
+				setLoading(true);
+				setError(null);
+			}
 			try {
 				const requestInteraction =
 					interaction.type === "page_load" ? interaction : { ...interaction, page };
@@ -36,6 +42,7 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(requestInteraction),
 				});
+				if (generation !== requestGeneration.current) return;
 
 				if (!response.ok) {
 					setError(t`Plugin error (${response.status})`);
@@ -43,11 +50,14 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 				}
 
 				const body = (await response.json()) as { data: BlockResponse };
+				if (generation !== requestGeneration.current) return;
 				const data = body.data;
 				setBlocks(data.blocks);
 				setError(null);
 			} catch {
-				setError(t`Failed to load widget`);
+				if (generation === requestGeneration.current) setError(t`Failed to load widget`);
+			} finally {
+				if (showLoading && generation === requestGeneration.current) setLoading(false);
 			}
 		},
 		[page, pluginId, t],
@@ -55,8 +65,10 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 
 	// Initial widget load
 	useEffect(() => {
-		setLoading(true);
-		void sendInteraction({ type: "page_load", page }).finally(() => setLoading(false));
+		void sendInteraction({ type: "page_load", page }, true);
+		return () => {
+			requestGeneration.current++;
+		};
 	}, [page, sendInteraction]);
 
 	const handleAction = useCallback(

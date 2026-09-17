@@ -113,7 +113,7 @@ export default plugin;
 
 The `admin` route is private by default. EmDash sends the correct CSRF header when the admin calls it. The handler still validates `routeCtx.input` because its TypeScript type is `unknown` and a caller can invoke a private plugin route outside the Block Kit page.
 
-EmDash validates every page and widget response before the admin renders it. An invalid block, unsafe URL, or link to an undeclared plugin page fails the request instead of reaching the browser.
+EmDash validates every page and widget response before the admin renders it. An invalid block, unsafe URL, link to an undeclared plugin page, or response over the Block Kit limits fails the request instead of reaching the browser. A response can contain up to 256 KiB, 20 nested levels, 2,000 nodes, 1,000 items per array, and 64 KiB per string.
 
 ## UI locale and direction
 

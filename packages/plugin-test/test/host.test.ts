@@ -1297,6 +1297,9 @@ describe("runtime plugin test host", () => {
 		await expect(runtimeHost.admin.act("/overview", "unsafe-image")).rejects.toThrow(
 			"INVALID_BLOCK_RESPONSE",
 		);
+		await expect(runtimeHost.admin.act("/overview", "oversized-response")).rejects.toThrow(
+			"INVALID_BLOCK_RESPONSE",
+		);
 	});
 });
 
