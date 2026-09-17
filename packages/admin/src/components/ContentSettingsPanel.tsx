@@ -812,7 +812,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 				userId={currentUser?.id}
 				onSortingChange={setIsReorderingSections}
 			>
-				<SortableContentSettingsSection id="publish" label={t`Publish`}>
+				<SortableContentSettingsSection id="publish" label={t`Publish`} hidden={isNew}>
 					<div className="p-4">
 						<Text bold as="h3" DANGEROUS_className="mb-4">
 							{t`Publish`}

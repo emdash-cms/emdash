@@ -1009,7 +1009,9 @@ describe("ContentSettingsPanel", () => {
 			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
 		);
 
-		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: "Publish" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Drag to reorder Publish" }).query()).toBeNull();
+		await expect.element(screen.getByRole("heading", { name: "URL & language" })).toBeVisible();
 		// No trash, no translations, no taxonomies, no SEO, no revisions for new items
 		expect(screen.container.textContent).not.toContain("Move to Trash");
 		expect(screen.container.textContent).not.toContain("Translations");
