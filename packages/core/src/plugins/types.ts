@@ -43,7 +43,7 @@ import type { z } from "astro/zod";
 // =============================================================================
 
 import type { ContentFieldFilters } from "../content-list-query.js";
-import type { FieldType } from "../schema/types.js";
+import type { FieldType, FieldValidation, FieldWidgetOptions } from "../schema/types.js";
 
 export type {
 	ContentFieldFilterScalar,
@@ -328,6 +328,63 @@ export interface ContentItem {
 	publishedAt: string | null;
 	/** Scheduled publication time, if set (e.g. scheduled items or scheduled draft changes). */
 	scheduledAt?: string | null;
+	authorId?: string | null;
+	translationGroup?: string | null;
+	liveRevisionId?: string | null;
+	draftRevisionId?: string | null;
+	version?: number;
+}
+
+export interface ContentTranslationSummary {
+	id: string;
+	locale: string | null;
+	slug: string | null;
+	status: string;
+	updatedAt: string;
+}
+
+export interface ContentRevisionInfo {
+	id: string;
+	collection: string;
+	entryId: string;
+	data: Record<string, unknown>;
+	createdAt: string;
+}
+
+export interface FieldSchemaInfo {
+	slug: string;
+	label: string;
+	type: FieldType;
+	required: boolean;
+	unique: boolean;
+	default?: unknown;
+	validation?: FieldValidation;
+	widget?: string;
+	options?: FieldWidgetOptions;
+	searchable: boolean;
+	indexed: boolean;
+	translatable: boolean;
+	sortOrder: number;
+}
+
+export interface CollectionSchemaInfo {
+	slug: string;
+	label: string;
+	labelSingular: string | null;
+	description: string | null;
+	supports: string[];
+	hasSeo: boolean;
+	titleField: string | null;
+	dateField: string | null;
+	urlPattern: string | null;
+	routable: boolean;
+	hidden: boolean;
+	fields: FieldSchemaInfo[];
+}
+
+export interface SchemaAccess {
+	listCollections(): Promise<CollectionSchemaInfo[]>;
+	getCollection(slug: string): Promise<CollectionSchemaInfo | null>;
 }
 
 export interface ContentListWhere {
@@ -413,6 +470,21 @@ export interface ContentAccess {
 	// Read operations (requires read:content)
 	get(collection: string, id: string): Promise<ContentItem | null>;
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
+	getTranslations?(
+		collection: string,
+		id: string,
+	): Promise<{ translationGroup: string; translations: ContentTranslationSummary[] }>;
+	getPublicUrl?(collection: string, id: string): Promise<string | null>;
+	listRevisions?(
+		collection: string,
+		id: string,
+		options?: { limit?: number },
+	): Promise<ContentRevisionInfo[]>;
+	getRevision?(
+		collection: string,
+		id: string,
+		revisionId: string,
+	): Promise<ContentRevisionInfo | null>;
 
 	// Write operations (requires write:content) - optional on interface
 	create?(
@@ -607,6 +679,8 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Content access - only if read:content or write:content capability */
 	content?: ContentAccess | ContentAccessWithWrite;
+	/** Schema discovery - only if schema:read capability */
+	schema?: SchemaAccess;
 
 	/** Taxonomy access (read-only) - only if taxonomies:read capability */
 	taxonomies?: TaxonomyAccess;

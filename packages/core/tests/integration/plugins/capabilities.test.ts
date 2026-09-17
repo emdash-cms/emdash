@@ -11,7 +11,9 @@ import { Kysely, SqliteDialect, sql } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
@@ -19,6 +21,7 @@ import {
 	PluginContextFactory,
 	createContentAccess,
 	createContentAccessWithWrite,
+	createSchemaAccess,
 	createTaxonomyAccess,
 	createHttpAccess,
 	createUnrestrictedHttpAccess,
@@ -31,6 +34,7 @@ import {
 	createUserAccess,
 } from "../../../src/plugins/context.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 
 // Test regex patterns
 const NOT_ALLOWED_FETCH_REGEX = /not allowed to fetch from host/;
@@ -155,6 +159,87 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 	describe("Content Access", () => {
 		describe("createContentAccess (read-only)", () => {
+			it("returns safe identity and locale siblings", async () => {
+				await sql`
+					UPDATE ec_posts
+					SET author_id = 'author-1', version = 4
+					WHERE id = 'post-1'
+				`.execute(db);
+				await sql`
+					INSERT INTO ec_posts (id, slug, status, title, content, locale, translation_group)
+					VALUES ('post-fr', 'bonjour', 'draft', 'Bonjour', 'Contenu', 'fr', 'post-1')
+				`.execute(db);
+				const access = createContentAccess(db);
+
+				expect(await access.get("posts", "post-1")).toMatchObject({
+					authorId: "author-1",
+					translationGroup: "post-1",
+					version: 4,
+				});
+				expect(await access.getTranslations!("posts", "post-1")).toEqual({
+					translationGroup: "post-1",
+					translations: [
+						expect.objectContaining({ id: "post-1", locale: "en", status: "published" }),
+						expect.objectContaining({ id: "post-fr", locale: "fr", status: "draft" }),
+					],
+				});
+			});
+
+			it("resolves only routable published public URLs", async () => {
+				const registry = new SchemaRegistry(db);
+				await registry.createCollection({
+					slug: "articles",
+					label: "Articles",
+					urlPattern: "/journal/{slug}",
+				});
+				const article = await new ContentRepository(db).create({
+					type: "articles",
+					slug: "hello",
+					status: "published",
+					locale: "fr",
+					data: {},
+				});
+				setI18nConfig({
+					defaultLocale: "en",
+					locales: ["en", "fr"],
+					prefixDefaultLocale: false,
+				});
+				const access = createContentAccess(db, {
+					site: {
+						name: "Test",
+						url: "https://example.test",
+						locale: "en",
+						trailingSlash: "always",
+					},
+				});
+
+				expect(await access.getPublicUrl!("articles", article.id)).toBe(
+					"https://example.test/fr/journal/hello/",
+				);
+				await new ContentRepository(db).update("articles", article.id, { status: "draft" });
+				expect(await access.getPublicUrl!("articles", article.id)).toBeNull();
+			});
+
+			it("keeps revision history behind the separate access surface", async () => {
+				const revision = await new RevisionRepository(db).create({
+					collection: "posts",
+					entryId: "post-1",
+					data: { title: "Removed value" },
+					authorId: "revision-author",
+				});
+				const ordinary = createContentAccess(db);
+				const history = createContentAccess(db, { revisions: true });
+
+				expect(ordinary.listRevisions).toBeUndefined();
+				expect(await history.listRevisions!("posts", "post-1")).toEqual([
+					expect.objectContaining({ id: revision.id, data: { title: "Removed value" } }),
+				]);
+				expect((await history.listRevisions!("posts", "post-1"))[0]).not.toHaveProperty("authorId");
+				expect(await history.getRevision!("posts", "post-2", revision.id)).toBeNull();
+				await new ContentRepository(db).delete("posts", "post-1");
+				expect(await history.listRevisions!("posts", "post-1")).toEqual([]);
+				expect(await history.getRevision!("posts", "post-1", revision.id)).toBeNull();
+			});
 			it("can read content by ID", async () => {
 				const access = createContentAccess(db);
 				const post = await access.get("posts", "post-1");
@@ -657,6 +742,31 @@ describe("Capability Enforcement Integration (v2)", () => {
 		});
 	});
 
+	describe("schema read access", () => {
+		it("lists collections and fields without internal identifiers", async () => {
+			const registry = new SchemaRegistry(db);
+			await registry.createCollection({ slug: "notes", label: "Notes", hidden: true });
+			await registry.createField("notes", {
+				slug: "summary",
+				label: "Summary",
+				type: "string",
+				indexed: true,
+			});
+
+			const notes = (await createSchemaAccess(db).listCollections()).find(
+				(collection) => collection.slug === "notes",
+			);
+			expect(notes).toMatchObject({
+				label: "Notes",
+				hidden: true,
+				fields: [expect.objectContaining({ slug: "summary", indexed: true })],
+			});
+			expect(notes).not.toHaveProperty("id");
+			expect(notes!.fields[0]).not.toHaveProperty("collectionId");
+			expect(notes!.fields[0]).not.toHaveProperty("columnType");
+		});
+	});
+
 	describe("HTTP Access", () => {
 		describe("createHttpAccess (with host restrictions)", () => {
 			it("allows requests to allowed hosts", async () => {
@@ -808,6 +918,20 @@ describe("Capability Enforcement Integration (v2)", () => {
 	});
 
 	describe("PluginContextFactory", () => {
+		it("gates schema and revision history independently", () => {
+			const factory = new PluginContextFactory({ db });
+			const ordinary = factory.createContext(createTestPlugin({ capabilities: ["content:read"] }));
+			const discovery = factory.createContext(
+				createTestPlugin({
+					capabilities: ["schema:read", "content:revisions:read", "content:read"],
+				}),
+			);
+
+			expect(ordinary.schema).toBeUndefined();
+			expect(ordinary.content?.listRevisions).toBeUndefined();
+			expect(discovery.schema).toBeDefined();
+			expect(discovery.content?.listRevisions).toBeTypeOf("function");
+		});
 		it("creates context with capability-gated access", () => {
 			const factory = new PluginContextFactory({ db });
 

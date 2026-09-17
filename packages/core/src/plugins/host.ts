@@ -3,6 +3,7 @@ export { OptionsRepository } from "../database/repositories/options.js";
 export { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 export { resolveContentCreateLocale } from "../i18n/config.js";
 export { createContentAccess } from "./content-access.js";
+export { createSchemaAccess } from "./context.js";
 export { CronAccessImpl } from "./cron.js";
 export { createSandboxRouteError, getSandboxRouteErrorDetails } from "./sandbox/types.js";
 export { StorageSerializationError } from "./storage-query.js";

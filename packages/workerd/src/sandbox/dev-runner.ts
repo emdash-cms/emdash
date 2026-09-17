@@ -180,6 +180,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				storageCollections: Object.keys(manifest.storage || {}),
 				storageConfig: manifest.storage,
 				i18nConfig: getI18nConfig(),
+				siteInfo: this.siteInfo,
 				db: this.options.db,
 				beforeContentWrite: this.options.beforeContentWrite,
 				emailSend: () => this.emailSendCallback,

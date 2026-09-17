@@ -76,6 +76,46 @@ const plugin: SandboxedPlugin = {
 				return { count: result.items.length };
 			},
 		},
+		"content-discovery": {
+			permission: "content:read",
+			handler: async (route, ctx) => {
+				if (
+					typeof route.input !== "object" ||
+					route.input === null ||
+					!("id" in route.input) ||
+					typeof route.input.id !== "string"
+				) {
+					throw new Error("Expected a content ID");
+				}
+				const id = route.input.id;
+				return {
+					schema: await ctx.schema!.getCollection("posts"),
+					item: await ctx.content!.get("posts", id),
+					translations: await ctx.content!.getTranslations!("posts", id),
+					publicUrl: await ctx.content!.getPublicUrl!("posts", id),
+					revisions: await ctx.content!.listRevisions!("posts", id),
+				};
+			},
+		},
+		"revision-discovery": {
+			permission: "content:read",
+			handler: async (route, ctx) => {
+				if (
+					typeof route.input !== "object" ||
+					route.input === null ||
+					!("id" in route.input) ||
+					typeof route.input.id !== "string" ||
+					!("revisionId" in route.input) ||
+					typeof route.input.revisionId !== "string"
+				) {
+					throw new Error("Expected content and revision IDs");
+				}
+				return {
+					list: await ctx.content!.listRevisions!("posts", route.input.id),
+					item: await ctx.content!.getRevision!("posts", route.input.id, route.input.revisionId),
+				};
+			},
+		},
 		"settings-value": {
 			handler: async (_route, ctx) => ({
 				enabled: await ctx.kv.get("settings:enabled"),

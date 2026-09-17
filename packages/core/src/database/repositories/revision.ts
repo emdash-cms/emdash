@@ -1,4 +1,4 @@
-import { sql, type Kysely } from "kysely";
+import { sql, type Kysely, type Selectable } from "kysely";
 import { monotonicFactory } from "ulidx";
 
 import { ContentDatetimeNormalizer } from "../content-datetime.js";
@@ -125,6 +125,62 @@ export class RevisionRepository {
 			if (!normalized) throw new Error("Failed to normalize revision data");
 			return this.rowToRevision(row, normalized);
 		});
+	}
+
+	/** Read revisions only when the owning content row is visible in the same statement snapshot. */
+	async findVisibleByEntry(
+		collection: string,
+		entryId: string,
+		options: { limit?: number } = {},
+	): Promise<Revision[]> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const limit = options.limit ?? 50;
+		const result = await sql<Selectable<RevisionTable>>`
+			SELECT revisions.* FROM revisions
+			WHERE revisions.collection = ${collection}
+			AND revisions.entry_id = ${entryId}
+			AND EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.id = ${entryId}
+				AND content.deleted_at IS NULL
+			)
+			ORDER BY revisions.id DESC
+			LIMIT ${limit}
+		`.execute(this.db);
+		const data = await this.datetimes.normalizeDataMany(
+			collection,
+			result.rows.map((row) => JSON.parse(row.data)),
+		);
+		return result.rows.map((row, index) => {
+			const normalized = data[index];
+			if (!normalized) throw new Error("Failed to normalize revision data");
+			return this.rowToRevision(row, normalized);
+		});
+	}
+
+	/** Read one revision only when its owning content row is visible in the same statement snapshot. */
+	async findVisibleById(
+		collection: string,
+		entryId: string,
+		revisionId: string,
+	): Promise<Revision | null> {
+		validateIdentifier(collection, "collection");
+		const tableName = `ec_${collection}`;
+		const result = await sql<Selectable<RevisionTable>>`
+			SELECT revisions.* FROM revisions
+			WHERE revisions.id = ${revisionId}
+			AND revisions.collection = ${collection}
+			AND revisions.entry_id = ${entryId}
+			AND EXISTS (
+				SELECT 1 FROM ${sql.ref(tableName)} AS content
+				WHERE content.id = ${entryId}
+				AND content.deleted_at IS NULL
+			)
+			LIMIT 1
+		`.execute(this.db);
+		const row = result.rows[0];
+		return row ? this.normalizeRow(row) : null;
 	}
 
 	/**

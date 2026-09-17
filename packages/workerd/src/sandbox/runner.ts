@@ -957,6 +957,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		return undefined;
 	}
 
+	getSiteInfo() {
+		return this.siteInfo;
+	}
+
 	/** Get the current epoch (incremented on each workerd restart) */
 	get currentEpoch() {
 		return this.epoch;

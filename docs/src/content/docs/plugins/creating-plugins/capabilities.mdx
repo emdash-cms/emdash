@@ -29,8 +29,10 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 
 | Capability                          | Grants access to                                                                  |
 | ----------------------------------- | --------------------------------------------------------------------------------- |
-| `content:read`                      | `ctx.content.get()`, `ctx.content.list()`                                         |
+| `content:read`                      | `ctx.content.get()`, `ctx.content.list()`, `ctx.content.getTranslations()`, `ctx.content.getPublicUrl()` |
+| `content:revisions:read`            | `ctx.content.listRevisions()`, `ctx.content.getRevision()` (implies `content:read`) |
 | `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` (implies `content:read`) |
+| `schema:read`                       | `ctx.schema.listCollections()`, `ctx.schema.getCollection()`                      |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                             |
 | `media:write`                       | `ctx.media.getUploadUrl()`, `ctx.media.upload()`, `ctx.media.delete()` (implies `media:read`) |
@@ -44,10 +46,16 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 
 The following rules affect which capabilities a plugin needs:
 
-- **Implications.** `content:write` automatically implies `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
+- **Implications.** `content:write` and `content:revisions:read` automatically imply `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
 - **Taxonomies are a separate, read-only surface.** `taxonomies:read` grants access to taxonomy definitions, their terms, and the terms assigned to an entry via `ctx.taxonomies`. It is independent of `content:read` — declare both if the plugin reads content *and* its classification. There is no taxonomy *write* access from plugins.
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
+
+`content:read` returns safe entry identity, including the author ID, translation group, revision pointers, and row version. Use `getTranslations()` to discover locale siblings and `getPublicUrl()` to resolve a published route with the site's locale and trailing-slash rules. `getPublicUrl()` returns `null` for drafts, unroutable collections, missing slugs, and locales the site does not serve. It never returns a preview URL.
+
+Revision snapshots can contain field values that an administrator later removed. Declare `content:revisions:read` only when the plugin needs retained history. Revision results omit the revision author's identity.
+
+`schema:read` exposes collection and field definitions without database IDs, timestamps, migration metadata, or SQL column types. Hidden collections remain visible because `hidden` controls admin navigation rather than data access.
 
 ### Creating content in a locale
 

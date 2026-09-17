@@ -43,6 +43,12 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
+	const hasContentRead = capabilities.some((capability) =>
+		["content:read", "content:write", "content:revisions:read"].includes(capability),
+	);
+	const hasContentWrite = capabilities.includes("content:write");
+	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasRevisionRead = capabilities.includes("content:revisions:read");
 
 	return `
 // =============================================================================
@@ -149,13 +155,26 @@ function createContext(env) {
 	});
 	
 	// Content access - proxies to bridge (capability enforced by bridge)
-	const content = {
+	const content = ${hasContentRead} ? {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
-		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
-		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
-		delete: (collection, id) => bridge.contentDelete(collection, id)
-	};
+		getTranslations: (collection, id) => bridge.contentTranslations(collection, id),
+		getPublicUrl: (collection, id) => bridge.contentPublicUrl(collection, id),
+		...(${hasRevisionRead} ? {
+			listRevisions: (collection, id, opts) => bridge.contentListRevisions(collection, id, opts),
+			getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
+		} : {}),
+		...(${hasContentWrite} ? {
+			create: (collection, data, options) => bridge.contentCreate(collection, data, options),
+			update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
+			delete: (collection, id) => bridge.contentDelete(collection, id)
+		} : {})
+	} : undefined;
+
+	const schema = ${hasSchemaRead} ? {
+		listCollections: () => bridge.schemaListCollections(),
+		getCollection: (slug) => bridge.schemaGetCollection(slug)
+	} : undefined;
 	
 	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)
 	const taxonomies = {
@@ -233,6 +252,7 @@ function createContext(env) {
 		storage,
 		kv,
 		content,
+		schema,
 		taxonomies,
 		media,
 		http,

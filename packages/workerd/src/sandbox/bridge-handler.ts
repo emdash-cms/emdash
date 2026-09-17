@@ -18,6 +18,7 @@ import {
 	ContentRepository,
 	CronAccessImpl,
 	createContentAccess,
+	createSchemaAccess,
 	createHttpAccess,
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
@@ -33,6 +34,7 @@ import type {
 	Database,
 	I18nConfig,
 	SandboxEmailSendCallback,
+	SiteInfo,
 } from "emdash";
 import type { Kysely } from "kysely";
 
@@ -119,6 +121,7 @@ export interface BridgeHandlerOptions {
 	/** Full storage config (with indexes) for proper query/count delegation */
 	storageConfig?: Record<string, BridgeStorageCollectionConfig>;
 	i18nConfig?: I18nConfig | null;
+	siteInfo?: SiteInfo;
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
 	emailSend: () => SandboxEmailSendCallback | null;
@@ -231,10 +234,42 @@ async function dispatch(
 		// ── Content ─────────────────────────────────────────────────────
 		case "content/get":
 			requireCapability(opts, "content:read");
-			return contentGet(db, requireString(body, "collection"), requireString(body, "id"));
+			return contentGet(db, requireString(body, "collection"), requireString(body, "id"), opts);
 		case "content/list":
 			requireCapability(opts, "content:read");
-			return contentList(db, requireString(body, "collection"), body);
+			return contentList(db, requireString(body, "collection"), body, opts);
+		case "content/translations":
+			requireCapability(opts, "content:read");
+			return contentAccess(opts).getTranslations!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/publicUrl":
+			requireCapability(opts, "content:read");
+			return contentAccess(opts).getPublicUrl!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/listRevisions":
+			requireCapability(opts, "content:revisions:read");
+			return contentAccess(opts).listRevisions!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				optionalRecord(body, "options") ?? undefined,
+			);
+		case "content/getRevision":
+			requireCapability(opts, "content:revisions:read");
+			return contentAccess(opts).getRevision!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				requireString(body, "revisionId"),
+			);
+		case "schema/listCollections":
+			requireCapability(opts, "schema:read");
+			return createSchemaAccess(db).listCollections();
+		case "schema/getCollection":
+			requireCapability(opts, "schema:read");
+			return createSchemaAccess(db).getCollection(requireString(body, "slug"));
 		case "content/create":
 			requireCapability(opts, "content:write");
 			const createOptions = optionalRecord(body, "options");
@@ -688,6 +723,11 @@ function rowToContentItem(
 	locale: string;
 	publishedAt: string | null;
 	scheduledAt: string | null;
+	authorId: string | null;
+	translationGroup: string | null;
+	liveRevisionId: string | null;
+	draftRevisionId: string | null;
+	version: number;
 } {
 	const data: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(row)) {
@@ -715,6 +755,11 @@ function rowToContentItem(
 		locale: typeof row.locale === "string" ? row.locale : "en",
 		publishedAt: typeof row.published_at === "string" ? row.published_at : null,
 		scheduledAt: typeof row.scheduled_at === "string" ? row.scheduled_at : null,
+		authorId: typeof row.author_id === "string" ? row.author_id : null,
+		translationGroup: typeof row.translation_group === "string" ? row.translation_group : null,
+		liveRevisionId: typeof row.live_revision_id === "string" ? row.live_revision_id : null,
+		draftRevisionId: typeof row.draft_revision_id === "string" ? row.draft_revision_id : null,
+		version: typeof row.version === "number" ? row.version : Number(row.version) || 1,
 	};
 }
 
@@ -875,10 +920,11 @@ async function contentGet(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	opts: BridgeHandlerOptions,
 ): ReturnType<ReturnType<typeof createContentAccess>["get"]> {
 	validateCollectionName(collection);
 	try {
-		return await createContentAccess(db).get(collection, id);
+		return await contentAccess(opts).get(collection, id);
 	} catch {
 		const row = await asContentDb(db)
 			.selectFrom(`ec_${collection}`)
@@ -894,6 +940,7 @@ async function contentList(
 	db: Kysely<Database>,
 	collection: string,
 	opts: Record<string, unknown>,
+	handlerOptions: BridgeHandlerOptions,
 ): ReturnType<ReturnType<typeof createContentAccess>["list"]> {
 	validateCollectionName(collection);
 	const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 100));
@@ -916,7 +963,7 @@ async function contentList(
 					}
 				: undefined,
 		};
-		return await createContentAccess(db).list(collection, options);
+		return await contentAccess(handlerOptions).list(collection, options);
 	} catch (error) {
 		if (opts.where !== undefined || opts.orderBy !== undefined) throw error;
 		let query = asContentDb(db)
@@ -933,6 +980,13 @@ async function contentList(
 			hasMore: rows.length > limit,
 		};
 	}
+}
+
+function contentAccess(opts: BridgeHandlerOptions) {
+	return createContentAccess(opts.db, {
+		site: opts.siteInfo,
+		revisions: opts.capabilities.includes("content:revisions:read"),
+	});
 }
 
 async function contentCreate(

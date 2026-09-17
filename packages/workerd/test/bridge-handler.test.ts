@@ -463,6 +463,21 @@ describe("Bridge Handler Conformance", () => {
 	// ── Capability Enforcement ────────────────────────────────────────────
 
 	describe("capability enforcement", () => {
+		it("separately denies schema and revision history reads", async () => {
+			const handler = makeHandler({ capabilities: ["content:read"] });
+			expect((await call(handler, "schema/listCollections")).error).toContain(
+				"Missing capability: schema:read",
+			);
+			expect(
+				(
+					await call(handler, "content/listRevisions", {
+						collection: "posts",
+						id: "123",
+					})
+				).error,
+			).toContain("Missing capability: content:revisions:read");
+		});
+
 		it("rejects content read without content:read capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "content/get", {

@@ -113,6 +113,21 @@ describe("declaredAccess facet mapping", () => {
 		});
 	});
 
+	it("maps schema and revision reads without granting revision history to content read", () => {
+		expect(capabilitiesToDeclaredAccess(["schema:read"], [])).toEqual({
+			schema: { read: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["content:read"], [])).toEqual({
+			content: { read: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["content:revisions:read"], [])).toEqual({
+			content: { read: {}, revisionsRead: {} },
+		});
+		expect(
+			new Set(declaredAccessToCapabilities({ content: { revisionsRead: {} } }).capabilities),
+		).toEqual(new Set(["content:read", "content:revisions:read"]));
+	});
+
 	it("distinguishes host-restricted from unrestricted network", () => {
 		expect(capabilitiesToDeclaredAccess(["network:request"], ["api.example.com"])).toEqual({
 			network: { request: { allowedHosts: ["api.example.com"] } },

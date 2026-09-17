@@ -26,6 +26,7 @@ import {
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
+import { SchemaRegistry } from "../schema/registry.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { assertStorageKey } from "./conditional-storage.js";
@@ -61,6 +62,8 @@ import type {
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
 	TaxonomyReadOptions,
+	SchemaAccess,
+	CollectionSchemaInfo,
 } from "./types.js";
 
 export { createContentAccess } from "./content-access.js";
@@ -252,6 +255,54 @@ function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
 	};
 }
 
+function collectionToSchemaInfo(
+	collection: Awaited<ReturnType<SchemaRegistry["getCollectionWithFields"]>>,
+): CollectionSchemaInfo | null {
+	if (!collection) return null;
+	return {
+		slug: collection.slug,
+		label: collection.label,
+		labelSingular: collection.labelSingular ?? null,
+		description: collection.description ?? null,
+		supports: collection.supports,
+		hasSeo: collection.hasSeo,
+		titleField: collection.titleField ?? null,
+		dateField: collection.dateField ?? null,
+		urlPattern: collection.urlPattern ?? null,
+		routable: collection.routable !== false,
+		hidden: collection.hidden,
+		fields: collection.fields.map((field) => ({
+			slug: field.slug,
+			label: field.label,
+			type: field.type,
+			required: field.required,
+			unique: field.unique,
+			...(field.defaultValue === undefined ? {} : { default: field.defaultValue }),
+			...(field.validation === undefined ? {} : { validation: field.validation }),
+			...(field.widget === undefined ? {} : { widget: field.widget }),
+			...(field.options === undefined ? {} : { options: field.options }),
+			searchable: field.searchable,
+			indexed: field.indexed,
+			translatable: field.translatable,
+			sortOrder: field.sortOrder,
+		})),
+	};
+}
+
+export function createSchemaAccess(db: Kysely<Database>): SchemaAccess {
+	const registry = new SchemaRegistry(db);
+	return {
+		async listCollections() {
+			return (await registry.listCollectionsWithFields()).map((collection) =>
+				collectionToSchemaInfo(collection)!,
+			);
+		},
+		async getCollection(slug) {
+			return collectionToSchemaInfo(await registry.getCollectionWithFields(slug));
+		},
+	};
+}
+
 /**
  * Create read-only taxonomy access (gated on `taxonomies:read`).
  */
@@ -306,8 +357,9 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
 export function createContentAccessWithWrite(
 	db: Kysely<Database>,
 	beforeContentWrite?: () => Promise<void>,
+	accessOptions?: { site?: SiteInfo; revisions?: boolean },
 ): ContentAccessWithWrite {
-	const readAccess = createContentAccess(db);
+	const readAccess = createContentAccess(db, accessOptions);
 
 	return {
 		...readAccess,
@@ -1064,10 +1116,18 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(db, this.beforeContentWrite);
+			content = createContentAccessWithWrite(db, this.beforeContentWrite, {
+				site: this.site,
+				revisions: capabilities.has("content:revisions:read"),
+			});
 		} else if (capabilities.has("content:read")) {
-			content = createContentAccess(db);
+			content = createContentAccess(db, {
+				site: this.site,
+				revisions: capabilities.has("content:revisions:read"),
+			});
 		}
+
+		const schema = capabilities.has("schema:read") ? createSchemaAccess(db) : undefined;
 
 		// Capability-gated: taxonomies (read-only)
 		let taxonomies: TaxonomyAccess | undefined;
@@ -1138,6 +1198,7 @@ export class PluginContextFactory {
 			storage,
 			kv,
 			content,
+			schema,
 			taxonomies,
 			media,
 			http,

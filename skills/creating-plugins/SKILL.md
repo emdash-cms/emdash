@@ -83,8 +83,10 @@ Use only canonical capability names:
 
 | Capability                       | API or hook registration                                                |
 | -------------------------------- | ----------------------------------------------------------------------- |
-| `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                               |
+| `content:read`                   | `ctx.content.get()`, `list()`, `getTranslations()`, `getPublicUrl()`    |
+| `content:revisions:read`         | `ctx.content.listRevisions()`, `getRevision()`; implies content read    |
 | `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read            |
+| `schema:read`                    | `ctx.schema.listCollections()`, `getCollection()`                       |
 | `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`              |
 | `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                   |
 | `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read                |
@@ -100,6 +102,8 @@ The old `read:*`, `write:*`, `network:fetch*`, `email:provide`, `email:intercept
 
 KV and declared storage need no capability. They are always scoped to the plugin. Installation shows capability consent; updates require renewed approval when declared access grows. MCP tools and routes becoming public have separate consent checks.
 
+Content reads include the entry's author ID, translation group, live and draft revision pointers, and row version. `getPublicUrl()` returns only published, routable URLs and never returns a preview URL. Revision snapshots require `content:revisions:read`; their retained field data can include values that an administrator removed later, but revision author identity is not exposed.
+
 ## Portable plugin context
 
 Hooks receive `(event, ctx)`. Sandboxed routes receive `(routeCtx, ctx)`.
@@ -114,6 +118,7 @@ interface PluginContext {
 	url(path: string): string;
 	cron?: CronAccess;
 	content?: ContentAccess;
+	schema?: SchemaAccess;
 	taxonomies?: TaxonomyAccess;
 	media?: MediaAccess;
 	http?: HttpAccess;

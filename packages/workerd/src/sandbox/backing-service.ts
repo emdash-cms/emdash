@@ -73,6 +73,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					storageCollections: claims.storageCollections,
 					storageConfig: runner.getPluginStorageConfig(claims.pluginId, claims.version),
 					i18nConfig: getI18nConfig(),
+					siteInfo: runner.getSiteInfo(),
 					db: runner.db,
 					beforeContentWrite: runner.beforeContentWrite,
 					emailSend: () => runner.emailSend,

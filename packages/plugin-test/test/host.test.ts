@@ -92,6 +92,68 @@ describe("runtime plugin test host", () => {
 		});
 	});
 
+	it("discovers schema, content identity, translations, public URLs, and revisions through Worker Loader", async () => {
+		runtimeHost = await createPluginRuntimeTestHost({
+			site: { url: "https://example.test", locale: "en", trailingSlash: "always" },
+			i18n: { defaultLocale: "en", locales: ["en", "fr"] },
+		});
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			urlPattern: "/journal/{slug}",
+			fields: [{ slug: "title", label: "Title", type: "string", indexed: true }],
+		});
+		const english = await runtimeHost.fixtures.content("posts", {
+			id: "post-en",
+			slug: "hello",
+			status: "published",
+			locale: "en",
+			authorId: "author-1",
+			data: { title: "Hello" },
+		});
+		await runtimeHost.fixtures.content("posts", {
+			id: "post-fr",
+			slug: "bonjour",
+			status: "draft",
+			locale: "fr",
+			translationOf: english.id,
+			data: { title: "Bonjour" },
+		});
+		const revision = await runtimeHost.fixtures.revision("posts", english.id, {
+			title: "Removed history",
+		});
+
+		const result = (await runtimeHost.transport.invokeRoute("content-discovery", {
+			id: english.id,
+		})) as Record<string, any>;
+		expect(result.schema).toMatchObject({
+			slug: "posts",
+			fields: [expect.objectContaining({ slug: "title", indexed: true })],
+		});
+		expect(result.schema).not.toHaveProperty("id");
+		expect(result.item).toMatchObject({
+			id: english.id,
+			authorId: "author-1",
+			translationGroup: english.translationGroup,
+			version: 1,
+		});
+		expect(result.translations.translations).toEqual([
+			expect.objectContaining({ id: "post-en", locale: "en" }),
+			expect.objectContaining({ id: "post-fr", locale: "fr" }),
+		]);
+		expect(result.publicUrl).toBe("https://example.test/journal/hello/");
+		expect(result.revisions).toEqual([
+			expect.objectContaining({ data: { title: "Removed history" } }),
+		]);
+		await runtimeHost.actions.content.trash("posts", english.id);
+		await expect(
+			runtimeHost.transport.invokeRoute("revision-discovery", {
+				id: english.id,
+				revisionId: revision.id,
+			}),
+		).resolves.toEqual({ list: [], item: null });
+	});
+
 	it("uses the production route dispatcher for authorization, CSRF, and cache policy", async () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		const publicResponse = await runtimeHost.actions.routes.request("isolate-id", {

@@ -135,6 +135,24 @@ describe("canonicalizeDeclaredAccess", () => {
 		).toBe(true);
 	});
 
+	it("materializes revision-read content access and preserves schema access", () => {
+		expect(
+			canonicalizeDeclaredAccess({
+				content: { revisionsRead: {} },
+				schema: { read: {} },
+			}),
+		).toEqual({
+			content: { read: {}, revisionsRead: {} },
+			schema: { read: {} },
+		});
+		expect(
+			declaredAccessEqual(
+				{ content: { revisionsRead: {} } },
+				{ content: { read: {}, revisionsRead: {} } },
+			),
+		).toBe(true);
+	});
+
 	it("sorts keys recursively and host sets while preserving other array order", () => {
 		const first = {
 			network: {

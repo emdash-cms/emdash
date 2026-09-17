@@ -429,6 +429,8 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Assign the runtime definition to a \`SandboxedPlugin\`-typed constant and export it as default from \`src/plugin.ts\`.
 - Use Web APIs. Do not import Node.js built-ins into plugin runtime code.
 - Declare every runtime API in \`capabilities\` and every network destination in \`allowedHosts\`.
+- Use \`schema:read\` for \`ctx.schema.listCollections()\` and \`getCollection()\`.
+- Use \`content:read\` for content identity fields, translations, and published public URLs. Public URL resolution never returns previews. Revision history requires the separate \`content:revisions:read\` capability and excludes revision author identity.
 - Use \`ctx.storage\` for queryable records and \`ctx.kv\` for key-value state.
 - Use Block Kit for sandboxed admin UI. Do not ship browser React components.
 - Treat public routes as internet-facing and validate their inputs.

@@ -224,6 +224,17 @@ describe("definePlugin", () => {
 			expect(plugin.capabilities).toContain("content:read");
 		});
 
+		it("normalizes content:revisions:read to include content:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["content:revisions:read"],
+			});
+
+			expect(plugin.capabilities).toContain("content:revisions:read");
+			expect(plugin.capabilities).toContain("content:read");
+		});
+
 		it("normalizes media:write to include media:read", () => {
 			const plugin = definePlugin({
 				id: "test",

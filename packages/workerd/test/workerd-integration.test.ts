@@ -9,7 +9,12 @@
  */
 
 import Database from "better-sqlite3";
-import { createSandboxRouteError, SchemaRegistry } from "emdash";
+import {
+	ContentRepository,
+	createSandboxRouteError,
+	RevisionRepository,
+	SchemaRegistry,
+} from "emdash";
 import type { RuntimeDependencies } from "emdash/plugin-test-runtime";
 import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -219,6 +224,29 @@ export default {
 };
 `;
 
+const CONTENT_DISCOVERY_PLUGIN = `
+export default {
+	hooks: {},
+	routes: {
+		"discover": {
+			handler: async (route, ctx) => ({
+				schema: await ctx.schema.getCollection("posts"),
+				item: await ctx.content.get("posts", route.input.id),
+				translations: await ctx.content.getTranslations("posts", route.input.id),
+				publicUrl: await ctx.content.getPublicUrl("posts", route.input.id),
+				revisions: await ctx.content.listRevisions("posts", route.input.id)
+			})
+		},
+		"revisions": {
+			handler: async (route, ctx) => ({
+				list: await ctx.content.listRevisions("posts", route.input.id),
+				item: await ctx.content.getRevision("posts", route.input.id, route.input.revisionId)
+			})
+		}
+	}
+};
+`;
+
 describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 	let db: Kysely<any>;
 	let sqlite: Database.Database;
@@ -328,6 +356,109 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 			expect(second.success && first.success && second.data.isolateId).not.toBe(
 				first.success ? first.data.isolateId : undefined,
 			);
+		} finally {
+			await runtime.shutdown();
+			await runtime.db.destroy();
+			runtimeSqlite.close();
+		}
+	}, 30_000);
+
+	it("discovers schema, content identity, public URLs, and revisions through real workerd", async () => {
+		const { EmDashRuntime } = await import("emdash/plugin-test-runtime");
+		const runtimeSqlite = new Database(":memory:");
+		const deps: RuntimeDependencies = {
+			config: {
+				database: {
+					entrypoint: `workerd-discovery-${crypto.randomUUID()}`,
+					type: "sqlite",
+					config: {},
+				},
+			},
+			plugins: [],
+			createDialect: () => new SqliteDialect({ database: runtimeSqlite }),
+			createStorage: null,
+			createScheduler: null,
+			sandboxEnabled: true,
+			sandboxedPluginEntries: [
+				{
+					id: "workerd-discovery",
+					version: "1.0.0",
+					options: {},
+					code: CONTENT_DISCOVERY_PLUGIN,
+					capabilities: ["schema:read", "content:read", "content:revisions:read"],
+					allowedHosts: [],
+					storage: {},
+					hooks: [],
+					routes: [
+						{ name: "discover", public: true },
+						{ name: "revisions", public: true },
+					],
+				},
+			],
+			createSandboxRunner: (options) => new WorkerdSandboxRunner(options),
+			siteInfo: {
+				url: "https://example.test",
+				locale: "en",
+				trailingSlash: "always",
+			},
+		};
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			await new SchemaRegistry(runtime.db).createCollection({
+				slug: "posts",
+				label: "Posts",
+				urlPattern: "/journal/{slug}",
+			});
+			await new SchemaRegistry(runtime.db).createField("posts", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+			});
+			const post = await new ContentRepository(runtime.db).create({
+				type: "posts",
+				slug: "hello",
+				status: "published",
+				locale: "en",
+				authorId: "author-1",
+				data: { title: "Hello" },
+			});
+			const revision = await new RevisionRepository(runtime.db).create({
+				collection: "posts",
+				entryId: post.id,
+				data: { title: "Retained" },
+			});
+			const result = await runtime.handlePluginApiRoute(
+				"workerd-discovery",
+				"POST",
+				"/discover",
+				new Request("https://example.test/discover", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ id: post.id }),
+				}),
+			);
+
+			expect(result).toMatchObject({
+				success: true,
+				data: {
+					schema: { slug: "posts", fields: [{ slug: "title" }] },
+					item: { id: post.id, authorId: "author-1", version: 1 },
+					publicUrl: "https://example.test/journal/hello/",
+					revisions: [{ data: { title: "Retained" } }],
+				},
+			});
+			await new ContentRepository(runtime.db).delete("posts", post.id);
+			const hidden = await runtime.handlePluginApiRoute(
+				"workerd-discovery",
+				"POST",
+				"/revisions",
+				new Request("https://example.test/revisions", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ id: post.id, revisionId: revision.id }),
+				}),
+			);
+			expect(hidden).toEqual({ success: true, data: { list: [], item: null } });
 		} finally {
 			await runtime.shutdown();
 			await runtime.db.destroy();
