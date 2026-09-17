@@ -1,0 +1,33 @@
+docs/technical-specs/editor-publishing-toolbar.md
+  s_177e6e2c6bd9e2::t_1f7426a5869200 43-45,170-174
+e2e/tests/content-actions.spec.ts
+  s_12ff11085afac9::t_a41e05449ce9f7 195-208
+packages/admin/src/components/Sidebar.tsx
+  s_12ff11085afac9::t_5d3d358df6b62e 387,390,561,627-629,634,636-637,639,641-654,656-658
+packages/admin/tests/components/Header.test.tsx
+  s_12ff11085afac9::t_71faa725acb7c7 161,170,182-186
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5608549bae2a10d3fee837aa3369b5272691259a",
+  "prompts": {},
+  "sessions": {
+    "s_12ff11085afac9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb5-4f63-7e11-88f3-2d9c9913ceed",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_177e6e2c6bd9e2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aec7-be46-7121-b431-1d2615cc3083",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
