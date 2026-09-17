@@ -300,6 +300,9 @@ const plugin: SandboxedPlugin = {
 					throw new Error("Expected content action input");
 				}
 				const input = route.input;
+				if (!("action" in input) || !("collection" in input) || !("id" in input)) {
+					throw new Error("Expected action, collection, and id");
+				}
 				const action = input.action;
 				const collection = input.collection;
 				const id = input.id;
@@ -314,7 +317,9 @@ const plugin: SandboxedPlugin = {
 					return ctx.content!.getTrashedVersioned!(collection, id);
 				}
 				if (action === "getVersioned") return ctx.content!.getVersioned!(collection, id);
-				if (typeof input._rev !== "string") throw new Error("Expected _rev");
+				if (!("_rev" in input) || typeof input._rev !== "string") {
+					throw new Error("Expected _rev");
+				}
 				if (action === "publish") {
 					try {
 						return await ctx.content!.publish!(collection, id, { _rev: input._rev });
@@ -336,7 +341,9 @@ const plugin: SandboxedPlugin = {
 					return ctx.content!.unpublish!(collection, id, { _rev: input._rev });
 				}
 				if (action === "schedule") {
-					if (typeof input.scheduledAt !== "string") throw new Error("Expected scheduledAt");
+					if (!("scheduledAt" in input) || typeof input.scheduledAt !== "string") {
+						throw new Error("Expected scheduledAt");
+					}
 					return ctx.content!.schedule!(collection, id, {
 						scheduledAt: input.scheduledAt,
 						_rev: input._rev,
