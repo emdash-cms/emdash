@@ -40,7 +40,10 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const site = options.site ?? { name: "", url: "", locale: "en" };
 	const capabilities = normalizeCapabilities(manifest.capabilities);
 	const hasContentAccess =
-		capabilities.includes("content:read") || capabilities.includes("content:write");
+		capabilities.includes("content:read") ||
+		capabilities.includes("content:write") ||
+		capabilities.includes("content:publish") ||
+		capabilities.includes("content:restore");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 
@@ -272,6 +275,13 @@ function createContext() {
 		create: (collection, data, options) => bridgeCall("content/create", { collection, data, options }),
 		update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
 		delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
+		getVersioned: (collection, id) => bridgeCall("content/getVersioned", { collection, id }),
+		publish: (collection, id, options) => bridgeCall("content/publish", { collection, id, revision: options._rev }),
+		unpublish: (collection, id, options) => bridgeCall("content/unpublish", { collection, id, revision: options._rev }),
+		schedule: (collection, id, options) => bridgeCall("content/schedule", { collection, id, scheduledAt: options.scheduledAt, revision: options._rev }),
+		unschedule: (collection, id, options) => bridgeCall("content/unschedule", { collection, id, revision: options._rev }),
+		getTrashedVersioned: (collection, id) => bridgeCall("content/getTrashedVersioned", { collection, id }),
+		restore: (collection, id, options) => bridgeCall("content/restore", { collection, id, revision: options._rev }),
 		createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
 		updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
 		deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids }),

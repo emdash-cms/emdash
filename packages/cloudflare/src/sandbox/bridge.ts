@@ -12,6 +12,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import type {
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
+	ContentActionCallbacks,
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
@@ -72,6 +73,7 @@ const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
  * @see runner.ts setEmailSendCallback()
  */
 let emailSendCallback: SandboxEmailSendCallback | null = null;
+let contentActionsCallback: ContentActionCallbacks | null = null;
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 
@@ -81,6 +83,10 @@ let cronNowCallback: (() => Date) | null = null;
  */
 export function setEmailSendCallback(callback: SandboxEmailSendCallback | null): void {
 	emailSendCallback = callback;
+}
+
+export function setContentActionsCallback(callback: ContentActionCallbacks | null): void {
+	contentActionsCallback = callback;
 }
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
@@ -772,6 +778,75 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			.bind(now, now, id)
 			.run();
 		return (result.meta?.changes ?? 0) > 0;
+	}
+
+	private requireContentActions(capability: "content:publish" | "content:restore") {
+		if (!this.ctx.props.capabilities.includes(capability)) {
+			throw new Error(`Missing capability: ${capability}`);
+		}
+		if (!contentActionsCallback) throw new Error("Content actions are not configured");
+		return contentActionsCallback;
+	}
+
+	contentGetVersioned(collection: string, id: string) {
+		return this.requireContentActions("content:publish").getVersioned(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+		);
+	}
+
+	contentPublish(collection: string, id: string, revision: string) {
+		return this.requireContentActions("content:publish").publish(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ _rev: revision },
+		);
+	}
+
+	contentUnpublish(collection: string, id: string, revision: string) {
+		return this.requireContentActions("content:publish").unpublish(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ _rev: revision },
+		);
+	}
+
+	contentSchedule(collection: string, id: string, scheduledAt: string, revision: string) {
+		return this.requireContentActions("content:publish").schedule(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ scheduledAt, _rev: revision },
+		);
+	}
+
+	contentUnschedule(collection: string, id: string, revision: string) {
+		return this.requireContentActions("content:publish").unschedule(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ _rev: revision },
+		);
+	}
+
+	contentGetTrashedVersioned(collection: string, id: string) {
+		return this.requireContentActions("content:restore").getTrashedVersioned(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+		);
+	}
+
+	contentRestore(collection: string, id: string, revision: string) {
+		return this.requireContentActions("content:restore").restore(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ _rev: revision },
+		);
 	}
 
 	// =========================================================================

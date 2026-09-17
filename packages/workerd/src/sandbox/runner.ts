@@ -28,6 +28,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type {
+	ContentActionCallbacks,
 	SandboxRunner,
 	SandboxedPluginInstance,
 	SandboxEmailSendCallback,
@@ -332,6 +333,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Email send callback, wired from EmailPipeline */
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
+	private contentActionsCallback: ContentActionCallbacks | null = null;
 	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Epoch counter, incremented on each workerd restart */
@@ -385,6 +387,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.limits = resolveLimits(options.limits);
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
+		this.contentActionsCallback = options.contentActions ?? null;
 
 		// Warn about unenforceable resource limits. Standalone workerd
 		// only supports wall-time enforcement on the Node path (via
@@ -515,6 +518,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		this.emailSendCallback = callback;
+	}
+
+	setContentActions(callback: ContentActionCallbacks | null): void {
+		this.contentActionsCallback = callback;
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
@@ -918,6 +925,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	/** Get the pre-content-write activation guard */
 	get beforeContentWrite() {
 		return this.options.beforeContentWrite;
+	}
+
+	get contentActions() {
+		return this.contentActionsCallback;
 	}
 
 	/** Get the email send callback */

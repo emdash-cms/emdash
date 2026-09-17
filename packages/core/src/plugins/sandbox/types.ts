@@ -10,6 +10,7 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
+import type { ContentActionCallbacks } from "../context.js";
 import type { PluginManifest, RequestMeta, UserInfo } from "../types.js";
 
 /**
@@ -71,6 +72,7 @@ export interface SandboxOptions {
 	db: Kysely<Database>;
 	/** Called immediately before a sandboxed plugin content mutation. */
 	beforeContentWrite?: () => Promise<void>;
+	contentActions?: ContentActionCallbacks;
 	/** Clock used to calculate recurring plugin task schedules. */
 	now?: () => Date;
 	/** Default resource limits */
@@ -265,6 +267,7 @@ export interface SandboxRunner {
 	 * doesn't exist when the sandbox runner is constructed.
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void;
+	setContentActions?(callback: ContentActionCallbacks | null): void;
 
 	/** Wake a long-lived scheduler after a sandboxed plugin changes its tasks. */
 	setCronReschedule?(callback: (() => void) | null): void;

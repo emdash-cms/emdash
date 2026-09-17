@@ -8,7 +8,7 @@ describe("Workerd generated plugin context", () => {
 			{
 				id: "context-wrapper",
 				version: "1.0.0",
-				capabilities: ["users:read", "network:request"],
+				capabilities: ["users:read", "network:request", "content:publish"],
 				allowedHosts: ["api.example.com"],
 				storage: {},
 				hooks: [],
@@ -27,6 +27,9 @@ describe("Workerd generated plugin context", () => {
 			calls.push(url);
 			if (url.endsWith("/users/get")) return Response.json({ result: { id: "user-1" } });
 			if (url.endsWith("/cron/list")) return Response.json({ result: [] });
+			if (url.endsWith("/content/getVersioned")) {
+				return Response.json({ result: { item: { id: "post-1" }, _rev: "rev-1" } });
+			}
 			return Response.json({
 				result: {
 					status: 200,
@@ -39,19 +42,23 @@ describe("Workerd generated plugin context", () => {
 		// eslint-disable-next-line no-implied-eval -- generated worker context is exercised with a local bridge
 		const factory = new Function("fetch", "pluginModule", `${source}\nreturn createContext();`);
 		const context = factory(fetch, {}) as {
-			content?: unknown;
+			content: { getVersioned(collection: string, id: string): Promise<unknown> };
 			users: { get(id: string): Promise<{ id: string }> };
 			cron: { list(): Promise<unknown[]> };
 			http: { fetch(url: string): Promise<Response> };
 		};
 
-		expect(context.content).toBeUndefined();
+		await expect(context.content.getVersioned("posts", "post-1")).resolves.toEqual({
+			item: { id: "post-1" },
+			_rev: "rev-1",
+		});
 		await expect(context.users.get("user-1")).resolves.toEqual({ id: "user-1" });
 		await expect(context.cron.list()).resolves.toEqual([]);
 		const response = await context.http.fetch("https://api.example.com/status");
 		expect(response).toBeInstanceOf(Response);
 		await expect(response.json()).resolves.toEqual({ ok: true });
 		expect(calls).toEqual([
+			"http://bridge/content/getVersioned",
 			"http://bridge/users/get",
 			"http://bridge/cron/list",
 			"http://bridge/http/fetch",

@@ -42,7 +42,10 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	// expose the same APIs as canonical names (`users:read`).
 	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
 	const hasContentAccess =
-		capabilities.includes("content:read") || capabilities.includes("content:write");
+		capabilities.includes("content:read") ||
+		capabilities.includes("content:write") ||
+		capabilities.includes("content:publish") ||
+		capabilities.includes("content:restore");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 
@@ -157,6 +160,13 @@ function createContext(env) {
 		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
 		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
 		delete: (collection, id) => bridge.contentDelete(collection, id)
+		,getVersioned: (collection, id) => bridge.contentGetVersioned(collection, id)
+		,publish: (collection, id, options) => bridge.contentPublish(collection, id, options._rev)
+		,unpublish: (collection, id, options) => bridge.contentUnpublish(collection, id, options._rev)
+		,schedule: (collection, id, options) => bridge.contentSchedule(collection, id, options.scheduledAt, options._rev)
+		,unschedule: (collection, id, options) => bridge.contentUnschedule(collection, id, options._rev)
+		,getTrashedVersioned: (collection, id) => bridge.contentGetTrashedVersioned(collection, id)
+		,restore: (collection, id, options) => bridge.contentRestore(collection, id, options._rev)
 	};
 	
 	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)

@@ -22,12 +22,18 @@ import {
 	type SandboxEmailSendCallback,
 	type SandboxOptions,
 	type SandboxRunnerFactory,
+	type ContentActionCallbacks,
 	type SerializedRequest,
 	type PluginManifest,
 	type I18nConfig,
 } from "emdash";
 
-import { setCronNowCallback, setCronRescheduleCallback, setEmailSendCallback } from "./bridge.js";
+import {
+	setContentActionsCallback,
+	setCronNowCallback,
+	setCronRescheduleCallback,
+	setEmailSendCallback,
+} from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
@@ -121,6 +127,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 
 		// Wire email send callback if provided at construction time
 		setEmailSendCallback(options.emailSend ?? null);
+		setContentActionsCallback(options.contentActions ?? null);
 		setCronNowCallback(options.now ?? null);
 	}
 
@@ -131,6 +138,10 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		setEmailSendCallback(callback);
+	}
+
+	setContentActions(callback: ContentActionCallbacks | null): void {
+		setContentActionsCallback(callback);
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {

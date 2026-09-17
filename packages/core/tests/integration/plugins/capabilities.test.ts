@@ -965,15 +965,19 @@ describe("Capability Enforcement Integration (v2)", () => {
 			expect("publish" in publisher.content!).toBe(true);
 			expect("restore" in publisher.content!).toBe(false);
 			expect(restorer.content).toBeDefined();
-			expect("get" in restorer.content!).toBe(false);
+			expect("get" in restorer.content!).toBe(true);
 			expect("restore" in restorer.content!).toBe(true);
+			await expect(restorer.content!.get("posts", "entry-1")).rejects.toThrow(
+				"Missing capability: content:read",
+			);
 
-		if (!publisher.content || !("publish" in publisher.content)) throw new Error("missing publish");
-		await publisher.content.publish("posts", "entry-1", { _rev: "revision-1" });
-		expect(contentActions.publish).toHaveBeenCalledWith("publisher", "posts", "entry-1", {
-			_rev: "revision-1",
+			if (!publisher.content || !("publish" in publisher.content))
+				throw new Error("missing publish");
+			await publisher.content.publish("posts", "entry-1", { _rev: "revision-1" });
+			expect(contentActions.publish).toHaveBeenCalledWith("publisher", "posts", "entry-1", {
+				_rev: "revision-1",
+			});
 		});
-	});
 
 		it("always provides site info", () => {
 			const factory = new PluginContextFactory({ db });

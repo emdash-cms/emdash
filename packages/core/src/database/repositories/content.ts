@@ -595,6 +595,17 @@ export class ContentRepository {
 		return this._findByIdOrSlug(type, identifier, true, locale);
 	}
 
+	async isTrashed(type: string, id: string): Promise<boolean> {
+		const tableName = getTableName(type);
+		const row = await this.db
+			.selectFrom(tableName as keyof Database)
+			.select("id" as never)
+			.where("id" as never, "=", id as never)
+			.where("deleted_at" as never, "is not", null)
+			.executeTakeFirst();
+		return row !== undefined;
+	}
+
 	private async _findByIdOrSlug(
 		type: string,
 		identifier: string,
