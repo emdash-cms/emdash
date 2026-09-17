@@ -358,6 +358,7 @@ describe("MCP Authorization", () => {
 				AUTHOR_USER_ID,
 				expect.any(Request),
 				caller,
+				expect.any(Function),
 			);
 		});
 

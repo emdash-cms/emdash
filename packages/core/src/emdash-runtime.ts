@@ -76,6 +76,7 @@ import {
 	createTaxonomyAccessWithWrite,
 	type ContentActionCallbacks,
 } from "./plugins/context.js";
+import type { PluginContentCacheInvalidator } from "./plugins/routes.js";
 import {
 	createSandboxedPluginProxy,
 	getSandboxSaveRejectionDetails,
@@ -675,6 +676,7 @@ export class EmDashRuntime {
 	private pluginStates: Map<string, string>;
 	private readonly activePluginContentActions = new Set<string>();
 	private readonly pendingPluginAfterHooks = new Map<string, Array<() => Promise<void>>>();
+	private readonly pendingPluginContentCacheTags = new Map<string, Set<string>>();
 
 	/**
 	 * Isolate-lifetime guard so FTS indexes are verified at most once per
@@ -3629,7 +3631,12 @@ export class EmDashRuntime {
 		}
 		this.activePluginContentActions.add(key);
 		try {
-			return await fn(resolvedId);
+			const result = await fn(resolvedId);
+			const tags = this.pendingPluginContentCacheTags.get(pluginId) ?? new Set<string>();
+			tags.add(collection);
+			tags.add(resolvedId);
+			this.pendingPluginContentCacheTags.set(pluginId, tags);
+			return result;
 		} finally {
 			this.activePluginContentActions.delete(key);
 		}
@@ -4662,6 +4669,7 @@ export class EmDashRuntime {
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
 	) {
 		if (!this.isPluginEnabled(pluginId)) {
 			return {
@@ -4692,13 +4700,21 @@ export class EmDashRuntime {
 			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
 			const body = await parseRouteInput(request);
 
-			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
+			try {
+				return await routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
+			} finally {
+				await this.flushPluginContentCacheTags(pluginId, invalidateContentCache);
+			}
 		}
 
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
+			try {
+				return await this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
+			} finally {
+				await this.flushPluginContentCacheTags(pluginId, invalidateContentCache);
+			}
 		}
 
 		return {
@@ -4826,6 +4842,7 @@ export class EmDashRuntime {
 		actorId: string,
 		request: Request,
 		caller?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
 	) {
 		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
 		const audit = new AuditRepository(this.db);
@@ -4843,6 +4860,7 @@ export class EmDashRuntime {
 			route,
 			internalRequest,
 			caller,
+			invalidateContentCache,
 		);
 		await audit.log({
 			actorId,
@@ -5056,6 +5074,17 @@ export class EmDashRuntime {
 		this.pendingPluginAfterHooks.delete(pluginId);
 		for (const invoke of pending) after(invoke);
 		return Promise.resolve();
+	}
+
+	private async flushPluginContentCacheTags(
+		pluginId: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<void> {
+		const tags = this.pendingPluginContentCacheTags.get(pluginId);
+		this.pendingPluginContentCacheTags.delete(pluginId);
+		if (tags && tags.size > 0 && invalidateContentCache) {
+			await invalidateContentCache([...tags]);
+		}
 	}
 
 	private runAfterPublishHooks(
