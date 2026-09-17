@@ -347,6 +347,8 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"network:request:unrestricted",
 	"content:read",
 	"content:write",
+	"content:publish",
+	"content:restore",
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"media:read",

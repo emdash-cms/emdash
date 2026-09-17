@@ -161,7 +161,18 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 	// can reach a published manifest. Every one must round-trip to identity --
 	// the guard that the two representations are isomorphic, so the consent list
 	// always equals the capability set the runtime enforces.
-	const contentChoices = [[], ["content:read"], ["content:read", "content:write"]];
+	const contentChoices = [
+		[],
+		["content:read"],
+		["content:read", "content:write"],
+		["content:read", "content:publish"],
+		["content:read", "content:write", "content:publish"],
+		["content:restore"],
+		["content:read", "content:restore"],
+		["content:read", "content:write", "content:restore"],
+		["content:read", "content:publish", "content:restore"],
+		["content:read", "content:write", "content:publish", "content:restore"],
+	];
 	const mediaChoices = [[], ["media:read"], ["media:read", "media:write"]];
 	const networkChoices: { caps: string[]; hosts: string[] }[] = [
 		{ caps: [], hosts: [] },
@@ -208,7 +219,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 3 content x 3 media x 5 network x 2^7 singleton subsets.
-		expect(count).toBe(5760);
+		// 10 content x 3 media x 5 network x 2^7 singleton subsets.
+		expect(count).toBe(19200);
 	});
 });

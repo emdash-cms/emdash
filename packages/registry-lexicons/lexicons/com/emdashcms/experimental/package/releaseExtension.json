@@ -106,6 +106,16 @@
 					"ref": "#contentWriteConstraints",
 					"description": "Plugin may create, update, or delete content records. Implies `read`."
 				},
+				"publish": {
+					"type": "ref",
+					"ref": "#contentPublishConstraints",
+					"description": "Plugin may publish, unpublish, schedule, and unschedule content. Implies `read`."
+				},
+				"restore": {
+					"type": "ref",
+					"ref": "#contentRestoreConstraints",
+					"description": "Plugin may read and restore trashed content."
+				},
 				"policy": {
 					"type": "ref",
 					"ref": "#contentPolicyConstraints",
@@ -124,6 +134,14 @@
 		"contentPolicyConstraints": {
 			"type": "object",
 			"description": "Constraint object for content.policy. No constraint keys are normatively defined here; the operation grants only registration of synchronous publication policy hooks."
+		},
+		"contentPublishConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.publish. No constraint keys are normatively defined here."
+		},
+		"contentRestoreConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.restore. No constraint keys are normatively defined here."
 		},
 		"taxonomiesAccess": {
 			"type": "object",

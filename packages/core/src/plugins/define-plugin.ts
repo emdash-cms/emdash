@@ -157,6 +157,8 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"network:request:unrestricted",
 		"content:read",
 		"content:write",
+		"content:publish",
+		"content:restore",
 		"hooks.content-policy:register",
 		"taxonomies:read",
 		"media:read",
@@ -195,6 +197,9 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	// Operates on canonical names only.
 	const normalizedCapabilities: PluginCapability[] = [...canonical];
 	if (canonical.includes("content:write") && !canonical.includes("content:read")) {
+		normalizedCapabilities.push("content:read");
+	}
+	if (canonical.includes("content:publish") && !canonical.includes("content:read")) {
 		normalizedCapabilities.push("content:read");
 	}
 	if (canonical.includes("media:write") && !canonical.includes("media:read")) {

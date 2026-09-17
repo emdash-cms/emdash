@@ -173,10 +173,13 @@ function normalizeDeclaredAccess(value: DeclaredAccess): CanonicalObject {
 			defineDataProperty(normalizedOperations, operation, Object.freeze(normalizedConstraints));
 		}
 		if (
-			(category === "content" || category === "media") &&
-			Object.hasOwn(normalizedOperations, "write")
+			((category === "content" &&
+				(Object.hasOwn(normalizedOperations, "write") ||
+					Object.hasOwn(normalizedOperations, "publish"))) ||
+				(category === "media" && Object.hasOwn(normalizedOperations, "write"))) &&
+			!Object.hasOwn(normalizedOperations, "read")
 		) {
-			normalizedOperations.read ??= Object.freeze({});
+			normalizedOperations.read = Object.freeze({});
 		}
 		defineDataProperty(
 			output,

@@ -48,6 +48,8 @@ export type PluginCapability =
 	// Content
 	| "content:read"
 	| "content:write"
+	| "content:publish"
+	| "content:restore"
 	| "hooks.content-policy:register"
 	// Taxonomies (read-only; there is no plugin-facing taxonomy write API)
 	| "taxonomies:read"
@@ -186,6 +188,8 @@ export interface DeclaredAccess {
 	content?: {
 		read?: AccessConstraints;
 		write?: AccessConstraints;
+		publish?: AccessConstraints;
+		restore?: AccessConstraints;
 		policy?: AccessConstraints;
 	};
 	taxonomies?: { read?: AccessConstraints };
@@ -217,10 +221,12 @@ export function capabilitiesToDeclaredAccess(
 	const caps = new Set(capabilities.map((c) => normalizeCapability(c)));
 	const out: DeclaredAccess = {};
 
-	if (caps.has("content:read") || caps.has("content:write")) {
+	if (caps.has("content:read") || caps.has("content:write") || caps.has("content:publish")) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
+	if (caps.has("content:publish")) (out.content ??= {}).publish = {};
+	if (caps.has("content:restore")) (out.content ??= {}).restore = {};
 	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
 	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
 	if (caps.has("media:read") || caps.has("media:write")) {
@@ -266,6 +272,11 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 		caps.add("content:read");
 	}
 	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
+	if (declaredAccess.content?.publish) {
+		caps.add("content:publish");
+		caps.add("content:read");
+	}
+	if (declaredAccess.content?.restore) caps.add("content:restore");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.media?.read) caps.add("media:read");
 	if (declaredAccess.media?.write) {
