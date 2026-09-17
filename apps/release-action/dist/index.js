@@ -1118,6 +1118,7 @@ const sbomSchema = _sbomSchema;
 //#region ../../packages/registry-lexicons/dist/generated/types/com/emdashcms/experimental/package/releaseExtension.js
 var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	contentAccessSchema: () => contentAccessSchema,
+	contentPolicyConstraintsSchema: () => contentPolicyConstraintsSchema,
 	contentReadConstraintsSchema: () => contentReadConstraintsSchema,
 	contentWriteConstraintsSchema: () => contentWriteConstraintsSchema,
 	declaredAccessSchema: () => declaredAccessSchema$1,
@@ -1141,6 +1142,9 @@ var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 });
 const _contentAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentAccess")),
+	get policy() {
+		return /* @__PURE__ */ optional$1(contentPolicyConstraintsSchema);
+	},
 	get read() {
 		return /* @__PURE__ */ optional$1(contentReadConstraintsSchema);
 	},
@@ -1148,6 +1152,7 @@ const _contentAccessSchema = /* @__PURE__ */ object$1({
 		return /* @__PURE__ */ optional$1(contentWriteConstraintsSchema);
 	}
 });
+const _contentPolicyConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentPolicyConstraints")) });
 const _contentReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentReadConstraints")) });
 const _contentWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentWriteConstraints")) });
 const _declaredAccessSchema = /* @__PURE__ */ object$1({
@@ -1249,6 +1254,7 @@ const _usersAccessSchema = /* @__PURE__ */ object$1({
 });
 const _usersReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#usersReadConstraints")) });
 const contentAccessSchema = _contentAccessSchema;
+const contentPolicyConstraintsSchema = _contentPolicyConstraintsSchema;
 const contentReadConstraintsSchema = _contentReadConstraintsSchema;
 const contentWriteConstraintsSchema = _contentWriteConstraintsSchema;
 const declaredAccessSchema$1 = _declaredAccessSchema;
@@ -7786,6 +7792,7 @@ const CURRENT_PLUGIN_CAPABILITIES = [
 	"network:request:unrestricted",
 	"content:read",
 	"content:write",
+	"hooks.content-policy:register",
 	"taxonomies:read",
 	"media:read",
 	"media:write",
@@ -7848,6 +7855,9 @@ const HOOK_NAMES = [
 	"content:afterSave",
 	"content:beforeDelete",
 	"content:afterDelete",
+	"content:beforePublish",
+	"content:beforeSchedule",
+	"content:beforeUnpublish",
 	"content:afterPublish",
 	"content:afterUnpublish",
 	"content:afterRestore",
@@ -8000,7 +8010,8 @@ const accessConstraints = record(string(), unknown());
 const declaredAccessSchema = object({
 	content: object({
 		read: accessConstraints.optional(),
-		write: accessConstraints.optional()
+		write: accessConstraints.optional(),
+		policy: accessConstraints.optional()
 	}).optional(),
 	taxonomies: object({ read: accessConstraints.optional() }).optional(),
 	media: object({
@@ -8113,6 +8124,7 @@ function capabilitiesToDeclaredAccess(capabilities, allowedHosts) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
+	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
 	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
@@ -8142,6 +8154,7 @@ function declaredAccessToCapabilities(declaredAccess) {
 		caps.add("content:write");
 		caps.add("content:read");
 	}
+	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.media?.read) caps.add("media:read");
 	if (declaredAccess.media?.write) {
