@@ -29,6 +29,8 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"content:read",
 	"content:revisions:read",
 	"content:write",
+	"content:publish",
+	"content:restore",
 	"comments:read",
 	"comments:moderate",
 	"schema:read",

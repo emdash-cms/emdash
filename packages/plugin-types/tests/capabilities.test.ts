@@ -246,8 +246,27 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		[],
 		["content:read"],
 		["content:read", "content:write"],
+		["content:read", "content:publish"],
 		["content:read", "content:revisions:read"],
+		["content:read", "content:write", "content:publish"],
 		["content:read", "content:write", "content:revisions:read"],
+		["content:read", "content:publish", "content:revisions:read"],
+		["content:read", "content:write", "content:publish", "content:revisions:read"],
+		["content:restore"],
+		["content:read", "content:restore"],
+		["content:read", "content:write", "content:restore"],
+		["content:read", "content:publish", "content:restore"],
+		["content:read", "content:revisions:read", "content:restore"],
+		["content:read", "content:write", "content:publish", "content:restore"],
+		["content:read", "content:write", "content:revisions:read", "content:restore"],
+		["content:read", "content:publish", "content:revisions:read", "content:restore"],
+		[
+			"content:read",
+			"content:write",
+			"content:publish",
+			"content:revisions:read",
+			"content:restore",
+		],
 	];
 	const mediaChoices = [
 		[],
@@ -336,7 +355,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			}
 			count++;
 		}
-		// 5 content x 3 comments x 12 media x 3 taxonomy x 3 redirects x 5 network x 2^7 singleton subsets.
-		expect(count).toBe(1_036_800);
+		// 18 content x 3 comments x 12 media x 3 taxonomy x 3 redirects x 5 network x 2^7 singleton subsets.
+		expect(count).toBe(3_732_480);
 	});
 });

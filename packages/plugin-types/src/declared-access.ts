@@ -192,13 +192,15 @@ function normalizeDeclaredAccess(value: DeclaredAccess): CanonicalObject {
 			normalizedOperations.read ??= Object.freeze({});
 		}
 		if (
-			(category === "content" ||
+			(((category === "content" ||
 				category === "media" ||
 				category === "redirects" ||
 				category === "taxonomies") &&
-			Object.hasOwn(normalizedOperations, "write")
+				Object.hasOwn(normalizedOperations, "write")) ||
+				(category === "content" && Object.hasOwn(normalizedOperations, "publish"))) &&
+			!Object.hasOwn(normalizedOperations, "read")
 		) {
-			normalizedOperations.read ??= Object.freeze({});
+			normalizedOperations.read = Object.freeze({});
 		}
 		if (category === "content" && Object.hasOwn(normalizedOperations, "revisionsRead")) {
 			normalizedOperations.read ??= Object.freeze({});

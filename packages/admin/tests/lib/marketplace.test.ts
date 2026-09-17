@@ -392,6 +392,8 @@ describe("CAPABILITY_LABELS", () => {
 			"content:read",
 			"content:revisions:read",
 			"content:write",
+			"content:publish",
+			"content:restore",
 			"comments:read",
 			"comments:moderate",
 			"schema:read",
