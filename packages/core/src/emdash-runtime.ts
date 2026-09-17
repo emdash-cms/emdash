@@ -3613,9 +3613,15 @@ export class EmDashRuntime {
 		action: string,
 		collection: string,
 		id: string,
-		fn: () => Promise<T>,
+		fn: (resolvedId: string) => Promise<T>,
 	): Promise<T> {
-		const key = JSON.stringify([pluginId, action, collection, id]);
+		const repo = new ContentRepository(this.db);
+		const item =
+			action === "restore"
+				? await repo.findByIdOrSlugIncludingTrashed(collection, id)
+				: await repo.findByIdOrSlug(collection, id);
+		const resolvedId = item?.id ?? id;
+		const key = JSON.stringify([pluginId, action, collection, resolvedId]);
 		if (this.activePluginContentActions.has(key)) {
 			throw Object.assign(new Error("Plugin content action re-entered itself"), {
 				code: "CONTENT_ACTION_REENTRANT",
@@ -3623,7 +3629,7 @@ export class EmDashRuntime {
 		}
 		this.activePluginContentActions.add(key);
 		try {
-			return await fn();
+			return await fn(resolvedId);
 		} finally {
 			this.activePluginContentActions.delete(key);
 		}
@@ -3666,9 +3672,9 @@ export class EmDashRuntime {
 		id: string,
 		options: { _rev: string },
 	): Promise<VersionedContentItem> {
-		return this.runPluginContentAction(pluginId, "publish", collection, id, async () =>
+		return this.runPluginContentAction(pluginId, "publish", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
-				await this.handleContentPublish(collection, id, {
+				await this.handleContentPublish(collection, resolvedId, {
 					_rev: options._rev,
 					origin: { source: "plugin", pluginId },
 				}),
@@ -3682,9 +3688,9 @@ export class EmDashRuntime {
 		id: string,
 		options: { _rev: string },
 	): Promise<VersionedContentItem> {
-		return this.runPluginContentAction(pluginId, "unpublish", collection, id, async () =>
+		return this.runPluginContentAction(pluginId, "unpublish", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
-				await this.handleContentUnpublish(collection, id, {
+				await this.handleContentUnpublish(collection, resolvedId, {
 					_rev: options._rev,
 					origin: { source: "plugin", pluginId },
 				}),
@@ -3698,9 +3704,9 @@ export class EmDashRuntime {
 		id: string,
 		options: { scheduledAt: string; _rev: string },
 	): Promise<VersionedContentItem> {
-		return this.runPluginContentAction(pluginId, "schedule", collection, id, async () =>
+		return this.runPluginContentAction(pluginId, "schedule", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
-				await this.handleContentSchedule(collection, id, options.scheduledAt, {
+				await this.handleContentSchedule(collection, resolvedId, options.scheduledAt, {
 					_rev: options._rev,
 					origin: { source: "plugin", pluginId },
 				}),
@@ -3714,9 +3720,9 @@ export class EmDashRuntime {
 		id: string,
 		options: { _rev: string },
 	): Promise<VersionedContentItem> {
-		return this.runPluginContentAction(pluginId, "unschedule", collection, id, async () =>
+		return this.runPluginContentAction(pluginId, "unschedule", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
-				await this.handleContentUnschedule(collection, id, {
+				await this.handleContentUnschedule(collection, resolvedId, {
 					...options,
 					origin: { source: "plugin", pluginId },
 				}),
@@ -3730,9 +3736,9 @@ export class EmDashRuntime {
 		id: string,
 		options: { _rev: string },
 	): Promise<VersionedContentItem> {
-		return this.runPluginContentAction(pluginId, "restore", collection, id, async () =>
+		return this.runPluginContentAction(pluginId, "restore", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
-				await this.handleContentRestore(collection, id, {
+				await this.handleContentRestore(collection, resolvedId, {
 					...options,
 					origin: { source: "plugin", pluginId },
 				}),

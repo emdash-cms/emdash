@@ -1102,7 +1102,7 @@ describe("runtime plugin test host", () => {
 			body: {
 				action: "publish",
 				collection: "posts",
-				id: content.id,
+				id: "publication-actions",
 				_rev: current._rev,
 			},
 		});
