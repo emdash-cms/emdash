@@ -158,7 +158,7 @@ const plugin: SandboxedPlugin = {
 				if (typeof route.input !== "object" || route.input === null) {
 					throw new Error("Expected content action input");
 				}
-				const input = route.input as Record<string, unknown>;
+				const input = route.input;
 				const action = input.action;
 				const collection = input.collection;
 				const id = input.id;

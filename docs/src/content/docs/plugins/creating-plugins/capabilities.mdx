@@ -31,6 +31,8 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | ----------------------------------- | --------------------------------------------------------------------------------- |
 | `content:read`                      | `ctx.content.get()`, `ctx.content.list()`                                         |
 | `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` (implies `content:read`) |
+| `content:publish`                   | Versioned publish, unpublish, schedule, and unschedule operations (implies `content:read`) |
+| `content:restore`                   | Read and restore trashed content                                                   |
 | `hooks.content-policy:register`     | `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` policy hooks |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                             |
@@ -45,7 +47,7 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 
 The following rules affect which capabilities a plugin needs:
 
-- **Implications.** `content:write` automatically implies `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
+- **Implications.** `content:write` and `content:publish` automatically imply `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
 - **Publication policy is separate from content access.** `hooks.content-policy:register` lets a plugin inspect and reject publication state changes through policy hook events. It does not provide `ctx.content` or grant content editing or publication actions.
 - **Taxonomies are a separate, read-only surface.** `taxonomies:read` grants access to taxonomy definitions, their terms, and the terms assigned to an entry via `ctx.taxonomies`. It is independent of `content:read` — declare both if the plugin reads content *and* its classification. There is no taxonomy *write* access from plugins.
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
@@ -64,6 +66,30 @@ const post = await ctx.content.create(
 ```
 
 Locale matching is case-insensitive and stores the casing from the site's locale configuration, so `zh-tw` becomes `zh-TW` when that is the configured form. A malformed explicit locale always throws; when i18n is configured, an explicit locale outside the configured locale list also throws. When the option is omitted, EmDash uses the site's configured default locale; sites without i18n configuration retain the `en` default.
+
+## Change publication state
+
+Declare `content:publish` to publish, unpublish, schedule, or unschedule an entry. Each action requires the opaque `_rev` returned by `getVersioned()` or the preceding action. EmDash routes these methods through the same policy hooks, revision promotion, locale synchronization, redirects, media-usage updates, cache invalidation, and after-hooks as REST and MCP actions.
+
+The following route publishes the current draft only when the entry has not changed since it was read:
+
+```typescript title="src/plugin.ts"
+const current = await ctx.content!.getVersioned!("posts", postId);
+if (!current) return { ok: false, error: "NOT_FOUND" };
+
+try {
+	const published = await ctx.content!.publish!("posts", postId, {
+		_rev: current._rev,
+	});
+	return { ok: true, content: published.item, _rev: published._rev };
+} catch (error) {
+	return { ok: false, error: "PUBLISH_FAILED" };
+}
+```
+
+`schedule()` accepts `{ scheduledAt, _rev }`; the other publication methods accept `{ _rev }`. These methods do not accept a `publishedAt` override.
+
+Declare `content:restore` separately to read and restore trashed entries. `getTrashedVersioned()` returns `null` for a live or missing entry. Pass its `_rev` to `restore()` so a concurrent change returns a conflict instead of restoring stale state.
 
 ## Network host allowlists
 

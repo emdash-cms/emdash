@@ -24,7 +24,7 @@ The following surfaces do not exist in the current sandbox contract. Do not inve
 
 ### Content lifecycle
 
-- `ctx.content` has `get`, `list`, `create`, `update`, and `delete`. It has no publish, unpublish, schedule, unschedule, trash, or restore methods.
+- `content:publish` adds versioned publish, unpublish, schedule, and unschedule methods. `content:restore` separately adds versioned reads and restoration for trashed content. Neither capability adds a permanent-delete method.
 - `hooks.content-policy:register` provides synchronous `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` hooks. It does not add publication methods to `ctx.content`.
 - Publication policy events identify API, MCP, visual-editor, plugin, scheduler, and system origins. Authenticated human actions also include `actor: { id, role, source }`.
 - `ctx.content.create()` accepts a locale but not `translationOf`. `ctx.content` has no translation discovery API.
