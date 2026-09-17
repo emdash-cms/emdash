@@ -104,7 +104,7 @@ function sandboxRouteErrorDetails(value) {
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
-function createContext(env) {
+function createContext(env, originHook) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
@@ -165,7 +165,21 @@ function createContext(env) {
 			getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
 		} : {}),
 		...(${hasContentWrite} ? {
-			create: (collection, data, options) => bridge.contentCreate(collection, data, options),
+			create: async (collection, data, options) => {
+				const result = await bridge.contentCreate(
+					collection,
+					data,
+					options,
+					originHook
+				);
+				if (result && result.__emdashContentCreateError === true) {
+					throw Object.assign(new Error(result.error.message), {
+						name: result.error.code,
+						code: result.error.code
+					});
+				}
+				return result;
+			},
 			update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
 			delete: (collection, id) => bridge.contentDelete(collection, id)
 		} : {})
@@ -271,7 +285,7 @@ function createContext(env) {
 
 export default class PluginEntrypoint extends WorkerEntrypoint {
 	async invokeHook(hookName, event) {
-		const ctx = createContext(this.env);
+		const ctx = createContext(this.env, hookName);
 		
 		// Find the hook handler
 		const hookDef = hooks[hookName];

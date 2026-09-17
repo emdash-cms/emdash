@@ -20,6 +20,7 @@ import {
 	type SandboxRunner,
 	type SandboxedPluginInstance,
 	type SandboxEmailSendCallback,
+	type SandboxContentCreateCallback,
 	type SandboxOptions,
 	type SandboxRunnerFactory,
 	type SerializedRequest,
@@ -27,7 +28,12 @@ import {
 	type I18nConfig,
 } from "emdash";
 
-import { setCronNowCallback, setCronRescheduleCallback, setEmailSendCallback } from "./bridge.js";
+import {
+	setContentCreateCallback,
+	setCronNowCallback,
+	setCronRescheduleCallback,
+	setEmailSendCallback,
+} from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
@@ -53,6 +59,7 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	contentCreateRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: {
 		name: string;
@@ -113,6 +120,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	private plugins = new Map<string, CloudflareSandboxedPlugin>();
 	private options: SandboxOptions;
 	private resolvedLimits: ResolvedLimits;
+	private readonly contentCreateRuntimeId = crypto.randomUUID();
 	private siteInfo?: {
 		name: string;
 		url: string;
@@ -137,6 +145,10 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		setEmailSendCallback(callback);
+	}
+
+	setContentCreate(callback: SandboxContentCreateCallback | null): void {
+		setContentCreateCallback(this.contentCreateRuntimeId, callback);
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
@@ -200,6 +212,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			this.resolvedLimits,
 			this.siteInfo,
 			this.options.isolateKey,
+			this.contentCreateRuntimeId,
 		);
 
 		this.plugins.set(pluginId, plugin);
@@ -214,6 +227,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			await plugin.terminate();
 		}
 		this.plugins.clear();
+		setContentCreateCallback(this.contentCreateRuntimeId, null);
 	}
 }
 
@@ -253,6 +267,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 			trailingSlash?: "always" | "never" | "ignore";
 		},
 		isolateKey?: string,
+		private contentCreateRuntimeId?: string,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
 		this.workerName = isolateKey ? `${this.id}:${isolateKey}` : this.id;
@@ -296,6 +311,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 				capabilities: normalizeCapabilities(this.manifest.capabilities || []),
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
+				contentCreateRuntimeId: this.contentCreateRuntimeId,
 				i18nConfig: getI18nConfig(),
 				siteInfo: this.siteInfo,
 				storageConfig: this.manifest.storage,

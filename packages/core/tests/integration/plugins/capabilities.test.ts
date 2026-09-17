@@ -618,6 +618,21 @@ describe("Capability Enforcement Integration (v2)", () => {
 					access.create("posts", { title: "Unknown" }, { locale: "de" }),
 				).rejects.toThrow(/not configured/i);
 			});
+
+			it("runs the content-write fence before a runtime-backed create", async () => {
+				const access = createContentAccessWithWrite(
+					db,
+					async () => {
+						throw new Error("write fenced");
+					},
+					undefined,
+					async () => {
+						throw new Error("runtime callback reached");
+					},
+				);
+
+				await expect(access.create("posts", { title: "Blocked" })).rejects.toThrow("write fenced");
+			});
 		});
 
 		describe("SEO panel integration", () => {

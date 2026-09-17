@@ -34,9 +34,25 @@ import type {
 	Database,
 	I18nConfig,
 	SandboxEmailSendCallback,
+	SandboxContentCreateCallback,
 	SiteInfo,
 } from "emdash";
 import type { Kysely } from "kysely";
+
+const CONTENT_CREATE_ERROR_CODES = new Set([
+	"CONFLICT",
+	"NOT_FOUND",
+	"SAVE_REJECTED",
+	"VALIDATION_ERROR",
+]);
+
+function contentCreateErrorDetails(error: unknown): { code: string; message: string } | null {
+	if (!(error instanceof Error) || !isRecord(error)) return null;
+	const code = error.code;
+	return typeof code === "string" && CONTENT_CREATE_ERROR_CODES.has(code)
+		? { code, message: error.message }
+		: null;
+}
 
 /**
  * Schema view of a content table (ec_${collection}) for kysely. The standard
@@ -124,6 +140,8 @@ export interface BridgeHandlerOptions {
 	siteInfo?: SiteInfo;
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
+	contentCreate?: SandboxContentCreateCallback;
+	contentCreateProvider?: () => SandboxContentCreateCallback | null;
 	emailSend: () => SandboxEmailSendCallback | null;
 	cronReschedule?: () => void;
 	now?: () => Date;
@@ -181,6 +199,19 @@ export function createBridgeHandler(
 						},
 					},
 					{ status: 503 },
+				);
+			}
+			const contentCreateError = contentCreateErrorDetails(error);
+			if (contentCreateError) {
+				const status =
+					contentCreateError.code === "NOT_FOUND"
+						? 404
+						: contentCreateError.code === "CONFLICT"
+							? 409
+							: 400;
+				return Response.json(
+					{ error: { name: contentCreateError.code, ...contentCreateError } },
+					{ status },
 				);
 			}
 			const message = error instanceof Error ? error.message : "Internal error";
@@ -273,11 +304,41 @@ async function dispatch(
 		case "content/create":
 			requireCapability(opts, "content:write");
 			const createOptions = optionalRecord(body, "options");
-			const locale = resolveContentCreateLocale(
-				createOptions ? optionalString(createOptions, "locale") : undefined,
-				opts.i18nConfig ?? null,
-			);
+			let locale: string;
+			try {
+				locale = resolveContentCreateLocale(
+					createOptions ? optionalString(createOptions, "locale") : undefined,
+					opts.i18nConfig ?? null,
+				);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : "Invalid locale";
+				throw Object.assign(new Error(message), {
+					name: "VALIDATION_ERROR",
+					code: "VALIDATION_ERROR",
+				});
+			}
 			await opts.beforeContentWrite?.();
+			const runtimeContentCreate = opts.contentCreateProvider?.() ?? opts.contentCreate;
+			if (runtimeContentCreate) {
+				const originHookValue = optionalString(body, "originHook");
+				const originHook =
+					originHookValue === "content:beforeSave" || originHookValue === "content:afterSave"
+						? originHookValue
+						: undefined;
+				return runtimeContentCreate(
+					pluginId,
+					requireString(body, "collection"),
+					requireRecord(body, "data"),
+					{
+						locale,
+						translationOf: createOptions
+							? optionalString(createOptions, "translationOf")
+							: undefined,
+						originHook,
+						sandboxOrigin: true,
+					},
+				);
+			}
 			return contentCreate(
 				db,
 				requireString(body, "collection"),

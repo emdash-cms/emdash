@@ -104,6 +104,8 @@ KV and declared storage need no capability. They are always scoped to the plugin
 
 Content reads include the entry's author ID, translation group, live and draft revision pointers, and row version. `getPublicUrl()` returns only published, routable URLs and never returns a preview URL. Revision snapshots require `content:revisions:read`; their retained field data can include values that an administrator removed later, but revision author identity is not exposed.
 
+Create a content translation with `ctx.content.create(collection, data, { locale, translationOf })`. `translationOf` is an active entry ID in the same collection. The new row joins its translation group, inherits byline credits and taxonomy assignments, and takes non-translatable field values from the source. Runtime content validation and save hooks still run, except the creating plugin's own `content:afterSave` hook is not re-entered and content created inside a save hook does not run save hooks again. A translation group permits one active row per locale; duplicate locale creates return `CONFLICT`, missing sources return `NOT_FOUND`, invalid locales return `VALIDATION_ERROR`, and hooks can return `SAVE_REJECTED`.
+
 ## Portable plugin context
 
 Hooks receive `(event, ctx)`. Sandboxed routes receive `(routeCtx, ctx)`.
@@ -211,7 +213,7 @@ await host.dispose();
 
 The direct host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It preserves hook, route, MCP, settings, and field-widget manifest metadata, supports content fixtures, and exposes KV and declared storage for assertions. Its `invokeHook()` and `invokeRoute()` methods test the transport. They do not prove that a host action emits the hook or applies route authentication, permissions, CSRF, and response caching.
 
-Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks. Actions call production runtime and handler boundaries. Inspectors read observable state without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
+Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks, including bylines and taxonomy terms. Actions call production runtime and handler boundaries. Content inspectors can read byline credits and taxonomy assignments without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
 
 The generated project keeps Worker Loader as its default fast test path. Add an opt-in Node/workerd job only for runner-sensitive behavior. Neither host reproduces deployed CPU, memory, and subrequest limits or renders the admin application.
 

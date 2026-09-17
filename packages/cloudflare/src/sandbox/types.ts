@@ -242,7 +242,17 @@ export interface PluginBridgeBinding {
 		collection: string,
 		data: Record<string, unknown>,
 		options?: ContentCreateOptions,
-	): Promise<BridgeContentItem>;
+		originHook?: string,
+	): Promise<
+		| BridgeContentItem
+		| {
+				__emdashContentCreateError: true;
+				error: {
+					code: "CONFLICT" | "NOT_FOUND" | "SAVE_REJECTED" | "VALIDATION_ERROR";
+					message: string;
+				};
+		  }
+	>;
 	contentUpdate(
 		collection: string,
 		id: string,

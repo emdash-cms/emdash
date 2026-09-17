@@ -332,6 +332,7 @@ describe("agent guidance", () => {
 		expect(skill).toContain("Node/workerd parity opt-in");
 		expect(skill).toContain("schema:read");
 		expect(skill).toContain("content:revisions:read");
+		expect(skill).toContain("{ locale, translationOf }");
 		expect(skill).toContain("@<publisher-handle>/<slug>");
 		expect(skill).toContain("info <handle> <slug> --version <version> --watch");
 	});

@@ -10,6 +10,8 @@
  *
  */
 
+import { AsyncLocalStorage } from "node:async_hooks";
+
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import type {
 	ResolvedPlugin,
@@ -133,6 +135,18 @@ export interface HookResult<T> {
 	error?: Error;
 	pluginId: string;
 	duration: number;
+}
+
+type ContentSaveHookName = "content:beforeSave" | "content:afterSave";
+const CONTENT_SAVE_HOOK_CONTEXT_KEY = Symbol.for("emdash:content-save-hook-context");
+const contentSaveHookContext =
+	((globalThis as Record<symbol, unknown>)[CONTENT_SAVE_HOOK_CONTEXT_KEY] as
+		| AsyncLocalStorage<ContentSaveHookName>
+		| undefined) ?? new AsyncLocalStorage<ContentSaveHookName>();
+(globalThis as Record<symbol, unknown>)[CONTENT_SAVE_HOOK_CONTEXT_KEY] = contentSaveHookContext;
+
+export function getActiveContentSaveHookName(): ContentSaveHookName | undefined {
+	return contentSaveHookContext.getStore();
 }
 
 /**
@@ -519,7 +533,9 @@ export class HookPipeline {
 			const start = Date.now();
 
 			try {
-				const result = await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
+				const result = await contentSaveHookContext.run("content:beforeSave", () =>
+					this.executeWithTimeout(() => handler(event, ctx), hook.timeout),
+				);
 				// Handler can return modified content or void (keep current)
 				if (result !== undefined) {
 					currentContent = result;
@@ -555,11 +571,13 @@ export class HookPipeline {
 		collection: string,
 		isNew: boolean,
 		actor?: ActorInfo,
+		excludePluginId?: string,
 	): Promise<HookResult<void>[]> {
 		const hooks = this.getTypedHooks("content:afterSave");
 		const results: HookResult<void>[] = [];
 
 		for (const hook of hooks) {
+			if (hook.pluginId === excludePluginId) continue;
 			const { handler } = hook;
 			const event: ContentHookEvent = { content, collection, isNew };
 			if (actor !== undefined) event.actor = { ...actor };
@@ -567,7 +585,9 @@ export class HookPipeline {
 			const start = Date.now();
 
 			try {
-				await this.executeWithTimeout(() => handler(event, ctx), hook.timeout);
+				await contentSaveHookContext.run("content:afterSave", () =>
+					this.executeWithTimeout(() => handler(event, ctx), hook.timeout),
+				);
 				results.push({
 					success: true,
 					pluginId: hook.pluginId,

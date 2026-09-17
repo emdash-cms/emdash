@@ -21,10 +21,12 @@ import {
 } from "emdash";
 import { runMigrations } from "emdash/db";
 import {
+	BylineRepository,
 	dispatchPluginApiRequest,
 	EmDashRuntime,
 	getI18nConfig,
 	setI18nConfig,
+	TaxonomyRepository,
 	type UserInfo,
 } from "emdash/plugin-test-runtime";
 import { Kysely } from "kysely";
@@ -72,6 +74,8 @@ export interface PluginRuntimeTestHost {
 			role?: "subscriber" | "contributor" | "author" | "editor" | "admin";
 		}): Promise<UserInfo>;
 		content(collection: string, input: Omit<CreateContentInput, "type">): Promise<ContentItem>;
+		byline: BylineRepository["create"];
+		taxonomy: TaxonomyRepository["create"];
 		revision(
 			collection: string,
 			entryId: string,
@@ -127,6 +131,8 @@ export interface PluginRuntimeTestHost {
 			get(collection: string, id: string): Promise<ContentItem | null>;
 			list(collection: string): Promise<ContentItem[]>;
 			publicUrl(collection: string, id: string): Promise<string | null>;
+			bylines: BylineRepository["getContentBylines"];
+			terms: TaxonomyRepository["getTermsForEntry"];
 		};
 		schema(): ReturnType<SchemaRegistry["listCollectionsWithFields"]>;
 		storage: {
@@ -421,6 +427,8 @@ export async function createPluginRuntimeTestHost(
 				assertActive();
 				return new ContentRepository(runtime.db).create({ ...input, type: collection });
 			},
+			byline: (input) => new BylineRepository(runtime.db).create(input),
+			taxonomy: (input) => new TaxonomyRepository(runtime.db).create(input),
 			async revision(collection, entryId, data, revisionOptions) {
 				assertActive();
 				return new RevisionRepository(runtime.db).create({
@@ -536,6 +544,10 @@ export async function createPluginRuntimeTestHost(
 							trailingSlash: siteInfo.trailingSlash,
 						},
 					}).getPublicUrl!(collection, id),
+				bylines: (collection, id, bylineOptions) =>
+					new BylineRepository(runtime.db).getContentBylines(collection, id, bylineOptions),
+				terms: (collection, id, taxonomy, locale) =>
+					new TaxonomyRepository(runtime.db).getTermsForEntry(collection, id, taxonomy, locale),
 			},
 			schema: () => new SchemaRegistry(runtime.db).listCollectionsWithFields(),
 			storage: {

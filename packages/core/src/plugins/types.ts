@@ -422,7 +422,20 @@ export type ContentWriteInput = Record<string, unknown> & {
 export interface ContentCreateOptions {
 	/** Locale for the new content row. Defaults to the configured site locale, then `en`. */
 	locale?: string;
+	/** Existing row in the same collection whose translation group the new row joins. */
+	translationOf?: string;
 }
+
+export type PluginContentCreateCallback = (
+	pluginId: string,
+	collection: string,
+	data: ContentWriteInput,
+	options?: ContentCreateOptions & {
+		/** Save-hook origin supplied by sandbox transports to prevent hook re-entry. */
+		originHook?: "content:beforeSave" | "content:afterSave";
+		sandboxOrigin?: true;
+	},
+) => Promise<ContentItem>;
 
 /**
  * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").

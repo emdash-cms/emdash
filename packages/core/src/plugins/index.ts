@@ -92,6 +92,7 @@ export type {
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
+	SandboxContentCreateCallback,
 	ResourceLimits,
 	PluginCodeStorage,
 	SerializedRequest,

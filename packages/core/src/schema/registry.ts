@@ -1491,6 +1491,9 @@ export class SchemaRegistry {
 			.execute();
 
 		const createIndex = options.ifNotExists ? sql`CREATE INDEX IF NOT EXISTS` : sql`CREATE INDEX`;
+		const createUniqueIndex = options.ifNotExists
+			? sql`CREATE UNIQUE INDEX IF NOT EXISTS`
+			: sql`CREATE UNIQUE INDEX`;
 
 		// Create standard indexes
 		await sql`
@@ -1545,6 +1548,12 @@ export class SchemaRegistry {
 		await sql`
 			${createIndex} ${sql.ref(`idx_${tableName}_del_tg_locale`)}
 			ON ${sql.ref(tableName)} (deleted_at, translation_group, locale)
+		`.execute(conn);
+
+		await sql`
+			${createUniqueIndex} ${sql.ref(`uidx_${tableName}_active_tg_locale`)}
+			ON ${sql.ref(tableName)} (translation_group, lower(locale))
+			WHERE deleted_at IS NULL AND translation_group IS NOT NULL
 		`.execute(conn);
 
 		// Composite indexes for optimized query performance (see migration 033)

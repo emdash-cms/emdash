@@ -16,6 +16,8 @@ import type {
 	CronTaskInfo,
 	Database,
 	I18nConfig,
+	PluginContentItem,
+	SandboxContentCreateCallback,
 	SandboxEmailSendCallback,
 	VersionedValue,
 } from "emdash";
@@ -72,8 +74,21 @@ const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
  * @see runner.ts setEmailSendCallback()
  */
 let emailSendCallback: SandboxEmailSendCallback | null = null;
+const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
+
+function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[CONTENT_CREATE_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, SandboxContentCreateCallback>;
+	}
+	const callbacks = new Map<string, SandboxContentCreateCallback>();
+	store[CONTENT_CREATE_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
 
 /**
  * Set the email send callback for all bridge instances.
@@ -81,6 +96,14 @@ let cronNowCallback: (() => Date) | null = null;
  */
 export function setEmailSendCallback(callback: SandboxEmailSendCallback | null): void {
 	emailSendCallback = callback;
+}
+
+export function setContentCreateCallback(
+	runtimeId: string,
+	callback: SandboxContentCreateCallback | null,
+): void {
+	if (callback) contentCreateCallbacks().set(runtimeId, callback);
+	else contentCreateCallbacks().delete(runtimeId);
 }
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
@@ -213,6 +236,7 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	contentCreateRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: {
 		name: string;
@@ -738,7 +762,17 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		collection: string,
 		data: Record<string, unknown>,
 		options?: ContentCreateOptions,
-	): Promise<ReturnType<typeof rowToContentItem>> {
+		originHookInput?: string,
+	): Promise<
+		| PluginContentItem
+		| {
+				__emdashContentCreateError: true;
+				error: {
+					code: "CONFLICT" | "NOT_FOUND" | "SAVE_REJECTED" | "VALIDATION_ERROR";
+					message: string;
+				};
+		  }
+	> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:write")) {
 			throw new Error("Missing capability: content:write");
@@ -747,8 +781,52 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
 		const { resolveContentCreateLocale, ulid } = await loadBridgeRuntime();
-		const locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
+		let locale: string;
+		try {
+			locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Invalid locale";
+			return {
+				__emdashContentCreateError: true,
+					error: { code: "VALIDATION_ERROR", message },
+			};
+		}
 		await this.assertMediaUsageActivationWriteAllowed();
+		const runtimeContentCreate = this.ctx.props.contentCreateRuntimeId
+			? contentCreateCallbacks().get(this.ctx.props.contentCreateRuntimeId)
+			: undefined;
+		if (runtimeContentCreate) {
+			const originHook =
+				originHookInput === "content:beforeSave" || originHookInput === "content:afterSave"
+					? originHookInput
+					: undefined;
+			try {
+				return await runtimeContentCreate(this.ctx.props.pluginId, collection, data, {
+					locale,
+					translationOf: options?.translationOf,
+					originHook,
+					sandboxOrigin: true,
+				});
+			} catch (error) {
+				const code =
+					typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+				if (
+					code === "CONFLICT" ||
+					code === "NOT_FOUND" ||
+					code === "SAVE_REJECTED" ||
+					code === "VALIDATION_ERROR"
+				) {
+					return {
+						__emdashContentCreateError: true,
+						error: {
+							code,
+							message: error instanceof Error ? error.message : "Content create failed",
+						},
+					};
+				}
+				throw error;
+			}
+		}
 		const id = ulid();
 		const now = new Date().toISOString();
 		const columns = [

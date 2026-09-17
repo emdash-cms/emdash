@@ -57,7 +57,7 @@ Revision snapshots can contain field values that an administrator later removed.
 
 `schema:read` exposes collection and field definitions without database IDs, timestamps, migration metadata, or SQL column types. Hidden collections remain visible because `hidden` controls admin navigation rather than data access.
 
-### Creating content in a locale
+### Creating and translating content
 
 `ctx.content.create()` accepts an optional third argument for the new entry's locale:
 
@@ -70,6 +70,20 @@ const post = await ctx.content.create(
 ```
 
 Locale matching is case-insensitive and stores the casing from the site's locale configuration, so `zh-tw` becomes `zh-TW` when that is the configured form. A malformed explicit locale always throws; when i18n is configured, an explicit locale outside the configured locale list also throws. When the option is omitted, EmDash uses the site's configured default locale; sites without i18n configuration retain the `en` default.
+
+To add a locale to an existing entry, pass its database ID as `translationOf`:
+
+```ts
+const translatedPost = await ctx.content.create(
+	"posts",
+	{ title: "Bienvenue", sku: "ignored-for-shared-fields" },
+	{ locale: "fr", translationOf: sourcePost.id },
+);
+```
+
+The source must be an active entry in the same collection. The new entry joins its translation group, inherits its byline credits and taxonomy assignments, and starts with the source values for fields marked as non-translatable. A value supplied for a non-translatable field does not replace the source value during translation creation. Content validation and save hooks run through the same runtime path as other content creates. EmDash does not re-enter the creating plugin's own `content:afterSave` hook, and content created from inside a save hook does not run save hooks again.
+
+Each translation group can contain one active entry per locale. Creating a second entry for the same group and locale throws a `CONFLICT` error. A missing source throws `NOT_FOUND`, an invalid or unconfigured locale throws `VALIDATION_ERROR`, and a save hook can stop the create with `SAVE_REJECTED`.
 
 ## Network host allowlists
 

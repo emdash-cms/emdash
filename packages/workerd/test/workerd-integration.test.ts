@@ -213,12 +213,49 @@ export default {
 	hooks: {
 		"content:beforeSave": async (event, ctx) => {
 			await ctx.kv.set("saw-save", true);
-			return { ...event.content, title: event.content.title + " [workerd]" };
+			if (event.content.rejectSave === true) {
+				return {
+					__emdashSandboxHookResult: true,
+					version: 1,
+					error: { code: "SAVE_REJECTED", reason: "Translation needs review" }
+				};
+			}
+			if (event.content.createCompanion === true) {
+				await ctx.content.create("posts", { title: "Companion" });
+			}
+			const content = { ...event.content };
+			delete content.createCompanion;
+			return { ...content, title: event.content.title + " [workerd]" };
 		}
 	},
 	routes: {
 		"state": {
 			handler: async (_route, ctx) => ({ isolateId: isolateId ??= crypto.randomUUID(), sawSave: await ctx.kv.get("saw-save") })
+		},
+		"translate": {
+			handler: async (route, ctx) => ctx.content.create(
+				"posts",
+				{ title: route.input.title },
+				{
+					locale: route.input.locale,
+					translationOf: route.input.translationOf,
+					__emdashOriginHook: "content:beforeSave"
+				}
+			)
+		},
+		"translate-error": {
+			handler: async (route, ctx) => {
+				try {
+					await ctx.content.create(
+						"posts",
+						{ title: "Attempt", rejectSave: route.input.rejectSave },
+						{ locale: route.input.locale, translationOf: route.input.translationOf }
+					);
+					return { unexpectedSuccess: true };
+				} catch (error) {
+					return { name: error.name, code: error.code, message: error.message };
+				}
+			}
 		}
 	}
 };
@@ -319,7 +356,11 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					allowedHosts: [],
 					storage: {},
 					hooks: ["content:beforeSave"],
-					routes: [{ name: "state", public: true }],
+					routes: [
+						{ name: "state", public: true },
+						{ name: "translate", public: true },
+						{ name: "translate-error", public: true },
+					],
 				},
 			],
 			createSandboxRunner: (options) => new WorkerdSandboxRunner(options),
@@ -338,6 +379,63 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				data: { item: { data: { title: "Original [workerd]" } } },
 			});
 			if (!created.success) return;
+			const translated = await runtime.handlePluginApiRoute(
+				"runtime-workerd",
+				"POST",
+				"/translate",
+				new Request("https://test.local/translate", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						title: "Bonjour",
+						locale: "fr",
+						translationOf: created.data.item.id,
+					}),
+				}),
+			);
+			expect(translated).toMatchObject({
+				success: true,
+				data: {
+					locale: "fr",
+					translationGroup: created.data.item.translationGroup,
+					data: { title: "Bonjour [workerd]" },
+				},
+			});
+			const nested = await runtime.handleContentCreate("posts", {
+				data: { title: "Nested", createCompanion: true },
+			});
+			expect(nested).toMatchObject({
+				success: true,
+				data: { item: { data: { title: "Nested [workerd]" } } },
+			});
+			const items = await new ContentRepository(runtime.db).findMany("posts", { limit: 10 });
+			expect(items.items).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ data: { title: "Nested [workerd]" } }),
+					expect.objectContaining({ data: { title: "Companion" } }),
+				]),
+			);
+			for (const [input, code] of [
+				[{ title: "Duplicate", locale: "fr", translationOf: created.data.item.id }, "CONFLICT"],
+				[{ title: "Missing", locale: "fr", translationOf: "missing" }, "NOT_FOUND"],
+				[
+					{ title: "Invalid", locale: "not_configured", translationOf: created.data.item.id },
+					"VALIDATION_ERROR",
+				],
+				[{ title: "Rejected", locale: "de", rejectSave: true }, "SAVE_REJECTED"],
+			] as const) {
+				const failed = await runtime.handlePluginApiRoute(
+					"runtime-workerd",
+					"POST",
+					"/translate-error",
+					new Request("https://test.local/translate-error", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(input),
+					}),
+				);
+				expect(failed).toMatchObject({ success: true, data: { name: code, code } });
+			}
 			const first = await runtime.handlePluginApiRoute(
 				"runtime-workerd",
 				"GET",

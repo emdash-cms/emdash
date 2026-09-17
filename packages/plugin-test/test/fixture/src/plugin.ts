@@ -19,10 +19,22 @@ const plugin: SandboxedPlugin = {
 		"plugin:deactivate": async (_event, ctx) => record(ctx, "lifecycle", "deactivate"),
 		"plugin:uninstall": async (event, ctx) =>
 			record(ctx, "lifecycle", "uninstall", { deleteData: event.deleteData }),
-		"content:beforeSave": async (event) => ({
-			...event.content,
-			title: `${String(event.content.title)} [sandbox]`,
-		}),
+		"content:beforeSave": async (event, ctx) => {
+			if (event.content.rejectSave === true) {
+				return {
+					__emdashSandboxHookResult: true,
+					version: 1,
+					error: { code: "SAVE_REJECTED", reason: "Translation needs review" },
+				};
+			}
+			if (event.content.createCompanion === true) {
+				if (!ctx.content?.create) throw new Error("Content write access is unavailable");
+				await ctx.content.create("posts", { title: "Companion" });
+			}
+			const content = { ...event.content };
+			delete content.createCompanion;
+			return { ...content, title: `${String(event.content.title)} [sandbox]` };
+		},
 		"content:afterSave": {
 			handler: async (event, ctx) => {
 				await ctx.storage.events!.put(String(event.content.id), {
@@ -95,6 +107,95 @@ const plugin: SandboxedPlugin = {
 					publicUrl: await ctx.content!.getPublicUrl!("posts", id),
 					revisions: await ctx.content!.listRevisions!("posts", id),
 				};
+			},
+		},
+		"content-translation-create": {
+			permission: "content:create",
+			handler: async (route, ctx) => {
+				if (
+					typeof route.input !== "object" ||
+					route.input === null ||
+					!("translationOf" in route.input) ||
+					typeof route.input.translationOf !== "string" ||
+					!("locale" in route.input) ||
+					typeof route.input.locale !== "string" ||
+					!("data" in route.input) ||
+					typeof route.input.data !== "object" ||
+					route.input.data === null
+				) {
+					throw new Error("Expected translationOf, locale, and data");
+				}
+				if (!ctx.content?.create) throw new Error("Content write access is unavailable");
+				const options = {
+					locale: route.input.locale,
+					translationOf: route.input.translationOf,
+					__emdashOriginHook: "content:beforeSave",
+				};
+				return ctx.content.create(
+					"posts",
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to a non-null record above
+					route.input.data as Record<string, unknown>,
+					options,
+				);
+			},
+		},
+		"content-translation-error": {
+			permission: "content:create",
+			handler: async (route, ctx) => {
+				if (!ctx.content?.create) throw new Error("Content write access is unavailable");
+				if (typeof route.input !== "object" || route.input === null) {
+					throw new Error("Expected translation input");
+				}
+				try {
+					await ctx.content.create(
+						"posts",
+						{ title: "Attempt" },
+						{
+							locale:
+								"locale" in route.input && typeof route.input.locale === "string"
+									? route.input.locale
+									: undefined,
+							translationOf:
+								"translationOf" in route.input && typeof route.input.translationOf === "string"
+									? route.input.translationOf
+									: undefined,
+						},
+					);
+					return { unexpectedSuccess: true };
+				} catch (error) {
+					return {
+						name: error instanceof Error ? error.name : null,
+						code:
+							typeof error === "object" &&
+							error !== null &&
+							"code" in error &&
+							typeof error.code === "string"
+								? error.code
+								: null,
+						message: error instanceof Error ? error.message : null,
+					};
+				}
+			},
+		},
+		"content-save-rejection": {
+			permission: "content:create",
+			handler: async (_route, ctx) => {
+				if (!ctx.content?.create) throw new Error("Content write access is unavailable");
+				try {
+					await ctx.content.create("posts", { title: "Rejected", rejectSave: true });
+					return { unexpectedSuccess: true };
+				} catch (error) {
+					return {
+						name: error instanceof Error ? error.name : null,
+						code:
+							typeof error === "object" &&
+							error !== null &&
+							"code" in error &&
+							typeof error.code === "string"
+								? error.code
+								: null,
+					};
+				}
 			},
 		},
 		"revision-discovery": {
