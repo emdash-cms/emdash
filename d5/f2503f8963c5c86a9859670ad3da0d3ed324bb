@@ -1,0 +1,69 @@
+.changeset/calm-publishing-actions.md
+  s_a07c4cd2c1a8aa::t_6369b952cc06b4 1-5
+docs/src/content/docs/guides/working-with-content.mdx
+  s_a07c4cd2c1a8aa::t_79b0e9d1c0a7eb 44-45,116,118-122,125-127
+e2e/tests/accessibility.spec.ts
+  s_177e6e2c6bd9e2::t_a59d1a645318b8 219,221-222
+e2e/tests/content-actions.spec.ts
+  s_177e6e2c6bd9e2::t_ad78b6b8452061 158-160,186-195,203-216,271,277,365-366,383-386,405
+e2e/tests/content-crud.spec.ts
+  s_177e6e2c6bd9e2::t_fbca20b32a7717 210,215-218
+e2e/tests/revisions.spec.ts
+  s_177e6e2c6bd9e2::t_305cf884a36bf4 171,174-177
+packages/admin/src/components/ContentEditor.tsx
+  s_177e6e2c6bd9e2::t_44f30f0bd51e1e 1214-1218
+packages/admin/src/lib/content-settings-layout.ts
+  s_177e6e2c6bd9e2::t_7e84f4e069b72b 5
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_177e6e2c6bd9e2::t_761db6659a2acd 1554,1558,1562,1566,1568-1574,1592-1594,1847,2067,2075-2076,2078-2079,2081-2088,2091,2105,2107,2114-2115,2118,2121,2123-2124,2126-2128,2130-2133,2136,2140,2145-2147,2149-2152
+packages/admin/tests/components/ContentSettingsPanel.test.tsx
+  s_e69d097f84a6bd::t_aae291fbe1ac0d 212,216-218,229-270,283-284,385,410,412,417,1105,1107,1114,1120,1124,1129,1136-1142,1191
+packages/admin/tests/publish-autosave-race.test.tsx
+  s_e69d097f84a6bd::t_8275bd4508851f 260,262-264,270-271,400,412,507,567,592,595,693,701,717,724-725,729,734,736-737,752,787,837
+packages/admin/tests/publish-button-locale.test.tsx
+  s_177e6e2c6bd9e2::t_916f18a31b2e40 183-187
+packages/admin/tests/unpublish-discard-revision-token.test.tsx
+  s_177e6e2c6bd9e2::t_2217cd7cc60269 391,394-396
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_12ff11085afac9::t_172ebd4657b509 56,412-414,417,421-425,439-448,451-452,458-460,463-479,481-549,652-656,710-714,823,926-982
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d5f2503f8963c5c86a9859670ad3da0d3ed324bb",
+  "prompts": {},
+  "sessions": {
+    "s_12ff11085afac9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb5-4f63-7e11-88f3-2d9c9913ceed",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_177e6e2c6bd9e2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aec7-be46-7121-b431-1d2615cc3083",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_a07c4cd2c1a8aa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeaf-aa8c-7290-b6ae-8db7c63c2b59",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e69d097f84a6bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb0-d849-7f03-a16d-059c8a9c7288",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
