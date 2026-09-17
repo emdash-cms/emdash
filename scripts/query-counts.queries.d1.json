@@ -1,7 +1,7 @@
 {
 	"GET / (cold)": {
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
@@ -34,7 +34,7 @@
 	"GET /category/development (cold)": {
 		"select \"name\", \"collections\" from \"_emdash_taxonomy_defs\"": 1,
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
@@ -74,7 +74,7 @@
 	},
 	"GET /contributors (cold)": {
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
@@ -106,7 +106,7 @@
 	},
 	"GET /contributors-naive (cold)": {
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
@@ -140,7 +140,7 @@
 	},
 	"GET /pages/about (cold)": {
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
@@ -172,7 +172,7 @@
 	},
 	"GET /posts (cold)": {
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
@@ -204,7 +204,7 @@
 	},
 	"GET /posts/building-for-the-long-term (cold)": {
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
@@ -248,7 +248,7 @@
 	},
 	"GET /rss.xml (cold)": {
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
@@ -266,7 +266,7 @@
 		"select \"c\".\"slug\" as \"collection_slug\" from \"_emdash_fields\" as \"f\" inner join \"_emdash_collections\" as \"c\" on \"c\".\"id\" = \"f\".\"collection_id\" where \"f\".\"slug\" = ?": 1,
 		"select \"id\" from \"_emdash_collections\" where \"slug\" = ?": 1,
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"search_config\", \"title_field\" from \"_emdash_collections\" where \"slug\" = ?": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
@@ -307,7 +307,7 @@
 	"GET /tag/webdev (cold)": {
 		"select \"name\", \"collections\" from \"_emdash_taxonomy_defs\"": 1,
 		"select \"name\", \"value\" from \"options\" where \"name\" in (...)": 2,
-		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\'": 1,
+		"select \"name\", \"value\" from \"options\" where name LIKE ? ESCAPE '\\' order by \"name\" asc": 1,
 		"select \"plugin_id\", \"status\" from \"_plugin_state\"": 1,
 		"select \"slug\" from \"_emdash_collections\"": 1,
 		"select \"value\" from \"options\" where \"name\" = ?": 2,
