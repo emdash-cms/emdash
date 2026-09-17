@@ -792,6 +792,9 @@ export function createMcpServer(
 					payload.userId,
 					request,
 					payload.user,
+					async (tags) => {
+						if (payload.cache?.enabled) await payload.cache.invalidate({ tags });
+					},
 				);
 				if (!result.success) return unwrap(result);
 				if (tool.outputSchema) {
