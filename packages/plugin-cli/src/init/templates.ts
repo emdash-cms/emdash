@@ -433,6 +433,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Use \`schema:read\` for \`ctx.schema.listCollections()\` and \`getCollection()\`.
 - Use \`content:read\` for content identity fields, translations, and published public URLs. Public URL resolution never returns previews. Revision history requires the separate \`content:revisions:read\` capability and excludes revision author identity.
 - Create a translation with \`ctx.content.create(collection, data, { locale, translationOf })\`. The source must be an active row in the same collection. EmDash preserves its non-translatable fields, byline credits, taxonomy assignments, validation, and save hooks, and permits one active row per locale in the group.
+- Use \`content:publish\` for revision-fenced publish, unpublish, schedule, and unschedule actions. Use \`content:restore\` separately for trashed reads and restore. Pass the latest \`_rev\` to every mutation.
 - Use \`ctx.storage\` for queryable records and \`ctx.kv\` for key-value state.
 - Use Block Kit for sandboxed admin UI. Do not ship browser React components.
 - Treat public routes as internet-facing and validate their inputs.
