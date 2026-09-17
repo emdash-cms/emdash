@@ -1014,29 +1014,25 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	 */
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		await this.ensureReady();
-		try {
-			return await this.withWallTimeLimit(`hook:${hookName}`, async () => {
-				const res = await fetch(`http://127.0.0.1:${this.port}/hook/${hookName}`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-					},
-					body: JSON.stringify({ event }),
-				});
-				if (!res.ok) {
-					const text = await res.text();
-					throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
-				}
-				const hookResult: unknown = await res.json();
-				if (!isRecord(hookResult)) {
-					throw new Error(`Plugin ${this.id} hook ${hookName} returned a non-object response`);
-				}
-				return hookResult.value;
+		return this.withWallTimeLimit(`hook:${hookName}`, async () => {
+			const res = await fetch(`http://127.0.0.1:${this.port}/hook/${hookName}`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+				},
+				body: JSON.stringify({ event }),
 			});
-		} finally {
-			void this.runner.contentActions?.flush(this.manifest.id);
-		}
+			if (!res.ok) {
+				const text = await res.text();
+				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
+			}
+			const hookResult: unknown = await res.json();
+			if (!isRecord(hookResult)) {
+				throw new Error(`Plugin ${this.id} hook ${hookName} returned a non-object response`);
+			}
+			return hookResult.value;
+		});
 	}
 
 	/**
@@ -1048,34 +1044,30 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 		request: SerializedRequest,
 	): Promise<unknown> {
 		await this.ensureReady();
-		try {
-			return await this.withWallTimeLimit(`route:${routeName}`, async () => {
-				const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-					},
-					body: JSON.stringify({ input, request }),
-				});
-				if (!res.ok) {
-					const text = await res.text();
-					let envelope = null;
-					try {
-						envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
-					} catch {
-						// The generic route error below preserves non-protocol failures.
-					}
-					if (envelope) {
-						throw createSandboxRouteError(envelope.error.code);
-					}
-					throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
-				}
-				return res.json();
+		return this.withWallTimeLimit(`route:${routeName}`, async () => {
+			const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+				},
+				body: JSON.stringify({ input, request }),
 			});
-		} finally {
-			void this.runner.contentActions?.flush(this.manifest.id);
-		}
+			if (!res.ok) {
+				const text = await res.text();
+				let envelope = null;
+				try {
+					envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+				} catch {
+					// The generic route error below preserves non-protocol failures.
+				}
+				if (envelope) {
+					throw createSandboxRouteError(envelope.error.code);
+				}
+				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
+			}
+			return res.json();
+		});
 	}
 
 	/**
@@ -1107,8 +1099,13 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 			}, wallTimeMs);
 		});
 
+		const invocation = fn();
+		void invocation.then(
+			() => this.runner.contentActions?.flush(this.manifest.id),
+			() => this.runner.contentActions?.flush(this.manifest.id),
+		);
 		try {
-			return await Promise.race([fn(), timeout]);
+			return await Promise.race([invocation, timeout]);
 		} finally {
 			if (timer !== undefined) clearTimeout(timer);
 		}

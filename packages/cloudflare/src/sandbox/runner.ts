@@ -372,15 +372,14 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	 * Wall-time is enforced here.
 	 */
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
-		try {
-			return await this.withWallTimeLimit(`hook:${hookName}`, () => {
-				const worker = this.createWorker();
-				const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-				return entrypoint.invokeHook(hookName, event);
-			});
-		} finally {
-			void flushContentActionCallbacks(this.manifest.id);
-		}
+		const worker = this.createWorker();
+		const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
+		const invocation = entrypoint.invokeHook(hookName, event);
+		void invocation.then(
+			() => flushContentActionCallbacks(this.manifest.id),
+			() => flushContentActionCallbacks(this.manifest.id),
+		);
+		return this.withWallTimeLimit(`hook:${hookName}`, () => invocation);
 	}
 
 	/**
@@ -394,18 +393,19 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		input: unknown,
 		request: SerializedRequest,
 	): Promise<unknown> {
-		try {
-			return await this.withWallTimeLimit(`route:${routeName}`, async () => {
-				const worker = this.createWorker();
-				const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-				const routeResult = await entrypoint.invokeRoute(routeName, input, request);
-				const envelope = getSandboxRouteErrorEnvelope(routeResult);
-				if (envelope) throw createSandboxRouteError(envelope.error.code);
-				return routeResult;
-			});
-		} finally {
-			void flushContentActionCallbacks(this.manifest.id);
-		}
+		const worker = this.createWorker();
+		const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
+		const invocation = (async () => {
+			const routeResult = await entrypoint.invokeRoute(routeName, input, request);
+			const envelope = getSandboxRouteErrorEnvelope(routeResult);
+			if (envelope) throw createSandboxRouteError(envelope.error.code);
+			return routeResult;
+		})();
+		void invocation.then(
+			() => flushContentActionCallbacks(this.manifest.id),
+			() => flushContentActionCallbacks(this.manifest.id),
+		);
+		return this.withWallTimeLimit(`route:${routeName}`, () => invocation);
 	}
 
 	/**
