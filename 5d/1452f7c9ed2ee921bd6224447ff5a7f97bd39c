@@ -1,0 +1,19 @@
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_12ff11085afac9::t_2632f46dd9f5fe 538,540
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "5d1452f7c9ed2ee921bd6224447ff5a7f97bd39c",
+  "prompts": {},
+  "sessions": {
+    "s_12ff11085afac9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb5-4f63-7e11-88f3-2d9c9913ceed",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
