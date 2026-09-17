@@ -385,6 +385,8 @@ routes: {
 },
 ```
 
+`ctx.http.fetch()` returns a buffered WHATWG `Response` in both sandbox runners. Binary methods such as `arrayBuffer()` and `blob()` preserve bytes across Cloudflare Worker Loader and Node/workerd. Request and response bodies are each limited to 8 MiB of decoded data. Redirect targets are checked before every hop, and credential headers are removed when a redirect crosses origins.
+
 ## Calling routes from Block Kit
 
 Sandboxed plugins do not ship React code to the admin. Declare an `admin` route and return Block Kit responses. EmDash sends `page_load`, `block_action`, and `form_submit` interactions to that private route with the correct URL and CSRF header. [Block Kit](/plugins/creating-plugins/block-kit/) shows the interaction contract and a complete route.

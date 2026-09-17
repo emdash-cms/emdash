@@ -348,6 +348,8 @@ describe("agent guidance", () => {
 		expect(skill).toContain("saved-entry panels");
 		expect(skill).toContain("routeCtx.ui");
 		expect(skill).toContain("`admin` helpers");
+		expect(skill).toContain("host.http.respond(url, response)");
+		expect(skill).toContain("8 MiB of decoded bytes");
 		expect(skill).toContain("Node/workerd parity opt-in");
 		expect(skill).toContain("schema:read");
 		expect(skill).toContain("content:revisions:read");

@@ -43,6 +43,7 @@ import {
 	setEmailSendCallback,
 	setMediaStorageCallback,
 	setTaxonomyWriteCallback,
+	setHttpFetchCallback,
 } from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
@@ -79,6 +80,7 @@ export interface PluginBridgeProps {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	httpFetchKey?: string;
 	storageConfig?: Record<
 		string,
 		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
@@ -142,11 +144,16 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	private httpFetchKey?: string;
 
 	constructor(options: SandboxOptions) {
 		this.options = options;
 		this.resolvedLimits = resolveLimits(options.limits);
 		this.siteInfo = options.siteInfo;
+		if (options.httpFetch) {
+			this.httpFetchKey = crypto.randomUUID();
+			setHttpFetchCallback(this.httpFetchKey, options.httpFetch);
+		}
 
 		// Wire email send callback if provided at construction time
 		setEmailSendCallback(options.emailSend ?? null);
@@ -210,6 +217,9 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 * @param code - The bundled plugin JavaScript code
 	 */
 	async load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance> {
+		if (this.httpFetchKey && this.options.httpFetch) {
+			setHttpFetchCallback(this.httpFetchKey, this.options.httpFetch);
+		}
 		const pluginId = `${manifest.id}:${manifest.version}`;
 
 		// Return cached plugin if available
@@ -242,6 +252,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			this.contentCreateRuntimeId,
 			this.contentActionsRuntimeId,
 			this.taxonomyWriteRuntimeId,
+			this.httpFetchKey,
 		);
 
 		this.plugins.set(pluginId, plugin);
@@ -259,6 +270,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		setContentCreateCallback(this.contentCreateRuntimeId, null);
 		setContentActionsCallback(this.contentActionsRuntimeId, null);
 		setTaxonomyWriteCallback(this.taxonomyWriteRuntimeId, null);
+		if (this.httpFetchKey) setHttpFetchCallback(this.httpFetchKey, null);
 	}
 }
 
@@ -301,6 +313,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		private contentCreateRuntimeId?: string,
 		private contentActionsRuntimeId?: string,
 		private taxonomyWriteRuntimeId?: string,
+		private readonly httpFetchKey?: string,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
 		this.workerName = isolateKey ? `${this.id}:${isolateKey}` : this.id;
@@ -355,6 +368,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 				siteInfo: this.siteInfo,
 				storageConfig: this.manifest.storage,
 				settingsSchema: this.manifest.admin?.settingsSchema,
+				httpFetchKey: this.httpFetchKey,
 			},
 		});
 

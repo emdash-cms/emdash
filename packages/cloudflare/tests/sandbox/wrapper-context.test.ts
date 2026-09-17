@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+	PLUGIN_HTTP_FORM_BYTES,
+	PLUGIN_HTTP_FORM_CONTENT_TYPE,
+	pluginHttpFormBody,
+} from "../../../core/tests/fixtures/plugin-http.js";
 import { generatePluginWrapper } from "../../src/sandbox/wrapper.js";
 
 describe("Cloudflare generated plugin context", () => {
@@ -170,7 +175,10 @@ describe("Cloudflare generated plugin context", () => {
 			hooks: {
 				"plugin:activate": async (_event: unknown, ctx: Record<string, any>) => {
 					await ctx.cron.schedule("daily", { schedule: "@daily" });
-					const response = await ctx.http.fetch("https://api.example.com/status");
+					const response = await ctx.http.fetch("https://api.example.com/status", {
+						method: "POST",
+						body: pluginHttpFormBody(),
+					});
 					const versioned = await ctx.content.getVersioned("posts", "post-1");
 					return {
 						isResponse: response instanceof Response,
@@ -184,19 +192,26 @@ describe("Cloudflare generated plugin context", () => {
 				},
 			},
 		};
+		let capturedInit: RequestInit | undefined;
 		const bridge = new Proxy(
 			{
 				cronSchedule: schedule,
 				contentGetVersioned: vi.fn().mockResolvedValue({ item: { id: "post-1" }, _rev: "rev-1" }),
-				httpFetch: async () => ({
-					status: 200,
-					headers: { "content-type": "application/json" },
-					text: '{"ok":true}',
-				}),
 				redirectList: async () => ({
 					ok: true,
 					value: { items: [{ source: "/old" }], hasMore: false },
 				}),
+				httpFetch: async (_url: string, init?: RequestInit) => {
+					capturedInit = init;
+					return {
+						status: 200,
+						statusText: "OK",
+						headers: [["content-type", "application/json"]],
+						finalUrl: "https://api.example.com/status",
+						redirected: false,
+						body: new TextEncoder().encode('{"ok":true}'),
+					};
+				},
 			},
 			{ get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
 		);
@@ -221,6 +236,10 @@ describe("Cloudflare generated plugin context", () => {
 			versioned: { item: { id: "post-1" }, _rev: "rev-1" },
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });
+		expect(new Headers(capturedInit?.headers).get("content-type")).toBe(
+			PLUGIN_HTTP_FORM_CONTENT_TYPE,
+		);
+		expect(capturedInit?.body).toEqual(PLUGIN_HTTP_FORM_BYTES);
 	});
 
 	it("uses the explicit content-create error marker", async () => {

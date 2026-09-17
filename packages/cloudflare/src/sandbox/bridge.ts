@@ -28,6 +28,7 @@ import type {
 	RedirectUpdateInput,
 	PluginContentItem,
 	SandboxContentCreateCallback,
+	PluginHttpResponseWire,
 	SandboxEmailSendCallback,
 	Storage,
 	TaxonomyAccessWithWrite,
@@ -106,6 +107,7 @@ let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 let commentModerateCallback: SandboxCommentModerateCallback | null = null;
 let mediaStorageCallback: Pick<Storage, "download"> | null = null;
+const httpFetchCallbacks = new Map<string, typeof fetch>();
 
 function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
 	const store = globalThis as Record<symbol, unknown>;
@@ -210,6 +212,11 @@ export function setTaxonomyWriteCallback(
 ): void {
 	if (callback) taxonomyWriteCallbacks().set(runtimeId, callback);
 	else taxonomyWriteCallbacks().delete(runtimeId);
+}
+
+export function setHttpFetchCallback(key: string, callback: typeof fetch | null): void {
+	if (callback) httpFetchCallbacks.set(key, callback);
+	else httpFetchCallbacks.delete(key);
 }
 
 function serializeValue(value: unknown): unknown {
@@ -376,6 +383,7 @@ export interface PluginBridgeProps {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	httpFetchKey?: string;
 	/** Per-collection storage config (matches manifest.storage entries) */
 	storageConfig?: Record<
 		string,
@@ -1690,16 +1698,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// Network Operations - capability-gated + host validation
 	// =========================================================================
 
-	async httpFetch(
-		url: string,
-		init?: RequestInit,
-	): Promise<{
-		status: number;
-		headers: Record<string, string>;
-		text: string;
-	}> {
-		const { capabilities, allowedHosts } = this.ctx.props;
-		return sandboxHttpFetch(url, init, { capabilities, allowedHosts });
+	async httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire> {
+		const { capabilities, allowedHosts, httpFetchKey } = this.ctx.props;
+		const fetchImpl = httpFetchKey ? httpFetchCallbacks.get(httpFetchKey) : undefined;
+		if (httpFetchKey && !fetchImpl) {
+			throw new Error("Plugin HTTP transport is unavailable");
+		}
+		return sandboxHttpFetch(url, init, { capabilities, allowedHosts, fetchImpl });
 	}
 
 	// =========================================================================

@@ -51,6 +51,7 @@ import type {
 	RedirectCreateInput,
 	RedirectListOptions,
 	RedirectUpdateInput,
+	PluginHttpResponseWire,
 	SandboxEmailSendCallback,
 	PluginSecretRedactor,
 	SettingField,
@@ -187,6 +188,7 @@ export interface BridgeHandlerOptions {
 	commentModerate?: () => SandboxCommentModerateCallback | null;
 	cronReschedule?: () => void;
 	now?: () => Date;
+	httpFetch?: typeof fetch;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
 }
@@ -204,6 +206,13 @@ async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<Redire
 		}
 		throw error;
 	}
+}
+
+function bridgeJsonReplacer(_key: string, value: unknown): unknown {
+	if (value instanceof Uint8Array) {
+		return { __emdashBytes: Buffer.from(value).toString("base64") };
+	}
+	return value;
 }
 
 /**
@@ -241,7 +250,9 @@ export function createBridgeHandler(
 			}
 
 			const result = await dispatch(normalizedOpts, method, body);
-			return Response.json({ result });
+			return new Response(JSON.stringify({ result }, bridgeJsonReplacer), {
+				headers: { "Content-Type": "application/json" },
+			});
 		} catch (error) {
 			if (typeof error === "object" && error !== null && "code" in error) {
 				const code = error.code;
@@ -2045,6 +2056,8 @@ async function mediaDelete(
 
 // ── HTTP Operations ──────────────────────────────────────────────────────
 
+const BASE64_BODY_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
+
 /** A multipart form part as marshaled by the wrapper. */
 interface MarshaledFormDataPart {
 	name: string;
@@ -2175,6 +2188,16 @@ function unmarshalRequestInit(
 				break;
 			case "base64":
 				if (typeof marshaled.body !== "string") break;
+				if (marshaled.body.length % 4 !== 0 || !BASE64_BODY_PATTERN.test(marshaled.body)) {
+					throw new Error("http/fetch: body is not valid base64");
+				}
+				{
+					const padding = marshaled.body.endsWith("==") ? 2 : marshaled.body.endsWith("=") ? 1 : 0;
+					const decodedLength = (marshaled.body.length / 4) * 3 - padding;
+					if (decodedLength > 8 * 1024 * 1024) {
+						throw new Error("Plugin HTTP request body exceeds the 8388608 byte limit");
+					}
+				}
 				init.body = Buffer.from(marshaled.body, "base64");
 				break;
 			case "formdata": {
@@ -2201,30 +2224,25 @@ async function httpFetch(
 	url: string,
 	marshaledInit: unknown,
 	opts: BridgeHandlerOptions,
-): Promise<{
-	status: number;
-	statusText: string;
-	headers: Record<string, string>;
-	bodyBase64: string;
-}> {
+): Promise<PluginHttpResponseWire> {
 	const hasAnyFetch = opts.capabilities.includes("network:request:unrestricted");
 	const httpAccess = hasAnyFetch
-		? createUnrestrictedHttpAccess(opts.pluginId)
-		: createHttpAccess(opts.pluginId, opts.allowedHosts || []);
+		? createUnrestrictedHttpAccess(opts.pluginId, opts.httpFetch)
+		: createHttpAccess(opts.pluginId, opts.allowedHosts || [], opts.httpFetch);
 
 	const init = unmarshalRequestInit(parseMarshaledRequestInit(marshaledInit));
 	const res = await httpAccess.fetch(url, init);
 	// Read as bytes to preserve binary content (images, audio, etc.)
 	const bytes = new Uint8Array(await res.arrayBuffer());
-	const headers: Record<string, string> = {};
-	res.headers.forEach((v, k) => {
-		headers[k] = v;
-	});
+	const headers: Array<[string, string]> = [];
+	res.headers.forEach((value, key) => headers.push([key, value]));
 	return {
 		status: res.status,
 		statusText: res.statusText,
 		headers,
-		bodyBase64: Buffer.from(bytes).toString("base64"),
+		finalUrl: res.url || url,
+		redirected: res.redirected,
+		body: bytes,
 	};
 }
 

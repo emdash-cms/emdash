@@ -444,6 +444,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Use structured Block Kit links for navigation. Read \`routeCtx.ui\` for the host-attested admin locale and direction; external images require HTTPS plus a hostname in \`allowedHosts\` or \`network:request:unrestricted\`.
 - Declare saved-entry panels and actions under \`admin.editorPanels\` and \`admin.editorActions\`. Point each declaration at a private route. The host reloads and authorizes the saved entry before attaching identity to \`routeCtx.ui\`; read saved field data through capability-gated \`ctx.content\`.
 - Treat public routes as internet-facing and validate their inputs.
+- Treat \`ctx.http.fetch()\` responses as buffered. Request and response bodies are each limited to 8 MiB of decoded bytes, with binary bytes preserved across both sandbox runners.
 
 ## Validation
 
@@ -454,6 +455,8 @@ Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capa
 For generated secret settings, call \`actions.plugin.updateSettings()\` and verify \`inspect.settings.raw()\` contains an envelope without the plaintext.
 
 For redirect capability tests, use \`host.fixtures.redirect()\` to establish redirect state and \`host.inspect.redirects()\` to assert persisted rules. Invoke the plugin through \`host.actions.routes.request()\` when the test must cover the authorized host route and sandbox bridge.
+
+For outbound HTTP tests, queue one response per call with \`await host.http.respond(url, response)\` and inspect the decoded request through \`host.http.requests()\`. The plugin call still crosses Worker Loader and the production bridge.
 
 Dispose either host after each test so its bindings reset. Keep Node/workerd parity opt-in unless the plugin depends on runner-sensitive behavior.
 

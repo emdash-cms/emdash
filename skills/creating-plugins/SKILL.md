@@ -218,7 +218,7 @@ Both runners execute the same plugin bundle in a V8 isolate and gate host calls 
 | Cloudflare | Dynamic Worker Loader; CPU, subrequest, and wall-time limits | Worker entrypoint RPC; D1 and configured R2 media binding                       |
 | Node.js    | Managed workerd process; wall-time limit only                | Authenticated local HTTP backing service; configured database and media adapter |
 
-Both runners enforce canonical capability names and return a real WHATWG `Response` from `ctx.http.fetch()`. The Cloudflare bridge reconstructs that response from decoded text, so binary response bodies are not portable; the Node/workerd bridge preserves response bytes. Write against the exported `PluginContext`, not extra methods found in one wrapper. The Node/workerd wrapper still exposes undeclared `ctx.content.createMany()`, `updateMany()`, and `deleteMany()` methods that the Cloudflare wrapper and public types do not provide.
+Both runners enforce canonical capability names and return a buffered WHATWG `Response` from `ctx.http.fetch()`. Request and response bodies are limited to 8 MiB of decoded bytes. Binary bodies, status text, headers, final URL, redirect state, and `clone()` behavior are portable across Cloudflare Worker Loader and Node/workerd. Write against the exported `PluginContext`, not extra methods found in one wrapper. The Node/workerd wrapper still exposes undeclared `ctx.content.createMany()`, `updateMany()`, and `deleteMany()` methods that the Cloudflare wrapper and public types do not provide.
 
 ## Remaining sandbox boundaries
 
@@ -242,6 +242,8 @@ The direct host builds the plugin and invokes it through Cloudflare Worker Loade
 Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, generated settings, media, comments, scheduled tasks, restart, authorization, CSRF, cache behavior, or saved-entry extensions. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `admin`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks, including bylines and taxonomy terms. Actions call production runtime and handler boundaries. The `admin` helpers load and interact with panels and invoke editor actions through the production ownership and route-permission boundary. Use `actions.plugin.updateSettings()` with `inspect.settings.raw()` to prove that a generated secret-setting save persists an encrypted envelope. Content inspectors can read byline credits and taxonomy assignments without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
 
 Redirect capability tests can establish host state with `host.fixtures.redirect()` and inspect persisted rules with `host.inspect.redirects()`. Trigger the plugin route through `host.actions.routes.request()` when the test must prove authorization and the real host-to-isolate redirect bridge.
+
+For outbound HTTP tests, queue responses with `await host.http.respond(url, response)` before the plugin call and inspect decoded requests with `host.http.requests()`. Queue one response per expected call. The helper keeps external network access deterministic while the plugin still crosses the production Worker Loader wrapper and bridge.
 
 The generated project keeps Worker Loader as its default fast test path. Add an opt-in Node/workerd job only for runner-sensitive behavior. Neither host reproduces deployed CPU, memory, and subrequest limits or renders the admin application.
 

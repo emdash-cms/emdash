@@ -90,6 +90,8 @@ export type SandboxContentCreateCallback = (
 	},
 ) => Promise<ContentItem>;
 
+export type SandboxHttpFetchCallback = typeof fetch;
+
 /**
  * Options for creating a sandbox runner
  */
@@ -117,6 +119,8 @@ export interface SandboxOptions {
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
 	commentModerate?: SandboxCommentModerateCallback;
+	/** Optional host HTTP transport used by test hosts and custom runtimes. */
+	httpFetch?: SandboxHttpFetchCallback;
 	/**
 	 * Media storage adapter for sandboxed plugin byte reads, uploads, and deletes.
 	 * Each operation remains gated by its own media capability.

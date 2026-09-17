@@ -216,6 +216,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				commentModerate: () => this.commentModerateCallback,
 				cronReschedule: () => this.cronRescheduleCallback?.(),
 				now: this.options.now,
+				httpFetch: this.options.httpFetch,
 				storage: this.options.mediaStorage,
 			});
 

@@ -22,6 +22,7 @@ export type {
 	PluginRuntimeRouteRequest,
 	PluginRuntimeTestHost,
 	PluginRuntimeTestHostOptions,
+	PluginHttpTestRequest,
 } from "./runtime-host.js";
 
 interface PluginTestBindings {
