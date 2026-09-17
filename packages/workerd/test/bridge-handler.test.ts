@@ -118,6 +118,7 @@ describe("Bridge Handler Conformance", () => {
 			expectedStatus: "approved" | "pending" | "spam",
 		) => Promise<unknown>;
 		taxonomyWrite?: BridgeHandlerOptions["taxonomyWrite"];
+		contentActions?: BridgeHandlerOptions["contentActions"];
 	}) {
 		return createBridgeHandler({
 			pluginId: opts.pluginId ?? "test-plugin",
@@ -131,6 +132,7 @@ describe("Bridge Handler Conformance", () => {
 			settingsSchema: opts.settingsSchema,
 			commentModerate: opts.commentModerate,
 			taxonomyWrite: opts.taxonomyWrite,
+			contentActions: opts.contentActions,
 		});
 	}
 
@@ -147,6 +149,58 @@ describe("Bridge Handler Conformance", () => {
 		const response = await handler(request);
 		return response.json() as Promise<{ result?: unknown; error?: string }>;
 	}
+
+	describe("publication actions", () => {
+		it("routes capability-gated actions through the host callback", async () => {
+			const versioned = {
+				item: {
+					id: "post-1",
+					type: "posts",
+					slug: "post-1",
+					status: "draft",
+					locale: "en",
+					data: {},
+					createdAt: "2030-01-01T00:00:00.000Z",
+					updatedAt: "2030-01-01T00:00:00.000Z",
+					publishedAt: null,
+				},
+				_rev: "revision-2",
+			};
+			const actions = {
+				getVersioned: vi.fn().mockResolvedValue(versioned),
+				publish: vi.fn().mockResolvedValue(versioned),
+				unpublish: vi.fn().mockResolvedValue(versioned),
+				schedule: vi.fn().mockResolvedValue(versioned),
+				unschedule: vi.fn().mockResolvedValue(versioned),
+				getTrashedVersioned: vi.fn().mockResolvedValue(versioned),
+				restore: vi.fn().mockResolvedValue(versioned),
+			};
+			const handler = makeHandler({
+				capabilities: ["content:publish", "content:restore"],
+				contentActions: () => actions,
+			});
+
+			await expect(
+				call(handler, "content/publish", {
+					collection: "posts",
+					id: "post-1",
+					revision: "revision-1",
+				}),
+			).resolves.toEqual({ result: versioned });
+			expect(actions.publish).toHaveBeenCalledWith("test-plugin", "posts", "post-1", {
+				_rev: "revision-1",
+			});
+
+			const denied = makeHandler({ capabilities: [], contentActions: () => actions });
+			await expect(
+				call(denied, "content/restore", {
+					collection: "posts",
+					id: "post-1",
+					revision: "revision-1",
+				}),
+			).resolves.toMatchObject({ error: "Missing capability: content:restore" });
+		});
+	});
 
 	// ── KV Operations ────────────────────────────────────────────────────
 

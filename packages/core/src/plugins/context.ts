@@ -63,8 +63,6 @@ import type {
 	CronAccess,
 	EmailAccess,
 	ContentAccess,
-	ContentPublicationAccess,
-	ContentRestoreAccess,
 	ContentAccessWithWrite,
 	VersionedContentItem,
 	MediaAccess,
@@ -1582,13 +1580,7 @@ export class PluginContextFactory {
 		// Note: capabilities reach this point already normalized to the
 		// canonical names by definePlugin / adaptSandboxEntry. Deprecated
 		// names ("read:content", "write:content") never appear here.
-		let content:
-			| ContentAccess
-			| ContentAccessWithWrite
-			| ContentPublicationAccess
-			| ContentRestoreAccess
-			| (ContentAccessWithWrite & ContentPublicationAccess & ContentRestoreAccess)
-			| undefined;
+		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
 			content = createContentAccessWithWrite(
 				db,
@@ -1625,12 +1617,22 @@ export class PluginContextFactory {
 			});
 		}
 		if (capabilities.has("content:restore") && this.contentActions) {
-			content = Object.assign(content ?? {}, {
-				getTrashedVersioned: (collection: string, id: string) =>
-					this.contentActions!.getTrashedVersioned(plugin.id, collection, id),
-				restore: (collection: string, id: string, options: { _rev: string }) =>
-					this.contentActions!.restore(plugin.id, collection, id, options),
-			}) as ContentRestoreAccess;
+			content = Object.assign(
+				content ?? {
+					get: async () => {
+						throw new Error("Missing capability: content:read");
+					},
+					list: async () => {
+						throw new Error("Missing capability: content:read");
+					},
+				},
+				{
+					getTrashedVersioned: (collection: string, id: string) =>
+						this.contentActions!.getTrashedVersioned(plugin.id, collection, id),
+					restore: (collection: string, id: string, options: { _rev: string }) =>
+						this.contentActions!.restore(plugin.id, collection, id, options),
+				},
+			);
 		}
 
 		const schema = capabilities.has("schema:read") ? createSchemaAccess(db) : undefined;

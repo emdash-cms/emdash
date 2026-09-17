@@ -71,7 +71,11 @@ import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
-import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
+import {
+	createCommentAccess,
+	createTaxonomyAccessWithWrite,
+	type ContentActionCallbacks,
+} from "./plugins/context.js";
 import {
 	createSandboxedPluginProxy,
 	getSandboxSaveRejectionDetails,
@@ -86,6 +90,7 @@ import type {
 import type {
 	ActorInfo,
 	ContentActionOrigin,
+	ContentItem as PluginContentItem,
 	ResolvedPlugin,
 	MediaItem,
 	MediaMetadataPatch,
@@ -106,6 +111,7 @@ import type {
 	PluginCommentStatus,
 	ContentWriteInput,
 	PluginContentCreateCallback,
+	VersionedContentItem,
 } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
@@ -440,6 +446,7 @@ export interface EmDashRuntimeParts {
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
 		contentCreate?: PluginContentCreateCallback;
+		contentActions?: ContentActionCallbacks;
 		now?: () => Date;
 		storage?: Storage;
 		commentModerate?: (
@@ -498,6 +505,22 @@ function beforeSaveFailure(error: unknown) {
  */
 function contentItemToRecord(item: ContentItemInternal): Record<string, unknown> {
 	return { ...item };
+}
+
+function toPluginContentItem(item: ContentItemInternal): PluginContentItem {
+	return {
+		id: item.id,
+		type: item.type,
+		slug: item.slug,
+		status: item.status,
+		locale: item.locale,
+		data: item.data,
+		createdAt: item.createdAt,
+		updatedAt: item.updatedAt,
+		publishedAt: item.publishedAt,
+		scheduledAt: item.scheduledAt,
+		...(item.seo === undefined ? {} : { seo: item.seo }),
+	};
 }
 
 /**
@@ -650,6 +673,7 @@ export class EmDashRuntime {
 	private cronScheduler: CronScheduler | null;
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
+	private readonly activePluginContentActions = new Set<string>();
 
 	/**
 	 * Isolate-lifetime guard so FTS indexes are verified at most once per
@@ -675,6 +699,7 @@ export class EmDashRuntime {
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
 		contentCreate?: PluginContentCreateCallback;
+		contentActions?: ContentActionCallbacks;
 		now?: () => Date;
 		storage?: Storage;
 		commentModerate?: (
@@ -1767,10 +1792,31 @@ export class EmDashRuntime {
 		// plugin contexts to the singleton db — re-breaking connection-backed
 		// adapters. See #1622.
 		const runtimeRef: { current: EmDashRuntime | null } = { current: null };
+		const requireRuntime = (): EmDashRuntime => {
+			if (!runtimeRef.current) throw new Error("EmDash runtime is not ready");
+			return runtimeRef.current;
+		};
+		const contentActions: ContentActionCallbacks = {
+			getVersioned: (pluginId, collection, id) =>
+				requireRuntime().pluginGetVersioned(pluginId, collection, id),
+			publish: (pluginId, collection, id, options) =>
+				requireRuntime().pluginPublish(pluginId, collection, id, options),
+			unpublish: (pluginId, collection, id, options) =>
+				requireRuntime().pluginUnpublish(pluginId, collection, id, options),
+			schedule: (pluginId, collection, id, options) =>
+				requireRuntime().pluginSchedule(pluginId, collection, id, options),
+			unschedule: (pluginId, collection, id, options) =>
+				requireRuntime().pluginUnschedule(pluginId, collection, id, options),
+			getTrashedVersioned: (pluginId, collection, id) =>
+				requireRuntime().pluginGetTrashedVersioned(pluginId, collection, id),
+			restore: (pluginId, collection, id, options) =>
+					requireRuntime().pluginRestore(pluginId, collection, id, options),
+		};
 		const pipelineFactoryOptions = {
 			db,
 			getDb: resolveDb,
 			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
+			contentActions,
 			now: deps.now,
 			storage: storage ?? undefined,
 			siteInfo,
@@ -1988,6 +2034,7 @@ export class EmDashRuntime {
 		sandboxRunner?.setCommentModerate?.((pluginId, id, status, expectedStatus) =>
 			runtime.handlePluginCommentModerate(pluginId, id, status, expectedStatus),
 		);
+		sandboxRunner?.setContentActions?.(contentActions);
 		return runtime;
 	}
 
@@ -3538,6 +3585,140 @@ export class EmDashRuntime {
 	// =========================================================================
 	// Publishing & Scheduling Handlers
 	// =========================================================================
+
+	private pluginVersionedResult(
+		result:
+			| { success: true; data: { item: ContentItemInternal; _rev?: string } }
+			| { success: false; error: { code: string; message: string } },
+	): VersionedContentItem {
+		if (!result.success) {
+			throw Object.assign(new Error(result.error.message), { code: result.error.code });
+		}
+		if (!result.data._rev) throw new Error("Content action returned no revision");
+		return { item: toPluginContentItem(result.data.item), _rev: result.data._rev };
+	}
+
+	private async runPluginContentAction<T>(
+		pluginId: string,
+		action: string,
+		collection: string,
+		id: string,
+		fn: () => Promise<T>,
+	): Promise<T> {
+		const key = JSON.stringify([pluginId, action, collection, id]);
+		if (this.activePluginContentActions.has(key)) {
+			throw Object.assign(new Error("Plugin content action re-entered itself"), {
+				code: "CONTENT_ACTION_REENTRANT",
+			});
+		}
+		this.activePluginContentActions.add(key);
+		try {
+			return await fn();
+		} finally {
+			this.activePluginContentActions.delete(key);
+		}
+	}
+
+	private async pluginGetVersioned(
+		_pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null> {
+		const result = await this.handleContentGet(collection, id);
+		if (!result.success) {
+			if (result.error.code === "NOT_FOUND") return null;
+			throw Object.assign(new Error(result.error.message), { code: result.error.code });
+		}
+		if (!result.data._rev) throw new Error("Content read returned no revision");
+		return { item: toPluginContentItem(result.data.item), _rev: result.data._rev };
+	}
+
+	private async pluginGetTrashedVersioned(
+		_pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null> {
+		const result = await this.handleContentGetIncludingTrashed(collection, id);
+		if (!result.success) {
+			if (result.error.code === "NOT_FOUND") return null;
+			throw Object.assign(new Error(result.error.message), { code: result.error.code });
+		}
+		if (!(await new ContentRepository(this.db).isTrashed(collection, result.data.item.id))) {
+			return null;
+		}
+		if (!result.data._rev) throw new Error("Trashed content read returned no revision");
+		return { item: toPluginContentItem(result.data.item), _rev: result.data._rev };
+	}
+
+	private pluginPublish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(pluginId, "publish", collection, id, async () =>
+			this.pluginVersionedResult(
+				await this.handleContentPublish(collection, id, {
+					_rev: options._rev,
+					origin: { source: "plugin", pluginId },
+				}),
+			),
+		);
+	}
+
+	private pluginUnpublish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(pluginId, "unpublish", collection, id, async () =>
+			this.pluginVersionedResult(
+				await this.handleContentUnpublish(collection, id, {
+					_rev: options._rev,
+					origin: { source: "plugin", pluginId },
+				}),
+			),
+		);
+	}
+
+	private pluginSchedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(pluginId, "schedule", collection, id, async () =>
+			this.pluginVersionedResult(
+				await this.handleContentSchedule(collection, id, options.scheduledAt, {
+					_rev: options._rev,
+					origin: { source: "plugin", pluginId },
+				}),
+			),
+		);
+	}
+
+	private pluginUnschedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(pluginId, "unschedule", collection, id, async () =>
+			this.pluginVersionedResult(await this.handleContentUnschedule(collection, id, options)),
+		);
+	}
+
+	private pluginRestore(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(pluginId, "restore", collection, id, async () =>
+			this.pluginVersionedResult(await this.handleContentRestore(collection, id, options)),
+		);
+	}
 
 	private async checkContentPolicy(
 		name: ContentPolicyHookName,

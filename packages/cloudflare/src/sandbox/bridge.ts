@@ -14,6 +14,7 @@ import type {
 	CommentListOptions,
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
+	ContentActionCallbacks,
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
@@ -99,6 +100,7 @@ function invalidCommentStatus(value: string, name: string): string | null {
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
+let contentActionsCallback: ContentActionCallbacks | null = null;
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 let commentModerateCallback: SandboxCommentModerateCallback | null = null;
@@ -142,6 +144,10 @@ export function setContentCreateCallback(
 ): void {
 	if (callback) contentCreateCallbacks().set(runtimeId, callback);
 	else contentCreateCallbacks().delete(runtimeId);
+}
+
+export function setContentActionsCallback(callback: ContentActionCallbacks | null): void {
+	contentActionsCallback = callback;
 }
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
@@ -1157,6 +1163,75 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			}
 			throw error;
 		}
+	}
+
+	private requireContentActions(capability: "content:publish" | "content:restore") {
+		if (!this.ctx.props.capabilities.includes(capability)) {
+			throw new Error(`Missing capability: ${capability}`);
+		}
+		if (!contentActionsCallback) throw new Error("Content actions are not configured");
+		return contentActionsCallback;
+	}
+
+	contentGetVersioned(collection: string, id: string) {
+		return this.requireContentActions("content:publish").getVersioned(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+		);
+	}
+
+	contentPublish(collection: string, id: string, revision: string) {
+		return this.requireContentActions("content:publish").publish(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ _rev: revision },
+		);
+	}
+
+	contentUnpublish(collection: string, id: string, revision: string) {
+		return this.requireContentActions("content:publish").unpublish(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ _rev: revision },
+		);
+	}
+
+	contentSchedule(collection: string, id: string, scheduledAt: string, revision: string) {
+		return this.requireContentActions("content:publish").schedule(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ scheduledAt, _rev: revision },
+		);
+	}
+
+	contentUnschedule(collection: string, id: string, revision: string) {
+		return this.requireContentActions("content:publish").unschedule(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ _rev: revision },
+		);
+	}
+
+	contentGetTrashedVersioned(collection: string, id: string) {
+		return this.requireContentActions("content:restore").getTrashedVersioned(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+		);
+	}
+
+	contentRestore(collection: string, id: string, revision: string) {
+		return this.requireContentActions("content:restore").restore(
+			this.ctx.props.pluginId,
+			collection,
+			id,
+			{ _rev: revision },
+		);
 	}
 
 	// =========================================================================

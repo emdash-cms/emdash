@@ -28,6 +28,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type {
+	ContentActionCallbacks,
 	SandboxRunner,
 	SandboxedPluginInstance,
 	SandboxCommentModerateCallback,
@@ -336,6 +337,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
 	private commentModerateCallback: SandboxCommentModerateCallback | null = null;
 	private contentCreateCallback: SandboxContentCreateCallback | null = null;
+	private contentActionsCallback: ContentActionCallbacks | null = null;
 	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Epoch counter, incremented on each workerd restart */
@@ -390,6 +392,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
 		this.commentModerateCallback = options.commentModerate ?? null;
+		this.contentActionsCallback = options.contentActions ?? null;
 
 		// Warn about unenforceable resource limits. Standalone workerd
 		// only supports wall-time enforcement on the Node path (via
@@ -528,6 +531,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	setContentCreate(callback: SandboxContentCreateCallback | null): void {
 		this.contentCreateCallback = callback;
+	}
+
+	setContentActions(callback: ContentActionCallbacks | null): void {
+		this.contentActionsCallback = callback;
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
@@ -939,6 +946,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	get taxonomyWrite() {
 		return this.options.taxonomyWrite;
+	}
+
+	get contentActions() {
+		return this.contentActionsCallback;
 	}
 
 	/** Get the email send callback */

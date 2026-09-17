@@ -146,7 +146,12 @@ describe("Cloudflare generated plugin context", () => {
 		const source = generatePluginWrapper({
 			id: "context-wrapper",
 			version: "1.0.0",
-			capabilities: ["network:request", "redirects:write", "redirects:read"],
+			capabilities: [
+				"network:request",
+				"redirects:write",
+				"redirects:read",
+				"content:publish",
+			],
 			allowedHosts: ["api.example.com"],
 			storage: {},
 			hooks: ["plugin:activate"],
@@ -171,12 +176,13 @@ describe("Cloudflare generated plugin context", () => {
 				"plugin:activate": async (_event: unknown, ctx: Record<string, any>) => {
 					await ctx.cron.schedule("daily", { schedule: "@daily" });
 					const response = await ctx.http.fetch("https://api.example.com/status");
+					const versioned = await ctx.content.getVersioned("posts", "post-1");
 					return {
 						isResponse: response instanceof Response,
 						body: await response.json(),
 						redirects: await ctx.redirects.list({ limit: 1 }),
 						canWriteRedirects: typeof ctx.redirects.create === "function",
-						content: ctx.content,
+						versioned,
 					};
 				},
 			},
@@ -184,6 +190,7 @@ describe("Cloudflare generated plugin context", () => {
 		const bridge = new Proxy(
 			{
 				cronSchedule: schedule,
+				contentGetVersioned: vi.fn().mockResolvedValue({ item: { id: "post-1" }, _rev: "rev-1" }),
 				httpFetch: async () => ({
 					status: 200,
 					headers: { "content-type": "application/json" },
@@ -212,7 +219,7 @@ describe("Cloudflare generated plugin context", () => {
 			body: { ok: true },
 			redirects: { items: [{ source: "/old" }], hasMore: false },
 			canWriteRedirects: true,
-			content: undefined,
+			versioned: { item: { id: "post-1" }, _rev: "rev-1" },
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });
 	});

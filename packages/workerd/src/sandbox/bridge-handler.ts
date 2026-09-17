@@ -40,6 +40,7 @@ import {
 	updatePluginMediaMetadata,
 } from "emdash";
 import type {
+	ContentActionCallbacks,
 	ContentFieldFilters,
 	ContentListOptions,
 	Database,
@@ -170,6 +171,7 @@ export interface BridgeHandlerOptions {
 	contentCreate?: SandboxContentCreateCallback;
 	contentCreateProvider?: () => SandboxContentCreateCallback | null;
 	taxonomyWrite?: TaxonomyAccessWithWrite;
+	contentActions?: () => ContentActionCallbacks | null;
 	emailSend: () => SandboxEmailSendCallback | null;
 	commentModerate?: () => SandboxCommentModerateCallback | null;
 	cronReschedule?: () => void;
@@ -517,6 +519,63 @@ async function dispatch(
 			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
+		case "content/getVersioned":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).getVersioned(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/publish":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).publish(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+			);
+		case "content/unpublish":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).unpublish(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+			);
+		case "content/schedule":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).schedule(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{
+					scheduledAt: requireString(body, "scheduledAt"),
+					_rev: requireString(body, "revision"),
+				},
+			);
+		case "content/unschedule":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).unschedule(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+			);
+		case "content/getTrashedVersioned":
+			requireCapability(opts, "content:restore");
+			return requireContentActions(opts).getTrashedVersioned(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/restore":
+			requireCapability(opts, "content:restore");
+			return requireContentActions(opts).restore(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+			);
 		case "content/createMany":
 			requireCapability(opts, "content:write");
 			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
@@ -1163,6 +1222,12 @@ function requireCapability(opts: BridgeHandlerOptions, capability: string): void
 		// Error message matches Cloudflare PluginBridge format
 		throw new Error(`Missing capability: ${capability}`);
 	}
+}
+
+function requireContentActions(opts: BridgeHandlerOptions): ContentActionCallbacks {
+	const actions = opts.contentActions?.();
+	if (!actions) throw new Error("Content actions are not configured");
+	return actions;
 }
 
 function validateStorageCollection(opts: BridgeHandlerOptions, collection: string): void {

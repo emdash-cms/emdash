@@ -47,7 +47,9 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const hasContentAccess =
 		capabilities.includes("content:read") ||
 		capabilities.includes("content:write") ||
-		capabilities.includes("content:revisions:read");
+		capabilities.includes("content:revisions:read") ||
+		capabilities.includes("content:publish") ||
+		capabilities.includes("content:restore");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 	const hasReadComments = capabilities.includes("comments:read");
@@ -58,6 +60,8 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 		["content:read", "content:write", "content:revisions:read"].includes(capability),
 	);
 	const hasContentWrite = capabilities.includes("content:write");
+	const hasContentPublish = capabilities.includes("content:publish");
+	const hasContentRestore = capabilities.includes("content:restore");
 	const hasSchemaRead = capabilities.includes("schema:read");
 	const hasRevisionRead = capabilities.includes("content:revisions:read");
 
@@ -202,33 +206,41 @@ function createContext(env, originHook) {
 	});
 	
 	// Content access - proxies to bridge (capability enforced by bridge)
-	const content = ${hasContentRead} ? {
+	const content = ${hasContentAccess} ? {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
-		getTranslations: (collection, id) => bridge.contentTranslations(collection, id),
-		getPublicUrl: (collection, id) => bridge.contentPublicUrl(collection, id),
-		...(${hasRevisionRead} ? {
-			listRevisions: (collection, id, opts) => bridge.contentListRevisions(collection, id, opts),
-			getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
+		...(${hasContentRead} ? {
+			getTranslations: (collection, id) => bridge.contentTranslations(collection, id),
+			getPublicUrl: (collection, id) => bridge.contentPublicUrl(collection, id),
+			...(${hasRevisionRead} ? {
+				listRevisions: (collection, id, opts) => bridge.contentListRevisions(collection, id, opts),
+				getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
+			} : {})
 		} : {}),
 		...(${hasContentWrite} ? {
 			create: async (collection, data, options) => {
-				const result = await bridge.contentCreate(
-					collection,
-					data,
-					options,
-					originHook
-				);
-				if (result && result.__emdashContentCreateError === true) {
-					throw Object.assign(new Error(result.error.message), {
-						name: result.error.code,
-						code: result.error.code
-					});
+				const result = await bridge.contentCreate(collection, data, options);
+				if (result && typeof result === "object" && "error" in result) {
+					const error = new Error(result.error.message);
+					error.code = result.error.code;
+					error.details = result.error.details;
+					throw error;
 				}
 				return result;
 			},
 			update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
 			delete: (collection, id) => bridge.contentDelete(collection, id)
+		} : {}),
+		...(${hasContentPublish} ? {
+			getVersioned: (collection, id) => bridge.contentGetVersioned(collection, id),
+			publish: (collection, id, options) => bridge.contentPublish(collection, id, options._rev),
+			unpublish: (collection, id, options) => bridge.contentUnpublish(collection, id, options._rev),
+			schedule: (collection, id, options) => bridge.contentSchedule(collection, id, options.scheduledAt, options._rev),
+			unschedule: (collection, id, options) => bridge.contentUnschedule(collection, id, options._rev)
+		} : {}),
+		...(${hasContentRestore} ? {
+			getTrashedVersioned: (collection, id) => bridge.contentGetTrashedVersioned(collection, id),
+			restore: (collection, id, options) => bridge.contentRestore(collection, id, options._rev)
 		} : {})
 	} : undefined;
 

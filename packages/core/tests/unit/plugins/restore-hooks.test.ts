@@ -1,8 +1,8 @@
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import { encodeRev } from "../../../src/api/rev.js";
+import type { EmDashConfig } from "../../../src/astro/integration/runtime.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";

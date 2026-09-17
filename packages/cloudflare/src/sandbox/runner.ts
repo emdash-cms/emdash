@@ -33,6 +33,7 @@ import {
 import {
 	setCommentModerateCallback,
 	setContentCreateCallback,
+	setContentActionsCallback,
 	setCronNowCallback,
 	setCronRescheduleCallback,
 	setEmailSendCallback,
@@ -164,6 +165,10 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 
 	setContentCreate(callback: SandboxContentCreateCallback | null): void {
 		setContentCreateCallback(this.contentCreateRuntimeId, callback);
+	}
+
+	setContentActions(callback: ContentActionCallbacks | null): void {
+		setContentActionsCallback(callback);
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
