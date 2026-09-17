@@ -1466,6 +1466,7 @@ export interface PluginContextFactoryOptions {
 }
 
 export interface ContentActionCallbacks {
+	flush(pluginId: string): Promise<void>;
 	getVersioned(
 		pluginId: string,
 		collection: string,
