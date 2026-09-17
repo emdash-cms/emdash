@@ -1278,19 +1278,31 @@ export class ContentRepository {
 	/**
 	 * Restore content from trash
 	 */
-	async restore(type: string, id: string): Promise<ContentItem | null> {
+	async restore(
+		type: string,
+		id: string,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
+		const existing = await this.findByIdOrSlugIncludingTrashed(type, id);
+		if (!existing) return null;
+		assertRevisionPrecondition(existing, expectedRevision);
+		const now = new Date().toISOString();
 
 		const result = await sql<Record<string, unknown>>`
 			UPDATE ${sql.ref(tableName)}
-			SET deleted_at = NULL
-			WHERE id = ${id}
+			SET deleted_at = NULL,
+				updated_at = ${now},
+				version = ${existing.version + 1}
+			WHERE id = ${existing.id}
 			AND deleted_at IS NOT NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
 			RETURNING *
 		`.execute(this.db);
 
 		const restored = result.rows[0];
-		if (!restored) return null;
+		if (!restored) throw new ContentMutationConflictError("Content changed while restoring");
 
 		invalidateCollectionCache(type);
 		return this.mapRow(type, restored);

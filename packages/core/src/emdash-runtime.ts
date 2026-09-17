@@ -3336,8 +3336,8 @@ export class EmDashRuntime {
 		return handleContentListTrashed(this.db, collection, params);
 	}
 
-	async handleContentRestore(collection: string, id: string) {
-		const result = await handleContentRestore(this.db, collection, id);
+	async handleContentRestore(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentRestore(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
