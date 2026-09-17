@@ -535,9 +535,9 @@ export function ScheduleActions({
 			{showRemove ? (
 				<Button
 					type="button"
-					variant="outline"
+					variant="secondary-destructive"
 					size="sm"
-					className="min-w-0 w-full justify-center overflow-hidden whitespace-nowrap text-kumo-danger"
+					className="min-w-0 w-full justify-center overflow-hidden whitespace-nowrap"
 					icon={<CalendarX aria-hidden="true" />}
 					loading={isUnscheduling}
 					disabled={isScheduling}
