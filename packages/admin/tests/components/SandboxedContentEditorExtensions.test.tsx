@@ -26,6 +26,7 @@ describe("SandboxedContentEditorPanel", () => {
 				title="Findings"
 				collection="posts"
 				entryId="post-1"
+				versionToken="v1"
 				locale="ar"
 			/>,
 			{ wrapper: Wrapper },
@@ -60,6 +61,7 @@ describe("SandboxedContentEditorPanel", () => {
 				title="Findings"
 				collection="posts"
 				entryId="post-1"
+				versionToken="v1"
 			/>,
 			{ wrapper: Wrapper },
 		);
@@ -85,6 +87,7 @@ describe("SandboxedContentEditorPanel", () => {
 				title="Findings"
 				collection="posts"
 				entryId="post-1"
+				versionToken="v1"
 			/>,
 			{ wrapper: Wrapper },
 		);
@@ -95,7 +98,8 @@ describe("SandboxedContentEditorPanel", () => {
 				panelId="findings"
 				title="Findings"
 				collection="posts"
-				entryId="post-2"
+				entryId="post-1"
+				versionToken="v2"
 			/>,
 		);
 		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
@@ -107,6 +111,34 @@ describe("SandboxedContentEditorPanel", () => {
 });
 
 describe("SandboxedContentEditorActions", () => {
+	it("does not invoke actions while the editor has unsaved changes", async () => {
+		const fetchMock = vi.fn();
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<SandboxedContentEditorActions
+				actions={[
+					{
+						pluginId: "content-guard",
+						extension: {
+							id: "inspect",
+							label: "Inspect saved entry",
+							route: "inspect",
+							placement: "toolbar",
+						},
+					},
+				]}
+				collection="posts"
+				entryId="post-1"
+				disabled
+			/>,
+			{ wrapper: Wrapper },
+		);
+		const action = screen.getByRole("button", { name: "Inspect saved entry" });
+		await expect.element(action).toBeDisabled();
+		action.element().click();
+		expect(fetchMock).not.toHaveBeenCalled();
+	});
+
 	it("requires manifest confirmation before invoking a danger action", async () => {
 		const fetchMock = vi.fn(async () =>
 			Response.json({

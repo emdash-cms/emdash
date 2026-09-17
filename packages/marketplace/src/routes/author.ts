@@ -814,12 +814,62 @@ const hookEntrySchema = z.union([
 
 /** Route entry: plain string or structured object with metadata */
 const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
+/** Must stay in sync with Permissions in packages/auth/src/rbac.ts. */
+const VALID_ROUTE_PERMISSIONS = [
+	"content:read",
+	"content:read_drafts",
+	"content:create",
+	"content:edit_own",
+	"content:edit_any",
+	"content:delete_own",
+	"content:delete_any",
+	"content:delete_permanent",
+	"content:publish_own",
+	"content:publish_any",
+	"media:read",
+	"media:upload",
+	"media:edit_own",
+	"media:edit_any",
+	"media:delete_own",
+	"media:delete_any",
+	"taxonomies:read",
+	"taxonomies:manage",
+	"comments:read",
+	"comments:moderate",
+	"comments:delete",
+	"comments:settings",
+	"menus:read",
+	"menus:manage",
+	"bylines:read",
+	"bylines:manage",
+	"widgets:read",
+	"widgets:manage",
+	"sections:read",
+	"sections:manage",
+	"redirects:read",
+	"redirects:manage",
+	"users:read",
+	"users:invite",
+	"users:manage",
+	"settings:read",
+	"settings:manage",
+	"schema:read",
+	"schema:manage",
+	"plugins:read",
+	"plugins:manage",
+	"import:execute",
+	"backups:manage",
+	"search:read",
+	"search:manage",
+	"auth:manage_own_credentials",
+	"auth:manage_connections",
+] as const;
 const routeEntrySchema = z.union([
 	z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 	z.object({
 		name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 		public: z.boolean().optional(),
-		permission: z.string().min(1).optional(),
+		permission: z.enum(VALID_ROUTE_PERMISSIONS).optional(),
 		cacheControl: z.string().min(1).optional(),
 	}),
 ]);
@@ -836,7 +886,10 @@ const editorCollectionsSchema = z
 			.max(63)
 			.regex(/^[a-z][a-z0-9_]*$/, "Invalid collection slug"),
 	)
-	.max(64);
+	.max(64)
+	.refine((collections) => new Set(collections).size === collections.length, {
+		message: "Editor extension collections must be unique",
+	});
 const editorPanelSchema = z.object({
 	id: editorExtensionIdSchema,
 	title: z.string().min(1).max(128),

@@ -1178,7 +1178,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									disclosure
 								>
 									<ContentEditorPanelBoundary
-										key={`${collection}:${item.id}:${item.locale ?? entryLocale ?? ""}`}
+										key={`${collection}:${item.id}:${item.locale ?? entryLocale ?? ""}:${item._rev ?? item.updatedAt}`}
 										pluginId={pluginId}
 										panelId={extension.id}
 									>
@@ -1189,6 +1189,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 											collection={collection}
 											entryId={item.id}
 											locale={item.locale ?? entryLocale}
+											versionToken={item._rev ?? item.updatedAt}
 										/>
 									</ContentEditorPanelBoundary>
 								</SortableContentSettingsSection>

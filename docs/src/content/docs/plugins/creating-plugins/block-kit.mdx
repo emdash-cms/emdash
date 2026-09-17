@@ -220,7 +220,7 @@ Editor extension routes receive an attested `routeCtx.ui` value. For `content-ed
 
 A panel receives `{ type: "panel_load" }` when it opens. Its later button and form interactions use the usual `block_action` and `form_submit` shapes. Return a validated `BlockResponse` from every panel interaction.
 
-An editor action receives `{ type: "editor_action" }`. Return an object containing an optional toast and at most one terminal effect:
+Editor actions are disabled while the form has unsaved changes or a save is running. After the saved state is current, an action receives `{ type: "editor_action" }`. Return an object containing an optional toast and at most one terminal effect:
 
 ```typescript title="src/plugin.ts"
 return {

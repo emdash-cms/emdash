@@ -20,6 +20,7 @@ interface SandboxedContentEditorActionsProps {
 	entryId: string;
 	locale?: string | null;
 	isMobile?: boolean;
+	disabled?: boolean;
 	onEntryRefresh?: () => void | Promise<void>;
 }
 
@@ -29,6 +30,7 @@ export function SandboxedContentEditorActions({
 	entryId,
 	locale,
 	isMobile = false,
+	disabled = false,
 	onEntryRefresh,
 }: SandboxedContentEditorActionsProps) {
 	const { t, i18n } = useLingui();
@@ -69,6 +71,7 @@ export function SandboxedContentEditorActions({
 
 	const invoke = React.useCallback(
 		async (action: ResolvedSandboxedEditorAction) => {
+			if (disabled) return;
 			const key = `${action.pluginId}:${action.extension.id}`;
 			if (pendingRef.current.has(key)) return;
 			pendingRef.current.add(key);
@@ -135,11 +138,22 @@ export function SandboxedContentEditorActions({
 				}
 			}
 		},
-		[applyNavigation, collection, entryId, identity, locale, onEntryRefresh, t, toastManager],
+		[
+			applyNavigation,
+			collection,
+			disabled,
+			entryId,
+			identity,
+			locale,
+			onEntryRefresh,
+			t,
+			toastManager,
+		],
 	);
 
 	const choose = React.useCallback(
 		(action: ResolvedSandboxedEditorAction) => {
+			if (disabled) return;
 			if (action.extension.confirm) {
 				setConfirmError(null);
 				setConfirming(action);
@@ -147,7 +161,7 @@ export function SandboxedContentEditorActions({
 			}
 			void invoke(action);
 		},
-		[invoke],
+		[disabled, invoke],
 	);
 
 	const toolbarCandidates = isMobile
@@ -176,6 +190,8 @@ export function SandboxedContentEditorActions({
 						size="sm"
 						variant={action.extension.style === "danger" ? "destructive" : "secondary"}
 						loading={pending.has(key)}
+						disabled={disabled}
+						title={disabled ? t`Save changes before running plugin actions` : undefined}
 						onClick={() => choose(action)}
 					>
 						{actionLabel(action)}
@@ -191,6 +207,8 @@ export function SandboxedContentEditorActions({
 								variant="ghost"
 								shape="square"
 								aria-label={t`Plugin actions`}
+								disabled={disabled}
+								title={disabled ? t`Save changes before running plugin actions` : undefined}
 								icon={<DotsThree aria-hidden="true" />}
 							/>
 						}
@@ -201,7 +219,7 @@ export function SandboxedContentEditorActions({
 							return (
 								<DropdownMenu.Item
 									key={key}
-									disabled={pending.has(key)}
+									disabled={disabled || pending.has(key)}
 									onClick={() => choose(action)}
 								>
 									{actionLabel(action)}
@@ -228,6 +246,7 @@ export function SandboxedContentEditorActions({
 					pendingLabel={t`Working…`}
 					variant={confirming.extension.style === "danger" ? "destructive" : "primary"}
 					preventCloseWhilePending
+					confirmDisabled={disabled}
 					isPending={confirmingKey ? pending.has(confirmingKey) : false}
 					error={confirmError}
 					onConfirm={() => void invoke(confirming)}
