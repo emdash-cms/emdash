@@ -1117,6 +1117,7 @@ describe("Capability Enforcement Integration (v2)", () => {
 				_rev: "revision-1",
 			};
 			const contentActions = {
+				flush: vi.fn().mockResolvedValue(undefined),
 				getVersioned: vi.fn().mockResolvedValue(versioned),
 				publish: vi.fn().mockResolvedValue(versioned),
 				unpublish: vi.fn().mockResolvedValue(versioned),

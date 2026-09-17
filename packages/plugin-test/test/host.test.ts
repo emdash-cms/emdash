@@ -692,6 +692,13 @@ describe("runtime plugin test host", () => {
 			_rev: trashed._rev,
 		});
 		expect(restored.item.id).toBe(content.id);
+		await vi.waitFor(async () => {
+			for (const action of ["publish", "unpublish", "schedule", "unschedule", "restore"]) {
+				await expect(
+					runtimeHost!.inspect.storage.get("events", `action:${action}:${content.id}`),
+				).resolves.toMatchObject({ type: "content-action", action, contentId: content.id });
+			}
+		});
 	});
 
 	it("runs public comment policy and follows every content-list cursor", async () => {
