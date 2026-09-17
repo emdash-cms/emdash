@@ -6,6 +6,7 @@ import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
 import { requireScope } from "../auth/scopes.js";
 import type { EmDashRuntime, PluginEditorExtensionDispatch } from "../emdash-runtime.js";
+import { pluginRouteResponseFromWire, pluginRouteResponseToWire } from "./route-wire.js";
 import type { PluginContentCacheInvalidator, RouteMeta } from "./routes.js";
 import type { UserInfo } from "./types.js";
 
@@ -82,6 +83,11 @@ export async function dispatchPluginApiRequest({
 		const denied = authorizePrivatePluginRouteRequest(routeMeta, request, user, tokenScopes);
 		if (denied) return denied;
 	}
+	if (routeMeta.methods && !routeMeta.methods.some((allowed) => allowed === method)) {
+		const response = apiError("METHOD_NOT_ALLOWED", "Method not allowed", 405);
+		response.headers.set("Allow", routeMeta.methods.join(", "));
+		return response;
+	}
 
 	const caller = routeMeta.public ? undefined : (user ?? undefined);
 	const result = await runtime.handlePluginApiRoute(
@@ -103,9 +109,26 @@ export async function dispatchPluginApiRequest({
 		return apiError(code, message, status);
 	}
 
-	const response = apiSuccess(result.data);
-	if (routeMeta.cacheControl && (method === "GET" || method === "HEAD")) {
+	let response: Response;
+	if (routeMeta.response === "raw") {
+		try {
+			response = pluginRouteResponseFromWire(await pluginRouteResponseToWire(result.data), method);
+		} catch (error) {
+			console.error(`[plugin:${pluginId}] Invalid raw route response:`, error);
+			return apiError("INVALID_PLUGIN_RESPONSE", "Plugin returned an invalid response", 500);
+		}
+	} else {
+		response = apiSuccess(result.data);
+	}
+	if (
+		response.ok &&
+		routeMeta.public &&
+		routeMeta.cacheControl &&
+		(method === "GET" || method === "HEAD")
+	) {
 		response.headers.set("Cache-Control", routeMeta.cacheControl);
+	} else {
+		response.headers.set("Cache-Control", "private, no-store");
 	}
 	return response;
 }

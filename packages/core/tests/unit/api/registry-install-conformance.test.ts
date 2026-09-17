@@ -251,7 +251,17 @@ describe("registry delegated-release conformance", () => {
 	});
 
 	it("previews and installs one valid delegated release without trusting aggregator records", async () => {
-		const fixture = await createDelegatedReleaseConformanceFixture();
+		const fixture = await createDelegatedReleaseConformanceFixture({
+			routes: [
+				{
+					name: "webhook",
+					public: true,
+					methods: ["POST"],
+					request: { body: "bytes", headers: ["x-signature"] },
+					response: "raw",
+				},
+			],
+		});
 		const context = await createContext(fixture);
 		await mockAggregator(fixture, context);
 		const fetch = artifactFetch(fixture.artifactBytes);
@@ -268,6 +278,7 @@ describe("registry delegated-release conformance", () => {
 			success: true,
 			data: {
 				version: fixture.version,
+				publicRoutes: ["webhook"],
 				verification: {
 					provenance: "verified",
 					policy: { requireProvenance: true },
@@ -275,6 +286,30 @@ describe("registry delegated-release conformance", () => {
 			},
 		});
 		if (!preview.success) return;
+
+		const missingRouteConsent = await handleRegistryInstall(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			{
+				did: fixture.publisherDid,
+				slug: fixture.packageSlug,
+				version: fixture.version,
+				acknowledgedDeclaredAccess: preview.data.capabilities,
+				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedProfileCid: preview.data.verification.profileCid,
+				acknowledgedReleaseCid: preview.data.verification.releaseCid,
+			},
+			{ authoritativeRecords: context.options },
+		);
+		expect(missingRouteConsent).toMatchObject({
+			success: false,
+			error: {
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				details: { routeVisibilityChanges: { newlyPublic: ["webhook"] } },
+			},
+		});
 
 		const installed = await handleRegistryInstall(
 			db,
@@ -287,6 +322,7 @@ describe("registry delegated-release conformance", () => {
 				version: fixture.version,
 				acknowledgedDeclaredAccess: preview.data.capabilities,
 				acknowledgedMcpTools: preview.data.mcpTools,
+				acknowledgedPublicRoutes: preview.data.publicRoutes,
 				acknowledgedProfileCid: preview.data.verification.profileCid,
 				acknowledgedReleaseCid: preview.data.verification.releaseCid,
 			},

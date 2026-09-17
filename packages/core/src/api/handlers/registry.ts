@@ -122,6 +122,7 @@ export interface RegistryInstallInput {
 	 */
 	acknowledgedDeclaredAccess?: unknown;
 	acknowledgedMcpTools?: unknown;
+	acknowledgedPublicRoutes?: unknown;
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;
 }
@@ -139,6 +140,7 @@ export interface RegistryInstallResult {
 	capabilities: string[];
 	declaredAccess: DeclaredAccess;
 	mcpTools: RegistryMcpConsentTool[];
+	publicRoutes: string[];
 	verification: RegistryRecordVerificationSummary;
 }
 
@@ -954,6 +956,28 @@ export async function handleRegistryInstall(
 		const actualMcpTools = (bundle.manifest.mcp?.tools ?? []).map(
 			({ inputSchema: _, outputSchema: __, ...tool }) => tool,
 		);
+		const publicRoutes = diffRouteVisibility(undefined, bundle.manifest).newlyPublic.toSorted();
+		if (!opts?.verifyOnly && publicRoutes.length > 0) {
+			const acknowledgedPublicRoutes = Array.isArray(input.acknowledgedPublicRoutes)
+				? input.acknowledgedPublicRoutes
+						.filter((route): route is string => typeof route === "string")
+						.toSorted()
+				: [];
+			if (JSON.stringify(acknowledgedPublicRoutes) !== JSON.stringify(publicRoutes)) {
+				return {
+					success: false,
+					error: {
+						code: "ROUTE_VISIBILITY_ESCALATION",
+						message: "Plugin install exposes public (unauthenticated) routes",
+						details: {
+							routeVisibilityChanges: { newlyPublic: publicRoutes },
+							mcpTools: actualMcpTools,
+							verification,
+						},
+					},
+				};
+			}
+		}
 		if (!opts?.verifyOnly && actualMcpTools.length > 0) {
 			if (JSON.stringify(input.acknowledgedMcpTools) !== JSON.stringify(actualMcpTools)) {
 				return {
@@ -961,7 +985,12 @@ export async function handleRegistryInstall(
 					error: {
 						code: "MCP_TOOL_CONSENT_REQUIRED",
 						message: "Plugin MCP tools require explicit consent",
-						details: { mcpTools: actualMcpTools, verification },
+						details: {
+							mcpTools: actualMcpTools,
+							routeVisibilityChanges:
+								publicRoutes.length > 0 ? { newlyPublic: publicRoutes } : undefined,
+							verification,
+						},
 					},
 				};
 			}
@@ -975,6 +1004,7 @@ export async function handleRegistryInstall(
 			capabilities: bundle.manifest.capabilities,
 			declaredAccess: recordReport.value.releaseExtension.declaredAccess,
 			mcpTools: actualMcpTools,
+			publicRoutes,
 			verification,
 		};
 		if (opts?.verifyOnly) return { success: true, data: result };

@@ -13,6 +13,7 @@
 import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
+import { sanitizeHeadersForSandbox } from "./request-meta.js";
 import { normalizeCapabilities } from "./types.js";
 import type {
 	ResolvedPlugin,
@@ -109,6 +110,9 @@ function normalizeRouteEntry(entry: RouteEntry): {
 	handler: RouteHandler;
 	public?: boolean;
 	cacheControl?: string;
+	methods?: PluginRoute["methods"];
+	request?: PluginRoute["request"];
+	response?: PluginRoute["response"];
 	input?: PluginRoute["input"];
 	permission?: PluginRoute["permission"];
 } {
@@ -120,6 +124,9 @@ function normalizeRouteEntry(entry: RouteEntry): {
 		public: entry.public,
 		permission: entry.permission,
 		cacheControl: entry.cacheControl,
+		methods: entry.methods,
+		request: entry.request,
+		response: entry.response,
 		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- RouteEntry.input is intentionally `unknown` (sandboxed plugins) and validated by the runtime at invocation time
 		input: entry.input as PluginRoute["input"],
 	};
@@ -215,6 +222,9 @@ export function adaptSandboxEntry(
 				handler,
 				public: publicFlag,
 				cacheControl,
+				methods,
+				request,
+				response,
 				input: inputSchema,
 				permission,
 			} = normalized;
@@ -223,6 +233,9 @@ export function adaptSandboxEntry(
 				public: publicFlag,
 				permission,
 				cacheControl,
+				methods,
+				request,
+				response,
 				handler: async (ctx) => {
 					if (usesPublicRouteContext) {
 						// The incoming ctx already IS the public RouteContext
@@ -237,10 +250,8 @@ export function adaptSandboxEntry(
 					// `Record<string, string>` shape that author-facing
 					// `SandboxedRequest` promises so handler bodies are
 					// identical across both adapters.
-					const headers: Record<string, string> = {};
-					ctx.request.headers.forEach((value, name) => {
-						headers[name] = value;
-					});
+					const declaredHeaders = request ? (request.headers ?? []) : undefined;
+					const headers = sanitizeHeadersForSandbox(ctx.request.headers, declaredHeaders);
 					const requestShape = {
 						url: ctx.request.url,
 						method: ctx.request.method,

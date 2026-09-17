@@ -59,7 +59,9 @@ const plugin: SandboxedPlugin = {
 export default plugin;
 ```
 
-Keep imports from `emdash/plugin` type-only. Sandboxed runtime code can use Web APIs but not Node.js built-ins.
+Import authoring types from `emdash/plugin` with `import type`. Value imports are limited to the
+lightweight `pluginRoute()` and `pluginResponse()` helpers, which the plugin CLI bundles into the
+sandbox artifact. Sandboxed runtime code can use Web APIs but not Node.js built-ins.
 
 ## Manifest trust contract
 
@@ -153,6 +155,18 @@ Routes are private by default. Every private invocation requires authentication,
 
 Core supports `cacheControl` on successful public `GET` and `HEAD` responses. The plugin CLI preserves it in the bundle manifest and generated descriptor. Private responses and errors remain `private, no-store`.
 
+Routes without declarations keep the method-agnostic JSON/query envelope. Declare `methods` for
+host-enforced `405` responses, and declare `request.body` as `none`, `json`, `text`, `bytes`, or
+`form-data` for bounded buffered parsing. The default body limit is 1 MiB and the maximum is 8 MiB.
+Use `pluginRoute()` to infer the handler input. Only safe names listed in `request.headers` cross the
+sandbox boundary; credentials, cookies, Cloudflare Access, and CSRF headers never do.
+
+For an unwrapped response, declare `response: "raw"` and return `pluginResponse()` with a text or
+`Uint8Array` body. Raw responses are buffered up to 8 MiB. The host removes transport-owned and
+origin-policy headers, keeps only the documented representation/download/redirect headers, applies
+the route cache policy, adds `nosniff`, and rejects active same-origin media types such as HTML,
+JavaScript, SVG, XML, CSS, and WebAssembly. Raw routes cannot back MCP tools.
+
 Expose an MCP tool explicitly under `mcp.tools`. Its route must be private and declare a permission. The tool needs an input Zod schema; the output schema is optional. Mark difficult-to-reverse operations `destructive: true`. Administrators review and enable plugin MCP tools separately, and callers need the route permission plus `mcp:tools` or `mcp:tools:<pluginId>` scope.
 
 Read [API routes](./references/api-routes.md) for complete route and MCP examples.
@@ -242,6 +256,9 @@ The direct host builds the plugin and invokes it through Cloudflare Worker Loade
 Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, generated settings, media, comments, scheduled tasks, restart, authorization, CSRF, cache behavior, or saved-entry extensions. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `admin`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks, including bylines and taxonomy terms. Actions call production runtime and handler boundaries. The `admin` helpers load and interact with panels and invoke editor actions through the production ownership and route-permission boundary. Use `actions.plugin.updateSettings()` with `inspect.settings.raw()` to prove that a generated secret-setting save persists an encrypted envelope. Content inspectors can read byline credits and taxonomy assignments without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
 
 Redirect capability tests can establish host state with `host.fixtures.redirect()` and inspect persisted rules with `host.inspect.redirects()`. Trigger the plugin route through `host.actions.routes.request()` when the test must prove authorization and the real host-to-isolate redirect bridge.
+
+For declared route-body tests, pass text, bytes, URL-encoded data, or `FormData` as `rawBody` to
+`host.actions.routes.request()`. Use `body` for the legacy JSON path.
 
 For outbound HTTP tests, queue responses with `await host.http.respond(url, response)` before the plugin call and inspect decoded requests with `host.http.requests()`. Queue one response per expected call. The helper keeps external network access deterministic while the plugin still crosses the production Worker Loader wrapper and bridge.
 

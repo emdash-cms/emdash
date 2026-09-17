@@ -51,7 +51,7 @@ import { createBackingServiceHandler } from "./backing-service.js";
 import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
-import { generatePluginWrapper } from "./wrapper.js";
+import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
 /** Replace non-alphanumeric chars for safe file/worker names */
 const SAFE_ID_RE = /[^a-z0-9_-]/gi;
@@ -1092,11 +1092,11 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 			async (invocationId) => {
 				const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
 					method: "POST",
-					headers: {
+						headers: {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-					},
-					body: JSON.stringify({ input, request, invocationId }),
+						},
+						body: stringifyRouteTransport({ input, request, invocationId }),
 				});
 				if (!res.ok) {
 					const text = await res.text();
@@ -1111,7 +1111,7 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 					}
 					throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 				}
-				return res.json();
+				return parseRouteTransport(await res.text());
 			},
 			options,
 		);

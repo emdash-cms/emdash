@@ -1,11 +1,13 @@
-import type {
-	ContentPolicyEvent,
-	PluginContext,
-	RedirectCreateInput,
-	RedirectListOptions,
-	RedirectStatus,
-	RedirectUpdateInput,
-	SandboxedPlugin,
+import {
+	pluginResponse,
+	pluginRoute,
+	type ContentPolicyEvent,
+	type PluginContext,
+	type RedirectCreateInput,
+	type RedirectListOptions,
+	type RedirectStatus,
+	type RedirectUpdateInput,
+	type SandboxedPlugin,
 } from "emdash/plugin";
 
 let isolateId: string | undefined;
@@ -352,6 +354,37 @@ const plugin: SandboxedPlugin = {
 			permission: "content:edit_own",
 			handler: async () => ({ refresh: true, navigate: { kind: "plugin-settings" } }),
 		},
+		"raw-download": pluginRoute({
+			public: true,
+			methods: ["POST"],
+			request: { body: "bytes", maxBytes: 1024 },
+			response: "raw",
+			handler: async (route) =>
+				pluginResponse({
+					status: 202,
+					headers: { "content-type": "application/octet-stream" },
+					body: { kind: "bytes", value: route.input },
+				}),
+		}),
+		"declared-headers": pluginRoute({
+			public: true,
+			methods: ["POST"],
+			request: { body: "none", headers: ["x-signature"] },
+			handler: async (route) => ({
+				signature: route.request.headers["x-signature"] ?? "missing",
+				hidden: route.request.headers["x-hidden"] ?? "missing",
+			}),
+		}),
+		"raw-form": pluginRoute({
+			public: true,
+			methods: ["POST"],
+			request: { body: "form-data", maxBytes: 4096 },
+			handler: async (route) => ({
+				entries: route.input.entries.map((entry) =>
+					entry.kind === "file" ? { ...entry, bytes: [...entry.bytes] } : entry,
+				),
+			}),
+		}),
 		"isolate-id": {
 			public: true,
 			cacheControl: "public, max-age=60",

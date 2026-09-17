@@ -33,7 +33,7 @@ const DEFAULT_WALL_TIME_MS = 30_000;
 import type { PluginManifest } from "emdash";
 
 import { createBridgeHandler } from "./bridge-handler.js";
-import { generatePluginWrapper } from "./wrapper.js";
+import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -342,7 +342,7 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 							"Content-Type": "application/json",
 							Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 						},
-						body: JSON.stringify({ input, request, invocationId }),
+						body: stringifyRouteTransport({ input, request, invocationId }),
 					},
 				);
 				if (!res.ok) {
@@ -358,7 +358,7 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 					}
 					throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 				}
-				return res.json();
+				return parseRouteTransport(await res.text());
 			},
 			options,
 		);

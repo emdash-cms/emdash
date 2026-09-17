@@ -76,6 +76,7 @@ export interface PluginHttpTestRequest {
 
 export interface PluginRuntimeRouteRequest extends PluginTestRequest {
 	body?: unknown;
+	rawBody?: BodyInit;
 	tokenScopes?: string[];
 }
 
@@ -943,8 +944,8 @@ export async function createPluginRuntimeTestHost(
 				request(name, request = {}) {
 					assertActive();
 					const headers = new Headers(request.headers);
-					let body: BodyInit | undefined;
-					if (request.body !== undefined) {
+					let body: BodyInit | undefined = request.rawBody;
+					if (request.rawBody === undefined && request.body !== undefined) {
 						headers.set("Content-Type", "application/json");
 						body = JSON.stringify(request.body);
 					}

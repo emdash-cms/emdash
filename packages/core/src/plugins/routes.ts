@@ -9,11 +9,17 @@
  */
 
 import type { PluginUiContext } from "@emdash-cms/blocks/server";
+import type {
+	PluginRouteMethod,
+	PluginRouteRequest,
+	PluginRouteResponseMode,
+} from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
 import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
 import { PluginContextFactory, type PluginContextFactoryOptions } from "./context.js";
 import { extractRequestMeta } from "./request-meta.js";
+import { parseDeclaredPluginRouteInput } from "./route-wire.js";
 import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./types.js";
 
 /**
@@ -64,6 +70,9 @@ export interface RouteMeta {
 	 * public routes — authenticated responses must stay `private, no-store`.
 	 */
 	cacheControl?: string;
+	methods?: PluginRouteMethod[];
+	request?: PluginRouteRequest;
+	response?: PluginRouteResponseMode;
 }
 
 export type PluginContentCacheInvalidator = (tags: string[]) => Promise<void>;
@@ -77,9 +86,20 @@ export function buildRouteMeta(route: {
 	public?: boolean;
 	permission?: string;
 	cacheControl?: string;
+	methods?: PluginRouteMethod[];
+	request?: PluginRouteRequest;
+	response?: PluginRouteResponseMode;
 }): RouteMeta {
 	const meta: RouteMeta = { public: route.public === true };
 	if (route.permission !== undefined) meta.permission = route.permission;
+	if (route.methods !== undefined) meta.methods = [...route.methods];
+	if (route.request !== undefined) {
+		meta.request = {
+			...route.request,
+			...(route.request.headers ? { headers: [...route.request.headers] } : {}),
+		};
+	}
+	if (route.response !== undefined) meta.response = route.response;
 	// Private responses are per-user and must never become cacheable, even if
 	// a route sets both flags.
 	if (meta.public && typeof route.cacheControl === "string" && route.cacheControl.length > 0) {
@@ -103,7 +123,11 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  * an object instead. Repeated keys (`?tag=a&tag=b`) become an array so array
  * schemas work; a single key stays a scalar.
  */
-export async function parseRouteInput(request: Request): Promise<unknown> {
+export async function parseRouteInput(
+	request: Request,
+	declaration?: PluginRouteRequest,
+): Promise<unknown> {
+	if (declaration) return parseDeclaredPluginRouteInput(request, declaration);
 	if (BODY_METHODS.has(request.method.toUpperCase())) {
 		try {
 			return await request.json();

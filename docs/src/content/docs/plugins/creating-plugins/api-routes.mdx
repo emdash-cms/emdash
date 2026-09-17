@@ -142,6 +142,10 @@ routes: {
 },
 ```
 
+Public route exposure is part of the plugin's reviewed access. Installing a plugin with public
+routes requires consent. Adding a public route, or changing a private route to public, requires
+consent again when the plugin is updated.
+
 <Aside type="caution">
 	A public route skips authentication and token scope checks, but not protection against cross-origin
 	browser requests. For requests that can change data, EmDash accepts a matching site `Origin` or the
@@ -215,11 +219,58 @@ EmDash exposes this as `<pluginId>__createEvent`. The referenced route must be p
 
 An administrator must separately enable a plugin's MCP tools after reviewing their names, descriptions, routes, permissions, and destructive flags. Calling the tool then requires both the route permission and either the `mcp:tools` token scope or `mcp:tools:<pluginId>`.
 
-## Input validation
+An MCP tool cannot reference a route with `response: "raw"`. MCP tools use the JSON route contract.
 
-EmDash parses JSON request bodies for `POST`, `PUT`, and `PATCH`. It parses query parameters for `GET`, `HEAD`, and `DELETE`. The parsed value reaches a sandboxed handler as `routeCtx.input: unknown`, so validate it inside the handler before reading fields or performing side effects.
+## Request bodies
 
-Use `safeParse` when invalid input is an expected caller error. This lets the route return a stable JSON result instead of turning invalid input into an internal exception:
+Routes without a `request` declaration keep the original input behavior. EmDash parses JSON request
+bodies for `POST`, `PUT`, and `PATCH`, and query parameters for `GET`, `HEAD`, and `DELETE`. The
+parsed value reaches a sandboxed handler as `routeCtx.input: unknown`.
+
+Declare `request.body` when the route needs another body format or a specific byte limit. The
+available modes are `none`, `json`, `text`, `bytes`, and `form-data`. Request bodies are buffered.
+The default maximum is 1 MiB, and a route can raise `maxBytes` to at most 8 MiB.
+
+Use `pluginRoute()` to infer the input type from the declared body mode. The helper returns its
+argument unchanged at runtime:
+
+```typescript title="src/plugin.ts"
+import { pluginRoute, type SandboxedPlugin } from "emdash/plugin";
+
+const plugin: SandboxedPlugin = {
+	routes: {
+		import: pluginRoute({
+			methods: ["POST"],
+			request: {
+				body: "bytes",
+				maxBytes: 4 * 1024 * 1024,
+				headers: ["content-type", "x-import-signature"],
+			},
+			handler: async (routeCtx) => {
+				const bytes = routeCtx.input; // Uint8Array
+				const signature = routeCtx.request.headers["x-import-signature"];
+				return { accepted: bytes.byteLength, signature };
+			},
+		}),
+	},
+};
+
+export default plugin;
+```
+
+For `body: "none"`, `routeCtx.input` is the parsed query-string record. A `json` declaration keeps
+the input type as `unknown`, so validate it before use. A `text` declaration produces a string, and
+`bytes` produces a `Uint8Array`.
+
+`form-data` accepts `multipart/form-data` and `application/x-www-form-urlencoded`. It produces an
+ordered `entries` array. Text entries contain `{ name, kind: "text", value }`; file entries contain
+`{ name, kind: "file", filename, contentType, bytes }`. EmDash accepts at most 100 parts, 1 MiB per
+part, and filenames up to 255 UTF-8 bytes. Filenames cannot contain control characters or path
+separators. The total encoded request must also fit the route's body limit.
+
+Validate parsed values before reading fields or performing side effects. Use `safeParse` when
+invalid input is an expected caller error. This lets the route return a stable JSON result instead
+of turning invalid input into an internal exception:
 
 ```typescript
 const createInput = z.object({
@@ -276,9 +327,11 @@ routes: {
 },
 ```
 
-## Return values
+## JSON return values
 
-Return any JSON-serialisable value. The dispatcher wraps it in EmDash's standard envelope (`{ success: true, data: <your value> }`) and serves it as `application/json`.
+Routes use the JSON response contract unless they declare `response: "raw"`. Return any
+JSON-serialisable value. The dispatcher wraps it in EmDash's standard envelope
+(`{ success: true, data: <your value> }`) and serves it as `application/json`.
 
 ```typescript
 return { id: "abc", count: 42 };  // wrapped to { success: true, data: { id, count } }
@@ -306,11 +359,14 @@ An expected error returned as JSON still uses the route's successful HTTP respon
 
 ## HTTP methods
 
-The route name, not the HTTP method, selects a handler. If a route changes state, accept only the intended method before performing the mutation:
+The route name selects one handler. Declare `methods` to restrict which HTTP methods can invoke it.
+EmDash returns `405 Method Not Allowed` with an `Allow` header before calling the handler when the
+request method is not declared:
 
 ```typescript
 routes: {
 	item: {
+		methods: ["GET", "DELETE"],
 		handler: async (routeCtx, ctx) => {
 			const parsed = z.object({ id: z.string() }).safeParse(routeCtx.input);
 			if (!parsed.success) return { ok: false, error: "INVALID_ID" };
@@ -322,23 +378,77 @@ routes: {
 				case "DELETE":
 					await ctx.storage.items.delete(id);
 					return { deleted: true };
-				default:
-					return { error: "METHOD_NOT_ALLOWED", allowed: ["GET", "DELETE"] };
 			}
 		},
 	},
 },
 ```
 
+Routes without `methods` remain method-agnostic for compatibility. Check
+`routeCtx.request.method` inside a legacy route before performing a mutation, or add `methods` to
+make the host enforce the restriction.
+
+## Raw responses
+
+Declare `response: "raw"` when a route must return unwrapped text or bytes with a custom status and
+safe response headers. Return `pluginResponse()` from `emdash/plugin`; a WHATWG `Response` does not
+cross the sandbox boundary:
+
+```typescript title="src/plugin.ts"
+import { pluginResponse, pluginRoute, type SandboxedPlugin } from "emdash/plugin";
+
+const plugin: SandboxedPlugin = {
+	routes: {
+		download: pluginRoute({
+			public: true,
+			methods: ["GET"],
+			request: { body: "none" },
+			response: "raw",
+			cacheControl: "public, max-age=60",
+			handler: async () =>
+				pluginResponse({
+					status: 200,
+					headers: {
+						"content-type": "text/csv; charset=utf-8",
+						"content-disposition": 'attachment; filename="report.csv"',
+					},
+					body: { kind: "text", value: "name,count\nPublished,12\n" },
+				}),
+		}),
+	},
+};
+
+export default plugin;
+```
+
+The response body is `{ kind: "text", value: string }` or
+`{ kind: "bytes", value: Uint8Array }` and is buffered up to 8 MiB. Raw responses may set
+`Accept-Ranges`, `Content-Disposition`, `Content-Encoding`, `Content-Language`, `Content-Range`,
+`Content-Type`, `ETag`, `Last-Modified`, `Location`, and `Retry-After`; the host removes every other
+plugin-supplied header. It adds
+`X-Content-Type-Options: nosniff`, a sandboxed document content security policy, and
+`Referrer-Policy: no-referrer`. It applies the route's `cacheControl` only to successful public
+`GET` and `HEAD` responses. Other responses use `private, no-store`.
+
+Raw routes cannot serve active same-origin content. EmDash rejects HTML, JavaScript and
+ECMAScript, XHTML, SVG, XML, CSS, WebAssembly, `multipart/related`, and
+`multipart/x-mixed-replace` media types. Use a native plugin or a separate origin when the response
+must run active browser content.
+
 ## Accessing the request
 
 `routeCtx.request` is a **`SandboxedRequest`**: a portable `{ url, method, headers }` record that behaves identically in-process and inside an isolate. `headers` is a `Record<string, string>` keyed by lowercased header name — index it by the lowercased name, or iterate with `Object.entries`. `url` is a string, so `new URL(request.url)` parses query params. `routeCtx.requestMeta` carries IP, user agent, and geo data normalised across platforms when available.
+
+For a route with a `request` declaration, only names in `request.headers` reach the handler. EmDash
+rejects declarations for credentials, cookies, Cloudflare Access headers, proxy authorization,
+`Set-Cookie`, and the `X-EmDash-Request` CSRF header. It strips those headers from every sandboxed
+request, including legacy routes.
 
 ```typescript
 handler: async (routeCtx, ctx) => {
 	const { request, requestMeta } = routeCtx;
 
-	const auth = request.headers["authorization"]; // lowercased key, no .get()
+	const signature = request.headers["x-import-signature"]; // lowercased key, no .get()
 	const url = new URL(request.url);
 	const page = url.searchParams.get("page");
 

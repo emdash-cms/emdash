@@ -12,6 +12,9 @@ import { Permissions } from "@emdash-cms/auth";
 import {
 	capabilitiesToDeclaredAccess,
 	declaredAccessToCapabilities,
+	manifestRouteEntrySchema as sharedManifestRouteEntrySchema,
+	normalizeManifestRoute as normalizeSharedManifestRoute,
+	routeNameSchema,
 } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
@@ -149,17 +152,11 @@ const manifestHookEntrySchema = z.object({
  * Both plain strings and objects are accepted; strings are normalized
  * to `{ name }` objects via `normalizeManifestRoute()`.
  */
-/** Route names must be safe path segments — alphanumeric, hyphens, underscores, forward slashes */
-const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
-
-const manifestRouteEntrySchema = z.object({
-	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: z.boolean().optional(),
+const manifestRouteEntrySchema = sharedManifestRouteEntrySchema.safeExtend({
 	permission: z
 		.string()
 		.refine((permission) => Object.hasOwn(Permissions, permission))
 		.optional(),
-	cacheControl: z.string().min(1).optional(),
 });
 
 const pluginJsonSchema = z.record(z.string(), z.unknown());
@@ -169,7 +166,7 @@ const pluginMcpConfigSchema = z.object({
 		z.object({
 			name: z.string().min(1).max(64).regex(mcpToolNamePattern, "Invalid MCP tool name"),
 			description: z.string().min(1),
-			route: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
+			route: routeNameSchema,
 			permission: z.string().refine((permission) => Object.hasOwn(Permissions, permission)),
 			destructive: z.boolean(),
 			inputSchema: pluginJsonSchema,
@@ -252,11 +249,7 @@ const editorCollectionsSchema = z
 const editorPanelSchema = z.object({
 	id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
 	title: z.string().min(1).max(128),
-	route: z
-		.string()
-		.min(1)
-		.max(128)
-		.regex(routeNamePattern, "Route name must be a safe path segment"),
+	route: routeNameSchema.max(128),
 	collections: editorCollectionsSchema.optional(),
 	order: z.number().int().min(-1_000).max(1_000).optional(),
 });
@@ -271,11 +264,7 @@ const editorActionSchema = z
 	.object({
 		id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor action id"),
 		label: z.string().min(1).max(128),
-		route: z
-			.string()
-			.min(1)
-			.max(128)
-			.regex(routeNamePattern, "Route name must be a safe path segment"),
+		route: routeNameSchema.max(128),
 		placement: z.enum(["toolbar", "overflow"]),
 		collections: editorCollectionsSchema.optional(),
 		style: z.enum(["default", "danger"]).optional(),
@@ -424,12 +413,7 @@ export const pluginManifestBaseSchema = z.object({
 	 * structured objects with public metadata.
 	 * Plain strings are normalized to `{ name }` objects after parsing.
 	 */
-	routes: z.array(
-		z.union([
-			z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-			manifestRouteEntrySchema,
-		]),
-	),
+	routes: z.array(z.union([routeNameSchema, manifestRouteEntrySchema])),
 	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema,
 });
@@ -529,16 +513,6 @@ export function normalizeManifestHook(
 /**
  * Normalize a manifest route entry — plain strings become `{ name }` objects.
  */
-export function normalizeManifestRoute(
-	entry: string | { name: string; public?: boolean; permission?: string; cacheControl?: string },
-): {
-	name: string;
-	public?: boolean;
-	permission?: string;
-	cacheControl?: string;
-} {
-	if (typeof entry === "string") {
-		return { name: entry };
-	}
-	return entry;
+export function normalizeManifestRoute(entry: PluginManifest["routes"][number]) {
+	return normalizeSharedManifestRoute(entry);
 }

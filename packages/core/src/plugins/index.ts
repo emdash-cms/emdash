@@ -9,7 +9,7 @@
  */
 
 // definePlugin
-export { definePlugin } from "./define-plugin.js";
+export { definePlugin, definePluginRoute } from "./define-plugin.js";
 
 // Standard plugin adapter
 export { adaptSandboxEntry } from "./adapt-sandbox-entry.js";
@@ -288,6 +288,7 @@ export type {
 
 	// Route types
 	PluginRoute,
+	PluginRouteDefinition,
 	RouteContext,
 
 	// Admin types

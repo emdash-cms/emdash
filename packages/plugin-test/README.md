@@ -35,6 +35,24 @@ await host.inspect.scheduledPolicyRejections();
 await host.dispose();
 ```
 
+Use `rawBody` to send text, bytes, URL-encoded data, or `FormData` through a declared route's real
+request parser. The helper buffers the body and leaves its content type to the supplied `BodyInit`:
+
+```ts
+const form = new FormData();
+form.append("title", "Quarterly report");
+form.append("attachment", new File([new Uint8Array([0, 255])], "report.bin"));
+
+const response = await host.actions.routes.request("import", {
+	method: "POST",
+	headers: { "x-import-signature": "sha256=example" },
+	rawBody: form,
+});
+```
+
+Use `body` instead when testing the legacy JSON request path; the host serializes it and sets
+`Content-Type: application/json`.
+
 The configuration builds the plugin and supplies local D1 and Worker Loader bindings through `@cloudflare/vitest-plugin`. Both hosts load the built code through EmDash's production Cloudflare sandbox runner and `PluginBridge`. The runtime host separates direct transport calls, fixtures, production actions, inspectors, scheduled time control, restart, and disposal.
 
 Redirect plugins can create fixture rules with `host.fixtures.redirect()` and inspect persisted rules with `host.inspect.redirects()`. Call the plugin through `host.actions.routes.request()` to cover the production route dispatcher and redirect bridge.

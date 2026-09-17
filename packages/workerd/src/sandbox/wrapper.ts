@@ -11,12 +11,53 @@
  * - Exposes an HTTP fetch handler for hook/route invocation
  */
 
+import { Buffer } from "node:buffer";
+
 import { normalizePluginCapabilities, type PluginManifest } from "emdash";
 import { generatePluginHttpWireRuntimeSource } from "emdash/plugins/http-wire";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
 const COMMENT_CLOSE_RE = /\*\//g;
+
+const ROUTE_BYTES_MARKER = "__emdashBytes";
+const ROUTE_ESCAPED_OBJECT_MARKER = "__emdashEscapedObject";
+
+function isReservedRouteTransportObject(value: unknown): value is Record<string, unknown> {
+	if (value === null || typeof value !== "object" || Array.isArray(value)) return false;
+	const keys = Object.keys(value);
+	return (
+		keys.length === 1 && (keys[0] === ROUTE_BYTES_MARKER || keys[0] === ROUTE_ESCAPED_OBJECT_MARKER)
+	);
+}
+
+export function stringifyRouteTransport(value: unknown): string {
+	return JSON.stringify(value, (_key, entry) => {
+		if (entry instanceof Uint8Array) {
+			return { [ROUTE_BYTES_MARKER]: Buffer.from(entry).toString("base64") };
+		}
+		if (isReservedRouteTransportObject(entry)) {
+			return { [ROUTE_ESCAPED_OBJECT_MARKER]: Object.entries(entry) };
+		}
+		return entry;
+	});
+}
+
+export function parseRouteTransport(value: string): unknown {
+	return JSON.parse(value, (_key: string, entry: unknown) => {
+		if (entry === null || typeof entry !== "object" || Array.isArray(entry)) return entry;
+		const keys = Object.keys(entry);
+		const bytes = Reflect.get(entry, ROUTE_BYTES_MARKER);
+		if (keys.length === 1 && typeof bytes === "string") {
+			return new Uint8Array(Buffer.from(bytes, "base64"));
+		}
+		const escaped = Reflect.get(entry, ROUTE_ESCAPED_OBJECT_MARKER);
+		if (keys.length === 1 && Array.isArray(escaped)) {
+			return Object.fromEntries(escaped);
+		}
+		return entry;
+	});
+}
 
 export interface WrapperOptions {
 	site?: {
@@ -82,7 +123,26 @@ const BACKING_URL = ${JSON.stringify(options.backingServiceUrl)};
 const AUTH_TOKEN = ${JSON.stringify(options.authToken)};
 const INVOKE_TOKEN = ${JSON.stringify(options.invokeToken)};
 
-function bridgeJsonReviver(_key, value) {
+function routeTransportReplacer(_key, value) {
+	if (value instanceof Uint8Array) {
+		let binary = "";
+		const chunkSize = 0x8000;
+		for (let offset = 0; offset < value.byteLength; offset += chunkSize) {
+			binary += String.fromCharCode(...value.subarray(offset, offset + chunkSize));
+		}
+		return { __emdashBytes: btoa(binary) };
+	}
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		const keys = Object.keys(value);
+		if (keys.length === 1 &&
+			(keys[0] === "__emdashBytes" || keys[0] === "__emdashEscapedObject")) {
+			return { __emdashEscapedObject: Object.entries(value) };
+		}
+	}
+	return value;
+}
+
+function transportReviver(_key, value) {
 	if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== 1) return value;
 	if (typeof value.__emdashBytes === "string") {
 		const binary = atob(value.__emdashBytes);
@@ -94,6 +154,12 @@ function bridgeJsonReviver(_key, value) {
 		return Object.fromEntries(value.__emdashEscapedObject);
 	}
 	return value;
+}
+
+function routeJsonResponse(value) {
+	return new Response(JSON.stringify(value, routeTransportReplacer), {
+		headers: { "content-type": "application/json" },
+	});
 }
 
 function storageObjectEntries(value) {
@@ -306,7 +372,7 @@ async function bridgeCall(method, body) {
 		}
 		throw new Error("Bridge call " + method + " failed: " + text);
 	}
-	const data = JSON.parse(await res.text(), bridgeJsonReviver);
+	const data = JSON.parse(await res.text(), transportReviver);
 	return data.result;
 }
 
@@ -653,7 +719,10 @@ export default {
 		// Route invocation: POST /route/{routeName}
 		if (url.pathname.startsWith("/route/")) {
 			const routeName = url.pathname.slice(7); // Remove "/route/"
-			const { input, request: serializedRequest, invocationId } = await request.json();
+			const { input, request: serializedRequest, invocationId } = JSON.parse(
+				await request.text(),
+				transportReviver,
+			);
 			const ctx = createContext(undefined, invocationId);
 
 			const route = routes[routeName];
@@ -679,7 +748,7 @@ export default {
 					},
 					ctx,
 				);
-				return Response.json(result);
+				return routeJsonResponse(result);
 			} catch (err) {
 				const sandboxError = sandboxRouteErrorResponse(err);
 				if (sandboxError) return sandboxError;
