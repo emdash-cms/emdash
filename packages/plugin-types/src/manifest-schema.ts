@@ -25,6 +25,8 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"content:read",
 	"content:revisions:read",
 	"content:write",
+	"content:publish",
+	"content:restore",
 	"hooks.content-policy:register",
 	"schema:read",
 	"taxonomies:read",
@@ -272,6 +274,8 @@ const declaredAccessSchema = z.object({
 			read: accessConstraints.optional(),
 			revisionsRead: accessConstraints.optional(),
 			write: accessConstraints.optional(),
+			publish: accessConstraints.optional(),
+			restore: accessConstraints.optional(),
 			policy: accessConstraints.optional(),
 		})
 		.optional(),

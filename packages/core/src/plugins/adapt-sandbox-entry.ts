@@ -290,6 +290,9 @@ export function adaptSandboxEntry(
 	if (capabilities.includes("content:revisions:read") && !capabilities.includes("content:read")) {
 		capabilities.push("content:read");
 	}
+	if (capabilities.includes("content:publish") && !capabilities.includes("content:read")) {
+		capabilities.push("content:read");
+	}
 	if (capabilities.includes("media:write") && !capabilities.includes("media:read")) {
 		capabilities.push("media:read");
 	}

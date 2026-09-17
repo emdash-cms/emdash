@@ -180,8 +180,27 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		[],
 		["content:read"],
 		["content:read", "content:write"],
+		["content:read", "content:publish"],
 		["content:read", "content:revisions:read"],
+		["content:read", "content:write", "content:publish"],
 		["content:read", "content:write", "content:revisions:read"],
+		["content:read", "content:publish", "content:revisions:read"],
+		["content:read", "content:write", "content:publish", "content:revisions:read"],
+		["content:restore"],
+		["content:read", "content:restore"],
+		["content:read", "content:write", "content:restore"],
+		["content:read", "content:publish", "content:restore"],
+		["content:read", "content:revisions:read", "content:restore"],
+		["content:read", "content:write", "content:publish", "content:restore"],
+		["content:read", "content:write", "content:revisions:read", "content:restore"],
+		["content:read", "content:publish", "content:revisions:read", "content:restore"],
+		[
+			"content:read",
+			"content:write",
+			"content:publish",
+			"content:revisions:read",
+			"content:restore",
+		],
 	];
 	const mediaChoices = [[], ["media:read"], ["media:read", "media:write"]];
 	const networkChoices: { caps: string[]; hosts: string[] }[] = [
@@ -230,7 +249,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 5 content x 3 media x 5 network x 2^8 singleton subsets.
-		expect(count).toBe(19_200);
+		// 18 content x 3 media x 5 network x 2^8 singleton subsets.
+		expect(count).toBe(69_120);
 	});
 });

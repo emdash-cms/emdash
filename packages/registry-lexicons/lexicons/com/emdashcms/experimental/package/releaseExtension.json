@@ -1,287 +1,313 @@
 {
-	"lexicon": 1,
-	"id": "com.emdashcms.experimental.package.releaseExtension",
-	"description": "EmDash-specific extension data embedded inside a release record under its `extensions` field. Carries the trust contract (declaredAccess) the sandbox enforces. EXPERIMENTAL: shape may change before stabilisation.",
-	"defs": {
-		"main": {
-			"type": "object",
-			"description": "Typed embedded object carrying the EmDash plugin's structured access manifest. Lives under the release record's `extensions` map keyed by this NSID. The `$type` field is required when embedded; clients use it to dispatch to this schema.",
-			"required": ["declaredAccess"],
-			"properties": {
-				"declaredAccess": {
-					"type": "ref",
-					"ref": "#declaredAccess",
-					"description": "Structured per-category access manifest. The sandbox enforces every operation declared here at runtime."
-				},
-				"provenance": {
-					"type": "ref",
-					"ref": "#provenance",
-					"description": "Optional reference to a provenance document for this release."
-				}
-			}
-		},
-		"provenance": {
-			"type": "object",
-			"description": "Provenance document reference. Unknown predicate types are retained as present-but-unverifiable; consumers understand https://slsa.dev/provenance/v1 in v1. Lexicon validates URI syntax and field lengths; consumers validate multibase-multihash syntax and source and builder canonicalization.",
-			"required": ["predicateType", "url", "checksum", "sourceRepository", "builderId"],
-			"properties": {
-				"predicateType": {
-					"type": "string",
-					"maxLength": 1024
-				},
-				"url": {
-					"type": "string",
-					"format": "uri",
-					"maxLength": 2048
-				},
-				"checksum": {
-					"type": "string",
-					"description": "Multibase-encoded multihash of the provenance document bytes. Consumers validate the multibase-multihash syntax and supported hash function.",
-					"maxLength": 256
-				},
-				"sourceRepository": {
-					"type": "string",
-					"format": "uri",
-					"maxLength": 1024
-				},
-				"builderId": {
-					"type": "string",
-					"format": "uri",
-					"maxLength": 1024
-				}
-			}
-		},
-		"declaredAccess": {
-			"type": "object",
-			"description": "Map of access category to a per-category block of named operations. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields. Within a known category, an unrecognised operation key is also a hard reject. Within an operation's constraint object, unrecognised keys are advisory and surfaced verbatim in install-consent UI. Note that the bundled manifest may use boolean `true` as sugar for an empty constraint object; on-PDS records canonicalise this to `{}` because Lexicon validation does not accept boolean values for typed object fields.",
-			"properties": {
-				"content": {
-					"type": "ref",
-					"ref": "#contentAccess",
-					"description": "Access to site content (posts, pages, custom collections)."
-				},
-				"schema": {
-					"type": "ref",
-					"ref": "#schemaAccess",
-					"description": "Read access to collection and field definitions."
-				},
-				"taxonomies": {
-					"type": "ref",
-					"ref": "#taxonomiesAccess",
-					"description": "Access to taxonomy definitions and terms."
-				},
-				"media": {
-					"type": "ref",
-					"ref": "#mediaAccess",
-					"description": "Access to uploaded media assets."
-				},
-				"network": {
-					"type": "ref",
-					"ref": "#networkAccess",
-					"description": "Outbound HTTP requests."
-				},
-				"email": {
-					"type": "ref",
-					"ref": "#emailAccess",
-					"description": "Sending mail through the host's mail service, and participating in its delivery pipeline."
-				},
-				"page": {
-					"type": "ref",
-					"ref": "#pageAccess",
-					"description": "Participation in rendered page output."
-				},
-				"users": {
-					"type": "ref",
-					"ref": "#usersAccess",
-					"description": "Access to site user records."
-				}
-			}
-		},
-		"contentAccess": {
-			"type": "object",
-			"description": "Operations under content. Each operation value is a constraint object; an empty object grants the operation with no constraints applied.",
-			"properties": {
-				"read": {
-					"type": "ref",
-					"ref": "#contentReadConstraints",
-					"description": "Plugin may read content records."
-				},
-				"revisionsRead": {
-					"type": "ref",
-					"ref": "#contentRevisionsReadConstraints",
-					"description": "Plugin may read retained content revision history. Implies `read`."
-				},
-				"write": {
-					"type": "ref",
-					"ref": "#contentWriteConstraints",
-					"description": "Plugin may create, update, or delete content records. Implies `read`."
-				},
-				"policy": {
-					"type": "ref",
-					"ref": "#contentPolicyConstraints",
-					"description": "Plugin may inspect and reject publication, scheduling, and unpublication. Does not imply content read or write access."
-				}
-			}
-		},
-		"contentReadConstraints": {
-			"type": "object",
-			"description": "Constraint object for content.read. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
-		},
-		"contentWriteConstraints": {
-			"type": "object",
-			"description": "Constraint object for content.write. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
-		},
-		"contentPolicyConstraints": {
-			"type": "object",
-			"description": "Constraint object for content.policy. No constraint keys are normatively defined here; the operation grants only registration of synchronous publication policy hooks."
-		},
-		"contentRevisionsReadConstraints": {
-			"type": "object",
-			"description": "Constraint object for content.revisionsRead. No constraint keys are normatively defined here."
-		},
-		"schemaAccess": {
-			"type": "object",
-			"description": "Operations under schema.",
-			"properties": {
-				"read": {
-					"type": "ref",
-					"ref": "#schemaReadConstraints",
-					"description": "Plugin may read public collection and field definitions."
-				}
-			}
-		},
-		"schemaReadConstraints": {
-			"type": "object",
-			"description": "Constraint object for schema.read. No constraint keys are normatively defined here."
-		},
-		"taxonomiesAccess": {
-			"type": "object",
-			"description": "Operations under taxonomies. Read-only: there is no plugin-facing taxonomy write operation.",
-			"properties": {
-				"read": {
-					"type": "ref",
-					"ref": "#taxonomiesReadConstraints",
-					"description": "Plugin may read taxonomy definitions, their terms, and the terms assigned to content entries."
-				}
-			}
-		},
-		"taxonomiesReadConstraints": {
-			"type": "object",
-			"description": "Constraint object for taxonomies.read. No constraint keys are normatively defined here."
-		},
-		"mediaAccess": {
-			"type": "object",
-			"description": "Operations under media.",
-			"properties": {
-				"read": {
-					"type": "ref",
-					"ref": "#mediaReadConstraints",
-					"description": "Plugin may read media metadata and fetch media bytes."
-				},
-				"write": {
-					"type": "ref",
-					"ref": "#mediaWriteConstraints",
-					"description": "Plugin may upload, modify, or delete media. Implies `read`."
-				}
-			}
-		},
-		"mediaReadConstraints": {
-			"type": "object",
-			"description": "Constraint object for media.read. No constraint keys are normatively defined here."
-		},
-		"mediaWriteConstraints": {
-			"type": "object",
-			"description": "Constraint object for media.write. No constraint keys are normatively defined here."
-		},
-		"networkAccess": {
-			"type": "object",
-			"description": "Operations under network.",
-			"properties": {
-				"request": {
-					"type": "ref",
-					"ref": "#networkRequestConstraints",
-					"description": "Plugin may make outbound HTTP requests. Constraints scope the access; an empty object grants unrestricted requests."
-				}
-			}
-		},
-		"networkRequestConstraints": {
-			"type": "object",
-			"description": "Constraint object for network.request. Open shape — additional constraint keys (rate limits, etc.) may be declared and will be surfaced advisorily until normatively defined by a follow-on RFC.",
-			"properties": {
-				"allowedHosts": {
-					"type": "array",
-					"description": "Allow-list of outbound host patterns. Each entry is a hostname pattern with no scheme, path, or port; a leading '*.' wildcard is permitted for subdomains. Field absent means no host restriction; an empty array MUST NOT appear in records.",
-					"minLength": 1,
-					"maxLength": 64,
-					"items": {
-						"type": "string",
-						"maxLength": 256
-					}
-				}
-			}
-		},
-		"emailAccess": {
-			"type": "object",
-			"description": "Operations under email.",
-			"properties": {
-				"send": {
-					"type": "ref",
-					"ref": "#emailSendConstraints",
-					"description": "Plugin may send mail."
-				},
-				"events": {
-					"type": "ref",
-					"ref": "#emailEventsConstraints",
-					"description": "Plugin observes and may mutate every outgoing message (before and/or after send), including mail from the host and other plugins."
-				},
-				"transport": {
-					"type": "ref",
-					"ref": "#emailTransportConstraints",
-					"description": "Plugin becomes the host's mail transport; every message the site sends is delivered through it. Exclusive: installing replaces the current transport."
-				}
-			}
-		},
-		"emailSendConstraints": {
-			"type": "object",
-			"description": "Constraint object for email.send. No constraint keys are normatively defined here; vocabulary for rate limits and recipient allow-lists is reserved for a follow-on RFC."
-		},
-		"emailEventsConstraints": {
-			"type": "object",
-			"description": "Constraint object for email.events. No constraint keys are normatively defined here; phase scoping (beforeSend/afterSend) is reserved for a follow-on RFC and surfaced advisorily until then."
-		},
-		"emailTransportConstraints": {
-			"type": "object",
-			"description": "Constraint object for email.transport. No constraint keys are normatively defined here. Exclusivity is a property of the host extension point: clients treat email.transport as exclusive regardless of record contents."
-		},
-		"pageAccess": {
-			"type": "object",
-			"description": "Operations under page (rendered-output participation).",
-			"properties": {
-				"fragments": {
-					"type": "ref",
-					"ref": "#pageFragmentsConstraints",
-					"description": "Plugin injects script and/or style fragments into rendered pages."
-				}
-			}
-		},
-		"pageFragmentsConstraints": {
-			"type": "object",
-			"description": "Constraint object for page.fragments. No constraint keys are normatively defined here; position/placement scoping is reserved for a follow-on RFC."
-		},
-		"usersAccess": {
-			"type": "object",
-			"description": "Operations under users.",
-			"properties": {
-				"read": {
-					"type": "ref",
-					"ref": "#usersReadConstraints",
-					"description": "Plugin may read site user records."
-				}
-			}
-		},
-		"usersReadConstraints": {
-			"type": "object",
-			"description": "Constraint object for users.read. No constraint keys are normatively defined here."
-		}
-	}
+  "lexicon": 1,
+  "id": "com.emdashcms.experimental.package.releaseExtension",
+  "description": "EmDash-specific extension data embedded inside a release record under its `extensions` field. Carries the trust contract (declaredAccess) the sandbox enforces. EXPERIMENTAL: shape may change before stabilisation.",
+  "defs": {
+    "main": {
+      "type": "object",
+      "description": "Typed embedded object carrying the EmDash plugin's structured access manifest. Lives under the release record's `extensions` map keyed by this NSID. The `$type` field is required when embedded; clients use it to dispatch to this schema.",
+      "required": [
+        "declaredAccess"
+      ],
+      "properties": {
+        "declaredAccess": {
+          "type": "ref",
+          "ref": "#declaredAccess",
+          "description": "Structured per-category access manifest. The sandbox enforces every operation declared here at runtime."
+        },
+        "provenance": {
+          "type": "ref",
+          "ref": "#provenance",
+          "description": "Optional reference to a provenance document for this release."
+        }
+      }
+    },
+    "provenance": {
+      "type": "object",
+      "description": "Provenance document reference. Unknown predicate types are retained as present-but-unverifiable; consumers understand https://slsa.dev/provenance/v1 in v1. Lexicon validates URI syntax and field lengths; consumers validate multibase-multihash syntax and source and builder canonicalization.",
+      "required": [
+        "predicateType",
+        "url",
+        "checksum",
+        "sourceRepository",
+        "builderId"
+      ],
+      "properties": {
+        "predicateType": {
+          "type": "string",
+          "maxLength": 1024
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 2048
+        },
+        "checksum": {
+          "type": "string",
+          "description": "Multibase-encoded multihash of the provenance document bytes. Consumers validate the multibase-multihash syntax and supported hash function.",
+          "maxLength": 256
+        },
+        "sourceRepository": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 1024
+        },
+        "builderId": {
+          "type": "string",
+          "format": "uri",
+          "maxLength": 1024
+        }
+      }
+    },
+    "declaredAccess": {
+      "type": "object",
+      "description": "Map of access category to a per-category block of named operations. Categories not enumerated here cannot be declared today; clients MUST reject release records that include unrecognised top-level fields. Within a known category, an unrecognised operation key is also a hard reject. Within an operation's constraint object, unrecognised keys are advisory and surfaced verbatim in install-consent UI. Note that the bundled manifest may use boolean `true` as sugar for an empty constraint object; on-PDS records canonicalise this to `{}` because Lexicon validation does not accept boolean values for typed object fields.",
+      "properties": {
+        "content": {
+          "type": "ref",
+          "ref": "#contentAccess",
+          "description": "Access to site content (posts, pages, custom collections)."
+        },
+        "schema": {
+          "type": "ref",
+          "ref": "#schemaAccess",
+          "description": "Read access to collection and field definitions."
+        },
+        "taxonomies": {
+          "type": "ref",
+          "ref": "#taxonomiesAccess",
+          "description": "Access to taxonomy definitions and terms."
+        },
+        "media": {
+          "type": "ref",
+          "ref": "#mediaAccess",
+          "description": "Access to uploaded media assets."
+        },
+        "network": {
+          "type": "ref",
+          "ref": "#networkAccess",
+          "description": "Outbound HTTP requests."
+        },
+        "email": {
+          "type": "ref",
+          "ref": "#emailAccess",
+          "description": "Sending mail through the host's mail service, and participating in its delivery pipeline."
+        },
+        "page": {
+          "type": "ref",
+          "ref": "#pageAccess",
+          "description": "Participation in rendered page output."
+        },
+        "users": {
+          "type": "ref",
+          "ref": "#usersAccess",
+          "description": "Access to site user records."
+        }
+      }
+    },
+    "contentAccess": {
+      "type": "object",
+      "description": "Operations under content. Each operation value is a constraint object; an empty object grants the operation with no constraints applied.",
+      "properties": {
+        "read": {
+          "type": "ref",
+          "ref": "#contentReadConstraints",
+          "description": "Plugin may read content records."
+        },
+        "revisionsRead": {
+          "type": "ref",
+          "ref": "#contentRevisionsReadConstraints",
+          "description": "Plugin may read retained content revision history. Implies `read`."
+        },
+        "write": {
+          "type": "ref",
+          "ref": "#contentWriteConstraints",
+          "description": "Plugin may create, update, or delete content records. Implies `read`."
+        },
+        "policy": {
+          "type": "ref",
+          "ref": "#contentPolicyConstraints",
+          "description": "Plugin may inspect and reject publication, scheduling, and unpublication. Does not imply content read or write access."
+        },
+        "publish": {
+          "type": "ref",
+          "ref": "#contentPublishConstraints",
+          "description": "Plugin may publish, unpublish, schedule, and unschedule content. Implies `read`."
+        },
+        "restore": {
+          "type": "ref",
+          "ref": "#contentRestoreConstraints",
+          "description": "Plugin may read and restore trashed content."
+        }
+      }
+    },
+    "contentReadConstraints": {
+      "type": "object",
+      "description": "Constraint object for content.read. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
+    },
+    "contentWriteConstraints": {
+      "type": "object",
+      "description": "Constraint object for content.write. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
+    },
+    "contentPolicyConstraints": {
+      "type": "object",
+      "description": "Constraint object for content.policy. No constraint keys are normatively defined here; the operation grants only registration of synchronous publication policy hooks."
+    },
+    "contentRevisionsReadConstraints": {
+      "type": "object",
+      "description": "Constraint object for content.revisionsRead. No constraint keys are normatively defined here."
+    },
+    "schemaAccess": {
+      "type": "object",
+      "description": "Operations under schema.",
+      "properties": {
+        "read": {
+          "type": "ref",
+          "ref": "#schemaReadConstraints",
+          "description": "Plugin may read public collection and field definitions."
+        }
+      }
+    },
+    "schemaReadConstraints": {
+      "type": "object",
+      "description": "Constraint object for schema.read. No constraint keys are normatively defined here."
+    },
+    "taxonomiesAccess": {
+      "type": "object",
+      "description": "Operations under taxonomies. Read-only: there is no plugin-facing taxonomy write operation.",
+      "properties": {
+        "read": {
+          "type": "ref",
+          "ref": "#taxonomiesReadConstraints",
+          "description": "Plugin may read taxonomy definitions, their terms, and the terms assigned to content entries."
+        }
+      }
+    },
+    "taxonomiesReadConstraints": {
+      "type": "object",
+      "description": "Constraint object for taxonomies.read. No constraint keys are normatively defined here."
+    },
+    "mediaAccess": {
+      "type": "object",
+      "description": "Operations under media.",
+      "properties": {
+        "read": {
+          "type": "ref",
+          "ref": "#mediaReadConstraints",
+          "description": "Plugin may read media metadata and fetch media bytes."
+        },
+        "write": {
+          "type": "ref",
+          "ref": "#mediaWriteConstraints",
+          "description": "Plugin may upload, modify, or delete media. Implies `read`."
+        }
+      }
+    },
+    "mediaReadConstraints": {
+      "type": "object",
+      "description": "Constraint object for media.read. No constraint keys are normatively defined here."
+    },
+    "mediaWriteConstraints": {
+      "type": "object",
+      "description": "Constraint object for media.write. No constraint keys are normatively defined here."
+    },
+    "networkAccess": {
+      "type": "object",
+      "description": "Operations under network.",
+      "properties": {
+        "request": {
+          "type": "ref",
+          "ref": "#networkRequestConstraints",
+          "description": "Plugin may make outbound HTTP requests. Constraints scope the access; an empty object grants unrestricted requests."
+        }
+      }
+    },
+    "networkRequestConstraints": {
+      "type": "object",
+      "description": "Constraint object for network.request. Open shape — additional constraint keys (rate limits, etc.) may be declared and will be surfaced advisorily until normatively defined by a follow-on RFC.",
+      "properties": {
+        "allowedHosts": {
+          "type": "array",
+          "description": "Allow-list of outbound host patterns. Each entry is a hostname pattern with no scheme, path, or port; a leading '*.' wildcard is permitted for subdomains. Field absent means no host restriction; an empty array MUST NOT appear in records.",
+          "minLength": 1,
+          "maxLength": 64,
+          "items": {
+            "type": "string",
+            "maxLength": 256
+          }
+        }
+      }
+    },
+    "emailAccess": {
+      "type": "object",
+      "description": "Operations under email.",
+      "properties": {
+        "send": {
+          "type": "ref",
+          "ref": "#emailSendConstraints",
+          "description": "Plugin may send mail."
+        },
+        "events": {
+          "type": "ref",
+          "ref": "#emailEventsConstraints",
+          "description": "Plugin observes and may mutate every outgoing message (before and/or after send), including mail from the host and other plugins."
+        },
+        "transport": {
+          "type": "ref",
+          "ref": "#emailTransportConstraints",
+          "description": "Plugin becomes the host's mail transport; every message the site sends is delivered through it. Exclusive: installing replaces the current transport."
+        }
+      }
+    },
+    "emailSendConstraints": {
+      "type": "object",
+      "description": "Constraint object for email.send. No constraint keys are normatively defined here; vocabulary for rate limits and recipient allow-lists is reserved for a follow-on RFC."
+    },
+    "emailEventsConstraints": {
+      "type": "object",
+      "description": "Constraint object for email.events. No constraint keys are normatively defined here; phase scoping (beforeSend/afterSend) is reserved for a follow-on RFC and surfaced advisorily until then."
+    },
+    "emailTransportConstraints": {
+      "type": "object",
+      "description": "Constraint object for email.transport. No constraint keys are normatively defined here. Exclusivity is a property of the host extension point: clients treat email.transport as exclusive regardless of record contents."
+    },
+    "pageAccess": {
+      "type": "object",
+      "description": "Operations under page (rendered-output participation).",
+      "properties": {
+        "fragments": {
+          "type": "ref",
+          "ref": "#pageFragmentsConstraints",
+          "description": "Plugin injects script and/or style fragments into rendered pages."
+        }
+      }
+    },
+    "pageFragmentsConstraints": {
+      "type": "object",
+      "description": "Constraint object for page.fragments. No constraint keys are normatively defined here; position/placement scoping is reserved for a follow-on RFC."
+    },
+    "usersAccess": {
+      "type": "object",
+      "description": "Operations under users.",
+      "properties": {
+        "read": {
+          "type": "ref",
+          "ref": "#usersReadConstraints",
+          "description": "Plugin may read site user records."
+        }
+      }
+    },
+    "usersReadConstraints": {
+      "type": "object",
+      "description": "Constraint object for users.read. No constraint keys are normatively defined here."
+    },
+    "contentPublishConstraints": {
+      "type": "object",
+      "description": "Constraint object for content.publish. No constraint keys are normatively defined here."
+    },
+    "contentRestoreConstraints": {
+      "type": "object",
+      "description": "Constraint object for content.restore. No constraint keys are normatively defined here."
+    }
+  }
 }
