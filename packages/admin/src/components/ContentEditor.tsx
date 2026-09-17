@@ -1041,6 +1041,7 @@ export function ContentEditor({
 												entryId={item.id}
 												locale={item.locale ?? entryLocale}
 												isMobile={isBelowLg}
+												disabled={isDirty || isSaving || Boolean(isAutosaving)}
 												onEntryRefresh={onEntryRefresh}
 											/>
 										</fieldset>

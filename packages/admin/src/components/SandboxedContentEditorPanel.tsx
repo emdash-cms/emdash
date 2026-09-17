@@ -20,6 +20,7 @@ interface SandboxedContentEditorPanelProps {
 	collection: string;
 	entryId: string;
 	locale?: string | null;
+	versionToken?: string;
 }
 
 export function SandboxedContentEditorPanel({
@@ -29,6 +30,7 @@ export function SandboxedContentEditorPanel({
 	collection,
 	entryId,
 	locale,
+	versionToken,
 }: SandboxedContentEditorPanelProps) {
 	const { t } = useLingui();
 	const toastManager = Toast.useToastManager();
@@ -39,7 +41,7 @@ export function SandboxedContentEditorPanel({
 	const [blocks, setBlocks] = React.useState<Block[]>([]);
 	const generation = React.useRef(0);
 	const abortController = React.useRef<AbortController | null>(null);
-	const identity = `${pluginId}:${panelId}:${collection}:${entryId}:${locale ?? ""}`;
+	const identity = `${pluginId}:${panelId}:${collection}:${entryId}:${locale ?? ""}:${versionToken ?? ""}`;
 	const identityRef = React.useRef(identity);
 	identityRef.current = identity;
 

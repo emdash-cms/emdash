@@ -127,7 +127,7 @@ Declare saved-entry panels and actions in `emdash-plugin.jsonc`:
 
 Every referenced route must be private. EmDash reloads the saved entry and checks ownership plus the route permission before invoking it. `routeCtx.ui.entry` contains only the canonical collection, ID, locale, and version. The host does not send field values or unsaved editor state.
 
-Panels start collapsed. They receive `panel_load`, then ordinary `block_action` and `form_submit` interactions, and return `BlockResponse`. Actions receive `editor_action` and return an optional toast plus either `refresh: true` or a structured `navigate` target. Action responses cannot request refresh and navigation together.
+Panels start collapsed. They receive `panel_load`, then ordinary `block_action` and `form_submit` interactions, and return `BlockResponse`. Actions are disabled while the editor has unsaved changes. They receive `editor_action` and return an optional toast plus either `refresh: true` or a structured `navigate` target. Action responses cannot request refresh and navigation together.
 
 Use `createPluginRuntimeTestHost().admin` to exercise this boundary with `loadEditorPanel()`, `actEditorPanel()`, `submitEditorPanel()`, and `invokeEditorAction()`.
 
