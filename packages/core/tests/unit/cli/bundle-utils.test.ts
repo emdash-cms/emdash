@@ -103,6 +103,37 @@ describe("extractManifest", () => {
 		]);
 	});
 
+	it("emits raw request and response route metadata", () => {
+		const plugin = mockPlugin({
+			routes: {
+				upload: {
+					handler: vi.fn(),
+					methods: ["POST"],
+					request: {
+						body: "bytes",
+						maxBytes: 4096,
+						headers: ["content-type", "x-upload-token"],
+					},
+					response: "raw",
+				},
+			},
+		});
+
+		const manifest = extractManifest(plugin);
+		expect(manifest.routes).toEqual([
+			{
+				name: "upload",
+				methods: ["POST"],
+				request: {
+					body: "bytes",
+					maxBytes: 4096,
+					headers: ["content-type", "x-upload-token"],
+				},
+				response: "raw",
+			},
+		]);
+	});
+
 	it("strips admin.entry (host-only concern, not in bundles)", () => {
 		const plugin = mockPlugin({
 			admin: {

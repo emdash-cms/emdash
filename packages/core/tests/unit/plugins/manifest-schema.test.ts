@@ -35,9 +35,36 @@ describe("pluginManifestSchema — route entries", () => {
 	it("should accept structured route objects", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
-			routes: [{ name: "webhook", public: true }],
+			routes: [
+				{
+					name: "webhook",
+					public: true,
+					methods: ["POST"],
+					request: {
+						body: "bytes",
+						maxBytes: 4096,
+						headers: ["x-webhook-signature"],
+					},
+					response: "raw",
+				},
+			],
 		});
 		expect(result.success).toBe(true);
+	});
+
+	it.each([
+		{ methods: ["post"] },
+		{ methods: ["POST", "POST"] },
+		{ request: { body: "bytes", maxBytes: 8 * 1024 * 1024 + 1 } },
+		{ request: { body: "none", maxBytes: 1 } },
+		{ request: { body: "text", headers: ["cookie"] } },
+		{ response: "html" },
+	])("rejects unsafe raw route metadata %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "webhook", ...route }],
+		});
+		expect(result.success).toBe(false);
 	});
 
 	it("should accept a mix of strings and objects", () => {
@@ -173,9 +200,20 @@ describe("normalizeManifestRoute", () => {
 	});
 
 	it("should pass through a structured object unchanged", () => {
-		expect(normalizeManifestRoute({ name: "webhook", public: true })).toEqual({
+		expect(
+			normalizeManifestRoute({
+				name: "webhook",
+				public: true,
+				methods: ["POST"],
+				request: { body: "bytes", headers: ["x-signature"] },
+				response: "raw",
+			}),
+		).toEqual({
 			name: "webhook",
 			public: true,
+			methods: ["POST"],
+			request: { body: "bytes", headers: ["x-signature"] },
+			response: "raw",
 		});
 	});
 

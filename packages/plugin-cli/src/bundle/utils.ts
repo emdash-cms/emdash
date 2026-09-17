@@ -12,6 +12,7 @@ import { access, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 
+import { extractManifestRoute } from "@emdash-cms/plugin-types";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
@@ -160,17 +161,7 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 	}
 
 	const routes: Array<ManifestRouteEntry | string> = Object.entries(plugin.routes).map(
-		([name, route]) =>
-			route.public !== undefined ||
-			route.permission !== undefined ||
-			route.cacheControl !== undefined
-				? {
-						name,
-						public: route.public,
-						permission: route.permission,
-						cacheControl: route.cacheControl,
-					}
-				: name,
+		([name, route]) => extractManifestRoute(name, route),
 	);
 	const tools: ManifestMcpTool[] = Object.entries(plugin.mcp?.tools ?? {}).map(([name, tool]) => {
 		if (!MCP_TOOL_NAME_PATTERN.test(name)) throw new Error(`Invalid MCP tool name "${name}"`);
@@ -180,6 +171,9 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		}
 		if (route.public) {
 			throw new Error(`MCP tool "${name}" cannot reference public route "${tool.route}"`);
+		}
+		if (route.response === "raw") {
+			throw new Error(`MCP tool "${name}" cannot reference raw response route "${tool.route}"`);
 		}
 		if (!route.permission) {
 			throw new Error(`MCP route "${tool.route}" must declare a permission`);

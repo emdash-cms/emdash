@@ -252,8 +252,10 @@ export type {
 } from "./object-cache/types.js";
 
 // Plugin system
+export { pluginResponse } from "./plugin-types.js";
 export {
 	definePlugin,
+	definePluginRoute,
 	adaptSandboxEntry,
 	pluginManifestSchema,
 	createHookPipeline,
@@ -335,6 +337,7 @@ export type {
 	MediaUploadEvent,
 	HookResult,
 	PluginRoute,
+	PluginRouteDefinition,
 	RouteContext,
 	PluginAdminConfig,
 	PluginAdminPage,

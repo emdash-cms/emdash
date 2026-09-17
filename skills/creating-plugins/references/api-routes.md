@@ -60,7 +60,21 @@ The published authoring type currently declares `requestMeta` as `unknown`, alth
 
 ## Input sources and validation
 
-The host parses JSON for `POST`, `PUT`, and `PATCH`. It parses the query string for `GET`, `HEAD`, and `DELETE`; repeated keys become arrays. Validate `routeCtx.input` inside the handler.
+Undeclared routes keep the original input contract: the host parses JSON for `POST`, `PUT`, and
+`PATCH`, and parses the query string for `GET`, `HEAD`, and `DELETE`. Repeated query keys become
+arrays. Validate the resulting `unknown` value inside the handler.
+
+Declare `request.body` as `none`, `json`, `text`, `bytes`, or `form-data` to select a parser. Bodies
+are buffered with a 1 MiB default maximum; `maxBytes` can raise the limit to 8 MiB. Use
+`pluginRoute()` from `emdash/plugin` to infer `PluginRouteQuery`, `string`, `Uint8Array`, or
+`PluginFormData` from the mode. JSON remains `unknown` for validation.
+
+Form data accepts multipart and URL-encoded requests. The multipart limits are 100 parts, 1 MiB per
+part, and 255 UTF-8 bytes for a safe filename. The total request must also fit the route body limit.
+
+Declare request header names explicitly in `request.headers`. Only those safe headers reach the
+handler. Credentials, cookies, Cloudflare Access headers, proxy authorization, `Set-Cookie`, and
+the EmDash CSRF header cannot be declared and never cross the sandbox boundary.
 
 The plugin CLI probe currently does not retain a route entry's `input` schema, so do not rely on route-level Zod validation for a built sandboxed plugin. An MCP tool still requires its own Zod input schema.
 
@@ -90,18 +104,23 @@ Caller identity is not gated by `users:read`; it identifies the current authoriz
 
 A public route skips authentication, permission, and token-scope checks. It is internet-facing, so validate input, check the intended HTTP method, and verify webhook signatures or shared tokens where applicable.
 
+Public exposure is reviewed during installation. Adding a public route or changing a private route
+to public requires approval again on update.
+
 ## HTTP methods
 
-The route name selects one handler for every method. Reject unintended methods before side effects:
+The route name selects one handler. Declare `methods` to have the host reject other methods with
+`405 Method Not Allowed` and an `Allow` header before the handler runs:
 
 ```typescript
+methods: ["POST"],
 handler: async (routeCtx, ctx) => {
-	if (routeCtx.request.method !== "POST") {
-		return { ok: false, error: "POST_REQUIRED" };
-	}
 	// Validate input, then mutate.
 },
 ```
+
+Routes without `methods` remain method-agnostic. Check the method inside legacy handlers that mutate
+state, or add a declaration.
 
 ## Results and errors
 
@@ -109,7 +128,17 @@ Return a JSON-serializable value. The HTTP endpoint wraps it in EmDash's `{ succ
 
 Return a stable application-level error object for expected validation and domain failures. Throw only for unexpected failures, and keep exception messages free of credentials, personal data, paths, and stack traces.
 
-Plugin routes do not expose raw or unwrapped HTTP responses. Do not return or throw a `Response` to select status or headers; the host wraps JSON-serializable results in its API envelope. Authentication, authorization, CSRF, and missing-route statuses are assigned before or around dispatch.
+Declare `response: "raw"` for unwrapped responses. The handler must return `pluginResponse()` from
+`emdash/plugin` with a text or `Uint8Array` body. Raw response bodies are buffered up to 8 MiB.
+The response header allowlist is `Accept-Ranges`, `Content-Disposition`, `Content-Encoding`,
+`Content-Language`, `Content-Range`, `Content-Type`, `ETag`, `Last-Modified`, `Location`, and
+`Retry-After`. The host removes other plugin-supplied headers, adds security headers, and applies the
+route-owned cache policy.
+
+Raw routes cannot return active same-origin types, including HTML, JavaScript or ECMAScript, XHTML,
+SVG, XML, CSS, WebAssembly, `multipart/related`, and `multipart/x-mixed-replace`. A raw route also
+cannot back an MCP tool. Do not return or throw a WHATWG `Response`; it is not the portable response
+wire.
 
 ## Public caching
 
@@ -195,6 +224,7 @@ An MCP tool must:
 - use a tool name containing only letters, digits, `_`, or `-`;
 - reference an existing private route;
 - reference a route with an explicit valid `permission`;
+- reference a JSON route, not a route with `response: "raw"`;
 - declare an input Zod schema;
 - set `destructive: true` for deletion, overwrite, publishing, charging, or another difficult-to-reverse action.
 

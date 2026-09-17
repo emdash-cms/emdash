@@ -331,6 +331,12 @@ describe("agent guidance", () => {
 		expect(skill).toContain("createPluginRuntimeTestHost()");
 		expect(skill).toContain("host.http.respond(url, response)");
 		expect(skill).toContain("8 MiB of decoded bytes");
+		expect(skill).toContain("pluginRoute()");
+		expect(skill).toContain('response: "raw"');
+		expect(skill).toContain("pluginResponse()");
+		expect(skill).toContain("Raw routes cannot back MCP tools");
+		expect(skill).toContain("rawBody");
+		expect(skill).toContain("host.actions.routes.request()");
 		expect(skill).toContain("Node/workerd parity opt-in");
 		expect(skill).toContain("@<publisher-handle>/<slug>");
 		expect(skill).toContain("info <handle> <slug> --version <version> --watch");

@@ -1,11 +1,9 @@
 /**
- * `emdash/plugin` — types for authoring sandboxed plugins.
+ * `emdash/plugin` — types and lightweight helpers for authoring sandboxed plugins.
  *
- * This is a **type-only** subpath. The package.json export map only
- * declares a `types` condition, so the bundler erases `import type`
- * statements against this entry and the build never tries to resolve a
- * JavaScript module. That's how a sandboxed plugin can import these
- * types without dragging the `emdash` runtime into its bundle.
+ * Type-only imports erase normally. The value exports are small identity and
+ * response-builder helpers that the plugin CLI bundles into the sandbox
+ * artifact without pulling in the EmDash runtime.
  *
  * Recommended authoring pattern:
  *
@@ -39,6 +37,14 @@
  */
 
 import type { Permission } from "@emdash-cms/auth";
+import type {
+	PluginFormData,
+	PluginRouteBodyMode,
+	PluginRouteMethod,
+	PluginRouteQuery,
+	PluginRouteRequest,
+	PluginRouteResponseMode,
+} from "@emdash-cms/plugin-types";
 import type { ZodType } from "zod";
 
 import type { SandboxHookErrorEnvelope } from "./plugins/sandbox/hook-result.js";
@@ -169,6 +175,51 @@ export interface SandboxedRequest {
 	headers: Record<string, string>;
 }
 
+export type {
+	PluginFormData,
+	PluginFormDataFileEntry,
+	PluginFormDataTextEntry,
+	PluginRouteQuery,
+} from "@emdash-cms/plugin-types";
+
+export type PluginRouteInput<TMode extends PluginRouteBodyMode> = TMode extends "none"
+	? PluginRouteQuery
+	: TMode extends "text"
+		? string
+		: TMode extends "bytes"
+			? Uint8Array
+			: TMode extends "form-data"
+				? PluginFormData
+				: unknown;
+
+export type PluginResponseBody =
+	| { kind: "text"; value: string }
+	| { kind: "bytes"; value: Uint8Array };
+
+export interface PluginResponseInit {
+	status?: number;
+	headers?: HeadersInit;
+	body?: PluginResponseBody | null;
+}
+
+export interface PluginResponse {
+	readonly __emdashPluginResponse: true;
+	readonly status: number;
+	readonly headers: Array<[string, string]>;
+	readonly body: PluginResponseBody | null;
+}
+
+export function pluginResponse(init: PluginResponseInit = {}): PluginResponse {
+	const headers: Array<[string, string]> = [];
+	new Headers(init.headers).forEach((value, name) => headers.push([name, value]));
+	return {
+		__emdashPluginResponse: true,
+		status: init.status ?? 200,
+		headers,
+		body: init.body ?? null,
+	};
+}
+
 /**
  * Context passed to a route handler. Routes get an extra `routeCtx`
  * argument with the call-site input + the originating request, in
@@ -199,10 +250,32 @@ export interface SandboxedRouteContext {
  * Return type is `unknown` because routes serialise their return value
  * to JSON for the caller; authors define their own response shape.
  */
-export type RouteHandler = (
-	routeCtx: SandboxedRouteContext,
-	ctx: PluginContext,
-) => Promise<unknown>;
+export type RouteHandler<TInput = unknown> = {
+	bivarianceHack(
+		routeCtx: Omit<SandboxedRouteContext, "input"> & { input: TInput },
+		ctx: PluginContext,
+	): Promise<unknown>;
+}["bivarianceHack"];
+
+interface RouteConfigBase {
+	public?: boolean;
+	cacheControl?: string;
+	input?: unknown;
+	permission?: Permission;
+	methods?: PluginRouteMethod[];
+	response?: PluginRouteResponseMode;
+}
+
+export type PluginRouteConfig<TMode extends PluginRouteBodyMode> = RouteConfigBase & {
+	request: PluginRouteRequest & { body: TMode };
+	handler: RouteHandler<PluginRouteInput<TMode>>;
+};
+
+export function pluginRoute<TMode extends PluginRouteBodyMode>(
+	config: PluginRouteConfig<TMode>,
+): PluginRouteConfig<TMode> {
+	return config;
+}
 
 /**
  * Route entry — either a bare handler or the config form with
@@ -210,18 +283,10 @@ export type RouteHandler = (
  */
 export type RouteEntry =
 	| RouteHandler
-	| {
+	| (RouteConfigBase & {
 			handler: RouteHandler;
-			public?: boolean;
-			/**
-			 * Cache-Control value for successful GET responses. Only honored on
-			 * routes that are also `public: true` — authenticated responses
-			 * always keep `private, no-store`.
-			 */
-			cacheControl?: string;
-			input?: unknown;
-			permission?: Permission;
-	  };
+			request?: PluginRouteRequest;
+	  });
 
 export interface SandboxedMcpTool {
 	description: string;

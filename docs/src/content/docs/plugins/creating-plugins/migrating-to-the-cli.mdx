@@ -60,7 +60,7 @@ Use `network:request` with a non-empty `allowedHosts` list. Use `network:request
 
 Earlier releases wrapped the plugin's hooks and routes in `definePlugin()` imported from `emdash`, with each handler's parameters annotated by hand.
 
-A sandboxed plugin assigns its definition to a `SandboxedPlugin`-typed constant and exports that constant as default. The type comes from `emdash/plugin`, a type-only entry point that the bundler erases. TypeScript infers each handler's `event` and `ctx` from the hook or route name, so handler parameters need no annotations. The explicit annotation also keeps generated declarations portable under isolated package-manager layouts.
+A sandboxed plugin assigns its definition to a `SandboxedPlugin`-typed constant and exports that constant as default. Import the type from `emdash/plugin` with `import type`; the bundler erases that import. The same subpath also exports the lightweight `pluginRoute()` and `pluginResponse()` runtime helpers. TypeScript infers each handler's `event` and `ctx` from the hook or route name, so handler parameters need no annotations. The explicit annotation also keeps generated declarations portable under isolated package-manager layouts.
 
 #### What should I do?
 
@@ -197,7 +197,7 @@ Use `SandboxedPlugin` from `emdash/plugin` for the same purpose. A sandboxed plu
 
 This affects only authors of a custom `SandboxRunner`, such as `@emdash-cms/cloudflare`. Most plugin authors can skip it.
 
-The author-facing `SandboxedPlugin` type is available only from the type-only `emdash/plugin` entry point. The runtime handle returned by `SandboxRunner.load` is exported from `emdash` as `SandboxedPluginInstance`.
+The author-facing `SandboxedPlugin` type is available from the `emdash/plugin` authoring entry point. The runtime handle returned by `SandboxRunner.load` is exported from `emdash` as `SandboxedPluginInstance`.
 
 #### What should I do?
 

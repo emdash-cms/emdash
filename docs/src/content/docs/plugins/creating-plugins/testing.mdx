@@ -191,7 +191,34 @@ expect(host.http.requests()).toContainEqual(
 
 `respond()` consumes and stores the response bytes immediately, so the later Worker Loader request receives a response created in its own request context. Queue another response for each expected call to the same URL. `clear()` removes queued responses and captured requests.
 
-The runtime host exposes shipped operations only. Capability-specific helpers for translations, publication policy, Block Kit interactions, raw routes, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
+Pass `rawBody` to test a declared `text`, `bytes`, or `form-data` request through the production
+route parser:
+
+```ts title="tests/routes.test.ts"
+const form = new FormData();
+form.append("title", "Quarterly report");
+form.append("attachment", new File([new Uint8Array([0, 255])], "report.bin"));
+
+const admin = await host.fixtures.user({
+	email: "plugin-test@example.com",
+	role: "admin",
+});
+
+const response = await host.actions.routes.request("import", {
+	method: "POST",
+	user: admin,
+	headers: { "X-EmDash-Request": "1" },
+	rawBody: form,
+});
+
+expect(response.ok).toBe(true);
+```
+
+`rawBody` accepts any `BodyInit`, including strings, `Uint8Array`, `URLSearchParams`, and
+`FormData`. The request body is buffered. Use `body` for the legacy JSON path; the test host
+serializes it and sets `Content-Type: application/json`.
+
+The runtime host exposes shipped operations only. Capability-specific helpers for translations, publication policy, Block Kit interactions, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
 
 ## Test boundaries
 

@@ -10,6 +10,7 @@ import {
 	describeCapability,
 	CAPABILITY_LABELS,
 	PluginMcpConsentRequiredError,
+	PluginInstallConsentRequiredError,
 	MarketplaceUpdateEscalationError,
 	MarketplaceUpdateMcpConsentRequiredError,
 } from "../../src/lib/api/marketplace";
@@ -201,6 +202,35 @@ describe("marketplace API client", () => {
 			const error = await installMarketplacePlugin("my-plugin").catch((reason: unknown) => reason);
 			expect(error).toBeInstanceOf(PluginMcpConsentRequiredError);
 			expect((error as PluginMcpConsentRequiredError).tools).toEqual([tool]);
+		});
+
+		it("carries public routes and MCP tools in one install consent error", async () => {
+			const tool = {
+				name: "sync",
+				description: "Sync content",
+				route: "sync",
+				permission: "content:write",
+				destructive: false,
+			};
+			fetchSpy.mockResolvedValue(
+				new Response(
+					JSON.stringify({
+						error: {
+							code: "ROUTE_VISIBILITY_ESCALATION",
+							details: {
+								routeVisibilityChanges: { newlyPublic: ["webhook"] },
+								mcpTools: [tool],
+							},
+						},
+					}),
+					{ status: 409 },
+				),
+			);
+
+			const error = await installMarketplacePlugin("my-plugin").catch((reason: unknown) => reason);
+			expect(error).toBeInstanceOf(PluginInstallConsentRequiredError);
+			expect((error as PluginInstallConsentRequiredError).tools).toEqual([tool]);
+			expect((error as PluginInstallConsentRequiredError).newlyPublicRoutes).toEqual(["webhook"]);
 		});
 	});
 

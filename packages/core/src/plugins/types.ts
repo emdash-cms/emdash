@@ -33,7 +33,12 @@ import {
 	type ManifestRouteEntry,
 	type PluginMcpManifestConfig,
 	type PluginCapability,
+	type PluginFormData,
+	type PluginRouteBodyMode,
+	type PluginRouteQuery,
+	type PluginRouteRequest,
 	type PluginStorageConfig,
+	type RouteOptions,
 	type StorageCollectionConfig,
 } from "@emdash-cms/plugin-types";
 import type { JSX } from "astro/jsx-runtime";
@@ -1341,7 +1346,7 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 /**
  * Route definition
  */
-export interface PluginRoute<TInput = unknown> {
+export interface PluginRoute<TInput = unknown> extends Omit<RouteOptions, "request"> {
 	/** Zod schema for input validation */
 	input?: z.ZodType<TInput>;
 	/**
@@ -1358,9 +1363,28 @@ export interface PluginRoute<TInput = unknown> {
 	 * keep the default `private, no-store`. Errors are never cached.
 	 */
 	cacheControl?: string;
+	/** Bounded request parsing and incoming-header declaration. */
+	request?: PluginRouteRequest;
 	/** Route handler */
-	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
+	handler: { bivarianceHack(ctx: RouteContext<TInput>): Promise<unknown> }["bivarianceHack"];
 }
+
+export type PluginRouteInput<TMode extends PluginRouteBodyMode> = TMode extends "none"
+	? PluginRouteQuery
+	: TMode extends "text"
+		? string
+		: TMode extends "bytes"
+			? Uint8Array
+			: TMode extends "form-data"
+				? PluginFormData
+				: unknown;
+
+export type PluginRouteDefinition<TMode extends PluginRouteBodyMode = PluginRouteBodyMode> = Omit<
+	PluginRoute<PluginRouteInput<TMode>>,
+	"request"
+> & {
+	request: PluginRouteRequest & { body: TMode };
+};
 
 export interface PluginMcpToolDefinition {
 	description: string;

@@ -93,6 +93,7 @@ export interface PluginUpdateInfo {
 export interface InstallPluginOpts {
 	version?: string;
 	confirmMcpTools?: boolean;
+	acknowledgedPublicRoutes?: string[];
 }
 
 export interface PluginMcpConsentTool {
@@ -107,6 +108,17 @@ export class PluginMcpConsentRequiredError extends Error {
 	constructor(readonly tools: PluginMcpConsentTool[]) {
 		super(i18n._(msg`Plugin MCP tools require explicit consent`));
 		this.name = "PluginMcpConsentRequiredError";
+	}
+}
+
+export class PluginInstallConsentRequiredError extends PluginMcpConsentRequiredError {
+	constructor(
+		tools: PluginMcpConsentTool[],
+		readonly newlyPublicRoutes: string[],
+	) {
+		super(tools);
+		this.message = i18n._(msg`Plugin installation requires explicit consent`);
+		this.name = "PluginInstallConsentRequiredError";
 	}
 }
 
@@ -165,6 +177,28 @@ function getMcpConsentTools(body: unknown): PluginMcpConsentTool[] | null {
 	if (!Array.isArray(tools) || tools.length === 0) return null;
 	const valid = tools.filter(isPluginMcpConsentTool);
 	return valid.length > 0 ? valid : null;
+}
+
+function getInstallConsent(body: unknown): PluginInstallConsentRequiredError | null {
+	if (!body || typeof body !== "object") return null;
+	const error = Reflect.get(body, "error");
+	if (!error || typeof error !== "object") return null;
+	const code = Reflect.get(error, "code");
+	if (code !== "MCP_TOOL_CONSENT_REQUIRED" && code !== "ROUTE_VISIBILITY_ESCALATION") {
+		return null;
+	}
+	const details = Reflect.get(error, "details");
+	if (!details || typeof details !== "object") return null;
+	const mcpTools = Reflect.get(details, "mcpTools");
+	const tools = Array.isArray(mcpTools) ? mcpTools.filter(isPluginMcpConsentTool) : [];
+	const routeVisibilityChanges = Reflect.get(details, "routeVisibilityChanges");
+	const newlyPublicRoutes =
+		routeVisibilityChanges && typeof routeVisibilityChanges === "object"
+			? normaliseStringArray(Reflect.get(routeVisibilityChanges, "newlyPublic"))
+			: [];
+	return tools.length > 0 || newlyPublicRoutes.length > 0
+		? new PluginInstallConsentRequiredError(tools, newlyPublicRoutes)
+		: null;
 }
 
 function normaliseStringArray(value: unknown): string[] {
@@ -238,8 +272,8 @@ export interface UpdatePluginOpts {
 	version?: string;
 	/** User has confirmed new capabilities */
 	confirmCapabilityChanges?: boolean;
-	/** User has confirmed newly public routes */
-	confirmRouteVisibilityChanges?: boolean;
+	/** Exact newly public route names reviewed by the user */
+	acknowledgedPublicRoutes?: string[];
 	confirmMcpTools?: boolean;
 }
 
@@ -305,8 +339,8 @@ export async function installMarketplacePlugin(
 			.clone()
 			.json()
 			.catch(() => null);
-		const mcpTools = getMcpConsentTools(body);
-		if (mcpTools) throw new PluginMcpConsentRequiredError(mcpTools);
+		const consent = getInstallConsent(body);
+		if (consent) throw consent;
 		await throwResponseError(response, i18n._(msg`Failed to install plugin`));
 	}
 }

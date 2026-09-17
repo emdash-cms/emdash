@@ -38,6 +38,8 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
+import { extractRouteOptions } from "@emdash-cms/plugin-types";
+
 import type { ResolvedPlugin } from "../bundle/types.js";
 import { fileExists } from "../bundle/utils.js";
 import {
@@ -287,6 +289,7 @@ export async function probeAndAssemble(ctx: ProbeAndAssembleContext): Promise<Re
 			dts: false,
 			platform: "neutral",
 			external: [],
+			noExternal: ["emdash/plugin"],
 			inlineOnly: false,
 			treeshake: true,
 		});
@@ -484,9 +487,8 @@ function assembleHook(entry: ProbedHookEntry, pluginId: string): ResolvedPlugin[
 function assembleRoute(entry: ProbedRouteEntry): ResolvedPlugin["routes"][string] {
 	return {
 		handler: entry.handler,
-		public: entry.public,
-		permission: entry.permission,
-		cacheControl: entry.cacheControl,
+		input: entry.input,
+		...extractRouteOptions(entry),
 	};
 }
 
@@ -518,8 +520,9 @@ export interface RuntimeFiles {
  * stable property-key reads (`default.hooks`, `default.routes`); the
  * runtime build minifies because this output is what runs in the
  * isolate (loader string-embeds it) or is `import`-ed in-process. No
- * `external`, no `alias` — sandboxed plugins must not import from
- * `emdash` at runtime.
+ * Runtime imports from the lightweight `emdash/plugin` authoring subpath are
+ * bundled so helpers such as `pluginResponse()` exist inside the isolate.
+ * Imports from the main `emdash` package remain unsupported.
  */
 export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFiles> {
 	const { entries, outDir, tmpDir, build } = ctx;
@@ -531,13 +534,27 @@ export async function buildRuntime(ctx: BuildRuntimeContext): Promise<RuntimeFil
 			config: false,
 			entry: { plugin: entries.pluginEntry },
 			format: "esm",
-			outExtensions: () => ({ js: ".mjs", dts: ".d.mts" }),
+			outExtensions: () => ({ js: ".mjs" }),
 			outDir: runtimeOutDir,
-			dts: true,
+			dts: false,
 			platform: "neutral",
 			external: [],
+			noExternal: ["emdash/plugin"],
 			inlineOnly: false,
 			minify: true,
+			treeshake: true,
+		});
+		await build({
+			config: false,
+			entry: { plugin: entries.pluginEntry },
+			format: "esm",
+			outExtensions: () => ({ dts: ".d.mts" }),
+			outDir: runtimeOutDir,
+			clean: false,
+			dts: { emitDtsOnly: true },
+			platform: "neutral",
+			external: ["emdash/plugin"],
+			inlineOnly: false,
 			treeshake: true,
 		});
 	} catch (error) {

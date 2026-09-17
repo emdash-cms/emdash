@@ -30,6 +30,8 @@
  * the manifest shape may evolve before the registry phase 1 cutover.
  */
 
+import type { ManifestRouteEntry } from "./routes.js";
+
 // ── Plugin capability vocabulary ─────────────────────────────────────────────
 
 /**
@@ -311,17 +313,36 @@ export interface ManifestHookEntry {
  * Route entry in a plugin manifest. Either a plain route name or a structured
  * entry with the `public` flag set.
  */
-export interface ManifestRouteEntry {
-	name: string;
-	public?: boolean;
-	/** RBAC permission required to invoke this route. */
-	permission?: string;
-	/**
-	 * Cache-Control value for successful GET responses. Only honored on
-	 * routes that are also `public: true`.
-	 */
-	cacheControl?: string;
-}
+export type {
+	ManifestRouteEntry,
+	PluginFormData,
+	PluginFormDataFileEntry,
+	PluginFormDataTextEntry,
+	PluginRouteBodyMode,
+	PluginRouteMethod,
+	PluginRouteQuery,
+	PluginRouteRequest,
+	PluginRouteResponseMode,
+	RouteOptions,
+} from "./routes.js";
+export {
+	extractManifestRoute,
+	extractRouteOptions,
+	manifestRouteEntrySchema,
+	normalizeManifestRoute,
+	PLUGIN_ROUTE_BODY_MODES,
+	PLUGIN_ROUTE_DEFAULT_BODY_BYTES,
+	PLUGIN_ROUTE_MAX_BODY_BYTES,
+	PLUGIN_ROUTE_MAX_DECLARED_HEADERS,
+	PLUGIN_ROUTE_MAX_FILENAME_BYTES,
+	PLUGIN_ROUTE_MAX_MULTIPART_PART_BYTES,
+	PLUGIN_ROUTE_MAX_MULTIPART_PARTS,
+	PLUGIN_ROUTE_METHODS,
+	PLUGIN_ROUTE_RESPONSE_MODES,
+	pluginRouteRequestSchema,
+	routeNameSchema,
+	routeOptionsSchema,
+} from "./routes.js";
 
 /** JSON Schema persisted in plugin manifests for cross-isolate discovery. */
 export type PluginJsonSchema = Record<string, unknown>;
@@ -501,7 +522,6 @@ export {
 	DEPRECATED_PLUGIN_CAPABILITIES,
 	HOOK_NAMES,
 	normalizeManifestHook,
-	normalizeManifestRoute,
 	PLUGIN_CAPABILITIES,
 	pluginManifestSchema,
 	reconcileManifestAccess,

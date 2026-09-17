@@ -10,6 +10,8 @@
  * authoring shape.
  */
 
+import type { PluginRouteBodyMode } from "@emdash-cms/plugin-types";
+
 import { normalizeCapabilities } from "./types.js";
 import type {
 	PluginDefinition,
@@ -19,6 +21,7 @@ import type {
 	ResolvedHook,
 	HookConfig,
 	PluginCapability,
+	PluginRouteDefinition,
 	PluginStorageConfig,
 } from "./types.js";
 
@@ -85,6 +88,12 @@ export function definePlugin<TStorage extends PluginStorageConfig>(
 	return defineNativePlugin(definition);
 }
 
+export function definePluginRoute<TMode extends PluginRouteBodyMode>(
+	route: PluginRouteDefinition<TMode>,
+): PluginRouteDefinition<TMode> {
+	return route;
+}
+
 /**
  * Internal: define a native-format plugin with full validation and normalization.
  */
@@ -142,6 +151,9 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		const route = routes[tool.route];
 		if (!route) throw new Error(`MCP tool "${name}" references unknown route "${tool.route}".`);
 		if (route.public) throw new Error(`MCP tool "${name}" cannot reference a public route.`);
+		if (route.response === "raw") {
+			throw new Error(`MCP tool "${name}" cannot reference a raw response route.`);
+		}
 		if (!route.permission) {
 			throw new Error(`MCP route "${tool.route}" must declare a permission.`);
 		}

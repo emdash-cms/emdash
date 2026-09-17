@@ -442,6 +442,42 @@ describe("adaptSandboxEntry", () => {
 			expect(pluginCtx.storage).toBeDefined();
 		});
 
+		it("applies declared sandbox header restrictions in-process", async () => {
+			const handler = vi.fn().mockResolvedValue({ ok: true });
+			const def: SandboxedPlugin = {
+				routes: {
+					webhook: {
+						request: { body: "bytes", headers: ["x-signature"] },
+						handler,
+					},
+				},
+			};
+			const result = adaptSandboxEntry(def, createDescriptor());
+			await result.routes.webhook.handler({
+				input: new Uint8Array(),
+				request: new Request("http://localhost/webhook", {
+					headers: {
+						authorization: "Bearer secret",
+						"cf-access-authenticated-user-email": "person@example.com",
+						cookie: "session=secret",
+						"x-hidden": "secret",
+						"x-signature": "sha256=test",
+					},
+				}),
+				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				plugin: { id: "test-plugin", version: "1.0.0" },
+				kv: {} as any,
+				storage: {} as any,
+				log: {} as any,
+				site: { name: "", url: "", locale: "en" },
+				url: (path: string) => path,
+			} as any);
+
+			expect(handler.mock.calls[0]?.[0].request.headers).toEqual({
+				"x-signature": "sha256=test",
+			});
+		});
+
 		it("passes the authenticated caller into routeCtx.user, not pluginCtx", async () => {
 			const standardHandler = vi.fn().mockResolvedValue({ ok: true });
 

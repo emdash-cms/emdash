@@ -12,11 +12,19 @@ describe("pluginManifestSchema", () => {
 			storage: {},
 			hooks: [],
 			routes: [
+				"events/json",
 				{
 					name: "events/list",
 					public: true,
 					permission: "content:read",
 					cacheControl: "public, max-age=60",
+					methods: ["POST"],
+					request: {
+						body: "bytes",
+						maxBytes: 4096,
+						headers: ["x-webhook-signature"],
+					},
+					response: "raw",
 				},
 			],
 			mcp: {
@@ -24,7 +32,7 @@ describe("pluginManifestSchema", () => {
 					{
 						name: "listEvents",
 						description: "List calendar events.",
-						route: "events/list",
+						route: "events/json",
 						permission: "content:read",
 						destructive: false,
 						inputSchema: { type: "object" },
@@ -48,11 +56,19 @@ describe("pluginManifestSchema", () => {
 		});
 
 		expect(result.routes).toEqual([
+			"events/json",
 			{
 				name: "events/list",
 				public: true,
 				permission: "content:read",
 				cacheControl: "public, max-age=60",
+				methods: ["POST"],
+				request: {
+					body: "bytes",
+					maxBytes: 4096,
+					headers: ["x-webhook-signature"],
+				},
+				response: "raw",
 			},
 		]);
 		expect(result.mcp?.tools[0]).toMatchObject({
@@ -61,5 +77,27 @@ describe("pluginManifestSchema", () => {
 			outputSchema: { type: "array" },
 		});
 		expect(result.admin.fieldWidgets?.[0]?.name).toBe("event-picker");
+	});
+
+	it.each([
+		{ methods: ["post"] },
+		{ methods: ["POST", "POST"] },
+		{ request: { body: "bytes", maxBytes: 8 * 1024 * 1024 + 1 } },
+		{ request: { body: "none", maxBytes: 1 } },
+		{ request: { body: "text", headers: ["authorization"] } },
+		{ request: { body: "text", headers: ["cf-access-authenticated-user-email"] } },
+		{ request: { body: "text", headers: ["cf-access-token"] } },
+	])("rejects an unsafe raw-route declaration %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			id: "calendar",
+			version: "1.0.0",
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			hooks: [],
+			routes: [{ name: "webhook", ...route }],
+			admin: {},
+		});
+		expect(result.success).toBe(false);
 	});
 });

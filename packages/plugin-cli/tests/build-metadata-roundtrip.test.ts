@@ -51,7 +51,15 @@ describe("plugin build metadata round trip", () => {
 			`export default {
 				hooks: { "content:afterSave": async () => undefined },
 				routes: {
-					feed: { public: true, cacheControl: "public, max-age=60", handler: async () => [] },
+					feed: {
+						methods: ["POST"],
+						request: { body: "form-data", maxBytes: 4096, headers: ["content-type", "x-signature"] },
+						response: "raw",
+						public: true,
+						cacheControl: "public, max-age=60",
+						handler: async () => []
+					},
+					legacy: async () => ({ ok: true }),
 					manage: { permission: "content:edit_any", handler: async () => ({ ok: true }) }
 				},
 				mcp: { tools: { manageCalendar: {
@@ -72,9 +80,17 @@ describe("plugin build metadata round trip", () => {
 
 		expect(persistedManifest.routes).toContainEqual({
 			name: "feed",
+			methods: ["POST"],
+			request: {
+				body: "form-data",
+				maxBytes: 4096,
+				headers: ["content-type", "x-signature"],
+			},
+			response: "raw",
 			public: true,
 			cacheControl: "public, max-age=60",
 		});
+		expect(persistedManifest.routes).toContain("legacy");
 		expect(persistedManifest.mcp.tools[0]).toMatchObject({
 			name: "manageCalendar",
 			permission: "content:edit_any",

@@ -355,8 +355,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 			updateMutation.mutate({
 				version: marketplaceReviewedVersion,
 				confirmCapabilityChanges: (marketplaceEscalation?.capabilityChanges.added.length ?? 0) > 0,
-				confirmRouteVisibilityChanges:
-					(marketplaceEscalation?.routeVisibilityChanges?.newlyPublic.length ?? 0) > 0,
+				acknowledgedPublicRoutes: marketplaceEscalation?.routeVisibilityChanges?.newlyPublic ?? [],
 				confirmMcpTools: mcpUpdateTools.length > 0,
 			});
 		}

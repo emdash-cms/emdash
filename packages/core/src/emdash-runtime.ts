@@ -203,6 +203,7 @@ import {
 import { disableRuntimePlugin, enableRuntimePlugin } from "./plugins/lifecycle.js";
 import { HOOK_NAMES, normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
+import { PluginRouteRequestError } from "./plugins/route-wire.js";
 import {
 	buildRouteMeta,
 	parseRouteInput,
@@ -3921,7 +3922,7 @@ export class EmDashRuntime {
 
 	async handlePluginApiRoute(
 		pluginId: string,
-		_method: string,
+		method: string,
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
@@ -3930,6 +3931,15 @@ export class EmDashRuntime {
 			return {
 				success: false,
 				error: { code: "NOT_FOUND", message: `Plugin not enabled: ${pluginId}` },
+			};
+		}
+		const normalizedMethod = method.toUpperCase();
+		const routeMeta = this.getPluginRouteMeta(pluginId, path);
+		if (routeMeta?.methods && !routeMeta.methods.some((allowed) => allowed === normalizedMethod)) {
+			return {
+				success: false,
+				status: 405,
+				error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" },
 			};
 		}
 
@@ -3952,8 +3962,19 @@ export class EmDashRuntime {
 
 			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
 
-			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-			const body = await parseRouteInput(request);
+			let body: unknown;
+			try {
+				body = await parseRouteInput(request, trustedPlugin.routes[routeKey]?.request);
+			} catch (error) {
+				if (error instanceof PluginRouteRequestError) {
+					return {
+						success: false,
+						status: error.status,
+						error: { code: "INVALID_PLUGIN_REQUEST", message: error.message },
+					};
+				}
+				throw error;
+			}
 
 			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
 		}
@@ -3961,7 +3982,13 @@ export class EmDashRuntime {
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
+			return this.handleSandboxedRoute(
+				sandboxedPlugin,
+				path,
+				request,
+				routeMeta ?? { public: false },
+				caller,
+			);
 		}
 
 		return {
@@ -3987,7 +4014,13 @@ export class EmDashRuntime {
 			if (pluginId && plugin.id !== pluginId) continue;
 			for (const [name, tool] of Object.entries(plugin.mcp?.tools ?? {})) {
 				const route = plugin.routes[tool.route];
-				if (!route || route.public || !route.permission || !(route.permission in Permissions))
+				if (
+					!route ||
+					route.public ||
+					route.response === "raw" ||
+					!route.permission ||
+					!(route.permission in Permissions)
+				)
 					continue;
 				const key = `${plugin.id}__${name}`;
 				if (seen.has(key)) continue;
@@ -4014,6 +4047,7 @@ export class EmDashRuntime {
 					seen.has(key) ||
 					!routeMeta ||
 					routeMeta.public ||
+					routeMeta.response === "raw" ||
 					routeMeta.permission !== tool.permission ||
 					!(tool.permission in Permissions)
 				) {
@@ -4329,6 +4363,7 @@ export class EmDashRuntime {
 		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
+		routeMeta: RouteMeta,
 		user?: UserInfo,
 	): Promise<{
 		success: boolean;
@@ -4338,11 +4373,10 @@ export class EmDashRuntime {
 	}> {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
 
-		// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-		const body = await parseRouteInput(request);
-
 		try {
-			const headers = sanitizeHeadersForSandbox(request.headers);
+			const body = await parseRouteInput(request, routeMeta.request);
+			const declaredHeaders = routeMeta.request ? (routeMeta.request.headers ?? []) : undefined;
+			const headers = sanitizeHeadersForSandbox(request.headers, declaredHeaders);
 			const meta = extractRequestMeta(request, this.config);
 			const result = await plugin.invokeRoute(routeName, body, {
 				url: request.url,
@@ -4353,6 +4387,13 @@ export class EmDashRuntime {
 			});
 			return { success: true, data: result };
 		} catch (error) {
+			if (error instanceof PluginRouteRequestError) {
+				return {
+					success: false,
+					status: error.status,
+					error: { code: "INVALID_PLUGIN_REQUEST", message: error.message },
+				};
+			}
 			console.error(`EmDash: Sandboxed plugin route error:`, error);
 			const sandboxRouteError = getSandboxRouteErrorDetails(error);
 			if (sandboxRouteError) {
