@@ -164,7 +164,7 @@ export function createContentAccess(
 						const { authorId: _authorId, ...safeRevision } = revision;
 						return safeRevision;
 					},
-			  }
+				}
 			: {}),
 	};
 }
