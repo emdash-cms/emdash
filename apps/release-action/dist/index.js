@@ -1119,7 +1119,9 @@ const sbomSchema = _sbomSchema;
 var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	contentAccessSchema: () => contentAccessSchema,
 	contentPolicyConstraintsSchema: () => contentPolicyConstraintsSchema,
+	contentPublishConstraintsSchema: () => contentPublishConstraintsSchema,
 	contentReadConstraintsSchema: () => contentReadConstraintsSchema,
+	contentRestoreConstraintsSchema: () => contentRestoreConstraintsSchema,
 	contentWriteConstraintsSchema: () => contentWriteConstraintsSchema,
 	declaredAccessSchema: () => declaredAccessSchema$1,
 	emailAccessSchema: () => emailAccessSchema,
@@ -1145,15 +1147,23 @@ const _contentAccessSchema = /* @__PURE__ */ object$1({
 	get policy() {
 		return /* @__PURE__ */ optional$1(contentPolicyConstraintsSchema);
 	},
+	get publish() {
+		return /* @__PURE__ */ optional$1(contentPublishConstraintsSchema);
+	},
 	get read() {
 		return /* @__PURE__ */ optional$1(contentReadConstraintsSchema);
+	},
+	get restore() {
+		return /* @__PURE__ */ optional$1(contentRestoreConstraintsSchema);
 	},
 	get write() {
 		return /* @__PURE__ */ optional$1(contentWriteConstraintsSchema);
 	}
 });
 const _contentPolicyConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentPolicyConstraints")) });
+const _contentPublishConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentPublishConstraints")) });
 const _contentReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentReadConstraints")) });
+const _contentRestoreConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentRestoreConstraints")) });
 const _contentWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentWriteConstraints")) });
 const _declaredAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#declaredAccess")),
@@ -1255,7 +1265,9 @@ const _usersAccessSchema = /* @__PURE__ */ object$1({
 const _usersReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#usersReadConstraints")) });
 const contentAccessSchema = _contentAccessSchema;
 const contentPolicyConstraintsSchema = _contentPolicyConstraintsSchema;
+const contentPublishConstraintsSchema = _contentPublishConstraintsSchema;
 const contentReadConstraintsSchema = _contentReadConstraintsSchema;
+const contentRestoreConstraintsSchema = _contentRestoreConstraintsSchema;
 const contentWriteConstraintsSchema = _contentWriteConstraintsSchema;
 const declaredAccessSchema$1 = _declaredAccessSchema;
 const emailAccessSchema = _emailAccessSchema;
@@ -7792,6 +7804,8 @@ const CURRENT_PLUGIN_CAPABILITIES = [
 	"network:request:unrestricted",
 	"content:read",
 	"content:write",
+	"content:publish",
+	"content:restore",
 	"hooks.content-policy:register",
 	"taxonomies:read",
 	"media:read",
@@ -8011,6 +8025,8 @@ const declaredAccessSchema = object({
 	content: object({
 		read: accessConstraints.optional(),
 		write: accessConstraints.optional(),
+		publish: accessConstraints.optional(),
+		restore: accessConstraints.optional(),
 		policy: accessConstraints.optional()
 	}).optional(),
 	taxonomies: object({ read: accessConstraints.optional() }).optional(),
@@ -8120,10 +8136,12 @@ function normalizeCapability(cap) {
 function capabilitiesToDeclaredAccess(capabilities, allowedHosts) {
 	const caps = new Set(capabilities.map((c) => normalizeCapability(c)));
 	const out = {};
-	if (caps.has("content:read") || caps.has("content:write")) {
+	if (caps.has("content:read") || caps.has("content:write") || caps.has("content:publish")) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
+	if (caps.has("content:publish")) (out.content ??= {}).publish = {};
+	if (caps.has("content:restore")) (out.content ??= {}).restore = {};
 	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
 	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
 	if (caps.has("media:read") || caps.has("media:write")) {
@@ -8155,6 +8173,11 @@ function declaredAccessToCapabilities(declaredAccess) {
 		caps.add("content:read");
 	}
 	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
+	if (declaredAccess.content?.publish) {
+		caps.add("content:publish");
+		caps.add("content:read");
+	}
+	if (declaredAccess.content?.restore) caps.add("content:restore");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.media?.read) caps.add("media:read");
 	if (declaredAccess.media?.write) {
