@@ -40,37 +40,68 @@ describeEachDialect("translation_group index replacement for long collection slu
 		await teardownForDialect(ctx);
 	});
 
-	it("leaves the table with both composite indexes, not with one or none", async () => {
+	it("keeps both lookup indexes and the active-locale uniqueness index distinct", async () => {
 		await migration055.up(ctx.db);
 
-		const covering = (await translationIndexColumns())
-			.filter((columns) => columns.includes("translation_group"))
-			.toSorted();
-		expect(covering).toEqual([
-			"deleted_at, translation_group, locale",
-			"translation_group, locale",
-		]);
+		const covering = (await translationIndexes()).filter((index) =>
+			index.columns.includes("translation_group"),
+		);
+		expect(covering).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					name: expectedName(`idx_${TABLE_NAME}_tg_locale`),
+					columns: "translation_group, locale",
+					unique: false,
+				}),
+				expect.objectContaining({
+					name: expectedName(`idx_${TABLE_NAME}_del_tg_locale`),
+					columns: "deleted_at, translation_group, locale",
+					unique: false,
+				}),
+				expect.objectContaining({
+					name: expectedName(`uidx_${TABLE_NAME}_active_tg_locale`),
+					columns: "translation_group, lower(locale)",
+					unique: true,
+				}),
+			]),
+		);
+		expect(covering).toHaveLength(3);
 	});
 
-	async function translationIndexColumns(): Promise<string[]> {
+	function expectedName(name: string): string {
+		return ctx.dialect === "postgres" ? name.slice(0, 63) : name;
+	}
+
+	async function translationIndexes(): Promise<
+		Array<{ name: string; columns: string; unique: boolean }>
+	> {
 		if (ctx.dialect === "postgres") {
-			const result = await sql<{ indexdef: string }>`
-				SELECT indexdef FROM pg_indexes
+			const result = await sql<{ indexname: string; indexdef: string }>`
+				SELECT indexname, indexdef FROM pg_indexes
 				WHERE schemaname = current_schema() AND tablename = ${TABLE_NAME}
 			`.execute(ctx.db);
-			return result.rows.map((row) => columnList(row.indexdef));
+			return result.rows.map((row) => ({
+				name: row.indexname,
+				columns: columnList(row.indexdef),
+				unique: row.indexdef.startsWith("CREATE UNIQUE INDEX"),
+			}));
 		}
 
-		const result = await sql<{ sql: string | null }>`
-			SELECT sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ${TABLE_NAME}
+		const result = await sql<{ name: string; sql: string | null }>`
+			SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name = ${TABLE_NAME}
 		`.execute(ctx.db);
-		return result.rows.map((row) => columnList(row.sql ?? ""));
+		return result.rows.map((row) => ({
+			name: row.name,
+			columns: columnList(row.sql ?? ""),
+			unique: row.sql?.startsWith("CREATE UNIQUE INDEX") ?? false,
+		}));
 	}
 });
 
 function columnList(definition: string): string {
-	const open = definition.lastIndexOf("(");
-	const close = definition.lastIndexOf(")");
+	const open = definition.indexOf("(", definition.indexOf(" ON "));
+	const predicate = definition.indexOf(") WHERE", open);
+	const close = predicate === -1 ? definition.lastIndexOf(")") : predicate;
 	if (open === -1 || close < open) return "";
 	return definition
 		.slice(open + 1, close)

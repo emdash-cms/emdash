@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { listTablesLike } from "../dialect-helpers.js";
+import { indexExists, isPostgres, listTablesLike } from "../dialect-helpers.js";
 
 const DUPLICATE_GROUP_BATCH_SIZE = 50;
 
@@ -67,9 +67,12 @@ async function splitDuplicateLocales(db: Kysely<unknown>, tableName: string): Pr
 
 export async function up(db: Kysely<unknown>): Promise<void> {
 	for (const tableName of await listTablesLike(db, "ec_%")) {
+		const indexName = `uidx_${tableName}_active_tg_locale`;
+		const storedIndexName = isPostgres(db) ? indexName.slice(0, 63) : indexName;
+		if (await indexExists(db, storedIndexName)) continue;
 		await splitDuplicateLocales(db, tableName);
 		await sql`
-			CREATE UNIQUE INDEX IF NOT EXISTS ${sql.ref(`uidx_${tableName}_active_tg_locale`)}
+			CREATE UNIQUE INDEX IF NOT EXISTS ${sql.ref(indexName)}
 			ON ${sql.ref(tableName)} (translation_group, lower(locale))
 			WHERE deleted_at IS NULL AND translation_group IS NOT NULL
 		`.execute(db);
