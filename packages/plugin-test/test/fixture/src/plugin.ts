@@ -61,6 +61,31 @@ const plugin: SandboxedPlugin = {
 			const reason = await ctx.kv.get("policy:content:beforeUnpublish");
 			return typeof reason === "string" ? { cancel: true, reason } : undefined;
 		},
+		"content:afterPublish": async (event, ctx) =>
+			record(ctx, "events", "content-action", {
+				action: "publish",
+				contentId: event.content.id,
+			}),
+		"content:afterUnpublish": async (event, ctx) =>
+			record(ctx, "events", "content-action", {
+				action: "unpublish",
+				contentId: event.content.id,
+			}),
+		"content:afterSchedule": async (event, ctx) =>
+			record(ctx, "events", "content-action", {
+				action: "schedule",
+				contentId: event.content.id,
+			}),
+		"content:afterUnschedule": async (event, ctx) =>
+			record(ctx, "events", "content-action", {
+				action: "unschedule",
+				contentId: event.content.id,
+			}),
+		"content:afterRestore": async (event, ctx) =>
+			record(ctx, "events", "content-action", {
+				action: "restore",
+				contentId: event.content.id,
+			}),
 		"media:beforeUpload": async (event) => ({
 			...event.file,
 			name: `checked-${event.file.name}`,
@@ -104,6 +129,47 @@ const plugin: SandboxedPlugin = {
 			handler: async (_route, ctx) => {
 				const result = await ctx.content!.list("posts");
 				return { count: result.items.length };
+			},
+		},
+		"content-action": {
+			handler: async (route, ctx) => {
+				if (typeof route.input !== "object" || route.input === null) {
+					throw new Error("Expected content action input");
+				}
+				const input = route.input as Record<string, unknown>;
+				const action = input.action;
+				const collection = input.collection;
+				const id = input.id;
+				if (
+					typeof action !== "string" ||
+					typeof collection !== "string" ||
+					typeof id !== "string"
+				) {
+					throw new Error("Expected action, collection, and id");
+				}
+				if (action === "getTrashedVersioned") {
+					return ctx.content!.getTrashedVersioned!(collection, id);
+				}
+				if (action === "getVersioned") return ctx.content!.getVersioned!(collection, id);
+				if (typeof input._rev !== "string") throw new Error("Expected _rev");
+				if (action === "publish")
+					return ctx.content!.publish!(collection, id, { _rev: input._rev });
+				if (action === "unpublish") {
+					return ctx.content!.unpublish!(collection, id, { _rev: input._rev });
+				}
+				if (action === "schedule") {
+					if (typeof input.scheduledAt !== "string") throw new Error("Expected scheduledAt");
+					return ctx.content!.schedule!(collection, id, {
+						scheduledAt: input.scheduledAt,
+						_rev: input._rev,
+					});
+				}
+				if (action === "unschedule") {
+					return ctx.content!.unschedule!(collection, id, { _rev: input._rev });
+				}
+				if (action === "restore")
+					return ctx.content!.restore!(collection, id, { _rev: input._rev });
+				throw new Error(`Unknown content action: ${action}`);
 			},
 		},
 		"settings-value": {
