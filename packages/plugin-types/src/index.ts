@@ -48,6 +48,7 @@ export type PluginCapability =
 	// Content
 	| "content:read"
 	| "content:write"
+	| "hooks.content-policy:register"
 	// Taxonomies (read-only; there is no plugin-facing taxonomy write API)
 	| "taxonomies:read"
 	// Media
@@ -182,7 +183,11 @@ export type AccessConstraints = Record<string, unknown>;
  * {@link capabilitiesToDeclaredAccess} / {@link declaredAccessToCapabilities}.
  */
 export interface DeclaredAccess {
-	content?: { read?: AccessConstraints; write?: AccessConstraints };
+	content?: {
+		read?: AccessConstraints;
+		write?: AccessConstraints;
+		policy?: AccessConstraints;
+	};
 	taxonomies?: { read?: AccessConstraints };
 	media?: { read?: AccessConstraints; write?: AccessConstraints };
 	network?: { request?: { allowedHosts?: string[] } };
@@ -216,6 +221,7 @@ export function capabilitiesToDeclaredAccess(
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
+	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
 	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
@@ -259,6 +265,7 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 		caps.add("content:write");
 		caps.add("content:read");
 	}
+	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.media?.read) caps.add("media:read");
 	if (declaredAccess.media?.write) {

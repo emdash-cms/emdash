@@ -46,6 +46,15 @@ export { CronAccessImpl } from "./cron.js";
 export { HookPipeline, createHookPipeline } from "./hooks.js";
 export type { HookResult } from "./hooks.js";
 export { ContentSaveRejectedError, isContentSaveRejection } from "./save-rejection.js";
+export {
+	SCHEDULED_POLICY_REJECTION_PREFIX,
+	isScheduledPolicyRejection,
+	scheduledPolicyRejectionKey,
+} from "./content-policy.js";
+export type {
+	ScheduledPolicyRejection,
+	VersionedScheduledPolicyRejection,
+} from "./content-policy.js";
 
 // Email pipeline
 export { EmailPipeline, EmailNotConfiguredError, EmailRecursionError } from "./email.js";
@@ -156,7 +165,11 @@ export type {
 	ResolvedHook,
 	ResolvedPluginHooks,
 	ActorInfo,
+	ContentActionOrigin,
 	ContentHookEvent,
+	ContentPolicyDecision,
+	ContentPolicyEvent,
+	ContentSchedulePolicyEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,
 	ContentRestoreStateChangeEvent,
@@ -182,6 +195,9 @@ export type {
 	ContentAfterSaveHandler,
 	ContentBeforeDeleteHandler,
 	ContentAfterDeleteHandler,
+	ContentBeforePublishHandler,
+	ContentBeforeScheduleHandler,
+	ContentBeforeUnpublishHandler,
 	ContentAfterRestoreHandler,
 	ContentAfterScheduleHandler,
 	ContentAfterUnscheduleHandler,

@@ -266,6 +266,151 @@ describe("runtime plugin test host", () => {
 		await expect(runtimeHost.inspect.scheduledTasks()).resolves.toHaveLength(1);
 	});
 
+	it("enforces publication policy through Worker Loader for every action origin", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			routable: true,
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const editor = await runtimeHost.fixtures.user({
+			email: "policy-editor@example.com",
+			role: "editor",
+		});
+		const content = await runtimeHost.fixtures.content("posts", {
+			slug: "policy-post",
+			data: { title: "Policy post" },
+		});
+
+		const origins = [
+			{ origin: { source: "api" as const }, actor: { id: editor.id, role: editor.role } },
+			{ origin: { source: "mcp" as const }, actor: { id: editor.id, role: editor.role } },
+			{
+				origin: { source: "visual-editor" as const },
+				actor: { id: editor.id, role: editor.role },
+			},
+			{ origin: { source: "plugin" as const, pluginId: "review-cycle" } },
+			{ origin: { source: "system" as const } },
+		];
+		let revision: string | undefined;
+		for (const action of origins) {
+			const result = await runtimeHost.actions.content.publish("posts", content.id, {
+				_rev: revision,
+				...action,
+			});
+			if (!result.success) throw new Error(result.error.message);
+			revision = result.data._rev;
+		}
+
+		const beforeStale = await runtimeHost.inspect.storage.list("events");
+		await expect(
+			runtimeHost.actions.content.publish("posts", content.id, {
+				_rev: "stale-revision",
+				origin: { source: "api" },
+				actor: { id: editor.id, role: editor.role },
+			}),
+		).resolves.toMatchObject({ success: false, error: { code: "CONFLICT" } });
+		expect(await runtimeHost.inspect.storage.list("events")).toHaveLength(beforeStale.length);
+
+		await runtimeHost.fixtures.plugin.kv(
+			"policy:content:beforeUnpublish",
+			"Legal approval is required.",
+		);
+		await expect(
+			runtimeHost.actions.content.unpublish("posts", content.id, {
+				_rev: revision,
+				origin: { source: "mcp" },
+				actor: { id: editor.id, role: editor.role },
+			}),
+		).resolves.toMatchObject({
+			success: false,
+			error: { code: "UNPUBLISH_REJECTED", message: "Legal approval is required." },
+		});
+		await expect(runtimeHost.inspect.content.get("posts", content.id)).resolves.toMatchObject({
+			status: "published",
+		});
+
+		const scheduledContent = await runtimeHost.fixtures.content("posts", {
+			slug: "scheduled-policy-post",
+			data: { title: "Scheduled policy post" },
+		});
+		const due = "2030-01-02T03:04:05.000Z";
+		const scheduled = await runtimeHost.actions.content.schedule(
+			"posts",
+			scheduledContent.id,
+			due,
+			{ origin: { source: "system" } },
+		);
+		if (!scheduled.success) throw new Error(scheduled.error.message);
+		await runtimeHost.fixtures.plugin.kv(
+			"policy:content:beforePublish",
+			"A reviewer must approve this entry.",
+		);
+		runtimeHost.scheduled.setTime("2030-01-02T03:04:06.000Z");
+		await expect(runtimeHost.scheduled.run()).resolves.toMatchObject({ published: [] });
+		await expect(
+			runtimeHost.inspect.content.get("posts", scheduledContent.id),
+		).resolves.toMatchObject({ status: "draft", scheduledAt: null });
+		await expect(runtimeHost.inspect.scheduledPolicyRejections()).resolves.toContainEqual(
+			expect.objectContaining({
+				collection: "posts",
+				id: scheduledContent.id,
+				pluginId: runtimeHost.manifest.id,
+				reason: "A reviewer must approve this entry.",
+			}),
+		);
+		await runtimeHost.fixtures.plugin.kv("policy:content:beforePublish", null);
+		const rescheduled = await runtimeHost.actions.content.schedule(
+			"posts",
+			scheduledContent.id,
+			"2031-01-01T00:00:00.000Z",
+			{ origin: { source: "api" }, actor: { id: editor.id, role: editor.role } },
+		);
+		if (!rescheduled.success) throw new Error(rescheduled.error.message);
+		await expect(runtimeHost.inspect.scheduledPolicyRejections()).resolves.toEqual([]);
+
+		const retryableContent = await runtimeHost.fixtures.content("posts", {
+			slug: "retryable-policy-post",
+			data: { title: "Retryable policy post" },
+		});
+		const retryable = await runtimeHost.actions.content.schedule(
+			"posts",
+			retryableContent.id,
+			"2030-01-03T03:04:05.000Z",
+			{ origin: { source: "system" } },
+		);
+		if (!retryable.success) throw new Error(retryable.error.message);
+		await runtimeHost.fixtures.plugin.kv("policy:content:beforePublish", "__invalid__");
+		runtimeHost.scheduled.setTime("2030-01-03T03:04:06.000Z");
+		await expect(runtimeHost.scheduled.run()).resolves.toMatchObject({ published: [] });
+		await expect(
+			runtimeHost.inspect.content.get("posts", retryableContent.id),
+		).resolves.toMatchObject({
+			status: "scheduled",
+			scheduledAt: "2030-01-03T03:04:05.000Z",
+		});
+
+		const policyEvents = (await runtimeHost.inspect.storage.list("events"))
+			.map(
+				(entry) =>
+					entry.data as {
+						type: string;
+						hook?: string;
+						origin?: { source: string };
+						actor?: { source?: string };
+					},
+			)
+			.filter((entry) => entry.type === "content-policy");
+		expect(policyEvents.map((event) => event.origin?.source)).toEqual(
+			expect.arrayContaining(["api", "mcp", "visual-editor", "plugin", "scheduler", "system"]),
+		);
+		expect(
+			policyEvents.find((event) => event.origin?.source === "visual-editor")?.actor,
+		).toMatchObject({ source: "visual-editor" });
+		expect(policyEvents.find((event) => event.origin?.source === "plugin")?.actor).toBeUndefined();
+	});
+
 	it("runs public comment policy and follows every content-list cursor", async () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		await runtimeHost.fixtures.collection({

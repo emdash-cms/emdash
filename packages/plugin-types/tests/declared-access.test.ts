@@ -279,6 +279,22 @@ describe("unknown constraints", () => {
 });
 
 describe("structured diff", () => {
+	it("treats publication policy as a separate consent escalation", () => {
+		const diff = diffDeclaredAccess(
+			{ content: { read: {} } },
+			{ content: { read: {}, policy: {} } },
+		);
+
+		expect(diff.escalation).toBe(true);
+		expect(diff.changes).toContainEqual(
+			expect.objectContaining({
+				kind: "operation-added",
+				path: ["content", "policy"],
+				escalation: true,
+			}),
+		);
+	});
+
 	it("has deterministic ordering, machine-readable paths, and no display strings", () => {
 		const diff = diffDeclaredAccess(
 			{ users: { read: { z: 1 } }, email: { send: {} } },

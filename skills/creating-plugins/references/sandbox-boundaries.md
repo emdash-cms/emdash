@@ -22,11 +22,11 @@ The sandbox authoring type and manifest schema accept `page:fragments`, and the 
 
 The following surfaces do not exist in the current sandbox contract. Do not invent bridge calls, use internal REST routes as substitutes, or claim registry portability for them.
 
-### Content lifecycle and policy
+### Content lifecycle
 
 - `ctx.content` has `get`, `list`, `create`, `update`, and `delete`. It has no publish, unpublish, schedule, unschedule, trash, or restore methods.
-- Content hooks observe saves, deletes, and completed publication-state changes. There are no pre-publish, pre-unpublish, pre-schedule, or pre-restore policy hooks that can approve, reject, or transform those operations.
-- Content save events may include `actor: { id, role }`, but they do not include the actor's origin. A hook cannot distinguish REST, visual editing, MCP, or another authenticated path from the actor snapshot.
+- `hooks.content-policy:register` provides synchronous `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` hooks. It does not add publication methods to `ctx.content`.
+- Publication policy events identify API, MCP, visual-editor, plugin, scheduler, and system origins. Authenticated human actions also include `actor: { id, role, source }`.
 - `ctx.content.create()` accepts a locale but not `translationOf`. `ctx.content` has no translation discovery API.
 
 ### Schema, taxonomies, and redirects

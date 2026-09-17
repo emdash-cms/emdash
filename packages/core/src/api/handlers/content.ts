@@ -16,6 +16,7 @@ import {
 	type ContentRevisionPrecondition,
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
+import { OptionsRepository } from "../../database/repositories/options.js";
 import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -40,6 +41,10 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
+import {
+	scheduledPolicyRejectionKey,
+	type ScheduledPolicyRejection,
+} from "../../plugins/content-policy.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
@@ -1539,8 +1544,10 @@ export async function handleContentSchedule(
 	id: string,
 	scheduledAt: string,
 	currentTime: Date = new Date(),
+	_rev?: string,
 ): Promise<ApiResult<ContentResponse>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(_rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const existing = await repo.findByIdOrSlug(collection, id);
@@ -1549,7 +1556,7 @@ export async function handleContentSchedule(
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
 				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
 			}
-			return repo.schedule(collection, resolvedId, scheduledAt, currentTime);
+			return repo.schedule(collection, resolvedId, scheduledAt, currentTime, expectedRevision);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1560,6 +1567,12 @@ export async function handleContentSchedule(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,
@@ -1587,12 +1600,14 @@ export async function handleContentUnschedule(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	options: { _rev?: string } = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			return repo.unschedule(collection, resolvedId);
+			return repo.unschedule(collection, resolvedId, expectedRevision);
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);
@@ -1603,6 +1618,12 @@ export async function handleContentUnschedule(
 			data: { item, _rev: encodeRev(item) },
 		};
 	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
 		if (error instanceof EmDashValidationError) {
 			return {
 				success: false,
@@ -1618,6 +1639,56 @@ export async function handleContentUnschedule(
 			error: {
 				code: "CONTENT_UNSCHEDULE_ERROR",
 				message: "Failed to unschedule content",
+			},
+		};
+	}
+}
+
+/**
+ * Unschedule a permanently policy-rejected publication and persist the
+ * operator-facing reason in the same transaction.
+ */
+export async function handleScheduledPolicyRejection(
+	db: Kysely<Database>,
+	collection: string,
+	id: string,
+	options: { _rev: string; rejection: ScheduledPolicyRejection },
+): Promise<ApiResult<ContentResponse>> {
+	try {
+		const expectedRevision = decodeRevisionPrecondition(options._rev);
+		const item = await withTransaction(db, async (trx) => {
+			const repo = new ContentRepository(trx);
+			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
+			const updated = await repo.unschedule(collection, resolvedId, expectedRevision);
+			await new OptionsRepository(trx).set(scheduledPolicyRejectionKey(collection, resolvedId), {
+				...options.rejection,
+				id: resolvedId,
+			});
+			return updated;
+		});
+
+		const hasSeo = await collectionHasSeo(db, collection);
+		await hydrateSeo(db, collection, item, hasSeo);
+		return { success: true, data: { item, _rev: encodeRev(item) } };
+	} catch (error) {
+		if (error instanceof ContentMutationConflictError) {
+			return {
+				success: false,
+				error: { code: "CONFLICT", message: error.message },
+			};
+		}
+		if (error instanceof EmDashValidationError) {
+			return {
+				success: false,
+				error: { code: "VALIDATION_ERROR", message: error.message },
+			};
+		}
+		console.error("Scheduled policy rejection error:", error);
+		return {
+			success: false,
+			error: {
+				code: "CONTENT_UNSCHEDULE_ERROR",
+				message: "Failed to record scheduled publication rejection",
 			},
 		};
 	}

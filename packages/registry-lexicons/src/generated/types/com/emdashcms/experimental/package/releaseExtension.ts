@@ -8,6 +8,12 @@ const _contentAccessSchema = /*#__PURE__*/ v.object({
 		),
 	),
 	/**
+	 * Plugin may inspect and reject publication, scheduling, and unpublication. Does not imply content read or write access.
+	 */
+	get policy() {
+		return /*#__PURE__*/ v.optional(contentPolicyConstraintsSchema);
+	},
+	/**
 	 * Plugin may read content records.
 	 */
 	get read() {
@@ -19,6 +25,13 @@ const _contentAccessSchema = /*#__PURE__*/ v.object({
 	get write() {
 		return /*#__PURE__*/ v.optional(contentWriteConstraintsSchema);
 	},
+});
+const _contentPolicyConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#contentPolicyConstraints",
+		),
+	),
 });
 const _contentReadConstraintsSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
@@ -317,6 +330,8 @@ const _usersReadConstraintsSchema = /*#__PURE__*/ v.object({
 });
 
 type contentAccess$schematype = typeof _contentAccessSchema;
+type contentPolicyConstraints$schematype =
+	typeof _contentPolicyConstraintsSchema;
 type contentReadConstraints$schematype = typeof _contentReadConstraintsSchema;
 type contentWriteConstraints$schematype = typeof _contentWriteConstraintsSchema;
 type declaredAccess$schematype = typeof _declaredAccessSchema;
@@ -343,6 +358,7 @@ type usersAccess$schematype = typeof _usersAccessSchema;
 type usersReadConstraints$schematype = typeof _usersReadConstraintsSchema;
 
 export interface contentAccessSchema extends contentAccess$schematype {}
+export interface contentPolicyConstraintsSchema extends contentPolicyConstraints$schematype {}
 export interface contentReadConstraintsSchema extends contentReadConstraints$schematype {}
 export interface contentWriteConstraintsSchema extends contentWriteConstraints$schematype {}
 export interface declaredAccessSchema extends declaredAccess$schematype {}
@@ -365,6 +381,8 @@ export interface usersAccessSchema extends usersAccess$schematype {}
 export interface usersReadConstraintsSchema extends usersReadConstraints$schematype {}
 
 export const contentAccessSchema = _contentAccessSchema as contentAccessSchema;
+export const contentPolicyConstraintsSchema =
+	_contentPolicyConstraintsSchema as contentPolicyConstraintsSchema;
 export const contentReadConstraintsSchema =
 	_contentReadConstraintsSchema as contentReadConstraintsSchema;
 export const contentWriteConstraintsSchema =
@@ -401,6 +419,9 @@ export const usersReadConstraintsSchema =
 
 export interface ContentAccess extends v.InferInput<
 	typeof contentAccessSchema
+> {}
+export interface ContentPolicyConstraints extends v.InferInput<
+	typeof contentPolicyConstraintsSchema
 > {}
 export interface ContentReadConstraints extends v.InferInput<
 	typeof contentReadConstraintsSchema

@@ -1717,6 +1717,7 @@ export class ContentRepository {
 		id: string,
 		scheduledAt: string,
 		currentTime: Date = new Date(),
+		expectedRevision?: ContentRevisionPrecondition,
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = currentTime.toISOString();
@@ -1731,20 +1732,28 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
 
 		// Published posts keep their status — the schedule applies to the
 		// pending draft, not the currently-live revision. Unpublished posts
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
-		await sql`
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
 				scheduled_at = ${normalizedScheduledAt},
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
+			AND status = ${existing.status}
+			AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
 		`.execute(this.db);
+		if ((result.numAffectedRows ?? 0n) === 0n) {
+			throw new ContentMutationConflictError("Content changed while scheduling");
+		}
 
 		invalidateCollectionCache(type);
 
@@ -1762,7 +1771,11 @@ export class ContentRepository {
 	 * Clears the scheduled time. Published posts stay published;
 	 * draft/scheduled posts revert to 'draft'.
 	 */
-	async unschedule(type: string, id: string): Promise<ContentItem> {
+	async unschedule(
+		type: string,
+		id: string,
+		expectedRevision?: ContentRevisionPrecondition,
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
 		const now = new Date().toISOString();
 
@@ -1770,12 +1783,13 @@ export class ContentRepository {
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
+		assertRevisionPrecondition(existing, expectedRevision);
 
 		// Published posts keep their status — just clear the pending schedule.
 		// Draft/scheduled posts revert to 'draft'.
 		const newStatus = existing.status === "published" ? "published" : "draft";
 
-		await sql`
+		const result = await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
 				scheduled_at = NULL,
@@ -1783,7 +1797,14 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND scheduled_at IS NOT NULL
 			AND deleted_at IS NULL
+			AND version = ${existing.version}
+			AND updated_at = ${existing.updatedAt}
+			AND status = ${existing.status}
+			AND ${nullableColumnMatch("scheduled_at", existing.scheduledAt)}
 		`.execute(this.db);
+		if (existing.scheduledAt !== null && (result.numAffectedRows ?? 0n) === 0n) {
+			throw new ContentMutationConflictError("Content changed while unscheduling");
+		}
 
 		invalidateCollectionCache(type);
 

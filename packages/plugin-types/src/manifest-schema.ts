@@ -24,6 +24,7 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"network:request:unrestricted",
 	"content:read",
 	"content:write",
+	"hooks.content-policy:register",
 	"taxonomies:read",
 	"media:read",
 	"media:write",
@@ -93,6 +94,9 @@ export const HOOK_NAMES = [
 	"content:afterSave",
 	"content:beforeDelete",
 	"content:afterDelete",
+	"content:beforePublish",
+	"content:beforeSchedule",
+	"content:beforeUnpublish",
 	"content:afterPublish",
 	"content:afterUnpublish",
 	"content:afterRestore",
@@ -262,7 +266,11 @@ const accessConstraints = z.record(z.string(), z.unknown());
  */
 const declaredAccessSchema = z.object({
 	content: z
-		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
+		.object({
+			read: accessConstraints.optional(),
+			write: accessConstraints.optional(),
+			policy: accessConstraints.optional(),
+		})
 		.optional(),
 	taxonomies: z.object({ read: accessConstraints.optional() }).optional(),
 	media: z

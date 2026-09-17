@@ -39,11 +39,13 @@ describe("Workerd generated plugin context", () => {
 		// eslint-disable-next-line no-implied-eval -- generated worker context is exercised with a local bridge
 		const factory = new Function("fetch", "pluginModule", `${source}\nreturn createContext();`);
 		const context = factory(fetch, {}) as {
+			content?: unknown;
 			users: { get(id: string): Promise<{ id: string }> };
 			cron: { list(): Promise<unknown[]> };
 			http: { fetch(url: string): Promise<Response> };
 		};
 
+		expect(context.content).toBeUndefined();
 		await expect(context.users.get("user-1")).resolves.toEqual({ id: "user-1" });
 		await expect(context.cron.list()).resolves.toEqual([]);
 		const response = await context.http.fetch("https://api.example.com/status");

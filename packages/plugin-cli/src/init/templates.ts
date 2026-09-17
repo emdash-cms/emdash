@@ -429,6 +429,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Assign the runtime definition to a \`SandboxedPlugin\`-typed constant and export it as default from \`src/plugin.ts\`.
 - Use Web APIs. Do not import Node.js built-ins into plugin runtime code.
 - Declare every runtime API in \`capabilities\` and every network destination in \`allowedHosts\`.
+- Use \`hooks.content-policy:register\` for \`content:beforePublish\`, \`content:beforeSchedule\`, or \`content:beforeUnpublish\`. Return \`{ cancel: true, reason }\` to reject the action; this capability does not grant content reads, writes, or publication actions.
 - Use \`ctx.storage\` for queryable records and \`ctx.kv\` for key-value state.
 - Use Block Kit for sandboxed admin UI. Do not ship browser React components.
 - Treat public routes as internet-facing and validate their inputs.

@@ -1,14 +1,14 @@
-import { Badge, Banner, LayerCard, SkeletonLine } from "@cloudflare/kumo";
+import { Badge, Banner, Button, LayerCard, SkeletonLine } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import { Plus, Upload } from "@phosphor-icons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 
 import type { AdminManifest } from "../lib/api";
 import { useCurrentUser } from "../lib/api/current-user.js";
 import type { CollectionStats, DashboardStats, RecentItem } from "../lib/api/dashboard";
-import { fetchDashboardStats } from "../lib/api/dashboard";
+import { dismissScheduledPolicyRejection, fetchDashboardStats } from "../lib/api/dashboard";
 import { usePluginWidget } from "../lib/plugin-context";
 import { cn, formatRelativeTime } from "../lib/utils";
 import { ArrowNext } from "./ArrowIcons";
@@ -17,6 +17,7 @@ import {
 	CONTENT_STATUS_ICONS,
 	type ContentStatusState,
 } from "./ContentStatusBadge.js";
+import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
 import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
@@ -33,6 +34,7 @@ const DASHBOARD_STATUS_STATES: Record<string, ContentStatusState> = {
 };
 
 const ROLE_ADMIN = 50;
+const ROLE_EDITOR = 40;
 
 export interface DashboardProps {
 	manifest: AdminManifest;
@@ -68,7 +70,9 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 			{showDashboardData && (
 				<>
-					{stats && <SchedulerWarning stats={stats} />}
+					{stats && (
+						<SchedulerWarning stats={stats} canDismissPolicy={(user?.role ?? 0) >= ROLE_EDITOR} />
+					)}
 					<SummaryMetrics stats={stats} loading={isLoading} />
 
 					{/* Collections + Recent activity */}
@@ -89,18 +93,43 @@ export function Dashboard({ manifest }: DashboardProps) {
 	);
 }
 
-function SchedulerWarning({ stats }: { stats: DashboardStats }) {
+function SchedulerWarning({
+	stats,
+	canDismissPolicy,
+}: {
+	stats: DashboardStats;
+	canDismissPolicy: boolean;
+}) {
 	const { t } = useLingui();
+	const queryClient = useQueryClient();
+	const dismissMutation = useMutation({
+		mutationFn: ({
+			collection,
+			id,
+			revision,
+		}: {
+			collection: string;
+			id: string;
+			revision: string;
+		}) => dismissScheduledPolicyRejection(collection, id, revision),
+		onSettled: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["dashboard-stats"] });
+		},
+	});
+	const policyRejected = stats.policyRejectedScheduled ?? 0;
+	const policyRejections = stats.policyRejections ?? [];
 	const overdueCount = stats.collections.reduce(
 		(sum, collection) => sum + (collection.overdueScheduled ?? 0),
 		0,
 	);
-	if (overdueCount === 0 || !stats.schedulerHealth || stats.schedulerHealth.status === "healthy") {
-		return null;
-	}
+	const schedulerNeedsAttention =
+		overdueCount > 0 &&
+		stats.schedulerHealth !== undefined &&
+		stats.schedulerHealth.status !== "healthy";
+	if (policyRejected === 0 && !schedulerNeedsAttention) return null;
 
-	const description =
-		stats.schedulerHealth.status === "unknown"
+	const schedulerDescription = schedulerNeedsAttention
+		? stats.schedulerHealth!.status === "unknown"
 			? plural(overdueCount, {
 					one: "One scheduled item is overdue, but no scheduler run has completed. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
 					other:
@@ -110,15 +139,85 @@ function SchedulerWarning({ stats }: { stats: DashboardStats }) {
 					one: "One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
 					other:
 						"# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.",
-				});
+				})
+		: "";
 
 	return (
-		<Banner
-			variant="alert"
-			title={t`Scheduled publishing needs attention`}
-			description={description}
-			role="alert"
-		/>
+		<div className="space-y-3">
+			{policyRejected > 0 && (
+				<div className="space-y-2">
+					<Banner
+						variant="alert"
+						title={t`Publication policy blocked scheduled content`}
+						description={plural(policyRejected, {
+							one: "Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.",
+							other:
+								"Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.",
+						})}
+						role="alert"
+					/>
+					{policyRejections.length > 0 && (
+						<ul className="space-y-2">
+							{policyRejections.map((rejection) => (
+								<li key={`${rejection.collection}:${rejection.id}`}>
+									<LayerCard.Secondary className="p-3">
+										<Link
+											to="/content/$collection/$id"
+											params={{ collection: rejection.collection, id: rejection.id }}
+											className="font-medium text-kumo-brand hover:underline"
+										>
+											<bdi dir="ltr">
+												{rejection.collection}/{rejection.id}
+											</bdi>
+										</Link>
+										<p className="mt-1 text-sm text-kumo-subtle">{rejection.reason}</p>
+										{canDismissPolicy && (
+											<Button
+												variant="secondary"
+												size="sm"
+												className="mt-2"
+												disabled={dismissMutation.isPending}
+												onClick={() =>
+													dismissMutation.mutate({
+														collection: rejection.collection,
+														id: rejection.id,
+														revision: rejection._rev,
+													})
+												}
+											>
+												{t`Dismiss`}
+											</Button>
+										)}
+									</LayerCard.Secondary>
+								</li>
+							))}
+						</ul>
+					)}
+					{policyRejected > policyRejections.length && (
+						<p className="text-sm text-kumo-subtle">
+							{plural(policyRejected - policyRejections.length, {
+								one: "One more blocked entry is not shown.",
+								other: "# more blocked entries are not shown.",
+							})}
+						</p>
+					)}
+					{dismissMutation.isError && (
+						<p className="text-sm text-kumo-danger" role="alert">
+							{getMutationError(dismissMutation.error) ??
+								t`Failed to dismiss scheduled publication rejection`}
+						</p>
+					)}
+				</div>
+			)}
+			{schedulerNeedsAttention && (
+				<Banner
+					variant="alert"
+					title={t`Scheduled publishing needs attention`}
+					description={schedulerDescription}
+					role="alert"
+				/>
+			)}
+		</div>
 	);
 }
 

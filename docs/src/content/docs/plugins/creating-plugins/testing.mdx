@@ -157,13 +157,13 @@ The runtime host groups its API by boundary:
 - `transport` directly invokes the isolate for transport-level checks.
 - `fixtures` creates site, collection, field, user, content, and plugin state without firing hooks.
 - `actions` runs content state changes, plugin activation and deactivation, media uploads, public comment submission, comment moderation, and policy-checked plugin routes.
-- `inspect` reads content, plugin storage, KV, settings, plugin state, scheduled tasks, media, comments, and captured email.
+- `inspect` reads content, plugin storage, KV, settings, plugin state, scheduled tasks, publication-policy rejections, media, comments, and captured email. Use `inspect.scheduledPolicyRejections()` to verify that a scheduler veto was persisted for administrator attention.
 - `scheduled` controls the effective time for cron tasks and scheduled publishing, then runs one production maintenance batch.
 - `restart()` replaces the runtime and isolate while retaining D1, plugin storage, media storage, and plugin state.
 
 Call `dispose()` after each test. Disposal terminates the isolate and resets all bindings, so a later test cannot observe the previous host's database or media.
 
-The runtime host exposes shipped operations only. Capability-specific helpers for translations, publication policy, Block Kit interactions, binary HTTP, raw routes, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
+The runtime host exposes shipped operations only. Capability-specific helpers for translations, Block Kit interactions, binary HTTP, raw routes, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
 
 ## Test boundaries
 

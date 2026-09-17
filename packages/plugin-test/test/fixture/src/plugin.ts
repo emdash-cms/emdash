@@ -1,4 +1,4 @@
-import type { PluginContext, SandboxedPlugin } from "emdash/plugin";
+import type { ContentPolicyEvent, PluginContext, SandboxedPlugin } from "emdash/plugin";
 
 let isolateId: string | undefined;
 let recordSequence = 0;
@@ -10,6 +10,10 @@ async function record(
 	data: Record<string, unknown> = {},
 ) {
 	await ctx.storage[collection]!.put(String(++recordSequence).padStart(8, "0"), { type, ...data });
+}
+
+function policyActor(event: ContentPolicyEvent) {
+	return { origin: event.origin, actor: event.actor };
 }
 
 const plugin: SandboxedPlugin = {
@@ -30,6 +34,32 @@ const plugin: SandboxedPlugin = {
 					collection: event.collection,
 				});
 			},
+		},
+		"content:beforePublish": async (event, ctx) => {
+			await record(ctx, "events", "content-policy", {
+				hook: "content:beforePublish",
+				...policyActor(event),
+			});
+			const reason = await ctx.kv.get("policy:content:beforePublish");
+			if (reason === "__invalid__") return { cancel: true, reason: "" };
+			return typeof reason === "string" ? { cancel: true, reason } : undefined;
+		},
+		"content:beforeSchedule": async (event, ctx) => {
+			await record(ctx, "events", "content-policy", {
+				hook: "content:beforeSchedule",
+				...policyActor(event),
+				scheduledAt: event.scheduledAt,
+			});
+			const reason = await ctx.kv.get("policy:content:beforeSchedule");
+			return typeof reason === "string" ? { cancel: true, reason } : undefined;
+		},
+		"content:beforeUnpublish": async (event, ctx) => {
+			await record(ctx, "events", "content-policy", {
+				hook: "content:beforeUnpublish",
+				...policyActor(event),
+			});
+			const reason = await ctx.kv.get("policy:content:beforeUnpublish");
+			return typeof reason === "string" ? { cancel: true, reason } : undefined;
 		},
 		"media:beforeUpload": async (event) => ({
 			...event.file,
