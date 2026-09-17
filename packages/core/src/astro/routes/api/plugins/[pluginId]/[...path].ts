@@ -19,7 +19,7 @@ export const prerender = false;
 /**
  * Handle all methods by matching against plugin-defined routes
  */
-const handleRequest: APIRoute = async ({ params, request, locals }) => {
+const handleRequest: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const pluginId = params.pluginId!;
 	const path = params.path || "";
@@ -33,6 +33,9 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 		request,
 		user,
 		tokenScopes: locals.tokenScopes,
+		invalidateContentCache: async (tags) => {
+			if (cache?.enabled) await cache.invalidate({ tags });
+		},
 	});
 };
 

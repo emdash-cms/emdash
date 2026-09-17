@@ -9,7 +9,11 @@ import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
-import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
+import type {
+	PluginContentCacheInvalidator,
+	RouteCallerInput,
+	RouteMeta,
+} from "../plugins/routes.js";
 import type { ActorInfo, ContentActionOrigin } from "../plugins/types.js";
 import type { ManifestRegistryConfigurationError } from "../registry/config.js";
 
@@ -491,6 +495,7 @@ export interface EmDashHandlers {
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
 	) => Promise<HandlerResponse>;
 
 	// Public-only plugin API route handler for SSR page components.
@@ -539,6 +544,7 @@ export interface EmDashHandlers {
 		actorId: string,
 		request: Request,
 		caller?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
 	) => Promise<HandlerResponse>;
 	handlePluginMcpDenied: (
 		pluginId: string,
