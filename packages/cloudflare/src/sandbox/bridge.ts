@@ -62,6 +62,7 @@ const SYSTEM_COLUMNS = new Set([
 
 /** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
 const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
+const CONTENT_ACTION_ERROR_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
 
 /**
  * Module-level email send callback.
@@ -102,6 +103,25 @@ function serializeValue(value: unknown): unknown {
 	if (typeof value === "boolean") return value ? 1 : 0;
 	if (typeof value === "object") return JSON.stringify(value);
 	return value;
+}
+
+async function forwardContentAction<T>(fn: () => Promise<T>): Promise<T | Record<string, unknown>> {
+	try {
+		return await fn();
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			"code" in error &&
+			typeof error.code === "string" &&
+			CONTENT_ACTION_ERROR_CODE_REGEX.test(error.code)
+		) {
+			return {
+				__emdashContentActionError: true,
+				error: { code: error.code, message: error.message },
+			};
+		}
+		throw error;
+	}
 }
 
 function rowToContentItem(collection: string, row: Record<string, unknown>) {
@@ -789,63 +809,77 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	}
 
 	contentGetVersioned(collection: string, id: string) {
-		return this.requireContentActions("content:publish").getVersioned(
-			this.ctx.props.pluginId,
-			collection,
-			id,
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").getVersioned(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+			),
 		);
 	}
 
 	contentPublish(collection: string, id: string, revision: string) {
-		return this.requireContentActions("content:publish").publish(
-			this.ctx.props.pluginId,
-			collection,
-			id,
-			{ _rev: revision },
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").publish(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+			),
 		);
 	}
 
 	contentUnpublish(collection: string, id: string, revision: string) {
-		return this.requireContentActions("content:publish").unpublish(
-			this.ctx.props.pluginId,
-			collection,
-			id,
-			{ _rev: revision },
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").unpublish(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+			),
 		);
 	}
 
 	contentSchedule(collection: string, id: string, scheduledAt: string, revision: string) {
-		return this.requireContentActions("content:publish").schedule(
-			this.ctx.props.pluginId,
-			collection,
-			id,
-			{ scheduledAt, _rev: revision },
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").schedule(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ scheduledAt, _rev: revision },
+			),
 		);
 	}
 
 	contentUnschedule(collection: string, id: string, revision: string) {
-		return this.requireContentActions("content:publish").unschedule(
-			this.ctx.props.pluginId,
-			collection,
-			id,
-			{ _rev: revision },
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").unschedule(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+			),
 		);
 	}
 
 	contentGetTrashedVersioned(collection: string, id: string) {
-		return this.requireContentActions("content:restore").getTrashedVersioned(
-			this.ctx.props.pluginId,
-			collection,
-			id,
+		return forwardContentAction(() =>
+			this.requireContentActions("content:restore").getTrashedVersioned(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+			),
 		);
 	}
 
 	contentRestore(collection: string, id: string, revision: string) {
-		return this.requireContentActions("content:restore").restore(
-			this.ctx.props.pluginId,
-			collection,
-			id,
-			{ _rev: revision },
+		return forwardContentAction(() =>
+			this.requireContentActions("content:restore").restore(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+			),
 		);
 	}
 

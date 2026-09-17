@@ -159,6 +159,21 @@ describe("Bridge Handler Conformance", () => {
 			expect(actions.publish).toHaveBeenCalledWith("test-plugin", "posts", "post-1", {
 				_rev: "revision-1",
 			});
+			actions.publish.mockRejectedValueOnce(
+				Object.assign(new Error("Revision precondition did not match"), { code: "CONFLICT" }),
+			);
+			await expect(
+				call(handler, "content/publish", {
+					collection: "posts",
+					id: "post-1",
+					revision: "stale",
+				}),
+			).resolves.toEqual({
+				result: {
+					__emdashContentActionError: true,
+					error: { code: "CONFLICT", message: "Revision precondition did not match" },
+				},
+			});
 
 			const denied = makeHandler({ capabilities: [], contentActions: () => actions });
 			await expect(

@@ -455,6 +455,33 @@ describe("runtime plugin test host", () => {
 			collection: "posts",
 			id: content.id,
 		});
+		await runtimeHost.fixtures.plugin.kv("policy:reenter-publish", true);
+		const reentrant = await runtimeHost.actions.routes.request("content-action", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: {
+				action: "publish",
+				collection: "posts",
+				id: content.id,
+				_rev: current._rev,
+			},
+		});
+		expect(reentrant.status).toBe(200);
+		await expect(reentrant.json()).resolves.toMatchObject({
+			data: { actionError: { code: "PUBLISH_REJECTED" } },
+		});
+		await expect(runtimeHost.inspect.content.get("posts", content.id)).resolves.toMatchObject({
+			status: "draft",
+		});
+		await expect(runtimeHost.inspect.storage.list("events")).resolves.toContainEqual(
+			expect.objectContaining({
+				data: expect.objectContaining({
+					type: "content-action-rejected",
+					code: "CONTENT_ACTION_REENTRANT",
+				}),
+			}),
+		);
+		await runtimeHost.fixtures.plugin.kv("policy:reenter-publish", false);
 		current = await invoke({
 			action: "publish",
 			collection: "posts",

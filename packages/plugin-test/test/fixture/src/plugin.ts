@@ -41,6 +41,28 @@ const plugin: SandboxedPlugin = {
 				...policyActor(event),
 			});
 			const reason = await ctx.kv.get("policy:content:beforePublish");
+			if (await ctx.kv.get("policy:reenter-publish")) {
+				const current = await ctx.content!.getVersioned!(
+					event.collection,
+					String(event.content.id),
+				);
+				try {
+					await ctx.content!.publish!(event.collection, String(event.content.id), {
+						_rev: current!._rev,
+					});
+				} catch (error) {
+					await record(ctx, "events", "content-action-rejected", {
+						code:
+							typeof error === "object" &&
+							error !== null &&
+							"code" in error &&
+							typeof error.code === "string"
+								? error.code
+								: "UNKNOWN",
+					});
+					return { cancel: true, reason: "Nested publication was blocked." };
+				}
+			}
 			if (reason === "__invalid__") return { cancel: true, reason: "" };
 			return typeof reason === "string" ? { cancel: true, reason } : undefined;
 		},
@@ -152,8 +174,23 @@ const plugin: SandboxedPlugin = {
 				}
 				if (action === "getVersioned") return ctx.content!.getVersioned!(collection, id);
 				if (typeof input._rev !== "string") throw new Error("Expected _rev");
-				if (action === "publish")
-					return ctx.content!.publish!(collection, id, { _rev: input._rev });
+				if (action === "publish") {
+					try {
+						return await ctx.content!.publish!(collection, id, { _rev: input._rev });
+					} catch (error) {
+						return {
+							actionError: {
+								code:
+									typeof error === "object" &&
+									error !== null &&
+									"code" in error &&
+									typeof error.code === "string"
+										? error.code
+										: "UNKNOWN",
+							},
+						};
+					}
+				}
 				if (action === "unpublish") {
 					return ctx.content!.unpublish!(collection, id, { _rev: input._rev });
 				}

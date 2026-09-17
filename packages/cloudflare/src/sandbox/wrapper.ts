@@ -154,19 +154,26 @@ function createContext(env) {
 	});
 	
 	// Content access - proxies to bridge (capability enforced by bridge)
+	async function contentAction(promise) {
+		const result = await promise;
+		if (result && result.__emdashContentActionError === true && result.error) {
+			throw Object.assign(new Error(result.error.message), result.error, { name: result.error.code });
+		}
+		return result;
+	}
 	const content = {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
 		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
 		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
-		delete: (collection, id) => bridge.contentDelete(collection, id)
-		,getVersioned: (collection, id) => bridge.contentGetVersioned(collection, id)
-		,publish: (collection, id, options) => bridge.contentPublish(collection, id, options._rev)
-		,unpublish: (collection, id, options) => bridge.contentUnpublish(collection, id, options._rev)
-		,schedule: (collection, id, options) => bridge.contentSchedule(collection, id, options.scheduledAt, options._rev)
-		,unschedule: (collection, id, options) => bridge.contentUnschedule(collection, id, options._rev)
-		,getTrashedVersioned: (collection, id) => bridge.contentGetTrashedVersioned(collection, id)
-		,restore: (collection, id, options) => bridge.contentRestore(collection, id, options._rev)
+		delete: (collection, id) => bridge.contentDelete(collection, id),
+		getVersioned: (collection, id) => contentAction(bridge.contentGetVersioned(collection, id)),
+		publish: (collection, id, options) => contentAction(bridge.contentPublish(collection, id, options._rev)),
+		unpublish: (collection, id, options) => contentAction(bridge.contentUnpublish(collection, id, options._rev)),
+		schedule: (collection, id, options) => contentAction(bridge.contentSchedule(collection, id, options.scheduledAt, options._rev)),
+		unschedule: (collection, id, options) => contentAction(bridge.contentUnschedule(collection, id, options._rev)),
+		getTrashedVersioned: (collection, id) => contentAction(bridge.contentGetTrashedVersioned(collection, id)),
+		restore: (collection, id, options) => contentAction(bridge.contentRestore(collection, id, options._rev))
 	};
 	
 	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)
