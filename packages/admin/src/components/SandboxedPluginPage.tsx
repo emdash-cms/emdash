@@ -9,7 +9,7 @@ import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import { CircleNotch, WarningCircle } from "@phosphor-icons/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
 import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
@@ -25,10 +25,17 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [toast, setToast] = useState<BlockResponse["toast"] | null>(null);
+	const requestGeneration = useRef(0);
 
 	// Send an interaction to the plugin admin route
 	const sendInteraction = useCallback(
-		async (interaction: BlockInteraction) => {
+		async (interaction: BlockInteraction, showLoading = false) => {
+			const generation = ++requestGeneration.current;
+			if (showLoading) {
+				setLoading(true);
+				setError(null);
+				setToast(null);
+			}
 			try {
 				const requestInteraction =
 					interaction.type === "page_load" ? interaction : { ...interaction, page };
@@ -37,24 +44,33 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 					headers: { "Content-Type": "application/json" },
 					body: JSON.stringify(requestInteraction),
 				});
+				if (generation !== requestGeneration.current) return;
 
 				if (!response.ok) {
 					const text = await response.text();
+					if (generation !== requestGeneration.current) return;
 					setError(t`Plugin responded with ${response.status}: ${text}`);
 					return;
 				}
 
 				const body = (await response.json()) as { data: BlockResponse };
+				if (generation !== requestGeneration.current) return;
 				const data = body.data;
 				setBlocks(data.blocks);
 				setError(null);
 
 				if (data.toast) {
 					setToast(data.toast);
-					setTimeout(setToast, 4000, null);
+					setTimeout(() => {
+						if (generation === requestGeneration.current) setToast(null);
+					}, 4000);
 				}
 			} catch (err) {
-				setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
+				if (generation === requestGeneration.current) {
+					setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
+				}
+			} finally {
+				if (showLoading && generation === requestGeneration.current) setLoading(false);
 			}
 		},
 		[page, pluginId, t],
@@ -62,9 +78,10 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 
 	// Initial page load
 	useEffect(() => {
-		setLoading(true);
-		setError(null);
-		void sendInteraction({ type: "page_load", page }).finally(() => setLoading(false));
+		void sendInteraction({ type: "page_load", page }, true);
+		return () => {
+			requestGeneration.current++;
+		};
 	}, [sendInteraction, page]);
 
 	// Handle block actions

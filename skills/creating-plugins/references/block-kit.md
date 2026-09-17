@@ -529,7 +529,7 @@ Use a structured link target instead of returning an admin URL:
 
 Targets can identify saved content, a page declared by the same plugin, the plugin's generated settings page, or an absolute external HTTP, HTTPS, or `mailto:` URL. External links open in a new tab with `noopener noreferrer`. A link has no `action_id`; use a button when the interaction must call the plugin.
 
-Every page and widget response is validated before rendering. Root-relative image URLs are accepted. External images require HTTPS and either a hostname in the plugin manifest's `allowedHosts` or `network:request:unrestricted`.
+Every page and widget response is validated before rendering. Responses are limited to 256 KiB, 20 nested levels, 2,000 nodes, 1,000 items per array, and 64 KiB per string. Root-relative image URLs are accepted. External images require HTTPS and either `network:request` with the hostname in the plugin manifest's `allowedHosts`, or `network:request:unrestricted`.
 
 The admin route receives host-attested UI context separately from the interaction:
 

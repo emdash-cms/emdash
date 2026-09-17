@@ -562,6 +562,22 @@ const marketplaceManifestCache = new Map<
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
 
+function allowedBrowserImageHosts(
+	capabilities: readonly PluginCapability[],
+	allowedHosts: readonly string[],
+): readonly string[] {
+	if (
+		capabilities.includes("network:request:unrestricted") ||
+		capabilities.includes("network:fetch:any")
+	) {
+		return ["*"];
+	}
+	if (capabilities.includes("network:request") || capabilities.includes("network:fetch")) {
+		return allowedHosts;
+	}
+	return [];
+}
+
 /**
  * EmDashRuntime - singleton per worker
  */
@@ -3882,9 +3898,7 @@ export class EmDashRuntime {
 		const entry = this.sandboxedPluginEntries.find((candidate) => candidate.id === pluginId);
 		if (entry) {
 			const pages = (entry.adminPages ?? []).map((page) => page.path);
-			const imageHosts = entry.capabilities.includes("network:request:unrestricted")
-				? ["*"]
-				: entry.allowedHosts;
+			const imageHosts = allowedBrowserImageHosts(entry.capabilities, entry.allowedHosts);
 			return {
 				pages,
 				widgets: (entry.adminWidgets ?? []).map((widget) => widget.id),
@@ -3895,9 +3909,10 @@ export class EmDashRuntime {
 		const manifest = marketplaceManifestCache.get(pluginId);
 		if (!manifest) return null;
 		const pages = (manifest.admin?.pages ?? []).map((page) => page.path);
-		const imageHosts = manifest.capabilities?.includes("network:request:unrestricted")
-			? ["*"]
-			: (manifest.allowedHosts ?? []);
+		const imageHosts = allowedBrowserImageHosts(
+			manifest.capabilities ?? [],
+			manifest.allowedHosts ?? [],
+		);
 		return {
 			pages,
 			widgets: (manifest.admin?.widgets ?? []).map((widget) => widget.id),

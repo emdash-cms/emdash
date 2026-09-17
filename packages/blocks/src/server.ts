@@ -7,7 +7,7 @@
  */
 
 export { blocks, elements } from "./builders.js";
-export { validateBlockResponse, validateBlocks } from "./validation.js";
+export { BLOCK_RESPONSE_LIMITS, validateBlockResponse, validateBlocks } from "./validation.js";
 export type { BlockValidationPolicy, ValidationError } from "./validation.js";
 
 export type {

@@ -48,6 +48,16 @@ const EXTERNAL_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
 const TRAILING_DOT_PATTERN = /\.$/;
+const TEXT_ENCODER = new TextEncoder();
+
+export const BLOCK_RESPONSE_LIMITS = {
+	maxBytes: 256 * 1024,
+	maxDepth: 20,
+	maxNodes: 2_000,
+	maxArrayItems: 1_000,
+	maxStringBytes: 64 * 1024,
+	maxErrors: 50,
+} as const;
 
 /**
  * RFC 6838-style image MIME type or image-prefix.
@@ -105,8 +115,132 @@ export interface BlockValidationPolicy {
 	pluginPagePaths?: readonly string[];
 }
 
+class ValidationErrors extends Array<ValidationError> {
+	override push(...items: ValidationError[]): number {
+		const available = BLOCK_RESPONSE_LIMITS.maxErrors - this.length;
+		return available > 0 ? super.push(...items.slice(0, available)) : this.length;
+	}
+}
+
 function isRecord(v: unknown): v is Record<string, unknown> {
 	return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function validateResponseBounds(response: unknown): ValidationError[] {
+	const errors: ValidationError[] = new ValidationErrors();
+	const stack: Array<{ value: unknown; path: string; depth: number }> = [
+		{ value: response, path: "response", depth: 0 },
+	];
+	let nodes = 0;
+	let stringBytes = 0;
+
+	while (stack.length > 0) {
+		const current = stack.pop();
+		if (!current) break;
+		if (current.depth > BLOCK_RESPONSE_LIMITS.maxDepth) {
+			errors.push({
+				path: current.path,
+				message: `Block response exceeds maximum depth ${BLOCK_RESPONSE_LIMITS.maxDepth}`,
+			});
+			break;
+		}
+		if (typeof current.value === "string") {
+			const byteLength = TEXT_ENCODER.encode(current.value).byteLength;
+			if (byteLength > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
+				errors.push({
+					path: current.path,
+					message: `String exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxStringBytes} bytes`,
+				});
+			}
+			stringBytes += byteLength;
+			if (stringBytes > BLOCK_RESPONSE_LIMITS.maxBytes) {
+				errors.push({
+					path: "response",
+					message: `Block response exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxBytes} bytes`,
+				});
+				break;
+			}
+			continue;
+		}
+		if (typeof current.value !== "object" || current.value === null) continue;
+		nodes++;
+		if (nodes > BLOCK_RESPONSE_LIMITS.maxNodes) {
+			errors.push({
+				path: current.path,
+				message: `Block response exceeds maximum node count ${BLOCK_RESPONSE_LIMITS.maxNodes}`,
+			});
+			break;
+		}
+
+		if (Array.isArray(current.value)) {
+			if (current.value.length > BLOCK_RESPONSE_LIMITS.maxArrayItems) {
+				errors.push({
+					path: current.path,
+					message: `Array exceeds maximum length ${BLOCK_RESPONSE_LIMITS.maxArrayItems}`,
+				});
+				continue;
+			}
+			for (let i = current.value.length - 1; i >= 0; i--) {
+				stack.push({
+					value: current.value[i],
+					path: `${current.path}[${i}]`,
+					depth: current.depth + 1,
+				});
+			}
+			continue;
+		}
+
+		let propertyCount = 0;
+		for (const key in current.value) {
+			if (!Object.hasOwn(current.value, key)) continue;
+			propertyCount++;
+			if (propertyCount > BLOCK_RESPONSE_LIMITS.maxArrayItems) {
+				errors.push({
+					path: current.path,
+					message: `Object exceeds maximum property count ${BLOCK_RESPONSE_LIMITS.maxArrayItems}`,
+				});
+				break;
+			}
+			const keyBytes = TEXT_ENCODER.encode(key).byteLength;
+			if (keyBytes > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
+				errors.push({
+					path: current.path,
+					message: `Property name exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxStringBytes} bytes`,
+				});
+				break;
+			}
+			stringBytes += keyBytes;
+			if (stringBytes > BLOCK_RESPONSE_LIMITS.maxBytes) {
+				errors.push({
+					path: "response",
+					message: `Block response exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxBytes} bytes`,
+				});
+				break;
+			}
+			const value = Reflect.get(current.value, key);
+			stack.push({ value, path: `${current.path}.${key}`, depth: current.depth + 1 });
+		}
+		if (errors.length > 0) break;
+	}
+
+	if (errors.length > 0) return errors;
+	let serialized: string;
+	try {
+		const value = JSON.stringify(response);
+		if (typeof value !== "string") {
+			return [{ path: "response", message: "Block response must be JSON-serializable" }];
+		}
+		serialized = value;
+	} catch {
+		return [{ path: "response", message: "Block response must be JSON-serializable" }];
+	}
+	if (TEXT_ENCODER.encode(serialized).byteLength > BLOCK_RESPONSE_LIMITS.maxBytes) {
+		errors.push({
+			path: "response",
+			message: `Block response exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxBytes} bytes`,
+		});
+	}
+	return errors;
 }
 
 function hostMatches(hostname: string, pattern: string): boolean {
@@ -1393,7 +1527,7 @@ export function validateBlocks(
 	valid: boolean;
 	errors: ValidationError[];
 } {
-	const errors: ValidationError[] = [];
+	const errors: ValidationError[] = new ValidationErrors();
 
 	if (!Array.isArray(blocks)) {
 		errors.push({ path: "blocks", message: "Blocks must be an array" });
@@ -1411,12 +1545,15 @@ export function validateBlockResponse(
 	response: unknown,
 	policy: BlockValidationPolicy,
 ): { valid: boolean; errors: ValidationError[] } {
+	const boundErrors = validateResponseBounds(response);
+	if (boundErrors.length > 0) return { valid: false, errors: boundErrors };
 	if (!isRecord(response)) {
 		return { valid: false, errors: [{ path: "response", message: "Response must be an object" }] };
 	}
 
 	const result = validateBlocks(response.blocks, policy);
-	const errors = [...result.errors];
+	const errors: ValidationError[] = new ValidationErrors();
+	errors.push(...result.errors);
 	if (response.toast !== undefined) {
 		if (!isRecord(response.toast)) {
 			errors.push({ path: "toast", message: "Toast must be an object" });

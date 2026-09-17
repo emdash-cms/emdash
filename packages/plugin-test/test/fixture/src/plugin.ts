@@ -59,6 +59,14 @@ const plugin: SandboxedPlugin = {
 					typeof route.input === "object" &&
 					route.input !== null &&
 					"action_id" in route.input &&
+					route.input.action_id === "oversized-response"
+				) {
+					return { blocks: Array.from({ length: 1_001 }, () => ({ type: "divider" })) };
+				}
+				if (
+					typeof route.input === "object" &&
+					route.input !== null &&
+					"action_id" in route.input &&
 					route.input.action_id === "unsafe-image"
 				) {
 					return {

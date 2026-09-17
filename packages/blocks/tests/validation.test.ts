@@ -946,5 +946,47 @@ describe("validateBlocks", () => {
 				expect.arrayContaining(["blocks[0].fields[0].action_id", "blocks[0].fields[0].type"]),
 			);
 		});
+
+		it("rejects deeply nested responses without recursing on the host stack", () => {
+			let nested: unknown = { type: "context", text: "end" };
+			for (let i = 0; i < 5_000; i++) {
+				nested = { type: "accordion", label: `Level ${i}`, blocks: [nested] };
+			}
+
+			const result = validateBlockResponse({ blocks: [nested] }, policy);
+			expect(result.valid).toBe(false);
+			expect(result.errors[0]?.message).toContain("maximum depth");
+		});
+
+		it("bounds response arrays, strings, and validation errors", () => {
+			const wide = validateBlockResponse(
+				{ blocks: Array.from({ length: 1_001 }, () => ({ type: "divider" })) },
+				policy,
+			);
+			expect(wide.errors[0]?.message).toContain("maximum length");
+
+			const longString = validateBlockResponse(
+				{ blocks: [{ type: "context", text: "x".repeat(64 * 1024 + 1) }] },
+				policy,
+			);
+			expect(longString.errors[0]?.message).toContain("String exceeds maximum size");
+
+			const largeResponse = validateBlockResponse(
+				{
+					blocks: Array.from({ length: 900 }, (_, index) => ({
+						type: "context",
+						text: `${index}:${"x".repeat(400)}`,
+					})),
+				},
+				policy,
+			);
+			expect(largeResponse.errors[0]?.message).toContain("maximum size");
+
+			const malformed = validateBlockResponse(
+				{ blocks: Array.from({ length: 100 }, () => ({ type: "unknown" })) },
+				policy,
+			);
+			expect(malformed.errors).toHaveLength(50);
+		});
 	});
 });
