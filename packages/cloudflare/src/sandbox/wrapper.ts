@@ -189,7 +189,9 @@ function createContext(env, originHook, invocationId) {
 			const contentType = encoded.headers.get("content-type");
 			if (contentType) headers.set("content-type", contentType);
 		}
-		return { ...init, headers: Array.from(headers.entries()), body };
+		const bufferedInit = { ...init };
+		delete bufferedInit.duplex;
+		return { ...bufferedInit, headers: Array.from(headers.entries()), body };
 	}
 
 	function decorateHttpResponse(response, finalUrl, redirected) {
