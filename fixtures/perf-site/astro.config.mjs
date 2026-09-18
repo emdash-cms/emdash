@@ -7,6 +7,7 @@ import emdash, { local } from "emdash/astro";
 import { sqlite } from "emdash/db";
 
 const target = process.env.EMDASH_FIXTURE_TARGET ?? "sqlite";
+const wranglerConfigPath = process.env.EMDASH_FIXTURE_WRANGLER_CONFIG;
 
 const sqliteIntegration = emdash({
 	database: sqlite({ url: "file:./data.db" }),
@@ -27,7 +28,8 @@ export default defineConfig({
 	output: "server",
 	adapter:
 		target === "d1"
-			? cloudflare()
+			? // The CPU harness starts the built Worker with its own inspector.
+				cloudflare({ configPath: wranglerConfigPath, inspectorPort: false })
 			: node({
 					mode: "standalone",
 				}),
