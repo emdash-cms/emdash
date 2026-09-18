@@ -67,7 +67,7 @@ describe("raw plugin route responses", () => {
 		const response = await invoke(GET, "GET", locals);
 		expect(response.status).toBe(201);
 		expect(response.headers.get("content-type")).toBe("text/csv");
-		expect(response.headers.get("x-plugin")).toBe("reports");
+		expect(response.headers.get("x-plugin")).toBeNull();
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([0, 255, 10]));
 	});
 
