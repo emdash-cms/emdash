@@ -41,9 +41,11 @@ export function SandboxedContentEditorPanel({
 	const [blocks, setBlocks] = React.useState<Block[]>([]);
 	const generation = React.useRef(0);
 	const abortController = React.useRef<AbortController | null>(null);
-	const identity = `${pluginId}:${panelId}:${collection}:${entryId}:${locale ?? ""}:${versionToken ?? ""}`;
-	const identityRef = React.useRef(identity);
-	identityRef.current = identity;
+	const panelIdentity = `${pluginId}:${panelId}:${collection}:${entryId}:${locale ?? ""}`;
+	const requestIdentity = `${panelIdentity}:${versionToken ?? ""}`;
+	const identityRef = React.useRef(requestIdentity);
+	identityRef.current = requestIdentity;
+	const previousVersion = React.useRef({ panelIdentity, versionToken });
 
 	React.useEffect(() => {
 		setOpen(false);
@@ -57,11 +59,11 @@ export function SandboxedContentEditorPanel({
 			generation.current++;
 			abortController.current?.abort();
 		};
-	}, [identity]);
+	}, [panelIdentity]);
 
 	const sendInteraction = React.useCallback(
 		async (interaction: ContentEditorPanelInteraction) => {
-			const requestIdentity = identity;
+			const interactionIdentity = requestIdentity;
 			const requestGeneration = ++generation.current;
 			abortController.current?.abort();
 			const controller = new AbortController();
@@ -78,11 +80,11 @@ export function SandboxedContentEditorPanel({
 						signal: controller.signal,
 					},
 				);
-				if (requestIdentity !== identityRef.current || requestGeneration !== generation.current)
+				if (interactionIdentity !== identityRef.current || requestGeneration !== generation.current)
 					return;
 				if (!response.ok) throw new Error("Plugin panel request failed");
 				const body = (await response.json()) as { data: BlockResponse };
-				if (requestIdentity !== identityRef.current || requestGeneration !== generation.current)
+				if (interactionIdentity !== identityRef.current || requestGeneration !== generation.current)
 					return;
 				setBlocks(body.data.blocks);
 				setLoaded(true);
@@ -92,24 +94,50 @@ export function SandboxedContentEditorPanel({
 			} catch {
 				if (
 					controller.signal.aborted ||
-					requestIdentity !== identityRef.current ||
+					interactionIdentity !== identityRef.current ||
 					requestGeneration !== generation.current
 				) {
 					return;
 				}
 				setError(true);
 			} finally {
-				if (requestIdentity === identityRef.current && requestGeneration === generation.current) {
+				if (
+					interactionIdentity === identityRef.current &&
+					requestGeneration === generation.current
+				) {
 					setLoading(false);
 				}
 			}
 		},
-		[collection, entryId, identity, locale, panelId, pluginId, toastManager],
+		[collection, entryId, locale, panelId, pluginId, requestIdentity, toastManager],
 	);
+
+	React.useEffect(() => {
+		const previous = previousVersion.current;
+		previousVersion.current = { panelIdentity, versionToken };
+		if (previous.panelIdentity !== panelIdentity || previous.versionToken === versionToken) return;
+		if (open) {
+			void sendInteraction({ type: "panel_load" });
+			return;
+		}
+		generation.current++;
+		abortController.current?.abort();
+		setLoading(false);
+		setError(false);
+		setLoaded(false);
+	}, [open, panelIdentity, sendInteraction, versionToken]);
 
 	const handleOpenChange = React.useCallback(
 		(nextOpen: boolean) => {
 			setOpen(nextOpen);
+			if (!nextOpen && loading) {
+				generation.current++;
+				abortController.current?.abort();
+				abortController.current = null;
+				setLoading(false);
+				setLoaded(false);
+				return;
+			}
 			if (nextOpen && !loaded && !loading) void sendInteraction({ type: "panel_load" });
 		},
 		[loaded, loading, sendInteraction],
