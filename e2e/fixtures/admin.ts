@@ -339,7 +339,7 @@ export class AdminPage {
 	 * form so we click the first match.
 	 */
 	async clickSave(): Promise<void> {
-		await this.page.getByRole("button", { name: "Save", exact: true }).first().click();
+		await this.page.locator('form button[type="submit"]').first().click();
 	}
 
 	/**
