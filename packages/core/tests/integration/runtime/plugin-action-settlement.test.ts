@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import Database from "better-sqlite3";
 import { SqliteDialect } from "kysely";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { deferred } = vi.hoisted(() => ({ deferred: [] as Array<() => void | Promise<void>> }));
 vi.mock("../../../src/after.js", () => ({
@@ -112,8 +112,13 @@ describe("sandboxed plugin action settlement", () => {
 	});
 
 	beforeEach(() => {
+		vi.useRealTimers();
 		deferred.length = 0;
 		afterPublish.mockClear();
+	});
+
+	afterEach(() => {
+		vi.useRealTimers();
 	});
 
 	afterAll(async () => {
@@ -221,5 +226,21 @@ describe("sandboxed plugin action settlement", () => {
 		expect(invalidate).toHaveBeenCalledTimes(2);
 		expect(invalidate).toHaveBeenCalledWith(["post", first.id]);
 		expect(invalidate).toHaveBeenCalledWith(["post", second.id]);
+	});
+
+	it("bounds timeout tombstones without stranding later actions", async () => {
+		vi.useFakeTimers();
+		const item = await draft();
+		const current = await contentActions.getVersioned(pluginId, "post", item.id);
+		if (!current) throw new Error("Content not found");
+		const invocationId = randomUUID();
+
+		contentActions.begin?.(pluginId, invocationId);
+		await contentActions.flush(pluginId, invocationId, false);
+		await vi.advanceTimersByTimeAsync(60_000);
+		await contentActions.publish(pluginId, "post", item.id, { _rev: current._rev }, invocationId);
+		await flushDeferred();
+
+		expect(afterPublish).toHaveBeenCalledOnce();
 	});
 });
