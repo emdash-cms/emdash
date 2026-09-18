@@ -135,6 +135,43 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("tab", () => {
+			const result = validateBlocks([
+				{
+					type: "tab",
+					panels: [{ label: "Overview", blocks: [{ type: "section", text: "Summary" }] }],
+					default_tab: 0,
+				},
+			]);
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
+		it.each([
+			[{ type: "tab", panels: [] }, "blocks[0].panels"],
+			[
+				{
+					type: "tab",
+					panels: [{ label: "Overview", blocks: [] }],
+					default_tab: -1,
+				},
+				"blocks[0].default_tab",
+			],
+			[
+				{
+					type: "tab",
+					panels: [{ label: "Overview", blocks: [] }],
+					default_tab: 1,
+				},
+				"blocks[0].default_tab",
+			],
+		])("rejects a tab that cannot render an initial panel", (block, errorPath) => {
+			const result = validateBlocks([block]);
+			expect(result.valid).toBe(false);
+			expect(result.errors).toEqual(
+				expect.arrayContaining([expect.objectContaining({ path: errorPath })]),
+			);
+		});
+
 		it("repeater", () => {
 			const result = validateBlocks([
 				{
@@ -854,6 +891,38 @@ describe("validateBlocks", () => {
 			expect(result).toEqual({ valid: true, errors: [] });
 		});
 
+		it("normalizes plugin-page paths and validates links nested in tab panels", () => {
+			const result = validateBlockResponse(
+				{
+					blocks: [
+						{
+							type: "tab",
+							panels: [
+								{
+									label: "Configuration",
+									blocks: [
+										{
+											type: "actions",
+											elements: [
+												{
+													type: "link",
+													label: "Settings",
+													target: { kind: "plugin-page", path: "settings" },
+												},
+											],
+										},
+									],
+								},
+							],
+						},
+					],
+				},
+				{ pluginPagePaths: ["settings"] },
+			);
+
+			expect(result).toEqual({ valid: true, errors: [] });
+		});
+
 		it("accepts HTTPS images under an unrestricted browser policy", () => {
 			expect(
 				validateBlockResponse(
@@ -924,6 +993,33 @@ describe("validateBlocks", () => {
 		])("rejects %s", (_label, block) => {
 			const result = validateBlockResponse({ blocks: [block] }, policy);
 			expect(result.valid).toBe(false);
+		});
+
+		it("rejects encoded traversal in plugin-page links", () => {
+			const result = validateBlockResponse(
+				{
+					blocks: [
+						{
+							type: "actions",
+							elements: [
+								{
+									type: "link",
+									label: "Escape",
+									target: { kind: "plugin-page", path: "/%2e%2e/%2e%2e/settings" },
+								},
+							],
+						},
+					],
+				},
+				{ pluginPagePaths: ["/%2e%2e/%2e%2e/settings"] },
+			);
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ path: "blocks[0].elements[0].target.path" }),
+				]),
+			);
 		});
 
 		it("rejects links in form fields and links carrying action ids", () => {

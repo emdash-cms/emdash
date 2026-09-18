@@ -11,6 +11,7 @@ import { getLocaleDir, resolveLocale } from "@emdash-cms/admin/locales";
 import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
 import {
+	normalizePluginPagePath,
 	validateBlockResponse,
 	type BlockValidationPolicy,
 	type PluginUiContext,
@@ -3897,7 +3898,7 @@ export class EmDashRuntime {
 	} | null {
 		const entry = this.sandboxedPluginEntries.find((candidate) => candidate.id === pluginId);
 		if (entry) {
-			const pages = (entry.adminPages ?? []).map((page) => page.path);
+			const pages = (entry.adminPages ?? []).map((page) => normalizePluginPagePath(page.path));
 			const imageHosts = allowedBrowserImageHosts(entry.capabilities, entry.allowedHosts);
 			return {
 				pages,
@@ -3908,7 +3909,7 @@ export class EmDashRuntime {
 
 		const manifest = marketplaceManifestCache.get(pluginId);
 		if (!manifest) return null;
-		const pages = (manifest.admin?.pages ?? []).map((page) => page.path);
+		const pages = (manifest.admin?.pages ?? []).map((page) => normalizePluginPagePath(page.path));
 		const imageHosts = allowedBrowserImageHosts(
 			manifest.capabilities ?? [],
 			manifest.allowedHosts ?? [],
@@ -3945,7 +3946,7 @@ export class EmDashRuntime {
 			}
 			surface = "dashboard-widget";
 		} else {
-			if (!definition.pages.includes(page)) {
+			if (!definition.pages.includes(normalizePluginPagePath(page))) {
 				return {
 					error: {
 						code: "INVALID_PLUGIN_UI_CONTEXT",

@@ -20,6 +20,7 @@ let currentInvokeRoute: SandboxedPluginInstance["invokeRoute"] = async () => und
 function createDeps(
 	invokeRoute: SandboxedPluginInstance["invokeRoute"] = vi.fn(),
 	access: Partial<Pick<SandboxedPluginEntry, "allowedHosts" | "capabilities">> = {},
+	adminPagePath = "/overview",
 ): RuntimeDependencies {
 	currentInvokeRoute = invokeRoute;
 	const entrypoint = `test-sandboxed-route-meta-${randomUUID()}`;
@@ -50,7 +51,7 @@ function createDeps(
 				allowedHosts: access.allowedHosts ?? [],
 				storage: {},
 				routes: [{ name: "ping", public: true }, { name: "admin" }],
-				adminPages: [{ path: "/overview", label: "Overview" }],
+				adminPages: [{ path: adminPagePath, label: "Overview" }],
 				adminWidgets: [{ id: "status", title: "Status" }],
 			},
 		],
@@ -120,6 +121,33 @@ describe("EmDashRuntime — config-declared sandboxed plugin route metadata", ()
 				}),
 			);
 			expect(invokeRoute).toHaveBeenLastCalledWith(
+				"admin",
+				{ type: "page_load", page: "/overview" },
+				expect.objectContaining({
+					ui: { surface: "admin-page", locale: "en", direction: "ltr" },
+				}),
+			);
+		} finally {
+			await runtime.stopCron();
+		}
+	});
+
+	it("accepts a canonical page interaction for a declaration without a leading slash", async () => {
+		const invokeRoute = vi.fn(async () => ({ blocks: [] }));
+		const runtime = await EmDashRuntime.create(createDeps(invokeRoute, {}, "overview"));
+		try {
+			const result = await runtime.handlePluginApiRoute(
+				"demo",
+				"POST",
+				"/admin",
+				new Request("https://example.test/_emdash/api/plugins/demo/admin", {
+					method: "POST",
+					body: JSON.stringify({ type: "page_load", page: "/overview" }),
+				}),
+			);
+
+			expect(result).toMatchObject({ success: true });
+			expect(invokeRoute).toHaveBeenCalledWith(
 				"admin",
 				{ type: "page_load", page: "/overview" },
 				expect.objectContaining({

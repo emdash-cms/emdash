@@ -43,4 +43,24 @@ describe("buildNavItems", () => {
 			ClockCounterClockwise,
 		);
 	});
+
+	it("builds a navigable route for a plugin page declared without a leading slash", () => {
+		const items = buildNavItems(
+			{
+				collections: {},
+				plugins: {
+					"audit-log": {
+						enabled: true,
+						adminPages: [{ path: "history", label: "Audit History" }],
+					},
+				},
+			},
+			50,
+			(id) => id,
+		);
+
+		expect(items.find((item) => item.id === "plugin-audit-log-history")?.to).toBe(
+			"/plugins/audit-log/history",
+		);
+	});
 });
