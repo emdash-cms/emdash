@@ -1178,7 +1178,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 									disclosure
 								>
 									<ContentEditorPanelBoundary
-										key={`${collection}:${item.id}:${item.locale ?? entryLocale ?? ""}:${item._rev ?? item.updatedAt}`}
+										key={`${collection}:${item.id}:${item.locale ?? entryLocale ?? ""}`}
 										pluginId={pluginId}
 										panelId={extension.id}
 									>

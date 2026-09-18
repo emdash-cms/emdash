@@ -219,6 +219,7 @@ export function SandboxedContentEditorActions({
 							return (
 								<DropdownMenu.Item
 									key={key}
+									variant={action.extension.style === "danger" ? "danger" : "default"}
 									disabled={disabled || pending.has(key)}
 									onClick={() => choose(action)}
 								>

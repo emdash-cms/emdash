@@ -72,7 +72,7 @@ describe("SandboxedContentEditorPanel", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(2);
 	});
 
-	it("ignores a panel response after the saved entry changes", async () => {
+	it("refreshes an open panel without collapsing after the saved version changes", async () => {
 		const first = Promise.withResolvers<Response>();
 		const second = Promise.withResolvers<Response>();
 		const fetchMock = vi
@@ -102,11 +102,84 @@ describe("SandboxedContentEditorPanel", () => {
 				versionToken="v2"
 			/>,
 		);
-		await userEvent.click(screen.getByRole("button", { name: "Findings" }));
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+		await expect
+			.element(screen.getByRole("button", { name: "Findings" }))
+			.toHaveAttribute("aria-expanded", "true");
 		second.resolve(Response.json({ data: { blocks: [{ type: "header", text: "Second" }] } }));
 		await expect.element(screen.getByRole("heading", { name: "Second" })).toBeVisible();
 		first.resolve(Response.json({ data: { blocks: [{ type: "header", text: "First" }] } }));
 		await expect.element(screen.getByRole("heading", { name: "First" })).not.toBeInTheDocument();
+	});
+
+	it("loads the latest version after a closed panel changes while loading", async () => {
+		const first = Promise.withResolvers<Response>();
+		const second = Promise.withResolvers<Response>();
+		const fetchMock = vi
+			.fn<() => Promise<Response>>()
+			.mockReturnValueOnce(first.promise)
+			.mockReturnValueOnce(second.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<SandboxedContentEditorPanel
+				pluginId="content-guard"
+				panelId="findings"
+				title="Findings"
+				collection="posts"
+				entryId="post-1"
+				versionToken="v1"
+			/>,
+			{ wrapper: Wrapper },
+		);
+		const trigger = screen.getByRole("button", { name: "Findings" });
+		await userEvent.click(trigger);
+		await userEvent.click(trigger);
+		await screen.rerender(
+			<SandboxedContentEditorPanel
+				pluginId="content-guard"
+				panelId="findings"
+				title="Findings"
+				collection="posts"
+				entryId="post-1"
+				versionToken="v2"
+			/>,
+		);
+		await userEvent.click(trigger);
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+		second.resolve(Response.json({ data: { blocks: [{ type: "header", text: "Latest" }] } }));
+		await expect.element(screen.getByRole("heading", { name: "Latest" })).toBeVisible();
+		first.resolve(Response.json({ data: { blocks: [{ type: "header", text: "Stale" }] } }));
+		await expect.element(screen.getByRole("heading", { name: "Stale" })).not.toBeInTheDocument();
+	});
+
+	it("retries after closing a panel while its initial load is pending", async () => {
+		const first = Promise.withResolvers<Response>();
+		const second = Promise.withResolvers<Response>();
+		const fetchMock = vi
+			.fn<() => Promise<Response>>()
+			.mockReturnValueOnce(first.promise)
+			.mockReturnValueOnce(second.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<SandboxedContentEditorPanel
+				pluginId="content-guard"
+				panelId="findings"
+				title="Findings"
+				collection="posts"
+				entryId="post-1"
+				versionToken="v1"
+			/>,
+			{ wrapper: Wrapper },
+		);
+		const trigger = screen.getByRole("button", { name: "Findings" });
+		await userEvent.click(trigger);
+		await userEvent.click(trigger);
+		await userEvent.click(trigger);
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+		second.resolve(Response.json({ data: { blocks: [{ type: "header", text: "Retried" }] } }));
+		await expect.element(screen.getByRole("heading", { name: "Retried" })).toBeVisible();
+		first.resolve(Response.json({ data: { blocks: [{ type: "header", text: "Stale" }] } }));
+		await expect.element(screen.getByRole("heading", { name: "Stale" })).not.toBeInTheDocument();
 	});
 });
 

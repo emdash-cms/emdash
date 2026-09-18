@@ -39,6 +39,20 @@ test.describe("Sandboxed plugin editor extensions", () => {
 		await expect(admin.page.getByText("Saved content only", { exact: true })).toBeVisible();
 		await expect(admin.page.getByText(entryId, { exact: true })).toBeVisible();
 
+		const refreshedPanelResponse = admin.page.waitForResponse(
+			(response) =>
+				response.url().includes("/plugin-extensions/editor-extensions-test/panel/entry-health") &&
+				response.request().method() === "POST",
+		);
+		await title.fill("Saved while plugin panel open");
+		await admin.clickSave();
+		await admin.waitForSaveComplete();
+		expect((await refreshedPanelResponse).status()).toBe(200);
+		await expect(
+			admin.page.getByRole("button", { name: "Plugin content health", exact: true }),
+		).toHaveAttribute("aria-expanded", "true");
+		await expect(admin.page.getByText("Saved content only", { exact: true })).toBeVisible();
+
 		await admin.page.getByRole("button", { name: "Recheck saved entry" }).click();
 		const dialog = admin.page.getByRole("alertdialog", { name: "Recheck saved entry?" });
 		await expect(dialog).toBeVisible();
