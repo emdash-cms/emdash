@@ -26,15 +26,18 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	const [error, setError] = useState<string | null>(null);
 	const [toast, setToast] = useState<BlockResponse["toast"] | null>(null);
 	const requestGeneration = useRef(0);
+	const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	// Send an interaction to the plugin admin route
 	const sendInteraction = useCallback(
 		async (interaction: BlockInteraction, showLoading = false) => {
 			const generation = ++requestGeneration.current;
+			if (toastTimer.current) clearTimeout(toastTimer.current);
+			toastTimer.current = null;
+			setToast(null);
 			if (showLoading) {
 				setLoading(true);
 				setError(null);
-				setToast(null);
 			}
 			try {
 				const requestInteraction =
@@ -61,8 +64,9 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 
 				if (data.toast) {
 					setToast(data.toast);
-					setTimeout(() => {
+					toastTimer.current = setTimeout(() => {
 						if (generation === requestGeneration.current) setToast(null);
+						toastTimer.current = null;
 					}, 4000);
 				}
 			} catch (err) {
@@ -81,6 +85,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 		void sendInteraction({ type: "page_load", page }, true);
 		return () => {
 			requestGeneration.current++;
+			if (toastTimer.current) clearTimeout(toastTimer.current);
 		};
 	}, [sendInteraction, page]);
 

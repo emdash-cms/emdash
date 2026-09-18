@@ -16,6 +16,7 @@ const BLOCK_TYPES = new Set([
 	"code",
 	"empty",
 	"accordion",
+	"tab",
 ]);
 
 const EMPTY_SIZES = new Set(["sm", "base", "lg"]);
@@ -48,6 +49,7 @@ const EXTERNAL_LINK_PROTOCOLS = new Set(["http:", "https:", "mailto:"]);
 const TREND_VALUES = new Set(["up", "down", "neutral"]);
 const BANNER_VARIANTS = new Set(["default", "alert", "error"]);
 const TRAILING_DOT_PATTERN = /\.$/;
+const PLUGIN_PAGE_PATH_PATTERN = /^\/[a-z0-9][a-z0-9/_-]*$/i;
 const TEXT_ENCODER = new TextEncoder();
 
 export const BLOCK_RESPONSE_LIMITS = {
@@ -113,6 +115,18 @@ export interface ValidationError {
 export interface BlockValidationPolicy {
 	allowedImageHosts?: readonly string[];
 	pluginPagePaths?: readonly string[];
+}
+
+export function normalizePluginPagePath(path: string): string {
+	return path.startsWith("/") ? path : `/${path}`;
+}
+
+export function isSafePluginPagePath(path: string): boolean {
+	const normalized = normalizePluginPagePath(path);
+	return (
+		PLUGIN_PAGE_PATH_PATTERN.test(normalized) &&
+		!normalized.split("/").some((segment) => segment === "." || segment === "..")
+	);
 }
 
 class ValidationErrors extends Array<ValidationError> {
@@ -242,13 +256,6 @@ function validateResponseBounds(response: unknown): ValidationError[] {
 				});
 				break;
 			}
-			if (keyBytes > BLOCK_RESPONSE_LIMITS.maxStringBytes) {
-				errors.push({
-					path: current.path,
-					message: `Property name exceeds maximum size ${BLOCK_RESPONSE_LIMITS.maxStringBytes} bytes`,
-				});
-				break;
-			}
 			stringBytes += keyBytes;
 			if (stringBytes > BLOCK_RESPONSE_LIMITS.maxBytes) {
 				errors.push({
@@ -369,21 +376,22 @@ function validateLinkTarget(
 			}
 			break;
 		case "plugin-page": {
-			if (
-				typeof value.path !== "string" ||
-				!value.path.startsWith("/") ||
-				value.path.startsWith("//") ||
-				value.path.includes("\\") ||
-				value.path.split("/").some((segment) => segment === "." || segment === "..")
+			const pagePath =
+				typeof value.path === "string" && value.path.length > 0
+					? normalizePluginPagePath(value.path)
+					: undefined;
+			if (pagePath === undefined || !isSafePluginPagePath(pagePath)) {
+				errors.push({
+					path: `${path}.path`,
+					message: "Plugin page path must be a safe relative path",
+				});
+			} else if (
+				policy?.pluginPagePaths &&
+				!policy.pluginPagePaths.map(normalizePluginPagePath).includes(pagePath)
 			) {
 				errors.push({
 					path: `${path}.path`,
-					message: "Plugin page path must start with one slash",
-				});
-			} else if (policy?.pluginPagePaths && !policy.pluginPagePaths.includes(value.path)) {
-				errors.push({
-					path: `${path}.path`,
-					message: `Plugin page '${value.path}' is not declared by this plugin`,
+					message: `Plugin page '${pagePath}' is not declared by this plugin`,
 				});
 			}
 			break;
@@ -1554,6 +1562,57 @@ function validateBlock(
 					path: `${path}.default_open`,
 					message: "Field 'default_open' must be a boolean if provided",
 				});
+			}
+			break;
+		}
+		case "tab": {
+			if (!Array.isArray(value.panels)) {
+				errors.push({
+					path: `${path}.panels`,
+					message: "Required field 'panels' must be an array",
+				});
+			} else if (value.panels.length === 0) {
+				errors.push({ path: `${path}.panels`, message: "Field 'panels' must not be empty" });
+			} else {
+				for (let i = 0; i < value.panels.length; i++) {
+					const panel = value.panels[i];
+					if (!isRecord(panel)) {
+						errors.push({ path: `${path}.panels[${i}]`, message: "Tab panel must be an object" });
+						continue;
+					}
+					if (typeof panel.label !== "string") {
+						errors.push({
+							path: `${path}.panels[${i}].label`,
+							message: "Required field 'label' must be a string",
+						});
+					}
+					if (!Array.isArray(panel.blocks)) {
+						errors.push({
+							path: `${path}.panels[${i}].blocks`,
+							message: "Required field 'blocks' must be an array",
+						});
+					} else {
+						for (let j = 0; j < panel.blocks.length; j++) {
+							validateBlock(panel.blocks[j], `${path}.panels[${i}].blocks[${j}]`, errors, policy);
+						}
+					}
+				}
+			}
+			if (value.default_tab !== undefined) {
+				if (typeof value.default_tab !== "number" || !Number.isInteger(value.default_tab)) {
+					errors.push({
+						path: `${path}.default_tab`,
+						message: "Field 'default_tab' must be an integer if provided",
+					});
+				} else if (
+					Array.isArray(value.panels) &&
+					(value.default_tab < 0 || value.default_tab >= value.panels.length)
+				) {
+					errors.push({
+						path: `${path}.default_tab`,
+						message: "Field 'default_tab' must reference an existing panel",
+					});
+				}
 			}
 			break;
 		}

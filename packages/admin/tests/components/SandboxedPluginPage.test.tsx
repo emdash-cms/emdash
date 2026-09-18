@@ -122,6 +122,33 @@ describe("SandboxedPluginPage navigation", () => {
 			.not.toBeInTheDocument();
 		await expect.element(screen.getByRole("heading", { name: "Reports page" })).toBeVisible();
 	});
+
+	it("clears an earlier toast when the next interaction has none", async () => {
+		const fetchMock = vi
+			.fn<() => Promise<Response>>()
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{
+								type: "actions",
+								elements: [{ type: "button", action_id: "refresh", label: "Refresh" }],
+							},
+						],
+						toast: { type: "success", message: "First response" },
+					},
+				}),
+			)
+			.mockResolvedValueOnce(Response.json({ data: { blocks: [] } }));
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(<SandboxedPluginPage pluginId="content-guard" page="/overview" />);
+		await expect.element(screen.getByText("First response", { exact: true })).toBeVisible();
+		await userEvent.click(screen.getByRole("button", { name: "Refresh" }));
+		await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+		await expect
+			.element(screen.getByText("First response", { exact: true }))
+			.not.toBeInTheDocument();
+	});
 });
 
 describe("resolvePluginLinkTarget", () => {
@@ -134,6 +161,12 @@ describe("resolvePluginLinkTarget", () => {
 		).toBe("/_emdash/admin/plugins/content-guard/reports");
 		expect(
 			resolvePluginLinkTarget("content-guard", {
+				kind: "plugin-page",
+				path: "reports",
+			}),
+		).toBe("/_emdash/admin/plugins/content-guard/reports");
+		expect(
+			resolvePluginLinkTarget("content-guard", {
 				kind: "plugin-settings",
 			}),
 		).toBe("/_emdash/admin/plugins-manager/content-guard/settings");
@@ -141,6 +174,12 @@ describe("resolvePluginLinkTarget", () => {
 			resolvePluginLinkTarget("content-guard", {
 				kind: "plugin-page",
 				path: "/../settings",
+			}),
+		).toBeNull();
+		expect(
+			resolvePluginLinkTarget("content-guard", {
+				kind: "plugin-page",
+				path: "/%2e%2e/%2e%2e/settings",
 			}),
 		).toBeNull();
 		expect(
