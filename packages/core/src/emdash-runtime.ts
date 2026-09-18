@@ -251,6 +251,7 @@ interface ContentPolicyMutationOptions {
 	_rev?: string;
 	actor?: ActorInfo;
 	origin?: ContentActionOrigin;
+	pluginInvocationId?: string;
 }
 
 type ContentPolicyCheck =
@@ -645,7 +646,9 @@ export class EmDashRuntime {
 	private pluginStates: Map<string, string>;
 	private readonly activePluginContentActions = new Set<string>();
 	private readonly pendingPluginAfterHooks = new Map<string, Array<() => Promise<void>>>();
-	private readonly pendingPluginContentCacheTags = new Map<string, Set<string>>();
+	/** Timed-out sandbox invocations whose later actions must schedule hooks without another flush. */
+	private readonly releasedPluginInvocations = new Set<string>();
+	private pluginContentCacheInvalidator?: PluginContentCacheInvalidator;
 
 	/**
 	 * Isolate-lifetime guard so FTS indexes are verified at most once per
@@ -700,6 +703,13 @@ export class EmDashRuntime {
 			return ctx.db as Kysely<Database>;
 		}
 		return this._db;
+	}
+
+	/** Bind the platform cache provider used by plugin actions, including request-less cron hooks. */
+	setPluginContentCacheInvalidator(
+		invalidateContentCache: PluginContentCacheInvalidator | undefined,
+	): void {
+		this.pluginContentCacheInvalidator = invalidateContentCache;
 	}
 
 	constructor(parts: EmDashRuntimeParts) {
@@ -781,6 +791,7 @@ export class EmDashRuntime {
 	async runScheduledTasks(
 		options: {
 			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+			invalidateContentCache?: PluginContentCacheInvalidator;
 		} = {},
 	): Promise<{ published: PublishedRef[] }> {
 		const { published } = await this.runScheduledTasksWithStats(options);
@@ -790,8 +801,12 @@ export class EmDashRuntime {
 	async runScheduledTasksWithStats(
 		options: {
 			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+			invalidateContentCache?: PluginContentCacheInvalidator;
 		} = {},
 	): Promise<{ processed: number; published: PublishedRef[] }> {
+		if (options.invalidateContentCache) {
+			this.pluginContentCacheInvalidator = options.invalidateContentCache;
+		}
 		let processed = 0;
 		if (this.cronExecutor) {
 			try {
@@ -1762,21 +1777,24 @@ export class EmDashRuntime {
 			return runtimeRef.current;
 		};
 		const contentActions: ContentActionCallbacks = {
-			flush: (pluginId) => requireRuntime().flushPluginAfterHooks(pluginId),
+			begin: (pluginId, invocationId) =>
+				requireRuntime().beginPluginInvocation(pluginId, invocationId),
+			flush: (pluginId, invocationId, final) =>
+				requireRuntime().flushPluginAfterHooks(pluginId, invocationId, final),
 			getVersioned: (pluginId, collection, id) =>
 				requireRuntime().pluginGetVersioned(pluginId, collection, id),
-			publish: (pluginId, collection, id, options) =>
-				requireRuntime().pluginPublish(pluginId, collection, id, options),
-			unpublish: (pluginId, collection, id, options) =>
-				requireRuntime().pluginUnpublish(pluginId, collection, id, options),
-			schedule: (pluginId, collection, id, options) =>
-				requireRuntime().pluginSchedule(pluginId, collection, id, options),
-			unschedule: (pluginId, collection, id, options) =>
-				requireRuntime().pluginUnschedule(pluginId, collection, id, options),
+			publish: (pluginId, collection, id, options, invocationId) =>
+				requireRuntime().pluginPublish(pluginId, collection, id, options, invocationId),
+			unpublish: (pluginId, collection, id, options, invocationId) =>
+				requireRuntime().pluginUnpublish(pluginId, collection, id, options, invocationId),
+			schedule: (pluginId, collection, id, options, invocationId) =>
+				requireRuntime().pluginSchedule(pluginId, collection, id, options, invocationId),
+			unschedule: (pluginId, collection, id, options, invocationId) =>
+				requireRuntime().pluginUnschedule(pluginId, collection, id, options, invocationId),
 			getTrashedVersioned: (pluginId, collection, id) =>
 				requireRuntime().pluginGetTrashedVersioned(pluginId, collection, id),
-			restore: (pluginId, collection, id, options) =>
-				requireRuntime().pluginRestore(pluginId, collection, id, options),
+			restore: (pluginId, collection, id, options, invocationId) =>
+				requireRuntime().pluginRestore(pluginId, collection, id, options, invocationId),
 		};
 		const pipelineFactoryOptions = {
 			db,
@@ -3492,7 +3510,11 @@ export class EmDashRuntime {
 	async handleContentRestore(
 		collection: string,
 		id: string,
-		options: { _rev?: string; origin?: ContentActionOrigin } = {},
+		options: {
+			_rev?: string;
+			origin?: ContentActionOrigin;
+			pluginInvocationId?: string;
+		} = {},
 	) {
 		const result = await handleContentRestore(this.db, collection, id, { _rev: options._rev });
 		if (result.success && result.data) {
@@ -3505,6 +3527,7 @@ export class EmDashRuntime {
 				contentItemToRecord(result.data.item),
 				collection,
 				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
 			);
 		}
 
@@ -3577,10 +3600,7 @@ export class EmDashRuntime {
 		this.activePluginContentActions.add(key);
 		try {
 			const result = await fn(resolvedId);
-			const tags = this.pendingPluginContentCacheTags.get(pluginId) ?? new Set<string>();
-			tags.add(collection);
-			tags.add(resolvedId);
-			this.pendingPluginContentCacheTags.set(pluginId, tags);
+			await this.pluginContentCacheInvalidator?.([collection, resolvedId]);
 			return result;
 		} finally {
 			this.activePluginContentActions.delete(key);
@@ -3623,12 +3643,14 @@ export class EmDashRuntime {
 		collection: string,
 		id: string,
 		options: { _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem> {
 		return this.runPluginContentAction(pluginId, "publish", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
 				await this.handleContentPublish(collection, resolvedId, {
 					_rev: options._rev,
 					origin: { source: "plugin", pluginId },
+					pluginInvocationId: invocationId,
 				}),
 			),
 		);
@@ -3639,12 +3661,14 @@ export class EmDashRuntime {
 		collection: string,
 		id: string,
 		options: { _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem> {
 		return this.runPluginContentAction(pluginId, "unpublish", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
 				await this.handleContentUnpublish(collection, resolvedId, {
 					_rev: options._rev,
 					origin: { source: "plugin", pluginId },
+					pluginInvocationId: invocationId,
 				}),
 			),
 		);
@@ -3655,12 +3679,14 @@ export class EmDashRuntime {
 		collection: string,
 		id: string,
 		options: { scheduledAt: string; _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem> {
 		return this.runPluginContentAction(pluginId, "schedule", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
 				await this.handleContentSchedule(collection, resolvedId, options.scheduledAt, {
 					_rev: options._rev,
 					origin: { source: "plugin", pluginId },
+					pluginInvocationId: invocationId,
 				}),
 			),
 		);
@@ -3671,12 +3697,14 @@ export class EmDashRuntime {
 		collection: string,
 		id: string,
 		options: { _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem> {
 		return this.runPluginContentAction(pluginId, "unschedule", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
 				await this.handleContentUnschedule(collection, resolvedId, {
 					...options,
 					origin: { source: "plugin", pluginId },
+					pluginInvocationId: invocationId,
 				}),
 			),
 		);
@@ -3687,12 +3715,14 @@ export class EmDashRuntime {
 		collection: string,
 		id: string,
 		options: { _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem> {
 		return this.runPluginContentAction(pluginId, "restore", collection, id, async (resolvedId) =>
 			this.pluginVersionedResult(
 				await this.handleContentRestore(collection, resolvedId, {
 					...options,
 					origin: { source: "plugin", pluginId },
+					pluginInvocationId: invocationId,
 				}),
 			),
 		);
@@ -3845,6 +3875,7 @@ export class EmDashRuntime {
 			currentTime?: Date;
 			actor?: ActorInfo;
 			origin?: ContentActionOrigin;
+			pluginInvocationId?: string;
 		} = {},
 	) {
 		const policy = await this.checkContentPolicy(
@@ -3868,7 +3899,12 @@ export class EmDashRuntime {
 			return { success: false as const, error: policy.error };
 		}
 		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
-		const { actor: _actor, origin: _origin, ...handlerOptions } = options;
+		const {
+			actor: _actor,
+			origin: _origin,
+			pluginInvocationId: _pluginInvocationId,
+			...handlerOptions
+		} = options;
 		const result = await handleContentPublish(this.db, collection, id, {
 			...handlerOptions,
 			_rev: policy.revision,
@@ -3898,6 +3934,7 @@ export class EmDashRuntime {
 				contentItemToRecord(result.data.item),
 				collection,
 				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
 			);
 		}
 
@@ -3931,6 +3968,7 @@ export class EmDashRuntime {
 				contentItemToRecord(result.data.item),
 				collection,
 				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
 			);
 		}
 
@@ -3977,6 +4015,7 @@ export class EmDashRuntime {
 				contentItemToRecord(result.data.item),
 				collection,
 				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
 			);
 		}
 
@@ -3986,7 +4025,11 @@ export class EmDashRuntime {
 	async handleContentUnschedule(
 		collection: string,
 		id: string,
-		options: { _rev?: string; origin?: ContentActionOrigin } = {},
+		options: {
+			_rev?: string;
+			origin?: ContentActionOrigin;
+			pluginInvocationId?: string;
+		} = {},
 	) {
 		const result = await handleContentUnschedule(this.db, collection, id, { _rev: options._rev });
 		if (result.success && result.data) {
@@ -3999,6 +4042,7 @@ export class EmDashRuntime {
 				contentItemToRecord(result.data.item),
 				collection,
 				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
 			);
 		}
 
@@ -4518,6 +4562,9 @@ export class EmDashRuntime {
 		user?: RouteCallerInput | null,
 		invalidateContentCache?: PluginContentCacheInvalidator,
 	) {
+		if (invalidateContentCache) {
+			this.pluginContentCacheInvalidator = invalidateContentCache;
+		}
 		if (!this.isPluginEnabled(pluginId)) {
 			return {
 				success: false,
@@ -4547,21 +4594,13 @@ export class EmDashRuntime {
 			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
 			const body = await parseRouteInput(request);
 
-			try {
-				return await routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
-			} finally {
-				await this.flushPluginContentCacheTags(pluginId, invalidateContentCache);
-			}
+			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
 		}
 
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			try {
-				return await this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
-			} finally {
-				await this.flushPluginContentCacheTags(pluginId, invalidateContentCache);
-			}
+			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
 		}
 
 		return {
@@ -4878,6 +4917,7 @@ export class EmDashRuntime {
 		content: Record<string, unknown>,
 		collection: string,
 		afterPluginId?: string,
+		pluginInvocationId?: string,
 	): void {
 		const label = name.slice("content:".length);
 
@@ -4907,71 +4947,118 @@ export class EmDashRuntime {
 				}
 			}
 		};
-		if (afterPluginId && this.findSandboxedPlugin(afterPluginId)) {
-			const pending = this.pendingPluginAfterHooks.get(afterPluginId) ?? [];
+		if (afterPluginId && pluginInvocationId && this.findSandboxedPlugin(afterPluginId)) {
+			const key = this.pluginInvocationKey(afterPluginId, pluginInvocationId);
+			if (this.releasedPluginInvocations.has(key)) {
+				after(invoke);
+				return;
+			}
+			const pending = this.pendingPluginAfterHooks.get(key) ?? [];
 			pending.push(invoke);
-			this.pendingPluginAfterHooks.set(afterPluginId, pending);
+			this.pendingPluginAfterHooks.set(key, pending);
 			return;
 		}
 		after(invoke);
 	}
 
-	private flushPluginAfterHooks(pluginId: string): Promise<void> {
-		const pending = this.pendingPluginAfterHooks.get(pluginId) ?? [];
-		this.pendingPluginAfterHooks.delete(pluginId);
-		for (const invoke of pending) after(invoke);
-		return Promise.resolve();
+	private pluginInvocationKey(pluginId: string, invocationId: string): string {
+		return JSON.stringify([pluginId, invocationId]);
 	}
 
-	private async flushPluginContentCacheTags(
+	private beginPluginInvocation(pluginId: string, invocationId: string): void {
+		const key = this.pluginInvocationKey(pluginId, invocationId);
+		this.pendingPluginAfterHooks.delete(key);
+		this.releasedPluginInvocations.delete(key);
+	}
+
+	private flushPluginAfterHooks(
 		pluginId: string,
-		invalidateContentCache?: PluginContentCacheInvalidator,
+		invocationId?: string,
+		final = true,
 	): Promise<void> {
-		const tags = this.pendingPluginContentCacheTags.get(pluginId);
-		this.pendingPluginContentCacheTags.delete(pluginId);
-		if (tags && tags.size > 0 && invalidateContentCache) {
-			await invalidateContentCache([...tags]);
-		}
+		if (!invocationId) return Promise.resolve();
+		const key = this.pluginInvocationKey(pluginId, invocationId);
+		this.releasedPluginInvocations.add(key);
+		const pending = this.pendingPluginAfterHooks.get(key) ?? [];
+		this.pendingPluginAfterHooks.delete(key);
+		for (const invoke of pending) after(invoke);
+		if (final) this.releasedPluginInvocations.delete(key);
+		return Promise.resolve();
 	}
 
 	private runAfterPublishHooks(
 		content: Record<string, unknown>,
 		collection: string,
 		afterPluginId?: string,
+		pluginInvocationId?: string,
 	): void {
-		this.runDeferredContentHook("content:afterPublish", content, collection, afterPluginId);
+		this.runDeferredContentHook(
+			"content:afterPublish",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
 	}
 
 	private runAfterUnpublishHooks(
 		content: Record<string, unknown>,
 		collection: string,
 		afterPluginId?: string,
+		pluginInvocationId?: string,
 	): void {
-		this.runDeferredContentHook("content:afterUnpublish", content, collection, afterPluginId);
+		this.runDeferredContentHook(
+			"content:afterUnpublish",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
 	}
 
 	private runAfterRestoreHooks(
 		content: Record<string, unknown>,
 		collection: string,
 		afterPluginId?: string,
+		pluginInvocationId?: string,
 	): void {
-		this.runDeferredContentHook("content:afterRestore", content, collection, afterPluginId);
+		this.runDeferredContentHook(
+			"content:afterRestore",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
 	}
 
 	private runAfterScheduleHooks(
 		content: Record<string, unknown>,
 		collection: string,
 		afterPluginId?: string,
+		pluginInvocationId?: string,
 	): void {
-		this.runDeferredContentHook("content:afterSchedule", content, collection, afterPluginId);
+		this.runDeferredContentHook(
+			"content:afterSchedule",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
 	}
 
 	private runAfterUnscheduleHooks(
 		content: Record<string, unknown>,
 		collection: string,
 		afterPluginId?: string,
+		pluginInvocationId?: string,
 	): void {
-		this.runDeferredContentHook("content:afterUnschedule", content, collection, afterPluginId);
+		this.runDeferredContentHook(
+			"content:afterUnschedule",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
 	}
 
 	private async handleSandboxedRoute(

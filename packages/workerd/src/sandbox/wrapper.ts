@@ -256,7 +256,7 @@ async function bridgeCall(method, body) {
 // Context Factory
 // -----------------------------------------------------------------------------
 
-function createContext(originHook) {
+function createContext(originHook, invocationId) {
 	const kv = {
 		get: (key) => bridgeCall("kv/get", { key }),
 		set: (key, value) => bridgeCall("kv/set", { key, value }),
@@ -330,14 +330,14 @@ function createContext(originHook) {
 		} : {}),
 		...(${hasContentPublish} ? {
 			getVersioned: (collection, id) => contentAction(bridgeCall("content/getVersioned", { collection, id })),
-			publish: (collection, id, options) => contentAction(bridgeCall("content/publish", { collection, id, revision: options._rev })),
-			unpublish: (collection, id, options) => contentAction(bridgeCall("content/unpublish", { collection, id, revision: options._rev })),
-			schedule: (collection, id, options) => contentAction(bridgeCall("content/schedule", { collection, id, scheduledAt: options.scheduledAt, revision: options._rev })),
-			unschedule: (collection, id, options) => contentAction(bridgeCall("content/unschedule", { collection, id, revision: options._rev }))
+			publish: (collection, id, options) => contentAction(bridgeCall("content/publish", { collection, id, revision: options._rev, invocationId })),
+			unpublish: (collection, id, options) => contentAction(bridgeCall("content/unpublish", { collection, id, revision: options._rev, invocationId })),
+			schedule: (collection, id, options) => contentAction(bridgeCall("content/schedule", { collection, id, scheduledAt: options.scheduledAt, revision: options._rev, invocationId })),
+			unschedule: (collection, id, options) => contentAction(bridgeCall("content/unschedule", { collection, id, revision: options._rev, invocationId }))
 		} : {}),
 		...(${hasContentRestore} ? {
 			getTrashedVersioned: (collection, id) => contentAction(bridgeCall("content/getTrashedVersioned", { collection, id })),
-			restore: (collection, id, options) => contentAction(bridgeCall("content/restore", { collection, id, revision: options._rev }))
+			restore: (collection, id, options) => contentAction(bridgeCall("content/restore", { collection, id, revision: options._rev, invocationId }))
 		} : {})
 	} : undefined;
 
@@ -606,8 +606,8 @@ export default {
 		// Hook invocation: POST /hook/{hookName}
 		if (url.pathname.startsWith("/hook/")) {
 			const hookName = url.pathname.slice(6); // Remove "/hook/"
-			const { event } = await request.json();
-			const ctx = createContext(hookName);
+			const { event, invocationId } = await request.json();
+			const ctx = createContext(hookName, invocationId);
 
 			const hookDef = hooks[hookName];
 			if (!hookDef) {
@@ -630,8 +630,8 @@ export default {
 		// Route invocation: POST /route/{routeName}
 		if (url.pathname.startsWith("/route/")) {
 			const routeName = url.pathname.slice(7); // Remove "/route/"
-			const { input, request: serializedRequest } = await request.json();
-			const ctx = createContext();
+			const { input, request: serializedRequest, invocationId } = await request.json();
+			const ctx = createContext(undefined, invocationId);
 
 			const route = routes[routeName];
 			if (!route) {

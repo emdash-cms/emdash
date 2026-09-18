@@ -1028,14 +1028,14 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	 */
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		await this.ensureReady();
-		return this.withWallTimeLimit(`hook:${hookName}`, async () => {
+		return this.withWallTimeLimit(`hook:${hookName}`, async (invocationId) => {
 			const res = await fetch(`http://127.0.0.1:${this.port}/hook/${hookName}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
-				body: JSON.stringify({ event }),
+				body: JSON.stringify({ event, invocationId }),
 			});
 			if (!res.ok) {
 				const text = await res.text();
@@ -1058,14 +1058,14 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 		request: SerializedRequest,
 	): Promise<unknown> {
 		await this.ensureReady();
-		return this.withWallTimeLimit(`route:${routeName}`, async () => {
+		return this.withWallTimeLimit(`route:${routeName}`, async (invocationId) => {
 			const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
-				body: JSON.stringify({ input, request }),
+				body: JSON.stringify({ input, request, invocationId }),
 			});
 			if (!res.ok) {
 				const text = await res.text();
@@ -1099,12 +1099,18 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	/**
 	 * Enforce wall-time limit on an operation.
 	 */
-	private async withWallTimeLimit<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+	private async withWallTimeLimit<T>(
+		operation: string,
+		fn: (invocationId: string) => Promise<T>,
+	): Promise<T> {
 		const wallTimeMs = this.limits.wallTimeMs;
 		let timer: ReturnType<typeof setTimeout> | undefined;
+		const invocationId = crypto.randomUUID();
+		this.runner.contentActions?.begin?.(this.manifest.id, invocationId);
 
 		const timeout = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
+				void this.runner.contentActions?.flush(this.manifest.id, invocationId, false);
 				reject(
 					new Error(
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
@@ -1113,10 +1119,10 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 			}, wallTimeMs);
 		});
 
-		const invocation = fn();
+		const invocation = fn(invocationId);
 		void invocation.then(
-			() => this.runner.contentActions?.flush(this.manifest.id),
-			() => this.runner.contentActions?.flush(this.manifest.id),
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
 		);
 		try {
 			return await Promise.race([invocation, timeout]);
