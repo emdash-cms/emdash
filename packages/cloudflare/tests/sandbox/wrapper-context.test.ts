@@ -36,9 +36,19 @@ describe("Cloudflare generated plugin context", () => {
 			hooks: {
 				"plugin:activate": async (_event: unknown, ctx: Record<string, any>) => {
 					await ctx.cron.schedule("daily", { schedule: "@daily" });
-					const response = await ctx.http.fetch("https://api.example.com/status", {
+					await ctx.http.fetch("https://api.example.com/status", {
 						method: "POST",
 						body: pluginHttpFormBody(),
+					});
+					const response = await ctx.http.fetch("https://api.example.com/upload", {
+						method: "POST",
+						body: new ReadableStream({
+							start(controller) {
+								controller.enqueue(new Uint8Array([0, 255, 128, 10]));
+								controller.close();
+							},
+						}),
+						duplex: "half",
 					});
 					return {
 						isResponse: response instanceof Response,
@@ -47,12 +57,12 @@ describe("Cloudflare generated plugin context", () => {
 				},
 			},
 		};
-		let capturedInit: RequestInit | undefined;
+		const capturedInits: RequestInit[] = [];
 		const bridge = new Proxy(
 			{
 				cronSchedule: schedule,
 				httpFetch: async (_url: string, init?: RequestInit) => {
-					capturedInit = init;
+					if (init) capturedInits.push(init);
 					return {
 						status: 200,
 						statusText: "OK",
@@ -81,9 +91,11 @@ describe("Cloudflare generated plugin context", () => {
 			body: { ok: true },
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });
-		expect(new Headers(capturedInit?.headers).get("content-type")).toBe(
+		expect(new Headers(capturedInits[0]?.headers).get("content-type")).toBe(
 			PLUGIN_HTTP_FORM_CONTENT_TYPE,
 		);
-		expect(capturedInit?.body).toEqual(PLUGIN_HTTP_FORM_BYTES);
+		expect(capturedInits[0]?.body).toEqual(PLUGIN_HTTP_FORM_BYTES);
+		expect(capturedInits[1]).not.toHaveProperty("duplex");
+		expect(capturedInits[1]?.body).toEqual(new Uint8Array([0, 255, 128, 10]));
 	});
 });

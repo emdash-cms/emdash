@@ -13,6 +13,7 @@ import { createHttpAccess, createUnrestrictedHttpAccess } from "../../../src/plu
 import {
 	PLUGIN_HTTP_MAX_REQUEST_BYTES,
 	PLUGIN_HTTP_MAX_RESPONSE_BYTES,
+	bufferPluginHttpRequest,
 } from "../../../src/plugins/http-wire.js";
 import {
 	bytesOverLimit,
@@ -342,6 +343,20 @@ describe("createHttpAccess buffered bodies", () => {
 			} as RequestInit),
 		).rejects.toThrow(/request body exceeds the 8388608 byte limit/i);
 		expect(mockFetch).not.toHaveBeenCalled();
+	});
+
+	it("removes duplex after buffering a streamed request body", async () => {
+		const init = {
+			method: "POST",
+			body: chunkedBytes([new Uint8Array([0, 255, 128, 10])]),
+			duplex: "half",
+		} as RequestInit & { duplex: "half" };
+
+		const buffered = await bufferPluginHttpRequest(init);
+		expect(buffered).not.toHaveProperty("duplex");
+		expect(new Uint8Array(buffered?.body as ArrayBuffer)).toEqual(
+			new Uint8Array([0, 255, 128, 10]),
+		);
 	});
 
 	it("rejects a streamed response as soon as the decoded byte limit is crossed", async () => {

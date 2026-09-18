@@ -69,7 +69,9 @@ export async function bufferPluginHttpRequest(
 		const contentType = encoded.headers.get("content-type");
 		if (contentType) headers.set("content-type", contentType);
 	}
-	return { ...init, headers, body: new Uint8Array(body).buffer };
+	const bufferedInit = { ...init };
+	Reflect.deleteProperty(bufferedInit, "duplex");
+	return { ...bufferedInit, headers, body: new Uint8Array(body).buffer };
 }
 
 export function rewritePluginHttpRedirect(
