@@ -8081,11 +8081,56 @@ const dashboardWidgetSchema = object({
 	]).optional(),
 	title: string().optional()
 });
+const editorExtensionIdPattern = /^[a-z][a-z0-9_-]*$/;
+const editorCollectionsSchema = array(string().max(63).regex(/^[a-z][a-z0-9_]*$/, "Invalid collection slug")).max(64).refine((collections) => new Set(collections).size === collections.length, { message: "Editor extension collections must be unique" });
+const editorPanelSchema = object({
+	id: string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
+	title: string().min(1).max(128),
+	route: string().min(1).max(128).regex(routeNamePattern, "Route name must be a safe path segment"),
+	collections: editorCollectionsSchema.optional(),
+	order: number().int().min(-1e3).max(1e3).optional()
+});
+const editorActionConfirmSchema = object({
+	title: string().min(1).max(128),
+	text: string().min(1).max(1024),
+	confirm: string().min(1).max(64),
+	deny: string().min(1).max(64),
+	style: literal("danger").optional()
+});
+const editorActionSchema = object({
+	id: string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor action id"),
+	label: string().min(1).max(128),
+	route: string().min(1).max(128).regex(routeNamePattern, "Route name must be a safe path segment"),
+	placement: _enum(["toolbar", "overflow"]),
+	collections: editorCollectionsSchema.optional(),
+	style: _enum(["default", "danger"]).optional(),
+	confirm: editorActionConfirmSchema.optional()
+}).refine((action) => action.style !== "danger" || action.confirm !== void 0, {
+	message: "Danger editor actions require confirmation",
+	path: ["confirm"]
+});
+function uniqueExtensionIds(items, ctx, path) {
+	const seen = /* @__PURE__ */ new Set();
+	for (const [index, item] of (items ?? []).entries()) {
+		if (seen.has(item.id)) ctx.addIssue({
+			code: "custom",
+			message: `Duplicate ${path} id`,
+			path: [
+				path,
+				index,
+				"id"
+			]
+		});
+		seen.add(item.id);
+	}
+}
 const pluginAdminConfigSchema = object({
 	entry: string().optional(),
 	settingsSchema: record(string(), settingFieldSchema).optional(),
 	pages: array(adminPageSchema).optional(),
 	widgets: array(dashboardWidgetSchema).optional(),
+	editorPanels: array(editorPanelSchema).max(32).optional(),
+	editorActions: array(editorActionSchema).max(32).optional(),
 	fieldWidgets: array(object({
 		name: string().min(1),
 		label: string().min(1),
@@ -8096,6 +8141,9 @@ const pluginAdminConfigSchema = object({
 			label: string().optional()
 		}).loose()).optional()
 	})).optional()
+}).superRefine((admin, ctx) => {
+	uniqueExtensionIds(admin.editorPanels, ctx, "editorPanels");
+	uniqueExtensionIds(admin.editorActions, ctx, "editorActions");
 });
 /**
 * An operation's constraint object. Open vocabulary: keys the runtime
@@ -8155,7 +8203,7 @@ const declaredAccessSchema = object({
 * to make them consistent (declaredAccess authoritative when present). Kept a
 * plain object (no `.transform`) because callers `.pick()`/`.extend()` it.
 */
-const pluginManifestSchema = object({
+const pluginManifestBaseSchema = object({
 	id: string().min(1),
 	version: string().min(1),
 	declaredAccess: declaredAccessSchema.optional(),
@@ -8167,6 +8215,37 @@ const pluginManifestSchema = object({
 	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema
 });
+function validateEditorExtensionRoutes(manifest, ctx) {
+	for (const [kind, extensions] of [["editorPanels", manifest.admin.editorPanels], ["editorActions", manifest.admin.editorActions]]) for (const [index, extension] of (extensions ?? []).entries()) {
+		const matches = manifest.routes.filter((route) => (typeof route === "string" ? route : route.name) === extension.route);
+		if (matches.length !== 1) {
+			ctx.addIssue({
+				code: "custom",
+				message: matches.length === 0 ? "Editor extension route is not declared" : "Editor extension route must be declared exactly once",
+				path: [
+					"admin",
+					kind,
+					index,
+					"route"
+				]
+			});
+			continue;
+		}
+		const route = matches[0];
+		if (!route) continue;
+		if (typeof route !== "string" && route.public === true) ctx.addIssue({
+			code: "custom",
+			message: "Editor extension routes must be private",
+			path: [
+				"admin",
+				kind,
+				index,
+				"route"
+			]
+		});
+	}
+}
+const pluginManifestSchema = pluginManifestBaseSchema.superRefine(validateEditorExtensionRoutes);
 /**
 * Reconcile a parsed manifest's trust contract with its enforcement currency.
 * `declaredAccess` is authoritative: when present, `capabilities`/`allowedHosts`
