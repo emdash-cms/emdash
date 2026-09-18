@@ -29,6 +29,7 @@ import {
 } from "emdash";
 
 import {
+	beginContentActionCallbacks,
 	setContentActionsCallback,
 	flushContentActionCallbacks,
 	setCronNowCallback,
@@ -344,12 +345,17 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	 * Loader doesn't expose a wall-time limit — a plugin could stall
 	 * indefinitely waiting on network I/O.
 	 */
-	private async withWallTimeLimit<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+	private async withWallTimeLimit<T>(
+		operation: string,
+		invocationId: string,
+		invocation: Promise<T>,
+	): Promise<T> {
 		const wallTimeMs = this.limits.wallTimeMs;
 		let timer: ReturnType<typeof setTimeout> | undefined;
 
 		const timeout = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
+				void flushContentActionCallbacks(this.manifest.id, invocationId, false);
 				reject(
 					new Error(
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
@@ -359,7 +365,11 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		});
 
 		try {
-			return await Promise.race([fn(), timeout]);
+			void invocation.then(
+				() => flushContentActionCallbacks(this.manifest.id, invocationId, true),
+				() => flushContentActionCallbacks(this.manifest.id, invocationId, true),
+			);
+			return await Promise.race([invocation, timeout]);
 		} finally {
 			if (timer !== undefined) clearTimeout(timer);
 		}
@@ -372,14 +382,12 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	 * Wall-time is enforced here.
 	 */
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
+		const invocationId = crypto.randomUUID();
+		beginContentActionCallbacks(this.manifest.id, invocationId);
 		const worker = this.createWorker();
 		const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-		const invocation = entrypoint.invokeHook(hookName, event);
-		void invocation.then(
-			() => flushContentActionCallbacks(this.manifest.id),
-			() => flushContentActionCallbacks(this.manifest.id),
-		);
-		return this.withWallTimeLimit(`hook:${hookName}`, () => invocation);
+		const invocation = entrypoint.invokeHook(hookName, event, invocationId);
+		return this.withWallTimeLimit(`hook:${hookName}`, invocationId, invocation);
 	}
 
 	/**
@@ -393,19 +401,17 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		input: unknown,
 		request: SerializedRequest,
 	): Promise<unknown> {
+		const invocationId = crypto.randomUUID();
+		beginContentActionCallbacks(this.manifest.id, invocationId);
 		const worker = this.createWorker();
 		const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
 		const invocation = (async () => {
-			const routeResult = await entrypoint.invokeRoute(routeName, input, request);
+			const routeResult = await entrypoint.invokeRoute(routeName, input, request, invocationId);
 			const envelope = getSandboxRouteErrorEnvelope(routeResult);
 			if (envelope) throw createSandboxRouteError(envelope.error.code);
 			return routeResult;
 		})();
-		void invocation.then(
-			() => flushContentActionCallbacks(this.manifest.id),
-			() => flushContentActionCallbacks(this.manifest.id),
-		);
-		return this.withWallTimeLimit(`route:${routeName}`, () => invocation);
+		return this.withWallTimeLimit(`route:${routeName}`, invocationId, invocation);
 	}
 
 	/**
@@ -421,8 +427,13 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
  * The RPC interface exposed by the plugin wrapper.
  */
 interface PluginEntrypoint {
-	invokeHook(hookName: string, event: unknown): Promise<unknown>;
-	invokeRoute(routeName: string, input: unknown, request: SerializedRequest): Promise<unknown>;
+	invokeHook(hookName: string, event: unknown, invocationId: string): Promise<unknown>;
+	invokeRoute(
+		routeName: string,
+		input: unknown,
+		request: SerializedRequest,
+		invocationId: string,
+	): Promise<unknown>;
 }
 
 /**

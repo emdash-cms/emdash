@@ -157,9 +157,15 @@ describe("Bridge Handler Conformance", () => {
 					revision: "revision-1",
 				}),
 			).resolves.toEqual({ result: versioned });
-			expect(actions.publish).toHaveBeenCalledWith("test-plugin", "posts", "post-1", {
-				_rev: "revision-1",
-			});
+			expect(actions.publish).toHaveBeenCalledWith(
+				"test-plugin",
+				"posts",
+				"post-1",
+				{
+					_rev: "revision-1",
+				},
+				undefined,
+			);
 			actions.publish.mockRejectedValueOnce(
 				Object.assign(new Error("Revision precondition did not match"), { code: "CONFLICT" }),
 			);

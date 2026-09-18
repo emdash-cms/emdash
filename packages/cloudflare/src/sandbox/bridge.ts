@@ -90,8 +90,16 @@ export function setContentActionsCallback(callback: ContentActionCallbacks | nul
 	contentActionsCallback = callback;
 }
 
-export function flushContentActionCallbacks(pluginId: string): Promise<void> {
-	return contentActionsCallback?.flush(pluginId) ?? Promise.resolve();
+export function beginContentActionCallbacks(pluginId: string, invocationId: string): void {
+	contentActionsCallback?.begin?.(pluginId, invocationId);
+}
+
+export function flushContentActionCallbacks(
+	pluginId: string,
+	invocationId: string,
+	final: boolean,
+): Promise<void> {
+	return contentActionsCallback?.flush(pluginId, invocationId, final) ?? Promise.resolve();
 }
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
@@ -822,46 +830,56 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		);
 	}
 
-	contentPublish(collection: string, id: string, revision: string) {
+	contentPublish(collection: string, id: string, revision: string, invocationId?: string) {
 		return forwardContentAction(() =>
 			this.requireContentActions("content:publish").publish(
 				this.ctx.props.pluginId,
 				collection,
 				id,
 				{ _rev: revision },
+				invocationId,
 			),
 		);
 	}
 
-	contentUnpublish(collection: string, id: string, revision: string) {
+	contentUnpublish(collection: string, id: string, revision: string, invocationId?: string) {
 		return forwardContentAction(() =>
 			this.requireContentActions("content:publish").unpublish(
 				this.ctx.props.pluginId,
 				collection,
 				id,
 				{ _rev: revision },
+				invocationId,
 			),
 		);
 	}
 
-	contentSchedule(collection: string, id: string, scheduledAt: string, revision: string) {
+	contentSchedule(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		revision: string,
+		invocationId?: string,
+	) {
 		return forwardContentAction(() =>
 			this.requireContentActions("content:publish").schedule(
 				this.ctx.props.pluginId,
 				collection,
 				id,
 				{ scheduledAt, _rev: revision },
+				invocationId,
 			),
 		);
 	}
 
-	contentUnschedule(collection: string, id: string, revision: string) {
+	contentUnschedule(collection: string, id: string, revision: string, invocationId?: string) {
 		return forwardContentAction(() =>
 			this.requireContentActions("content:publish").unschedule(
 				this.ctx.props.pluginId,
 				collection,
 				id,
 				{ _rev: revision },
+				invocationId,
 			),
 		);
 	}
@@ -876,13 +894,14 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		);
 	}
 
-	contentRestore(collection: string, id: string, revision: string) {
+	contentRestore(collection: string, id: string, revision: string, invocationId?: string) {
 		return forwardContentAction(() =>
 			this.requireContentActions("content:restore").restore(
 				this.ctx.props.pluginId,
 				collection,
 				id,
 				{ _rev: revision },
+				invocationId,
 			),
 		);
 	}

@@ -103,7 +103,7 @@ function sandboxRouteErrorDetails(value) {
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
-function createContext(env) {
+function createContext(env, invocationId) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
@@ -168,12 +168,12 @@ function createContext(env) {
 		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
 		delete: (collection, id) => bridge.contentDelete(collection, id),
 		getVersioned: (collection, id) => contentAction(bridge.contentGetVersioned(collection, id)),
-		publish: (collection, id, options) => contentAction(bridge.contentPublish(collection, id, options._rev)),
-		unpublish: (collection, id, options) => contentAction(bridge.contentUnpublish(collection, id, options._rev)),
-		schedule: (collection, id, options) => contentAction(bridge.contentSchedule(collection, id, options.scheduledAt, options._rev)),
-		unschedule: (collection, id, options) => contentAction(bridge.contentUnschedule(collection, id, options._rev)),
+		publish: (collection, id, options) => contentAction(bridge.contentPublish(collection, id, options._rev, invocationId)),
+		unpublish: (collection, id, options) => contentAction(bridge.contentUnpublish(collection, id, options._rev, invocationId)),
+		schedule: (collection, id, options) => contentAction(bridge.contentSchedule(collection, id, options.scheduledAt, options._rev, invocationId)),
+		unschedule: (collection, id, options) => contentAction(bridge.contentUnschedule(collection, id, options._rev, invocationId)),
 		getTrashedVersioned: (collection, id) => contentAction(bridge.contentGetTrashedVersioned(collection, id)),
-		restore: (collection, id, options) => contentAction(bridge.contentRestore(collection, id, options._rev))
+		restore: (collection, id, options) => contentAction(bridge.contentRestore(collection, id, options._rev, invocationId))
 	};
 	
 	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)
@@ -269,8 +269,8 @@ function createContext(env) {
 // -----------------------------------------------------------------------------
 
 export default class PluginEntrypoint extends WorkerEntrypoint {
-	async invokeHook(hookName, event) {
-		const ctx = createContext(this.env);
+	async invokeHook(hookName, event, invocationId) {
+		const ctx = createContext(this.env, invocationId);
 		
 		// Find the hook handler
 		const hookDef = hooks[hookName];
@@ -291,8 +291,8 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 		return handler(event, ctx);
 	}
 	
-	async invokeRoute(routeName, input, serializedRequest) {
-		const ctx = createContext(this.env);
+	async invokeRoute(routeName, input, serializedRequest, invocationId) {
+		const ctx = createContext(this.env, invocationId);
 		
 		// Find the route handler
 		const route = routes[routeName];

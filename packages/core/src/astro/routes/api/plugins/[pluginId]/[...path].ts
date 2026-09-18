@@ -33,9 +33,7 @@ const handleRequest: APIRoute = async ({ params, request, locals, cache }) => {
 		request,
 		user,
 		tokenScopes: locals.tokenScopes,
-		invalidateContentCache: async (tags) => {
-			if (cache?.enabled) await cache.invalidate({ tags });
-		},
+		invalidateContentCache: cache?.enabled ? (tags) => cache.invalidate({ tags }) : undefined,
 	});
 };
 
