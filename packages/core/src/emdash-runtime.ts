@@ -238,6 +238,7 @@ import { invalidateSiteSettingsCache } from "./settings/index.js";
 
 const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision", "actor"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
+const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
 
 type ContentPolicyHookName =
 	| "content:beforePublish"
@@ -642,6 +643,7 @@ export class EmDashRuntime {
 	private pluginStates: Map<string, string>;
 	private readonly activePluginContentActions = new Set<string>();
 	private readonly pendingPluginAfterHooks = new Map<string, Array<() => Promise<void>>>();
+	private readonly activePluginInvocations = new Set<string>();
 	/** Timed-out sandbox invocations whose later actions must schedule hooks without another flush. */
 	private readonly releasedPluginInvocations = new Set<string>();
 	private pluginContentCacheInvalidator?: PluginContentCacheInvalidator;
@@ -4842,7 +4844,7 @@ export class EmDashRuntime {
 		};
 		if (afterPluginId && pluginInvocationId && this.findSandboxedPlugin(afterPluginId)) {
 			const key = this.pluginInvocationKey(afterPluginId, pluginInvocationId);
-			if (this.releasedPluginInvocations.has(key)) {
+			if (!this.activePluginInvocations.has(key) || this.releasedPluginInvocations.has(key)) {
 				after(invoke);
 				return;
 			}
@@ -4862,6 +4864,7 @@ export class EmDashRuntime {
 		const key = this.pluginInvocationKey(pluginId, invocationId);
 		this.pendingPluginAfterHooks.delete(key);
 		this.releasedPluginInvocations.delete(key);
+		this.activePluginInvocations.add(key);
 	}
 
 	private flushPluginAfterHooks(
@@ -4875,7 +4878,16 @@ export class EmDashRuntime {
 		const pending = this.pendingPluginAfterHooks.get(key) ?? [];
 		this.pendingPluginAfterHooks.delete(key);
 		for (const invoke of pending) after(invoke);
-		if (final) this.releasedPluginInvocations.delete(key);
+		if (final) {
+			this.releasedPluginInvocations.delete(key);
+			this.activePluginInvocations.delete(key);
+		} else {
+			const timer = setTimeout(() => {
+				this.releasedPluginInvocations.delete(key);
+				this.activePluginInvocations.delete(key);
+			}, PLUGIN_INVOCATION_RELEASE_GRACE_MS);
+			if (typeof timer === "object") timer.unref();
+		}
 		return Promise.resolve();
 	}
 
