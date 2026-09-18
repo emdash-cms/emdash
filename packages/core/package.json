@@ -189,6 +189,10 @@
     "./plugins/adapt-sandbox-entry": {
       "types": "./dist/plugins/adapt-sandbox-entry.d.mts",
       "default": "./dist/plugins/adapt-sandbox-entry.mjs"
+    },
+    "./plugins/host": {
+      "types": "./dist/plugins/host.d.mts",
+      "default": "./dist/plugins/host.mjs"
     }
   },
   "imports": {

@@ -222,6 +222,7 @@ async function seedD1ViaDevBypass(events) {
 		cwd: fixtureDir,
 		env: {
 			...process.env,
+			ASTRO_DEV_BACKGROUND: "0",
 			EMDASH_FIXTURE_TARGET: "d1",
 			EMDASH_QUERY_LOG: "1",
 		},
@@ -290,6 +291,7 @@ function startServer({ collectedEvents, streamEndSnapshots = [] }) {
 		cwd: fixtureDir,
 		env: {
 			...process.env,
+			ASTRO_PREVIEW_BACKGROUND: "0",
 			EMDASH_FIXTURE_TARGET: target,
 			EMDASH_QUERY_LOG: "1",
 			HOST,
