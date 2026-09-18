@@ -1158,6 +1158,46 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.error).toMatch(/request body exceeds the 8388608 byte limit/i);
 		});
 
+		it.each([
+			{
+				caseName: "string body type",
+				init: { bodyType: "string", body: "payload" },
+				expectedError: 'init.bodyType must be "base64"',
+			},
+			{
+				caseName: "form-data body type",
+				init: { bodyType: "formdata", body: [] },
+				expectedError: 'init.bodyType must be "base64"',
+			},
+			{
+				caseName: "body without a body type",
+				init: { body: "cGF5bG9hZA==" },
+				expectedError: "init.bodyType and init.body must be present together",
+			},
+			{
+				caseName: "body type without a body",
+				init: { bodyType: "base64" },
+				expectedError: "init.bodyType and init.body must be present together",
+			},
+		])("rejects $caseName before dispatch", async ({ init, expectedError }) => {
+			const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response("ok"));
+			vi.stubGlobal("fetch", fetchMock);
+			try {
+				const handler = makeHandler({
+					capabilities: ["network:request"],
+					allowedHosts: ["api.example.com"],
+				});
+				const result = await call(handler, "http/fetch", {
+					url: "https://api.example.com/upload",
+					init,
+				});
+				expect(result.error).toContain(expectedError);
+				expect(fetchMock).not.toHaveBeenCalled();
+			} finally {
+				vi.unstubAllGlobals();
+			}
+		});
+
 		it("rejects an oversized streamed response", async () => {
 			const fetchMock = vi
 				.fn<typeof fetch>()
