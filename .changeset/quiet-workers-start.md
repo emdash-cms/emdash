@@ -4,3 +4,5 @@
 ---
 
 Adds `emdash/plugins/host` as a narrow runtime entry for platform sandbox adapters. The Cloudflare Worker loads scheduled maintenance and sandbox bridge dependencies when those capabilities first run, reducing startup CPU while preserving existing Worker exports and behavior.
+
+Fixes concurrent first-run setup and automatic seeding failing when both processes create the same taxonomy term.
