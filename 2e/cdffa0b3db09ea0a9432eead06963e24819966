@@ -1,0 +1,33 @@
+e2e/tests/content-actions.spec.ts
+  s_e69d097f84a6bd::t_764b0cd7f3f846 198-220
+packages/admin/src/components/ContentSettingsPanel.tsx
+  s_e69d097f84a6bd::t_ed62041f1757a8 340,393,407,437-444,470-471,488-489,508,511,519,522,535-538,545-548,553,564-567,570,599,654,681,740,962
+docs/src/content/docs/guides/working-with-content.mdx
+  s_12ff11085afac9::t_9f19c6f1f55bac 120-122,125
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_12ff11085afac9::t_89288ca6f40943 2064-2110,2201-2218
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2ecdffa0b3db09ea0a9432eead06963e24819966",
+  "prompts": {},
+  "sessions": {
+    "s_12ff11085afac9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb5-4f63-7e11-88f3-2d9c9913ceed",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_e69d097f84a6bd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0aeb0-d849-7f03-a16d-059c8a9c7288",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
