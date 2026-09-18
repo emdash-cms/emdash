@@ -13,12 +13,13 @@
  * - Faster startup
  */
 
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 
 import type {
 	SandboxRunner,
 	SandboxedPluginInstance,
+	ContentActionCallbacks,
 	SandboxEmailSendCallback,
 	SandboxContentCreateCallback,
 	SandboxOptions,
@@ -61,6 +62,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 	};
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
 	private contentCreateCallback: SandboxContentCreateCallback | null = null;
+	private contentActionsCallback: ContentActionCallbacks | null = null;
 	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Miniflare instance (lazily created) */
@@ -85,6 +87,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 		this.options = options;
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
+		this.contentActionsCallback = options.contentActions ?? null;
 		this.devInvokeToken = randomBytes(32).toString("hex");
 	}
 
@@ -117,6 +120,14 @@ export class MiniflareDevRunner implements SandboxRunner {
 
 	setContentCreate(callback: SandboxContentCreateCallback | null): void {
 		this.contentCreateCallback = callback;
+	}
+
+	setContentActions(callback: ContentActionCallbacks | null): void {
+		this.contentActionsCallback = callback;
+	}
+
+	get contentActions(): ContentActionCallbacks | null {
+		return this.contentActionsCallback;
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
@@ -190,6 +201,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				db: this.options.db,
 				beforeContentWrite: this.options.beforeContentWrite,
 				contentCreateProvider: () => this.contentCreateCallback,
+				contentActions: () => this.contentActionsCallback,
 				emailSend: () => this.emailSendCallback,
 				cronReschedule: () => this.cronRescheduleCallback?.(),
 				now: this.options.now,
@@ -276,14 +288,14 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 		if (!this.runner.isHealthy()) {
 			throw new Error(`Dev sandbox unavailable for ${this.id}`);
 		}
-		return this.withWallTimeLimit(`hook:${hookName}`, async () => {
+		return this.withWallTimeLimit(`hook:${hookName}`, async (invocationId) => {
 			const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/hook/${hookName}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
-				body: JSON.stringify({ event }),
+				body: JSON.stringify({ event, invocationId }),
 			});
 			if (!res.ok) {
 				const text = await res.text();
@@ -305,14 +317,14 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 		if (!this.runner.isHealthy()) {
 			throw new Error(`Dev sandbox unavailable for ${this.id}`);
 		}
-		return this.withWallTimeLimit(`route:${routeName}`, async () => {
+		return this.withWallTimeLimit(`route:${routeName}`, async (invocationId) => {
 			const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/route/${routeName}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
-				body: JSON.stringify({ input, request }),
+				body: JSON.stringify({ input, request, invocationId }),
 			});
 			if (!res.ok) {
 				const text = await res.text();
@@ -331,12 +343,18 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 		});
 	}
 
-	private async withWallTimeLimit<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+	private async withWallTimeLimit<T>(
+		operation: string,
+		fn: (invocationId: string) => Promise<T>,
+	): Promise<T> {
 		const wallTimeMs = this.runner.wallTimeMs;
 		let timer: ReturnType<typeof setTimeout> | undefined;
+		const invocationId = randomUUID();
+		this.runner.contentActions?.begin?.(this.manifest.id, invocationId);
 
 		const timeout = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
+				void this.runner.contentActions?.flush(this.manifest.id, invocationId, false);
 				reject(
 					new Error(
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
@@ -345,8 +363,13 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 			}, wallTimeMs);
 		});
 
+		const invocation = fn(invocationId);
+		void invocation.then(
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+		);
 		try {
-			return await Promise.race([fn(), timeout]);
+			return await Promise.race([invocation, timeout]);
 		} finally {
 			if (timer !== undefined) clearTimeout(timer);
 		}
