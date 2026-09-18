@@ -38,6 +38,8 @@ const ACTIVE_RESPONSE_TYPES = new Set([
 	"text/ecmascript",
 	"text/html",
 	"text/javascript",
+	"text/jscript",
+	"text/livescript",
 	"text/xml",
 ]);
 

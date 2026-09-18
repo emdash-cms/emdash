@@ -153,6 +153,8 @@ describe("raw plugin route responses", () => {
 	it.each([
 		"text/html",
 		"application/javascript",
+		"text/jscript",
+		"text/livescript",
 		"application/xhtml+xml",
 		"image/svg+xml",
 		"text/css",
