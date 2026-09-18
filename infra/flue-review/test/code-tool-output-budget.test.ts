@@ -26,9 +26,7 @@ describe("assertCodeToolOutputWithinBudget", () => {
 	});
 
 	it("includes logs in the output budget", () => {
-		expect(() => formatCodeToolOutput("ok", ["x".repeat(100)], 100)).toThrow(
-			/117 bytes/,
-		);
+		expect(() => formatCodeToolOutput("ok", ["x".repeat(100)], 100)).toThrow(/117 bytes/);
 	});
 
 	it("allows a smaller targeted result after rejecting a full-file result", () => {

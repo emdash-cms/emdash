@@ -5,13 +5,13 @@
 // the agent reads those files from the checkout instead. Generated review
 // artifacts are always omitted from every model-visible path.
 
+import { utf8ByteLength } from "./byte-budget.js";
 import {
 	COMPILED_RELEASE_ACTION_NOTICE,
 	COMPILED_RELEASE_ACTION_PATH,
 	GENERATED_WORKER_TYPES_FILENAME,
 	GENERATED_WORKER_TYPES_NOTICE,
 } from "./review-context.js";
-import { utf8ByteLength } from "./byte-budget.js";
 
 const DEFAULT_PER_FILE_BYTES = 48 * 1024;
 const DEFAULT_TOTAL_BYTES = 384 * 1024;

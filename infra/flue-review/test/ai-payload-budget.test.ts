@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-	createAiPayloadGuard,
-	summarizeAiPayload,
-} from "../.flue/lib/ai-payload-budget.js";
+import { createAiPayloadGuard, summarizeAiPayload } from "../.flue/lib/ai-payload-budget.js";
 
 describe("createAiPayloadGuard", () => {
 	it("rejects a megabyte-scale request before it reaches Workers AI", async () => {
@@ -93,9 +90,7 @@ describe("createAiPayloadGuard", () => {
 			],
 		};
 
-		await expect(guarded.run("model", withCompiledBundle)).rejects.toThrow(
-			/model-request budget/,
-		);
+		await expect(guarded.run("model", withCompiledBundle)).rejects.toThrow(/model-request budget/);
 		await expect(guarded.run("model", withCompiledMarker)).resolves.toEqual({ response: "ok" });
 		expect(run).toHaveBeenCalledTimes(1);
 	});
