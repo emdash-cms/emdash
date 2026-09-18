@@ -132,31 +132,6 @@ describe("applySeed onConflict modes", () => {
 	});
 
 	describe("onConflict: skip (default)", () => {
-		it("handles concurrent taxonomy term inserts", async () => {
-			const taxonomy = {
-				name: "categories",
-				label: "Categories",
-				hierarchical: false,
-				collections: ["posts"],
-				terms: [{ slug: "news", label: "News" }],
-			};
-			await applySeed(db, { version: "1", taxonomies: [{ ...taxonomy, terms: [] }] });
-
-			await Promise.all([
-				applySeed(db, { version: "1", taxonomies: [taxonomy] }, { includeContent: true }),
-				applySeed(db, { version: "1", taxonomies: [taxonomy] }, { includeContent: true }),
-			]);
-
-			const terms = await db
-				.selectFrom("taxonomies")
-				.select("id")
-				.where("name", "=", "categories")
-				.where("slug", "=", "news")
-				.where("locale", "=", "en")
-				.execute();
-			expect(terms).toHaveLength(1);
-		});
-
 		it("skips existing collections", async () => {
 			const seed = createTestSeed();
 			// First apply

@@ -397,24 +397,16 @@ export async function applySeed(
 							const translationOf = term.translationOf
 								? termSeedIdMap.get(term.translationOf)
 								: undefined;
-							const resolved = await createSeedTaxonomyTerm(
-								termRepo,
-								{
-									name: taxonomy.name,
-									slug: term.slug,
-									label: term.label,
-									data: term.description ? { description: term.description } : undefined,
-									locale: termLocale,
-									translationOf,
-								},
-								{
-									label: term.label,
-									data: term.description ? { description: term.description } : {},
-								},
-								onConflict,
-							);
-							if (term.id) termSeedIdMap.set(term.id, resolved.id);
-							if (resolved.mutated) result.taxonomies.terms++;
+							const created = await termRepo.create({
+								name: taxonomy.name,
+								slug: term.slug,
+								label: term.label,
+								data: term.description ? { description: term.description } : undefined,
+								locale: termLocale,
+								translationOf,
+							});
+							if (term.id) termSeedIdMap.set(term.id, created.id);
+							result.taxonomies.terms++;
 						}
 					}
 				}
@@ -939,42 +931,6 @@ export async function applySeed(
 	return result;
 }
 
-function isUniqueViolation(error: unknown): boolean {
-	if (error && typeof error === "object") {
-		if ("code" in error && error.code === "23505") return true;
-		if ("cause" in error && isUniqueViolation(error.cause)) return true;
-	}
-	const message = error instanceof Error ? error.message.toLowerCase() : "";
-	return message.includes("unique constraint failed") || message.includes("duplicate key");
-}
-
-async function createSeedTaxonomyTerm(
-	termRepo: TaxonomyRepository,
-	input: Parameters<TaxonomyRepository["create"]>[0] & { locale: string },
-	update: Parameters<TaxonomyRepository["update"]>[1],
-	onConflict: "skip" | "update" | "error",
-): Promise<{ id: string; mutated: boolean }> {
-	try {
-		const created = await termRepo.create(input);
-		return { id: created.id, mutated: true };
-	} catch (error) {
-		if (!isUniqueViolation(error)) throw error;
-		const existing = await termRepo.findBySlug(input.name, input.slug, input.locale);
-		if (!existing) throw error;
-		if (onConflict === "error") {
-			throw new Error(
-				`Conflict: taxonomy term "${input.slug}" in "${input.name}" (${input.locale}) already exists`,
-				{ cause: error },
-			);
-		}
-		if (onConflict === "update") {
-			await termRepo.update(existing.id, update);
-			return { id: existing.id, mutated: true };
-		}
-		return { id: existing.id, mutated: false };
-	}
-}
-
 /**
  * Apply hierarchical taxonomy terms (parents before children)
  */
@@ -1027,27 +983,18 @@ async function applyHierarchicalTerms(
 				slugToId.set(`${termLocale}::${term.slug}`, existing.id);
 				if (term.id) termSeedIdMap.set(term.id, existing.id);
 			} else {
-				const resolved = await createSeedTaxonomyTerm(
-					termRepo,
-					{
-						name: taxonomyName,
-						slug: term.slug,
-						label: term.label,
-						parentId,
-						data: term.description ? { description: term.description } : undefined,
-						locale: termLocale,
-						translationOf,
-					},
-					{
-						label: term.label,
-						parentId,
-						data: term.description ? { description: term.description } : {},
-					},
-					onConflict,
-				);
-				slugToId.set(`${termLocale}::${term.slug}`, resolved.id);
-				if (term.id) termSeedIdMap.set(term.id, resolved.id);
-				if (resolved.mutated) result.taxonomies.terms++;
+				const created = await termRepo.create({
+					name: taxonomyName,
+					slug: term.slug,
+					label: term.label,
+					parentId,
+					data: term.description ? { description: term.description } : undefined,
+					locale: termLocale,
+					translationOf,
+				});
+				slugToId.set(`${termLocale}::${term.slug}`, created.id);
+				if (term.id) termSeedIdMap.set(term.id, created.id);
+				result.taxonomies.terms++;
 			}
 
 			processedThisPass.push(term.slug + "::" + termLocale);
