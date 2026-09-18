@@ -2061,6 +2061,53 @@ describe("ContentEditor", () => {
 			// second Live View link rather than replacing the panel's copy.
 			expect(screen.getByRole("link", { name: "Live View" }).all()).toHaveLength(2);
 		});
+
+		it("keeps scheduling available in distraction-free mode", async () => {
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "draft" }),
+				onSchedule: vi.fn(),
+			});
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+			const actionContainer = heading.parentElement?.parentElement?.lastElementChild;
+			const schedule = [...(actionContainer?.querySelectorAll("button") ?? [])].find(
+				(action) => action.textContent?.trim() === "Schedule",
+			);
+			expect(schedule).toBeInstanceOf(HTMLButtonElement);
+			schedule?.click();
+
+			await expect
+				.element(screen.getByRole("dialog", { name: "Schedule publication" }))
+				.toBeVisible();
+		});
+
+		it("keeps scheduled-entry actions available in distraction-free mode", async () => {
+			const onUnschedule = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00.000Z" }),
+				onSchedule: vi.fn(),
+				onUnschedule,
+			});
+
+			await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
+			const heading = screen.getByRole("heading", { name: "Edit Post" }).element();
+			const actionContainer = heading.parentElement?.parentElement?.lastElementChild;
+			const actions = [...(actionContainer?.querySelectorAll("button") ?? [])];
+			const changeSchedule = actions.find(
+				(action) => action.textContent?.trim() === "Change schedule",
+			);
+			const removeSchedule = actions.find(
+				(action) => action.textContent?.trim() === "Remove schedule",
+			);
+
+			expect(changeSchedule).toBeInstanceOf(HTMLButtonElement);
+			expect(removeSchedule).toBeInstanceOf(HTMLButtonElement);
+			removeSchedule?.click();
+			expect(onUnschedule).toHaveBeenCalledOnce();
+		});
 	});
 
 	describe("scheduler", () => {
@@ -2150,6 +2197,24 @@ describe("ContentEditor", () => {
 				.toBeVisible();
 			dialog.getByRole("button", { name: "Publish now", exact: true }).element().click();
 			expect(onPublish).toHaveBeenCalledOnce();
+		});
+
+		it("blocks immediate publishing while a schedule change is pending", async () => {
+			const onPublish = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ status: "scheduled", scheduledAt: "2027-06-01T12:00:00Z" }),
+				isUnscheduling: true,
+				onPublish,
+				onSchedule: vi.fn(),
+				onUnschedule: vi.fn(),
+			});
+
+			const publish = screen.getByRole("button", { name: "Publish now", exact: true });
+			await expect.element(publish).toBeDisabled();
+			await publish.click({ force: true });
+			expect(screen.getByRole("dialog", { name: "Publish now?" }).query()).toBeNull();
+			expect(onPublish).not.toHaveBeenCalled();
 		});
 	});
 

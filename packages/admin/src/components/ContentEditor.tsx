@@ -51,6 +51,7 @@ import {
 	DiscardDraftDialog,
 	PreviewButton,
 	PublishActions,
+	ScheduleActions,
 	SettingsActionBar,
 } from "./ContentSettingsPanel.js";
 import { ImageFieldRenderer, type ImageFieldValue } from "./ImageFieldRenderer.js";
@@ -877,6 +878,7 @@ export function ContentEditor({
 		hasPendingChanges,
 		scheduledAt: item?.scheduledAt,
 	});
+	const publishingPending = Boolean(isScheduling || isUnscheduling);
 	const [scheduleDialogOpen, setScheduleDialogOpen] = React.useState(false);
 	const [publishingMenuOpen, setPublishingMenuOpen] = React.useState(false);
 	const scheduleEntryKey = `${item?.id ?? "new"}:${item?.locale ?? entryLocale ?? ""}`;
@@ -943,7 +945,10 @@ export function ContentEditor({
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
-								? "fixed top-0 start-0 end-0 mx-auto w-[calc(100%-4rem)] max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10"
+								? cn(
+										"top-0 mx-auto max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10",
+										isBelowLg ? "sticky w-full" : "fixed start-0 end-0 w-[calc(100%-4rem)]",
+									)
 								: cn(
 										"mx-auto mb-6 max-w-3xl",
 										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
@@ -974,7 +979,12 @@ export function ContentEditor({
 						{/* The distraction-free toggles stay outside the disabled fieldsets:
 						    they change the view, not the entry, and a reader must be able to
 						    leave the overlay. */}
-						<div className="flex items-center gap-2">
+						<div
+							className={cn(
+								"flex items-center gap-2",
+								isDistractionFree && isBelowLg && "w-full flex-wrap justify-end",
+							)}
+						>
 							{!isDistractionFree ? (
 								// Below lg, actions move here from the (hidden) panel.
 								<>
@@ -1012,6 +1022,7 @@ export function ContentEditor({
 												isLive={isLive}
 												hasPendingChanges={hasPendingChanges}
 												publishingState={publishingState}
+												isPending={publishingPending}
 												onPublish={handlePublish}
 												onUnpublish={handleUnpublish}
 												onMenuOpenChange={setPublishingMenuOpen}
@@ -1069,11 +1080,22 @@ export function ContentEditor({
 														triggerSize="sm"
 													/>
 												)}
+												<ScheduleActions
+													publishingState={publishingState}
+													canSchedule={canSchedule}
+													isScheduling={isScheduling}
+													isUnscheduling={isUnscheduling}
+													disabled={publishingPending}
+													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
+													onUnschedule={onUnschedule ? handleUnschedule : undefined}
+													inline
+												/>
 												<PublishActions
 													collectionLabel={collectionLabel}
 													isLive={isLive}
 													hasPendingChanges={hasPendingChanges}
 													publishingState={publishingState}
+													isPending={publishingPending}
 													onPublish={handlePublish}
 													onUnpublish={handleUnpublish}
 													onMenuOpenChange={setPublishingMenuOpen}
@@ -1099,7 +1121,9 @@ export function ContentEditor({
 
 					<div
 						className={cn(
-							isDistractionFree ? "mx-auto max-w-3xl pt-16" : "mx-auto max-w-3xl space-y-6",
+							isDistractionFree
+								? cn("mx-auto max-w-3xl", !isBelowLg && "pt-16")
+								: "mx-auto max-w-3xl space-y-6",
 						)}
 					>
 						{notice}
@@ -1179,6 +1203,7 @@ export function ContentEditor({
 								isLive={isLive}
 								hasPendingChanges={hasPendingChanges}
 								publishingState={publishingState}
+								publishingPending={publishingPending}
 								liveViewUrl={liveViewUrl}
 								supportsPreview={supportsPreview}
 								isLoadingPreview={isLoadingPreview}
@@ -1211,6 +1236,7 @@ export function ContentEditor({
 								isLive={isLive}
 								hasPendingChanges={hasPendingChanges}
 								publishingState={publishingState}
+								publishingPending={publishingPending}
 								canSchedule={canSchedule}
 								isScheduling={isScheduling}
 								isUnscheduling={isUnscheduling}

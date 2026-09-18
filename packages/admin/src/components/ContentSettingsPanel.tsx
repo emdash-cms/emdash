@@ -337,6 +337,7 @@ export interface SettingsActionBarProps {
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
+	publishingPending?: boolean;
 	liveViewUrl?: string | null;
 	supportsPreview?: boolean;
 	isLoadingPreview?: boolean;
@@ -389,6 +390,7 @@ export interface PublishActionsProps {
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
+	isPending?: boolean;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	onMenuOpenChange?: (open: boolean) => void;
@@ -402,6 +404,7 @@ export function PublishActions({
 	isLive,
 	hasPendingChanges,
 	publishingState,
+	isPending,
 	onPublish,
 	onUnpublish,
 	onMenuOpenChange,
@@ -431,7 +434,14 @@ export function PublishActions({
 	if (isNew) return null;
 	if (state === "published") {
 		return onUnpublish ? (
-			<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
+			<Button
+				type="button"
+				variant="outline"
+				size={size}
+				onClick={onUnpublish}
+				icon={<EyeSlash />}
+				loading={isPending}
+			>
 				{t`Unpublish ${itemLabel}`}
 			</Button>
 		) : null;
@@ -457,6 +467,8 @@ export function PublishActions({
 						size={size}
 						className={cn(fullWidth && "w-full")}
 						icon={<Upload aria-hidden="true" />}
+						loading={isPending}
+						aria-label={publishLabel}
 					/>
 				}
 			>
@@ -473,6 +485,8 @@ export function PublishActions({
 					</Dialog.Close>
 					<Button
 						variant="primary"
+						loading={isPending}
+						aria-label={publishLabel}
 						onClick={() => {
 							setConfirmationOpen(false);
 							onPublish();
@@ -491,8 +505,10 @@ export interface ScheduleActionsProps {
 	canSchedule?: boolean;
 	isScheduling?: boolean;
 	isUnscheduling?: boolean;
+	disabled?: boolean;
 	onOpenSchedule?: () => void;
 	onUnschedule?: () => void | Promise<void>;
+	inline?: boolean;
 }
 
 export function ScheduleActions({
@@ -500,8 +516,10 @@ export function ScheduleActions({
 	canSchedule,
 	isScheduling,
 	isUnscheduling,
+	disabled,
 	onOpenSchedule,
 	onUnschedule,
+	inline,
 }: ScheduleActionsProps) {
 	const { t } = useLingui();
 	const hasSchedule =
@@ -514,19 +532,25 @@ export function ScheduleActions({
 
 	return (
 		<div
-			className={cn("mt-3 grid gap-2", showSchedule && showRemove ? "grid-cols-2" : "grid-cols-1")}
+			className={cn(
+				inline ? "contents" : "mt-3 grid gap-2",
+				!inline && (showSchedule && showRemove ? "grid-cols-2" : "grid-cols-1"),
+			)}
 		>
 			{showSchedule ? (
 				<Button
 					type="button"
 					variant="outline"
 					size="sm"
-					className="min-w-0 w-full justify-center overflow-hidden whitespace-nowrap"
+					className={cn(
+						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
+						!inline && "w-full",
+					)}
 					icon={
 						hasSchedule ? <CalendarDots aria-hidden="true" /> : <CalendarPlus aria-hidden="true" />
 					}
 					loading={isScheduling}
-					disabled={isUnscheduling}
+					disabled={disabled || isUnscheduling}
 					onClick={onOpenSchedule}
 				>
 					{hasSchedule ? t`Change schedule` : t`Schedule`}
@@ -537,10 +561,13 @@ export function ScheduleActions({
 					type="button"
 					variant="secondary-destructive"
 					size="sm"
-					className="min-w-0 w-full justify-center overflow-hidden whitespace-nowrap"
+					className={cn(
+						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
+						!inline && "w-full",
+					)}
 					icon={<CalendarX aria-hidden="true" />}
 					loading={isUnscheduling}
-					disabled={isScheduling}
+					disabled={disabled || isScheduling}
 					onClick={() => void Promise.resolve(onUnschedule?.()).catch(() => undefined)}
 				>
 					{t`Remove schedule`}
@@ -569,6 +596,7 @@ export function SettingsActionBar({
 	isLive,
 	hasPendingChanges,
 	publishingState,
+	publishingPending,
 	liveViewUrl,
 	supportsPreview,
 	isLoadingPreview,
@@ -623,6 +651,7 @@ export function SettingsActionBar({
 						isLive={isLive}
 						hasPendingChanges={hasPendingChanges}
 						publishingState={publishingState}
+						isPending={publishingPending}
 						onPublish={onPublish}
 						onUnpublish={onUnpublish}
 						onMenuOpenChange={onMenuOpenChange}
@@ -649,6 +678,7 @@ export interface ContentSettingsPanelProps {
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
+	publishingPending?: boolean;
 	canSchedule?: boolean;
 	isScheduling?: boolean;
 	isUnscheduling?: boolean;
@@ -707,6 +737,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	isLive,
 	hasPendingChanges,
 	publishingState,
+	publishingPending,
 	canSchedule,
 	isScheduling,
 	isUnscheduling,
@@ -928,6 +959,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							canSchedule={canSchedule}
 							isScheduling={isScheduling}
 							isUnscheduling={isUnscheduling}
+							disabled={publishingPending}
 							onOpenSchedule={onOpenSchedule}
 							onUnschedule={onUnschedule}
 						/>

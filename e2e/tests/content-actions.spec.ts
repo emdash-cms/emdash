@@ -195,6 +195,29 @@ test.describe("Schedule content", () => {
 		expect(Math.abs(changeBox!.width - removeBox!.width)).toBeLessThanOrEqual(1);
 
 		await page.setViewportSize({ width: 320, height: 576 });
+		await page.getByRole("button", { name: "Enter distraction-free mode" }).click();
+		const distractionFreeHeader = page
+			.getByRole("heading", { name: "Edit Post" })
+			.locator("..")
+			.locator("..");
+		const headerBox = await distractionFreeHeader.boundingBox();
+		expect(headerBox).not.toBeNull();
+		for (const action of [
+			distractionFreeHeader.getByRole("button", { name: "Saved" }),
+			distractionFreeHeader.getByRole("button", { name: "Change schedule", exact: true }),
+			distractionFreeHeader.getByRole("button", { name: "Remove schedule", exact: true }),
+			distractionFreeHeader.getByRole("button", { name: "Publish now", exact: true }),
+			distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }),
+		]) {
+			const actionBox = await action.boundingBox();
+			expect(actionBox).not.toBeNull();
+			expect(actionBox!.x).toBeGreaterThanOrEqual(headerBox!.x);
+			expect(actionBox!.x + actionBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width);
+		}
+		const titleBox = await page.locator("#field-title").boundingBox();
+		expect(titleBox).not.toBeNull();
+		expect(titleBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+		await distractionFreeHeader.getByRole("button", { name: "Exit distraction-free mode" }).click();
 		await page.getByRole("button", { name: "Settings" }).click();
 		const settingsPanel = page.getByRole("navigation", { name: "Settings" });
 		const narrowButtons = [
