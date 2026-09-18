@@ -1466,7 +1466,10 @@ export interface PluginContextFactoryOptions {
 }
 
 export interface ContentActionCallbacks {
-	flush(pluginId: string): Promise<void>;
+	/** Register a sandbox invocation before it can call a content action. */
+	begin?(pluginId: string, invocationId: string): void;
+	/** Release queued after-hooks; `final: false` keeps late actions self-scheduling after timeout. */
+	flush(pluginId: string, invocationId?: string, final?: boolean): Promise<void>;
 	getVersioned(
 		pluginId: string,
 		collection: string,
@@ -1477,24 +1480,28 @@ export interface ContentActionCallbacks {
 		collection: string,
 		id: string,
 		options: { _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem>;
 	unpublish(
 		pluginId: string,
 		collection: string,
 		id: string,
 		options: { _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem>;
 	schedule(
 		pluginId: string,
 		collection: string,
 		id: string,
 		options: { scheduledAt: string; _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem>;
 	unschedule(
 		pluginId: string,
 		collection: string,
 		id: string,
 		options: { _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem>;
 	getTrashedVersioned(
 		pluginId: string,
@@ -1506,6 +1513,7 @@ export interface ContentActionCallbacks {
 		collection: string,
 		id: string,
 		options: { _rev: string },
+		invocationId?: string,
 	): Promise<VersionedContentItem>;
 }
 

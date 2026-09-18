@@ -339,21 +339,38 @@ export interface PluginBridgeBinding {
 	schemaListCollections(): Promise<CollectionSchemaInfo[]>;
 	schemaGetCollection(slug: string): Promise<CollectionSchemaInfo | null>;
 	contentGetVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
-	contentPublish(collection: string, id: string, revision: string): Promise<VersionedContentItem>;
-	contentUnpublish(collection: string, id: string, revision: string): Promise<VersionedContentItem>;
+	contentPublish(
+		collection: string,
+		id: string,
+		revision: string,
+		invocationId?: string,
+	): Promise<VersionedContentItem>;
+	contentUnpublish(
+		collection: string,
+		id: string,
+		revision: string,
+		invocationId?: string,
+	): Promise<VersionedContentItem>;
 	contentSchedule(
 		collection: string,
 		id: string,
 		scheduledAt: string,
 		revision: string,
+		invocationId?: string,
 	): Promise<VersionedContentItem>;
 	contentUnschedule(
 		collection: string,
 		id: string,
 		revision: string,
+		invocationId?: string,
 	): Promise<VersionedContentItem>;
 	contentGetTrashedVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
-	contentRestore(collection: string, id: string, revision: string): Promise<VersionedContentItem>;
+	contentRestore(
+		collection: string,
+		id: string,
+		revision: string,
+		invocationId?: string,
+	): Promise<VersionedContentItem>;
 	// Taxonomies
 	taxonomyList(opts?: { locale?: string }): Promise<BridgeTaxonomyDef[]>;
 	taxonomyTerms(taxonomy: string, opts?: { locale?: string }): Promise<BridgeTaxonomyTerm[]>;

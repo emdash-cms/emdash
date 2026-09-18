@@ -559,6 +559,7 @@ async function dispatch(
 				requireString(body, "collection"),
 				requireString(body, "id"),
 				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
 			);
 		case "content/unpublish":
 			requireCapability(opts, "content:publish");
@@ -567,6 +568,7 @@ async function dispatch(
 				requireString(body, "collection"),
 				requireString(body, "id"),
 				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
 			);
 		case "content/schedule":
 			requireCapability(opts, "content:publish");
@@ -578,6 +580,7 @@ async function dispatch(
 					scheduledAt: requireString(body, "scheduledAt"),
 					_rev: requireString(body, "revision"),
 				},
+				optionalString(body, "invocationId"),
 			);
 		case "content/unschedule":
 			requireCapability(opts, "content:publish");
@@ -586,6 +589,7 @@ async function dispatch(
 				requireString(body, "collection"),
 				requireString(body, "id"),
 				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
 			);
 		case "content/getTrashedVersioned":
 			requireCapability(opts, "content:restore");
@@ -601,6 +605,7 @@ async function dispatch(
 				requireString(body, "collection"),
 				requireString(body, "id"),
 				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
 			);
 		case "content/createMany":
 			requireCapability(opts, "content:write");

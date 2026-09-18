@@ -59,6 +59,7 @@ import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
+import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -295,7 +296,10 @@ async function getRuntime(
  * rather than only after the whole sweep.
  */
 export async function runScheduledTasks(
-	options: { onPublished?: (refs: PublishedRef[]) => Promise<void> } = {},
+	options: {
+		onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		invalidateContentCache?: PluginContentCacheInvalidator;
+	} = {},
 ): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };
@@ -873,6 +877,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				let t0 = performance.now();
 				const runtime = await getRuntime(config, migrationMode, initSubTimings);
+				if (context.cache?.enabled) {
+					runtime.setPluginContentCacheInvalidator((tags) => context.cache.invalidate({ tags }));
+				}
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 				// Forward any sub-phase samples so cold-start breakdown is visible
 				// in Server-Timing. Each phase appears prefixed "rt." to distinguish
