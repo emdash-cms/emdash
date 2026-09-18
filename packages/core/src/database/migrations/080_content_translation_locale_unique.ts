@@ -81,6 +81,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 
 export async function down(db: Kysely<unknown>): Promise<void> {
 	for (const tableName of await listTablesLike(db, "ec_%")) {
-		await sql`DROP INDEX IF EXISTS ${sql.ref(`uidx_${tableName}_active_tg_locale`)}`.execute(db);
+		const indexName = `uidx_${tableName}_active_tg_locale`;
+		const storedIndexName = isPostgres(db) ? indexName.slice(0, 63) : indexName;
+		await sql`DROP INDEX IF EXISTS ${sql.ref(storedIndexName)}`.execute(db);
 	}
 }

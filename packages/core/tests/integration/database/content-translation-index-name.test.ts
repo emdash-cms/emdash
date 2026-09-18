@@ -2,6 +2,7 @@ import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import * as migration055 from "../../../src/database/migrations/055_content_translation_group_locale_index.js";
+import * as migration080 from "../../../src/database/migrations/080_content_translation_locale_unique.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	type DialectTestContext,
@@ -66,6 +67,20 @@ describeEachDialect("translation_group index replacement for long collection slu
 			]),
 		);
 		expect(covering).toHaveLength(3);
+	});
+
+	it("drops the active-locale uniqueness index on rollback", async () => {
+		await migration080.up(ctx.db);
+		await migration080.down(ctx.db);
+
+		const indexes = await translationIndexes();
+		expect(indexes).not.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					name: expectedName(`uidx_${TABLE_NAME}_active_tg_locale`),
+				}),
+			]),
+		);
 	});
 
 	function expectedName(name: string): string {
