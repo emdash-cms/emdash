@@ -22,6 +22,12 @@ test.describe("Sandboxed plugin editor extensions", () => {
 		await admin.waitForLoading();
 		await expect(admin.page.locator("html")).toHaveAttribute("dir", "rtl");
 
+		const title = admin.page.locator("#field-title");
+		await title.fill("Saved before plugin action");
+		await admin.clickSave();
+		await admin.waitForSaveComplete();
+		await expect(title).toHaveValue("Saved before plugin action");
+
 		const panelResponse = admin.page.waitForResponse(
 			(response) =>
 				response.url().includes("/plugin-extensions/editor-extensions-test/panel/entry-health") &&
