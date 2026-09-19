@@ -1977,7 +1977,6 @@ describe("ContentEditor", () => {
 			expect(actionNames).toEqual([
 				"Saved",
 				"Live View",
-				"Preview",
 				"Unpublish Post",
 				"Exit distraction-free mode",
 			]);
@@ -2056,7 +2055,7 @@ describe("ContentEditor", () => {
 	});
 
 	describe("scheduler", () => {
-		it("groups draft publish timing without publishing on menu open", async () => {
+		it("publishes from the primary segment and opens scheduling from the split trigger", async () => {
 			const onPublish = vi.fn();
 			const screen = await renderEditor({
 				isNew: false,
@@ -2065,15 +2064,19 @@ describe("ContentEditor", () => {
 				onSchedule: vi.fn(),
 			});
 
-			const publishTrigger = screen.getByRole("button", { name: "Publish", exact: true });
-			await expect.element(publishTrigger).toHaveAttribute("aria-expanded", "false");
-			await publishTrigger.click();
+			const publishButton = screen.getByRole("button", { name: "Publish", exact: true });
+			const moreOptionsButton = screen.getByRole("button", {
+				name: "More publishing options",
+			});
+			await expect.element(moreOptionsButton).toHaveAttribute("aria-expanded", "false");
+			await publishButton.click();
 
-			expect(onPublish).not.toHaveBeenCalled();
-			await expect.element(publishTrigger).toHaveAttribute("aria-expanded", "true");
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
-				.toBeInTheDocument();
+			expect(onPublish).toHaveBeenCalledTimes(1);
+			await expect.element(moreOptionsButton).toHaveAttribute("aria-expanded", "false");
+
+			await moreOptionsButton.click();
+
+			await expect.element(moreOptionsButton).toHaveAttribute("aria-expanded", "true");
 			await expect
 				.element(screen.getByRole("menuitem", { name: /Schedule publication/ }))
 				.toBeInTheDocument();
@@ -2092,11 +2095,8 @@ describe("ContentEditor", () => {
 				onSchedule: vi.fn(),
 			});
 
-			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+			await screen.getByRole("button", { name: "More publishing options" }).click();
 
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish changes now/ }))
-				.toBeInTheDocument();
 			await expect
 				.element(screen.getByRole("menuitem", { name: /Schedule changes/ }))
 				.toBeInTheDocument();
@@ -2105,9 +2105,7 @@ describe("ContentEditor", () => {
 			).toBeNull();
 			expect(screen.getByText("Choose when changes go live", { exact: true }).query()).toBeNull();
 
-			await userEvent.hover(
-				screen.getByRole("menuitem", { name: /Publish changes now/ }).element(),
-			);
+			await userEvent.hover(screen.getByRole("menuitem", { name: /Schedule changes/ }).element());
 			expect(
 				screen.getByText("Make draft changes visible now", { exact: true }).query(),
 			).toBeNull();
@@ -2131,11 +2129,8 @@ describe("ContentEditor", () => {
 				onUnschedule: vi.fn(),
 			});
 
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await screen.getByRole("button", { name: "More publishing options" }).click();
 
-			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
-				.toBeInTheDocument();
 			await expect
 				.element(screen.getByRole("menuitem", { name: /Change schedule/ }))
 				.toBeInTheDocument();
@@ -2153,7 +2148,7 @@ describe("ContentEditor", () => {
 				onSchedule: vi.fn(),
 			});
 
-			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+			await screen.getByRole("button", { name: "More publishing options" }).click();
 			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
 
 			const dialog = screen.getByRole("dialog", { name: "Schedule publication" });
@@ -2171,7 +2166,7 @@ describe("ContentEditor", () => {
 			const onSchedule = vi.fn();
 			const screen = await renderEditor({ isNew: false, item, onPublish: vi.fn(), onSchedule });
 
-			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+			await screen.getByRole("button", { name: "More publishing options" }).click();
 			await screen.getByRole("menuitem", { name: /Schedule publication/ }).click();
 			expect(screen.getByRole("button", { name: /Tomorrow at/ }).query()).toBeNull();
 			expect(screen.getByRole("button", { name: /Next .* at/ }).query()).toBeNull();
@@ -2188,9 +2183,8 @@ describe("ContentEditor", () => {
 				onSchedule: vi.fn(),
 			});
 
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
 			await expect
-				.element(screen.getByRole("menuitem", { name: /Publish now/ }))
+				.element(screen.getByRole("button", { name: "Publish now", exact: true }))
 				.toBeInTheDocument();
 		});
 
@@ -2204,8 +2198,7 @@ describe("ContentEditor", () => {
 				onSchedule: vi.fn(),
 			});
 
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
-			await screen.getByRole("menuitem", { name: /Publish now/ }).click();
+			await screen.getByRole("button", { name: "Publish now", exact: true }).click();
 			expect(onPublish).toHaveBeenCalled();
 		});
 
@@ -2219,7 +2212,7 @@ describe("ContentEditor", () => {
 				onUnschedule: vi.fn(),
 			});
 
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await screen.getByRole("button", { name: "More publishing options" }).click();
 			await expect
 				.element(screen.getByRole("menuitem", { name: /Remove schedule/ }))
 				.toBeInTheDocument();
@@ -2237,7 +2230,7 @@ describe("ContentEditor", () => {
 				onUnschedule,
 			});
 
-			await screen.getByRole("button", { name: "Scheduled", exact: true }).click();
+			await screen.getByRole("button", { name: "More publishing options" }).click();
 			await screen.getByRole("menuitem", { name: /Remove schedule/ }).click();
 			expect(onUnschedule).toHaveBeenCalled();
 		});
