@@ -1,3 +1,4 @@
+import { PLUGIN_CAPABILITIES } from "@emdash-cms/plugin-types";
 import type { Context, Next } from "hono";
 import { Hono } from "hono";
 import { SignJWT, jwtVerify } from "jose";
@@ -249,36 +250,9 @@ authorRoutes.put("/plugins/*", authMiddleware);
 
 // ── POST /plugins — Register new plugin ─────────────────────────
 
-// Must stay in sync with PluginCapability in emdash core
-/** Must stay in sync with PLUGIN_CAPABILITIES in packages/core/src/plugins/manifest-schema.ts */
-const VALID_CAPABILITIES = [
-	// Current names
-	"network:request",
-	"network:request:unrestricted",
-	"content:read",
-	"content:write",
-	"taxonomies:read",
-	"media:read",
-	"media:write",
-	"users:read",
-	"email:send",
-	"hooks.email-transport:register",
-	"hooks.email-events:register",
-	"hooks.page-fragments:register",
-	// Deprecated aliases — accepted during the transition window.
-	"network:fetch",
-	"network:fetch:any",
-	"read:content",
-	"write:content",
-	"read:media",
-	"write:media",
-	"read:users",
-	"email:provide",
-	"email:intercept",
-	"page:inject",
-] as const;
+const VALID_CAPABILITIES = PLUGIN_CAPABILITIES;
 
-const createPluginSchema = z.object({
+export const createPluginSchema = z.object({
 	id: z
 		.string()
 		.min(1)

@@ -1,3 +1,4 @@
+import { escapeHtml } from "../api/escape.js";
 import { VISUAL_ACTION_TOKEN_INVALID } from "./action-token.js";
 
 /**
@@ -12,10 +13,30 @@ interface ToolbarConfig {
 	editMode: boolean;
 	isPreview: boolean;
 	actionToken?: string;
+	labels: ToolbarLabels;
+}
+
+export interface ToolbarLabels {
+	publish: string;
+	publishing: string;
+	sessionExpired: string;
+	refreshPage: string;
+	publishFailed: string;
+}
+
+const SCRIPT_LINE_SEPARATOR_RE = /\u2028/g;
+const SCRIPT_PARAGRAPH_SEPARATOR_RE = /\u2029/g;
+
+function inlineScriptJson(value: unknown): string {
+	return JSON.stringify(value)
+		.replaceAll("<", "\\u003c")
+		.replace(SCRIPT_LINE_SEPARATOR_RE, "\\u2028")
+		.replace(SCRIPT_PARAGRAPH_SEPARATOR_RE, "\\u2029");
 }
 
 export function renderToolbar(config: ToolbarConfig): string {
-	const { editMode, isPreview, actionToken = "" } = config;
+	const { editMode, isPreview, actionToken = "", labels } = config;
+	const recoveryBadge = `<span class="emdash-tb-badge emdash-tb-badge--error">${escapeHtml(labels.sessionExpired)}</span>`;
 
 	return `
 <!-- EmDash Visual Editing Toolbar -->
@@ -41,7 +62,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </a>
 
-    <button class="emdash-tb-publish" id="emdash-tb-publish" style="display:none">Publish</button>
+    <button class="emdash-tb-publish" id="emdash-tb-publish" style="display:none">${escapeHtml(labels.publish)}</button>
 
     <button class="emdash-tb-dismiss" id="emdash-tb-dismiss" title="Hide toolbar" aria-label="Hide toolbar">&times;</button>
   </div>
@@ -552,22 +573,23 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   var isEditMode = toolbar.getAttribute("data-edit-mode") === "true";
-  var visualActionToken = ${JSON.stringify(actionToken)};
-  var visualActionTokenErrorCode = ${JSON.stringify(VISUAL_ACTION_TOKEN_INVALID)};
+  var visualActionToken = ${inlineScriptJson(actionToken)};
+  var visualActionTokenErrorCode = ${inlineScriptJson(VISUAL_ACTION_TOKEN_INVALID)};
+  var toolbarLabels = ${inlineScriptJson(labels)};
   var visualActionRefreshTimer = null;
 
   function showVisualActionRecovery() {
     if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
     visualActionRefreshTimer = null;
-    statusEl.innerHTML = '<span class="emdash-tb-badge emdash-tb-badge--error">Editing session expired. Refresh the page to continue.</span>';
+    statusEl.innerHTML = ${inlineScriptJson(recoveryBadge)};
     publishBtn.disabled = true;
-    publishBtn.textContent = "Refresh page";
+    publishBtn.textContent = toolbarLabels.refreshPage;
   }
 
   function showPublishError(message) {
-    statusEl.textContent = message || "Publish failed. Check your permissions and try again.";
+    statusEl.textContent = message || toolbarLabels.publishFailed;
     publishBtn.disabled = false;
-    publishBtn.textContent = "Publish";
+    publishBtn.textContent = toolbarLabels.publish;
   }
 
   function scheduleVisualActionTokenRefresh(delay) {
@@ -733,7 +755,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     }
 
     publishBtn.disabled = true;
-    publishBtn.textContent = "Publishing\u2026";
+    publishBtn.textContent = toolbarLabels.publishing;
 
     ecFetch("/_emdash/api/visual-editing/content/" + encodeURIComponent(collection) + "/" + encodeURIComponent(id) + "/publish", {
       method: "POST",
@@ -764,7 +786,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     })
     .catch(function(err) {
       publishBtn.disabled = false;
-      publishBtn.textContent = "Publish";
+      publishBtn.textContent = toolbarLabels.publish;
       console.error("Publish failed:", err);
     });
   }

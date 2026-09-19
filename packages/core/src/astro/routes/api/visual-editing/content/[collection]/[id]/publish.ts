@@ -13,7 +13,8 @@ export const prerender = false;
 
 export const POST: APIRoute = async (context) => {
 	const { emdash, user } = context.locals;
-	if (!emdash?.db || !user) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	if (!emdash?.db) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	if (!user) return apiError("UNAUTHORIZED", "Authentication required", 401);
 	const token = context.request.headers.get("x-emdash-visual-action");
 	if (!token) {
 		return apiError(VISUAL_ACTION_TOKEN_INVALID, "Visual editing action token is required", 403);
