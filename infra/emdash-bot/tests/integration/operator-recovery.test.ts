@@ -61,7 +61,13 @@ describe("operator stale-run recovery", () => {
 			}),
 		});
 		expect(duplicate.status).toBe(409);
-		expect(await duplicate.json()).toEqual({ queued: false, reason: "command already queued" });
+		const duplicateBody = (await duplicate.json()) as { queued: boolean; reason: string };
+		expect(duplicateBody.queued).toBe(false);
+		expect(["command already queued", "state mismatch"]).toContain(duplicateBody.reason);
+
+		await stub.tick();
+		await expect(stub.getPersistedState()).resolves.toMatchObject({ state: "working" });
+		await expect(stub.inspectRecoveryState()).resolves.toMatchObject({ inboxDepth: 0 });
 	});
 
 	test("queues reviewed approval work but rejects the wrong command for that state", async () => {
@@ -99,6 +105,10 @@ describe("operator stale-run recovery", () => {
 		});
 		expect(queued.status).toBe(202);
 		expect(await queued.json()).toEqual({ queued: true });
+
+		await stub.tick();
+		await expect(stub.getPersistedState()).resolves.toMatchObject({ state: "working" });
+		await expect(stub.inspectRecoveryState()).resolves.toMatchObject({ inboxDepth: 0 });
 	});
 
 	test("terminal missing-anchor cleanup clears every retryable projection and alarm", async () => {

@@ -26,7 +26,6 @@ import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
 import {
-	candidateWasPublished,
 	requireCandidatePublication,
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
@@ -579,7 +578,7 @@ export function Investigate({ id }: AgentProps) {
 				durable: true,
 				async run({ data, step, log }) {
 					requireCandidatePublication(data.implemented, publication);
-					const pushed = candidateWasPublished(publication);
+					const pushed = publication !== null;
 					const failure =
 						data.implemented && !pushed
 							? (lastFailure ?? {
@@ -615,7 +614,7 @@ export function Investigate({ id }: AgentProps) {
 				async run({ data, step, log }) {
 					const delivered = data.fixed === true || data.implemented === true;
 					requireCandidatePublication(delivered, publication);
-					const pushed = candidateWasPublished(publication);
+					const pushed = publication !== null;
 					const failure =
 						delivered && !pushed
 							? (lastFailure ?? {

@@ -164,6 +164,8 @@ export interface NormalizedEvent {
 	readonly allowDefault?: boolean;
 	/** Webhook delivery id; the DO dedupes by this. */
 	readonly deliveryId?: string;
+	/** True for an authenticated command queued through the operator API. */
+	readonly operatorCommand?: boolean;
 	/** Issue/PR number for GitHub API side effects. Required for transitions. */
 	readonly anchorNumber?: number;
 	/**
@@ -3192,19 +3194,20 @@ export class OrchestratorDO extends DurableObject<Env> {
 									: []),
 							],
 							...(commentTargetNumber ? { commentTargetNumber } : {}),
-							commentBody:
-								input.commentBodyOverride ??
-								handoffComment ??
-								renderComment(
-									decision,
-									anchorNumber,
-									input.agentSummary,
-									{
-										runId: input.agentRunId,
-										failureStage: input.agentFailureStage,
-									},
-									this.env.PREVIEW_PACKAGE,
-								),
+							commentBody: input.operatorCommand
+								? ""
+								: (input.commentBodyOverride ??
+									handoffComment ??
+									renderComment(
+										decision,
+										anchorNumber,
+										input.agentSummary,
+										{
+											runId: input.agentRunId,
+											failureStage: input.agentFailureStage,
+										},
+										this.env.PREVIEW_PACKAGE,
+									)),
 							commentMarker: `<!-- emdashbot-event:${sideEffectId} -->`,
 							commentMayExist: false,
 							...(input.commentFirst ? { commentFirst: true } : {}),
@@ -3630,9 +3633,10 @@ export class OrchestratorDO extends DurableObject<Env> {
 			const command: NormalizedEvent = {
 				event: input.command,
 				arg: null,
-				actor: "system",
+				actor: "maintainer",
 				labels: [],
 				needsClassify: false,
+				operatorCommand: true,
 				deliveryId,
 				anchorNumber: input.expectedAnchorNumber,
 			};

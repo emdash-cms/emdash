@@ -12,7 +12,3 @@ export function requireCandidatePublication(
 		throw new Error("publish_candidate must complete before reporting a published change");
 	}
 }
-
-export function candidateWasPublished(publication: CandidatePublication | null): boolean {
-	return publication !== null;
-}
