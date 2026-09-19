@@ -23,6 +23,12 @@ export interface CreateRevisionInput {
 	authorId?: string;
 }
 
+export function normalizeRevisionLimit(value: unknown): number {
+	const numeric = Number(value);
+	if (!Number.isFinite(numeric)) return 50;
+	return Math.max(1, Math.min(Math.trunc(numeric), 100));
+}
+
 /**
  * Revision repository for version history
  *
@@ -135,7 +141,7 @@ export class RevisionRepository {
 	): Promise<Revision[]> {
 		validateIdentifier(collection, "collection");
 		const tableName = `ec_${collection}`;
-		const limit = options.limit ?? 50;
+		const limit = normalizeRevisionLimit(options.limit);
 		const result = await sql<Selectable<RevisionTable>>`
 			SELECT revisions.* FROM revisions
 			WHERE revisions.collection = ${collection}

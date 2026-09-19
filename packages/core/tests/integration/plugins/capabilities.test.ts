@@ -240,6 +240,40 @@ describe("Capability Enforcement Integration (v2)", () => {
 				expect(await history.listRevisions!("posts", "post-1")).toEqual([]);
 				expect(await history.getRevision!("posts", "post-1", revision.id)).toBeNull();
 			});
+
+			it("defaults invalid revision limits at the access and repository boundaries", async () => {
+				const revisions = new RevisionRepository(db);
+				await revisions.create({
+					collection: "posts",
+					entryId: "post-1",
+					data: { title: "Older" },
+				});
+				await revisions.create({
+					collection: "posts",
+					entryId: "post-1",
+					data: { title: "Newer" },
+				});
+				const history = createContentAccess(db, { revisions: true });
+
+				await expect(
+					history.listRevisions!("posts", "post-1", { limit: "invalid" as never }),
+				).resolves.toHaveLength(2);
+				await expect(
+					revisions.findVisibleByEntry("posts", "post-1", { limit: Number.NaN }),
+				).resolves.toHaveLength(2);
+				await expect(
+					history.listRevisions!("posts", "post-1", { limit: 1.5 }),
+				).resolves.toHaveLength(1);
+				await expect(
+					revisions.findVisibleByEntry("posts", "post-1", { limit: 1.5 }),
+				).resolves.toHaveLength(1);
+				await expect(history.listRevisions!("posts", "post-1", { limit: 0 })).resolves.toHaveLength(
+					1,
+				);
+				await expect(
+					revisions.findVisibleByEntry("posts", "post-1", { limit: 0 }),
+				).resolves.toHaveLength(1);
+			});
 			it("can read content by ID", async () => {
 				const access = createContentAccess(db);
 				const post = await access.get("posts", "post-1");

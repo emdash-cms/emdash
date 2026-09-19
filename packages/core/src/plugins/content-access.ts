@@ -1,7 +1,7 @@
 import type { Kysely } from "kysely";
 
 import { ContentRepository } from "../database/repositories/content.js";
-import { RevisionRepository } from "../database/repositories/revision.js";
+import { normalizeRevisionLimit, RevisionRepository } from "../database/repositories/revision.js";
 import { SeoRepository } from "../database/repositories/seo.js";
 import type { Database } from "../database/types.js";
 import { resolveLocalizedContentRoutePath } from "../i18n/resolve.js";
@@ -150,7 +150,7 @@ export function createContentAccess(
 						revisionOptions?: { limit?: number },
 					) {
 						const revisions = await new RevisionRepository(db).findVisibleByEntry(collection, id, {
-							limit: Math.min(Math.max(revisionOptions?.limit ?? 50, 1), 100),
+							limit: normalizeRevisionLimit(revisionOptions?.limit),
 						});
 						return revisions.map(({ authorId: _authorId, ...revision }) => revision);
 					},
