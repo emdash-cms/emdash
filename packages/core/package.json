@@ -193,6 +193,10 @@
     "./plugins/host": {
       "types": "./dist/plugins/host.d.mts",
       "default": "./dist/plugins/host.mjs"
+    },
+    "./plugins/http-wire": {
+      "types": "./dist/plugins/http-wire.d.mts",
+      "default": "./dist/plugins/http-wire.mjs"
     }
   },
   "imports": {

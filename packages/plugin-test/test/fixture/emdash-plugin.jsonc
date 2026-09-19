@@ -11,8 +11,9 @@
 		"media:write",
 		"users:read",
 		"email:send",
+		"network:request",
 	],
-	"allowedHosts": [],
+	"allowedHosts": ["api.example.com"],
 	"storage": {
 		"events": { "indexes": ["type"] },
 		"lifecycle": { "indexes": ["type"] },

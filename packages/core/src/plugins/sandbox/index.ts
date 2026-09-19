@@ -24,6 +24,7 @@ export type {
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
+	SandboxHttpFetchCallback,
 	ResourceLimits,
 	PluginCodeStorage,
 	SerializedRequest,

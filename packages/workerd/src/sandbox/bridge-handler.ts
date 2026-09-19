@@ -32,6 +32,7 @@ import type {
 	ContentListOptions,
 	Database,
 	I18nConfig,
+	PluginHttpResponseWire,
 	SandboxEmailSendCallback,
 } from "emdash";
 import type { Kysely } from "kysely";
@@ -124,8 +125,16 @@ export interface BridgeHandlerOptions {
 	emailSend: () => SandboxEmailSendCallback | null;
 	cronReschedule?: () => void;
 	now?: () => Date;
+	httpFetch?: typeof fetch;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
+}
+
+function bridgeJsonReplacer(_key: string, value: unknown): unknown {
+	if (value instanceof Uint8Array) {
+		return { __emdashBytes: Buffer.from(value).toString("base64") };
+	}
+	return value;
 }
 
 /**
@@ -154,7 +163,9 @@ export function createBridgeHandler(
 			}
 
 			const result = await dispatch(normalizedOpts, method, body);
-			return Response.json({ result });
+			return new Response(JSON.stringify({ result }, bridgeJsonReplacer), {
+				headers: { "Content-Type": "application/json" },
+			});
 		} catch (error) {
 			const sandboxRouteError = createSandboxRouteErrorEnvelope(error);
 			if (sandboxRouteError) {
@@ -1414,14 +1425,7 @@ async function mediaDelete(
 
 // ── HTTP Operations ──────────────────────────────────────────────────────
 
-/** A multipart form part as marshaled by the wrapper. */
-interface MarshaledFormDataPart {
-	name: string;
-	value: string;
-	filename?: string;
-	type?: string;
-	isBlob?: boolean;
-}
+const BASE64_BODY_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /** Marshaled RequestInit shape sent over the bridge from the wrapper. */
 interface MarshaledRequestInit {
@@ -1429,28 +1433,8 @@ interface MarshaledRequestInit {
 	redirect?: RequestRedirect;
 	/** List of [name, value] pairs to preserve multi-value headers */
 	headers?: Array<[string, string]>;
-	/**
-	 * Body is discriminated by bodyType. The wrapper (see wrapper.ts:
-	 * marshalRequestInit) guarantees the shape, but we validate defensively
-	 * at unmarshal time so a misbehaving plugin can't smuggle unexpected
-	 * data into the host fetch.
-	 */
-	bodyType?: "string" | "base64" | "formdata";
-	body?: string | MarshaledFormDataPart[];
-}
-
-function isFormDataPart(value: unknown): value is MarshaledFormDataPart {
-	if (!isRecord(value)) return false;
-	if (typeof value.name !== "string") return false;
-	if (typeof value.value !== "string") return false;
-	if (value.filename !== undefined && typeof value.filename !== "string") return false;
-	if (value.type !== undefined && typeof value.type !== "string") return false;
-	if (value.isBlob !== undefined && typeof value.isBlob !== "boolean") return false;
-	return true;
-}
-
-function isFormDataPartArray(value: unknown): value is MarshaledFormDataPart[] {
-	return Array.isArray(value) && value.every(isFormDataPart);
+	bodyType?: "base64";
+	body?: string;
 }
 
 function isMarshaledHeaders(value: unknown): value is Array<[string, string]> {
@@ -1491,34 +1475,26 @@ function parseMarshaledRequestInit(value: unknown): MarshaledRequestInit | undef
 		out.headers = value.headers;
 	}
 	if (value.bodyType !== undefined) {
-		if (
-			value.bodyType !== "string" &&
-			value.bodyType !== "base64" &&
-			value.bodyType !== "formdata"
-		) {
-			throw new Error('http/fetch: init.bodyType must be "string", "base64", or "formdata"');
+		if (value.bodyType !== "base64") {
+			throw new Error('http/fetch: init.bodyType must be "base64"');
 		}
 		out.bodyType = value.bodyType;
 	}
 	if (value.body !== undefined) {
-		if (out.bodyType === "formdata") {
-			if (!isFormDataPartArray(value.body)) {
-				throw new Error("http/fetch: formdata body must be an array of form parts");
-			}
-			out.body = value.body;
-		} else {
-			if (typeof value.body !== "string") {
-				throw new Error("http/fetch: string/base64 body must be a string");
-			}
-			out.body = value.body;
+		if (typeof value.body !== "string") {
+			throw new Error("http/fetch: base64 body must be a string");
 		}
+		out.body = value.body;
+	}
+	if ((out.bodyType === undefined) !== (out.body === undefined)) {
+		throw new Error("http/fetch: init.bodyType and init.body must be present together");
 	}
 	return out;
 }
 
 /**
  * Reverse the wrapper's marshalRequestInit() to reconstruct a real RequestInit
- * with proper Headers, binary bodies, and FormData.
+ * with proper Headers and a buffered binary body.
  */
 function unmarshalRequestInit(
 	marshaled: MarshaledRequestInit | undefined,
@@ -1536,32 +1512,16 @@ function unmarshalRequestInit(
 		}
 		init.headers = headers;
 	}
-	if (marshaled.bodyType && marshaled.body !== undefined) {
-		switch (marshaled.bodyType) {
-			case "string":
-				if (typeof marshaled.body !== "string") break;
-				init.body = marshaled.body;
-				break;
-			case "base64":
-				if (typeof marshaled.body !== "string") break;
-				init.body = Buffer.from(marshaled.body, "base64");
-				break;
-			case "formdata": {
-				if (!Array.isArray(marshaled.body)) break;
-				const fd = new FormData();
-				for (const part of marshaled.body) {
-					if (part.isBlob) {
-						const bytes = Buffer.from(part.value, "base64");
-						const blob = new Blob([bytes], { type: part.type || "application/octet-stream" });
-						fd.append(part.name, blob, part.filename);
-					} else {
-						fd.append(part.name, part.value);
-					}
-				}
-				init.body = fd;
-				break;
-			}
+	if (marshaled.bodyType === "base64" && marshaled.body !== undefined) {
+		if (marshaled.body.length % 4 !== 0 || !BASE64_BODY_PATTERN.test(marshaled.body)) {
+			throw new Error("http/fetch: body is not valid base64");
 		}
+		const padding = marshaled.body.endsWith("==") ? 2 : marshaled.body.endsWith("=") ? 1 : 0;
+		const decodedLength = (marshaled.body.length / 4) * 3 - padding;
+		if (decodedLength > 8 * 1024 * 1024) {
+			throw new Error("Plugin HTTP request body exceeds the 8388608 byte limit");
+		}
+		init.body = Buffer.from(marshaled.body, "base64");
 	}
 	return init;
 }
@@ -1570,30 +1530,25 @@ async function httpFetch(
 	url: string,
 	marshaledInit: unknown,
 	opts: BridgeHandlerOptions,
-): Promise<{
-	status: number;
-	statusText: string;
-	headers: Record<string, string>;
-	bodyBase64: string;
-}> {
+): Promise<PluginHttpResponseWire> {
 	const hasAnyFetch = opts.capabilities.includes("network:request:unrestricted");
 	const httpAccess = hasAnyFetch
-		? createUnrestrictedHttpAccess(opts.pluginId)
-		: createHttpAccess(opts.pluginId, opts.allowedHosts || []);
+		? createUnrestrictedHttpAccess(opts.pluginId, opts.httpFetch)
+		: createHttpAccess(opts.pluginId, opts.allowedHosts || [], opts.httpFetch);
 
 	const init = unmarshalRequestInit(parseMarshaledRequestInit(marshaledInit));
 	const res = await httpAccess.fetch(url, init);
 	// Read as bytes to preserve binary content (images, audio, etc.)
 	const bytes = new Uint8Array(await res.arrayBuffer());
-	const headers: Record<string, string> = {};
-	res.headers.forEach((v, k) => {
-		headers[k] = v;
-	});
+	const headers: Array<[string, string]> = [];
+	res.headers.forEach((value, key) => headers.push([key, value]));
 	return {
 		status: res.status,
 		statusText: res.statusText,
 		headers,
-		bodyBase64: Buffer.from(bytes).toString("base64"),
+		finalUrl: res.url || url,
+		redirected: res.redirected,
+		body: bytes,
 	};
 }
 

@@ -185,6 +185,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				emailSend: () => this.emailSendCallback,
 				cronReschedule: () => this.cronRescheduleCallback?.(),
 				now: this.options.now,
+				httpFetch: this.options.httpFetch,
 				storage: this.options.mediaStorage,
 			});
 

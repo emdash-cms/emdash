@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
+import {
+	PLUGIN_HTTP_FORM_BYTES,
+	PLUGIN_HTTP_FORM_CONTENT_TYPE,
+	pluginHttpFormBody,
+} from "../../../core/tests/fixtures/plugin-http.js";
 import { generatePluginWrapper } from "../../src/sandbox/wrapper.js";
 
 describe("Cloudflare generated plugin context", () => {
@@ -31,7 +36,20 @@ describe("Cloudflare generated plugin context", () => {
 			hooks: {
 				"plugin:activate": async (_event: unknown, ctx: Record<string, any>) => {
 					await ctx.cron.schedule("daily", { schedule: "@daily" });
-					const response = await ctx.http.fetch("https://api.example.com/status");
+					await ctx.http.fetch("https://api.example.com/status", {
+						method: "POST",
+						body: pluginHttpFormBody(),
+					});
+					const response = await ctx.http.fetch("https://api.example.com/upload", {
+						method: "POST",
+						body: new ReadableStream({
+							start(controller) {
+								controller.enqueue(new Uint8Array([0, 255, 128, 10]));
+								controller.close();
+							},
+						}),
+						duplex: "half",
+					});
 					return {
 						isResponse: response instanceof Response,
 						body: await response.json(),
@@ -39,14 +57,21 @@ describe("Cloudflare generated plugin context", () => {
 				},
 			},
 		};
+		const capturedInits: RequestInit[] = [];
 		const bridge = new Proxy(
 			{
 				cronSchedule: schedule,
-				httpFetch: async () => ({
-					status: 200,
-					headers: { "content-type": "application/json" },
-					text: '{"ok":true}',
-				}),
+				httpFetch: async (_url: string, init?: RequestInit) => {
+					if (init) capturedInits.push(init);
+					return {
+						status: 200,
+						statusText: "OK",
+						headers: [["content-type", "application/json"]],
+						finalUrl: "https://api.example.com/status",
+						redirected: false,
+						body: new TextEncoder().encode('{"ok":true}'),
+					};
+				},
 			},
 			{ get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
 		);
@@ -66,5 +91,11 @@ describe("Cloudflare generated plugin context", () => {
 			body: { ok: true },
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });
+		expect(new Headers(capturedInits[0]?.headers).get("content-type")).toBe(
+			PLUGIN_HTTP_FORM_CONTENT_TYPE,
+		);
+		expect(capturedInits[0]?.body).toEqual(PLUGIN_HTTP_FORM_BYTES);
+		expect(capturedInits[1]).not.toHaveProperty("duplex");
+		expect(capturedInits[1]?.body).toEqual(new Uint8Array([0, 255, 128, 10]));
 	});
 });

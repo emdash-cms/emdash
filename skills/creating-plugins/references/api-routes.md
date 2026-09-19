@@ -146,9 +146,9 @@ With `content:read`, both sandbox runners match the trusted read contract. `ctx.
 
 ## External HTTP responses
 
-`ctx.http.fetch()` returns a real WHATWG `Response` in both sandbox runners, so `ok`, `status`, `headers`, `text()`, and `json()` use the standard Web API.
+`ctx.http.fetch()` returns a buffered WHATWG `Response` in both sandbox runners. `ok`, `status`, `statusText`, `headers`, `url`, `redirected`, `text()`, `json()`, `arrayBuffer()`, `blob()`, and `clone()` use the standard Web API and preserve the same values across runners.
 
-The Cloudflare bridge currently transports the upstream response body as decoded text before constructing the `Response`. Binary response methods such as `arrayBuffer()` and `blob()` therefore do not preserve arbitrary bytes on Cloudflare. The Node/workerd bridge base64-encodes response bytes. Use text or JSON responses for portable plugins until the Cloudflare bridge is binary-safe.
+Request and response bodies are each limited to 8 MiB of decoded bytes. The bridge enforces the limit while reading the body rather than trusting `Content-Length`. Responses are buffered rather than streamed to plugin code.
 
 ## Expose a route as an MCP tool
 

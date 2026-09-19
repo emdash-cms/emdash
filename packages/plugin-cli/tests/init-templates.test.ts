@@ -329,6 +329,8 @@ describe("agent guidance", () => {
 		expect(skill).toContain("Use the package scripts");
 		expect(skill).toContain("createPluginTestHost()");
 		expect(skill).toContain("createPluginRuntimeTestHost()");
+		expect(skill).toContain("host.http.respond(url, response)");
+		expect(skill).toContain("8 MiB of decoded bytes");
 		expect(skill).toContain("Node/workerd parity opt-in");
 		expect(skill).toContain("@<publisher-handle>/<slug>");
 		expect(skill).toContain("info <handle> <slug> --version <version> --watch");

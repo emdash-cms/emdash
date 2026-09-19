@@ -212,6 +212,17 @@ async function bridgeCall(method, body) {
 		throw new Error("Bridge call " + method + " failed: " + text);
 	}
 	const data = await res.json();
+	if (
+		method === "http/fetch" &&
+		data.result?.body &&
+		typeof data.result.body === "object" &&
+		typeof data.result.body.__emdashBytes === "string"
+	) {
+		const binary = atob(data.result.body.__emdashBytes);
+		const bytes = new Uint8Array(binary.length);
+		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+		data.result.body = bytes;
+	}
 	return data.result;
 }
 
@@ -314,127 +325,91 @@ function createContext() {
 		delete: (id) => bridgeCall("media/delete", { id }),
 	};
 
-	// Marshal a RequestInit into a JSON-safe shape so headers, body, and other
-	// fields survive transport over the bridge. The bridge handler reverses
-	// this in unmarshalRequestInit().
+	// Marshal a RequestInit into a bounded JSON-safe shape. Request performs the
+	// standard BodyInit encoding before the decoded bytes are measured.
 	async function marshalRequestInit(init) {
 		if (!init) return undefined;
 		const out = {};
 		if (init.method) out.method = init.method;
 		if (init.redirect) out.redirect = init.redirect;
-		// Headers: serialize as a list of [name, value] pairs so multi-value
-		// headers (Set-Cookie etc.) survive round-trip. A plain object would
-		// collapse duplicate names.
-		if (init.headers) {
-			const headers = [];
-			if (init.headers instanceof Headers) {
-				init.headers.forEach((v, k) => { headers.push([k, v]); });
-			} else if (Array.isArray(init.headers)) {
-				for (const [k, v] of init.headers) headers.push([k, v]);
-			} else {
-				for (const [k, v] of Object.entries(init.headers)) {
-					headers.push([k, v]);
+		let body = init.body;
+		const isBodyInit =
+			typeof body === "string" ||
+			body instanceof URLSearchParams ||
+			body instanceof ArrayBuffer ||
+			ArrayBuffer.isView(body) ||
+			(typeof Blob !== "undefined" && body instanceof Blob) ||
+			(typeof FormData !== "undefined" && body instanceof FormData) ||
+			(typeof ReadableStream !== "undefined" && body instanceof ReadableStream);
+		if (body !== undefined && body !== null && !isBodyInit) body = JSON.stringify(body);
+		const request = new Request("https://plugin-http.invalid/", {
+			...init,
+			body,
+			method: init.method || "POST",
+			duplex: "half",
+		});
+		const headers = Array.from(request.headers.entries());
+		if (headers.length > 0) out.headers = headers;
+		if (request.body) {
+			const reader = request.body.getReader();
+			const chunks = [];
+			let total = 0;
+			try {
+				while (true) {
+					const { done, value } = await reader.read();
+					if (done) break;
+					total += value.byteLength;
+					if (total > 8 * 1024 * 1024) {
+						try { await reader.cancel(); } catch {}
+						throw new Error("Plugin HTTP request body exceeds the 8388608 byte limit");
+					}
+					chunks.push(value);
 				}
+			} finally {
+				reader.releaseLock();
 			}
-			out.headers = headers;
-		}
-		// Helper: convert a Uint8Array view to base64, preserving offset/length
-		function viewToBase64(view) {
+			const bytes = new Uint8Array(total);
+			let offset = 0;
+			for (const chunk of chunks) {
+				bytes.set(chunk, offset);
+				offset += chunk.byteLength;
+			}
 			let binary = "";
-			for (let i = 0; i < view.length; i++) binary += String.fromCharCode(view[i]);
-			return btoa(binary);
-		}
-
-		// Helper: get a Uint8Array view from any binary input, respecting
-		// the original byteOffset and byteLength so we don't serialize the
-		// entire backing buffer for views like Uint8Array.subarray().
-		function toBytes(input) {
-			if (input instanceof Uint8Array) return input;
-			if (input instanceof ArrayBuffer) return new Uint8Array(input);
-			if (ArrayBuffer.isView(input)) {
-				// DataView, Int8Array, Float32Array, etc. — preserve the window
-				return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
-			}
-			// Should never reach here: callers gate with ArrayBuffer/isView checks.
-			// Throw loudly so unexpected body types surface as errors instead of
-			// silently dropping data.
-			throw new TypeError("toBytes: unsupported binary input type");
-		}
-
-		// Body: convert to base64 to preserve binary, or pass strings through
-		if (init.body !== undefined && init.body !== null) {
-			if (typeof init.body === "string") {
-				out.bodyType = "string";
-				out.body = init.body;
-			} else if (init.body instanceof ArrayBuffer || ArrayBuffer.isView(init.body)) {
-				out.bodyType = "base64";
-				out.body = viewToBase64(toBytes(init.body));
-			} else if (typeof Blob !== "undefined" && init.body instanceof Blob) {
-				// Blob/File (without going through FormData): read bytes and
-				// preserve content type if not already set
-				const bytes = new Uint8Array(await init.body.arrayBuffer());
-				out.bodyType = "base64";
-				out.body = viewToBase64(bytes);
-				if (init.body.type) {
-					if (!Array.isArray(out.headers)) out.headers = [];
-					const hasContentType = out.headers.some(([k]) => k.toLowerCase() === "content-type");
-					if (!hasContentType) {
-						out.headers.push(["content-type", init.body.type]);
-					}
-				}
-			} else if (init.body instanceof FormData) {
-				// FormData: serialize entries as { name, value, filename? }
-				const parts = [];
-				for (const [k, v] of init.body.entries()) {
-					if (typeof v === "string") {
-						parts.push({ name: k, value: v });
-					} else {
-						// File/Blob: read as base64
-						const bytes = new Uint8Array(await v.arrayBuffer());
-						parts.push({
-							name: k,
-							value: viewToBase64(bytes),
-							filename: v.name,
-							type: v.type,
-							isBlob: true,
-						});
-					}
-				}
-				out.bodyType = "formdata";
-				out.body = parts;
-			} else if (init.body instanceof URLSearchParams) {
-				out.bodyType = "string";
-				out.body = init.body.toString();
-				if (!Array.isArray(out.headers)) out.headers = [];
-				const hasContentType = out.headers.some(([k]) => k.toLowerCase() === "content-type");
-				if (!hasContentType) {
-					out.headers.push(["content-type", "application/x-www-form-urlencoded"]);
-				}
-			} else {
-				// Fall back to JSON for plain objects
-				out.bodyType = "string";
-				out.body = JSON.stringify(init.body);
-			}
+			for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+			out.bodyType = "base64";
+			out.body = btoa(binary);
 		}
 		return out;
+	}
+
+	function decorateHttpResponse(response, finalUrl, redirected) {
+		const clone = response.clone.bind(response);
+		Object.defineProperties(response, {
+			url: { configurable: true, value: finalUrl },
+			redirected: { configurable: true, value: redirected },
+			clone: {
+				configurable: true,
+				value: () => decorateHttpResponse(clone(), finalUrl, redirected),
+			},
+		});
+		return response;
+	}
+
+	function responseFromHttpWire(result) {
+		const nullBodyStatus = result.status === 101 || result.status === 204 || result.status === 205 || result.status === 304;
+		const response = new Response(nullBodyStatus ? null : result.body, {
+			status: result.status,
+			statusText: result.statusText,
+			headers: result.headers,
+		});
+		return decorateHttpResponse(response, result.finalUrl, result.redirected);
 	}
 
 	const http = {
 		fetch: async (url, init) => {
 			const marshaledInit = await marshalRequestInit(init);
 			const result = await bridgeCall("http/fetch", { url, init: marshaledInit });
-			// Decode base64 body back to bytes to preserve binary content
-			// (images, audio, etc.) so arrayBuffer()/blob() work correctly.
-			const binaryString = atob(result.bodyBase64);
-			const bytes = new Uint8Array(binaryString.length);
-			for (let i = 0; i < binaryString.length; i++) {
-				bytes[i] = binaryString.charCodeAt(i);
-			}
-			return new Response(bytes, {
-				status: result.status,
-				statusText: result.statusText,
-				headers: result.headers,
-			});
+			return responseFromHttpWire(result);
 		}
 	};
 

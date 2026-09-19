@@ -6,6 +6,8 @@ import { env } from "cloudflare:workers";
 import {
 	ContentRepository,
 	OptionsRepository,
+	pluginHttpResponseFromWire,
+	pluginHttpResponseToWire,
 	SchemaRegistry,
 	UserRepository,
 	definePlugin,
@@ -14,6 +16,7 @@ import {
 	type Database,
 	type I18nConfig,
 	type PluginManifest,
+	type PluginHttpResponseWire,
 	type SandboxOptions,
 	type Storage,
 } from "emdash";
@@ -43,6 +46,13 @@ export interface PluginRuntimeTestHostOptions {
 		trailingSlash?: "always" | "never" | "ignore";
 	};
 	i18n?: I18nConfig;
+}
+
+export interface PluginHttpTestRequest {
+	url: string;
+	method: string;
+	headers: Record<string, string>;
+	body: Uint8Array;
 }
 
 export interface PluginRuntimeRouteRequest extends PluginTestRequest {
@@ -137,6 +147,11 @@ export interface PluginRuntimeTestHost {
 	scheduled: {
 		setTime(value: string | Date): void;
 		run(): Promise<{ processed: number; published: Array<{ collection: string; id: string }> }>;
+	};
+	http: {
+		respond(url: string, response: Response): Promise<void>;
+		requests(): PluginHttpTestRequest[];
+		clear(): void;
 	};
 	restart(): Promise<void>;
 	dispose(): Promise<void>;
@@ -247,6 +262,26 @@ export async function createPluginRuntimeTestHost(
 	await optionRepo.set("emdash:exclusive_hook:email:deliver", "plugin-test-email-transport");
 
 	const capturedEmail: Array<Record<string, unknown>> = [];
+	const capturedHttpRequests: PluginHttpTestRequest[] = [];
+	const httpResponses = new Map<string, PluginHttpResponseWire[]>();
+	const httpFetch: typeof fetch = async (input, init) => {
+		const request = new Request(input, init);
+		const headers: Record<string, string> = {};
+		request.headers.forEach((value, key) => {
+			headers[key] = value;
+		});
+		capturedHttpRequests.push({
+			url: request.url,
+			method: request.method,
+			headers,
+			body: new Uint8Array(await request.arrayBuffer()),
+		});
+		const responses = httpResponses.get(request.url);
+		const response = responses?.shift();
+		if (!response) throw new Error(`No plugin HTTP test response for ${request.url}`);
+		if (responses?.length === 0) httpResponses.delete(request.url);
+		return pluginHttpResponseFromWire(response);
+	};
 	const storage = new MemoryStorage();
 	const siteInfo = { ...options.site };
 	const previousI18n = getI18nConfig();
@@ -296,6 +331,7 @@ export async function createPluginRuntimeTestHost(
 		createSandboxRunner: (runnerOptions: SandboxOptions) =>
 			new CloudflareSandboxRunner({
 				...runnerOptions,
+				httpFetch,
 				isolateKey: `${entrypoint}-${isolateGeneration++}`,
 			}),
 		now: () => new Date(currentTime),
@@ -561,6 +597,27 @@ export async function createPluginRuntimeTestHost(
 			},
 			async run() {
 				return runtime.runScheduledTasksWithStats();
+			},
+		},
+		http: {
+			async respond(url, response) {
+				assertActive();
+				const responses = httpResponses.get(url) ?? [];
+				responses.push(await pluginHttpResponseToWire(response, url, false));
+				httpResponses.set(url, responses);
+			},
+			requests() {
+				assertActive();
+				return capturedHttpRequests.map((request) => ({
+					...request,
+					headers: { ...request.headers },
+					body: request.body.slice(),
+				}));
+			},
+			clear() {
+				assertActive();
+				capturedHttpRequests.length = 0;
+				httpResponses.clear();
 			},
 		},
 		async restart() {

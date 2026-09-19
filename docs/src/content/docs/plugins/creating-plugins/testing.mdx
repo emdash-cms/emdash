@@ -159,11 +159,39 @@ The runtime host groups its API by boundary:
 - `actions` runs content state changes, plugin activation and deactivation, media uploads, public comment submission, comment moderation, and policy-checked plugin routes.
 - `inspect` reads content, plugin storage, KV, settings, plugin state, scheduled tasks, media, comments, and captured email.
 - `scheduled` controls the effective time for cron tasks and scheduled publishing, then runs one production maintenance batch.
+- `http` queues external responses and captures the requests that a plugin sends through `ctx.http.fetch()`.
 - `restart()` replaces the runtime and isolate while retaining D1, plugin storage, media storage, and plugin state.
 
 Call `dispose()` after each test. Disposal terminates the isolate and resets all bindings, so a later test cannot observe the previous host's database or media.
 
-The runtime host exposes shipped operations only. Capability-specific helpers for translations, publication policy, Block Kit interactions, binary HTTP, raw routes, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
+Queue a binary response before invoking the plugin route that fetches it:
+
+```ts title="tests/http.test.ts"
+const admin = await host.fixtures.user({
+	email: "plugin-test@example.com",
+	role: "admin",
+});
+
+await host.http.respond(
+	"https://api.example.com/report",
+	new Response(new Uint8Array([0, 255, 195, 40]), {
+		headers: { "content-type": "application/octet-stream" },
+	}),
+);
+
+await host.actions.routes.request("import-report", {
+	user: admin,
+	headers: { "X-EmDash-Request": "1" },
+});
+
+expect(host.http.requests()).toContainEqual(
+	expect.objectContaining({ url: "https://api.example.com/report" }),
+);
+```
+
+`respond()` consumes and stores the response bytes immediately, so the later Worker Loader request receives a response created in its own request context. Queue another response for each expected call to the same URL. `clear()` removes queued responses and captured requests.
+
+The runtime host exposes shipped operations only. Capability-specific helpers for translations, publication policy, Block Kit interactions, raw routes, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
 
 ## Test boundaries
 

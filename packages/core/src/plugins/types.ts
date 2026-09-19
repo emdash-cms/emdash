@@ -518,9 +518,13 @@ export interface MediaAccessWithWrite extends MediaAccess {
 }
 
 /**
- * HTTP client interface - requires network:fetch capability
+ * HTTP client interface - requires network:request capability
  */
 export interface HttpAccess {
+	/**
+	 * Fetch an allowed external URL and return a buffered response.
+	 * Decoded request and response bodies are each limited to 8 MiB.
+	 */
 	fetch(url: string, init?: RequestInit): Promise<Response>;
 }
 
@@ -614,7 +618,7 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 	/** Media access - only if read:media or write:media capability */
 	media?: MediaAccess | MediaAccessWithWrite;
 
-	/** HTTP client - only if network:fetch capability */
+	/** HTTP client - only if network:request capability */
 	http?: HttpAccess;
 
 	/** Logger - always available */
@@ -1539,7 +1543,7 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	/** Declared capabilities */
 	capabilities?: PluginCapability[];
 
-	/** Allowed hosts for network:fetch (wildcards supported: *.example.com) */
+	/** Allowed hosts for network:request (wildcards supported: *.example.com) */
 	allowedHosts?: string[];
 
 	/** Storage collections with indexes */
