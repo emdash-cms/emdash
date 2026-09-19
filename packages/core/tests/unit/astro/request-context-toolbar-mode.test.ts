@@ -1,5 +1,5 @@
 /**
- * Tests for the `toolbar` config modes (Discussion #1742).
+ * Tests for the `toolbar` config modes.
  *
  * - `"server"` (default): current behavior — the toolbar is injected
  *   server-side for authenticated editors.

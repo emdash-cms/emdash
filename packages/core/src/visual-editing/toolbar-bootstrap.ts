@@ -11,7 +11,7 @@
  * Clicking it verifies the session server-side and reloads the page with the
  * `_edit` query param — that URL is always rendered fresh with the full
  * server-side toolbar. Logged-out browsers pay one localStorage read and
- * nothing else. See Discussion #1742.
+ * nothing else.
  */
 
 /**
