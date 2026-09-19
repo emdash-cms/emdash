@@ -39,7 +39,7 @@ import {
 	removeReaction,
 	updateReviewCheck,
 } from "../lib/github.js";
-import { omitGeneratedWorkerTypes } from "../lib/review-context.js";
+import { omitReviewArtifacts } from "../lib/review-context.js";
 import { formatReviewFailureSummary } from "../lib/review-failure.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
 import {
@@ -187,7 +187,7 @@ async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
 	const workspace = getDefaultWorkspace(env.REVIEW_WORKSPACE, workspaceName());
 	hydrateStep(payload, "workspace created", t0);
 	if (await workspace.exists(HYDRATED)) {
-		await omitGeneratedWorkerTypes(workspace, REPO_DIR);
+		await omitReviewArtifacts(workspace, REPO_DIR);
 		hydrateStep(payload, "already hydrated", t0);
 		return;
 	}
@@ -205,7 +205,7 @@ async function hydrate(env: Env, payload: ReviewPayload): Promise<void> {
 	const tarStream = response.body.pipeThrough(new DecompressionStream("gzip"));
 	const { files, bytes } = await untarInto(workspace, tarStream, REPO_DIR);
 	hydrateStep(payload, `untarred ${files} files ${bytes} bytes`, t0);
-	await omitGeneratedWorkerTypes(workspace, REPO_DIR);
+	await omitReviewArtifacts(workspace, REPO_DIR);
 
 	await workspace.writeFile(HYDRATED, new Date().toISOString());
 	hydrateStep(payload, "hydrated", t0);

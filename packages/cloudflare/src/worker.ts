@@ -13,9 +13,8 @@
 // @ts-ignore - resolved against the consuming app's Astro build
 import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
-import { runScheduledTasks } from "emdash/middleware";
 
-export { PluginBridge } from "./sandbox/index.js";
+export { PluginBridge } from "./sandbox/bridge.js";
 
 const APP_KEY = Symbol.for("@emdash-cms/cloudflare:astro-app");
 const CACHE_PROVIDER_KEY = Symbol.for("@emdash-cms/cloudflare:cache-provider");
@@ -92,6 +91,7 @@ export function createScheduledHandler(
 		ctx.waitUntil(
 			(async () => {
 				try {
+					const { runScheduledTasks } = await import("emdash/middleware");
 					// Invalidate incrementally as each collection batch publishes, so a
 					// scheduled() invocation killed mid-sweep (CPU/wall-clock limits on a
 					// large backlog) still purged the cache tags for everything it managed
