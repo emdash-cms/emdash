@@ -9,6 +9,7 @@
 // review. The app needs `pull_requests: write`, `checks: write`, and
 // `contents: read`.
 
+import { limitUtf8Text } from "./byte-budget.js";
 import type { ReviewResult } from "./review-schema.js";
 
 const GITHUB_API = "https://api.github.com";
@@ -442,10 +443,109 @@ export async function fetchPullRequestHeadSha(
 	return pull.head.sha;
 }
 
+const REVIEWER_LOGIN = "emdashbot[bot]";
+const PRIOR_FINDINGS_MAX_CHARS = 30_000;
+const PRIOR_COMMENT_MAX_BYTES = 4_000;
+const REVIEW_COMMENTS_PAGE_SIZE = 100;
+const LINE_BREAK = /\r\n|[\n\r\u2028\u2029]/;
+
+interface ReviewComment {
+	id?: number;
+	in_reply_to_id?: number | null;
+	user?: { login?: string } | null;
+	author_association?: string | null;
+	body?: string;
+	path?: string;
+	line?: number | null;
+	original_line?: number | null;
+	created_at?: string;
+}
+
+async function fetchNewestReviewComments(
+	token: string,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<ReviewComment[]> {
+	const res = await githubFetch(
+		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/comments?sort=created&direction=desc&per_page=${REVIEW_COMMENTS_PAGE_SIZE}`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "list review comments");
+	return res.json<ReviewComment[]>();
+}
+
 /**
- * Fetch the most recent emdashbot[bot] review body for a re-review, so the
- * agent can avoid re-flagging already-addressed findings. Returns undefined on
- * a first review or any failure (non-fatal: we just review fresh).
+ * Quoted, so a line inside a comment body cannot pass for a reply header of
+ * its own.
+ */
+function quote(text: string, spaces: number): string {
+	const pad = " ".repeat(spaces);
+	return limitUtf8Text(text.trim(), PRIOR_COMMENT_MAX_BYTES, " … (truncated)")
+		.split(LINE_BREAK)
+		.map((line) => `${pad}> ${line}`)
+		.join("\n");
+}
+
+function byCreated(a: ReviewComment, b: ReviewComment): number {
+	return (a.created_at ?? "").localeCompare(b.created_at ?? "");
+}
+
+function renderPriorFindings(comments: readonly ReviewComment[]): string {
+	const findings: ReviewComment[] = [];
+	const replies = new Map<number, ReviewComment[]>();
+	for (const comment of comments) {
+		if (typeof comment.in_reply_to_id === "number") {
+			replies.set(comment.in_reply_to_id, [
+				...(replies.get(comment.in_reply_to_id) ?? []),
+				comment,
+			]);
+		} else if (comment.user?.login === REVIEWER_LOGIN) {
+			findings.push(comment);
+		}
+	}
+	if (findings.length === 0) return "";
+	const threads = findings
+		.toSorted((a, b) => byCreated(b, a))
+		.map((finding) => {
+			// GitHub reports `line: null` once a push has changed the code under
+			// the comment; `original_line` then numbers an older commit.
+			const anchor =
+				typeof finding.line === "number"
+					? `${finding.path}:${finding.line}`
+					: `${finding.path}:${finding.original_line} (outdated: the code under it has changed since)`;
+			const lines = [`- \`${anchor}\``, quote(finding.body ?? "", 2)];
+			const thread = finding.id === undefined ? [] : (replies.get(finding.id) ?? []);
+			for (const reply of thread.toSorted(byCreated)) {
+				const author = `${reply.user?.login ?? "unknown"} (${reply.author_association ?? "NONE"})`;
+				lines.push(`  - Reply from ${author}:`, quote(reply.body ?? "", 4));
+			}
+			return lines.join("\n");
+		});
+	const kept: string[] = [];
+	let length = 0;
+	for (const thread of threads) {
+		length += thread.length + 2;
+		if (kept.length > 0 && length > PRIOR_FINDINGS_MAX_CHARS) break;
+		kept.push(
+			thread.length > PRIOR_FINDINGS_MAX_CHARS
+				? `${thread.slice(0, PRIOR_FINDINGS_MAX_CHARS)} … (thread truncated)`
+				: thread,
+		);
+	}
+	const omitted =
+		kept.length < threads.length || comments.length >= REVIEW_COMMENTS_PAGE_SIZE
+			? "\n\n(older findings omitted)"
+			: "";
+	return `\n\n### Your inline findings, newest first, with the replies to each\n\n${kept.join("\n\n")}${omitted}`;
+}
+
+/**
+ * Fetch the most recent emdashbot[bot] review body, plus the bot's inline
+ * findings and the replies to them, for a re-review, so the agent can avoid
+ * re-flagging findings that were addressed or answered. Returns undefined on a
+ * first review or when the reviews can't be read (non-fatal: we just review
+ * fresh); unreadable threads only leave the findings out.
  */
 export async function fetchPriorReview(
 	token: string,
@@ -475,11 +575,15 @@ export async function fetchPriorReview(
 			}>
 		>();
 		const ours = reviews
-			.filter((r) => r.user?.login === "emdashbot[bot]" && r.body)
+			.filter((r) => r.user?.login === REVIEWER_LOGIN && r.body)
 			.toSorted((a, b) => (a.submitted_at ?? "").localeCompare(b.submitted_at ?? ""));
 		const latest = ours.at(-1);
 		if (!latest) return undefined;
-		return `Your previous review (state: ${latest.state ?? "unknown"}):\n\n${latest.body}`;
+		const findings = await fetchNewestReviewComments(token, owner, repo, prNumber).then(
+			renderPriorFindings,
+			() => "",
+		);
+		return `Your previous review (state: ${latest.state ?? "unknown"}):\n\n${latest.body}${findings}`;
 	} catch {
 		return undefined;
 	}

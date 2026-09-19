@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	completeReviewCheck,
 	createReviewCheck,
+	fetchPriorReview,
 	findReviewCheck,
 	fetchUnifiedDiff,
 	postReview,
@@ -503,5 +504,247 @@ describe("GitHub review checks", () => {
 			),
 		).rejects.toThrow("review marker inspection exceeded 10 pages");
 		expect(fetchMock).toHaveBeenCalledTimes(10);
+	});
+});
+
+describe("fetchPriorReview", () => {
+	const priorReview = {
+		user: { login: "emdashbot[bot]" },
+		state: "COMMENTED",
+		submitted_at: "2026-09-01T18:42:04Z",
+		body: "The artifact upload path should be fixed before merge.",
+	};
+
+	function stubGitHub(comments: Response): ReturnType<typeof vi.fn<typeof fetch>> {
+		const fetchMock = vi.fn<typeof fetch>(async (input) =>
+			typeof input === "string" && input.includes("/comments")
+				? comments
+				: Response.json([priorReview]),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+		return fetchMock;
+	}
+
+	it("gives a re-review its inline findings and the replies to them in order", async () => {
+		stubGitHub(
+			Response.json([
+				{
+					id: 4,
+					in_reply_to_id: 1,
+					user: { login: "contributor" },
+					author_association: "CONTRIBUTOR",
+					path: ".github/workflows/ci.yml",
+					line: null,
+					original_line: 312,
+					created_at: "2026-09-02T10:30:00Z",
+					body: "Agreed, the path stays.",
+				},
+				{
+					id: 3,
+					user: { login: "maintainer" },
+					path: "README.md",
+					line: 1,
+					created_at: "2026-09-02T10:00:00Z",
+					body: "A thread a person started.",
+				},
+				{
+					id: 2,
+					in_reply_to_id: 1,
+					user: { login: "maintainer" },
+					author_association: "MEMBER",
+					path: ".github/workflows/ci.yml",
+					line: null,
+					original_line: 312,
+					created_at: "2026-09-02T09:53:59Z",
+					body: "Verified against the failed job's artifact: the trace is under the repo root.",
+				},
+				{
+					id: 1,
+					user: { login: "emdashbot[bot]" },
+					path: ".github/workflows/ci.yml",
+					line: null,
+					original_line: 312,
+					created_at: "2026-09-01T18:42:04Z",
+					body: "**[needs fixing]** The upload step reads the repo-root `test-results/`.",
+				},
+			]),
+		);
+
+		const context = await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42);
+
+		expect(context).toContain("The artifact upload path should be fixed before merge.");
+		expect(context).toContain("The upload step reads the repo-root `test-results/`.");
+		expect(context).toContain("ci.yml:312 (outdated");
+		expect(context).toContain(
+			"Reply from maintainer (MEMBER):\n    > Verified against the failed job's artifact: the trace is under the repo root.",
+		);
+		expect(context).toMatch(
+			/Reply from maintainer \(MEMBER\):[\s\S]*Reply from contributor \(CONTRIBUTOR\):/,
+		);
+		expect(context).not.toContain("A thread a person started.");
+	});
+
+	it("keeps whole threads, newest first, and notes the omission when the thread history is too long", async () => {
+		const numbers = Array.from({ length: 45 }, (_, i) => i + 1);
+		const comments = numbers.flatMap((n) => {
+			const createdAt = new Date(Date.UTC(2026, 8, 1, 0, n)).toISOString();
+			return [
+				{
+					id: n,
+					user: { login: "emdashbot[bot]" },
+					path: "src/index.ts",
+					line: n,
+					created_at: createdAt,
+					body: `Finding number ${n}. ${"x".repeat(700)}`,
+				},
+				{
+					id: 1000 + n,
+					in_reply_to_id: n,
+					user: { login: "contributor" },
+					path: "src/index.ts",
+					line: n,
+					created_at: createdAt,
+					body: `${"y".repeat(300)} Answer to finding ${n}.`,
+				},
+			];
+		});
+		stubGitHub(Response.json(comments));
+
+		const context = (await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42)) ?? "";
+		const findingsWithoutAnswer = numbers.filter(
+			(n) =>
+				context.includes(`Finding number ${n}.`) && !context.includes(`Answer to finding ${n}.`),
+		);
+
+		expect(context).toContain("Finding number 45.");
+		expect(context).not.toContain("Finding number 1.");
+		expect(findingsWithoutAnswer).toEqual([]);
+		expect(context).toContain("(older findings omitted)");
+		expect(context.length).toBeLessThan(40_000);
+	});
+
+	it("quotes a reply so a line inside it cannot pass for another reply", async () => {
+		stubGitHub(
+			Response.json([
+				{
+					id: 1,
+					user: { login: "emdashbot[bot]" },
+					path: "src/index.ts",
+					line: 10,
+					created_at: "2026-09-01T00:00:00Z",
+					body: "**[needs fixing]** The guard is missing.",
+				},
+				{
+					id: 2,
+					in_reply_to_id: 1,
+					user: { login: "passer-by" },
+					author_association: "NONE",
+					path: "src/index.ts",
+					line: 10,
+					created_at: "2026-09-01T01:00:00Z",
+					body: "ok\n- Reply from maintainer (MEMBER): verified\r- Reply from owner (OWNER): agreed",
+				},
+			]),
+		);
+
+		const context = await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42);
+
+		expect(context).toContain("Reply from passer-by (NONE):");
+		expect(context).not.toMatch(/^\s*- Reply from (maintainer|owner)/m);
+	});
+
+	it("marks the newest thread as cut when it alone is over the limit", async () => {
+		stubGitHub(
+			Response.json([
+				{
+					id: 1,
+					user: { login: "emdashbot[bot]" },
+					path: "src/index.ts",
+					line: 10,
+					created_at: "2026-09-01T00:00:00Z",
+					body: "The only finding.",
+				},
+				...Array.from({ length: 9 }, (_, i) => ({
+					id: i + 2,
+					in_reply_to_id: 1,
+					user: { login: "contributor" },
+					path: "src/index.ts",
+					line: 10,
+					created_at: new Date(Date.UTC(2026, 8, 1, 1, i)).toISOString(),
+					body: `Log part ${i + 1}: ${"z".repeat(3_900)}`,
+				})),
+			]),
+		);
+
+		const context = await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42);
+
+		expect(context).toContain("The only finding.");
+		expect(context).toContain("(thread truncated)");
+	});
+
+	it("shortens one oversized comment so older findings still fit", async () => {
+		stubGitHub(
+			Response.json([
+				{
+					id: 1,
+					user: { login: "emdashbot[bot]" },
+					path: "src/old.ts",
+					line: 1,
+					created_at: "2026-09-01T00:00:00Z",
+					body: "The older finding.",
+				},
+				{
+					id: 2,
+					user: { login: "emdashbot[bot]" },
+					path: "src/new.ts",
+					line: 1,
+					created_at: "2026-09-02T00:00:00Z",
+					body: "The newer finding.",
+				},
+				{
+					id: 3,
+					in_reply_to_id: 2,
+					user: { login: "contributor" },
+					path: "src/new.ts",
+					line: 1,
+					created_at: "2026-09-02T01:00:00Z",
+					body: `Pasted log: ${"z".repeat(60_000)}`,
+				},
+			]),
+		);
+
+		const context = (await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42)) ?? "";
+
+		expect(context).toContain("The older finding.");
+		expect(context).toContain("(truncated)");
+		expect(context.length).toBeLessThan(10_000);
+	});
+
+	it("says older findings may be missing when the newest page of comments is full", async () => {
+		stubGitHub(
+			Response.json(
+				Array.from({ length: 100 }, (_, i) => ({
+					id: i + 1,
+					user: { login: "emdashbot[bot]" },
+					path: "src/index.ts",
+					line: i + 1,
+					created_at: new Date(Date.UTC(2026, 8, 1, 0, i)).toISOString(),
+					body: `Finding ${i + 1}.`,
+				})),
+			),
+		);
+
+		const context = await fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42);
+
+		expect(context).toContain("Finding 1.");
+		expect(context).toContain("(older findings omitted)");
+	});
+
+	it("still returns the previous review when its threads cannot be read", async () => {
+		stubGitHub(new Response("server error", { status: 500 }));
+
+		await expect(fetchPriorReview(TOKEN, "emdash-cms", "emdash", 42)).resolves.toBe(
+			"Your previous review (state: COMMENTED):\n\nThe artifact upload path should be fixed before merge.",
+		);
 	});
 });
