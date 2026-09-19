@@ -1015,7 +1015,7 @@ describe("Bridge Handler Conformance", () => {
 			expect(list.items.length).toBeLessThanOrEqual(1);
 		});
 
-		it("media/list clamps negative limit to 1", async () => {
+		it.each([-5, 0])("media/list clamps a %s limit to 1", async (limit) => {
 			await db.schema
 				.createTable("media")
 				.addColumn("id", "text", (col) => col.primaryKey())
@@ -1042,11 +1042,43 @@ describe("Bridge Handler Conformance", () => {
 			}
 
 			const handler = makeHandler({ capabilities: ["read:media"] });
-			const result = await call(handler, "media/list", { limit: -5 });
+			const result = await call(handler, "media/list", { limit });
 			expect(result.error).toBeUndefined();
 			const list = result.result as { items: unknown[] };
 			expect(list.items.length).toBeGreaterThanOrEqual(1);
 			expect(list.items.length).toBeLessThanOrEqual(1);
+		});
+
+		it("media/list defaults a non-number limit", async () => {
+			await db.schema
+				.createTable("media")
+				.addColumn("id", "text", (col) => col.primaryKey())
+				.addColumn("filename", "text", (col) => col.notNull())
+				.addColumn("mime_type", "text", (col) => col.notNull())
+				.addColumn("size", "integer")
+				.addColumn("storage_key", "text", (col) => col.notNull())
+				.addColumn("status", "text", (col) => col.notNull().defaultTo("ready"))
+				.addColumn("created_at", "text", (col) => col.notNull())
+				.execute();
+			for (const id of ["m-1", "m-2", "m-3"]) {
+				await db
+					.insertInto("media" as any)
+					.values({
+						id,
+						filename: `${id}.png`,
+						mime_type: "image/png",
+						size: 100,
+						storage_key: `keys/${id}`,
+						status: "ready",
+						created_at: new Date().toISOString(),
+					})
+					.execute();
+			}
+
+			const handler = makeHandler({ capabilities: ["read:media"] });
+			const result = await call(handler, "media/list", { limit: "bad" });
+			expect(result.error).toBeUndefined();
+			expect((result.result as { items: unknown[] }).items).toHaveLength(3);
 		});
 
 		it("storage/query clamps negative limit to 1", async () => {

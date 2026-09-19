@@ -1260,9 +1260,8 @@ async function mediaGet(db: Kysely<Database>, id: string) {
 }
 
 async function mediaList(db: Kysely<Database>, opts: Record<string, unknown>) {
-	const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 100));
 	return createMediaAccess(db).list({
-		limit,
+		limit: typeof opts.limit === "number" ? opts.limit : undefined,
 		cursor: optionalString(opts, "cursor"),
 		mimeType: optionalString(opts, "mimeType"),
 	});

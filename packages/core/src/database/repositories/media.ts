@@ -31,6 +31,11 @@ function normalizeMimeFilter(input?: string | readonly string[]): string[] {
 		);
 }
 
+function normalizeListLimit(limit: unknown): number {
+	const integer = typeof limit === "number" && !Number.isNaN(limit) ? Math.trunc(limit) : 50;
+	return Math.min(Math.max(integer, 1), 100);
+}
+
 /**
  * Build a WHERE clause that matches `mime_type` against any of the given
  * filter entries — exact equality for full MIMEs, LIKE prefix for entries
@@ -430,7 +435,7 @@ export class MediaRepository {
 	 * The cursor encodes the created_at and id of the last item.
 	 */
 	async findMany(options: FindManyMediaOptions = {}): Promise<FindManyResult<MediaItem>> {
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = normalizeListLimit(options.limit);
 
 		let query = this.applyListFilters(this.db.selectFrom("media"), options)
 			.selectAll()
@@ -466,7 +471,7 @@ export class MediaRepository {
 	}
 
 	async findPage(options: FindMediaPageOptions): Promise<MediaPageResult> {
-		const limit = Math.min(options.limit || 50, 100);
+		const limit = normalizeListLimit(options.limit);
 		const offset = (options.page - 1) * limit;
 		const filtered = this.applyListFilters(this.db.selectFrom("media"), options);
 		const rows = await filtered

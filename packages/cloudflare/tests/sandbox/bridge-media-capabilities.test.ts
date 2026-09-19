@@ -13,7 +13,7 @@ vi.mock("cloudflare:workers", () => ({
 
 import { PluginBridge } from "../../src/sandbox/bridge.js";
 
-function makeBridge(capabilities: string[]) {
+function makeBridge(capabilities: string[], db: unknown = {}) {
 	return new PluginBridge(
 		{
 			props: {
@@ -24,7 +24,7 @@ function makeBridge(capabilities: string[]) {
 				storageCollections: [],
 			},
 		} as never,
-		{ DB: {} } as never,
+		{ DB: db } as never,
 	);
 }
 
@@ -51,4 +51,56 @@ describe("PluginBridge media capability separation", () => {
 			new TypeError("media/readBytes: maxBytes must be a number"),
 		);
 	});
+
+	it.each([
+		{ limit: -2, expectedItems: 1, expectedSqlLimit: 2 },
+		{ limit: "bad", expectedItems: 4, expectedSqlLimit: 51 },
+	])(
+		"normalizes a $limit media list limit before querying D1",
+		async ({ limit, expectedItems, expectedSqlLimit }) => {
+			const queries: Array<{ sql: string; params: unknown[] }> = [];
+			const rows = ["one", "two", "three", "four"].map((id) => ({
+				id,
+				filename: `${id}.png`,
+				mime_type: "image/png",
+				size: 1,
+				width: null,
+				height: null,
+				focal_x: null,
+				focal_y: null,
+				alt: null,
+				caption: null,
+				storage_key: `media/${id}`,
+				status: "ready",
+				content_hash: null,
+				blurhash: null,
+				dominant_color: null,
+				created_at: "2026-09-19T00:00:00.000Z",
+				author_id: null,
+				folder_id: null,
+			}));
+			const db = {
+				prepare(sql: string) {
+					const statement = {
+						params: [] as unknown[],
+						bind(...params: unknown[]) {
+							statement.params = params;
+							return statement;
+						},
+						async all() {
+							queries.push({ sql, params: statement.params });
+							return { results: rows, meta: { changes: 0 } };
+						},
+					};
+					return statement;
+				},
+			};
+
+			const result = await makeBridge(["media:read"], db).mediaList({ limit: limit as never });
+
+			expect(result.items).toHaveLength(expectedItems);
+			expect(queries).toHaveLength(1);
+			expect(queries[0]?.params).toContain(expectedSqlLimit);
+		},
+	);
 });
