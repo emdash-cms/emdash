@@ -535,12 +535,7 @@ export class RedirectRepository {
 			// A redirect from a URL to itself would make the page unreachable
 			if (oldUrl === newUrl) return null;
 
-			// Collapse chains: update any existing redirects pointing to the old URL
-			await repository.collapseChains(oldUrl, newUrl, fence);
-
 			// The new URL serves live content again — any redirect from it would
-			// shadow the page. This also removes the self-redirect that chain
-			// collapsing produces when a rename A → B is reverted (A → A).
 			await repository.db
 				.deleteFrom("_emdash_redirects")
 				.where("source", "=", newUrl)
@@ -555,6 +550,9 @@ export class RedirectRepository {
 					),
 				)
 				.execute();
+
+			// Collapse chains: update any existing redirects pointing to the old URL
+			await repository.collapseChains(oldUrl, newUrl, fence);
 
 			// Check if a redirect from this source already exists
 			const existing = await repository.findBySource(oldUrl);

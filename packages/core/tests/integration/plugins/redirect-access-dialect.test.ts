@@ -114,4 +114,52 @@ describeEachDialect("plugin redirect optimistic concurrency", (dialect) => {
 		const redirects = await new RedirectRepository(db).findAllEnabled();
 		expect(detectLoops(redirects)).toEqual([]);
 	});
+
+	it("allows previous-runtime writes when an enabled pattern redirect exists", async () => {
+		await sql`
+			INSERT INTO _emdash_redirects (id, source, destination, is_pattern)
+			VALUES ('legacy-pattern', '/docs/[slug]', '/guides/[slug]', 1)
+		`.execute(db);
+		await sql`
+			INSERT INTO _emdash_redirects (id, source, destination)
+			VALUES ('legacy-exact', '/old', '/new')
+		`.execute(db);
+		await sql`
+			UPDATE _emdash_redirects SET destination = '/newer'
+			WHERE id = 'legacy-exact'
+		`.execute(db);
+
+		await expect(new RedirectRepository(db).findBySource("/old")).resolves.toMatchObject({
+			destination: "/newer",
+		});
+	});
+
+	it("allows a previous-runtime update after a current-runtime write", async () => {
+		const access = createRedirectAccess(db, true);
+		const created = await access.create({
+			source: "/managed",
+			destination: "/current",
+		});
+		const repository = new RedirectRepository(db);
+		const revisionBeforeLegacyUpdate = await repository.findConfigRevision(created.redirect.id);
+
+		await expect(
+			sql`
+				UPDATE _emdash_redirects SET destination = '/legacy'
+				WHERE id = ${created.redirect.id}
+			`.execute(db),
+		).resolves.toBeDefined();
+		await expect(repository.findBySource("/managed")).resolves.toMatchObject({
+			destination: "/legacy",
+		});
+		expect(await repository.findConfigRevision(created.redirect.id)).not.toBe(
+			revisionBeforeLegacyUpdate,
+		);
+		await expect(
+			access.update(created.redirect.id, {
+				destination: "/stale",
+				_rev: created._rev,
+			}),
+		).rejects.toMatchObject({ code: "CONFLICT" });
+	});
 });

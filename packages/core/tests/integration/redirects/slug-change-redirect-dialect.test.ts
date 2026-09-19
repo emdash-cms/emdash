@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { handleContentUpdate } from "../../../src/api/handlers/content.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
@@ -52,6 +53,32 @@ describeEachDialect("published slug-change redirects", (dialect) => {
 				destination: "/blog/new-title",
 				auto: 1,
 			}),
+		]);
+	});
+
+	it("removes a redirect from the new URL before collapsing chains", async () => {
+		const entry = await new ContentRepository(db).create({
+			type: "posts",
+			slug: "a",
+			status: "published",
+			data: { title: "A" },
+		});
+		const redirects = new RedirectRepository(db);
+		await redirects.create({ source: "/blog/b", destination: "/promo" });
+		await redirects.create({ source: "/promo", destination: "/blog/a" });
+
+		await expect(handleContentUpdate(db, "posts", entry.id, { slug: "b" })).resolves.toMatchObject({
+			success: true,
+		});
+		await expect(
+			db
+				.selectFrom("_emdash_redirects")
+				.select(["source", "destination", "auto"])
+				.orderBy("source")
+				.execute(),
+		).resolves.toEqual([
+			expect.objectContaining({ source: "/blog/a", destination: "/blog/b", auto: 1 }),
+			expect.objectContaining({ source: "/promo", destination: "/blog/b" }),
 		]);
 	});
 });

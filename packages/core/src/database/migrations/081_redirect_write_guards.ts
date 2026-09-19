@@ -78,25 +78,34 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 				ELSIF NEW.source <> OLD.source THEN
 					NEW.source_guard := 1;
 				END IF;
-				IF NEW.write_generation <> 0 AND NOT EXISTS (
-					SELECT 1 FROM _emdash_redirect_write_lock
-					WHERE id = 1 AND token <> '' AND generation = NEW.write_generation
-				) THEN
-					RAISE EXCEPTION 'redirect write lease expired';
-				END IF;
-				-- Old binaries cannot hold this migration's lock across their
-				-- application-side pattern graph read, so mixed-version pattern
-				-- writes fail closed until every runtime is current.
-				IF NEW.write_generation = 0 AND (
-					NEW.is_pattern = 1 OR EXISTS (
-						SELECT 1 FROM _emdash_redirects
-						WHERE enabled = 1 AND is_pattern = 1
-							AND (TG_OP = 'INSERT' OR id <> NEW.id)
+				IF TG_OP = 'UPDATE'
+					AND NEW.config_revision IS NOT DISTINCT FROM OLD.config_revision
+					AND (
+						NEW.source IS DISTINCT FROM OLD.source OR
+						NEW.destination IS DISTINCT FROM OLD.destination OR
+						NEW.enabled IS DISTINCT FROM OLD.enabled OR
+						NEW.is_pattern IS DISTINCT FROM OLD.is_pattern OR
+						NEW.type IS DISTINCT FROM OLD.type OR
+						NEW.group_name IS DISTINCT FROM OLD.group_name
 					)
-				) THEN
-					RAISE EXCEPTION 'pattern redirect writes require the current runtime';
+				THEN
+					NEW.config_revision := md5(random()::text || clock_timestamp()::text || NEW.id);
 				END IF;
-
+				IF NEW.write_generation <> 0 AND TG_OP = 'INSERT' THEN
+					IF NOT EXISTS (
+						SELECT 1 FROM _emdash_redirect_write_lock
+						WHERE id = 1 AND token <> '' AND generation = NEW.write_generation
+					) THEN
+						RAISE EXCEPTION 'redirect write lease expired';
+					END IF;
+				ELSIF TG_OP = 'UPDATE' AND NEW.write_generation IS DISTINCT FROM OLD.write_generation THEN
+					IF NOT EXISTS (
+						SELECT 1 FROM _emdash_redirect_write_lock
+						WHERE id = 1 AND token <> '' AND generation = NEW.write_generation
+					) THEN
+						RAISE EXCEPTION 'redirect write lease expired';
+					END IF;
+				END IF;
 				IF NEW.enabled = 1 AND NEW.destination <> ''
 					AND (TG_OP = 'INSERT' OR NEW.source <> OLD.source OR NEW.destination <> OLD.destination)
 					AND EXISTS (
@@ -162,40 +171,13 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 		await sql`
 			CREATE TRIGGER IF NOT EXISTS emdash_redirect_fence_update
 			BEFORE UPDATE OF source, destination, enabled, is_pattern, type, group_name ON _emdash_redirects
-			WHEN NEW.write_generation <> 0 AND NOT EXISTS (
+			WHEN NEW.write_generation <> OLD.write_generation
+			AND NEW.write_generation <> 0 AND NOT EXISTS (
 				SELECT 1 FROM _emdash_redirect_write_lock
 				WHERE id = 1 AND token <> '' AND generation = NEW.write_generation
 			)
 			BEGIN
 				SELECT RAISE(ABORT, 'redirect write lease expired');
-			END
-		`.execute(db);
-		// An old binary validates patterns before its write statement and cannot
-		// hold this migration's cross-request lock across that read. Fail closed
-		// during a rolling deploy when a pattern participates in the graph.
-		await sql`
-			CREATE TRIGGER IF NOT EXISTS emdash_redirect_legacy_pattern_insert
-			BEFORE INSERT ON _emdash_redirects
-			WHEN NEW.write_generation = 0 AND (
-				NEW.is_pattern = 1 OR EXISTS (
-					SELECT 1 FROM _emdash_redirects WHERE enabled = 1 AND is_pattern = 1
-				)
-			)
-			BEGIN
-				SELECT RAISE(ABORT, 'pattern redirect writes require the current runtime');
-			END
-		`.execute(db);
-		await sql`
-			CREATE TRIGGER IF NOT EXISTS emdash_redirect_legacy_pattern_update
-			BEFORE UPDATE OF source, destination, enabled, is_pattern, type, group_name ON _emdash_redirects
-			WHEN NEW.write_generation = 0 AND (
-				NEW.is_pattern = 1 OR EXISTS (
-					SELECT 1 FROM _emdash_redirects
-					WHERE enabled = 1 AND is_pattern = 1 AND id <> NEW.id
-				)
-			)
-			BEGIN
-				SELECT RAISE(ABORT, 'pattern redirect writes require the current runtime');
 			END
 		`.execute(db);
 		await sql`
@@ -250,6 +232,23 @@ export async function up(db: Kysely<unknown>): Promise<void> {
 			WHEN NEW.source_guard = 0 AND NEW.source <> OLD.source
 			BEGIN
 				UPDATE _emdash_redirects SET source_guard = 1 WHERE id = NEW.id;
+			END
+		`.execute(db);
+		await sql`
+			CREATE TRIGGER IF NOT EXISTS emdash_redirect_revision_update
+			AFTER UPDATE OF source, destination, enabled, is_pattern, type, group_name ON _emdash_redirects
+			WHEN NEW.config_revision = OLD.config_revision AND (
+				NEW.source IS NOT OLD.source OR
+				NEW.destination IS NOT OLD.destination OR
+				NEW.enabled IS NOT OLD.enabled OR
+				NEW.is_pattern IS NOT OLD.is_pattern OR
+				NEW.type IS NOT OLD.type OR
+				NEW.group_name IS NOT OLD.group_name
+			)
+			BEGIN
+				UPDATE _emdash_redirects
+				SET config_revision = lower(hex(randomblob(16)))
+				WHERE id = NEW.id;
 			END
 		`.execute(db);
 	}

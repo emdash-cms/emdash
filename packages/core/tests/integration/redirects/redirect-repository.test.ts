@@ -498,6 +498,20 @@ describe("RedirectRepository", () => {
 			expect(bRedirect!.destination).toBe("/blog/title-c");
 		});
 
+		it("removes redirects from the new URL before collapsing chains", async () => {
+			await repo.create({ source: "/blog/b", destination: "/promo" });
+			await repo.create({ source: "/promo", destination: "/blog/a" });
+
+			await repo.createAutoRedirect("posts", "a", "b", "id1", "/blog/{slug}");
+
+			expect(await repo.findBySource("/blog/b")).toBeNull();
+			expect(await repo.findBySource("/promo")).toMatchObject({ destination: "/blog/b" });
+			expect(await repo.findBySource("/blog/a")).toMatchObject({
+				destination: "/blog/b",
+				auto: true,
+			});
+		});
+
 		it("updates existing redirect from same source instead of duplicating", async () => {
 			// Create A -> B
 			await repo.createAutoRedirect("posts", "a", "b", "id1", "/blog/{slug}");
