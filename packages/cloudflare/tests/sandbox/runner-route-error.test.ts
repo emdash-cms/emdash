@@ -128,6 +128,7 @@ describe("Cloudflare sandbox route errors", () => {
 			},
 			"export default {}",
 		);
+		const invalidateContentCache = vi.fn().mockResolvedValue(undefined);
 
 		const invocation = plugin.invokeRoute(
 			"hang",
@@ -138,12 +139,17 @@ describe("Cloudflare sandbox route errors", () => {
 				headers: {},
 				meta: { ip: null, userAgent: null, referer: null, geo: null },
 			},
+			{ invalidateContentCache },
 		);
 		const timedOut = expect(invocation).rejects.toThrow(/exceeded wall-time limit/);
 		await vi.advanceTimersByTimeAsync(10);
 
 		await timedOut;
-		expect(contentActions.begin).toHaveBeenCalledOnce();
+		expect(contentActions.begin).toHaveBeenCalledWith(
+			"content-hanger",
+			expect.any(String),
+			invalidateContentCache,
+		);
 		const invocationId = contentActions.begin.mock.calls[0]?.[1];
 		expect(contentActions.flush).toHaveBeenCalledWith("content-hanger", invocationId, false);
 	});

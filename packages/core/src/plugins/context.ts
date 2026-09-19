@@ -1008,7 +1008,11 @@ export interface PluginContextFactoryOptions {
 
 export interface ContentActionCallbacks {
 	/** Register a sandbox invocation before it can call a content action. */
-	begin?(pluginId: string, invocationId: string): void;
+	begin?(
+		pluginId: string,
+		invocationId: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): void;
 	/** Release queued after-hooks; `final: false` keeps late actions self-scheduling after timeout. */
 	flush(pluginId: string, invocationId?: string, final?: boolean): Promise<void>;
 	getVersioned(
@@ -1022,6 +1026,7 @@ export interface ContentActionCallbacks {
 		id: string,
 		options: { _rev: string },
 		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
 	): Promise<VersionedContentItem>;
 	unpublish(
 		pluginId: string,
@@ -1029,6 +1034,7 @@ export interface ContentActionCallbacks {
 		id: string,
 		options: { _rev: string },
 		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
 	): Promise<VersionedContentItem>;
 	schedule(
 		pluginId: string,
@@ -1036,6 +1042,7 @@ export interface ContentActionCallbacks {
 		id: string,
 		options: { scheduledAt: string; _rev: string },
 		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
 	): Promise<VersionedContentItem>;
 	unschedule(
 		pluginId: string,
@@ -1043,6 +1050,7 @@ export interface ContentActionCallbacks {
 		id: string,
 		options: { _rev: string },
 		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
 	): Promise<VersionedContentItem>;
 	getTrashedVersioned(
 		pluginId: string,
@@ -1055,6 +1063,7 @@ export interface ContentActionCallbacks {
 		id: string,
 		options: { _rev: string },
 		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
 	): Promise<VersionedContentItem>;
 }
 
