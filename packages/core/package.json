@@ -190,14 +190,18 @@
       "types": "./dist/plugins/adapt-sandbox-entry.d.mts",
       "default": "./dist/plugins/adapt-sandbox-entry.mjs"
     },
-		"./plugins/host": {
-			"types": "./dist/plugins/host.d.mts",
-			"default": "./dist/plugins/host.mjs"
-		},
-		"./plugins/secret-redactor": {
-			"types": "./dist/plugins/secret-redactor.d.mts",
-			"default": "./dist/plugins/secret-redactor.mjs"
-		}
+    "./plugins/host": {
+      "types": "./dist/plugins/host.d.mts",
+      "default": "./dist/plugins/host.mjs"
+    },
+    "./plugins/secret-redactor": {
+      "types": "./dist/plugins/secret-redactor.d.mts",
+      "default": "./dist/plugins/secret-redactor.mjs"
+    },
+    "./plugins/http-wire": {
+      "types": "./dist/plugins/http-wire.d.mts",
+      "default": "./dist/plugins/http-wire.mjs"
+    }
   },
   "imports": {
     "#api/schemas.js": "./src/api/schemas/index.js",

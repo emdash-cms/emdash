@@ -23,7 +23,7 @@ import {
 	pluginHttpResponseToWire,
 	rewritePluginHttpRedirect,
 	type PluginHttpResponseWire,
-} from "emdash";
+} from "emdash/plugins/http-wire";
 
 /** Maximum redirect chain length before we give up. */
 const MAX_REDIRECTS = 5;

@@ -130,6 +130,8 @@ export default defineConfig({
 		"src/plugins/host.ts",
 		// Lightweight synchronous log redaction for sandbox bridges.
 		"src/plugins/secret-redactor.ts",
+		// Binary-safe HTTP transport shared by sandbox runners.
+		"src/plugins/http-wire.ts",
 		// Public source-exported subpaths -- compiled so consumers never
 		// type-check our raw .ts (avoids the dual-package identity hazard).
 		// `./ui`, `./ui/search` and the `*-admin.tsx` providers stay source:
