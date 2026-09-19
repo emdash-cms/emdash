@@ -426,6 +426,57 @@ describe("_rev optimistic concurrency", () => {
 		expect(extractText(result)).toMatch(/_rev is required.*content_get/);
 	});
 
+	it("content_schedule rejects a stale _rev", async () => {
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "Original" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+		const staleRev = revOf(created);
+
+		const updated = await harness.client.callTool({
+			name: "content_update",
+			arguments: {
+				collection: "post",
+				id,
+				data: { title: "Updated" },
+				_rev: staleRev,
+			},
+		});
+		expect(updated.isError, extractText(updated)).toBeFalsy();
+
+		const result = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: new Date(Date.now() + 3_600_000).toISOString(),
+				_rev: staleRev,
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/conflict|stale|outdated|modified|rev/i);
+	});
+
+	it("content_schedule without _rev is rejected, and the error says how to get one", async () => {
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "T" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+
+		const result = await harness.client.callTool({
+			name: "content_schedule",
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: new Date(Date.now() + 3_600_000).toISOString(),
+			},
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/_rev is required.*content_get/);
+	});
+
 	it.each(["content_publish", "content_unpublish", "content_discard_draft"])(
 		"%s without _rev is rejected, and the error says how to get one",
 		async (tool) => {
@@ -730,7 +781,12 @@ describe("idempotency", () => {
 		const future = new Date(Date.now() + 3600_000).toISOString();
 		await harness.client.callTool({
 			name: "content_schedule",
-			arguments: { collection: "post", id, scheduledAt: future },
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: future,
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 
 		const publish = await harness.client.callTool({
@@ -807,7 +863,12 @@ describe("content_unschedule gap", () => {
 		const future = new Date(Date.now() + 60_000).toISOString();
 		const schedule = await harness.client.callTool({
 			name: "content_schedule",
-			arguments: { collection: "post", id, scheduledAt: future },
+			arguments: {
+				collection: "post",
+				id,
+				scheduledAt: future,
+				_rev: await currentRev(harness.client, "post", id),
+			},
 		});
 		expect(schedule.isError, extractText(schedule)).toBeFalsy();
 

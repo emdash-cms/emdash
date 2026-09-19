@@ -906,6 +906,7 @@ describe("MCP Authorization", () => {
 					collection: "post",
 					id: CONTENT_ID,
 					scheduledAt: "2030-01-01T00:00:00Z",
+					_rev: STUB_REV,
 				},
 			});
 

@@ -10,6 +10,9 @@ export interface VisualEditingToolbarLabels {
 	sessionExpired: string;
 	refreshPage: string;
 	publishFailed: string;
+	editMode: string;
+	openInAdmin: string;
+	hideToolbar: string;
 }
 
 const TOOLBAR_MESSAGES = {
@@ -24,6 +27,9 @@ const TOOLBAR_MESSAGES = {
 		id: "visualEditing.publishFailed",
 		message: "Publish failed. Check your permissions and try again.",
 	}),
+	editMode: msg({ id: "visualEditing.editMode", message: "Edit mode" }),
+	openInAdmin: msg({ id: "visualEditing.openInAdmin", message: "Open in admin" }),
+	hideToolbar: msg({ id: "visualEditing.hideToolbar", message: "Hide toolbar" }),
 } satisfies Record<keyof VisualEditingToolbarLabels, MessageDescriptor>;
 
 function resolveToolbarMessage(messages: Messages, descriptor: MessageDescriptor): string {
@@ -44,6 +50,9 @@ export function translateVisualEditingToolbarLabels(
 		sessionExpired: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.sessionExpired),
 		refreshPage: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.refreshPage),
 		publishFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.publishFailed),
+		editMode: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.editMode),
+		openInAdmin: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.openInAdmin),
+		hideToolbar: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.hideToolbar),
 	};
 }
 

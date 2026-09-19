@@ -1,3 +1,4 @@
+import { useLingui } from "@lingui/react/macro";
 import { useMatches } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -53,6 +54,7 @@ export interface ShellProps {
  */
 export function Shell({ children, manifest }: ShellProps) {
 	const [welcomeModalOpen, setWelcomeModalOpen] = React.useState(false);
+	const { t } = useLingui();
 
 	const { data: user } = useCurrentUser();
 	const { locale } = useLocale();
@@ -79,14 +81,19 @@ export function Shell({ children, manifest }: ShellProps) {
 		try {
 			if (user.role >= 30) {
 				localStorage.setItem("emdash-editor", "1");
+				localStorage.setItem(
+					"emdash-toolbar-labels",
+					JSON.stringify({ editMode: t`Edit`, hideToolbar: t`Hide toolbar` }),
+				);
 				localStorage.removeItem("emdash-toolbar-dismissed");
 			} else {
 				localStorage.removeItem("emdash-editor");
+				localStorage.removeItem("emdash-toolbar-labels");
 			}
 		} catch {
 			// localStorage unavailable — the toolbar pill just won't appear
 		}
-	}, [user]);
+	}, [t, user]);
 
 	return (
 		<Sidebar.Provider

@@ -1481,6 +1481,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
 				),
@@ -1507,6 +1508,7 @@ export function createMcpServer(
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt, {
+					_rev: args._rev,
 					actor: { id: userId, role: userRole, source: "mcp" },
 					origin: { source: "mcp" },
 				}),

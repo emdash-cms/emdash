@@ -95,6 +95,21 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/health.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/action-token",
+		entrypoint: resolveRoute("api/visual-editing/action-token.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/toolbar-labels",
+		entrypoint: resolveRoute("api/visual-editing/toolbar-labels.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/visual-editing/content/[collection]/[id]/publish",
+		entrypoint: resolveRoute("api/visual-editing/content/[collection]/[id]/publish.ts"),
+	});
+
 	// Auth mode endpoint (public — used by the login page to pick the right UI)
 	injectRoute({
 		pattern: "/_emdash/api/auth/mode",

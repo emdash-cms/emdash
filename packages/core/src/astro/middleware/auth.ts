@@ -110,6 +110,7 @@ const PUBLIC_API_EXACT = new Set([
 	"/_emdash/api/health",
 	"/_emdash/api/oauth/token",
 	"/_emdash/api/snapshot",
+	"/_emdash/api/visual-editing/toolbar-labels",
 	// Public site search — read-only. The query layer hardcodes status='published'
 	// so unauthenticated callers only see published content. Admin endpoints
 	// (/enable, /rebuild, /stats) remain private because they're not in this set.

@@ -10,6 +10,9 @@ describe("visual editing toolbar localization", () => {
 			"visualEditing.sessionExpired": ["La sesión de edición ha caducado."],
 			"visualEditing.refreshPage": ["Actualizar página"],
 			"visualEditing.publishFailed": ["No se pudo publicar."],
+			"visualEditing.editMode": ["Modo de edición"],
+			"visualEditing.openInAdmin": ["Abrir en administración"],
+			"visualEditing.hideToolbar": ["Ocultar barra de herramientas"],
 		};
 
 		expect(translateVisualEditingToolbarLabels(messages)).toEqual({
@@ -18,6 +21,9 @@ describe("visual editing toolbar localization", () => {
 			sessionExpired: "La sesión de edición ha caducado.",
 			refreshPage: "Actualizar página",
 			publishFailed: "No se pudo publicar.",
+			editMode: "Modo de edición",
+			openInAdmin: "Abrir en administración",
+			hideToolbar: "Ocultar barra de herramientas",
 		});
 	});
 });

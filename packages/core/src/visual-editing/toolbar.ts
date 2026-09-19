@@ -22,6 +22,9 @@ export interface ToolbarLabels {
 	sessionExpired: string;
 	refreshPage: string;
 	publishFailed: string;
+	editMode: string;
+	openInAdmin: string;
+	hideToolbar: string;
 }
 
 const SCRIPT_LINE_SEPARATOR_RE = /\u2028/g;
@@ -46,25 +49,25 @@ export function renderToolbar(config: ToolbarConfig): string {
 
     <div class="emdash-tb-divider"></div>
 
-    <label class="emdash-tb-toggle" title="Toggle edit mode">
+    <label class="emdash-tb-toggle" title="${escapeHtml(labels.editMode)}">
       <input type="checkbox" id="emdash-edit-toggle" ${editMode ? "checked" : ""} />
       <span class="emdash-tb-toggle-track">
         <span class="emdash-tb-toggle-thumb"></span>
       </span>
-      <span class="emdash-tb-toggle-label">Edit</span>
+      <span class="emdash-tb-toggle-label">${escapeHtml(labels.editMode)}</span>
     </label>
 
     <span class="emdash-tb-status" id="emdash-tb-status"></span>
 
     <span class="emdash-tb-save-status" id="emdash-tb-save-status"></span>
 
-    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" target="emdash-admin" style="display:none" title="Open in admin">
+    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" target="emdash-admin" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
     </a>
 
     <button class="emdash-tb-publish" id="emdash-tb-publish" style="display:none">${escapeHtml(labels.publish)}</button>
 
-    <button class="emdash-tb-dismiss" id="emdash-tb-dismiss" title="Hide toolbar" aria-label="Hide toolbar">&times;</button>
+    <button class="emdash-tb-dismiss" id="emdash-tb-dismiss" title="${escapeHtml(labels.hideToolbar)}" aria-label="${escapeHtml(labels.hideToolbar)}">&times;</button>
   </div>
 </div>
 

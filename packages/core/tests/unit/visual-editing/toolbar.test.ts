@@ -10,6 +10,9 @@ const TEST_LABELS = {
 	sessionExpired: "La sesión de edición ha caducado.",
 	refreshPage: "Actualizar página",
 	publishFailed: "No se pudo publicar.",
+	editMode: "Modo de edición",
+	openInAdmin: "Abrir en administración",
+	hideToolbar: "Ocultar barra de herramientas",
 };
 
 function renderToolbar(
@@ -58,6 +61,18 @@ describe("renderToolbar", () => {
 		const html = renderToolbar({ editMode: false, isPreview: false });
 		expect(html).toContain('id="emdash-edit-toggle"');
 		expect(html).toContain("emdash-tb-toggle");
+		expect(html).toContain(TEST_LABELS.editMode);
+		expect(html).not.toContain("Toggle edit mode");
+		expect(html).not.toContain(">Edit<");
+	});
+
+	it("localizes icon-only control labels", () => {
+		const html = renderToolbar({ editMode: false, isPreview: false });
+		expect(html).toContain(`title="${TEST_LABELS.openInAdmin}"`);
+		expect(html).toContain(`title="${TEST_LABELS.hideToolbar}"`);
+		expect(html).toContain(`aria-label="${TEST_LABELS.hideToolbar}"`);
+		expect(html).not.toContain("Open in admin");
+		expect(html).not.toContain("Hide toolbar");
 	});
 
 	it("includes publish button (hidden by default)", () => {
