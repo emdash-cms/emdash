@@ -28,6 +28,7 @@ import {
 	updateTaxonomyDefBody,
 } from "#api/schemas.js";
 
+import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
@@ -57,6 +58,17 @@ const REV_PARAM_DESCRIPTION =
  */
 const REV_MISSING_ERROR =
 	"_rev is required: call content_get for this item and pass back the _rev it returns.";
+
+/**
+ * Shared wording for the `overrideLock` parameter on write tools. Agents only
+ * see the tool schema, and re-reading never clears ENTRY_LOCKED, so when to
+ * override is stated here.
+ */
+const OVERRIDE_LOCK_PARAM_DESCRIPTION =
+	"Write even though someone else has this item open in the admin. Without it, " +
+	"the call fails with ENTRY_LOCKED and the error names who is editing; calling " +
+	"content_get again does not clear it. Tell the user who holds the item, and " +
+	"set this only if they ask you to write anyway.";
 
 const TAXONOMY_CURSOR_VERSION = 2;
 const MAX_TAXONOMY_CURSOR_LENGTH = 2048;
@@ -679,6 +691,24 @@ function extractContentId(data: unknown): string | undefined {
 	return typeof item?.id === "string" ? item.id : undefined;
 }
 
+/**
+ * Refuses a write while another user holds the entry's edit lock. Resolves to
+ * `null` when the write may proceed, and extends the caller's own lease if they
+ * hold it.
+ */
+async function refuseLockedEntry(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	collection: string,
+	entryId: string,
+	overrideLock: boolean | undefined,
+): Promise<ErrorEnvelope | null> {
+	const { emdash, userId } = getExtra(extra);
+	const refusal = await claimEntryLockForWrite(emdash.db, collection, entryId, userId, {
+		override: overrideLock,
+	});
+	return refusal ? respondError(refusal.code, refusal.message, { ...refusal.details }) : null;
+}
+
 /** Extract the `_rev` token from a content handler response. */
 function extractContentRev(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return undefined;
@@ -1132,6 +1162,7 @@ export function createMcpServer(
 						"Override the publication timestamp (ISO 8601). Requires content:publish_any permission. Pass null to clear. Useful for content migrations.",
 					),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1167,9 +1198,15 @@ export function createMcpServer(
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 
+			if (args.status !== undefined) {
+				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
+			}
+
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
+
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
-				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
 				let rev: string | undefined = args._rev;
 				let liveChanged = false;
 				if (
@@ -1204,7 +1241,6 @@ export function createMcpServer(
 			}
 
 			if (args.status === "draft") {
-				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
 				let rev: string | undefined = args._rev;
 				let liveChanged = false;
 				if (
@@ -1265,6 +1301,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1286,6 +1323,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
 				args.collection,
 				resolvedId,
@@ -1375,6 +1414,7 @@ export function createMcpServer(
 					.describe(
 						"Override publication timestamp (ISO 8601). Requires content:publish_any permission. Useful when importing content with original publish dates.",
 					),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1403,6 +1443,8 @@ export function createMcpServer(
 			}
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await emdash.handleContentPublish(args.collection, resolvedId, {
@@ -1425,6 +1467,7 @@ export function createMcpServer(
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1445,6 +1488,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentUnpublish(args.collection, resolvedId, { _rev: args._rev }),
@@ -1467,6 +1512,7 @@ export function createMcpServer(
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
 				),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1487,6 +1533,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt),
@@ -1506,6 +1554,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1525,6 +1574,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentUnschedule(args.collection, resolvedId),
@@ -1566,6 +1617,7 @@ export function createMcpServer(
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1587,6 +1639,8 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
+			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
+			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
 				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
@@ -3253,6 +3307,7 @@ export function createMcpServer(
 				"use content_publish afterward if needed.",
 			inputSchema: z.object({
 				revisionId: z.string().describe("Revision ID to restore"),
+				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -3284,6 +3339,14 @@ export function createMcpServer(
 				"content:edit_own",
 				"content:edit_any",
 			);
+
+			const locked = await refuseLockedEntry(
+				extra,
+				revItem.collection,
+				revItem.entryId,
+				args.overrideLock,
+			);
+			if (locked) return locked;
 
 			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
 		},
