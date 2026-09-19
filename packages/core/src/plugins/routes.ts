@@ -41,7 +41,8 @@ function guardConsumedRequestBody(request: Request): Request {
 					throw new Error(
 						`[emdash] ctx.request.${prop}() is not available inside a plugin route handler: ` +
 							`EmDash has already parsed the request body and exposes it as ctx.input. ` +
-							`Read ctx.input instead of ctx.request.${prop}().`,
+							`Read ctx.input instead of ctx.request.${prop}() — or set rawBody: true ` +
+							`on the route and read ctx.rawBody if you need the unparsed body.`,
 					);
 				};
 			}
@@ -101,13 +102,29 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  * schemas work; a single key stays a scalar.
  */
 export async function parseRouteInput(request: Request): Promise<unknown> {
+	return (await parseRouteInputWithRaw(request)).body;
+}
+
+/**
+ * Like {@link parseRouteInput}, but for body methods also returns the body
+ * text the input was parsed from, so routes with `rawBody: true` can see the
+ * UTF-8 decoded payload (e.g. for webhook signature verification). One
+ * `text()` read, one buffer — no extra I/O. `rawBody` stays undefined for
+ * bodyless methods.
+ */
+export async function parseRouteInputWithRaw(
+	request: Request,
+): Promise<{ body: unknown; rawBody?: string }> {
 	if (BODY_METHODS.has(request.method.toUpperCase())) {
+		let rawBody: string | undefined;
+		let body: unknown;
 		try {
-			return await request.json();
+			rawBody = await request.text();
+			if (rawBody) body = JSON.parse(rawBody);
 		} catch {
-			// No body or not JSON
-			return undefined;
+			// No body or not JSON — rawBody (when read) is still passed through
 		}
+		return { body, rawBody };
 	}
 
 	const params = new URL(request.url).searchParams;
@@ -116,7 +133,7 @@ export async function parseRouteInput(request: Request): Promise<unknown> {
 		const values = params.getAll(key);
 		input[key] = values.length > 1 ? values : values[0];
 	}
-	return input;
+	return { body: input };
 }
 
 /**
@@ -174,6 +191,8 @@ export interface InvokeRouteOptions {
 	 * `ctx.user`. Undefined for public routes and unbound machine tokens.
 	 */
 	user?: UserInfo;
+	/** Unparsed request body; forwarded to the handler only for routes with `rawBody: true` */
+	rawBody?: string;
 }
 
 /**
@@ -238,6 +257,8 @@ export class PluginRouteHandler {
 			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
 			user: options.user,
+			// Only routes that opt in see the raw body (signature verification).
+			rawBody: route.rawBody === true ? options.rawBody : undefined,
 		};
 
 		// Execute handler
