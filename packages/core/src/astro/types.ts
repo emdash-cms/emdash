@@ -548,6 +548,12 @@ export interface EmDashHandlers {
 	storage: import("../index.js").Storage | null;
 	db: Kysely<import("../index.js").Database>;
 	getPublicMediaUrl?: (storageKey: string) => string;
+	/**
+	 * Original upload filename for a storage key, or null when the key has no
+	 * media row. Exposed on the anonymous path too — the public media file
+	 * route needs it to name downloads, and those requests carry no session.
+	 */
+	getPublicMediaFilename?: (storageKey: string) => Promise<string | null>;
 
 	// Hook pipeline for plugin integrations
 	hooks: import("../plugins/hooks.js").HookPipeline;

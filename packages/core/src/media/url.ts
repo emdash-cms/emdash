@@ -5,6 +5,10 @@
  * key should be served from the configured `publicUrl` (R2 custom domain,
  * S3 CDN) or through the internal `/_emdash/api/media/file/{key}` route.
  */
+import type { Kysely } from "kysely";
+
+import { MediaRepository } from "../database/repositories/media.js";
+import type { Database } from "../database/types.js";
 import type { Storage } from "../storage/types.js";
 import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 
@@ -38,6 +42,29 @@ export function createPublicMediaUrlResolver(
 	storage: Storage | null | undefined,
 ): (key: string) => string {
 	return (key) => resolvePublicMediaUrl(storage, key);
+}
+
+/**
+ * Build the `getPublicMediaFilename` closure attached to `Astro.locals.emdash`.
+ * Shared by the anonymous fast path and the full-runtime path in middleware.
+ *
+ * Returns null rather than throwing when the lookup fails: naming a download
+ * is a nicety, and a database hiccup must not turn a working file into an
+ * error response.
+ *
+ * @internal
+ */
+export function createPublicMediaFilenameResolver(
+	db: Kysely<Database>,
+): (storageKey: string) => Promise<string | null> {
+	return async (storageKey) => {
+		if (!storageKey) return null;
+		try {
+			return await new MediaRepository(db).findFilenameByStorageKey(storageKey);
+		} catch {
+			return null;
+		}
+	};
 }
 
 /** Input shape for {@link buildRenderMediaUrl}. */

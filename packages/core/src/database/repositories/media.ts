@@ -371,6 +371,23 @@ export class MediaRepository {
 	}
 
 	/**
+	 * Find the original upload filename for a storage key.
+	 *
+	 * Used by the public media file route to name the download after the file
+	 * the editor uploaded rather than after its storage key. Selects the single
+	 * column it needs: this runs on every unauthenticated download.
+	 */
+	async findFilenameByStorageKey(storageKey: string): Promise<string | null> {
+		const row = await this.db
+			.selectFrom("media")
+			.select("filename")
+			.where("storage_key", "=", storageKey)
+			.executeTakeFirst();
+
+		return row?.filename ?? null;
+	}
+
+	/**
 	 * Find media by filename
 	 * Useful for idempotent imports
 	 */
