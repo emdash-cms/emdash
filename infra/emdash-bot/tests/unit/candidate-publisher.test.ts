@@ -1,6 +1,9 @@
 import { describe, expect, test } from "vitest";
 
-import { requireCandidatePublication } from "../../.flue/lib/candidate-publisher.js";
+import {
+	candidateWasPublished,
+	requireCandidatePublication,
+} from "../../.flue/lib/candidate-publisher.js";
 
 describe("candidate publication", () => {
 	test("requires publication before an agent claims it implemented a change", () => {
@@ -13,5 +16,16 @@ describe("candidate publication", () => {
 				files: ["x.ts"],
 			}),
 		).not.toThrow();
+	});
+
+	test("treats the trusted publisher result as successful publication", () => {
+		expect(candidateWasPublished(null)).toBe(false);
+		expect(
+			candidateWasPublished({
+				branch: "bot/fix-1",
+				commitSha: "sha",
+				files: ["x.ts"],
+			}),
+		).toBe(true);
 	});
 });

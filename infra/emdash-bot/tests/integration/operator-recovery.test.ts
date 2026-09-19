@@ -4,6 +4,103 @@ import { describe, expect, test } from "vitest";
 const AUTHORIZATION = { authorization: "Bearer test-operator-secret" };
 
 describe("operator stale-run recovery", () => {
+	test("queues an exact-state retry by issue number once", async () => {
+		const issueNumber = 3921;
+		const stub = env.Orchestrator.getByName(`issue-${issueNumber}`);
+		await stub.event({
+			event: "triage",
+			arg: null,
+			actor: "system",
+			labels: [],
+			needsClassify: false,
+			anchorNumber: issueNumber,
+			dryRun: true,
+		});
+		await stub.debugSetStaleRun("failed-run-3921", Date.now(), "agent-3921", "work");
+		await stub.applyAgentResult({
+			runId: "failed-run-3921",
+			result: { fixed: false, summary: "Candidate publication failed." },
+			pushed: false,
+			ok: false,
+		});
+		expect((await stub.getPersistedState()).state).toBe("needs_attention");
+
+		const url = `http://example.com/api/operator/issues/${issueNumber}/command`;
+		expect((await SELF.fetch(url, { method: "POST" })).status).toBe(401);
+		const mismatch = await SELF.fetch(url, {
+			method: "POST",
+			headers: { ...AUTHORIZATION, "content-type": "application/json" },
+			body: JSON.stringify({
+				command: "retry",
+				expectedState: "failed",
+				idempotencyKey: "drain-3921",
+			}),
+		});
+		expect(mismatch.status).toBe(409);
+
+		const queued = await SELF.fetch(url, {
+			method: "POST",
+			headers: { ...AUTHORIZATION, "content-type": "application/json" },
+			body: JSON.stringify({
+				command: "retry",
+				expectedState: "needs_attention",
+				idempotencyKey: "drain-3921",
+			}),
+		});
+		expect(queued.status).toBe(202);
+		expect(await queued.json()).toEqual({ queued: true });
+		await expect(stub.inspectRecoveryState()).resolves.toMatchObject({ inboxDepth: 1 });
+
+		const duplicate = await SELF.fetch(url, {
+			method: "POST",
+			headers: { ...AUTHORIZATION, "content-type": "application/json" },
+			body: JSON.stringify({
+				command: "retry",
+				expectedState: "needs_attention",
+				idempotencyKey: "drain-3921",
+			}),
+		});
+		expect(duplicate.status).toBe(409);
+		expect(await duplicate.json()).toEqual({ queued: false, reason: "command already queued" });
+	});
+
+	test("queues reviewed approval work but rejects the wrong command for that state", async () => {
+		const issueNumber = 3922;
+		const stub = env.Orchestrator.getByName(`issue-${issueNumber}`);
+		await runInDurableObject(stub, async (_instance, state) => {
+			await state.storage.put({
+				"o:anchorNumber": issueNumber,
+				"o:state": "awaiting_approval",
+				"o:kind": "bug",
+			});
+		});
+
+		const url = `http://example.com/api/operator/issues/${issueNumber}/command`;
+		const rejected = await SELF.fetch(url, {
+			method: "POST",
+			headers: { ...AUTHORIZATION, "content-type": "application/json" },
+			body: JSON.stringify({
+				command: "retry",
+				expectedState: "awaiting_approval",
+				idempotencyKey: "approve-3922",
+			}),
+		});
+		expect(rejected.status).toBe(409);
+		expect(await rejected.json()).toEqual({ queued: false, reason: "command not allowed" });
+
+		const queued = await SELF.fetch(url, {
+			method: "POST",
+			headers: { ...AUTHORIZATION, "content-type": "application/json" },
+			body: JSON.stringify({
+				command: "work",
+				expectedState: "awaiting_approval",
+				idempotencyKey: "approve-3922",
+			}),
+		});
+		expect(queued.status).toBe(202);
+		expect(await queued.json()).toEqual({ queued: true });
+	});
+
 	test("terminal missing-anchor cleanup clears every retryable projection and alarm", async () => {
 		const stub = env.Orchestrator.getByName("operator-missing-anchor");
 		await stub.debugSetStaleRun(
