@@ -275,7 +275,7 @@ const factory: CacheProviderFactory<CloudflareCacheConfig> = (config) => {
 			if (maxAge > 0 && response.ok) {
 				const toStore = prepareForCache(response.clone(), maxAge, swr, bookmarkCookie);
 				if (toStore) {
-					await cache.put(cacheKey, toStore);
+					waitUntil(cache.put(cacheKey, toStore));
 				}
 
 				const miss = new Response(response.body, response);
