@@ -341,6 +341,7 @@ export interface SettingsActionBarProps {
 	canSchedule?: boolean;
 	isScheduling?: boolean;
 	isUnscheduling?: boolean;
+	publishDisabled?: boolean;
 	liveViewUrl?: string | null;
 	supportsPreview?: boolean;
 	isLoadingPreview?: boolean;
@@ -398,6 +399,8 @@ export interface PublishActionsProps {
 	canSchedule?: boolean;
 	isScheduling?: boolean;
 	isUnscheduling?: boolean;
+	/** Blocks every publishing action, including those in an already open menu. */
+	disabled?: boolean;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
 	onOpenSchedule?: () => void;
@@ -423,6 +426,7 @@ export function PublishActions({
 	canSchedule,
 	isScheduling,
 	isUnscheduling,
+	disabled,
 	onPublish,
 	onUnpublish,
 	onOpenSchedule,
@@ -466,7 +470,14 @@ export function PublishActions({
 	if (isNew) return null;
 	if (state === "published") {
 		return onUnpublish ? (
-			<Button type="button" variant="outline" size={size} onClick={onUnpublish} icon={<EyeSlash />}>
+			<Button
+				type="button"
+				variant="outline"
+				size={size}
+				onClick={onUnpublish}
+				disabled={disabled}
+				icon={<EyeSlash />}
+			>
 				{t`Unpublish ${itemLabel}`}
 			</Button>
 		) : null;
@@ -530,6 +541,7 @@ export function PublishActions({
 				variant="primary"
 				size={size}
 				onClick={action.onSelect}
+				disabled={disabled}
 				icon={<action.Icon aria-hidden="true" />}
 				loading={isScheduling || isUnscheduling}
 			>
@@ -558,6 +570,7 @@ export function PublishActions({
 			}}
 		>
 			<DropdownMenu.Trigger
+				disabled={disabled}
 				render={
 					<Button
 						type="button"
@@ -587,7 +600,7 @@ export function PublishActions({
 								<ActionIcon className="size-4" aria-hidden="true" />
 							</span>
 						}
-						disabled={isScheduling || isUnscheduling}
+						disabled={disabled || isScheduling || isUnscheduling}
 						onClick={onSelect}
 						className="px-2.5 py-1.5"
 					>
@@ -623,6 +636,7 @@ export function SettingsActionBar({
 	canSchedule,
 	isScheduling,
 	isUnscheduling,
+	publishDisabled,
 	liveViewUrl,
 	supportsPreview,
 	isLoadingPreview,
@@ -682,6 +696,7 @@ export function SettingsActionBar({
 						canSchedule={canSchedule}
 						isScheduling={isScheduling}
 						isUnscheduling={isUnscheduling}
+						disabled={publishDisabled}
 						onPublish={onPublish}
 						onUnpublish={onUnpublish}
 						onOpenSchedule={onOpenSchedule}
