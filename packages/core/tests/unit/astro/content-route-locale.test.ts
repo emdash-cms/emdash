@@ -246,6 +246,18 @@ describe("POST /content/:collection/:id/publish forwards locale to handleContent
 		expect(emdash.handleContentPublish).not.toHaveBeenCalled();
 	});
 
+	it("returns UNAUTHORIZED when visual publishing has no authenticated user", async () => {
+		const emdash = buildEmdash();
+		const context = visualCtx(emdash, "content/post/hello/publish");
+		context.locals.user = null;
+
+		const res = await postVisualPublish(context);
+
+		expect(res.status).toBe(401);
+		await expect(res.json()).resolves.toMatchObject({ error: { code: "UNAUTHORIZED" } });
+		expect(emdash.handleContentPublish).not.toHaveBeenCalled();
+	});
+
 	it("marks publication with a short-lived token bound to the editor", async () => {
 		const emdash = buildEmdash();
 		const { previewSecret } = await resolveSecretsCached(db);

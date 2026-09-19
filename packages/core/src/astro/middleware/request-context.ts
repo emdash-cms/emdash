@@ -13,6 +13,7 @@
  *   renders (Discussion #1742)
  */
 
+import { loadVisualEditingToolbarLabels } from "@emdash-cms/admin/locales/server";
 import type { APIContext } from "astro";
 import { defineMiddleware } from "astro:middleware";
 // @ts-ignore - virtual module
@@ -41,11 +42,12 @@ async function renderEditorToolbar(
 	context: APIContext,
 	config: { editMode: boolean; isPreview: boolean },
 ): Promise<string> {
+	const labels = await loadVisualEditingToolbarLabels(context.request);
 	const { emdash, user } = context.locals;
-	if (!emdash?.db || !user) return renderToolbar(config);
+	if (!emdash?.db || !user) return renderToolbar({ ...config, labels });
 	const { previewSecret } = await resolveSecretsCached(emdash.db);
 	const actionToken = await generateVisualEditingActionToken(previewSecret, user.id);
-	return renderToolbar({ ...config, actionToken });
+	return renderToolbar({ ...config, actionToken, labels });
 }
 
 /**

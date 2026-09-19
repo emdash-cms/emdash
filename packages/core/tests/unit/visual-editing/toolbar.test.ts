@@ -2,7 +2,21 @@ import { createContext, runInContext, runInNewContext } from "node:vm";
 
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
+import { renderToolbar as renderToolbarWithLabels } from "../../../src/visual-editing/toolbar.js";
+
+const TEST_LABELS = {
+	publish: "Publicar",
+	publishing: "Publicando…",
+	sessionExpired: "La sesión de edición ha caducado.",
+	refreshPage: "Actualizar página",
+	publishFailed: "No se pudo publicar.",
+};
+
+function renderToolbar(
+	config: Omit<Parameters<typeof renderToolbarWithLabels>[0], "labels">,
+): string {
+	return renderToolbarWithLabels({ ...config, labels: TEST_LABELS });
+}
 
 // Regex patterns for HTML validation
 const EDIT_TOGGLE_CHECKED_REGEX = /id="emdash-edit-toggle"\s+checked/;
@@ -64,7 +78,11 @@ describe("renderToolbar", () => {
 		const html = actionToolbar();
 		expect(html).toContain("/_emdash/api/visual-editing/action-token");
 		expect(html).toContain("scheduleVisualActionTokenRefresh(240000)");
-		expect(html).toContain("Editing session expired. Refresh the page to continue.");
+		expect(html).toContain(TEST_LABELS.sessionExpired);
+		expect(html).toContain(TEST_LABELS.refreshPage);
+		expect(html).toContain(TEST_LABELS.publishFailed);
+		expect(html).toContain(TEST_LABELS.publishing);
+		expect(html).not.toContain("Editing session expired. Refresh the page to continue.");
 		expect(html).toContain("res.status === 401 || res.status === 403");
 	});
 
@@ -105,8 +123,8 @@ describe("renderToolbar", () => {
 		await vi.advanceTimersByTimeAsync(30_000);
 		expect(ecFetch).toHaveBeenCalledTimes(3);
 		expect(vi.getTimerCount()).toBe(0);
-		expect(statusEl.innerHTML).toContain("Editing session expired");
-		expect(publishBtn).toEqual({ disabled: true, textContent: "Refresh page" });
+		expect(statusEl.innerHTML).toContain(TEST_LABELS.sessionExpired);
+		expect(publishBtn).toEqual({ disabled: true, textContent: TEST_LABELS.refreshPage });
 	});
 
 	it.each([
@@ -115,7 +133,7 @@ describe("renderToolbar", () => {
 			{ code: "FORBIDDEN", message: "You cannot publish this entry" },
 			{
 				disabled: false,
-				textContent: "Publish",
+				textContent: TEST_LABELS.publish,
 				status: "You cannot publish this entry",
 				timers: 1,
 			},
@@ -123,7 +141,12 @@ describe("renderToolbar", () => {
 		[
 			"expired attestation",
 			{ code: "VISUAL_ACTION_TOKEN_INVALID", message: "Token expired" },
-			{ disabled: true, textContent: "Refresh page", status: "Editing session expired", timers: 0 },
+			{
+				disabled: true,
+				textContent: TEST_LABELS.refreshPage,
+				status: TEST_LABELS.sessionExpired,
+				timers: 0,
+			},
 		],
 	])("distinguishes publish %s from token expiry", async (_label, error, expected) => {
 		vi.useFakeTimers();
