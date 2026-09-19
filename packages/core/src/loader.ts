@@ -444,6 +444,54 @@ const INCLUDE_IN_DATA: Record<string, string> = {
 const DATE_COLUMNS = new Set(["created_at", "updated_at", "published_at", "scheduled_at"]);
 
 /**
+ * Columns a projected read must select whatever the caller asked for.
+ *
+ * `INCLUDE_IN_DATA` is every system column surfaced on `entry.data`; `slug`
+ * and `deleted_at` are read directly off the row (entry id, and the liveness
+ * filter). Leaving any of them out does not fail loudly — it produces entries
+ * with no id, no date and a broken cursor — so the set is derived from
+ * INCLUDE_IN_DATA rather than written out a second time.
+ */
+const REQUIRED_SELECT_COLUMNS: readonly string[] = [
+	...Object.keys(INCLUDE_IN_DATA),
+	"slug",
+	"deleted_at",
+];
+
+/**
+ * Build the column list for a content query: `*` (or `r.*`) when no projection
+ * was requested, else the requested fields plus the required system columns.
+ *
+ * Sort columns are included even when unrequested. A `SELECT` list does not
+ * have to carry the `ORDER BY` column for the sort itself, but the cursor
+ * encoder reads the sort value back OFF THE ROW, so a projected page ordered
+ * by an unselected column would paginate from `undefined` and hand out the
+ * same page forever.
+ *
+ * An unknown-looking name throws. Interpolating it would be an injection, and
+ * quietly dropping it renders the field as empty, which is the failure mode
+ * this option exists to avoid.
+ */
+function contentSelect(
+	fields: readonly string[] | undefined,
+	orderBy: OrderBySpec | undefined,
+	alias?: string,
+): ReturnType<typeof sql.raw> {
+	const prefix = alias ? `${alias}.` : "";
+	if (!fields) return sql.raw(`${prefix}*`);
+	for (const f of fields) {
+		if (!FIELD_NAME_PATTERN.test(f)) {
+			throw new Error(
+				`Invalid field name in \`fields\`: ${JSON.stringify(f)}. Field names must match ${FIELD_NAME_PATTERN}.`,
+			);
+		}
+	}
+	const sortKeys = orderBy ? Object.keys(orderBy).filter((k) => FIELD_NAME_PATTERN.test(k)) : [];
+	const columns = [...new Set([...REQUIRED_SELECT_COLUMNS, ...sortKeys, ...fields])];
+	return sql.raw(columns.map((c) => `${prefix}"${c}"`).join(", "));
+}
+
+/**
  * Hidden, symbol-keyed property on each mapped data record carrying the raw
  * DB string for every date column. Lets cursor encoders downstream reproduce
  * the loader's exact `nextCursor` format without round-tripping through
@@ -872,6 +920,8 @@ export interface TaxonomyPivotQueryOptions {
 	bylineGroups: string[] | null;
 	fetchLimit: number | undefined;
 	offset: number | undefined;
+	/** Content fields to project, or `undefined` for every column. See `contentSelect`. */
+	fields: readonly string[] | undefined;
 }
 
 /**
@@ -905,6 +955,7 @@ export function buildTaxonomyPivotQuery(
 		bylineGroups,
 		fetchLimit,
 		offset,
+		fields,
 	} = opts;
 
 	const primary = getPrimarySort(orderBy);
@@ -996,7 +1047,7 @@ export function buildTaxonomyPivotQuery(
 				ORDER BY sortval ${dir}, r.id ${dir}
 				${limitClause}
 			)
-			SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
+			SELECT ${contentSelect(fields, orderBy, "r")}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
 			FROM picked JOIN ${sql.ref(tableName)} AS r ON r.id = picked.entry_id
 			WHERE ${deletedR} ${statusR} ${localeR}
 			ORDER BY picked.sortval ${dir}, picked.entry_id ${dir}
@@ -1020,7 +1071,7 @@ export function buildTaxonomyPivotQuery(
 				${residual}
 				${bylineCt}
 		)
-		SELECT r.*, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
+		SELECT ${contentSelect(fields, orderBy, "r")}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect}
 		FROM picked JOIN ${sql.ref(tableName)} AS r ON r.id = picked.entry_id
 		WHERE ${deletedR} ${statusR} ${localeR}
 			${cursorCond}
@@ -1084,6 +1135,15 @@ export interface CollectionFilterBase {
 	 * When set, only returns content in this locale.
 	 */
 	locale?: string;
+	/**
+	 * Project the content columns: select only these fields instead of `*`.
+	 *
+	 * Required system columns are added automatically, and the taxonomy,
+	 * byline, SEO and boolean-field subqueries are unaffected. Omit for
+	 * every column. See `contentSelect` and the public `fields` option on
+	 * `getEmDashCollection`.
+	 */
+	fields?: readonly string[];
 }
 
 /** Keyset-paginated collection filter. Cannot also carry an `offset`. */
@@ -1222,6 +1282,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 				const where = filter?.where;
 				const orderBy = filter?.orderBy;
 				const locale = filter?.locale;
+				const fields = filter?.fields;
 
 				// Cursor pagination: over-fetch by 1 to detect next page
 				const fetchLimit = limit ? limit + 1 : undefined;
@@ -1328,6 +1389,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 						bylineGroups: bylineFilter ? bylineFilter.groups : null,
 						fetchLimit,
 						offset,
+						fields,
 					}).execute(db);
 				} else {
 					// Taxonomy and byline filters are applied as correlated
@@ -1404,7 +1466,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, CollectionFil
 							: sql`LIMIT -1 OFFSET ${offset}`;
 					}
 					result = await sql<Record<string, unknown>>`
-						SELECT *, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect} FROM ${sql.ref(tableName)}
+						SELECT ${contentSelect(fields, orderBy)}, ${termsSelect}, ${bylinesSelect}, ${bylinesExistSelect}, ${booleanFieldsSelect} FROM ${sql.ref(tableName)}
 						WHERE deleted_at IS NULL
 						AND ${statusCondition}
 						${localeFilter}

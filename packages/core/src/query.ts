@@ -145,6 +145,34 @@ export interface CollectionFilterBase {
 	 * @example "fr" — French entries only
 	 */
 	locale?: string;
+	/**
+	 * Return only these content fields, instead of every column on the
+	 * collection table.
+	 *
+	 * List queries default to `SELECT *`, which reads each entry's whole
+	 * body to render a card, a teaser or an archive row. On a content site
+	 * the body is most of the database, so a list that displays a title and
+	 * an excerpt can be reading several hundred KB to produce a few KB of
+	 * markup. Naming the fields a template actually uses bounds that.
+	 *
+	 * System columns (`id`, `slug`, `status`, the timestamps, locale and
+	 * revision ids) are always selected, so pagination, cursors, locale
+	 * resolution and `entry.data` metadata behave exactly as they do without
+	 * this option. Taxonomy, byline, SEO and boolean-field hydration are
+	 * unaffected: they are already explicit subqueries, not part of `*`.
+	 *
+	 * A projected entry is a PARTIAL entry. A field that was not requested is
+	 * absent from `entry.data`, so anything deriving a value from it — an
+	 * excerpt computed from `body`, a first-image fallback scanned out of
+	 * `body` — sees nothing rather than falling back. Request what the
+	 * template reads. An unknown or malformed field name throws rather than
+	 * being dropped, because a silently absent field renders as empty.
+	 *
+	 * Omit it to select every column, which is the default.
+	 *
+	 * @example { fields: ["title", "excerpt", "hero_image"] }
+	 */
+	fields?: readonly string[];
 }
 
 /** Keyset-paginated query filter. Cannot also carry an `offset`. */
@@ -623,6 +651,11 @@ function collectionCacheKey(type: string, filter?: CollectionFilter): string {
 		filter.where ? stableStringify(filter.where) : "",
 		filter.orderBy ? JSON.stringify(filter.orderBy) : "",
 		filter.locale ?? "",
+		// A projected read and a full read must never share a cache entry: the
+		// projected one is missing columns the full one carries, and whichever
+		// ran first would answer for both. Sorted so field order can't fork the
+		// key for what is the same request.
+		filter.fields ? [...filter.fields].toSorted().join(",") : "",
 	];
 	return `collection:${type}:${parts.join("|")}`;
 }
@@ -736,6 +769,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
 		where: filter?.where,
 		orderBy: filter?.orderBy,
 		locale: resolvedLocale,
+		fields: filter?.fields,
 	});
 
 	const { entries, error, cacheHint } = result;
