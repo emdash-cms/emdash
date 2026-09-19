@@ -216,6 +216,36 @@ export default {
 };
 `;
 
+const RAW_ROUTE_PLUGIN = `
+export default {
+	routes: {
+		bytes: {
+			handler: async ({ input }) => ({
+				__emdashPluginResponse: true,
+				status: 206,
+				headers: [["content-type", "application/octet-stream"]],
+				body: { kind: "bytes", value: input }
+			})
+		},
+		multipart: {
+			handler: async ({ input }) => ({
+				__emdashPluginResponse: true,
+				status: 200,
+				headers: [],
+				body: { kind: "bytes", value: input.entries[1].bytes }
+			})
+		},
+		ordinary: {
+			handler: async () => ({
+				status: 201,
+				headers: [["x-test", "ordinary"]],
+				body: { kind: "text", value: "not raw" }
+			})
+		}
+	}
+};
+`;
+
 const SAVE_REJECTION_PLUGIN = `
 export default {
 	hooks: {
@@ -354,6 +384,57 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(requests).toEqual(
 			expect.arrayContaining(urls.map((url) => ({ url, body: new Uint8Array([0, 255, 195, 40]) }))),
 		);
+	}, 30_000);
+
+	it("preserves raw route and multipart bytes through the real workerd wrapper", async () => {
+		const bytes = new Uint8Array([0, 255, 195, 40]);
+		const plugin = await runner.load(
+			{
+				id: "raw-route-transport",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+			},
+			RAW_ROUTE_PLUGIN,
+		);
+		const request = { method: "POST", url: "/api/raw", headers: {} };
+
+		const concurrentBodies = [bytes, new Uint8Array([1, 2, 3]), new Uint8Array([254, 253])];
+		const concurrentResults = await Promise.all(
+			concurrentBodies.map((body) => plugin.invokeRoute("bytes", body, request)),
+		);
+		expect(concurrentResults).toEqual(
+			concurrentBodies.map((body) => ({
+				__emdashPluginResponse: true,
+				status: 206,
+				headers: [["content-type", "application/octet-stream"]],
+				body: { kind: "bytes", value: body },
+			})),
+		);
+
+		const multipart = {
+			entries: [
+				{ name: "caption", kind: "text", value: "binary" },
+				{
+					name: "upload",
+					kind: "file",
+					filename: "invalid.bin",
+					contentType: "application/octet-stream",
+					bytes,
+				},
+			],
+		};
+		await expect(plugin.invokeRoute("multipart", multipart, request)).resolves.toMatchObject({
+			__emdashPluginResponse: true,
+			body: { kind: "bytes", value: bytes },
+		});
+
+		await expect(plugin.invokeRoute("ordinary", {}, request)).resolves.toEqual({
+			status: 201,
+			headers: [["x-test", "ordinary"]],
+			body: { kind: "text", value: "not raw" },
+		});
 	}, 30_000);
 
 	it("drops cached network authority when a plugin version is replaced", async () => {

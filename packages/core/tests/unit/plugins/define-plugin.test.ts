@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, vi } from "vitest";
+import { z } from "zod";
 
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 
@@ -516,6 +517,31 @@ describe("definePlugin", () => {
 			expect(plugin.routes.sync).toBeDefined();
 			expect(plugin.routes.sync.handler).toBe(handler);
 			expect(plugin.routes.webhook).toBeDefined();
+		});
+
+		it("rejects MCP tools that reference a raw response route", () => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						download: {
+							permission: "plugins:manage",
+							response: "raw",
+							handler: async () => null,
+						},
+					},
+					mcp: {
+						tools: {
+							download: {
+								description: "Download a report.",
+								route: "download",
+								input: z.object({}),
+							},
+						},
+					},
+				}),
+			).toThrow("cannot reference a raw response route");
 		});
 	});
 

@@ -121,7 +121,7 @@ export default defineConfig({
 		"src/page/index.ts",
 		// Plugin admin utilities (shared helpers for plugin admin.tsx files)
 		"src/plugin-utils.ts",
-		// `emdash/plugin` — type-only subpath for sandboxed plugin authors.
+		// `emdash/plugin` — sandboxed authoring types and lightweight helpers.
 		"src/plugin-types.ts",
 		"src/plugin-test-runtime.ts",
 		// Standard plugin adapter (loaded by virtual:emdash/plugins at runtime)

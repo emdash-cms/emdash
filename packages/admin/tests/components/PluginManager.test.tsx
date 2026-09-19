@@ -483,7 +483,7 @@ describe("PluginManager", () => {
 			expect(mockUpdateMarketplacePlugin).toHaveBeenNthCalledWith(2, "mp-plugin", {
 				version: "2.0.0",
 				confirmCapabilityChanges: true,
-				confirmRouteVisibilityChanges: true,
+				acknowledgedPublicRoutes: ["webhook"],
 				confirmMcpTools: true,
 			});
 		});

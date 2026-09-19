@@ -12,6 +12,7 @@ import { z } from "zod";
 
 import { capabilitiesToDeclaredAccess, declaredAccessToCapabilities } from "./index.js";
 import type { PluginManifest } from "./index.js";
+import { manifestRouteEntrySchema, normalizeManifestRoute, routeNameSchema } from "./routes.js";
 
 // ── Enum values (must stay in sync with types.ts) ───────────────
 
@@ -130,16 +131,6 @@ const manifestHookEntrySchema = z.object({
  * Both plain strings and objects are accepted; strings are normalized
  * to `{ name }` objects via `normalizeManifestRoute()`.
  */
-/** Route names must be safe path segments — alphanumeric, hyphens, underscores, forward slashes */
-const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
-
-const manifestRouteEntrySchema = z.object({
-	name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: z.boolean().optional(),
-	permission: z.string().min(1).optional(),
-	cacheControl: z.string().min(1).optional(),
-});
-
 const pluginJsonSchema = z.record(z.string(), z.unknown());
 
 const pluginMcpConfigSchema = z.object({
@@ -318,12 +309,7 @@ export const pluginManifestSchema = z.object({
 	 * structured objects with public metadata.
 	 * Plain strings are normalized to `{ name }` objects after parsing.
 	 */
-	routes: z.array(
-		z.union([
-			z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-			manifestRouteEntrySchema,
-		]),
-	),
+	routes: z.array(z.union([routeNameSchema, manifestRouteEntrySchema])),
 	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema,
 });
@@ -376,19 +362,4 @@ export function normalizeManifestHook(
 	return entry;
 }
 
-/**
- * Normalize a manifest route entry — plain strings become `{ name }` objects.
- */
-export function normalizeManifestRoute(
-	entry: string | { name: string; public?: boolean; permission?: string; cacheControl?: string },
-): {
-	name: string;
-	public?: boolean;
-	permission?: string;
-	cacheControl?: string;
-} {
-	if (typeof entry === "string") {
-		return { name: entry };
-	}
-	return entry;
-}
+export { normalizeManifestRoute };

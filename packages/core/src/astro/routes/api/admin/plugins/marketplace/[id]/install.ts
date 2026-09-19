@@ -18,6 +18,7 @@ export const prerender = false;
 const installBodySchema = z.object({
 	version: z.string().min(1).optional(),
 	confirmMcpTools: z.boolean().optional(),
+	acknowledgedPublicRoutes: z.array(z.string().min(1).max(256)).max(100).optional(),
 });
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
@@ -60,6 +61,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				siteOrigin,
 				sandboxBypassed: emdash.isSandboxBypassed(),
 				confirmMcpTools: body.confirmMcpTools,
+				acknowledgedPublicRoutes: body.acknowledgedPublicRoutes,
 			},
 		);
 

@@ -27,6 +27,62 @@ describe("runtime plugin test host", () => {
 		runtimeHost = undefined;
 	});
 
+	it("exercises declared raw routes through core and Worker Loader", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0xff, 0, 13, 10, 128]);
+		const response = await runtimeHost.actions.routes.request("raw-download", {
+			method: "POST",
+			rawBody: bytes,
+		});
+		expect(response.status).toBe(202);
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+
+		const headers = await runtimeHost.actions.routes.request("declared-headers", {
+			method: "POST",
+			headers: {
+				"x-signature": "sha256=test",
+				"x-hidden": "secret",
+				cookie: "session=secret",
+			},
+		});
+		expect(await headers.json()).toEqual({
+			success: true,
+			data: { signature: "sha256=test", hidden: "missing" },
+		});
+
+		const disallowed = await runtimeHost.actions.routes.request("raw-download", {
+			method: "GET",
+		});
+		expect(disallowed.status).toBe(405);
+		expect(disallowed.headers.get("allow")).toBe("POST");
+	});
+
+	it("parses multipart fields and files through the runtime host", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		const form = new FormData();
+		form.append("title", "Report");
+		form.append("attachment", new File([new Uint8Array([0, 255])], "report.bin"));
+		const response = await runtimeHost.actions.routes.request("raw-form", {
+			method: "POST",
+			rawBody: form,
+		});
+		expect(await response.json()).toEqual({
+			success: true,
+			data: {
+				entries: [
+					{ name: "title", kind: "text", value: "Report" },
+					{
+						name: "attachment",
+						kind: "file",
+						filename: "report.bin",
+						contentType: "application/octet-stream",
+						bytes: [0, 255],
+					},
+				],
+			},
+		});
+	});
+
 	it("runs content actions through EmDashRuntime and preserves state across a cold restart", async () => {
 		runtimeHost = await createPluginRuntimeTestHost({
 			site: { url: "https://example.test", locale: "en", trailingSlash: "never" },

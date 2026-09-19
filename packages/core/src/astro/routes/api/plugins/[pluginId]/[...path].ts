@@ -38,6 +38,7 @@ const handleRequest: APIRoute = async ({ params, request, locals }) => {
 
 // Export handlers for all HTTP methods
 export const GET = handleRequest;
+export const HEAD = handleRequest;
 export const POST = handleRequest;
 export const PUT = handleRequest;
 export const PATCH = handleRequest;

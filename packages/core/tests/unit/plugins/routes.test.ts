@@ -244,6 +244,32 @@ describe("PluginRouteHandler", () => {
 
 			expect(handler.getRouteMeta("admin")).toEqual({ public: false });
 		});
+
+		it("exposes declared method, request, and response policy", () => {
+			const plugin = createTestPlugin({
+				routes: {
+					webhook: {
+						public: true,
+						methods: ["POST"],
+						request: {
+							body: "bytes",
+							maxBytes: 4096,
+							headers: ["x-signature"],
+						},
+						response: "raw",
+						handler: vi.fn(),
+					},
+				},
+			});
+			const handler = new PluginRouteHandler(plugin, createMockFactoryOptions());
+
+			expect(handler.getRouteMeta("webhook")).toEqual({
+				public: true,
+				methods: ["POST"],
+				request: { body: "bytes", maxBytes: 4096, headers: ["x-signature"] },
+				response: "raw",
+			});
+		});
 	});
 
 	describe("getRouteNames", () => {

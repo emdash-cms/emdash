@@ -97,6 +97,38 @@ describe("extractManifest", () => {
 		]);
 	});
 
+	it("preserves raw request and response route metadata", () => {
+		const manifest = extractManifest(
+			minimalResolved({
+				routes: {
+					upload: {
+						handler: () => {},
+						methods: ["POST"],
+						request: {
+							body: "bytes",
+							maxBytes: 4096,
+							headers: ["content-type", "x-upload-token"],
+						},
+						response: "raw",
+					},
+				},
+			}),
+		);
+
+		expect(manifest.routes).toEqual([
+			{
+				name: "upload",
+				methods: ["POST"],
+				request: {
+					body: "bytes",
+					maxBytes: 4096,
+					headers: ["content-type", "x-upload-token"],
+				},
+				response: "raw",
+			},
+		]);
+	});
+
 	it("serializes explicitly declared MCP tools", () => {
 		const manifest = extractManifest(
 			minimalResolved({
@@ -129,6 +161,31 @@ describe("extractManifest", () => {
 				inputSchema: { type: "object", properties: { title: { type: "string" } } },
 			},
 		]);
+	});
+
+	it("rejects MCP tools that reference raw response routes", () => {
+		expect(() =>
+			extractManifest(
+				minimalResolved({
+					routes: {
+						download: {
+							handler: () => {},
+							permission: "plugins:manage",
+							response: "raw",
+						},
+					},
+					mcp: {
+						tools: {
+							download: {
+								description: "Download a report.",
+								route: "download",
+								input: { type: "object" },
+							},
+						},
+					},
+				}),
+			),
+		).toThrow("cannot reference raw response route");
 	});
 
 	it("strips the runtime entry pointer from admin", () => {

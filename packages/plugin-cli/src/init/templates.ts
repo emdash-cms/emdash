@@ -432,6 +432,10 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Use \`ctx.storage\` for queryable records and \`ctx.kv\` for key-value state.
 - Use Block Kit for sandboxed admin UI. Do not ship browser React components.
 - Treat public routes as internet-facing and validate their inputs.
+- Routes without declarations use the legacy method-agnostic JSON/query envelope. Declare \`methods\` for host-enforced 405 responses.
+- Declare \`request.body\` as \`none\`, \`json\`, \`text\`, \`bytes\`, or \`form-data\` for bounded buffered parsing. The default is 1 MiB and the author maximum is 8 MiB. Use \`pluginRoute()\` for input inference.
+- Only safe names declared in \`request.headers\` cross the sandbox boundary. Credentials, cookies, Cloudflare Access, and CSRF headers never do.
+- A route with \`response: "raw"\` must return \`pluginResponse()\` from \`emdash/plugin\` with text or bytes. Raw responses are buffered to 8 MiB; the host keeps only documented representation/download/redirect headers, applies route caching and browser security policy, and rejects active browser content types. Raw routes cannot back MCP tools.
 - Treat \`ctx.http.fetch()\` responses as buffered. Request and response bodies are each limited to 8 MiB of decoded bytes, with binary bytes preserved across both sandbox runners.
 
 ## Validation
@@ -439,6 +443,8 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 Use the package scripts in this repository. The default test script builds the plugin and runs it through Worker Loader, EmDash's production sandbox wrapper, and the host bridge.
 
 Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, or cache behavior. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
+
+For declared route-body tests, pass text, bytes, URL-encoded data, or \`FormData\` as \`rawBody\` to \`host.actions.routes.request()\`. Use \`body\` for the legacy JSON path.
 
 For outbound HTTP tests, queue one response per call with \`await host.http.respond(url, response)\` and inspect the decoded request through \`host.http.requests()\`. The plugin call still crosses Worker Loader and the production bridge.
 

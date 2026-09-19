@@ -71,12 +71,19 @@ describe("parseProbedDefault", () => {
 			expect(result.routes?.ping).toEqual({ handler });
 		});
 
-		it("preserves config-form route fields including public cache metadata", () => {
+		it("preserves config-form route fields including raw HTTP metadata", () => {
 			const handler = (): void => {};
 			const result = parseProbedDefault(PLUGIN_ENTRY, {
 				routes: {
 					ping: {
 						handler,
+						methods: ["POST", "PUT"],
+						request: {
+							body: "form-data",
+							maxBytes: 2048,
+							headers: ["content-type", "x-signature"],
+						},
+						response: "raw",
 						public: true,
 						permission: "content:read",
 						cacheControl: "public, max-age=60",
@@ -85,6 +92,13 @@ describe("parseProbedDefault", () => {
 			});
 			expect(result.routes?.ping).toEqual({
 				handler,
+				methods: ["POST", "PUT"],
+				request: {
+					body: "form-data",
+					maxBytes: 2048,
+					headers: ["content-type", "x-signature"],
+				},
+				response: "raw",
 				public: true,
 				permission: "content:read",
 				cacheControl: "public, max-age=60",
@@ -297,6 +311,28 @@ describe("parseProbedDefault", () => {
 				routes: { ping: { handler: (): void => {}, public: "yes" } },
 			});
 			expect(error.message).toContain(`route "ping" has invalid public "yes"`);
+		});
+
+		it("rejects unsupported route methods", () => {
+			const error = expectFailure({
+				routes: { ping: { handler: (): void => {}, methods: ["CONNECT"] } },
+			});
+			expect(error.message).toContain(`route "ping" has invalid methods[0] ["CONNECT"]`);
+		});
+
+		it("rejects forbidden request headers", () => {
+			const error = expectFailure({
+				routes: {
+					ping: {
+						handler: (): void => {},
+						request: { body: "json", headers: ["cookie"] },
+					},
+				},
+			});
+			expect(error.message).toContain(
+				`route "ping" has invalid request.headers[0] {"body":"json","headers":["cookie"]}`,
+			);
+			expect(error.message).toContain("cannot be exposed to a sandboxed route");
 		});
 	});
 

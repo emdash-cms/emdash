@@ -7768,6 +7768,80 @@ const meta = meta$1;
 
 //#endregion
 //#region ../../packages/plugin-types/dist/index.js
+const PLUGIN_ROUTE_MAX_BODY_BYTES = 8 * 1024 * 1024;
+const PLUGIN_ROUTE_DEFAULT_BODY_BYTES = 1024 * 1024;
+const PLUGIN_ROUTE_MAX_MULTIPART_PART_BYTES = 1024 * 1024;
+const PLUGIN_ROUTE_MAX_DECLARED_HEADERS = 32;
+const PLUGIN_ROUTE_METHODS = [
+	"GET",
+	"HEAD",
+	"POST",
+	"PUT",
+	"PATCH",
+	"DELETE"
+];
+const PLUGIN_ROUTE_BODY_MODES = [
+	"none",
+	"json",
+	"text",
+	"bytes",
+	"form-data"
+];
+const PLUGIN_ROUTE_RESPONSE_MODES = ["json", "raw"];
+const HEADER_NAME_PATTERN = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+const FORBIDDEN_REQUEST_HEADERS = new Set([
+	"authorization",
+	"cookie",
+	"cf-access-client-id",
+	"cf-access-client-secret",
+	"cf-access-jwt-assertion",
+	"proxy-authorization",
+	"set-cookie",
+	"x-emdash-request"
+]);
+const declaredHeadersSchema = array(string().min(1).max(128).regex(HEADER_NAME_PATTERN, "Invalid HTTP header name")).max(PLUGIN_ROUTE_MAX_DECLARED_HEADERS).superRefine((headers, ctx) => {
+	const seen = /* @__PURE__ */ new Set();
+	for (const [index, header] of headers.entries()) {
+		const normalized = header.toLowerCase();
+		if (FORBIDDEN_REQUEST_HEADERS.has(normalized) || normalized.startsWith("cf-access-")) ctx.addIssue({
+			code: "custom",
+			message: `Header "${header}" cannot be exposed to a sandboxed route`,
+			path: [index]
+		});
+		if (seen.has(normalized)) ctx.addIssue({
+			code: "custom",
+			message: `Header "${header}" is declared more than once`,
+			path: [index]
+		});
+		seen.add(normalized);
+	}
+});
+const pluginRouteRequestSchema = object({
+	body: _enum(PLUGIN_ROUTE_BODY_MODES),
+	maxBytes: number().int().positive().max(PLUGIN_ROUTE_MAX_BODY_BYTES).optional(),
+	headers: declaredHeadersSchema.optional()
+}).superRefine((request, ctx) => {
+	if (request.body === "none" && request.maxBytes !== void 0) ctx.addIssue({
+		code: "custom",
+		message: "maxBytes cannot be set when request.body is none",
+		path: ["maxBytes"]
+	});
+});
+const routeOptionsSchema = object({
+	methods: array(_enum(PLUGIN_ROUTE_METHODS)).min(1).max(PLUGIN_ROUTE_METHODS.length).optional(),
+	request: pluginRouteRequestSchema.optional(),
+	response: _enum(PLUGIN_ROUTE_RESPONSE_MODES).optional(),
+	public: boolean().optional(),
+	permission: string().min(1).optional(),
+	cacheControl: string().min(1).optional()
+}).superRefine((route, ctx) => {
+	if (route.methods && new Set(route.methods).size !== route.methods.length) ctx.addIssue({
+		code: "custom",
+		message: "Route methods must not contain duplicates"
+	});
+});
+const routeNameSchema = string().min(1).regex(/^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/, "Route name must be a safe path segment");
+const manifestRouteEntrySchema = routeOptionsSchema.extend({ name: routeNameSchema });
 /**
 * Zod schema for PluginManifest validation
 *
@@ -7883,14 +7957,6 @@ const manifestHookEntrySchema = object({
 * Both plain strings and objects are accepted; strings are normalized
 * to `{ name }` objects via `normalizeManifestRoute()`.
 */
-/** Route names must be safe path segments — alphanumeric, hyphens, underscores, forward slashes */
-const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
-const manifestRouteEntrySchema = object({
-	name: string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-	public: boolean().optional(),
-	permission: string().min(1).optional(),
-	cacheControl: string().min(1).optional()
-});
 const pluginJsonSchema = record(string(), unknown());
 const pluginMcpConfigSchema = object({ tools: array(object({
 	name: string().min(1),
@@ -8034,7 +8100,7 @@ const pluginManifestSchema = object({
 	allowedHosts: array(string()),
 	storage: record(string(), storageCollectionSchema),
 	hooks: array(union([_enum(HOOK_NAMES), manifestHookEntrySchema])),
-	routes: array(union([string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"), manifestRouteEntrySchema])),
+	routes: array(union([routeNameSchema, manifestRouteEntrySchema])),
 	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema
 });
