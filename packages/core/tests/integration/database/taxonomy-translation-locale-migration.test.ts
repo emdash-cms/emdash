@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import * as migration080 from "../../../src/database/migrations/080_taxonomy_translation_locale_unique.js";
+import * as migration082 from "../../../src/database/migrations/082_taxonomy_translation_locale_unique.js";
 import { createMigrator } from "../../../src/database/migrations/runner.js";
 import {
 	createForDialect,
@@ -59,8 +59,8 @@ describeEachDialect("taxonomy translation locale uniqueness migration", (dialect
 			.execute();
 
 		const { applied } = await runMigrationsForDialect(ctx);
-		expect(applied[0]).toBe("080_taxonomy_translation_locale_unique");
-		await expect(migration080.up(ctx.db)).resolves.toBeUndefined();
+		expect(applied).toEqual(["082_taxonomy_translation_locale_unique"]);
+		await expect(migration082.up(ctx.db)).resolves.toBeUndefined();
 
 		const terms = await ctx.db
 			.selectFrom("taxonomies")
