@@ -75,6 +75,14 @@ describe("core media route injection", () => {
 		);
 	});
 
+	it("registers the opaque media asset route before the dynamic media item route", () => {
+		const patterns = collectRoutePatterns();
+		const asset = patterns.indexOf("/_emdash/api/media/asset/[id]/[filename]");
+		const mediaItem = patterns.indexOf("/_emdash/api/media/[id]");
+		expect(asset).toBeGreaterThan(-1);
+		expect(asset).toBeLessThan(mediaItem);
+	});
+
 	it("registers the pending-media upload route with PUT only", () => {
 		const routes: Array<{ pattern: string; entrypoint: string }> = [];
 		injectCoreRoutes((route) => routes.push(route));

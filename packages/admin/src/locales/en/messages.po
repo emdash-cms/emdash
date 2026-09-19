@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 characters"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:426
 msgid "{base} to: {0}"
 msgstr "{base} to: {0}"
 
@@ -763,8 +763,8 @@ msgstr "Access denied"
 msgid "Access Denied"
 msgstr "Access Denied"
 
-#: packages/admin/src/lib/api/marketplace.ts:386
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:403
 msgid "Access your media library"
 msgstr "Access your media library"
 
@@ -1288,6 +1288,10 @@ msgstr "Apply link"
 #: packages/admin/src/components/comments/CommentInbox.tsx:481
 msgid "Approve"
 msgstr "Approve"
+
+#: packages/admin/src/lib/api/marketplace.ts:387
+msgid "Approve comments and mark them as pending or spam"
+msgstr "Approve comments and mark them as pending or spam"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
 msgid "Approve with that device's face, fingerprint, PIN, or passcode."
@@ -1861,6 +1865,10 @@ msgstr "Change publication date: {formattedValue}"
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:467
 msgid "Change schedule"
 msgstr "Change schedule"
+
+#: packages/admin/src/lib/api/marketplace.ts:392
+msgid "Change where visitors are sent"
+msgstr "Change where visitors are sent"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Changelog"
@@ -2658,6 +2666,10 @@ msgstr "Create sections in the Sections library to use them here"
 msgid "Create Taxonomy"
 msgstr "Create Taxonomy"
 
+#: packages/admin/src/lib/api/marketplace.ts:390
+msgid "Create taxonomy terms and change content classifications"
+msgstr "Create taxonomy terms and change content classifications"
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
 msgid "Create Token"
@@ -2687,8 +2699,8 @@ msgstr "Create your first one"
 msgid "Create your first reusable content section to get started."
 msgstr "Create your first reusable content section to get started."
 
-#: packages/admin/src/lib/api/marketplace.ts:384
-#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:402
 msgid "Create, update, and delete content"
 msgstr "Create, update, and delete content"
 
@@ -3609,6 +3621,10 @@ msgstr "Edit link"
 #: packages/admin/src/components/ContentTypeEditor.tsx:452
 msgid "Edit locking"
 msgstr "Edit locking"
+
+#: packages/admin/src/lib/api/marketplace.ts:395
+msgid "Edit media alt text, captions, and focal points"
+msgstr "Edit media alt text, captions, and focal points"
 
 #: packages/admin/src/components/MenuEditor.tsx:573
 msgid "Edit Menu Item"
@@ -5957,13 +5973,13 @@ msgstr "Main library"
 msgid "Main Sidebar"
 msgstr "Main Sidebar"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:406
 msgid "Make network requests"
 msgstr "Make network requests"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:399
+#: packages/admin/src/lib/api/marketplace.ts:407
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Make network requests to any host (unrestricted)"
 
@@ -7703,33 +7719,53 @@ msgstr "Quote"
 msgid "Raw meta"
 msgstr "Raw meta"
 
+#: packages/admin/src/lib/api/marketplace.ts:388
+msgid "Read collection and field definitions"
+msgstr "Read collection and field definitions"
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "Read collection schemas"
+
+#: packages/admin/src/lib/api/marketplace.ts:386
+msgid "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
+msgstr "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
 msgstr "Read content entries"
 
+#: packages/admin/src/lib/api/marketplace.ts:394
+msgid "Read media file contents"
+msgstr "Read media file contents"
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Read media files"
 msgstr "Read media files"
+
+#: packages/admin/src/lib/api/marketplace.ts:391
+msgid "Read redirect rules"
+msgstr "Read redirect rules"
+
+#: packages/admin/src/lib/api/marketplace.ts:384
+msgid "Read retained content revision history"
+msgstr "Read retained content revision history"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
 msgstr "Read site settings"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:405
 msgid "Read user accounts"
 msgstr "Read user accounts"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Read your content"
 msgstr "Read your content"
 
-#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:389
 msgid "Read your taxonomies and terms"
 msgstr "Read your taxonomies and terms"
 
@@ -10377,8 +10413,8 @@ msgstr "Upload an image to get started"
 msgid "Upload and delete media"
 msgstr "Upload and delete media"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:404
 msgid "Upload and manage media"
 msgstr "Upload and manage media"
 

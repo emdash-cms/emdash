@@ -10,15 +10,30 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { WorkerEntrypoint } from "cloudflare:workers";
 import type {
+	CommentCountOptions,
+	CommentListOptions,
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
 	I18nConfig,
+	PluginComment,
+	PluginCommentStatus,
+	SandboxCommentModerateCallback,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectUpdateInput,
+	PluginContentItem,
+	SandboxContentCreateCallback,
 	SandboxEmailSendCallback,
+	Storage,
+	TaxonomyAccessWithWrite,
+	VersionedRedirect,
 	VersionedValue,
 } from "emdash";
+import type { MediaBytes, MediaItem as PluginMediaItem, MediaMetadataPatch } from "emdash/plugin";
 import type {
 	ContentItem,
 	ContentListOptions,
@@ -33,7 +48,7 @@ import {
 } from "emdash/plugins/secret-redactor";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
-import type { StorageUpdateIfResponse } from "./types.js";
+import type { RedirectBridgeResult, StorageUpdateIfResponse } from "./types.js";
 
 let bridgeRuntimePromise: Promise<typeof import("./bridge-runtime.js")> | undefined;
 
@@ -66,6 +81,11 @@ const SYSTEM_COLUMNS = new Set([
 
 /** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
 const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
+const COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
+
+function invalidCommentStatus(value: string, name: string): string | null {
+	return COMMENT_STATUSES.has(value) ? null : `${name} must be one of: approved, pending, spam`;
+}
 
 /**
  * Module-level email send callback.
@@ -77,8 +97,36 @@ const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
  * @see runner.ts setEmailSendCallback()
  */
 let emailSendCallback: SandboxEmailSendCallback | null = null;
+const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
+const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
+let commentModerateCallback: SandboxCommentModerateCallback | null = null;
+let mediaStorageCallback: Pick<Storage, "download"> | null = null;
+
+function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[CONTENT_CREATE_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, SandboxContentCreateCallback>;
+	}
+	const callbacks = new Map<string, SandboxContentCreateCallback>();
+	store[CONTENT_CREATE_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
+
+function taxonomyWriteCallbacks(): Map<string, TaxonomyAccessWithWrite> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[TAXONOMY_WRITE_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, TaxonomyAccessWithWrite>;
+	}
+	const callbacks = new Map<string, TaxonomyAccessWithWrite>();
+	store[TAXONOMY_WRITE_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
 
 /**
  * Set the email send callback for all bridge instances.
@@ -88,12 +136,36 @@ export function setEmailSendCallback(callback: SandboxEmailSendCallback | null):
 	emailSendCallback = callback;
 }
 
+export function setContentCreateCallback(
+	runtimeId: string,
+	callback: SandboxContentCreateCallback | null,
+): void {
+	if (callback) contentCreateCallbacks().set(runtimeId, callback);
+	else contentCreateCallbacks().delete(runtimeId);
+}
+
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
 	cronRescheduleCallback = callback;
 }
 
 export function setCronNowCallback(callback: (() => Date) | null): void {
 	cronNowCallback = callback;
+}
+
+export function setCommentModerateCallback(callback: SandboxCommentModerateCallback | null): void {
+	commentModerateCallback = callback;
+}
+
+export function setMediaStorageCallback(storage: Pick<Storage, "download"> | null): void {
+	mediaStorageCallback = storage;
+}
+
+export function setTaxonomyWriteCallback(
+	runtimeId: string,
+	callback: TaxonomyAccessWithWrite | null,
+): void {
+	if (callback) taxonomyWriteCallbacks().set(runtimeId, callback);
+	else taxonomyWriteCallbacks().delete(runtimeId);
 }
 
 function serializeValue(value: unknown): unknown {
@@ -128,6 +200,11 @@ function rowToContentItem(collection: string, row: Record<string, unknown>) {
 		locale: typeof row.locale === "string" ? row.locale : "en",
 		publishedAt: typeof row.published_at === "string" ? row.published_at : null,
 		scheduledAt: typeof row.scheduled_at === "string" ? row.scheduled_at : null,
+		authorId: columnNullableString(row.author_id),
+		translationGroup: columnNullableString(row.translation_group),
+		liveRevisionId: columnNullableString(row.live_revision_id),
+		draftRevisionId: columnNullableString(row.draft_revision_id),
+		version: typeof row.version === "number" ? row.version : Number(row.version) || 1,
 	};
 }
 
@@ -196,6 +273,18 @@ function rowToTaxonomyTerm(row: Record<string, unknown>): {
 	};
 }
 
+async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<RedirectBridgeResult<T>> {
+	try {
+		return { ok: true, value: await action() };
+	} catch (error) {
+		const { RedirectAccessError } = await loadBridgeRuntime();
+		if (error instanceof RedirectAccessError) {
+			return { ok: false, error: { code: error.code, message: error.message } };
+		}
+		throw error;
+	}
+}
+
 /**
  * Environment bindings required by PluginBridge
  */
@@ -214,7 +303,15 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	contentCreateRuntimeId?: string;
+	taxonomyWriteRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
+	siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 	/** Per-collection storage config (matches manifest.storage entries) */
 	storageConfig?: Record<
 		string,
@@ -236,6 +333,31 @@ export interface PluginBridgeProps {
  */
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
 	private readonly secretRedactor: PluginSecretRedactor = createPluginSecretRedactor();
+
+	private async db() {
+		const { D1Dialect, Kysely } = await loadBridgeRuntime();
+		return new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+	}
+
+	private requireCapability(capability: string): void {
+		if (!this.ctx.props.capabilities.includes(capability)) {
+			throw new Error(`Missing capability: ${capability}`);
+		}
+	}
+
+	private validateCollection(collection: string): void {
+		if (!COLLECTION_NAME_REGEX.test(collection)) {
+			throw new Error(`Invalid collection name: ${collection}`);
+		}
+	}
+
+	private async contentAccess() {
+		const { createContentAccess } = await loadBridgeRuntime();
+		return createContentAccess(await this.db(), {
+			site: this.ctx.props.siteInfo,
+			revisions: this.ctx.props.capabilities.includes("content:revisions:read"),
+		});
+	}
 
 	private async getOptionsRepo(): Promise<OptionsRepository> {
 		const { D1Dialect, Kysely, OptionsRepository } = await loadBridgeRuntime();
@@ -711,7 +833,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		const { createContentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
 		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
 		try {
-			return await createContentAccess(db).get(collection, id);
+			return await createContentAccess(db, {
+				site: this.ctx.props.siteInfo,
+				revisions: capabilities.includes("content:revisions:read"),
+			}).get(collection, id);
 		} catch {
 			const row = await this.env.DB.prepare(
 				`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
@@ -736,14 +861,64 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		const { createContentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
 		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return createContentAccess(db).list(collection, opts);
+		return createContentAccess(db, {
+			site: this.ctx.props.siteInfo,
+			revisions: capabilities.includes("content:revisions:read"),
+		}).list(collection, opts);
+	}
+
+	async contentTranslations(collection: string, id: string) {
+		this.requireCapability("content:read");
+		this.validateCollection(collection);
+		return (await this.contentAccess()).getTranslations!(collection, id);
+	}
+
+	async contentPublicUrl(collection: string, id: string) {
+		this.requireCapability("content:read");
+		this.validateCollection(collection);
+		return (await this.contentAccess()).getPublicUrl!(collection, id);
+	}
+
+	async contentListRevisions(collection: string, id: string, options?: { limit?: number }) {
+		this.requireCapability("content:revisions:read");
+		this.validateCollection(collection);
+		return (await this.contentAccess()).listRevisions!(collection, id, options);
+	}
+
+	async contentGetRevision(collection: string, id: string, revisionId: string) {
+		this.requireCapability("content:revisions:read");
+		this.validateCollection(collection);
+		return (await this.contentAccess()).getRevision!(collection, id, revisionId);
+	}
+
+	async schemaListCollections() {
+		this.requireCapability("schema:read");
+		const { createSchemaAccess } = await loadBridgeRuntime();
+		return createSchemaAccess(await this.db()).listCollections();
+	}
+
+	async schemaGetCollection(slug: string) {
+		this.requireCapability("schema:read");
+		this.validateCollection(slug);
+		const { createSchemaAccess } = await loadBridgeRuntime();
+		return createSchemaAccess(await this.db()).getCollection(slug);
 	}
 
 	async contentCreate(
 		collection: string,
 		data: Record<string, unknown>,
 		options?: ContentCreateOptions,
-	): Promise<ReturnType<typeof rowToContentItem>> {
+		originHookInput?: string,
+	): Promise<
+		| PluginContentItem
+		| {
+				__emdashContentCreateError: true;
+				error: {
+					code: "CONFLICT" | "NOT_FOUND" | "SAVE_REJECTED" | "VALIDATION_ERROR";
+					message: string;
+				};
+		  }
+	> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:write")) {
 			throw new Error("Missing capability: content:write");
@@ -752,8 +927,52 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
 		const { resolveContentCreateLocale, ulid } = await loadBridgeRuntime();
-		const locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
+		let locale: string;
+		try {
+			locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Invalid locale";
+			return {
+				__emdashContentCreateError: true,
+				error: { code: "VALIDATION_ERROR", message },
+			};
+		}
 		await this.assertMediaUsageActivationWriteAllowed();
+		const runtimeContentCreate = this.ctx.props.contentCreateRuntimeId
+			? contentCreateCallbacks().get(this.ctx.props.contentCreateRuntimeId)
+			: undefined;
+		if (runtimeContentCreate) {
+			const originHook =
+				originHookInput === "content:beforeSave" || originHookInput === "content:afterSave"
+					? originHookInput
+					: undefined;
+			try {
+				return await runtimeContentCreate(this.ctx.props.pluginId, collection, data, {
+					locale,
+					translationOf: options?.translationOf,
+					originHook,
+					sandboxOrigin: true,
+				});
+			} catch (error) {
+				const code =
+					typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+				if (
+					code === "CONFLICT" ||
+					code === "NOT_FOUND" ||
+					code === "SAVE_REJECTED" ||
+					code === "VALIDATION_ERROR"
+				) {
+					return {
+						__emdashContentCreateError: true,
+						error: {
+							code,
+							message: error instanceof Error ? error.message : "Content create failed",
+						},
+					};
+				}
+				throw error;
+			}
+		}
 		const id = ulid();
 		const now = new Date().toISOString();
 		const columns = [
@@ -858,8 +1077,90 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (result.meta?.changes ?? 0) > 0;
 	}
 
+	async commentGet(id: string): Promise<PluginComment | null> {
+		if (!this.ctx.props.capabilities.includes("comments:read")) {
+			throw new Error("Missing capability: comments:read");
+		}
+		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createCommentAccess(db).get(id);
+	}
+
+	async commentList(opts: CommentListOptions = {}): Promise<PaginatedResult<PluginComment>> {
+		if (!this.ctx.props.capabilities.includes("comments:read")) {
+			throw new Error("Missing capability: comments:read");
+		}
+		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createCommentAccess(db).list(opts);
+	}
+
+	async commentCount(opts: CommentCountOptions = {}): Promise<number> {
+		if (!this.ctx.props.capabilities.includes("comments:read")) {
+			throw new Error("Missing capability: comments:read");
+		}
+		const { createCommentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createCommentAccess(db).count(opts);
+	}
+
+	async commentSetStatus(
+		id: string,
+		status: PluginCommentStatus,
+		expectedStatus: PluginCommentStatus,
+	): Promise<
+		| PluginComment
+		| {
+				__emdashCommentError: {
+					code:
+						| "COMMENT_STATUS_CONFLICT"
+						| "COMMENT_MODERATION_IN_PROGRESS"
+						| "COMMENT_STATUS_INVALID";
+					message: string;
+					currentStatus?: string;
+				};
+		  }
+	> {
+		if (!this.ctx.props.capabilities.includes("comments:moderate")) {
+			throw new Error("Missing capability: comments:moderate");
+		}
+		const invalid =
+			invalidCommentStatus(status, "status") ??
+			invalidCommentStatus(expectedStatus, "expectedStatus");
+		if (invalid) {
+			return {
+				__emdashCommentError: {
+					code: "COMMENT_STATUS_INVALID",
+					message: invalid,
+				},
+			};
+		}
+		if (!commentModerateCallback) throw new Error("Comment moderation is unavailable");
+		try {
+			return await commentModerateCallback(this.ctx.props.pluginId, id, status, expectedStatus);
+		} catch (error) {
+			if (typeof error === "object" && error !== null && "code" in error) {
+				const code = error.code;
+				const currentStatus = "currentStatus" in error ? error.currentStatus : undefined;
+				if (
+					(code === "COMMENT_STATUS_CONFLICT" && typeof currentStatus === "string") ||
+					code === "COMMENT_MODERATION_IN_PROGRESS"
+				) {
+					return {
+						__emdashCommentError: {
+							code,
+							message: error instanceof Error ? error.message : "Comment moderation failed",
+							...(typeof currentStatus === "string" ? { currentStatus } : {}),
+						},
+					};
+				}
+			}
+			throw error;
+		}
+	}
+
 	// =========================================================================
-	// Taxonomy Operations (read-only) - gated on taxonomies:read
+	// Taxonomy Operations - capability-gated
 	// =========================================================================
 
 	async taxonomyList(opts: { locale?: string } = {}): Promise<
@@ -972,103 +1273,153 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		return (results.results ?? []).map(rowToTaxonomyTerm);
 	}
 
+	async taxonomyCreateTerm(
+		taxonomy: string,
+		input: Parameters<TaxonomyAccessWithWrite["createTerm"]>[1],
+	) {
+		return this.getTaxonomyWriteAccess().createTerm(taxonomy, input);
+	}
+
+	async taxonomyAddEntryTerms(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	) {
+		return this.getTaxonomyWriteAccess().addEntryTerms(collection, entryId, taxonomy, termIds);
+	}
+
+	async taxonomyRemoveEntryTerms(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	) {
+		return this.getTaxonomyWriteAccess().removeEntryTerms(collection, entryId, taxonomy, termIds);
+	}
+
+	private getTaxonomyWriteAccess(): TaxonomyAccessWithWrite {
+		if (!this.ctx.props.capabilities.includes("taxonomies:write")) {
+			throw new Error("Missing capability: taxonomies:write");
+		}
+		const runtimeId = this.ctx.props.taxonomyWriteRuntimeId;
+		const access = runtimeId ? taxonomyWriteCallbacks().get(runtimeId) : undefined;
+		if (!access) throw new Error("Taxonomy mutations are not available");
+		return access;
+	}
+
+	// =========================================================================
+	// Redirect Operations - runtime-owned, capability-gated
+	// =========================================================================
+
+	async redirectList(
+		options: RedirectListOptions = {},
+	): Promise<RedirectBridgeResult<PaginatedResult<RedirectInfo>>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:read")) {
+			throw new Error("Missing capability: redirects:read");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db).list(options));
+	}
+
+	async redirectGet(id: string): Promise<RedirectBridgeResult<VersionedRedirect | null>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:read")) {
+			throw new Error("Missing capability: redirects:read");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db).get(id));
+	}
+
+	async redirectCreate(
+		input: RedirectCreateInput,
+	): Promise<RedirectBridgeResult<VersionedRedirect>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db, true).create(input));
+	}
+
+	async redirectUpdate(
+		id: string,
+		input: RedirectUpdateInput & { _rev: string },
+	): Promise<RedirectBridgeResult<VersionedRedirect>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db, true).update(id, input));
+	}
+
+	async redirectDelete(id: string, revision: string): Promise<RedirectBridgeResult<boolean>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() =>
+			createRedirectAccess(db, true).delete(id, { _rev: revision }),
+		);
+	}
+
 	// =========================================================================
 	// Media Operations - capability-gated
 	// =========================================================================
 
-	async mediaGet(id: string): Promise<{
-		id: string;
-		filename: string;
-		mimeType: string;
-		size: number | null;
-		url: string;
-		createdAt: string;
-	} | null> {
+	async mediaGet(id: string): Promise<PluginMediaItem | null> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("media:read")) {
 			throw new Error("Missing capability: media:read");
 		}
-		const result = await this.env.DB.prepare("SELECT * FROM media WHERE id = ?").bind(id).first<{
-			id: string;
-			filename: string;
-			mime_type: string;
-			size: number | null;
-			storage_key: string;
-			created_at: string;
-		}>();
-		if (!result) return null;
-		return {
-			id: result.id,
-			filename: result.filename,
-			mimeType: result.mime_type,
-			size: result.size,
-			url: `/_emdash/api/media/file/${result.storage_key}`,
-			createdAt: result.created_at,
-		};
+		const { createMediaAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createMediaAccess(db).get(id);
 	}
 
-	async mediaList(opts: { limit?: number; cursor?: string; mimeType?: string } = {}): Promise<{
-		items: Array<{
-			id: string;
-			filename: string;
-			mimeType: string;
-			size: number | null;
-			url: string;
-			createdAt: string;
-		}>;
-		cursor?: string;
-		hasMore: boolean;
-	}> {
+	async mediaList(
+		opts: { limit?: number; cursor?: string; mimeType?: string } = {},
+	): Promise<{ items: PluginMediaItem[]; cursor?: string; hasMore: boolean }> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("media:read")) {
 			throw new Error("Missing capability: media:read");
 		}
-		const limit = Math.min(opts.limit ?? 50, 100);
-		// Only return ready items (matching core's MediaRepository.findMany default)
-		let sql = "SELECT * FROM media WHERE status = 'ready'";
-		const params: unknown[] = [];
+		const { createMediaAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return createMediaAccess(db).list(opts);
+	}
 
-		if (opts.mimeType) {
-			sql += " AND mime_type LIKE ?";
-			params.push(opts.mimeType + "%");
+	async mediaReadBytes(id: string, maxBytes?: number): Promise<MediaBytes> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("media:bytes:read")) {
+			throw new Error("Missing capability: media:bytes:read");
 		}
-
-		if (opts.cursor) {
-			sql += " AND id < ?";
-			params.push(opts.cursor);
+		if (maxBytes !== undefined && typeof maxBytes !== "number") {
+			throw new TypeError("media/readBytes: maxBytes must be a number");
 		}
+		const { D1Dialect, Kysely, readPluginMediaBytes } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return readPluginMediaBytes(db, mediaStorageCallback ?? undefined, id, { maxBytes });
+	}
 
-		sql += " ORDER BY id DESC LIMIT ?";
-		params.push(limit + 1);
-
-		const results = await this.env.DB.prepare(sql)
-			.bind(...params)
-			.all<{
-				id: string;
-				filename: string;
-				mime_type: string;
-				size: number | null;
-				storage_key: string;
-				created_at: string;
-			}>();
-
-		const rows = results.results ?? [];
-		const pageRows = rows.slice(0, limit);
-		const items = pageRows.map((row) => ({
-			id: row.id,
-			filename: row.filename,
-			mimeType: row.mime_type,
-			size: row.size,
-			url: `/_emdash/api/media/file/${row.storage_key}`,
-			createdAt: row.created_at,
-		}));
-		const hasMore = rows.length > limit;
-
-		return {
-			items,
-			cursor: hasMore && items.length > 0 ? items.at(-1)!.id : undefined,
-			hasMore,
-		};
+	async mediaUpdateMetadata(id: string, patch: unknown): Promise<PluginMediaItem> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("media:metadata:write")) {
+			throw new Error("Missing capability: media:metadata:write");
+		}
+		const { D1Dialect, Kysely, parsePluginMediaMetadataPatch, updatePluginMediaMetadata } =
+			await loadBridgeRuntime();
+		const parsed: MediaMetadataPatch = parsePluginMediaMetadataPatch(patch);
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return updatePluginMediaMetadata(db, id, parsed);
 	}
 
 	/**

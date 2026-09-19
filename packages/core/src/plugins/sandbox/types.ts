@@ -10,7 +10,17 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import type { PluginManifest, RequestMeta, UserInfo } from "../types.js";
+import type {
+	ContentCreateOptions,
+	ContentItem,
+	ContentWriteInput,
+	PluginComment,
+	PluginCommentStatus,
+	PluginManifest,
+	RequestMeta,
+	TaxonomyAccessWithWrite,
+	UserInfo,
+} from "../types.js";
 
 /**
  * Resource limits for sandboxed plugins.
@@ -61,6 +71,23 @@ export type SandboxEmailSendCallback = (
 	pluginId: string,
 ) => Promise<void>;
 
+export type SandboxCommentModerateCallback = (
+	pluginId: string,
+	id: string,
+	status: PluginCommentStatus,
+	expectedStatus: PluginCommentStatus,
+) => Promise<PluginComment>;
+
+export type SandboxContentCreateCallback = (
+	pluginId: string,
+	collection: string,
+	data: ContentWriteInput,
+	options?: ContentCreateOptions & {
+		originHook?: "content:beforeSave" | "content:afterSave";
+		sandboxOrigin?: true;
+	},
+) => Promise<ContentItem>;
+
 /**
  * Options for creating a sandbox runner
  */
@@ -71,6 +98,8 @@ export interface SandboxOptions {
 	db: Kysely<Database>;
 	/** Called immediately before a sandboxed plugin content mutation. */
 	beforeContentWrite?: () => Promise<void>;
+	/** Runtime-owned taxonomy mutation surface used by sandbox bridges. */
+	taxonomyWrite?: TaxonomyAccessWithWrite;
 	/** Clock used to calculate recurring plugin task schedules. */
 	now?: () => Date;
 	/** Default resource limits */
@@ -84,13 +113,18 @@ export interface SandboxOptions {
 	};
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
+	commentModerate?: SandboxCommentModerateCallback;
 	/**
-	 * Media storage adapter for sandboxed plugin uploads and deletes.
-	 * When provided, plugins with write:media can upload and delete files
-	 * via ctx.media.upload() and ctx.media.delete().
+	 * Media storage adapter for sandboxed plugin byte reads, uploads, and deletes.
+	 * Each operation remains gated by its own media capability.
 	 */
 	mediaStorage?: {
 		upload(options: { key: string; body: Uint8Array; contentType: string }): Promise<unknown>;
+		download(key: string): Promise<{
+			body: ReadableStream<Uint8Array>;
+			contentType: string;
+			size: number;
+		}>;
 		delete(key: string): Promise<unknown>;
 	};
 	/** Worker Loader name suffix. The plugin's logical ID remains unchanged. */
@@ -265,6 +299,8 @@ export interface SandboxRunner {
 	 * doesn't exist when the sandbox runner is constructed.
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void;
+	setCommentModerate?(callback: SandboxCommentModerateCallback | null): void;
+	setContentCreate?(callback: SandboxContentCreateCallback | null): void;
 
 	/** Wake a long-lived scheduler after a sandboxed plugin changes its tasks. */
 	setCronReschedule?(callback: (() => void) | null): void;

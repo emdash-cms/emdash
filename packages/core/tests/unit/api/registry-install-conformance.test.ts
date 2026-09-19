@@ -435,7 +435,7 @@ describe("registry delegated-release conformance", () => {
 
 		const next = await createDelegatedReleaseConformanceFixture({
 			version: "1.2.4",
-			declaredAccess: { content: { read: {} }, users: { read: {} } },
+			declaredAccess: { content: { read: {} }, comments: { moderate: {} } },
 		});
 		await context.publisher.repo.putRecord(
 			"com.emdashcms.experimental.package.release",
@@ -463,7 +463,7 @@ describe("registry delegated-release conformance", () => {
 			error: {
 				code: "CAPABILITY_ESCALATION",
 				details: {
-					capabilityChanges: { added: ["users:read"] },
+					capabilityChanges: { added: ["comments:moderate", "comments:read"] },
 					verification: { provenance: "verified" },
 				},
 			},

@@ -696,8 +696,8 @@ describe("taxonomy_update_term (bug #13 / F2 / F12)", () => {
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
-		await setupTaxonomy(db, { name: "tags", label: "Tags" });
-		await setupTaxonomy(db, { name: "sections", label: "Sections" });
+		await setupTaxonomy(db, { name: "tags", label: "Tags", hierarchical: true });
+		await setupTaxonomy(db, { name: "sections", label: "Sections", hierarchical: true });
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 	});
 
@@ -878,7 +878,7 @@ describe("taxonomy_delete_term (bug #13 / F12)", () => {
 
 	beforeEach(async () => {
 		db = await setupTestDatabase();
-		await setupTaxonomy(db, { name: "tags", label: "Tags" });
+		await setupTaxonomy(db, { name: "tags", label: "Tags", hierarchical: true });
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 	});
 

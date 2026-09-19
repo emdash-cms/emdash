@@ -20,6 +20,8 @@ import {
 	type SandboxRunner,
 	type SandboxedPluginInstance,
 	type SandboxEmailSendCallback,
+	type SandboxCommentModerateCallback,
+	type SandboxContentCreateCallback,
 	type SandboxOptions,
 	type SandboxRunnerFactory,
 	type SerializedRequest,
@@ -28,7 +30,15 @@ import {
 	type I18nConfig,
 } from "emdash";
 
-import { setCronNowCallback, setCronRescheduleCallback, setEmailSendCallback } from "./bridge.js";
+import {
+	setCommentModerateCallback,
+	setContentCreateCallback,
+	setCronNowCallback,
+	setCronRescheduleCallback,
+	setEmailSendCallback,
+	setMediaStorageCallback,
+	setTaxonomyWriteCallback,
+} from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
@@ -54,7 +64,15 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	contentCreateRuntimeId?: string;
+	taxonomyWriteRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
+	siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 	storageConfig?: Record<
 		string,
 		{ indexes?: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
@@ -109,6 +127,8 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	private plugins = new Map<string, CloudflareSandboxedPlugin>();
 	private options: SandboxOptions;
 	private resolvedLimits: ResolvedLimits;
+	private readonly contentCreateRuntimeId = crypto.randomUUID();
+	private readonly taxonomyWriteRuntimeId = crypto.randomUUID();
 	private siteInfo?: {
 		name: string;
 		url: string;
@@ -124,6 +144,9 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		// Wire email send callback if provided at construction time
 		setEmailSendCallback(options.emailSend ?? null);
 		setCronNowCallback(options.now ?? null);
+		setMediaStorageCallback(options.mediaStorage ?? null);
+		setCommentModerateCallback(options.commentModerate ?? null);
+		setTaxonomyWriteCallback(this.taxonomyWriteRuntimeId, options.taxonomyWrite ?? null);
 	}
 
 	/**
@@ -133,6 +156,14 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		setEmailSendCallback(callback);
+	}
+
+	setCommentModerate(callback: SandboxCommentModerateCallback | null): void {
+		setCommentModerateCallback(callback);
+	}
+
+	setContentCreate(callback: SandboxContentCreateCallback | null): void {
+		setContentCreateCallback(this.contentCreateRuntimeId, callback);
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
@@ -196,6 +227,8 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			this.resolvedLimits,
 			this.siteInfo,
 			this.options.isolateKey,
+			this.contentCreateRuntimeId,
+			this.taxonomyWriteRuntimeId,
 		);
 
 		this.plugins.set(pluginId, plugin);
@@ -210,6 +243,8 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			await plugin.terminate();
 		}
 		this.plugins.clear();
+		setContentCreateCallback(this.contentCreateRuntimeId, null);
+		setTaxonomyWriteCallback(this.taxonomyWriteRuntimeId, null);
 	}
 }
 
@@ -249,6 +284,8 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 			trailingSlash?: "always" | "never" | "ignore";
 		},
 		isolateKey?: string,
+		private contentCreateRuntimeId?: string,
+		private taxonomyWriteRuntimeId?: string,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
 		this.workerName = isolateKey ? `${this.id}:${isolateKey}` : this.id;
@@ -285,14 +322,21 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		// the rename (or sites still using the legacy alias layer) keep
 		// working — `normalizeCapabilities` rewrites legacy names like
 		// `read:content` → `content:read` and `network:fetch` → `network:request`.
+		const capabilities = normalizeCapabilities(this.manifest.capabilities || []);
+		if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
+			capabilities.push("comments:read");
+		}
 		const bridgeBinding = this.createBridge({
 			props: {
 				pluginId: this.manifest.id,
 				pluginVersion: this.manifest.version || "0.0.0",
-				capabilities: normalizeCapabilities(this.manifest.capabilities || []),
+				capabilities,
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
+				contentCreateRuntimeId: this.contentCreateRuntimeId,
+				taxonomyWriteRuntimeId: this.taxonomyWriteRuntimeId,
 				i18nConfig: getI18nConfig(),
+				siteInfo: this.siteInfo,
 				storageConfig: this.manifest.storage,
 				settingsSchema: this.manifest.admin?.settingsSchema,
 			},

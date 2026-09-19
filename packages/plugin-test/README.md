@@ -36,4 +36,6 @@ await host.dispose();
 
 The configuration builds the plugin and supplies local D1 and Worker Loader bindings through `@cloudflare/vitest-plugin`. Both hosts load the built code through EmDash's production Cloudflare sandbox runner and `PluginBridge`. The runtime host separates direct transport calls, fixtures, production actions, inspectors, scheduled time control, restart, and disposal.
 
+Redirect plugins can create fixture rules with `host.fixtures.redirect()` and inspect persisted rules with `host.inspect.redirects()`. Call the plugin through `host.actions.routes.request()` to cover the production route dispatcher and redirect bridge.
+
 Read [Test sandboxed plugins](https://docs.emdashcms.com/plugins/creating-plugins/testing/) for hooks, content fixtures, storage assertions, and test boundaries.

@@ -328,6 +328,15 @@ describe("ManifestSchema (full document)", () => {
 		expect(result.success).toBe(true);
 	});
 
+	it("accepts redirect read and write capabilities", () => {
+		expect(
+			ManifestSchema.safeParse({
+				...minimal,
+				capabilities: ["redirects:read", "redirects:write"],
+			}).success,
+		).toBe(true);
+	});
+
 	it("accepts a manifest with a release.artifacts block", () => {
 		const result = ManifestSchema.safeParse({
 			...minimal,

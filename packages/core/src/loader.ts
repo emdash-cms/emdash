@@ -1168,6 +1168,20 @@ export async function getDb(): Promise<Kysely<Database>> {
 	return dbInstance;
 }
 
+/** @internal Date projection for published archive entries. */
+export async function loadPublishedDates(type: string, locale?: string) {
+	const tableName = getTableName(type);
+	const db = await getDb();
+	const result = await sql<{ published_at: string | null; updated_at: string | null }>`
+		SELECT published_at, updated_at FROM ${sql.ref(tableName)}
+		WHERE deleted_at IS NULL
+		AND ${buildStatusCondition(db, "published")}
+		${locale ? sql`AND locale = ${locale}` : sql``}
+		ORDER BY published_at DESC, id DESC
+	`.execute(db);
+	return result.rows;
+}
+
 /**
  * Create an EmDash Live Collections loader
  *

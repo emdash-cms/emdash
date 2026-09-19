@@ -539,6 +539,16 @@ describe("adaptSandboxEntry", () => {
 			expect(result.capabilities).toContain("content:read");
 		});
 
+		it("normalizes content:revisions:read to include content:read", () => {
+			const def: SandboxedPlugin = {};
+			const descriptor = createDescriptor({ capabilities: ["content:revisions:read"] });
+
+			const result = adaptSandboxEntry(def, descriptor);
+
+			expect(result.capabilities).toContain("content:revisions:read");
+			expect(result.capabilities).toContain("content:read");
+		});
+
 		it("normalizes media:write to include media:read", () => {
 			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({ capabilities: ["media:write"] });
@@ -547,6 +557,14 @@ describe("adaptSandboxEntry", () => {
 
 			expect(result.capabilities).toContain("media:write");
 			expect(result.capabilities).toContain("media:read");
+		});
+
+		it("normalizes comments:moderate to include comments:read", () => {
+			const result = adaptSandboxEntry(
+				{},
+				createDescriptor({ capabilities: ["comments:moderate"] }),
+			);
+			expect(result.capabilities).toEqual(["comments:moderate", "comments:read"]);
 		});
 
 		it("normalizes network:request:unrestricted to include network:request", () => {

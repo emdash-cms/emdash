@@ -53,6 +53,7 @@ async function runMigrations(db: Kysely<any>) {
 		.createTable("options")
 		.addColumn("name", "text", (col) => col.primaryKey())
 		.addColumn("value", "text", (col) => col.notNull())
+		.addColumn("revision", "text", (col) => col.notNull().defaultTo("0"))
 		.execute();
 
 	await db.schema
@@ -106,6 +107,41 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("storage_key", "text", (col) => col.notNull())
 		.addColumn("status", "text", (col) => col.notNull().defaultTo("pending"))
 		.addColumn("created_at", "text", (col) => col.notNull())
+		.execute();
+
+	await db.schema
+		.createTable("_emdash_redirects")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("source", "text", (col) => col.notNull())
+		.addColumn("destination", "text", (col) => col.notNull())
+		.addColumn("type", "integer", (col) => col.notNull())
+		.addColumn("is_pattern", "integer", (col) => col.notNull())
+		.addColumn("enabled", "integer", (col) => col.notNull())
+		.addColumn("hits", "integer", (col) => col.notNull())
+		.addColumn("last_hit_at", "text")
+		.addColumn("group_name", "text")
+		.addColumn("auto", "integer", (col) => col.notNull())
+		.addColumn("config_revision", "text", (col) => col.notNull())
+		.addColumn("source_guard", "integer", (col) => col.notNull())
+		.addColumn("write_generation", "integer", (col) => col.notNull())
+		.addColumn("created_at", "text", (col) => col.notNull())
+		.addColumn("updated_at", "text", (col) => col.notNull())
+		.execute();
+	await sql`
+		CREATE UNIQUE INDEX idx_redirects_managed_source
+		ON _emdash_redirects (source)
+		WHERE source_guard = 1
+	`.execute(db);
+	await db.schema
+		.createTable("_emdash_redirect_write_lock")
+		.addColumn("id", "integer", (col) => col.primaryKey())
+		.addColumn("token", "text", (col) => col.notNull())
+		.addColumn("expires_at", "integer", (col) => col.notNull())
+		.addColumn("generation", "integer", (col) => col.notNull())
+		.execute();
+	await db
+		.insertInto("_emdash_redirect_write_lock" as any)
+		.values({ id: 1, token: "", expires_at: 0, generation: 0 })
 		.execute();
 
 	// Content table for posts (created by SchemaRegistry in real code)
@@ -204,6 +240,12 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		return response.json() as Promise<{ result?: unknown; error?: string }>;
 	}
 
+	function bridgeResultState(result: { result?: unknown }): boolean | undefined {
+		const value = result.result;
+		if (typeof value !== "object" || value === null || !("ok" in value)) return undefined;
+		return value.ok === true ? true : value.ok === false ? false : undefined;
+	}
+
 	// ── Mirrors sandboxed-test plugin's kv/test route ────────────────────
 
 	it("KV round-trip: set, get, delete", async () => {
@@ -226,6 +268,63 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		// Verify deleted
 		const afterDelete = await call(handler, "kv/get", { key: "sandbox-test-key" });
 		expect(afterDelete.result).toBeNull();
+	});
+
+	it("redirect operations preserve version conflicts and host-owned markers", async () => {
+		const handler = createBridgeHandler({
+			pluginId: "redirect-plugin",
+			version: "1.0.0",
+			capabilities: ["redirects:write", "redirects:read"],
+			allowedHosts: [],
+			storageCollections: [],
+			db,
+			emailSend: () => null,
+		});
+		const created = await call(handler, "redirect/create", {
+			input: { source: "/legacy", destination: "/current" },
+		});
+		const versioned = (created.result as { value: { redirect: { id: string }; _rev: string } })
+			.value;
+
+		const updated = await call(handler, "redirect/update", {
+			id: versioned.redirect.id,
+			input: { destination: "/latest", _rev: versioned._rev },
+		});
+		expect(updated.result).toMatchObject({
+			ok: true,
+			value: { redirect: { destination: "/latest", auto: false } },
+		});
+
+		const stale = await call(handler, "redirect/update", {
+			id: versioned.redirect.id,
+			input: { destination: "/lost", _rev: versioned._rev },
+		});
+		expect(stale.result).toMatchObject({ ok: false, error: { code: "CONFLICT" } });
+
+		const forged = await call(handler, "redirect/create", {
+			input: { source: "/forged", destination: "/target", auto: true },
+		});
+		expect(forged.result).toMatchObject({
+			ok: false,
+			error: { code: "VALIDATION_ERROR" },
+		});
+
+		const concurrent = await Promise.all([
+			call(handler, "redirect/create", {
+				input: { source: "/same", destination: "/first" },
+			}),
+			call(handler, "redirect/create", {
+				input: { source: "/same", destination: "/second" },
+			}),
+		]);
+		expect(concurrent.filter((result) => bridgeResultState(result) === true)).toHaveLength(1);
+		expect(concurrent.filter((result) => bridgeResultState(result) === false)).toHaveLength(1);
+	});
+
+	it("denies redirect reads without redirects:read", async () => {
+		const handler = makePluginHandler();
+		const result = await call(handler, "redirect/list");
+		expect(result.error).toContain("redirects:read");
 	});
 
 	// ── Mirrors sandboxed-test plugin's storage/test route ───────────────
@@ -538,8 +637,14 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				options: { locale: "de" },
 			});
 
-			expect(malformed.error).toMatch(/invalid locale code/i);
-			expect(unknown.error).toMatch(/not configured/i);
+			expect(malformed.error).toMatchObject({
+				code: "VALIDATION_ERROR",
+				message: expect.stringMatching(/invalid locale code/i),
+			});
+			expect(unknown.error).toMatchObject({
+				code: "VALIDATION_ERROR",
+				message: expect.stringMatching(/not configured/i),
+			});
 			expect(
 				await db
 					.selectFrom("ec_posts" as any)
@@ -628,6 +733,37 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 
 		const listResult = await call(writeOnlyHandler, "media/list", {});
 		expect(listResult.error).toContain("Missing capability: media:read");
+	});
+
+	it("keeps media metadata, bytes, and metadata mutation independently gated", async () => {
+		const metadataOnly = createBridgeHandler({
+			pluginId: "metadata-only-media",
+			version: "1.0.0",
+			capabilities: ["media:read"],
+			allowedHosts: [],
+			storageCollections: [],
+			db,
+			emailSend: () => null,
+		});
+		const bytesResult = await call(metadataOnly, "media/readBytes", { id: "any" });
+		expect(bytesResult.error).toContain("Missing capability: media:bytes:read");
+		const updateResult = await call(metadataOnly, "media/updateMetadata", {
+			id: "any",
+			patch: { alt: "Changed" },
+		});
+		expect(updateResult.error).toContain("Missing capability: media:metadata:write");
+
+		const bytesOnly = createBridgeHandler({
+			pluginId: "bytes-only-media",
+			version: "1.0.0",
+			capabilities: ["media:bytes:read"],
+			allowedHosts: [],
+			storageCollections: [],
+			db,
+			emailSend: () => null,
+		});
+		const getResult = await call(bytesOnly, "media/get", { id: "any" });
+		expect(getResult.error).toContain("Missing capability: media:read");
 	});
 
 	it("sandboxed-test plugin cannot send email (not in capabilities)", async () => {

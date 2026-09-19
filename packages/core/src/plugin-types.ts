@@ -78,6 +78,9 @@ import type {
 	LifecycleEvent,
 	LifecycleHandler,
 	MediaAfterUploadEvent,
+	MediaBytes,
+	MediaItem,
+	MediaMetadataPatch,
 	MediaAfterUploadHandler,
 	MediaBeforeUploadHandler,
 	MediaUploadEvent,
@@ -291,6 +294,9 @@ export type {
 	EmailDeliverEvent,
 	LifecycleEvent,
 	MediaAfterUploadEvent,
+	MediaBytes,
+	MediaItem,
+	MediaMetadataPatch,
 	MediaUploadEvent,
 	PageFragmentEvent,
 	PageMetadataEvent,
@@ -299,8 +305,17 @@ export type {
 };
 
 export type {
+	PaginatedResult,
 	VersionedValue,
 	ConditionalWriteResult,
 	ConditionalDeleteResult,
 	SettingsAccess,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
 } from "./plugins/types.js";

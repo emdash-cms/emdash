@@ -9,7 +9,12 @@
  */
 
 import Database from "better-sqlite3";
-import { createSandboxRouteError, SchemaRegistry } from "emdash";
+import {
+	ContentRepository,
+	createSandboxRouteError,
+	RevisionRepository,
+	SchemaRegistry,
+} from "emdash";
 import type { RuntimeDependencies } from "emdash/plugin-test-runtime";
 import { Kysely, SqliteDialect, type QueryId } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -87,6 +92,28 @@ async function setupTables(db: Kysely<any>) {
 		.addColumn("locked_at", "text")
 		.addColumn("enabled", "integer", (col) => col.notNull())
 		.addUniqueConstraint("uq_cron_plugin_task", ["plugin_id", "task_name"])
+		.execute();
+
+	await db.schema
+		.createTable("media")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("filename", "text", (col) => col.notNull())
+		.addColumn("mime_type", "text", (col) => col.notNull())
+		.addColumn("size", "integer")
+		.addColumn("width", "integer")
+		.addColumn("height", "integer")
+		.addColumn("focal_x", "real")
+		.addColumn("focal_y", "real")
+		.addColumn("alt", "text")
+		.addColumn("caption", "text")
+		.addColumn("storage_key", "text", (col) => col.notNull())
+		.addColumn("status", "text", (col) => col.notNull())
+		.addColumn("content_hash", "text")
+		.addColumn("blurhash", "text")
+		.addColumn("dominant_color", "text")
+		.addColumn("created_at", "text", (col) => col.notNull())
+		.addColumn("author_id", "text")
+		.addColumn("folder_id", "text")
 		.execute();
 }
 
@@ -231,12 +258,107 @@ export default {
 	hooks: {
 		"content:beforeSave": async (event, ctx) => {
 			await ctx.kv.set("saw-save", true);
-			return { ...event.content, title: event.content.title + " [workerd]" };
+			if (event.content.rejectSave === true) {
+				return {
+					__emdashSandboxHookResult: true,
+					version: 1,
+					error: { code: "SAVE_REJECTED", reason: "Translation needs review" }
+				};
+			}
+			if (event.content.createCompanion === true) {
+				await ctx.content.create("posts", { title: "Companion" });
+			}
+			const content = { ...event.content };
+			delete content.createCompanion;
+			return { ...content, title: event.content.title + " [workerd]" };
 		}
 	},
 	routes: {
 		"state": {
 			handler: async (_route, ctx) => ({ isolateId: isolateId ??= crypto.randomUUID(), sawSave: await ctx.kv.get("saw-save") })
+		},
+		"translate": {
+			handler: async (route, ctx) => ctx.content.create(
+				"posts",
+				{ title: route.input.title },
+				{
+					locale: route.input.locale,
+					translationOf: route.input.translationOf,
+					__emdashOriginHook: "content:beforeSave"
+				}
+			)
+		},
+		"translate-error": {
+			handler: async (route, ctx) => {
+				try {
+					await ctx.content.create(
+						"posts",
+						{ title: "Attempt", rejectSave: route.input.rejectSave },
+						{ locale: route.input.locale, translationOf: route.input.translationOf }
+					);
+					return { unexpectedSuccess: true };
+				} catch (error) {
+					return { name: error.name, code: error.code, message: error.message };
+				}
+			}
+		}
+	}
+};
+`;
+
+const CONTENT_DISCOVERY_PLUGIN = `
+export default {
+	hooks: {},
+	routes: {
+		"discover": {
+			handler: async (route, ctx) => ({
+				schema: await ctx.schema.getCollection("posts"),
+				item: await ctx.content.get("posts", route.input.id),
+				translations: await ctx.content.getTranslations("posts", route.input.id),
+				publicUrl: await ctx.content.getPublicUrl("posts", route.input.id),
+				revisions: await ctx.content.listRevisions("posts", route.input.id)
+			})
+		},
+		"revisions": {
+			handler: async (route, ctx) => ({
+				list: await ctx.content.listRevisions("posts", route.input.id),
+				item: await ctx.content.getRevision("posts", route.input.id, route.input.revisionId)
+			})
+		}
+	}
+};
+`;
+
+const TAXONOMY_WRITE_PLUGIN = `
+export default {
+	routes: {
+		create: {
+			handler: async (route, ctx) => ctx.taxonomies.createTerm("category", route.input)
+		},
+		add: {
+			handler: async (route, ctx) => ctx.taxonomies.addEntryTerms("posts", route.input.entryId, "category", route.input.termIds)
+		},
+		remove: {
+			handler: async (route, ctx) => ctx.taxonomies.removeEntryTerms("posts", route.input.entryId, "category", route.input.termIds)
+		}
+	}
+};
+`;
+
+const MEDIA_PLUGIN = `
+export default {
+	routes: {
+		"get": {
+			handler: async (route, ctx) => ctx.media.get(route.input.id)
+		},
+		"read": {
+			handler: async (route, ctx) => {
+				const result = await ctx.media.readBytes(route.input.id, { maxBytes: route.input.maxBytes });
+				return { ...result, bytes: Array.from(result.bytes) };
+			}
+		},
+		"update": {
+			handler: async (route, ctx) => ctx.media.updateMetadata(route.input.id, route.input.patch)
 		}
 	}
 };
@@ -288,6 +410,102 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(result.input).toEqual({ hello: "world" });
 	}, 30_000);
 
+	it("preserves bounded media bytes and metadata through a real workerd process", async () => {
+		const stored = new Map([["private/original.bin", new Uint8Array([0, 255, 17, 42])]]);
+		runner = new WorkerdSandboxRunner({
+			db,
+			mediaStorage: {
+				async upload({ key, body }) {
+					stored.set(key, new Uint8Array(body));
+				},
+				async download(key) {
+					const bytes = stored.get(key);
+					if (!bytes) throw new Error("Missing test object");
+					return {
+						body: new Blob([bytes.slice().buffer]).stream(),
+						contentType: "application/octet-stream",
+						size: 1,
+					};
+				},
+				async delete(key) {
+					stored.delete(key);
+				},
+			},
+		});
+		await db
+			.insertInto("media" as any)
+			.values({
+				id: "media-1",
+				filename: "original.bin",
+				mime_type: "application/octet-stream",
+				size: 1,
+				storage_key: "private/original.bin",
+				status: "ready",
+				content_hash: "sha1:original",
+				created_at: "2030-01-02T03:04:05.000Z",
+				author_id: "private-author",
+			})
+			.execute();
+		const plugin = await runner.load(
+			{
+				id: "test-media",
+				version: "1.0.0",
+				capabilities: ["media:read", "media:bytes:read", "media:metadata:write"],
+				allowedHosts: [],
+				storage: {},
+			},
+			MEDIA_PLUGIN,
+		);
+
+		await expect(
+			plugin.invokeRoute(
+				"read",
+				{ id: "media-1", maxBytes: 3 },
+				{ method: "POST", url: "/api/media/read", headers: {} },
+			),
+		).rejects.toThrow("Media exceeds the requested 3-byte limit");
+		await expect(
+			plugin.invokeRoute(
+				"read",
+				{ id: "media-1", maxBytes: 4 },
+				{ method: "POST", url: "/api/media/read", headers: {} },
+			),
+		).resolves.toEqual({
+			bytes: [0, 255, 17, 42],
+			filename: "original.bin",
+			mimeType: "application/octet-stream",
+			size: 4,
+			contentHash: "sha1:original",
+		});
+
+		const metadata = await plugin.invokeRoute(
+			"get",
+			{ id: "media-1" },
+			{ method: "POST", url: "/api/media/get", headers: {} },
+		);
+		expect(metadata).not.toHaveProperty("storageKey");
+		expect(metadata).not.toHaveProperty("authorId");
+		expect(metadata).not.toHaveProperty("contentHash");
+		await expect(
+			plugin.invokeRoute(
+				"update",
+				{ id: "media-1", patch: { alt: "Binary fixture" } },
+				{ method: "POST", url: "/api/media/update", headers: {} },
+			),
+		).resolves.toMatchObject({ id: "media-1", alt: "Binary fixture" });
+		await expect(
+			db
+				.selectFrom("media" as any)
+				.selectAll()
+				.where("id" as any, "=", "media-1")
+				.executeTakeFirst(),
+		).resolves.toMatchObject({
+			alt: "Binary fixture",
+			storage_key: "private/original.bin",
+			content_hash: "sha1:original",
+		});
+	}, 30_000);
+
 	it("runs an equivalent runtime content and cold-restart journey through workerd", async () => {
 		const { EmDashRuntime } = await import("emdash/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
@@ -314,7 +532,11 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					allowedHosts: [],
 					storage: {},
 					hooks: ["content:beforeSave"],
-					routes: [{ name: "state", public: true }],
+					routes: [
+						{ name: "state", public: true },
+						{ name: "translate", public: true },
+						{ name: "translate-error", public: true },
+					],
 				},
 			],
 			createSandboxRunner: (options) => new WorkerdSandboxRunner(options),
@@ -333,6 +555,63 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				data: { item: { data: { title: "Original [workerd]" } } },
 			});
 			if (!created.success) return;
+			const translated = await runtime.handlePluginApiRoute(
+				"runtime-workerd",
+				"POST",
+				"/translate",
+				new Request("https://test.local/translate", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						title: "Bonjour",
+						locale: "fr",
+						translationOf: created.data.item.id,
+					}),
+				}),
+			);
+			expect(translated).toMatchObject({
+				success: true,
+				data: {
+					locale: "fr",
+					translationGroup: created.data.item.translationGroup,
+					data: { title: "Bonjour [workerd]" },
+				},
+			});
+			const nested = await runtime.handleContentCreate("posts", {
+				data: { title: "Nested", createCompanion: true },
+			});
+			expect(nested).toMatchObject({
+				success: true,
+				data: { item: { data: { title: "Nested [workerd]" } } },
+			});
+			const items = await new ContentRepository(runtime.db).findMany("posts", { limit: 10 });
+			expect(items.items).toEqual(
+				expect.arrayContaining([
+					expect.objectContaining({ data: { title: "Nested [workerd]" } }),
+					expect.objectContaining({ data: { title: "Companion" } }),
+				]),
+			);
+			for (const [input, code] of [
+				[{ title: "Duplicate", locale: "fr", translationOf: created.data.item.id }, "CONFLICT"],
+				[{ title: "Missing", locale: "fr", translationOf: "missing" }, "NOT_FOUND"],
+				[
+					{ title: "Invalid", locale: "not_configured", translationOf: created.data.item.id },
+					"VALIDATION_ERROR",
+				],
+				[{ title: "Rejected", locale: "de", rejectSave: true }, "SAVE_REJECTED"],
+			] as const) {
+				const failed = await runtime.handlePluginApiRoute(
+					"runtime-workerd",
+					"POST",
+					"/translate-error",
+					new Request("https://test.local/translate-error", {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify(input),
+					}),
+				);
+				expect(failed).toMatchObject({ success: true, data: { name: code, code } });
+			}
 			const first = await runtime.handlePluginApiRoute(
 				"runtime-workerd",
 				"GET",
@@ -351,6 +630,221 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 			expect(second.success && first.success && second.data.isolateId).not.toBe(
 				first.success ? first.data.isolateId : undefined,
 			);
+		} finally {
+			await runtime.shutdown();
+			await runtime.db.destroy();
+			runtimeSqlite.close();
+		}
+	}, 30_000);
+
+	it("discovers schema, content identity, public URLs, and revisions through real workerd", async () => {
+		const { EmDashRuntime } = await import("emdash/plugin-test-runtime");
+		const runtimeSqlite = new Database(":memory:");
+		const deps: RuntimeDependencies = {
+			config: {
+				database: {
+					entrypoint: `workerd-discovery-${crypto.randomUUID()}`,
+					type: "sqlite",
+					config: {},
+				},
+			},
+			plugins: [],
+			createDialect: () => new SqliteDialect({ database: runtimeSqlite }),
+			createStorage: null,
+			createScheduler: null,
+			sandboxEnabled: true,
+			sandboxedPluginEntries: [
+				{
+					id: "workerd-discovery",
+					version: "1.0.0",
+					options: {},
+					code: CONTENT_DISCOVERY_PLUGIN,
+					capabilities: ["schema:read", "content:read", "content:revisions:read"],
+					allowedHosts: [],
+					storage: {},
+					hooks: [],
+					routes: [
+						{ name: "discover", public: true },
+						{ name: "revisions", public: true },
+					],
+				},
+			],
+			createSandboxRunner: (options) => new WorkerdSandboxRunner(options),
+			siteInfo: {
+				url: "https://example.test",
+				locale: "en",
+				trailingSlash: "always",
+			},
+		};
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			await new SchemaRegistry(runtime.db).createCollection({
+				slug: "posts",
+				label: "Posts",
+				urlPattern: "/journal/{slug}",
+			});
+			await new SchemaRegistry(runtime.db).createField("posts", {
+				slug: "title",
+				label: "Title",
+				type: "string",
+			});
+			const post = await new ContentRepository(runtime.db).create({
+				type: "posts",
+				slug: "hello",
+				status: "published",
+				locale: "en",
+				authorId: "author-1",
+				data: { title: "Hello" },
+			});
+			const revision = await new RevisionRepository(runtime.db).create({
+				collection: "posts",
+				entryId: post.id,
+				data: { title: "Retained" },
+			});
+			const result = await runtime.handlePluginApiRoute(
+				"workerd-discovery",
+				"POST",
+				"/discover",
+				new Request("https://example.test/discover", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ id: post.id }),
+				}),
+			);
+
+			expect(result).toMatchObject({
+				success: true,
+				data: {
+					schema: { slug: "posts", fields: [{ slug: "title" }] },
+					item: { id: post.id, authorId: "author-1", version: 1 },
+					publicUrl: "https://example.test/journal/hello/",
+					revisions: [{ data: { title: "Retained" } }],
+				},
+			});
+			await new ContentRepository(runtime.db).delete("posts", post.id);
+			const hidden = await runtime.handlePluginApiRoute(
+				"workerd-discovery",
+				"POST",
+				"/revisions",
+				new Request("https://example.test/revisions", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ id: post.id, revisionId: revision.id }),
+				}),
+			);
+			expect(hidden).toEqual({ success: true, data: { list: [], item: null } });
+		} finally {
+			await runtime.shutdown();
+			await runtime.db.destroy();
+			runtimeSqlite.close();
+		}
+	}, 30_000);
+
+	it("runs runtime-owned taxonomy mutations through a real workerd isolate", async () => {
+		const { EmDashRuntime, TaxonomyRepository } = await import("emdash/plugin-test-runtime");
+		const runtimeSqlite = new Database(":memory:");
+		const deps: RuntimeDependencies = {
+			config: {
+				database: {
+					entrypoint: `workerd-taxonomies-${crypto.randomUUID()}`,
+					type: "sqlite",
+					config: {},
+				},
+			},
+			plugins: [],
+			createDialect: () => new SqliteDialect({ database: runtimeSqlite }),
+			createStorage: null,
+			createScheduler: null,
+			sandboxEnabled: true,
+			sandboxedPluginEntries: [
+				{
+					id: "taxonomy-writer",
+					version: "1.0.0",
+					options: {},
+					code: TAXONOMY_WRITE_PLUGIN,
+					capabilities: ["taxonomies:read", "taxonomies:write"],
+					allowedHosts: [],
+					storage: {},
+					hooks: [],
+					routes: [{ name: "create" }, { name: "add" }, { name: "remove" }],
+				},
+				{
+					id: "taxonomy-reader",
+					version: "1.0.0",
+					options: {},
+					code: TAXONOMY_WRITE_PLUGIN,
+					capabilities: ["taxonomies:read"],
+					allowedHosts: [],
+					storage: {},
+					hooks: [],
+					routes: [{ name: "add" }],
+				},
+			],
+			createSandboxRunner: (options) => new WorkerdSandboxRunner(options),
+		};
+		const runtime = await EmDashRuntime.create(deps);
+		try {
+			await new SchemaRegistry(runtime.db).createCollection({ slug: "posts", label: "Posts" });
+			const content = await runtime.handleContentCreate("posts", { data: {} });
+			if (!content.success) throw new Error(content.error.message);
+			await runtime.db
+				.updateTable("_emdash_taxonomy_defs")
+				.set({ collections: '["posts"]' })
+				.where("name", "in", ["category", "tag"])
+				.execute();
+			const taxonomyRepo = new TaxonomyRepository(runtime.db);
+			const news = await taxonomyRepo.create({
+				name: "category",
+				slug: "news",
+				label: "News",
+				locale: "en",
+			});
+			const unrelated = await taxonomyRepo.create({
+				name: "tag",
+				slug: "ai",
+				label: "AI",
+				locale: "en",
+			});
+			const writer = runtime.sandboxedPlugins.get("taxonomy-writer:1.0.0");
+			const reader = runtime.sandboxedPlugins.get("taxonomy-reader:1.0.0");
+			if (!writer || !reader) throw new Error("Taxonomy workerd isolates were not loaded");
+			const request = { method: "POST", url: "/taxonomy", headers: {} };
+			const created = (await writer.invokeRoute("create", { label: "Reviews" }, request)) as {
+				id: string;
+			};
+			await Promise.all([
+				writer.invokeRoute("add", { entryId: content.data.item.id, termIds: [news.id] }, request),
+				writer.invokeRoute(
+					"add",
+					{ entryId: content.data.item.id, termIds: [created.id] },
+					request,
+				),
+			]);
+			expect(
+				(await taxonomyRepo.getTermsForEntry("posts", content.data.item.id, "category", "en"))
+					.map((term) => term.slug)
+					.toSorted(),
+			).toEqual(["news", "reviews"]);
+			await expect(
+				writer.invokeRoute(
+					"add",
+					{ entryId: content.data.item.id, termIds: [unrelated.id] },
+					request,
+				),
+			).rejects.toThrow("belongs to 'tag'");
+			await expect(
+				reader.invokeRoute("add", { entryId: content.data.item.id, termIds: [news.id] }, request),
+			).rejects.toThrow("Missing capability: taxonomies:write");
+			await writer.invokeRoute(
+				"remove",
+				{ entryId: content.data.item.id, termIds: [news.id] },
+				request,
+			);
+			expect(
+				(await taxonomyRepo.getTermsForEntry("posts", content.data.item.id, "category", "en")).map(
+					(term) => term.slug,
+				),
+			).toEqual(["reviews"]);
 		} finally {
 			await runtime.shutdown();
 			await runtime.db.destroy();

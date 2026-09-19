@@ -219,6 +219,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/media/asset/[id]/[filename]",
+		entrypoint: resolveRoute("api/media/asset/[id]/[filename].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/media/folders",
 		entrypoint: resolveRoute("api/media/folders/index.ts"),
 	});

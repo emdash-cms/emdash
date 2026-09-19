@@ -483,8 +483,10 @@ interface PluginContext {
 	url(path: string): string;
 	cron?: CronAccess;
 	content?: ContentAccess;       // when content:read or content:write declared
+	schema?: SchemaAccess;         // when schema:read declared
 	taxonomies?: TaxonomyAccess;   // when taxonomies:read declared
-	media?: MediaAccess;           // when media:read or media:write declared
+	redirects?: RedirectAccess;    // when redirects:read or redirects:write declared
+	media?: MediaAccess;           // when any media capability is declared
 	http?: HttpAccess;             // when network:request declared
 	users?: UserAccess;            // when users:read declared
 	email?: EmailAccess;           // when email:send declared and provider configured

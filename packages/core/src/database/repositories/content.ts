@@ -340,6 +340,7 @@ export class ContentRepository {
 			primaryBylineId,
 			locale,
 			translationOf,
+			inheritFields = [],
 			publishedAt,
 			createdAt,
 		} = input;
@@ -357,16 +358,6 @@ export class ContentRepository {
 		}
 
 		const tableName = getTableName(type);
-
-		// Resolve translation_group: if translationOf is set, look up the source item's group
-		let translationGroup: string = id; // default: self-reference
-		if (translationOf) {
-			const source = await this.findById(type, translationOf);
-			if (!source) {
-				throw new EmDashValidationError("Translation source content not found");
-			}
-			translationGroup = source.translationGroup || source.id;
-		}
 
 		// Build column names and values
 		const columns: string[] = [
@@ -393,8 +384,16 @@ export class ContentRepository {
 			normalizedPublishedAt,
 			1,
 			locale || "en",
-			translationGroup,
+			id,
 		];
+		const inherited = new Set(inheritFields);
+		for (const field of inherited) {
+			validateIdentifier(field, "inherited content field name");
+			if (!SYSTEM_COLUMNS.has(field) && !Object.hasOwn(data, field)) {
+				columns.push(field);
+				values.push(null);
+			}
+		}
 
 		// Add data fields as columns (skip system columns to prevent injection via data)
 		if (data && typeof data === "object") {
@@ -409,18 +408,40 @@ export class ContentRepository {
 
 		// Build dynamic INSERT using raw SQL
 		const columnRefs = columns.map((c) => sql.ref(c));
-		const valuePlaceholders = values.map((v) => (v === null ? sql`NULL` : sql`${v}`));
+		const valuePlaceholders = values.map((value, index) => {
+			const column = columns[index];
+			if (translationOf && column === "translation_group") {
+				return sql`COALESCE(${sql.ref("translation_source.translation_group")}, ${sql.ref("translation_source.id")})`;
+			}
+			if (translationOf && inherited.has(column)) {
+				return sql.ref(`translation_source.${column}`);
+			}
+			return value === null ? sql`NULL` : sql`${value}`;
+		});
 
-		await sql`
-			INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
-			VALUES (${sql.join(valuePlaceholders, sql`, `)})
-		`.execute(this.db);
+		if (translationOf) {
+			await sql`
+				INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
+				SELECT ${sql.join(valuePlaceholders, sql`, `)}
+				FROM ${sql.ref(tableName)} AS translation_source
+				WHERE translation_source.id = ${translationOf}
+					AND translation_source.deleted_at IS NULL
+			`.execute(this.db);
+		} else {
+			await sql`
+				INSERT INTO ${sql.ref(tableName)} (${sql.join(columnRefs, sql`, `)})
+				VALUES (${sql.join(valuePlaceholders, sql`, `)})
+			`.execute(this.db);
+		}
 
 		invalidateCollectionCache(type);
 
 		// Fetch and return the created item
 		const item = await this.findById(type, id);
 		if (!item) {
+			if (translationOf) {
+				throw new EmDashValidationError("Translation source content not found");
+			}
 			throw new Error("Failed to create content");
 		}
 		return item;

@@ -28,6 +28,10 @@ export {
 	createKVAccess,
 	createStorageAccess,
 	createContentAccessWithWrite,
+	createCommentAccess,
+	createRedirectAccess,
+	RedirectAccessError,
+	createSchemaAccess,
 	createMediaAccess,
 	createMediaAccessWithWrite,
 	createHttpAccess,
@@ -41,6 +45,14 @@ export {
 export { createContentAccess } from "./content-access.js";
 export type { PluginContextFactoryOptions } from "./context.js";
 export { CronAccessImpl } from "./cron.js";
+export {
+	DEFAULT_PLUGIN_MEDIA_READ_BYTES,
+	MAX_PLUGIN_MEDIA_READ_BYTES,
+	parsePluginMediaMetadataPatch,
+	readPluginMediaBytes,
+	toPluginMediaItem,
+	updatePluginMediaMetadata,
+} from "./media.js";
 
 // Hooks
 export { HookPipeline, createHookPipeline } from "./hooks.js";
@@ -91,6 +103,8 @@ export type {
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
+	SandboxCommentModerateCallback,
+	SandboxContentCreateCallback,
 	ResourceLimits,
 	PluginCodeStorage,
 	SerializedRequest,
@@ -142,12 +156,19 @@ export type {
 	ContentAccessWithWrite,
 	MediaAccess,
 	MediaAccessWithWrite,
+	MediaBytes,
+	MediaMetadataPatch,
 	HttpAccess,
 	LogAccess,
 	SiteInfo,
 	UserInfo,
 	UserAccess,
 	ContentItem,
+	ContentTranslationSummary,
+	ContentRevisionInfo,
+	SchemaAccess,
+	CollectionSchemaInfo,
+	FieldSchemaInfo,
 	ContentCreateOptions,
 	ContentWriteInput,
 	CronTaskInfo,
@@ -155,9 +176,19 @@ export type {
 	ContentListOptions,
 	MediaListOptions,
 	TaxonomyAccess,
+	TaxonomyAccessWithWrite,
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
+	TaxonomyTermCreateInput,
 	TaxonomyReadOptions,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
 
 	// Hook types
 	PluginHooks,
@@ -212,6 +243,11 @@ export type {
 	ModerationDecision,
 	CollectionCommentSettings,
 	StoredComment,
+	PluginComment,
+	PluginCommentStatus,
+	CommentAccess,
+	CommentListOptions,
+	CommentCountOptions,
 
 	// Request metadata types
 	RequestMeta,
