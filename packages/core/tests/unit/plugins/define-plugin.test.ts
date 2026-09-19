@@ -246,6 +246,17 @@ describe("definePlugin", () => {
 			expect(plugin.capabilities).toContain("media:read");
 		});
 
+		it("normalizes redirects:write to include redirects:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["redirects:write"],
+			});
+
+			expect(plugin.capabilities).toContain("redirects:write");
+			expect(plugin.capabilities).toContain("redirects:read");
+		});
+
 		it("normalizes network:request:unrestricted to include network:request", () => {
 			const plugin = definePlugin({
 				id: "test",

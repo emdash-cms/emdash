@@ -29,11 +29,10 @@ The following surfaces do not exist in the current sandbox contract. Do not inve
 - Content save events may include `actor: { id, role }`, but they do not include the actor's origin. A hook cannot distinguish REST, visual editing, MCP, or another authenticated path from the actor snapshot.
 - `ctx.content.create()` accepts `{ locale, translationOf }` to add an active locale to an existing entry's translation group. It cannot create a second active entry for the same group and locale. `ctx.content.getTranslations()` lists the active locale siblings.
 
-### Schema, taxonomies, and redirects
+### Schema and taxonomies
 
 - There is no schema or collection-definition listing API on `PluginContext`.
 - `ctx.taxonomies` is read-only. It cannot create, update, delete, reorder, or assign terms.
-- There is no redirects API and no redirect write capability.
 
 ### Comments and media
 

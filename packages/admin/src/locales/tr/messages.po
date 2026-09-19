@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 karakter"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:419
+#: packages/admin/src/lib/api/marketplace.ts:421
 msgid "{base} to: {0}"
 msgstr "{base}'ten: {0}'e"
 
@@ -763,8 +763,8 @@ msgstr "Erişim engellendi"
 msgid "Access Denied"
 msgstr "Erişim engellendi"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Access your media library"
 msgstr "Medya kitaplığınıza erişin"
 
@@ -1862,6 +1862,10 @@ msgstr ""
 msgid "Change schedule"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:389
+msgid "Change where visitors are sent"
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Changelog"
 msgstr "Değişiklik günlüğü"
@@ -2688,7 +2692,7 @@ msgid "Create your first reusable content section to get started."
 msgstr "Başlamak için ilk yeniden kullanılabilir içerik bölümünüzü oluşturun."
 
 #: packages/admin/src/lib/api/marketplace.ts:385
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Create, update, and delete content"
 msgstr "İçerik oluşturma, güncelleme ve silme"
 
@@ -5957,13 +5961,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "Ana Kenar Çubuğu"
 
-#: packages/admin/src/lib/api/marketplace.ts:391
-#: packages/admin/src/lib/api/marketplace.ts:399
+#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Make network requests"
 msgstr "Ağ istekleri yapın"
 
-#: packages/admin/src/lib/api/marketplace.ts:392
-#: packages/admin/src/lib/api/marketplace.ts:400
+#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:402
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Herhangi bir ana bilgisayara ağ istekleri yapın (kısıtlamasız)"
 
@@ -7719,6 +7723,10 @@ msgstr "İçerik kayıtlarını okuyun"
 msgid "Read media files"
 msgstr "Medya dosyalarını okuyun"
 
+#: packages/admin/src/lib/api/marketplace.ts:388
+msgid "Read redirect rules"
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:384
 msgid "Read retained content revision history"
 msgstr ""
@@ -7727,13 +7735,13 @@ msgstr ""
 msgid "Read site settings"
 msgstr "Site ayarlarını okuyun"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Read user accounts"
 msgstr "Kullanıcı hesaplarını oku"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Read your content"
 msgstr "İçeriğinizi okuyun"
 
@@ -10385,8 +10393,8 @@ msgstr "Başlamak için bir resim yükleyin"
 msgid "Upload and delete media"
 msgstr "Medyayı yükleme ve silme"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Upload and manage media"
 msgstr "Medyayı yükleyin ve yönetin"
 

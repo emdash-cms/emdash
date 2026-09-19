@@ -8,6 +8,7 @@
 		"content:read",
 		"content:revisions:read",
 		"content:write",
+		"redirects:write",
 		"schema:read",
 		"media:read",
 		"media:write",

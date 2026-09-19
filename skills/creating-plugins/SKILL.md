@@ -88,6 +88,8 @@ Use only canonical capability names:
 | `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read            |
 | `schema:read`                    | `ctx.schema.listCollections()`, `getCollection()`                       |
 | `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`              |
+| `redirects:read`                 | `ctx.redirects.list()`, `get()`                                         |
+| `redirects:write`                | `ctx.redirects.create()`, `update()`, `delete()`; implies read          |
 | `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                   |
 | `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read                |
 | `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                         |
@@ -122,6 +124,7 @@ interface PluginContext {
 	content?: ContentAccess;
 	schema?: SchemaAccess;
 	taxonomies?: TaxonomyAccess;
+	redirects?: RedirectAccess;
 	media?: MediaAccess;
 	http?: HttpAccess;
 	users?: UserAccess;
@@ -214,6 +217,8 @@ await host.dispose();
 The direct host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It preserves hook, route, MCP, settings, and field-widget manifest metadata, supports content fixtures, and exposes KV and declared storage for assertions. Its `invokeHook()` and `invokeRoute()` methods test the transport. They do not prove that a host action emits the hook or applies route authentication, permissions, CSRF, and response caching.
 
 Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks, including bylines and taxonomy terms. Actions call production runtime and handler boundaries. Content inspectors can read byline credits and taxonomy assignments without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
+
+Redirect capability tests can establish host state with `host.fixtures.redirect()` and inspect persisted rules with `host.inspect.redirects()`. Trigger the plugin route through `host.actions.routes.request()` when the test must prove authorization and the real host-to-isolate redirect bridge.
 
 The generated project keeps Worker Loader as its default fast test path. Add an opt-in Node/workerd job only for runner-sensitive behavior. Neither host reproduces deployed CPU, memory, and subrequest limits or renders the admin application.
 

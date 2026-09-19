@@ -258,6 +258,8 @@ const VALID_CAPABILITIES = [
 	"content:read",
 	"content:write",
 	"taxonomies:read",
+	"redirects:read",
+	"redirects:write",
 	"media:read",
 	"media:write",
 	"users:read",

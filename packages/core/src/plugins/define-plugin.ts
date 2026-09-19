@@ -160,6 +160,8 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"content:write",
 		"schema:read",
 		"taxonomies:read",
+		"redirects:read",
+		"redirects:write",
 		"media:read",
 		"media:write",
 		"users:read",
@@ -203,6 +205,9 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	}
 	if (canonical.includes("media:write") && !canonical.includes("media:read")) {
 		normalizedCapabilities.push("media:read");
+	}
+	if (canonical.includes("redirects:write") && !canonical.includes("redirects:read")) {
+		normalizedCapabilities.push("redirects:read");
 	}
 	if (
 		canonical.includes("network:request:unrestricted") &&

@@ -48,6 +48,18 @@ describe("declared access escalation decision table", () => {
 			escalation: false,
 		},
 		{
+			name: "redirect read to write requires renewed consent",
+			previous: { redirects: { read: {} } },
+			next: { redirects: { write: {} } },
+			escalation: true,
+		},
+		{
+			name: "redirect write downgrade does not require renewed consent",
+			previous: { redirects: { write: {} } },
+			next: { redirects: { read: {} } },
+			escalation: false,
+		},
+		{
 			name: "restricted to unrestricted",
 			previous: access(["api.example.com"]),
 			next: access(),
@@ -124,10 +136,22 @@ describe("declared access escalation decision table", () => {
 
 describe("canonicalizeDeclaredAccess", () => {
 	it("materializes write implications without mutating input and is idempotent", () => {
-		const input: DeclaredAccess = { media: { write: {} }, content: { write: {} } };
+		const input: DeclaredAccess = {
+			media: { write: {} },
+			content: { write: {} },
+			redirects: { write: {} },
+		};
 		const canonical = canonicalizeDeclaredAccess(input);
-		expect(canonical).toEqual({ content: { read: {}, write: {} }, media: { read: {}, write: {} } });
-		expect(input).toEqual({ media: { write: {} }, content: { write: {} } });
+		expect(canonical).toEqual({
+			content: { read: {}, write: {} },
+			media: { read: {}, write: {} },
+			redirects: { read: {}, write: {} },
+		});
+		expect(input).toEqual({
+			media: { write: {} },
+			content: { write: {} },
+			redirects: { write: {} },
+		});
 		expect(canonicalizeDeclaredAccess(canonical)).toEqual(canonical);
 		expect(Object.isFrozen(canonical)).toBe(true);
 		expect(
@@ -324,5 +348,11 @@ describe("declaredAccessDigestInput", () => {
 		expect(implied).toContain('"domain":"@emdash-cms/plugin-types/declared-access"');
 		expect(implied).toContain('"version":1');
 		expect(implied).not.toBe(declaredAccessDigestInput({ content: { read: {} } }));
+	});
+
+	it("treats redirect write and explicit read plus write as the same authority", () => {
+		expect(declaredAccessDigestInput({ redirects: { write: {} } })).toBe(
+			declaredAccessDigestInput({ redirects: { read: {}, write: {} } }),
+		);
 	});
 });

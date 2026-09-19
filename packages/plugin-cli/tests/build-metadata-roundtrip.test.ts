@@ -30,7 +30,7 @@ describe("plugin build metadata round trip", () => {
 				license: "MIT",
 				author: { name: "Example" },
 				security: { email: "security@example.com" },
-				capabilities: ["content:read"],
+				capabilities: ["content:read", "redirects:write"],
 				admin: {
 					settingsSchema: {
 						enabled: { type: "boolean", label: "Enabled", default: true },
@@ -80,7 +80,13 @@ describe("plugin build metadata round trip", () => {
 			permission: "content:edit_any",
 		});
 		expect(persistedManifest.admin.fieldWidgets[0].name).toBe("event-picker");
+		expect(persistedManifest.capabilities).toEqual([
+			"content:read",
+			"redirects:read",
+			"redirects:write",
+		]);
 		expect(descriptor).toMatchObject({
+			capabilities: persistedManifest.capabilities,
 			hooks: ["content:afterSave"],
 			routes: persistedManifest.routes,
 			mcp: persistedManifest.mcp,

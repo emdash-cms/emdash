@@ -95,7 +95,7 @@ describe("Cloudflare generated plugin context", () => {
 		const source = generatePluginWrapper({
 			id: "context-wrapper",
 			version: "1.0.0",
-			capabilities: ["network:request"],
+			capabilities: ["network:request", "redirects:write", "redirects:read"],
 			allowedHosts: ["api.example.com"],
 			storage: {},
 			hooks: ["plugin:activate"],
@@ -123,6 +123,8 @@ describe("Cloudflare generated plugin context", () => {
 					return {
 						isResponse: response instanceof Response,
 						body: await response.json(),
+						redirects: await ctx.redirects.list({ limit: 1 }),
+						canWriteRedirects: typeof ctx.redirects.create === "function",
 					};
 				},
 			},
@@ -134,6 +136,10 @@ describe("Cloudflare generated plugin context", () => {
 					status: 200,
 					headers: { "content-type": "application/json" },
 					text: '{"ok":true}',
+				}),
+				redirectList: async () => ({
+					ok: true,
+					value: { items: [{ source: "/old" }], hasMore: false },
 				}),
 			},
 			{ get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
@@ -152,6 +158,8 @@ describe("Cloudflare generated plugin context", () => {
 		await expect(worker.invokeHook("plugin:activate", {})).resolves.toEqual({
 			isResponse: true,
 			body: { ok: true },
+			redirects: { items: [{ source: "/old" }], hasMore: false },
+			canWriteRedirects: true,
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });
 	});

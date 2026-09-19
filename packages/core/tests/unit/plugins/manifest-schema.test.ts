@@ -20,6 +20,15 @@ function makeManifest(storage: Record<string, { indexes: Array<string | string[]
 }
 
 describe("pluginManifestSchema — route entries", () => {
+	it("accepts redirect access in both manifest representations", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			capabilities: ["redirects:read", "redirects:write"],
+			declaredAccess: { redirects: { read: {}, write: {} } },
+		});
+		expect(result.success).toBe(true);
+	});
+
 	it("should accept plain string routes", () => {
 		const result = pluginManifestSchema.safeParse(makeManifest({}));
 		// Baseline with empty routes is valid

@@ -41,6 +41,8 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const capabilities = normalizeCapabilities(manifest.capabilities);
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
+	const hasRedirectRead = capabilities.includes("redirects:read");
+	const hasRedirectWrite = capabilities.includes("redirects:write");
 	const hasContentRead = capabilities.some((capability) =>
 		["content:read", "content:write", "content:revisions:read"].includes(capability),
 	);
@@ -202,6 +204,18 @@ function sandboxRouteErrorResponse(error) {
 		: null;
 }
 
+async function unwrapRedirectResult(promise) {
+	const result = await promise;
+	if (result?.ok === true) return result.value;
+	if (result?.ok === false && result.error && typeof result.error.code === "string") {
+		throw Object.assign(new Error(result.error.message), {
+			name: "RedirectAccessError",
+			code: result.error.code,
+		});
+	}
+	throw new Error("Invalid redirect bridge response");
+}
+
 // -----------------------------------------------------------------------------
 // Bridge - HTTP calls to Node backing service
 // -----------------------------------------------------------------------------
@@ -329,6 +343,16 @@ function createContext(originHook) {
 		getTerms: (taxonomy, opts) => bridgeCall("taxonomy/terms", { taxonomy, ...opts }),
 		getEntryTerms: (collection, entryId, opts) => bridgeCall("taxonomy/entryTerms", { collection, entryId, ...opts }),
 	};
+
+	const redirects = ${hasRedirectRead} ? {
+		list: (opts) => unwrapRedirectResult(bridgeCall("redirect/list", opts || {})),
+		get: (id) => unwrapRedirectResult(bridgeCall("redirect/get", { id })),
+		...(${hasRedirectWrite} ? {
+			create: (input) => unwrapRedirectResult(bridgeCall("redirect/create", { input })),
+			update: (id, input) => unwrapRedirectResult(bridgeCall("redirect/update", { id, input })),
+			delete: (id, options) => unwrapRedirectResult(bridgeCall("redirect/delete", { id, revision: options?._rev })),
+		} : {}),
+	} : undefined;
 
 	const media = {
 		get: (id) => bridgeCall("media/get", { id }),
@@ -532,6 +556,7 @@ function createContext(originHook) {
 		content,
 		schema,
 		taxonomies,
+		redirects,
 		media,
 		http,
 		log,

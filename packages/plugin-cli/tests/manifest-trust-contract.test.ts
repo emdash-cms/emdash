@@ -78,6 +78,8 @@ describe("CapabilitySchema", () => {
 		expect(CapabilitySchema.parse("content:read")).toBe("content:read");
 		expect(CapabilitySchema.parse("network:request")).toBe("network:request");
 		expect(CapabilitySchema.parse("email:send")).toBe("email:send");
+		expect(CapabilitySchema.parse("redirects:read")).toBe("redirects:read");
+		expect(CapabilitySchema.parse("redirects:write")).toBe("redirects:write");
 	});
 
 	it("rejects a deprecated capability with a hint at the replacement", () => {

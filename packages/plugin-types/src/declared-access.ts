@@ -30,6 +30,10 @@ export interface CanonicalDeclaredAccess {
 		request?: CanonicalAccessConstraints & { readonly allowedHosts?: readonly string[] };
 	}>;
 	readonly page?: Readonly<{ fragments?: CanonicalAccessConstraints }>;
+	readonly redirects?: Readonly<{
+		read?: CanonicalAccessConstraints;
+		write?: CanonicalAccessConstraints;
+	}>;
 	readonly users?: Readonly<{ read?: CanonicalAccessConstraints }>;
 }
 
@@ -175,7 +179,7 @@ function normalizeDeclaredAccess(value: DeclaredAccess): CanonicalObject {
 			defineDataProperty(normalizedOperations, operation, Object.freeze(normalizedConstraints));
 		}
 		if (
-			(category === "content" || category === "media") &&
+			(category === "content" || category === "media" || category === "redirects") &&
 			Object.hasOwn(normalizedOperations, "write")
 		) {
 			normalizedOperations.read ??= Object.freeze({});

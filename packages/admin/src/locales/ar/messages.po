@@ -389,7 +389,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 حرف"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:419
+#: packages/admin/src/lib/api/marketplace.ts:421
 msgid "{base} to: {0}"
 msgstr "{base} إلى: {0}"
 
@@ -767,8 +767,8 @@ msgstr ""
 msgid "Access Denied"
 msgstr "الوصول مرفوض"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Access your media library"
 msgstr "الوصول إلى مكتبة الوسائط"
 
@@ -1866,6 +1866,10 @@ msgstr ""
 msgid "Change schedule"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:389
+msgid "Change where visitors are sent"
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Changelog"
 msgstr ""
@@ -2692,7 +2696,7 @@ msgid "Create your first reusable content section to get started."
 msgstr "أنشئ أول قسم محتوى قابل لإعادة الاستخدام خاص بك للبدء."
 
 #: packages/admin/src/lib/api/marketplace.ts:385
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Create, update, and delete content"
 msgstr "إنشاء المحتوى وتعديله وحذفه"
 
@@ -5958,13 +5962,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "الشريط الجانبي الرئيسي"
 
-#: packages/admin/src/lib/api/marketplace.ts:391
-#: packages/admin/src/lib/api/marketplace.ts:399
+#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Make network requests"
 msgstr "إجراء طلبات الشبكة"
 
-#: packages/admin/src/lib/api/marketplace.ts:392
-#: packages/admin/src/lib/api/marketplace.ts:400
+#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:402
 msgid "Make network requests to any host (unrestricted)"
 msgstr "إجراء طلبات الشبكة لأي مضيف (بدون قيود)"
 
@@ -7720,6 +7724,10 @@ msgstr "قراءة مدخلات المحتوى"
 msgid "Read media files"
 msgstr "قراءة ملفات الوسائط"
 
+#: packages/admin/src/lib/api/marketplace.ts:388
+msgid "Read redirect rules"
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:384
 msgid "Read retained content revision history"
 msgstr ""
@@ -7728,13 +7736,13 @@ msgstr ""
 msgid "Read site settings"
 msgstr "قراءة إعدادات الموقع"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Read user accounts"
 msgstr "قراءة حسابات المستخدمين"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Read your content"
 msgstr "قراءة المحتوى"
 
@@ -10386,8 +10394,8 @@ msgstr "ارفع صورة للبدء"
 msgid "Upload and delete media"
 msgstr "رفع وحذف الوسائط"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Upload and manage media"
 msgstr "رفع الوسائط وإدارتها"
 

@@ -28,6 +28,8 @@ export {
 	createKVAccess,
 	createStorageAccess,
 	createContentAccessWithWrite,
+	createRedirectAccess,
+	RedirectAccessError,
 	createSchemaAccess,
 	createMediaAccess,
 	createMediaAccessWithWrite,
@@ -155,6 +157,14 @@ export type {
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
 	TaxonomyReadOptions,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
 
 	// Hook types
 	PluginHooks,

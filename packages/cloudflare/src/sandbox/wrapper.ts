@@ -43,6 +43,8 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
+	const hasRedirectRead = capabilities.includes("redirects:read");
+	const hasRedirectWrite = capabilities.includes("redirects:write");
 	const hasContentRead = capabilities.some((capability) =>
 		["content:read", "content:write", "content:revisions:read"].includes(capability),
 	);
@@ -98,6 +100,18 @@ function sandboxRouteErrorDetails(value) {
 				: "Unable to verify media usage activation state",
 		status: 503,
 	};
+}
+
+async function unwrapRedirectResult(promise) {
+	const result = await promise;
+	if (result?.ok === true) return result.value;
+	if (result?.ok === false && result.error && typeof result.error.code === "string") {
+		throw Object.assign(new Error(result.error.message), {
+			name: "RedirectAccessError",
+			code: result.error.code,
+		});
+	}
+	throw new Error("Invalid redirect bridge response");
 }
 
 // -----------------------------------------------------------------------------
@@ -196,6 +210,16 @@ function createContext(env, originHook) {
 		getTerms: (taxonomy, opts) => bridge.taxonomyTerms(taxonomy, opts),
 		getEntryTerms: (collection, entryId, opts) => bridge.taxonomyEntryTerms(collection, entryId, opts)
 	};
+
+	const redirects = ${hasRedirectRead} ? {
+		list: (opts) => unwrapRedirectResult(bridge.redirectList(opts)),
+		get: (id) => unwrapRedirectResult(bridge.redirectGet(id)),
+		...(${hasRedirectWrite} ? {
+			create: (input) => unwrapRedirectResult(bridge.redirectCreate(input)),
+			update: (id, input) => unwrapRedirectResult(bridge.redirectUpdate(id, input)),
+			delete: (id, options) => unwrapRedirectResult(bridge.redirectDelete(id, options?._rev)),
+		} : {}),
+	} : undefined;
 	
 	// Media access - proxies to bridge (capability enforced by bridge)
 	const media = {
@@ -268,6 +292,7 @@ function createContext(env, originHook) {
 		content,
 		schema,
 		taxonomies,
+		redirects,
 		media,
 		http,
 		log,

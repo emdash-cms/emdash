@@ -18,6 +18,7 @@ import {
 	ContentRepository,
 	CronAccessImpl,
 	createContentAccess,
+	createRedirectAccess,
 	createSchemaAccess,
 	createHttpAccess,
 	createSandboxRouteErrorEnvelope,
@@ -25,6 +26,7 @@ import {
 	normalizeCapabilities,
 	OptionsRepository,
 	PluginStorageRepository,
+	RedirectAccessError,
 	StorageSerializationError,
 	resolveContentCreateLocale,
 } from "emdash";
@@ -33,6 +35,9 @@ import type {
 	ContentListOptions,
 	Database,
 	I18nConfig,
+	RedirectCreateInput,
+	RedirectListOptions,
+	RedirectUpdateInput,
 	SandboxEmailSendCallback,
 	SandboxContentCreateCallback,
 	SiteInfo,
@@ -147,6 +152,21 @@ export interface BridgeHandlerOptions {
 	now?: () => Date;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
+}
+
+type RedirectBridgeResult<T> =
+	| { ok: true; value: T }
+	| { ok: false; error: { code: string; message: string } };
+
+async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<RedirectBridgeResult<T>> {
+	try {
+		return { ok: true, value: await action() };
+	} catch (error) {
+		if (error instanceof RedirectAccessError) {
+			return { ok: false, error: { code: error.code, message: error.message } };
+		}
+		throw error;
+	}
 }
 
 /**
@@ -404,6 +424,36 @@ async function dispatch(
 				optionalString(body, "locale"),
 			);
 
+		// ── Redirects ─────────────────────────────────────────────────────
+		case "redirect/list":
+			requireCapability(opts, "redirects:read");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db).list(requireRedirectListOptions(body)),
+			);
+		case "redirect/get":
+			requireCapability(opts, "redirects:read");
+			return redirectBridgeResult(() => createRedirectAccess(db).get(requireString(body, "id")));
+		case "redirect/create":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).create(requireRedirectCreateInput(body)),
+			);
+		case "redirect/update":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).update(
+					requireString(body, "id"),
+					requireRedirectUpdateInput(body),
+				),
+			);
+		case "redirect/delete":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).delete(requireString(body, "id"), {
+					_rev: requireString(body, "revision"),
+				}),
+			);
+
 		// ── Media ───────────────────────────────────────────────────────
 		case "media/get":
 			requireCapability(opts, "media:read");
@@ -639,6 +689,81 @@ function isOrderBy(value: unknown): value is Record<string, "asc" | "desc"> {
 function requireString(body: Record<string, unknown>, key: string): string {
 	const value = body[key];
 	if (typeof value !== "string") throw new Error(`Missing required string parameter: ${key}`);
+	return value;
+}
+
+const REDIRECT_STATUSES = new Set([301, 302, 307, 308, 410, 451]);
+
+function hasOptionalString(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || typeof value[key] === "string";
+}
+
+function hasOptionalNullableString(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || value[key] === null || typeof value[key] === "string";
+}
+
+function hasOptionalBoolean(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || typeof value[key] === "boolean";
+}
+
+function hasOptionalRedirectStatus(value: Record<string, unknown>): boolean {
+	return (
+		value.type === undefined ||
+		(typeof value.type === "number" && REDIRECT_STATUSES.has(value.type))
+	);
+}
+
+function isRedirectCreateInput(value: unknown): value is RedirectCreateInput {
+	return (
+		isRecord(value) &&
+		typeof value.source === "string" &&
+		hasOptionalString(value, "destination") &&
+		hasOptionalRedirectStatus(value) &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalNullableString(value, "groupName")
+	);
+}
+
+function isRedirectUpdateInput(value: unknown): value is RedirectUpdateInput & { _rev: string } {
+	return (
+		isRecord(value) &&
+		typeof value._rev === "string" &&
+		hasOptionalString(value, "source") &&
+		hasOptionalString(value, "destination") &&
+		hasOptionalRedirectStatus(value) &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalNullableString(value, "groupName")
+	);
+}
+
+function isRedirectListOptions(value: unknown): value is RedirectListOptions {
+	return (
+		isRecord(value) &&
+		(value.limit === undefined || typeof value.limit === "number") &&
+		hasOptionalString(value, "cursor") &&
+		hasOptionalString(value, "search") &&
+		hasOptionalString(value, "group") &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalBoolean(value, "auto")
+	);
+}
+
+function requireRedirectListOptions(body: Record<string, unknown>): RedirectListOptions {
+	if (!isRedirectListOptions(body)) throw new Error("Invalid redirect list options");
+	return body;
+}
+
+function requireRedirectCreateInput(body: Record<string, unknown>): RedirectCreateInput {
+	const value = body.input;
+	if (!isRedirectCreateInput(value)) throw new Error("Invalid redirect create input");
+	return value;
+}
+
+function requireRedirectUpdateInput(
+	body: Record<string, unknown>,
+): RedirectUpdateInput & { _rev: string } {
+	const value = body.input;
+	if (!isRedirectUpdateInput(value)) throw new Error("Invalid redirect update input");
 	return value;
 }
 

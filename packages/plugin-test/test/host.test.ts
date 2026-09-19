@@ -304,6 +304,119 @@ describe("runtime plugin test host", () => {
 		await expect(allowed.json()).resolves.toMatchObject({ data: { userId: user.id } });
 	});
 
+	it("manages redirects through the runtime, Worker Loader, and plugin bridge", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		expect(runtimeHost.manifest.declaredAccess).toMatchObject({
+			redirects: { read: {}, write: {} },
+		});
+		const admin = await runtimeHost.fixtures.user({
+			email: "redirect-admin@example.com",
+			role: "admin",
+		});
+		await runtimeHost.fixtures.redirect({
+			source: "/automatic-old",
+			destination: "/automatic-new",
+			auto: true,
+		});
+		await runtimeHost.fixtures.redirect({
+			source: "/old/[slug]",
+			destination: "/new/[slug]",
+		});
+		const request = async <T>(body: Record<string, unknown>): Promise<T> => {
+			const response = await runtimeHost!.actions.routes.request("redirects", {
+				user: admin,
+				headers: { "X-EmDash-Request": "1" },
+				body,
+			});
+			expect(response.status).toBe(200);
+			const payload = (await response.json()) as { data: T };
+			return payload.data;
+		};
+
+		const automatic = await request<{ items: Array<{ auto: boolean; source: string }> }>({
+			operation: "list",
+			options: { auto: true, limit: 1 },
+		});
+		expect(automatic.items).toEqual([
+			expect.objectContaining({ auto: true, source: "/automatic-old" }),
+		]);
+
+		const created = await request<{
+			redirect: { id: string; source: string; destination: string; auto: boolean };
+			_rev: string;
+		}>({
+			operation: "create",
+			redirect: { source: "/legacy", destination: "/current" },
+		});
+		expect(created).toMatchObject({
+			redirect: { source: "/legacy", destination: "/current", auto: false },
+		});
+		expect(created._rev).not.toContain(created.redirect.id);
+
+		const concurrent = await Promise.all([
+			request<{ redirect?: { source: string }; error?: { code: string } }>({
+				operation: "create",
+				redirect: { source: "/concurrent", destination: "/first" },
+			}),
+			request<{ redirect?: { source: string }; error?: { code: string } }>({
+				operation: "create",
+				redirect: { source: "/concurrent", destination: "/second" },
+			}),
+		]);
+		expect(concurrent.filter((result) => result.redirect)).toHaveLength(1);
+		expect(concurrent.filter((result) => result.error)).toHaveLength(1);
+		expect(
+			(await runtimeHost.inspect.redirects()).filter(
+				(redirect) => redirect.source === "/concurrent",
+			),
+		).toHaveLength(1);
+
+		const blockedMarker = await request<{ error: { code: string } }>({
+			operation: "create",
+			redirect: { source: "/forged", destination: "/target", auto: true },
+		});
+		expect(blockedMarker.error.code).toBe("VALIDATION_ERROR");
+
+		const updated = await request<typeof created>({
+			operation: "update",
+			id: created.redirect.id,
+			redirect: { destination: "/latest", _rev: created._rev },
+		});
+		expect(updated.redirect.destination).toBe("/latest");
+		expect(updated._rev).not.toBe(created._rev);
+
+		const stale = await request<{ error: { code: string } }>({
+			operation: "update",
+			id: created.redirect.id,
+			redirect: { destination: "/lost", _rev: created._rev },
+		});
+		expect(stale.error.code).toBe("CONFLICT");
+
+		await runtimeHost.restart();
+		const readAfterRestart = await request<typeof created>({
+			operation: "get",
+			id: created.redirect.id,
+		});
+		expect(readAfterRestart.redirect.destination).toBe("/latest");
+
+		await expect(runtimeHost.inspect.redirects()).resolves.toHaveLength(4);
+		await expect(
+			request<{ deleted: boolean }>({
+				operation: "delete",
+				id: created.redirect.id,
+				_rev: readAfterRestart._rev,
+			}),
+		).resolves.toEqual({ deleted: true });
+		await expect(runtimeHost.inspect.redirects()).resolves.toHaveLength(3);
+		await expect(runtimeHost.inspect.redirects()).resolves.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ source: "/automatic-old", auto: true }),
+				expect.objectContaining({ source: "/concurrent", auto: false }),
+				expect.objectContaining({ source: "/old/[slug]", isPattern: true }),
+			]),
+		);
+	});
+
 	it("runs lifecycle, media, comment, scheduler, and email journeys through the isolate", async () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		await runtimeHost.fixtures.collection({

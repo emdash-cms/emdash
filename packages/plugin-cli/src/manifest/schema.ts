@@ -350,6 +350,8 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"content:write",
 	"schema:read",
 	"taxonomies:read",
+	"redirects:read",
+	"redirects:write",
 	"media:read",
 	"media:write",
 	"users:read",

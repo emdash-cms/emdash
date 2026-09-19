@@ -34,6 +34,8 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` (implies `content:read`) |
 | `schema:read`                       | `ctx.schema.listCollections()`, `ctx.schema.getCollection()`                      |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
+| `redirects:read`                    | `ctx.redirects.list()`, `ctx.redirects.get()`                                |
+| `redirects:write`                   | `ctx.redirects.create()`, `ctx.redirects.update()`, `ctx.redirects.delete()` (implies `redirects:read`) |
 | `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                             |
 | `media:write`                       | `ctx.media.getUploadUrl()`, `ctx.media.upload()`, `ctx.media.delete()` (implies `media:read`) |
 | `network:request`                   | `ctx.http.fetch()` — restricted to `allowedHosts`                                 |
@@ -46,7 +48,7 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 
 The following rules affect which capabilities a plugin needs:
 
-- **Implications.** `content:write` and `content:revisions:read` automatically imply `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
+- **Implications.** `content:write` and `content:revisions:read` automatically imply `content:read`; `media:write` implies `media:read`; `redirects:write` implies `redirects:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
 - **Taxonomies are a separate, read-only surface.** `taxonomies:read` grants access to taxonomy definitions, their terms, and the terms assigned to an entry via `ctx.taxonomies`. It is independent of `content:read` — declare both if the plugin reads content *and* its classification. There is no taxonomy *write* access from plugins.
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
@@ -85,6 +87,28 @@ The source must be an active entry in the same collection. The new entry joins i
 
 Each translation group can contain one active entry per locale. Creating a second entry for the same group and locale throws a `CONFLICT` error. A missing source throws `NOT_FOUND`, an invalid or unconfigured locale throws `VALIDATION_ERROR`, and a save hook can stop the create with `SAVE_REJECTED`.
 
+### Managing redirects safely
+
+`redirects:read` provides cursor-paginated rule listing and versioned single-rule reads. Add `redirects:write` when the plugin creates, updates, or deletes rules. Write access can change where visitors are sent.
+
+Pass the `_rev` returned by `get()`, `create()`, or `update()` back unchanged when updating or deleting a rule. EmDash rejects a stale revision so the plugin can re-read the rule and recompute its change instead of overwriting concurrent work.
+
+The revision tracks redirect configuration. Visitor hit counting does not make a revision stale.
+
+The following example updates a redirect only if it has not changed since the read:
+
+```ts title="src/plugin.ts"
+const current = await ctx.redirects!.get(redirectId);
+if (current) {
+	await ctx.redirects!.update!(redirectId, {
+		destination: "/guides/current",
+		_rev: current._rev,
+	});
+}
+```
+
+Create operations validate path patterns, terminal `410` and `451` rules, duplicate sources, self-loops, and multi-hop loops with the same rules as the EmDash redirect API. Updates apply loop validation when the source or destination changes. An enabled-only update can reactivate a pre-existing loop, which the Redirects page reports. The `auto` marker belongs to redirects created from host content changes; plugin input cannot set it.
+
 ## Network host allowlists
 
 Plugins with `network:request` can only fetch hosts listed in `allowedHosts`. A leading `*.` matches both the named domain and its subdomains:
@@ -107,7 +131,7 @@ When a sandbox runner is active, the runtime enforces:
 
 <Steps>
 
-1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.taxonomies`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
+1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.schema`, `ctx.taxonomies`, `ctx.redirects`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
 
 2. **Storage and KV scoping.** Every storage and KV operation is scoped to the runtime plugin ID. A plugin can't read another plugin's KV or storage collections, and it can access only collections declared in its manifest.
 

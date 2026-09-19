@@ -70,6 +70,11 @@
 					"ref": "#taxonomiesAccess",
 					"description": "Access to taxonomy definitions and terms."
 				},
+				"redirects": {
+					"type": "ref",
+					"ref": "#redirectsAccess",
+					"description": "Access to visitor redirect rules."
+				},
 				"media": {
 					"type": "ref",
 					"ref": "#mediaAccess",
@@ -159,6 +164,30 @@
 		"taxonomiesReadConstraints": {
 			"type": "object",
 			"description": "Constraint object for taxonomies.read. No constraint keys are normatively defined here."
+		},
+		"redirectsAccess": {
+			"type": "object",
+			"description": "Operations under redirects.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#redirectsReadConstraints",
+					"description": "Plugin may read redirect rules."
+				},
+				"write": {
+					"type": "ref",
+					"ref": "#redirectsWriteConstraints",
+					"description": "Plugin may create, update, or delete redirect rules and change where visitors are sent. Implies `read`."
+				}
+			}
+		},
+		"redirectsReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for redirects.read. No constraint keys are normatively defined here."
+		},
+		"redirectsWriteConstraints": {
+			"type": "object",
+			"description": "Constraint object for redirects.write. No constraint keys are normatively defined here."
 		},
 		"mediaAccess": {
 			"type": "object",

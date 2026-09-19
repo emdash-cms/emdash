@@ -8,11 +8,19 @@
 
 import Database from "better-sqlite3";
 import { Kysely, SqliteDialect, sql } from "kysely";
+import type {
+	PluginTransformQueryArgs,
+	PluginTransformResultArgs,
+	QueryResult,
+	RootOperationNode,
+	UnknownRow,
+} from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
+import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import { UserRepository } from "../../../src/database/repositories/user.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -21,6 +29,7 @@ import {
 	PluginContextFactory,
 	createContentAccess,
 	createContentAccessWithWrite,
+	createRedirectAccess,
 	createSchemaAccess,
 	createTaxonomyAccess,
 	createHttpAccess,
@@ -32,6 +41,7 @@ import {
 	createSiteInfo,
 	createUrlHelper,
 	createUserAccess,
+	RedirectAccessError,
 } from "../../../src/plugins/context.js";
 import type { ResolvedPlugin } from "../../../src/plugins/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -791,6 +801,119 @@ describe("Capability Enforcement Integration (v2)", () => {
 		});
 	});
 
+	describe("Redirect Access", () => {
+		it("paginates reads and returns versioned single rules", async () => {
+			const access = createRedirectAccess(db, true);
+			const first = await access.create({ source: "/old-a", destination: "/new-a" });
+			await access.create({ source: "/old-b", destination: "/new-b", type: 308 });
+
+			const page = await access.list({ limit: 1 });
+			expect(page.items).toHaveLength(1);
+			expect(page.hasMore).toBe(true);
+			expect(page.cursor).toBeDefined();
+			await expect(access.get(first.redirect.id)).resolves.toEqual(first);
+		});
+
+		it("reads redirect fields and their revision in one database snapshot", async () => {
+			const writer = createRedirectAccess(db, true);
+			const created = await writer.create({ source: "/snapshot", destination: "/target" });
+			let queryCount = 0;
+			const countedDb = db.withPlugin({
+				transformQuery(args: PluginTransformQueryArgs): RootOperationNode {
+					queryCount++;
+					return args.node;
+				},
+				transformResult(args: PluginTransformResultArgs): Promise<QueryResult<UnknownRow>> {
+					return Promise.resolve(args.result);
+				},
+			});
+
+			await expect(createRedirectAccess(countedDb).get(created.redirect.id)).resolves.toEqual(
+				created,
+			);
+			expect(queryCount).toBe(1);
+		});
+
+		it("uses an opaque precondition for concurrent updates", async () => {
+			const access = createRedirectAccess(db, true);
+			const created = await access.create({ source: "/before", destination: "/after" });
+			const results = await Promise.allSettled([
+				access.update(created.redirect.id, { destination: "/winner-a", _rev: created._rev }),
+				access.update(created.redirect.id, { destination: "/winner-b", _rev: created._rev }),
+			]);
+
+			expect(results.filter((result) => result.status === "fulfilled")).toHaveLength(1);
+			const rejected = results.find((result) => result.status === "rejected");
+			expect(rejected).toMatchObject({
+				status: "rejected",
+				reason: expect.objectContaining({ code: "CONFLICT" }),
+			});
+		});
+
+		it("rejects stale deletes without removing the current rule", async () => {
+			const access = createRedirectAccess(db, true);
+			const created = await access.create({ source: "/stale", destination: "/current" });
+			const updated = await access.update(created.redirect.id, {
+				destination: "/new-current",
+				_rev: created._rev,
+			});
+
+			await expect(
+				access.delete(created.redirect.id, { _rev: created._rev }),
+			).rejects.toMatchObject({
+				code: "CONFLICT",
+			});
+			await expect(access.get(created.redirect.id)).resolves.toEqual(updated);
+		});
+
+		it("does not treat visitor hit tracking as a configuration conflict", async () => {
+			const access = createRedirectAccess(db, true);
+			const created = await access.create({ source: "/popular", destination: "/target" });
+			await new RedirectRepository(db).recordHit(created.redirect.id);
+
+			await expect(
+				access.update(created.redirect.id, {
+					destination: "/new-target",
+					_rev: created._rev,
+				}),
+			).resolves.toMatchObject({ redirect: { destination: "/new-target", hits: 1 } });
+		});
+
+		it("preserves terminal, pattern, duplicate, self-loop, and multi-hop-loop validation", async () => {
+			const access = createRedirectAccess(db, true);
+			const terminal = await access.create({ source: "/gone", type: 410 });
+			expect(terminal.redirect.destination).toBe("");
+			await expect(
+				access.create({ source: "/posts/[slug]", destination: "/archive/[missing]" }),
+			).rejects.toBeInstanceOf(RedirectAccessError);
+			await access.create({ source: "/a", destination: "/b" });
+			await access.create({ source: "/b", destination: "/c" });
+			await expect(access.create({ source: "/c", destination: "/a" })).rejects.toMatchObject({
+				code: "VALIDATION_ERROR",
+			});
+			await expect(access.create({ source: "/a", destination: "/other" })).rejects.toMatchObject({
+				code: "CONFLICT",
+			});
+			await expect(access.create({ source: "/self", destination: "/self" })).rejects.toMatchObject({
+				code: "VALIDATION_ERROR",
+			});
+		});
+
+		it("does not let plugins set the host-owned automatic marker", async () => {
+			const access = createRedirectAccess(db, true);
+			await expect(
+				access.create({ source: "/manual", destination: "/target", auto: true } as never),
+			).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+		});
+
+		it("denies writes through read-only access", async () => {
+			const access = createRedirectAccess(db);
+			expect("create" in access).toBe(false);
+			expect("update" in access).toBe(false);
+			expect("delete" in access).toBe(false);
+		});
+	});
+
 	describe("schema read access", () => {
 		it("lists collections and fields without internal identifiers", async () => {
 			const registry = new SchemaRegistry(db);
@@ -1008,6 +1131,31 @@ describe("Capability Enforcement Integration (v2)", () => {
 
 			const ctx = factory.createContext(noContentPlugin);
 			expect(ctx.content).toBeUndefined();
+		});
+
+		it("provides redirect reads only with explicit redirect authority", () => {
+			const factory = new PluginContextFactory({ db });
+			const none = factory.createContext(createTestPlugin({ capabilities: ["content:write"] }));
+			const reader = factory.createContext(createTestPlugin({ capabilities: ["redirects:read"] }));
+
+			expect(none.redirects).toBeUndefined();
+			expect(reader.redirects).toBeDefined();
+			expect(typeof reader.redirects!.list).toBe("function");
+			expect(typeof reader.redirects!.get).toBe("function");
+			expect("create" in reader.redirects!).toBe(false);
+		});
+
+		it("provides redirect mutations only when redirects:write is declared", async () => {
+			const factory = new PluginContextFactory({ db });
+			const reader = factory.createContext(createTestPlugin({ capabilities: ["redirects:read"] }));
+			const writer = factory.createContext(
+				createTestPlugin({ capabilities: ["redirects:write", "redirects:read"] }),
+			);
+
+			expect("create" in reader.redirects!).toBe(false);
+			await expect(
+				writer.redirects!.create!({ source: "/writer", destination: "/allowed" }),
+			).resolves.toMatchObject({ redirect: { source: "/writer" } });
 		});
 
 		it("provides http for plugins with network:fetch", () => {

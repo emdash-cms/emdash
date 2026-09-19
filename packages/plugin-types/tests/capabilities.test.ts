@@ -8,6 +8,7 @@ import {
 	normalizeCapabilities,
 	normalizeCapability,
 	pluginManifestSchema,
+	reconcileManifestAccess,
 } from "../src/index.js";
 
 describe("isDeprecatedCapability", () => {
@@ -97,6 +98,23 @@ describe("declaredAccess facet mapping", () => {
 		).toBe(true);
 	});
 
+	it("validates redirect write access and derives its read implication", () => {
+		const parsed = reconcileManifestAccess(
+			pluginManifestSchema.parse({
+				id: "redirect-manager",
+				version: "1.0.0",
+				declaredAccess: { redirects: { write: {} } },
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			}),
+		);
+		expect(new Set(parsed.capabilities)).toEqual(new Set(["redirects:read", "redirects:write"]));
+	});
+
 	it("maps each hook-registration capability to its participation facet", () => {
 		expect(capabilitiesToDeclaredAccess(["hooks.email-transport:register"], [])).toEqual({
 			email: { transport: {} },
@@ -110,6 +128,9 @@ describe("declaredAccess facet mapping", () => {
 		expect(capabilitiesToDeclaredAccess(["users:read"], [])).toEqual({ users: { read: {} } });
 		expect(capabilitiesToDeclaredAccess(["taxonomies:read"], [])).toEqual({
 			taxonomies: { read: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["redirects:write"], [])).toEqual({
+			redirects: { read: {}, write: {} },
 		});
 	});
 
@@ -181,6 +202,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		["content:read", "content:write", "content:revisions:read"],
 	];
 	const mediaChoices = [[], ["media:read"], ["media:read", "media:write"]];
+	const redirectChoices = [[], ["redirects:read"], ["redirects:read", "redirects:write"]];
 	const networkChoices: { caps: string[]; hosts: string[] }[] = [
 		{ caps: [], hosts: [] },
 		{ caps: ["network:request", "network:request:unrestricted"], hosts: [] },
@@ -203,13 +225,15 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 	function* states() {
 		for (const content of contentChoices) {
 			for (const media of mediaChoices) {
-				for (const network of networkChoices) {
-					for (let mask = 0; mask < 1 << singletonFacets.length; mask++) {
-						const extra = singletonFacets.filter((_, i) => mask & (1 << i));
-						yield {
-							capabilities: [...content, ...media, ...network.caps, ...extra],
-							allowedHosts: network.hosts,
-						};
+				for (const redirects of redirectChoices) {
+					for (const network of networkChoices) {
+						for (let mask = 0; mask < 1 << singletonFacets.length; mask++) {
+							const extra = singletonFacets.filter((_, i) => mask & (1 << i));
+							yield {
+								capabilities: [...content, ...media, ...redirects, ...network.caps, ...extra],
+								allowedHosts: network.hosts,
+							};
+						}
 					}
 				}
 			}
@@ -226,7 +250,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 5 content x 3 media x 5 network x 2^7 singleton subsets.
-		expect(count).toBe(9600);
+		// 5 content x 3 media x 3 redirects x 5 network x 2^7 singleton subsets.
+		expect(count).toBe(28_800);
 	});
 });

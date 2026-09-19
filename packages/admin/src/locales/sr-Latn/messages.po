@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 karaktera"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:419
+#: packages/admin/src/lib/api/marketplace.ts:421
 msgid "{base} to: {0}"
 msgstr "{base} na: {0}"
 
@@ -763,8 +763,8 @@ msgstr "Pristup odbijen"
 msgid "Access Denied"
 msgstr "Pristup odbijen"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Access your media library"
 msgstr "Pristupite biblioteci medija"
 
@@ -1862,6 +1862,10 @@ msgstr ""
 msgid "Change schedule"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:389
+msgid "Change where visitors are sent"
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Changelog"
 msgstr "Dnevnik promena"
@@ -2688,7 +2692,7 @@ msgid "Create your first reusable content section to get started."
 msgstr "Kreirajte prvu višekratnu sekciju sadržaja da počnete."
 
 #: packages/admin/src/lib/api/marketplace.ts:385
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Create, update, and delete content"
 msgstr "Kreiraj, ažuriraj i briši sadržaj"
 
@@ -5957,13 +5961,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "Glavna bočna traka"
 
-#: packages/admin/src/lib/api/marketplace.ts:391
-#: packages/admin/src/lib/api/marketplace.ts:399
+#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Make network requests"
 msgstr "Šalji mrežne zahteve"
 
-#: packages/admin/src/lib/api/marketplace.ts:392
-#: packages/admin/src/lib/api/marketplace.ts:400
+#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:402
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Šalji mrežne zahteve ka bilo kom hostu (neograničeno)"
 
@@ -7719,6 +7723,10 @@ msgstr "Čitanje unosa sadržaja"
 msgid "Read media files"
 msgstr "Čitanje medijskih fajlova"
 
+#: packages/admin/src/lib/api/marketplace.ts:388
+msgid "Read redirect rules"
+msgstr ""
+
 #: packages/admin/src/lib/api/marketplace.ts:384
 msgid "Read retained content revision history"
 msgstr ""
@@ -7727,13 +7735,13 @@ msgstr ""
 msgid "Read site settings"
 msgstr "Čitanje podešavanja sajta"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Read user accounts"
 msgstr "Čitanje korisničkih naloga"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Read your content"
 msgstr "Čitanje vašeg sadržaja"
 
@@ -10385,8 +10393,8 @@ msgstr "Otpremi sliku da počneš"
 msgid "Upload and delete media"
 msgstr "Otpremi i obriši medije"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Upload and manage media"
 msgstr "Otpremi i upravljaj medijima"
 

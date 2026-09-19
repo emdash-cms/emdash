@@ -52,6 +52,9 @@ export type PluginCapability =
 	| "schema:read"
 	// Taxonomies (read-only; there is no plugin-facing taxonomy write API)
 	| "taxonomies:read"
+	// Redirects
+	| "redirects:read"
+	| "redirects:write"
 	// Media
 	| "media:read"
 	| "media:write"
@@ -191,6 +194,7 @@ export interface DeclaredAccess {
 	};
 	schema?: { read?: AccessConstraints };
 	taxonomies?: { read?: AccessConstraints };
+	redirects?: { read?: AccessConstraints; write?: AccessConstraints };
 	media?: { read?: AccessConstraints; write?: AccessConstraints };
 	network?: { request?: { allowedHosts?: string[] } };
 	email?: { send?: AccessConstraints; events?: AccessConstraints; transport?: AccessConstraints };
@@ -226,6 +230,10 @@ export function capabilitiesToDeclaredAccess(
 	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
 	if (caps.has("schema:read")) out.schema = { read: {} };
 	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
+	if (caps.has("redirects:read") || caps.has("redirects:write")) {
+		out.redirects = { read: {} };
+		if (caps.has("redirects:write")) out.redirects.write = {};
+	}
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
 		if (caps.has("media:write")) out.media.write = {};
@@ -274,6 +282,11 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 	}
 	if (declaredAccess.schema?.read) caps.add("schema:read");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
+	if (declaredAccess.redirects?.read) caps.add("redirects:read");
+	if (declaredAccess.redirects?.write) {
+		caps.add("redirects:write");
+		caps.add("redirects:read");
+	}
 	if (declaredAccess.media?.read) caps.add("media:read");
 	if (declaredAccess.media?.write) {
 		caps.add("media:write");

@@ -12,8 +12,14 @@ import type {
 	ContentTranslationSummary,
 	CollectionSchemaInfo,
 	CronTaskInfo,
+	PaginatedResult,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectUpdateInput,
 	UpdateIfArgs,
 	UpdateIfResult,
+	VersionedRedirect,
 	VersionedValue,
 } from "emdash";
 
@@ -186,6 +192,10 @@ export type StorageUpdateIfResponse =
 	| UpdateIfResult<unknown>
 	| { __emdashStorageError: StorageSerializationFailureDetails };
 
+export type RedirectBridgeResult<T> =
+	| { ok: true; value: T }
+	| { ok: false; error: { code: string; message: string } };
+
 /**
  * Type for the PluginBridge binding passed to sandboxed workers.
  * This is the RPC interface exposed by PluginBridge WorkerEntrypoint.
@@ -284,6 +294,17 @@ export interface PluginBridgeBinding {
 		entryId: string,
 		opts?: { taxonomy?: string; locale?: string },
 	): Promise<BridgeTaxonomyTerm[]>;
+	// Redirects
+	redirectList(
+		opts?: RedirectListOptions,
+	): Promise<RedirectBridgeResult<PaginatedResult<RedirectInfo>>>;
+	redirectGet(id: string): Promise<RedirectBridgeResult<VersionedRedirect | null>>;
+	redirectCreate(input: RedirectCreateInput): Promise<RedirectBridgeResult<VersionedRedirect>>;
+	redirectUpdate(
+		id: string,
+		input: RedirectUpdateInput & { _rev: string },
+	): Promise<RedirectBridgeResult<VersionedRedirect>>;
+	redirectDelete(id: string, revision: string): Promise<RedirectBridgeResult<boolean>>;
 	// Media
 	mediaGet(id: string): Promise<BridgeMediaItem | null>;
 	mediaList(opts?: {

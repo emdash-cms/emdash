@@ -429,6 +429,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Assign the runtime definition to a \`SandboxedPlugin\`-typed constant and export it as default from \`src/plugin.ts\`.
 - Use Web APIs. Do not import Node.js built-ins into plugin runtime code.
 - Declare every runtime API in \`capabilities\` and every network destination in \`allowedHosts\`.
+- Use \`redirects:read\` for paginated redirect inspection. Add \`redirects:write\` only when the plugin must change visitor destinations, and pass redirect \`_rev\` values back unchanged for updates and deletes.
 - Use \`schema:read\` for \`ctx.schema.listCollections()\` and \`getCollection()\`.
 - Use \`content:read\` for content identity fields, translations, and published public URLs. Public URL resolution never returns previews. Revision history requires the separate \`content:revisions:read\` capability and excludes revision author identity.
 - Create a translation with \`ctx.content.create(collection, data, { locale, translationOf })\`. The source must be an active row in the same collection. EmDash preserves its non-translatable fields, byline credits, taxonomy assignments, validation, and save hooks, and permits one active row per locale in the group.
@@ -441,6 +442,8 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 Use the package scripts in this repository. The default test script builds the plugin and runs it through Worker Loader, EmDash's production sandbox wrapper, and the host bridge.
 
 Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, or cache behavior. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
+
+For redirect capability tests, use \`host.fixtures.redirect()\` to establish redirect state and \`host.inspect.redirects()\` to assert persisted rules. Invoke the plugin through \`host.actions.routes.request()\` when the test must cover the authorized host route and sandbox bridge.
 
 Dispose either host after each test so its bindings reset. Keep Node/workerd parity opt-in unless the plugin depends on runner-sensitive behavior.
 

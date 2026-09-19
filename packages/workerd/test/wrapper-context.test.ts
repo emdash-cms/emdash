@@ -80,7 +80,7 @@ describe("Workerd generated plugin context", () => {
 			{
 				id: "context-wrapper",
 				version: "1.0.0",
-				capabilities: ["users:read", "network:request"],
+				capabilities: ["users:read", "network:request", "redirects:read"],
 				allowedHosts: ["api.example.com"],
 				storage: {},
 				hooks: [],
@@ -99,6 +99,11 @@ describe("Workerd generated plugin context", () => {
 			calls.push(url);
 			if (url.endsWith("/users/get")) return Response.json({ result: { id: "user-1" } });
 			if (url.endsWith("/cron/list")) return Response.json({ result: [] });
+			if (url.endsWith("/redirect/list")) {
+				return Response.json({
+					result: { ok: true, value: { items: [{ source: "/old" }], hasMore: false } },
+				});
+			}
 			return Response.json({
 				result: {
 					status: 200,
@@ -113,17 +118,24 @@ describe("Workerd generated plugin context", () => {
 		const context = factory(fetch, {}) as {
 			users: { get(id: string): Promise<{ id: string }> };
 			cron: { list(): Promise<unknown[]> };
+			redirects: { list(): Promise<{ items: Array<{ source: string }> }>; create?: unknown };
 			http: { fetch(url: string): Promise<Response> };
 		};
 
 		await expect(context.users.get("user-1")).resolves.toEqual({ id: "user-1" });
 		await expect(context.cron.list()).resolves.toEqual([]);
+		await expect(context.redirects.list()).resolves.toEqual({
+			items: [{ source: "/old" }],
+			hasMore: false,
+		});
+		expect(context.redirects.create).toBeUndefined();
 		const response = await context.http.fetch("https://api.example.com/status");
 		expect(response).toBeInstanceOf(Response);
 		await expect(response.json()).resolves.toEqual({ ok: true });
 		expect(calls).toEqual([
 			"http://bridge/users/get",
 			"http://bridge/cron/list",
+			"http://bridge/redirect/list",
 			"http://bridge/http/fetch",
 		]);
 	});
