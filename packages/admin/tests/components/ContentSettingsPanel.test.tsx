@@ -209,10 +209,13 @@ describe("ContentSettingsPanel", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("renders all eight sections when every capability is enabled", async () => {
+	it("renders all nine sections when every capability is enabled", async () => {
 		const screen = await render(<ContentSettingsPanel {...makePanelProps()} />);
 
 		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("heading", { name: "URL & language" }))
+			.toBeInTheDocument();
 		await expect.element(screen.getByRole("heading", { name: "Ownership" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("heading", { name: "Bylines" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("heading", { name: "Translations" })).toBeInTheDocument();
@@ -221,6 +224,48 @@ describe("ContentSettingsPanel", () => {
 		await expect.element(screen.getByTestId("doc-outline")).toBeInTheDocument();
 		await expect.element(screen.getByTestId("revision-history")).toBeInTheDocument();
 		await expect.element(screen.getByRole("button", { name: "Move to Trash" })).toBeInTheDocument();
+	});
+
+	it("keeps URL and language fields outside the Publish section", async () => {
+		const screen = await render(
+			<ContentSettingsPanel {...makePanelProps({ item: makeItem({ locale: "en" }) })} />,
+		);
+		const publishSection = screen
+			.getByRole("heading", { name: "Publish" })
+			.element()
+			.closest("section");
+		const detailsSection = screen
+			.getByRole("heading", { name: "URL & language" })
+			.element()
+			.closest("section");
+		const slug = screen.getByLabelText("Slug").element();
+
+		expect(publishSection?.contains(slug)).toBe(false);
+		expect(detailsSection?.contains(slug)).toBe(true);
+		expect(detailsSection?.textContent).toContain("Content language");
+	});
+
+	it("renders scheduled actions as two sibling buttons", async () => {
+		const onOpenSchedule = vi.fn();
+		const onUnschedule = vi.fn();
+		const screen = await render(
+			<ContentSettingsPanel
+				{...makePanelProps({
+					item: makeItem({ scheduledAt: "2027-06-01T12:00:00.000Z" }),
+					publishingState: "scheduled",
+					onOpenSchedule,
+					onUnschedule,
+				})}
+			/>,
+		);
+		const changeSchedule = screen.getByRole("button", { name: "Change schedule", exact: true });
+		const removeSchedule = screen.getByRole("button", { name: "Remove schedule", exact: true });
+
+		expect(changeSchedule.element().parentElement).toBe(removeSchedule.element().parentElement);
+		await changeSchedule.click();
+		await removeSchedule.click();
+		expect(onOpenSchedule).toHaveBeenCalledOnce();
+		expect(onUnschedule).toHaveBeenCalledOnce();
 	});
 
 	it("moves byline ordering guidance into help beside the heading", async () => {
@@ -235,6 +280,8 @@ describe("ContentSettingsPanel", () => {
 		);
 		await expect.element(screen.getByRole("button", { name: "Add another byline" })).toBeVisible();
 		const trigger = screen.getByRole("button", { name: "Why are bylines shown in this order?" });
+		trigger.element().scrollIntoView();
+		await userEvent.keyboard("{Tab}");
 		trigger.element().focus();
 		await expect.element(screen.getByText("Shown to readers in this order.")).toBeVisible();
 	});
@@ -335,7 +382,7 @@ describe("ContentSettingsPanel", () => {
 			/>,
 		);
 
-		await expect.element(screen.getByText("Content locale")).toBeInTheDocument();
+		await expect.element(screen.getByText("Content language")).toBeInTheDocument();
 		await expect.element(screen.getByText("JA", { exact: true })).toBeInTheDocument();
 		expect(screen.getByText(/stored with the entry and is separate/).query()).toBeNull();
 		expect(screen.getByRole("button", { name: "Why English is used" }).query()).toBeNull();
@@ -360,12 +407,14 @@ describe("ContentSettingsPanel", () => {
 		const trigger = screen.getByRole("button", { name: "Why English is used" });
 		await expect.element(screen.getByText("EN", { exact: true })).toBeInTheDocument();
 		const explanation =
-			"English is used because no content locale is configured. Content locale is stored with the entry and is separate from your admin language.";
+			"English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language.";
 		const help = screen.getByText(explanation);
+		trigger.element().scrollIntoView();
 		await userEvent.hover(trigger.element());
 		await expect.element(help).toBeVisible();
 		await userEvent.hover(document.body);
 		await vi.waitFor(() => expect(help.query()).toBeNull());
+		await userEvent.keyboard("{Tab}");
 		trigger.element().focus();
 		await expect.element(help).toBeVisible();
 		expect(screen.getByRole("alert").query()).toBeNull();
@@ -960,7 +1009,9 @@ describe("ContentSettingsPanel", () => {
 			<ContentSettingsPanel {...makePanelProps({ item: null, isNew: true })} />,
 		);
 
-		await expect.element(screen.getByRole("heading", { name: "Publish" })).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: "Publish" }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Drag to reorder Publish" }).query()).toBeNull();
+		await expect.element(screen.getByRole("heading", { name: "URL & language" })).toBeVisible();
 		// No trash, no translations, no taxonomies, no SEO, no revisions for new items
 		expect(screen.container.textContent).not.toContain("Move to Trash");
 		expect(screen.container.textContent).not.toContain("Translations");
@@ -1053,38 +1104,44 @@ describe("SettingsActionBar", () => {
 		vi.clearAllMocks();
 	});
 
-	it("shows Publish for an unpublished draft", async () => {
+	it("shows Publish now for an unpublished draft", async () => {
 		const screen = await render(<SettingsActionBar {...makeBarProps()} />);
-		const publish = screen.getByRole("button", { name: "Publish", exact: true });
+		const publish = screen.getByRole("button", { name: "Publish now", exact: true });
 
 		await expect.element(publish).toBeInTheDocument();
 		expect(publish.element().className).toContain("button-emphasis-bg");
 		expect(screen.container.textContent).not.toContain("Unpublish Post");
 	});
 
-	it("uses the normalized Publish label for every collection", async () => {
+	it("uses the normalized Publish now label for every collection", async () => {
 		const screen = await render(
 			<SettingsActionBar {...makeBarProps({ collectionLabel: "API Docs" })} />,
 		);
 
 		await expect
-			.element(screen.getByRole("button", { name: "Publish", exact: true }))
+			.element(screen.getByRole("button", { name: "Publish now", exact: true }))
 			.toBeInTheDocument();
 	});
 
-	it("shows Publish changes now for a live item with edits and no schedule option", async () => {
+	it("confirms Publish changes for a live item with edits", async () => {
 		const props = makeBarProps({ isLive: true, hasPendingChanges: true });
 		const screen = await render(<SettingsActionBar {...props} />);
 
 		const publishChanges = screen.getByRole("button", {
-			name: "Publish changes now",
+			name: "Publish changes",
 			exact: true,
 		});
 		await expect.element(publishChanges).toBeInTheDocument();
 		expect(publishChanges.element().className).toContain("button-emphasis-bg");
 
 		await publishChanges.click();
-		expect(props.onPublish).toHaveBeenCalled();
+		expect(props.onPublish).not.toHaveBeenCalled();
+		screen
+			.getByRole("dialog", { name: "Publish changes?" })
+			.getByRole("button", { name: "Publish changes", exact: true })
+			.element()
+			.click();
+		expect(props.onPublish).toHaveBeenCalledOnce();
 	});
 
 	it("shows Unpublish Post for a clean live item", async () => {
@@ -1133,7 +1190,7 @@ describe("SettingsActionBar", () => {
 			screen.getByRole("button", { name: "Saved" }).element(),
 			screen.getByRole("link", { name: "Live View" }).element(),
 			screen.getByRole("button", { name: "Preview draft" }).element(),
-			screen.getByRole("button", { name: "Publish changes now", exact: true }).element(),
+			screen.getByRole("button", { name: "Publish changes", exact: true }).element(),
 		];
 		const slots = actions.map((action) => action.parentElement);
 

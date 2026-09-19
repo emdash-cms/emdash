@@ -388,10 +388,12 @@ describe("ContentEditPage revision token handling", () => {
 		await vi.advanceTimersByTimeAsync(0);
 
 		const publishTrigger = await vi.waitFor(() =>
-			screen.getByRole("button", { name: "Publish", exact: true }),
+			screen.getByRole("button", { name: "Publish now", exact: true }),
 		);
 		await publishTrigger.click();
-		const publishNow = screen.getByRole("menuitem", { name: /Publish now/ });
+		const publishNow = screen
+			.getByRole("dialog", { name: "Publish now?" })
+			.getByRole("button", { name: "Publish now", exact: true });
 		await expect.element(publishNow).toBeVisible();
 		fireEvent.click(publishNow.element());
 		await vi.advanceTimersByTimeAsync(0);
