@@ -119,7 +119,8 @@ The publishing control reflects what will happen to the saved draft:
 - **Schedule publication** sets when a new entry becomes live.
 - **Schedule changes** sets when pending changes replace the current live revision.
 - **Change schedule** or **Remove schedule** updates an existing schedule.
-- **Unpublish** removes the live revision from public queries and keeps an editable draft.
+- **Unpublish** removes the live revision from public queries, cancels any schedule, and keeps an
+  editable draft.
 
 To schedule an entry, save it first, open the publishing menu, choose the relevant schedule action,
 and select a future date and time. The editor displays the time zone used for the schedule. Until
@@ -162,7 +163,8 @@ Open an entry's actions or select one or more rows on the collection page, then 
 Trash**. Trashed entries stop appearing in ordinary content queries but remain available on the
 collection's **Trash** tab.
 
-From **Trash**, select **Restore** to return an entry to the collection.
+From **Trash**, select **Restore** to return an entry to the collection. A restored entry comes back as
+a draft with no schedule. Publish it to make it public.
 
 <Aside type="caution">
 	An administrator can select **Delete Permanently** in Trash. Permanent deletion removes the entry

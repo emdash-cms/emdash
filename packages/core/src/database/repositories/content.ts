@@ -1277,13 +1277,21 @@ export class ContentRepository {
 
 	/**
 	 * Restore content from trash
+	 *
+	 * The entry comes back as a draft with no schedule. The live version is not
+	 * copied into a draft revision: collections without revisions save to the
+	 * columns, and a draft revision would hide those saves.
 	 */
 	async restore(type: string, id: string): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
 
 		const result = await sql<Record<string, unknown>>`
 			UPDATE ${sql.ref(tableName)}
-			SET deleted_at = NULL
+			SET deleted_at = NULL,
+				live_revision_id = NULL,
+				status = 'draft',
+				scheduled_at = NULL,
+				version = version + 1
 			WHERE id = ${id}
 			AND deleted_at IS NOT NULL
 			RETURNING *
@@ -2266,8 +2274,9 @@ export class ContentRepository {
 	/**
 	 * Unpublish content
 	 *
-	 * Removes live pointer but preserves the draft and publication date. If no
-	 * draft exists, creates one from the live version so the content isn't lost.
+	 * Removes live pointer and cancels any pending schedule, but preserves the
+	 * draft and publication date. If no draft exists, creates one from the live
+	 * version so the content isn't lost.
 	 */
 	async unpublish(
 		type: string,
@@ -2282,7 +2291,9 @@ export class ContentRepository {
 			throw new EmDashValidationError("Content item not found");
 		}
 		assertRevisionPrecondition(existing, expectedRevision);
-		if (existing.status === "draft" && !existing.liveRevisionId) return existing;
+		if (existing.status === "draft" && !existing.liveRevisionId && !existing.scheduledAt) {
+			return existing;
+		}
 
 		const revisionRepo = new RevisionRepository(this.db);
 		let provisionalRevisionId: string | null = null;
@@ -2306,6 +2317,7 @@ export class ContentRepository {
 				SET live_revision_id = NULL,
 					draft_revision_id = ${draftRevisionId},
 					status = 'draft',
+					scheduled_at = NULL,
 					updated_at = ${now},
 					version = version + 1
 				WHERE id = ${id}
