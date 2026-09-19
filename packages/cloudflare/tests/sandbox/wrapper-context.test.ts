@@ -46,7 +46,7 @@ describe("Cloudflare generated plugin context", () => {
 		const source = generatePluginWrapper({
 			id: "content-discovery",
 			version: "1.0.0",
-			capabilities: ["schema:read", "content:read", "content:revisions:read"],
+			capabilities: ["schema:read", "content:revisions:read"],
 			allowedHosts: [],
 			storage: {},
 			hooks: ["plugin:activate"],
