@@ -44,6 +44,7 @@ import {
 	formCreateSchema,
 	formDeleteSchema,
 	formDuplicateSchema,
+	formsListSchema,
 	formUpdateSchema,
 	submissionDeleteSchema,
 	submissionGetSchema,
@@ -141,42 +142,53 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 			// --- Admin routes (require auth) ---
 
 			"forms/list": {
+				permission: "plugins:manage",
+				input: formsListSchema,
 				handler: formsListHandler,
 			},
 			"forms/create": {
+				permission: "plugins:manage",
 				input: formCreateSchema,
 				handler: formsCreateHandler as never,
 			},
 			"forms/update": {
+				permission: "plugins:manage",
 				input: formUpdateSchema,
 				handler: formsUpdateHandler as never,
 			},
 			"forms/delete": {
+				permission: "plugins:manage",
 				input: formDeleteSchema,
 				handler: formsDeleteHandler as never,
 			},
 			"forms/duplicate": {
+				permission: "plugins:manage",
 				input: formDuplicateSchema,
 				handler: formsDuplicateHandler as never,
 			},
 
 			"submissions/list": {
+				permission: "plugins:manage",
 				input: submissionsListSchema,
 				handler: submissionsListHandler as never,
 			},
 			"submissions/get": {
+				permission: "plugins:manage",
 				input: submissionGetSchema,
 				handler: submissionGetHandler as never,
 			},
 			"submissions/update": {
+				permission: "plugins:manage",
 				input: submissionUpdateSchema,
 				handler: submissionUpdateHandler as never,
 			},
 			"submissions/delete": {
+				permission: "plugins:manage",
 				input: submissionDeleteSchema,
 				handler: submissionDeleteHandler as never,
 			},
 			"submissions/export": {
+				permission: "plugins:manage",
 				input: exportSchema,
 				handler: exportHandler as never,
 			},
@@ -189,6 +201,72 @@ export function createPlugin(_options: FormsPluginOptions = {}): ResolvedPlugin 
 						hasSiteKey: !!siteKey,
 						hasSecretKey: !!secretKey,
 					};
+				},
+			},
+		},
+
+		mcp: {
+			tools: {
+				listForms: {
+					description: "List forms with their status and submission counts.",
+					route: "forms/list",
+					input: formsListSchema,
+					destructive: false,
+				},
+				createForm: {
+					description: "Create a form with pages, fields, and settings.",
+					route: "forms/create",
+					input: formCreateSchema,
+					destructive: false,
+				},
+				updateForm: {
+					description: "Update an existing form's definition, settings, or status.",
+					route: "forms/update",
+					input: formUpdateSchema,
+					destructive: true,
+				},
+				deleteForm: {
+					description: "Delete a form and optionally its submissions.",
+					route: "forms/delete",
+					input: formDeleteSchema,
+					destructive: true,
+				},
+				duplicateForm: {
+					description: "Duplicate an existing form with an optional new name or slug.",
+					route: "forms/duplicate",
+					input: formDuplicateSchema,
+					destructive: false,
+				},
+				listSubmissions: {
+					description:
+						"List submissions for a form, optionally filtered by status or starred state.",
+					route: "submissions/list",
+					input: submissionsListSchema,
+					destructive: false,
+				},
+				getSubmission: {
+					description: "Get a single form submission by ID.",
+					route: "submissions/get",
+					input: submissionGetSchema,
+					destructive: false,
+				},
+				updateSubmission: {
+					description: "Update a submission's status, starred state, or notes.",
+					route: "submissions/update",
+					input: submissionUpdateSchema,
+					destructive: true,
+				},
+				deleteSubmission: {
+					description: "Permanently delete a form submission and its uploaded files.",
+					route: "submissions/delete",
+					input: submissionDeleteSchema,
+					destructive: true,
+				},
+				exportSubmissions: {
+					description: "Export filtered submissions for a form as CSV or JSON.",
+					route: "submissions/export",
+					input: exportSchema,
+					destructive: false,
 				},
 			},
 		},
