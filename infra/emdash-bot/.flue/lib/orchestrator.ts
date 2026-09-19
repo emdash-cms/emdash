@@ -3593,6 +3593,59 @@ export class OrchestratorDO extends DurableObject<Env> {
 		});
 	}
 
+	async queueOperatorCommand(input: {
+		expectedAnchorNumber: number;
+		command: "retry" | "work";
+		expectedState: "needs_attention" | "failed" | "blocked" | "awaiting_approval";
+		idempotencyKey: string;
+	}): Promise<{ queued: boolean; reason?: string }> {
+		const queued = await this.ctx.storage.transaction(async (transaction) => {
+			const [anchorNumber, state, currentRunId, inbox, seenDeliveries] = await Promise.all([
+				transaction.get<number>(STORAGE.anchorNumber),
+				transaction.get<StateId>(STORAGE.state),
+				transaction.get<string>(STORAGE.currentRunId),
+				transaction.get<InboxEntry[]>(STORAGE.inbox),
+				transaction.get<string[]>(STORAGE.seenDeliveries),
+			]);
+			if (anchorNumber !== input.expectedAnchorNumber) {
+				return { queued: false, reason: "anchor mismatch" } as const;
+			}
+			if (state !== input.expectedState) {
+				return { queued: false, reason: "state mismatch" } as const;
+			}
+			const validCommand =
+				(input.command === "work" && state === "awaiting_approval") ||
+				(input.command === "retry" &&
+					(state === "needs_attention" || state === "failed" || state === "blocked"));
+			if (!validCommand) return { queued: false, reason: "command not allowed" } as const;
+			if (currentRunId) return { queued: false, reason: "run active" } as const;
+			const deliveryId = `operator-${input.command}:${input.expectedAnchorNumber}:${input.idempotencyKey}`;
+			if (
+				(seenDeliveries ?? []).includes(deliveryId) ||
+				(inbox ?? []).some((entry) => entry.input.deliveryId === deliveryId)
+			) {
+				return { queued: false, reason: "command already queued" } as const;
+			}
+
+			const command: NormalizedEvent = {
+				event: input.command,
+				arg: null,
+				actor: "system",
+				labels: [],
+				needsClassify: false,
+				deliveryId,
+				anchorNumber: input.expectedAnchorNumber,
+			};
+			await transaction.put(STORAGE.inbox, [
+				...(inbox ?? []),
+				{ id: crypto.randomUUID(), input: command },
+			]);
+			return { queued: true } as const;
+		});
+		if (queued.queued) await this.ctx.storage.setAlarm(Date.now());
+		return queued;
+	}
+
 	async getEventLog(): Promise<readonly EventLogEntry[]> {
 		return (await this.ctx.storage.get<EventLogEntry[]>(STORAGE.eventLog)) ?? [];
 	}

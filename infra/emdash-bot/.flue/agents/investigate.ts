@@ -547,7 +547,7 @@ export function Investigate({ id }: AgentProps) {
 			defineTool({
 				name: "report_triage",
 				description:
-					"Report the triage disposition, issue kind, useful existing labels, and concise evidence. auto-work is only for an obvious, localized, low-risk change with no product or security decision.",
+					"Report the triage disposition, issue kind, useful existing labels, and concise evidence. Use auto-work for a clear bug that needs no product, compatibility, security, migration, dependency, release, or CI decision; the work run owns reproduction and safe delivery.",
 				input: triageResultSchema,
 				output: reportedResultSchema,
 				durable: true,
@@ -1143,7 +1143,7 @@ function buildPrompt(input: InvestigateData): string {
 		? [
 				"- Read the issue, AGENTS.md, recent context, and the smallest relevant source area.",
 				"- Do not edit files, attach the container, run tests, or publish a candidate.",
-				"- Choose auto-work only for an obvious, localized, low-risk task. Otherwise ask for specific information or maintainer approval.",
+				"- Choose auto-work for a clear bug unless it needs a product, compatibility, security, migration, dependency, release, or CI decision. Deeper investigation alone is not a reason to wait for approval.",
 				"- Suggest only existing classification labels; lifecycle labels are controlled by the orchestrator.",
 			]
 		: diagnose

@@ -25,6 +25,7 @@ import {
 } from "./lib/webhook.js";
 
 const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
+const OPERATOR_IDEMPOTENCY_KEY = /^[a-zA-Z0-9._-]+$/;
 
 async function coordinatedInstallationToken(
 	env: Env,
@@ -83,6 +84,55 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		} catch {
 			return c.json({ error: "Invalid orchestrator id" }, 400);
 		}
+	});
+	app.get("/api/operator/issues/:number/recovery", async (c) => {
+		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_OPERATOR_SECRET))) {
+			return c.json({ error: "Unauthorized" }, 401);
+		}
+		const issueNumber = positiveInteger(c.req.param("number"));
+		if (issueNumber === null) return c.json({ error: "Invalid issue number" }, 400);
+		return c.json(
+			await c.env.Orchestrator.getByName(`issue-${issueNumber}`).inspectRecoveryState(),
+		);
+	});
+	app.post("/api/operator/issues/:number/command", async (c) => {
+		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_OPERATOR_SECRET))) {
+			return c.json({ error: "Unauthorized" }, 401);
+		}
+		const issueNumber = positiveInteger(c.req.param("number"));
+		if (issueNumber === null) return c.json({ error: "Invalid issue number" }, 400);
+		let body: unknown;
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON" }, 400);
+		}
+		if (!body || typeof body !== "object") return c.json({ error: "Invalid request" }, 400);
+		const { command, expectedState, idempotencyKey } = Object.fromEntries(Object.entries(body));
+		if (
+			(command !== "retry" && command !== "work") ||
+			(expectedState !== "needs_attention" &&
+				expectedState !== "failed" &&
+				expectedState !== "blocked" &&
+				expectedState !== "awaiting_approval")
+		) {
+			return c.json({ error: "Invalid request" }, 400);
+		}
+		if (
+			typeof idempotencyKey !== "string" ||
+			idempotencyKey.length === 0 ||
+			idempotencyKey.length > 100 ||
+			!OPERATOR_IDEMPOTENCY_KEY.test(idempotencyKey)
+		) {
+			return c.json({ error: "Invalid request" }, 400);
+		}
+		const result = await c.env.Orchestrator.getByName(`issue-${issueNumber}`).queueOperatorCommand({
+			expectedAnchorNumber: issueNumber,
+			command,
+			expectedState,
+			idempotencyKey,
+		});
+		return c.json(result, result.queued ? 202 : 409);
 	});
 	app.get("/api/dashboard", async (c) => {
 		try {
@@ -317,4 +367,9 @@ async function operatorAuthorized(header: string | undefined, secret: string): P
 		providedBytes.byteLength === expectedBytes.byteLength &&
 		crypto.subtle.timingSafeEqual(providedBytes, expectedBytes)
 	);
+}
+
+function positiveInteger(value: string): number | null {
+	const parsed = Number(value);
+	return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : null;
 }
