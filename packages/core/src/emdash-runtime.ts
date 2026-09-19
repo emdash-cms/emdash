@@ -71,11 +71,8 @@ import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
-import {
-	createCommentAccess,
-	createTaxonomyAccessWithWrite,
-	type ContentActionCallbacks,
-} from "./plugins/context.js";
+import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
+import type { ContentActionCallbacks } from "./plugins/context.js";
 import type { PluginContentCacheInvalidator } from "./plugins/routes.js";
 import {
 	createSandboxedPluginProxy,

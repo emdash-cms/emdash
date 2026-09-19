@@ -121,12 +121,7 @@ describe("Workerd generated plugin context", () => {
 			{
 				id: "context-wrapper",
 				version: "1.0.0",
-				capabilities: [
-					"users:read",
-					"network:request",
-					"redirects:read",
-					"content:publish",
-				],
+				capabilities: ["users:read", "network:request", "redirects:read", "content:publish"],
 				allowedHosts: ["api.example.com"],
 				storage: {},
 				hooks: [],
