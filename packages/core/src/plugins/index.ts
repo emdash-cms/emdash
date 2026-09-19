@@ -27,7 +27,6 @@ export {
 	createPluginContext,
 	createKVAccess,
 	createStorageAccess,
-	createContentAccess,
 	createContentAccessWithWrite,
 	createCommentAccess,
 	createMediaAccess,
@@ -40,6 +39,7 @@ export {
 	createUrlHelper,
 	createSiteInfo,
 } from "./context.js";
+export { createContentAccess } from "./content-access.js";
 export type { PluginContextFactoryOptions } from "./context.js";
 export { CronAccessImpl } from "./cron.js";
 

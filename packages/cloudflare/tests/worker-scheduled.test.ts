@@ -22,7 +22,7 @@ vi.mock("astro/app/entrypoint", () => ({
 	}),
 }));
 vi.mock("emdash/middleware", () => ({ runScheduledTasks: scheduled.general }));
-vi.mock("../src/sandbox/index.js", () => ({ PluginBridge: vi.fn() }));
+vi.mock("../src/sandbox/bridge.js", () => ({ PluginBridge: vi.fn() }));
 
 import { createScheduledHandler } from "../src/worker.js";
 
