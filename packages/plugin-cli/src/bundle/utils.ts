@@ -211,6 +211,8 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 			pages: plugin.admin.pages,
 			widgets: plugin.admin.widgets,
 			fieldWidgets: plugin.admin.fieldWidgets,
+			editorPanels: plugin.admin.editorPanels,
+			editorActions: plugin.admin.editorActions,
 		},
 	};
 }

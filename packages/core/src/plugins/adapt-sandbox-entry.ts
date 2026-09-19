@@ -329,6 +329,12 @@ export function adaptSandboxEntry(
 	if (descriptor.adminWidgets) {
 		admin.widgets = descriptor.adminWidgets;
 	}
+	if (descriptor.editorPanels) {
+		admin.editorPanels = descriptor.editorPanels;
+	}
+	if (descriptor.editorActions) {
+		admin.editorActions = descriptor.editorActions;
+	}
 	if (descriptor.settingsSchema) {
 		admin.settingsSchema = descriptor.settingsSchema;
 	}

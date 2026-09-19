@@ -814,47 +814,179 @@ const hookEntrySchema = z.union([
 
 /** Route entry: plain string or structured object with metadata */
 const routeNamePattern = /^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/;
+/** Must stay in sync with Permissions in packages/auth/src/rbac.ts. */
+const VALID_ROUTE_PERMISSIONS = [
+	"content:read",
+	"content:read_drafts",
+	"content:create",
+	"content:edit_own",
+	"content:edit_any",
+	"content:delete_own",
+	"content:delete_any",
+	"content:delete_permanent",
+	"content:publish_own",
+	"content:publish_any",
+	"media:read",
+	"media:upload",
+	"media:edit_own",
+	"media:edit_any",
+	"media:delete_own",
+	"media:delete_any",
+	"taxonomies:read",
+	"taxonomies:manage",
+	"comments:read",
+	"comments:moderate",
+	"comments:delete",
+	"comments:settings",
+	"menus:read",
+	"menus:manage",
+	"bylines:read",
+	"bylines:manage",
+	"widgets:read",
+	"widgets:manage",
+	"sections:read",
+	"sections:manage",
+	"redirects:read",
+	"redirects:manage",
+	"users:read",
+	"users:invite",
+	"users:manage",
+	"settings:read",
+	"settings:manage",
+	"schema:read",
+	"schema:manage",
+	"plugins:read",
+	"plugins:manage",
+	"import:execute",
+	"backups:manage",
+	"search:read",
+	"search:manage",
+	"auth:manage_own_credentials",
+	"auth:manage_connections",
+] as const;
 const routeEntrySchema = z.union([
 	z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 	z.object({
 		name: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
 		public: z.boolean().optional(),
+		permission: z.enum(VALID_ROUTE_PERMISSIONS).optional(),
+		cacheControl: z.string().min(1).optional(),
 	}),
 ]);
 
-export const manifestSchema = z.object({
-	// Core PluginManifest fields
-	id: z.string().min(1),
-	version: z.string().regex(RE_SEMVER_FULL, "Must be valid semver"),
-	capabilities: z.array(z.enum(VALID_CAPABILITIES)),
-	allowedHosts: z.array(z.string()).default([]),
-	storage: z.record(z.string(), storageCollectionSchema).default({}),
-	hooks: z.array(hookEntrySchema).default([]),
-	routes: z.array(routeEntrySchema).default([]),
-	admin: z
-		.object({
-			entry: z.string().optional(),
-			settingsSchema: z.record(z.string(), z.unknown()).optional(),
-			pages: z
-				.array(z.object({ path: z.string(), label: z.string(), icon: z.string().optional() }))
-				.optional(),
-			widgets: z
-				.array(
-					z.object({
-						id: z.string(),
-						size: z.enum(["full", "half", "third"]).optional(),
-						title: z.string().optional(),
-					}),
-				)
-				.optional(),
-		})
-		.default({}),
-	// Marketplace publishing extras (not part of core PluginManifest)
-	name: z.string().min(1).max(100).optional(),
-	description: z.string().max(200).optional(),
-	minEmDashVersion: z.string().optional(),
-	changelog: z.string().optional(),
+const editorExtensionIdSchema = z
+	.string()
+	.min(1)
+	.max(64)
+	.regex(/^[a-z][a-z0-9_-]*$/, "Editor extension id must be a lowercase slug");
+const editorCollectionsSchema = z
+	.array(
+		z
+			.string()
+			.max(63)
+			.regex(/^[a-z][a-z0-9_]*$/, "Invalid collection slug"),
+	)
+	.max(64)
+	.refine((collections) => new Set(collections).size === collections.length, {
+		message: "Editor extension collections must be unique",
+	});
+const editorPanelSchema = z.object({
+	id: editorExtensionIdSchema,
+	title: z.string().min(1).max(128),
+	route: z.string().min(1).max(128).regex(routeNamePattern),
+	collections: editorCollectionsSchema.optional(),
+	order: z.number().int().min(-1_000).max(1_000).optional(),
 });
+const editorActionSchema = z
+	.object({
+		id: editorExtensionIdSchema,
+		label: z.string().min(1).max(128),
+		route: z.string().min(1).max(128).regex(routeNamePattern),
+		placement: z.enum(["toolbar", "overflow"]),
+		collections: editorCollectionsSchema.optional(),
+		style: z.enum(["default", "danger"]).optional(),
+		confirm: z
+			.object({
+				title: z.string().min(1).max(128),
+				text: z.string().min(1).max(1_024),
+				confirm: z.string().min(1).max(64),
+				deny: z.string().min(1).max(64),
+				style: z.literal("danger").optional(),
+			})
+			.optional(),
+	})
+	.refine((action) => action.style !== "danger" || action.confirm !== undefined, {
+		message: "Danger editor actions require confirmation",
+		path: ["confirm"],
+	});
+
+export const manifestSchema = z
+	.object({
+		// Core PluginManifest fields
+		id: z.string().min(1),
+		version: z.string().regex(RE_SEMVER_FULL, "Must be valid semver"),
+		capabilities: z.array(z.enum(VALID_CAPABILITIES)),
+		allowedHosts: z.array(z.string()).default([]),
+		storage: z.record(z.string(), storageCollectionSchema).default({}),
+		hooks: z.array(hookEntrySchema).default([]),
+		routes: z.array(routeEntrySchema).default([]),
+		admin: z
+			.object({
+				entry: z.string().optional(),
+				settingsSchema: z.record(z.string(), z.unknown()).optional(),
+				pages: z
+					.array(z.object({ path: z.string(), label: z.string(), icon: z.string().optional() }))
+					.optional(),
+				widgets: z
+					.array(
+						z.object({
+							id: z.string(),
+							size: z.enum(["full", "half", "third"]).optional(),
+							title: z.string().optional(),
+						}),
+					)
+					.optional(),
+				editorPanels: z.array(editorPanelSchema).max(32).optional(),
+				editorActions: z.array(editorActionSchema).max(32).optional(),
+			})
+			.default({}),
+		// Marketplace publishing extras (not part of core PluginManifest)
+		name: z.string().min(1).max(100).optional(),
+		description: z.string().max(200).optional(),
+		minEmDashVersion: z.string().optional(),
+		changelog: z.string().optional(),
+	})
+	.superRefine((manifest, ctx) => {
+		for (const [kind, extensions] of [
+			["editorPanels", manifest.admin.editorPanels],
+			["editorActions", manifest.admin.editorActions],
+		] as const) {
+			const seen = new Set<string>();
+			for (const [index, extension] of (extensions ?? []).entries()) {
+				if (seen.has(extension.id)) {
+					ctx.addIssue({
+						code: "custom",
+						message: `Duplicate ${kind} id`,
+						path: ["admin", kind, index, "id"],
+					});
+				}
+				seen.add(extension.id);
+				const matches = manifest.routes.filter(
+					(route) => (typeof route === "string" ? route : route.name) === extension.route,
+				);
+				if (
+					matches.length !== 1 ||
+					matches.some((route) => typeof route !== "string" && route.public)
+				) {
+					ctx.addIssue({
+						code: "custom",
+						message: "Editor extension must reference exactly one private route",
+						path: ["admin", kind, index, "route"],
+					});
+				}
+			}
+		}
+	});
 
 // ── Semver comparison (simplified) ──────────────────────────────
 

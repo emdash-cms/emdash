@@ -121,6 +121,64 @@ describe("pluginManifestSchema — route entries", () => {
 	});
 });
 
+describe("pluginManifestSchema — editor extensions", () => {
+	it("accepts bounded declarations that reference private routes", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [
+				{ name: "entry-panel", permission: "content:edit_own" },
+				{ name: "entry-action", permission: "content:edit_own" },
+			],
+			admin: {
+				editorPanels: [
+					{ id: "health", title: "Health", route: "entry-panel", collections: ["posts"] },
+				],
+				editorActions: [
+					{
+						id: "repair",
+						label: "Repair",
+						route: "entry-action",
+						placement: "toolbar",
+					},
+				],
+			},
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it.each([
+		["missing", ["entry-panel"], "missing"],
+		["public", [{ name: "entry-panel", public: true }], "entry-panel"],
+		["ambiguous", ["entry-panel", { name: "entry-panel" }], "entry-panel"],
+	])("rejects a %s editor extension route", (_label, routes, route) => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes,
+			admin: { editorPanels: [{ id: "health", title: "Health", route }] },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("requires confirmation for danger actions", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: ["repair"],
+			admin: {
+				editorActions: [
+					{
+						id: "repair",
+						label: "Repair",
+						route: "repair",
+						placement: "toolbar",
+						style: "danger",
+					},
+				],
+			},
+		});
+		expect(result.success).toBe(false);
+	});
+});
+
 describe("pluginManifestSchema — MCP tools", () => {
 	it("keeps MCP declarations optional for backwards compatibility", () => {
 		expect(pluginManifestSchema.safeParse(makeManifest({})).success).toBe(true);

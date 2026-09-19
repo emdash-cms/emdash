@@ -103,6 +103,56 @@ const plugin: SandboxedPlugin = {
 				};
 			},
 		},
+		"entry-context": {
+			permission: "content:edit_own",
+			handler: async (route) => {
+				if (route.ui?.surface !== "content-editor-panel") {
+					throw new Error("Expected editor panel context");
+				}
+				if (
+					typeof route.input === "object" &&
+					route.input !== null &&
+					"action_id" in route.input &&
+					route.input.action_id === "invalid"
+				) {
+					return { blocks: [{ type: "unknown" }] };
+				}
+				return {
+					blocks: [
+						{
+							type: "fields",
+							fields: [
+								{ label: "Surface", value: route.ui.surface },
+								{ label: "Extension", value: route.ui.extensionId },
+								{ label: "Collection", value: route.ui.entry.collection },
+								{ label: "Entry", value: route.ui.entry.id },
+								{ label: "Content locale", value: route.ui.entry.locale ?? "missing" },
+								{ label: "Version", value: String(route.ui.entry.version) },
+							],
+						},
+					],
+				};
+			},
+		},
+		"refresh-entry": {
+			permission: "content:edit_own",
+			handler: async (route) => {
+				if (route.ui?.surface !== "content-editor-action") {
+					throw new Error("Expected editor action context");
+				}
+				return {
+					refresh: true,
+					toast: {
+						type: "success",
+						message: `${route.ui.entry.collection}/${route.ui.entry.id} refreshed`,
+					},
+				};
+			},
+		},
+		"invalid-action": {
+			permission: "content:edit_own",
+			handler: async () => ({ refresh: true, navigate: { kind: "plugin-settings" } }),
+		},
 		"isolate-id": {
 			public: true,
 			cacheControl: "public, max-age=60",

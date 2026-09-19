@@ -45,7 +45,7 @@ The following surfaces do not exist in the current sandbox contract. Do not inve
 
 - Plugin routes return JSON-serializable data inside EmDash's API envelope. There is no raw or unwrapped route response that controls the status, stream, or arbitrary headers.
 - `public: true` removes host authentication from the route. There is no separate safe-public-view abstraction that automatically limits fields or capabilities; validate requests and return the minimum public data.
-- Block Kit has host-resolved navigation links, but no content-editor panel extension point.
+- Content-editor panels and actions cannot receive field values or unsaved editor state. They receive saved entry identity and version; use `ctx.content` for capability-gated saved-content reads.
 - Block Kit route calls expose the current administrator's host-attested locale and direction in `routeCtx.ui`. Manifest navigation labels remain static strings.
 
 ## Runner-only methods are not portable

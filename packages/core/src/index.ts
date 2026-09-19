@@ -328,6 +328,8 @@ export type {
 	RouteContext,
 	PluginAdminConfig,
 	PluginAdminPage,
+	PluginEditorPanel,
+	PluginEditorAction,
 	PluginAdminExports,
 	FieldWidgetConfig,
 	PortableTextBlockConfig,

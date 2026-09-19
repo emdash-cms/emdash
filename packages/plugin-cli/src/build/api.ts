@@ -290,6 +290,10 @@ async function writeDescriptor(ctx: WriteDescriptorContext): Promise<DescriptorF
 			? { settingsSchema: wireManifest.admin.settingsSchema }
 			: {}),
 		...(wireManifest.admin.fieldWidgets ? { fieldWidgets: wireManifest.admin.fieldWidgets } : {}),
+		...(wireManifest.admin.editorPanels ? { editorPanels: wireManifest.admin.editorPanels } : {}),
+		...(wireManifest.admin.editorActions
+			? { editorActions: wireManifest.admin.editorActions }
+			: {}),
 	};
 
 	// Pretty-print so the generated file is human-readable when debugging.

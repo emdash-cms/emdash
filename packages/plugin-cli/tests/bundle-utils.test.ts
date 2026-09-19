@@ -145,6 +145,15 @@ describe("extractManifest", () => {
 		const manifest = extractManifest(
 			minimalResolved({
 				admin: {
+					editorPanels: [{ id: "health", title: "Health", route: "entry-health" }],
+					editorActions: [
+						{
+							id: "repair",
+							label: "Repair",
+							route: "entry-repair",
+							placement: "toolbar",
+						},
+					],
 					settingsSchema: {
 						enabled: { type: "boolean", label: "Enabled", default: true },
 					},
@@ -162,6 +171,8 @@ describe("extractManifest", () => {
 
 		expect(manifest.admin.settingsSchema).toHaveProperty("enabled");
 		expect(manifest.admin.fieldWidgets?.[0]).toMatchObject({ name: "event-picker" });
+		expect(manifest.admin.editorPanels?.[0]).toMatchObject({ id: "health" });
+		expect(manifest.admin.editorActions?.[0]).toMatchObject({ id: "repair" });
 	});
 });
 

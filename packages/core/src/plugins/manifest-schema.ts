@@ -226,32 +226,98 @@ const dashboardWidgetSchema = z.object({
 	title: z.string().optional(),
 });
 
-const pluginAdminConfigSchema = z.object({
-	entry: z.string().optional(),
-	settingsSchema: z.record(z.string(), settingFieldSchema).optional(),
-	pages: z.array(adminPageSchema).optional(),
-	widgets: z.array(dashboardWidgetSchema).optional(),
-	fieldWidgets: z
-		.array(
-			z.object({
-				name: z.string().min(1),
-				label: z.string().min(1),
-				fieldTypes: z.array(z.enum(FIELD_TYPES)),
-				elements: z
-					.array(
-						z
-							.object({
-								type: z.string(),
-								action_id: z.string(),
-								label: z.string().optional(),
-							})
-							.loose(),
-					)
-					.optional(),
-			}),
-		)
-		.optional(),
+const editorExtensionIdPattern = /^[a-z][a-z0-9_-]*$/;
+const collectionSlugPattern = /^[a-z][a-z0-9_]*$/;
+const editorCollectionsSchema = z
+	.array(z.string().max(63).regex(collectionSlugPattern, "Invalid collection slug"))
+	.max(64)
+	.refine((collections) => new Set(collections).size === collections.length, {
+		message: "Editor extension collections must be unique",
+	});
+const editorPanelSchema = z.object({
+	id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
+	title: z.string().min(1).max(128),
+	route: z
+		.string()
+		.min(1)
+		.max(128)
+		.regex(routeNamePattern, "Route name must be a safe path segment"),
+	collections: editorCollectionsSchema.optional(),
+	order: z.number().int().min(-1_000).max(1_000).optional(),
 });
+const editorActionConfirmSchema = z.object({
+	title: z.string().min(1).max(128),
+	text: z.string().min(1).max(1_024),
+	confirm: z.string().min(1).max(64),
+	deny: z.string().min(1).max(64),
+	style: z.literal("danger").optional(),
+});
+const editorActionSchema = z
+	.object({
+		id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor action id"),
+		label: z.string().min(1).max(128),
+		route: z
+			.string()
+			.min(1)
+			.max(128)
+			.regex(routeNamePattern, "Route name must be a safe path segment"),
+		placement: z.enum(["toolbar", "overflow"]),
+		collections: editorCollectionsSchema.optional(),
+		style: z.enum(["default", "danger"]).optional(),
+		confirm: editorActionConfirmSchema.optional(),
+	})
+	.refine((action) => action.style !== "danger" || action.confirm !== undefined, {
+		message: "Danger editor actions require confirmation",
+		path: ["confirm"],
+	});
+
+function uniqueExtensionIds(
+	items: readonly { id: string }[] | undefined,
+	ctx: z.RefinementCtx,
+	path: "editorPanels" | "editorActions",
+): void {
+	const seen = new Set<string>();
+	for (const [index, item] of (items ?? []).entries()) {
+		if (seen.has(item.id)) {
+			ctx.addIssue({ code: "custom", message: `Duplicate ${path} id`, path: [path, index, "id"] });
+		}
+		seen.add(item.id);
+	}
+}
+
+const pluginAdminConfigSchema = z
+	.object({
+		entry: z.string().optional(),
+		settingsSchema: z.record(z.string(), settingFieldSchema).optional(),
+		pages: z.array(adminPageSchema).optional(),
+		widgets: z.array(dashboardWidgetSchema).optional(),
+		editorPanels: z.array(editorPanelSchema).max(32).optional(),
+		editorActions: z.array(editorActionSchema).max(32).optional(),
+		fieldWidgets: z
+			.array(
+				z.object({
+					name: z.string().min(1),
+					label: z.string().min(1),
+					fieldTypes: z.array(z.enum(FIELD_TYPES)),
+					elements: z
+						.array(
+							z
+								.object({
+									type: z.string(),
+									action_id: z.string(),
+									label: z.string().optional(),
+								})
+								.loose(),
+						)
+						.optional(),
+				}),
+			)
+			.optional(),
+	})
+	.superRefine((admin, ctx) => {
+		uniqueExtensionIds(admin.editorPanels, ctx, "editorPanels");
+		uniqueExtensionIds(admin.editorActions, ctx, "editorActions");
+	});
 
 // ── declaredAccess ──────────────────────────────────────────────
 
@@ -307,7 +373,7 @@ const declaredAccessSchema = z.object({
  * to make them consistent (declaredAccess authoritative when present). Kept a
  * plain object (no `.transform`) because callers `.pick()`/`.extend()` it.
  */
-export const pluginManifestSchema = z.object({
+export const pluginManifestBaseSchema = z.object({
 	id: z.string().min(1),
 	version: z.string().min(1),
 	declaredAccess: declaredAccessSchema.optional(),
@@ -334,6 +400,46 @@ export const pluginManifestSchema = z.object({
 	mcp: pluginMcpConfigSchema.optional(),
 	admin: pluginAdminConfigSchema,
 });
+
+function validateEditorExtensionRoutes(
+	manifest: z.infer<typeof pluginManifestBaseSchema>,
+	ctx: z.RefinementCtx,
+): void {
+	for (const [kind, extensions] of [
+		["editorPanels", manifest.admin.editorPanels],
+		["editorActions", manifest.admin.editorActions],
+	] as const) {
+		for (const [index, extension] of (extensions ?? []).entries()) {
+			const matches = manifest.routes.filter(
+				(route) => (typeof route === "string" ? route : route.name) === extension.route,
+			);
+			if (matches.length !== 1) {
+				ctx.addIssue({
+					code: "custom",
+					message:
+						matches.length === 0
+							? "Editor extension route is not declared"
+							: "Editor extension route must be declared exactly once",
+					path: ["admin", kind, index, "route"],
+				});
+				continue;
+			}
+			const route = matches[0];
+			if (!route) continue;
+			if (typeof route !== "string" && route.public === true) {
+				ctx.addIssue({
+					code: "custom",
+					message: "Editor extension routes must be private",
+					path: ["admin", kind, index, "route"],
+				});
+			}
+		}
+	}
+}
+
+export const pluginManifestSchema = pluginManifestBaseSchema.superRefine(
+	validateEditorExtensionRoutes,
+);
 
 export type ValidatedPluginManifest = z.infer<typeof pluginManifestSchema>;
 

@@ -72,7 +72,10 @@ export type {
 	FormSubmit,
 	PageLoad,
 	BlockInteraction,
+	ContentEditorPanelInteraction,
+	ContentEditorActionInvocation,
 	PluginUiContext,
+	ContentEditorActionResponse,
 	// Response
 	BlockResponse,
 } from "./types.js";

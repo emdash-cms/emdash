@@ -461,6 +461,22 @@ function validateConfirmDialog(value: unknown, path: string, errors: ValidationE
 	}
 }
 
+function validateToast(value: unknown, path: string, errors: ValidationError[]): void {
+	if (!isRecord(value)) {
+		errors.push({ path, message: "Toast must be an object" });
+		return;
+	}
+	if (typeof value.message !== "string") {
+		errors.push({ path: `${path}.message`, message: "Toast message must be a string" });
+	}
+	if (!new Set(["success", "error", "info"]).has(String(value.type))) {
+		errors.push({
+			path: `${path}.type`,
+			message: "Toast type must be success, error, or info",
+		});
+	}
+}
+
 function validateElement(
 	value: unknown,
 	path: string,
@@ -1654,20 +1670,89 @@ export function validateBlockResponse(
 	const errors: ValidationError[] = new ValidationErrors();
 	errors.push(...result.errors);
 	if (response.toast !== undefined) {
-		if (!isRecord(response.toast)) {
-			errors.push({ path: "toast", message: "Toast must be an object" });
-		} else {
-			if (typeof response.toast.message !== "string") {
-				errors.push({ path: "toast.message", message: "Toast message must be a string" });
-			}
-			if (!new Set(["success", "error", "info"]).has(String(response.toast.type))) {
-				errors.push({
-					path: "toast.type",
-					message: "Toast type must be success, error, or info",
-				});
-			}
-		}
+		validateToast(response.toast, "toast", errors);
 	}
 
+	return { valid: errors.length === 0, errors };
+}
+
+export function validateContentEditorActionResponse(
+	response: unknown,
+	policy: BlockValidationPolicy,
+): { valid: boolean; errors: ValidationError[] } {
+	const boundErrors = validateResponseBounds(response);
+	if (boundErrors.length > 0) return { valid: false, errors: boundErrors };
+	if (!isRecord(response)) {
+		return { valid: false, errors: [{ path: "response", message: "Response must be an object" }] };
+	}
+
+	const errors: ValidationError[] = new ValidationErrors();
+	const allowedKeys = new Set(["toast", "refresh", "navigate"]);
+	for (const key of Object.keys(response)) {
+		if (!allowedKeys.has(key)) {
+			errors.push({ path: `response.${key}`, message: `Unknown action response field '${key}'` });
+		}
+	}
+	if (response.toast !== undefined) validateToast(response.toast, "toast", errors);
+	if (response.refresh !== undefined && response.refresh !== true) {
+		errors.push({ path: "refresh", message: "Refresh must be true if provided" });
+	}
+	if (response.navigate !== undefined) {
+		validateLinkTarget(response.navigate, "navigate", errors, policy);
+	}
+	if (response.refresh === true && response.navigate !== undefined) {
+		errors.push({
+			path: "response",
+			message: "Action response cannot refresh and navigate at the same time",
+		});
+	}
+	return { valid: errors.length === 0, errors };
+}
+
+export function validateContentEditorPanelInteraction(interaction: unknown): {
+	valid: boolean;
+	errors: ValidationError[];
+} {
+	const boundErrors = validateResponseBounds(interaction);
+	if (boundErrors.length > 0) return { valid: false, errors: boundErrors };
+	if (!isRecord(interaction) || typeof interaction.type !== "string") {
+		return {
+			valid: false,
+			errors: [{ path: "interaction", message: "Interaction must be an object with a type" }],
+		};
+	}
+
+	const errors: ValidationError[] = new ValidationErrors();
+	const allowedKeys =
+		interaction.type === "panel_load"
+			? new Set(["type"])
+			: interaction.type === "block_action"
+				? new Set(["type", "action_id", "block_id", "value"])
+				: interaction.type === "form_submit"
+					? new Set(["type", "action_id", "block_id", "values"])
+					: null;
+	if (!allowedKeys) {
+		errors.push({ path: "interaction.type", message: "Unknown editor panel interaction type" });
+		return { valid: false, errors };
+	}
+	for (const key of Object.keys(interaction)) {
+		if (!allowedKeys.has(key)) {
+			errors.push({ path: `interaction.${key}`, message: `Unknown interaction field '${key}'` });
+		}
+	}
+	if (interaction.type !== "panel_load") {
+		if (typeof interaction.action_id !== "string" || interaction.action_id.length === 0) {
+			errors.push({
+				path: "interaction.action_id",
+				message: "Action id must be a non-empty string",
+			});
+		}
+		if (interaction.block_id !== undefined && typeof interaction.block_id !== "string") {
+			errors.push({ path: "interaction.block_id", message: "Block id must be a string" });
+		}
+	}
+	if (interaction.type === "form_submit" && !isRecord(interaction.values)) {
+		errors.push({ path: "interaction.values", message: "Form values must be an object" });
+	}
 	return { valid: errors.length === 0, errors };
 }

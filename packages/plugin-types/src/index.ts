@@ -371,6 +371,32 @@ export interface StorageCollectionConfig {
  */
 export type PluginStorageConfig = Record<string, StorageCollectionConfig>;
 
+export interface PluginEditorPanel {
+	id: string;
+	title: string;
+	route: string;
+	collections?: string[];
+	order?: number;
+}
+
+export interface PluginEditorActionConfirm {
+	title: string;
+	text: string;
+	confirm: string;
+	deny: string;
+	style?: "danger";
+}
+
+export interface PluginEditorAction {
+	id: string;
+	label: string;
+	route: string;
+	placement: "toolbar" | "overflow";
+	collections?: string[];
+	style?: "default" | "danger";
+	confirm?: PluginEditorActionConfirm;
+}
+
 /**
  * Plugin admin surface in the manifest. Sandboxed plugins MUST NOT set the
  * `entry` field (that requires native/trusted mode); the bundler validates
@@ -383,6 +409,10 @@ export interface PluginAdminConfig {
 	pages?: Array<unknown>;
 	/** Dashboard widgets declared by the plugin. */
 	widgets?: Array<unknown>;
+	/** Saved-entry Block Kit panels declared by the plugin. */
+	editorPanels?: PluginEditorPanel[];
+	/** Saved-entry host-rendered actions declared by the plugin. */
+	editorActions?: PluginEditorAction[];
 	/**
 	 * Native-only: a module specifier for a React entry. Sandboxed plugins
 	 * MUST NOT set this; the bundler validates the absence and the publish

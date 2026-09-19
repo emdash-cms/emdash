@@ -172,4 +172,8 @@ The default Vitest configuration uses Worker Loader because it is the fastest pr
 
 Neither host renders the EmDash admin application or reproduces Cloudflare's deployed CPU, memory, and subrequest limits. Use a disposable EmDash site for browser journeys, and verify limit-sensitive behavior on a Cloudflare preview or staging deployment.
 
-For Block Kit handlers, use `host.admin.loadPage()` or `loadWidget()` to exercise the private route, host-attested locale context, response validation, and Worker Loader isolate. Use `admin.act()` and `admin.submit()` for interactions. These helpers do not render React; use the [Block Playground](https://emdash-blocks.cto.cloudflare.dev/) or a browser journey to verify Kumo rendering, keyboard operation, and right-to-left layout.
+For Block Kit handlers, use `host.admin.loadPage()` or `loadWidget()` to exercise the private route, host-attested locale context, response validation, and Worker Loader isolate. Use `admin.act()` and `admin.submit()` for page interactions.
+
+Saved-entry extensions use the production ownership and route-permission boundary. Create the collection, user, and content with fixtures, then call `admin.loadEditorPanel()`, `actEditorPanel()`, `submitEditorPanel()`, or `invokeEditorAction()`. Pass `locale` for the admin UI language and `contentLocale` when selecting a translated entry. These helpers reload the saved entry before invoking the isolate and never send unsaved field values.
+
+The admin helpers do not render React. Use the [Block Playground](https://emdash-blocks.cto.cloudflare.dev/) or a browser journey to verify Kumo rendering, confirmation dialogs, keyboard operation, and right-to-left layout.

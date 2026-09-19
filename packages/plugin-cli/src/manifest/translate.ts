@@ -43,6 +43,8 @@ export interface NormalisedAdmin {
 	widgets: Array<{ id: string; title?: string; size?: "full" | "half" | "third" }>;
 	settingsSchema?: PluginAdminConfig["settingsSchema"];
 	fieldWidgets?: PluginAdminConfig["fieldWidgets"];
+	editorPanels?: PluginAdminConfig["editorPanels"];
+	editorActions?: PluginAdminConfig["editorActions"];
 }
 
 export interface NormalisedManifest {
@@ -315,6 +317,8 @@ export function normaliseManifest(manifest: Manifest, packageVersion?: string): 
 			widgets: manifest.admin?.widgets ?? [],
 			settingsSchema: manifest.admin?.settingsSchema,
 			fieldWidgets: manifest.admin?.fieldWidgets,
+			editorPanels: manifest.admin?.editorPanels,
+			editorActions: manifest.admin?.editorActions,
 		},
 	};
 }

@@ -20,6 +20,39 @@
 	"admin": {
 		"pages": [{ "path": "/overview", "label": "Overview" }],
 		"widgets": [{ "id": "status", "title": "Status", "size": "half" }],
+		"editorPanels": [
+			{
+				"id": "entry-context",
+				"title": "Entry context",
+				"route": "entry-context",
+				"collections": ["posts"],
+				"order": 10,
+			},
+		],
+		"editorActions": [
+			{
+				"id": "refresh-entry",
+				"label": "Refresh entry",
+				"route": "refresh-entry",
+				"placement": "overflow",
+				"collections": ["posts"],
+				"style": "danger",
+				"confirm": {
+					"title": "Refresh entry?",
+					"text": "The saved entry will be reloaded.",
+					"confirm": "Refresh",
+					"deny": "Cancel",
+					"style": "danger",
+				},
+			},
+			{
+				"id": "invalid-action",
+				"label": "Invalid action",
+				"route": "invalid-action",
+				"placement": "overflow",
+				"collections": ["posts"],
+			},
+		],
 		"settingsSchema": {
 			"enabled": { "type": "boolean", "label": "Enabled", "default": true },
 		},

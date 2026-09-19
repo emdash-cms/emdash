@@ -9,7 +9,12 @@
 
 import { describe, expect, it } from "vitest";
 
-import { BuildPipelineError, parseProbedDefault } from "../src/build/pipeline.js";
+import {
+	BuildPipelineError,
+	parseProbedDefault,
+	validateEditorExtensionRoutes,
+} from "../src/build/pipeline.js";
+import type { ResolvedPlugin } from "../src/bundle/types.js";
 
 const PLUGIN_ENTRY = "src/plugin.ts";
 
@@ -328,5 +333,35 @@ describe("parseProbedDefault", () => {
 			const result = parseProbedDefault(PLUGIN_ENTRY, { routes: 42 });
 			expect(result.routes).toEqual({});
 		});
+	});
+});
+
+describe("validateEditorExtensionRoutes", () => {
+	function pluginWithRoute(route: ResolvedPlugin["routes"][string] | undefined): ResolvedPlugin {
+		return {
+			id: "content-guard",
+			version: "1.0.0",
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			hooks: {},
+			routes: route ? { health: route } : {},
+			admin: {
+				editorPanels: [{ id: "health", title: "Health", route: "health" }],
+			},
+		};
+	}
+
+	it("accepts an extension backed by a private route", () => {
+		expect(() =>
+			validateEditorExtensionRoutes(pluginWithRoute({ handler: () => undefined })),
+		).not.toThrow();
+	});
+
+	it.each([
+		["missing", undefined],
+		["public", { public: true, handler: () => undefined }],
+	])("rejects a %s extension route", (_label, route) => {
+		expect(() => validateEditorExtensionRoutes(pluginWithRoute(route))).toThrow(BuildPipelineError);
 	});
 });

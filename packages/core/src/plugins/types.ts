@@ -10,7 +10,7 @@
  */
 
 import type { Permission } from "@emdash-cms/auth";
-import type { Element, PluginUiContext } from "@emdash-cms/blocks";
+import type { ConfirmDialog, Element, PluginUiContext } from "@emdash-cms/blocks";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
 // (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
@@ -1394,6 +1394,24 @@ export interface PluginDashboardWidget {
 	title?: string;
 }
 
+export interface PluginEditorPanel {
+	id: string;
+	title: string;
+	route: string;
+	collections?: string[];
+	order?: number;
+}
+
+export interface PluginEditorAction {
+	id: string;
+	label: string;
+	route: string;
+	placement: "toolbar" | "overflow";
+	collections?: string[];
+	style?: "default" | "danger";
+	confirm?: ConfirmDialog;
+}
+
 /**
  * Settings field types (for admin UI generation)
  */
@@ -1523,6 +1541,10 @@ export interface PluginAdminConfig {
 	pages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	widgets?: PluginDashboardWidget[];
+	/** Saved-entry Block Kit panels. */
+	editorPanels?: PluginEditorPanel[];
+	/** Saved-entry host-rendered actions. */
+	editorActions?: PluginEditorAction[];
 	/** Portable Text block types this plugin provides */
 	portableTextBlocks?: PortableTextBlockConfig[];
 	/** Field widget types this plugin provides */
