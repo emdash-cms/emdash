@@ -123,6 +123,7 @@ describe("Cloudflare generated plugin context", () => {
 					return {
 						isResponse: response instanceof Response,
 						body: await response.json(),
+						content: ctx.content,
 					};
 				},
 			},
@@ -152,6 +153,7 @@ describe("Cloudflare generated plugin context", () => {
 		await expect(worker.invokeHook("plugin:activate", {})).resolves.toEqual({
 			isResponse: true,
 			body: { ok: true },
+			content: undefined,
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });
 	});

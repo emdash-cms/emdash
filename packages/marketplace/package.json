@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@emdash-cms/plugin-types": "workspace:*",
     "hono": "catalog:",
     "jose": "^6.1.3",
     "modern-tar": "^0.7.5",

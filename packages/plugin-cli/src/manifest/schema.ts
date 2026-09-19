@@ -348,6 +348,7 @@ const CURRENT_CAPABILITIES = new Set<string>([
 	"content:read",
 	"content:revisions:read",
 	"content:write",
+	"hooks.content-policy:register",
 	"schema:read",
 	"taxonomies:read",
 	"media:read",

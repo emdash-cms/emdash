@@ -64,6 +64,10 @@ import {
 } from "./media/usage/content-refresh.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
 import {
+	scheduledPolicyRejectionKey,
+	type ScheduledPolicyRejection,
+} from "./plugins/content-policy.js";
+import {
 	createSandboxedPluginProxy,
 	getSandboxSaveRejectionDetails,
 } from "./plugins/sandbox/proxy.js";
@@ -76,6 +80,7 @@ import type {
 } from "./plugins/sandbox/types.js";
 import type {
 	ActorInfo,
+	ContentActionOrigin,
 	ResolvedPlugin,
 	MediaItem,
 	PluginManifest,
@@ -174,6 +179,7 @@ import {
 	handleContentUnpublish,
 	handleContentSchedule,
 	handleContentUnschedule,
+	handleScheduledPolicyRejection,
 	handleContentCountScheduled,
 	handleContentDiscardDraft,
 	handleContentCompare,
@@ -231,6 +237,26 @@ import { invalidateSiteSettingsCache } from "./settings/index.js";
 
 const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision", "actor"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
+
+type ContentPolicyHookName =
+	| "content:beforePublish"
+	| "content:beforeSchedule"
+	| "content:beforeUnpublish";
+
+interface ContentPolicyMutationOptions {
+	_rev?: string;
+	actor?: ActorInfo;
+	origin?: ContentActionOrigin;
+}
+
+type ContentPolicyCheck =
+	| { allowed: true; revision: string }
+	| {
+			allowed: false;
+			revision: string;
+			error: { code: string; message: string };
+			cancellation?: { pluginId: string; reason: string };
+	  };
 
 /**
  * Sandboxed plugin entry from virtual module
@@ -703,7 +729,11 @@ export class EmDashRuntime {
 		await assertMediaUsageActivationWriteAllowed(this.db);
 		const currentTime = this.runtimeDeps.now?.() ?? new Date();
 		return publishDueContent(this.db, {
-			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+			publish: (collection, id, options) =>
+				this.handleContentPublish(collection, id, {
+					...options,
+					origin: { source: "scheduler" },
+				}),
 			onPublished,
 			currentTime,
 		});
@@ -2915,7 +2945,10 @@ export class EmDashRuntime {
 	 *
 	 * No-op when no draft exists or the response is an error.
 	 */
-	private async hydrateDraftData<T>(result: T): Promise<T> {
+	private async hydrateDraftData<T>(
+		result: T,
+		options: { includeStagedSlug?: boolean; strict?: boolean } = {},
+	): Promise<T> {
 		if (!result || typeof result !== "object") return result;
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape probed below
 		const r = result as {
@@ -2928,7 +2961,10 @@ export class EmDashRuntime {
 		if (!draftRevisionId) return result;
 		try {
 			const revision = await new RevisionRepository(this.db).findById(draftRevisionId);
-			if (!revision) return result;
+			if (!revision) {
+				if (options.strict) throw new Error(`Draft revision not found: ${draftRevisionId}`);
+				return result;
+			}
 			const liveData =
 				item.data && typeof item.data === "object"
 					? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to object above
@@ -2955,10 +2991,18 @@ export class EmDashRuntime {
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape preserved; result has been narrowed to the {success,data:{item}} envelope
 				data: {
 					...r.data,
-					item: { ...item, data: mergedData, liveData },
+					item: {
+						...item,
+						...(options.includeStagedSlug && typeof revision.data._slug === "string"
+							? { slug: revision.data._slug }
+							: {}),
+						data: mergedData,
+						liveData,
+					},
 				},
 			};
 		} catch (error) {
+			if (options.strict) throw error;
 			// Non-fatal — fall back to the unhydrated response. Log so the
 			// failure isn't completely silent (the response will look stale
 			// to the caller but no error is raised).
@@ -3370,9 +3414,12 @@ export class EmDashRuntime {
 			}
 		}
 
+		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
+
 		// Delete the content
 		const result = await handleContentDelete(this.db, collection, id);
 		if (result.success) {
+			await this.clearScheduledPolicyRejection(collection, result.data.id, policyRejectionRevision);
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.id]);
 		}
 
@@ -3410,8 +3457,10 @@ export class EmDashRuntime {
 	}
 
 	async handleContentPermanentDelete(collection: string, id: string) {
+		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
 		const result = await handleContentPermanentDelete(this.db, collection, id);
 		if (result.success) {
+			await this.clearScheduledPolicyRejection(collection, result.data.id, policyRejectionRevision);
 			await this.deleteContentUsageAfterSuccessfulPermanentDelete(collection, result.data.id);
 		}
 
@@ -3439,6 +3488,142 @@ export class EmDashRuntime {
 	// Publishing & Scheduling Handlers
 	// =========================================================================
 
+	private async checkContentPolicy(
+		name: ContentPolicyHookName,
+		collection: string,
+		id: string,
+		options: ContentPolicyMutationOptions,
+		rejectionCode: "PUBLISH_REJECTED" | "SCHEDULE_REJECTED" | "UNPUBLISH_REJECTED",
+		failureCode: "CONTENT_PUBLISH_ERROR" | "CONTENT_SCHEDULE_ERROR" | "CONTENT_UNPUBLISH_ERROR",
+		scheduledAt?: string,
+	): Promise<ContentPolicyCheck> {
+		let current = await handleContentGet(this.db, collection, id);
+		if (!current.success) {
+			return {
+				allowed: false,
+				revision: options._rev ?? "",
+				error: current.error,
+			};
+		}
+
+		const revision = current.data._rev;
+		if (!revision) {
+			return {
+				allowed: false,
+				revision: options._rev ?? "",
+				error: { code: failureCode, message: "Failed to read content revision" },
+			};
+		}
+		if (options._rev !== undefined && options._rev !== revision) {
+			return {
+				allowed: false,
+				revision,
+				error: { code: "CONFLICT", message: "Revision precondition did not match" },
+			};
+		}
+
+		if (!this.hooks.hasHooks(name)) return { allowed: true, revision };
+		if (name !== "content:beforeUnpublish") {
+			try {
+				current = await this.hydrateDraftData(current, {
+					includeStagedSlug: true,
+					strict: true,
+				});
+			} catch (error) {
+				console.error(`[content-policy] ${name} draft hydration failed:`, error);
+				return {
+					allowed: false,
+					revision,
+					error: { code: failureCode, message: `Failed to read content for ${name} policy` },
+				};
+			}
+		}
+
+		const origin = options.origin ?? { source: "system" };
+		const actor =
+			options.actor &&
+			(origin.source === "api" || origin.source === "mcp" || origin.source === "visual-editor")
+				? { ...options.actor, source: origin.source }
+				: undefined;
+		try {
+			const decision = await this.hooks.runContentPolicy(name, {
+				content: contentItemToRecord(current.data.item),
+				collection,
+				origin,
+				actor,
+				...(scheduledAt === undefined ? {} : { scheduledAt }),
+			});
+			if (decision.cancellation) {
+				return {
+					allowed: false,
+					revision,
+					error: { code: rejectionCode, message: decision.cancellation.reason },
+					cancellation: decision.cancellation,
+				};
+			}
+			return { allowed: true, revision };
+		} catch (error) {
+			console.error(`[content-policy] ${name} failed:`, error);
+			return {
+				allowed: false,
+				revision,
+				error: { code: failureCode, message: `Failed to run ${name} policy` },
+			};
+		}
+	}
+
+	private async getScheduledPolicyRejectionRevision(
+		collection: string,
+		id: string,
+	): Promise<string | undefined> {
+		try {
+			return (
+				await new OptionsRepository(this.db).getVersioned(
+					scheduledPolicyRejectionKey(collection, id),
+				)
+			)?.revision;
+		} catch (error) {
+			console.error(
+				`[content-policy] Failed to read scheduled rejection for ${collection}/${id}:`,
+				error,
+			);
+			return undefined;
+		}
+	}
+
+	private async clearScheduledPolicyRejection(
+		collection: string,
+		id: string,
+		expectedRevision: string | undefined,
+	): Promise<void> {
+		if (expectedRevision === undefined) return;
+		try {
+			await new OptionsRepository(this.db).compareAndDelete(
+				scheduledPolicyRejectionKey(collection, id),
+				expectedRevision,
+			);
+		} catch (error) {
+			console.error(
+				`[content-policy] Failed to clear scheduled rejection for ${collection}/${id}:`,
+				error,
+			);
+		}
+	}
+
+	private createScheduledPolicyRejection(
+		collection: string,
+		id: string,
+		cancellation: { pluginId: string; reason: string },
+	): ScheduledPolicyRejection {
+		return {
+			collection,
+			id,
+			pluginId: cancellation.pluginId,
+			reason: cancellation.reason,
+			rejectedAt: (this.runtimeDeps.now?.() ?? new Date()).toISOString(),
+		};
+	}
+
 	async handleContentPublish(
 		collection: string,
 		id: string,
@@ -3447,10 +3632,43 @@ export class EmDashRuntime {
 			requireScheduledDue?: boolean;
 			expectedScheduledAt?: string;
 			_rev?: string;
+			currentTime?: Date;
+			actor?: ActorInfo;
+			origin?: ContentActionOrigin;
 		} = {},
 	) {
-		const result = await handleContentPublish(this.db, collection, id, options);
+		const policy = await this.checkContentPolicy(
+			"content:beforePublish",
+			collection,
+			id,
+			options,
+			"PUBLISH_REJECTED",
+			"CONTENT_PUBLISH_ERROR",
+		);
+		if (!policy.allowed) {
+			if (policy.cancellation && options.origin?.source === "scheduler") {
+				const unscheduled = await handleScheduledPolicyRejection(this.db, collection, id, {
+					_rev: policy.revision,
+					rejection: this.createScheduledPolicyRejection(collection, id, policy.cancellation),
+				});
+				if (!unscheduled.success) return unscheduled;
+				await this.refreshContentUsageAfterSuccessfulWrite(collection, [unscheduled.data.item.id]);
+				this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
+			}
+			return { success: false as const, error: policy.error };
+		}
+		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
+		const { actor: _actor, origin: _origin, ...handlerOptions } = options;
+		const result = await handleContentPublish(this.db, collection, id, {
+			...handlerOptions,
+			_rev: policy.revision,
+		});
 		if (result.success && result.data) {
+			await this.clearScheduledPolicyRejection(
+				collection,
+				result.data.item.id,
+				policyRejectionRevision,
+			);
 			const { item } = result.data;
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [
 				item.id,
@@ -3472,8 +3690,23 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentUnpublish(collection: string, id: string, options: { _rev?: string } = {}) {
-		const result = await handleContentUnpublish(this.db, collection, id, options);
+	async handleContentUnpublish(
+		collection: string,
+		id: string,
+		options: ContentPolicyMutationOptions = {},
+	) {
+		const policy = await this.checkContentPolicy(
+			"content:beforeUnpublish",
+			collection,
+			id,
+			options,
+			"UNPUBLISH_REJECTED",
+			"CONTENT_UNPUBLISH_ERROR",
+		);
+		if (!policy.allowed) return { success: false as const, error: policy.error };
+		const result = await handleContentUnpublish(this.db, collection, id, {
+			_rev: policy.revision,
+		});
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
@@ -3486,15 +3719,37 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
+	async handleContentSchedule(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		options: ContentPolicyMutationOptions = {},
+	) {
+		const policy = await this.checkContentPolicy(
+			"content:beforeSchedule",
+			collection,
+			id,
+			options,
+			"SCHEDULE_REJECTED",
+			"CONTENT_SCHEDULE_ERROR",
+			scheduledAt,
+		);
+		if (!policy.allowed) return { success: false as const, error: policy.error };
+		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
 		const result = await handleContentSchedule(
 			this.db,
 			collection,
 			id,
 			scheduledAt,
 			this.runtimeDeps.now?.() ?? new Date(),
+			policy.revision,
 		);
 		if (result.success && result.data) {
+			await this.clearScheduledPolicyRejection(
+				collection,
+				result.data.item.id,
+				policyRejectionRevision,
+			);
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
 
@@ -3506,8 +3761,8 @@ export class EmDashRuntime {
 		return result;
 	}
 
-	async handleContentUnschedule(collection: string, id: string) {
-		const result = await handleContentUnschedule(this.db, collection, id);
+	async handleContentUnschedule(collection: string, id: string, options: { _rev?: string } = {}) {
+		const result = await handleContentUnschedule(this.db, collection, id, options);
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}

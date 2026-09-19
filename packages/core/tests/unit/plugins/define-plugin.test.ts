@@ -184,11 +184,17 @@ describe("definePlugin", () => {
 			const plugin = definePlugin({
 				id: "test",
 				version: "1.0.0",
-				capabilities: ["content:read", "content:write", "network:request"],
+				capabilities: [
+					"content:read",
+					"content:write",
+					"hooks.content-policy:register",
+					"network:request",
+				],
 			});
 
 			expect(plugin.capabilities).toContain("content:read");
 			expect(plugin.capabilities).toContain("content:write");
+			expect(plugin.capabilities).toContain("hooks.content-policy:register");
 			expect(plugin.capabilities).toContain("network:request");
 		});
 

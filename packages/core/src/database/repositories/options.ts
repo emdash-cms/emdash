@@ -52,10 +52,15 @@ export class OptionsRepository {
 	 * Set an option value (creates or updates)
 	 */
 	async set<T = unknown>(name: string, value: T): Promise<void> {
+		await this.setVersioned(name, value);
+	}
+
+	async setVersioned<T = unknown>(name: string, value: T): Promise<string> {
+		const revision = crypto.randomUUID();
 		const row: Insertable<OptionTable> = {
 			name,
 			value: JSON.stringify(value),
-			revision: crypto.randomUUID(),
+			revision,
 		};
 
 		// Upsert: insert or replace
@@ -66,6 +71,7 @@ export class OptionsRepository {
 				oc.column("name").doUpdateSet({ value: row.value, revision: row.revision }),
 			)
 			.execute();
+		return revision;
 	}
 
 	/**
@@ -214,13 +220,18 @@ export class OptionsRepository {
 	/**
 	 * Get all options matching a prefix
 	 */
-	async getByPrefix<T = unknown>(prefix: string): Promise<Map<string, T>> {
+	async getByPrefix<T = unknown>(
+		prefix: string,
+		options: { limit?: number } = {},
+	): Promise<Map<string, T>> {
 		const pattern = `${escapeLike(prefix)}%`;
-		const rows = await this.db
+		let query = this.db
 			.selectFrom("options")
 			.select(["name", "value"])
 			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
-			.execute();
+			.orderBy("name", "asc");
+		if (options.limit !== undefined) query = query.limit(Math.max(0, options.limit));
+		const rows = await query.execute();
 
 		const result = new Map<string, T>();
 		for (const row of rows) {
@@ -228,6 +239,37 @@ export class OptionsRepository {
 			result.set(row.name, JSON.parse(row.value) as T);
 		}
 		return result;
+	}
+
+	async getVersionedByPrefix<T = unknown>(
+		prefix: string,
+		options: { limit?: number } = {},
+	): Promise<Map<string, VersionedValue<T>>> {
+		const pattern = `${escapeLike(prefix)}%`;
+		let query = this.db
+			.selectFrom("options")
+			.select(["name", "value", "revision"])
+			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
+			.orderBy("name", "asc");
+		if (options.limit !== undefined) query = query.limit(Math.max(0, options.limit));
+		const rows = await query.execute();
+
+		const result = new Map<string, VersionedValue<T>>();
+		for (const row of rows) {
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- JSON.parse returns any; generic callers provide T
+			result.set(row.name, { value: JSON.parse(row.value) as T, revision: row.revision });
+		}
+		return result;
+	}
+
+	async countByPrefix(prefix: string): Promise<number> {
+		const pattern = `${escapeLike(prefix)}%`;
+		const row = await this.db
+			.selectFrom("options")
+			.select((eb) => eb.fn.countAll<number>().as("count"))
+			.where(sql<SqlBool>`name LIKE ${pattern} ESCAPE '\\'`)
+			.executeTakeFirst();
+		return Number(row?.count ?? 0);
 	}
 
 	/**

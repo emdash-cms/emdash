@@ -8,6 +8,7 @@
 		"content:read",
 		"content:revisions:read",
 		"content:write",
+		"hooks.content-policy:register",
 		"schema:read",
 		"media:read",
 		"media:write",

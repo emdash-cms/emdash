@@ -76,6 +76,9 @@ describe("VersionSchema", () => {
 describe("CapabilitySchema", () => {
 	it("accepts a current capability", () => {
 		expect(CapabilitySchema.parse("content:read")).toBe("content:read");
+		expect(CapabilitySchema.parse("hooks.content-policy:register")).toBe(
+			"hooks.content-policy:register",
+		);
 		expect(CapabilitySchema.parse("network:request")).toBe("network:request");
 		expect(CapabilitySchema.parse("email:send")).toBe("email:send");
 	});

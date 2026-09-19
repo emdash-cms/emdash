@@ -359,6 +359,9 @@ describe("describeCapability", () => {
 	it("returns known capability label", () => {
 		expect(describeCapability("read:content")).toBe("Read your content");
 		expect(describeCapability("write:media")).toBe("Upload and manage media");
+		expect(describeCapability("hooks.content-policy:register")).toBe(
+			"Review and block publishing, scheduling, and unpublishing content",
+		);
 	});
 
 	it("returns raw capability string for unknown capabilities", () => {
@@ -387,6 +390,7 @@ describe("CAPABILITY_LABELS", () => {
 			"content:read",
 			"content:revisions:read",
 			"content:write",
+			"hooks.content-policy:register",
 			"schema:read",
 			"taxonomies:read",
 			"media:read",

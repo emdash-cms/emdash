@@ -4,7 +4,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../../../src/database/repositories/revision.js";
-import { EmDashValidationError } from "../../../../src/database/repositories/types.js";
+import {
+	ContentMutationConflictError,
+	EmDashValidationError,
+} from "../../../../src/database/repositories/types.js";
 import type { Database } from "../../../../src/database/types.js";
 import { createPostFixture, createPageFixture } from "../../../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../../utils/test-db.js";
@@ -481,6 +484,19 @@ describe("ContentRepository", () => {
 			expect(updated.scheduledAt).toBe(future);
 		});
 
+		it("rejects a stale revision after a concurrent content change", async () => {
+			const post = await repo.create(createPostFixture());
+			await repo.update("post", post.id, { data: { title: "Concurrent edit" } });
+			const future = new Date(Date.now() + 86_400_000).toISOString();
+
+			await expect(
+				repo.schedule("post", post.id, future, new Date(), {
+					version: post.version,
+					updatedAt: post.updatedAt,
+				}),
+			).rejects.toThrow(ContentMutationConflictError);
+		});
+
 		it("should reject dates in the past", async () => {
 			const post = await repo.create(createPostFixture());
 			const past = new Date(Date.now() - 86_400_000).toISOString();
@@ -555,6 +571,21 @@ describe("ContentRepository", () => {
 
 			expect(updated.status).toBe("published");
 			expect(updated.scheduledAt).toBeNull();
+		});
+
+		it("rejects a stale revision without clearing the schedule", async () => {
+			const post = await repo.create(createPostFixture());
+			const future = new Date(Date.now() + 86_400_000).toISOString();
+			const scheduled = await repo.schedule("post", post.id, future);
+			await repo.update("post", post.id, { data: { title: "Concurrent edit" } });
+
+			await expect(
+				repo.unschedule("post", post.id, {
+					version: scheduled.version,
+					updatedAt: scheduled.updatedAt,
+				}),
+			).rejects.toThrow(ContentMutationConflictError);
+			await expect(repo.findById("post", post.id)).resolves.toMatchObject({ scheduledAt: future });
 		});
 	});
 

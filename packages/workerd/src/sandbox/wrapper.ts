@@ -39,6 +39,8 @@ export interface WrapperOptions {
 export function generatePluginWrapper(manifest: PluginManifest, options: WrapperOptions): string {
 	const site = options.site ?? { name: "", url: "", locale: "en" };
 	const capabilities = normalizeCapabilities(manifest.capabilities);
+	const hasContentAccess =
+		capabilities.includes("content:read") || capabilities.includes("content:write");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 	const hasContentRead = capabilities.some((capability) =>
@@ -529,7 +531,7 @@ function createContext(originHook) {
 		},
 		storage,
 		kv,
-		content,
+		content: ${hasContentAccess} ? content : undefined,
 		schema,
 		taxonomies,
 		media,

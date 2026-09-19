@@ -1041,7 +1041,10 @@ export function createMcpServer(
 				if (itemId) {
 					return unwrapAndInvalidate(
 						extra,
-						await emdash.handleContentPublish(args.collection, itemId),
+						await emdash.handleContentPublish(args.collection, itemId, {
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
 						[args.collection, itemId],
 						true,
 					);
@@ -1197,7 +1200,11 @@ export function createMcpServer(
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentPublish(args.collection, resolvedId, { _rev: rev }),
+					await emdash.handleContentPublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1232,7 +1239,11 @@ export function createMcpServer(
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentUnpublish(args.collection, resolvedId, { _rev: rev }),
+					await emdash.handleContentUnpublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1408,6 +1419,8 @@ export function createMcpServer(
 				await emdash.handleContentPublish(args.collection, resolvedId, {
 					publishedAt: args.publishedAt,
 					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
 				}),
 				[args.collection, resolvedId],
 			);
@@ -1430,7 +1443,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1447,7 +1460,11 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentUnpublish(args.collection, resolvedId, { _rev: args._rev }),
+				await ec.handleContentUnpublish(args.collection, resolvedId, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -1472,7 +1489,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1489,7 +1506,10 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt),
+				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt, {
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},

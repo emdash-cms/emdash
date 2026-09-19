@@ -10,6 +10,7 @@ import type { Kysely } from "kysely";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type { RouteCallerInput, RouteMeta } from "../plugins/routes.js";
+import type { ActorInfo, ContentActionOrigin } from "../plugins/types.js";
 import type { ManifestRegistryConfigurationError } from "../registry/config.js";
 
 // Re-export core types
@@ -363,22 +364,35 @@ export interface EmDashHandlers {
 	handleContentPublish: (
 		collection: string,
 		id: string,
-		options?: { publishedAt?: string; requireScheduledDue?: boolean; _rev?: string },
+		options?: {
+			publishedAt?: string;
+			requireScheduledDue?: boolean;
+			expectedScheduledAt?: string;
+			_rev?: string;
+			currentTime?: Date;
+			actor?: ActorInfo;
+			origin?: ContentActionOrigin;
+		},
 	) => Promise<HandlerResponse>;
 
 	handleContentUnpublish: (
 		collection: string,
 		id: string,
-		options?: { _rev?: string },
+		options?: { _rev?: string; actor?: ActorInfo; origin?: ContentActionOrigin },
 	) => Promise<HandlerResponse>;
 
 	handleContentSchedule: (
 		collection: string,
 		id: string,
 		scheduledAt: string,
+		options?: { _rev?: string; actor?: ActorInfo; origin?: ContentActionOrigin },
 	) => Promise<HandlerResponse>;
 
-	handleContentUnschedule: (collection: string, id: string) => Promise<HandlerResponse>;
+	handleContentUnschedule: (
+		collection: string,
+		id: string,
+		options?: { _rev?: string },
+	) => Promise<HandlerResponse>;
 
 	handleContentCountScheduled: (collection: string) => Promise<HandlerResponse>;
 

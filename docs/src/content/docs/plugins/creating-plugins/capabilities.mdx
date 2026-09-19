@@ -32,6 +32,7 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `content:read`                      | `ctx.content.get()`, `ctx.content.list()`, `ctx.content.getTranslations()`, `ctx.content.getPublicUrl()` |
 | `content:revisions:read`            | `ctx.content.listRevisions()`, `ctx.content.getRevision()` (implies `content:read`) |
 | `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` (implies `content:read`) |
+| `hooks.content-policy:register`     | `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` policy hooks |
 | `schema:read`                       | `ctx.schema.listCollections()`, `ctx.schema.getCollection()`                      |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `media:read`                        | `ctx.media.get()`, `ctx.media.list()`                                             |
@@ -47,6 +48,7 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 The following rules affect which capabilities a plugin needs:
 
 - **Implications.** `content:write` and `content:revisions:read` automatically imply `content:read`; `media:write` implies `media:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
+- **Publication policy is separate from content access.** `hooks.content-policy:register` lets a plugin inspect and reject publication state changes through policy hook events. It does not provide `ctx.content` or grant content editing or publication actions.
 - **Taxonomies are a separate, read-only surface.** `taxonomies:read` grants access to taxonomy definitions, their terms, and the terms assigned to an entry via `ctx.taxonomies`. It is independent of `content:read` — declare both if the plugin reads content *and* its classification. There is no taxonomy *write* access from plugins.
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
