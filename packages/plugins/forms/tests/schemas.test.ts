@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { exportSchema } from "../src/schemas.js";
+import { exportSchema, formUpdateSchema } from "../src/schemas.js";
 
 describe("exportSchema", () => {
 	it("accepts minute-precision ISO datetime bounds", () => {
@@ -12,5 +12,15 @@ describe("exportSchema", () => {
 			from,
 			to,
 		});
+	});
+});
+
+describe("formUpdateSchema", () => {
+	it("does not inject schema defaults for omitted settings", () => {
+		const result = formUpdateSchema.parse({
+			id: "form_1",
+			settings: { notifyEmails: ["someone@example.com"] },
+		});
+		expect(result.settings).toEqual({ notifyEmails: ["someone@example.com"] });
 	});
 });

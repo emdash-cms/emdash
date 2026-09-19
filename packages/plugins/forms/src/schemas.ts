@@ -87,19 +87,31 @@ const autoresponderSchema = z
 	})
 	.optional();
 
-const formSettingsSchema = z.object({
-	confirmationMessage: z.string().min(1).default("Thank you for your submission."),
+const formSettingsBaseSchema = z.object({
+	confirmationMessage: z.string().min(1).optional(),
 	redirectUrl: httpUrl.optional().or(z.literal("")),
-	notifyEmails: z.array(z.email()).default([]),
-	digestEnabled: z.boolean().default(false),
-	digestHour: z.number().int().min(0).max(23).default(9),
+	notifyEmails: z.array(z.email()).optional(),
+	digestEnabled: z.boolean().optional(),
+	digestHour: z.number().int().min(0).max(23).optional(),
 	autoresponder: autoresponderSchema,
 	webhookUrl: httpUrl.optional().or(z.literal("")),
-	retentionDays: z.number().int().min(0).default(0),
-	spamProtection: z.enum(["none", "honeypot", "turnstile"]).default("honeypot"),
-	submitLabel: z.string().min(1).default("Submit"),
+	retentionDays: z.number().int().min(0).optional(),
+	spamProtection: z.enum(["none", "honeypot", "turnstile"]).optional(),
+	submitLabel: z.string().min(1).optional(),
 	nextLabel: z.string().optional(),
 	prevLabel: z.string().optional(),
+});
+
+const formSettingsSchema = formSettingsBaseSchema.extend({
+	confirmationMessage: formSettingsBaseSchema.shape.confirmationMessage.default(
+		"Thank you for your submission.",
+	),
+	notifyEmails: formSettingsBaseSchema.shape.notifyEmails.default([]),
+	digestEnabled: formSettingsBaseSchema.shape.digestEnabled.default(false),
+	digestHour: formSettingsBaseSchema.shape.digestHour.default(9),
+	retentionDays: formSettingsBaseSchema.shape.retentionDays.default(0),
+	spamProtection: formSettingsBaseSchema.shape.spamProtection.default("honeypot"),
+	submitLabel: formSettingsBaseSchema.shape.submitLabel.default("Submit"),
 });
 
 // ─── Form CRUD Schemas ──────────────────────────────────────────
@@ -125,7 +137,7 @@ export const formUpdateSchema = z.object({
 		.regex(/^[a-z][a-z0-9-]*$/)
 		.optional(),
 	pages: z.array(formPageSchema).min(1).optional(),
-	settings: formSettingsSchema.partial().optional(),
+	settings: formSettingsBaseSchema.partial().optional(),
 	status: z.enum(["active", "paused"]).optional(),
 });
 
