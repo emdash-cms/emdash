@@ -101,6 +101,7 @@ export interface SandboxOptions {
 	beforeContentWrite?: () => Promise<void>;
 	/** Runtime-owned taxonomy mutation surface used by sandbox bridges. */
 	taxonomyWrite?: TaxonomyAccessWithWrite;
+	contentActions?: ContentActionCallbacks;
 	/** Clock used to calculate recurring plugin task schedules. */
 	now?: () => Date;
 	/** Default resource limits */

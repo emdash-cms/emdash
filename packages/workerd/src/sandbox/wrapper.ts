@@ -270,7 +270,7 @@ async function bridgeCall(method, body) {
 			}
 			const contentCreateDetails = contentCreateErrorDetails(payload?.error);
 			if (contentCreateDetails) {
-				throw Object.assign(new Error(contentCreateDetails.message), contentCreateDetails);
+				throw Object.assign(new Error(contentCreateDetails.message), contentCreateDetails, { name: contentCreateDetails.code });
 			}
 			const details = sandboxRouteErrorDetails(payload?.error);
 			if (details) {
@@ -372,7 +372,7 @@ function createContext(originHook, invocationId) {
 			} : {})
 		} : {}),
 		...(${hasContentWrite} ? {
-			create: (collection, data, options) => bridgeCall("content/create", { collection, data, options }),
+			create: (collection, data, options) => bridgeCall("content/create", { collection, data, options, originHook }),
 			update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
 			delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
 			createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),

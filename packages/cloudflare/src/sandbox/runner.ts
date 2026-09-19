@@ -23,6 +23,7 @@ import {
 	type SandboxEmailSendCallback,
 	type SandboxCommentModerateCallback,
 	type SandboxContentCreateCallback,
+	type ContentActionCallbacks,
 	type SandboxOptions,
 	type SandboxRunnerFactory,
 	type SerializedRequest,
@@ -147,6 +148,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 
 		// Wire email send callback if provided at construction time
 		setEmailSendCallback(options.emailSend ?? null);
+		setContentActionsCallback(options.contentActions ?? null);
 		setCronNowCallback(options.now ?? null);
 		setMediaStorageCallback(options.mediaStorage ?? null);
 		setCommentModerateCallback(options.commentModerate ?? null);

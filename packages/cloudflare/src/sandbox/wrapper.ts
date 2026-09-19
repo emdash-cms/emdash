@@ -227,9 +227,10 @@ function createContext(env, originHook, invocationId) {
 		} : {}),
 		...(${hasContentWrite} ? {
 			create: async (collection, data, options) => {
-				const result = await bridge.contentCreate(collection, data, options);
+				const result = await bridge.contentCreate(collection, data, options, originHook);
 				if (result && typeof result === "object" && "error" in result) {
 					const error = new Error(result.error.message);
+					error.name = result.error.code;
 					error.code = result.error.code;
 					error.details = result.error.details;
 					throw error;

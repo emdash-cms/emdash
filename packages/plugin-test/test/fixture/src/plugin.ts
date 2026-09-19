@@ -543,7 +543,7 @@ const plugin: SandboxedPlugin = {
 				};
 				return ctx.content.create(
 					"posts",
-					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to a non-null record above
+					// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to a non-null record above
 					route.input.data as Record<string, unknown>,
 					options,
 				);
