@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 
+import { normalizeImageLink } from "../../../src/content/converters/image-link.js";
 import { portableTextToProsemirror } from "../../../src/content/converters/portable-text-to-prosemirror.js";
 import { prosemirrorToPortableText } from "../../../src/content/converters/prosemirror-to-portable-text.js";
 import type {
@@ -95,5 +96,49 @@ describe("Image link round-trip", () => {
 		const out = prosemirrorToPortableText(pmDoc);
 		const imageOut = out[0] as PortableTextImageBlock;
 		expect(imageOut.link).toBeUndefined();
+	});
+});
+
+describe("Legacy string image links (WordPress / Gutenberg imports)", () => {
+	it("upgrades a bare string link to the object shape through PT → PM → PT", () => {
+		const input: PortableTextBlock[] = [makeImageBlock("https://example.com/legacy")];
+
+		const pm = portableTextToProsemirror(input);
+		expect(pm.content[0]!.attrs?.link).toEqual({ href: "https://example.com/legacy" });
+
+		const out = prosemirrorToPortableText(pm);
+		const imageOut = out[0] as PortableTextImageBlock;
+		expect(imageOut.link).toEqual({ href: "https://example.com/legacy" });
+	});
+
+	it("drops an empty or whitespace-only string link", () => {
+		const pm = portableTextToProsemirror([makeImageBlock("   ")]);
+		expect(pm.content[0]!.attrs?.link).toBeNull();
+	});
+});
+
+describe("normalizeImageLink", () => {
+	it("accepts the canonical object shape and keeps blank only when true", () => {
+		expect(normalizeImageLink({ href: "/page" })).toEqual({ href: "/page" });
+		expect(normalizeImageLink({ href: "/page", blank: true })).toEqual({
+			href: "/page",
+			blank: true,
+		});
+		expect(normalizeImageLink({ href: "/page", blank: false })).toEqual({ href: "/page" });
+	});
+
+	it("accepts the legacy string shape", () => {
+		expect(normalizeImageLink("https://example.com/")).toEqual({ href: "https://example.com/" });
+		expect(normalizeImageLink("  /trimmed  ")).toEqual({ href: "/trimmed" });
+	});
+
+	it("returns null for anything without a usable href", () => {
+		expect(normalizeImageLink(undefined)).toBeNull();
+		expect(normalizeImageLink(null)).toBeNull();
+		expect(normalizeImageLink("")).toBeNull();
+		expect(normalizeImageLink({})).toBeNull();
+		expect(normalizeImageLink({ href: "   " })).toBeNull();
+		expect(normalizeImageLink({ blank: true })).toBeNull();
+		expect(normalizeImageLink(42)).toBeNull();
 	});
 });

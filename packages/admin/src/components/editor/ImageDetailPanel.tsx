@@ -160,6 +160,8 @@ export function ImageDetailPanel({
 		setDisplayHeight(attributes.displayHeight ?? undefined);
 		setLockAspectRatio(true);
 		setAlignment(attributes.alignment);
+		setLinkHref(attributes.link?.href ?? "");
+		setLinkBlank(Boolean(attributes.link?.blank));
 		// eslint-disable-next-line react-hooks/exhaustive-deps -- the node token identifies a new attribute snapshot
 	}, [nodeKey]);
 

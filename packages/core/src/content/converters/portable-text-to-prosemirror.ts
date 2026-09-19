@@ -10,6 +10,7 @@ import {
 } from "@emdash-cms/admin/portable-text-table";
 
 import { sanitizeGalleryImages } from "./gallery.js";
+import { normalizeImageLink } from "./image-link.js";
 import {
 	UnsupportedPortableTextMarksError,
 	assertPortableTextMarksSupported,
@@ -662,7 +663,7 @@ function convertImage(block: PortableTextImageBlock, preserveIdentity: boolean):
 				displayWidth: block.displayWidth,
 				displayHeight: block.displayHeight,
 				alignment: imageAlignment(block.alignment),
-				link: block.link ? { href: block.link.href, blank: block.link.blank } : null,
+				link: normalizeImageLink(block.link),
 			},
 			block._key,
 			preserveIdentity,

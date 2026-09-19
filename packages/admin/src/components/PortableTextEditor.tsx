@@ -214,7 +214,8 @@ interface PortableTextImageBlock {
 	displayWidth?: number;
 	displayHeight?: number;
 	alignment?: "left" | "center" | "right" | "wide" | "full";
-	link?: { href: string; blank?: boolean };
+	/** `{ href, blank? }` from the editor, or a legacy bare string from WordPress imports */
+	link?: string | { href: string; blank?: boolean };
 }
 
 interface PortableTextCodeBlock {
@@ -296,6 +297,22 @@ function attrsWithPortableTextKey(
 	key: string,
 ): Record<string, unknown> {
 	return { ...attrs, [PORTABLE_TEXT_KEY_ATTR]: key };
+}
+
+/**
+ * Image links arrive either as `{ href, blank? }` (written by this editor) or as
+ * a bare string (legacy WordPress/Gutenberg imports). Mirrors core's
+ * `normalizeImageLink`; admin does not depend on the core package.
+ */
+function normalizeImageLink(raw: unknown): { href: string; blank?: boolean } | null {
+	if (typeof raw === "string") {
+		const href = raw.trim();
+		return href ? { href } : null;
+	}
+	if (!isRecord(raw)) return null;
+	const href = typeof raw.href === "string" ? raw.href.trim() : "";
+	if (!href) return null;
+	return raw.blank === true ? { href, blank: true } : { href };
 }
 
 function portableTextKeyFromAttrs(attrs: Record<string, unknown> | undefined): string | undefined {
@@ -1240,9 +1257,7 @@ function convertPTBlock(block: PortableTextBlock, path: string): unknown {
 						displayWidth: imageBlock.displayWidth,
 						displayHeight: imageBlock.displayHeight,
 						alignment: imageBlock.alignment,
-						link: imageBlock.link
-							? { href: imageBlock.link.href, blank: imageBlock.link.blank }
-							: null,
+						link: normalizeImageLink(imageBlock.link),
 					},
 					block._key,
 				),

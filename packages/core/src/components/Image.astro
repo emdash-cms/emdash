@@ -12,6 +12,7 @@ import { buildRenderMediaUrl } from "../media/url.js";
 import { toAbsoluteMediaUrl, RESPONSIVE_BREAKPOINTS } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { sanitizeHref } from "../utils/url.js";
+import { normalizeImageLink } from "../content/converters/image-link.js";
 
 export interface Props {
 	node: {
@@ -44,12 +45,10 @@ export interface Props {
 		alignment?: "left" | "center" | "right" | "wide" | "full";
 		/**
 		 * Optional link. When set, the image is rendered inside an `<a>` using
-		 * `sanitizeHref`-validated `href`.
+		 * `sanitizeHref`-validated `href`. A bare string is the legacy shape
+		 * written by WordPress/Gutenberg imports.
 		 */
-		link?: {
-			href: string;
-			blank?: boolean;
-		};
+		link?: string | { href: string; blank?: boolean };
 	};
 	/** Render the LQIP placeholder as an inline background. Disable for strict CSP. */
 	placeholder?: boolean;
@@ -80,9 +79,14 @@ if (!node?.asset) {
 const { asset, alt = "", caption, width, height, displayWidth, displayHeight, alignment, link } =
 	node;
 
-const linkHref = link?.href ? sanitizeHref(link.href) : null;
-const linkTarget = link?.blank ? "_blank" : undefined;
-const linkRel = link?.blank ? "noopener noreferrer" : undefined;
+const imageLink = normalizeImageLink(link);
+const linkHref = imageLink ? sanitizeHref(imageLink.href) : null;
+// Same-page anchor links (`#section`) are on-page jumps — never open them in
+// a new tab, regardless of `blank`. Mirrors marks/Link.astro.
+const isSamePageAnchor = linkHref?.startsWith("#") ?? false;
+const linkBlank = !isSamePageAnchor && imageLink?.blank === true;
+const linkTarget = linkBlank ? "_blank" : undefined;
+const linkRel = linkBlank ? "noopener noreferrer" : undefined;
 
 // Calculate aspect ratio from original dimensions
 const aspectRatio = width && height ? width / height : undefined;
