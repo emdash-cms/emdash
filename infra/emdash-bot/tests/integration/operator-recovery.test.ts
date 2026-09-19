@@ -1,7 +1,7 @@
 import { env, runInDurableObject, SELF } from "cloudflare:test";
 import { describe, expect, test } from "vitest";
 
-const AUTHORIZATION = { authorization: "Bearer test-webhook-secret" };
+const AUTHORIZATION = { authorization: "Bearer test-operator-secret" };
 
 describe("operator stale-run recovery", () => {
 	test("terminal missing-anchor cleanup clears every retryable projection and alarm", async () => {

@@ -41,7 +41,7 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 	app.get("/", (c) => c.html(dashboardHtml));
 	app.get("/health", (c) => c.text("ok"));
 	app.get("/api/operator/orchestrators/:id/recovery", async (c) => {
-		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_WEBHOOK_SECRET))) {
+		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_OPERATOR_SECRET))) {
 			return c.json({ error: "Unauthorized" }, 401);
 		}
 		try {
@@ -52,7 +52,7 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		}
 	});
 	app.post("/api/operator/orchestrators/:id/recovery/settle", async (c) => {
-		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_WEBHOOK_SECRET))) {
+		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_OPERATOR_SECRET))) {
 			return c.json({ error: "Unauthorized" }, 401);
 		}
 		let body: unknown;

@@ -167,18 +167,22 @@ function rateLimitRetryDelayMs(
 	now = Date.now(),
 ): number | undefined {
 	const retryAfter = response.headers.get("retry-after");
+	const reset = response.headers.get("x-ratelimit-reset");
 	const remaining = response.headers.get("x-ratelimit-remaining");
 	const rateLimited =
 		response.status === 429 ||
 		(response.status === 403 &&
-			(retryAfter !== null || remaining === "0" || RATE_LIMIT_ERROR.test(errorBody)));
+			(retryAfter !== null ||
+				reset !== null ||
+				remaining === "0" ||
+				RATE_LIMIT_ERROR.test(errorBody)));
 	if (!rateLimited) return undefined;
 
 	const retryAfterDelay = retryAfterMs(retryAfter, now);
 	if (retryAfterDelay !== undefined) {
 		return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, retryAfterDelay));
 	}
-	const resetSeconds = Number(response.headers.get("x-ratelimit-reset"));
+	const resetSeconds = Number(reset);
 	if (Number.isFinite(resetSeconds) && resetSeconds > 0) {
 		const resetDelay = resetSeconds * 1_000 - now + REVIEW_RATE_LIMIT_RESET_BUFFER_MS;
 		return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, resetDelay));
@@ -336,8 +340,7 @@ function pullRequestUrl(owner: string, repo: string, prNumber: number, files = f
 
 async function requireGitHubResponse(res: Response, operation: string): Promise<void> {
 	if (res.ok) return;
-	const errorBody = await res.text();
-	const retryDelay = rateLimitRetryDelayMs(res, errorBody, 0);
+	const retryDelay = rateLimitRetryDelayMs(res, "", 0);
 	const message = `${operation} failed: ${res.status}`;
 	if (retryDelay !== undefined) {
 		const hasRetryHint =

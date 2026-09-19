@@ -1392,19 +1392,18 @@ export class OrchestratorDO extends DurableObject<Env> {
 		const previous = await this.ctx.storage.get<RecoveryRetry>(STORAGE.recoveryRetry);
 		const attempts = (previous?.attempts ?? 0) + 1;
 		const nextAt =
-			error instanceof GitHubRateLimitError
-				? error.retryAt
-				: now +
-					Math.min(RECOVERY_RETRY_MAX_MS, RECOVERY_RETRY_BASE_MS * 2 ** Math.max(0, attempts - 1));
+			now +
+			Math.min(RECOVERY_RETRY_MAX_MS, RECOVERY_RETRY_BASE_MS * 2 ** Math.max(0, attempts - 1));
 		if (attempts >= RECOVERY_RETRY_LIMIT) {
 			await Promise.all([
 				this.ctx.storage.put<RecoveryTerminal>(STORAGE.recoveryTerminal, {
 					path,
 					attempts,
 					terminalAt: now,
-					errorKind: error instanceof GitHubRateLimitError ? "github-rate-limit" : "recovery-error",
+					errorKind: "recovery-error",
 				}),
 				this.ctx.storage.delete(STORAGE.recoveryRetry),
+				this.ctx.storage.delete(STORAGE.githubRetryAt),
 				this.ctx.storage.deleteAlarm(),
 			]);
 			console.error(JSON.stringify({ message: "orchestrator recovery exhausted", path, attempts }));
@@ -1417,7 +1416,7 @@ export class OrchestratorDO extends DurableObject<Env> {
 				path,
 				attempts,
 				nextAt,
-				errorKind: error instanceof GitHubRateLimitError ? "github-rate-limit" : "recovery-error",
+				errorKind: "recovery-error",
 			}),
 		);
 		return nextAt;
