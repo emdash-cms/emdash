@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.7
+
+### Patch Changes
+
+- [#3139](https://github.com/emdash-cms/emdash/pull/3139) [`59ebc01`](https://github.com/emdash-cms/emdash/commit/59ebc01e404be8207be7e0d9615b024bec3a0e43) Thanks [@emdashbot](https://github.com/apps/emdashbot)! - Fixes checkbox-group validation so forms submit successfully when more than one option is selected.
+
 ## 0.2.6
 
 ### Patch Changes
