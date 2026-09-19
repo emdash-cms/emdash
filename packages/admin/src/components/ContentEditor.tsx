@@ -38,6 +38,7 @@ import { getPreviewUrl, getDraftStatus } from "../lib/api";
 import { getContentPublishingState } from "../lib/content-publishing-state.js";
 import { fromDatetimeLocalInputValue, toDatetimeLocalInputValue } from "../lib/datetime-local.js";
 import { getEntryTitle } from "../lib/entryTitle.js";
+import { getFieldLabel } from "../lib/field-label.js";
 import { formatFileSize, getFileIcon } from "../lib/media-utils";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl, isSafeUrl } from "../lib/url.js";
@@ -1533,7 +1534,7 @@ function FieldRenderer({
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
-	const label = field.label || name.charAt(0).toUpperCase() + name.slice(1);
+	const label = getFieldLabel(name, field);
 	const id = `field-${name}`;
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
