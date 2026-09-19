@@ -234,6 +234,8 @@ const MAX_DRAFT_STAGE_ATTEMPTS = 32;
  */
 export interface SandboxedPluginEntry {
 	id: string;
+	displayName?: string;
+	description?: string;
 	version: string;
 	options: Record<string, unknown>;
 	code: string;
