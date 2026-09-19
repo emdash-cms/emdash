@@ -2038,6 +2038,9 @@ importers:
       '@emdash-cms/auth':
         specifier: workspace:*
         version: link:../auth
+      '@emdash-cms/blocks':
+        specifier: workspace:*
+        version: link:../blocks
       '@emdash-cms/auth-atproto':
         specifier: workspace:>=0.2.8
         version: link:../auth-atproto
@@ -2207,9 +2210,6 @@ importers:
       '@emdash-cms/atproto-test-utils':
         specifier: workspace:*
         version: link:../atproto-test-utils
-      '@emdash-cms/blocks':
-        specifier: workspace:*
-        version: link:../blocks
       '@types/better-sqlite3':
         specifier: ^7.6.12
         version: 7.6.13
@@ -2422,6 +2422,9 @@ importers:
       '@cloudflare/vitest-plugin':
         specifier: 'catalog:'
         version: 1.0.0(@cloudflare/workers-types@5.20260820.1)(@vitest/runner@4.1.5)(@vitest/snapshot@4.1.5)(vitest@4.1.5(@opentelemetry/api@1.9.0)(@types/node@24.10.13)(jsdom@26.1.0)(vite@8.0.11(@types/node@24.10.13)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.0)))
+      '@emdash-cms/blocks':
+        specifier: workspace:*
+        version: link:../blocks
       '@emdash-cms/cloudflare':
         specifier: workspace:*
         version: link:../cloudflare

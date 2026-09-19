@@ -340,6 +340,7 @@ describe("adaptSandboxEntry", () => {
 				input: { foo: "bar" },
 				request: new Request("http://localhost/test"),
 				requestMeta: { ip: null, userAgent: null, referer: null, geo: null },
+				ui: { surface: "admin-page", locale: "ar", direction: "rtl" },
 				plugin: { id: "test-plugin", version: "1.0.0" },
 				kv: {} as any,
 				storage: {} as any,
@@ -356,6 +357,7 @@ describe("adaptSandboxEntry", () => {
 			expect(routeCtx.input).toEqual({ foo: "bar" });
 			expect(routeCtx.request).toBeDefined();
 			expect(routeCtx.requestMeta).toBeDefined();
+			expect(routeCtx.ui).toEqual({ surface: "admin-page", locale: "ar", direction: "rtl" });
 			// pluginCtx should be the stripped PluginContext (without route-specific fields)
 			expect(pluginCtx.plugin.id).toBe("test-plugin");
 			expect(pluginCtx.kv).toBeDefined();
@@ -364,6 +366,7 @@ describe("adaptSandboxEntry", () => {
 			expect(pluginCtx).not.toHaveProperty("input");
 			expect(pluginCtx).not.toHaveProperty("request");
 			expect(pluginCtx).not.toHaveProperty("requestMeta");
+			expect(pluginCtx).not.toHaveProperty("ui");
 		});
 
 		it("calls standard-format (definePlugin) handlers with the public single-arg RouteContext (#2079)", async () => {

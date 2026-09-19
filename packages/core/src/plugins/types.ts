@@ -10,7 +10,7 @@
  */
 
 import type { Permission } from "@emdash-cms/auth";
-import type { Element } from "@emdash-cms/blocks";
+import type { Element, PluginUiContext } from "@emdash-cms/blocks";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
 // (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
@@ -1320,6 +1320,8 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 	request: Request;
 	/** Normalized request metadata (IP, user agent, geo) */
 	requestMeta: RequestMeta;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
 	/**
 	 * Authenticated caller, if the route is private. The host has already
 	 * authenticated and authorized this user before dispatch, so the value

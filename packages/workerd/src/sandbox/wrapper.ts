@@ -580,6 +580,7 @@ export default {
 						request: serializedRequest,
 						requestMeta: serializedRequest?.meta,
 						user: serializedRequest?.user,
+						ui: serializedRequest?.ui,
 					},
 					ctx,
 				);

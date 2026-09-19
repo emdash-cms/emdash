@@ -155,6 +155,7 @@ describe("content save", () => {
 The runtime host groups its API by boundary:
 
 - `transport` directly invokes the isolate for transport-level checks.
+- `admin` loads validated Block Kit pages and widgets, submits forms, and invokes actions through the production route boundary with host-attested locale context.
 - `fixtures` creates site, collection, field, user, content, and plugin state without firing hooks.
 - `actions` runs content state changes, plugin activation and deactivation, media uploads, public comment submission, comment moderation, and policy-checked plugin routes.
 - `inspect` reads content, plugin storage, KV, settings, plugin state, scheduled tasks, media, comments, and captured email.
@@ -163,7 +164,7 @@ The runtime host groups its API by boundary:
 
 Call `dispose()` after each test. Disposal terminates the isolate and resets all bindings, so a later test cannot observe the previous host's database or media.
 
-The runtime host exposes shipped operations only. Capability-specific helpers for translations, publication policy, Block Kit interactions, binary HTTP, raw routes, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
+The runtime host exposes shipped operations only. Capability-specific helpers for translations, publication policy, binary HTTP, raw routes, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
 
 ## Test boundaries
 
@@ -171,4 +172,4 @@ The default Vitest configuration uses Worker Loader because it is the fastest pr
 
 Neither host renders the EmDash admin application or reproduces Cloudflare's deployed CPU, memory, and subrequest limits. Use a disposable EmDash site for browser journeys, and verify limit-sensitive behavior on a Cloudflare preview or staging deployment.
 
-For Block Kit handlers, invoke the plugin's `admin` route and assert the returned block document. Use the [Block Playground](https://emdash-blocks.cto.cloudflare.dev/) or a browser journey to verify the rendered layout and interactions.
+For Block Kit handlers, use `host.admin.loadPage()` or `loadWidget()` to exercise the private route, host-attested locale context, response validation, and Worker Loader isolate. Use `admin.act()` and `admin.submit()` for interactions. These helpers do not render React; use the [Block Playground](https://emdash-blocks.cto.cloudflare.dev/) or a browser journey to verify Kumo rendering, keyboard operation, and right-to-left layout.
