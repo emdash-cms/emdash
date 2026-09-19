@@ -1,4 +1,5 @@
-import { setupI18n, type I18n, type Messages } from "@lingui/core";
+import type { MessageDescriptor, Messages } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 
 import { resolveLocale } from "./config.js";
 import { loadMessages } from "./loadMessages.js";
@@ -11,19 +12,34 @@ export interface VisualEditingToolbarLabels {
 	publishFailed: string;
 }
 
-export function translateVisualEditingToolbarLabels(i18n: I18n): VisualEditingToolbarLabels {
+const TOOLBAR_MESSAGES = {
+	publish: msg({ id: "visualEditing.publish", message: "Publish" }),
+	publishing: msg({ id: "visualEditing.publishing", message: "Publishing…" }),
+	sessionExpired: msg({
+		id: "visualEditing.sessionExpired",
+		message: "Editing session expired. Refresh the page to continue.",
+	}),
+	refreshPage: msg({ id: "visualEditing.refreshPage", message: "Refresh page" }),
+	publishFailed: msg({
+		id: "visualEditing.publishFailed",
+		message: "Publish failed. Check your permissions and try again.",
+	}),
+} satisfies Record<keyof VisualEditingToolbarLabels, MessageDescriptor>;
+
+function resolveToolbarMessage(messages: Messages, descriptor: MessageDescriptor): string {
+	const translated = descriptor.id ? messages[descriptor.id] : undefined;
+	return typeof translated === "string" ? translated : (descriptor.message ?? "");
+}
+
+export function translateVisualEditingToolbarLabels(
+	messages: Messages,
+): VisualEditingToolbarLabels {
 	return {
-		publish: i18n._({ id: "visualEditing.publish", message: "Publish" }),
-		publishing: i18n._({ id: "visualEditing.publishing", message: "Publishing…" }),
-		sessionExpired: i18n._({
-			id: "visualEditing.sessionExpired",
-			message: "Editing session expired. Refresh the page to continue.",
-		}),
-		refreshPage: i18n._({ id: "visualEditing.refreshPage", message: "Refresh page" }),
-		publishFailed: i18n._({
-			id: "visualEditing.publishFailed",
-			message: "Publish failed. Check your permissions and try again.",
-		}),
+		publish: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.publish),
+		publishing: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.publishing),
+		sessionExpired: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.sessionExpired),
+		refreshPage: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.refreshPage),
+		publishFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.publishFailed),
 	};
 }
 
@@ -32,8 +48,5 @@ export async function loadVisualEditingToolbarLabels(
 ): Promise<VisualEditingToolbarLabels> {
 	const locale = resolveLocale(request);
 	const messages: Messages = await loadMessages(locale);
-	const i18n = setupI18n();
-	i18n.load(locale, messages);
-	i18n.activate(locale);
-	return translateVisualEditingToolbarLabels(i18n);
+	return translateVisualEditingToolbarLabels(messages);
 }
