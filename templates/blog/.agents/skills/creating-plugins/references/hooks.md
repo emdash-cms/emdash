@@ -40,7 +40,7 @@ The current isolated runtime dispatches these hooks to Cloudflare and Node/worke
 
 - `plugin:install`, `plugin:activate`, `plugin:deactivate`, and `plugin:uninstall`
 - `content:beforeSave`, `content:afterSave`, `content:beforeDelete`, and `content:afterDelete`
-- `content:afterPublish`, `content:afterUnpublish`, `content:afterRestore`, `content:afterSchedule`, and `content:afterUnschedule`
+- `content:beforePublish`, `content:beforeSchedule`, `content:beforeUnpublish`, `content:afterPublish`, `content:afterUnpublish`, `content:afterRestore`, `content:afterSchedule`, and `content:afterUnschedule`
 - `media:beforeUpload` and `media:afterUpload`
 - `email:beforeSend`, `email:deliver`, and `email:afterSend`
 - `comment:beforeCreate`, `comment:moderate`, `comment:afterCreate`, and `comment:afterModerate`
@@ -57,7 +57,7 @@ Runs once on first install. Use to seed defaults.
 
 ```typescript
 "plugin:install": async (_event, ctx) => {
-	await ctx.kv.set("settings:enabled", true);
+	await ctx.settings.set("enabled", true);
 	await ctx.storage.items!.put("default", { name: "Default" });
 }
 ```
@@ -180,6 +180,14 @@ Runs after successful delete.
 
 Event: `{ id: string, collection: string }`
 Returns: `void`
+
+### Publication policy hooks
+
+`content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` require `hooks.content-policy:register`. This authority is independent of content reads, writes, and publication actions.
+
+Return `void` to allow the action or `{ cancel: true, reason }` to reject it. Reasons contain 1–500 plain-text characters. Events contain `{ content, collection, origin, actor? }`; scheduling also includes `scheduledAt`. Human origins are API, MCP, and visual editing. Other origins identify plugins, the scheduler, or the system.
+
+Scheduled content runs the publish policy again when it becomes due. Rejection unschedules it and records the reason for administrators. There is no before-unschedule hook, so administrators can always cancel a future publication.
 
 ### `content:afterPublish`
 
@@ -316,7 +324,7 @@ Implements email transport (e.g. Resend, SMTP, SES). Selected by the admin in Se
 "email:deliver": {
 	exclusive: true,
 	handler: async ({ message }, ctx) => {
-		const apiKey = await ctx.kv.get("settings:apiKey");
+		const apiKey = await ctx.settings.get("apiKey");
 		await ctx.http!.fetch("https://api.resend.com/emails", {
 			method: "POST",
 			headers: { Authorization: `Bearer ${apiKey}` },
@@ -406,7 +414,7 @@ Runs after the comment is stored. The event contains the stored comment, moderat
 
 ### `comment:afterModerate`
 
-Runs after an administrator changes a comment's status. The event contains the stored comment, `previousStatus`, `newStatus`, and the moderator's `{ id, name }`. Returns `void`.
+Runs after an administrator or plugin changes a comment's status. The event contains the stored comment, `previousStatus`, `newStatus`, moderator identity, and origin. Administrator changes identify the user; `ctx.comments.setStatus()` identifies the plugin. A transition runs the hook once. Returns `void`.
 
 ## Cron Hook
 
@@ -532,6 +540,9 @@ These policies apply to sandboxed and trusted hooks in the shared host pipeline.
 | `content:afterSave`       | After save           | `content:read`                                | `void`                                                  |
 | `content:beforeDelete`    | Before delete        | `content:read`                                | `false` to cancel                                       |
 | `content:afterDelete`     | After delete         | `content:read`                                | `void`                                                  |
+| `content:beforePublish`   | Before publish       | `hooks.content-policy:register`               | `void` or cancellation                                  |
+| `content:beforeSchedule`  | Before schedule      | `hooks.content-policy:register`               | `void` or cancellation                                  |
+| `content:beforeUnpublish` | Before unpublish     | `hooks.content-policy:register`               | `void` or cancellation                                  |
 | `content:afterPublish`    | After publish        | `content:read`                                | `void`                                                  |
 | `content:afterUnpublish`  | After unpublish      | `content:read`                                | `void`                                                  |
 | `content:afterRestore`    | After restore        | `content:read`                                | `void`                                                  |

@@ -1,53 +1,43 @@
 # Sandbox boundaries
 
-Registry plugins run against a capability-gated host API, not the complete trusted EmDash runtime. Design within the exported `PluginContext` and hook vocabulary. Do not infer a sandbox API from an internal repository or admin endpoint.
+Registry plugins run against a capability-gated host API, not the complete trusted EmDash runtime. Design within exported authoring types and do not infer an API from internal repositories or admin routes.
 
-## Cross-runner transport caveats
+## Transport limits
 
-### Plugin settings are not encrypted
+- `ctx.http.fetch()` preserves binary requests and responses across both runners, but complete bodies are buffered and limited to 8 MiB of decoded bytes.
+- Declared plugin route bodies are buffered with a 1 MiB default and 8 MiB author maximum. Raw route responses are buffered to 8 MiB.
+- Media byte reads default to 10 MiB and cannot request more than 16 MiB.
+- Neither test host reproduces deployed CPU, memory, or subrequest limits.
 
-The generated admin form and sandbox `ctx.kv` share the `settings:*` namespace across both runners. A `secret` settings field is masked and write-only in admin responses, but the stored value is not encrypted. EmDash does not expose an encrypted settings or secrets API to registry plugins.
+## Trusted-only surfaces
 
-### Cloudflare HTTP response bodies are text-decoded
+- `page:fragments` is accepted by shared authoring types but excluded from sandbox registration. Use validated `page:metadata`; raw HTML, scripts, and styles require a trusted native plugin.
+- React admin code, Astro render components, build-time integrations, host bindings, Node built-ins, TCP sockets, and direct database access require trusted site code.
+- Custom Portable Text definitions and Astro renderers remain native-only. Registry packages can use the declarative admin surfaces that the CLI serializes.
 
-`ctx.http.fetch()` returns a real WHATWG `Response` in both runners. Node/workerd transports the upstream response bytes as base64 and reconstructs the response from bytes. The Cloudflare bridge calls `text()` and reconstructs the response from that string.
+## Content and schema limits
 
-Use `text()` and `json()` for portable responses. Arbitrary binary data read through `arrayBuffer()` or `blob()` is not byte-preserving on Cloudflare yet.
+- Schema access is read-only. Plugins cannot create, alter, attach, or delete collection definitions through `ctx.schema`.
+- Content writes do not expose permanent deletion.
+- Publication policy hooks can reject publish, schedule, and unpublish, but cannot transform the action or restore content.
+- Publication and restore actions require separate capabilities and opaque revisions.
+- Public URL resolution never returns previews.
 
-### `page:fragments` is excluded at runtime
+## Taxonomy, redirect, comment, and media limits
 
-The sandbox authoring type and manifest schema accept `page:fragments`, and the plugin CLI emits a trusted-only warning rather than rejecting the bundle. The host sandbox proxy drops the hook before registration. Registry plugins can use validated `page:metadata` contributions, but cannot inject raw HTML, scripts, or styles.
+- Taxonomy writes cannot manage definitions, attachments, term updates or deletion, or replace all assignments.
+- Redirect writes cannot set host-owned fields and remain subject to host validation.
+- Comment administration excludes trashed comments and linked user-account IDs. It cannot hard-delete or bulk-replace statuses.
+- Media metadata writes cannot upload, replace, move, or delete files. Byte reads and content hashes require separate authority.
 
-## APIs that are not available
+## Routes and admin UI
 
-The following surfaces do not exist in the current sandbox contract. Do not invent bridge calls, use internal REST routes as substitutes, or claim registry portability for them.
-
-### Content lifecycle and policy
-
-- `ctx.content` has `get`, `list`, `create`, `update`, and `delete`. It has no publish, unpublish, schedule, unschedule, trash, or restore methods.
-- Content hooks observe saves, deletes, and completed publication-state changes. There are no pre-publish, pre-unpublish, pre-schedule, or pre-restore policy hooks that can approve, reject, or transform those operations.
-- Content save events may include `actor: { id, role }`, but they do not include the actor's origin. A hook cannot distinguish REST, visual editing, MCP, or another authenticated path from the actor snapshot.
-- `ctx.content.create()` accepts a locale but not `translationOf`. `ctx.content` has no translation discovery API.
-
-### Schema, taxonomies, and redirects
-
-- There is no schema or collection-definition listing API on `PluginContext`.
-- `ctx.taxonomies` is read-only. It cannot create, update, delete, reorder, or assign terms.
-- There is no redirects API and no redirect write capability.
-
-### Comments and media
-
-- Comment hooks receive the comment involved in their event. There is no comment list/get API and no method to change a stored comment's status from plugin code.
-- `ctx.media.get()` and `list()` return metadata and a URL. They do not download media bytes or expose an original-byte read API.
-- `ctx.media.upload()` and `delete()` are the only sandbox media writes. There is no media metadata update API.
-
-### Routes, public access, and admin UI
-
-- Plugin routes return JSON-serializable data inside EmDash's API envelope. There is no raw or unwrapped route response that controls the status, stream, or arbitrary headers.
-- `public: true` removes host authentication from the route. There is no separate safe-public-view abstraction that automatically limits fields or capabilities; validate requests and return the minimum public data.
-- Block Kit has buttons and form controls, but no navigation-link element and no content-editor panel extension point.
-- The sandbox context exposes the site locale, not the current administrator's UI locale. Registry plugins receive no admin-locale context or translation catalog callback.
+- `public: true` removes host authentication. It does not create a restricted public view; validate requests and return the minimum data.
+- Raw routes use `pluginResponse()`, an allowlisted set of representation/download/redirect headers, host-owned caching and security headers, and no active same-origin browser content. They cannot back MCP tools.
+- Credential, cookie, Cloudflare Access, proxy authorization, and EmDash CSRF headers never cross declared route-header boundaries.
+- Saved-entry panels and actions receive canonical saved identity and version, not field values or unsaved state. Use capability-gated APIs to read saved content.
+- `routeCtx.ui` carries host-attested admin locale, direction, and surface. Manifest labels remain static strings; the host does not consume plugin translation catalogs.
 
 ## Runner-only methods are not portable
 
-The Node/workerd wrapper currently contains `ctx.content.createMany()`, `updateMany()`, and `deleteMany()`. These methods are absent from the public types and Cloudflare wrapper. Do not use them in a registry plugin.
+Methods absent from public authoring types are not part of the registry contract even if one wrapper contains them. Write against `SandboxedPlugin` and exported context types, then test the feature through both bridges when behavior is runner-sensitive.

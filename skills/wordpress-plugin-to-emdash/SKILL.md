@@ -27,24 +27,30 @@ If the source, expected behavior, or target EmDash environment is missing, repor
 
 ## Assign each responsibility
 
-| WordPress responsibility                            | EmDash destination                                                                                           |
-| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Custom post type, taxonomy, or metadata             | Collection, taxonomy, and fields created through the site schema or seed                                     |
-| Site-wide presentation setting                      | Site setting read by Astro templates                                                                         |
-| Plugin-owned small settings or state                | Plugin-scoped `ctx.kv`                                                                                       |
-| Plugin-owned queryable records                      | Declared `ctx.storage.<collection>` storage                                                                  |
-| Content, media, comment, email, or lifecycle action | Supported plugin hook with the required declared access                                                      |
-| WordPress REST endpoint                             | Plugin route; private by default, with explicit permission and public access only when required              |
-| Scheduled event                                     | `cron` hook and `ctx.cron` scheduling                                                                        |
-| Admin page or form                                  | Block Kit for sandboxed plugins; React only for a trusted native plugin                                      |
-| User or author lookup                               | `ctx.users` with `users:read`                                                                                |
-| Outbound HTTP request                               | `ctx.http.fetch()` with `network:request` and an `allowedHosts` entry                                        |
-| Media operation                                     | `ctx.media` with the corresponding media capability                                                          |
-| `WP_Query` or template tag                          | EmDash content API in Astro site code                                                                        |
-| Shortcode or editor block                           | Existing Portable Text content where possible; a custom Portable Text block requires a trusted native plugin |
-| Raw head markup or scripts                          | Trusted native `page:fragments`; registry-installed plugins can contribute validated `page:metadata` only    |
+| WordPress responsibility                        | EmDash destination                                                                                           |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Custom post type, taxonomy, or metadata         | Collection, taxonomy, and fields created through the site schema or seed                                     |
+| Site-wide presentation setting                  | Site setting read by Astro templates                                                                         |
+| Plugin-owned user settings                      | `ctx.settings`; declare credentials as encrypted `secret` fields                                             |
+| Plugin-owned cursors, caches, or internal state | Plugin-scoped `ctx.kv`                                                                                       |
+| Plugin-owned queryable records                  | Declared `ctx.storage.<collection>` storage                                                                  |
+| Content discovery, translation, or publication  | Capability-gated `ctx.content` and `ctx.schema`; policy hooks and actions have separate authority            |
+| Runtime taxonomy or redirect management         | `ctx.taxonomies` or `ctx.redirects` with narrow read/write capability                                        |
+| Comment administration                          | `ctx.comments`; reads expose personal data and moderation uses expected status                               |
+| WordPress REST endpoint                         | Declared plugin route with explicit methods, inputs, headers, and response mode                              |
+| Scheduled event                                 | `cron` hook and `ctx.cron` scheduling                                                                        |
+| Admin page or form                              | Block Kit for sandboxed plugins; React only for a trusted native plugin                                      |
+| Post editor metabox or saved-entry action       | `admin.editorPanels` or `admin.editorActions` on private routes                                              |
+| User or author lookup                           | `ctx.users` with `users:read`                                                                                |
+| Outbound HTTP request                           | `ctx.http.fetch()` with `network:request` and an `allowedHosts` entry                                        |
+| Media operation                                 | Separate metadata, byte-read, metadata-write, and upload/delete authorities                                  |
+| `WP_Query` or template tag                      | EmDash content API in Astro site code                                                                        |
+| Shortcode or editor block                       | Existing Portable Text content where possible; a custom Portable Text block requires a trusted native plugin |
+| Raw head markup or scripts                      | Trusted native `page:fragments`; registry-installed plugins can contribute validated `page:metadata` only    |
 
 Do not create collections or taxonomies by reaching into EmDash system tables. Use the public schema, seed, CLI, or admin boundary. Do not use internal REST routes to imitate a sandbox API that does not exist.
+
+Keep authorities separate: reading media metadata does not grant bytes, moderation does not grant deletion, publication policy does not grant publication actions, and content restore does not grant ordinary content reads.
 
 ## Choose the plugin format
 

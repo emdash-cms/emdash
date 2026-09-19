@@ -1,13 +1,14 @@
-# Storage and KV
+# Storage, KV, and encrypted settings
 
-Sandboxed plugins have two plugin-scoped data APIs:
+Sandboxed plugins have three plugin-scoped data APIs:
 
-| API                        | Use                                                         |
-| -------------------------- | ----------------------------------------------------------- |
-| `ctx.storage.<collection>` | Queryable records declared in `emdash-plugin.jsonc`         |
-| `ctx.kv`                   | Settings, cursors, cached values, and other key-value state |
+| API                        | Use                                                        |
+| -------------------------- | ---------------------------------------------------------- |
+| `ctx.storage.<collection>` | Queryable records declared in `emdash-plugin.jsonc`        |
+| `ctx.settings`             | User configuration, including encrypted secrets            |
+| `ctx.kv`                   | Cursors, cached values, and other internal key-value state |
 
-Both use the host database and are isolated by runtime plugin ID. Neither needs a capability.
+All three use the host database and are isolated by runtime plugin ID. None needs a capability.
 
 ## Declare storage collections
 
@@ -196,15 +197,17 @@ interface KVAccess {
 }
 ```
 
-Use stable prefixes to keep keys discoverable:
+Use stable prefixes to keep internal KV keys discoverable:
 
 ```typescript
-await ctx.kv.set("settings:webhookUrl", url);
+await ctx.settings.set("webhookUrl", url);
 await ctx.kv.set("state:lastRun", new Date().toISOString());
 await ctx.kv.set("cache:summary", summary);
-const settings = await ctx.kv.list("settings:");
+const settings = await ctx.settings.list();
 ```
 
-The plugin CLI serializes `admin.settingsSchema`, and both sandbox bridges route `settings:*` KV keys through the same options records as the generated admin form. Values saved in that form are available through `ctx.kv.get("settings:<key>")`. `set`, `delete`, `list`, `getVersioned`, `compareAndSet`, and `compareAndDelete` use the same namespace and remove stale values from the legacy KV storage path after a successful write or deletion.
+The plugin CLI serializes `admin.settingsSchema`, and both sandbox bridges route `ctx.settings` through the same options records as the generated form. The API supports `get`, `set`, `delete`, `list`, `getVersioned`, `compareAndSet`, and `compareAndDelete`.
 
-The generated form masks `secret` fields in reads, but this is not an encrypted settings store. Do not use it for credentials that require encryption at rest.
+Fields declared as `secret` use a versioned AES-GCM envelope with plugin ID and setting key as authenticated data. `EMDASH_ENCRYPTION_KEY` may contain a comma-separated rotation list: the first key encrypts new values and the envelope `kid` selects older keys. Missing, wrong, and tampered keys fail closed. Existing plaintext secrets become encrypted when saved again.
+
+Keep the full key list with operational backups. Restoring a database without every referenced key leaves those settings unreadable. `ctx.kv.get("settings:<key>")` remains a compatibility alias throughout EmDash 0.x; new code uses `ctx.settings`.

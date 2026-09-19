@@ -68,14 +68,14 @@ const plugin: SandboxedPlugin = {
 				if (!parsed.success) return { blocks: [] };
 				const interaction = parsed.data;
 				if (interaction.type === "form_submit" && interaction.action_id === "save") {
-					await ctx.kv.set("settings:enabled", interaction.values.enabled === true);
+					await ctx.settings.set("enabled", interaction.values.enabled === true);
 					return {
 						...settingsForm(interaction.values.enabled === true),
 						toast: { type: "success", message: "Settings saved" },
 					};
 				}
 
-				const enabled = (await ctx.kv.get<boolean>("settings:enabled")) ?? false;
+				const enabled = (await ctx.settings.get<boolean>("enabled")) ?? false;
 				return settingsForm(enabled);
 			},
 		},
@@ -87,9 +87,19 @@ export default plugin;
 
 Validate interactions before production side effects; `routeCtx.input` is `unknown`. Read [Block Kit](./block-kit.md) for exact interaction, block, and element shapes.
 
-The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor, so the host can generate a settings form. Both sandbox bridges route `settings:*` KV keys through the same options records as that form. Read a generated setting with `ctx.kv.get("settings:<key>")`; writes, deletes, list operations, and revision-based operations use the same namespace on Cloudflare and Node/workerd.
+The plugin CLI preserves `admin.settingsSchema` in the registry manifest and generated descriptor. Both sandbox bridges route `ctx.settings` through the same records as the generated form.
 
-The `secret` settings field is write-only in the admin response, but EmDash does not currently provide encrypted plugin settings. Do not store a credential there when encryption at rest is required.
+Secret fields are write-only in admin responses and encrypted before persistence. The site needs matching `EMDASH_ENCRYPTION_KEY` material to read them. Keep the key list with database backups. Legacy `ctx.kv.get("settings:<key>")` reads remain compatible through EmDash 0.x.
+
+## Sandboxed saved-entry extensions
+
+Declare `admin.editorPanels` and `admin.editorActions` in `emdash-plugin.jsonc`. Every declaration names a private route and may restrict itself to exact collection slugs.
+
+The host reloads and ownership-authorizes the saved entry before invoking the route. `routeCtx.ui.entry` contains only collection, ID, locale, and version; `routeCtx.ui.extensionId` identifies the declaration. Field values and unsaved editor state never cross the boundary.
+
+Panels load lazily and return Block Kit for `panel_load`, `block_action`, and `form_submit`. Actions are disabled while edits are unsaved and return only a bounded toast, `refresh: true`, or structured navigation. Danger actions require a manifest confirmation.
+
+Use the runtime host's admin helpers to load and interact with panels and invoke editor actions through the production ownership and permission boundary.
 
 ## Sandboxed declarative field widgets
 
@@ -127,7 +137,7 @@ Other Block Kit element types display an unsupported-element message in this sur
 
 `emdash-plugin.jsonc` accepts `admin.fieldWidgets`, and the plugin CLI carries the definitions through the bundle manifest and generated descriptor for registry installation. The artifact round-trip is covered by plugin CLI, shared manifest, and plugin-test tests. The browser E2E fixture still tests a native React color picker rather than a registry-installed declarative widget, so verify the real editor render and value persistence for the chosen elements.
 
-The sandbox admin context does not expose the administrator's active locale. Labels in manifest metadata and Block Kit responses are static strings from the plugin; there is no locale-aware callback or translation catalog handoff for registry plugins.
+Sandboxed admin routes receive host-attested locale, direction, and surface in `routeCtx.ui`. Use it to select localized runtime Block Kit text. Manifest labels remain static strings; registry plugins do not hand translation catalogs to the host.
 
 ## Native React pages, widgets, and fields
 

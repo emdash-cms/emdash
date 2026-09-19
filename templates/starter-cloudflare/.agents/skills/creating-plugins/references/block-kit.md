@@ -45,7 +45,7 @@ routes: {
 			}
 
 			if (interaction.type === "form_submit" && interaction.action_id === "save") {
-				await ctx.kv.set("settings", interaction.values);
+				await ctx.settings.set("form", interaction.values);
 				return {
 					blocks: [/* updated blocks */],
 					toast: { message: "Settings saved", type: "success" },
@@ -83,6 +83,7 @@ routes: {
 | Type           | Description                                     |
 | -------------- | ----------------------------------------------- |
 | `button`       | Action button with optional confirmation dialog |
+| `link`         | Host-resolved navigation without plugin action  |
 | `text_input`   | Single-line or multiline text input             |
 | `number_input` | Numeric input with min/max                      |
 | `select`       | Dropdown select                                 |
@@ -512,6 +513,28 @@ return {
 	}
 }
 ```
+
+## Links and admin context
+
+Use a structured link target for saved content, another declared plugin page, generated plugin settings, or an external HTTP, HTTPS, or `mailto:` URL. External links open with `noopener noreferrer`; links do not dispatch plugin actions.
+
+Every response is bounded by byte, depth, node, collection, and string limits. Root-relative images are allowed. External images require HTTPS and matching `network:request` plus `allowedHosts`, or unrestricted network authority.
+
+`routeCtx.ui` supplies the host-attested admin locale, direction, and surface. It is separate from the site's content locale. Runtime responses can select localized text; manifest labels stay static.
+
+## Saved-entry panels and actions
+
+`admin.editorPanels` and `admin.editorActions` point to private routes. Panel routes return Block Kit and receive panel-load, action, and form interactions. Editor actions receive `editor_action` and may return:
+
+```typescript
+{
+	toast?: { message: string; type: "success" | "error" | "info" };
+	refresh?: true;
+	navigate?: LinkTarget;
+}
+```
+
+Use either refresh or navigation, not both. Structured navigation uses the same target validator as a link. `routeCtx.ui.entry` contains host-reloaded saved identity and version, not saved field data or unsaved state.
 
 ## Toast Responses
 

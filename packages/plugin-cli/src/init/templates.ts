@@ -427,20 +427,23 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 ## Runtime rules
 
 - Assign the runtime definition to a \`SandboxedPlugin\`-typed constant and export it as default from \`src/plugin.ts\`.
-- Use Web APIs. Do not import Node.js built-ins into plugin runtime code.
+- Use Web APIs. Import types from \`emdash/plugin\` with \`import type\`; value imports are limited to bundled helpers such as \`pluginRoute()\` and \`pluginResponse()\`.
 - Declare every runtime API in \`capabilities\` and every network destination in \`allowedHosts\`.
-- Use \`schema:read\` for \`ctx.schema.listCollections()\` and \`getCollection()\`.
-- Use \`content:read\` for content identity fields, translations, and published public URLs. Public URL resolution never returns previews. Revision history requires the separate \`content:revisions:read\` capability and excludes revision author identity.
-- Create a translation with \`ctx.content.create(collection, data, { locale, translationOf })\`. The source must be an active row in the same collection. EmDash preserves its non-translatable fields, byline credits, taxonomy assignments, validation, and save hooks, and permits one active row per locale in the group.
-- Use \`ctx.storage\` for queryable records and \`ctx.kv\` for key-value state.
-- Use Block Kit for sandboxed admin UI. Do not ship browser React components.
-- Treat public routes as internet-facing and validate their inputs.
+- Use \`ctx.settings\` for user configuration, \`ctx.storage\` for queryable records, and \`ctx.kv\` for internal key-value state. Declare credentials as secret settings and keep \`EMDASH_ENCRYPTION_KEY\` with backups.
+- Keep content, schema, taxonomy, redirect, comment, media, network, and publication authority as narrow as the plugin needs. Versioned mutations require the latest opaque revision.
+- Use \`schema:read\` for collection discovery and \`content:revisions:read\` for retained revisions. Create translations with \`ctx.content.create(collection, data, { locale, translationOf })\`.
+- Other expanded authorities use exact names such as \`taxonomies:write\`, \`redirects:read\`, \`redirects:write\`, \`comments:read\`, \`comments:moderate\`, \`media:bytes:read\`, \`media:metadata:write\`, \`hooks.content-policy:register\`, \`content:publish\`, and \`content:restore\`.
+- Use Block Kit for sandboxed admin UI. Structured links and saved-entry panels/actions use host-validated declarations and private routes; field values and unsaved editor state do not cross that boundary.
+- Treat public routes as internet-facing. Declare methods, body and header inputs, and raw responses explicitly. Raw routes cannot back MCP tools.
+- Treat outbound HTTP and declared route bodies as bounded and buffered. Binary bytes are preserved across both runners.
 
 ## Validation
 
 Use the package scripts in this repository. The default test script builds the plugin and runs it through Worker Loader, EmDash's production sandbox wrapper, and the host bridge.
 
-Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, capability enforcement, KV, and declared storage. Use \`createPluginRuntimeTestHost()\` when a test must trigger real content, plugin activation, media, comment, scheduler, restart, authorization, CSRF, or cache behavior. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
+Use \`createPluginTestHost()\` for direct transport tests of hooks, routes, manifests, capability enforcement, settings, KV, and storage. Use \`createPluginRuntimeTestHost()\` for real content/publication, plugin activation, media, comments, redirects, scheduling, restart, authorization, CSRF, cache behavior, Block Kit validation, and saved-entry extensions. Runtime fixtures do not fire hooks; runtime actions call production boundaries; inspectors read observable state.
+
+Queue deterministic outbound responses with \`host.http.respond()\`. Pass declared route bodies through \`rawBody\`; use \`body\` only for the legacy JSON envelope.
 
 Dispose either host after each test so its bindings reset. Keep Node/workerd parity opt-in unless the plugin depends on runner-sensitive behavior.
 

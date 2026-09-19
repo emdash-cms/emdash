@@ -60,7 +60,13 @@ The published authoring type currently declares `requestMeta` as `unknown`, alth
 
 ## Input sources and validation
 
-The host parses JSON for `POST`, `PUT`, and `PATCH`. It parses the query string for `GET`, `HEAD`, and `DELETE`; repeated keys become arrays. Validate `routeCtx.input` inside the handler.
+Routes without declarations keep the original input contract: the host parses JSON for `POST`, `PUT`, and `PATCH`, and query strings for `GET`, `HEAD`, and `DELETE`. Repeated query keys become arrays.
+
+Declare `request.body` as `none`, `json`, `text`, `bytes`, or `form-data` for bounded parsing. The default body limit is 1 MiB and `maxBytes` cannot exceed 8 MiB. Use the `pluginRoute()` value helper from `emdash/plugin` to infer query, string, byte, or form-data input; JSON remains `unknown` and requires validation.
+
+Multipart parsing permits at most 100 parts, 1 MiB per part, and 255 UTF-8 bytes per safe filename. The complete request must also fit the route limit.
+
+Declare safe request-header names explicitly. Credentials, cookies, Cloudflare Access, proxy authorization, `Set-Cookie`, and EmDash CSRF headers cannot be declared and never cross the sandbox boundary.
 
 The plugin CLI probe currently does not retain a route entry's `input` schema, so do not rely on route-level Zod validation for a built sandboxed plugin. An MCP tool still requires its own Zod input schema.
 
@@ -88,20 +94,20 @@ interface UserInfo {
 
 Caller identity is not gated by `users:read`; it identifies the current authorized caller. `ctx.users` is a directory lookup and does require `users:read`. `routeCtx.user` is absent on public routes and on machine-token calls without a bound user.
 
-A public route skips authentication, permission, and token-scope checks. It is internet-facing, so validate input, check the intended HTTP method, and verify webhook signatures or shared tokens where applicable.
+A public route skips authentication, permission, and token-scope checks. It is internet-facing, so validate input and verify webhook signatures or shared tokens where applicable. Public exposure is reviewed at installation, and newly public routes require renewed update approval.
 
 ## HTTP methods
 
-The route name selects one handler for every method. Reject unintended methods before side effects:
+Declare `methods` to have the host reject other methods with `405 Method Not Allowed` and an `Allow` header before plugin invocation:
 
 ```typescript
+methods: ["POST"],
 handler: async (routeCtx, ctx) => {
-	if (routeCtx.request.method !== "POST") {
-		return { ok: false, error: "POST_REQUIRED" };
-	}
 	// Validate input, then mutate.
 },
 ```
+
+Routes without `methods` remain method-agnostic for compatibility.
 
 ## Results and errors
 
@@ -109,7 +115,9 @@ Return a JSON-serializable value. The HTTP endpoint wraps it in EmDash's `{ succ
 
 Return a stable application-level error object for expected validation and domain failures. Throw only for unexpected failures, and keep exception messages free of credentials, personal data, paths, and stack traces.
 
-Plugin routes do not expose raw or unwrapped HTTP responses. Do not return or throw a `Response` to select status or headers; the host wraps JSON-serializable results in its API envelope. Authentication, authorization, CSRF, and missing-route statuses are assigned before or around dispatch.
+For an unwrapped response, declare `response: "raw"` and return `pluginResponse()` from `emdash/plugin` with a text or `Uint8Array` body. Do not return or throw a WHATWG `Response`.
+
+Raw bodies are buffered to 8 MiB. The host retains only documented representation, download, and redirect headers, applies route caching and browser security policy, and rejects active same-origin types including HTML, JavaScript, XHTML, SVG, XML, CSS, WebAssembly, and active multipart formats. Raw routes cannot back MCP tools.
 
 ## Public caching
 
@@ -138,17 +146,13 @@ Both runners send the same normalized metadata:
 
 Do not treat `userAgent`, `referer`, or geographic values as authenticated identity. Use `routeCtx.user` for the caller.
 
-## Content reads
+## Host APIs used by routes
 
-With `content:read`, both sandbox runners match the trusted read contract. `ctx.content.get()` and `ctx.content.list()` return content identity, slug, status, locale, data, created/updated/published/scheduled timestamps, and SEO metadata when enabled.
-
-`list()` accepts `limit`, `cursor`, `where`, and `orderBy`. Field filters, status filters, ordering, and cursor pagination reach the host repository on both runners; they are not evaluated inside the plugin isolate. Read only the fields the returned `ContentItem` exposes. Translation discovery and schema listing are separate missing APIs, described in [Sandbox boundaries](./sandbox-boundaries.md).
+Routes receive the same capability-gated context as hooks. Read [Content, schema, translations, and publication](./content.md), [Taxonomies and redirects](./taxonomies-and-redirects.md), [Comments](./comments.md), and [Media](./media.md) for those contracts.
 
 ## External HTTP responses
 
-`ctx.http.fetch()` returns a real WHATWG `Response` in both sandbox runners, so `ok`, `status`, `headers`, `text()`, and `json()` use the standard Web API.
-
-The Cloudflare bridge currently transports the upstream response body as decoded text before constructing the `Response`. Binary response methods such as `arrayBuffer()` and `blob()` therefore do not preserve arbitrary bytes on Cloudflare. The Node/workerd bridge base64-encodes response bytes. Use text or JSON responses for portable plugins until the Cloudflare bridge is binary-safe.
+`ctx.http.fetch()` returns a buffered WHATWG `Response` in both sandbox runners. Binary bytes, status text, headers, final URL, redirect state, `arrayBuffer()`, `blob()`, and `clone()` are portable. Decoded request and response bodies are each limited to 8 MiB and are buffered rather than streamed.
 
 ## Expose a route as an MCP tool
 
@@ -195,6 +199,7 @@ An MCP tool must:
 - use a tool name containing only letters, digits, `_`, or `-`;
 - reference an existing private route;
 - reference a route with an explicit valid `permission`;
+- reference a JSON route, not one with `response: "raw"`;
 - declare an input Zod schema;
 - set `destructive: true` for deletion, overwrite, publishing, charging, or another difficult-to-reverse action.
 
