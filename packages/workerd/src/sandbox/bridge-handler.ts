@@ -215,7 +215,9 @@ export function createBridgeHandler(
 					{ status: 503 },
 				);
 			}
-			const contentCreateError = contentCreateErrorDetails(error);
+			const contentCreateError = CONTENT_ACTION_METHODS.has(method)
+				? null
+				: contentCreateErrorDetails(error);
 			if (contentCreateError) {
 				const status =
 					contentCreateError.code === "NOT_FOUND"

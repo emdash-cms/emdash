@@ -1119,7 +1119,9 @@ const sbomSchema = _sbomSchema;
 var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	contentAccessSchema: () => contentAccessSchema,
 	contentPolicyConstraintsSchema: () => contentPolicyConstraintsSchema,
+	contentPublishConstraintsSchema: () => contentPublishConstraintsSchema,
 	contentReadConstraintsSchema: () => contentReadConstraintsSchema,
+	contentRestoreConstraintsSchema: () => contentRestoreConstraintsSchema,
 	contentRevisionsReadConstraintsSchema: () => contentRevisionsReadConstraintsSchema,
 	contentWriteConstraintsSchema: () => contentWriteConstraintsSchema,
 	declaredAccessSchema: () => declaredAccessSchema$1,
@@ -1148,8 +1150,14 @@ const _contentAccessSchema = /* @__PURE__ */ object$1({
 	get policy() {
 		return /* @__PURE__ */ optional$1(contentPolicyConstraintsSchema);
 	},
+	get publish() {
+		return /* @__PURE__ */ optional$1(contentPublishConstraintsSchema);
+	},
 	get read() {
 		return /* @__PURE__ */ optional$1(contentReadConstraintsSchema);
+	},
+	get restore() {
+		return /* @__PURE__ */ optional$1(contentRestoreConstraintsSchema);
 	},
 	get revisionsRead() {
 		return /* @__PURE__ */ optional$1(contentRevisionsReadConstraintsSchema);
@@ -1159,7 +1167,9 @@ const _contentAccessSchema = /* @__PURE__ */ object$1({
 	}
 });
 const _contentPolicyConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentPolicyConstraints")) });
+const _contentPublishConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentPublishConstraints")) });
 const _contentReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentReadConstraints")) });
+const _contentRestoreConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentRestoreConstraints")) });
 const _contentRevisionsReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentRevisionsReadConstraints")) });
 const _contentWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentWriteConstraints")) });
 const _declaredAccessSchema = /* @__PURE__ */ object$1({
@@ -1272,7 +1282,9 @@ const _usersAccessSchema = /* @__PURE__ */ object$1({
 const _usersReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#usersReadConstraints")) });
 const contentAccessSchema = _contentAccessSchema;
 const contentPolicyConstraintsSchema = _contentPolicyConstraintsSchema;
+const contentPublishConstraintsSchema = _contentPublishConstraintsSchema;
 const contentReadConstraintsSchema = _contentReadConstraintsSchema;
+const contentRestoreConstraintsSchema = _contentRestoreConstraintsSchema;
 const contentRevisionsReadConstraintsSchema = _contentRevisionsReadConstraintsSchema;
 const contentWriteConstraintsSchema = _contentWriteConstraintsSchema;
 const declaredAccessSchema$1 = _declaredAccessSchema;
@@ -7813,6 +7825,8 @@ const CURRENT_PLUGIN_CAPABILITIES = [
 	"content:read",
 	"content:revisions:read",
 	"content:write",
+	"content:publish",
+	"content:restore",
 	"hooks.content-policy:register",
 	"schema:read",
 	"taxonomies:read",
@@ -8034,6 +8048,8 @@ const declaredAccessSchema = object({
 		read: accessConstraints.optional(),
 		revisionsRead: accessConstraints.optional(),
 		write: accessConstraints.optional(),
+		publish: accessConstraints.optional(),
+		restore: accessConstraints.optional(),
 		policy: accessConstraints.optional()
 	}).optional(),
 	schema: object({ read: accessConstraints.optional() }).optional(),
@@ -8144,10 +8160,12 @@ function normalizeCapability(cap) {
 function capabilitiesToDeclaredAccess(capabilities, allowedHosts) {
 	const caps = new Set(capabilities.map((c) => normalizeCapability(c)));
 	const out = {};
-	if (caps.has("content:read") || caps.has("content:revisions:read") || caps.has("content:write")) {
+	if (caps.has("content:read") || caps.has("content:revisions:read") || caps.has("content:write") || caps.has("content:publish")) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
+	if (caps.has("content:publish")) (out.content ??= {}).publish = {};
+	if (caps.has("content:restore")) (out.content ??= {}).restore = {};
 	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
 	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
 	if (caps.has("schema:read")) out.schema = { read: {} };
@@ -8185,6 +8203,11 @@ function declaredAccessToCapabilities(declaredAccess) {
 		caps.add("content:revisions:read");
 		caps.add("content:read");
 	}
+	if (declaredAccess.content?.publish) {
+		caps.add("content:publish");
+		caps.add("content:read");
+	}
+	if (declaredAccess.content?.restore) caps.add("content:restore");
 	if (declaredAccess.schema?.read) caps.add("schema:read");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.media?.read) caps.add("media:read");

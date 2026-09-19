@@ -385,7 +385,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					version: "1.0.0",
 					options: {},
 					code: RUNTIME_HOST_PLUGIN,
-					capabilities: ["content:write"],
+					capabilities: ["content:write", "content:publish"],
 					allowedHosts: [],
 					storage: {},
 					hooks: ["content:beforeSave"],

@@ -89,6 +89,7 @@ export interface SandboxOptions {
 	db: Kysely<Database>;
 	/** Called immediately before a sandboxed plugin content mutation. */
 	beforeContentWrite?: () => Promise<void>;
+	contentActions?: ContentActionCallbacks;
 	/** Clock used to calculate recurring plugin task schedules. */
 	now?: () => Date;
 	/** Default resource limits */
