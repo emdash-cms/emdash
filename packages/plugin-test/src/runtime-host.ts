@@ -7,6 +7,7 @@ import {
 	ContentRepository,
 	OptionsRepository,
 	SCHEDULED_POLICY_REJECTION_PREFIX,
+	RevisionRepository,
 	SchemaRegistry,
 	UserRepository,
 	definePlugin,
@@ -18,13 +19,16 @@ import {
 	type SandboxOptions,
 	type ScheduledPolicyRejection,
 	type Storage,
+	createContentAccess,
 } from "emdash";
 import { runMigrations } from "emdash/db";
 import {
+	BylineRepository,
 	dispatchPluginApiRequest,
 	EmDashRuntime,
 	getI18nConfig,
 	setI18nConfig,
+	TaxonomyRepository,
 	type UserInfo,
 } from "emdash/plugin-test-runtime";
 import { Kysely } from "kysely";
@@ -72,6 +76,14 @@ export interface PluginRuntimeTestHost {
 			role?: "subscriber" | "contributor" | "author" | "editor" | "admin";
 		}): Promise<UserInfo>;
 		content(collection: string, input: Omit<CreateContentInput, "type">): Promise<ContentItem>;
+		byline: BylineRepository["create"];
+		taxonomy: TaxonomyRepository["create"];
+		revision(
+			collection: string,
+			entryId: string,
+			data: Record<string, unknown>,
+			options?: { authorId?: string },
+		): Promise<{ id: string }>;
 		plugin: {
 			setting(key: string, value: unknown): Promise<void>;
 			kv(key: string, value: unknown): Promise<void>;
@@ -120,7 +132,11 @@ export interface PluginRuntimeTestHost {
 		content: {
 			get(collection: string, id: string): Promise<ContentItem | null>;
 			list(collection: string): Promise<ContentItem[]>;
+			publicUrl(collection: string, id: string): Promise<string | null>;
+			bylines: BylineRepository["getContentBylines"];
+			terms: TaxonomyRepository["getTermsForEntry"];
 		};
+		schema(): ReturnType<SchemaRegistry["listCollectionsWithFields"]>;
 		storage: {
 			get<T = unknown>(collection: string, id: string): Promise<T | null>;
 			list<T = unknown>(collection: string): Promise<Array<PluginStorageTestEntry<T>>>;
@@ -414,6 +430,17 @@ export async function createPluginRuntimeTestHost(
 				assertActive();
 				return new ContentRepository(runtime.db).create({ ...input, type: collection });
 			},
+			byline: (input) => new BylineRepository(runtime.db).create(input),
+			taxonomy: (input) => new TaxonomyRepository(runtime.db).create(input),
+			async revision(collection, entryId, data, revisionOptions) {
+				assertActive();
+				return new RevisionRepository(runtime.db).create({
+					collection,
+					entryId,
+					data,
+					...(revisionOptions?.authorId ? { authorId: revisionOptions.authorId } : {}),
+				});
+			},
 			plugin: {
 				setting: (key, value) => optionRepo.set(`plugin:${manifest.id}:settings:${key}`, value),
 				async storage(collection, id, value) {
@@ -511,7 +538,21 @@ export async function createPluginRuntimeTestHost(
 					} while (cursor);
 					return items;
 				},
+				publicUrl: (collection, id) =>
+					createContentAccess(runtime.db, {
+						site: {
+							name: siteInfo.name ?? "EmDash plugin test site",
+							url: siteInfo.url ?? "https://plugin.test",
+							locale: siteInfo.locale ?? "en",
+							trailingSlash: siteInfo.trailingSlash,
+						},
+					}).getPublicUrl!(collection, id),
+				bylines: (collection, id, bylineOptions) =>
+					new BylineRepository(runtime.db).getContentBylines(collection, id, bylineOptions),
+				terms: (collection, id, taxonomy, locale) =>
+					new TaxonomyRepository(runtime.db).getTermsForEntry(collection, id, taxonomy, locale),
 			},
+			schema: () => new SchemaRegistry(runtime.db).listCollectionsWithFields(),
 			storage: {
 				async get<T>(collection: string, id: string) {
 					return (await readStorage<T>(collection, id))[0]?.data ?? null;

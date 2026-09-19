@@ -3,7 +3,7 @@ import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
 import { env } from "cloudflare:workers";
 import { OptionsRepository, type Database, type PluginManifest, type SandboxOptions } from "emdash";
 import { Kysely } from "kysely";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
 	createPluginRuntimeTestHost,
@@ -89,6 +89,173 @@ describe("runtime plugin test host", () => {
 		).resolves.toMatchObject({
 			success: true,
 			data: { item: { data: { title: "Restarted [sandbox]" } } },
+		});
+	});
+
+	it("discovers schema, content identity, translations, public URLs, and revisions through Worker Loader", async () => {
+		runtimeHost = await createPluginRuntimeTestHost({
+			site: { url: "https://example.test", locale: "en", trailingSlash: "always" },
+			i18n: { defaultLocale: "en", locales: ["en", "fr"] },
+		});
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			urlPattern: "/journal/{slug}",
+			fields: [{ slug: "title", label: "Title", type: "string", indexed: true }],
+		});
+		const english = await runtimeHost.fixtures.content("posts", {
+			id: "post-en",
+			slug: "hello",
+			status: "published",
+			locale: "en",
+			authorId: "author-1",
+			data: { title: "Hello" },
+		});
+		await runtimeHost.fixtures.content("posts", {
+			id: "post-fr",
+			slug: "bonjour",
+			status: "draft",
+			locale: "fr",
+			translationOf: english.id,
+			data: { title: "Bonjour" },
+		});
+		const revision = await runtimeHost.fixtures.revision("posts", english.id, {
+			title: "Removed history",
+		});
+
+		const result = (await runtimeHost.transport.invokeRoute("content-discovery", {
+			id: english.id,
+		})) as Record<string, any>;
+		expect(result.schema).toMatchObject({
+			slug: "posts",
+			fields: [expect.objectContaining({ slug: "title", indexed: true })],
+		});
+		expect(result.schema).not.toHaveProperty("id");
+		expect(result.item).toMatchObject({
+			id: english.id,
+			authorId: "author-1",
+			translationGroup: english.translationGroup,
+			version: 1,
+		});
+		expect(result.translations.translations).toEqual([
+			expect.objectContaining({ id: "post-en", locale: "en" }),
+			expect.objectContaining({ id: "post-fr", locale: "fr" }),
+		]);
+		expect(result.publicUrl).toBe("https://example.test/journal/hello/");
+		expect(result.revisions).toEqual([
+			expect.objectContaining({ data: { title: "Removed history" } }),
+		]);
+		await runtimeHost.actions.content.trash("posts", english.id);
+		await expect(
+			runtimeHost.transport.invokeRoute("revision-discovery", {
+				id: english.id,
+				revisionId: revision.id,
+			}),
+		).resolves.toEqual({ list: [], item: null });
+	});
+
+	it("creates a translation through the runtime with shared fields, bylines, and taxonomies", async () => {
+		runtimeHost = await createPluginRuntimeTestHost({
+			i18n: { defaultLocale: "en", locales: ["en", "fr"] },
+		});
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			fields: [
+				{ slug: "title", label: "Title", type: "string" },
+				{ slug: "sku", label: "SKU", type: "string", translatable: false },
+			],
+		});
+		const byline = await runtimeHost.fixtures.byline({
+			slug: "ada",
+			displayName: "Ada Lovelace",
+			locale: "en",
+		});
+		await runtimeHost.fixtures.taxonomy({
+			name: "tags",
+			slug: "news",
+			label: "News",
+			locale: "en",
+		});
+		const source = await runtimeHost.actions.content.create("posts", {
+			data: { title: "Hello", sku: "SKU-1" },
+			locale: "en",
+			bylines: [{ bylineId: byline.id, roleLabel: "Writer" }],
+			taxonomies: { tags: ["news"] },
+		});
+		if (!source.success) throw new Error(source.error.message);
+		await vi.waitFor(async () => {
+			await expect(
+				runtimeHost!.inspect.storage.get("events", source.data.item.id),
+			).resolves.toMatchObject({ type: "saved" });
+		});
+
+		const translated = (await runtimeHost.transport.invokeRoute("content-translation-create", {
+			translationOf: source.data.item.id,
+			locale: "fr",
+			data: { title: "Bonjour", sku: "IGNORED" },
+		})) as { id: string; locale: string; translationGroup: string; data: Record<string, unknown> };
+
+		expect(translated).toMatchObject({
+			locale: "fr",
+			translationGroup: source.data.item.translationGroup,
+			data: { title: "Bonjour [sandbox]", sku: "SKU-1" },
+		});
+		await expect(runtimeHost.inspect.content.bylines("posts", translated.id)).resolves.toEqual([
+			expect.objectContaining({ roleLabel: "Writer" }),
+		]);
+		await expect(
+			runtimeHost.inspect.content.terms("posts", translated.id, "tags", "en"),
+		).resolves.toEqual([expect.objectContaining({ slug: "news" })]);
+		await expect(
+			runtimeHost.transport.invokeRoute("content-translation-error", {
+				translationOf: source.data.item.id,
+				locale: "fr",
+			}),
+		).resolves.toMatchObject({ name: "CONFLICT", code: "CONFLICT" });
+		await expect(
+			runtimeHost.transport.invokeRoute("content-translation-error", {
+				translationOf: "missing",
+				locale: "fr",
+			}),
+		).resolves.toMatchObject({ name: "NOT_FOUND", code: "NOT_FOUND" });
+		await expect(
+			runtimeHost.transport.invokeRoute("content-translation-error", {
+				translationOf: source.data.item.id,
+				locale: "not_configured",
+			}),
+		).resolves.toMatchObject({ name: "VALIDATION_ERROR", code: "VALIDATION_ERROR" });
+		await expect(
+			runtimeHost.transport.invokeRoute("content-save-rejection"),
+		).resolves.toMatchObject({ name: "SAVE_REJECTED", code: "SAVE_REJECTED" });
+	});
+
+	it("does not re-enter content save hooks for content created inside a save hook", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+
+		const result = await runtimeHost.actions.content.create("posts", {
+			data: { title: "Original", createCompanion: true },
+		});
+		expect(result).toMatchObject({
+			success: true,
+			data: { item: { data: { title: "Original [sandbox]" } } },
+		});
+		if (!result.success) throw new Error(result.error.message);
+		await expect(runtimeHost.inspect.content.list("posts")).resolves.toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ data: { title: "Original [sandbox]" } }),
+				expect.objectContaining({ data: { title: "Companion" } }),
+			]),
+		);
+		await vi.waitFor(async () => {
+			await expect(
+				runtimeHost!.inspect.storage.get("events", result.data.item.id),
+			).resolves.toMatchObject({ type: "saved" });
 		});
 	});
 

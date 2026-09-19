@@ -381,8 +381,10 @@ import type { MessageDescriptor } from "@lingui/core";
 export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	// Canonical
 	"content:read": msg`Read your content`,
+	"content:revisions:read": msg`Read retained content revision history`,
 	"content:write": msg`Create, update, and delete content`,
 	"hooks.content-policy:register": msg`Review and block publishing, scheduling, and unpublishing content`,
+	"schema:read": msg`Read collection and field definitions`,
 	"taxonomies:read": msg`Read your taxonomies and terms`,
 	"media:read": msg`Access your media library`,
 	"media:write": msg`Upload and manage media`,

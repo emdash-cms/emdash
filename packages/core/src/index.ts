@@ -19,6 +19,7 @@ export type { EmDashConfigurationErrorCode } from "./config/errors.js";
 // Repositories
 export {
 	ContentRepository,
+	RevisionRepository,
 	MediaRepository,
 	PluginStorageRepository,
 	UserRepository,
@@ -287,6 +288,7 @@ export {
 	createUnrestrictedHttpAccess,
 	createContentAccess,
 	createContentAccessWithWrite,
+	createSchemaAccess,
 	CronAccessImpl,
 } from "./plugins/index.js";
 export type {
@@ -304,12 +306,19 @@ export type {
 	ConditionalDeleteResult,
 	KVAccess,
 	ContentAccess,
+	ContentItem as PluginContentItem,
+	ContentTranslationSummary,
+	ContentRevisionInfo,
+	SchemaAccess,
+	CollectionSchemaInfo,
+	FieldSchemaInfo,
 	ContentCreateOptions,
 	ContentListOptions,
 	CronTaskInfo,
 	MediaAccess,
 	HttpAccess,
 	LogAccess,
+	SiteInfo,
 	TaxonomyAccess,
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
@@ -366,6 +375,7 @@ export type {
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
+	SandboxContentCreateCallback,
 	PluginManifest,
 	ValidatedPluginManifest,
 	SerializedRequest,

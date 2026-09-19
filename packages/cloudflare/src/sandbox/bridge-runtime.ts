@@ -2,6 +2,7 @@ export {
 	ContentRepository,
 	CronAccessImpl,
 	createContentAccess,
+	createSchemaAccess,
 	createSandboxRouteError,
 	getSandboxRouteErrorDetails,
 	OptionsRepository,

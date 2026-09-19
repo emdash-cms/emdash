@@ -45,6 +45,12 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 		capabilities.includes("content:read") || capabilities.includes("content:write");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
+	const hasContentRead = capabilities.some((capability) =>
+		["content:read", "content:write", "content:revisions:read"].includes(capability),
+	);
+	const hasContentWrite = capabilities.includes("content:write");
+	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasRevisionRead = capabilities.includes("content:revisions:read");
 
 	return `
 // =============================================================================
@@ -100,7 +106,7 @@ function sandboxRouteErrorDetails(value) {
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
-function createContext(env) {
+function createContext(env, originHook) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
@@ -151,13 +157,40 @@ function createContext(env) {
 	});
 	
 	// Content access - proxies to bridge (capability enforced by bridge)
-	const content = {
+	const content = ${hasContentRead} ? {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
-		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
-		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
-		delete: (collection, id) => bridge.contentDelete(collection, id)
-	};
+		getTranslations: (collection, id) => bridge.contentTranslations(collection, id),
+		getPublicUrl: (collection, id) => bridge.contentPublicUrl(collection, id),
+		...(${hasRevisionRead} ? {
+			listRevisions: (collection, id, opts) => bridge.contentListRevisions(collection, id, opts),
+			getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
+		} : {}),
+		...(${hasContentWrite} ? {
+			create: async (collection, data, options) => {
+				const result = await bridge.contentCreate(
+					collection,
+					data,
+					options,
+					originHook
+				);
+				if (result && result.__emdashContentCreateError === true) {
+					throw Object.assign(new Error(result.error.message), {
+						name: result.error.code,
+						code: result.error.code
+					});
+				}
+				return result;
+			},
+			update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
+			delete: (collection, id) => bridge.contentDelete(collection, id)
+		} : {})
+	} : undefined;
+
+	const schema = ${hasSchemaRead} ? {
+		listCollections: () => bridge.schemaListCollections(),
+		getCollection: (slug) => bridge.schemaGetCollection(slug)
+	} : undefined;
 	
 	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)
 	const taxonomies = {
@@ -235,6 +268,7 @@ function createContext(env) {
 		storage,
 		kv,
 		content: ${hasContentAccess} ? content : undefined,
+		schema,
 		taxonomies,
 		media,
 		http,
@@ -253,7 +287,7 @@ function createContext(env) {
 
 export default class PluginEntrypoint extends WorkerEntrypoint {
 	async invokeHook(hookName, event) {
-		const ctx = createContext(this.env);
+		const ctx = createContext(this.env, hookName);
 		
 		// Find the hook handler
 		const hookDef = hooks[hookName];

@@ -3,6 +3,28 @@ import { describe, expect, it } from "vitest";
 import { pluginManifestSchema } from "../src/manifest-schema.js";
 
 describe("pluginManifestSchema", () => {
+	it("accepts schema and separately consented revision reads", () => {
+		const result = pluginManifestSchema.parse({
+			id: "content-audit",
+			version: "1.0.0",
+			declaredAccess: {
+				content: { revisionsRead: {} },
+				schema: { read: {} },
+			},
+			capabilities: ["content:revisions:read", "schema:read"],
+			allowedHosts: [],
+			storage: {},
+			hooks: [],
+			routes: [],
+			admin: {},
+		});
+
+		expect(result.declaredAccess).toEqual({
+			content: { revisionsRead: {} },
+			schema: { read: {} },
+		});
+	});
+
 	it("accepts publication policy hooks only with the current manifest vocabulary", () => {
 		const result = pluginManifestSchema.parse({
 			id: "publication-policy",

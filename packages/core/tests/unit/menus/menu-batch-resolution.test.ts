@@ -8,6 +8,8 @@ import type {
 } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { setI18nConfig } from "../../../src/i18n/config.js";
+import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
 import { getMenuWithDb } from "../../../src/menus/index.js";
 import {
 	describeEachDialect,
@@ -34,6 +36,8 @@ describeEachDialect("batched menu reference resolution", (dialect) => {
 
 	beforeEach(async () => {
 		ctx = await setupForDialectWithCollections(dialect);
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		_resetAstroI18nCacheForTests();
 
 		await ctx.db
 			.updateTable("_emdash_collections")
@@ -230,21 +234,26 @@ describeEachDialect("batched menu reference resolution", (dialect) => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
+		_resetAstroI18nCacheForTests();
 		await teardownForDialect(ctx);
 	});
 
 	it("resolves mixed locale references with a fixed query budget", async () => {
 		const counter = new QueryCountingPlugin();
-		const menu = await getMenuWithDb("primary", ctx.db.withPlugin(counter), { locale: "fr" });
+		const menu = await getMenuWithDb("primary", ctx.db.withPlugin(counter), {
+			locale: "fr",
+			trailingSlash: "always",
+		});
 
 		expect(menu?.items.map(({ label, url }) => ({ label, url }))).toEqual([
 			{ label: "Docs", url: "https://example.com/docs" },
-			{ label: "Contact", url: "/pages/contact-fr" },
-			{ label: "About", url: "/pages/about" },
-			{ label: "Legacy page", url: "/pages/legacy" },
-			{ label: "Bonjour", url: "/articles/bonjour-post-local-fr" },
-			{ label: "Static", url: "/articles/static-post-fallback-en" },
-			{ label: "Featured page", url: "/pages/about" },
+			{ label: "Contact", url: "/fr/pages/contact-fr/" },
+			{ label: "About", url: "/fr/pages/about/" },
+			{ label: "Legacy page", url: "/fr/pages/legacy/" },
+			{ label: "Bonjour", url: "/fr/articles/bonjour-post-local-fr/" },
+			{ label: "Static", url: "/fr/articles/static-post-fallback-en/" },
+			{ label: "Featured page", url: "/fr/pages/about/" },
 			{ label: "All pages", url: "/page/" },
 			{ label: "Nouvelles", url: "/category/nouvelles" },
 			{ label: "Releases", url: "/tag/releases" },

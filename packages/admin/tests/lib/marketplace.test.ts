@@ -388,8 +388,10 @@ describe("CAPABILITY_LABELS", () => {
 		expect(Object.keys(CAPABILITY_LABELS)).toEqual([
 			// Canonical
 			"content:read",
+			"content:revisions:read",
 			"content:write",
 			"hooks.content-policy:register",
+			"schema:read",
 			"taxonomies:read",
 			"media:read",
 			"media:write",

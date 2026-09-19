@@ -27,11 +27,10 @@ The following surfaces do not exist in the current sandbox contract. Do not inve
 - `ctx.content` has `get`, `list`, `create`, `update`, and `delete`. It has no publish, unpublish, schedule, unschedule, trash, or restore methods.
 - `hooks.content-policy:register` provides synchronous `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` hooks. It does not add publication methods to `ctx.content`.
 - Publication policy events identify API, MCP, visual-editor, plugin, scheduler, and system origins. Authenticated human actions also include `actor: { id, role, source }`.
-- `ctx.content.create()` accepts a locale but not `translationOf`. `ctx.content` has no translation discovery API.
+- `ctx.content.create()` accepts `{ locale, translationOf }` to add an active locale to an existing entry's translation group. It cannot create a second active entry for the same group and locale. `ctx.content.getTranslations()` lists the active locale siblings.
 
 ### Schema, taxonomies, and redirects
 
-- There is no schema or collection-definition listing API on `PluginContext`.
 - `ctx.taxonomies` is read-only. It cannot create, update, delete, reorder, or assign terms.
 - There is no redirects API and no redirect write capability.
 

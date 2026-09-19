@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 karakter"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:419
 msgid "{base} to: {0}"
 msgstr "{base} ide: {0}"
 
@@ -763,8 +763,8 @@ msgstr "Hozzáférés megtagadva"
 msgid "Access Denied"
 msgstr "Hozzáférés megtagadva"
 
-#: packages/admin/src/lib/api/marketplace.ts:386
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:388
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Access your media library"
 msgstr "Médiatár elérése"
 
@@ -2687,8 +2687,8 @@ msgstr "Hozd létre az elsőt"
 msgid "Create your first reusable content section to get started."
 msgstr "Hozd létre az első újrahasznosítható tartalomszakaszt a kezdéshez."
 
-#: packages/admin/src/lib/api/marketplace.ts:384
-#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:395
 msgid "Create, update, and delete content"
 msgstr "Tartalom létrehozása, frissítése és törlése"
 
@@ -5957,13 +5957,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "Fő oldalsáv"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Make network requests"
 msgstr "Hálózati kérések indítása"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Hálózati kérések indítása bármely hosztra (korlátozás nélkül)"
 
@@ -7703,6 +7703,10 @@ msgstr "Idézet"
 msgid "Raw meta"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:386
+msgid "Read collection and field definitions"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "Gyűjteménysémák olvasása"
@@ -7715,21 +7719,25 @@ msgstr "Tartalombejegyzések olvasása"
 msgid "Read media files"
 msgstr "Médiafájlok olvasása"
 
+#: packages/admin/src/lib/api/marketplace.ts:384
+msgid "Read retained content revision history"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
 msgstr "Weboldalbeállítások olvasása"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Read user accounts"
 msgstr "Felhasználói fiókok olvasása"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:394
 msgid "Read your content"
 msgstr "Saját tartalom olvasása"
 
-#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:387
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -10377,8 +10385,8 @@ msgstr "Tölts fel egy képet a kezdéshez"
 msgid "Upload and delete media"
 msgstr "Média feltöltése és törlése"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:389
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Upload and manage media"
 msgstr "Média feltöltése és kezelése"
 

@@ -116,6 +116,21 @@ describe("declaredAccess facet mapping", () => {
 		});
 	});
 
+	it("maps schema and revision reads without granting revision history to content read", () => {
+		expect(capabilitiesToDeclaredAccess(["schema:read"], [])).toEqual({
+			schema: { read: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["content:read"], [])).toEqual({
+			content: { read: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["content:revisions:read"], [])).toEqual({
+			content: { read: {}, revisionsRead: {} },
+		});
+		expect(
+			new Set(declaredAccessToCapabilities({ content: { revisionsRead: {} } }).capabilities),
+		).toEqual(new Set(["content:read", "content:revisions:read"]));
+	});
+
 	it("distinguishes host-restricted from unrestricted network", () => {
 		expect(capabilitiesToDeclaredAccess(["network:request"], ["api.example.com"])).toEqual({
 			network: { request: { allowedHosts: ["api.example.com"] } },
@@ -161,7 +176,13 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 	// can reach a published manifest. Every one must round-trip to identity --
 	// the guard that the two representations are isomorphic, so the consent list
 	// always equals the capability set the runtime enforces.
-	const contentChoices = [[], ["content:read"], ["content:read", "content:write"]];
+	const contentChoices = [
+		[],
+		["content:read"],
+		["content:read", "content:write"],
+		["content:read", "content:revisions:read"],
+		["content:read", "content:write", "content:revisions:read"],
+	];
 	const mediaChoices = [[], ["media:read"], ["media:read", "media:write"]];
 	const networkChoices: { caps: string[]; hosts: string[] }[] = [
 		{ caps: [], hosts: [] },
@@ -180,6 +201,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		"hooks.page-fragments:register",
 		"users:read",
 		"taxonomies:read",
+		"schema:read",
 	];
 
 	function* states() {
@@ -208,7 +230,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 3 content x 3 media x 5 network x 2^7 singleton subsets.
-		expect(count).toBe(5760);
+		// 5 content x 3 media x 5 network x 2^8 singleton subsets.
+		expect(count).toBe(19_200);
 	});
 });

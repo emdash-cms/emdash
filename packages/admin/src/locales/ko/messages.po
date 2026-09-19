@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160자"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:419
 msgid "{base} to: {0}"
 msgstr ""
 
@@ -763,8 +763,8 @@ msgstr ""
 msgid "Access Denied"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:386
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:388
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Access your media library"
 msgstr ""
 
@@ -2687,8 +2687,8 @@ msgstr "처음 만들어 보세요"
 msgid "Create your first reusable content section to get started."
 msgstr "시작하려면 첫 번째 재사용 가능한 콘텐츠 섹션을 만드세요."
 
-#: packages/admin/src/lib/api/marketplace.ts:384
-#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:395
 msgid "Create, update, and delete content"
 msgstr ""
 
@@ -5954,13 +5954,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Make network requests"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
@@ -7697,6 +7697,10 @@ msgstr "인용"
 msgid "Raw meta"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:386
+msgid "Read collection and field definitions"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "컬렉션 스키마 읽기"
@@ -7709,21 +7713,25 @@ msgstr "콘텐츠 항목 읽기"
 msgid "Read media files"
 msgstr "미디어 파일 읽기"
 
+#: packages/admin/src/lib/api/marketplace.ts:384
+msgid "Read retained content revision history"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
 msgstr "사이트 설정 읽기"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Read user accounts"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:394
 msgid "Read your content"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:387
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -10371,8 +10379,8 @@ msgstr "시작하려면 이미지를 업로드하세요."
 msgid "Upload and delete media"
 msgstr "미디어 업로드 및 삭제"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:389
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Upload and manage media"
 msgstr ""
 

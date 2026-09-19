@@ -47,8 +47,10 @@ export type PluginCapability =
 	| "network:request:unrestricted" // ctx.http (unrestricted)
 	// Content
 	| "content:read"
+	| "content:revisions:read"
 	| "content:write"
 	| "hooks.content-policy:register"
+	| "schema:read"
 	// Taxonomies (read-only; there is no plugin-facing taxonomy write API)
 	| "taxonomies:read"
 	// Media
@@ -185,9 +187,11 @@ export type AccessConstraints = Record<string, unknown>;
 export interface DeclaredAccess {
 	content?: {
 		read?: AccessConstraints;
+		revisionsRead?: AccessConstraints;
 		write?: AccessConstraints;
 		policy?: AccessConstraints;
 	};
+	schema?: { read?: AccessConstraints };
 	taxonomies?: { read?: AccessConstraints };
 	media?: { read?: AccessConstraints; write?: AccessConstraints };
 	network?: { request?: { allowedHosts?: string[] } };
@@ -217,11 +221,13 @@ export function capabilitiesToDeclaredAccess(
 	const caps = new Set(capabilities.map((c) => normalizeCapability(c)));
 	const out: DeclaredAccess = {};
 
-	if (caps.has("content:read") || caps.has("content:write")) {
+	if (caps.has("content:read") || caps.has("content:revisions:read") || caps.has("content:write")) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
 	if (caps.has("hooks.content-policy:register")) (out.content ??= {}).policy = {};
+	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
+	if (caps.has("schema:read")) out.schema = { read: {} };
 	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
@@ -266,6 +272,11 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 		caps.add("content:read");
 	}
 	if (declaredAccess.content?.policy) caps.add("hooks.content-policy:register");
+	if (declaredAccess.content?.revisionsRead) {
+		caps.add("content:revisions:read");
+		caps.add("content:read");
+	}
+	if (declaredAccess.schema?.read) caps.add("schema:read");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
 	if (declaredAccess.media?.read) caps.add("media:read");
 	if (declaredAccess.media?.write) {
