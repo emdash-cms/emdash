@@ -13,6 +13,8 @@ import {
 	type DialectTestContext,
 } from "../../utils/test-db.js";
 
+const LONG_COLLECTION_SLUG = `t${"o".repeat(38)}`;
+
 describeEachDialect("content translation create", (dialect) => {
 	let ctx: DialectTestContext;
 	let runtime: EmDashRuntime;
@@ -106,6 +108,46 @@ describeEachDialect("content translation create", (dialect) => {
 
 		await expect(
 			runtime.handleContentRestore("post", original.data.item.id),
+		).resolves.toMatchObject({
+			success: false,
+			error: { code: "CONFLICT", message: "An active translation already exists in this locale" },
+		});
+	});
+
+	it("returns a conflict when restoring a replaced locale in a long-named collection", async () => {
+		const registry = new SchemaRegistry(ctx.db);
+		await registry.createCollection({
+			slug: LONG_COLLECTION_SLUG,
+			label: "Long collection",
+			labelSingular: "Long collection",
+		});
+		await registry.createField(LONG_COLLECTION_SLUG, {
+			slug: "title",
+			label: "Title",
+			type: "string",
+		});
+
+		const source = await runtime.handleContentCreate(LONG_COLLECTION_SLUG, {
+			data: { title: "Hello" },
+			locale: "en",
+		});
+		if (!source.success) throw new Error(source.error.message);
+		const original = await runtime.handleContentCreate(LONG_COLLECTION_SLUG, {
+			data: { title: "Bonjour" },
+			locale: "fr",
+			translationOf: source.data.item.id,
+		});
+		if (!original.success) throw new Error(original.error.message);
+		await runtime.handleContentDelete(LONG_COLLECTION_SLUG, original.data.item.id);
+		const replacement = await runtime.handleContentCreate(LONG_COLLECTION_SLUG, {
+			data: { title: "Bonjour again" },
+			locale: "fr",
+			translationOf: source.data.item.id,
+		});
+		expect(replacement.success).toBe(true);
+
+		await expect(
+			runtime.handleContentRestore(LONG_COLLECTION_SLUG, original.data.item.id),
 		).resolves.toMatchObject({
 			success: false,
 			error: { code: "CONFLICT", message: "An active translation already exists in this locale" },

@@ -64,11 +64,12 @@ function hasApiError(error: unknown): error is Error & { apiError: { code: strin
 	);
 }
 
-function isTranslationLocaleConflict(error: unknown): boolean {
+function isTranslationLocaleConflict(error: unknown, collection: string): boolean {
 	if (!(error instanceof Error)) return false;
 	const message = error.message.toLowerCase();
+	const storedIndexName = `uidx_ec_${collection}_active_tg_locale`.slice(0, 63).toLowerCase();
 	return (
-		message.includes("active_tg_locale") ||
+		message.includes(storedIndexName) ||
 		(message.includes("unique constraint failed") &&
 			message.includes("translation_group") &&
 			message.includes("locale"))
@@ -1407,7 +1408,7 @@ export async function handleContentRestore(
 			data: { restored: true, item },
 		};
 	} catch (error) {
-		if (isTranslationLocaleConflict(error)) {
+		if (isTranslationLocaleConflict(error, collection)) {
 			return {
 				success: false,
 				error: {

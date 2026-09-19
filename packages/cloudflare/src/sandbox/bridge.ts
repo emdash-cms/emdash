@@ -788,7 +788,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			const message = error instanceof Error ? error.message : "Invalid locale";
 			return {
 				__emdashContentCreateError: true,
-					error: { code: "VALIDATION_ERROR", message },
+				error: { code: "VALIDATION_ERROR", message },
 			};
 		}
 		await this.assertMediaUsageActivationWriteAllowed();
