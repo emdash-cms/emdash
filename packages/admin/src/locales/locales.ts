@@ -46,6 +46,7 @@ export const LOCALES: LocaleDefinition[] = [
 	{ code: "hi", label: "हिन्दी", enabled: true }, // Hindi
 	{ code: "hu", label: "Magyar", enabled: true }, // Hungarian
 	{ code: "id", label: "Bahasa Indonesia", enabled: true }, // Indonesian
+	{ code: "it", label: "Italiano", enabled: true }, // Italian
 	{ code: "ja", label: "日本語", enabled: true }, // Japanese
 	{ code: "ko", label: "한국어", enabled: false }, // Korean
 	{ code: "nb", label: "Norsk bokmål", enabled: true }, // Norwegian Bokmål
