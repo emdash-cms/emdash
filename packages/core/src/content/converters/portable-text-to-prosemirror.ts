@@ -662,6 +662,7 @@ function convertImage(block: PortableTextImageBlock, preserveIdentity: boolean):
 				displayWidth: block.displayWidth,
 				displayHeight: block.displayHeight,
 				alignment: imageAlignment(block.alignment),
+				link: block.link ? { href: block.link.href, blank: block.link.blank } : null,
 			},
 			block._key,
 			preserveIdentity,
