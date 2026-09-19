@@ -3,6 +3,78 @@ import { describe, expect, it } from "vitest";
 import { generatePluginWrapper } from "../src/sandbox/wrapper.js";
 
 describe("Workerd generated plugin context", () => {
+	it("omits content and schema when their capabilities are absent", () => {
+		const generated = generatePluginWrapper(
+			{
+				id: "no-discovery",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			},
+			{ backingServiceUrl: "http://bridge", authToken: "auth", invokeToken: "invoke" },
+		);
+		const end = generated.indexOf("\nexport default {");
+		if (end < 0) throw new Error("Generated worker entry point is missing");
+		const source = generated
+			.slice(0, end)
+			.replace('import pluginModule from "sandbox-plugin.js";', "");
+		// eslint-disable-next-line no-implied-eval -- generated worker context is exercised with a local bridge
+		const factory = new Function("fetch", "pluginModule", `${source}\nreturn createContext();`);
+		const context = factory(() => undefined, {}) as Record<string, unknown>;
+
+		expect(context.content).toBeUndefined();
+		expect(context.schema).toBeUndefined();
+	});
+
+	it("exposes schema discovery and separately gated revision methods", async () => {
+		const generated = generatePluginWrapper(
+			{
+				id: "content-discovery",
+				version: "1.0.0",
+				capabilities: ["schema:read", "content:read", "content:revisions:read"],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			},
+			{ backingServiceUrl: "http://bridge", authToken: "auth", invokeToken: "invoke" },
+		);
+		const end = generated.indexOf("\nexport default {");
+		if (end < 0) throw new Error("Generated worker entry point is missing");
+		const source = generated
+			.slice(0, end)
+			.replace('import pluginModule from "sandbox-plugin.js";', "");
+		const calls: string[] = [];
+		const fetch = async (url: string) => {
+			calls.push(url);
+			if (url.endsWith("/schema/listCollections"))
+				return Response.json({ result: [{ slug: "posts" }] });
+			if (url.endsWith("/content/listRevisions"))
+				return Response.json({ result: [{ id: "rev-1" }] });
+			return Response.json({ result: null });
+		};
+		// eslint-disable-next-line no-implied-eval -- generated worker context is exercised with a local bridge
+		const factory = new Function("fetch", "pluginModule", `${source}\nreturn createContext();`);
+		const context = factory(fetch, {}) as {
+			schema: { listCollections(): Promise<Array<{ slug: string }>> };
+			content: { listRevisions(collection: string, id: string): Promise<Array<{ id: string }>> };
+		};
+
+		await expect(context.schema.listCollections()).resolves.toEqual([{ slug: "posts" }]);
+		await expect(context.content.listRevisions("posts", "post-1")).resolves.toEqual([
+			{ id: "rev-1" },
+		]);
+		expect(calls).toEqual([
+			"http://bridge/schema/listCollections",
+			"http://bridge/content/listRevisions",
+		]);
+	});
+
 	it("exposes canonical users access, cron, and real HTTP responses", async () => {
 		const generated = generatePluginWrapper(
 			{

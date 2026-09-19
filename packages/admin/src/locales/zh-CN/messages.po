@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 个字符"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:419
 msgid "{base} to: {0}"
 msgstr "{base} 到：{0}"
 
@@ -763,8 +763,8 @@ msgstr "访问被拒绝"
 msgid "Access Denied"
 msgstr "访问被拒绝"
 
-#: packages/admin/src/lib/api/marketplace.ts:386
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:388
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Access your media library"
 msgstr "访问您的媒体库"
 
@@ -2687,8 +2687,8 @@ msgstr "创建第一个内容"
 msgid "Create your first reusable content section to get started."
 msgstr "创建您的第一个可重用内容区块以开始使用。"
 
-#: packages/admin/src/lib/api/marketplace.ts:384
-#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:395
 msgid "Create, update, and delete content"
 msgstr "创建、更新和删除内容"
 
@@ -5957,13 +5957,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "主侧边栏"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Make network requests"
 msgstr "发起网络请求"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Make network requests to any host (unrestricted)"
 msgstr "向任何主机发起网络请求（不受限制）"
 
@@ -7703,6 +7703,10 @@ msgstr "引用"
 msgid "Raw meta"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:386
+msgid "Read collection and field definitions"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "读取合集模式"
@@ -7715,21 +7719,25 @@ msgstr "读取内容条目"
 msgid "Read media files"
 msgstr "读取媒体文件"
 
+#: packages/admin/src/lib/api/marketplace.ts:384
+msgid "Read retained content revision history"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
 msgstr "读取网站设置"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Read user accounts"
 msgstr "读取用户账户"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:394
 msgid "Read your content"
 msgstr "读取您的内容"
 
-#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:387
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -10377,8 +10385,8 @@ msgstr "上传图片以开始使用"
 msgid "Upload and delete media"
 msgstr "上传和删除媒体"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:389
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Upload and manage media"
 msgstr "上传和管理媒体"
 

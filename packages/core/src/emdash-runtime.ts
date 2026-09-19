@@ -50,7 +50,7 @@ import type {
 	ContentDateField,
 } from "./database/repositories/types.js";
 import type { ImageValue } from "./fields/types.js";
-import { getI18nConfig } from "./i18n/config.js";
+import { getI18nConfig, resolveContentCreateLocale } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { normalizeMediaValue } from "./media/normalize.js";
@@ -91,6 +91,8 @@ import type {
 	UserInfo,
 	CollectionCommentSettings,
 	ModerationDecision,
+	ContentWriteInput,
+	PluginContentCreateCallback,
 } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
@@ -197,6 +199,7 @@ import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/e
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
+	getActiveContentSaveHookName,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
@@ -388,6 +391,7 @@ export interface EmDashRuntimeParts {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
+		contentCreate?: PluginContentCreateCallback;
 		now?: () => Date;
 		storage?: Storage;
 		siteInfo?: {
@@ -616,6 +620,7 @@ export class EmDashRuntime {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
+		contentCreate?: PluginContentCreateCallback;
 		now?: () => Date;
 		storage?: Storage;
 		siteInfo?: {
@@ -1870,6 +1875,39 @@ export class EmDashRuntime {
 			runtimeDeps: deps,
 			pipelineRef,
 		});
+		const contentCreate: PluginContentCreateCallback = async (
+			_pluginId,
+			collection,
+			input,
+			options,
+		) => {
+			const { seo, ...data } = input;
+			const result = await runtime.handleContentCreate(
+				collection,
+				{
+					data,
+					seo,
+					locale: resolveContentCreateLocale(options?.locale),
+					translationOf: options?.translationOf,
+				},
+				{
+					skipSaveHooks: options?.sandboxOrigin
+						? options.originHook !== undefined
+						: getActiveContentSaveHookName() != null,
+					excludeAfterSavePluginId: _pluginId,
+				},
+			);
+			if (!result.success) {
+				throw Object.assign(new Error(result.error.message), {
+					name: result.error.code,
+					code: result.error.code,
+				});
+			}
+			return result.data.item;
+		};
+		runtime.pipelineFactoryOptions.contentCreate = contentCreate;
+		pipeline.setContextFactory({ contentCreate });
+		sandboxRunner?.setContentCreate?.(contentCreate);
 		// Hand the constructed instance to the scheduler-cleanup closure so the
 		// timer-driven sweep can fire publish hooks (see runtimeRef above).
 		runtimeRef.current = runtime;
@@ -2933,6 +2971,7 @@ export class EmDashRuntime {
 		collection: string,
 		body: {
 			data: Record<string, unknown>;
+			seo?: ContentWriteInput["seo"];
 			slug?: string | null;
 			status?: string;
 			authorId?: string;
@@ -2942,12 +2981,61 @@ export class EmDashRuntime {
 			taxonomies?: Record<string, string[]>;
 			actor?: ActorInfo;
 		},
+		options: { skipSaveHooks?: boolean; excludeAfterSavePluginId?: string } = {},
 	) {
 		const actor = body.actor ? { ...body.actor } : undefined;
+		let locale: string;
+		try {
+			locale = resolveContentCreateLocale(body.locale);
+		} catch (error) {
+			return {
+				success: false as const,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error instanceof Error ? error.message : "Invalid locale",
+				},
+			};
+		}
+
+		let translationSource: ContentItemInternal | null = null;
+		let sharedFieldSlugs: string[] = [];
+		if (body.translationOf) {
+			const repo = new ContentRepository(this.db);
+			const source = await repo.findById(collection, body.translationOf);
+			if (!source) {
+				return {
+					success: false as const,
+					error: { code: "NOT_FOUND", message: "Translation source content not found" },
+				};
+			}
+			translationSource = source;
+			sharedFieldSlugs = (
+				await this.db
+					.selectFrom("_emdash_fields as field")
+					.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
+					.select("field.slug")
+					.where("collection.slug", "=", collection)
+					.where("field.translatable", "=", 0)
+					.execute()
+			).map((field) => field.slug);
+			const siblings = await repo.findTranslations(
+				collection,
+				source.translationGroup ?? source.id,
+			);
+			if (siblings.some((sibling) => sibling.locale?.toLowerCase() === locale.toLowerCase())) {
+				return {
+					success: false as const,
+					error: {
+						code: "CONFLICT",
+						message: `Translation already exists in locale "${locale}" for this content item`,
+					},
+				};
+			}
+		}
 
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
-		if (this.hooks.hasHooks("content:beforeSave")) {
+		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
 			try {
 				const hookResult = await this.hooks.runContentBeforeSave(
 					body.data,
@@ -2959,6 +3047,17 @@ export class EmDashRuntime {
 				processedData = hookResult.content;
 			} catch (error) {
 				return beforeSaveFailure(error);
+			}
+		}
+
+		if (translationSource) {
+			processedData = { ...processedData };
+			for (const slug of sharedFieldSlugs) {
+				if (Object.hasOwn(translationSource.data, slug)) {
+					processedData[slug] = translationSource.data[slug];
+				} else {
+					delete processedData[slug];
+				}
 			}
 		}
 
@@ -2983,6 +3082,7 @@ export class EmDashRuntime {
 		const result = await handleContentCreate(this.db, collection, {
 			...body,
 			data: processedData,
+			locale,
 			authorId: body.authorId,
 			bylines: body.bylines,
 		});
@@ -2991,8 +3091,14 @@ export class EmDashRuntime {
 		}
 
 		// Run afterSave hooks (fire-and-forget)
-		if (result.success && result.data) {
-			this.runAfterSaveHooks(contentItemToRecord(result.data.item), collection, true, actor);
+		if (!options.skipSaveHooks && result.success && result.data) {
+			this.runAfterSaveHooks(
+				contentItemToRecord(result.data.item),
+				collection,
+				true,
+				actor,
+				options.excludeAfterSavePluginId,
+			);
 		}
 
 		return result;
@@ -4239,12 +4345,13 @@ export class EmDashRuntime {
 		collection: string,
 		isNew: boolean,
 		actor?: ActorInfo,
+		excludePluginId?: string,
 	): void {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterSave")) {
 				try {
-					await this.hooks.runContentAfterSave(content, collection, isNew, actor);
+					await this.hooks.runContentAfterSave(content, collection, isNew, actor, excludePluginId);
 				} catch (err) {
 					console.error("EmDash afterSave hook error:", err);
 				}

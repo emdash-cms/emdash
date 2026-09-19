@@ -13,8 +13,10 @@ export type CanonicalAccessConstraints = Readonly<Record<string, CanonicalJsonVa
 export interface CanonicalDeclaredAccess {
 	readonly content?: Readonly<{
 		read?: CanonicalAccessConstraints;
+		revisionsRead?: CanonicalAccessConstraints;
 		write?: CanonicalAccessConstraints;
 	}>;
+	readonly schema?: Readonly<{ read?: CanonicalAccessConstraints }>;
 	readonly email?: Readonly<{
 		events?: CanonicalAccessConstraints;
 		send?: CanonicalAccessConstraints;
@@ -176,6 +178,9 @@ function normalizeDeclaredAccess(value: DeclaredAccess): CanonicalObject {
 			(category === "content" || category === "media") &&
 			Object.hasOwn(normalizedOperations, "write")
 		) {
+			normalizedOperations.read ??= Object.freeze({});
+		}
+		if (category === "content" && Object.hasOwn(normalizedOperations, "revisionsRead")) {
 			normalizedOperations.read ??= Object.freeze({});
 		}
 		defineDataProperty(

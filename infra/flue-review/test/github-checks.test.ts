@@ -5,6 +5,7 @@ import {
 	createReviewCheck,
 	findReviewCheck,
 	fetchUnifiedDiff,
+	GitHubRateLimitError,
 	postReview,
 	removePullRequestLabel,
 	updateReviewCheck,
@@ -205,6 +206,55 @@ describe("GitHub review checks", () => {
 		await expect(
 			findReviewCheck(TOKEN, "emdash-cms", "emdash", "head-sha", "attempt-1"),
 		).resolves.toBe(456);
+	});
+
+	it("surfaces a reset-aware rate limit while discovering a review check", async () => {
+		vi.useFakeTimers();
+		vi.setSystemTime(new Date("2026-09-19T10:00:00.000Z"));
+		const resetAt = Math.floor((Date.now() + 30_000) / 1_000);
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				new Response("API rate limit exceeded", {
+					status: 403,
+					headers: {
+						"x-ratelimit-reset": String(resetAt),
+					},
+				}),
+			),
+		);
+
+		const error = await findReviewCheck(
+			TOKEN,
+			"emdash-cms",
+			"emdash",
+			"head-sha",
+			"attempt-1",
+		).catch((caught: unknown) => caught);
+
+		expect(error).toBeInstanceOf(GitHubRateLimitError);
+		expect(error).toMatchObject({ retryDelayMs: 31_000 });
+	});
+
+	it("surfaces Retry-After when review check creation is rate limited", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				new Response("secondary rate limit", {
+					status: 403,
+					headers: { "retry-after": "12" },
+				}),
+			),
+		);
+
+		const error = await createReviewCheck(TOKEN, "emdash-cms", "emdash", {
+			headSha: "head-sha",
+			attemptId: "attempt-1",
+			prNumber: 42,
+		}).catch((caught: unknown) => caught);
+
+		expect(error).toBeInstanceOf(GitHubRateLimitError);
+		expect(error).toMatchObject({ retryDelayMs: 12_000 });
 	});
 
 	it("does not retry a review POST after an ambiguous server error", async () => {

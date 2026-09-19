@@ -60,6 +60,11 @@
 					"ref": "#contentAccess",
 					"description": "Access to site content (posts, pages, custom collections)."
 				},
+				"schema": {
+					"type": "ref",
+					"ref": "#schemaAccess",
+					"description": "Read access to collection and field definitions."
+				},
 				"taxonomies": {
 					"type": "ref",
 					"ref": "#taxonomiesAccess",
@@ -101,6 +106,11 @@
 					"ref": "#contentReadConstraints",
 					"description": "Plugin may read content records."
 				},
+				"revisionsRead": {
+					"type": "ref",
+					"ref": "#contentRevisionsReadConstraints",
+					"description": "Plugin may read retained content revision history. Implies `read`."
+				},
 				"write": {
 					"type": "ref",
 					"ref": "#contentWriteConstraints",
@@ -115,6 +125,25 @@
 		"contentWriteConstraints": {
 			"type": "object",
 			"description": "Constraint object for content.write. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
+		},
+		"contentRevisionsReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for content.revisionsRead. No constraint keys are normatively defined here."
+		},
+		"schemaAccess": {
+			"type": "object",
+			"description": "Operations under schema.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#schemaReadConstraints",
+					"description": "Plugin may read public collection and field definitions."
+				}
+			}
+		},
+		"schemaReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for schema.read. No constraint keys are normatively defined here."
 		},
 		"taxonomiesAccess": {
 			"type": "object",

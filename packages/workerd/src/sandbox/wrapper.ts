@@ -41,6 +41,12 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const capabilities = normalizeCapabilities(manifest.capabilities);
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
+	const hasContentRead = capabilities.some((capability) =>
+		["content:read", "content:write", "content:revisions:read"].includes(capability),
+	);
+	const hasContentWrite = capabilities.includes("content:write");
+	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasRevisionRead = capabilities.includes("content:revisions:read");
 
 	return `
 // =============================================================================
@@ -149,6 +155,22 @@ function storageSerializationErrorDetails(value) {
 	};
 }
 
+function contentCreateErrorDetails(value) {
+	if (!value || typeof value !== "object") return null;
+	const code = value.code;
+	if (
+		code !== "CONFLICT" &&
+		code !== "NOT_FOUND" &&
+		code !== "SAVE_REJECTED" &&
+		code !== "VALIDATION_ERROR"
+	) return null;
+	return {
+		name: code,
+		code,
+		message: typeof value.message === "string" ? value.message : "Content create failed"
+	};
+}
+
 function sandboxRouteErrorDetails(value) {
 	if (!value || typeof value !== "object") return null;
 	const code =
@@ -199,6 +221,10 @@ async function bridgeCall(method, body) {
 			const payload = JSON.parse(text);
 			const storageDetails = storageSerializationErrorDetails(payload?.error);
 			if (storageDetails) throw Object.assign(new Error(storageDetails.message), storageDetails);
+			const contentCreateDetails = contentCreateErrorDetails(payload?.error);
+			if (contentCreateDetails) {
+				throw Object.assign(new Error(contentCreateDetails.message), contentCreateDetails);
+			}
 			const details = sandboxRouteErrorDetails(payload?.error);
 			if (details) {
 				const error = Object.assign(new Error(details.message), details, {
@@ -207,7 +233,11 @@ async function bridgeCall(method, body) {
 				throw error;
 			}
 		} catch (error) {
-			if (sandboxRouteErrorDetails(error) || storageSerializationErrorDetails(error)) throw error;
+			if (
+				sandboxRouteErrorDetails(error) ||
+				storageSerializationErrorDetails(error) ||
+				contentCreateErrorDetails(error)
+			) throw error;
 		}
 		throw new Error("Bridge call " + method + " failed: " + text);
 	}
@@ -219,7 +249,7 @@ async function bridgeCall(method, body) {
 // Context Factory
 // -----------------------------------------------------------------------------
 
-function createContext() {
+function createContext(originHook) {
 	const kv = {
 		get: (key) => bridgeCall("kv/get", { key }),
 		set: (key, value) => bridgeCall("kv/set", { key, value }),
@@ -264,16 +294,34 @@ function createContext() {
 		}
 	});
 
-	const content = {
+	const content = ${hasContentRead} ? {
 		get: (collection, id) => bridgeCall("content/get", { collection, id }),
 		list: (collection, opts) => bridgeCall("content/list", { collection, ...opts }),
-		create: (collection, data, options) => bridgeCall("content/create", { collection, data, options }),
-		update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
-		delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
-		createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
-		updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
-		deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids }),
-	};
+		getTranslations: (collection, id) => bridgeCall("content/translations", { collection, id }),
+		getPublicUrl: (collection, id) => bridgeCall("content/publicUrl", { collection, id }),
+		...(${hasRevisionRead} ? {
+			listRevisions: (collection, id, options) => bridgeCall("content/listRevisions", { collection, id, options }),
+			getRevision: (collection, id, revisionId) => bridgeCall("content/getRevision", { collection, id, revisionId })
+		} : {}),
+		...(${hasContentWrite} ? {
+			create: (collection, data, options) => bridgeCall("content/create", {
+				collection,
+				data,
+				options,
+				originHook
+			}),
+			update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
+			delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
+			createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
+			updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
+			deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids })
+		} : {})
+	} : undefined;
+
+	const schema = ${hasSchemaRead} ? {
+		listCollections: () => bridgeCall("schema/listCollections", {}),
+		getCollection: (slug) => bridgeCall("schema/getCollection", { slug }),
+	} : undefined;
 
 	// Taxonomy access (read-only) - capability enforced by the bridge
 	const taxonomies = {
@@ -482,6 +530,7 @@ function createContext() {
 		storage,
 		kv,
 		content,
+		schema,
 		taxonomies,
 		media,
 		http,
@@ -535,7 +584,7 @@ export default {
 		if (url.pathname.startsWith("/hook/")) {
 			const hookName = url.pathname.slice(6); // Remove "/hook/"
 			const { event } = await request.json();
-			const ctx = createContext();
+			const ctx = createContext(hookName);
 
 			const hookDef = hooks[hookName];
 			if (!hookDef) {

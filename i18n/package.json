@@ -3,8 +3,9 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"build": "cd .. && node --experimental-strip-types i18n/build.ts",
-		"deploy": "node --run build && wrangler deploy"
+		"build": "pnpm -w exec lunaria build",
+		"preview": "pnpm -w exec lunaria preview",
+		"deploy": "pnpm run build && wrangler deploy"
 	},
 	"devDependencies": {
 		"@types/node": "catalog:",

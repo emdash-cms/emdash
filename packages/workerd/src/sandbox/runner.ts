@@ -31,6 +31,7 @@ import type {
 	SandboxRunner,
 	SandboxedPluginInstance,
 	SandboxEmailSendCallback,
+	SandboxContentCreateCallback,
 	SandboxOptions,
 	SandboxRunnerFactory,
 	SerializedRequest,
@@ -332,6 +333,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Email send callback, wired from EmailPipeline */
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
+	private contentCreateCallback: SandboxContentCreateCallback | null = null;
 	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Epoch counter, incremented on each workerd restart */
@@ -515,6 +517,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		this.emailSendCallback = callback;
+	}
+
+	setContentCreate(callback: SandboxContentCreateCallback | null): void {
+		this.contentCreateCallback = callback;
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
@@ -920,6 +926,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		return this.options.beforeContentWrite;
 	}
 
+	get contentCreate() {
+		return this.contentCreateCallback;
+	}
+
 	/** Get the email send callback */
 	get emailSend() {
 		return this.emailSendCallback;
@@ -955,6 +965,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			return plugin.manifest.storage;
 		}
 		return undefined;
+	}
+
+	getSiteInfo() {
+		return this.siteInfo;
 	}
 
 	/** Get the current epoch (incremented on each workerd restart) */

@@ -18,6 +18,7 @@ import {
 	ContentRepository,
 	CronAccessImpl,
 	createContentAccess,
+	createSchemaAccess,
 	createHttpAccess,
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
@@ -33,8 +34,25 @@ import type {
 	Database,
 	I18nConfig,
 	SandboxEmailSendCallback,
+	SandboxContentCreateCallback,
+	SiteInfo,
 } from "emdash";
 import type { Kysely } from "kysely";
+
+const CONTENT_CREATE_ERROR_CODES = new Set([
+	"CONFLICT",
+	"NOT_FOUND",
+	"SAVE_REJECTED",
+	"VALIDATION_ERROR",
+]);
+
+function contentCreateErrorDetails(error: unknown): { code: string; message: string } | null {
+	if (!(error instanceof Error) || !isRecord(error)) return null;
+	const code = error.code;
+	return typeof code === "string" && CONTENT_CREATE_ERROR_CODES.has(code)
+		? { code, message: error.message }
+		: null;
+}
 
 /**
  * Schema view of a content table (ec_${collection}) for kysely. The standard
@@ -119,8 +137,11 @@ export interface BridgeHandlerOptions {
 	/** Full storage config (with indexes) for proper query/count delegation */
 	storageConfig?: Record<string, BridgeStorageCollectionConfig>;
 	i18nConfig?: I18nConfig | null;
+	siteInfo?: SiteInfo;
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
+	contentCreate?: SandboxContentCreateCallback;
+	contentCreateProvider?: () => SandboxContentCreateCallback | null;
 	emailSend: () => SandboxEmailSendCallback | null;
 	cronReschedule?: () => void;
 	now?: () => Date;
@@ -180,6 +201,19 @@ export function createBridgeHandler(
 					{ status: 503 },
 				);
 			}
+			const contentCreateError = contentCreateErrorDetails(error);
+			if (contentCreateError) {
+				const status =
+					contentCreateError.code === "NOT_FOUND"
+						? 404
+						: contentCreateError.code === "CONFLICT"
+							? 409
+							: 400;
+				return Response.json(
+					{ error: { name: contentCreateError.code, ...contentCreateError } },
+					{ status },
+				);
+			}
 			const message = error instanceof Error ? error.message : "Internal error";
 			return new Response(JSON.stringify({ error: message }), {
 				status: 500,
@@ -231,18 +265,80 @@ async function dispatch(
 		// ── Content ─────────────────────────────────────────────────────
 		case "content/get":
 			requireCapability(opts, "content:read");
-			return contentGet(db, requireString(body, "collection"), requireString(body, "id"));
+			return contentGet(db, requireString(body, "collection"), requireString(body, "id"), opts);
 		case "content/list":
 			requireCapability(opts, "content:read");
-			return contentList(db, requireString(body, "collection"), body);
+			return contentList(db, requireString(body, "collection"), body, opts);
+		case "content/translations":
+			requireCapability(opts, "content:read");
+			return contentAccess(opts).getTranslations!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/publicUrl":
+			requireCapability(opts, "content:read");
+			return contentAccess(opts).getPublicUrl!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/listRevisions":
+			requireCapability(opts, "content:revisions:read");
+			return contentAccess(opts).listRevisions!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				optionalRecord(body, "options") ?? undefined,
+			);
+		case "content/getRevision":
+			requireCapability(opts, "content:revisions:read");
+			return contentAccess(opts).getRevision!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				requireString(body, "revisionId"),
+			);
+		case "schema/listCollections":
+			requireCapability(opts, "schema:read");
+			return createSchemaAccess(db).listCollections();
+		case "schema/getCollection":
+			requireCapability(opts, "schema:read");
+			return createSchemaAccess(db).getCollection(requireString(body, "slug"));
 		case "content/create":
 			requireCapability(opts, "content:write");
 			const createOptions = optionalRecord(body, "options");
-			const locale = resolveContentCreateLocale(
-				createOptions ? optionalString(createOptions, "locale") : undefined,
-				opts.i18nConfig ?? null,
-			);
+			let locale: string;
+			try {
+				locale = resolveContentCreateLocale(
+					createOptions ? optionalString(createOptions, "locale") : undefined,
+					opts.i18nConfig ?? null,
+				);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : "Invalid locale";
+				throw Object.assign(new Error(message), {
+					name: "VALIDATION_ERROR",
+					code: "VALIDATION_ERROR",
+				});
+			}
 			await opts.beforeContentWrite?.();
+			const runtimeContentCreate = opts.contentCreateProvider?.() ?? opts.contentCreate;
+			if (runtimeContentCreate) {
+				const originHookValue = optionalString(body, "originHook");
+				const originHook =
+					originHookValue === "content:beforeSave" || originHookValue === "content:afterSave"
+						? originHookValue
+						: undefined;
+				return runtimeContentCreate(
+					pluginId,
+					requireString(body, "collection"),
+					requireRecord(body, "data"),
+					{
+						locale,
+						translationOf: createOptions
+							? optionalString(createOptions, "translationOf")
+							: undefined,
+						originHook,
+						sandboxOrigin: true,
+					},
+				);
+			}
 			return contentCreate(
 				db,
 				requireString(body, "collection"),
@@ -688,6 +784,11 @@ function rowToContentItem(
 	locale: string;
 	publishedAt: string | null;
 	scheduledAt: string | null;
+	authorId: string | null;
+	translationGroup: string | null;
+	liveRevisionId: string | null;
+	draftRevisionId: string | null;
+	version: number;
 } {
 	const data: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(row)) {
@@ -715,6 +816,11 @@ function rowToContentItem(
 		locale: typeof row.locale === "string" ? row.locale : "en",
 		publishedAt: typeof row.published_at === "string" ? row.published_at : null,
 		scheduledAt: typeof row.scheduled_at === "string" ? row.scheduled_at : null,
+		authorId: typeof row.author_id === "string" ? row.author_id : null,
+		translationGroup: typeof row.translation_group === "string" ? row.translation_group : null,
+		liveRevisionId: typeof row.live_revision_id === "string" ? row.live_revision_id : null,
+		draftRevisionId: typeof row.draft_revision_id === "string" ? row.draft_revision_id : null,
+		version: typeof row.version === "number" ? row.version : Number(row.version) || 1,
 	};
 }
 
@@ -875,10 +981,11 @@ async function contentGet(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	opts: BridgeHandlerOptions,
 ): ReturnType<ReturnType<typeof createContentAccess>["get"]> {
 	validateCollectionName(collection);
 	try {
-		return await createContentAccess(db).get(collection, id);
+		return await contentAccess(opts).get(collection, id);
 	} catch {
 		const row = await asContentDb(db)
 			.selectFrom(`ec_${collection}`)
@@ -894,6 +1001,7 @@ async function contentList(
 	db: Kysely<Database>,
 	collection: string,
 	opts: Record<string, unknown>,
+	handlerOptions: BridgeHandlerOptions,
 ): ReturnType<ReturnType<typeof createContentAccess>["list"]> {
 	validateCollectionName(collection);
 	const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 100));
@@ -916,7 +1024,7 @@ async function contentList(
 					}
 				: undefined,
 		};
-		return await createContentAccess(db).list(collection, options);
+		return await contentAccess(handlerOptions).list(collection, options);
 	} catch (error) {
 		if (opts.where !== undefined || opts.orderBy !== undefined) throw error;
 		let query = asContentDb(db)
@@ -933,6 +1041,13 @@ async function contentList(
 			hasMore: rows.length > limit,
 		};
 	}
+}
+
+function contentAccess(opts: BridgeHandlerOptions) {
+	return createContentAccess(opts.db, {
+		site: opts.siteInfo,
+		revisions: opts.capabilities.includes("content:revisions:read"),
+	});
 }
 
 async function contentCreate(

@@ -82,6 +82,7 @@ import * as m076 from "./076_collection_nav_group.js";
 import * as m077 from "./077_plugin_storage_revisions.js";
 import * as m078 from "./078_menu_item_translation_groups.js";
 import * as m079 from "./079_datetime_normalization.js";
+import * as m080 from "./080_content_translation_locale_unique.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"001_initial": m001,
@@ -162,6 +163,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"077_plugin_storage_revisions": m077,
 	"078_menu_item_translation_groups": m078,
 	"079_datetime_normalization": m079,
+	"080_content_translation_locale_unique": m080,
 });
 
 /** Ordered names from the statically registered migration set. */

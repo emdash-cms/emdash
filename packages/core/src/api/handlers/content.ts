@@ -64,6 +64,18 @@ function hasApiError(error: unknown): error is Error & { apiError: { code: strin
 	);
 }
 
+function isTranslationLocaleConflict(error: unknown, collection: string): boolean {
+	if (!(error instanceof Error)) return false;
+	const message = error.message.toLowerCase();
+	const storedIndexName = `uidx_ec_${collection}_active_tg_locale`.slice(0, 63).toLowerCase();
+	return (
+		message.includes(storedIndexName) ||
+		(message.includes("unique constraint failed") &&
+			message.includes("translation_group") &&
+			message.includes("locale"))
+	);
+}
+
 function decodeRevisionPrecondition(
 	rev: string | undefined,
 ): ContentRevisionPrecondition | undefined {
@@ -848,6 +860,21 @@ export async function handleContentCreate(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const bylineRepo = new BylineRepository(trx);
+			const inheritedFields = body.translationOf
+				? (
+						await trx
+							.selectFrom("_emdash_fields as field")
+							.innerJoin(
+								"_emdash_collections as collection",
+								"collection.id",
+								"field.collection_id",
+							)
+							.select("field.slug")
+							.where("collection.slug", "=", collection)
+							.where("field.translatable", "=", 0)
+							.execute()
+					).map((field) => field.slug)
+				: [];
 
 			// Default to the configured site locale rather than the repo's
 			// hard-coded "en" — otherwise non-English default-locale sites
@@ -876,6 +903,7 @@ export async function handleContentCreate(
 				authorId: body.authorId,
 				locale: effectiveLocale,
 				translationOf: body.translationOf,
+				inheritFields: inheritedFields,
 				createdAt: body.createdAt,
 				publishedAt: body.publishedAt,
 			});
@@ -947,6 +975,12 @@ export async function handleContentCreate(
 			};
 		}
 		if (error instanceof EmDashValidationError) {
+			if (error.message === "Translation source content not found") {
+				return {
+					success: false,
+					error: { code: "NOT_FOUND", message: error.message },
+				};
+			}
 			return {
 				success: false,
 				error: { code: "VALIDATION_ERROR", message: error.message },
@@ -959,6 +993,19 @@ export async function handleContentCreate(
 		// messages also contain "constraint failed".
 		const message = error instanceof Error ? error.message.toLowerCase() : "";
 		if (message.includes("unique constraint failed") || message.includes("duplicate key")) {
+			if (
+				message.includes("active_tg_locale") ||
+				(message.includes("translation_group") && message.includes("locale"))
+			) {
+				const locale = body.locale ?? getI18nConfig()?.defaultLocale ?? "en";
+				return {
+					success: false,
+					error: {
+						code: "CONFLICT",
+						message: `Translation already exists in locale "${locale}" for this content item`,
+					},
+				};
+			}
 			// Detect slug-specific collisions by message fingerprint
 			if (message.includes("slug")) {
 				return {
@@ -1361,6 +1408,15 @@ export async function handleContentRestore(
 			data: { restored: true, item },
 		};
 	} catch (error) {
+		if (isTranslationLocaleConflict(error, collection)) {
+			return {
+				success: false,
+				error: {
+					code: "CONFLICT",
+					message: "An active translation already exists in this locale",
+				},
+			};
+		}
 		console.error("Content restore error:", error);
 		return {
 			success: false,

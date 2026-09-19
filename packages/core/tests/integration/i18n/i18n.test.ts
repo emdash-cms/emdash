@@ -88,6 +88,7 @@ describe("i18n (Integration)", () => {
 			expect(indexNames).toContain("idx_ec_post_locale");
 			expect(indexNames).toContain("idx_ec_post_tg_locale");
 			expect(indexNames).toContain("idx_ec_post_del_tg_locale");
+			expect(indexNames).toContain("uidx_ec_post_active_tg_locale");
 		});
 	});
 

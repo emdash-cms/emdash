@@ -37,6 +37,10 @@ export interface ReviewAttempt {
 	terminalReportedAt?: number;
 	terminalAbandonedAt?: number;
 	terminalRetryCount?: number;
+	setupRetryCount?: number;
+	setupRetryAt?: number;
+	setupLastError?: string;
+	recoveryHeadRetryCount?: number;
 	workflowRetryCount?: number;
 	workflowActiveStaleSince?: number;
 }

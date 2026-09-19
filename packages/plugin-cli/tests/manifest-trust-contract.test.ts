@@ -262,6 +262,14 @@ describe("ManifestSchema cross-field rules", () => {
 		});
 		expect(result.success).toBe(true);
 	});
+
+	it("accepts schema and revision discovery capabilities", () => {
+		const result = ManifestSchema.safeParse({
+			...base,
+			capabilities: ["schema:read", "content:revisions:read"],
+		});
+		expect(result.success).toBe(true);
+	});
 });
 
 describe("ManifestSchema with the trust contract", () => {
