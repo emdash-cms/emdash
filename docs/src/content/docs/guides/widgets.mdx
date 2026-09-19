@@ -35,11 +35,13 @@ The following built-in component widgets are available:
 
 | Component | What it renders |
 | --------- | --------------- |
-| `core:recent-posts` | Recent posts, with optional dates and thumbnails |
+| `core:recent-posts` | Recent posts, with optional dates, thumbnails, and a link URL template (e.g. `/blog/:slug`) |
 | `core:categories` | Category links and optional entry counts |
 | `core:tags` | A limited list of tag links and optional counts |
 | `core:search` | A search form that submits to `/search` |
 | `core:archives` | Monthly or yearly post archive links |
+
+The `core:recent-posts` link template accepts the same tokens as LiveSearch's `routeMap`: `:collection`, `:id` (the content ULID), `:slug` (the bare slug), and `:path` (slug or ID). Without a template, links keep their existing shape, including any Astro i18n locale prefix.
 
 ## Place the area in a template
 
