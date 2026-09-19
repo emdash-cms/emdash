@@ -48,6 +48,14 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const hasEmailSend = capabilities.includes("email:send");
 	const hasReadComments = capabilities.includes("comments:read");
 	const hasModerateComments = capabilities.includes("comments:moderate");
+	const hasRedirectRead = capabilities.includes("redirects:read");
+	const hasRedirectWrite = capabilities.includes("redirects:write");
+	const hasContentRead = capabilities.some((capability) =>
+		["content:read", "content:write", "content:revisions:read"].includes(capability),
+	);
+	const hasContentWrite = capabilities.includes("content:write");
+	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasRevisionRead = capabilities.includes("content:revisions:read");
 
 	return `
 // =============================================================================
@@ -113,11 +121,23 @@ function unwrapCommentResult(value) {
 	throw Object.assign(new Error(details.message), details, { name: details.code });
 }
 
+async function unwrapRedirectResult(promise) {
+	const result = await promise;
+	if (result?.ok === true) return result.value;
+	if (result?.ok === false && result.error && typeof result.error.code === "string") {
+		throw Object.assign(new Error(result.error.message), {
+			name: "RedirectAccessError",
+			code: result.error.code,
+		});
+	}
+	throw new Error("Invalid redirect bridge response");
+}
+
 // -----------------------------------------------------------------------------
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
-function createContext(env) {
+function createContext(env, originHook) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
@@ -168,20 +188,60 @@ function createContext(env) {
 	});
 	
 	// Content access - proxies to bridge (capability enforced by bridge)
-	const content = {
+	const content = ${hasContentRead} ? {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
-		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
-		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
-		delete: (collection, id) => bridge.contentDelete(collection, id)
-	};
+		getTranslations: (collection, id) => bridge.contentTranslations(collection, id),
+		getPublicUrl: (collection, id) => bridge.contentPublicUrl(collection, id),
+		...(${hasRevisionRead} ? {
+			listRevisions: (collection, id, opts) => bridge.contentListRevisions(collection, id, opts),
+			getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
+		} : {}),
+		...(${hasContentWrite} ? {
+			create: async (collection, data, options) => {
+				const result = await bridge.contentCreate(
+					collection,
+					data,
+					options,
+					originHook
+				);
+				if (result && result.__emdashContentCreateError === true) {
+					throw Object.assign(new Error(result.error.message), {
+						name: result.error.code,
+						code: result.error.code
+					});
+				}
+				return result;
+			},
+			update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
+			delete: (collection, id) => bridge.contentDelete(collection, id)
+		} : {})
+	} : undefined;
+
+	const schema = ${hasSchemaRead} ? {
+		listCollections: () => bridge.schemaListCollections(),
+		getCollection: (slug) => bridge.schemaGetCollection(slug)
+	} : undefined;
 	
-	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)
+	// Taxonomy access - proxies to bridge (capability enforced by bridge)
 	const taxonomies = {
 		getAll: (opts) => bridge.taxonomyList(opts),
 		getTerms: (taxonomy, opts) => bridge.taxonomyTerms(taxonomy, opts),
-		getEntryTerms: (collection, entryId, opts) => bridge.taxonomyEntryTerms(collection, entryId, opts)
+		getEntryTerms: (collection, entryId, opts) => bridge.taxonomyEntryTerms(collection, entryId, opts),
+		createTerm: (taxonomy, input) => bridge.taxonomyCreateTerm(taxonomy, input),
+		addEntryTerms: (collection, entryId, taxonomy, termIds) => bridge.taxonomyAddEntryTerms(collection, entryId, taxonomy, termIds),
+		removeEntryTerms: (collection, entryId, taxonomy, termIds) => bridge.taxonomyRemoveEntryTerms(collection, entryId, taxonomy, termIds)
 	};
+
+	const redirects = ${hasRedirectRead} ? {
+		list: (opts) => unwrapRedirectResult(bridge.redirectList(opts)),
+		get: (id) => unwrapRedirectResult(bridge.redirectGet(id)),
+		...(${hasRedirectWrite} ? {
+			create: (input) => unwrapRedirectResult(bridge.redirectCreate(input)),
+			update: (id, input) => unwrapRedirectResult(bridge.redirectUpdate(id, input)),
+			delete: (id, options) => unwrapRedirectResult(bridge.redirectDelete(id, options?._rev)),
+		} : {}),
+	} : undefined;
 	
 	// Media access - proxies to bridge (capability enforced by bridge)
 	const media = {
@@ -262,7 +322,9 @@ function createContext(env) {
 		storage,
 		kv,
 		content,
+		schema,
 		taxonomies,
+		redirects,
 		media,
 		http,
 		log,
@@ -281,7 +343,7 @@ function createContext(env) {
 
 export default class PluginEntrypoint extends WorkerEntrypoint {
 	async invokeHook(hookName, event) {
-		const ctx = createContext(this.env);
+		const ctx = createContext(this.env, hookName);
 		
 		// Find the hook handler
 		const hookDef = hooks[hookName];

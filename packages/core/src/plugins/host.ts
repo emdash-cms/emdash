@@ -4,6 +4,8 @@ export { PluginStorageRepository } from "../database/repositories/plugin-storage
 export { resolveContentCreateLocale } from "../i18n/config.js";
 export { createCommentAccess } from "./context.js";
 export { createContentAccess } from "./content-access.js";
+export { createRedirectAccess, RedirectAccessError } from "./context.js";
+export { createSchemaAccess } from "./context.js";
 export { CronAccessImpl } from "./cron.js";
 export { createSandboxRouteError, getSandboxRouteErrorDetails } from "./sandbox/types.js";
 export { StorageSerializationError } from "./storage-query.js";

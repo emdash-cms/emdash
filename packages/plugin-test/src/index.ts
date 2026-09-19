@@ -1,6 +1,6 @@
 import { createDialect } from "@emdash-cms/cloudflare/db/d1";
 import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
-import { pluginManifestSchema } from "@emdash-cms/plugin-types";
+import { pluginManifestSchema, reconcileManifestAccess } from "@emdash-cms/plugin-types";
 import { reset } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import {
@@ -112,7 +112,7 @@ export async function createPluginTestHost(): Promise<PluginTestHost> {
 	);
 	if (!manifestResult.success) throw new Error("EmDash plugin test manifest is invalid");
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the shared runtime schema validates the wire manifest before it enters core's equivalent runtime type
-	const manifest = manifestResult.data as unknown as PluginManifest;
+	const manifest = reconcileManifestAccess(manifestResult.data) as unknown as PluginManifest;
 	const db = new Kysely<Database>({
 		dialect: createDialect({ binding: "DB", session: "disabled" }),
 	});

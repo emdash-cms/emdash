@@ -43,7 +43,7 @@ import type { z } from "astro/zod";
 // =============================================================================
 
 import type { ContentFieldFilters } from "../content-list-query.js";
-import type { FieldType } from "../schema/types.js";
+import type { FieldType, FieldValidation, FieldWidgetOptions } from "../schema/types.js";
 
 export type {
 	ContentFieldFilterScalar,
@@ -328,6 +328,63 @@ export interface ContentItem {
 	publishedAt: string | null;
 	/** Scheduled publication time, if set (e.g. scheduled items or scheduled draft changes). */
 	scheduledAt?: string | null;
+	authorId?: string | null;
+	translationGroup?: string | null;
+	liveRevisionId?: string | null;
+	draftRevisionId?: string | null;
+	version?: number;
+}
+
+export interface ContentTranslationSummary {
+	id: string;
+	locale: string | null;
+	slug: string | null;
+	status: string;
+	updatedAt: string;
+}
+
+export interface ContentRevisionInfo {
+	id: string;
+	collection: string;
+	entryId: string;
+	data: Record<string, unknown>;
+	createdAt: string;
+}
+
+export interface FieldSchemaInfo {
+	slug: string;
+	label: string;
+	type: FieldType;
+	required: boolean;
+	unique: boolean;
+	default?: unknown;
+	validation?: FieldValidation;
+	widget?: string;
+	options?: FieldWidgetOptions;
+	searchable: boolean;
+	indexed: boolean;
+	translatable: boolean;
+	sortOrder: number;
+}
+
+export interface CollectionSchemaInfo {
+	slug: string;
+	label: string;
+	labelSingular: string | null;
+	description: string | null;
+	supports: string[];
+	hasSeo: boolean;
+	titleField: string | null;
+	dateField: string | null;
+	urlPattern: string | null;
+	routable: boolean;
+	hidden: boolean;
+	fields: FieldSchemaInfo[];
+}
+
+export interface SchemaAccess {
+	listCollections(): Promise<CollectionSchemaInfo[]>;
+	getCollection(slug: string): Promise<CollectionSchemaInfo | null>;
 }
 
 export interface ContentListWhere {
@@ -365,7 +422,20 @@ export type ContentWriteInput = Record<string, unknown> & {
 export interface ContentCreateOptions {
 	/** Locale for the new content row. Defaults to the configured site locale, then `en`. */
 	locale?: string;
+	/** Existing row in the same collection whose translation group the new row joins. */
+	translationOf?: string;
 }
+
+export type PluginContentCreateCallback = (
+	pluginId: string,
+	collection: string,
+	data: ContentWriteInput,
+	options?: ContentCreateOptions & {
+		/** Save-hook origin supplied by sandbox transports to prevent hook re-entry. */
+		originHook?: "content:beforeSave" | "content:afterSave";
+		sandboxOrigin?: true;
+	},
+) => Promise<ContentItem>;
 
 /**
  * Taxonomy definition returned from the taxonomy API (e.g. "category", "tag").
@@ -406,6 +476,15 @@ export interface TaxonomyReadOptions {
 	locale?: string;
 }
 
+export interface TaxonomyTermCreateInput {
+	label: string;
+	slug?: string;
+	parentId?: string | null;
+	description?: string;
+	locale?: string;
+	translationOf?: string;
+}
+
 /**
  * Content access interface - capability-gated
  */
@@ -413,6 +492,21 @@ export interface ContentAccess {
 	// Read operations (requires read:content)
 	get(collection: string, id: string): Promise<ContentItem | null>;
 	list(collection: string, options?: ContentListOptions): Promise<PaginatedResult<ContentItem>>;
+	getTranslations?(
+		collection: string,
+		id: string,
+	): Promise<{ translationGroup: string; translations: ContentTranslationSummary[] }>;
+	getPublicUrl?(collection: string, id: string): Promise<string | null>;
+	listRevisions?(
+		collection: string,
+		id: string,
+		options?: { limit?: number },
+	): Promise<ContentRevisionInfo[]>;
+	getRevision?(
+		collection: string,
+		id: string,
+		revisionId: string,
+	): Promise<ContentRevisionInfo | null>;
 
 	// Write operations (requires write:content) - optional on interface
 	create?(
@@ -426,7 +520,6 @@ export interface ContentAccess {
 
 /**
  * Taxonomy access interface — capability-gated on `taxonomies:read`.
- * Read-only: there is no plugin-facing taxonomy write API.
  */
 export interface TaxonomyAccess {
 	/** List taxonomy definitions. */
@@ -439,6 +532,98 @@ export interface TaxonomyAccess {
 		entryId: string,
 		options?: TaxonomyReadOptions & { taxonomy?: string },
 	): Promise<TaxonomyTermInfo[]>;
+	createTerm?(taxonomy: string, input: TaxonomyTermCreateInput): Promise<TaxonomyTermInfo>;
+	addEntryTerms?(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	): Promise<TaxonomyTermInfo[]>;
+	removeEntryTerms?(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	): Promise<TaxonomyTermInfo[]>;
+}
+
+/** Taxonomy mutations available with `taxonomies:write`. */
+export interface TaxonomyAccessWithWrite extends TaxonomyAccess {
+	createTerm(taxonomy: string, input: TaxonomyTermCreateInput): Promise<TaxonomyTermInfo>;
+	addEntryTerms(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	): Promise<TaxonomyTermInfo[]>;
+	removeEntryTerms(
+		collection: string,
+		entryId: string,
+		taxonomy: string,
+		termIds: string[],
+	): Promise<TaxonomyTermInfo[]>;
+}
+
+export type RedirectStatus = 301 | 302 | 307 | 308 | 410 | 451;
+
+export interface RedirectInfo {
+	id: string;
+	source: string;
+	destination: string;
+	type: RedirectStatus;
+	isPattern: boolean;
+	enabled: boolean;
+	hits: number;
+	lastHitAt: string | null;
+	groupName: string | null;
+	auto: boolean;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface VersionedRedirect {
+	redirect: RedirectInfo;
+	/** Opaque host revision. Pass it back unchanged for update or delete. */
+	_rev: string;
+}
+
+export interface RedirectListOptions {
+	limit?: number;
+	cursor?: string;
+	search?: string;
+	group?: string;
+	enabled?: boolean;
+	auto?: boolean;
+}
+
+export interface RedirectCreateInput {
+	source: string;
+	destination?: string;
+	type?: RedirectStatus;
+	enabled?: boolean;
+	groupName?: string | null;
+}
+
+export interface RedirectUpdateInput {
+	source?: string;
+	destination?: string;
+	type?: RedirectStatus;
+	enabled?: boolean;
+	groupName?: string | null;
+}
+
+export interface RedirectAccess {
+	list(options?: RedirectListOptions): Promise<PaginatedResult<RedirectInfo>>;
+	get(id: string): Promise<VersionedRedirect | null>;
+	create?(input: RedirectCreateInput): Promise<VersionedRedirect>;
+	update?(id: string, input: RedirectUpdateInput & { _rev: string }): Promise<VersionedRedirect>;
+	delete?(id: string, options: { _rev: string }): Promise<boolean>;
+}
+
+export interface RedirectAccessWithWrite extends RedirectAccess {
+	create(input: RedirectCreateInput): Promise<VersionedRedirect>;
+	update(id: string, input: RedirectUpdateInput & { _rev: string }): Promise<VersionedRedirect>;
+	delete(id: string, options: { _rev: string }): Promise<boolean>;
 }
 
 /**
@@ -651,9 +836,14 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** Content access - only if read:content or write:content capability */
 	content?: ContentAccess | ContentAccessWithWrite;
+	/** Schema discovery - only if schema:read capability */
+	schema?: SchemaAccess;
 
-	/** Taxonomy access (read-only) - only if taxonomies:read capability */
-	taxonomies?: TaxonomyAccess;
+	/** Taxonomy access - only if a taxonomy capability is declared. */
+	taxonomies?: TaxonomyAccess | TaxonomyAccessWithWrite;
+
+	/** Redirect access - only if redirects:read or redirects:write capability */
+	redirects?: RedirectAccess | RedirectAccessWithWrite;
 
 	/** Media access - only if read:media or write:media capability */
 	media?: MediaAccess | MediaAccessWithWrite;

@@ -1,6 +1,6 @@
 ---
 name: building-emdash-site
-description: Build and customize EmDash CMS sites on Astro. Use when creating pages, defining collections, writing seed files, querying content, rendering Portable Text, setting up menus/taxonomies/widgets, configuring deployment, or any task involving an EmDash-powered Astro site. Assumes basic Astro knowledge but provides all EmDash-specific patterns.
+description: Build the site-facing parts of an EmDash CMS project on Astro, including schema and seeds, content queries, Portable Text rendering, menus, taxonomies, widgets, and deployment configuration. Use for EmDash site and theme work; use creating-plugins instead when the task is plugin authoring alone.
 ---
 
 # Building an EmDash Site

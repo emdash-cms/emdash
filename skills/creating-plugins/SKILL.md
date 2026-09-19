@@ -83,11 +83,16 @@ Use only canonical capability names:
 
 | Capability                       | API or hook registration                                                 |
 | -------------------------------- | ------------------------------------------------------------------------ |
-| `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                                |
+| `content:read`                   | `ctx.content.get()`, `list()`, `getTranslations()`, `getPublicUrl()`     |
+| `content:revisions:read`         | `ctx.content.listRevisions()`, `getRevision()`; implies content read     |
 | `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read             |
 | `comments:read`                  | `ctx.comments.get()`, `list()`, `count()`; exposes comment personal data |
 | `comments:moderate`              | `ctx.comments.setStatus()` with expected status; implies read            |
+| `schema:read`                    | `ctx.schema.listCollections()`, `getCollection()`                        |
 | `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`               |
+| `taxonomies:write`               | `createTerm()`, `addEntryTerms()`, `removeEntryTerms()`; implies read    |
+| `redirects:read`                 | `ctx.redirects.list()`, `get()`                                          |
+| `redirects:write`                | `ctx.redirects.create()`, `update()`, `delete()`; implies read           |
 | `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                    |
 | `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read                 |
 | `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                          |
@@ -101,6 +106,10 @@ Use only canonical capability names:
 The old `read:*`, `write:*`, `network:fetch*`, `email:provide`, `email:intercept`, and `page:inject` names are deprecated. Validation warns about them and publishing rejects them.
 
 KV and declared storage need no capability. They are always scoped to the plugin. Installation shows capability consent; updates require renewed approval when declared access grows. MCP tools and routes becoming public have separate consent checks.
+
+Content reads include the entry's author ID, translation group, live and draft revision pointers, and row version. `getPublicUrl()` returns only published, routable URLs and never returns a preview URL. Revision snapshots require `content:revisions:read`; their retained field data can include values that an administrator removed later, but revision author identity is not exposed.
+
+Create a content translation with `ctx.content.create(collection, data, { locale, translationOf })`. `translationOf` is an active entry ID in the same collection. The new row joins its translation group, inherits byline credits and taxonomy assignments, and takes non-translatable field values from the source. Runtime content validation and save hooks still run, except the creating plugin's own `content:afterSave` hook is not re-entered and content created inside a save hook does not run save hooks again. A translation group permits one active row per locale; duplicate locale creates return `CONFLICT`, missing sources return `NOT_FOUND`, invalid locales return `VALIDATION_ERROR`, and hooks can return `SAVE_REJECTED`.
 
 ## Portable plugin context
 
@@ -116,7 +125,9 @@ interface PluginContext {
 	url(path: string): string;
 	cron?: CronAccess;
 	content?: ContentAccess;
+	schema?: SchemaAccess;
 	taxonomies?: TaxonomyAccess;
+	redirects?: RedirectAccess;
 	media?: MediaAccess;
 	http?: HttpAccess;
 	users?: UserAccess;
@@ -125,6 +136,8 @@ interface PluginContext {
 ```
 
 Optional properties appear only when the matching capability and host configuration are present.
+
+Taxonomy assignment writes accept term row IDs or translation-group IDs, not term slugs. `addEntryTerms()` and `removeEntryTerms()` apply idempotent deltas, so concurrent additions do not replace one another. The host validates taxonomy attachment, entry existence, term ownership, locale, translations, and hierarchy. `createTerm()` rejects `parentId` for a non-hierarchical taxonomy instead of ignoring it. Taxonomy-definition management, assignment replacement, term updates, and term deletion are not exposed.
 
 ## Routes and MCP tools
 
@@ -208,7 +221,9 @@ await host.dispose();
 
 The direct host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It preserves hook, route, MCP, settings, and field-widget manifest metadata, supports content fixtures, and exposes KV and declared storage for assertions. Its `invokeHook()` and `invokeRoute()` methods test the transport. They do not prove that a host action emits the hook or applies route authentication, permissions, CSRF, and response caching.
 
-Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks. Actions call production runtime and handler boundaries. Inspectors read observable state without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
+Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks, including bylines and taxonomy terms. Actions call production runtime and handler boundaries. Content inspectors can read byline credits and taxonomy assignments without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
+
+Redirect capability tests can establish host state with `host.fixtures.redirect()` and inspect persisted rules with `host.inspect.redirects()`. Trigger the plugin route through `host.actions.routes.request()` when the test must prove authorization and the real host-to-isolate redirect bridge.
 
 The generated project keeps Worker Loader as its default fast test path. Add an opt-in Node/workerd job only for runner-sensitive behavior. Neither host reproduces deployed CPU, memory, and subrequest limits or renders the admin application.
 

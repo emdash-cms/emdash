@@ -8,18 +8,31 @@
 import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 
+import {
+	handleRedirectCreate,
+	handleRedirectDelete,
+	handleRedirectList,
+	handleRedirectUpdate,
+} from "../api/handlers/redirects.js";
+import { handleTermCreate } from "../api/handlers/taxonomies.js";
+import { createRedirectBody, updateRedirectBody } from "../api/schemas/redirects.js";
 import { CommentRepository, type Comment } from "../database/repositories/comment.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { EntryLockRepository } from "../database/repositories/entry-locks.js";
 import { MediaRepository } from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
+import {
+	RedirectRepository,
+	type Redirect,
+	type VersionedRedirectRecord,
+} from "../database/repositories/redirect.js";
 import { SeoRepository } from "../database/repositories/seo.js";
 import { TaxonomyRepository, type Taxonomy } from "../database/repositories/taxonomy.js";
 import { UserRepository } from "../database/repositories/user.js";
 import { withTransaction } from "../database/transaction.js";
 import type { Database } from "../database/types.js";
-import { resolveContentCreateLocale } from "../i18n/config.js";
+import { getI18nConfig, resolveContentCreateLocale } from "../i18n/config.js";
 import {
 	resolveAndValidateExternalUrl,
 	SsrfError,
@@ -27,6 +40,7 @@ import {
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
+import { SchemaRegistry } from "../schema/registry.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { assertStorageKey } from "./conditional-storage.js";
@@ -59,13 +73,26 @@ import type {
 	QueryOptions,
 	MediaListOptions,
 	TaxonomyAccess,
+	TaxonomyAccessWithWrite,
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
+	TaxonomyTermCreateInput,
 	TaxonomyReadOptions,
 	CommentAccess,
 	CommentListOptions,
 	PluginComment,
 	PluginCommentStatus,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
+	SchemaAccess,
+	CollectionSchemaInfo,
+	PluginContentCreateCallback,
 } from "./types.js";
 
 export { createContentAccess } from "./content-access.js";
@@ -257,6 +284,57 @@ function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
 	};
 }
 
+function collectionToSchemaInfo(
+	collection: Awaited<ReturnType<SchemaRegistry["getCollectionWithFields"]>>,
+): CollectionSchemaInfo | null {
+	if (!collection) return null;
+	return {
+		slug: collection.slug,
+		label: collection.label,
+		labelSingular: collection.labelSingular ?? null,
+		description: collection.description ?? null,
+		supports: collection.supports,
+		hasSeo: collection.hasSeo,
+		titleField: collection.titleField ?? null,
+		dateField: collection.dateField ?? null,
+		urlPattern: collection.urlPattern ?? null,
+		routable: collection.routable !== false,
+		hidden: collection.hidden,
+		fields: collection.fields.map((field) => ({
+			slug: field.slug,
+			label: field.label,
+			type: field.type,
+			required: field.required,
+			unique: field.unique,
+			...(field.defaultValue === undefined ? {} : { default: field.defaultValue }),
+			...(field.validation === undefined ? {} : { validation: field.validation }),
+			...(field.widget === undefined ? {} : { widget: field.widget }),
+			...(field.options === undefined ? {} : { options: field.options }),
+			searchable: field.searchable,
+			indexed: field.indexed,
+			translatable: field.translatable,
+			sortOrder: field.sortOrder,
+		})),
+	};
+}
+
+export function createSchemaAccess(db: Kysely<Database>): SchemaAccess {
+	const registry = new SchemaRegistry(db);
+	return {
+		async listCollections() {
+			const collections: CollectionSchemaInfo[] = [];
+			for (const collection of await registry.listCollectionsWithFields()) {
+				const info = collectionToSchemaInfo(collection);
+				if (info) collections.push(info);
+			}
+			return collections;
+		},
+		async getCollection(slug) {
+			return collectionToSchemaInfo(await registry.getCollectionWithFields(slug));
+		},
+	};
+}
+
 /**
  * Create read-only taxonomy access (gated on `taxonomies:read`).
  */
@@ -349,6 +427,277 @@ export function createCommentAccess(
 	};
 }
 
+export class RedirectAccessError extends Error {
+	override readonly name = "RedirectAccessError";
+
+	constructor(
+		readonly code: string,
+		message: string,
+	) {
+		super(message);
+	}
+}
+
+const REDIRECT_REVISION_PREFIX = "r1.";
+const BASE64_PADDING_RE = /=+$/;
+
+function encodeRedirectRevision(id: string, revision: string): string {
+	const payload = `${id}\0${revision}`;
+	return `${REDIRECT_REVISION_PREFIX}${btoa(payload)
+		.replaceAll("+", "-")
+		.replaceAll("/", "_")
+		.replace(BASE64_PADDING_RE, "")}`;
+}
+
+function decodeRedirectRevision(id: string, revision: string): string {
+	if (typeof revision !== "string" || !revision.startsWith(REDIRECT_REVISION_PREFIX)) {
+		throw new RedirectAccessError("INVALID_PRECONDITION", "Invalid redirect revision");
+	}
+	try {
+		const encoded = revision
+			.slice(REDIRECT_REVISION_PREFIX.length)
+			.replaceAll("-", "+")
+			.replaceAll("_", "/");
+		const padded = encoded.padEnd(Math.ceil(encoded.length / 4) * 4, "=");
+		const [revisionId, updatedAt, extra] = atob(padded).split("\0");
+		if (revisionId !== id || !updatedAt || extra !== undefined) throw new Error("invalid");
+		return updatedAt;
+	} catch (error) {
+		if (error instanceof RedirectAccessError) throw error;
+		throw new RedirectAccessError("INVALID_PRECONDITION", "Invalid redirect revision");
+	}
+}
+
+function toRedirectInfo(redirect: Redirect): RedirectInfo {
+	return {
+		...redirect,
+		type: redirect.type as RedirectStatus,
+	};
+}
+
+function toVersionedRedirect(record: VersionedRedirectRecord): VersionedRedirect {
+	return {
+		redirect: toRedirectInfo(record.redirect),
+		_rev: encodeRedirectRevision(record.redirect.id, record.configRevision),
+	};
+}
+
+async function readVersionedRedirect(
+	repo: RedirectRepository,
+	id: string,
+): Promise<VersionedRedirect | null> {
+	const record = await repo.findVersionedById(id);
+	return record ? toVersionedRedirect(record) : null;
+}
+
+function throwRedirectResult(error: { code: string; message: string }): never {
+	throw new RedirectAccessError(error.code, error.message);
+}
+
+function assertNoAutomaticRedirectMarker(input: object): void {
+	if (typeof input !== "object" || input === null || Array.isArray(input)) {
+		throw new RedirectAccessError("VALIDATION_ERROR", "Redirect input must be an object");
+	}
+	if (Object.hasOwn(input, "auto")) {
+		throw new RedirectAccessError(
+			"VALIDATION_ERROR",
+			"The automatic redirect marker is managed by EmDash",
+		);
+	}
+}
+
+export function createRedirectAccess(db: Kysely<Database>): RedirectAccess;
+export function createRedirectAccess(db: Kysely<Database>, writable: true): RedirectAccessWithWrite;
+export function createRedirectAccess(
+	db: Kysely<Database>,
+	writable = false,
+): RedirectAccess | RedirectAccessWithWrite {
+	const repo = new RedirectRepository(db);
+	const readAccess: RedirectAccess = {
+		async list(options: RedirectListOptions = {}) {
+			const result = await handleRedirectList(db, options);
+			if (!result.success) return throwRedirectResult(result.error);
+			return {
+				items: result.data.items.map(toRedirectInfo),
+				cursor: result.data.nextCursor,
+				hasMore: result.data.nextCursor !== undefined,
+			};
+		},
+		get: (id: string) => readVersionedRedirect(repo, id),
+	};
+	if (!writable) return readAccess;
+
+	return {
+		...readAccess,
+		async create(input: RedirectCreateInput) {
+			assertNoAutomaticRedirectMarker(input);
+			const parsed = createRedirectBody.safeParse(input);
+			if (!parsed.success) {
+				throw new RedirectAccessError(
+					"VALIDATION_ERROR",
+					parsed.error.issues[0]?.message ?? "Invalid redirect",
+				);
+			}
+			const result = await handleRedirectCreate(db, parsed.data);
+			if (!result.success) return throwRedirectResult(result.error);
+			const current = await readVersionedRedirect(repo, result.data.id);
+			if (!current) throw new RedirectAccessError("NOT_FOUND", "Created redirect not found");
+			return current;
+		},
+		async update(id: string, input: RedirectUpdateInput & { _rev: string }) {
+			assertNoAutomaticRedirectMarker(input);
+			const { _rev, ...patch } = input;
+			const expectedRevision = decodeRedirectRevision(id, _rev);
+			const parsed = updateRedirectBody.safeParse(patch);
+			if (!parsed.success) {
+				throw new RedirectAccessError(
+					"VALIDATION_ERROR",
+					parsed.error.issues[0]?.message ?? "Invalid redirect",
+				);
+			}
+			const result = await handleRedirectUpdate(db, id, parsed.data, { expectedRevision });
+			if (!result.success) return throwRedirectResult(result.error);
+			const current = await readVersionedRedirect(repo, result.data.id);
+			if (!current) throw new RedirectAccessError("NOT_FOUND", "Updated redirect not found");
+			return current;
+		},
+		async delete(id: string, options: { _rev: string }) {
+			if (typeof options !== "object" || options === null) {
+				throw new RedirectAccessError("INVALID_PRECONDITION", "Invalid redirect revision");
+			}
+			const expectedRevision = decodeRedirectRevision(id, options._rev);
+			const result = await handleRedirectDelete(db, id, { expectedRevision });
+			if (!result.success) return throwRedirectResult(result.error);
+			return result.data.deleted;
+		},
+	};
+}
+
+const MAX_TAXONOMY_DELTA_TERMS = 64;
+
+function taxonomyAccessError(code: string, message: string): Error {
+	return Object.assign(new Error(message), { code });
+}
+
+async function resolveTaxonomyDelta(
+	db: Kysely<Database>,
+	collection: string,
+	entryId: string,
+	taxonomy: string,
+	termIds: string[],
+): Promise<{ repo: TaxonomyRepository; groups: string[]; locale: string }> {
+	if (termIds.length > MAX_TAXONOMY_DELTA_TERMS) {
+		throw taxonomyAccessError(
+			"VALIDATION_ERROR",
+			`A taxonomy assignment delta can contain at most ${MAX_TAXONOMY_DELTA_TERMS} term IDs`,
+		);
+	}
+	if (termIds.some((id) => typeof id !== "string" || id.length === 0)) {
+		throw taxonomyAccessError("VALIDATION_ERROR", "Taxonomy term IDs must be non-empty strings");
+	}
+
+	const defs = await db
+		.selectFrom("_emdash_taxonomy_defs")
+		.select(["collections"])
+		.where("name", "=", taxonomy)
+		.execute();
+	if (defs.length === 0) {
+		throw taxonomyAccessError("NOT_FOUND", `Taxonomy '${taxonomy}' not found`);
+	}
+	const attached = defs.some((def) => parseCollectionsColumn(def.collections).includes(collection));
+	if (!attached) {
+		throw taxonomyAccessError(
+			"VALIDATION_ERROR",
+			`Taxonomy '${taxonomy}' is not attached to collection '${collection}'`,
+		);
+	}
+
+	const entry = await new ContentRepository(db).findById(collection, entryId);
+	if (!entry) {
+		throw taxonomyAccessError(
+			"NOT_FOUND",
+			`Content entry '${entryId}' not found in '${collection}'`,
+		);
+	}
+
+	const repo = new TaxonomyRepository(db);
+	const groups: string[] = [];
+	for (const id of new Set(termIds)) {
+		const term = await repo.findByIdOrTranslationGroup(id);
+		if (!term) throw taxonomyAccessError("NOT_FOUND", `Taxonomy term '${id}' not found`);
+		if (term.name !== taxonomy) {
+			throw taxonomyAccessError(
+				"VALIDATION_ERROR",
+				`Taxonomy term '${id}' belongs to '${term.name}', not '${taxonomy}'`,
+			);
+		}
+		groups.push(term.translationGroup ?? term.id);
+	}
+
+	return { repo, groups, locale: entry.locale ?? getI18nConfig()?.defaultLocale ?? "en" };
+}
+
+async function readResolvedEntryTerms(
+	repo: TaxonomyRepository,
+	collection: string,
+	entryId: string,
+	taxonomy: string,
+	locale: string,
+): Promise<TaxonomyTermInfo[]> {
+	const defaultLocale = getI18nConfig()?.defaultLocale ?? locale;
+	const assignments = await repo.getTermAssignmentsForEntry(
+		collection,
+		entryId,
+		taxonomy,
+		locale,
+		defaultLocale,
+	);
+	return assignments.flatMap(({ term }) => (term ? [taxonomyToTermInfo(term)] : []));
+}
+
+export function createTaxonomyAccessWithWrite(db: Kysely<Database>): TaxonomyAccessWithWrite {
+	return {
+		...createTaxonomyAccess(db),
+		async createTerm(taxonomy: string, input: TaxonomyTermCreateInput) {
+			const result = await handleTermCreate(db, taxonomy, input);
+			if (!result.success) throw taxonomyAccessError(result.error.code, result.error.message);
+			const { term } = result.data;
+			return {
+				id: term.id,
+				taxonomy: term.name,
+				slug: term.slug,
+				label: term.label,
+				parentId: term.parentId,
+				data: term.description ? { description: term.description } : null,
+				locale: term.locale,
+				translationGroup: term.translationGroup,
+			};
+		},
+		async addEntryTerms(collection, entryId, taxonomy, termIds) {
+			const { repo, groups, locale } = await resolveTaxonomyDelta(
+				db,
+				collection,
+				entryId,
+				taxonomy,
+				termIds,
+			);
+			await repo.attachGroupsToEntry(collection, entryId, groups);
+			return readResolvedEntryTerms(repo, collection, entryId, taxonomy, locale);
+		},
+		async removeEntryTerms(collection, entryId, taxonomy, termIds) {
+			const { repo, groups, locale } = await resolveTaxonomyDelta(
+				db,
+				collection,
+				entryId,
+				taxonomy,
+				termIds,
+			);
+			await repo.detachGroupsFromEntry(collection, entryId, groups);
+			return readResolvedEntryTerms(repo, collection, entryId, taxonomy, locale);
+		},
+	};
+}
+
 /**
  * Create full content access with write operations.
  *
@@ -361,8 +710,14 @@ export function createCommentAccess(
 export function createContentAccessWithWrite(
 	db: Kysely<Database>,
 	beforeContentWrite?: () => Promise<void>,
+	accessOptions?: { site?: SiteInfo; revisions?: boolean },
+	contentCreate?: (data: {
+		collection: string;
+		input: ContentWriteInput;
+		options?: ContentCreateOptions;
+	}) => Promise<ContentItem>,
 ): ContentAccessWithWrite {
-	const readAccess = createContentAccess(db);
+	const readAccess = createContentAccess(db, accessOptions);
 
 	return {
 		...readAccess,
@@ -374,6 +729,13 @@ export function createContentAccessWithWrite(
 		): Promise<ContentItem> {
 			const locale = resolveContentCreateLocale(options?.locale);
 			await beforeContentWrite?.();
+			if (contentCreate) {
+				return contentCreate({
+					collection,
+					input: data,
+					options: { ...options, locale },
+				});
+			}
 			const { fields, seo } = splitSeoFromInput(data);
 			let contentMutated = false;
 
@@ -388,6 +750,7 @@ export function createContentAccessWithWrite(
 						type: collection,
 						data: fields,
 						locale,
+						translationOf: options?.translationOf,
 					});
 					contentMutated = true;
 
@@ -1008,6 +1371,7 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
+	contentCreate?: PluginContentCreateCallback;
 	/**
 	 * Resolver for the database connection, preferred over `db` when present.
 	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
@@ -1071,6 +1435,7 @@ export interface PluginContextFactoryOptions {
 export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
 	private beforeContentWrite?: () => Promise<void>;
+	private contentCreate?: PluginContentCreateCallback;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -1093,6 +1458,7 @@ export class PluginContextFactory {
 		const fixedDb = options.db;
 		this.resolveDb = options.getDb ?? (() => fixedDb);
 		this.beforeContentWrite = options.beforeContentWrite;
+		this.contentCreate = options.contentCreate;
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -1127,15 +1493,39 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(db, this.beforeContentWrite);
+			content = createContentAccessWithWrite(
+				db,
+				this.beforeContentWrite,
+				{
+					site: this.site,
+					revisions: capabilities.has("content:revisions:read"),
+				},
+				this.contentCreate
+					? (input) => this.contentCreate!(plugin.id, input.collection, input.input, input.options)
+					: undefined,
+			);
 		} else if (capabilities.has("content:read")) {
-			content = createContentAccess(db);
+			content = createContentAccess(db, {
+				site: this.site,
+				revisions: capabilities.has("content:revisions:read"),
+			});
 		}
 
-		// Capability-gated: taxonomies (read-only)
-		let taxonomies: TaxonomyAccess | undefined;
-		if (capabilities.has("taxonomies:read")) {
+		const schema = capabilities.has("schema:read") ? createSchemaAccess(db) : undefined;
+
+		// Capability-gated: taxonomies
+		let taxonomies: TaxonomyAccess | TaxonomyAccessWithWrite | undefined;
+		if (capabilities.has("taxonomies:write")) {
+			taxonomies = createTaxonomyAccessWithWrite(db);
+		} else if (capabilities.has("taxonomies:read")) {
 			taxonomies = createTaxonomyAccess(db);
+		}
+
+		let redirects: RedirectAccess | RedirectAccessWithWrite | undefined;
+		if (capabilities.has("redirects:write")) {
+			redirects = createRedirectAccess(db, true);
+		} else if (capabilities.has("redirects:read")) {
+			redirects = createRedirectAccess(db);
 		}
 
 		// Capability-gated: media
@@ -1211,7 +1601,9 @@ export class PluginContextFactory {
 			storage,
 			kv,
 			content,
+			schema,
 			taxonomies,
+			redirects,
 			media,
 			http,
 			log,

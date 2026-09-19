@@ -329,7 +329,20 @@ describe("agent guidance", () => {
 		expect(skill).toContain("Use the package scripts");
 		expect(skill).toContain("createPluginTestHost()");
 		expect(skill).toContain("createPluginRuntimeTestHost()");
+		expect(skill).toContain("redirects:read");
+		expect(skill).toContain("redirects:write");
+		expect(skill).toContain("visitor destinations");
+		expect(skill).toContain("host.fixtures.redirect()");
+		expect(skill).toContain("host.inspect.redirects()");
 		expect(skill).toContain("Node/workerd parity opt-in");
+		expect(skill).toContain("schema:read");
+		expect(skill).toContain("content:revisions:read");
+		expect(skill).toContain("{ locale, translationOf }");
+		expect(skill).toContain("pass a taxonomy name and term fields to `createTerm()`");
+		expect(skill).toContain(
+			"The method rejects `parentId` for a non-hierarchical taxonomy instead of ignoring it",
+		);
+		expect(skill).toContain("Pass term IDs to `addEntryTerms()` and `removeEntryTerms()`");
 		expect(skill).toContain("@<publisher-handle>/<slug>");
 		expect(skill).toContain("info <handle> <slug> --version <version> --watch");
 	});

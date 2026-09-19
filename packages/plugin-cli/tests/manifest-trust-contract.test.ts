@@ -80,6 +80,8 @@ describe("CapabilitySchema", () => {
 		expect(CapabilitySchema.parse("email:send")).toBe("email:send");
 		expect(CapabilitySchema.parse("comments:read")).toBe("comments:read");
 		expect(CapabilitySchema.parse("comments:moderate")).toBe("comments:moderate");
+		expect(CapabilitySchema.parse("redirects:read")).toBe("redirects:read");
+		expect(CapabilitySchema.parse("redirects:write")).toBe("redirects:write");
 	});
 
 	it("rejects a deprecated capability with a hint at the replacement", () => {
@@ -261,6 +263,14 @@ describe("ManifestSchema cross-field rules", () => {
 		const result = ManifestSchema.safeParse({
 			...base,
 			capabilities: ["content:read"],
+		});
+		expect(result.success).toBe(true);
+	});
+
+	it("accepts schema and revision discovery capabilities", () => {
+		const result = ManifestSchema.safeParse({
+			...base,
+			capabilities: ["schema:read", "content:revisions:read"],
 		});
 		expect(result.success).toBe(true);
 	});

@@ -21,6 +21,7 @@ import type {
 	SandboxedPluginInstance,
 	SandboxEmailSendCallback,
 	SandboxCommentModerateCallback,
+	SandboxContentCreateCallback,
 	SandboxOptions,
 	SerializedRequest,
 } from "emdash";
@@ -61,6 +62,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 	};
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
 	private commentModerateCallback: SandboxCommentModerateCallback | null = null;
+	private contentCreateCallback: SandboxContentCreateCallback | null = null;
 	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Miniflare instance (lazily created) */
@@ -118,6 +120,10 @@ export class MiniflareDevRunner implements SandboxRunner {
 
 	setCommentModerate(callback: SandboxCommentModerateCallback | null): void {
 		this.commentModerateCallback = callback;
+	}
+
+	setContentCreate(callback: SandboxContentCreateCallback | null): void {
+		this.contentCreateCallback = callback;
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
@@ -187,8 +193,11 @@ export class MiniflareDevRunner implements SandboxRunner {
 				storageCollections: Object.keys(manifest.storage || {}),
 				storageConfig: manifest.storage,
 				i18nConfig: getI18nConfig(),
+				siteInfo: this.siteInfo,
 				db: this.options.db,
 				beforeContentWrite: this.options.beforeContentWrite,
+				contentCreateProvider: () => this.contentCreateCallback,
+				taxonomyWrite: this.options.taxonomyWrite,
 				emailSend: () => this.emailSendCallback,
 				commentModerate: () => this.commentModerateCallback,
 				cronReschedule: () => this.cronRescheduleCallback?.(),

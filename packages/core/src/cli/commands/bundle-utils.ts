@@ -15,7 +15,7 @@ import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
 
-import { capabilitiesToDeclaredAccess } from "../../plugins/types.js";
+import { capabilitiesToDeclaredAccess, declaredAccessToCapabilities } from "../../plugins/types.js";
 import type {
 	PluginManifest,
 	ResolvedPlugin,
@@ -140,6 +140,8 @@ export function readImageDimensions(buf: Uint8Array): [number, number] | null {
  * Strips functions (hooks, route handlers) and keeps only serializable metadata.
  */
 export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
+	const declaredAccess = capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts);
+	const enforcedAccess = declaredAccessToCapabilities(declaredAccess);
 	// Build hook entries preserving exclusive/priority/timeout metadata.
 	// Plain HookName strings are emitted for hooks with default settings;
 	// structured ManifestHookEntry objects are emitted when metadata differs.
@@ -200,8 +202,8 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 	return {
 		id: plugin.id,
 		version: plugin.version,
-		declaredAccess: capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts),
-		capabilities: plugin.capabilities,
+		declaredAccess,
+		capabilities: enforcedAccess.capabilities,
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,
 		hooks,

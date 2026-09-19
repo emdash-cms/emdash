@@ -11,10 +11,14 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
 import type {
+	ContentCreateOptions,
+	ContentItem,
+	ContentWriteInput,
 	PluginComment,
 	PluginCommentStatus,
 	PluginManifest,
 	RequestMeta,
+	TaxonomyAccessWithWrite,
 	UserInfo,
 } from "../types.js";
 
@@ -74,6 +78,16 @@ export type SandboxCommentModerateCallback = (
 	expectedStatus: PluginCommentStatus,
 ) => Promise<PluginComment>;
 
+export type SandboxContentCreateCallback = (
+	pluginId: string,
+	collection: string,
+	data: ContentWriteInput,
+	options?: ContentCreateOptions & {
+		originHook?: "content:beforeSave" | "content:afterSave";
+		sandboxOrigin?: true;
+	},
+) => Promise<ContentItem>;
+
 /**
  * Options for creating a sandbox runner
  */
@@ -84,6 +98,8 @@ export interface SandboxOptions {
 	db: Kysely<Database>;
 	/** Called immediately before a sandboxed plugin content mutation. */
 	beforeContentWrite?: () => Promise<void>;
+	/** Runtime-owned taxonomy mutation surface used by sandbox bridges. */
+	taxonomyWrite?: TaxonomyAccessWithWrite;
 	/** Clock used to calculate recurring plugin task schedules. */
 	now?: () => Date;
 	/** Default resource limits */
@@ -280,6 +296,7 @@ export interface SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void;
 	setCommentModerate?(callback: SandboxCommentModerateCallback | null): void;
+	setContentCreate?(callback: SandboxContentCreateCallback | null): void;
 
 	/** Wake a long-lived scheduler after a sandboxed plugin changes its tasks. */
 	setCronReschedule?(callback: (() => void) | null): void;

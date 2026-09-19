@@ -17,6 +17,12 @@ export interface CanonicalDeclaredAccess {
 	}>;
 	readonly content?: Readonly<{
 		read?: CanonicalAccessConstraints;
+		revisionsRead?: CanonicalAccessConstraints;
+		write?: CanonicalAccessConstraints;
+	}>;
+	readonly schema?: Readonly<{ read?: CanonicalAccessConstraints }>;
+	readonly taxonomies?: Readonly<{
+		read?: CanonicalAccessConstraints;
 		write?: CanonicalAccessConstraints;
 	}>;
 	readonly email?: Readonly<{
@@ -32,6 +38,10 @@ export interface CanonicalDeclaredAccess {
 		request?: CanonicalAccessConstraints & { readonly allowedHosts?: readonly string[] };
 	}>;
 	readonly page?: Readonly<{ fragments?: CanonicalAccessConstraints }>;
+	readonly redirects?: Readonly<{
+		read?: CanonicalAccessConstraints;
+		write?: CanonicalAccessConstraints;
+	}>;
 	readonly users?: Readonly<{ read?: CanonicalAccessConstraints }>;
 }
 
@@ -178,10 +188,17 @@ function normalizeDeclaredAccess(value: DeclaredAccess): CanonicalObject {
 		}
 		if (category === "comments" && Object.hasOwn(normalizedOperations, "moderate")) {
 			normalizedOperations.read ??= Object.freeze({});
-		} else if (
-			(category === "content" || category === "media") &&
+		}
+		if (
+			(category === "content" ||
+				category === "media" ||
+				category === "redirects" ||
+				category === "taxonomies") &&
 			Object.hasOwn(normalizedOperations, "write")
 		) {
+			normalizedOperations.read ??= Object.freeze({});
+		}
+		if (category === "content" && Object.hasOwn(normalizedOperations, "revisionsRead")) {
 			normalizedOperations.read ??= Object.freeze({});
 		}
 		defineDataProperty(

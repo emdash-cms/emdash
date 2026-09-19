@@ -46,6 +46,14 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const hasEmailSend = capabilities.includes("email:send");
 	const hasReadComments = capabilities.includes("comments:read");
 	const hasModerateComments = capabilities.includes("comments:moderate");
+	const hasRedirectRead = capabilities.includes("redirects:read");
+	const hasRedirectWrite = capabilities.includes("redirects:write");
+	const hasContentRead = capabilities.some((capability) =>
+		["content:read", "content:write", "content:revisions:read"].includes(capability),
+	);
+	const hasContentWrite = capabilities.includes("content:write");
+	const hasSchemaRead = capabilities.includes("schema:read");
+	const hasRevisionRead = capabilities.includes("content:revisions:read");
 
 	return `
 // =============================================================================
@@ -154,6 +162,22 @@ function storageSerializationErrorDetails(value) {
 	};
 }
 
+function contentCreateErrorDetails(value) {
+	if (!value || typeof value !== "object") return null;
+	const code = value.code;
+	if (
+		code !== "CONFLICT" &&
+		code !== "NOT_FOUND" &&
+		code !== "SAVE_REJECTED" &&
+		code !== "VALIDATION_ERROR"
+	) return null;
+	return {
+		name: code,
+		code,
+		message: typeof value.message === "string" ? value.message : "Content create failed"
+	};
+}
+
 function sandboxRouteErrorDetails(value) {
 	if (!value || typeof value !== "object") return null;
 	const code =
@@ -199,6 +223,18 @@ function sandboxRouteErrorResponse(error) {
 		: null;
 }
 
+async function unwrapRedirectResult(promise) {
+	const result = await promise;
+	if (result?.ok === true) return result.value;
+	if (result?.ok === false && result.error && typeof result.error.code === "string") {
+		throw Object.assign(new Error(result.error.message), {
+			name: "RedirectAccessError",
+			code: result.error.code,
+		});
+	}
+	throw new Error("Invalid redirect bridge response");
+}
+
 // -----------------------------------------------------------------------------
 // Bridge - HTTP calls to Node backing service
 // -----------------------------------------------------------------------------
@@ -224,6 +260,10 @@ async function bridgeCall(method, body) {
 					name: commentDetails.code,
 				});
 			}
+			const contentCreateDetails = contentCreateErrorDetails(payload?.error);
+			if (contentCreateDetails) {
+				throw Object.assign(new Error(contentCreateDetails.message), contentCreateDetails);
+			}
 			const details = sandboxRouteErrorDetails(payload?.error);
 			if (details) {
 				const error = Object.assign(new Error(details.message), details, {
@@ -235,7 +275,8 @@ async function bridgeCall(method, body) {
 			if (
 				sandboxRouteErrorDetails(error) ||
 				storageSerializationErrorDetails(error) ||
-				commentErrorDetails(error)
+				commentErrorDetails(error) ||
+				contentCreateErrorDetails(error)
 			) throw error;
 		}
 		throw new Error("Bridge call " + method + " failed: " + text);
@@ -248,7 +289,7 @@ async function bridgeCall(method, body) {
 // Context Factory
 // -----------------------------------------------------------------------------
 
-function createContext() {
+function createContext(originHook) {
 	const kv = {
 		get: (key) => bridgeCall("kv/get", { key }),
 		set: (key, value) => bridgeCall("kv/set", { key, value }),
@@ -293,23 +334,54 @@ function createContext() {
 		}
 	});
 
-	const content = {
+	const content = ${hasContentRead} ? {
 		get: (collection, id) => bridgeCall("content/get", { collection, id }),
 		list: (collection, opts) => bridgeCall("content/list", { collection, ...opts }),
-		create: (collection, data, options) => bridgeCall("content/create", { collection, data, options }),
-		update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
-		delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
-		createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
-		updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
-		deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids }),
-	};
+		getTranslations: (collection, id) => bridgeCall("content/translations", { collection, id }),
+		getPublicUrl: (collection, id) => bridgeCall("content/publicUrl", { collection, id }),
+		...(${hasRevisionRead} ? {
+			listRevisions: (collection, id, options) => bridgeCall("content/listRevisions", { collection, id, options }),
+			getRevision: (collection, id, revisionId) => bridgeCall("content/getRevision", { collection, id, revisionId })
+		} : {}),
+		...(${hasContentWrite} ? {
+			create: (collection, data, options) => bridgeCall("content/create", {
+				collection,
+				data,
+				options,
+				originHook
+			}),
+			update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
+			delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
+			createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
+			updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
+			deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids })
+		} : {})
+	} : undefined;
 
-	// Taxonomy access (read-only) - capability enforced by the bridge
+	const schema = ${hasSchemaRead} ? {
+		listCollections: () => bridgeCall("schema/listCollections", {}),
+		getCollection: (slug) => bridgeCall("schema/getCollection", { slug }),
+	} : undefined;
+
+	// Taxonomy access - capability enforced by the bridge
 	const taxonomies = {
 		getAll: (opts) => bridgeCall("taxonomy/list", { ...opts }),
 		getTerms: (taxonomy, opts) => bridgeCall("taxonomy/terms", { taxonomy, ...opts }),
 		getEntryTerms: (collection, entryId, opts) => bridgeCall("taxonomy/entryTerms", { collection, entryId, ...opts }),
+		createTerm: (taxonomy, input) => bridgeCall("taxonomy/createTerm", { taxonomy, input }),
+		addEntryTerms: (collection, entryId, taxonomy, termIds) => bridgeCall("taxonomy/addEntryTerms", { collection, entryId, taxonomy, termIds }),
+		removeEntryTerms: (collection, entryId, taxonomy, termIds) => bridgeCall("taxonomy/removeEntryTerms", { collection, entryId, taxonomy, termIds }),
 	};
+
+	const redirects = ${hasRedirectRead} ? {
+		list: (opts) => unwrapRedirectResult(bridgeCall("redirect/list", opts || {})),
+		get: (id) => unwrapRedirectResult(bridgeCall("redirect/get", { id })),
+		...(${hasRedirectWrite} ? {
+			create: (input) => unwrapRedirectResult(bridgeCall("redirect/create", { input })),
+			update: (id, input) => unwrapRedirectResult(bridgeCall("redirect/update", { id, input })),
+			delete: (id, options) => unwrapRedirectResult(bridgeCall("redirect/delete", { id, revision: options?._rev })),
+		} : {}),
+	} : undefined;
 
 	const media = {
 		get: (id) => bridgeCall("media/get", { id }),
@@ -524,7 +596,9 @@ function createContext() {
 		storage,
 		kv,
 		content,
+		schema,
 		taxonomies,
+		redirects,
 		media,
 		http,
 		log,
@@ -578,7 +652,7 @@ export default {
 		if (url.pathname.startsWith("/hook/")) {
 			const hookName = url.pathname.slice(6); // Remove "/hook/"
 			const { event } = await request.json();
-			const ctx = createContext();
+			const ctx = createContext(hookName);
 
 			const hookDef = hooks[hookName];
 			if (!hookDef) {

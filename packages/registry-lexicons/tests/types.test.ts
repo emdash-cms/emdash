@@ -297,6 +297,15 @@ describe("PackageReleaseExtension", () => {
 		).toBe(true);
 	});
 
+	it("validates redirect read and write authority", () => {
+		const extension: PackageReleaseExtension.Main = {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: { redirects: { read: {}, write: {} } },
+		};
+
+		expect(safeParse(PackageReleaseExtension.mainSchema, extension)).toMatchObject({ ok: true });
+	});
+
 	it("intentionally leaves unknown provenance predicates for consumer verification", () => {
 		const extension: PackageReleaseExtension.Main = {
 			$type: NSID.packageReleaseExtension,

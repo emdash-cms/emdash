@@ -13,7 +13,7 @@ import Database from "better-sqlite3";
 import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
-import { createBridgeHandler } from "../src/sandbox/bridge-handler.js";
+import { createBridgeHandler, type BridgeHandlerOptions } from "../src/sandbox/bridge-handler.js";
 
 // Set up an in-memory SQLite database with the minimum tables needed
 function createTestDb() {
@@ -114,6 +114,7 @@ describe("Bridge Handler Conformance", () => {
 			status: "approved" | "pending" | "spam",
 			expectedStatus: "approved" | "pending" | "spam",
 		) => Promise<unknown>;
+		taxonomyWrite?: BridgeHandlerOptions["taxonomyWrite"];
 	}) {
 		return createBridgeHandler({
 			pluginId: opts.pluginId ?? "test-plugin",
@@ -125,6 +126,7 @@ describe("Bridge Handler Conformance", () => {
 			emailSend: () => null,
 			beforeContentWrite: opts.beforeContentWrite,
 			commentModerate: opts.commentModerate,
+			taxonomyWrite: opts.taxonomyWrite,
 		});
 	}
 
@@ -595,6 +597,21 @@ describe("Bridge Handler Conformance", () => {
 				},
 			});
 		});
+		it("separately denies schema and revision history reads", async () => {
+			const handler = makeHandler({ capabilities: ["content:read"] });
+			expect((await call(handler, "schema/listCollections")).error).toContain(
+				"Missing capability: schema:read",
+			);
+			expect(
+				(
+					await call(handler, "content/listRevisions", {
+						collection: "posts",
+						id: "123",
+					})
+				).error,
+			).toContain("Missing capability: content:revisions:read");
+		});
+
 		it("rejects content read without content:read capability", async () => {
 			const handler = makeHandler({ capabilities: [] });
 			const result = await call(handler, "content/get", {
@@ -746,6 +763,44 @@ describe("Bridge Handler Conformance", () => {
 			const handler = makeHandler({ capabilities: ["read:content"] });
 			const result = await call(handler, "taxonomy/list", {});
 			expect(result.error).toContain("Missing capability: taxonomies:read");
+		});
+
+		it("enforces taxonomy write and delegates mutations to the runtime surface", async () => {
+			const createTerm = vi.fn(async () => ({
+				id: "term-2",
+				taxonomy: "genre",
+				slug: "reviews",
+				label: "Reviews",
+				parentId: null,
+				data: null,
+				locale: "en",
+				translationGroup: "term-2",
+			}));
+			const taxonomyWrite = {
+				getAll: vi.fn(async () => []),
+				getTerms: vi.fn(async () => []),
+				getEntryTerms: vi.fn(async () => []),
+				createTerm,
+				addEntryTerms: vi.fn(async () => []),
+				removeEntryTerms: vi.fn(async () => []),
+			};
+			const reader = makeHandler({ capabilities: ["taxonomies:read"], taxonomyWrite });
+			expect(
+				(
+					await call(reader, "taxonomy/createTerm", {
+						taxonomy: "genre",
+						input: { label: "Reviews" },
+					})
+				).error,
+			).toContain("Missing capability: taxonomies:write");
+
+			const writer = makeHandler({ capabilities: ["taxonomies:write"], taxonomyWrite });
+			const result = await call(writer, "taxonomy/createTerm", {
+				taxonomy: "genre",
+				input: { label: "Reviews" },
+			});
+			expect(result.error).toBeUndefined();
+			expect(createTerm).toHaveBeenCalledWith("genre", { label: "Reviews" });
 		});
 
 		it("allows taxonomy read with taxonomies:read", async () => {

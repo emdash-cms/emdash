@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 tecken"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:421
 msgid "{base} to: {0}"
 msgstr "{base} till: {0}"
 
@@ -763,8 +763,8 @@ msgstr "Åtkomst nekad"
 msgid "Access Denied"
 msgstr "Åtkomst nekad"
 
-#: packages/admin/src/lib/api/marketplace.ts:386
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Access your media library"
 msgstr "Få åtkomst till mediebiblioteket"
 
@@ -1862,6 +1862,10 @@ msgstr ""
 msgid "Change schedule"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:389
+msgid "Change where visitors are sent"
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Changelog"
 msgstr "Ändringslogg"
@@ -2687,8 +2691,8 @@ msgstr "Skapa din första"
 msgid "Create your first reusable content section to get started."
 msgstr "Skapa din första återanvändbara innehållssektion för att komma igång."
 
-#: packages/admin/src/lib/api/marketplace.ts:384
-#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Create, update, and delete content"
 msgstr "Skapa, uppdatera och ta bort innehåll"
 
@@ -5957,13 +5961,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "Huvudsidofält"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Make network requests"
 msgstr "Skicka nätverksförfrågningar"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:402
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Skicka nätverksförfrågningar till valfri värd (obegränsat)"
 
@@ -7703,6 +7707,10 @@ msgstr "Citat"
 msgid "Raw meta"
 msgstr "Rå metadata"
 
+#: packages/admin/src/lib/api/marketplace.ts:386
+msgid "Read collection and field definitions"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "Läsa samlingsscheman"
@@ -7715,21 +7723,29 @@ msgstr "Läsa innehållsposter"
 msgid "Read media files"
 msgstr "Läsa mediefiler"
 
+#: packages/admin/src/lib/api/marketplace.ts:388
+msgid "Read redirect rules"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:384
+msgid "Read retained content revision history"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
 msgstr "Läsa webbplatsinställningar"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Read user accounts"
 msgstr "Läsa användarkonton"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Read your content"
 msgstr "Läsa ditt innehåll"
 
-#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:387
 msgid "Read your taxonomies and terms"
 msgstr "Läsa dina taxonomier och termer"
 
@@ -10377,8 +10393,8 @@ msgstr "Ladda upp en bild för att komma igång"
 msgid "Upload and delete media"
 msgstr "Ladda upp och ta bort media"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Upload and manage media"
 msgstr "Ladda upp och hantera media"
 

@@ -39,6 +39,7 @@ import {
 	removeReaction,
 	updateReviewCheck,
 } from "../lib/github.js";
+import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
 import { omitReviewArtifacts } from "../lib/review-context.js";
 import { formatReviewFailureSummary } from "../lib/review-failure.js";
 import { reviewResultSchema, type ReviewResult } from "../lib/review-schema.js";
@@ -131,6 +132,7 @@ const reviewAgent = defineAgent<Env>(({ env }) => {
 	return {
 		// Kimi K2.7 Code via the Workers AI binding: no model API key needed.
 		model: "cloudflare/@cf/moonshotai/kimi-k2.7-code",
+		compaction: REVIEW_COMPACTION,
 		sandbox: getShellSandbox({ workspace, loader: env.LOADER }),
 		cwd: REPO_DIR,
 		instructions: [
