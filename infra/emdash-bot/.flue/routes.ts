@@ -42,7 +42,9 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 	app.get("/", (c) => c.html(dashboardHtml));
 	app.get("/health", (c) => c.text("ok"));
 	app.get("/api/operator/orchestrators/:id/recovery", async (c) => {
-		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_OPERATOR_SECRET))) {
+		if (
+			!(await operatorAuthorized(c.req.header("authorization"), c.env.EMDASH_BOT_OPERATOR_SECRET))
+		) {
 			return c.json({ error: "Unauthorized" }, 401);
 		}
 		try {
@@ -53,7 +55,9 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		}
 	});
 	app.post("/api/operator/orchestrators/:id/recovery/settle", async (c) => {
-		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_OPERATOR_SECRET))) {
+		if (
+			!(await operatorAuthorized(c.req.header("authorization"), c.env.EMDASH_BOT_OPERATOR_SECRET))
+		) {
 			return c.json({ error: "Unauthorized" }, 401);
 		}
 		let body: unknown;
@@ -86,7 +90,9 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		}
 	});
 	app.get("/api/operator/issues/:number/recovery", async (c) => {
-		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_OPERATOR_SECRET))) {
+		if (
+			!(await operatorAuthorized(c.req.header("authorization"), c.env.EMDASH_BOT_OPERATOR_SECRET))
+		) {
 			return c.json({ error: "Unauthorized" }, 401);
 		}
 		const issueNumber = positiveInteger(c.req.param("number"));
@@ -96,7 +102,9 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 		);
 	});
 	app.post("/api/operator/issues/:number/command", async (c) => {
-		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_OPERATOR_SECRET))) {
+		if (
+			!(await operatorAuthorized(c.req.header("authorization"), c.env.EMDASH_BOT_OPERATOR_SECRET))
+		) {
 			return c.json({ error: "Unauthorized" }, 401);
 		}
 		const issueNumber = positiveInteger(c.req.param("number"));

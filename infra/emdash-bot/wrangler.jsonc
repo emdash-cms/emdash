@@ -116,7 +116,7 @@
 
 	// `wrangler secret put <NAME>` for production. Local dev reads .env.
 	"secrets": {
-		"required": ["GITHUB_WEBHOOK_SECRET", "GITHUB_OPERATOR_SECRET", "GITHUB_APP_PRIVATE_KEY"],
+		"required": ["GITHUB_WEBHOOK_SECRET", "EMDASH_BOT_OPERATOR_SECRET", "GITHUB_APP_PRIVATE_KEY"],
 	},
 
 	"observability": {
