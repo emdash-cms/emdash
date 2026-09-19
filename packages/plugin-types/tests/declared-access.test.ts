@@ -217,6 +217,13 @@ describe("canonicalizeDeclaredAccess", () => {
 	});
 
 	it("materializes publication read access without widening restore authority", () => {
+		const publication = canonicalizeDeclaredAccess({
+			content: { publish: {}, restore: {}, policy: {} },
+		});
+		expect(publication).toEqual({
+			content: { policy: {}, publish: {}, read: {}, restore: {} },
+		});
+
 		expect(canonicalizeDeclaredAccess({ content: { publish: {} } })).toEqual({
 			content: { publish: {}, read: {} },
 		});

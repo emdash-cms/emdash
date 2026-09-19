@@ -16,8 +16,11 @@ export interface CanonicalDeclaredAccess {
 		read?: CanonicalAccessConstraints;
 	}>;
 	readonly content?: Readonly<{
+		policy?: CanonicalAccessConstraints;
+		publish?: CanonicalAccessConstraints;
 		read?: CanonicalAccessConstraints;
 		revisionsRead?: CanonicalAccessConstraints;
+		restore?: CanonicalAccessConstraints;
 		write?: CanonicalAccessConstraints;
 	}>;
 	readonly schema?: Readonly<{ read?: CanonicalAccessConstraints }>;
