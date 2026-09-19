@@ -16,7 +16,8 @@
 
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import { getI18nConfig, PLUGIN_HTTP_MAX_REQUEST_BYTES } from "emdash";
+import { getI18nConfig } from "emdash";
+import { PLUGIN_HTTP_MAX_REQUEST_BYTES } from "emdash/plugins/http-wire";
 
 import { createBridgeHandler } from "./bridge-handler.js";
 import type { WorkerdSandboxRunner } from "./runner.js";
