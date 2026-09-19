@@ -20,6 +20,7 @@ import {
 	type SandboxRunner,
 	type SandboxedPluginInstance,
 	type SandboxEmailSendCallback,
+	type SandboxCommentModerateCallback,
 	type SandboxContentCreateCallback,
 	type SandboxOptions,
 	type SandboxRunnerFactory,
@@ -29,6 +30,7 @@ import {
 } from "emdash";
 
 import {
+	setCommentModerateCallback,
 	setContentCreateCallback,
 	setCronNowCallback,
 	setCronRescheduleCallback,
@@ -139,6 +141,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 		// Wire email send callback if provided at construction time
 		setEmailSendCallback(options.emailSend ?? null);
 		setCronNowCallback(options.now ?? null);
+		setCommentModerateCallback(options.commentModerate ?? null);
 		setTaxonomyWriteCallback(this.taxonomyWriteRuntimeId, options.taxonomyWrite ?? null);
 	}
 
@@ -149,6 +152,10 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		setEmailSendCallback(callback);
+	}
+
+	setCommentModerate(callback: SandboxCommentModerateCallback | null): void {
+		setCommentModerateCallback(callback);
 	}
 
 	setContentCreate(callback: SandboxContentCreateCallback | null): void {
@@ -311,11 +318,15 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		// the rename (or sites still using the legacy alias layer) keep
 		// working — `normalizeCapabilities` rewrites legacy names like
 		// `read:content` → `content:read` and `network:fetch` → `network:request`.
+		const capabilities = normalizeCapabilities(this.manifest.capabilities || []);
+		if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
+			capabilities.push("comments:read");
+		}
 		const bridgeBinding = this.createBridge({
 			props: {
 				pluginId: this.manifest.id,
 				pluginVersion: this.manifest.version || "0.0.0",
-				capabilities: normalizeCapabilities(this.manifest.capabilities || []),
+				capabilities,
 				allowedHosts: this.manifest.allowedHosts || [],
 				storageCollections: Object.keys(this.manifest.storage || {}),
 				contentCreateRuntimeId: this.contentCreateRuntimeId,

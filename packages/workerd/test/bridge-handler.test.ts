@@ -55,6 +55,24 @@ async function setupTables(db: Kysely<any>) {
 		.addColumn("created_at", "text", (col) => col.notNull())
 		.execute();
 
+	await db.schema
+		.createTable("_emdash_comments")
+		.addColumn("id", "text", (col) => col.primaryKey())
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("content_id", "text", (col) => col.notNull())
+		.addColumn("parent_id", "text")
+		.addColumn("author_name", "text", (col) => col.notNull())
+		.addColumn("author_email", "text", (col) => col.notNull())
+		.addColumn("author_user_id", "text")
+		.addColumn("body", "text", (col) => col.notNull())
+		.addColumn("status", "text", (col) => col.notNull())
+		.addColumn("ip_hash", "text")
+		.addColumn("user_agent", "text")
+		.addColumn("moderation_metadata", "text")
+		.addColumn("created_at", "text", (col) => col.notNull())
+		.addColumn("updated_at", "text", (col) => col.notNull())
+		.execute();
+
 	// Insert a test user
 	await db
 		.insertInto("users" as any)
@@ -90,6 +108,12 @@ describe("Bridge Handler Conformance", () => {
 		allowedHosts?: string[];
 		storageCollections?: string[];
 		beforeContentWrite?: () => Promise<void>;
+		commentModerate?: () => (
+			pluginId: string,
+			id: string,
+			status: "approved" | "pending" | "spam",
+			expectedStatus: "approved" | "pending" | "spam",
+		) => Promise<unknown>;
 		taxonomyWrite?: BridgeHandlerOptions["taxonomyWrite"];
 	}) {
 		return createBridgeHandler({
@@ -101,6 +125,7 @@ describe("Bridge Handler Conformance", () => {
 			db,
 			emailSend: () => null,
 			beforeContentWrite: opts.beforeContentWrite,
+			commentModerate: opts.commentModerate,
 			taxonomyWrite: opts.taxonomyWrite,
 		});
 	}
@@ -465,6 +490,113 @@ describe("Bridge Handler Conformance", () => {
 	// ── Capability Enforcement ────────────────────────────────────────────
 
 	describe("capability enforcement", () => {
+		it("gates comment reads and moderation independently", async () => {
+			const denied = makeHandler({ capabilities: [] });
+			await expect(call(denied, "comments/get", { id: "comment-1" })).resolves.toMatchObject({
+				error: expect.stringContaining("Missing capability: comments:read"),
+			});
+
+			const readOnly = makeHandler({ capabilities: ["comments:read"] });
+			await expect(
+				call(readOnly, "comments/setStatus", {
+					id: "comment-1",
+					status: "approved",
+					expectedStatus: "pending",
+				}),
+			).resolves.toMatchObject({
+				error: expect.stringContaining("Missing capability: comments:moderate"),
+			});
+
+			const moderate = vi.fn();
+			const invalid = makeHandler({
+				capabilities: ["comments:read", "comments:moderate"],
+				commentModerate: () => moderate,
+			});
+			await expect(
+				call(invalid, "comments/setStatus", {
+					id: "comment-1",
+					status: "trash",
+					expectedStatus: "pending",
+				}),
+			).resolves.toEqual({
+				error: {
+					code: "COMMENT_STATUS_INVALID",
+					message: "status must be one of: approved, pending, spam",
+				},
+			});
+			expect(moderate).not.toHaveBeenCalled();
+		});
+
+		it("round-trips comment personal data and expected-status moderation", async () => {
+			const now = new Date().toISOString();
+			await db
+				.insertInto("_emdash_comments" as never)
+				.values({
+					id: "comment-1",
+					collection: "posts",
+					content_id: "post-1",
+					parent_id: null,
+					author_name: "Reader",
+					author_email: "reader@example.com",
+					author_user_id: "user-1",
+					body: "Hello",
+					status: "pending",
+					ip_hash: "sha256:reader",
+					user_agent: "Test/1.0",
+					moderation_metadata: '{"score":2}',
+					created_at: now,
+					updated_at: now,
+				} as never)
+				.execute();
+			const moderate = vi.fn(async (_pluginId, id, status, expectedStatus) => ({
+				id,
+				status,
+				expectedStatus,
+			}));
+			const handler = makeHandler({
+				capabilities: ["comments:moderate", "comments:read"],
+				commentModerate: () => moderate,
+			});
+
+			const read = await call(handler, "comments/get", { id: "comment-1" });
+			expect(read.result).toMatchObject({
+				authorEmail: "reader@example.com",
+				body: "Hello",
+				ipHash: "sha256:reader",
+				userAgent: "Test/1.0",
+				moderationMetadata: { score: 2 },
+			});
+			expect(read.result).not.toHaveProperty("authorUserId");
+			await call(handler, "comments/setStatus", {
+				id: "comment-1",
+				status: "approved",
+				expectedStatus: "pending",
+			});
+			expect(moderate).toHaveBeenCalledWith("test-plugin", "comment-1", "approved", "pending");
+
+			const conflict = makeHandler({
+				capabilities: ["comments:moderate", "comments:read"],
+				commentModerate: () => async () => {
+					throw Object.assign(new Error("Comment status changed"), {
+						code: "COMMENT_STATUS_CONFLICT",
+						currentStatus: "approved",
+					});
+				},
+			});
+			await expect(
+				call(conflict, "comments/setStatus", {
+					id: "comment-1",
+					status: "spam",
+					expectedStatus: "pending",
+				}),
+			).resolves.toEqual({
+				error: {
+					code: "COMMENT_STATUS_CONFLICT",
+					message: "Comment status changed",
+					currentStatus: "approved",
+				},
+			});
+		});
 		it("separately denies schema and revision history reads", async () => {
 			const handler = makeHandler({ capabilities: ["content:read"] });
 			expect((await call(handler, "schema/listCollections")).error).toContain(

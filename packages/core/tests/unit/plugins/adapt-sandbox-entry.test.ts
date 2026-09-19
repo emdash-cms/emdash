@@ -559,6 +559,14 @@ describe("adaptSandboxEntry", () => {
 			expect(result.capabilities).toContain("media:read");
 		});
 
+		it("normalizes comments:moderate to include comments:read", () => {
+			const result = adaptSandboxEntry(
+				{},
+				createDescriptor({ capabilities: ["comments:moderate"] }),
+			);
+			expect(result.capabilities).toEqual(["comments:moderate", "comments:read"]);
+		});
+
 		it("normalizes network:request:unrestricted to include network:request", () => {
 			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({ capabilities: ["network:request:unrestricted"] });

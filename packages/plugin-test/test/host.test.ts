@@ -570,6 +570,191 @@ describe("runtime plugin test host", () => {
 		);
 	});
 
+	it("reads and moderates comments through the runtime-owned Worker Loader bridge", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			commentsEnabled: true,
+		});
+		const author = await runtimeHost.fixtures.user({
+			email: "author@example.com",
+			name: "Author",
+			role: "author",
+			emailVerified: true,
+		});
+		await runtimeHost.fixtures.content("posts", {
+			id: "commented-post",
+			status: "published",
+			authorId: author.id,
+			data: {},
+		});
+		const pending = await runtimeHost.fixtures.comment({
+			collection: "posts",
+			contentId: "commented-post",
+			authorName: "Reader",
+			authorEmail: "reader@example.com",
+			body: "Needs review",
+			status: "pending",
+			ipHash: "sha256:reader",
+			userAgent: "Comment client/1.0",
+			moderationMetadata: { attemptRecursiveModeration: true },
+		});
+		await runtimeHost.fixtures.comment({
+			collection: "posts",
+			contentId: "commented-post",
+			authorName: "Spammer",
+			authorEmail: "spam@example.com",
+			body: "Spam",
+			status: "spam",
+		});
+		const slow = await runtimeHost.fixtures.comment({
+			collection: "posts",
+			contentId: "commented-post",
+			authorName: "Concurrent reader",
+			authorEmail: "concurrent@example.com",
+			body: "Concurrent moderation",
+			status: "pending",
+			moderationMetadata: { slowModeration: true },
+		});
+		await runtimeHost.fixtures.comment({
+			collection: "posts",
+			contentId: "commented-post",
+			authorName: "Deleted",
+			authorEmail: "deleted@example.com",
+			body: "Trashed",
+			status: "trash",
+		});
+
+		const admin = await runtimeHost.fixtures.user({
+			email: "admin@example.com",
+			role: "admin",
+		});
+		const readResponse = await runtimeHost.actions.routes.request("comments-read", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { id: pending.id },
+		});
+		expect(readResponse.status).toBe(200);
+		const readBody = (await readResponse.json()) as {
+			data: {
+				comment: Record<string, unknown>;
+				page: { items: unknown[]; hasMore: boolean };
+				count: number;
+			};
+		};
+		expect(readBody.data.comment).toMatchObject({
+			authorEmail: "reader@example.com",
+			body: "Needs review",
+			ipHash: "sha256:reader",
+			userAgent: "Comment client/1.0",
+			moderationMetadata: { attemptRecursiveModeration: true },
+		});
+		expect(readBody.data.comment).not.toHaveProperty("authorUserId");
+		expect(readBody.data.page).toMatchObject({ hasMore: true });
+		expect(readBody.data.page.items).toHaveLength(1);
+		expect(readBody.data.count).toBe(3);
+
+		const invalidResponse = await runtimeHost.actions.routes.request("comments-invalid-status", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { id: pending.id },
+		});
+		await expect(invalidResponse.json()).resolves.toMatchObject({
+			data: {
+				rejected: true,
+				message: "status must be one of: approved, pending, spam",
+			},
+		});
+		await expect(runtimeHost.inspect.comments()).resolves.toContainEqual(
+			expect.objectContaining({ id: pending.id, status: "pending" }),
+		);
+		await expect(
+			runtimeHost.actions.comments.moderateAsPlugin(pending.id, "trash" as never, "pending"),
+		).rejects.toThrow("status must be one of: approved, pending, spam");
+		await expect(runtimeHost.inspect.comments()).resolves.toContainEqual(
+			expect.objectContaining({ id: pending.id, status: "pending" }),
+		);
+
+		const approveResponse = await runtimeHost.actions.routes.request("comments-moderate", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { id: pending.id, status: "approved", expectedStatus: "pending" },
+		});
+		expect(approveResponse.status).toBe(200);
+		await expect(approveResponse.json()).resolves.toMatchObject({
+			data: { id: pending.id, status: "approved" },
+		});
+		await expect(runtimeHost.inspect.email()).resolves.toHaveLength(1);
+		const moderationEvents = (await runtimeHost.inspect.storage.list("events")).filter(
+			(entry) =>
+				typeof entry.data === "object" &&
+				entry.data !== null &&
+				"type" in entry.data &&
+				entry.data.type === "comment-moderated",
+		);
+		expect(moderationEvents).toHaveLength(1);
+		expect(moderationEvents[0]?.data).toMatchObject({
+			status: "approved",
+			origin: { source: "plugin", pluginId: runtimeHost.manifest.id },
+		});
+		expect(await runtimeHost.inspect.storage.list("events")).toContainEqual(
+			expect.objectContaining({
+				data: expect.objectContaining({ type: "comment-recursion-blocked" }),
+			}),
+		);
+
+		const staleResponse = await runtimeHost.actions.routes.request("comments-moderate", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { id: pending.id, status: "spam", expectedStatus: "pending" },
+		});
+		expect(staleResponse.status).toBe(200);
+		await expect(staleResponse.json()).resolves.toMatchObject({
+			data: {
+				error: { code: "COMMENT_STATUS_CONFLICT", currentStatus: "approved" },
+			},
+		});
+		await expect(runtimeHost.inspect.comments()).resolves.toContainEqual(
+			expect.objectContaining({ id: pending.id, status: "approved" }),
+		);
+
+		const approvingSlow = runtimeHost.actions.routes.request("comments-moderate", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { id: slow.id, status: "approved", expectedStatus: "pending" },
+		});
+		let hookStarted = false;
+		for (let attempt = 0; attempt < 50; attempt++) {
+			const events = await runtimeHost.inspect.storage.list("events");
+			hookStarted = events.some(
+				(entry) =>
+					typeof entry.data === "object" &&
+					entry.data !== null &&
+					"type" in entry.data &&
+					entry.data.type === "comment-moderated" &&
+					"commentId" in entry.data &&
+					entry.data.commentId === slow.id,
+			);
+			if (hookStarted) break;
+			await new Promise((resolve) => setTimeout(resolve, 10));
+		}
+		expect(hookStarted).toBe(true);
+		const overlapping = await runtimeHost.actions.routes.request("comments-moderate", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: { id: slow.id, status: "spam", expectedStatus: "pending" },
+		});
+		await expect(overlapping.json()).resolves.toMatchObject({
+			data: {
+				error: { code: "COMMENT_STATUS_CONFLICT", currentStatus: "approved" },
+			},
+		});
+		await expect(approvingSlow.then((response) => response.json())).resolves.toMatchObject({
+			data: { id: slow.id, status: "approved" },
+		});
+	});
+
 	it("uses one controlled clock for scheduled content and one cron batch", async () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		const admin = await runtimeHost.fixtures.user({

@@ -17,6 +17,7 @@
 import {
 	ContentRepository,
 	CronAccessImpl,
+	createCommentAccess,
 	createContentAccess,
 	createRedirectAccess,
 	createSchemaAccess,
@@ -35,6 +36,9 @@ import type {
 	ContentListOptions,
 	Database,
 	I18nConfig,
+	CommentListOptions,
+	PluginCommentStatus,
+	SandboxCommentModerateCallback,
 	RedirectCreateInput,
 	RedirectListOptions,
 	RedirectUpdateInput,
@@ -150,6 +154,7 @@ export interface BridgeHandlerOptions {
 	contentCreateProvider?: () => SandboxContentCreateCallback | null;
 	taxonomyWrite?: TaxonomyAccessWithWrite;
 	emailSend: () => SandboxEmailSendCallback | null;
+	commentModerate?: () => SandboxCommentModerateCallback | null;
 	cronReschedule?: () => void;
 	now?: () => Date;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
@@ -178,7 +183,11 @@ async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<Redire
 export function createBridgeHandler(
 	opts: BridgeHandlerOptions,
 ): (request: Request) => Promise<Response> {
-	const normalizedOpts = { ...opts, capabilities: normalizeCapabilities(opts.capabilities) };
+	const capabilities = normalizeCapabilities(opts.capabilities);
+	if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
+		capabilities.push("comments:read");
+	}
+	const normalizedOpts = { ...opts, capabilities };
 	return async (request: Request): Promise<Response> => {
 		try {
 			const url = new URL(request.url);
@@ -199,6 +208,26 @@ export function createBridgeHandler(
 			const result = await dispatch(normalizedOpts, method, body);
 			return Response.json({ result });
 		} catch (error) {
+			if (typeof error === "object" && error !== null && "code" in error) {
+				const code = error.code;
+				const currentStatus = "currentStatus" in error ? error.currentStatus : undefined;
+				if (
+					(code === "COMMENT_STATUS_CONFLICT" && typeof currentStatus === "string") ||
+					code === "COMMENT_MODERATION_IN_PROGRESS" ||
+					code === "COMMENT_STATUS_INVALID"
+				) {
+					return Response.json(
+						{
+							error: {
+								code,
+								message: error instanceof Error ? error.message : "Comment moderation failed",
+								...(typeof currentStatus === "string" ? { currentStatus } : {}),
+							},
+						},
+						{ status: 409 },
+					);
+				}
+			}
 			const sandboxRouteError = createSandboxRouteErrorEnvelope(error);
 			if (sandboxRouteError) {
 				return Response.json(
@@ -406,6 +435,28 @@ async function dispatch(
 				requireString(body, "collection"),
 				requireStringArray(body, "ids"),
 			);
+
+		// ── Comments ────────────────────────────────────────────────────
+		case "comments/get":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).get(requireString(body, "id"));
+		case "comments/list":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).list(commentListOptions(body));
+		case "comments/count":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).count(commentCountOptions(body));
+		case "comments/setStatus": {
+			requireCapability(opts, "comments:moderate");
+			const moderate = opts.commentModerate?.();
+			if (!moderate) throw new Error("Comment moderation is unavailable");
+			return moderate(
+				pluginId,
+				requireString(body, "id"),
+				requireCommentStatus(body, "status"),
+				requireCommentStatus(body, "expectedStatus"),
+			);
+		}
 
 		// ── Taxonomies ──────────────────────────────────────────────────
 		// `taxonomies:read` is a post-rename capability: it has no legacy
@@ -651,6 +702,7 @@ type UpdateManyItem = { id: string; data: Record<string, unknown> };
 type StorageItem = { id: string; data: unknown };
 
 const LOG_LEVELS = new Set<string>(["debug", "info", "warn", "error"]);
+const COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
 
 function requireExpectedRevision(body: Record<string, unknown>): string | null {
 	const value = body.expectedRevision;
@@ -799,6 +851,63 @@ function optionalString(body: Record<string, unknown>, key: string): string | un
 	if (value === undefined) return undefined;
 	if (typeof value !== "string") throw new Error(`Parameter ${key} must be a string when provided`);
 	return value;
+}
+
+function isCommentStatus(value: string): value is PluginCommentStatus {
+	return COMMENT_STATUSES.has(value);
+}
+
+function requireCommentStatus(body: Record<string, unknown>, key: string): PluginCommentStatus {
+	const value = requireString(body, key);
+	if (!isCommentStatus(value)) {
+		throw Object.assign(new Error(`${key} must be one of: approved, pending, spam`), {
+			code: "COMMENT_STATUS_INVALID",
+		});
+	}
+	return value;
+}
+
+function optionalCommentStatus(
+	body: Record<string, unknown>,
+	key: string,
+): PluginCommentStatus | undefined {
+	const value = optionalString(body, key);
+	if (value === undefined) return undefined;
+	if (!isCommentStatus(value)) {
+		throw Object.assign(new Error(`${key} must be one of: approved, pending, spam`), {
+			code: "COMMENT_STATUS_INVALID",
+		});
+	}
+	return value;
+}
+
+function optionalLimit(body: Record<string, unknown>): number | undefined {
+	const value = body.limit;
+	if (value === undefined) return undefined;
+	if (!Number.isInteger(value) || typeof value !== "number" || value < 1 || value > 100) {
+		throw new Error("Parameter limit must be an integer between 1 and 100");
+	}
+	return value;
+}
+
+function commentListOptions(body: Record<string, unknown>): CommentListOptions {
+	return {
+		status: optionalCommentStatus(body, "status"),
+		collection: optionalString(body, "collection"),
+		contentId: optionalString(body, "contentId"),
+		limit: optionalLimit(body),
+		cursor: optionalString(body, "cursor"),
+	};
+}
+
+function commentCountOptions(
+	body: Record<string, unknown>,
+): Omit<CommentListOptions, "limit" | "cursor"> {
+	return {
+		status: optionalCommentStatus(body, "status"),
+		collection: optionalString(body, "collection"),
+		contentId: optionalString(body, "contentId"),
+	};
 }
 
 function requireRecord(body: Record<string, unknown>, key: string): Record<string, unknown> {

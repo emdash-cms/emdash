@@ -81,25 +81,27 @@ Declare host access in `emdash-plugin.jsonc`. Capabilities, allowed hosts, and s
 
 Use only canonical capability names:
 
-| Capability                       | API or hook registration                                                |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| `content:read`                   | `ctx.content.get()`, `list()`, `getTranslations()`, `getPublicUrl()`    |
-| `content:revisions:read`         | `ctx.content.listRevisions()`, `getRevision()`; implies content read    |
-| `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read            |
-| `schema:read`                    | `ctx.schema.listCollections()`, `getCollection()`                       |
-| `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`              |
-| `taxonomies:write`               | `createTerm()`, `addEntryTerms()`, `removeEntryTerms()`; implies read   |
-| `redirects:read`                 | `ctx.redirects.list()`, `get()`                                         |
-| `redirects:write`                | `ctx.redirects.create()`, `update()`, `delete()`; implies read          |
-| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                   |
-| `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read                |
-| `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                         |
-| `network:request:unrestricted`   | `ctx.http.fetch()` without a manifest host list                         |
-| `users:read`                     | `ctx.users.get()`, `getByEmail()`, `list()`; required by comment hooks  |
-| `email:send`                     | `ctx.email.send()` when a transport is configured                       |
-| `hooks.email-transport:register` | Exclusive `email:deliver` hook                                          |
-| `hooks.email-events:register`    | `email:beforeSend` and `email:afterSend` hooks                          |
-| `hooks.page-fragments:register`  | Declares `page:fragments`; sandbox builds warn and the host excludes it |
+| Capability                       | API or hook registration                                                 |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `content:read`                   | `ctx.content.get()`, `list()`, `getTranslations()`, `getPublicUrl()`     |
+| `content:revisions:read`         | `ctx.content.listRevisions()`, `getRevision()`; implies content read     |
+| `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read             |
+| `comments:read`                  | `ctx.comments.get()`, `list()`, `count()`; exposes comment personal data |
+| `comments:moderate`              | `ctx.comments.setStatus()` with expected status; implies read            |
+| `schema:read`                    | `ctx.schema.listCollections()`, `getCollection()`                        |
+| `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`               |
+| `taxonomies:write`               | `createTerm()`, `addEntryTerms()`, `removeEntryTerms()`; implies read    |
+| `redirects:read`                 | `ctx.redirects.list()`, `get()`                                          |
+| `redirects:write`                | `ctx.redirects.create()`, `update()`, `delete()`; implies read           |
+| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                    |
+| `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read                 |
+| `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                          |
+| `network:request:unrestricted`   | `ctx.http.fetch()` without a manifest host list                          |
+| `users:read`                     | `ctx.users.get()`, `getByEmail()`, `list()`; required by comment hooks   |
+| `email:send`                     | `ctx.email.send()` when a transport is configured                        |
+| `hooks.email-transport:register` | Exclusive `email:deliver` hook                                           |
+| `hooks.email-events:register`    | `email:beforeSend` and `email:afterSend` hooks                           |
+| `hooks.page-fragments:register`  | Declares `page:fragments`; sandbox builds warn and the host excludes it  |
 
 The old `read:*`, `write:*`, `network:fetch*`, `email:provide`, `email:intercept`, and `page:inject` names are deprecated. Validation warns about them and publishing rejects them.
 
@@ -173,7 +175,7 @@ The comment lifecycle is:
 3. `comment:afterCreate` runs after storage.
 4. `comment:afterModerate` runs after an administrator changes the status.
 
-All four comment hooks require `users:read` because their events contain author and request information. Lifecycle, media, email, comment, cron, content, and `page:metadata` hooks are dispatched to sandboxed plugins. `page:fragments` is the exception: the CLI accepts it with a trusted-only warning, and the sandbox proxy excludes it from host registration.
+All four comment hooks require `users:read` because their events contain author and request information. `comments:read` separately exposes stored non-trashed comments through `ctx.comments`, including author email, body, pseudonymous IP hash, user agent, and moderation metadata, but not the linked user-account ID. `comments:moderate` implies read and adds expected-status `setStatus()`; conflicts require a fresh read, successful transitions run `comment:afterModerate` once with plugin origin, and approvals preserve core author notifications. Lifecycle, media, email, comment, cron, content, and `page:metadata` hooks are dispatched to sandboxed plugins. `page:fragments` is the exception: the CLI accepts it with a trusted-only warning, and the sandbox proxy excludes it from host registration.
 
 Read [Hooks](./references/hooks.md) for event and return types.
 

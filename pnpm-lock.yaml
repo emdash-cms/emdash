@@ -2318,6 +2318,9 @@ importers:
 
   packages/marketplace:
     dependencies:
+      '@emdash-cms/plugin-types':
+        specifier: workspace:*
+        version: link:../plugin-types
       hono:
         specifier: 'catalog:'
         version: 4.12.27

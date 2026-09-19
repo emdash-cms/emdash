@@ -1,3 +1,4 @@
+import { PLUGIN_CAPABILITIES } from "@emdash-cms/plugin-types";
 import type { Context, Next } from "hono";
 import { Hono } from "hono";
 import { SignJWT, jwtVerify } from "jose";
@@ -249,40 +250,6 @@ authorRoutes.put("/plugins/*", authMiddleware);
 
 // ── POST /plugins — Register new plugin ─────────────────────────
 
-// Must stay in sync with PluginCapability in emdash core
-/** Must stay in sync with PLUGIN_CAPABILITIES in packages/core/src/plugins/manifest-schema.ts */
-const VALID_CAPABILITIES = [
-	// Current names
-	"network:request",
-	"network:request:unrestricted",
-	"content:read",
-	"content:revisions:read",
-	"content:write",
-	"schema:read",
-	"taxonomies:read",
-	"taxonomies:write",
-	"redirects:read",
-	"redirects:write",
-	"media:read",
-	"media:write",
-	"users:read",
-	"email:send",
-	"hooks.email-transport:register",
-	"hooks.email-events:register",
-	"hooks.page-fragments:register",
-	// Deprecated aliases — accepted during the transition window.
-	"network:fetch",
-	"network:fetch:any",
-	"read:content",
-	"write:content",
-	"read:media",
-	"write:media",
-	"read:users",
-	"email:provide",
-	"email:intercept",
-	"page:inject",
-] as const;
-
 export const createPluginSchema = z.object({
 	id: z
 		.string()
@@ -297,7 +264,7 @@ export const createPluginSchema = z.object({
 	repositoryUrl: httpUrl.optional(),
 	homepageUrl: httpUrl.optional(),
 	license: z.string().max(64).optional(),
-	capabilities: z.array(z.enum(VALID_CAPABILITIES)).min(1),
+	capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)).min(1),
 	keywords: z.array(z.string().max(50)).max(20).optional(),
 });
 
@@ -831,7 +798,7 @@ export const manifestSchema = z.object({
 	// Core PluginManifest fields
 	id: z.string().min(1),
 	version: z.string().regex(RE_SEMVER_FULL, "Must be valid semver"),
-	capabilities: z.array(z.enum(VALID_CAPABILITIES)),
+	capabilities: z.array(z.enum(PLUGIN_CAPABILITIES)),
 	allowedHosts: z.array(z.string()).default([]),
 	storage: z.record(z.string(), storageCollectionSchema).default({}),
 	hooks: z.array(hookEntrySchema).default([]),

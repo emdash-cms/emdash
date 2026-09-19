@@ -2,6 +2,7 @@ export { ContentRepository } from "../database/repositories/content.js";
 export { OptionsRepository } from "../database/repositories/options.js";
 export { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 export { resolveContentCreateLocale } from "../i18n/config.js";
+export { createCommentAccess } from "./context.js";
 export { createContentAccess } from "./content-access.js";
 export { createRedirectAccess, RedirectAccessError } from "./context.js";
 export { createSchemaAccess } from "./context.js";

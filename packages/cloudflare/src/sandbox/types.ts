@@ -12,6 +12,10 @@ import type {
 	ContentTranslationSummary,
 	CollectionSchemaInfo,
 	CronTaskInfo,
+	CommentListOptions,
+	CommentCountOptions,
+	PluginComment,
+	PluginCommentStatus,
 	PaginatedResult,
 	RedirectCreateInput,
 	RedirectInfo,
@@ -269,6 +273,31 @@ export interface PluginBridgeBinding {
 		data: Record<string, unknown>,
 	): Promise<BridgeContentItem>;
 	contentDelete(collection: string, id: string): Promise<boolean>;
+	// Comments
+	commentGet(id: string): Promise<PluginComment | null>;
+	commentList(opts?: CommentListOptions): Promise<{
+		items: PluginComment[];
+		cursor?: string;
+		hasMore: boolean;
+	}>;
+	commentCount(opts?: CommentCountOptions): Promise<number>;
+	commentSetStatus(
+		id: string,
+		status: PluginCommentStatus,
+		expectedStatus: PluginCommentStatus,
+	): Promise<
+		| PluginComment
+		| {
+				__emdashCommentError: {
+					code:
+						| "COMMENT_STATUS_CONFLICT"
+						| "COMMENT_MODERATION_IN_PROGRESS"
+						| "COMMENT_STATUS_INVALID";
+					message: string;
+					currentStatus?: string;
+				};
+		  }
+	>;
 	contentTranslations(
 		collection: string,
 		id: string,

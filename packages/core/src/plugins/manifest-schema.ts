@@ -29,6 +29,8 @@ export const CURRENT_PLUGIN_CAPABILITIES = [
 	"content:read",
 	"content:revisions:read",
 	"content:write",
+	"comments:read",
+	"comments:moderate",
 	"schema:read",
 	"taxonomies:read",
 	"taxonomies:write",
@@ -286,6 +288,9 @@ const declaredAccessSchema = z.object({
 		.optional(),
 	redirects: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })
+		.optional(),
+	comments: z
+		.object({ read: accessConstraints.optional(), moderate: accessConstraints.optional() })
 		.optional(),
 	media: z
 		.object({ read: accessConstraints.optional(), write: accessConstraints.optional() })

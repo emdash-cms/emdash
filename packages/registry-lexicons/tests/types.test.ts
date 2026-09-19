@@ -288,6 +288,15 @@ describe("PackageRelease", () => {
 });
 
 describe("PackageReleaseExtension", () => {
+	it("accepts explicit comment personal-data and moderation authority", () => {
+		expect(
+			is(PackageReleaseExtension.mainSchema, {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: { comments: { read: {}, moderate: {} } },
+			}),
+		).toBe(true);
+	});
+
 	it("validates redirect read and write authority", () => {
 		const extension: PackageReleaseExtension.Main = {
 			$type: NSID.packageReleaseExtension,

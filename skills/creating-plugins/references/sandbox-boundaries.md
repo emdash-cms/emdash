@@ -36,7 +36,7 @@ The following surfaces do not exist in the current sandbox contract. Do not inve
 
 ### Comments and media
 
-- Comment hooks receive the comment involved in their event. There is no comment list/get API and no method to change a stored comment's status from plugin code.
+- `ctx.comments` excludes trashed comments and linked user-account IDs. It cannot delete comments or replace statuses in bulk. `setStatus()` accepts only `approved`, `pending`, and `spam` and requires the status observed by the caller.
 - `ctx.media.get()` and `list()` return metadata and a URL. They do not download media bytes or expose an original-byte read API.
 - `ctx.media.upload()` and `delete()` are the only sandbox media writes. There is no media metadata update API.
 

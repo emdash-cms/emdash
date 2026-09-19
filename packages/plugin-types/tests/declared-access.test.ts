@@ -139,24 +139,39 @@ describe("canonicalizeDeclaredAccess", () => {
 		const input: DeclaredAccess = {
 			media: { write: {} },
 			content: { write: {} },
+			comments: { moderate: {} },
 			redirects: { write: {} },
+			taxonomies: { write: {} },
 		};
 		const canonical = canonicalizeDeclaredAccess(input);
 		expect(canonical).toEqual({
+			comments: { moderate: {}, read: {} },
 			content: { read: {}, write: {} },
 			media: { read: {}, write: {} },
 			redirects: { read: {}, write: {} },
+			taxonomies: { read: {}, write: {} },
 		});
 		expect(input).toEqual({
 			media: { write: {} },
 			content: { write: {} },
+			comments: { moderate: {} },
 			redirects: { write: {} },
+			taxonomies: { write: {} },
 		});
 		expect(canonicalizeDeclaredAccess(canonical)).toEqual(canonical);
 		expect(Object.isFrozen(canonical)).toBe(true);
 		expect(
 			declaredAccessEqual({ content: { write: {} } }, { content: { read: {}, write: {} } }),
 		).toBe(true);
+		expect(
+			declaredAccessEqual({ comments: { moderate: {} } }, { comments: { read: {}, moderate: {} } }),
+		).toBe(true);
+		expect(
+			declaredAccessEqual({ taxonomies: { write: {} } }, { taxonomies: { read: {}, write: {} } }),
+		).toBe(true);
+		expect(
+			diffDeclaredAccess({ comments: { moderate: {} } }, { comments: { read: {}, moderate: {} } }),
+		).toEqual({ changes: [], escalation: false });
 	});
 
 	it("materializes revision-read content access and preserves schema access", () => {
@@ -348,6 +363,9 @@ describe("declaredAccessDigestInput", () => {
 		expect(implied).toContain('"domain":"@emdash-cms/plugin-types/declared-access"');
 		expect(implied).toContain('"version":1');
 		expect(implied).not.toBe(declaredAccessDigestInput({ content: { read: {} } }));
+		expect(declaredAccessDigestInput({ comments: { moderate: {} } })).toBe(
+			declaredAccessDigestInput({ comments: { read: {}, moderate: {} } }),
+		);
 	});
 
 	it("treats redirect write and explicit read plus write as the same authority", () => {

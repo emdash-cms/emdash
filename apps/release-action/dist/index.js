@@ -1117,6 +1117,9 @@ const sbomSchema = _sbomSchema;
 //#endregion
 //#region ../../packages/registry-lexicons/dist/generated/types/com/emdashcms/experimental/package/releaseExtension.js
 var releaseExtension_exports = /* @__PURE__ */ __exportAll({
+	commentsAccessSchema: () => commentsAccessSchema,
+	commentsModerateConstraintsSchema: () => commentsModerateConstraintsSchema,
+	commentsReadConstraintsSchema: () => commentsReadConstraintsSchema,
 	contentAccessSchema: () => contentAccessSchema,
 	contentReadConstraintsSchema: () => contentReadConstraintsSchema,
 	contentRevisionsReadConstraintsSchema: () => contentRevisionsReadConstraintsSchema,
@@ -1146,6 +1149,17 @@ var releaseExtension_exports = /* @__PURE__ */ __exportAll({
 	usersAccessSchema: () => usersAccessSchema,
 	usersReadConstraintsSchema: () => usersReadConstraintsSchema
 });
+const _commentsAccessSchema = /* @__PURE__ */ object$1({
+	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsAccess")),
+	get moderate() {
+		return /* @__PURE__ */ optional$1(commentsModerateConstraintsSchema);
+	},
+	get read() {
+		return /* @__PURE__ */ optional$1(commentsReadConstraintsSchema);
+	}
+});
+const _commentsModerateConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsModerateConstraints")) });
+const _commentsReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#commentsReadConstraints")) });
 const _contentAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentAccess")),
 	get read() {
@@ -1163,6 +1177,9 @@ const _contentRevisionsReadConstraintsSchema = /* @__PURE__ */ object$1({ $type:
 const _contentWriteConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#contentWriteConstraints")) });
 const _declaredAccessSchema = /* @__PURE__ */ object$1({
 	$type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#declaredAccess")),
+	get comments() {
+		return /* @__PURE__ */ optional$1(commentsAccessSchema);
+	},
 	get content() {
 		return /* @__PURE__ */ optional$1(contentAccessSchema);
 	},
@@ -1287,6 +1304,9 @@ const _usersAccessSchema = /* @__PURE__ */ object$1({
 	}
 });
 const _usersReadConstraintsSchema = /* @__PURE__ */ object$1({ $type: /* @__PURE__ */ optional$1(/* @__PURE__ */ literal$1("com.emdashcms.experimental.package.releaseExtension#usersReadConstraints")) });
+const commentsAccessSchema = _commentsAccessSchema;
+const commentsModerateConstraintsSchema = _commentsModerateConstraintsSchema;
+const commentsReadConstraintsSchema = _commentsReadConstraintsSchema;
 const contentAccessSchema = _contentAccessSchema;
 const contentReadConstraintsSchema = _contentReadConstraintsSchema;
 const contentRevisionsReadConstraintsSchema = _contentRevisionsReadConstraintsSchema;
@@ -7833,6 +7853,8 @@ const CURRENT_PLUGIN_CAPABILITIES = [
 	"content:read",
 	"content:revisions:read",
 	"content:write",
+	"comments:read",
+	"comments:moderate",
 	"schema:read",
 	"taxonomies:read",
 	"taxonomies:write",
@@ -8054,6 +8076,10 @@ const declaredAccessSchema = object({
 		revisionsRead: accessConstraints.optional(),
 		write: accessConstraints.optional()
 	}).optional(),
+	comments: object({
+		read: accessConstraints.optional(),
+		moderate: accessConstraints.optional()
+	}).optional(),
 	schema: object({ read: accessConstraints.optional() }).optional(),
 	taxonomies: object({
 		read: accessConstraints.optional(),
@@ -8173,6 +8199,10 @@ function capabilitiesToDeclaredAccess(capabilities, allowedHosts) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
+	if (caps.has("comments:read") || caps.has("comments:moderate")) {
+		out.comments = { read: {} };
+		if (caps.has("comments:moderate")) out.comments.moderate = {};
+	}
 	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
 	if (caps.has("schema:read")) out.schema = { read: {} };
 	if (caps.has("taxonomies:read") || caps.has("taxonomies:write")) {
@@ -8207,13 +8237,18 @@ function declaredAccessToCapabilities(declaredAccess) {
 	const caps = /* @__PURE__ */ new Set();
 	let allowedHosts = [];
 	if (declaredAccess.content?.read) caps.add("content:read");
+	if (declaredAccess.content?.revisionsRead) {
+		caps.add("content:revisions:read");
+		caps.add("content:read");
+	}
 	if (declaredAccess.content?.write) {
 		caps.add("content:write");
 		caps.add("content:read");
 	}
-	if (declaredAccess.content?.revisionsRead) {
-		caps.add("content:revisions:read");
-		caps.add("content:read");
+	if (declaredAccess.comments?.read) caps.add("comments:read");
+	if (declaredAccess.comments?.moderate) {
+		caps.add("comments:moderate");
+		caps.add("comments:read");
 	}
 	if (declaredAccess.schema?.read) caps.add("schema:read");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");

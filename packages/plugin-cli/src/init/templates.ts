@@ -429,6 +429,7 @@ Read \`emdash-plugin.jsonc\` and \`src/plugin.ts\` before editing. The manifest 
 - Assign the runtime definition to a \`SandboxedPlugin\`-typed constant and export it as default from \`src/plugin.ts\`.
 - Use Web APIs. Do not import Node.js built-ins into plugin runtime code.
 - Declare every runtime API in \`capabilities\` and every network destination in \`allowedHosts\`.
+- Treat \`comments:read\` as personal-data access. It exposes author email, body, pseudonymous IP hash, user agent, and moderation metadata. Use \`comments:moderate\` for expected-status moderation; it implies read.
 - Use \`redirects:read\` for paginated redirect inspection. Add \`redirects:write\` only when the plugin must change visitor destinations, and pass redirect \`_rev\` values back unchanged for updates and deletes.
 - Use \`schema:read\` for \`ctx.schema.listCollections()\` and \`getCollection()\`.
 - Use \`content:read\` for content identity fields, translations, and published public URLs. Public URL resolution never returns previews. Revision history requires the separate \`content:revisions:read\` capability and excludes revision author identity.

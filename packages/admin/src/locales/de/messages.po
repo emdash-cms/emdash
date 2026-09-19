@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 Zeichen"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:422
+#: packages/admin/src/lib/api/marketplace.ts:424
 msgid "{base} to: {0}"
 msgstr "{base} zu: {0}"
 
@@ -763,8 +763,8 @@ msgstr "Zugriff verweigert"
 msgid "Access Denied"
 msgstr "Zugriff verweigert"
 
-#: packages/admin/src/lib/api/marketplace.ts:391
-#: packages/admin/src/lib/api/marketplace.ts:399
+#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Access your media library"
 msgstr "Auf Medienbibliothek zugreifen"
 
@@ -1288,6 +1288,10 @@ msgstr "Link erstellen"
 #: packages/admin/src/components/comments/CommentInbox.tsx:481
 msgid "Approve"
 msgstr "Freigeben"
+
+#: packages/admin/src/lib/api/marketplace.ts:387
+msgid "Approve comments and mark them as pending or spam"
+msgstr ""
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
 msgid "Approve with that device's face, fingerprint, PIN, or passcode."
@@ -1862,7 +1866,7 @@ msgstr "Publikationsdatum ändern: {formattedValue}"
 msgid "Change schedule"
 msgstr "Planung ändern"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:392
 msgid "Change where visitors are sent"
 msgstr ""
 
@@ -2662,7 +2666,7 @@ msgstr "Erstelle Abschnitte in der Kollektion deiner Abschnitte, um sie hier zu 
 msgid "Create Taxonomy"
 msgstr "Taxonomie erstellen"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
+#: packages/admin/src/lib/api/marketplace.ts:390
 msgid "Create taxonomy terms and change content classifications"
 msgstr ""
 
@@ -2696,7 +2700,7 @@ msgid "Create your first reusable content section to get started."
 msgstr "Erstelle deinen ersten benutzerdefinierten Inhaltsabschnitt, um zu beginnen."
 
 #: packages/admin/src/lib/api/marketplace.ts:385
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Create, update, and delete content"
 msgstr "Erstelle, aktualisiere und entferne Inhalte"
 
@@ -5965,13 +5969,13 @@ msgstr "Hauptbibliothek"
 msgid "Main Sidebar"
 msgstr "Primäre Seitenleiste"
 
-#: packages/admin/src/lib/api/marketplace.ts:394
-#: packages/admin/src/lib/api/marketplace.ts:402
+#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:404
 msgid "Make network requests"
 msgstr "Netzwerkanfragen senden"
 
-#: packages/admin/src/lib/api/marketplace.ts:395
-#: packages/admin/src/lib/api/marketplace.ts:403
+#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:405
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Netzwerkanfragen an beliebige Hosts senden (uneingeschränkt)"
 
@@ -7711,13 +7715,17 @@ msgstr "Zitat"
 msgid "Raw meta"
 msgstr "Rohe Metadaten"
 
-#: packages/admin/src/lib/api/marketplace.ts:386
+#: packages/admin/src/lib/api/marketplace.ts:388
 msgid "Read collection and field definitions"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "Kollektionsschemata lesen"
+
+#: packages/admin/src/lib/api/marketplace.ts:386
+msgid "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
+msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
@@ -7727,7 +7735,7 @@ msgstr "Inhaltseinträge lesen"
 msgid "Read media files"
 msgstr "Mediendateien lesen"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
+#: packages/admin/src/lib/api/marketplace.ts:391
 msgid "Read redirect rules"
 msgstr ""
 
@@ -7739,17 +7747,17 @@ msgstr ""
 msgid "Read site settings"
 msgstr "Webseiten-Einstellungen lesen"
 
-#: packages/admin/src/lib/api/marketplace.ts:393
-#: packages/admin/src/lib/api/marketplace.ts:401
+#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:403
 msgid "Read user accounts"
 msgstr "Benutzerkonten lesen"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Read your content"
 msgstr "Deine Inhalte lesen"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
+#: packages/admin/src/lib/api/marketplace.ts:389
 msgid "Read your taxonomies and terms"
 msgstr "Deine Taxonomien und Begriffe lesen"
 
@@ -10397,8 +10405,8 @@ msgstr "Lade ein Bild hoch, um zu beginnen"
 msgid "Upload and delete media"
 msgstr "Mediendateien hochladen und entfernen"
 
-#: packages/admin/src/lib/api/marketplace.ts:392
-#: packages/admin/src/lib/api/marketplace.ts:400
+#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:402
 msgid "Upload and manage media"
 msgstr "Medien hochladen und verwalten"
 

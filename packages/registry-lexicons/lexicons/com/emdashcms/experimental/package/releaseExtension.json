@@ -60,6 +60,11 @@
 					"ref": "#contentAccess",
 					"description": "Access to site content (posts, pages, custom collections)."
 				},
+				"comments": {
+					"type": "ref",
+					"ref": "#commentsAccess",
+					"description": "Access to comment text, author contact and request metadata, and moderation state."
+				},
 				"schema": {
 					"type": "ref",
 					"ref": "#schemaAccess",
@@ -130,6 +135,30 @@
 		"contentWriteConstraints": {
 			"type": "object",
 			"description": "Constraint object for content.write. No constraint keys are normatively defined here; the object is open to additional unrecognised keys that future runtimes may interpret."
+		},
+		"commentsAccess": {
+			"type": "object",
+			"description": "Operations under comments. Reading exposes personal data: author names and email addresses, comment bodies, pseudonymous IP hashes, user agents, and moderation metadata. It does not expose the linked user-account ID.",
+			"properties": {
+				"read": {
+					"type": "ref",
+					"ref": "#commentsReadConstraints",
+					"description": "Plugin may read non-trashed comments and their personal and moderation data."
+				},
+				"moderate": {
+					"type": "ref",
+					"ref": "#commentsModerateConstraints",
+					"description": "Plugin may change comment status with an expected-state precondition. Implies `read`."
+				}
+			}
+		},
+		"commentsReadConstraints": {
+			"type": "object",
+			"description": "Constraint object for comments.read. No constraint keys are normatively defined here."
+		},
+		"commentsModerateConstraints": {
+			"type": "object",
+			"description": "Constraint object for comments.moderate. No constraint keys are normatively defined here."
 		},
 		"contentRevisionsReadConstraints": {
 			"type": "object",

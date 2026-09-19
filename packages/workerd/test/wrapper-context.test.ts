@@ -75,6 +75,47 @@ describe("Workerd generated plugin context", () => {
 		]);
 	});
 
+	it("exposes comment reads and moderation when only the implying capability is declared", async () => {
+		const generated = generatePluginWrapper(
+			{
+				id: "comment-wrapper",
+				version: "1.0.0",
+				capabilities: ["comments:moderate"],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			},
+			{ backingServiceUrl: "http://bridge", authToken: "auth", invokeToken: "invoke" },
+		);
+		const end = generated.indexOf("\nexport default {");
+		if (end < 0) throw new Error("Generated worker entry point is missing");
+		const source = generated
+			.slice(0, end)
+			.replace('import pluginModule from "sandbox-plugin.js";', "");
+		const calls: string[] = [];
+		const fetch = async (url: string) => {
+			calls.push(url);
+			return Response.json({ result: { id: "comment-1", status: "approved" } });
+		};
+		// eslint-disable-next-line no-implied-eval -- generated worker context is exercised with a local bridge
+		const factory = new Function("fetch", "pluginModule", `${source}\nreturn createContext();`);
+		const context = factory(fetch, {}) as {
+			comments: {
+				get(id: string): Promise<unknown>;
+				setStatus(
+					id: string,
+					status: string,
+					options: { expectedStatus: string },
+				): Promise<unknown>;
+			};
+		};
+		await context.comments.get("comment-1");
+		await context.comments.setStatus("comment-1", "approved", { expectedStatus: "pending" });
+		expect(calls).toEqual(["http://bridge/comments/get", "http://bridge/comments/setStatus"]);
+	});
+
 	it("exposes canonical users access, cron, and real HTTP responses", async () => {
 		const generated = generatePluginWrapper(
 			{

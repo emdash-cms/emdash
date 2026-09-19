@@ -16,6 +16,7 @@ import {
 } from "../api/handlers/redirects.js";
 import { handleTermCreate } from "../api/handlers/taxonomies.js";
 import { createRedirectBody, updateRedirectBody } from "../api/schemas/redirects.js";
+import { CommentRepository, type Comment } from "../database/repositories/comment.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { EntryLockRepository } from "../database/repositories/entry-locks.js";
 import { MediaRepository } from "../database/repositories/media.js";
@@ -77,6 +78,10 @@ import type {
 	TaxonomyTermInfo,
 	TaxonomyTermCreateInput,
 	TaxonomyReadOptions,
+	CommentAccess,
+	CommentListOptions,
+	PluginComment,
+	PluginCommentStatus,
 	RedirectAccess,
 	RedirectAccessWithWrite,
 	RedirectCreateInput,
@@ -369,6 +374,56 @@ export function createTaxonomyAccess(db: Kysely<Database>): TaxonomyAccess {
 			);
 			return terms.map(taxonomyToTermInfo);
 		},
+	};
+}
+
+function toPluginComment(comment: Comment): PluginComment {
+	if (comment.status === "trash") throw new Error("Trashed comments are not plugin-readable");
+	return {
+		id: comment.id,
+		collection: comment.collection,
+		contentId: comment.contentId,
+		parentId: comment.parentId,
+		authorName: comment.authorName,
+		authorEmail: comment.authorEmail,
+		body: comment.body,
+		status: comment.status,
+		ipHash: comment.ipHash,
+		userAgent: comment.userAgent,
+		moderationMetadata: comment.moderationMetadata,
+		createdAt: comment.createdAt,
+		updatedAt: comment.updatedAt,
+	};
+}
+
+export function createCommentAccess(
+	db: Kysely<Database>,
+	moderate?: (
+		id: string,
+		status: PluginCommentStatus,
+		expectedStatus: PluginCommentStatus,
+	) => Promise<PluginComment>,
+): CommentAccess {
+	const repo = new CommentRepository(db);
+	return {
+		async get(id) {
+			const comment = await repo.findById(id);
+			return !comment || comment.status === "trash" ? null : toPluginComment(comment);
+		},
+		async list(options: CommentListOptions = {}) {
+			const result = await repo.findForPlugin(options);
+			return {
+				items: result.items.map(toPluginComment),
+				cursor: result.nextCursor,
+				hasMore: result.nextCursor !== undefined,
+			};
+		},
+		count: (options) => repo.countForPlugin(options),
+		...(moderate
+			? {
+					setStatus: (id, status, options) => moderate(id, status, options.expectedStatus),
+				}
+			: {}),
 	};
 }
 
@@ -1366,6 +1421,12 @@ export interface PluginContextFactoryOptions {
 	 * client IP the core auth path does.
 	 */
 	trustedProxyHeaders?: string[];
+	commentModerate?: (
+		pluginId: string,
+		id: string,
+		status: PluginCommentStatus,
+		expectedStatus: PluginCommentStatus,
+	) => Promise<PluginComment>;
 }
 
 /**
@@ -1385,6 +1446,7 @@ export class PluginContextFactory {
 	private cronReschedule?: () => void;
 	private now: () => Date;
 	private emailPipeline?: EmailPipeline;
+	private commentModerate?: PluginContextFactoryOptions["commentModerate"];
 	/**
 	 * Plugin IDs already warned about a missing media-write backend, so the
 	 * warning fires once per factory instead of on every hook/route context
@@ -1404,6 +1466,7 @@ export class PluginContextFactory {
 		this.cronReschedule = options.cronReschedule;
 		this.now = options.now ?? (() => new Date());
 		this.emailPipeline = options.emailPipeline;
+		this.commentModerate = options.commentModerate;
 	}
 
 	/**
@@ -1503,6 +1566,16 @@ export class PluginContextFactory {
 			users = createUserAccess(db);
 		}
 
+		let comments: CommentAccess | undefined;
+		if (capabilities.has("comments:moderate")) {
+			comments = createCommentAccess(db, (id, status, expectedStatus) => {
+				if (!this.commentModerate) throw new Error("Comment moderation is unavailable");
+				return this.commentModerate(plugin.id, id, status, expectedStatus);
+			});
+		} else if (capabilities.has("comments:read")) {
+			comments = createCommentAccess(db);
+		}
+
 		// Cron access — always available (scoped to plugin), but only if
 		// the runtime provided a reschedule callback (i.e. cron is wired up).
 		let cron: CronAccess | undefined;
@@ -1537,6 +1610,7 @@ export class PluginContextFactory {
 			site: this.site,
 			url: this.urlHelper,
 			users,
+			comments,
 			cron,
 			email,
 		};

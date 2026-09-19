@@ -151,11 +151,31 @@ const plugin: SandboxedPlugin = {
 			}),
 		"comment:afterCreate": async (event, ctx) =>
 			record(ctx, "events", "comment-created", { commentId: event.comment.id }),
-		"comment:afterModerate": async (event, ctx) =>
-			record(ctx, "events", "comment-moderated", {
+		"comment:afterModerate": async (event, ctx) => {
+			await record(ctx, "events", "comment-moderated", {
 				commentId: event.comment.id,
 				status: event.newStatus,
-			}),
+				origin: event.origin,
+			});
+			if (event.comment.moderationMetadata?.slowModeration === true) {
+				await new Promise((resolve) => setTimeout(resolve, 200));
+			}
+			if (
+				event.origin?.source === "plugin" &&
+				event.comment.moderationMetadata?.attemptRecursiveModeration === true
+			) {
+				try {
+					await ctx.comments!.setStatus!(event.comment.id, "spam", {
+						expectedStatus: "approved",
+					});
+				} catch (error) {
+					await record(ctx, "events", "comment-recursion-blocked", {
+						code:
+							typeof error === "object" && error !== null && "code" in error ? error.code : null,
+					});
+				}
+			}
+		},
 		cron: async (event, ctx) =>
 			record(ctx, "events", "cron", { name: event.name, scheduledAt: event.scheduledAt }),
 	},
@@ -182,6 +202,83 @@ const plugin: SandboxedPlugin = {
 			handler: async (_route, ctx) => {
 				const result = await ctx.content!.list("posts");
 				return { count: result.items.length };
+			},
+		},
+		"comments-read": {
+			handler: async (route, ctx) => {
+				if (
+					typeof route.input !== "object" ||
+					route.input === null ||
+					!("id" in route.input) ||
+					typeof route.input.id !== "string"
+				) {
+					throw new Error("Expected a comment id");
+				}
+				return {
+					comment: await ctx.comments!.get(route.input.id),
+					page: await ctx.comments!.list({ limit: 1 }),
+					count: await ctx.comments!.count(),
+				};
+			},
+		},
+		"comments-moderate": {
+			handler: async (route, ctx) => {
+				if (typeof route.input !== "object" || route.input === null) {
+					throw new Error("Expected moderation input");
+				}
+				const id = "id" in route.input && typeof route.input.id === "string" ? route.input.id : "";
+				const status =
+					"status" in route.input &&
+					(route.input.status === "approved" ||
+						route.input.status === "pending" ||
+						route.input.status === "spam")
+						? route.input.status
+						: "pending";
+				const expectedStatus =
+					"expectedStatus" in route.input &&
+					(route.input.expectedStatus === "approved" ||
+						route.input.expectedStatus === "pending" ||
+						route.input.expectedStatus === "spam")
+						? route.input.expectedStatus
+						: "pending";
+				try {
+					return await ctx.comments!.setStatus!(id, status, { expectedStatus });
+				} catch (error) {
+					return {
+						error: {
+							code:
+								typeof error === "object" && error !== null && "code" in error ? error.code : null,
+							currentStatus:
+								typeof error === "object" && error !== null && "currentStatus" in error
+									? error.currentStatus
+									: null,
+						},
+					};
+				}
+			},
+		},
+		"comments-invalid-status": {
+			handler: async (route, ctx) => {
+				if (
+					typeof route.input !== "object" ||
+					route.input === null ||
+					!("id" in route.input) ||
+					typeof route.input.id !== "string"
+				) {
+					throw new Error("Expected a comment id");
+				}
+				try {
+					// @ts-expect-error -- proves the runtime rejects untrusted values that bypass types
+					await ctx.comments!.setStatus!(route.input.id, "trash", {
+						expectedStatus: "pending",
+					});
+					return { rejected: false };
+				} catch (error) {
+					return {
+						rejected: true,
+						message: error instanceof Error ? error.message : String(error),
+					};
+				}
 			},
 		},
 		"taxonomy-create": {

@@ -49,6 +49,10 @@ export type PluginCapability =
 	| "content:read"
 	| "content:revisions:read"
 	| "content:write"
+	// Comments
+	| "comments:read"
+	| "comments:moderate"
+	// Schema
 	| "schema:read"
 	// Taxonomies
 	| "taxonomies:read"
@@ -193,6 +197,7 @@ export interface DeclaredAccess {
 		revisionsRead?: AccessConstraints;
 		write?: AccessConstraints;
 	};
+	comments?: { read?: AccessConstraints; moderate?: AccessConstraints };
 	schema?: { read?: AccessConstraints };
 	taxonomies?: { read?: AccessConstraints; write?: AccessConstraints };
 	redirects?: { read?: AccessConstraints; write?: AccessConstraints };
@@ -227,6 +232,10 @@ export function capabilitiesToDeclaredAccess(
 	if (caps.has("content:read") || caps.has("content:revisions:read") || caps.has("content:write")) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
+	}
+	if (caps.has("comments:read") || caps.has("comments:moderate")) {
+		out.comments = { read: {} };
+		if (caps.has("comments:moderate")) out.comments.moderate = {};
 	}
 	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
 	if (caps.has("schema:read")) out.schema = { read: {} };
@@ -276,13 +285,18 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 	let allowedHosts: string[] = [];
 
 	if (declaredAccess.content?.read) caps.add("content:read");
+	if (declaredAccess.content?.revisionsRead) {
+		caps.add("content:revisions:read");
+		caps.add("content:read");
+	}
 	if (declaredAccess.content?.write) {
 		caps.add("content:write");
 		caps.add("content:read");
 	}
-	if (declaredAccess.content?.revisionsRead) {
-		caps.add("content:revisions:read");
-		caps.add("content:read");
+	if (declaredAccess.comments?.read) caps.add("comments:read");
+	if (declaredAccess.comments?.moderate) {
+		caps.add("comments:moderate");
+		caps.add("comments:read");
 	}
 	if (declaredAccess.schema?.read) caps.add("schema:read");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");

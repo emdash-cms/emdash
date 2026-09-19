@@ -293,6 +293,9 @@ export function adaptSandboxEntry(
 	if (capabilities.includes("media:write") && !capabilities.includes("media:read")) {
 		capabilities.push("media:read");
 	}
+	if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
+		capabilities.push("comments:read");
+	}
 	if (
 		capabilities.includes("network:request:unrestricted") &&
 		!capabilities.includes("network:request")

@@ -383,6 +383,8 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	"content:read": msg`Read your content`,
 	"content:revisions:read": msg`Read retained content revision history`,
 	"content:write": msg`Create, update, and delete content`,
+	"comments:read": msg`Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata`,
+	"comments:moderate": msg`Approve comments and mark them as pending or spam`,
 	"schema:read": msg`Read collection and field definitions`,
 	"taxonomies:read": msg`Read your taxonomies and terms`,
 	"taxonomies:write": msg`Create taxonomy terms and change content classifications`,

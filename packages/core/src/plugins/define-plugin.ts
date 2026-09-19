@@ -158,6 +158,8 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		"content:read",
 		"content:revisions:read",
 		"content:write",
+		"comments:read",
+		"comments:moderate",
 		"schema:read",
 		"taxonomies:read",
 		"taxonomies:write",
@@ -209,6 +211,9 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	}
 	if (canonical.includes("media:write") && !canonical.includes("media:read")) {
 		normalizedCapabilities.push("media:read");
+	}
+	if (canonical.includes("comments:moderate") && !canonical.includes("comments:read")) {
+		normalizedCapabilities.push("comments:read");
 	}
 	if (canonical.includes("redirects:write") && !canonical.includes("redirects:read")) {
 		normalizedCapabilities.push("redirects:read");

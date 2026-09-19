@@ -770,6 +770,50 @@ export interface UserAccess {
 	}>;
 }
 
+export type PluginCommentStatus = "approved" | "pending" | "spam";
+
+/** Comment data exposed by the explicit personal-data `comments:read` capability. */
+export interface PluginComment {
+	id: string;
+	collection: string;
+	contentId: string;
+	parentId: string | null;
+	authorName: string;
+	authorEmail: string;
+	body: string;
+	status: PluginCommentStatus;
+	ipHash: string | null;
+	userAgent: string | null;
+	moderationMetadata: Record<string, unknown> | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface CommentListOptions {
+	status?: PluginCommentStatus;
+	collection?: string;
+	contentId?: string;
+	limit?: number;
+	cursor?: string;
+}
+
+export interface CommentCountOptions {
+	status?: PluginCommentStatus;
+	collection?: string;
+	contentId?: string;
+}
+
+export interface CommentAccess {
+	get(id: string): Promise<PluginComment | null>;
+	list(options?: CommentListOptions): Promise<PaginatedResult<PluginComment>>;
+	count(options?: CommentCountOptions): Promise<number>;
+	setStatus?(
+		id: string,
+		status: PluginCommentStatus,
+		options: { expectedStatus: PluginCommentStatus },
+	): Promise<PluginComment>;
+}
+
 // =============================================================================
 // Plugin Context
 // =============================================================================
@@ -818,6 +862,9 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 
 	/** User access - only if read:users capability */
 	users?: UserAccess;
+
+	/** Comment access — only if comments:read or comments:moderate is declared. */
+	comments?: CommentAccess;
 
 	/** Cron task scheduling - always available, scoped to plugin */
 	cron?: CronAccess;
@@ -1032,6 +1079,8 @@ export interface CommentAfterModerateEvent {
 	newStatus: string;
 	/** The admin who moderated */
 	moderator: { id: string; name: string | null };
+	/** Identifies whether an administrator or a plugin initiated the transition. */
+	origin?: { source: "admin"; userId: string } | { source: "plugin"; pluginId: string };
 }
 
 /**

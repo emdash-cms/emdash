@@ -32,6 +32,8 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `content:read`                      | `ctx.content.get()`, `ctx.content.list()`, `ctx.content.getTranslations()`, `ctx.content.getPublicUrl()` |
 | `content:revisions:read`            | `ctx.content.listRevisions()`, `ctx.content.getRevision()` (implies `content:read`) |
 | `content:write`                     | `ctx.content.create()`, `ctx.content.update()`, `ctx.content.delete()` (implies `content:read`) |
+| `comments:read`                     | `ctx.comments.get()`, `ctx.comments.list()`, `ctx.comments.count()` and comment personal data |
+| `comments:moderate`                 | `ctx.comments.setStatus()` with expected-status concurrency control (implies `comments:read`) |
 | `schema:read`                       | `ctx.schema.listCollections()`, `ctx.schema.getCollection()`                      |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `taxonomies:write`                  | `ctx.taxonomies.createTerm()`, `ctx.taxonomies.addEntryTerms()`, `ctx.taxonomies.removeEntryTerms()` (implies `taxonomies:read`) |
@@ -49,7 +51,7 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 
 The following rules affect which capabilities a plugin needs:
 
-- **Implications.** `content:write` and `content:revisions:read` automatically imply `content:read`; `taxonomies:write` implies `taxonomies:read`; `media:write` implies `media:read`; `redirects:write` implies `redirects:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
+- **Implications.** `content:write` and `content:revisions:read` automatically imply `content:read`; `comments:moderate` implies `comments:read`; `taxonomies:write` implies `taxonomies:read`; `media:write` implies `media:read`; `redirects:write` implies `redirects:read`; `network:request:unrestricted` implies `network:request`. You don't need to list both.
 - **Taxonomies are separate from content.** Taxonomy capabilities do not grant `content:read` or `content:write`. Declare the matching content capability if the plugin also reads or edits entry fields.
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
@@ -130,6 +132,22 @@ if (current) {
 
 Create operations validate path patterns, terminal `410` and `451` rules, duplicate sources, self-loops, and multi-hop loops with the same rules as the EmDash redirect API. Updates apply loop validation when the source or destination changes. An enabled-only update can reactivate a pre-existing loop, which the Redirects page reports. The `auto` marker belongs to redirects created from host content changes; plugin input cannot set it.
 
+### Reading and moderating comments
+
+`comments:read` grants access to non-trashed comments. Results include the author name and email address, comment body, pseudonymous IP hash, user agent, moderation metadata, status, target content IDs, and timestamps. They exclude the linked EmDash user-account ID. Declare `users:read` separately when a plugin also needs to look up user accounts.
+
+`list()` returns newest comments first. It accepts `status`, `collection`, and `contentId` filters, a cursor, and a limit from 1 to 100. The default limit is 50. `count()` accepts the same filters without pagination.
+
+The following route approves a comment only if it is still pending:
+
+```ts title="src/plugin.ts"
+const comment = await ctx.comments!.setStatus!(commentId, "approved", {
+	expectedStatus: "pending",
+});
+```
+
+If another moderator changed the status after the plugin read it, `setStatus()` rejects with `COMMENT_STATUS_CONFLICT`. Read the comment again and recompute the decision before retrying. A request that overlaps an earlier transition before its status is visible rejects with `COMMENT_MODERATION_IN_PROGRESS`; wait for that transition to finish, then read the current comment before retrying. A successful transition runs `comment:afterModerate` once with `origin: { source: "plugin", pluginId }`. Approval sends the same core author notification as an administrator approval. Setting a comment to its current status is a no-op and does not run the hook or send another notification.
+
 ## Network host allowlists
 
 Plugins with `network:request` can only fetch hosts listed in `allowedHosts`. A leading `*.` matches both the named domain and its subdomains:
@@ -152,7 +170,7 @@ When a sandbox runner is active, the runtime enforces:
 
 <Steps>
 
-1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.schema`, `ctx.taxonomies`, `ctx.redirects`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
+1. **Capability gating.** The PluginContext factory only populates `ctx.content`, `ctx.comments`, `ctx.schema`, `ctx.taxonomies`, `ctx.redirects`, `ctx.media`, `ctx.http`, `ctx.users`, `ctx.email` when the corresponding capability is declared. Calling a method on an undeclared capability isn't possible — there's no object there.
 
 2. **Storage and KV scoping.** Every storage and KV operation is scoped to the runtime plugin ID. A plugin can't read another plugin's KV or storage collections, and it can access only collections declared in its manifest.
 

@@ -1,6 +1,7 @@
 export {
 	ContentRepository,
 	CronAccessImpl,
+	createCommentAccess,
 	createContentAccess,
 	createRedirectAccess,
 	createSchemaAccess,

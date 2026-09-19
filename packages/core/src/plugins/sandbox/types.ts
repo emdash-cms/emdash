@@ -14,6 +14,8 @@ import type {
 	ContentCreateOptions,
 	ContentItem,
 	ContentWriteInput,
+	PluginComment,
+	PluginCommentStatus,
 	PluginManifest,
 	RequestMeta,
 	TaxonomyAccessWithWrite,
@@ -69,6 +71,13 @@ export type SandboxEmailSendCallback = (
 	pluginId: string,
 ) => Promise<void>;
 
+export type SandboxCommentModerateCallback = (
+	pluginId: string,
+	id: string,
+	status: PluginCommentStatus,
+	expectedStatus: PluginCommentStatus,
+) => Promise<PluginComment>;
+
 export type SandboxContentCreateCallback = (
 	pluginId: string,
 	collection: string,
@@ -104,6 +113,7 @@ export interface SandboxOptions {
 	};
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
+	commentModerate?: SandboxCommentModerateCallback;
 	/**
 	 * Media storage adapter for sandboxed plugin uploads and deletes.
 	 * When provided, plugins with write:media can upload and delete files
@@ -285,6 +295,7 @@ export interface SandboxRunner {
 	 * doesn't exist when the sandbox runner is constructed.
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void;
+	setCommentModerate?(callback: SandboxCommentModerateCallback | null): void;
 	setContentCreate?(callback: SandboxContentCreateCallback | null): void;
 
 	/** Wake a long-lived scheduler after a sandboxed plugin changes its tasks. */

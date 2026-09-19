@@ -28,6 +28,7 @@ export {
 	createKVAccess,
 	createStorageAccess,
 	createContentAccessWithWrite,
+	createCommentAccess,
 	createRedirectAccess,
 	RedirectAccessError,
 	createSchemaAccess,
@@ -94,6 +95,7 @@ export type {
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
+	SandboxCommentModerateCallback,
 	SandboxContentCreateCallback,
 	ResourceLimits,
 	PluginCodeStorage,
@@ -221,6 +223,11 @@ export type {
 	ModerationDecision,
 	CollectionCommentSettings,
 	StoredComment,
+	PluginComment,
+	PluginCommentStatus,
+	CommentAccess,
+	CommentListOptions,
+	CommentCountOptions,
 
 	// Request metadata types
 	RequestMeta,
