@@ -176,6 +176,13 @@ export class EmailPipeline {
 		}
 
 		if (deliverResult.error) {
+			// The caller (e.g. auth routes) often swallows delivery errors to avoid
+			// leaking whether an email address exists. Log here so the failure and
+			// the responsible provider are always visible in runtime logs.
+			console.error(
+				`[email:deliver] Provider "${deliverResult.pluginId}" failed to send email to "${finalMessage.to}":`,
+				deliverResult.error,
+			);
 			throw deliverResult.error;
 		}
 

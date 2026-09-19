@@ -494,6 +494,40 @@ describe("EmailPipeline", () => {
 		);
 	});
 
+	it("logs delivery errors before propagating them", async () => {
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+		const deliverHandler: EmailDeliverHandler = async () => {
+			throw new Error("binding.send rejected: sender domain not verified");
+		};
+
+		const provider = createTestPlugin({
+			id: "cloudflare-email",
+			capabilities: ["hooks.email-transport:register"],
+			hooks: {
+				"email:deliver": createTestHook("cloudflare-email", deliverHandler, { exclusive: true }),
+			},
+		});
+
+		const hookPipeline = new HookPipeline([provider], { db });
+		hookPipeline.setExclusiveSelection("email:deliver", "cloudflare-email");
+
+		const emailPipeline = new EmailPipeline(hookPipeline);
+		await expect(
+			emailPipeline.send(createTestMessage({ to: "admin@example.com" }), "system"),
+		).rejects.toThrow("binding.send rejected: sender domain not verified");
+
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining('[email:deliver] Provider "cloudflare-email" failed'),
+			expect.objectContaining({ message: "binding.send rejected: sender domain not verified" }),
+		);
+		expect(errorSpy).toHaveBeenCalledWith(
+			expect.stringContaining("admin@example.com"),
+			expect.anything(),
+		);
+
+		errorSpy.mockRestore();
+	});
+
 	it("afterSend errors do not propagate to caller", async () => {
 		const deliverHandler: EmailDeliverHandler = async () => {};
 		const afterSendHandler: EmailAfterSendHandler = async () => {
