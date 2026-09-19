@@ -15,6 +15,7 @@ export default defineConfig({
 		"src/image-endpoint.ts",
 		"src/auth/index.ts",
 		"src/sandbox/index.ts",
+		"src/sandbox/bridge.ts",
 		"src/worker.ts",
 		"src/plugins/index.ts",
 		// Standalone entry: cloudflareEmail() descriptors reference this module
