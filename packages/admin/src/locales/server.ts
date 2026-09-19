@@ -28,7 +28,11 @@ const TOOLBAR_MESSAGES = {
 
 function resolveToolbarMessage(messages: Messages, descriptor: MessageDescriptor): string {
 	const translated = descriptor.id ? messages[descriptor.id] : undefined;
-	return typeof translated === "string" ? translated : (descriptor.message ?? "");
+	if (typeof translated === "string") return translated;
+	if (Array.isArray(translated) && translated.every((token) => typeof token === "string")) {
+		return translated.join("");
+	}
+	return descriptor.message ?? "";
 }
 
 export function translateVisualEditingToolbarLabels(
