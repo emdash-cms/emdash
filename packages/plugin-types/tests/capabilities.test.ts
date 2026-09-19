@@ -116,6 +116,23 @@ describe("declaredAccess facet mapping", () => {
 		]);
 	});
 
+	it("validates redirect write access and derives its read implication", () => {
+		const parsed = reconcileManifestAccess(
+			pluginManifestSchema.parse({
+				id: "redirect-manager",
+				version: "1.0.0",
+				declaredAccess: { redirects: { write: {} } },
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			}),
+		);
+		expect(new Set(parsed.capabilities)).toEqual(new Set(["redirects:read", "redirects:write"]));
+	});
+
 	it("maps each hook-registration capability to its participation facet", () => {
 		expect(capabilitiesToDeclaredAccess(["hooks.email-transport:register"], [])).toEqual({
 			email: { transport: {} },
@@ -137,6 +154,24 @@ describe("declaredAccess facet mapping", () => {
 			"taxonomies:write",
 			"taxonomies:read",
 		]);
+		expect(capabilitiesToDeclaredAccess(["redirects:write"], [])).toEqual({
+			redirects: { read: {}, write: {} },
+		});
+	});
+
+	it("maps schema and revision reads without granting revision history to content read", () => {
+		expect(capabilitiesToDeclaredAccess(["schema:read"], [])).toEqual({
+			schema: { read: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["content:read"], [])).toEqual({
+			content: { read: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["content:revisions:read"], [])).toEqual({
+			content: { read: {}, revisionsRead: {} },
+		});
+		expect(
+			new Set(declaredAccessToCapabilities({ content: { revisionsRead: {} } }).capabilities),
+		).toEqual(new Set(["content:read", "content:revisions:read"]));
 	});
 
 	it("distinguishes host-restricted from unrestricted network", () => {
@@ -184,9 +219,16 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 	// can reach a published manifest. Every one must round-trip to identity --
 	// the guard that the two representations are isomorphic, so the consent list
 	// always equals the capability set the runtime enforces.
-	const contentChoices = [[], ["content:read"], ["content:read", "content:write"]];
+	const contentChoices = [
+		[],
+		["content:read"],
+		["content:read", "content:write"],
+		["content:read", "content:revisions:read"],
+		["content:read", "content:write", "content:revisions:read"],
+	];
 	const mediaChoices = [[], ["media:read"], ["media:read", "media:write"]];
 	const taxonomyChoices = [[], ["taxonomies:read"], ["taxonomies:read", "taxonomies:write"]];
+	const redirectChoices = [[], ["redirects:read"], ["redirects:read", "redirects:write"]];
 	const networkChoices: { caps: string[]; hosts: string[] }[] = [
 		{ caps: [], hosts: [] },
 		{ caps: ["network:request", "network:request:unrestricted"], hosts: [] },
@@ -202,19 +244,29 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		"hooks.email-transport:register",
 		"hooks.page-fragments:register",
 		"users:read",
+		"schema:read",
 	];
 
 	function* states() {
 		for (const content of contentChoices) {
 			for (const media of mediaChoices) {
 				for (const taxonomies of taxonomyChoices) {
-					for (const network of networkChoices) {
-						for (let mask = 0; mask < 1 << singletonFacets.length; mask++) {
-							const extra = singletonFacets.filter((_, i) => mask & (1 << i));
-							yield {
-								capabilities: [...content, ...media, ...taxonomies, ...network.caps, ...extra],
-								allowedHosts: network.hosts,
-							};
+					for (const redirects of redirectChoices) {
+						for (const network of networkChoices) {
+							for (let mask = 0; mask < 1 << singletonFacets.length; mask++) {
+								const extra = singletonFacets.filter((_, i) => mask & (1 << i));
+								yield {
+									capabilities: [
+										...content,
+										...media,
+										...taxonomies,
+										...redirects,
+										...network.caps,
+										...extra,
+									],
+									allowedHosts: network.hosts,
+								};
+							}
 						}
 					}
 				}
@@ -232,7 +284,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 3 content x 3 media x 3 taxonomy x 5 network x 2^5 singleton subsets.
-		expect(count).toBe(4320);
+		// 5 content x 3 media x 3 taxonomy x 3 redirects x 5 network x 2^6 singleton subsets.
+		expect(count).toBe(43_200);
 	});
 });

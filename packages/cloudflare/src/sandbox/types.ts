@@ -8,9 +8,18 @@ import type {
 	ConditionalWriteResult,
 	ContentCreateOptions,
 	ContentListOptions,
+	ContentRevisionInfo,
+	ContentTranslationSummary,
+	CollectionSchemaInfo,
 	CronTaskInfo,
+	PaginatedResult,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectUpdateInput,
 	UpdateIfArgs,
 	UpdateIfResult,
+	VersionedRedirect,
 	VersionedValue,
 } from "emdash";
 
@@ -183,6 +192,10 @@ export type StorageUpdateIfResponse =
 	| UpdateIfResult<unknown>
 	| { __emdashStorageError: StorageSerializationFailureDetails };
 
+export type RedirectBridgeResult<T> =
+	| { ok: true; value: T }
+	| { ok: false; error: { code: string; message: string } };
+
 /**
  * Type for the PluginBridge binding passed to sandboxed workers.
  * This is the RPC interface exposed by PluginBridge WorkerEntrypoint.
@@ -239,13 +252,40 @@ export interface PluginBridgeBinding {
 		collection: string,
 		data: Record<string, unknown>,
 		options?: ContentCreateOptions,
-	): Promise<BridgeContentItem>;
+		originHook?: string,
+	): Promise<
+		| BridgeContentItem
+		| {
+				__emdashContentCreateError: true;
+				error: {
+					code: "CONFLICT" | "NOT_FOUND" | "SAVE_REJECTED" | "VALIDATION_ERROR";
+					message: string;
+				};
+		  }
+	>;
 	contentUpdate(
 		collection: string,
 		id: string,
 		data: Record<string, unknown>,
 	): Promise<BridgeContentItem>;
 	contentDelete(collection: string, id: string): Promise<boolean>;
+	contentTranslations(
+		collection: string,
+		id: string,
+	): Promise<{ translationGroup: string; translations: ContentTranslationSummary[] }>;
+	contentPublicUrl(collection: string, id: string): Promise<string | null>;
+	contentListRevisions(
+		collection: string,
+		id: string,
+		options?: { limit?: number },
+	): Promise<ContentRevisionInfo[]>;
+	contentGetRevision(
+		collection: string,
+		id: string,
+		revisionId: string,
+	): Promise<ContentRevisionInfo | null>;
+	schemaListCollections(): Promise<CollectionSchemaInfo[]>;
+	schemaGetCollection(slug: string): Promise<CollectionSchemaInfo | null>;
 	// Taxonomies
 	taxonomyList(opts?: { locale?: string }): Promise<BridgeTaxonomyDef[]>;
 	taxonomyTerms(taxonomy: string, opts?: { locale?: string }): Promise<BridgeTaxonomyTerm[]>;
@@ -277,6 +317,17 @@ export interface PluginBridgeBinding {
 		taxonomy: string,
 		termIds: string[],
 	): Promise<BridgeTaxonomyTerm[]>;
+	// Redirects
+	redirectList(
+		opts?: RedirectListOptions,
+	): Promise<RedirectBridgeResult<PaginatedResult<RedirectInfo>>>;
+	redirectGet(id: string): Promise<RedirectBridgeResult<VersionedRedirect | null>>;
+	redirectCreate(input: RedirectCreateInput): Promise<RedirectBridgeResult<VersionedRedirect>>;
+	redirectUpdate(
+		id: string,
+		input: RedirectUpdateInput & { _rev: string },
+	): Promise<RedirectBridgeResult<VersionedRedirect>>;
+	redirectDelete(id: string, revision: string): Promise<RedirectBridgeResult<boolean>>;
 	// Media
 	mediaGet(id: string): Promise<BridgeMediaItem | null>;
 	mediaList(opts?: {

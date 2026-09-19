@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160文字"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:421
 msgid "{base} to: {0}"
 msgstr "{base}（接続先：{0}）"
 
@@ -763,8 +763,8 @@ msgstr "アクセスが拒否されました"
 msgid "Access Denied"
 msgstr "アクセスが拒否されました"
 
-#: packages/admin/src/lib/api/marketplace.ts:386
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Access your media library"
 msgstr "メディアライブラリへのアクセス"
 
@@ -1862,6 +1862,10 @@ msgstr ""
 msgid "Change schedule"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:389
+msgid "Change where visitors are sent"
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginDetail.tsx:879
 msgid "Changelog"
 msgstr "更新履歴"
@@ -2687,8 +2691,8 @@ msgstr "最初のコンテンツを作成しましょう"
 msgid "Create your first reusable content section to get started."
 msgstr "最初のセクションを作成しましょう。"
 
-#: packages/admin/src/lib/api/marketplace.ts:384
-#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Create, update, and delete content"
 msgstr "コンテンツの作成、更新、削除"
 
@@ -5957,13 +5961,13 @@ msgstr "メインライブラリ"
 msgid "Main Sidebar"
 msgstr "メインサイドバー"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Make network requests"
 msgstr "ネットワークリクエストを実行"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:402
 msgid "Make network requests to any host (unrestricted)"
 msgstr "任意のホストへネットワークリクエストを実行（制限なし）"
 
@@ -7703,6 +7707,10 @@ msgstr "引用"
 msgid "Raw meta"
 msgstr "未加工のメタデータ"
 
+#: packages/admin/src/lib/api/marketplace.ts:386
+msgid "Read collection and field definitions"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "コンテンツタイプの構造を参照する"
@@ -7715,21 +7723,29 @@ msgstr "コンテンツを取得する"
 msgid "Read media files"
 msgstr "メディアファイルを取得する"
 
+#: packages/admin/src/lib/api/marketplace.ts:388
+msgid "Read redirect rules"
+msgstr ""
+
+#: packages/admin/src/lib/api/marketplace.ts:384
+msgid "Read retained content revision history"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
 msgstr "サイト設定を参照する"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Read user accounts"
 msgstr "ユーザーアカウントを読み取る"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Read your content"
 msgstr "コンテンツを読み取る"
 
-#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:387
 msgid "Read your taxonomies and terms"
 msgstr "分類グループと分類項目を読み取る"
 
@@ -10377,8 +10393,8 @@ msgstr "画像をアップロードしましょう"
 msgid "Upload and delete media"
 msgstr "メディアをアップロード・削除する"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Upload and manage media"
 msgstr "メディアをアップロードして管理"
 

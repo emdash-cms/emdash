@@ -44,7 +44,7 @@
 		"@changesets/changelog-github": "^1.0.1",
 		"@changesets/cli": "^3.0.2",
 		"@e18e/eslint-plugin": "^0.5.1",
-		"@lunariajs/core": "https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc",
+		"@lunariajs/core": "^0.2.0",
 		"@playwright/test": "^1.61.1",
 		"@types/node": "catalog:",
 		"@typescript/native-preview": "7.0.0-dev.20260421.2",

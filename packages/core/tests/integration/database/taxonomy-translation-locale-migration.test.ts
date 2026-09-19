@@ -17,7 +17,7 @@ describeEachDialect("taxonomy translation locale uniqueness migration", (dialect
 		ctx = await createForDialect(dialect);
 		const { error } = await createMigrator(ctx.db, {
 			migrationTableSchema: ctx.pgCtx?.schemaName,
-		}).migrateTo("079_datetime_normalization");
+		}).migrateTo("081_redirect_write_guards");
 		if (error) throw error;
 	});
 

@@ -16,8 +16,15 @@ import type {
 	CronTaskInfo,
 	Database,
 	I18nConfig,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectUpdateInput,
+	PluginContentItem,
+	SandboxContentCreateCallback,
 	SandboxEmailSendCallback,
 	TaxonomyAccessWithWrite,
+	VersionedRedirect,
 	VersionedValue,
 } from "emdash";
 import type {
@@ -29,7 +36,7 @@ import type {
 } from "emdash/plugins/host";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
-import type { StorageUpdateIfResponse } from "./types.js";
+import type { RedirectBridgeResult, StorageUpdateIfResponse } from "./types.js";
 
 let bridgeRuntimePromise: Promise<typeof import("./bridge-runtime.js")> | undefined;
 
@@ -73,9 +80,34 @@ const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
  * @see runner.ts setEmailSendCallback()
  */
 let emailSendCallback: SandboxEmailSendCallback | null = null;
+const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
+const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
-let taxonomyWriteCallback: TaxonomyAccessWithWrite | null = null;
+
+function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[CONTENT_CREATE_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, SandboxContentCreateCallback>;
+	}
+	const callbacks = new Map<string, SandboxContentCreateCallback>();
+	store[CONTENT_CREATE_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
+
+function taxonomyWriteCallbacks(): Map<string, TaxonomyAccessWithWrite> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[TAXONOMY_WRITE_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, TaxonomyAccessWithWrite>;
+	}
+	const callbacks = new Map<string, TaxonomyAccessWithWrite>();
+	store[TAXONOMY_WRITE_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
 
 /**
  * Set the email send callback for all bridge instances.
@@ -83,6 +115,14 @@ let taxonomyWriteCallback: TaxonomyAccessWithWrite | null = null;
  */
 export function setEmailSendCallback(callback: SandboxEmailSendCallback | null): void {
 	emailSendCallback = callback;
+}
+
+export function setContentCreateCallback(
+	runtimeId: string,
+	callback: SandboxContentCreateCallback | null,
+): void {
+	if (callback) contentCreateCallbacks().set(runtimeId, callback);
+	else contentCreateCallbacks().delete(runtimeId);
 }
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
@@ -93,8 +133,12 @@ export function setCronNowCallback(callback: (() => Date) | null): void {
 	cronNowCallback = callback;
 }
 
-export function setTaxonomyWriteCallback(callback: TaxonomyAccessWithWrite | null): void {
-	taxonomyWriteCallback = callback;
+export function setTaxonomyWriteCallback(
+	runtimeId: string,
+	callback: TaxonomyAccessWithWrite | null,
+): void {
+	if (callback) taxonomyWriteCallbacks().set(runtimeId, callback);
+	else taxonomyWriteCallbacks().delete(runtimeId);
 }
 
 function serializeValue(value: unknown): unknown {
@@ -129,6 +173,11 @@ function rowToContentItem(collection: string, row: Record<string, unknown>) {
 		locale: typeof row.locale === "string" ? row.locale : "en",
 		publishedAt: typeof row.published_at === "string" ? row.published_at : null,
 		scheduledAt: typeof row.scheduled_at === "string" ? row.scheduled_at : null,
+		authorId: columnNullableString(row.author_id),
+		translationGroup: columnNullableString(row.translation_group),
+		liveRevisionId: columnNullableString(row.live_revision_id),
+		draftRevisionId: columnNullableString(row.draft_revision_id),
+		version: typeof row.version === "number" ? row.version : Number(row.version) || 1,
 	};
 }
 
@@ -197,6 +246,18 @@ function rowToTaxonomyTerm(row: Record<string, unknown>): {
 	};
 }
 
+async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<RedirectBridgeResult<T>> {
+	try {
+		return { ok: true, value: await action() };
+	} catch (error) {
+		const { RedirectAccessError } = await loadBridgeRuntime();
+		if (error instanceof RedirectAccessError) {
+			return { ok: false, error: { code: error.code, message: error.message } };
+		}
+		throw error;
+	}
+}
+
 /**
  * Environment bindings required by PluginBridge
  */
@@ -214,7 +275,15 @@ export interface PluginBridgeProps {
 	capabilities: string[];
 	allowedHosts: string[];
 	storageCollections: string[];
+	contentCreateRuntimeId?: string;
+	taxonomyWriteRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
+	siteInfo?: {
+		name: string;
+		url: string;
+		locale: string;
+		trailingSlash?: "always" | "never" | "ignore";
+	};
 	/** Per-collection storage config (matches manifest.storage entries) */
 	storageConfig?: Record<
 		string,
@@ -234,6 +303,31 @@ export interface PluginBridgeProps {
  * 3. Plugins call bridge methods which validate and proxy to the database
  */
 export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridgeProps> {
+	private async db() {
+		const { D1Dialect, Kysely } = await loadBridgeRuntime();
+		return new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+	}
+
+	private requireCapability(capability: string): void {
+		if (!this.ctx.props.capabilities.includes(capability)) {
+			throw new Error(`Missing capability: ${capability}`);
+		}
+	}
+
+	private validateCollection(collection: string): void {
+		if (!COLLECTION_NAME_REGEX.test(collection)) {
+			throw new Error(`Invalid collection name: ${collection}`);
+		}
+	}
+
+	private async contentAccess() {
+		const { createContentAccess } = await loadBridgeRuntime();
+		return createContentAccess(await this.db(), {
+			site: this.ctx.props.siteInfo,
+			revisions: this.ctx.props.capabilities.includes("content:revisions:read"),
+		});
+	}
+
 	private async getOptionsRepo(): Promise<OptionsRepository> {
 		const { D1Dialect, Kysely, OptionsRepository } = await loadBridgeRuntime();
 		return new OptionsRepository(
@@ -633,7 +727,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		const { createContentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
 		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
 		try {
-			return await createContentAccess(db).get(collection, id);
+			return await createContentAccess(db, {
+				site: this.ctx.props.siteInfo,
+				revisions: capabilities.includes("content:revisions:read"),
+			}).get(collection, id);
 		} catch {
 			const row = await this.env.DB.prepare(
 				`SELECT * FROM ec_${collection} WHERE id = ? AND deleted_at IS NULL`,
@@ -658,14 +755,64 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 		const { createContentAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
 		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
-		return createContentAccess(db).list(collection, opts);
+		return createContentAccess(db, {
+			site: this.ctx.props.siteInfo,
+			revisions: capabilities.includes("content:revisions:read"),
+		}).list(collection, opts);
+	}
+
+	async contentTranslations(collection: string, id: string) {
+		this.requireCapability("content:read");
+		this.validateCollection(collection);
+		return (await this.contentAccess()).getTranslations!(collection, id);
+	}
+
+	async contentPublicUrl(collection: string, id: string) {
+		this.requireCapability("content:read");
+		this.validateCollection(collection);
+		return (await this.contentAccess()).getPublicUrl!(collection, id);
+	}
+
+	async contentListRevisions(collection: string, id: string, options?: { limit?: number }) {
+		this.requireCapability("content:revisions:read");
+		this.validateCollection(collection);
+		return (await this.contentAccess()).listRevisions!(collection, id, options);
+	}
+
+	async contentGetRevision(collection: string, id: string, revisionId: string) {
+		this.requireCapability("content:revisions:read");
+		this.validateCollection(collection);
+		return (await this.contentAccess()).getRevision!(collection, id, revisionId);
+	}
+
+	async schemaListCollections() {
+		this.requireCapability("schema:read");
+		const { createSchemaAccess } = await loadBridgeRuntime();
+		return createSchemaAccess(await this.db()).listCollections();
+	}
+
+	async schemaGetCollection(slug: string) {
+		this.requireCapability("schema:read");
+		this.validateCollection(slug);
+		const { createSchemaAccess } = await loadBridgeRuntime();
+		return createSchemaAccess(await this.db()).getCollection(slug);
 	}
 
 	async contentCreate(
 		collection: string,
 		data: Record<string, unknown>,
 		options?: ContentCreateOptions,
-	): Promise<ReturnType<typeof rowToContentItem>> {
+		originHookInput?: string,
+	): Promise<
+		| PluginContentItem
+		| {
+				__emdashContentCreateError: true;
+				error: {
+					code: "CONFLICT" | "NOT_FOUND" | "SAVE_REJECTED" | "VALIDATION_ERROR";
+					message: string;
+				};
+		  }
+	> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("content:write")) {
 			throw new Error("Missing capability: content:write");
@@ -674,8 +821,52 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error(`Invalid collection name: ${collection}`);
 		}
 		const { resolveContentCreateLocale, ulid } = await loadBridgeRuntime();
-		const locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
+		let locale: string;
+		try {
+			locale = resolveContentCreateLocale(options?.locale, this.ctx.props.i18nConfig ?? null);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : "Invalid locale";
+			return {
+				__emdashContentCreateError: true,
+				error: { code: "VALIDATION_ERROR", message },
+			};
+		}
 		await this.assertMediaUsageActivationWriteAllowed();
+		const runtimeContentCreate = this.ctx.props.contentCreateRuntimeId
+			? contentCreateCallbacks().get(this.ctx.props.contentCreateRuntimeId)
+			: undefined;
+		if (runtimeContentCreate) {
+			const originHook =
+				originHookInput === "content:beforeSave" || originHookInput === "content:afterSave"
+					? originHookInput
+					: undefined;
+			try {
+				return await runtimeContentCreate(this.ctx.props.pluginId, collection, data, {
+					locale,
+					translationOf: options?.translationOf,
+					originHook,
+					sandboxOrigin: true,
+				});
+			} catch (error) {
+				const code =
+					typeof error === "object" && error !== null && "code" in error ? error.code : undefined;
+				if (
+					code === "CONFLICT" ||
+					code === "NOT_FOUND" ||
+					code === "SAVE_REJECTED" ||
+					code === "VALIDATION_ERROR"
+				) {
+					return {
+						__emdashContentCreateError: true,
+						error: {
+							code,
+							message: error instanceof Error ? error.message : "Content create failed",
+						},
+					};
+				}
+				throw error;
+			}
+		}
 		const id = ulid();
 		const now = new Date().toISOString();
 		const columns = [
@@ -898,8 +1089,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		taxonomy: string,
 		input: Parameters<TaxonomyAccessWithWrite["createTerm"]>[1],
 	) {
-		this.assertTaxonomyWriteAllowed();
-		return taxonomyWriteCallback!.createTerm(taxonomy, input);
+		return this.getTaxonomyWriteAccess().createTerm(taxonomy, input);
 	}
 
 	async taxonomyAddEntryTerms(
@@ -908,8 +1098,7 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		taxonomy: string,
 		termIds: string[],
 	) {
-		this.assertTaxonomyWriteAllowed();
-		return taxonomyWriteCallback!.addEntryTerms(collection, entryId, taxonomy, termIds);
+		return this.getTaxonomyWriteAccess().addEntryTerms(collection, entryId, taxonomy, termIds);
 	}
 
 	async taxonomyRemoveEntryTerms(
@@ -918,15 +1107,80 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		taxonomy: string,
 		termIds: string[],
 	) {
-		this.assertTaxonomyWriteAllowed();
-		return taxonomyWriteCallback!.removeEntryTerms(collection, entryId, taxonomy, termIds);
+		return this.getTaxonomyWriteAccess().removeEntryTerms(collection, entryId, taxonomy, termIds);
 	}
 
-	private assertTaxonomyWriteAllowed(): void {
+	private getTaxonomyWriteAccess(): TaxonomyAccessWithWrite {
 		if (!this.ctx.props.capabilities.includes("taxonomies:write")) {
 			throw new Error("Missing capability: taxonomies:write");
 		}
-		if (!taxonomyWriteCallback) throw new Error("Taxonomy mutations are not available");
+		const runtimeId = this.ctx.props.taxonomyWriteRuntimeId;
+		const access = runtimeId ? taxonomyWriteCallbacks().get(runtimeId) : undefined;
+		if (!access) throw new Error("Taxonomy mutations are not available");
+		return access;
+	}
+
+	// =========================================================================
+	// Redirect Operations - runtime-owned, capability-gated
+	// =========================================================================
+
+	async redirectList(
+		options: RedirectListOptions = {},
+	): Promise<RedirectBridgeResult<PaginatedResult<RedirectInfo>>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:read")) {
+			throw new Error("Missing capability: redirects:read");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db).list(options));
+	}
+
+	async redirectGet(id: string): Promise<RedirectBridgeResult<VersionedRedirect | null>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:read")) {
+			throw new Error("Missing capability: redirects:read");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db).get(id));
+	}
+
+	async redirectCreate(
+		input: RedirectCreateInput,
+	): Promise<RedirectBridgeResult<VersionedRedirect>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db, true).create(input));
+	}
+
+	async redirectUpdate(
+		id: string,
+		input: RedirectUpdateInput & { _rev: string },
+	): Promise<RedirectBridgeResult<VersionedRedirect>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() => createRedirectAccess(db, true).update(id, input));
+	}
+
+	async redirectDelete(id: string, revision: string): Promise<RedirectBridgeResult<boolean>> {
+		const { capabilities } = this.ctx.props;
+		if (!capabilities.includes("redirects:write")) {
+			throw new Error("Missing capability: redirects:write");
+		}
+		const { createRedirectAccess, D1Dialect, Kysely } = await loadBridgeRuntime();
+		const db = new Kysely<Database>({ dialect: new D1Dialect({ database: this.env.DB }) });
+		return redirectBridgeResult(() =>
+			createRedirectAccess(db, true).delete(id, { _rev: revision }),
+		);
 	}
 
 	// =========================================================================

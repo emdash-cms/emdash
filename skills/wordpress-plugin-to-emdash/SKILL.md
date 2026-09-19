@@ -1,297 +1,90 @@
 ---
 name: wordpress-plugin-to-emdash
-description: Port a WordPress plugin to EmDash CMS. Use this skill when asked to migrate, convert, or port a WordPress plugin, theme functionality, or custom post type to EmDash. Provides concept mapping and implementation patterns.
+description: Analyze and port WordPress plugin behavior, custom post types, shortcodes, admin workflows, and stored data to current EmDash extension points. Use for WordPress-plugin migrations or when deciding which behavior belongs in an EmDash plugin, site schema, seed, or Astro code. Do not use for visual theme ports without plugin functionality.
 ---
 
-# Porting WordPress Plugins to EmDash
+# Port a WordPress plugin to EmDash
 
-This skill maps WordPress concepts to their EmDash equivalents for plugin porting. For general plugin authoring details (plugin structure, `definePlugin()`, hooks, storage, admin UI, etc.), use the **creating-plugins** skill.
+Preserve the plugin's user-visible behavior and data model without translating PHP line by line. WordPress and EmDash divide responsibilities differently, so first decide whether each feature belongs in site schema, Astro code, a sandboxed plugin, or a trusted native plugin.
 
-## Migration Approach
+Load [creating-plugins](../creating-plugins/SKILL.md) before implementing plugin code. Load [building-emdash-site](../building-emdash-site/SKILL.md) when the port changes collections, seeds, queries, or frontend templates. Those skills define the current APIs; this skill covers migration decisions.
 
-1. **Understand the plugin** — What does it do, not how
-2. **Identify concepts** — Content types, admin pages, hooks, shortcodes
-3. **Map to EmDash** — Use the tables below
-4. **Implement in TypeScript** — Clean room, not line-by-line port. Use the **creating-plugins** skill for implementation details.
-5. **Test behaviour** — Same result, different implementation
+## Understand the source
 
-## Concept Mapping
+Inspect the plugin source, installation behavior, database changes, hooks, REST endpoints, scheduled work, admin screens, shortcodes or blocks, frontend output, permissions, and external services. Identify behavior that users rely on separately from WordPress-specific implementation.
 
-### Content & Data
+Record:
 
-| WordPress               | EmDash                                    | Notes                                         |
-| ----------------------- | ----------------------------------------- | --------------------------------------------- |
-| `register_post_type()`  | `SchemaRegistry.createCollection()`       | Via Admin API or seed file                    |
-| `register_taxonomy()`   | `_emdash_taxonomy_defs` table             | Hierarchical or flat, attached to collections |
-| `register_meta()` / ACF | Collection fields via SchemaRegistry      | All become typed schema fields                |
-| `get_post_meta()`       | `entry.data.fieldName`                    | Direct typed access                           |
-| `get_option()`          | `getSiteSetting()` / `ctx.kv`             | Site settings or plugin-namespaced KV         |
-| `WP_Query`              | `getEmDashCollection()`                   | Runtime queries with filters                  |
-| `get_post($id)`         | `getEmDashEntry(collection, slug)`        | Returns entry or null                         |
-| `wp_insert_post()`      | `POST /_emdash/api/content/{type}`        | REST API                                      |
-| `wp_update_post()`      | `PUT /_emdash/api/content/{type}/{id}`    | REST API                                      |
-| `wp_delete_post()`      | `DELETE /_emdash/api/content/{type}/{id}` | Soft delete                                   |
-| Custom tables           | Plugin storage collections                | `ctx.storage.collectionName.put/get/query`    |
+- required content and configuration data;
+- actions that mutate or publish data;
+- authorization and trust boundaries;
+- background or retry behavior;
+- frontend and administrator interactions;
+- import, migration, and rollback needs;
+- license obligations for copied assets or code.
 
-### Site Configuration
+If the source, expected behavior, or target EmDash environment is missing, report the gap instead of inventing an equivalent.
 
-| WordPress                | EmDash                      | Notes                                    |
-| ------------------------ | --------------------------- | ---------------------------------------- |
-| `get_bloginfo('name')`   | `getSiteSetting('title')`   | From `options` table with `site:` prefix |
-| `get_option('blogdesc')` | `getSiteSetting('tagline')` | Site settings API                        |
-| Theme Customizer         | Site Settings admin page    | `/_emdash/admin/settings`                |
-| `site_icon`              | `getSiteSetting('favicon')` | Media reference                          |
-| `custom_logo`            | `getSiteSetting('logo')`    | Media reference                          |
+## Assign each responsibility
 
-### Navigation Menus
+| WordPress responsibility                            | EmDash destination                                                                                           |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| Custom post type, taxonomy, or metadata             | Collection, taxonomy, and fields created through the site schema or seed                                     |
+| Site-wide presentation setting                      | Site setting read by Astro templates                                                                         |
+| Plugin-owned small settings or state                | Plugin-scoped `ctx.kv`                                                                                       |
+| Plugin-owned queryable records                      | Declared `ctx.storage.<collection>` storage                                                                  |
+| Content, media, comment, email, or lifecycle action | Supported plugin hook with the required declared access                                                      |
+| WordPress REST endpoint                             | Plugin route; private by default, with explicit permission and public access only when required              |
+| Scheduled event                                     | `cron` hook and `ctx.cron` scheduling                                                                        |
+| Admin page or form                                  | Block Kit for sandboxed plugins; React only for a trusted native plugin                                      |
+| User or author lookup                               | `ctx.users` with `users:read`                                                                                |
+| Outbound HTTP request                               | `ctx.http.fetch()` with `network:request` and an `allowedHosts` entry                                        |
+| Media operation                                     | `ctx.media` with the corresponding media capability                                                          |
+| `WP_Query` or template tag                          | EmDash content API in Astro site code                                                                        |
+| Shortcode or editor block                           | Existing Portable Text content where possible; a custom Portable Text block requires a trusted native plugin |
+| Raw head markup or scripts                          | Trusted native `page:fragments`; registry-installed plugins can contribute validated `page:metadata` only    |
 
-| WordPress              | EmDash                                  | Notes                               |
-| ---------------------- | --------------------------------------- | ----------------------------------- |
-| `register_nav_menu()`  | Create menu via admin or seed           | `_emdash_menus` table               |
-| `wp_nav_menu()`        | `getMenu(name)`                         | Returns `{ items: MenuItem[] }`     |
-| `wp_nav_menu_item`     | `_emdash_menu_items` table              | Type: custom, page, post, taxonomy  |
-| `_menu_item_object_id` | `reference_id` + `reference_collection` | Links to content entries            |
-| Menu locations         | Query by name in templates              | No locations concept — direct query |
+Do not create collections or taxonomies by reaching into EmDash system tables. Use the public schema, seed, CLI, or admin boundary. Do not use internal REST routes to imitate a sandbox API that does not exist.
 
-### Taxonomies
+## Choose the plugin format
 
-| WordPress             | EmDash                                  | Notes                          |
-| --------------------- | --------------------------------------- | ------------------------------ |
-| `register_taxonomy()` | `_emdash_taxonomy_defs` table           | Define via admin, seed, or API |
-| `get_terms()`         | `getTaxonomyTerms(name)`                | Returns tree for hierarchical  |
-| `get_the_terms()`     | `getEntryTerms(collection, id, name)`   | Terms for specific entry       |
-| `wp_set_post_terms()` | `TaxonomyRepository.setTermsForEntry()` | Replace terms for entry        |
-| Hierarchical taxonomy | `hierarchical: true` in definition      | Categories-style               |
-| Flat taxonomy         | `hierarchical: false`                   | Tags-style                     |
+Use a sandboxed plugin by default. It supports portable hooks, routes, declared storage, media, network access, MCP tools, and Block Kit admin UI through an install-time trust contract.
 
-### Widgets & Sidebars
+Use a trusted native plugin only when the feature requires host-process access, React admin code, Astro rendering components, raw page fragments, or custom Portable Text block definitions. State the extra authority and distribution limitation in the migration plan.
 
-| WordPress            | EmDash                                 | Notes                           |
-| -------------------- | -------------------------------------- | ------------------------------- |
-| `register_sidebar()` | `_emdash_widget_areas` table           | Create via admin or seed        |
-| `dynamic_sidebar()`  | `getWidgetArea(name)`                  | Returns `{ widgets: Widget[] }` |
-| `WP_Widget` class    | Widget types: content, menu, component | Simplified — 3 types only       |
-| Text widget          | `type: 'content'` + Portable Text      | Rich text widget                |
-| Nav Menu widget      | `type: 'menu'` + `menuName`            | References a menu               |
-| Custom widgets       | `type: 'component'` + `componentId`    | Plugin-registered components    |
+Some WordPress plugins do not need an EmDash plugin. A custom post type plus frontend templates may become only schema, seed data, and Astro pages. Do not add a runtime extension when static site structure covers the behavior.
 
-### Admin UI
+## Plan data movement
 
-| WordPress                | EmDash                            | Notes                                    |
-| ------------------------ | --------------------------------- | ---------------------------------------- |
-| `add_menu_page()`        | `admin.pages` in `definePlugin()` | Plugin config                            |
-| `add_submenu_page()`     | Nested admin pages                | Parent determines hierarchy              |
-| `add_settings_section()` | `admin.settingsSchema`            | Auto-generated settings page             |
-| `add_meta_box()`         | Field groups in collection schema | UI config in schema                      |
-| `wp_enqueue_script()`    | ESM imports in admin components   | React (trusted) or Block Kit (sandboxed) |
-| Admin notices            | Toast notifications               | Via admin UI framework                   |
+Describe how existing WordPress data maps before writing runtime code:
 
-### Hooks
+- map post IDs, slugs, locales, authors, statuses, revisions, and publication dates;
+- preserve relationships between posts, terms, media, and plugin-owned records;
+- distinguish a one-time import from data that must continue syncing;
+- make imports restartable and define how duplicates are detected;
+- keep source identifiers when they are needed for reconciliation or redirects;
+- identify content that cannot be represented without a product decision.
 
-| WordPress                          | EmDash                                  | Notes                                                 |
-| ---------------------------------- | --------------------------------------- | ----------------------------------------------------- |
-| `add_action('init')`               | `plugin:install` hook                   | Runs once on first install                            |
-| `add_action('save_post')`          | `content:afterSave` hook                | Filter by `event.collection`                          |
-| `add_action('before_delete_post')` | `content:beforeDelete` hook             | Return false to prevent                               |
-| `add_action('wp_head')`            | `page:metadata` / `page:fragments` hook | Metadata is sandbox-safe; scripts need trusted plugin |
-| `add_action('rest_api_init')`      | `definePlugin({ routes })`              | Trusted only                                          |
-| `add_filter('the_content')`        | Portable Text components                | Custom block renderers                                |
-| `add_filter('the_title')`          | Template logic                          | Handle in Astro component                             |
+Use seed data for a new site's initial schema and sample content. Use an importer or migration path for an existing site's production data; a seed is not a backup or ongoing synchronization mechanism.
 
-### Frontend Output
+## Verify equivalent behavior
 
-| WordPress               | EmDash                       | Notes                                                |
-| ----------------------- | ---------------------------- | ---------------------------------------------------- |
-| `add_shortcode()`       | Portable Text custom block   | Content → block. Template → component. Trusted only. |
-| `register_block_type()` | PT block + `componentsEntry` | Block data → Astro component props. Trusted only.    |
-| Template tags           | Astro expressions            | `get_the_title()` → `{post.data.title}`              |
-| Widgets                 | Widget area + components     | Query with `getWidgetArea()`                         |
+Test through the boundary that users and the runtime exercise:
 
-### Plugin Storage
+- schema and imported-data assertions for content-model changes;
+- production-boundary plugin tests for sandbox hooks, routes, storage, and permissions;
+- browser verification for admin and frontend journeys;
+- restart, duplicate-delivery, authorization, and failure cases when the source feature depends on them.
 
-| WordPress                | EmDash                   | Notes                              |
-| ------------------------ | ------------------------ | ---------------------------------- |
-| `get_option('plugin_*')` | `ctx.kv.get(key)`        | Namespaced to plugin automatically |
-| `update_option()`        | `ctx.kv.set(key, value)` | Scoped KV storage                  |
-| `delete_option()`        | `ctx.kv.delete(key)`     | Delete single key                  |
-| Custom tables            | `ctx.storage.collection` | Document collections with indexes  |
-| Transients               | Plugin KV                | No TTL yet                         |
+Compare observable behavior, not internal structure. Document intentional differences and any WordPress feature that remains unsupported.
 
-## Porting-Specific Patterns
+## Deliver the port
 
-These patterns cover WordPress-specific concepts that don't have a direct 1:1 mapping. For general plugin patterns (defining hooks, storage, routes, admin UI), see the **creating-plugins** skill.
+Provide:
 
-### Shortcodes → Portable Text Blocks
-
-WordPress shortcodes (`[youtube id="xxx"]`) become Portable Text custom block types. The block data replaces shortcode attributes, and an Astro component replaces the shortcode render function. This is a trusted-only feature.
-
-```typescript
-// WordPress
-add_shortcode('youtube', function($atts) {
-    return '<iframe src="https://youtube.com/embed/' . $atts['id'] . '"></iframe>';
-});
-
-// EmDash — block type declaration in definePlugin()
-admin: {
-	portableTextBlocks: [{
-		type: "youtube",
-		label: "YouTube Video",
-		icon: "video",
-		fields: [
-			{ type: "text_input", action_id: "id", label: "YouTube URL" },
-			{ type: "text_input", action_id: "title", label: "Title" },
-		],
-	}],
-}
-
-// EmDash — Astro component for rendering
-// src/astro/YouTube.astro
-const { id, title } = Astro.props.node;
-const videoId = id?.match(/(?:v=|youtu\.be\/)([^&]+)/)?.[1] ?? id;
-// <iframe src={`https://youtube-nocookie.com/embed/${videoId}`} ... />
-```
-
-### Options API → Plugin KV
-
-WordPress's `get_option`/`update_option` maps to the plugin KV store. The key difference: WordPress options are global, EmDash KV is automatically scoped to the plugin.
-
-```typescript
-// WordPress
-$count = get_option("myplugin_post_count", 0);
-update_option("myplugin_post_count", $count + 1);
-delete_option("myplugin_temp_data");
-
-// EmDash — no prefix needed, automatically scoped
-const count = (await ctx.kv.get<number>("post-count")) ?? 0;
-await ctx.kv.set("post-count", count + 1);
-await ctx.kv.delete("temp-data");
-```
-
-### Custom Database Tables → Storage Collections
-
-WordPress plugins that create custom tables with `$wpdb->query("CREATE TABLE ...")` should use EmDash's storage collections instead. No migrations needed — declare the schema in `definePlugin()` and it's automatically provisioned.
-
-```typescript
-// WordPress
-$wpdb->insert($table, ['form_id' => $id, 'data' => json_encode($data), 'created_at' => current_time('mysql')]);
-$results = $wpdb->get_results("SELECT * FROM $table WHERE form_id = '$id' ORDER BY created_at DESC LIMIT 50");
-
-// EmDash — declared in definePlugin()
-storage: {
-	submissions: {
-		indexes: ["formId", "createdAt", ["formId", "createdAt"]],
-	},
-},
-
-// In a hook or route handler
-await ctx.storage.submissions!.put(entryId, { formId, data, createdAt: new Date().toISOString() });
-const result = await ctx.storage.submissions!.query({
-	where: { formId },
-	orderBy: { createdAt: "desc" },
-	limit: 50,
-});
-```
-
-### Seeding Data (replaces starter content, theme setup)
-
-WordPress plugins that call `wp_insert_term()`, `register_nav_menu()`, or insert default content on activation should use a seed file:
-
-```json
-{
-	"version": "1",
-	"settings": { "title": "My Site", "tagline": "Welcome" },
-	"taxonomies": [
-		{
-			"name": "category",
-			"label": "Categories",
-			"hierarchical": true,
-			"collections": ["posts"],
-			"terms": [
-				{ "slug": "news", "label": "News" },
-				{ "slug": "tutorials", "label": "Tutorials" }
-			]
-		}
-	],
-	"menus": [
-		{
-			"name": "primary",
-			"label": "Primary Navigation",
-			"items": [
-				{ "type": "custom", "label": "Home", "url": "/" },
-				{ "type": "page", "ref": "about", "collection": "pages" }
-			]
-		}
-	],
-	"redirects": [
-		{ "source": "/?p=123", "destination": "/about" },
-		{ "source": "/old-contact", "destination": "/contact", "type": 301 }
-	]
-}
-```
-
-Save to `.emdash/seed.json` (or wire up via `package.json#emdash.seed`); the runtime applies it on the next first-boot when the database is empty.
-
-Use `redirects` for legacy WordPress URLs that still receive traffic after migration.
-
-### Querying Content (replaces WP_Query)
-
-```typescript
-// WordPress
-$query = new WP_Query(['post_type' => 'post', 'category_name' => 'tech', 'posts_per_page' => 10]);
-
-// EmDash — in Astro component frontmatter
-import { getEmDashCollection, getEntryTerms } from "emdash";
-const { entries } = await getEmDashCollection("posts", {
-	where: { category: "technology" },
-	limit: 10,
-});
-```
-
-### Menus (replaces wp_nav_menu)
-
-```typescript
-// WordPress
-wp_nav_menu(['theme_location' => 'primary']);
-
-// EmDash — in Astro component
-import { getMenu } from "emdash";
-const nav = await getMenu("primary");
-// nav.items[].label, nav.items[].url, nav.items[].children
-```
-
-### Widget Areas (replaces dynamic_sidebar)
-
-```typescript
-// WordPress
-dynamic_sidebar("sidebar-1");
-
-// EmDash — in Astro component
-import { getWidgetArea } from "emdash";
-const sidebar = await getWidgetArea("sidebar");
-// sidebar.widgets[].type: "content" | "menu" | "component"
-```
-
-## Red Flags (Need Human Decision)
-
-Flag these for review — they may need architectural decisions:
-
-1. **Deep WP integration** — Hooks into WP core features not in EmDash
-2. **Theme dependencies** — Assumes specific theme structure
-3. **Multisite features** — Not supported
-4. **Complex WP_Query** — Meta queries may need custom implementation
-5. **Direct SQL** — Schema differs, use Kysely or plugin storage
-6. **Session/transient abuse** — Needs proper caching layer
-7. **User capability checks** — Review role mapping (future)
-8. **ob_start() buffering** — PHP pattern, rethink for streaming
-9. **Cron jobs** — `wp_schedule_event()` has no direct equivalent; needs platform cron
-
-## Output Format
-
-When porting a plugin, provide:
-
-1. **Analysis** — What the WP plugin does (concepts, not code)
-2. **Concept mapping** — Which WP concepts map to which EmDash features
-3. **Plugin code** — `src/descriptor.ts` and `src/index.ts` (use **creating-plugins** skill for structure)
-4. **Seed data** — If plugin needs default taxonomies/menus/widgets
-5. **Astro components** — For frontend output
-6. **Flags** — Anything needing human decision
+1. a concise inventory of the WordPress behavior and data;
+2. the responsibility map and sandboxed/native decision;
+3. the data migration or seed plan;
+4. the implementation across plugin and site code;
+5. verification evidence and known gaps;
+6. attribution and license notices for reused code or assets.

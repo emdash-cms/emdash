@@ -6,9 +6,12 @@
 	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
 	"capabilities": [
 		"content:read",
+		"content:revisions:read",
 		"content:write",
 		"taxonomies:read",
 		"taxonomies:write",
+		"redirects:write",
+		"schema:read",
 		"media:read",
 		"media:write",
 		"users:read",
