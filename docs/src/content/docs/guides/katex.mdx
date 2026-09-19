@@ -1,0 +1,247 @@
+---
+title: Render Math with KaTeX
+description: Render LaTeX math in EmDash Portable Text content with KaTeX on Astro 7.
+---
+
+import { Aside } from "@astrojs/starlight/components";
+
+EmDash content fields render as Portable Text, not as Astro Markdown files.
+That means Astro Markdown plugins can process `.md` and `.mdx` pages, but they
+will not automatically transform formulas stored in CMS rich text fields.
+
+For CMS content, use a small local wrapper around EmDash's `PortableText`
+component and render formulas with KaTeX on the server.
+
+<Aside type="note">
+	This is a site-level recipe, not a built-in EmDash feature. It is useful when your
+	authors are comfortable writing math delimiters such as `\(...\)` and
+	`\[...\]` in rich text fields.
+</Aside>
+
+## Install KaTeX
+
+Install KaTeX in your Astro project:
+
+```bash
+pnpm add katex
+```
+
+If you also render formulas in Astro Markdown or MDX files, configure Markdown
+math separately using the Markdown processor supported by your Astro version.
+See Astro's Markdown configuration reference for the current processor API.
+
+## Add KaTeX CSS
+
+Import KaTeX's stylesheet once in your base layout:
+
+```astro title="src/layouts/Base.astro"
+---
+import "katex/dist/katex.min.css";
+---
+```
+
+## Render Formula Components
+
+Create a small component that receives a custom Portable Text block and renders
+it with KaTeX:
+
+```astro title="src/components/MathBlock.astro"
+---
+import katex from "katex";
+
+const { node } = Astro.props;
+const html = katex.renderToString(node.latex, {
+	displayMode: true,
+	throwOnError: false,
+});
+---
+
+<div class="math math--block" set:html={html} />
+```
+
+Create another component for inline formulas:
+
+```astro title="src/components/MathInline.astro"
+---
+import katex from "katex";
+
+const { node } = Astro.props;
+const html = katex.renderToString(node.latex, {
+	displayMode: false,
+	throwOnError: false,
+});
+---
+
+<span class="math math--inline" set:html={html} />
+```
+
+## Normalize Portable Text
+
+Before rendering Portable Text, convert paragraphs that only contain display
+math delimiters into custom `mathBlock` blocks and split inline math delimiters
+into custom `mathInline` objects. This keeps the default EmDash renderer for
+normal content and only intercepts formulas.
+
+```ts title="src/components/math-portable-text.ts"
+import type { PortableTextBlock, PortableTextSpan } from "emdash/ui";
+
+const displayMath = /^\\\[([\s\S]+?)\\\]$/;
+const inlineMath = /\\\(([\s\S]+?)\\\)/g;
+
+type MathBlock = {
+	_type: "mathBlock";
+	_key: string;
+	latex: string;
+};
+
+type MathInline = {
+	_type: "mathInline";
+	_key: string;
+	latex: string;
+};
+
+type InlineObject = {
+	_type: string;
+	_key?: string;
+	[key: string]: unknown;
+};
+
+type MathChild = PortableTextSpan | MathInline | InlineObject;
+type MathPortableTextBlock = Omit<PortableTextBlock, "children"> & {
+	children?: MathChild[];
+};
+
+function isPortableTextSpan(child: MathChild): child is PortableTextSpan {
+	return child._type === "span";
+}
+
+function splitInlineMath(span: PortableTextSpan, spanIndex: number): MathChild[] {
+	const parts: MathChild[] = [];
+	let lastIndex = 0;
+
+	for (const match of span.text.matchAll(inlineMath)) {
+		const index = match.index ?? 0;
+		const key = span._key ?? `span-${spanIndex}`;
+
+		if (index > lastIndex) {
+			parts.push({
+				...span,
+				_key: `${key}-text-${parts.length}`,
+				text: span.text.slice(lastIndex, index),
+			});
+		}
+
+		parts.push({
+			_type: "mathInline",
+			_key: `${key}-math-${parts.length}`,
+			latex: (match[1] ?? "").trim(),
+		});
+
+		lastIndex = index + match[0].length;
+	}
+
+	if (lastIndex === 0) return [span];
+
+	if (lastIndex < span.text.length) {
+		parts.push({
+			...span,
+			_key: `${span._key ?? `span-${spanIndex}`}-text-${parts.length}`,
+			text: span.text.slice(lastIndex),
+		});
+	}
+
+	return parts;
+}
+
+export function normalizeMathPortableText(
+	blocks: PortableTextBlock[] | undefined,
+): Array<MathPortableTextBlock | MathBlock> {
+	return (blocks ?? []).map((block) => {
+		if (block._type !== "block") return block;
+
+		const currentChildren = (block.children ?? []) as MathChild[];
+		const text = currentChildren
+			.filter(isPortableTextSpan)
+			.map((child) => child.text)
+			.join("");
+		const match = text.trim().match(displayMath);
+
+		if (match) {
+			return {
+				_type: "mathBlock",
+				_key: `${block._key ?? "math"}-math`,
+				latex: (match[1] ?? "").trim(),
+			};
+		}
+
+		const children = currentChildren.flatMap((child, index) =>
+			isPortableTextSpan(child) ? splitInlineMath(child, index) : [child],
+		);
+		if (children.every((child, index) => child === currentChildren[index])) {
+			return block;
+		}
+
+		return {
+			...block,
+			children,
+		};
+	});
+}
+```
+
+You can also replace the delimiter-based normalizer with a dedicated math block
+type in your own editor setup.
+
+## Wrap PortableText
+
+Pass the normalized content to EmDash's renderer and register the math
+components:
+
+```astro title="src/components/MathPortableText.astro"
+---
+import { PortableText } from "emdash/ui";
+import MathBlock from "./MathBlock.astro";
+import MathInline from "./MathInline.astro";
+import { normalizeMathPortableText } from "./math-portable-text";
+
+const { value } = Astro.props;
+---
+
+<PortableText
+	value={normalizeMathPortableText(value)}
+	components={{
+		type: { mathBlock: MathBlock, mathInline: MathInline },
+	}}
+/>
+```
+
+Use the wrapper anywhere you render rich text content:
+
+```astro title="src/pages/posts/[slug].astro"
+---
+import MathPortableText from "../../components/MathPortableText.astro";
+---
+
+<MathPortableText value={post.data.content} />
+```
+
+## Add a Little Layout CSS
+
+Display formulas can be wider than the content column. Allow them to scroll
+instead of overflowing the page:
+
+```css title="src/styles/global.css"
+.math--block {
+	margin: 1.5rem 0;
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+.math--block .katex-display {
+	margin: 0;
+}
+
+.math--inline {
+	white-space: nowrap;
+}
+```
