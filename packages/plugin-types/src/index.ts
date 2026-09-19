@@ -162,6 +162,8 @@ export function normalizeCapability(cap: string): string {
  * `network:fetch` and `network:request` should resolve to a single
  * `network:request`).
  */
+export function normalizeCapabilities(caps: readonly PluginCapability[]): PluginCapability[];
+export function normalizeCapabilities(caps: readonly string[]): string[];
 export function normalizeCapabilities(caps: readonly string[]): string[] {
 	const seen = new Set<string>();
 	const out: string[] = [];

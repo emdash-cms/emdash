@@ -160,13 +160,22 @@ export interface SandboxedPluginInstance {
 	 * @param request - Serialized request info for context
 	 * @returns Route response data
 	 */
-	invokeRoute(routeName: string, input: unknown, request: SerializedRequest): Promise<unknown>;
+	invokeRoute(
+		routeName: string,
+		input: unknown,
+		request: SerializedRequest,
+		options?: SandboxInvocationOptions,
+	): Promise<unknown>;
 
 	/**
 	 * Terminate the sandboxed plugin.
 	 * Releases resources and prevents further invocations.
 	 */
 	terminate(): Promise<void>;
+}
+
+export interface SandboxInvocationOptions {
+	invalidateContentCache?: (tags: string[]) => Promise<void>;
 }
 
 /**

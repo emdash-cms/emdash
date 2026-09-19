@@ -1302,13 +1302,24 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				},
 				CONTENT_ACTION_HANG_PLUGIN,
 			);
+			const invalidateContentCache = vi.fn().mockResolvedValue(undefined);
 
 			await expect(
-				plugin.invokeRoute("publish-hang", {}, { method: "POST", url: "/api/test", headers: {} }),
+				plugin.invokeRoute(
+					"publish-hang",
+					{},
+					{ method: "POST", url: "/api/test", headers: {} },
+					{ invalidateContentCache },
+				),
 			).rejects.toThrow(/exceeded wall-time limit/);
 
 			expect(contentActions.publish).toHaveBeenCalledOnce();
 			const invocationId = contentActions.begin.mock.calls[0]?.[1];
+			expect(contentActions.begin).toHaveBeenCalledWith(
+				"test-publication-hang",
+				invocationId,
+				invalidateContentCache,
+			);
 			expect(contentActions.publish.mock.calls[0]?.[4]).toBe(invocationId);
 			expect(contentActions.flush).toHaveBeenCalledWith(
 				"test-publication-hang",

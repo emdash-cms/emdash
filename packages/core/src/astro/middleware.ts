@@ -877,9 +877,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				let t0 = performance.now();
 				const runtime = await getRuntime(config, migrationMode, initSubTimings);
-				if (context.cache?.enabled) {
-					runtime.setPluginContentCacheInvalidator((tags) => context.cache.invalidate({ tags }));
-				}
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 				// Forward any sub-phase samples so cold-start breakdown is visible
 				// in Server-Timing. Each phase appears prefixed "rt." to distinguish
