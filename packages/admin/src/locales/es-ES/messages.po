@@ -385,7 +385,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/160 caracteres"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:417
+#: packages/admin/src/lib/api/marketplace.ts:419
 msgid "{base} to: {0}"
 msgstr "{base} a: {0}"
 
@@ -763,8 +763,8 @@ msgstr ""
 msgid "Access Denied"
 msgstr "Acceso denegado"
 
-#: packages/admin/src/lib/api/marketplace.ts:386
-#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:388
+#: packages/admin/src/lib/api/marketplace.ts:396
 msgid "Access your media library"
 msgstr "Accede a tu biblioteca multimedia"
 
@@ -2687,8 +2687,8 @@ msgstr "Crea el primero"
 msgid "Create your first reusable content section to get started."
 msgstr "Cree su primera sección de contenido reutilizable para comenzar."
 
-#: packages/admin/src/lib/api/marketplace.ts:384
-#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:395
 msgid "Create, update, and delete content"
 msgstr "Crear, actualizar y eliminar contenido"
 
@@ -5954,13 +5954,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr "Barra lateral principal"
 
-#: packages/admin/src/lib/api/marketplace.ts:389
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Make network requests"
 msgstr "Realizar peticiones de red"
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Make network requests to any host (unrestricted)"
 msgstr "Realizar peticiones de red a cualquier host (sin restricciones)"
 
@@ -7700,6 +7700,10 @@ msgstr "Cita"
 msgid "Raw meta"
 msgstr ""
 
+#: packages/admin/src/lib/api/marketplace.ts:386
+msgid "Read collection and field definitions"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
 msgstr "Leer esquemas de colección"
@@ -7712,21 +7716,25 @@ msgstr "Leer entradas de contenido"
 msgid "Read media files"
 msgstr "Leer archivos multimedia"
 
+#: packages/admin/src/lib/api/marketplace.ts:384
+msgid "Read retained content revision history"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
 msgstr "Leer los ajustes del sitio"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:390
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Read user accounts"
 msgstr "Leer las cuentas de usuario"
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:394
 msgid "Read your content"
 msgstr "Leer tu contenido"
 
-#: packages/admin/src/lib/api/marketplace.ts:385
+#: packages/admin/src/lib/api/marketplace.ts:387
 msgid "Read your taxonomies and terms"
 msgstr ""
 
@@ -10374,8 +10382,8 @@ msgstr "Sube una imagen para comenzar"
 msgid "Upload and delete media"
 msgstr "Cargar y eliminar medios"
 
-#: packages/admin/src/lib/api/marketplace.ts:387
-#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:389
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Upload and manage media"
 msgstr "Sube y gestiona medios"
 
