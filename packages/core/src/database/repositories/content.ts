@@ -1832,6 +1832,7 @@ export class ContentRepository {
 		type: string,
 		limit?: number,
 		currentTime: Date = new Date(),
+		after?: { scheduledAt: string; id: string },
 	): Promise<ContentItem[]> {
 		const tableName = getTableName(type);
 		const now = currentTime.toISOString();
@@ -1842,13 +1843,17 @@ export class ContentRepository {
 			typeof limit === "number" && Number.isInteger(limit) && limit > 0
 				? sql`LIMIT ${limit}`
 				: sql``;
+		const afterClause = after
+			? sql`AND (scheduled_at > ${after.scheduledAt} OR (scheduled_at = ${after.scheduledAt} AND id > ${after.id}))`
+			: sql``;
 
 		const result = await sql<Record<string, unknown>>`
 			SELECT * FROM ${sql.ref(tableName)}
 			WHERE scheduled_at IS NOT NULL
 			AND scheduled_at <= ${now}
 			AND deleted_at IS NULL
-			ORDER BY scheduled_at ASC
+			${afterClause}
+			ORDER BY scheduled_at ASC, id ASC
 			${limitClause}
 		`.execute(this.db);
 

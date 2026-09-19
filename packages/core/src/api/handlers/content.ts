@@ -1645,8 +1645,11 @@ export async function handleContentUnschedule(
 }
 
 /**
- * Unschedule a permanently policy-rejected publication and persist the
- * operator-facing reason in the same transaction.
+ * Persist a permanent policy rejection and unschedule the publication.
+ * Databases with transactions commit both writes together. D1 persists the
+ * reason first so a failed option write cannot silently remove the entry from
+ * future sweeps; if unscheduling then fails, the due entry and its dashboard
+ * notice remain available for retry and operator action.
  */
 export async function handleScheduledPolicyRejection(
 	db: Kysely<Database>,
@@ -1659,12 +1662,24 @@ export async function handleScheduledPolicyRejection(
 		const item = await withTransaction(db, async (trx) => {
 			const repo = new ContentRepository(trx);
 			const resolvedId = (await resolveId(repo, collection, id)) ?? id;
-			const updated = await repo.unschedule(collection, resolvedId, expectedRevision);
-			await new OptionsRepository(trx).set(scheduledPolicyRejectionKey(collection, resolvedId), {
+			const optionsRepo = new OptionsRepository(trx);
+			const rejectionKey = scheduledPolicyRejectionKey(collection, resolvedId);
+			const rejectionRevision = await optionsRepo.setVersioned(rejectionKey, {
 				...options.rejection,
 				id: resolvedId,
 			});
-			return updated;
+			try {
+				return await repo.unschedule(collection, resolvedId, expectedRevision);
+			} catch (error) {
+				if (error instanceof ContentMutationConflictError) {
+					try {
+						await optionsRepo.compareAndDelete(rejectionKey, rejectionRevision);
+					} catch (cleanupError) {
+						console.error("Failed to clear stale scheduled policy rejection:", cleanupError);
+					}
+				}
+				throw error;
+			}
 		});
 
 		const hasSeo = await collectionHasSeo(db, collection);

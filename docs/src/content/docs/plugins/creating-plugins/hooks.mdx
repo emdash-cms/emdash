@@ -248,13 +248,20 @@ Return `void` to allow the action or `{ cancel: true, reason }` to reject it. Th
 
 All three events contain `{ content, collection, origin, actor? }`. `origin.source` is `api`, `mcp`, `visual-editor`, `plugin`, `scheduler`, or `system`; plugin origins also contain `pluginId`. Authenticated human actions include `actor.id`, numeric `actor.role`, and the matching `actor.source`. EmDash accepts the `visual-editor` origin only from the signed, short-lived action token embedded in an authenticated toolbar render; ordinary API requests cannot select their origin.
 
+Publish and schedule events expose the effective draft in `content.data` and the staged slug in `content.slug`. Unpublish events expose the currently live content that the action would remove.
+
 ### `content:beforePublish`
 
 The following hook requires an approval marker before content can become live:
 
 ```typescript title="src/plugin.ts"
 "content:beforePublish": async (event) => {
-	if (event.content.approvalStatus !== "approved") {
+	const data = event.content.data;
+	const approvalStatus =
+		typeof data === "object" && data !== null && "approval_status" in data
+			? data.approval_status
+			: undefined;
+	if (approvalStatus !== "approved") {
 		return { cancel: true, reason: "Approve this entry before publishing." };
 	}
 },

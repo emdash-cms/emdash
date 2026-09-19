@@ -185,11 +185,18 @@ Returns: `void`
 
 `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` require `hooks.content-policy:register`. This authority is independent of `content:read`, `content:write`, and publication actions.
 
+Publish and schedule events expose the effective draft in `content.data` and the staged slug in `content.slug`. Unpublish events expose the currently live content that the action would remove.
+
 Return `void` to allow the action or `{ cancel: true, reason }` to reject it. The reason must contain 1–500 plain-text characters. Invalid decisions and unexpected abort-policy errors stop the action with a generic failure. Explicit cancellations return `PUBLISH_REJECTED`, `SCHEDULE_REJECTED`, or `UNPUBLISH_REJECTED`.
 
 ```typescript
 "content:beforePublish": async (event) => {
-	if (event.content.approvalStatus !== "approved") {
+	const data = event.content.data;
+	const approvalStatus =
+		typeof data === "object" && data !== null && "approval_status" in data
+			? data.approval_status
+			: undefined;
+	if (approvalStatus !== "approved") {
 		return { cancel: true, reason: "Approve this entry before publishing." };
 	}
 },
