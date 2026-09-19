@@ -26,6 +26,7 @@ import { env as workerEnv } from "cloudflare:workers";
 import * as v from "valibot";
 
 import {
+	candidateWasPublished,
 	requireCandidatePublication,
 	type CandidatePublication,
 } from "../lib/candidate-publisher.js";
@@ -33,12 +34,7 @@ import { applyCandidateForRevision } from "../lib/candidate-revision.js";
 import { contextRegistry } from "../lib/context-registry.js";
 import { type ContainerBackend, ExecEnv, fromSandbox, quote } from "../lib/exec-env.js";
 import { createPushCapability, githubPushUrl } from "../lib/github-proxy.js";
-import {
-	getBranchSha,
-	mintInstallationToken,
-	readAppCreds,
-	readRepoContext,
-} from "../lib/github.js";
+import { readRepoContext } from "../lib/github.js";
 import {
 	applyInvestigationResult,
 	prepareWorkPlanComment,
@@ -583,9 +579,7 @@ export function Investigate({ id }: AgentProps) {
 				durable: true,
 				async run({ data, step, log }) {
 					requireCandidatePublication(data.implemented, publication);
-					const pushed = await step.do("verify-publication", () =>
-						detectPublication(input.issueNumber, publication),
-					);
+					const pushed = candidateWasPublished(publication);
 					const failure =
 						data.implemented && !pushed
 							? (lastFailure ?? {
@@ -621,9 +615,7 @@ export function Investigate({ id }: AgentProps) {
 				async run({ data, step, log }) {
 					const delivered = data.fixed === true || data.implemented === true;
 					requireCandidatePublication(delivered, publication);
-					const pushed = await step.do("verify-publication", () =>
-						detectPublication(input.issueNumber, publication),
-					);
+					const pushed = candidateWasPublished(publication);
 					const failure =
 						delivered && !pushed
 							? (lastFailure ?? {
@@ -1104,24 +1096,6 @@ function truncateSummary(text: string): string {
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
-}
-
-async function detectPublication(
-	issueNumber: number,
-	publication: CandidatePublication | null,
-): Promise<boolean> {
-	if (!publication) return false;
-	const repo = readRepoContext(workerEnv);
-	const creds = readAppCreds(workerEnv);
-	if (!repo || !creds) return false;
-	try {
-		const token = await mintInstallationToken(creds);
-		const currentBranchSha = await getBranchSha(token, repo, `bot/fix-${issueNumber}`);
-		return currentBranchSha === publication.commitSha;
-	} catch (error) {
-		console.warn("[investigate] publication verification failed", { error: errorMessage(error) });
-		return false;
-	}
 }
 
 function reportPayload(
