@@ -27,7 +27,7 @@ import {
 import { buildMigrationManifest } from "../../migrations/manifest-builder.js";
 import { writeMigrationManifest } from "../../migrations/manifest-writer.js";
 import type { ResolvedPlugin } from "../../plugins/types.js";
-import { normalizeRegistryConfig } from "../../registry/config.js";
+import { normalizeRegistryConfig, resolveRegistryConfigForSandbox } from "../../registry/config.js";
 import { VERSION } from "../../version.js";
 import { setDevTypegenRefresh } from "../dev-typegen.js";
 import { local } from "../storage/adapters.js";
@@ -322,17 +322,28 @@ export function buildMiddlewareEntries(
  * Create the EmDash Astro integration
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
+	const registry = resolveRegistryConfigForSandbox({
+		registry: config.registry,
+		experimentalRegistry: config.experimental?.registry,
+		sandboxRunner: config.sandboxRunner,
+		sandboxEnabled: config.sandbox !== false,
+	});
+
 	// Apply defaults
 	const resolvedConfig: EmDashConfig = {
 		...config,
 		storage: config.storage ?? DEFAULT_STORAGE,
 		migrations: normalizeMigrationConfig(config.migrations),
+		registry: config.registry === false ? false : registry.input,
 	};
 
 	// Validate environment-independent registry settings while Astro is still
 	// evaluating its config. The command-aware check in astro:config:setup
 	// applies the stricter production localhost policy.
-	normalizeRegistryConfig(resolvedConfig.experimental?.registry, { allowLocalhost: true });
+	normalizeRegistryConfig(registry.input, {
+		allowLocalhost: true,
+		fieldPrefix: registry.fieldPrefix,
+	});
 
 	// Validate marketplace URL
 	if (resolvedConfig.marketplace) {
@@ -439,6 +450,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		auth: resolvedConfig.auth,
 		authProviders: resolvedConfig.authProviders,
 		marketplace: resolvedConfig.marketplace,
+		registry: resolvedConfig.registry,
 		experimental: resolvedConfig.experimental,
 		siteUrl: resolvedConfig.siteUrl,
 		trustedProxyHeaders: resolvedConfig.trustedProxyHeaders,
@@ -469,8 +481,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				command,
 			}) => {
 				astroCommand = command;
-				normalizeRegistryConfig(resolvedConfig.experimental?.registry, {
+				normalizeRegistryConfig(registry.input, {
 					allowLocalhost: command === "dev" || command === "sync",
+					fieldPrefix: registry.fieldPrefix,
 				});
 				printBanner(logger);
 				// Capture the host's Astro version so the runtime can expose it

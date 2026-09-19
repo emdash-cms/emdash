@@ -7,7 +7,7 @@ import { Aside } from "@astrojs/starlight/components";
 
 This is an advanced topic for building your own software against the [plugin registry](/plugins/registry/). If you only want to install plugins on an EmDash site, you do not need any of this — enable the registry in your config and use the admin dashboard.
 
-The registry's discovery side is a public, read-only API. The `@emdash-cms/registry-client` package wraps it, so you can build a plugin directory, a search page, or a release feed outside of EmDash. The client runs anywhere `fetch` is available — Node, Workers, the browser, or an Astro site.
+The registry's discovery side is a public, read-only API. The `@emdash-cms/registry-client` package wraps it, so you can build a plugin directory, a search page, or a release feed outside of EmDash. The client runs anywhere `fetch` is available — Node, Workers, the browser, or an Astro site. Astro sites can use `@emdash-cms/registry-loader` to expose the same data through a live content collection.
 
 <Aside type="caution" title="Experimental">
 	The client targets an experimental API whose shapes may change without notice.
@@ -19,7 +19,7 @@ The registry's discovery side is a public, read-only API. The `@emdash-cms/regis
 The `discovery` subpath carries no authentication or OAuth dependencies. Install the client and pin it to an exact version:
 
 ```sh
-npm install @emdash-cms/registry-client@0.5.0
+npm install @emdash-cms/registry-client@0.6.0
 ```
 
 ## List and resolve packages
@@ -41,7 +41,7 @@ const { packages } = await discovery.searchPackages({ q: "", limit: 50 });
   {
     packages.map((pkg) => (
       <li>
-        <a href={`/plugins/${pkg.did}/${pkg.slug}`}>
+        <a href={`/plugins/${pkg.handle ? `@${pkg.handle}` : pkg.did}/${pkg.slug}`}>
           {pkg.profile?.name ?? pkg.slug}
         </a>
         {pkg.latestVersion && <span>v{pkg.latestVersion}</span>}
@@ -52,7 +52,24 @@ const { packages } = await discovery.searchPackages({ q: "", limit: 50 });
 </ul>
 ```
 
-The link uses `pkg.did`, which is always present. The publisher `handle` is best-effort and can be absent, so don't build URLs from it.
+The current verified handle is present when the aggregator has resolved it. Keep the DID form as a fallback and redirect it to the current handle URL when a later response supplies one. A DID and package slug remain the stable package identity when a publisher changes handles.
+
+An exact `q` value can be a handle, DID, or either identity followed by `/slug`. For example, `@example.com/my-gallery` selects one package and `example.com` returns packages from that publisher.
+
+## Use the Astro live loader
+
+Install `@emdash-cms/registry-loader`, then register the loader in `src/live.config.ts`:
+
+```ts title="src/live.config.ts"
+import { registryLoader } from "@emdash-cms/registry-loader";
+import { defineLiveCollection } from "astro:content";
+
+export const collections = {
+	plugins: defineLiveCollection({ loader: registryLoader() }),
+};
+```
+
+Use `getLiveCollection("plugins", { q, limit })` for bounded results and `getLiveEntry("plugins", { publisher, slug })` for one package. Pass the returned cache hint to `Astro.cache.set()` when the site has an Astro cache provider. Astro live collections do not return pagination metadata, so use `DiscoveryClient.searchPackages()` directly when the interface needs the next cursor.
 
 A package detail page fetches a plugin by its DID and slug, then fetches the latest release:
 

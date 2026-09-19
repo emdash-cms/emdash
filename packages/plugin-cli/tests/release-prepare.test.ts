@@ -5,7 +5,10 @@ import { fileURLToPath } from "node:url";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { prepareRepositoryRelease } from "../src/release-prepare.js";
+import {
+	planPublishedRepositoryReleases,
+	prepareRepositoryRelease,
+} from "../src/release-prepare.js";
 
 const FIXTURE = fileURLToPath(new URL("./fixtures/minimal-plugin", import.meta.url));
 const PUBLISHER_DID = "did:plc:ewvi7nxzyoun6zhxrhs64oiz";
@@ -85,5 +88,46 @@ describe("prepareRepositoryRelease", () => {
 			resolvePublisherDid: async () => PUBLISHER_DID,
 		});
 		expect(release.packageSlug).toBe("fixture-minimal");
+	});
+
+	it("maps Changesets published package names to plugin slugs", async () => {
+		await expect(
+			planPublishedRepositoryReleases({
+				repositoryRoot,
+				publishedPackages: JSON.stringify([
+					{ name: "ordinary-library", version: "4.0.0" },
+					{ name: "fixture-minimal-plugin", version: "1.2.3" },
+				]),
+			}),
+		).resolves.toEqual([
+			{
+				packageName: "fixture-minimal-plugin",
+				packageSlug: "fixture-minimal",
+				pluginDirectory: "packages/fixture-minimal",
+				version: "1.2.3",
+			},
+		]);
+	});
+
+	it("rejects a published plugin version that differs from the package", async () => {
+		await expect(
+			planPublishedRepositoryReleases({
+				repositoryRoot,
+				publishedPackages: '[{"name":"fixture-minimal-plugin","version":"2.0.0"}]',
+			}),
+		).rejects.toMatchObject({ code: "VERSION_MISMATCH" });
+	});
+
+	it("rejects malformed or duplicate Changesets publication output", async () => {
+		await expect(
+			planPublishedRepositoryReleases({ repositoryRoot, publishedPackages: "not json" }),
+		).rejects.toMatchObject({ code: "PUBLISHED_PACKAGES_INVALID" });
+		await expect(
+			planPublishedRepositoryReleases({
+				repositoryRoot,
+				publishedPackages:
+					'[{"name":"fixture-minimal-plugin","version":"1.2.3"},{"name":"fixture-minimal-plugin","version":"1.2.3"}]',
+			}),
+		).rejects.toMatchObject({ code: "PUBLISHED_PACKAGES_INVALID" });
 	});
 });

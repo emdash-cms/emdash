@@ -22,6 +22,7 @@ import { handleRegistryInstall } from "#api/index.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseBody } from "#api/parse.js";
 
+import { getRegistryConfigInput } from "../../../../../../registry/config.js";
 import { VERSION } from "../../../../../../version.js";
 
 export const prerender = false;
@@ -94,7 +95,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			emdash.db,
 			emdash.storage,
 			emdash.getSandboxRunner(),
-			emdash.config.experimental?.registry,
+			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
 			{
 				did: body.did,
 				slug: body.slug,
@@ -114,6 +115,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 		// Sync runtime so the new plugin becomes active without a worker restart.
 		await emdash.syncRegistryPlugins();
+		await emdash.runPluginInstallLifecycle(result.data.pluginId);
 
 		return unwrapResult(result, 201);
 	} catch (error) {

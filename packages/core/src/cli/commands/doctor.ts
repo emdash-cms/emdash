@@ -14,6 +14,10 @@ import { parse, printParseErrorCode, type ParseError } from "jsonc-parser";
 import { parse as parseToml } from "smol-toml";
 
 import { createDatabase } from "../../database/connection.js";
+import {
+	formatDatetimeStorageReport,
+	scanDatetimeStorage,
+} from "../../database/datetime-storage.js";
 import { listTablesLike } from "../../database/dialect-helpers.js";
 import { getMigrationStatus } from "../../database/migrations/runner.js";
 
@@ -300,6 +304,27 @@ async function checkDatabase(dbPath: string): Promise<CheckResult[]> {
 					name: "orphaned tables",
 					status: "warn",
 					message: `found ${orphaned.length}: ${orphaned.join(", ")}`,
+				});
+			}
+
+			try {
+				const report = await scanDatetimeStorage(db);
+				const clean =
+					report.noncanonicalCount === 0 &&
+					report.manualReviewCount === 0 &&
+					report.inspectionErrorCount === 0;
+				results.push({
+					name: "datetime storage",
+					status: clean ? "pass" : "fail",
+					message: clean
+						? `all stored content datetimes are canonical (${report.timezone})`
+						: formatDatetimeStorageReport(report),
+				});
+			} catch (error) {
+				results.push({
+					name: "datetime storage",
+					status: "fail",
+					message: `could not inspect stored datetimes: ${error instanceof Error ? error.message : String(error)}`,
 				});
 			}
 		} catch {

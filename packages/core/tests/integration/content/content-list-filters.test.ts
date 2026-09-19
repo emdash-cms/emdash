@@ -182,6 +182,15 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		expect(slugsOf(result)).toEqual(["y2024"]);
 	});
 
+	it("normalizes offset-bearing date bounds before comparing canonical storage", async () => {
+		const result = await handleContentList(ctx.db, "posts", {
+			dateField: "createdAt",
+			dateFrom: "2024-06-01T21:00:00+09:00",
+			dateTo: "2024-06-01T08:00:00-04:00",
+		});
+		expect(slugsOf(result)).toEqual(["y2024"]);
+	});
+
 	it("includes a boundary timestamp when the upper bound is end-of-day", async () => {
 		// The 2025 post is at 12:00; an end-of-day upper bound must include it.
 		const result = await handleContentList(ctx.db, "posts", {

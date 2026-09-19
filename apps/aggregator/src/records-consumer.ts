@@ -29,11 +29,6 @@
  *     ack the message. Never crash the worker — that would block the queue.
  */
 
-import {
-	AtprotoWebDidDocumentResolver,
-	CompositeDidDocumentResolver,
-	PlcDidDocumentResolver,
-} from "@atcute/identity-resolver";
 import { safeParse } from "@atcute/lexicons/validations";
 import {
 	NSID,
@@ -44,7 +39,7 @@ import {
 	PublisherVerification,
 } from "@emdash-cms/registry-lexicons";
 
-import { createD1DidDocCache, DidResolver } from "./did-resolver.js";
+import { createProductionDidResolver, DidResolver } from "./did-resolver.js";
 import type { RecordsJob } from "./env.js";
 import {
 	fetchAndVerifyRecord,
@@ -1106,18 +1101,9 @@ async function writeDeadLetter(
 // ─── Production wiring ─────────────────────────────────────────────────────
 
 function createProductionDeps(env: Env): ConsumerDeps {
-	const composite = new CompositeDidDocumentResolver({
-		methods: {
-			plc: new PlcDidDocumentResolver({ fetch: boundFetch }),
-			web: new AtprotoWebDidDocumentResolver({ fetch: boundFetch }),
-		},
-	});
 	return {
 		db: env.DB,
-		resolver: new DidResolver({
-			cache: createD1DidDocCache(env.DB),
-			resolver: composite,
-		}),
+		resolver: createProductionDidResolver(env),
 		// PDS verify uses this fetch for the CAR fetch. workerd's `fetch`
 		// rejects calls made through a stored reference, so we hand off
 		// the bound wrapper rather than letting `pds-verify.ts` fall

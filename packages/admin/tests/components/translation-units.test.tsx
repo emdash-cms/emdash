@@ -17,7 +17,7 @@ vi.mock("@tanstack/react-router", async () => {
 });
 
 import { InsecurePasskeyContextMessage } from "../../src/components/auth/PasskeyContextMessage.js";
-import { MarketplaceInstallMessage } from "../../src/components/PluginManager.js";
+import { RegistryInstallMessage } from "../../src/components/PluginManager.js";
 import { DomainRemovalMessage } from "../../src/components/settings/AllowedDomainsSettings.js";
 import { SignupRoleMessage, VerificationSentMessage } from "../../src/components/SignupPage.js";
 import { TaxonomyNotFoundMessage } from "../../src/components/TaxonomyManager.js";
@@ -31,9 +31,8 @@ const jaMessages = {
 	[msg`Passkeys require a <0>secure context</0>: use <1>HTTPS</1>, or open the admin at <2>http://localhost</2> (with your dev port). Plain <3>http://</3> on a custom hostname is not treated as secure, even on loopback.`
 		.id!]:
 		"パスキーには<0>セキュアコンテキスト</0>が必要です。<1>HTTPS</1>を使用するか、<2>http://localhost</2>（開発用ポートを含む）で管理画面を開いてください。カスタムホスト名の<3>http://</3>は、ループバックでも安全な接続として扱われません。",
-	[msg`Browse the <0>marketplace</0> to install plugins, or add them to your astro.config.mjs.`
-		.id!]:
-		"<0>マーケットプレイス</0>からプラグインをインストールするか、astro.config.mjsに追加してください。",
+	[msg`Browse the <0>registry</0> to install plugins, or add them to your astro.config.mjs.`.id!]:
+		"<0>レジストリ</0>からプラグインをインストールするか、astro.config.mjsに追加してください。",
 	[msg`Users from <0>{domain}</0> will no longer be able to sign up without an invite. Existing users are not affected.`
 		.id!]:
 		"<0>{domain}</0>のユーザーは招待なしで登録できなくなります。既存のユーザーには影響しません。",
@@ -70,13 +69,13 @@ describe("complete translation units", () => {
 
 	it("allows links and dynamic values to move before their surrounding text", async () => {
 		await render(
-			<p data-testid="marketplace-guidance">
-				<MarketplaceInstallMessage />
+			<p data-testid="registry-guidance">
+				<RegistryInstallMessage />
 			</p>,
 		);
-		expect(screen.getByRole("link", { name: "マーケットプレイス" })).toBeTruthy();
-		expect(screen.getByTestId("marketplace-guidance").textContent).toBe(
-			"マーケットプレイスからプラグインをインストールするか、astro.config.mjsに追加してください。",
+		expect(screen.getByRole("link", { name: "レジストリ" })).toBeTruthy();
+		expect(screen.getByTestId("registry-guidance").textContent).toBe(
+			"レジストリからプラグインをインストールするか、astro.config.mjsに追加してください。",
 		);
 
 		await render(

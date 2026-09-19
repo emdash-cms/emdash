@@ -2,12 +2,14 @@ import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
 import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content-list-query.js";
+import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { isIndexableFieldType, type FieldType } from "../../schema/types.js";
 import { buildFtsPrefixMatch, buildSlugGlobPrefix } from "../../search/match.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
+import { ContentDatetimeNormalizer } from "../content-datetime.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 import { RevisionRepository } from "./revision.js";
@@ -316,7 +318,11 @@ function escapeRegExp(s: string): string {
  * Each field becomes a real column in the table.
  */
 export class ContentRepository {
-	constructor(private db: Kysely<Database>) {}
+	private readonly datetimes: ContentDatetimeNormalizer;
+
+	constructor(private db: Kysely<Database>) {
+		this.datetimes = new ContentDatetimeNormalizer(db);
+	}
 
 	/**
 	 * Create a new content item
@@ -328,7 +334,7 @@ export class ContentRepository {
 		const {
 			type,
 			slug,
-			data,
+			data: inputData,
 			status = "draft",
 			authorId,
 			primaryBylineId,
@@ -337,6 +343,13 @@ export class ContentRepository {
 			publishedAt,
 			createdAt,
 		} = input;
+		const data = await this.datetimes.normalizeData(type, inputData);
+		const normalizedCreatedAt = createdAt
+			? await this.datetimes.normalizeValue(type, createdAt)
+			: now;
+		const normalizedPublishedAt = publishedAt
+			? await this.datetimes.normalizeValue(type, publishedAt)
+			: null;
 
 		// Validate required fields
 		if (!type) {
@@ -375,9 +388,9 @@ export class ContentRepository {
 			status,
 			authorId || null,
 			primaryBylineId ?? null,
-			createdAt || now,
+			normalizedCreatedAt,
 			now,
-			publishedAt || null,
+			normalizedPublishedAt,
 			1,
 			locale || "en",
 			translationGroup,
@@ -847,15 +860,6 @@ export class ContentRepository {
 		return mappedResult;
 	}
 
-	private normalizeScheduledAt(value: string | null): string | null {
-		if (value === null) return null;
-		const scheduledDate = new Date(value);
-		if (isNaN(scheduledDate.getTime())) {
-			throw new EmDashValidationError("Invalid scheduled date");
-		}
-		return scheduledDate.toISOString();
-	}
-
 	/**
 	 * Update content
 	 */
@@ -876,11 +880,17 @@ export class ContentRepository {
 		}
 
 		if (input.publishedAt !== undefined) {
-			updates.published_at = input.publishedAt;
+			updates.published_at =
+				input.publishedAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.publishedAt);
 		}
 
 		if (input.scheduledAt !== undefined) {
-			updates.scheduled_at = this.normalizeScheduledAt(input.scheduledAt);
+			updates.scheduled_at =
+				input.scheduledAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.scheduledAt);
 		}
 
 		if (input.authorId !== undefined) {
@@ -893,7 +903,8 @@ export class ContentRepository {
 
 		// Update data fields (skip system columns to prevent injection via data)
 		if (input.data !== undefined && typeof input.data === "object") {
-			for (const [key, value] of Object.entries(writableContentData(input.data))) {
+			const data = await this.datetimes.normalizeData(type, writableContentData(input.data));
+			for (const [key, value] of Object.entries(data)) {
 				updates[key] = serializeValue(value);
 			}
 		}
@@ -930,7 +941,9 @@ export class ContentRepository {
 		id: string,
 		input: UpdateContentInput,
 	): Promise<ContentItem> {
-		const data = input.data ? writableContentData(input.data) : {};
+		const data = input.data
+			? await this.datetimes.normalizeData(type, writableContentData(input.data))
+			: {};
 		const stagedSlug = typeof input.slug === "string" ? input.slug : undefined;
 		const hasDraftUpdate = Object.keys(data).length > 0 || stagedSlug !== undefined;
 
@@ -1035,11 +1048,19 @@ export class ContentRepository {
 			liveMetadataChanged = true;
 		}
 		if (input.publishedAt !== undefined) {
-			assignments.push(sql`published_at = ${input.publishedAt}`);
+			const publishedAt =
+				input.publishedAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.publishedAt);
+			assignments.push(sql`published_at = ${publishedAt}`);
 			liveMetadataChanged = true;
 		}
 		if (input.scheduledAt !== undefined) {
-			assignments.push(sql`scheduled_at = ${this.normalizeScheduledAt(input.scheduledAt)}`);
+			const scheduledAt =
+				input.scheduledAt === null
+					? null
+					: await this.datetimes.normalizeValue(type, input.scheduledAt);
+			assignments.push(sql`scheduled_at = ${scheduledAt}`);
 			liveMetadataChanged = true;
 		}
 		if (input.authorId !== undefined) {
@@ -1072,6 +1093,165 @@ export class ContentRepository {
 		const changed = (result.numAffectedRows ?? 0n) > 0n;
 		if (changed && liveMetadataChanged) invalidateCollectionCache(type);
 		return changed;
+	}
+
+	/**
+	 * Copy non-translatable field values to every other entry in the
+	 * translation group, trashed entries included.
+	 *
+	 * Only the fields present in `data` are copied. With `previous`, `data` is
+	 * the entry's complete new state and only the fields whose value differs
+	 * from `previous` are copied, an absent field as null. An entry that already
+	 * holds every copied value is left untouched, so its `updated_at` does not
+	 * move.
+	 *
+	 * On collections with revisions a changed entry also gets a new live
+	 * revision, because republishing and unpublishing read that revision rather
+	 * than the columns. A pending draft takes a value only where it still holds
+	 * the entry's previous value, so an unpublished edit to the field survives.
+	 */
+	async syncNonTranslatableFields(
+		type: string,
+		sourceId: string,
+		translationGroup: string,
+		data: Record<string, unknown>,
+		options: { previous?: Record<string, unknown> } = {},
+	): Promise<void> {
+		const tableName = getTableName(type);
+		const collectionRows = await this.db
+			.selectFrom("_emdash_collections as collection")
+			.leftJoin("_emdash_fields as field", (join) =>
+				join.onRef("field.collection_id", "=", "collection.id").on("field.translatable", "=", 0),
+			)
+			.select(["collection.supports", "field.slug as fieldSlug"])
+			.where("collection.slug", "=", type)
+			.execute();
+
+		const { previous } = options;
+		const values: Record<string, unknown> = {};
+		for (const { fieldSlug } of collectionRows) {
+			if (!fieldSlug) continue;
+			if (previous) {
+				if (!sameStoredValue(previous[fieldSlug], data[fieldSlug])) {
+					values[fieldSlug] = data[fieldSlug] ?? null;
+				}
+			} else if (fieldSlug in data) {
+				values[fieldSlug] = data[fieldSlug];
+			}
+		}
+		if (Object.keys(values).length === 0) return;
+		const normalizedValues = await this.datetimes.normalizeData(type, values);
+
+		const supportsRaw = collectionRows[0]?.supports;
+		const supports: unknown = supportsRaw ? JSON.parse(supportsRaw) : [];
+		const usesRevisions = Array.isArray(supports) && supports.includes("revisions");
+
+		const siblings = await sql<Record<string, unknown>>`
+			SELECT * FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			AND id != ${sourceId}
+		`.execute(this.db);
+
+		let changed = false;
+		for (const row of siblings.rows) {
+			if (
+				await this.syncSiblingValues(type, this.mapRow(type, row), normalizedValues, usesRevisions)
+			) {
+				changed = true;
+			}
+		}
+		if (changed) invalidateCollectionCache(type);
+	}
+
+	private async syncSiblingValues(
+		type: string,
+		initial: ContentItem,
+		values: Record<string, unknown>,
+		usesRevisions: boolean,
+	): Promise<boolean> {
+		const tableName = getTableName(type);
+		const revisionRepo = new RevisionRepository(this.db);
+		let sibling: ContentItem | null = initial;
+
+		for (let attempt = 0; sibling && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
+			const current: ContentItem = sibling;
+			const changed: Record<string, unknown> = {};
+			for (const [field, value] of Object.entries(values)) {
+				if (!sameStoredValue(current.data[field], value)) changed[field] = value;
+			}
+			if (Object.keys(changed).length === 0) return false;
+
+			const assignments: ReturnType<typeof sql>[] = [];
+			for (const [field, value] of Object.entries(changed)) {
+				validateIdentifier(field, "content field name");
+				assignments.push(sql`${sql.ref(field)} = ${serializeValue(value)}`);
+			}
+
+			const createdRevisionIds: string[] = [];
+			const cleanUp = async () => {
+				for (const revisionId of createdRevisionIds) {
+					await this.deleteUnstagedRevision(revisionRepo, type, current.id, revisionId);
+				}
+			};
+
+			let synced: boolean;
+			try {
+				const live =
+					usesRevisions && current.liveRevisionId
+						? await revisionRepo.findById(current.liveRevisionId)
+						: null;
+				if (live) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: current.id,
+						data: { ...live.data, ...changed },
+					});
+					createdRevisionIds.push(revision.id);
+					assignments.push(sql`live_revision_id = ${revision.id}`);
+				}
+
+				const draft =
+					usesRevisions && current.draftRevisionId
+						? await revisionRepo.findById(current.draftRevisionId)
+						: null;
+				const carried: Record<string, unknown> = {};
+				for (const [field, value] of Object.entries(changed)) {
+					if (draft && sameStoredValue(draft.data[field], current.data[field])) {
+						carried[field] = value;
+					}
+				}
+				if (draft && Object.keys(carried).length > 0) {
+					const revision = await revisionRepo.create({
+						collection: type,
+						entryId: current.id,
+						data: { ...draft.data, ...carried },
+					});
+					createdRevisionIds.push(revision.id);
+					assignments.push(sql`draft_revision_id = ${revision.id}`);
+				}
+
+				assignments.push(sql`updated_at = ${new Date().toISOString()}`, sql`version = version + 1`);
+				const result = await sql`
+					UPDATE ${sql.ref(tableName)}
+					SET ${sql.join(assignments, sql`, `)}
+					WHERE id = ${current.id}
+					AND version = ${current.version}
+					AND ${nullableColumnMatch("live_revision_id", current.liveRevisionId)}
+					AND ${nullableColumnMatch("draft_revision_id", current.draftRevisionId)}
+				`.execute(this.db);
+				synced = (result.numAffectedRows ?? 0n) > 0n;
+			} catch (error) {
+				await cleanUp();
+				throw error;
+			}
+
+			if (synced) return true;
+			await cleanUp();
+			sibling = await this.findByIdIncludingTrashed(type, current.id);
+		}
+
+		if (!sibling) return false;
+		throw new ContentMutationConflictError();
 	}
 
 	/**
@@ -1532,16 +1712,18 @@ export class ContentRepository {
 	 * Sets status to 'scheduled' and stores the scheduled publish time.
 	 * The content will be auto-published when the scheduled time is reached.
 	 */
-	async schedule(type: string, id: string, scheduledAt: string): Promise<ContentItem> {
+	async schedule(
+		type: string,
+		id: string,
+		scheduledAt: string,
+		currentTime: Date = new Date(),
+	): Promise<ContentItem> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
-		// Validate scheduledAt is in the future
-		const scheduledDate = new Date(scheduledAt);
-		if (isNaN(scheduledDate.getTime())) {
-			throw new EmDashValidationError("Invalid scheduled date");
-		}
-		if (scheduledDate <= new Date()) {
+		const normalizedScheduledAt = await this.datetimes.normalizeValue(type, scheduledAt);
+		const scheduledDate = new Date(normalizedScheduledAt);
+		if (scheduledDate <= currentTime) {
 			throw new EmDashValidationError("Scheduled date must be in the future");
 		}
 
@@ -1555,11 +1737,10 @@ export class ContentRepository {
 		// transition to 'scheduled' so they aren't visible before the time.
 		const newStatus = existing.status === "published" ? "published" : "scheduled";
 
-		// The due query compares ISO strings, so every stored schedule uses the same UTC form.
 		await sql`
 			UPDATE ${sql.ref(tableName)}
 			SET status = ${newStatus},
-				scheduled_at = ${scheduledDate.toISOString()},
+				scheduled_at = ${normalizedScheduledAt},
 				updated_at = ${now}
 			WHERE id = ${id}
 			AND deleted_at IS NULL
@@ -1626,9 +1807,13 @@ export class ContentRepository {
 	 * fan out unbounded publish/webhook work in a single tick (and blow a Worker
 	 * invocation's CPU/subrequest budget); the remainder drains on later ticks.
 	 */
-	async findReadyToPublish(type: string, limit?: number): Promise<ContentItem[]> {
+	async findReadyToPublish(
+		type: string,
+		limit?: number,
+		currentTime: Date = new Date(),
+	): Promise<ContentItem[]> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
 		// Embed an empty fragment when unbounded so callers that want every due
 		// row (manual flows, tests) keep the original behaviour.
@@ -1663,6 +1848,19 @@ export class ContentRepository {
 		`.execute(this.db);
 
 		return result.rows.map((row) => this.mapRow(type, row));
+	}
+
+	/** Whether any row of `translationGroup` exists, trashed rows included. */
+	async hasTranslationsIncludingTrashed(type: string, translationGroup: string): Promise<boolean> {
+		const tableName = getTableName(type);
+
+		const result = await sql<Record<string, unknown>>`
+			SELECT id FROM ${sql.ref(tableName)}
+			WHERE translation_group = ${translationGroup}
+			LIMIT 1
+		`.execute(this.db);
+
+		return result.rows.length > 0;
 	}
 
 	/**
@@ -1807,15 +2005,22 @@ export class ContentRepository {
 		promoteRevision = true,
 		requireSlug = true,
 		expectedRevision?: ContentRevisionPrecondition,
+		currentTime: Date = new Date(),
 	): Promise<ContentItem> {
 		const tableName = getTableName(type);
-		const now = new Date().toISOString();
+		const now = currentTime.toISOString();
 
 		const existing = await this.findById(type, id);
 		if (!existing) {
 			throw new EmDashValidationError("Content item not found");
 		}
 		assertRevisionPrecondition(existing, expectedRevision);
+		const requestedPublishedAt = publishedAt
+			? await this.datetimes.normalizeValue(type, publishedAt)
+			: undefined;
+		const currentPublishedAt = existing.publishedAt
+			? await this.datetimes.normalizeValue(type, existing.publishedAt)
+			: null;
 		if (
 			requireDue &&
 			expectedScheduledAt !== undefined &&
@@ -1842,7 +2047,7 @@ export class ContentRepository {
 					provisionalRevisionId = revision.id;
 				}
 
-				const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+				const intendedPublishedAt = requestedPublishedAt ?? currentPublishedAt ?? now;
 				const duePredicate = requireDue
 					? sql`AND scheduled_at IS NOT NULL AND scheduled_at <= ${now}`
 					: sql``;
@@ -1946,7 +2151,7 @@ export class ContentRepository {
 			if (requireSlug && !intendedSlug?.trim()) {
 				throw new EmDashValidationError("Cannot publish routable content without a slug");
 			}
-			const intendedPublishedAt = publishedAt ?? existing.publishedAt ?? now;
+			const intendedPublishedAt = requestedPublishedAt ?? currentPublishedAt ?? now;
 			if (stagedSlug !== null && stagedSlug !== existing.slug && existing.locale !== null) {
 				const conflict = await this.findBySlugIncludingTrashed(type, stagedSlug, existing.locale);
 				if (conflict && conflict.id !== id) {
@@ -2321,6 +2526,15 @@ export class ContentRepository {
 			throw new EmDashValidationError(
 				`Filter value for field "${field}" exceeds ${MAX_FILTER_STRING_LENGTH} characters`,
 			);
+		}
+		if (type === "datetime") {
+			try {
+				return normalizeExplicitDatetime(value);
+			} catch {
+				throw new EmDashValidationError(
+					`Filter for datetime field "${field}" must use an ISO 8601 datetime with Z or an explicit offset`,
+				);
+			}
 		}
 		return value;
 	}

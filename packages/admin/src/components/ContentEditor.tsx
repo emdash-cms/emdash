@@ -12,6 +12,7 @@ import {
 	Switch,
 	useSidebar,
 } from "@cloudflare/kumo";
+import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
 	ArrowSquareOut,
@@ -23,6 +24,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
+import { useHotkeys } from "react-hotkeys-hook";
 
 import type {
 	BylineCreditInput,
@@ -173,9 +175,15 @@ export interface ContentEditorProps {
 		slug?: string;
 		bylines?: BylineCreditInput[];
 	}) => void | Promise<void>;
-	onUnpublish?: () => void;
+	onUnpublish?: (payload?: {
+		data: Record<string, unknown>;
+		slug?: string;
+		bylines?: BylineCreditInput[];
+	}) => void | Promise<void>;
 	/** Callback to discard draft changes (revert to published version) */
 	onDiscardDraft?: () => void;
+	/** Callback when a revision is restored from the sidebar. */
+	onRevisionRestored?: (item: ContentItem) => void;
 	/** Callback to schedule for future publishing */
 	onSchedule?: (
 		scheduledAt: string,
@@ -255,6 +263,8 @@ export interface ContentEditorProps {
 	readOnly?: boolean;
 	/** Rendered above the fields; carries the edit-lock dialog and banner. */
 	notice?: React.ReactNode;
+	/** IANA timezone used to interpret datetime-local fields. */
+	timezone?: string;
 }
 
 /**
@@ -279,6 +289,7 @@ export function ContentEditor({
 	onPublish,
 	onUnpublish,
 	onDiscardDraft,
+	onRevisionRestored,
 	onSchedule,
 	onUnschedule,
 	isScheduling,
@@ -308,6 +319,7 @@ export function ContentEditor({
 	manifest,
 	readOnly = false,
 	notice,
+	timezone = "UTC",
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
@@ -424,10 +436,21 @@ export function ContentEditor({
 		() => (item ? JSON.stringify(item.bylines ?? []) : ""),
 		[item?.bylines],
 	);
+	const autosaveCompletionTokenRef = React.useRef(autosaveCompletionToken ?? 0);
 	React.useEffect(() => {
 		if (item) {
 			const nextBylines = resolveEditorBylines(item).explicitCredits;
-			if (!isPublishingRef.current) {
+			const previousAutosaveToken = autosaveCompletionTokenRef.current;
+			const autosaveJustCompleted =
+				(autosaveCompletionToken ?? 0) > 0 &&
+				(autosaveCompletionToken ?? 0) !== previousAutosaveToken;
+			autosaveCompletionTokenRef.current = autosaveCompletionToken ?? 0;
+
+			// When an autosave resolves, the server payload is a snapshot from the
+			// moment the request was sent. Writing it back into formData would
+			// clobber edits made while the request was in flight, including nested
+			// repeater sub-fields. The pending autosave effect handles lastSavedData.
+			if (!isPublishingRef.current && !autosaveJustCompleted) {
 				setFormData(item.data);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);
@@ -442,10 +465,19 @@ export function ContentEditor({
 					bylines: nextBylines,
 				}),
 			);
-			pendingAutosaveStateRef.current = null;
-			setRejectedAutosaveState(null);
+			if (!autosaveJustCompleted) {
+				pendingAutosaveStateRef.current = null;
+				setRejectedAutosaveState(null);
+			}
 		}
-	}, [item?.updatedAt, itemDataString, itemBylinesString, item?.slug, item?.status]);
+	}, [
+		item?.updatedAt,
+		itemDataString,
+		itemBylinesString,
+		item?.slug,
+		item?.status,
+		autosaveCompletionToken,
+	]);
 
 	const activeBylines = isNew ? (selectedBylines ?? []) : internalBylines;
 	const unsupportedPortableTextMarks = React.useMemo(() => {
@@ -741,6 +773,11 @@ export function ContentEditor({
 		() => (onUnschedule ? runScheduleChange((payload) => onUnschedule(payload)) : undefined),
 		[onUnschedule, runScheduleChange],
 	);
+	const handleUnpublish = React.useCallback(() => {
+		if (!onUnpublish) return;
+		const unpublish = onUnpublish;
+		void Promise.resolve(runScheduleChange((payload) => unpublish(payload))).catch(() => undefined);
+	}, [onUnpublish, runScheduleChange]);
 	const handlePublishedAtChange = React.useCallback(
 		(publishedAt: string) =>
 			onPublishedAtChange
@@ -852,22 +889,20 @@ export function ContentEditor({
 	// Distraction-free mode state
 	const [isDistractionFree, setIsDistractionFree] = React.useState(false);
 
-	// Escape exits distraction-free mode
-	React.useEffect(() => {
-		if (!isDistractionFree) return;
-
-		const handleKeyDown = (e: KeyboardEvent) => {
-			if (e.key === "Escape") {
-				if (scheduleDialogOpen || publishingMenuOpen) return;
-				e.preventDefault();
-				e.stopPropagation();
-				setIsDistractionFree(false);
-			}
-		};
-
-		document.addEventListener("keydown", handleKeyDown, { capture: true });
-		return () => document.removeEventListener("keydown", handleKeyDown, { capture: true });
-	}, [isDistractionFree, publishingMenuOpen, scheduleDialogOpen]);
+	// The title advertises ⌘⇧\\ as the shortcut, so register it globally.
+	// It toggles both into and out of the mode, but is disabled while a
+	// publishing menu or schedule dialog is open.
+	const canToggleDistractionFree = !scheduleDialogOpen && !publishingMenuOpen;
+	useHotkeys(
+		"mod+shift+\\",
+		(e) => {
+			if (!canToggleDistractionFree) return;
+			e.preventDefault();
+			setIsDistractionFree((prev) => !prev);
+		},
+		{ enableOnFormTags: true, useKey: true },
+		[canToggleDistractionFree],
+	);
 
 	return (
 		<form
@@ -902,12 +937,13 @@ export function ContentEditor({
 				}
 			>
 				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
-					{/* In distraction-free mode the header is a hover-revealed overlay. */}
+					{/* In distraction-free mode the header is an always-visible overlay
+					    so readers can discover the exit affordance without hovering. */}
 					<div
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
-								? "opacity-0 hover:opacity-100 transition-opacity duration-200 fixed top-0 start-0 end-0 mx-auto w-[calc(100%-4rem)] max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10"
+								? "fixed top-0 start-0 end-0 mx-auto w-[calc(100%-4rem)] max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10"
 								: cn(
 										"mx-auto mb-6 max-w-3xl",
 										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
@@ -980,7 +1016,7 @@ export function ContentEditor({
 												isScheduling={isScheduling}
 												isUnscheduling={isUnscheduling}
 												onPublish={handlePublish}
-												onUnpublish={onUnpublish}
+												onUnpublish={handleUnpublish}
 												onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
 												onUnschedule={onUnschedule ? handleUnschedule : undefined}
 												onMenuOpenChange={setPublishingMenuOpen}
@@ -1047,7 +1083,7 @@ export function ContentEditor({
 													isScheduling={isScheduling}
 													isUnscheduling={isUnscheduling}
 													onPublish={handlePublish}
-													onUnpublish={onUnpublish}
+													onUnpublish={handleUnpublish}
 													onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
 													onUnschedule={onUnschedule ? handleUnschedule : undefined}
 													onMenuOpenChange={setPublishingMenuOpen}
@@ -1062,6 +1098,7 @@ export function ContentEditor({
 										type="button"
 										onClick={() => setIsDistractionFree(false)}
 										aria-label={t`Exit distraction-free mode`}
+										title={t`Exit distraction-free mode (⌘⇧\\)`}
 									>
 										<ArrowsInSimple className="h-5 w-5" aria-hidden="true" />
 									</Button>
@@ -1120,6 +1157,7 @@ export function ContentEditor({
 											}
 											manifest={manifest}
 											readOnly={readOnly}
+											timezone={timezone}
 										/>
 									);
 									return fieldEl;
@@ -1159,7 +1197,7 @@ export function ContentEditor({
 								isLoadingPreview={isLoadingPreview}
 								onPreview={handlePreview}
 								onPublish={handlePublish}
-								onUnpublish={onUnpublish}
+								onUnpublish={handleUnpublish}
 								onOpenSchedule={onSchedule ? handleOpenSchedule : undefined}
 								onUnschedule={onUnschedule ? handleUnschedule : undefined}
 								onMenuOpenChange={setPublishingMenuOpen}
@@ -1192,6 +1230,7 @@ export function ContentEditor({
 								onPublishedAtChange={onPublishedAtChange ? handlePublishedAtChange : undefined}
 								isUpdatingPublishedAt={isUpdatingPublishedAt}
 								onDiscardDraft={onDiscardDraft}
+								onRevisionRestored={onRevisionRestored}
 								onDelete={onDelete}
 								isDeleting={isDeleting}
 								currentUser={currentUser}
@@ -1472,6 +1511,7 @@ interface FieldRendererProps {
 	manifest?: import("../lib/api/client.js").AdminManifest | null;
 	/** Render the value without accepting edits. */
 	readOnly?: boolean;
+	timezone: string;
 }
 
 /**
@@ -1489,6 +1529,7 @@ function FieldRenderer({
 	onBlockSidebarClose,
 	manifest,
 	readOnly = false,
+	timezone,
 }: FieldRendererProps) {
 	const { t } = useLingui();
 	const pluginAdmins = usePluginAdmins();
@@ -1518,6 +1559,7 @@ function FieldRenderer({
 						id: string;
 						required?: boolean;
 						options?: Array<{ value: string; label: string }> | Record<string, unknown>;
+						validation?: Record<string, unknown>;
 						minimal?: boolean;
 				  }>
 				| undefined;
@@ -1531,6 +1573,7 @@ function FieldRenderer({
 							id={id}
 							required={field.required}
 							options={field.options}
+							validation={field.validation}
 							minimal={minimal}
 						/>
 					</PluginFieldErrorBoundary>
@@ -1558,14 +1601,24 @@ function FieldRenderer({
 	}
 
 	switch (field.kind) {
-		case "string":
+		case "string": {
+			const text = typeof value === "string" ? value : "";
+			const length = lengthConstraints(field.validation);
+			const tooLong = isOutOfBounds(text.length, length, typeof value === "string");
+			const hint = hasBounds(length) ? (
+				<LengthHint count={text.length} bounds={length} />
+			) : undefined;
 			return (
 				<Input
 					label={<span className={labelClass}>{label}</span>}
 					id={id}
-					value={typeof value === "string" ? value : ""}
+					value={text}
 					onChange={(e) => handleChange(e.target.value)}
 					required={field.required}
+					maxLength={length.max}
+					aria-invalid={tooLong || undefined}
+					description={hint}
+					error={boundsError(hint, tooLong)}
 					dir="auto"
 					className={
 						minimal
@@ -1574,8 +1627,12 @@ function FieldRenderer({
 					}
 				/>
 			);
+		}
 
-		case "number":
+		case "number": {
+			const range = rangeConstraints(field.validation);
+			const outOfRange = typeof value === "number" && isOutOfBounds(value, range, true);
+			const hint = hasBounds(range) ? <RangeHint bounds={range} /> : undefined;
 			return (
 				<Input
 					label={<span className={labelClass}>{label}</span>}
@@ -1584,8 +1641,14 @@ function FieldRenderer({
 					value={typeof value === "number" ? value : ""}
 					onChange={(e) => handleChange(Number(e.target.value))}
 					required={field.required}
+					min={range.min}
+					max={range.max}
+					aria-invalid={outOfRange || undefined}
+					description={hint}
+					error={boundsError(hint, outOfRange)}
 				/>
 			);
+		}
 
 		case "boolean":
 			return (
@@ -1621,19 +1684,29 @@ function FieldRenderer({
 			);
 		}
 
-		case "richText":
-			// For richText (markdown), use InputArea
+		case "richText": {
+			const text = typeof value === "string" ? value : "";
+			const length = lengthConstraints(field.validation);
+			const tooLong = isOutOfBounds(text.length, length, typeof value === "string");
+			const hint = hasBounds(length) ? (
+				<LengthHint count={text.length} bounds={length} />
+			) : undefined;
 			return (
 				<InputArea
 					label={label}
 					id={id}
-					value={typeof value === "string" ? value : ""}
+					value={text}
 					onChange={(e) => handleChange(e.target.value)}
 					rows={10}
+					maxLength={length.max}
+					aria-invalid={tooLong || undefined}
+					description={hint}
+					error={boundsError(hint, tooLong)}
 					dir="auto"
 					placeholder={t`Enter markdown content...`}
 				/>
 			);
+		}
 
 		case "select": {
 			const selectOptions = Array.isArray(field.options) ? field.options : [];
@@ -1692,8 +1765,14 @@ function FieldRenderer({
 					label={label}
 					id={id}
 					type="datetime-local"
-					value={toDatetimeLocalInputValue(value)}
-					onChange={(e) => handleChange(fromDatetimeLocalInputValue(e.target.value))}
+					value={toDatetimeLocalInputValue(value, timezone)}
+					onChange={(e) => {
+						try {
+							handleChange(fromDatetimeLocalInputValue(e.target.value, timezone));
+						} catch {
+							handleChange(e.target.value);
+						}
+					}}
 					required={field.required}
 				/>
 			);
@@ -1767,6 +1846,7 @@ function FieldRenderer({
 					onChange={handleChange}
 					required={field.required}
 					subFields={subFields}
+					timezone={timezone}
 					minItems={typeof validation?.minItems === "number" ? validation.minItems : undefined}
 					maxItems={typeof validation?.maxItems === "number" ? validation.maxItems : undefined}
 				/>
@@ -1827,6 +1907,94 @@ function isValidUrl(val: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+interface Bounds {
+	min?: number;
+	max?: number;
+}
+
+function constraintNumber(validation: Record<string, unknown> | undefined, key: string) {
+	const value = validation?.[key];
+	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+}
+
+function lengthConstraints(validation: Record<string, unknown> | undefined): Bounds {
+	return {
+		min: constraintNumber(validation, "minLength"),
+		max: constraintNumber(validation, "maxLength"),
+	};
+}
+
+function rangeConstraints(validation: Record<string, unknown> | undefined): Bounds {
+	return { min: constraintNumber(validation, "min"), max: constraintNumber(validation, "max") };
+}
+
+function hasBounds({ min, max }: Bounds) {
+	return min !== undefined || max !== undefined;
+}
+
+function isOutOfBounds(value: number, { min, max }: Bounds, hasValue: boolean) {
+	if (max !== undefined && value > max) return true;
+	return hasValue && min !== undefined && value < min;
+}
+
+function boundsError(hint: React.ReactNode, violated: boolean) {
+	return violated && hint ? { message: hint, match: true } : undefined;
+}
+
+interface BoundsHintProps {
+	bounds: Bounds;
+}
+
+function LengthHint({ count, bounds }: BoundsHintProps & { count: number }) {
+	const { i18n } = useLingui();
+	const counted = i18n.number(count);
+	let text: string;
+	if (bounds.max !== undefined && bounds.min !== undefined) {
+		const min = i18n.number(bounds.min);
+		text = plural(bounds.max, {
+			one: `${counted} of # character, at least ${min}`,
+			other: `${counted} of # characters, at least ${min}`,
+		});
+	} else if (bounds.max !== undefined) {
+		text = plural(bounds.max, {
+			one: `${counted} of # character`,
+			other: `${counted} of # characters`,
+		});
+	} else if (bounds.min !== undefined) {
+		text = plural(bounds.min, { one: "At least # character", other: "At least # characters" });
+	} else {
+		return null;
+	}
+	return (
+		<span dir="auto" className="tabular-nums">
+			{text}
+		</span>
+	);
+}
+
+function RangeHint({ bounds }: BoundsHintProps) {
+	const { t, i18n } = useLingui();
+	let text: string;
+	if (bounds.min !== undefined && bounds.max !== undefined) {
+		const min = i18n.number(bounds.min);
+		const max = i18n.number(bounds.max);
+		text = t`Between ${min} and ${max}`;
+	} else if (bounds.max !== undefined) {
+		const max = i18n.number(bounds.max);
+		text = t`At most ${max}`;
+	} else if (bounds.min !== undefined) {
+		const min = i18n.number(bounds.min);
+		text = t`At least ${min}`;
+	} else {
+		return null;
+	}
+	return (
+		<span dir="auto" className="tabular-nums">
+			{text}
+		</span>
+	);
 }
 
 /**

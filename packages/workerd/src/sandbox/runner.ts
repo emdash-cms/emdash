@@ -332,6 +332,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Email send callback, wired from EmailPipeline */
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
+	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Epoch counter, incremented on each workerd restart */
 	private epoch = 0;
@@ -514,6 +515,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		this.emailSendCallback = callback;
+	}
+
+	setCronReschedule(callback: (() => void) | null): void {
+		this.cronRescheduleCallback = callback;
 	}
 
 	/**
@@ -918,6 +923,14 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	/** Get the email send callback */
 	get emailSend() {
 		return this.emailSendCallback;
+	}
+
+	get cronReschedule() {
+		return this.cronRescheduleCallback;
+	}
+
+	get now() {
+		return this.options.now;
 	}
 
 	/** Get the media storage adapter */

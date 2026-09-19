@@ -60,6 +60,19 @@ import pluginModule from "sandbox-plugin.js";
 const hooks = pluginModule?.hooks || pluginModule?.default?.hooks || {};
 const routes = pluginModule?.routes || pluginModule?.default?.routes || {};
 
+function storageSerializationErrorDetails(value) {
+	if (!value || typeof value !== "object" ||
+		value.code !== "STORAGE_SERIALIZATION_FAILURE" || value.retryable !== true ||
+		(value.sqlState !== undefined && value.sqlState !== "40001" && value.sqlState !== "40P01")) return null;
+	return {
+		name: "StorageSerializationError",
+		code: "STORAGE_SERIALIZATION_FAILURE",
+		retryable: true,
+		...(value.sqlState === undefined ? {} : { sqlState: value.sqlState }),
+		message: "Storage write must be retried. Restart the transaction before retrying when using an explicit transaction.",
+	};
+}
+
 function sandboxRouteErrorDetails(value) {
 	if (!value || typeof value !== "object") return null;
 	const code =
@@ -93,6 +106,9 @@ function createContext(env) {
 	const kv = {
 		get: (key) => bridge.kvGet(key),
 		set: (key, value) => bridge.kvSet(key, value),
+		getVersioned: (key) => bridge.kvGetVersioned(key),
+		compareAndSet: (key, expectedRevision, value) => bridge.kvCompareAndSet(key, expectedRevision, value),
+		compareAndDelete: (key, expectedRevision) => bridge.kvCompareAndDelete(key, expectedRevision),
 		delete: (key) => bridge.kvDelete(key),
 		list: (prefix) => bridge.kvList(prefix)
 	};
@@ -102,6 +118,18 @@ function createContext(env) {
 		return {
 			get: (id) => bridge.storageGet(collectionName, id),
 			put: (id, data) => bridge.storagePut(collectionName, id, data),
+			getVersioned: (id) => bridge.storageGetVersioned(collectionName, id),
+			compareAndSet: (id, expectedRevision, data) => bridge.storageCompareAndSet(collectionName, id, expectedRevision, data),
+			compareAndDelete: (id, expectedRevision) => bridge.storageCompareAndDelete(collectionName, id, expectedRevision),
+			updateIf: async (id, args) => {
+				const result = await bridge.storageUpdateIf(collectionName, id, args);
+				if (result && typeof result === "object" && "__emdashStorageError" in result) {
+					const details = storageSerializationErrorDetails(result.__emdashStorageError);
+					if (!details) throw new Error("Invalid storage error response");
+					throw Object.assign(new Error(details.message), details);
+				}
+				return result;
+			},
 			delete: (id) => bridge.storageDelete(collectionName, id),
 			exists: async (id) => (await bridge.storageGet(collectionName, id)) !== null,
 			query: (opts) => bridge.storageQuery(collectionName, opts),
@@ -149,14 +177,10 @@ function createContext(env) {
 	const http = {
 		fetch: async (url, init) => {
 			const result = await bridge.httpFetch(url, init);
-			// Bridge returns serialized response, reconstruct Response-like object
-			return {
+			return new Response(result.text, {
 				status: result.status,
-				ok: result.status >= 200 && result.status < 300,
-				headers: new Headers(result.headers),
-				text: async () => result.text,
-				json: async () => JSON.parse(result.text)
-			};
+				headers: result.headers,
+			});
 		}
 	};
 	
@@ -194,6 +218,12 @@ function createContext(env) {
 	const email = ${hasEmailSend} ? {
 		send: (message) => bridge.emailSend(message)
 	} : undefined;
+
+	const cron = {
+		schedule: (name, opts) => bridge.cronSchedule(name, opts),
+		cancel: (name) => bridge.cronCancel(name),
+		list: () => bridge.cronList()
+	};
 	
 	return {
 		plugin: {
@@ -210,7 +240,8 @@ function createContext(env) {
 		site,
 		url,
 		users,
-		email
+		email,
+		cron
 	};
 }
 

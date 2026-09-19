@@ -134,6 +134,8 @@ export interface AdminManifest {
 	version: string;
 	/** Version of Astro the host is built with, when resolvable. */
 	astroVersion?: string;
+	/** IANA timezone used to interpret datetime-local editor values. */
+	timezone?: string;
 	hash: string;
 	collections: Record<
 		string,
@@ -252,15 +254,14 @@ export interface AdminManifest {
 		translationGroup?: string | null;
 	}>;
 	/**
-	 * Marketplace registry URL. Present when `marketplace` is configured
-	 * in the EmDash integration. Enables marketplace features in the UI.
+	 * Whether legacy marketplace lifecycle support is configured. The admin
+	 * uses this to show migration guidance; marketplace discovery stays hidden.
+	 * @deprecated Present only while the site supports installed Marketplace plugins.
 	 */
-	marketplace?: string;
+	marketplace?: boolean;
 	/**
-	 * Experimental decentralized plugin registry. Present when
-	 * `experimental.registry` is configured in the EmDash integration.
-	 * When present, the admin UI uses the registry instead of the
-	 * centralized marketplace for browse and install.
+	 * Decentralized plugin registry. Defaults to the hosted aggregator when
+	 * the plugin sandbox is enabled, or reflects an explicit registry config.
 	 */
 	registry?: {
 		aggregatorUrl: string;
@@ -279,6 +280,9 @@ export interface AdminManifest {
 			| "REGISTRY_MINIMUM_RELEASE_AGE_INVALID"
 			| "REGISTRY_MINIMUM_RELEASE_AGE_EXCLUDE_INVALID";
 		field:
+			| "registry.aggregatorUrl"
+			| "registry.policy.minimumReleaseAge"
+			| "registry.policy.minimumReleaseAgeExclude"
 			| "experimental.registry.aggregatorUrl"
 			| "experimental.registry.policy.minimumReleaseAge"
 			| "experimental.registry.policy.minimumReleaseAgeExclude";

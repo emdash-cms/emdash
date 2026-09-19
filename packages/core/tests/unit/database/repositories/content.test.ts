@@ -2,6 +2,7 @@ import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
+import { OptionsRepository } from "../../../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../../../src/database/repositories/revision.js";
 import { EmDashValidationError } from "../../../../src/database/repositories/types.js";
 import type { Database } from "../../../../src/database/types.js";
@@ -509,6 +510,26 @@ describe("ContentRepository", () => {
 
 			vi.setSystemTime(new Date("2030-01-01T12:00:00.000Z"));
 			expect((await repo.findReadyToPublish("post")).map((item) => item.id)).toEqual([post.id]);
+		});
+
+		it("resolves direct site-local schedules with the configured timezone", async () => {
+			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
+			await new OptionsRepository(db).set("site:timezone", "America/New_York");
+			const post = await repo.create(createPostFixture());
+
+			const updated = await repo.schedule("post", post.id, "2030-01-01T08:00");
+
+			expect(updated.scheduledAt).toBe("2030-01-01T13:00:00.000Z");
+		});
+
+		it("rejects ambiguous direct site-local schedules", async () => {
+			vi.useFakeTimers({ now: new Date("2030-01-01T11:00:00.000Z") });
+			await new OptionsRepository(db).set("site:timezone", "America/New_York");
+			const post = await repo.create(createPostFixture());
+
+			await expect(repo.schedule("post", post.id, "2030-11-03T01:30")).rejects.toThrow(
+				EmDashValidationError,
+			);
 		});
 	});
 

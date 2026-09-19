@@ -123,8 +123,11 @@ export default defineConfig({
 		"src/plugin-utils.ts",
 		// `emdash/plugin` — type-only subpath for sandboxed plugin authors.
 		"src/plugin-types.ts",
+		"src/plugin-test-runtime.ts",
 		// Standard plugin adapter (loaded by virtual:emdash/plugins at runtime)
 		"src/plugins/adapt-sandbox-entry.ts",
+		// Platform adapter runtime used behind lazy sandbox bridges.
+		"src/plugins/host.ts",
 		// Public source-exported subpaths -- compiled so consumers never
 		// type-check our raw .ts (avoids the dual-package identity hazard).
 		// `./ui`, `./ui/search` and the `*-admin.tsx` providers stay source:

@@ -29,8 +29,12 @@ type ToolbarMode = "server" | "client" | false;
 
 const toolbarMode: ToolbarMode = virtualConfig?.toolbar ?? "server";
 
-/** Astro's route-cache handle. EmDash requires Astro 6+, so it's always present. */
-type RouteCache = APIContext["cache"];
+/**
+ * Astro's route-cache handle. Astro defines `context.cache` only on requests
+ * that went through its cache handler, so it is `undefined` on some renders,
+ * such as the 404 page for a URL that matches no route.
+ */
+type RouteCache = APIContext["cache"] | undefined;
 
 /**
  * Opt the current request out of Astro's route cache (e.g. Workers Cache on
@@ -39,10 +43,10 @@ type RouteCache = APIContext["cache"];
  * `Cloudflare-CDN-Cache-Control`), so session-specific responses must
  * explicitly disable it or they get stored in the shared cache and served to
  * anonymous visitors without ever invoking the middleware again. With no cache
- * provider configured this is a no-op (`NoopAstroCache`/`DisabledAstroCache`).
+ * provider configured, or no cache handle on the request, this is a no-op.
  */
 function optOutOfRouteCache(cache: RouteCache): void {
-	cache.set(false);
+	cache?.set(false);
 }
 
 /**

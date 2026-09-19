@@ -33,34 +33,34 @@
 			"$ref": "#/$defs/__schema16"
 		},
 		"author": {
-			"$ref": "#/$defs/__schema27"
-		},
-		"authors": {
 			"$ref": "#/$defs/__schema32"
 		},
-		"security": {
-			"$ref": "#/$defs/__schema33"
-		},
-		"securityContacts": {
+		"authors": {
 			"$ref": "#/$defs/__schema37"
 		},
-		"name": {
+		"security": {
 			"$ref": "#/$defs/__schema38"
 		},
-		"description": {
-			"$ref": "#/$defs/__schema39"
-		},
-		"keywords": {
-			"$ref": "#/$defs/__schema40"
-		},
-		"sections": {
+		"securityContacts": {
 			"$ref": "#/$defs/__schema42"
 		},
+		"name": {
+			"$ref": "#/$defs/__schema43"
+		},
+		"description": {
+			"$ref": "#/$defs/__schema44"
+		},
+		"keywords": {
+			"$ref": "#/$defs/__schema45"
+		},
+		"sections": {
+			"$ref": "#/$defs/__schema47"
+		},
 		"repo": {
-			"$ref": "#/$defs/__schema52"
+			"$ref": "#/$defs/__schema57"
 		},
 		"release": {
-			"$ref": "#/$defs/__schema53"
+			"$ref": "#/$defs/__schema58"
 		}
 	},
 	"required": [
@@ -245,6 +245,12 @@
 				},
 				"widgets": {
 					"$ref": "#/$defs/__schema22"
+				},
+				"settingsSchema": {
+					"$ref": "#/$defs/__schema27"
+				},
+				"fieldWidgets": {
+					"$ref": "#/$defs/__schema30"
 				}
 			},
 			"additionalProperties": false,
@@ -342,19 +348,300 @@
 			]
 		},
 		"__schema27": {
-			"$ref": "#/$defs/__schema28"
+			"type": "object",
+			"propertyNames": {
+				"type": "string"
+			},
+			"additionalProperties": {
+				"oneOf": [
+					{
+						"type": "object",
+						"properties": {
+							"label": {
+								"$ref": "#/$defs/__schema28"
+							},
+							"description": {
+								"$ref": "#/$defs/__schema29"
+							},
+							"type": {
+								"type": "string",
+								"const": "string"
+							},
+							"default": {
+								"type": "string"
+							},
+							"multiline": {
+								"type": "boolean"
+							}
+						},
+						"required": [
+							"label",
+							"type"
+						],
+						"additionalProperties": false
+					},
+					{
+						"type": "object",
+						"properties": {
+							"label": {
+								"$ref": "#/$defs/__schema28"
+							},
+							"description": {
+								"$ref": "#/$defs/__schema29"
+							},
+							"type": {
+								"type": "string",
+								"const": "number"
+							},
+							"default": {
+								"type": "number"
+							},
+							"min": {
+								"type": "number"
+							},
+							"max": {
+								"type": "number"
+							}
+						},
+						"required": [
+							"label",
+							"type"
+						],
+						"additionalProperties": false
+					},
+					{
+						"type": "object",
+						"properties": {
+							"label": {
+								"$ref": "#/$defs/__schema28"
+							},
+							"description": {
+								"$ref": "#/$defs/__schema29"
+							},
+							"type": {
+								"type": "string",
+								"const": "boolean"
+							},
+							"default": {
+								"type": "boolean"
+							}
+						},
+						"required": [
+							"label",
+							"type"
+						],
+						"additionalProperties": false
+					},
+					{
+						"type": "object",
+						"properties": {
+							"label": {
+								"$ref": "#/$defs/__schema28"
+							},
+							"description": {
+								"$ref": "#/$defs/__schema29"
+							},
+							"type": {
+								"type": "string",
+								"const": "select"
+							},
+							"options": {
+								"type": "array",
+								"items": {
+									"type": "object",
+									"properties": {
+										"value": {
+											"type": "string"
+										},
+										"label": {
+											"type": "string"
+										}
+									},
+									"required": [
+										"value",
+										"label"
+									],
+									"additionalProperties": false
+								}
+							},
+							"default": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"label",
+							"type",
+							"options"
+						],
+						"additionalProperties": false
+					},
+					{
+						"type": "object",
+						"properties": {
+							"label": {
+								"$ref": "#/$defs/__schema28"
+							},
+							"description": {
+								"$ref": "#/$defs/__schema29"
+							},
+							"type": {
+								"type": "string",
+								"const": "secret"
+							}
+						},
+						"required": [
+							"label",
+							"type"
+						],
+						"additionalProperties": false
+					},
+					{
+						"type": "object",
+						"properties": {
+							"label": {
+								"$ref": "#/$defs/__schema28"
+							},
+							"description": {
+								"$ref": "#/$defs/__schema29"
+							},
+							"type": {
+								"type": "string",
+								"const": "url"
+							},
+							"default": {
+								"type": "string"
+							},
+							"placeholder": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"label",
+							"type"
+						],
+						"additionalProperties": false
+					},
+					{
+						"type": "object",
+						"properties": {
+							"label": {
+								"$ref": "#/$defs/__schema28"
+							},
+							"description": {
+								"$ref": "#/$defs/__schema29"
+							},
+							"type": {
+								"type": "string",
+								"const": "email"
+							},
+							"default": {
+								"type": "string"
+							},
+							"placeholder": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"label",
+							"type"
+						],
+						"additionalProperties": false
+					}
+				]
+			}
 		},
 		"__schema28": {
+			"type": "string",
+			"minLength": 1
+		},
+		"__schema29": {
+			"type": "string"
+		},
+		"__schema30": {
+			"maxItems": 32,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema31"
+			}
+		},
+		"__schema31": {
 			"type": "object",
 			"properties": {
 				"name": {
-					"$ref": "#/$defs/__schema29"
+					"type": "string",
+					"minLength": 1
+				},
+				"label": {
+					"type": "string",
+					"minLength": 1
+				},
+				"fieldTypes": {
+					"type": "array",
+					"items": {
+						"type": "string",
+						"enum": [
+							"string",
+							"text",
+							"number",
+							"integer",
+							"boolean",
+							"datetime",
+							"select",
+							"multiSelect",
+							"portableText",
+							"image",
+							"file",
+							"reference",
+							"json",
+							"slug",
+							"repeater"
+						]
+					}
+				},
+				"elements": {
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"type": {
+								"type": "string"
+							},
+							"action_id": {
+								"type": "string"
+							},
+							"label": {
+								"type": "string"
+							}
+						},
+						"required": [
+							"type",
+							"action_id"
+						],
+						"additionalProperties": {}
+					}
+				}
+			},
+			"required": [
+				"name",
+				"label",
+				"fieldTypes"
+			],
+			"additionalProperties": false
+		},
+		"__schema32": {
+			"$ref": "#/$defs/__schema33"
+		},
+		"__schema33": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"$ref": "#/$defs/__schema34"
 				},
 				"url": {
-					"$ref": "#/$defs/__schema30"
+					"$ref": "#/$defs/__schema35"
 				},
 				"email": {
-					"$ref": "#/$defs/__schema31"
+					"$ref": "#/$defs/__schema36"
 				}
 			},
 			"required": [
@@ -364,150 +651,150 @@
 			"title": "Author",
 			"description": "A single author entry. Mirrors the lexicon's author shape."
 		},
-		"__schema29": {
+		"__schema34": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 256,
 			"description": "Display name."
 		},
-		"__schema30": {
-			"type": "string",
-			"maxLength": 1024,
-			"format": "uri",
-			"description": "Author's homepage or profile URL. Either this or `email` is recommended."
-		},
-		"__schema31": {
-			"type": "string",
-			"maxLength": 256,
-			"format": "email",
-			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
-			"description": "Author's contact email. Either this or `url` is recommended."
-		},
-		"__schema32": {
-			"minItems": 1,
-			"maxItems": 32,
-			"type": "array",
-			"items": {
-				"$ref": "#/$defs/__schema28"
-			},
-			"title": "Authors (multiple)",
-			"description": "Multi-author form. Mutually exclusive with `author`. Use the singular `author` if there is only one."
-		},
-		"__schema33": {
-			"$ref": "#/$defs/__schema34"
-		},
-		"__schema34": {
-			"type": "object",
-			"properties": {
-				"url": {
-					"$ref": "#/$defs/__schema35"
-				},
-				"email": {
-					"$ref": "#/$defs/__schema36"
-				}
-			},
-			"additionalProperties": false,
-			"title": "Security contact",
-			"description": "A single security contact. At least one of `url` or `email` must be present."
-		},
 		"__schema35": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
-			"description": "Security disclosure URL (e.g. a security.txt or vulnerability-reporting page). Either this or `email` is required."
+			"description": "Author's homepage or profile URL. Either this or `email` is recommended."
 		},
 		"__schema36": {
 			"type": "string",
 			"maxLength": 256,
 			"format": "email",
 			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
-			"description": "Security contact email. Either this or `url` is required."
+			"description": "Author's contact email. Either this or `url` is recommended."
 		},
 		"__schema37": {
+			"minItems": 1,
+			"maxItems": 32,
+			"type": "array",
+			"items": {
+				"$ref": "#/$defs/__schema33"
+			},
+			"title": "Authors (multiple)",
+			"description": "Multi-author form. Mutually exclusive with `author`. Use the singular `author` if there is only one."
+		},
+		"__schema38": {
+			"$ref": "#/$defs/__schema39"
+		},
+		"__schema39": {
+			"type": "object",
+			"properties": {
+				"url": {
+					"$ref": "#/$defs/__schema40"
+				},
+				"email": {
+					"$ref": "#/$defs/__schema41"
+				}
+			},
+			"additionalProperties": false,
+			"title": "Security contact",
+			"description": "A single security contact. At least one of `url` or `email` must be present."
+		},
+		"__schema40": {
+			"type": "string",
+			"maxLength": 1024,
+			"format": "uri",
+			"description": "Security disclosure URL (e.g. a security.txt or vulnerability-reporting page). Either this or `email` is required."
+		},
+		"__schema41": {
+			"type": "string",
+			"maxLength": 256,
+			"format": "email",
+			"pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+			"description": "Security contact email. Either this or `url` is required."
+		},
+		"__schema42": {
 			"minItems": 1,
 			"maxItems": 8,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema34"
+				"$ref": "#/$defs/__schema39"
 			},
 			"title": "Security contacts (multiple)",
 			"description": "Multi-contact form. Mutually exclusive with `security`. Use the singular `security` if there is only one."
 		},
-		"__schema38": {
+		"__schema43": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Display name",
 			"description": "Human-readable name shown in directory listings. Defaults to the plugin's `id` when omitted."
 		},
-		"__schema39": {
+		"__schema44": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"title": "Description",
 			"description": "Short description (<= 140 graphemes by FAIR convention). Aggregators may truncate longer values when displaying in compact lists."
 		},
-		"__schema40": {
+		"__schema45": {
 			"maxItems": 5,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema41"
+				"$ref": "#/$defs/__schema46"
 			},
 			"title": "Keywords",
 			"description": "Search keywords (<= 5 entries, FAIR convention)."
 		},
-		"__schema41": {
+		"__schema46": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 128
 		},
-		"__schema42": {
+		"__schema47": {
 			"type": "object",
 			"properties": {
 				"description": {
-					"$ref": "#/$defs/__schema43"
-				},
-				"installation": {
 					"$ref": "#/$defs/__schema48"
 				},
+				"installation": {
+					"$ref": "#/$defs/__schema53"
+				},
 				"faq": {
-					"$ref": "#/$defs/__schema49"
+					"$ref": "#/$defs/__schema54"
 				},
 				"changelog": {
-					"$ref": "#/$defs/__schema50"
+					"$ref": "#/$defs/__schema55"
 				},
 				"security": {
-					"$ref": "#/$defs/__schema51"
+					"$ref": "#/$defs/__schema56"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Profile sections",
 			"description": "Long-form package documentation (description / installation / faq / changelog / security). Each value is CommonMark Markdown (inline or a `{ file }` ref) capped at 20000 bytes / 2000 graphemes. Rendered on the package's registry page."
 		},
-		"__schema43": {
-			"$ref": "#/$defs/__schema44"
+		"__schema48": {
+			"$ref": "#/$defs/__schema49"
 		},
-		"__schema44": {
+		"__schema49": {
 			"anyOf": [
 				{
-					"$ref": "#/$defs/__schema45"
+					"$ref": "#/$defs/__schema50"
 				},
 				{
-					"$ref": "#/$defs/__schema46"
+					"$ref": "#/$defs/__schema51"
 				}
 			],
 			"title": "Section value",
 			"description": "Either inline CommonMark Markdown or a `{ file }` reference to a sibling Markdown file."
 		},
-		"__schema45": {
+		"__schema50": {
 			"type": "string",
 			"description": "Inline CommonMark Markdown for this section. Capped at 20000 bytes / 2000 graphemes."
 		},
-		"__schema46": {
+		"__schema51": {
 			"type": "object",
 			"properties": {
 				"file": {
-					"$ref": "#/$defs/__schema47"
+					"$ref": "#/$defs/__schema52"
 				}
 			},
 			"required": [
@@ -517,25 +804,25 @@
 			"title": "Section file reference",
 			"description": "Loads the section's Markdown from a sibling file instead of inlining it in the manifest."
 		},
-		"__schema47": {
+		"__schema52": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"description": "Path to a CommonMark Markdown file, relative to the manifest. Its content is read inline into the section at publish time."
 		},
-		"__schema48": {
-			"$ref": "#/$defs/__schema44"
+		"__schema53": {
+			"$ref": "#/$defs/__schema49"
 		},
-		"__schema49": {
-			"$ref": "#/$defs/__schema44"
+		"__schema54": {
+			"$ref": "#/$defs/__schema49"
 		},
-		"__schema50": {
-			"$ref": "#/$defs/__schema44"
+		"__schema55": {
+			"$ref": "#/$defs/__schema49"
 		},
-		"__schema51": {
-			"$ref": "#/$defs/__schema44"
+		"__schema56": {
+			"$ref": "#/$defs/__schema49"
 		},
-		"__schema52": {
+		"__schema57": {
 			"type": "string",
 			"maxLength": 1024,
 			"format": "uri",
@@ -546,27 +833,27 @@
 				"https://github.com/emdash-cms/plugin-gallery"
 			]
 		},
-		"__schema53": {
+		"__schema58": {
 			"type": "object",
 			"properties": {
 				"requires": {
-					"$ref": "#/$defs/__schema54"
+					"$ref": "#/$defs/__schema59"
 				},
 				"artifacts": {
-					"$ref": "#/$defs/__schema57"
+					"$ref": "#/$defs/__schema62"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Release",
 			"description": "Per-release fields: environment constraints (`requires`) and media artifacts (icon / screenshot / banner)."
 		},
-		"__schema54": {
+		"__schema59": {
 			"type": "object",
 			"propertyNames": {
-				"$ref": "#/$defs/__schema55"
+				"$ref": "#/$defs/__schema60"
 			},
 			"additionalProperties": {
-				"$ref": "#/$defs/__schema56"
+				"$ref": "#/$defs/__schema61"
 			},
 			"title": "Environment requirements",
 			"description": "Host environment constraints for this release, keyed by `env:*` (e.g. \"env:astro\", \"env:emdash\") with semver-range values. EmDash refuses to install a release whose constraints the host does not satisfy.",
@@ -577,41 +864,41 @@
 				}
 			]
 		},
-		"__schema55": {
+		"__schema60": {
 			"type": "string"
 		},
-		"__schema56": {
+		"__schema61": {
 			"type": "string",
 			"minLength": 1
 		},
-		"__schema57": {
+		"__schema62": {
 			"type": "object",
 			"properties": {
 				"icon": {
-					"$ref": "#/$defs/__schema58"
+					"$ref": "#/$defs/__schema63"
 				},
 				"banner": {
-					"$ref": "#/$defs/__schema62"
+					"$ref": "#/$defs/__schema67"
 				},
 				"screenshots": {
-					"$ref": "#/$defs/__schema63"
+					"$ref": "#/$defs/__schema68"
 				}
 			},
 			"additionalProperties": false,
 			"title": "Artifacts",
 			"description": "Release media artifacts. `icon` and `banner` are single images; `screenshots` is a gallery array."
 		},
-		"__schema58": {
-			"$ref": "#/$defs/__schema59"
+		"__schema63": {
+			"$ref": "#/$defs/__schema64"
 		},
-		"__schema59": {
+		"__schema64": {
 			"type": "object",
 			"properties": {
 				"file": {
-					"$ref": "#/$defs/__schema60"
+					"$ref": "#/$defs/__schema65"
 				},
 				"lang": {
-					"$ref": "#/$defs/__schema61"
+					"$ref": "#/$defs/__schema66"
 				}
 			},
 			"required": [
@@ -621,13 +908,13 @@
 			"title": "Artifact file reference",
 			"description": "A PNG, JPEG, or WebP file published as an icon, screenshot, or banner."
 		},
-		"__schema60": {
+		"__schema65": {
 			"type": "string",
 			"minLength": 1,
 			"maxLength": 1024,
 			"description": "Path to the image file, relative to the manifest. Resolved, hashed, measured, and uploaded at publish time."
 		},
-		"__schema61": {
+		"__schema66": {
 			"type": "string",
 			"minLength": 2,
 			"maxLength": 64,
@@ -637,15 +924,15 @@
 				"pt-BR"
 			]
 		},
-		"__schema62": {
-			"$ref": "#/$defs/__schema59"
+		"__schema67": {
+			"$ref": "#/$defs/__schema64"
 		},
-		"__schema63": {
+		"__schema68": {
 			"minItems": 1,
 			"maxItems": 8,
 			"type": "array",
 			"items": {
-				"$ref": "#/$defs/__schema59"
+				"$ref": "#/$defs/__schema64"
 			},
 			"title": "Screenshots",
 			"description": "Screenshot gallery for the plugin's detail page (<= 8 entries)."

@@ -62,6 +62,7 @@ import {
 } from "@emdash-cms/registry-lexicons";
 
 import { multihashFromBlobCid } from "../multihash.js";
+import { formatPackageIdentifier } from "../package-identifier.js";
 
 // ──────────────────────────────────────────────────────────────────────────
 // Public types
@@ -423,6 +424,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	// 4. Build the operations list. We always write the release; the profile
 	// is created on first publish or `lastUpdated`-bumped on subsequent.
 	const profileCreated = existingProfile === null;
+	const packageIdentifier = formatPackageIdentifier(options.did, slug);
 	const ignoredProfileFields: string[] = [];
 
 	// The EmDash trust extension carries the manifest's declaredAccess
@@ -504,7 +506,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 			rkey: slug,
 			record: profileRecord,
 		});
-		log.info?.(`Bootstrapping profile: ${profileUri}`);
+		log.info?.(`Preparing package profile for ${packageIdentifier}`);
 	} else {
 		ignoredProfileFields.push(
 			...(usedStructured
@@ -524,7 +526,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 				rkey: slug,
 				record: stamped,
 			});
-			log.info?.(`Reusing profile (bumping lastUpdated): ${profileUri}`);
+			log.info?.(`Updating package profile for ${packageIdentifier}`);
 		} else {
 			// Existing profile didn't validate enough to construct a typed
 			// shape; leave it alone and emit a warning.
@@ -586,7 +588,7 @@ export async function publishRelease(options: PublishOptions): Promise<PublishRe
 	}
 
 	if (profileCreated) {
-		log.success?.(`Created profile: ${profileUri}`);
+		log.success?.(`Published package profile for ${packageIdentifier}`);
 	}
 
 	return {

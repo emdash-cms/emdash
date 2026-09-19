@@ -201,6 +201,12 @@ export async function handlePluginSettingsUpdate(
 				} else {
 					await txRepo.set(settingsKey(pluginId, key), value);
 				}
+				await trx
+					.deleteFrom("_plugin_storage")
+					.where("plugin_id", "=", pluginId)
+					.where("collection", "=", "__kv")
+					.where("id", "=", `settings:${key}`)
+					.execute();
 			}
 			return buildSettingsResponse(txRepo, pluginId, schema);
 		});

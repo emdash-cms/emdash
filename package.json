@@ -32,6 +32,7 @@
 		"new": "create-emdash",
 		"screenshots": "node scripts/screenshot-all-templates.mjs",
 		"query-counts": "node scripts/query-counts.mjs",
+		"startup:check": "node scripts/check-worker-startup.mjs",
 		"locale:extract": "pnpm --filter @emdash-cms/admin locale:extract",
 		"locale:compile": "pnpm --filter @emdash-cms/admin locale:compile"
 	},
@@ -40,8 +41,8 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@axe-core/playwright": "^4.12.1",
-		"@changesets/changelog-github": "^0.7.0",
-		"@changesets/cli": "^2.31.1",
+		"@changesets/changelog-github": "^1.0.1",
+		"@changesets/cli": "^3.0.2",
 		"@e18e/eslint-plugin": "^0.5.1",
 		"@lunariajs/core": "https://pkg.pr.new/lunariajs/lunaria/@lunariajs/core@83617cc",
 		"@playwright/test": "^1.61.1",

@@ -1,5 +1,13 @@
 # @emdash-cms/registry-verification
 
+## 0.3.1
+
+### Patch Changes
+
+- [#3069](https://github.com/emdash-cms/emdash/pull/3069) [`64344d3`](https://github.com/emdash-cms/emdash/commit/64344d35ebe0a5b830ba0a6d0837b30e0e0d9ccd) Thanks [@logelog](https://github.com/logelog)! - Fixes site builds on Windows failing when the plugin registry verifier is imported.
+- Updated dependencies [[`befce6d`](https://github.com/emdash-cms/emdash/commit/befce6dcbbedcf2766d6540214a65f3bbb9e745a), [`4cc150e`](https://github.com/emdash-cms/emdash/commit/4cc150e931313644a96b796627e5ec74b46c0aec)]:
+  - @emdash-cms/registry-lexicons@0.5.0
+
 ## 0.3.0
 
 ### Minor Changes

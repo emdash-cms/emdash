@@ -12,6 +12,7 @@
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { APIContext } from "astro";
 import { z } from "zod";
 
 import {
@@ -30,6 +31,7 @@ import {
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
+import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
@@ -463,6 +465,8 @@ interface EmDashExtra {
 	userRole: RoleLevel;
 	/** Token scopes — undefined for session auth (all access allowed). */
 	tokenScopes?: string[];
+	/** The route cache of the MCP request, used to invalidate the same tags the REST routes do. */
+	cache?: APIContext["cache"];
 }
 
 function isPublished(t: unknown): boolean {
@@ -484,6 +488,24 @@ function getExtra(extra: { authInfo?: { extra?: Record<string, unknown> } }): Em
 
 function getEmDash(extra: { authInfo?: { extra?: Record<string, unknown> } }): EmDashHandlers {
 	return getExtra(extra).emdash;
+}
+
+/**
+ * Unwrap a write result, first invalidating `tags` in the route cache when the
+ * write succeeded. Pass `changedEarlier` when an earlier step of the same tool
+ * already changed live content, so a failure in a later step still invalidates.
+ */
+async function unwrapAndInvalidate(
+	extra: { authInfo?: { extra?: Record<string, unknown> } },
+	result: HandlerResult,
+	tags: string[],
+	changedEarlier = false,
+): Promise<SuccessEnvelope | ErrorEnvelope> {
+	if (result.success || changedEarlier) {
+		const { cache } = getExtra(extra);
+		if (cache?.enabled) await cache.invalidate({ tags });
+	}
+	return unwrap(result);
 }
 
 async function getCollectionFields(
@@ -1017,12 +1039,18 @@ export function createMcpServer(
 				if (!result.success) return unwrap(result);
 				const itemId = extractContentId(result.data);
 				if (itemId) {
-					return unwrap(await emdash.handleContentPublish(args.collection, itemId));
+					return unwrapAndInvalidate(
+						extra,
+						await emdash.handleContentPublish(args.collection, itemId),
+						[args.collection, itemId],
+						true,
+					);
 				}
-				return unwrap(result);
+				return unwrapAndInvalidate(extra, result, [args.collection]);
 			}
 
-			return unwrap(
+			return unwrapAndInvalidate(
+				extra,
 				await emdash.handleContentCreate(args.collection, {
 					data,
 					slug: args.slug,
@@ -1033,6 +1061,7 @@ export function createMcpServer(
 					taxonomies: args.taxonomies,
 					actor,
 				}),
+				[args.collection],
 			);
 		},
 	);
@@ -1142,6 +1171,7 @@ export function createMcpServer(
 			if (args.status === "published") {
 				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
 				let rev: string | undefined = args._rev;
+				let liveChanged = false;
 				if (
 					args.data ||
 					args.slug ||
@@ -1162,16 +1192,21 @@ export function createMcpServer(
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
+					liveChanged = updateResult.liveContentChanged !== false;
 					rev = extractContentRev(updateResult.data);
 				}
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await emdash.handleContentPublish(args.collection, resolvedId, { _rev: rev }),
+					[args.collection, resolvedId],
+					liveChanged,
 				);
 			}
 
 			if (args.status === "draft") {
 				requireOwnership(extra, ownerId, "content:publish_own", "content:publish_any");
 				let rev: string | undefined = args._rev;
+				let liveChanged = false;
 				if (
 					args.data ||
 					args.slug ||
@@ -1192,26 +1227,30 @@ export function createMcpServer(
 						_rev: args._rev,
 					});
 					if (!updateResult.success) return unwrap(updateResult);
+					liveChanged = updateResult.liveContentChanged !== false;
 					rev = extractContentRev(updateResult.data);
 				}
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await emdash.handleContentUnpublish(args.collection, resolvedId, { _rev: rev }),
+					[args.collection, resolvedId],
+					liveChanged,
 				);
 			}
 
-			return unwrap(
-				await emdash.handleContentUpdate(args.collection, resolvedId, {
-					data,
-					slug: args.slug,
-					actor,
-					locale: args.locale,
-					seo: args.seo,
-					bylines: args.bylines,
-					taxonomies: args.taxonomies,
-					publishedAt: args.publishedAt,
-					_rev: args._rev,
-				}),
-			);
+			const result = await emdash.handleContentUpdate(args.collection, resolvedId, {
+				data,
+				slug: args.slug,
+				actor,
+				locale: args.locale,
+				seo: args.seo,
+				bylines: args.bylines,
+				taxonomies: args.taxonomies,
+				publishedAt: args.publishedAt,
+				_rev: args._rev,
+			});
+			if (result.liveContentChanged === false) return unwrap(result);
+			return unwrapAndInvalidate(extra, result, [args.collection, resolvedId]);
 		},
 	);
 
@@ -1247,7 +1286,10 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentDelete(args.collection, resolvedId));
+			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
+				args.collection,
+				resolvedId,
+			]);
 		},
 	);
 
@@ -1279,7 +1321,11 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentRestore(args.collection, resolvedId));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentRestore(args.collection, resolvedId),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1300,7 +1346,11 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentPermanentDelete(args.collection, args.id));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentPermanentDelete(args.collection, args.id),
+				[args.collection, args.id],
+			);
 		},
 	);
 
@@ -1353,11 +1403,13 @@ export function createMcpServer(
 			}
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(
+			return unwrapAndInvalidate(
+				extra,
 				await emdash.handleContentPublish(args.collection, resolvedId, {
 					publishedAt: args.publishedAt,
 					_rev: args._rev,
 				}),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1393,8 +1445,10 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(
+			return unwrapAndInvalidate(
+				extra,
 				await ec.handleContentUnpublish(args.collection, resolvedId, { _rev: args._rev }),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1410,9 +1464,9 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
-				scheduledAt: z
-					.string()
-					.describe("ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')"),
+				scheduledAt: contentDateTimeInputSchema.describe(
+					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
+				),
 			}),
 		},
 		async (args, extra) => {
@@ -1433,7 +1487,11 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1467,7 +1525,11 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(await ec.handleContentUnschedule(args.collection, resolvedId));
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentUnschedule(args.collection, resolvedId),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1525,8 +1587,10 @@ export function createMcpServer(
 			);
 
 			const resolvedId = extractContentId(existing.data) ?? args.id;
-			return unwrap(
+			return unwrapAndInvalidate(
+				extra,
 				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1575,7 +1639,9 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const ec = getEmDash(extra);
-			return unwrap(await ec.handleContentDuplicate(args.collection, args.id));
+			return unwrapAndInvalidate(extra, await ec.handleContentDuplicate(args.collection, args.id), [
+				args.collection,
+			]);
 		},
 	);
 
@@ -2267,9 +2333,8 @@ export function createMcpServer(
 				return respondError("NO_STORAGE", "Storage not configured");
 			}
 			try {
-				const { handleMediaUpload } = await import("../api/handlers/media-upload.js");
 				return unwrap(
-					await handleMediaUpload(emdash.db, emdash.storage, {
+					await emdash.handleMediaUpload({
 						filename: args.filename,
 						base64: args.base64,
 						url: args.url,
@@ -2561,7 +2626,8 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTaxonomyCreate } = await import("../api/handlers/taxonomies.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleTaxonomyCreate(ec.db, {
 						name: args.name,
 						label: args.label,
@@ -2571,6 +2637,7 @@ export function createMcpServer(
 						locale: args.locale,
 						translationOf: args.translationOf,
 					}),
+					[taxonomyTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_CREATE_ERROR");
@@ -2608,7 +2675,8 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTaxonomyUpdate } = await import("../api/handlers/taxonomies.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleTaxonomyUpdate(ec.db, args.name, {
 						label: args.label,
 						labelSingular: args.labelSingular,
@@ -2616,6 +2684,7 @@ export function createMcpServer(
 						collections: args.collections,
 						locale: args.locale,
 					}),
+					[taxonomyTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_UPDATE_ERROR");
@@ -2641,7 +2710,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTaxonomyDelete } = await import("../api/handlers/taxonomies.js");
-				return unwrap(await handleTaxonomyDelete(ec.db, args.name));
+				return unwrapAndInvalidate(extra, await handleTaxonomyDelete(ec.db, args.name), [
+					taxonomyTag(args.name),
+				]);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_DELETE_ERROR");
 			}
@@ -2774,7 +2845,8 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermCreate } = await import("../api/handlers/taxonomies.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleTermCreate(ec.db, args.taxonomy, {
 						slug: args.slug,
 						label: args.label,
@@ -2783,6 +2855,7 @@ export function createMcpServer(
 						locale: args.locale,
 						translationOf: args.translationOf,
 					}),
+					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_CREATE_ERROR");
@@ -2817,13 +2890,15 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermUpdate } = await import("../api/handlers/taxonomies.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleTermUpdate(ec.db, args.taxonomy, args.termSlug, {
 						slug: args.slug,
 						label: args.label,
 						parentId: args.parentId,
 						description: args.description,
 					}),
+					[taxonomyTag(args.taxonomy)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_UPDATE_ERROR");
@@ -2851,7 +2926,11 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleTermDelete } = await import("../api/handlers/taxonomies.js");
-				return unwrap(await handleTermDelete(ec.db, args.taxonomy, args.termSlug));
+				return unwrapAndInvalidate(
+					extra,
+					await handleTermDelete(ec.db, args.taxonomy, args.termSlug),
+					[taxonomyTag(args.taxonomy)],
+				);
 			} catch (error) {
 				return respondHandlerError(error, "TAXONOMY_TERM_DELETE_ERROR");
 			}
@@ -2990,13 +3069,15 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuCreate } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuCreate(ec.db, {
 						name: args.name,
 						label: args.label,
 						locale: args.locale,
 						translationOf: args.translationOf,
 					}),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_CREATE_ERROR");
@@ -3023,8 +3104,10 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuUpdate } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuUpdate(ec.db, args.name, { label: args.label, locale: args.locale }),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_UPDATE_ERROR");
@@ -3051,7 +3134,11 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuDelete } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuDelete(ec.db, args.name, { locale: args.locale }));
+				return unwrapAndInvalidate(
+					extra,
+					await handleMenuDelete(ec.db, args.name, { locale: args.locale }),
+					[menuTag(args.name)],
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_DELETE_ERROR");
 			}
@@ -3114,8 +3201,10 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuSetItems } = await import("../api/handlers/menus.js");
-				return unwrap(
+				return unwrapAndInvalidate(
+					extra,
 					await handleMenuSetItems(ec.db, args.name, args.items, { locale: args.locale }),
+					[menuTag(args.name)],
 				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_SET_ITEMS_ERROR");
@@ -3275,7 +3364,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
-				return unwrap(await handleSettingsUpdate(ec.db, ec.storage, args));
+				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [
+					siteSettingsTag(),
+				]);
 			} catch (error) {
 				return respondHandlerError(error, "SETTINGS_UPDATE_ERROR");
 			}

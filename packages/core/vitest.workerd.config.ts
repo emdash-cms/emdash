@@ -24,6 +24,7 @@ export default defineConfig({
 			},
 		},
 		cloudflareTest({
+			main: "./tests/workerd/fixtures/plugin-storage-worker.ts",
 			miniflare: {
 				compatibilityDate: "2026-05-14",
 				compatibilityFlags: ["nodejs_compat"],

@@ -28,6 +28,8 @@ import { enrichImageMetadata } from "../media/enrich.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
+import { assertStorageKey } from "./conditional-storage.js";
+import { createContentAccess } from "./content-access.js";
 import { CronAccessImpl } from "./cron.js";
 import type { EmailPipeline } from "./email.js";
 import type {
@@ -54,13 +56,14 @@ import type {
 	MediaItem,
 	PaginatedResult,
 	QueryOptions,
-	ContentListOptions,
 	MediaListOptions,
 	TaxonomyAccess,
 	TaxonomyDefInfo,
 	TaxonomyTermInfo,
 	TaxonomyReadOptions,
 } from "./types.js";
+
+export { createContentAccess } from "./content-access.js";
 
 // =============================================================================
 // KV Access
@@ -76,6 +79,18 @@ export function createKVAccess(optionsRepo: OptionsRepository, pluginId: string)
 	return {
 		async get<T>(key: string): Promise<T | null> {
 			return optionsRepo.get<T>(`${prefix}${key}`);
+		},
+		async getVersioned<T>(key: string) {
+			assertStorageKey(key);
+			return optionsRepo.getVersioned<T>(`${prefix}${key}`);
+		},
+		async compareAndSet(key, expectedRevision, value) {
+			assertStorageKey(key);
+			return optionsRepo.compareAndSet(`${prefix}${key}`, expectedRevision, value);
+		},
+		async compareAndDelete(key, expectedRevision) {
+			assertStorageKey(key);
+			return optionsRepo.compareAndDelete(`${prefix}${key}`, expectedRevision);
 		},
 
 		async set(key: string, value: unknown): Promise<void> {
@@ -119,6 +134,9 @@ function createStorageCollection<T>(
 
 	return {
 		get: (id) => repo.get(id),
+		getVersioned: (id) => repo.getVersioned(id),
+		compareAndSet: (id, expectedRevision, data) => repo.compareAndSet(id, expectedRevision, data),
+		compareAndDelete: (id, expectedRevision) => repo.compareAndDelete(id, expectedRevision),
 		put: (id, data) => repo.put(id, data),
 		delete: (id) => repo.delete(id),
 		exists: (id) => repo.exists(id),
@@ -126,6 +144,7 @@ function createStorageCollection<T>(
 		putMany: (items) => repo.putMany(items),
 		deleteMany: (ids) => repo.deleteMany(ids),
 		count: (where) => repo.count(where),
+		updateIf: (id, updateArgs) => repo.updateIf(id, updateArgs),
 
 		// Query returns PaginatedResult instead of the old format
 		async query(options?: QueryOptions): Promise<PaginatedResult<{ id: string; data: T }>> {
@@ -230,92 +249,6 @@ function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
 		data: term.data,
 		locale: term.locale,
 		translationGroup: term.translationGroup,
-	};
-}
-
-/**
- * Create read-only content access
- */
-export function createContentAccess(db: Kysely<Database>): ContentAccess {
-	const contentRepo = new ContentRepository(db);
-	const seoRepo = new SeoRepository(db);
-
-	return {
-		async get(collection: string, id: string): Promise<ContentItem | null> {
-			const item = await contentRepo.findById(collection, id);
-			if (!item) return null;
-
-			const result: ContentItem = {
-				id: item.id,
-				type: item.type,
-				slug: item.slug,
-				status: item.status,
-				data: item.data,
-				createdAt: item.createdAt,
-				updatedAt: item.updatedAt,
-				locale: item.locale,
-				publishedAt: item.publishedAt,
-				scheduledAt: item.scheduledAt,
-			};
-
-			if (await seoRepo.isEnabled(collection)) {
-				result.seo = await seoRepo.get(collection, item.id);
-			}
-
-			return result;
-		},
-
-		async list(
-			collection: string,
-			options?: ContentListOptions,
-		): Promise<PaginatedResult<ContentItem>> {
-			// Convert orderBy format if provided
-			let orderBy: { field: string; direction: "asc" | "desc" } | undefined;
-			if (options?.orderBy) {
-				const entries = Object.entries(options.orderBy);
-				const first = entries[0];
-				if (first) {
-					orderBy = { field: first[0], direction: first[1] };
-				}
-			}
-
-			const result = await contentRepo.findMany(collection, {
-				limit: options?.limit ?? 50,
-				cursor: options?.cursor,
-				orderBy,
-				where: options?.where,
-			});
-
-			const items: ContentItem[] = result.items.map((item) => ({
-				id: item.id,
-				type: item.type,
-				slug: item.slug,
-				status: item.status,
-				data: item.data,
-				createdAt: item.createdAt,
-				updatedAt: item.updatedAt,
-				locale: item.locale,
-				publishedAt: item.publishedAt,
-				scheduledAt: item.scheduledAt,
-			}));
-
-			if (items.length > 0 && (await seoRepo.isEnabled(collection))) {
-				const seoMap = await seoRepo.getMany(
-					collection,
-					items.map((i) => i.id),
-				);
-				for (const item of items) {
-					const seo = seoMap.get(item.id);
-					if (seo) item.seo = seo;
-				}
-			}
-
-			return {
-				items,
-				cursor: result.nextCursor,
-				hasMore: !!result.nextCursor,
-			};
-		},
 	};
 }
 
@@ -1055,6 +988,8 @@ export interface PluginContextFactoryOptions {
 	 * If not provided, ctx.cron will not be available.
 	 */
 	cronReschedule?: () => void;
+	/** Clock used to calculate the first run of recurring plugin tasks. */
+	now?: () => Date;
 	/**
 	 * Email pipeline instance for ctx.email.
 	 * If not provided (or no provider configured), ctx.email will be undefined.
@@ -1083,6 +1018,7 @@ export class PluginContextFactory {
 	private site: SiteInfo;
 	private urlHelper: (path: string) => string;
 	private cronReschedule?: () => void;
+	private now: () => Date;
 	private emailPipeline?: EmailPipeline;
 	/**
 	 * Plugin IDs already warned about a missing media-write backend, so the
@@ -1100,6 +1036,7 @@ export class PluginContextFactory {
 		this.site = createSiteInfo(options.siteInfo ?? {});
 		this.urlHelper = createUrlHelper(this.site.url);
 		this.cronReschedule = options.cronReschedule;
+		this.now = options.now ?? (() => new Date());
 		this.emailPipeline = options.emailPipeline;
 	}
 
@@ -1180,7 +1117,7 @@ export class PluginContextFactory {
 		// the runtime provided a reschedule callback (i.e. cron is wired up).
 		let cron: CronAccess | undefined;
 		if (this.cronReschedule) {
-			cron = new CronAccessImpl(db, plugin.id, this.cronReschedule);
+			cron = new CronAccessImpl(db, plugin.id, this.cronReschedule, this.now);
 		}
 
 		// Email access — requires email:send capability AND a configured provider

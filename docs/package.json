@@ -13,12 +13,12 @@
     "generate-types": "wrangler types"
   },
   "dependencies": {
-    "@astrojs/cloudflare": "^13.1.7",
-    "@astrojs/starlight": "^0.38.2",
+    "@astrojs/cloudflare": "^14.3.1",
+    "@astrojs/starlight": "^0.42.0",
     "@astrojs/starlight-tailwind": "^5.0.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "agents": "^0.12.0",
-    "astro": "^6.1.3",
+    "astro": "^7.3.2",
     "sharp": "^0.34.5",
     "starlight-utils": "^1.0.0",
     "tailwindcss": "^4.1.18",
@@ -26,6 +26,6 @@
     "zod": "^4.5.4"
   },
   "overrides": {
-    "vite": "^7"
+    "vite": "^8"
   }
 }

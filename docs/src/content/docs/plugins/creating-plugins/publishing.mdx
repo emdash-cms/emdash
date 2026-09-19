@@ -150,6 +150,8 @@ What `publish` does:
 
 </Steps>
 
+The CLI identifies the published package as `@<publisher-handle>/<slug>`, prints the public page that becomes available after approval, and gives an `emdash-plugin info … --version <version> --watch` command. That command reads the labeler's current checks directly; unapproved package metadata remains absent from aggregator responses and the public plugin site.
+
 If an existing login predates blob publishing, `publish` reports `MISSING_BLOB_SCOPE`. Run `emdash-plugin logout`, then log in again to approve the new scopes.
 
 ### Use an external package URL

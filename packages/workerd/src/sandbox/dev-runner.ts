@@ -59,6 +59,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 		trailingSlash?: "always" | "never" | "ignore";
 	};
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
+	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Miniflare instance (lazily created) */
 	private mf: InstanceType<typeof import("miniflare").Miniflare> | null = null;
@@ -110,6 +111,10 @@ export class MiniflareDevRunner implements SandboxRunner {
 
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		this.emailSendCallback = callback;
+	}
+
+	setCronReschedule(callback: (() => void) | null): void {
+		this.cronRescheduleCallback = callback;
 	}
 
 	async load(manifest: PluginManifest, code: string): Promise<SandboxedPluginInstance> {
@@ -178,6 +183,8 @@ export class MiniflareDevRunner implements SandboxRunner {
 				db: this.options.db,
 				beforeContentWrite: this.options.beforeContentWrite,
 				emailSend: () => this.emailSendCallback,
+				cronReschedule: () => this.cronRescheduleCallback?.(),
+				now: this.options.now,
 				storage: this.options.mediaStorage,
 			});
 

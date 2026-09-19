@@ -15,9 +15,59 @@ emdash-plugin release setup
 
 Before writing `.github/workflows/emdash-release.yml`, the command creates a missing package profile or adds delegated-release settings to an existing valid profile. Profile setup binds the package to the canonical GitHub repository, uses the signed-in [Atmosphere account](https://docs.emdashcms.com/plugins/creating-plugins/publishing/#your-atmosphere-account) as the initial approver, and asks whether approval is required for permission increases or every release. Run `emdash-plugin profile setup` to perform this step without changing the workflow file.
 
-The generated root workflow uses pinned third-party Actions, resolves `<slug>@<version>` tags to one plugin package, builds one bundle, creates GitHub provenance for the exact bundle, and calls this Action. Every plugin package in the repository reuses the workflow. It does not push the workflow. The generated workflow currently supports public repositories because the verifier trusts GitHub's public Sigstore root.
+The generated root workflow uses pinned third-party Actions, accepts packages released by Changesets, `<slug>@<version>` tags, or manual selections, builds one bundle for each release, creates GitHub provenance for the exact bundle, and calls this Action. Every plugin package in the repository reuses the workflow. It does not push the workflow. The generated workflow currently supports public repositories because the verifier trusts GitHub's public Sigstore root.
 
-Start the workflow by pushing a package tag such as `gallery@1.2.3`. The service checks that the signed package profile names the GitHub repository before creating a connection request. The Action writes an approval link to the job summary and waits. Open the link, sign in to the release service, and check the repository, workflow file, branch or tag, and environment reported by GitHub. After confirmation, the same Action run requests a fresh OIDC token and submits the release. Later packages reuse approved tag and branch scopes when their signed profiles name the same repository.
+## Follow Changesets releases
+
+Choose **Follow Changesets releases** during `release setup` to generate a reusable EmDash workflow. Add its caller after the existing Changesets publish job. The caller passes Changesets' published-package JSON; the EmDash workflow ignores ordinary packages and publishes matching `emdash-plugin.jsonc` packages at the reported versions.
+
+For Changesets Action v2 with Changesets CLI v3, expose the kebab-case output:
+
+```yaml
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs['published-packages'] }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+Changesets Action v1 with Changesets CLI v2 uses `steps.changesets.outputs.publishedPackages` instead. Keep the normalized job output and caller unchanged:
+
+```yaml
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs.publishedPackages }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+Private EmDash-only packages require `privatePackages.version: true` and `privatePackages.tag: true` in `.changeset/config.json`. Add unrelated private packages to `ignore`.
+
+Start the release using the source selected during setup: let Changesets publish the package, push a package tag such as `gallery@1.2.3`, or run the workflow manually. The service checks that the signed package profile names the GitHub repository before creating a connection request. The Action writes an approval link to the job summary and waits. Open the link, sign in to the release service, and check the repository, workflow file, branch or tag, and environment reported by GitHub. After confirmation, the same Action run requests a fresh OIDC token and submits the release. Later packages reuse approved tag and branch scopes when their signed profiles name the same repository.
 
 For tag-triggered releases, choose whether the workflow may publish all package version tags or only the current tag. The approval never grants authority by itself: the publisher's Atmosphere session must confirm the signed GitHub identity before the service creates a publishing policy.
 

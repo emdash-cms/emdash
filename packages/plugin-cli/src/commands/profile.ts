@@ -8,9 +8,11 @@ import consola from "consola";
 import pc from "picocolors";
 
 import { resolveSources } from "../build/pipeline.js";
+import { probeEnvironment } from "../init/environment.js";
 import { resolveHandleToDid } from "../manifest/publisher.js";
 import { manifestToProfileInput, resolveSections } from "../manifest/translate.js";
 import { resumeSession } from "../oauth.js";
+import { formatPackageIdentifier } from "../package-identifier.js";
 import {
 	canonicalGitHubRepository,
 	PackageProfileSetupError,
@@ -22,6 +24,7 @@ export interface RunProfileSetupOptions {
 	repository?: string;
 	confirmation?: string;
 	yes?: boolean;
+	nextSteps?: boolean;
 }
 
 function cancelled(value: unknown): asserts value is Exclude<typeof value, symbol> {
@@ -29,25 +32,70 @@ function cancelled(value: unknown): asserts value is Exclude<typeof value, symbo
 		throw new PackageProfileSetupError("INVALID_INPUT", "Setup cancelled.");
 }
 
-async function repositoryValue(
-	configured: string | undefined,
-	interactive: boolean,
+interface RepositoryPromptOptions {
+	message: string;
+	defaultValue?: string;
+	placeholder: string;
+	validate(value: string | undefined): string | undefined;
+}
+
+export interface ResolveProfileRepositoryOptions {
+	configured: string | undefined;
+	interactive: boolean;
+	pluginDir: string;
+	prompt?: (options: RepositoryPromptOptions) => Promise<unknown>;
+}
+
+export async function resolveProfileRepository(
+	options: ResolveProfileRepositoryOptions,
 ): Promise<string> {
-	if (configured) return configured;
-	if (!interactive) {
+	if (options.configured) return options.configured;
+	const environment = await probeEnvironment(options.pluginDir);
+	const detected = environment.repo
+		? (canonicalGitHubRepository(environment.repo) ?? undefined)
+		: undefined;
+	if (!options.interactive) {
+		if (detected) return detected;
 		throw new PackageProfileSetupError(
 			"INVALID_REPOSITORY",
 			"Add `repo` to emdash-plugin.jsonc or pass --repository with an HTTPS GitHub repository URL.",
 		);
 	}
-	const answer = await clack.text({
-		message: "GitHub repository URL",
-		placeholder: "https://github.com/example/gallery",
+	const prompt = options.prompt ?? ((input) => clack.text(input));
+	const answer = await prompt({
+		message: detected
+			? "GitHub repository URL (press enter to use the detected origin)"
+			: "GitHub repository URL",
+		...(detected === undefined ? {} : { defaultValue: detected }),
+		placeholder: detected ?? "https://github.com/example/gallery",
 		validate: (value) =>
 			canonicalGitHubRepository(value ?? "") ? undefined : "Enter an HTTPS GitHub repository URL.",
 	});
 	cancelled(answer);
 	return String(answer);
+}
+
+export function printProfileSetupResult(
+	result: { status: "created" | "ready" | "updated"; profileUri: string },
+	identifier: string,
+	confirmation: "always" | "escalation-only",
+	showNextSteps: boolean,
+): void {
+	if (result.status === "ready") {
+		consola.success(`Package profile is ready for ${pc.bold(identifier)}`);
+	} else {
+		consola.success(`Published package profile for ${pc.bold(identifier)}`);
+		consola.info(
+			confirmation === "always"
+				? "Your Atmosphere account must approve every release."
+				: "Your Atmosphere account must approve releases when plugin permissions increase.",
+		);
+	}
+	consola.info(`Profile URI: ${pc.dim(result.profileUri)}`);
+	if (!showNextSteps) return;
+	consola.info("Next, publish a release:");
+	consola.info(`  Manually: ${pc.cyan("emdash-plugin publish")}`);
+	consola.info(`  With GitHub Actions: ${pc.cyan("emdash-plugin release setup")}`);
 }
 
 async function confirmationValue(
@@ -111,10 +159,15 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 			`The active CLI account does not own ${sources.manifest.slug}. Run \`emdash-plugin switch ${publisherDid}\` first.`,
 		);
 	}
-	const repository = await repositoryValue(
-		options.repository ?? sources.manifest.repo,
-		interactive,
+	const identifier = formatPackageIdentifier(
+		storedSession.handle ?? storedSession.did,
+		sources.manifest.slug,
 	);
+	const repository = await resolveProfileRepository({
+		configured: options.repository ?? sources.manifest.repo,
+		interactive,
+		pluginDir: sources.pluginDir,
+	});
 	const confirmation = await confirmationValue(options.confirmation, interactive);
 	const loaded = await import("../manifest/load.js").then(({ loadManifest }) =>
 		loadManifest(sources.manifestPath),
@@ -135,19 +188,19 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 	};
 	const proposed = await setupPackageProfile(input);
 	if (proposed.status === "ready") {
-		consola.success(`Package profile is ready: ${pc.dim(proposed.profileUri)}`);
+		printProfileSetupResult(proposed, identifier, confirmation, options.nextSteps !== false);
 		return;
 	}
 	if (!interactive && options.yes !== true) {
 		throw new PackageProfileSetupError(
 			"INVALID_INPUT",
-			`The ${sources.manifest.slug} package profile needs setup. Run this command in a terminal, or pass --yes to accept the default approval policy.`,
+			`The ${identifier} package profile needs setup. Run this command in a terminal, or pass --yes to accept the default approval policy.`,
 		);
 	}
 	if (interactive) {
 		const action = proposed.status === "created" ? "Create" : "Update";
 		const answer = await clack.confirm({
-			message: `${action} the ${sources.manifest.slug} package profile and allow ${pc.cyan(canonicalGitHubRepository(repository) ?? repository)} to publish releases?`,
+			message: `${action} the ${identifier} package profile and allow ${pc.cyan(canonicalGitHubRepository(repository) ?? repository)} to publish releases?`,
 			initialValue: true,
 		});
 		cancelled(answer);
@@ -159,14 +212,7 @@ async function runProfileSetupInternal(options: RunProfileSetupOptions): Promise
 		}
 	}
 	const result = await setupPackageProfile({ ...input, apply: true });
-	consola.success(
-		`${result.status === "created" ? "Created" : "Updated"} package profile: ${pc.dim(result.profileUri)}`,
-	);
-	consola.info(
-		confirmation === "always"
-			? "Your Atmosphere account must approve every release."
-			: "Your Atmosphere account must approve releases when plugin permissions increase.",
-	);
+	printProfileSetupResult(result, identifier, confirmation, options.nextSteps !== false);
 }
 
 export async function runProfileSetup(options: RunProfileSetupOptions): Promise<void> {

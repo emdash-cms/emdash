@@ -119,7 +119,8 @@ describe("publishDueContent()", () => {
 
 	it("routes each publish through the provided callback with requireScheduledDue", async () => {
 		const post = await repo.create(createPostFixture());
-		const scheduledFor = new Date(Date.now() - 60_000).toISOString();
+		const currentTime = new Date("2030-01-02T03:04:06.000Z");
+		const scheduledFor = "2030-01-02T03:04:05.000Z";
 		await repo.update("post", post.id, { status: "scheduled", scheduledAt: scheduledFor });
 
 		const calls: Array<{ collection: string; id: string; options: unknown }> = [];
@@ -128,7 +129,7 @@ describe("publishDueContent()", () => {
 			return handleContentPublish(db, collection, id, options);
 		};
 
-		const published = await publishDueContent(db, { publish: spy });
+		const published = await publishDueContent(db, { publish: spy, currentTime });
 
 		expect(published).toEqual([{ collection: "post", id: post.id }]);
 		expect(calls).toHaveLength(1);
@@ -136,6 +137,7 @@ describe("publishDueContent()", () => {
 			publishedAt: scheduledFor,
 			requireScheduledDue: true,
 			expectedScheduledAt: scheduledFor,
+			currentTime,
 		});
 	});
 

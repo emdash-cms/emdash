@@ -125,6 +125,8 @@ const manifestHookEntrySchema = z.object({
 	exclusive: z.boolean().optional(),
 	priority: z.number().int().optional(),
 	timeout: z.number().int().positive().optional(),
+	dependencies: z.array(z.string().min(1)).optional(),
+	errorPolicy: z.enum(["continue", "abort"]).optional(),
 });
 
 /**
@@ -361,8 +363,24 @@ export function reconcileManifestAccess(manifest: ValidatedPluginManifest): Plug
  * Normalize a manifest hook entry — plain strings become `{ name }` objects.
  */
 export function normalizeManifestHook(
-	entry: string | { name: string; exclusive?: boolean; priority?: number; timeout?: number },
-): { name: string; exclusive?: boolean; priority?: number; timeout?: number } {
+	entry:
+		| string
+		| {
+				name: string;
+				exclusive?: boolean;
+				priority?: number;
+				timeout?: number;
+				dependencies?: string[];
+				errorPolicy?: "continue" | "abort";
+		  },
+): {
+	name: string;
+	exclusive?: boolean;
+	priority?: number;
+	timeout?: number;
+	dependencies?: string[];
+	errorPolicy?: "continue" | "abort";
+} {
 	if (typeof entry === "string") {
 		return { name: entry };
 	}

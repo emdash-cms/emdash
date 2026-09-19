@@ -14,7 +14,7 @@
  *
  * The discovery client is constructed lazily so we only pull
  * `@atcute/client` into the admin bundle when the registry path is
- * actually exercised. Sites with no `experimental.registry` config never
+ * actually exercised. Sites with no active `registry` config never
  * pay the cost (verified at ~2 KB gzip when it does load).
  */
 

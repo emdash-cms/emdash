@@ -135,6 +135,8 @@ export interface EmDashManifest {
 	 * registry plugin's `env:astro` requirement against the running host.
 	 */
 	astroVersion?: string;
+	/** IANA timezone used by datetime-local controls in the admin. */
+	timezone?: string;
 	collections: Record<string, ManifestCollection>;
 	plugins: Record<string, ManifestPlugin>;
 	/**
@@ -177,11 +179,9 @@ export interface EmDashManifest {
 	}>;
 	/**
 	 * Whether the plugin marketplace is configured.
-	 * When true, the admin UI can show marketplace browse/install features.
-	 *
-	 * When `registry` is also present, the registry replaces the marketplace
-	 * for the admin UI's browse and install flows. Existing marketplace-installed
-	 * plugins continue to work; new installs and updates use the registry.
+	 * When true, the admin shows migration guidance and keeps legacy installed
+	 * plugins updateable and uninstallable. It does not expose marketplace
+	 * browse or install flows.
 	 */
 	marketplace?: boolean;
 	/**
@@ -402,6 +402,16 @@ export interface EmDashHandlers {
 	}) => Promise<HandlerResponse>;
 
 	handleMediaGet: (id: string) => Promise<HandlerResponse>;
+
+	handleMediaUpload: (input: {
+		filename: string;
+		base64?: string;
+		url?: string;
+		contentType?: string;
+		alt?: string;
+		authorId?: string;
+		maxUploadSize?: number;
+	}) => Promise<HandlerResponse>;
 
 	handleMediaCreate: (input: {
 		filename: string;

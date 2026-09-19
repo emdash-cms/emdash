@@ -6,6 +6,7 @@ Use `@emdash-cms/plugin-cli` for registry publishing. The package profile and re
 
 Before publishing, require:
 
+- `@emdash-cms/plugin-cli` installed in the plugin package;
 - a unique plugin `slug`;
 - a publisher DID or Atmosphere handle;
 - a version in `package.json` or `emdash-plugin.jsonc`;
@@ -30,17 +31,45 @@ pnpm exec emdash-plugin publish
 
 `publish` builds and validates the bundle, uploads its files to the publisher's personal data server, and creates the package release record. Use `emdash-plugin bundle` to inspect a tarball without publishing it.
 
+The success output uses the registry identifier `@<publisher-handle>/<slug>`, prints the eventual plugin-page URL, and provides `emdash-plugin info <handle> <slug> --version <version> --watch`. Before approval, `info` reads the labeler's current checks and does not return unapproved package metadata from the aggregator.
+
 ## Automated repository releases
 
-Generate the shared workflow from one plugin package:
+Generate the shared workflow from one plugin package, not the monorepo root. Pass `--dir <plugin-directory>` when running the command from elsewhere:
 
 ```sh
 pnpm exec emdash-plugin release setup
 ```
 
-The command prepares the current signed package profile and writes `.github/workflows/emdash-release.yml` at the Git repository root. It does not push the file. The workflow is shared by all plugin packages in that repository and requires no Actions secret.
+The command prepares the current signed package profile and writes `.github/workflows/emdash-release.yml` at the Git repository root. If the manifest omits `repo`, setup detects a GitHub `origin` remote and pre-fills the repository prompt. It does not push the file. The workflow is shared by all plugin packages in that repository and requires no Actions secret.
 
-The generated workflow publishes tags in `<slug>@<version>` form:
+When `.changeset/config.json` exists at the repository root, interactive setup offers **Follow Changesets releases**. The generated workflow accepts the Changesets Action published-package JSON and publishes packages that also contain `emdash-plugin.jsonc`.
+
+Connect Changesets Action v2 by exposing its outputs from the existing release job and calling the generated workflow:
+
+```yaml
+jobs:
+  release:
+    # Keep the existing runner, permissions, and steps.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      published-packages: ${{ steps.changesets.outputs['published-packages'] }}
+
+  publish-emdash-plugins:
+    needs: release
+    if: needs.release.outputs.published == 'true'
+    uses: ./.github/workflows/emdash-release.yml
+    with:
+      published-packages: ${{ needs.release.outputs['published-packages'] }}
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+```
+
+For Changesets Action v1, set the normalized `published-packages` job output from `${{ steps.changesets.outputs.publishedPackages }}` instead. Private EmDash-only packages require both `privatePackages.version: true` and `privatePackages.tag: true`; add unrelated private packages to `ignore`.
+
+Without Changesets, the generated workflow publishes tags in `<slug>@<version>` form:
 
 ```sh
 git tag gallery@1.2.3
@@ -51,13 +80,15 @@ The workflow runs `release prepare` through the exact plugin CLI version that ge
 
 The first run uses GitHub OpenID Connect to request a repository connection. The service checks that the initiating package's signed profile names the same repository before creating the request. The publisher approves the repository, workflow file, ref scope, and environment in the release dashboard. A manual run requests approval the first time its branch is used; confirmation adds that scope without removing approved tags or branches.
 
-Prepare another package without changing the workflow:
+Prepare another package without changing the workflow. Changesets users add it to a changeset; package-tag users push its tag:
 
 ```sh
 pnpm exec emdash-plugin profile setup --dir packages/comments
 git tag comments@1.0.0
 git push origin comments@1.0.0
 ```
+
+`profile setup` confirms that it published the profile, then prints `emdash-plugin publish` for a manual release and `emdash-plugin release setup` for GitHub Actions.
 
 The later package reuses an approved repository scope only when its signed profile names that repository. Package approvals created by older workflows remain package-scoped until an unmatched package or ref is explicitly approved as a repository connection. Release confirmation remains package-specific: `escalation-only` requires approval when declared access increases, while `always` requires approval for every release.
 

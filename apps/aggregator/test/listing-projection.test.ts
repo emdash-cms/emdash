@@ -78,6 +78,11 @@ beforeAll(async () => {
 		"0004_signed_label_ingest.sql",
 		"0005_restrictive_label_authority.sql",
 		"0006_release_history.sql",
+		"0007_publisher_handle.sql",
+		"0008_handle_resolved_at.sql",
+		"0009_handle_refresh_attempted_at.sql",
+		"0010_clear_duplicate_handles.sql",
+		"0011_unique_publisher_handle.sql",
 	]);
 	await applyD1Migrations(testEnv.DB, migrations.slice(0, 2));
 	await testEnv.DB.prepare(

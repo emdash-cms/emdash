@@ -42,11 +42,12 @@ You can also review and approve PRs. A triager's approval doesn't change the PR'
 
 EmDash has a lot of automation. Probably the most important piece is @emdashbot, the AI code review bot:
 
-- **It reviews every PR automatically** and is generally solid at catching mechanical problems: bugs in the diff, missing tests, pattern violations, SQL injection risks.
+- **It reviews every PR automatically** when the PR is opened, reopened, or marked ready for review, and is generally solid at catching mechanical problems: bugs in the diff, missing tests, pattern violations, SQL injection risks. New commits don't trigger another review.
 - **Apply the `bot:review` label to summon a re-review**, for example after an author pushes significant changes. It sometimes fails to review the first time (e.g. if there's an error while it is running), in which case it is useful to ask for a re-review.
-- Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically by workflows. See [PR Labels](#pr-labels) for what they mean.
+- **It skips draft PRs and PRs opened by bots**, including @emdashbot's own. A draft gets its review when it is marked ready, or straight away if you add `bot:review`. On a bot-authored PR, `bot:review` has no effect.
+- Most PR labels — review state, size, area, CLA, `needs-rebase`, `stale` — are applied and removed automatically. See [PR Labels](#pr-labels) for what they mean.
 
-Issue triage uses a separate issue-work bot (see [The Investigation Bot and `bot:*` Labels](#the-investigation-bot-and-bot-labels)). It performs a bounded first pass on new issues, applies area and kind labels, and asks a focused question when the report lacks information. It may prepare a candidate automatically for an obvious low-risk change, but deeper or sensitive work waits for maintainer approval. A human still accepts the candidate and reviews the resulting PR.
+Issue triage uses a separate issue-work bot (see [The Investigation Bot and `bot:*` Labels](#the-investigation-bot-and-bot-labels)). It performs a bounded first pass on new issues, applies area labels and one kind label (`bot:bug`, `bot:enhancement`, or `bot:task`), and asks a focused question when the report lacks information. It may prepare a candidate automatically for an obvious low-risk change, but deeper or sensitive work waits for maintainer approval. A human still accepts the candidate and reviews the resulting PR.
 
 You can help by:
 
@@ -161,9 +162,15 @@ New issues enter automatic triage. A maintainer can also run the same pass on an
 - `@emdashbot work` — take the issue through reproduction where appropriate, implementation, verification, and a candidate preview.
 - `@emdashbot accept` / `@emdashbot needs changes <feedback>` — accept a candidate or start another revision. The reporter can also reply naturally when the bot asks them to test the preview.
 - `@emdashbot retry` — retry the last failed or timed-out run, using its saved workspace when available.
+- `@emdashbot decline` — record that the issue won't be actioned (`bot:declined`); the issue itself stays open. From `bot:in-review` it also closes the bot's PR, and from `bot:awaiting-reporter` it deletes the candidate branch. Under `bot:needs-attention`, the PR stays open.
+- `@emdashbot take over` / `@emdashbot hand back` — take the issue away from the bot so it stops acting on it (`bot:human-owned`), or return it to `bot:triage`.
+- `@emdashbot reopen` — bring a `bot:done` or `bot:declined` issue back to `bot:triage`.
+- `@emdashbot reset` — clear conflicting `bot:*` state labels and put the issue back to `bot:triage`.
 - `@emdashbot status` / `@emdashbot help` — show the current state and available commands without changing anything.
 
 Older `fix`, `implement`, and `repro` commands remain aliases for `work`. A maintainer does not need to choose between separate bug-fix and implementation modes.
+
+`decline`, `take over`, and `reset` only run as the exact command, with nothing else after the mention. The other commands can also be written as a sentence after `@emdashbot`; the bot matches it to one of the commands the issue's current state offers.
 
 Every verdict carries the commands and evidence behind it. "Could not reproduce," with a transcript, is a complete investigation outcome. Automatic triage never closes an issue or implements features and sensitive-area changes without approval.
 
@@ -171,15 +178,25 @@ Every verdict carries the commands and evidence behind it. "Could not reproduce,
 
 Like the PR labels, the bot's lifecycle labels are managed by the bot:
 
+- `bot:triage` — the issue is waiting for a decision on what the bot should do.
 - `bot:triaging` — the bounded issue-classification pass is running.
 - `bot:awaiting-approval` — triage found useful work that needs a maintainer decision.
 - `bot:working` / `bot:investigating` — implementation or investigation is running.
+- `bot:reproduced` / `bot:diagnosed` — the investigation found the cause, with or without a reproduction. The bot changes no code until a maintainer runs `work` or the reporter sends `@emdashbot needs changes <feedback>`.
+- `bot:not-reproduced` — the bot could not reproduce the report; its comment has the transcript. The bot doesn't react to a reply here: if the reporter adds steps, a maintainer has to run `investigate` again.
 - `bot:needs-info` — the reporter can unblock the next pass by replying with the requested details; no bot mention is required.
 - `bot:preview-building` / `bot:awaiting-reporter` — a candidate exists and is being prepared for acceptance.
-- `bot:in-review` — a draft PR is attached; implementation discussion and automatic repair happen there.
+- `bot:in-review` — a draft PR is attached; implementation discussion and automatic repair happen there. A reply from the reporter on the issue, without an `@emdashbot` mention, goes to the bot as feedback for that PR.
 - `bot:needs-attention` — the candidate or PR is retained, but the bot cannot continue safely without a maintainer.
+- `bot:blocked` — the bot stopped and needs a human decision, for example because the reported behavior is intended or reproducing it needs conditions the bot can't set up. Its comment usually gives the reason.
+- `bot:human-owned` — a maintainer took the issue over with `take over`; the bot starts no work on it until `hand back`.
+- `bot:done` / `bot:declined` — the issue is finished: resolved (for example, the bot's PR merged) or won't be actioned. `reopen` brings it back.
 
-Read the bot's current comment before starting a manual reproduction. `bot:awaiting-reporter` means a candidate preview is ready to test. `bot:in-review` means the implementation discussion has moved to the linked PR.
+[BOT_STATE_MACHINE.md](infra/emdash-bot/BOT_STATE_MACHINE.md) lists every state, the commands each one accepts, and the transitions between them. It is generated from the bot's source.
+
+Read the bot's current comment before starting a manual reproduction. Its **View live dashboard** link shows the run's work plan and trace. `bot:awaiting-reporter` means a candidate preview is ready to test. `bot:in-review` means the implementation discussion has moved to the linked PR.
+
+The bot's own PRs carry the `bot` label and no `review/*` state, and the review bot doesn't review them. A maintainer's review that requests changes or leaves comments starts the next revision, and so does a maintainer's `@emdashbot` comment with plain feedback on the PR.
 
 (You may still see older `triage/*` labels on issues filed before the switch to `bot:*`; treat them as historical.)
 
@@ -247,7 +264,7 @@ Request a rewrite when technically accurate prose is still vague, implementation
 
 ### PR Labels
 
-Almost every label you'll see on a PR is applied and removed by a workflow. You read them to scan the queue; you don't manage them:
+Almost every label you'll see on a PR is applied and removed automatically. You read them to scan the queue; you don't manage them:
 
 - `review/needs-review`, `review/awaiting-author`, `review/needs-rereview`, `review/approved` — four mutually exclusive review states, kept in sync with actual review activity.
 - `needs-approval` — CI hasn't run because the workflows are waiting for maintainer approval, which is normal for first-time contributors. Despite the name, it has nothing to do with Discussion approval.
@@ -276,7 +293,7 @@ The one thing that stays with maintainers is the decision itself: `Approved for 
 
 ## Area Labels
 
-On PRs, area labels are applied automatically from the changed file paths. On issues they are a human call — useful when they are obvious, but not the main goal of triage. Do not spend much time guessing; a clear comment and a good priority label are usually worth more than a perfect area label.
+On PRs, area labels are applied automatically from the changed file paths. On issues, the bot's triage pass may add them; beyond that they are a human call — useful when they are obvious, but not the main goal of triage. Do not spend much time guessing; a clear comment and a good priority label are usually worth more than a perfect area label.
 
 - `area/admin` for the React admin UI.
 - `area/auth` for passkeys, sessions, users, roles, and login.

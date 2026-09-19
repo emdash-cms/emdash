@@ -4,9 +4,30 @@
 	"license": "MIT",
 	"author": { "name": "EmDash" },
 	"security": { "url": "https://github.com/emdash-cms/emdash/security/advisories/new" },
-	"capabilities": ["content:read"],
+	"capabilities": [
+		"content:read",
+		"content:write",
+		"media:read",
+		"media:write",
+		"users:read",
+		"email:send",
+	],
 	"allowedHosts": [],
 	"storage": {
 		"events": { "indexes": ["type"] },
+		"lifecycle": { "indexes": ["type"] },
+	},
+	"admin": {
+		"settingsSchema": {
+			"enabled": { "type": "boolean", "label": "Enabled", "default": true },
+		},
+		"fieldWidgets": [
+			{
+				"name": "event-picker",
+				"label": "Event",
+				"fieldTypes": ["string"],
+				"elements": [{ "type": "input", "action_id": "event" }],
+			},
+		],
 	},
 }

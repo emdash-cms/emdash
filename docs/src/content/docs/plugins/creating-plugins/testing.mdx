@@ -3,7 +3,12 @@ title: Test sandboxed plugins
 description: Run plugin hooks and routes through EmDash's production sandbox boundary in Vitest.
 ---
 
-`@emdash-cms/plugin-test` builds a sandboxed plugin and runs its tests inside workerd. Tests use EmDash's production Cloudflare sandbox wrapper and `PluginBridge`, with local D1 and Worker Loader bindings supplied by `@cloudflare/vitest-plugin`.
+`@emdash-cms/plugin-test` builds a sandboxed plugin and runs its tests through a local Worker Loader binding. Tests use EmDash's production Cloudflare sandbox wrapper and `PluginBridge`, with local D1 and Worker Loader bindings supplied by `@cloudflare/vitest-plugin`.
+
+Choose the host that matches the behavior under test:
+
+- `createPluginTestHost()` invokes a hook or route directly across the sandbox transport. Use it for serialization, capability enforcement, plugin storage, and route-handler logic.
+- `createPluginRuntimeTestHost()` runs real EmDash content, plugin activation, media, comment, scheduled-task, and plugin-route actions. Use it when the test must prove that a host action reaches the plugin.
 
 Projects created by `emdash-plugin init` include this setup. Existing plugin projects can install the test host as a development dependency:
 
@@ -33,7 +38,7 @@ export default defineConfig({
 
 `emdashPluginTest()` runs the plugin build before Vitest starts. It reads the generated runtime and manifest, creates an isolated D1 database and Worker Loader binding, and exports the same `PluginBridge` used by Cloudflare deployments. Pass `{ dir: "./packages/gallery" }` when the Vitest configuration lives outside the plugin directory.
 
-## Test a route
+## Test sandbox transport
 
 Create and dispose a host inside each test. Disposal stops the plugin and resets its test bindings:
 
@@ -62,6 +67,8 @@ describe("health route", () => {
 ```
 
 `invokeRoute()` accepts an input value and optional request properties. The default request is a `POST` to the plugin's route with empty headers and request metadata.
+
+Direct invocation does not exercise EmDash route authentication, permission, token-scope, cross-site request forgery (CSRF), or cache policy. Use `host.actions.routes.request()` on the runtime host for those checks.
 
 ## Test hooks and storage
 
@@ -103,8 +110,65 @@ await expect(host.invokeRoute("post-count")).resolves.toEqual({ count: 2 });
 
 The collection and entries use the real EmDash schema registry and content repository against D1.
 
+## Test host actions
+
+Create a runtime host when the result depends on EmDash orchestration. Fixtures write initial state without firing plugin hooks. Actions call the production runtime or handler boundary, and inspectors read observable state without invoking plugin code.
+
+For a plugin whose `content:beforeSave` hook appends ` [checked]` to the title, the following test proves that a content save reaches the hook:
+
+```ts title="tests/plugin.test.ts"
+import { afterEach, describe, expect, it } from "vitest";
+
+import {
+	createPluginRuntimeTestHost,
+	type PluginRuntimeTestHost,
+} from "@emdash-cms/plugin-test";
+
+let host: PluginRuntimeTestHost | undefined;
+
+afterEach(async () => {
+	await host?.dispose();
+	host = undefined;
+});
+
+describe("content save", () => {
+	it("applies the plugin hook", async () => {
+		host = await createPluginRuntimeTestHost();
+		await host.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+
+		const result = await host.actions.content.create("posts", {
+			data: { title: "First post" },
+		});
+
+		expect(result).toMatchObject({
+			success: true,
+			data: { item: { data: { title: "First post [checked]" } } },
+		});
+	});
+});
+```
+
+The runtime host groups its API by boundary:
+
+- `transport` directly invokes the isolate for transport-level checks.
+- `fixtures` creates site, collection, field, user, content, and plugin state without firing hooks.
+- `actions` runs content state changes, plugin activation and deactivation, media uploads, public comment submission, comment moderation, and policy-checked plugin routes.
+- `inspect` reads content, plugin storage, KV, settings, plugin state, scheduled tasks, media, comments, and captured email.
+- `scheduled` controls the effective time for cron tasks and scheduled publishing, then runs one production maintenance batch.
+- `restart()` replaces the runtime and isolate while retaining D1, plugin storage, media storage, and plugin state.
+
+Call `dispose()` after each test. Disposal terminates the isolate and resets all bindings, so a later test cannot observe the previous host's database or media.
+
+The runtime host exposes shipped operations only. Capability-specific helpers for translations, publication policy, Block Kit interactions, binary HTTP, raw routes, taxonomies, redirects, expanded comment administration, media bytes, and encrypted settings belong to the releases that add those capabilities.
+
 ## Test boundaries
 
-The host covers the built plugin, isolate boundary, remote procedure call serialization, D1 behavior, capability checks, hooks, routes, KV, and declared storage. It does not render the EmDash admin application or reproduce Cloudflare's deployed CPU, memory, and subrequest limits. Use a disposable EmDash site for browser journeys, and verify limit-sensitive behavior on a Cloudflare preview or staging deployment.
+The default Vitest configuration uses Worker Loader because it is the fastest production sandbox path for plugin development. EmDash also runs equivalent runtime content and restart journeys against the Node.js workerd runner. Add a separate, opt-in Node/workerd job when a plugin depends on runner-sensitive behavior; the generated project does not run both runners by default.
+
+Neither host renders the EmDash admin application or reproduces Cloudflare's deployed CPU, memory, and subrequest limits. Use a disposable EmDash site for browser journeys, and verify limit-sensitive behavior on a Cloudflare preview or staging deployment.
 
 For Block Kit handlers, invoke the plugin's `admin` route and assert the returned block document. Use the [Block Playground](https://emdash-blocks.cto.cloudflare.dev/) or a browser journey to verify the rendered layout and interactions.

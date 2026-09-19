@@ -1,0 +1,1346 @@
+---
+export const prerender = false;
+
+import { getLiveEntry } from "astro:content";
+
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import {
+	isLiveEntryNotFoundError,
+	listingImageUrl,
+	permissionCopy,
+	pluginPath,
+	publisherHandle,
+	publisherPath,
+	REGISTRY_PAGE_CACHE,
+	renderRegistryMarkdown,
+	repositoryUrl,
+	requestedPermissions,
+	safeExternalUrl,
+} from "../../../lib/registry.js";
+
+const publisher = Astro.params.publisher;
+const slug = Astro.params.slug;
+if (!publisher || !slug) return Astro.redirect("/404");
+
+const result = await getLiveEntry("plugins", { publisher, slug });
+if (!result.entry) {
+	if (result.error && !isLiveEntryNotFoundError(result.error)) {
+		return Astro.redirect("/?registry=unavailable");
+	}
+	return Astro.redirect("/404");
+}
+
+const data = result.entry.data;
+const plugin = data.package;
+const profile = plugin.profile;
+const release = data.latestRelease;
+const name = profile?.name || plugin.slug;
+const handle = publisherHandle(plugin);
+const packageIdentifier = `${handle ? `@${handle}` : plugin.did}/${plugin.slug}`;
+const canonicalPublisherPath = publisherPath(plugin);
+const canonicalPath = pluginPath(plugin);
+Astro.cache.set({
+	...REGISTRY_PAGE_CACHE,
+	tags: ["registry", plugin.uri, `publisher:${plugin.did}`],
+});
+if (Astro.url.pathname !== canonicalPath)
+	return Astro.redirect(canonicalPath, 302);
+
+const icon = listingImageUrl(data, "icon");
+const banner = listingImageUrl(data, "banner");
+const screenshots =
+	release?.release?.artifacts.screenshots
+		?.map((_artifact, index) => listingImageUrl(data, "screenshot", index))
+		.filter((url): url is string => Boolean(url)) ?? [];
+const repository = repositoryUrl(profile);
+const authors = profile?.authors ?? [];
+const permissions = requestedPermissions(data);
+const sections = Object.entries(profile?.sections ?? {}).filter(
+	(entry): entry is [string, string] =>
+		entry[0] !== "$type" &&
+		typeof entry[1] === "string" &&
+		entry[1].trim().length > 0,
+);
+const preferredSection = sections.find(([key]) => key === "description");
+const remainingSections = sections.filter(([key]) => key !== "description");
+const initials = name
+	.split(/[\s-_]+/)
+	.map((part) => part[0])
+	.join("")
+	.slice(0, 2)
+	.toUpperCase();
+const description =
+	profile?.description || `View ${name} in the EmDash plugin registry.`;
+
+function sectionTitle(key: string): string {
+	return key
+		.replace(/[-_]+/g, " ")
+		.replace(/\b\w/g, (character) => character.toUpperCase());
+}
+
+function formatDate(value: string): string {
+	const date = new Date(value);
+	return Number.isNaN(date.valueOf())
+		? value
+		: new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(date);
+}
+---
+
+<BaseLayout
+	title={name}
+	description={description}
+	canonical={canonicalPath}
+	image={banner || icon}
+>
+	<div class="detail-shell shell">
+		<a class="back-link" href="/">
+			<svg viewBox="0 0 20 20" aria-hidden="true"
+				><path d="m12 5-5 5 5 5"></path></svg
+			>
+			All plugins
+		</a>
+
+		<article>
+			{
+				banner && (
+					<div class="banner-wrap">
+						<img
+							src={banner}
+							alt={`${name} banner`}
+							width="1200"
+							height="400"
+						/>
+					</div>
+				)
+			}
+
+			<header class:list={["plugin-hero", { "has-banner": banner }]}>
+				{
+					icon ? (
+						<img
+							class="plugin-icon"
+							src={icon}
+							alt=""
+							width="104"
+							height="104"
+						/>
+					) : (
+						<div class="plugin-icon fallback" aria-hidden="true">
+							{initials}
+						</div>
+					)
+				}
+				<div class="plugin-title">
+					<div class="package-reference-row">
+						<p class="package-reference">
+							<a href={canonicalPublisherPath}
+								>{handle ? `@${handle}` : plugin.did}</a
+							><span>/{plugin.slug}</span>
+						</p>
+						<button
+							class="copy-identifier"
+							type="button"
+							data-copy-identifier={packageIdentifier}
+							aria-label={`Copy ${packageIdentifier}`}
+							title="Copy package identifier"
+						>
+							<svg class="copy-icon" viewBox="0 0 20 20" aria-hidden="true">
+								<rect x="6.5" y="6.5" width="9" height="9" rx="1.5"></rect>
+								<path
+									d="M13.5 6.5v-2A1.5 1.5 0 0 0 12 3H4.5A1.5 1.5 0 0 0 3 4.5V12a1.5 1.5 0 0 0 1.5 1.5h2"
+								></path>
+							</svg>
+							<svg class="check-icon" viewBox="0 0 20 20" aria-hidden="true">
+								<path d="m4.5 10.5 3.25 3.25 7.75-8"></path>
+							</svg>
+							<span class="copy-status" aria-live="polite"></span>
+						</button>
+					</div>
+					<h1>{name}</h1>
+					<p class="description">
+						{profile?.description || "An EmDash plugin."}
+					</p>
+				</div>
+				<div class="plugin-actions">
+					<button class="button-primary install-trigger" type="button">
+						Open in EmDash
+					</button>
+					{
+						repository && (
+							<a class="button-secondary" href={repository}>
+								View source
+							</a>
+						)
+					}
+				</div>
+			</header>
+
+			<div class="detail-grid">
+				<div class="main-column">
+					{
+						preferredSection ? (
+							<section class="readme" aria-labelledby="about-heading">
+								<h2 id="about-heading">About {name}</h2>
+								<div
+									class="prose"
+									set:html={renderRegistryMarkdown(preferredSection[1])}
+								/>
+							</section>
+						) : (
+							<section class="readme" aria-labelledby="about-heading">
+								<h2 id="about-heading">About {name}</h2>
+								<p class="prose-fallback">
+									{profile?.description ||
+										"The publisher has not added a longer description yet."}
+								</p>
+							</section>
+						)
+					}
+
+					<section class="permissions" aria-labelledby="permissions-heading">
+						<div class="section-heading">
+							<div>
+								<p class="section-kicker">Before you install</p>
+								<h2 id="permissions-heading">Requested permissions</h2>
+							</div>
+							<span class="permission-count">
+								{permissions.declared ? permissions.capabilities.length : "—"}
+							</span>
+						</div>
+						{
+							!permissions.declared ? (
+								<p class="permissions-note">
+									Permission information is not available for this release.
+								</p>
+							) : permissions.capabilities.length === 0 ? (
+								<div class="permission-empty">
+									<span aria-hidden="true">✓</span>
+									<div>
+										<strong>No special permissions requested</strong>
+										<p>
+											This plugin does not request access to protected EmDash
+											features.
+										</p>
+									</div>
+								</div>
+							) : (
+								<ul class="permission-list">
+									{permissions.capabilities.map((capability) => {
+										const copy = permissionCopy(capability);
+										const hosts =
+											capability === "network:request"
+												? permissions.allowedHosts
+												: [];
+										return (
+											<li>
+												<span class="permission-marker" aria-hidden="true" />
+												<div>
+													<strong>{copy.label}</strong>
+													<p>{copy.description}</p>
+													{hosts.length > 0 && (
+														<ul class="host-list" aria-label="Allowed hosts">
+															{hosts.map((host) => (
+																<li>{host}</li>
+															))}
+														</ul>
+													)}
+												</div>
+											</li>
+										);
+									})}
+								</ul>
+							)
+						}
+					</section>
+
+					{
+						screenshots.length > 0 && (
+							<section
+								class="screenshots"
+								aria-labelledby="screenshots-heading"
+							>
+								<h2 id="screenshots-heading">Screenshots</h2>
+								<div class="screenshot-grid">
+									{screenshots.map((screenshot, index) => (
+										<a href={screenshot}>
+											<img
+												src={screenshot}
+												alt={`${name} screenshot ${index + 1}`}
+												loading="lazy"
+											/>
+										</a>
+									))}
+								</div>
+							</section>
+						)
+					}
+
+					{
+						remainingSections.map(([key, markdown]) => (
+							<section class="readme" aria-labelledby={`section-${key}`}>
+								<h2 id={`section-${key}`}>{sectionTitle(key)}</h2>
+								<div
+									class="prose"
+									set:html={renderRegistryMarkdown(markdown)}
+								/>
+							</section>
+						))
+					}
+				</div>
+
+				<aside class="sidebar" aria-label="Plugin details">
+					<section>
+						<h2>Plugin details</h2>
+						<dl>
+							{
+								release && (
+									<>
+										<>
+											<dt>Latest release</dt>
+											<dd>v{release.version}</dd>
+										</>
+									</>
+								)
+							}
+							{
+								profile?.license && (
+									<>
+										<>
+											<dt>License</dt>
+											<dd>{profile.license}</dd>
+										</>
+									</>
+								)
+							}
+							<dt>Package</dt><dd>{plugin.slug}</dd>
+							<dt>Publisher</dt>
+							<dd>
+								<a href={canonicalPublisherPath}
+									>{handle ? `@${handle}` : plugin.did}</a
+								>
+							</dd>
+							{
+								profile?.lastUpdated && (
+									<>
+										<>
+											<dt>Updated</dt>
+											<dd>{formatDate(profile.lastUpdated)}</dd>
+										</>
+									</>
+								)
+							}
+						</dl>
+					</section>
+
+					{
+						authors.length > 0 && (
+							<section>
+								<h2>{authors.length === 1 ? "Author" : "Authors"}</h2>
+								<ul class="author-list">
+									{authors.map((author) => {
+										const url = safeExternalUrl(author.url);
+										return (
+											<li>
+												{url ? <a href={url}>{author.name}</a> : author.name}
+											</li>
+										);
+									})}
+								</ul>
+							</section>
+						)
+					}
+
+					{
+						profile?.keywords && profile.keywords.length > 0 && (
+							<section>
+								<h2>Keywords</h2>
+								<ul class="keyword-list">
+									{profile.keywords.map((keyword) => (
+										<li>
+											<a href={`/search?q=${encodeURIComponent(keyword)}`}>
+												{keyword}
+											</a>
+										</li>
+									))}
+								</ul>
+							</section>
+						)
+					}
+				</aside>
+			</div>
+		</article>
+
+		<dialog
+			class="install-dialog"
+			data-install-dialog
+			data-publisher={plugin.did}
+			data-slug={plugin.slug}
+			aria-labelledby="install-dialog-title"
+			aria-describedby="install-dialog-description"
+		>
+			<div class="install-dialog-content">
+				<div class="install-dialog-heading">
+					<div>
+						<p class="section-kicker">Install on your site</p>
+						<h2 id="install-dialog-title">Open in EmDash</h2>
+					</div>
+					<form method="dialog">
+						<button class="dialog-close" value="cancel" aria-label="Close">
+							<svg viewBox="0 0 20 20" aria-hidden="true">
+								<path d="m5 5 10 10M15 5 5 15"></path>
+							</svg>
+						</button>
+					</form>
+				</div>
+
+				<p id="install-dialog-description" class="install-dialog-description">
+					Choose the EmDash site where you want to review this plugin. Nothing
+					is installed until you confirm its permissions in that site's admin.
+				</p>
+
+				<div class="saved-site" data-saved-site hidden>
+					<a class="button-primary saved-site-link" data-saved-site-link href="/">
+						<span>Open in</span><span data-saved-site-host></span>
+					</a>
+					<button class="change-site" type="button" data-change-site>
+						Use a different site
+					</button>
+				</div>
+
+				<form class="install-site-form" data-install-site-form novalidate>
+					<label for="emdash-site-url">Your EmDash site</label>
+					<input
+						id="emdash-site-url"
+						name="site"
+						type="url"
+						inputmode="url"
+						autocomplete="url"
+						placeholder="https://cms.example.com"
+						aria-describedby="site-url-help site-url-error"
+						maxlength="2048"
+						required
+					/>
+					<p id="site-url-help" class="site-url-help">
+						This browser will remember the site. You can change it next time.
+					</p>
+					<p id="site-url-error" class="site-url-error" aria-live="polite"></p>
+					<button class="button-primary" type="submit">
+						Continue to your site
+					</button>
+				</form>
+
+				<div class="install-help">
+					<span>Need help?</span>
+					<a href="https://docs.emdashcms.com/plugins/installing/#install-from-the-registry">
+						Installation guide
+					</a>
+					<a href="https://docs.emdashcms.com/plugins/registry/">
+						Registry setup
+					</a>
+				</div>
+			</div>
+		</dialog>
+	</div>
+</BaseLayout>
+
+<style>
+	.detail-shell {
+		padding-top: 3rem;
+	}
+
+	.back-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		margin-bottom: 1.5rem;
+		color: var(--muted);
+		font-size: 0.8rem;
+		text-decoration: none;
+	}
+
+	.back-link:hover {
+		color: var(--ink);
+	}
+
+	.back-link svg {
+		width: 1rem;
+	}
+
+	.back-link path {
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.5;
+	}
+
+	article {
+		overflow: hidden;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 1.5rem;
+		box-shadow: var(--shadow-card);
+	}
+
+	.banner-wrap {
+		aspect-ratio: 3 / 1;
+		overflow: hidden;
+		background: var(--surface-soft);
+		border-bottom: 1px solid var(--line);
+	}
+
+	.banner-wrap img {
+		display: block;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.plugin-hero {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr) auto;
+		align-items: center;
+		gap: 1.5rem;
+		padding: 3rem;
+		border-bottom: 1px solid var(--line);
+	}
+
+	.plugin-hero.has-banner {
+		padding-top: 2.25rem;
+	}
+
+	.plugin-icon {
+		display: grid;
+		place-items: center;
+		width: 6.5rem;
+		height: 6.5rem;
+		object-fit: cover;
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: 1.35rem;
+		box-shadow: 0 8px 30px rgb(0 0 0 / 9%);
+	}
+
+	.plugin-icon.fallback {
+		color: var(--accent-ink);
+		font-size: 1.45rem;
+		font-weight: 700;
+		background: linear-gradient(
+			135deg,
+			var(--accent-soft),
+			color-mix(in srgb, var(--accent-soft) 45%, #eadcf8)
+		);
+	}
+
+	.package-reference {
+		min-width: 0;
+		margin: 0;
+		color: var(--accent-ink);
+		font-family: var(--font-mono);
+		font-size: clamp(1.05rem, 2vw, 1.35rem);
+		font-weight: 600;
+		letter-spacing: -0.03em;
+		line-height: 1.25;
+		overflow-wrap: anywhere;
+	}
+
+	.package-reference-row {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		margin-bottom: 0.65rem;
+	}
+
+	.package-reference a {
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.package-reference a:hover {
+		text-decoration: underline;
+		text-underline-offset: 0.2rem;
+	}
+
+	.copy-identifier {
+		position: relative;
+		display: grid;
+		place-items: center;
+		width: 2rem;
+		height: 2rem;
+		flex: none;
+		padding: 0;
+		color: var(--muted);
+		cursor: pointer;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: 0.4rem;
+		transition: 150ms ease;
+	}
+
+	.copy-identifier:hover {
+		color: var(--ink);
+		background: var(--surface-soft);
+		border-color: var(--line);
+	}
+
+	.copy-identifier:focus-visible {
+		outline: 2px solid var(--accent);
+		outline-offset: 2px;
+	}
+
+	.copy-identifier svg {
+		grid-area: 1 / 1;
+		width: 1.08rem;
+		height: 1.08rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-linejoin: round;
+		stroke-width: 1.5;
+	}
+
+	.copy-identifier .check-icon {
+		display: none;
+		color: var(--accent);
+	}
+
+	.copy-identifier[data-copied="true"] .copy-icon {
+		display: none;
+	}
+
+	.copy-identifier[data-copied="true"] .check-icon {
+		display: block;
+	}
+
+	.copy-status {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.plugin-title h1 {
+		margin: 0;
+		font-size: clamp(2.1rem, 5vw, 3.5rem);
+		line-height: 1;
+		letter-spacing: -0.06em;
+	}
+
+	.description {
+		max-width: 42rem;
+		margin: 0.8rem 0 0;
+		color: var(--muted);
+		line-height: 1.55;
+	}
+
+	.plugin-actions {
+		display: flex;
+		align-items: stretch;
+		flex-direction: column;
+		gap: 0.5rem;
+	}
+
+	.install-trigger {
+		cursor: pointer;
+		border: 0;
+	}
+
+	.install-dialog {
+		width: min(30rem, calc(100vw - 2rem));
+		max-width: none;
+		padding: 0;
+		color: var(--ink);
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 1.25rem;
+		box-shadow: 0 30px 90px rgb(0 0 0 / 24%);
+	}
+
+	.install-dialog::backdrop {
+		background: rgb(17 17 16 / 48%);
+		backdrop-filter: blur(3px);
+	}
+
+	.install-dialog-content {
+		padding: 1.75rem;
+	}
+
+	.install-dialog-heading {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.install-dialog-heading h2 {
+		margin: 0.25rem 0 0;
+		font-size: 1.65rem;
+		letter-spacing: -0.045em;
+	}
+
+	.dialog-close {
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		padding: 0;
+		color: var(--muted);
+		cursor: pointer;
+		background: transparent;
+		border: 1px solid transparent;
+		border-radius: 0.55rem;
+	}
+
+	.dialog-close:hover {
+		color: var(--ink);
+		background: var(--surface-soft);
+		border-color: var(--line);
+	}
+
+	.dialog-close svg {
+		width: 1rem;
+		height: 1rem;
+		fill: none;
+		stroke: currentColor;
+		stroke-linecap: round;
+		stroke-width: 1.5;
+	}
+
+	.install-dialog-description {
+		margin: 1.25rem 0 0;
+		color: var(--muted);
+		font-size: 0.92rem;
+		line-height: 1.55;
+	}
+
+	.install-site-form {
+		display: grid;
+		gap: 0.65rem;
+		margin-top: 1.5rem;
+	}
+
+	.install-site-form label {
+		font-size: 0.8rem;
+		font-weight: 600;
+	}
+
+	.install-site-form input {
+		width: 100%;
+		min-height: 3rem;
+		padding: 0.75rem 0.9rem;
+		color: var(--ink);
+		background: var(--page);
+		border: 1px solid var(--line);
+		border-radius: 0.65rem;
+		outline: none;
+	}
+
+	.install-site-form input:focus {
+		border-color: var(--accent);
+		box-shadow: 0 0 0 3px var(--accent-soft);
+	}
+
+	.install-site-form input[aria-invalid="true"] {
+		border-color: #c9372c;
+	}
+
+	.site-url-help,
+	.site-url-error {
+		margin: 0;
+		font-size: 0.75rem;
+		line-height: 1.4;
+	}
+
+	.site-url-help {
+		color: var(--muted);
+	}
+
+	.site-url-error {
+		min-height: 1.05rem;
+		color: #c9372c;
+	}
+
+	.saved-site {
+		display: grid;
+		gap: 0.6rem;
+		margin-top: 1.5rem;
+	}
+
+	.saved-site-link {
+		gap: 0.3em;
+	}
+
+	.change-site {
+		padding: 0.4rem;
+		color: var(--muted);
+		font-size: 0.78rem;
+		cursor: pointer;
+		background: transparent;
+		border: 0;
+	}
+
+	.change-site:hover {
+		color: var(--ink);
+		text-decoration: underline;
+		text-underline-offset: 0.2rem;
+	}
+
+	.install-help {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem 0.85rem;
+		margin-top: 1.4rem;
+		padding-top: 1.1rem;
+		color: var(--muted);
+		font-size: 0.75rem;
+		border-top: 1px solid var(--line-soft);
+	}
+
+	.install-help a {
+		color: var(--accent-ink);
+		text-underline-offset: 0.2rem;
+	}
+
+	.install-dialog [hidden] {
+		display: none;
+	}
+
+	.detail-grid {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr) 18rem;
+		gap: 4rem;
+		padding: 3.5rem 3rem 4rem;
+	}
+
+	.main-column {
+		min-width: 0;
+	}
+
+	.main-column > section + section {
+		margin-top: 3.5rem;
+		padding-top: 3.5rem;
+		border-top: 1px solid var(--line-soft);
+	}
+
+	.readme > h2,
+	.screenshots > h2,
+	.permissions h2 {
+		margin: 0 0 1.5rem;
+		font-size: 1.55rem;
+		letter-spacing: -0.04em;
+	}
+
+	.section-heading {
+		display: flex;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 2rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.section-heading h2 {
+		margin-bottom: 0;
+	}
+
+	.section-kicker {
+		margin: 0 0 0.55rem;
+		color: var(--accent-ink);
+		font-size: 0.68rem;
+		font-weight: 650;
+		letter-spacing: 0.055em;
+		text-transform: uppercase;
+	}
+
+	.permission-count {
+		display: grid;
+		place-items: center;
+		width: 2.25rem;
+		height: 2.25rem;
+		color: var(--accent-ink);
+		font-family: var(--font-mono);
+		font-size: 0.74rem;
+		background: var(--accent-soft);
+		border: 1px solid color-mix(in srgb, var(--accent) 20%, var(--line));
+		border-radius: 999px;
+	}
+
+	.permissions-note {
+		margin: 0;
+		color: var(--muted);
+		line-height: 1.65;
+	}
+
+	.permission-empty {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.9rem;
+		padding: 1.15rem;
+		background: var(--surface-soft);
+		border: 1px solid var(--line-soft);
+		border-radius: 0.9rem;
+	}
+
+	.permission-empty > span {
+		display: grid;
+		place-items: center;
+		width: 1.65rem;
+		height: 1.65rem;
+		flex: none;
+		color: var(--accent-ink);
+		font-size: 0.75rem;
+		background: var(--accent-soft);
+		border-radius: 999px;
+	}
+
+	.permission-empty strong,
+	.permission-list strong {
+		font-size: 0.9rem;
+		font-weight: 650;
+	}
+
+	.permission-empty p,
+	.permission-list p {
+		margin: 0.3rem 0 0;
+		color: var(--muted);
+		font-size: 0.82rem;
+		line-height: 1.55;
+	}
+
+	.permission-list {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.7rem;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.permission-list > li {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.8rem;
+		min-width: 0;
+		padding: 1rem;
+		background: var(--surface-soft);
+		border: 1px solid var(--line-soft);
+		border-radius: 0.9rem;
+	}
+
+	.permission-marker {
+		width: 0.55rem;
+		height: 0.55rem;
+		margin-top: 0.3rem;
+		flex: none;
+		background: var(--accent);
+		border-radius: 999px;
+		box-shadow: 0 0 0 4px var(--accent-soft);
+	}
+
+	.host-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin: 0.7rem 0 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.host-list li {
+		overflow: hidden;
+		max-width: 100%;
+		padding: 0.23rem 0.45rem;
+		font-family: var(--font-mono);
+		font-size: 0.65rem;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		background: var(--surface);
+		border: 1px solid var(--line);
+		border-radius: 0.35rem;
+	}
+
+	.prose-fallback {
+		color: var(--muted);
+		line-height: 1.75;
+	}
+
+	.prose :global(*) {
+		max-width: 100%;
+	}
+
+	.prose :global(h2),
+	.prose :global(h3),
+	.prose :global(h4) {
+		margin: 2rem 0 0.75rem;
+		letter-spacing: -0.035em;
+	}
+
+	.prose :global(p),
+	.prose :global(li) {
+		color: var(--muted);
+		font-size: 0.96rem;
+		line-height: 1.75;
+	}
+
+	.prose :global(a) {
+		color: var(--accent-ink);
+		text-underline-offset: 0.2rem;
+	}
+
+	.prose :global(code) {
+		padding: 0.15em 0.35em;
+		font-family: var(--font-mono);
+		font-size: 0.86em;
+		background: var(--surface-soft);
+		border: 1px solid var(--line-soft);
+		border-radius: 0.3rem;
+	}
+
+	.prose :global(pre) {
+		overflow-x: auto;
+		padding: 1.2rem;
+		background: var(--surface-soft);
+		border: 1px solid var(--line-soft);
+		border-radius: 0.75rem;
+	}
+
+	.prose :global(pre code) {
+		padding: 0;
+		background: none;
+		border: 0;
+	}
+
+	.prose :global(blockquote) {
+		margin-inline: 0;
+		padding-inline-start: 1rem;
+		border-inline-start: 3px solid var(--accent);
+	}
+
+	.screenshot-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: 0.85rem;
+	}
+
+	.screenshot-grid a {
+		display: block;
+		overflow: hidden;
+		background: var(--surface-soft);
+		border: 1px solid var(--line);
+		border-radius: 0.9rem;
+	}
+
+	.screenshot-grid img {
+		display: block;
+		width: 100%;
+		aspect-ratio: 16 / 10;
+		object-fit: cover;
+		transition: transform 220ms ease;
+	}
+
+	.screenshot-grid a:hover img {
+		transform: scale(1.015);
+	}
+
+	.sidebar {
+		align-self: start;
+	}
+
+	.sidebar section {
+		padding: 1.25rem 0;
+		border-bottom: 1px solid var(--line-soft);
+	}
+
+	.sidebar section:first-child {
+		padding-top: 0;
+	}
+
+	.sidebar h2 {
+		margin: 0 0 1rem;
+		font-size: 0.78rem;
+		font-weight: 650;
+	}
+
+	dl {
+		display: grid;
+		grid-template-columns: 1fr auto;
+		gap: 0.7rem 1rem;
+		margin: 0;
+		font-size: 0.76rem;
+	}
+
+	dt {
+		color: var(--muted);
+	}
+
+	dd {
+		max-width: 10rem;
+		margin: 0;
+		overflow: hidden;
+		font-family: var(--font-mono);
+		font-size: 0.7rem;
+		text-align: end;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.author-list,
+	.keyword-list {
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.author-list {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		font-size: 0.78rem;
+	}
+
+	.author-list a {
+		text-underline-offset: 0.2rem;
+	}
+
+	.keyword-list {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+	}
+
+	.keyword-list a {
+		display: block;
+		padding: 0.28rem 0.5rem;
+		color: var(--muted);
+		font-size: 0.7rem;
+		text-decoration: none;
+		background: var(--surface-soft);
+		border: 1px solid var(--line-soft);
+		border-radius: 999px;
+	}
+
+	@media (max-width: 900px) {
+		.plugin-hero {
+			grid-template-columns: auto 1fr;
+		}
+
+		.plugin-actions {
+			grid-column: 1 / -1;
+			align-items: stretch;
+			flex-direction: row;
+		}
+
+		.detail-grid {
+			grid-template-columns: 1fr;
+			gap: 3rem;
+		}
+
+		.sidebar {
+			display: grid;
+			grid-template-columns: repeat(3, 1fr);
+			gap: 1.5rem;
+		}
+
+		.sidebar section,
+		.sidebar section:first-child {
+			padding: 0;
+			border-bottom: 0;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.detail-shell {
+			width: 100%;
+			padding-top: 1rem;
+		}
+
+		.back-link {
+			margin-inline-start: 1rem;
+		}
+
+		article {
+			border-inline: 0;
+			border-radius: 0;
+		}
+
+		.plugin-hero {
+			grid-template-columns: 1fr;
+			padding: 2rem 1.25rem;
+		}
+
+		.plugin-icon {
+			width: 5rem;
+			height: 5rem;
+		}
+
+		.plugin-actions {
+			grid-column: auto;
+			flex-direction: column;
+		}
+
+		.detail-grid {
+			padding: 2.5rem 1.25rem 3rem;
+		}
+
+		.screenshot-grid,
+		.sidebar,
+		.permission-list {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>
+
+<script>
+	import {
+		normalizeSiteOrigin,
+		pluginAdminUrl,
+		probeEmDashSite,
+	} from "../../../lib/install.js";
+
+	const COPY_FEEDBACK_MS = 2_000;
+	const SITE_STORAGE_KEY = "emdash:plugins-site:last-site-origin:v1";
+
+	document
+		.querySelectorAll<HTMLButtonElement>("[data-copy-identifier]")
+		.forEach((button) => {
+			button.addEventListener("click", async () => {
+				const identifier = button.dataset.copyIdentifier;
+				if (!identifier) return;
+				try {
+					await navigator.clipboard.writeText(identifier);
+					button.dataset.copied = "true";
+					button.setAttribute("aria-label", `Copied ${identifier}`);
+					const status = button.querySelector<HTMLElement>(".copy-status");
+					if (status) status.textContent = "Copied";
+					window.setTimeout(() => {
+						delete button.dataset.copied;
+						button.setAttribute("aria-label", `Copy ${identifier}`);
+						if (status) status.textContent = "";
+					}, COPY_FEEDBACK_MS);
+				} catch {
+					const status = button.querySelector<HTMLElement>(".copy-status");
+					if (status) status.textContent = "Copy failed";
+				}
+			});
+		});
+
+	const dialog = document.querySelector<HTMLDialogElement>("[data-install-dialog]");
+	const installTrigger = document.querySelector<HTMLButtonElement>(".install-trigger");
+	const siteForm = dialog?.querySelector<HTMLFormElement>("[data-install-site-form]");
+	const siteInput = dialog?.querySelector<HTMLInputElement>("#emdash-site-url");
+	const siteError = dialog?.querySelector<HTMLElement>("#site-url-error");
+	const savedSite = dialog?.querySelector<HTMLElement>("[data-saved-site]");
+	const savedSiteLink = dialog?.querySelector<HTMLAnchorElement>(
+		"[data-saved-site-link]",
+	);
+	const savedSiteHost = dialog?.querySelector<HTMLElement>("[data-saved-site-host]");
+	const changeSite = dialog?.querySelector<HTMLButtonElement>("[data-change-site]");
+	const siteSubmit = siteForm?.querySelector<HTMLButtonElement>("button[type='submit']");
+
+	function readSavedSite(): string | undefined {
+		try {
+			const stored = localStorage.getItem(SITE_STORAGE_KEY);
+			const origin = stored ? normalizeSiteOrigin(stored) : undefined;
+			if (stored && !origin) localStorage.removeItem(SITE_STORAGE_KEY);
+			return origin;
+		} catch {
+			return undefined;
+		}
+	}
+
+	function destinationFor(origin: string): string | undefined {
+		const publisher = dialog?.dataset.publisher;
+		const slug = dialog?.dataset.slug;
+		if (!publisher || !slug) return undefined;
+		return pluginAdminUrl(origin, publisher, slug);
+	}
+
+	function showSiteForm(origin?: string) {
+		if (!siteForm || !savedSite || !siteInput) return;
+		savedSite.hidden = true;
+		siteForm.hidden = false;
+		siteInput.value = origin ?? "";
+		siteInput.removeAttribute("aria-invalid");
+		if (siteError) siteError.textContent = "";
+		queueMicrotask(() => siteInput.focus());
+	}
+
+	function showSavedSite(origin: string) {
+		if (!siteForm || !savedSite || !savedSiteLink || !savedSiteHost) return;
+		const destination = destinationFor(origin);
+		if (!destination) return showSiteForm(origin);
+		const host = new URL(origin).host;
+		siteForm.hidden = true;
+		savedSite.hidden = false;
+		savedSiteLink.href = destination;
+		savedSiteLink.setAttribute("aria-label", `Open in ${host}`);
+		savedSiteHost.textContent = host;
+	}
+
+	installTrigger?.addEventListener("click", () => {
+		if (!dialog) return;
+		const origin = readSavedSite();
+		if (origin) showSavedSite(origin);
+		else showSiteForm();
+		dialog.showModal();
+	});
+
+	changeSite?.addEventListener("click", () => {
+		showSiteForm(readSavedSite());
+	});
+
+	siteForm?.addEventListener("submit", async (event) => {
+		event.preventDefault();
+		if (!siteInput) return;
+		const origin = normalizeSiteOrigin(siteInput.value);
+		const destination = origin ? destinationFor(origin) : undefined;
+		if (!origin || !destination) {
+			siteInput.setAttribute("aria-invalid", "true");
+			if (siteError) {
+				siteError.textContent =
+					"Enter an HTTPS site address, or a local HTTP address for development.";
+			}
+			siteInput.focus();
+			return;
+		}
+
+		siteInput.removeAttribute("aria-invalid");
+		siteForm.setAttribute("aria-busy", "true");
+		if (siteError) siteError.textContent = "Checking this site…";
+		if (siteSubmit) {
+			siteSubmit.disabled = true;
+			siteSubmit.textContent = "Checking site…";
+		}
+
+		const controller = new AbortController();
+		const timeout = window.setTimeout(() => controller.abort(), 4_000);
+		const probe = await probeEmDashSite(origin, controller.signal);
+		window.clearTimeout(timeout);
+
+		if (probe === "registry-disabled") {
+			siteInput.setAttribute("aria-invalid", "true");
+			if (siteError) {
+				siteError.textContent =
+					"This EmDash site does not have the plugin registry enabled.";
+			}
+			siteForm.removeAttribute("aria-busy");
+			if (siteSubmit) {
+				siteSubmit.disabled = false;
+				siteSubmit.textContent = "Continue to your site";
+			}
+			return;
+		}
+
+		try {
+			localStorage.setItem(SITE_STORAGE_KEY, origin);
+		} catch {
+			// Browser storage may be disabled; the handoff does not depend on it.
+		}
+		window.location.assign(destination);
+	});
+
+	dialog?.addEventListener("click", (event) => {
+		if (event.target === dialog) dialog.close();
+	});
+</script>

@@ -769,7 +769,7 @@ export async function handleMarketplaceUninstall(
 	db: Kysely<Database>,
 	storage: Storage | null,
 	pluginId: string,
-	opts?: { deleteData?: boolean },
+	opts?: { deleteData?: boolean; beforeDelete?: () => Promise<void> },
 ): Promise<ApiResult<MarketplaceUninstallResult>> {
 	try {
 		const stateRepo = new PluginStateRepository(db);
@@ -785,6 +785,7 @@ export async function handleMarketplaceUninstall(
 		}
 
 		const version = existing.marketplaceVersion ?? existing.version;
+		await opts?.beforeDelete?.();
 
 		// Delete bundle from site R2
 		if (storage) {

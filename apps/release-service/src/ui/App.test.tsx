@@ -184,7 +184,7 @@ describe("release-service web surfaces", () => {
 		expect(screen.getByText("pnpm exec emdash-plugin release setup")).toBeTruthy();
 		expect(
 			screen.getByText(
-				"Review and commit .github/workflows/emdash-release.yml, then push a package tag such as gallery@1.2.3 or start it from GitHub Actions.",
+				"Review and commit .github/workflows/emdash-release.yml. EmDash can follow packages released by Changesets, package tags, or manual GitHub Actions runs.",
 			),
 		).toBeTruthy();
 		expect(screen.getAllByText("@publisher.example.com")).toHaveLength(1);

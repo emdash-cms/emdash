@@ -6,7 +6,7 @@
 import type { Hono } from "hono";
 
 import dashboardHtml from "./dashboard.html?raw";
-import { getDashboardPayload } from "./lib/dashboard.js";
+import { DashboardUnavailableError, getDashboardPayload } from "./lib/dashboard.js";
 import {
 	getPullRequestHeadBranch,
 	getPullRequestReviewComments,
@@ -14,6 +14,7 @@ import {
 	readAppCreds,
 	readRepoContext,
 } from "./lib/github.js";
+import { syncReviewStateLabel } from "./lib/review-state.js";
 import {
 	normalizeWebhook,
 	resolvePullRequestWebhook,
@@ -31,6 +32,11 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			c.header("cache-control", "public, max-age=10, stale-while-revalidate=30");
 			return c.json(payload);
 		} catch (error) {
+			if (error instanceof DashboardUnavailableError) {
+				const retryAfter = Math.max(1, Math.ceil((error.retryAt - Date.now()) / 1_000));
+				c.header("retry-after", String(retryAfter));
+				c.header("cache-control", "no-store");
+			}
 			console.error("[dashboard] load failed", {
 				error: error instanceof Error ? error.message : String(error),
 			});
@@ -181,6 +187,29 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 				cleanup: cleanup.kind,
 			});
 			return c.json({ anchor: result.anchor, cleanup }, 202);
+		}
+		if (result.kind === "review_state") {
+			const creds = readAppCreds(c.env);
+			const repo = readRepoContext(c.env);
+			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
+			try {
+				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
+				const token = await mintInstallationToken(creds, signal);
+				const reviewState = await syncReviewStateLabel(token, repo, result, signal);
+				console.log("[webhook] review state", {
+					delivery: deliveryId,
+					pullRequest: result.pullRequestNumber,
+					reviewState,
+				});
+				return c.json({ pullRequest: result.pullRequestNumber, reviewState }, 202);
+			} catch (error) {
+				console.error("[webhook] review state update failed", {
+					delivery: deliveryId,
+					pullRequest: result.pullRequestNumber,
+					error: error instanceof Error ? error.message : String(error),
+				});
+				return c.text("review state update failed", 503);
+			}
 		}
 		if (result.kind !== "dispatch") return c.text("unsupported webhook result", 500);
 

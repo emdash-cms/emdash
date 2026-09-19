@@ -19,6 +19,7 @@ import { handleRegistryUpdate } from "#api/index.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 
+import { getRegistryConfigInput } from "../../../../../../../registry/config.js";
 import { VERSION } from "../../../../../../../version.js";
 
 export const prerender = false;
@@ -68,7 +69,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			emdash.db,
 			emdash.storage,
 			emdash.getSandboxRunner(),
-			emdash.config.experimental?.registry,
+			getRegistryConfigInput(emdash.config.registry, emdash.config.experimental?.registry),
 			id,
 			{
 				version: body.version,
@@ -84,6 +85,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		if (!result.success) return unwrapResult(result);
 
 		await emdash.syncRegistryPlugins();
+		await emdash.runPluginActivateLifecycle(id);
 
 		return unwrapResult(result);
 	} catch (error) {

@@ -27,7 +27,7 @@ import {
 	type I18nConfig,
 } from "emdash";
 
-import { setEmailSendCallback } from "./bridge.js";
+import { setCronNowCallback, setCronRescheduleCallback, setEmailSendCallback } from "./bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
 import { generatePluginWrapper } from "./wrapper.js";
 
@@ -121,6 +121,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 
 		// Wire email send callback if provided at construction time
 		setEmailSendCallback(options.emailSend ?? null);
+		setCronNowCallback(options.now ?? null);
 	}
 
 	/**
@@ -130,6 +131,10 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		setEmailSendCallback(callback);
+	}
+
+	setCronReschedule(callback: (() => void) | null): void {
+		setCronRescheduleCallback(callback);
 	}
 
 	/**
@@ -188,6 +193,7 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 			pluginBridge,
 			this.resolvedLimits,
 			this.siteInfo,
+			this.options.isolateKey,
 		);
 
 		this.plugins.set(pluginId, plugin);
@@ -226,6 +232,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	private workerName: string;
 
 	constructor(
 		manifest: PluginManifest,
@@ -239,8 +246,10 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 			locale: string;
 			trailingSlash?: "always" | "never" | "ignore";
 		},
+		isolateKey?: string,
 	) {
 		this.id = `${manifest.id}:${manifest.version}`;
+		this.workerName = isolateKey ? `${this.id}:${isolateKey}` : this.id;
 		this.manifest = manifest;
 		this.code = code;
 		this.loader = loader;
@@ -294,7 +303,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 
 		// Get a fresh stub with the new bridge binding.
 		// Worker Loader caches the isolate but the stub/bindings are per-call.
-		return this.loader.get(this.id, () => ({
+		return this.loader.get(this.workerName, () => ({
 			compatibilityDate: "2026-04-01",
 			mainModule: "plugin.js",
 			modules: {

@@ -8,12 +8,6 @@ minimumReleaseAgeExclude:
   - "@rolldown/binding-*"
   - "@emnapi/core"
   - "@emnapi/runtime"
-  # Astro 7.0.0 and the whole @astrojs/* family (adapters, markdown-satteri,
-  # internal helpers, etc.) were published together on 2026-06-22 and are all
-  # still inside the 24h cooldown. Exclude them so the upgrade install doesn't
-  # stall. TEMPORARY: remove this scope exclusion once the cooldown has elapsed.
-  - astro
-  - "@astrojs/*"
 trustPolicy: no-downgrade
 strictDepBuilds: true
 dangerouslyAllowAllBuilds: false
@@ -71,10 +65,10 @@ packages:
   - infra/*
 catalog:
   "@arethetypeswrong/cli": ^0.18.2
-  "@astrojs/check": ^0.9.7
-  "@astrojs/cloudflare": ^14.0.0
-  "@astrojs/node": ^11.0.0
-  "@astrojs/react": ^6.0.0
+  "@astrojs/check": ^0.9.10
+  "@astrojs/cloudflare": ^14.3.1
+  "@astrojs/node": ^11.1.5
+  "@astrojs/react": ^6.0.5
   "@atcute/atproto": ^4.0.2
   "@atcute/car": ^6.0.0
   "@atcute/cbor": ^2.3.3
@@ -152,7 +146,7 @@ catalog:
   "@types/react": 19.2.14
   "@types/react-dom": 19.2.3
   "@types/semver": ^7.5.8
-  astro: ^7.0.0
+  astro: ^7.3.2
   astro-iconset: ^0.0.4
   better-sqlite3: ^12.8.0
   chokidar: ^5.0.0
@@ -171,7 +165,7 @@ catalog:
   typescript: ^6.0.3
   vite: ^8.0.11
   vitest: ^4.1.5
-  wrangler: ^4.124.0
+  wrangler: ^4.125.0
   "y-protocols": ^1.0.7
   yjs: ^13.6.0
   zod: 4.5.4
