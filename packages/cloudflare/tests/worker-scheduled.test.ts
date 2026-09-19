@@ -88,6 +88,25 @@ it("invalidates cache tags after scheduled content is published", async () => {
 	});
 });
 
+it("provides cache invalidation to plugin actions in scheduled hooks", async () => {
+	scheduled.general.mockImplementationOnce(async (options) => {
+		const invalidateContentCache = (
+			options as {
+				invalidateContentCache: (tags: string[]) => Promise<void>;
+			}
+		).invalidateContentCache;
+		await invalidateContentCache(["posts", "post-1"]);
+		return { published: [] };
+	});
+	const handler = createScheduledHandler();
+
+	await invoke(handler, "custom expression");
+
+	expect(cache.invalidate).toHaveBeenCalledExactlyOnceWith({
+		tags: ["posts", "post-1"],
+	});
+});
+
 it("does nothing when no cache provider is configured", async () => {
 	astro.cacheProvider.mockResolvedValueOnce({ default: null });
 	scheduled.general.mockImplementationOnce(async (options) => {

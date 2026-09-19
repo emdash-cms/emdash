@@ -389,6 +389,8 @@ describe("CAPABILITY_LABELS", () => {
 			// Canonical
 			"content:read",
 			"content:write",
+			"content:publish",
+			"content:restore",
 			"hooks.content-policy:register",
 			"taxonomies:read",
 			"media:read",

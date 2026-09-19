@@ -144,6 +144,8 @@ With `content:read`, both sandbox runners match the trusted read contract. `ctx.
 
 `list()` accepts `limit`, `cursor`, `where`, and `orderBy`. Field filters, status filters, ordering, and cursor pagination reach the host repository on both runners; they are not evaluated inside the plugin isolate. Read only the fields the returned `ContentItem` exposes. Translation discovery and schema listing are separate missing APIs, described in [Sandbox boundaries](./sandbox-boundaries.md).
 
+With `content:publish`, call `getVersioned()` before `publish()`, `unpublish()`, `schedule()`, or `unschedule()`, then pass the returned `_rev`. Each successful mutation returns the item and its next `_rev`. `content:restore` separately provides `getTrashedVersioned()` and `restore()` without granting ordinary content reads. These actions execute through the host runtime, including policy and after-hooks; a stale revision or same-plugin recursive action rejects without changing the entry.
+
 ## External HTTP responses
 
 `ctx.http.fetch()` returns a real WHATWG `Response` in both sandbox runners, so `ok`, `status`, `headers`, `text()`, and `json()` use the standard Web API.

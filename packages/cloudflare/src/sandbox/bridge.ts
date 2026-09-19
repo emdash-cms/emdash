@@ -12,6 +12,7 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 import type {
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
+	ContentActionCallbacks,
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
@@ -61,6 +62,7 @@ const SYSTEM_COLUMNS = new Set([
 
 /** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
 const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
+const CONTENT_ACTION_ERROR_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
 
 /**
  * Module-level email send callback.
@@ -72,6 +74,7 @@ const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
  * @see runner.ts setEmailSendCallback()
  */
 let emailSendCallback: SandboxEmailSendCallback | null = null;
+let contentActionsCallback: ContentActionCallbacks | null = null;
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 
@@ -81,6 +84,26 @@ let cronNowCallback: (() => Date) | null = null;
  */
 export function setEmailSendCallback(callback: SandboxEmailSendCallback | null): void {
 	emailSendCallback = callback;
+}
+
+export function setContentActionsCallback(callback: ContentActionCallbacks | null): void {
+	contentActionsCallback = callback;
+}
+
+export function beginContentActionCallbacks(
+	pluginId: string,
+	invocationId: string,
+	invalidateContentCache?: (tags: string[]) => Promise<void>,
+): void {
+	contentActionsCallback?.begin?.(pluginId, invocationId, invalidateContentCache);
+}
+
+export function flushContentActionCallbacks(
+	pluginId: string,
+	invocationId: string,
+	final: boolean,
+): Promise<void> {
+	return contentActionsCallback?.flush(pluginId, invocationId, final) ?? Promise.resolve();
 }
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
@@ -96,6 +119,25 @@ function serializeValue(value: unknown): unknown {
 	if (typeof value === "boolean") return value ? 1 : 0;
 	if (typeof value === "object") return JSON.stringify(value);
 	return value;
+}
+
+async function forwardContentAction<T>(fn: () => Promise<T>): Promise<T | Record<string, unknown>> {
+	try {
+		return await fn();
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			"code" in error &&
+			typeof error.code === "string" &&
+			CONTENT_ACTION_ERROR_CODE_REGEX.test(error.code)
+		) {
+			return {
+				__emdashContentActionError: true,
+				error: { code: error.code, message: error.message },
+			};
+		}
+		throw error;
+	}
 }
 
 function rowToContentItem(collection: string, row: Record<string, unknown>) {
@@ -772,6 +814,100 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			.bind(now, now, id)
 			.run();
 		return (result.meta?.changes ?? 0) > 0;
+	}
+
+	private requireContentActions(capability: "content:publish" | "content:restore") {
+		if (!this.ctx.props.capabilities.includes(capability)) {
+			throw new Error(`Missing capability: ${capability}`);
+		}
+		if (!contentActionsCallback) throw new Error("Content actions are not configured");
+		return contentActionsCallback;
+	}
+
+	contentGetVersioned(collection: string, id: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").getVersioned(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+			),
+		);
+	}
+
+	contentPublish(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").publish(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentUnpublish(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").unpublish(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentSchedule(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		revision: string,
+		invocationId?: string,
+	) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").schedule(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ scheduledAt, _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentUnschedule(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").unschedule(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentGetTrashedVersioned(collection: string, id: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:restore").getTrashedVersioned(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+			),
+		);
+	}
+
+	contentRestore(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:restore").restore(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
 	}
 
 	// =========================================================================

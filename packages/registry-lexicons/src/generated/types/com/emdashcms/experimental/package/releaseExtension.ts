@@ -14,10 +14,22 @@ const _contentAccessSchema = /*#__PURE__*/ v.object({
 		return /*#__PURE__*/ v.optional(contentPolicyConstraintsSchema);
 	},
 	/**
+	 * Plugin may publish, unpublish, schedule, and unschedule content. Implies `read`.
+	 */
+	get publish() {
+		return /*#__PURE__*/ v.optional(contentPublishConstraintsSchema);
+	},
+	/**
 	 * Plugin may read content records.
 	 */
 	get read() {
 		return /*#__PURE__*/ v.optional(contentReadConstraintsSchema);
+	},
+	/**
+	 * Plugin may read and restore trashed content.
+	 */
+	get restore() {
+		return /*#__PURE__*/ v.optional(contentRestoreConstraintsSchema);
 	},
 	/**
 	 * Plugin may create, update, or delete content records. Implies `read`.
@@ -33,10 +45,24 @@ const _contentPolicyConstraintsSchema = /*#__PURE__*/ v.object({
 		),
 	),
 });
+const _contentPublishConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#contentPublishConstraints",
+		),
+	),
+});
 const _contentReadConstraintsSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
 			"com.emdashcms.experimental.package.releaseExtension#contentReadConstraints",
+		),
+	),
+});
+const _contentRestoreConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#contentRestoreConstraints",
 		),
 	),
 });
@@ -332,7 +358,11 @@ const _usersReadConstraintsSchema = /*#__PURE__*/ v.object({
 type contentAccess$schematype = typeof _contentAccessSchema;
 type contentPolicyConstraints$schematype =
 	typeof _contentPolicyConstraintsSchema;
+type contentPublishConstraints$schematype =
+	typeof _contentPublishConstraintsSchema;
 type contentReadConstraints$schematype = typeof _contentReadConstraintsSchema;
+type contentRestoreConstraints$schematype =
+	typeof _contentRestoreConstraintsSchema;
 type contentWriteConstraints$schematype = typeof _contentWriteConstraintsSchema;
 type declaredAccess$schematype = typeof _declaredAccessSchema;
 type emailAccess$schematype = typeof _emailAccessSchema;
@@ -359,7 +389,9 @@ type usersReadConstraints$schematype = typeof _usersReadConstraintsSchema;
 
 export interface contentAccessSchema extends contentAccess$schematype {}
 export interface contentPolicyConstraintsSchema extends contentPolicyConstraints$schematype {}
+export interface contentPublishConstraintsSchema extends contentPublishConstraints$schematype {}
 export interface contentReadConstraintsSchema extends contentReadConstraints$schematype {}
+export interface contentRestoreConstraintsSchema extends contentRestoreConstraints$schematype {}
 export interface contentWriteConstraintsSchema extends contentWriteConstraints$schematype {}
 export interface declaredAccessSchema extends declaredAccess$schematype {}
 export interface emailAccessSchema extends emailAccess$schematype {}
@@ -383,8 +415,12 @@ export interface usersReadConstraintsSchema extends usersReadConstraints$schemat
 export const contentAccessSchema = _contentAccessSchema as contentAccessSchema;
 export const contentPolicyConstraintsSchema =
 	_contentPolicyConstraintsSchema as contentPolicyConstraintsSchema;
+export const contentPublishConstraintsSchema =
+	_contentPublishConstraintsSchema as contentPublishConstraintsSchema;
 export const contentReadConstraintsSchema =
 	_contentReadConstraintsSchema as contentReadConstraintsSchema;
+export const contentRestoreConstraintsSchema =
+	_contentRestoreConstraintsSchema as contentRestoreConstraintsSchema;
 export const contentWriteConstraintsSchema =
 	_contentWriteConstraintsSchema as contentWriteConstraintsSchema;
 export const declaredAccessSchema =
@@ -423,8 +459,14 @@ export interface ContentAccess extends v.InferInput<
 export interface ContentPolicyConstraints extends v.InferInput<
 	typeof contentPolicyConstraintsSchema
 > {}
+export interface ContentPublishConstraints extends v.InferInput<
+	typeof contentPublishConstraintsSchema
+> {}
 export interface ContentReadConstraints extends v.InferInput<
 	typeof contentReadConstraintsSchema
+> {}
+export interface ContentRestoreConstraints extends v.InferInput<
+	typeof contentRestoreConstraintsSchema
 > {}
 export interface ContentWriteConstraints extends v.InferInput<
 	typeof contentWriteConstraintsSchema

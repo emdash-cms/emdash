@@ -40,7 +40,10 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const site = options.site ?? { name: "", url: "", locale: "en" };
 	const capabilities = normalizeCapabilities(manifest.capabilities);
 	const hasContentAccess =
-		capabilities.includes("content:read") || capabilities.includes("content:write");
+		capabilities.includes("content:read") ||
+		capabilities.includes("content:write") ||
+		capabilities.includes("content:publish") ||
+		capabilities.includes("content:restore");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 
@@ -217,11 +220,19 @@ async function bridgeCall(method, body) {
 	return data.result;
 }
 
+async function contentAction(promise) {
+	const result = await promise;
+	if (result && result.__emdashContentActionError === true && result.error) {
+		throw Object.assign(new Error(result.error.message), result.error, { name: result.error.code });
+	}
+	return result;
+}
+
 // -----------------------------------------------------------------------------
 // Context Factory
 // -----------------------------------------------------------------------------
 
-function createContext() {
+function createContext(invocationId) {
 	const kv = {
 		get: (key) => bridgeCall("kv/get", { key }),
 		set: (key, value) => bridgeCall("kv/set", { key, value }),
@@ -272,6 +283,13 @@ function createContext() {
 		create: (collection, data, options) => bridgeCall("content/create", { collection, data, options }),
 		update: (collection, id, data) => bridgeCall("content/update", { collection, id, data }),
 		delete: (collection, id) => bridgeCall("content/delete", { collection, id }),
+		getVersioned: (collection, id) => contentAction(bridgeCall("content/getVersioned", { collection, id })),
+		publish: (collection, id, options) => contentAction(bridgeCall("content/publish", { collection, id, revision: options._rev, invocationId })),
+		unpublish: (collection, id, options) => contentAction(bridgeCall("content/unpublish", { collection, id, revision: options._rev, invocationId })),
+		schedule: (collection, id, options) => contentAction(bridgeCall("content/schedule", { collection, id, scheduledAt: options.scheduledAt, revision: options._rev, invocationId })),
+		unschedule: (collection, id, options) => contentAction(bridgeCall("content/unschedule", { collection, id, revision: options._rev, invocationId })),
+		getTrashedVersioned: (collection, id) => contentAction(bridgeCall("content/getTrashedVersioned", { collection, id })),
+		restore: (collection, id, options) => contentAction(bridgeCall("content/restore", { collection, id, revision: options._rev, invocationId })),
 		createMany: (collection, items) => bridgeCall("content/createMany", { collection, items }),
 		updateMany: (collection, items) => bridgeCall("content/updateMany", { collection, items }),
 		deleteMany: (collection, ids) => bridgeCall("content/deleteMany", { collection, ids }),
@@ -536,8 +554,8 @@ export default {
 		// Hook invocation: POST /hook/{hookName}
 		if (url.pathname.startsWith("/hook/")) {
 			const hookName = url.pathname.slice(6); // Remove "/hook/"
-			const { event } = await request.json();
-			const ctx = createContext();
+			const { event, invocationId } = await request.json();
+			const ctx = createContext(invocationId);
 
 			const hookDef = hooks[hookName];
 			if (!hookDef) {
@@ -560,8 +578,8 @@ export default {
 		// Route invocation: POST /route/{routeName}
 		if (url.pathname.startsWith("/route/")) {
 			const routeName = url.pathname.slice(7); // Remove "/route/"
-			const { input, request: serializedRequest } = await request.json();
-			const ctx = createContext();
+			const { input, request: serializedRequest, invocationId } = await request.json();
+			const ctx = createContext(invocationId);
 
 			const route = routes[routeName];
 			if (!route) {

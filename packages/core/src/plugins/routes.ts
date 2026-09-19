@@ -65,6 +65,8 @@ export interface RouteMeta {
 	cacheControl?: string;
 }
 
+export type PluginContentCacheInvalidator = (tags: string[]) => Promise<void>;
+
 /**
  * Build RouteMeta from a route's `public`/`cacheControl` flags. Single source
  * of truth for the "cacheControl is only ever exposed on public routes"

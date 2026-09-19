@@ -59,6 +59,7 @@ import { setI18nConfig } from "../i18n/config.js";
 import type { Database, Storage } from "../index.js";
 import { createPublicMediaUrlResolver } from "../media/url.js";
 import { getLastContentWriteAt } from "../object-cache/index.js";
+import type { PluginContentCacheInvalidator } from "../plugins/routes.js";
 import type { SandboxRunnerFactory } from "../plugins/sandbox/types.js";
 import type { ResolvedPlugin } from "../plugins/types.js";
 import { invalidateUrlPatternCache } from "../query.js";
@@ -295,7 +296,10 @@ async function getRuntime(
  * rather than only after the whole sweep.
  */
 export async function runScheduledTasks(
-	options: { onPublished?: (refs: PublishedRef[]) => Promise<void> } = {},
+	options: {
+		onPublished?: (refs: PublishedRef[]) => Promise<void>;
+		invalidateContentCache?: PluginContentCacheInvalidator;
+	} = {},
 ): Promise<{ published: PublishedRef[] }> {
 	const config = getConfig();
 	if (!config) return { published: [] };

@@ -3,7 +3,7 @@ import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
 import { env } from "cloudflare:workers";
 import { OptionsRepository, type Database, type PluginManifest, type SandboxOptions } from "emdash";
 import { Kysely } from "kysely";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
 	createPluginRuntimeTestHost,
@@ -409,6 +409,129 @@ describe("runtime plugin test host", () => {
 			policyEvents.find((event) => event.origin?.source === "visual-editor")?.actor,
 		).toMatchObject({ source: "visual-editor" });
 		expect(policyEvents.find((event) => event.origin?.source === "plugin")?.actor).toBeUndefined();
+	});
+
+	it("runs versioned publication and restore actions through Worker Loader", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			routable: true,
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const admin = await runtimeHost.fixtures.user({
+			email: "publication-actions@example.com",
+			role: "admin",
+		});
+		const content = await runtimeHost.fixtures.content("posts", {
+			slug: "publication-actions",
+			data: { title: "Publication actions" },
+		});
+		const invoke = async (body: Record<string, unknown>) => {
+			const response = await runtimeHost!.actions.routes.request("content-action", {
+				user: admin,
+				headers: { "X-EmDash-Request": "1" },
+				body,
+			});
+			expect(response.status).toBe(200);
+			const json: unknown = await response.json();
+			if (
+				typeof json !== "object" ||
+				json === null ||
+				!("data" in json) ||
+				typeof json.data !== "object" ||
+				json.data === null
+			) {
+				throw new Error("Expected versioned action response");
+			}
+			return json.data as {
+				item: { id: string; status: string; scheduledAt?: string | null };
+				_rev: string;
+			};
+		};
+
+		let current = await invoke({
+			action: "getVersioned",
+			collection: "posts",
+			id: content.id,
+		});
+		await runtimeHost.fixtures.plugin.kv("policy:reenter-publish", true);
+		const reentrant = await runtimeHost.actions.routes.request("content-action", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: {
+				action: "publish",
+				collection: "posts",
+				id: "publication-actions",
+				_rev: current._rev,
+			},
+		});
+		expect(reentrant.status).toBe(200);
+		await expect(reentrant.json()).resolves.toMatchObject({
+			data: { actionError: { code: "PUBLISH_REJECTED" } },
+		});
+		await expect(runtimeHost.inspect.content.get("posts", content.id)).resolves.toMatchObject({
+			status: "draft",
+		});
+		await expect(runtimeHost.inspect.storage.list("events")).resolves.toContainEqual(
+			expect.objectContaining({
+				data: expect.objectContaining({
+					type: "content-action-rejected",
+					code: "CONTENT_ACTION_REENTRANT",
+				}),
+			}),
+		);
+		await runtimeHost.fixtures.plugin.kv("policy:reenter-publish", false);
+		current = await invoke({
+			action: "publish",
+			collection: "posts",
+			id: content.id,
+			_rev: current._rev,
+		});
+		expect(current.item.status).toBe("published");
+		current = await invoke({
+			action: "unpublish",
+			collection: "posts",
+			id: content.id,
+			_rev: current._rev,
+		});
+		expect(current.item.status).toBe("draft");
+		current = await invoke({
+			action: "schedule",
+			collection: "posts",
+			id: content.id,
+			scheduledAt: "2031-01-01T00:00:00.000Z",
+			_rev: current._rev,
+		});
+		expect(current.item.scheduledAt).toBe("2031-01-01T00:00:00.000Z");
+		current = await invoke({
+			action: "unschedule",
+			collection: "posts",
+			id: content.id,
+			_rev: current._rev,
+		});
+		expect(current.item.scheduledAt).toBeNull();
+
+		await runtimeHost.actions.content.trash("posts", content.id);
+		const trashed = await invoke({
+			action: "getTrashedVersioned",
+			collection: "posts",
+			id: content.id,
+		});
+		const restored = await invoke({
+			action: "restore",
+			collection: "posts",
+			id: content.id,
+			_rev: trashed._rev,
+		});
+		expect(restored.item.id).toBe(content.id);
+		await vi.waitFor(async () => {
+			for (const action of ["publish", "unpublish", "schedule", "unschedule", "restore"]) {
+				await expect(
+					runtimeHost!.inspect.storage.get("events", `action:${action}:${content.id}`),
+				).resolves.toMatchObject({ type: "content-action", action, contentId: content.id });
+			}
+		});
 	});
 
 	it("runs public comment policy and follows every content-list cursor", async () => {

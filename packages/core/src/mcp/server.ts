@@ -784,6 +784,7 @@ export function createMcpServer(
 					);
 				}
 				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const routeCache = payload.cache;
 				const result = await payload.emdash.handlePluginMcpTool(
 					tool.pluginId,
 					tool.name,
@@ -792,6 +793,7 @@ export function createMcpServer(
 					payload.userId,
 					request,
 					payload.user,
+					routeCache?.enabled ? (tags) => routeCache.invalidate({ tags }) : undefined,
 				);
 				if (!result.success) return unwrap(result);
 				if (tool.outputSchema) {

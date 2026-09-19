@@ -85,6 +85,8 @@ Use only canonical capability names:
 | -------------------------------- | ----------------------------------------------------------------------- |
 | `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                               |
 | `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read            |
+| `content:publish`                | Versioned publish, unpublish, schedule, and unschedule; implies read    |
+| `content:restore`                | Versioned reads and restoration of trashed content                      |
 | `hooks.content-policy:register`  | Publication, scheduling, and unpublication policy hooks                 |
 | `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`              |
 | `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                   |
@@ -155,6 +157,8 @@ Both sandbox runners write the bytes through the configured media storage adapte
 Declare hooks in `src/plugin.ts`; declare any required capability in the manifest. Registry-installed and config-managed sandbox plugins enter the same host hook pipeline as trusted plugins while their handlers stay inside the runner isolate. The pipeline applies priority, dependencies, timeout, error policy, enable/disable state, exclusive-provider selection, and capability fencing.
 
 `hooks.content-policy:register` enables `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` without granting content read, write, or publication-action access. Return `{ cancel: true, reason }` to reject an action. Policy events include the action origin and the authenticated actor when one exists. Scheduled publication runs `content:beforePublish` again; a rejection unschedules the entry and lists the entry and reason on the dashboard until it is rescheduled, published, deleted, or dismissed.
+
+`content:publish` exposes `getVersioned()`, `publish()`, `unpublish()`, `schedule()`, and `unschedule()`. Every mutation requires the `_rev` from the read or preceding action and routes through the production runtime. `content:restore` separately exposes `getTrashedVersioned()` and `restore()`; it does not grant ordinary content reads. A plugin action reports its origin as `{ source: "plugin", pluginId }`. Re-entering the same action for the same entry from that plugin is rejected.
 
 The comment lifecycle is:
 

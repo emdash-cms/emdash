@@ -4,6 +4,7 @@ import { requirePerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
 import { requireScope } from "../auth/scopes.js";
 import type { EmDashRuntime } from "../emdash-runtime.js";
+import type { PluginContentCacheInvalidator } from "./routes.js";
 import type { UserInfo } from "./types.js";
 
 function toRoleLevel(value: number): RoleLevel | null {
@@ -24,6 +25,7 @@ export interface PluginApiRequestContext {
 	request: Request;
 	user?: UserInfo | null;
 	tokenScopes?: string[];
+	invalidateContentCache?: PluginContentCacheInvalidator;
 }
 
 /** Dispatch a request through the production plugin-route policy boundary. */
@@ -34,6 +36,7 @@ export async function dispatchPluginApiRequest({
 	request,
 	user,
 	tokenScopes,
+	invalidateContentCache,
 }: PluginApiRequestContext): Promise<Response> {
 	const method = request.method.toUpperCase();
 	const routeMeta = runtime.getPluginRouteMeta(pluginId, path);
@@ -64,7 +67,14 @@ export async function dispatchPluginApiRequest({
 	}
 
 	const caller = routeMeta.public ? undefined : (user ?? undefined);
-	const result = await runtime.handlePluginApiRoute(pluginId, method, path, request, caller);
+	const result = await runtime.handlePluginApiRoute(
+		pluginId,
+		method,
+		path,
+		request,
+		caller,
+		invalidateContentCache,
+	);
 	if (!result.success) {
 		const code = result.error?.code ?? "PLUGIN_ERROR";
 		const message =

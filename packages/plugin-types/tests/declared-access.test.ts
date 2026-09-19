@@ -135,6 +135,15 @@ describe("canonicalizeDeclaredAccess", () => {
 		).toBe(true);
 	});
 
+	it("materializes publication read access without widening restore authority", () => {
+		expect(canonicalizeDeclaredAccess({ content: { publish: {} } })).toEqual({
+			content: { publish: {}, read: {} },
+		});
+		expect(canonicalizeDeclaredAccess({ content: { restore: {} } })).toEqual({
+			content: { restore: {} },
+		});
+	});
+
 	it("sorts keys recursively and host sets while preserving other array order", () => {
 		const first = {
 			network: {
@@ -279,6 +288,19 @@ describe("unknown constraints", () => {
 });
 
 describe("structured diff", () => {
+	it("treats publication and restore authority as separate consent escalations", () => {
+		const diff = diffDeclaredAccess(
+			{ content: { read: {} } },
+			{ content: { read: {}, publish: {}, restore: {} } },
+		);
+
+		expect(diff.escalation).toBe(true);
+		expect(diff.changes.map((change) => change.path)).toEqual([
+			["content", "publish"],
+			["content", "restore"],
+		]);
+	});
+
 	it("treats publication policy as a separate consent escalation", () => {
 		const diff = diffDeclaredAccess(
 			{ content: { read: {} } },

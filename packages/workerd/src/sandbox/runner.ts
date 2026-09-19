@@ -28,8 +28,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type {
+	ContentActionCallbacks,
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxInvocationOptions,
 	SandboxEmailSendCallback,
 	SandboxOptions,
 	SandboxRunnerFactory,
@@ -332,6 +334,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Email send callback, wired from EmailPipeline */
 	private emailSendCallback: SandboxEmailSendCallback | null = null;
+	private contentActionsCallback: ContentActionCallbacks | null = null;
 	private cronRescheduleCallback: (() => void) | null = null;
 
 	/** Epoch counter, incremented on each workerd restart */
@@ -385,6 +388,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.limits = resolveLimits(options.limits);
 		this.siteInfo = options.siteInfo;
 		this.emailSendCallback = options.emailSend ?? null;
+		this.contentActionsCallback = options.contentActions ?? null;
 
 		// Warn about unenforceable resource limits. Standalone workerd
 		// only supports wall-time enforcement on the Node path (via
@@ -515,6 +519,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void {
 		this.emailSendCallback = callback;
+	}
+
+	setContentActions(callback: ContentActionCallbacks | null): void {
+		this.contentActionsCallback = callback;
 	}
 
 	setCronReschedule(callback: (() => void) | null): void {
@@ -920,6 +928,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		return this.options.beforeContentWrite;
 	}
 
+	get contentActions() {
+		return this.contentActionsCallback;
+	}
+
 	/** Get the email send callback */
 	get emailSend() {
 		return this.emailSendCallback;
@@ -1003,24 +1015,24 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	 */
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		await this.ensureReady();
-		return this.withWallTimeLimit(`hook:${hookName}`, async () => {
+		return this.withWallTimeLimit(`hook:${hookName}`, async (invocationId) => {
 			const res = await fetch(`http://127.0.0.1:${this.port}/hook/${hookName}`, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
 					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
 				},
-				body: JSON.stringify({ event }),
+				body: JSON.stringify({ event, invocationId }),
 			});
 			if (!res.ok) {
 				const text = await res.text();
 				throw new Error(`Plugin ${this.id} hook ${hookName} failed: ${text}`);
 			}
-			const result: unknown = await res.json();
-			if (!isRecord(result)) {
+			const hookResult: unknown = await res.json();
+			if (!isRecord(hookResult)) {
 				throw new Error(`Plugin ${this.id} hook ${hookName} returned a non-object response`);
 			}
-			return result.value;
+			return hookResult.value;
 		});
 	}
 
@@ -1031,32 +1043,37 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 		routeName: string,
 		input: unknown,
 		request: SerializedRequest,
+		options?: SandboxInvocationOptions,
 	): Promise<unknown> {
 		await this.ensureReady();
-		return this.withWallTimeLimit(`route:${routeName}`, async () => {
-			const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-				},
-				body: JSON.stringify({ input, request }),
-			});
-			if (!res.ok) {
-				const text = await res.text();
-				let envelope = null;
-				try {
-					envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
-				} catch {
-					// The generic route error below preserves non-protocol failures.
+		return this.withWallTimeLimit(
+			`route:${routeName}`,
+			async (invocationId) => {
+				const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+					},
+					body: JSON.stringify({ input, request, invocationId }),
+				});
+				if (!res.ok) {
+					const text = await res.text();
+					let envelope = null;
+					try {
+						envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+					} catch {
+						// The generic route error below preserves non-protocol failures.
+					}
+					if (envelope) {
+						throw createSandboxRouteError(envelope.error.code);
+					}
+					throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 				}
-				if (envelope) {
-					throw createSandboxRouteError(envelope.error.code);
-				}
-				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
-			}
-			return res.json();
-		});
+				return res.json();
+			},
+			options,
+		);
 	}
 
 	/**
@@ -1074,12 +1091,23 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 	/**
 	 * Enforce wall-time limit on an operation.
 	 */
-	private async withWallTimeLimit<T>(operation: string, fn: () => Promise<T>): Promise<T> {
+	private async withWallTimeLimit<T>(
+		operation: string,
+		fn: (invocationId: string) => Promise<T>,
+		options?: SandboxInvocationOptions,
+	): Promise<T> {
 		const wallTimeMs = this.limits.wallTimeMs;
 		let timer: ReturnType<typeof setTimeout> | undefined;
+		const invocationId = crypto.randomUUID();
+		this.runner.contentActions?.begin?.(
+			this.manifest.id,
+			invocationId,
+			options?.invalidateContentCache,
+		);
 
 		const timeout = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {
+				void this.runner.contentActions?.flush(this.manifest.id, invocationId, false);
 				reject(
 					new Error(
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
@@ -1088,8 +1116,13 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 			}, wallTimeMs);
 		});
 
+		const invocation = fn(invocationId);
+		void invocation.then(
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+			() => this.runner.contentActions?.flush(this.manifest.id, invocationId, true),
+		);
 		try {
-			return await Promise.race([fn(), timeout]);
+			return await Promise.race([invocation, timeout]);
 		} finally {
 			if (timer !== undefined) clearTimeout(timer);
 		}

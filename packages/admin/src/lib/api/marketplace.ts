@@ -382,6 +382,8 @@ export const CAPABILITY_LABELS: Record<string, MessageDescriptor> = {
 	// Canonical
 	"content:read": msg`Read your content`,
 	"content:write": msg`Create, update, and delete content`,
+	"content:publish": msg`Publish, unpublish, schedule, and unschedule content`,
+	"content:restore": msg`Read and restore trashed content`,
 	"hooks.content-policy:register": msg`Review and block publishing, scheduling, and unpublishing content`,
 	"taxonomies:read": msg`Read your taxonomies and terms`,
 	"media:read": msg`Access your media library`,

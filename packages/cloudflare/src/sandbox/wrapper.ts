@@ -42,7 +42,10 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	// expose the same APIs as canonical names (`users:read`).
 	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
 	const hasContentAccess =
-		capabilities.includes("content:read") || capabilities.includes("content:write");
+		capabilities.includes("content:read") ||
+		capabilities.includes("content:write") ||
+		capabilities.includes("content:publish") ||
+		capabilities.includes("content:restore");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 
@@ -100,7 +103,7 @@ function sandboxRouteErrorDetails(value) {
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
-function createContext(env) {
+function createContext(env, invocationId) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
@@ -151,12 +154,26 @@ function createContext(env) {
 	});
 	
 	// Content access - proxies to bridge (capability enforced by bridge)
+	async function contentAction(promise) {
+		const result = await promise;
+		if (result && result.__emdashContentActionError === true && result.error) {
+			throw Object.assign(new Error(result.error.message), result.error, { name: result.error.code });
+		}
+		return result;
+	}
 	const content = {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
 		create: (collection, data, options) => bridge.contentCreate(collection, data, options),
 		update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
-		delete: (collection, id) => bridge.contentDelete(collection, id)
+		delete: (collection, id) => bridge.contentDelete(collection, id),
+		getVersioned: (collection, id) => contentAction(bridge.contentGetVersioned(collection, id)),
+		publish: (collection, id, options) => contentAction(bridge.contentPublish(collection, id, options._rev, invocationId)),
+		unpublish: (collection, id, options) => contentAction(bridge.contentUnpublish(collection, id, options._rev, invocationId)),
+		schedule: (collection, id, options) => contentAction(bridge.contentSchedule(collection, id, options.scheduledAt, options._rev, invocationId)),
+		unschedule: (collection, id, options) => contentAction(bridge.contentUnschedule(collection, id, options._rev, invocationId)),
+		getTrashedVersioned: (collection, id) => contentAction(bridge.contentGetTrashedVersioned(collection, id)),
+		restore: (collection, id, options) => contentAction(bridge.contentRestore(collection, id, options._rev, invocationId))
 	};
 	
 	// Taxonomy access (read-only) - proxies to bridge (capability enforced by bridge)
@@ -252,8 +269,8 @@ function createContext(env) {
 // -----------------------------------------------------------------------------
 
 export default class PluginEntrypoint extends WorkerEntrypoint {
-	async invokeHook(hookName, event) {
-		const ctx = createContext(this.env);
+	async invokeHook(hookName, event, invocationId) {
+		const ctx = createContext(this.env, invocationId);
 		
 		// Find the hook handler
 		const hookDef = hooks[hookName];
@@ -274,8 +291,8 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 		return handler(event, ctx);
 	}
 	
-	async invokeRoute(routeName, input, serializedRequest) {
-		const ctx = createContext(this.env);
+	async invokeRoute(routeName, input, serializedRequest, invocationId) {
+		const ctx = createContext(this.env, invocationId);
 		
 		// Find the route handler
 		const route = routes[routeName];
