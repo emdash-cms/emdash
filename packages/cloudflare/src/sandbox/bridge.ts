@@ -101,7 +101,7 @@ function invalidCommentStatus(value: string, name: string): string | null {
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
-let contentActionsCallback: ContentActionCallbacks | null = null;
+const CONTENT_ACTION_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-action-callbacks");
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 let commentModerateCallback: SandboxCommentModerateCallback | null = null;
@@ -131,6 +131,18 @@ function taxonomyWriteCallbacks(): Map<string, TaxonomyAccessWithWrite> {
 	return callbacks;
 }
 
+function contentActionCallbacks(): Map<string, ContentActionCallbacks> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[CONTENT_ACTION_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, ContentActionCallbacks>;
+	}
+	const callbacks = new Map<string, ContentActionCallbacks>();
+	store[CONTENT_ACTION_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
+
 /**
  * Set the email send callback for all bridge instances.
  * Called by the runner when the EmailPipeline is available.
@@ -147,24 +159,33 @@ export function setContentCreateCallback(
 	else contentCreateCallbacks().delete(runtimeId);
 }
 
-export function setContentActionsCallback(callback: ContentActionCallbacks | null): void {
-	contentActionsCallback = callback;
+export function setContentActionsCallback(
+	runtimeId: string,
+	callback: ContentActionCallbacks | null,
+): void {
+	if (callback) contentActionCallbacks().set(runtimeId, callback);
+	else contentActionCallbacks().delete(runtimeId);
 }
 
 export function beginContentActionCallbacks(
+	runtimeId: string,
 	pluginId: string,
 	invocationId: string,
 	invalidateContentCache?: (tags: string[]) => Promise<void>,
 ): void {
-	contentActionsCallback?.begin?.(pluginId, invocationId, invalidateContentCache);
+	contentActionCallbacks().get(runtimeId)?.begin?.(pluginId, invocationId, invalidateContentCache);
 }
 
 export function flushContentActionCallbacks(
+	runtimeId: string,
 	pluginId: string,
 	invocationId: string,
 	final: boolean,
 ): Promise<void> {
-	return contentActionsCallback?.flush(pluginId, invocationId, final) ?? Promise.resolve();
+	return (
+		contentActionCallbacks().get(runtimeId)?.flush(pluginId, invocationId, final) ??
+		Promise.resolve()
+	);
 }
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
@@ -346,6 +367,7 @@ export interface PluginBridgeProps {
 	allowedHosts: string[];
 	storageCollections: string[];
 	contentCreateRuntimeId?: string;
+	contentActionsRuntimeId?: string;
 	taxonomyWriteRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: {
@@ -1205,8 +1227,10 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		if (!this.ctx.props.capabilities.includes(capability)) {
 			throw new Error(`Missing capability: ${capability}`);
 		}
-		if (!contentActionsCallback) throw new Error("Content actions are not configured");
-		return contentActionsCallback;
+		const runtimeId = this.ctx.props.contentActionsRuntimeId;
+		const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
+		if (!callbacks) throw new Error("Content actions are not configured");
+		return callbacks;
 	}
 
 	contentGetVersioned(collection: string, id: string) {
