@@ -42,6 +42,7 @@ describe("plugin settings encryption", () => {
 
 		const raw = await repo.get(`plugin:${PLUGIN_ID}:settings:apiKey`);
 		expect(isEncryptedPluginSetting(raw)).toBe(true);
+		expect(raw).toMatchObject({ $emdash: "plugin-setting", v: 1 });
 		expect(JSON.stringify(raw)).not.toContain("github-secret-value");
 		await expect(settings.get("apiKey")).resolves.toBe("github-secret-value");
 	});

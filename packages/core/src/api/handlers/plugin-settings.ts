@@ -9,11 +9,12 @@
 
 import type { Kysely } from "kysely";
 
+import { EmDashSecretsError } from "../../config/secrets.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import type { SandboxedPluginEntry } from "../../emdash-runtime.js";
-import { encodePluginSettingValue } from "../../plugins/settings.js";
+import { PluginSettingEncryptionError, encodePluginSettingValue } from "../../plugins/settings.js";
 import type { ResolvedPlugin, SettingField } from "../../plugins/types.js";
 import { ErrorCode } from "../errors.js";
 import type { ApiResult } from "../types.js";
@@ -221,7 +222,23 @@ export async function handlePluginSettingsUpdate(
 		});
 
 		return { success: true, data };
-	} catch {
+	} catch (error) {
+		if (error instanceof PluginSettingEncryptionError) {
+			return {
+				success: false,
+				error: { code: error.code, message: error.message },
+			};
+		}
+		if (error instanceof EmDashSecretsError) {
+			return {
+				success: false,
+				error: {
+					code: ErrorCode.PLUGIN_SETTING_ENCRYPTION_KEY_INVALID,
+					message:
+						"EMDASH_ENCRYPTION_KEY is malformed. Restore or correct the configured key from its secret backup. Generate a new key only if no stored plugin setting depends on the lost key.",
+				},
+			};
+		}
 		return {
 			success: false,
 			error: {

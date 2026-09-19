@@ -11,6 +11,7 @@ import type {
 } from "./types.js";
 
 const ENVELOPE_VERSION = 1;
+const ENVELOPE_MARKER = "plugin-setting";
 const IV_BYTES = 12;
 const KEY_ID_PATTERN = /^[0-9a-f]{8}$/;
 const BASE64URL_PATTERN = /^[A-Za-z0-9_-]+$/;
@@ -18,6 +19,7 @@ const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder("utf-8", { fatal: true });
 
 export interface EncryptedPluginSetting {
+	$emdash: "plugin-setting";
 	v: 1;
 	kid: string;
 	iv: string;
@@ -107,7 +109,9 @@ export function createPluginSecretRedactor(): PluginSecretRedactor {
 export function isEncryptedPluginSetting(value: unknown): value is EncryptedPluginSetting {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
 	return (
-		Object.keys(value).length === 4 &&
+		Object.keys(value).length === 5 &&
+		"$emdash" in value &&
+		value.$emdash === ENVELOPE_MARKER &&
 		"v" in value &&
 		value.v === ENVELOPE_VERSION &&
 		"kid" in value &&
@@ -170,6 +174,7 @@ export async function encryptPluginSetting(
 			exactBuffer(textEncoder.encode(value)),
 		);
 		return {
+			$emdash: ENVELOPE_MARKER,
 			v: ENVELOPE_VERSION,
 			kid: primary.kid,
 			iv: encodeBase64url(iv),

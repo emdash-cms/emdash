@@ -56,7 +56,7 @@ export function emdashPluginTest(options: EmDashPluginTestOptions = {}): PluginO
 			additionalExports: { PluginBridge: "WorkerEntrypoint" },
 			miniflare: {
 				compatibilityDate: "2026-08-20",
-				compatibilityFlags: ["nodejs_compat", "nodejs_compat_populate_process_env"],
+				compatibilityFlags: ["nodejs_compat"],
 				d1Databases: ["DB"],
 				workerLoaders: { LOADER: {} },
 				bindings: {

@@ -150,8 +150,28 @@ describe("plugin settings handlers", () => {
 		expect(result).toEqual({
 			success: false,
 			error: {
-				code: "PLUGIN_SETTINGS_UPDATE_ERROR",
-				message: "Failed to update plugin settings",
+				code: "PLUGIN_SETTING_ENCRYPTION_KEY_MISSING",
+				message: "Plugin secret settings require EMDASH_ENCRYPTION_KEY",
+			},
+		});
+		expect(JSON.stringify(result)).not.toContain("must-not-be-stored");
+		const options = new OptionsRepository(db);
+		await expect(options.get(`plugin:${PLUGIN_ID}:settings:enabled`)).resolves.toBeNull();
+		await expect(options.get(`plugin:${PLUGIN_ID}:settings:apiKey`)).resolves.toBeNull();
+	});
+
+	it("fails a mixed update before writing when the encryption key is malformed", async () => {
+		vi.stubEnv("EMDASH_ENCRYPTION_KEY", "not-a-valid-key");
+		const result = await handlePluginSettingsUpdate(db, PLUGIN_ID, SCHEMA, {
+			enabled: false,
+			apiKey: "must-not-be-stored",
+		});
+		expect(result).toEqual({
+			success: false,
+			error: {
+				code: "PLUGIN_SETTING_ENCRYPTION_KEY_INVALID",
+				message:
+					"EMDASH_ENCRYPTION_KEY is malformed. Restore or correct the configured key from its secret backup. Generate a new key only if no stored plugin setting depends on the lost key.",
 			},
 		});
 		expect(JSON.stringify(result)).not.toContain("must-not-be-stored");

@@ -25,7 +25,7 @@ The template uses the following bindings:
 	"name": "my-emdash-site",
 	"main": "./src/worker.ts",
 	"compatibility_date": "2026-02-24",
-	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"],
+	"compatibility_flags": ["nodejs_compat"],
 
 	"d1_databases": [
 		{
@@ -335,7 +335,7 @@ Store secret values with `pnpm wrangler secret put <NAME>`. Do not put them in `
 
 `EMDASH_ENCRYPTION_KEY` encrypts plugin settings declared as secrets. Set it before saving a plugin secret, and preserve it separately from D1 backups. During rotation, provide the new key first and retain older keys after commas until every plugin secret has been saved again. [Secrets and key management](/deployment/secrets/#the-encryption-key) describes rotation and recovery.
 
-The plugin bridge reads this Worker secret binding directly. The generated admin settings route reads it through `process.env`, so keep `nodejs_compat_populate_process_env` in the Worker compatibility flags. Existing Cloudflare projects must add that flag before saving encrypted settings.
+The plugin bridge reads this Worker secret binding directly. The generated admin settings route reads it through `process.env`. With `nodejs_compat`, Cloudflare populates `process.env` by default for compatibility dates on or after `2025-04-01`. Projects pinned to an earlier date must also add `nodejs_compat_populate_process_env` before saving encrypted settings.
 
 EmDash reads its secrets from `process.env` at runtime. Worker code reads bindings from `env`, imported from `cloudflare:workers`. Never read secrets through `import.meta.env`: Vite replaces those values at build time and can write them into the server bundle.
 
