@@ -41,6 +41,8 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	// Normalize so manifests that still declare legacy names (`read:users`)
 	// expose the same APIs as canonical names (`users:read`).
 	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
+	const hasContentAccess =
+		capabilities.includes("content:read") || capabilities.includes("content:write");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 
@@ -232,7 +234,7 @@ function createContext(env) {
 		},
 		storage,
 		kv,
-		content,
+		content: ${hasContentAccess} ? content : undefined,
 		taxonomies,
 		media,
 		http,

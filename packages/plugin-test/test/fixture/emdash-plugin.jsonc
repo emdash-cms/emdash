@@ -7,6 +7,7 @@
 	"capabilities": [
 		"content:read",
 		"content:write",
+		"hooks.content-policy:register",
 		"media:read",
 		"media:write",
 		"users:read",

@@ -910,7 +910,16 @@ export interface HookConfig<THandler> {
 export interface ActorInfo {
 	readonly id: string;
 	readonly role: number;
+	readonly source?: "api" | "mcp" | "visual-editor";
 }
+
+export type ContentActionOrigin =
+	| { source: "api" | "mcp" | "visual-editor" }
+	| { source: "plugin"; pluginId: string }
+	| { source: "scheduler" }
+	| { source: "system" };
+
+export type ContentPolicyDecision = void | { cancel: true; reason: string };
 
 /**
  * Content hook event
@@ -967,6 +976,15 @@ export type ContentRestoreStateChangeEvent = ContentStateChangeEvent;
  */
 export type ContentScheduleStateChangeEvent = ContentStateChangeEvent;
 
+export interface ContentPolicyEvent extends ContentStateChangeEvent {
+	origin: ContentActionOrigin;
+	actor?: ActorInfo;
+}
+
+export interface ContentSchedulePolicyEvent extends ContentPolicyEvent {
+	scheduledAt: string;
+}
+
 /**
  * Media hook event
  */
@@ -1015,6 +1033,21 @@ export type ContentAfterDeleteHandler = (
 	event: ContentDeleteEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
+
+export type ContentBeforePublishHandler = (
+	event: ContentPolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
+
+export type ContentBeforeScheduleHandler = (
+	event: ContentSchedulePolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
+
+export type ContentBeforeUnpublishHandler = (
+	event: ContentPolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
 
 export type ContentAfterPublishHandler = (
 	event: ContentPublishStateChangeEvent,
@@ -1222,6 +1255,13 @@ export interface PluginHooks {
 	"content:afterSave"?: HookConfig<ContentAfterSaveHandler> | ContentAfterSaveHandler;
 	"content:beforeDelete"?: HookConfig<ContentBeforeDeleteHandler> | ContentBeforeDeleteHandler;
 	"content:afterDelete"?: HookConfig<ContentAfterDeleteHandler> | ContentAfterDeleteHandler;
+	"content:beforePublish"?: HookConfig<ContentBeforePublishHandler> | ContentBeforePublishHandler;
+	"content:beforeSchedule"?:
+		| HookConfig<ContentBeforeScheduleHandler>
+		| ContentBeforeScheduleHandler;
+	"content:beforeUnpublish"?:
+		| HookConfig<ContentBeforeUnpublishHandler>
+		| ContentBeforeUnpublishHandler;
 	"content:afterPublish"?: HookConfig<ContentAfterPublishHandler> | ContentAfterPublishHandler;
 	"content:afterUnpublish"?:
 		| HookConfig<ContentAfterUnpublishHandler>
@@ -1585,6 +1625,9 @@ export interface ResolvedPluginHooks {
 	"content:afterSave"?: ResolvedHook<ContentAfterSaveHandler>;
 	"content:beforeDelete"?: ResolvedHook<ContentBeforeDeleteHandler>;
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
+	"content:beforePublish"?: ResolvedHook<ContentBeforePublishHandler>;
+	"content:beforeSchedule"?: ResolvedHook<ContentBeforeScheduleHandler>;
+	"content:beforeUnpublish"?: ResolvedHook<ContentBeforeUnpublishHandler>;
 	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
 	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
 	"content:afterRestore"?: ResolvedHook<ContentAfterRestoreHandler>;

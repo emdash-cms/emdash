@@ -6,6 +6,7 @@ import { env } from "cloudflare:workers";
 import {
 	ContentRepository,
 	OptionsRepository,
+	SCHEDULED_POLICY_REJECTION_PREFIX,
 	SchemaRegistry,
 	UserRepository,
 	definePlugin,
@@ -15,6 +16,7 @@ import {
 	type I18nConfig,
 	type PluginManifest,
 	type SandboxOptions,
+	type ScheduledPolicyRejection,
 	type Storage,
 } from "emdash";
 import { runMigrations } from "emdash/db";
@@ -130,6 +132,7 @@ export interface PluginRuntimeTestHost {
 		setting<T = unknown>(key: string): Promise<T | null>;
 		pluginState(): Promise<Record<string, unknown> | null>;
 		scheduledTasks(): Promise<Array<Record<string, unknown>>>;
+		scheduledPolicyRejections(): Promise<ScheduledPolicyRejection[]>;
 		media(id: string): ReturnType<EmDashRuntime["handleMediaGet"]>;
 		comments(): Promise<Array<Record<string, unknown>>>;
 		email(): Promise<Array<Record<string, unknown>>>;
@@ -543,6 +546,15 @@ export async function createPluginRuntimeTestHost(
 					.where("plugin_id", "=", manifest.id)
 					.orderBy("next_run_at", "asc")
 					.execute();
+			},
+			async scheduledPolicyRejections() {
+				return [
+					...(
+						await optionRepo.getByPrefix<ScheduledPolicyRejection>(
+							SCHEDULED_POLICY_REJECTION_PREFIX,
+						)
+					).values(),
+				];
 			},
 			media: (id) => runtime.handleMediaGet(id),
 			async comments() {

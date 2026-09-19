@@ -202,6 +202,19 @@ export default {
 };
 `;
 
+const CONTENT_POLICY_PLUGIN = `
+export default {
+	hooks: {
+		"content:beforePublish": async (event, ctx) => ({
+			cancel: true,
+			reason: ctx.content === undefined
+				? event.origin.source + ": " + event.content.title
+				: "content access leaked"
+		})
+	}
+};
+`;
+
 const RUNTIME_HOST_PLUGIN = `
 let isolateId;
 export default {
@@ -386,6 +399,27 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 			version: 1,
 			error: { code: "SAVE_REJECTED", reason: "Add a summary" },
 		});
+	}, 30_000);
+
+	it("preserves publication policy events and decisions over the workerd transport", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-content-policy",
+				version: "1.0.0",
+				capabilities: ["hooks.content-policy:register"],
+				allowedHosts: [],
+				storage: {},
+			},
+			CONTENT_POLICY_PLUGIN,
+		);
+
+		await expect(
+			plugin.invokeHook("content:beforePublish", {
+				collection: "posts",
+				content: { id: "post-1", title: "Needs approval" },
+				origin: { source: "plugin", pluginId: "review-cycle" },
+			}),
+		).resolves.toEqual({ cancel: true, reason: "plugin: Needs approval" });
 	}, 30_000);
 
 	it("enforces KV isolation between plugins via routes", async () => {

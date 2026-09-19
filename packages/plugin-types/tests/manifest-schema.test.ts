@@ -3,6 +3,27 @@ import { describe, expect, it } from "vitest";
 import { pluginManifestSchema } from "../src/manifest-schema.js";
 
 describe("pluginManifestSchema", () => {
+	it("accepts publication policy hooks only with the current manifest vocabulary", () => {
+		const result = pluginManifestSchema.parse({
+			id: "publication-policy",
+			version: "1.0.0",
+			declaredAccess: { content: { policy: {} } },
+			capabilities: ["hooks.content-policy:register"],
+			allowedHosts: [],
+			storage: {},
+			hooks: ["content:beforePublish", "content:beforeSchedule", "content:beforeUnpublish"],
+			routes: [],
+			admin: {},
+		});
+
+		expect(result.declaredAccess).toEqual({ content: { policy: {} } });
+		expect(result.hooks).toEqual([
+			"content:beforePublish",
+			"content:beforeSchedule",
+			"content:beforeUnpublish",
+		]);
+	});
+
 	it("preserves route authorization, cache, MCP, and declarative admin metadata", () => {
 		const result = pluginManifestSchema.parse({
 			id: "calendar",

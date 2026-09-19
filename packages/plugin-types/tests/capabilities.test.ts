@@ -98,6 +98,9 @@ describe("declaredAccess facet mapping", () => {
 	});
 
 	it("maps each hook-registration capability to its participation facet", () => {
+		expect(capabilitiesToDeclaredAccess(["hooks.content-policy:register"], [])).toEqual({
+			content: { policy: {} },
+		});
 		expect(capabilitiesToDeclaredAccess(["hooks.email-transport:register"], [])).toEqual({
 			email: { transport: {} },
 		});
@@ -171,6 +174,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 	];
 	const singletonFacets = [
 		"email:send",
+		"hooks.content-policy:register",
 		"hooks.email-events:register",
 		"hooks.email-transport:register",
 		"hooks.page-fragments:register",
@@ -204,7 +208,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 3 content x 3 media x 5 network x 2^6 singleton subsets.
-		expect(count).toBe(2880);
+		// 3 content x 3 media x 5 network x 2^7 singleton subsets.
+		expect(count).toBe(5760);
 	});
 });
