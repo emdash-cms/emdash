@@ -67,11 +67,11 @@ import {
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
-import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
 import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
 } from "./plugins/content-policy.js";
+import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
 import {
 	createSandboxedPluginProxy,
 	getSandboxSaveRejectionDetails,
