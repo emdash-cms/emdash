@@ -2996,7 +2996,10 @@ export class EmDashRuntime {
 	 *
 	 * No-op when no draft exists or the response is an error.
 	 */
-	private async hydrateDraftData<T>(result: T): Promise<T> {
+	private async hydrateDraftData<T>(
+		result: T,
+		options: { includeStagedSlug?: boolean; strict?: boolean } = {},
+	): Promise<T> {
 		if (!result || typeof result !== "object") return result;
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape probed below
 		const r = result as {
@@ -3009,7 +3012,10 @@ export class EmDashRuntime {
 		if (!draftRevisionId) return result;
 		try {
 			const revision = await new RevisionRepository(this.db).findById(draftRevisionId);
-			if (!revision) return result;
+			if (!revision) {
+				if (options.strict) throw new Error(`Draft revision not found: ${draftRevisionId}`);
+				return result;
+			}
 			const liveData =
 				item.data && typeof item.data === "object"
 					? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to object above
@@ -3036,10 +3042,18 @@ export class EmDashRuntime {
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape preserved; result has been narrowed to the {success,data:{item}} envelope
 				data: {
 					...r.data,
-					item: { ...item, data: mergedData, liveData },
+					item: {
+						...item,
+						...(options.includeStagedSlug && typeof revision.data._slug === "string"
+							? { slug: revision.data._slug }
+							: {}),
+						data: mergedData,
+						liveData,
+					},
 				},
 			};
 		} catch (error) {
+			if (options.strict) throw error;
 			// Non-fatal — fall back to the unhydrated response. Log so the
 			// failure isn't completely silent (the response will look stale
 			// to the caller but no error is raised).
@@ -3534,7 +3548,7 @@ export class EmDashRuntime {
 		failureCode: "CONTENT_PUBLISH_ERROR" | "CONTENT_SCHEDULE_ERROR" | "CONTENT_UNPUBLISH_ERROR",
 		scheduledAt?: string,
 	): Promise<ContentPolicyCheck> {
-		const current = await handleContentGet(this.db, collection, id);
+		let current = await handleContentGet(this.db, collection, id);
 		if (!current.success) {
 			return {
 				allowed: false,
@@ -3560,6 +3574,21 @@ export class EmDashRuntime {
 		}
 
 		if (!this.hooks.hasHooks(name)) return { allowed: true, revision };
+		if (name !== "content:beforeUnpublish") {
+			try {
+				current = await this.hydrateDraftData(current, {
+					includeStagedSlug: true,
+					strict: true,
+				});
+			} catch (error) {
+				console.error(`[content-policy] ${name} draft hydration failed:`, error);
+				return {
+					allowed: false,
+					revision,
+					error: { code: failureCode, message: `Failed to read content for ${name} policy` },
+				};
+			}
+		}
 
 		const origin = options.origin ?? { source: "system" };
 		const actor =

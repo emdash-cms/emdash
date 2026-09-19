@@ -52,10 +52,15 @@ export class OptionsRepository {
 	 * Set an option value (creates or updates)
 	 */
 	async set<T = unknown>(name: string, value: T): Promise<void> {
+		await this.setVersioned(name, value);
+	}
+
+	async setVersioned<T = unknown>(name: string, value: T): Promise<string> {
+		const revision = crypto.randomUUID();
 		const row: Insertable<OptionTable> = {
 			name,
 			value: JSON.stringify(value),
-			revision: crypto.randomUUID(),
+			revision,
 		};
 
 		// Upsert: insert or replace
@@ -66,6 +71,7 @@ export class OptionsRepository {
 				oc.column("name").doUpdateSet({ value: row.value, revision: row.revision }),
 			)
 			.execute();
+		return revision;
 	}
 
 	/**

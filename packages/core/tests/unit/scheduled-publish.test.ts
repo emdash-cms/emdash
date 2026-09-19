@@ -174,6 +174,69 @@ describe("publishDueContent()", () => {
 		expect(second).toEqual([]);
 	});
 
+	it("advances past a bounded window of repeatedly failing entries", async () => {
+		const scheduled = [];
+		for (let index = 0; index < 3; index++) {
+			const item = await repo.create(createPostFixture({ slug: `failing-${index}` }));
+			await repo.update("post", item.id, {
+				status: "scheduled",
+				scheduledAt: new Date(Date.now() - 60_000 + index).toISOString(),
+			});
+			scheduled.push(item.id);
+		}
+		const attempts: string[] = [];
+		const publish: ScheduledPublishFn = async (_collection, id) => {
+			attempts.push(id);
+			return { success: false, error: { code: "CONTENT_PUBLISH_ERROR" } };
+		};
+
+		await publishDueContent(db, { limit: 2, publish });
+		expect(attempts).toEqual(scheduled.slice(0, 2));
+		attempts.length = 0;
+
+		await publishDueContent(db, { limit: 2, publish });
+		expect(attempts.length).toBeLessThanOrEqual(2);
+		expect(attempts).toContain(scheduled[2]);
+	});
+
+	it("does not let an older concurrent sweep move the cursor backwards", async () => {
+		const scheduled = [];
+		for (let index = 0; index < 3; index++) {
+			const item = await repo.create(createPostFixture({ slug: `concurrent-${index}` }));
+			await repo.update("post", item.id, {
+				status: "scheduled",
+				scheduledAt: new Date(Date.now() - 60_000 + index).toISOString(),
+			});
+			scheduled.push(item.id);
+		}
+		let releaseOldest!: () => void;
+		const oldestBlocked = new Promise<void>((resolve) => {
+			releaseOldest = resolve;
+		});
+		let markOldestStarted!: () => void;
+		const oldestStarted = new Promise<void>((resolve) => {
+			markOldestStarted = resolve;
+		});
+		const failingResult = { success: false, error: { code: "CONTENT_PUBLISH_ERROR" } };
+		const oldSweep = publishDueContent(db, {
+			limit: 1,
+			publish: async () => {
+				markOldestStarted();
+				await oldestBlocked;
+				return failingResult;
+			},
+		});
+		await oldestStarted;
+		await publishDueContent(db, { limit: 1, publish: async () => failingResult });
+		await publishDueContent(db, { limit: 1, publish: async () => failingResult });
+		releaseOldest();
+		await oldSweep;
+
+		expect(
+			await new OptionsRepository(db).get("emdash:scheduled-publish-cursor:post"),
+		).toMatchObject({ id: scheduled[1] });
+	});
+
 	it("bounds promotions per collection per sweep and drains the rest on later sweeps", async () => {
 		const past = new Date(Date.now() - 60_000).toISOString();
 		for (let i = 0; i < 3; i++) {
