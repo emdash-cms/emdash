@@ -52,6 +52,7 @@ import { PluginSettings } from "./components/PluginSettings";
 import { Redirects } from "./components/Redirects";
 import { RegistryBrowse } from "./components/RegistryBrowse";
 import { RegistryPluginDetail } from "./components/RegistryPluginDetail";
+import { RequireAdmin } from "./components/RequireAdmin";
 import { SandboxedPluginPage } from "./components/SandboxedPluginPage";
 import { SectionEditor } from "./components/SectionEditor";
 import { Sections } from "./components/Sections";
@@ -2141,7 +2142,11 @@ function CommentsPage() {
 const settingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings",
-	component: Settings,
+	component: () => (
+		<RequireAdmin>
+			<Settings />
+		</RequireAdmin>
+	),
 });
 
 const mediaUsageSettingsRoute = createRoute({
@@ -2161,49 +2166,77 @@ const securitySettingsRoute = createRoute({
 const allowedDomainsSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/allowed-domains",
-	component: AllowedDomainsSettings,
+	component: () => (
+		<RequireAdmin>
+			<AllowedDomainsSettings />
+		</RequireAdmin>
+	),
 });
 
 // API tokens settings route
 const apiTokenSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/api-tokens",
-	component: ApiTokenSettings,
+	component: () => (
+		<RequireAdmin>
+			<ApiTokenSettings />
+		</RequireAdmin>
+	),
 });
 
 // Email settings route
 const emailSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/email",
-	component: EmailSettings,
+	component: () => (
+		<RequireAdmin>
+			<EmailSettings />
+		</RequireAdmin>
+	),
 });
 
 // Backup settings route
 const backupSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/backups",
-	component: BackupSettings,
+	component: () => (
+		<RequireAdmin>
+			<BackupSettings />
+		</RequireAdmin>
+	),
 });
 
 // General settings route
 const generalSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/general",
-	component: GeneralSettings,
+	component: () => (
+		<RequireAdmin>
+			<GeneralSettings />
+		</RequireAdmin>
+	),
 });
 
 // Social settings route
 const socialSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/social",
-	component: SocialSettings,
+	component: () => (
+		<RequireAdmin>
+			<SocialSettings />
+		</RequireAdmin>
+	),
 });
 
 // SEO settings route
 const seoSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/seo",
-	component: SeoSettings,
+	component: () => (
+		<RequireAdmin>
+			<SeoSettings />
+		</RequireAdmin>
+	),
 });
 
 // Plugin manager route
@@ -2330,7 +2363,11 @@ function MarketplaceUnavailablePage() {
 const wordpressImportRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/import/wordpress",
-	component: WordPressImport,
+	component: () => (
+		<RequireAdmin>
+			<WordPressImport />
+		</RequireAdmin>
+	),
 });
 
 // Menu routes
@@ -2393,7 +2430,11 @@ const sectionEditRoute = createRoute({
 const usersRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/users",
-	component: UsersPage,
+	component: () => (
+		<RequireAdmin>
+			<UsersPage />
+		</RequireAdmin>
+	),
 });
 
 // Bylines route
@@ -2660,7 +2701,11 @@ function ContentTypesEditPage() {
 const pluginSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins-manager/$pluginId/settings",
-	component: PluginSettingsPage,
+	component: () => (
+		<RequireAdmin>
+			<PluginSettingsPage />
+		</RequireAdmin>
+	),
 });
 
 function PluginSettingsPage() {
