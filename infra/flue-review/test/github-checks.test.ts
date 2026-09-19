@@ -5,6 +5,7 @@ import {
 	createReviewCheck,
 	findReviewCheck,
 	fetchUnifiedDiff,
+	githubRateLimitGate,
 	GitHubRateLimitError,
 	postReview,
 	removePullRequestLabel,
@@ -25,6 +26,39 @@ afterEach(() => {
 });
 
 describe("GitHub review checks", () => {
+	it("uses the shared installation coordinator through the external DO binding", async () => {
+		const requests: Request[] = [];
+		const stub = {
+			fetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+				const request = new Request(input, init);
+				requests.push(request);
+				return request.url.endsWith("/permit")
+					? Response.json({ allowed: false, retryAt: 1234 })
+					: new Response(null, { status: 204 });
+			}),
+		};
+		const gate = githubRateLimitGate({
+			GITHUB_APP_INSTALLATION_ID: "installation-1",
+			GITHUB_RATE_LIMIT: { getByName: vi.fn(() => stub) },
+		} as unknown as Env);
+
+		await expect(gate.permit("graphql", "review-workflow")).resolves.toEqual({
+			allowed: false,
+			retryAt: 1234,
+		});
+		await gate.record("graphql", "review-workflow", {
+			status: 429,
+			limit: 5_000,
+			remaining: 0,
+			resetAt: 2_000,
+			retryAfterAt: null,
+		});
+		expect(requests.map((request) => new URL(request.url).pathname)).toEqual([
+			"/permit",
+			"/record",
+		]);
+	});
+
 	it("removes the manual review label", async () => {
 		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 }));
 		vi.stubGlobal("fetch", fetchMock);
@@ -69,6 +103,32 @@ describe("GitHub review checks", () => {
 				summary: "The review request was accepted and is being admitted.",
 			},
 		});
+	});
+
+	it("does not turn a headerless permission failure into installation exhaustion", async () => {
+		const record = vi.fn().mockResolvedValue(undefined);
+		const gate = {
+			permit: vi.fn().mockResolvedValue({ allowed: true, retryAt: 0 }),
+			record,
+		};
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 403 })),
+		);
+
+		await expect(
+			createReviewCheck(
+				{ token: TOKEN, gate, consumer: "review-setup:attempt-1" },
+				"emdash-cms",
+				"emdash",
+				{ headSha: "abc123", attemptId: "attempt-1", prNumber: 42 },
+			),
+		).rejects.toThrow("create review check failed: 403");
+		expect(record).toHaveBeenCalledWith(
+			"review-rest",
+			"review-setup:attempt-1",
+			expect.objectContaining({ status: 403, remaining: null, retryAfterAt: null }),
+		);
 	});
 
 	it("updates an ongoing check with the run and current stage", async () => {
@@ -157,7 +217,7 @@ describe("GitHub review checks", () => {
 				attemptId: "attempt-1",
 				prNumber: 42,
 			}),
-		).rejects.toThrow("create review check failed: 403 checks permission missing");
+		).rejects.toThrow("create review check failed: 403");
 	});
 
 	it("fetches a diff pinned to the captured base and head commits", async () => {
@@ -272,7 +332,7 @@ describe("GitHub review checks", () => {
 				{ verdict: "approve", summary: "Looks good", findings: [] },
 				"head-sha",
 			),
-		).rejects.toThrow("postReview failed: 503 server error");
+		).rejects.toThrow("postReview failed: 503");
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 
@@ -388,9 +448,7 @@ describe("GitHub review checks", () => {
 			"head-sha",
 		).catch((error: unknown) => error);
 		await vi.advanceTimersByTimeAsync(60_000 + 120_000 + 240_000);
-		await expect(reviewError).resolves.toMatchObject({
-			message: "postReview failed: 429 secondary rate limit",
-		});
+		await expect(reviewError).resolves.toMatchObject({ message: "postReview failed: 429" });
 		expect(fetchMock).toHaveBeenCalledTimes(4);
 	});
 
@@ -409,7 +467,7 @@ describe("GitHub review checks", () => {
 				{ verdict: "approve", summary: "Looks good", findings: [] },
 				"head-sha",
 			),
-		).rejects.toThrow("postReview failed: 403 resource not accessible");
+		).rejects.toThrow("postReview failed: 403");
 		expect(fetchMock).toHaveBeenCalledTimes(1);
 	});
 

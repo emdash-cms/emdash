@@ -5,6 +5,10 @@ const github = vi.hoisted(() => ({
 	createReviewCheck: vi.fn(),
 	findReviewCheck: vi.fn(),
 	getPullRequestHeadSha: vi.fn(),
+	githubRateLimitGate: vi.fn(() => ({
+		permit: vi.fn().mockResolvedValue({ allowed: true, retryAt: 0 }),
+		record: vi.fn().mockResolvedValue(undefined),
+	})),
 	mintInstallationToken: vi.fn(),
 	readAppCreds: vi.fn(),
 	removePullRequestLabel: vi.fn(),
@@ -31,16 +35,25 @@ vi.mock("cloudflare:workers", () => ({
 
 vi.mock("../.flue/lib/github.js", async (importOriginal) => {
 	const actual = await importOriginal<typeof import("../.flue/lib/github.js")>();
+	const unwrap = (token: string | { token: string }) =>
+		typeof token === "string" ? token : token.token;
 	return {
 		...actual,
-		completeReviewCheck: github.completeReviewCheck,
-		createReviewCheck: github.createReviewCheck,
-		findReviewCheck: github.findReviewCheck,
-		getPullRequestHeadSha: github.getPullRequestHeadSha,
+		completeReviewCheck: (token: string | { token: string }, ...args: unknown[]) =>
+			github.completeReviewCheck(unwrap(token), ...args),
+		createReviewCheck: (token: string | { token: string }, ...args: unknown[]) =>
+			github.createReviewCheck(unwrap(token), ...args),
+		findReviewCheck: (token: string | { token: string }, ...args: unknown[]) =>
+			github.findReviewCheck(unwrap(token), ...args),
+		getPullRequestHeadSha: (token: string | { token: string }, ...args: unknown[]) =>
+			github.getPullRequestHeadSha(unwrap(token), ...args),
+		githubRateLimitGate: github.githubRateLimitGate,
 		mintInstallationToken: github.mintInstallationToken,
 		readAppCreds: github.readAppCreds,
-		removePullRequestLabel: github.removePullRequestLabel,
-		updateReviewCheck: github.updateReviewCheck,
+		removePullRequestLabel: (token: string | { token: string }, ...args: unknown[]) =>
+			github.removePullRequestLabel(unwrap(token), ...args),
+		updateReviewCheck: (token: string | { token: string }, ...args: unknown[]) =>
+			github.updateReviewCheck(unwrap(token), ...args),
 	};
 });
 

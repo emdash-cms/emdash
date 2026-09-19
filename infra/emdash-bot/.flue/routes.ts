@@ -7,12 +7,15 @@ import type { Hono } from "hono";
 
 import dashboardHtml from "./dashboard.html?raw";
 import { DashboardUnavailableError, getDashboardPayload } from "./lib/dashboard.js";
+import { githubRateLimitGate } from "./lib/github-rate-limit-client.js";
 import {
 	getPullRequestHeadBranch,
 	getPullRequestReviewComments,
 	mintInstallationToken,
 	readAppCreds,
 	readRepoContext,
+	type GitHubAppCreds,
+	type GitHubToken,
 } from "./lib/github.js";
 import { syncReviewStateLabel } from "./lib/review-state.js";
 import {
@@ -23,9 +26,64 @@ import {
 
 const WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS = 8_000;
 
+async function coordinatedInstallationToken(
+	env: Env,
+	creds: GitHubAppCreds,
+	signal: AbortSignal,
+	consumer: string,
+): Promise<GitHubToken> {
+	const gate = githubRateLimitGate(env);
+	const token = await mintInstallationToken(creds, signal, { token: "", gate, consumer });
+	return { token, gate, consumer };
+}
+
 export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Bindings: Env }> {
 	app.get("/", (c) => c.html(dashboardHtml));
 	app.get("/health", (c) => c.text("ok"));
+	app.get("/api/operator/orchestrators/:id/recovery", async (c) => {
+		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_WEBHOOK_SECRET))) {
+			return c.json({ error: "Unauthorized" }, 401);
+		}
+		try {
+			const id = c.env.Orchestrator.idFromString(c.req.param("id"));
+			return c.json(await c.env.Orchestrator.get(id).inspectRecoveryState());
+		} catch {
+			return c.json({ error: "Invalid orchestrator id" }, 400);
+		}
+	});
+	app.post("/api/operator/orchestrators/:id/recovery/settle", async (c) => {
+		if (!(await operatorAuthorized(c.req.header("authorization"), c.env.GITHUB_WEBHOOK_SECRET))) {
+			return c.json({ error: "Unauthorized" }, 401);
+		}
+		let body: unknown;
+		try {
+			body = await c.req.json();
+		} catch {
+			return c.json({ error: "Invalid JSON" }, 400);
+		}
+		if (!body || typeof body !== "object") return c.json({ error: "Invalid request" }, 400);
+		const input = Object.fromEntries(Object.entries(body));
+		if (
+			typeof input.expectedAnchorNumber !== "number" ||
+			!Number.isSafeInteger(input.expectedAnchorNumber) ||
+			typeof input.expectedRunId !== "string" ||
+			input.expectedRunId.length === 0 ||
+			(input.clearInbox !== undefined && typeof input.clearInbox !== "boolean")
+		) {
+			return c.json({ error: "Invalid request" }, 400);
+		}
+		try {
+			const id = c.env.Orchestrator.idFromString(c.req.param("id"));
+			const result = await c.env.Orchestrator.get(id).settleStaleRun({
+				expectedAnchorNumber: input.expectedAnchorNumber,
+				expectedRunId: input.expectedRunId,
+				...(input.clearInbox === true ? { clearInbox: true } : {}),
+			});
+			return c.json(result, result.settled ? 200 : 409);
+		} catch {
+			return c.json({ error: "Invalid orchestrator id" }, 400);
+		}
+	});
 	app.get("/api/dashboard", async (c) => {
 		try {
 			const payload = await getDashboardPayload(c.env);
@@ -110,7 +168,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
 			try {
 				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
-				const token = await mintInstallationToken(creds, signal);
+				const token = await coordinatedInstallationToken(
+					c.env,
+					creds,
+					signal,
+					`webhook-pr-lookup:${deliveryId ?? unresolved.pullRequestNumber}`,
+				);
 				const headBranch = await getPullRequestHeadBranch(
 					token,
 					repo,
@@ -134,7 +197,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
 			try {
 				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
-				const token = await mintInstallationToken(creds, signal);
+				const token = await coordinatedInstallationToken(
+					c.env,
+					creds,
+					signal,
+					`webhook-review-comments:${deliveryId ?? result.event.reviewId}`,
+				);
 				const comments = await getPullRequestReviewComments(
 					token,
 					repo,
@@ -194,7 +262,12 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 			if (!creds || !repo) return c.text("GitHub integration not configured", 503);
 			try {
 				const signal = AbortSignal.timeout(WEBHOOK_GITHUB_LOOKUP_TIMEOUT_MS);
-				const token = await mintInstallationToken(creds, signal);
+				const token = await coordinatedInstallationToken(
+					c.env,
+					creds,
+					signal,
+					`webhook-review-state:${deliveryId ?? result.pullRequestNumber}`,
+				);
 				const reviewState = await syncReviewStateLabel(token, repo, result, signal);
 				console.log("[webhook] review state", {
 					delivery: deliveryId,
@@ -232,4 +305,16 @@ export function registerCoreRoutes(app: Hono<{ Bindings: Env }>): Hono<{ Binding
 	});
 
 	return app;
+}
+
+async function operatorAuthorized(header: string | undefined, secret: string): Promise<boolean> {
+	if (!header || !secret) return false;
+	const expected = `Bearer ${secret}`;
+	const encoder = new TextEncoder();
+	const providedBytes = encoder.encode(header);
+	const expectedBytes = encoder.encode(expected);
+	return (
+		providedBytes.byteLength === expectedBytes.byteLength &&
+		crypto.subtle.timingSafeEqual(providedBytes, expectedBytes)
+	);
 }

@@ -30,6 +30,7 @@ import { withCapacityRetry } from "../lib/capacity.js";
 import { elideLargeDiffSections } from "../lib/diff-budget.js";
 import {
 	readAppCreds,
+	githubRateLimitGate,
 	mintInstallationToken,
 	fetchUnifiedDiff,
 	fetchPullRequestHeadSha,
@@ -38,6 +39,8 @@ import {
 	addEyesReaction,
 	removeReaction,
 	updateReviewCheck,
+	type GitHubAppCreds,
+	type GitHubToken,
 } from "../lib/github.js";
 import { REVIEW_COMPACTION } from "../lib/review-compaction.js";
 import { omitReviewArtifacts } from "../lib/review-context.js";
@@ -68,6 +71,16 @@ const reviewPayloadSchema = v.object({
 	deliveryId: v.optional(v.string()),
 	checkRunId: v.optional(v.number()),
 });
+
+async function coordinatedToken(
+	env: Env,
+	creds: GitHubAppCreds,
+	consumer: string,
+): Promise<GitHubToken> {
+	const gate = githubRateLimitGate(env);
+	const token = await mintInstallationToken(creds, { token: "", gate, consumer });
+	return { token, gate, consumer };
+}
 
 type ReviewPayload = v.InferOutput<typeof reviewPayloadSchema>;
 
@@ -236,7 +249,7 @@ function logReviewEvent(
 
 async function reportStage(
 	env: Env,
-	token: string | undefined,
+	token: GitHubToken | undefined,
 	payload: ReviewPayload,
 	runId: string,
 	stage: ReviewStage,
@@ -304,7 +317,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 	// GitHub access lives only in this trusted Action code, never in the agent's
 	// workspace. Without app creds (local dev) we skip posting and return.
 	const creds = readAppCreds(env);
-	let token: string | undefined;
+	let token: GitHubToken | undefined;
 	let priorReview: string | undefined;
 	let reactionId: number | undefined;
 	let stage: ReviewStage = "admitted";
@@ -326,7 +339,7 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 			throw new Error("Review attempt is no longer active");
 		}
 		if (creds) {
-			token = await mintInstallationToken(creds);
+			token = await coordinatedToken(env, creds, `review-workflow:${payload.attemptId ?? runId}`);
 			reactionId = await addEyesReaction(token, payload.owner, payload.repo, payload.prNumber);
 			priorReview = await fetchPriorReview(token, payload.owner, payload.repo, payload.prNumber);
 		}
@@ -452,7 +465,13 @@ async function run(context: ActionContext<typeof reviewPayloadSchema>): Promise<
 				payload.attemptId,
 				{
 					beforeRetry: async ({ retry, maxRetries, delayMs }) => {
-						const retryToken = creds ? await mintInstallationToken(creds) : undefined;
+						const retryToken = creds
+							? await coordinatedToken(
+									env,
+									creds,
+									`review-publication-retry:${payload.attemptId ?? runId}`,
+								)
+							: undefined;
 						if (
 							!(await reportStage(
 								env,

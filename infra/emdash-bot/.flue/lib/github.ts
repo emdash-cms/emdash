@@ -1,12 +1,23 @@
 // GitHub App helpers. Used by the OrchestratorDO; never reachable from the
 // agent's container.
 
+import {
+	parseGitHubResponseMetadata,
+	type GitHubRateLimitGate,
+} from "./github-rate-limit-client.js";
+
 const GITHUB_API = "https://api.github.com";
 const USER_AGENT = "emdash-bot";
 const GITHUB_REQUEST_TIMEOUT_MS = 30_000;
 const GITHUB_RATE_LIMIT_FALLBACK_MS = 60_000;
 
-let githubBackoffUntil = 0;
+export interface CoordinatedGitHubToken {
+	readonly token: string;
+	readonly gate: GitHubRateLimitGate;
+	readonly consumer: string;
+}
+
+export type GitHubToken = string | CoordinatedGitHubToken;
 
 export class GitHubRateLimitError extends Error {
 	constructor(
@@ -16,6 +27,20 @@ export class GitHubRateLimitError extends Error {
 	) {
 		super(message);
 		this.name = "GitHubRateLimitError";
+	}
+}
+
+export class GitHubAnchorNotFoundError extends Error {
+	constructor(readonly anchorNumber: number) {
+		super(`GitHub anchor ${anchorNumber} was not found`);
+		this.name = "GitHubAnchorNotFoundError";
+	}
+}
+
+export class GitHubPullRequestNotFoundError extends Error {
+	constructor(readonly pullRequestNumber: number) {
+		super(`GitHub pull request ${pullRequestNumber} was not found`);
+		this.name = "GitHubPullRequestNotFoundError";
 	}
 }
 
@@ -38,19 +63,51 @@ function retryHeaderAt(headers: Headers, now: number): number | null {
 	return candidates.length > 0 ? Math.max(...candidates) : null;
 }
 
-async function githubFetch(input: string, init: RequestInit = {}): Promise<Response> {
+function endpointCategory(input: string, method = "GET"): string {
+	const url = new URL(input);
+	if (url.pathname === "/graphql") return "graphql";
+	if (url.pathname.includes("/access_tokens")) return "installation-token";
+	if (url.pathname.includes("/comments")) return `issue-comment:${method.toLowerCase()}`;
+	if (url.pathname.includes("/labels")) return `issue-label:${method.toLowerCase()}`;
+	if (url.pathname.includes("/pulls")) return `pull-request:${method.toLowerCase()}`;
+	if (url.pathname.includes("/issues")) return `issue:${method.toLowerCase()}`;
+	if (url.pathname.includes("/git/refs")) return `git-ref:${method.toLowerCase()}`;
+	return `other:${method.toLowerCase()}`;
+}
+
+function coordination(token?: GitHubToken): Omit<CoordinatedGitHubToken, "token"> | null {
+	return token && typeof token !== "string" ? token : null;
+}
+
+async function githubFetch(
+	input: string,
+	init: RequestInit = {},
+	token?: GitHubToken,
+): Promise<Response> {
 	const now = Date.now();
-	if (githubBackoffUntil > now) {
-		throw new GitHubRateLimitError(
-			429,
-			githubBackoffUntil,
-			`GitHub API rate limit backoff is active until ${new Date(githubBackoffUntil).toISOString()}`,
-		);
+	const coordinated = coordination(token);
+	const category = endpointCategory(input, init.method ?? "GET");
+	if (coordinated) {
+		const permit = await coordinated.gate.permit(category, coordinated.consumer);
+		if (!permit.allowed) {
+			throw new GitHubRateLimitError(
+				429,
+				permit.retryAt,
+				`GitHub API request suppressed until ${new Date(permit.retryAt).toISOString()}`,
+			);
+		}
 	}
 	const response = await fetch(input, {
 		...init,
 		signal: init.signal ?? AbortSignal.timeout(GITHUB_REQUEST_TIMEOUT_MS),
 	});
+	if (coordinated) {
+		await coordinated.gate.record(
+			category,
+			coordinated.consumer,
+			parseGitHubResponseMetadata(response, now),
+		);
+	}
 	const retryAt = retryHeaderAt(response.headers, now);
 	const rateLimited =
 		response.status === 429 ||
@@ -59,12 +116,18 @@ async function githubFetch(input: string, init: RequestInit = {}): Promise<Respo
 				response.headers.has("retry-after")));
 	if (!rateLimited) return response;
 
-	githubBackoffUntil = Math.max(retryAt ?? now + GITHUB_RATE_LIMIT_FALLBACK_MS, now + 1_000);
-	const body = await response.clone().text();
+	const backoffUntil = Math.max(retryAt ?? now + GITHUB_RATE_LIMIT_FALLBACK_MS, now + 1_000);
+	if (!coordinated) {
+		throw new GitHubRateLimitError(
+			response.status,
+			backoffUntil,
+			`GitHub API rate limit exceeded: ${response.status}`,
+		);
+	}
 	throw new GitHubRateLimitError(
 		response.status,
-		githubBackoffUntil,
-		`GitHub API rate limit exceeded: ${response.status} ${body}`,
+		backoffUntil,
+		`GitHub API rate limit exceeded: ${response.status}`,
 	);
 }
 
@@ -147,6 +210,7 @@ async function signAppJwt(creds: GitHubAppCreds): Promise<string> {
 export async function mintInstallationToken(
 	creds: GitHubAppCreds,
 	signal?: AbortSignal,
+	coordinationToken?: GitHubToken,
 ): Promise<string> {
 	const jwt = await signAppJwt(creds);
 	const res = await githubFetch(
@@ -161,23 +225,39 @@ export async function mintInstallationToken(
 				"x-github-api-version": "2022-11-28",
 			},
 		},
+		coordinationToken,
 	);
 	if (!res.ok) {
-		throw new Error(`installation token mint failed: ${res.status} ${await res.text()}`);
+		throw new Error(`installation token mint failed: ${res.status}`);
 	}
 	const json = await res.json<{ token?: string }>();
 	if (!json.token) throw new Error("installation token response had no token");
 	return json.token;
 }
 
-function authHeaders(token: string, extra: Record<string, string> = {}): Record<string, string> {
+function tokenValue(token: GitHubToken): string {
+	return typeof token === "string" ? token : token.token;
+}
+
+function authHeaders(
+	token: GitHubToken,
+	extra: Record<string, string> = {},
+): Record<string, string> {
 	return {
-		authorization: `Bearer ${token}`,
+		authorization: `Bearer ${tokenValue(token)}`,
 		accept: "application/vnd.github+json",
 		"user-agent": USER_AGENT,
 		"x-github-api-version": "2022-11-28",
 		...extra,
 	};
+}
+
+function coordinatedFetch(
+	token: GitHubToken,
+	input: string,
+	init: RequestInit = {},
+): Promise<Response> {
+	return githubFetch(input, init, token);
 }
 
 export interface IssueSummary {
@@ -197,7 +277,7 @@ export interface ManagedIssueSummary {
 }
 
 export async function listOpenManagedIssues(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 ): Promise<ManagedIssueSummary[]> {
 	const kindLabels = ["bot:bug", "bot:enhancement", "bot:task"];
@@ -210,12 +290,12 @@ export async function listOpenManagedIssues(
 				direction: "desc",
 				per_page: "100",
 			});
-			const res = await githubFetch(
+			const res = await coordinatedFetch(
+				token,
 				`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues?${params.toString()}`,
 				{ headers: authHeaders(token) },
 			);
-			if (!res.ok)
-				throw new Error(`listOpenManagedIssues failed: ${res.status} ${await res.text()}`);
+			if (!res.ok) throw new Error(`listOpenManagedIssues failed: ${res.status}`);
 			return res.json<
 				Array<{
 					number?: number;
@@ -258,15 +338,17 @@ export async function listOpenManagedIssues(
 }
 
 export async function getIssue(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 ): Promise<IssueSummary> {
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}`,
 		{ headers: authHeaders(token) },
 	);
-	if (!res.ok) throw new Error(`getIssue failed: ${res.status} ${await res.text()}`);
+	if (res.status === 404) throw new GitHubAnchorNotFoundError(issueNumber);
+	if (!res.ok) throw new Error(`getIssue failed: ${res.status}`);
 	const json = await res.json<{
 		title?: string;
 		body?: string | null;
@@ -295,7 +377,7 @@ export interface GitHubIssueComment {
 }
 
 export async function getIssueComments(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	options: { since?: string; commentCount?: number } = {},
@@ -307,15 +389,19 @@ export async function getIssueComments(
 		params.set("page", String(Math.max(1, Math.ceil(options.commentCount / perPage))));
 	}
 	const baseUrl = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments`;
-	let res = await githubFetch(`${baseUrl}?${params.toString()}`, { headers: authHeaders(token) });
-	if (!res.ok) throw new Error(`getIssueComments failed: ${res.status} ${await res.text()}`);
+	let res = await coordinatedFetch(token, `${baseUrl}?${params.toString()}`, {
+		headers: authHeaders(token),
+	});
+	if (!res.ok) throw new Error(`getIssueComments failed: ${res.status}`);
 
 	if (options.since) {
 		const lastPage = lastPageFromLink(res.headers.get("link"));
 		if (lastPage && lastPage > 1) {
 			params.set("page", String(lastPage));
-			res = await githubFetch(`${baseUrl}?${params.toString()}`, { headers: authHeaders(token) });
-			if (!res.ok) throw new Error(`getIssueComments failed: ${res.status} ${await res.text()}`);
+			res = await coordinatedFetch(token, `${baseUrl}?${params.toString()}`, {
+				headers: authHeaders(token),
+			});
+			if (!res.ok) throw new Error(`getIssueComments failed: ${res.status}`);
 		}
 	}
 
@@ -356,56 +442,102 @@ function lastPageFromLink(link: string | null): number | null {
 }
 
 export async function getIssueLabels(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	signal?: AbortSignal,
 ): Promise<string[]> {
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/labels?per_page=100`,
 		{ headers: authHeaders(token), signal },
 	);
-	if (!res.ok) throw new Error(`getIssueLabels failed: ${res.status} ${await res.text()}`);
+	if (res.status === 404) throw new GitHubAnchorNotFoundError(issueNumber);
+	if (!res.ok) throw new Error(`getIssueLabels failed: ${res.status}`);
 	const json = await res.json<Array<{ name?: string }>>();
 	const out: string[] = [];
 	for (const l of json) if (l.name) out.push(l.name);
 	return out;
 }
 
+export async function confirmAnchorMissing(
+	token: GitHubToken,
+	ctx: RepoContext,
+	issueNumber: number,
+): Promise<boolean> {
+	const repo = await coordinatedFetch(token, `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}`, {
+		headers: authHeaders(token),
+	});
+	if (repo.status === 401 || repo.status === 403 || repo.status === 404) return false;
+	if (!repo.ok) throw new Error(`confirmAnchorMissing repository probe failed: ${repo.status}`);
+	const issue = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}`,
+		{ headers: authHeaders(token) },
+	);
+	return issue.status === 404;
+}
+
+export async function confirmPullRequestMissing(
+	token: GitHubToken,
+	ctx: RepoContext,
+	pullRequestNumber: number,
+): Promise<boolean> {
+	const repo = await coordinatedFetch(token, `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}`, {
+		headers: authHeaders(token),
+	});
+	if (repo.status === 401 || repo.status === 403 || repo.status === 404) return false;
+	if (!repo.ok)
+		throw new Error(`confirmPullRequestMissing repository probe failed: ${repo.status}`);
+	const pullRequest = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${pullRequestNumber}`,
+		{ headers: authHeaders(token) },
+	);
+	return pullRequest.status === 404;
+}
+
 export async function getBranchSha(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	branch: string,
 ): Promise<string | null> {
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/branches/${encodeURIComponent(branch)}`,
 		{ headers: authHeaders(token) },
 	);
 	if (res.status === 404) return null;
-	if (!res.ok) throw new Error(`getBranchSha failed: ${res.status} ${await res.text()}`);
+	if (!res.ok) throw new Error(`getBranchSha failed: ${res.status}`);
 	const json = await res.json<{ commit?: { sha?: string } }>();
 	return json.commit?.sha ?? null;
 }
 
 /** Deletes a branch ref. A 404/422 means it is already gone, which is fine. */
-export async function deleteBranch(token: string, ctx: RepoContext, branch: string): Promise<void> {
-	const res = await githubFetch(
+export async function deleteBranch(
+	token: GitHubToken,
+	ctx: RepoContext,
+	branch: string,
+): Promise<void> {
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/git/refs/heads/${encodeURIComponent(branch)}`,
 		{ method: "DELETE", headers: authHeaders(token) },
 	);
 	if (res.status === 404 || res.status === 422) return;
-	if (!res.ok) throw new Error(`deleteBranch(${branch}) failed: ${res.status} ${await res.text()}`);
+	if (!res.ok) throw new Error(`deleteBranch(${branch}) failed: ${res.status}`);
 }
 
 export async function addLabels(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	labels: readonly string[],
 	signal?: AbortSignal,
 ): Promise<void> {
 	if (labels.length === 0) return;
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/labels`,
 		{
 			method: "POST",
@@ -414,25 +546,29 @@ export async function addLabels(
 			signal,
 		},
 	);
-	if (!res.ok) throw new Error(`addLabels failed: ${res.status} ${await res.text()}`);
+	if (!res.ok) throw new Error(`addLabels failed: ${res.status}`);
 }
 
 /** Removes one label. GitHub treats a 404 as "already gone", which is fine. */
 export async function removeLabel(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	label: string,
 	signal?: AbortSignal,
 ): Promise<void> {
 	const url = `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/labels/${encodeURIComponent(label)}`;
-	const res = await githubFetch(url, { method: "DELETE", headers: authHeaders(token), signal });
+	const res = await coordinatedFetch(token, url, {
+		method: "DELETE",
+		headers: authHeaders(token),
+		signal,
+	});
 	if (res.status === 404) return;
-	if (!res.ok) throw new Error(`removeLabel(${label}) failed: ${res.status} ${await res.text()}`);
+	if (!res.ok) throw new Error(`removeLabel(${label}) failed: ${res.status}`);
 }
 
 export async function removeLabels(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	labels: readonly string[],
@@ -472,187 +608,172 @@ const FAILING_CHECK_CONCLUSIONS = new Set([
 ]);
 
 export async function getPullRequestStatus(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	prNumber: number,
 ): Promise<PullRequestStatus> {
-	const pullResponse = await githubFetch(
-		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`,
-		{ headers: authHeaders(token) },
-	);
-	if (!pullResponse.ok) {
-		throw new Error(
-			`getPullRequestStatus failed: ${pullResponse.status} ${await pullResponse.text()}`,
-		);
-	}
-	const pull = await pullResponse.json<{
-		number?: number;
-		html_url?: string;
-		state?: string;
-		draft?: boolean;
-		merged?: boolean;
-		mergeable?: boolean | null;
-		head?: { sha?: string };
-	}>();
-	const headSha = pull.head?.sha;
-	if (!headSha) throw new Error("getPullRequestStatus response had no head SHA");
-
-	const [reviewsResponse, checksResponse, statusesResponse] = await Promise.all([
-		githubFetch(
-			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}/reviews?per_page=100`,
-			{
-				headers: authHeaders(token),
-			},
-		),
-		githubFetch(
-			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/commits/${headSha}/check-runs?per_page=100`,
-			{
-				headers: authHeaders(token),
-			},
-		),
-		githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/commits/${headSha}/status`, {
-			headers: authHeaders(token),
+	const response = await coordinatedFetch(token, `${GITHUB_API}/graphql`, {
+		method: "POST",
+		headers: authHeaders(token, { "content-type": "application/json" }),
+		body: JSON.stringify({
+			query: `query EmDashPullRequestStatus($owner: String!, $repo: String!, $number: Int!) {
+				repository(owner: $owner, name: $repo) {
+					pullRequest(number: $number) {
+						number url state isDraft merged mergeable headRefOid reviewDecision updatedAt
+						commits(last: 1) {
+							nodes {
+								commit {
+									statusCheckRollup {
+										state
+										contexts(first: 100) {
+											nodes {
+												... on CheckRun { name status conclusion detailsUrl }
+												... on StatusContext { context state targetUrl }
+											}
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}`,
+			variables: { owner: ctx.owner, repo: ctx.repo, number: prNumber },
 		}),
-	]);
-	if (
-		!reviewsResponse.ok ||
-		(!checksResponse.ok && checksResponse.status !== 403) ||
-		!statusesResponse.ok
-	) {
-		throw new Error(
-			`getPullRequestStatus details failed: reviews=${reviewsResponse.status} checks=${checksResponse.status} statuses=${statusesResponse.status}`,
-		);
-	}
-
-	const reviews = await reviewsResponse.json<
-		Array<{
-			state?: string;
-			submitted_at?: string;
-			commit_id?: string | null;
-			user?: { login?: string };
-		}>
-	>();
-	const checkPayload = checksResponse.ok
-		? await checksResponse.json<{
-				check_runs?: Array<{
-					name?: string;
-					status?: string;
-					conclusion?: string | null;
-					details_url?: string | null;
-				}>;
-			}>()
-		: { check_runs: [] };
-	const combinedStatus = await statusesResponse.json<{
-		state?: string;
-		statuses?: Array<{ context?: string; state?: string; target_url?: string | null }>;
+	});
+	if (!response.ok) throw new Error(`getPullRequestStatus failed: ${response.status}`);
+	const payload = await response.json<{
+		data?: {
+			repository?: {
+				pullRequest?: {
+					number?: number;
+					url?: string;
+					state?: string;
+					isDraft?: boolean;
+					merged?: boolean;
+					mergeable?: string;
+					headRefOid?: string;
+					reviewDecision?: string | null;
+					updatedAt?: string;
+					commits?: {
+						nodes?: Array<{
+							commit?: {
+								statusCheckRollup?: {
+									state?: string;
+									contexts?: { nodes?: Array<Record<string, unknown>> };
+								} | null;
+							};
+						}>;
+					};
+				};
+			};
+		};
+		errors?: Array<{ message?: string }>;
 	}>();
-
-	const latestReviews = new Map<
-		string,
-		{ state: string; submittedAt: string; commitId: string | null }
-	>();
-	for (const review of reviews) {
-		const login = review.user?.login;
-		const state = review.state?.toLowerCase();
-		if (!login || !state || state === "pending") continue;
-		const submittedAt = review.submitted_at ?? "";
-		const previous = latestReviews.get(login);
-		if (!previous || submittedAt >= previous.submittedAt) {
-			latestReviews.set(login, { state, submittedAt, commitId: review.commit_id ?? null });
-		}
-	}
-	const latestReviewValues = [...latestReviews.values()];
-	const reviewStates = new Set(latestReviewValues.map(({ state }) => state));
-	const review = latestReviewValues.some(
-		({ state, commitId }) => state === "changes_requested" && commitId === headSha,
-	)
-		? "changes-requested"
-		: reviewStates.has("approved")
-			? "approved"
-			: "review-required";
+	if (payload.errors?.length) throw new Error("getPullRequestStatus GraphQL query failed");
+	const pull = payload.data?.repository?.pullRequest;
+	if (!pull) throw new GitHubPullRequestNotFoundError(prNumber);
+	if (!pull.headRefOid) throw new Error("getPullRequestStatus response had no head SHA");
+	const rollup = pull.commits?.nodes?.[0]?.commit?.statusCheckRollup;
+	const contexts = rollup?.contexts?.nodes ?? [];
 
 	const failingChecks: Array<{ name: string; url: string | null }> = [];
 	const pendingChecks: string[] = [];
 	let passingCount = 0;
-	for (const check of checkPayload.check_runs ?? []) {
-		const name = check.name ?? "Unnamed check";
-		if (check.status !== "completed" || check.conclusion === null) {
-			pendingChecks.push(name);
-		} else if (FAILING_CHECK_CONCLUSIONS.has(check.conclusion ?? "")) {
-			failingChecks.push({ name, url: check.details_url ?? null });
-		} else if (PASSING_CHECK_CONCLUSIONS.has(check.conclusion ?? "")) {
-			passingCount += 1;
+	for (const context of contexts) {
+		if (typeof context.name === "string") {
+			const status = typeof context.status === "string" ? context.status.toLowerCase() : "";
+			const conclusion =
+				typeof context.conclusion === "string" ? context.conclusion.toLowerCase() : null;
+			if (status !== "completed" || conclusion === null) pendingChecks.push(context.name);
+			else if (FAILING_CHECK_CONCLUSIONS.has(conclusion)) {
+				failingChecks.push({
+					name: context.name,
+					url: typeof context.detailsUrl === "string" ? context.detailsUrl : null,
+				});
+			} else if (PASSING_CHECK_CONCLUSIONS.has(conclusion)) passingCount += 1;
+		} else if (typeof context.context === "string") {
+			const state = typeof context.state === "string" ? context.state.toLowerCase() : "";
+			if (state === "pending" || state === "expected") pendingChecks.push(context.context);
+			else if (state === "failure" || state === "error") {
+				failingChecks.push({
+					name: context.context,
+					url: typeof context.targetUrl === "string" ? context.targetUrl : null,
+				});
+			} else if (state === "success") passingCount += 1;
 		}
 	}
-	for (const status of combinedStatus.statuses ?? []) {
-		const name = status.context ?? "Unnamed status";
-		if (status.state === "pending") pendingChecks.push(name);
-		else if (status.state === "failure" || status.state === "error") {
-			failingChecks.push({ name, url: status.target_url ?? null });
-		} else if (status.state === "success") passingCount += 1;
-	}
-	if (
-		combinedStatus.state === "failure" &&
-		failingChecks.length === 0 &&
-		(combinedStatus.statuses?.length ?? 0) === 0
-	) {
-		failingChecks.push({ name: "Commit status", url: null });
-	}
+	const rollupState = rollup?.state?.toLowerCase();
 	const checks =
 		failingChecks.length > 0
 			? "failing"
-			: pendingChecks.length > 0 || combinedStatus.state === "pending"
+			: pendingChecks.length > 0 || rollupState === "pending" || rollupState === "expected"
 				? "pending"
-				: passingCount > 0 || combinedStatus.state === "success"
+				: passingCount > 0 || rollupState === "success"
 					? "passing"
 					: "none";
+	const review =
+		pull.reviewDecision === "APPROVED"
+			? "approved"
+			: pull.reviewDecision === "CHANGES_REQUESTED"
+				? "changes-requested"
+				: "review-required";
 
 	return {
 		number: pull.number ?? prNumber,
-		url: pull.html_url ?? `https://github.com/${ctx.owner}/${ctx.repo}/pull/${prNumber}`,
-		state: pull.merged === true ? "merged" : pull.state === "closed" ? "closed" : "open",
-		draft: pull.draft === true,
-		headSha,
+		url: pull.url ?? `https://github.com/${ctx.owner}/${ctx.repo}/pull/${prNumber}`,
+		state: pull.merged === true ? "merged" : pull.state === "CLOSED" ? "closed" : "open",
+		draft: pull.isDraft === true,
+		headSha: pull.headRefOid,
 		mergeability:
-			pull.mergeable === true ? "mergeable" : pull.mergeable === false ? "conflicting" : "unknown",
+			pull.mergeable === "MERGEABLE"
+				? "mergeable"
+				: pull.mergeable === "CONFLICTING"
+					? "conflicting"
+					: "unknown",
 		review,
 		checks,
 		failingChecks,
 		pendingChecks,
-		updatedAt: new Date().toISOString(),
+		updatedAt: pull.updatedAt ?? new Date().toISOString(),
 	};
 }
 
 export async function getPullRequestHeadBranch(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	prNumber: number,
 	signal?: AbortSignal,
 ): Promise<string | null> {
-	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`, {
-		headers: authHeaders(token),
-		signal,
-	});
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`,
+		{
+			headers: authHeaders(token),
+			signal,
+		},
+	);
 	if (res.status === 404) return null;
 	if (!res.ok) {
-		throw new Error(`getPullRequestHeadBranch failed: ${res.status} ${await res.text()}`);
+		throw new Error(`getPullRequestHeadBranch failed: ${res.status}`);
 	}
 	const json = await res.json<{ head?: { ref?: unknown } }>();
 	return typeof json.head?.ref === "string" && json.head.ref !== "" ? json.head.ref : null;
 }
 
 export async function getOpenPullRequest(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	headBranch: string,
 ): Promise<CreatedPullRequest | null> {
 	const head = encodeURIComponent(`${ctx.owner}:${headBranch}`);
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls?state=open&head=${head}&per_page=1`,
 		{ headers: authHeaders(token) },
 	);
 	if (!res.ok) {
-		throw new Error(`getOpenPullRequest failed: ${res.status} ${await res.text()}`);
+		throw new Error(`getOpenPullRequest failed: ${res.status}`);
 	}
 	const json = await res.json<Array<{ number?: number; html_url?: string }>>();
 	const pull = json[0];
@@ -661,11 +782,11 @@ export async function getOpenPullRequest(
 }
 
 export async function createPullRequest(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	args: { headBranch: string; baseBranch: string; title: string; body: string; draft?: boolean },
 ): Promise<CreatedPullRequest> {
-	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls`, {
+	const res = await coordinatedFetch(token, `${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls`, {
 		method: "POST",
 		headers: authHeaders(token, { "content-type": "application/json" }),
 		body: JSON.stringify({
@@ -677,7 +798,7 @@ export async function createPullRequest(
 		}),
 	});
 	if (!res.ok) {
-		throw new Error(`createPullRequest failed: ${res.status} ${await res.text()}`);
+		throw new Error(`createPullRequest failed: ${res.status}`);
 	}
 	const json = await res.json<{ number?: number; html_url?: string }>();
 	if (!json.number) throw new Error("createPullRequest response had no number");
@@ -685,27 +806,32 @@ export async function createPullRequest(
 }
 
 export async function closePullRequest(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	prNumber: number,
 ): Promise<void> {
-	const res = await githubFetch(`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`, {
-		method: "PATCH",
-		headers: authHeaders(token, { "content-type": "application/json" }),
-		body: JSON.stringify({ state: "closed" }),
-	});
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}`,
+		{
+			method: "PATCH",
+			headers: authHeaders(token, { "content-type": "application/json" }),
+			body: JSON.stringify({ state: "closed" }),
+		},
+	);
 	if (!res.ok) {
-		throw new Error(`closePullRequest failed: ${res.status} ${await res.text()}`);
+		throw new Error(`closePullRequest failed: ${res.status}`);
 	}
 }
 
 export async function postIssueComment(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	body: string,
 ): Promise<void> {
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments`,
 		{
 			method: "POST",
@@ -713,7 +839,7 @@ export async function postIssueComment(
 			body: JSON.stringify({ body }),
 		},
 	);
-	if (!res.ok) throw new Error(`postIssueComment failed: ${res.status} ${await res.text()}`);
+	if (!res.ok) throw new Error(`postIssueComment failed: ${res.status}`);
 }
 
 export interface IssueCommentReference {
@@ -723,12 +849,13 @@ export interface IssueCommentReference {
 }
 
 export async function createIssueComment(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	body: string,
 ): Promise<IssueCommentReference> {
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments`,
 		{
 			method: "POST",
@@ -736,7 +863,7 @@ export async function createIssueComment(
 			body: JSON.stringify({ body }),
 		},
 	);
-	if (!res.ok) throw new Error(`createIssueComment failed: ${res.status} ${await res.text()}`);
+	if (!res.ok) throw new Error(`createIssueComment failed: ${res.status}`);
 	const comment = await res.json<{ id?: number; body?: string | null; html_url?: string }>();
 	if (!Number.isSafeInteger(comment.id) || !comment.id || comment.id < 1) {
 		throw new Error("createIssueComment response had no valid id");
@@ -745,12 +872,13 @@ export async function createIssueComment(
 }
 
 export async function updateIssueComment(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	commentId: number,
 	body: string,
 ): Promise<boolean> {
-	const res = await githubFetch(
+	const res = await coordinatedFetch(
+		token,
 		`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/comments/${commentId}`,
 		{
 			method: "PATCH",
@@ -759,23 +887,24 @@ export async function updateIssueComment(
 		},
 	);
 	if (res.status === 404) return false;
-	if (!res.ok) throw new Error(`updateIssueComment failed: ${res.status} ${await res.text()}`);
+	if (!res.ok) throw new Error(`updateIssueComment failed: ${res.status}`);
 	return true;
 }
 
 export async function findIssueCommentByMarker(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	marker: string,
 ): Promise<IssueCommentReference | null> {
 	for (let page = 1; ; page += 1) {
-		const res = await githubFetch(
+		const res = await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
 			{ headers: authHeaders(token) },
 		);
 		if (!res.ok) {
-			throw new Error(`listIssueComments failed: ${res.status} ${await res.text()}`);
+			throw new Error(`listIssueComments failed: ${res.status}`);
 		}
 		const comments =
 			await res.json<Array<{ id?: number; body?: string | null; html_url?: string }>>();
@@ -790,18 +919,19 @@ export async function findIssueCommentByMarker(
 }
 
 export async function hasIssueCommentMarker(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	issueNumber: number,
 	marker: string,
 ): Promise<boolean> {
 	for (let page = 1; ; page++) {
-		const res = await githubFetch(
+		const res = await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/issues/${issueNumber}/comments?per_page=100&page=${page}`,
 			{ headers: authHeaders(token) },
 		);
 		if (!res.ok) {
-			throw new Error(`listIssueComments failed: ${res.status} ${await res.text()}`);
+			throw new Error(`listIssueComments failed: ${res.status}`);
 		}
 		const comments = await res.json<Array<{ body?: string | null }>>();
 		if (comments.some((comment) => comment.body?.includes(marker))) return true;
@@ -810,7 +940,7 @@ export async function hasIssueCommentMarker(
 }
 
 export async function getPullRequestReviewComments(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	prNumber: number,
 	reviewId: number,
@@ -818,12 +948,12 @@ export async function getPullRequestReviewComments(
 ): Promise<string[]> {
 	const result: string[] = [];
 	for (let page = 1; ; page += 1) {
-		const res = await githubFetch(
+		const res = await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}/reviews/${reviewId}/comments?per_page=100&page=${page}`,
 			{ headers: authHeaders(token), signal },
 		);
-		if (!res.ok)
-			throw new Error(`getPullRequestReviewComments failed: ${res.status} ${await res.text()}`);
+		if (!res.ok) throw new Error(`getPullRequestReviewComments failed: ${res.status}`);
 		const comments = await res.json<
 			Array<{
 				body?: string | null;
@@ -851,7 +981,7 @@ export async function getPullRequestReviewComments(
 }
 
 async function listPullRequestPages<T>(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	prNumber: number,
 	resource: "reviews" | "commits",
@@ -859,12 +989,13 @@ async function listPullRequestPages<T>(
 ): Promise<T[]> {
 	const result: T[] = [];
 	for (let page = 1; ; page += 1) {
-		const res = await githubFetch(
+		const res = await coordinatedFetch(
+			token,
 			`${GITHUB_API}/repos/${ctx.owner}/${ctx.repo}/pulls/${prNumber}/${resource}?per_page=100&page=${page}`,
 			{ headers: authHeaders(token), signal },
 		);
 		if (!res.ok) {
-			throw new Error(`listing PR ${resource} failed: ${res.status} ${await res.text()}`);
+			throw new Error(`listing PR ${resource} failed: ${res.status}`);
 		}
 		const items = await res.json<T[]>();
 		result.push(...items);
@@ -881,7 +1012,7 @@ export interface PullRequestReview {
 }
 
 export async function listPullRequestReviews(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	prNumber: number,
 	signal?: AbortSignal,
@@ -907,7 +1038,7 @@ export interface PullRequestCommit {
 }
 
 export async function listPullRequestCommits(
-	token: string,
+	token: GitHubToken,
 	ctx: RepoContext,
 	prNumber: number,
 	signal?: AbortSignal,
