@@ -317,11 +317,22 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			const back = declaredAccessToCapabilities(
 				capabilitiesToDeclaredAccess(input.capabilities, input.allowedHosts),
 			);
-			expect(new Set(back.capabilities)).toEqual(new Set(input.capabilities));
-			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
+			const returnedCapabilities: readonly string[] = back.capabilities;
+			if (
+				returnedCapabilities.length !== input.capabilities.length ||
+				input.capabilities.some((capability) => !returnedCapabilities.includes(capability))
+			) {
+				throw new Error(`Capability round-trip mismatch: ${JSON.stringify({ input, back })}`);
+			}
+			if (
+				back.allowedHosts.length !== input.allowedHosts.length ||
+				input.allowedHosts.some((host) => !back.allowedHosts.includes(host))
+			) {
+				throw new Error(`Allowed-host round-trip mismatch: ${JSON.stringify({ input, back })}`);
+			}
 			count++;
 		}
-		// 5 content x 3 comments x 3 media x 3 taxonomy x 3 redirects x 5 network x 2^6 singleton subsets.
+		// 5 content x 3 comments x 12 media x 3 taxonomy x 3 redirects x 5 network x 2^6 singleton subsets.
 		expect(count).toBe(518_400);
 	});
 });
