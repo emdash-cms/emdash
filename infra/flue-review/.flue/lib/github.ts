@@ -64,14 +64,23 @@ function rateLimitRetryDelayMs(
 	if (retryAfterDelay !== undefined) {
 		return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, retryAfterDelay));
 	}
-	if (remaining === "0") {
-		const resetSeconds = Number(response.headers.get("x-ratelimit-reset"));
-		if (Number.isFinite(resetSeconds) && resetSeconds > 0) {
-			const resetDelay = resetSeconds * 1_000 - now + REVIEW_RATE_LIMIT_RESET_BUFFER_MS;
-			return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, resetDelay));
-		}
+	const resetSeconds = Number(response.headers.get("x-ratelimit-reset"));
+	if (Number.isFinite(resetSeconds) && resetSeconds > 0) {
+		const resetDelay = resetSeconds * 1_000 - now + REVIEW_RATE_LIMIT_RESET_BUFFER_MS;
+		return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, Math.max(1_000, resetDelay));
 	}
 	return Math.min(REVIEW_RATE_LIMIT_MAX_DELAY_MS, REVIEW_RATE_LIMIT_FALLBACK_MS * 2 ** retryCount);
+}
+
+export class GitHubRateLimitError extends Error {
+	constructor(
+		message: string,
+		readonly retryDelayMs: number,
+		readonly hasRetryHint = true,
+	) {
+		super(message);
+		this.name = "GitHubRateLimitError";
+	}
 }
 
 interface ReviewRetryOptions {
@@ -192,7 +201,7 @@ export async function mintInstallationToken(creds: GitHubAppCreds): Promise<stri
 		},
 	);
 	if (!res.ok) {
-		throw new Error(`installation token mint failed: ${res.status} ${await res.text()}`);
+		await requireGitHubResponse(res, "installation token mint");
 	}
 	const json = await res.json<{ token?: string }>();
 	if (!json.token) throw new Error("installation token response had no token");
@@ -208,7 +217,31 @@ function pullRequestUrl(owner: string, repo: string, prNumber: number, files = f
 }
 
 async function requireGitHubResponse(res: Response, operation: string): Promise<void> {
-	if (!res.ok) throw new Error(`${operation} failed: ${res.status} ${await res.text()}`);
+	if (res.ok) return;
+	const errorBody = await res.text();
+	const retryDelay = rateLimitRetryDelayMs(res, errorBody, 0);
+	const message = `${operation} failed: ${res.status} ${errorBody}`;
+	if (retryDelay !== undefined) {
+		const hasRetryHint =
+			res.headers.get("retry-after") !== null || res.headers.get("x-ratelimit-reset") !== null;
+		throw new GitHubRateLimitError(message, retryDelay, hasRetryHint);
+	}
+	throw new Error(message);
+}
+
+export async function getPullRequestHeadSha(
+	token: string,
+	owner: string,
+	repo: string,
+	prNumber: number,
+): Promise<string> {
+	const res = await githubFetch(`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`, {
+		headers: installationHeaders(token),
+	});
+	await requireGitHubResponse(res, "read pull request head");
+	const body = await res.json<{ head?: { sha?: string } }>();
+	if (!body.head?.sha) throw new Error("read pull request head response had no SHA");
+	return body.head.sha;
 }
 
 export async function createReviewCheck(

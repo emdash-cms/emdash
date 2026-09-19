@@ -3,6 +3,7 @@ export {
 	CronAccessImpl,
 	createContentAccess,
 	createRedirectAccess,
+	createSchemaAccess,
 	createSandboxRouteError,
 	getSandboxRouteErrorDetails,
 	OptionsRepository,

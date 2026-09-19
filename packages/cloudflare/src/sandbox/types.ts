@@ -8,6 +8,9 @@ import type {
 	ConditionalWriteResult,
 	ContentCreateOptions,
 	ContentListOptions,
+	ContentRevisionInfo,
+	ContentTranslationSummary,
+	CollectionSchemaInfo,
 	CronTaskInfo,
 	PaginatedResult,
 	RedirectCreateInput,
@@ -249,13 +252,40 @@ export interface PluginBridgeBinding {
 		collection: string,
 		data: Record<string, unknown>,
 		options?: ContentCreateOptions,
-	): Promise<BridgeContentItem>;
+		originHook?: string,
+	): Promise<
+		| BridgeContentItem
+		| {
+				__emdashContentCreateError: true;
+				error: {
+					code: "CONFLICT" | "NOT_FOUND" | "SAVE_REJECTED" | "VALIDATION_ERROR";
+					message: string;
+				};
+		  }
+	>;
 	contentUpdate(
 		collection: string,
 		id: string,
 		data: Record<string, unknown>,
 	): Promise<BridgeContentItem>;
 	contentDelete(collection: string, id: string): Promise<boolean>;
+	contentTranslations(
+		collection: string,
+		id: string,
+	): Promise<{ translationGroup: string; translations: ContentTranslationSummary[] }>;
+	contentPublicUrl(collection: string, id: string): Promise<string | null>;
+	contentListRevisions(
+		collection: string,
+		id: string,
+		options?: { limit?: number },
+	): Promise<ContentRevisionInfo[]>;
+	contentGetRevision(
+		collection: string,
+		id: string,
+		revisionId: string,
+	): Promise<ContentRevisionInfo | null>;
+	schemaListCollections(): Promise<CollectionSchemaInfo[]>;
+	schemaGetCollection(slug: string): Promise<CollectionSchemaInfo | null>;
 	// Taxonomies (read-only, gated on taxonomies:read)
 	taxonomyList(opts?: { locale?: string }): Promise<BridgeTaxonomyDef[]>;
 	taxonomyTerms(taxonomy: string, opts?: { locale?: string }): Promise<BridgeTaxonomyTerm[]>;

@@ -17,6 +17,9 @@ import {
 	_resetAstroI18nCacheForTests,
 	interpolateUrlPattern,
 	localizePath,
+	resolveContentRoutePath,
+	resolveLocaleSegmentFromConfig,
+	resolveLocalizedContentRoutePath,
 } from "../../../src/i18n/resolve.js";
 
 describe("interpolateUrlPattern", () => {
@@ -199,5 +202,45 @@ describe("localizePath", () => {
 		// to `/de/blog/hello`, but the site has no route there -- the
 		// caller should drop the entry instead.
 		expect(await localizePath("/blog/hello", "de")).toBeNull();
+	});
+});
+
+describe("content route resolution", () => {
+	afterEach(() => {
+		setI18nConfig(null);
+		_resetAstroI18nCacheForTests();
+	});
+
+	it("shares pattern and trailing-slash behavior across relative and localized routes", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const input = {
+			pattern: "/journal/{slug}",
+			collection: "posts",
+			slug: "hello",
+			id: "post-1",
+			trailingSlash: "always" as const,
+		};
+
+		expect(resolveContentRoutePath(input)).toBe("/journal/hello/");
+		expect(await resolveLocalizedContentRoutePath({ ...input, locale: "fr" })).toBe(
+			"/fr/journal/hello/",
+		);
+	});
+
+	it("recognizes custom locale paths as stored locale identities", () => {
+		const i18n = {
+			defaultLocale: "en",
+			locales: [
+				{ path: "english", codes: ["en", "en-GB"] },
+				{ path: "french", codes: ["fr", "fr-FR"] },
+			],
+			prefixDefaultLocale: true,
+		};
+
+		expect(resolveLocaleSegmentFromConfig(i18n, "english")).toBe("english");
+		expect(resolveLocaleSegmentFromConfig(i18n, "french")).toBe("french");
+		expect(resolveLocaleSegmentFromConfig({ ...i18n, prefixDefaultLocale: false }, "english")).toBe(
+			"",
+		);
 	});
 });

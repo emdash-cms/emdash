@@ -386,7 +386,9 @@ describe("CAPABILITY_LABELS", () => {
 		expect(Object.keys(CAPABILITY_LABELS)).toEqual([
 			// Canonical
 			"content:read",
+			"content:revisions:read",
 			"content:write",
+			"schema:read",
 			"taxonomies:read",
 			"redirects:read",
 			"redirects:write",

@@ -637,8 +637,14 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 				options: { locale: "de" },
 			});
 
-			expect(malformed.error).toMatch(/invalid locale code/i);
-			expect(unknown.error).toMatch(/not configured/i);
+			expect(malformed.error).toMatchObject({
+				code: "VALIDATION_ERROR",
+				message: expect.stringMatching(/invalid locale code/i),
+			});
+			expect(unknown.error).toMatchObject({
+				code: "VALIDATION_ERROR",
+				message: expect.stringMatching(/not configured/i),
+			});
 			expect(
 				await db
 					.selectFrom("ec_posts" as any)

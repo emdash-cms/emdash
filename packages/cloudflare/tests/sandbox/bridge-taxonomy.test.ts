@@ -96,6 +96,16 @@ describe("PluginBridge taxonomy methods — capability enforcement", () => {
 	});
 });
 
+describe("PluginBridge content discovery capability enforcement", () => {
+	it("denies schema and revision history independently", async () => {
+		const { bridge } = makeBridge(["content:read"]);
+		await expect(bridge.schemaListCollections()).rejects.toThrow(/schema:read/);
+		await expect(bridge.contentListRevisions("posts", "post-1")).rejects.toThrow(
+			/content:revisions:read/,
+		);
+	});
+});
+
 describe("taxonomyList", () => {
 	it("maps rows: int→bool, JSON collections, nullable label_singular", async () => {
 		const { bridge } = makeBridge(

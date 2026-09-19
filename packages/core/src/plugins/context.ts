@@ -38,6 +38,7 @@ import {
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
+import { SchemaRegistry } from "../schema/registry.js";
 import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import { assertStorageKey } from "./conditional-storage.js";
@@ -81,6 +82,9 @@ import type {
 	RedirectStatus,
 	RedirectUpdateInput,
 	VersionedRedirect,
+	SchemaAccess,
+	CollectionSchemaInfo,
+	PluginContentCreateCallback,
 } from "./types.js";
 
 export { createContentAccess } from "./content-access.js";
@@ -269,6 +273,57 @@ function taxonomyToTermInfo(term: Taxonomy): TaxonomyTermInfo {
 		data: term.data,
 		locale: term.locale,
 		translationGroup: term.translationGroup,
+	};
+}
+
+function collectionToSchemaInfo(
+	collection: Awaited<ReturnType<SchemaRegistry["getCollectionWithFields"]>>,
+): CollectionSchemaInfo | null {
+	if (!collection) return null;
+	return {
+		slug: collection.slug,
+		label: collection.label,
+		labelSingular: collection.labelSingular ?? null,
+		description: collection.description ?? null,
+		supports: collection.supports,
+		hasSeo: collection.hasSeo,
+		titleField: collection.titleField ?? null,
+		dateField: collection.dateField ?? null,
+		urlPattern: collection.urlPattern ?? null,
+		routable: collection.routable !== false,
+		hidden: collection.hidden,
+		fields: collection.fields.map((field) => ({
+			slug: field.slug,
+			label: field.label,
+			type: field.type,
+			required: field.required,
+			unique: field.unique,
+			...(field.defaultValue === undefined ? {} : { default: field.defaultValue }),
+			...(field.validation === undefined ? {} : { validation: field.validation }),
+			...(field.widget === undefined ? {} : { widget: field.widget }),
+			...(field.options === undefined ? {} : { options: field.options }),
+			searchable: field.searchable,
+			indexed: field.indexed,
+			translatable: field.translatable,
+			sortOrder: field.sortOrder,
+		})),
+	};
+}
+
+export function createSchemaAccess(db: Kysely<Database>): SchemaAccess {
+	const registry = new SchemaRegistry(db);
+	return {
+		async listCollections() {
+			const collections: CollectionSchemaInfo[] = [];
+			for (const collection of await registry.listCollectionsWithFields()) {
+				const info = collectionToSchemaInfo(collection);
+				if (info) collections.push(info);
+			}
+			return collections;
+		},
+		async getCollection(slug) {
+			return collectionToSchemaInfo(await registry.getCollectionWithFields(slug));
+		},
 	};
 }
 
@@ -472,8 +527,14 @@ export function createRedirectAccess(
 export function createContentAccessWithWrite(
 	db: Kysely<Database>,
 	beforeContentWrite?: () => Promise<void>,
+	accessOptions?: { site?: SiteInfo; revisions?: boolean },
+	contentCreate?: (data: {
+		collection: string;
+		input: ContentWriteInput;
+		options?: ContentCreateOptions;
+	}) => Promise<ContentItem>,
 ): ContentAccessWithWrite {
-	const readAccess = createContentAccess(db);
+	const readAccess = createContentAccess(db, accessOptions);
 
 	return {
 		...readAccess,
@@ -485,6 +546,13 @@ export function createContentAccessWithWrite(
 		): Promise<ContentItem> {
 			const locale = resolveContentCreateLocale(options?.locale);
 			await beforeContentWrite?.();
+			if (contentCreate) {
+				return contentCreate({
+					collection,
+					input: data,
+					options: { ...options, locale },
+				});
+			}
 			const { fields, seo } = splitSeoFromInput(data);
 			let contentMutated = false;
 
@@ -499,6 +567,7 @@ export function createContentAccessWithWrite(
 						type: collection,
 						data: fields,
 						locale,
+						translationOf: options?.translationOf,
 					});
 					contentMutated = true;
 
@@ -1119,6 +1188,7 @@ export function createUserAccess(db: Kysely<Database>): UserAccess {
 export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
+	contentCreate?: PluginContentCreateCallback;
 	/**
 	 * Resolver for the database connection, preferred over `db` when present.
 	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
@@ -1176,6 +1246,7 @@ export interface PluginContextFactoryOptions {
 export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
 	private beforeContentWrite?: () => Promise<void>;
+	private contentCreate?: PluginContentCreateCallback;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -1197,6 +1268,7 @@ export class PluginContextFactory {
 		const fixedDb = options.db;
 		this.resolveDb = options.getDb ?? (() => fixedDb);
 		this.beforeContentWrite = options.beforeContentWrite;
+		this.contentCreate = options.contentCreate;
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -1230,10 +1302,25 @@ export class PluginContextFactory {
 		// names ("read:content", "write:content") never appear here.
 		let content: ContentAccess | ContentAccessWithWrite | undefined;
 		if (capabilities.has("content:write")) {
-			content = createContentAccessWithWrite(db, this.beforeContentWrite);
+			content = createContentAccessWithWrite(
+				db,
+				this.beforeContentWrite,
+				{
+					site: this.site,
+					revisions: capabilities.has("content:revisions:read"),
+				},
+				this.contentCreate
+					? (input) => this.contentCreate!(plugin.id, input.collection, input.input, input.options)
+					: undefined,
+			);
 		} else if (capabilities.has("content:read")) {
-			content = createContentAccess(db);
+			content = createContentAccess(db, {
+				site: this.site,
+				revisions: capabilities.has("content:revisions:read"),
+			});
 		}
+
+		const schema = capabilities.has("schema:read") ? createSchemaAccess(db) : undefined;
 
 		// Capability-gated: taxonomies (read-only)
 		let taxonomies: TaxonomyAccess | undefined;
@@ -1311,6 +1398,7 @@ export class PluginContextFactory {
 			storage,
 			kv,
 			content,
+			schema,
 			taxonomies,
 			redirects,
 			media,

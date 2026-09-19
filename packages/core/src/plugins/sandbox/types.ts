@@ -10,7 +10,14 @@
 import type { Kysely } from "kysely";
 
 import type { Database } from "../../database/types.js";
-import type { PluginManifest, RequestMeta, UserInfo } from "../types.js";
+import type {
+	ContentCreateOptions,
+	ContentItem,
+	ContentWriteInput,
+	PluginManifest,
+	RequestMeta,
+	UserInfo,
+} from "../types.js";
 
 /**
  * Resource limits for sandboxed plugins.
@@ -60,6 +67,16 @@ export type SandboxEmailSendCallback = (
 	message: SandboxEmailMessage,
 	pluginId: string,
 ) => Promise<void>;
+
+export type SandboxContentCreateCallback = (
+	pluginId: string,
+	collection: string,
+	data: ContentWriteInput,
+	options?: ContentCreateOptions & {
+		originHook?: "content:beforeSave" | "content:afterSave";
+		sandboxOrigin?: true;
+	},
+) => Promise<ContentItem>;
 
 /**
  * Options for creating a sandbox runner
@@ -265,6 +282,7 @@ export interface SandboxRunner {
 	 * doesn't exist when the sandbox runner is constructed.
 	 */
 	setEmailSend(callback: SandboxEmailSendCallback | null): void;
+	setContentCreate?(callback: SandboxContentCreateCallback | null): void;
 
 	/** Wake a long-lived scheduler after a sandboxed plugin changes its tasks. */
 	setCronReschedule?(callback: (() => void) | null): void;
