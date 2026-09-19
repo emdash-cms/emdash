@@ -387,7 +387,7 @@ msgid "{0}/160 characters"
 msgstr "{0}/۱۶۰ حرف"
 
 #. placeholder {0}: allowedHosts.join(", ")
-#: packages/admin/src/lib/api/marketplace.ts:421
+#: packages/admin/src/lib/api/marketplace.ts:422
 msgid "{base} to: {0}"
 msgstr ""
 
@@ -765,8 +765,8 @@ msgstr ""
 msgid "Access Denied"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:390
-#: packages/admin/src/lib/api/marketplace.ts:398
+#: packages/admin/src/lib/api/marketplace.ts:391
+#: packages/admin/src/lib/api/marketplace.ts:399
 msgid "Access your media library"
 msgstr ""
 
@@ -1864,7 +1864,7 @@ msgstr ""
 msgid "Change schedule"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:389
+#: packages/admin/src/lib/api/marketplace.ts:390
 msgid "Change where visitors are sent"
 msgstr ""
 
@@ -2664,6 +2664,10 @@ msgstr "بخش‌ها را در کتابخانه بخش‌ها بسازید تا
 msgid "Create Taxonomy"
 msgstr "ساخت دسته‌بندی"
 
+#: packages/admin/src/lib/api/marketplace.ts:388
+msgid "Create taxonomy terms and change content classifications"
+msgstr ""
+
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
 msgid "Create Token"
@@ -2694,7 +2698,7 @@ msgid "Create your first reusable content section to get started."
 msgstr "اولین بخش محتوای قابل استفاده مجدد خود را بسازید تا شروع شود."
 
 #: packages/admin/src/lib/api/marketplace.ts:385
-#: packages/admin/src/lib/api/marketplace.ts:397
+#: packages/admin/src/lib/api/marketplace.ts:398
 msgid "Create, update, and delete content"
 msgstr ""
 
@@ -5960,13 +5964,13 @@ msgstr ""
 msgid "Main Sidebar"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:393
-#: packages/admin/src/lib/api/marketplace.ts:401
+#: packages/admin/src/lib/api/marketplace.ts:394
+#: packages/admin/src/lib/api/marketplace.ts:402
 msgid "Make network requests"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:394
-#: packages/admin/src/lib/api/marketplace.ts:402
+#: packages/admin/src/lib/api/marketplace.ts:395
+#: packages/admin/src/lib/api/marketplace.ts:403
 msgid "Make network requests to any host (unrestricted)"
 msgstr ""
 
@@ -7719,7 +7723,7 @@ msgstr "خواندن ورودی‌های محتوا"
 msgid "Read media files"
 msgstr "خواندن فایل‌های رسانه"
 
-#: packages/admin/src/lib/api/marketplace.ts:388
+#: packages/admin/src/lib/api/marketplace.ts:389
 msgid "Read redirect rules"
 msgstr ""
 
@@ -7731,13 +7735,13 @@ msgstr ""
 msgid "Read site settings"
 msgstr ""
 
-#: packages/admin/src/lib/api/marketplace.ts:392
-#: packages/admin/src/lib/api/marketplace.ts:400
+#: packages/admin/src/lib/api/marketplace.ts:393
+#: packages/admin/src/lib/api/marketplace.ts:401
 msgid "Read user accounts"
 msgstr ""
 
 #: packages/admin/src/lib/api/marketplace.ts:383
-#: packages/admin/src/lib/api/marketplace.ts:396
+#: packages/admin/src/lib/api/marketplace.ts:397
 msgid "Read your content"
 msgstr ""
 
@@ -10389,8 +10393,8 @@ msgstr "یک تصویر بارگذاری کنید تا شروع شود"
 msgid "Upload and delete media"
 msgstr "بارگذاری و حذف رسانه"
 
-#: packages/admin/src/lib/api/marketplace.ts:391
-#: packages/admin/src/lib/api/marketplace.ts:399
+#: packages/admin/src/lib/api/marketplace.ts:392
+#: packages/admin/src/lib/api/marketplace.ts:400
 msgid "Upload and manage media"
 msgstr ""
 
