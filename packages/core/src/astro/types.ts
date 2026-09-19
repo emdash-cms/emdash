@@ -254,6 +254,15 @@ export interface HandlerResponse<T = unknown> {
  * handleContentGet, handleRevisionGet) use narrower types.
  */
 export interface EmDashHandlers {
+	// Comment administration
+	handleCommentModerate?: (
+		id: string,
+		status: "pending" | "approved" | "spam" | "trash",
+		moderator: { id: string; name: string | null },
+		expectedStatus?: "pending" | "approved" | "spam" | "trash",
+		request?: Request,
+	) => Promise<unknown>;
+
 	// Content handlers
 	handleContentList: (
 		collection: string,

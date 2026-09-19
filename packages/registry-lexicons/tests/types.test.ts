@@ -288,6 +288,24 @@ describe("PackageRelease", () => {
 });
 
 describe("PackageReleaseExtension", () => {
+	it("accepts explicit comment personal-data and moderation authority", () => {
+		expect(
+			is(PackageReleaseExtension.mainSchema, {
+				$type: NSID.packageReleaseExtension,
+				declaredAccess: { comments: { read: {}, moderate: {} } },
+			}),
+		).toBe(true);
+	});
+
+	it("validates redirect read and write authority", () => {
+		const extension: PackageReleaseExtension.Main = {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: { redirects: { read: {}, write: {} } },
+		};
+
+		expect(safeParse(PackageReleaseExtension.mainSchema, extension)).toMatchObject({ ok: true });
+	});
+
 	it("intentionally leaves unknown provenance predicates for consumer verification", () => {
 		const extension: PackageReleaseExtension.Main = {
 			$type: NSID.packageReleaseExtension,

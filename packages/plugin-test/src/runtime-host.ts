@@ -1,12 +1,14 @@
 import { createDialect } from "@emdash-cms/cloudflare/db/d1";
 import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
-import { pluginManifestSchema } from "@emdash-cms/plugin-types";
+import { pluginManifestSchema, reconcileManifestAccess } from "@emdash-cms/plugin-types";
 import { reset } from "cloudflare:test";
 import { env } from "cloudflare:workers";
 import {
+	CommentRepository,
 	ContentRepository,
 	MediaRepository,
 	OptionsRepository,
+	RevisionRepository,
 	SchemaRegistry,
 	UserRepository,
 	definePlugin,
@@ -15,15 +17,21 @@ import {
 	type Database,
 	type I18nConfig,
 	type PluginManifest,
+	type RedirectInfo,
+	type RedirectStatus,
 	type SandboxOptions,
 	type Storage,
+	createContentAccess,
 } from "emdash";
 import { runMigrations } from "emdash/db";
 import {
+	BylineRepository,
 	dispatchPluginApiRequest,
 	EmDashRuntime,
 	getI18nConfig,
+	RedirectRepository,
 	setI18nConfig,
+	TaxonomyRepository,
 	type UserInfo,
 } from "emdash/plugin-test-runtime";
 import { Kysely } from "kysely";
@@ -86,9 +94,46 @@ export interface PluginRuntimeTestHost {
 			email: string;
 			name?: string;
 			role?: "subscriber" | "contributor" | "author" | "editor" | "admin";
+			emailVerified?: boolean;
 		}): Promise<UserInfo>;
 		content(collection: string, input: Omit<CreateContentInput, "type">): Promise<ContentItem>;
 		media(input: PluginRuntimeMediaFixture): Promise<{ id: string }>;
+		comment(input: {
+			collection: string;
+			contentId: string;
+			authorName: string;
+			authorEmail: string;
+			body: string;
+			status?: "approved" | "pending" | "spam" | "trash";
+			parentId?: string | null;
+			ipHash?: string | null;
+			userAgent?: string | null;
+			moderationMetadata?: Record<string, unknown> | null;
+		}): Promise<{ id: string }>;
+		taxonomyDefinition(input: {
+			name: string;
+			label: string;
+			labelSingular?: string;
+			hierarchical?: boolean;
+			collections: string[];
+			locale?: string;
+		}): Promise<{ id: string; name: string }>;
+		redirect(input: {
+			source: string;
+			destination?: string;
+			type?: RedirectStatus;
+			enabled?: boolean;
+			groupName?: string | null;
+			auto?: boolean;
+		}): Promise<RedirectInfo>;
+		byline: BylineRepository["create"];
+		taxonomy: TaxonomyRepository["create"];
+		revision(
+			collection: string,
+			entryId: string,
+			data: Record<string, unknown>,
+			options?: { authorId?: string },
+		): Promise<{ id: string }>;
 		plugin: {
 			setting(key: string, value: unknown): Promise<void>;
 			kv(key: string, value: unknown): Promise<void>;
@@ -130,6 +175,11 @@ export interface PluginRuntimeTestHost {
 				status: "pending" | "approved" | "spam" | "trash",
 				moderator: UserInfo,
 			): ReturnType<EmDashRuntime["handleCommentModerate"]>;
+			moderateAsPlugin(
+				id: string,
+				status: "pending" | "approved" | "spam",
+				expectedStatus: "pending" | "approved" | "spam",
+			): ReturnType<EmDashRuntime["handlePluginCommentModerate"]>;
 		};
 		routes: { request(name: string, request?: PluginRuntimeRouteRequest): Promise<Response> };
 	};
@@ -137,7 +187,11 @@ export interface PluginRuntimeTestHost {
 		content: {
 			get(collection: string, id: string): Promise<ContentItem | null>;
 			list(collection: string): Promise<ContentItem[]>;
+			publicUrl(collection: string, id: string): Promise<string | null>;
+			bylines: BylineRepository["getContentBylines"];
+			terms: TaxonomyRepository["getTermsForEntry"];
 		};
+		schema(): ReturnType<SchemaRegistry["listCollectionsWithFields"]>;
 		storage: {
 			get<T = unknown>(collection: string, id: string): Promise<T | null>;
 			list<T = unknown>(collection: string): Promise<Array<PluginStorageTestEntry<T>>>;
@@ -152,6 +206,7 @@ export interface PluginRuntimeTestHost {
 		media(id: string): ReturnType<EmDashRuntime["handleMediaGet"]>;
 		mediaBytes(id: string): Promise<Uint8Array | null>;
 		comments(): Promise<Array<Record<string, unknown>>>;
+		redirects(): Promise<RedirectInfo[]>;
 		email(): Promise<Array<Record<string, unknown>>>;
 	};
 	scheduled: {
@@ -244,6 +299,20 @@ function bindings(): RuntimeBindings {
 	return value;
 }
 
+function redirectStatus(value: number): RedirectStatus {
+	switch (value) {
+		case 301:
+		case 302:
+		case 307:
+		case 308:
+		case 410:
+		case 451:
+			return value;
+		default:
+			throw new Error(`Invalid stored redirect status: ${value}`);
+	}
+}
+
 export async function createPluginRuntimeTestHost(
 	options: PluginRuntimeTestHostOptions = {},
 ): Promise<PluginRuntimeTestHost> {
@@ -251,7 +320,7 @@ export async function createPluginRuntimeTestHost(
 	const parsed = pluginManifestSchema.safeParse(JSON.parse(bound.EMDASH_PLUGIN_MANIFEST));
 	if (!parsed.success) throw new Error("EmDash plugin test manifest is invalid");
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the shared wire schema validates the manifest before it crosses into core's equivalent runtime type
-	const manifest = parsed.data as unknown as PluginManifest;
+	const manifest = reconcileManifestAccess(parsed.data) as unknown as PluginManifest;
 	const db = new Kysely<Database>({
 		dialect: createDialect({ binding: "DB", session: "disabled" }),
 	});
@@ -418,7 +487,15 @@ export async function createPluginRuntimeTestHost(
 			},
 			async user(input) {
 				assertActive();
-				const user = await new UserRepository(runtime.db).create(input);
+				const { emailVerified, ...userInput } = input;
+				const user = await new UserRepository(runtime.db).create(userInput);
+				if (emailVerified) {
+					await runtime.db
+						.updateTable("users")
+						.set({ email_verified: 1 })
+						.where("id", "=", user.id)
+						.execute();
+				}
 				return {
 					id: user.id,
 					email: user.email,
@@ -458,6 +535,67 @@ export async function createPluginRuntimeTestHost(
 					folderId: input.folderId,
 				});
 				return { id: item.id };
+			},
+			async comment(input) {
+				assertActive();
+				const comment = await new CommentRepository(runtime.db).create(input);
+				return { id: comment.id };
+			},
+			async taxonomyDefinition(input) {
+				assertActive();
+				const locale = input.locale ?? "en";
+				const existing = await runtime.db
+					.selectFrom("_emdash_taxonomy_defs")
+					.select("id")
+					.where("name", "=", input.name)
+					.where("locale", "=", locale)
+					.executeTakeFirst();
+				const id = existing?.id ?? crypto.randomUUID();
+				await runtime.db
+					.insertInto("_emdash_taxonomy_defs")
+					.values({
+						id,
+						name: input.name,
+						label: input.label,
+						label_singular: input.labelSingular ?? null,
+						hierarchical: input.hierarchical ? 1 : 0,
+						collections: JSON.stringify(input.collections),
+						locale,
+						translation_group: id,
+					})
+					.onConflict((conflict) =>
+						conflict.columns(["name", "locale"]).doUpdateSet({
+							label: input.label,
+							label_singular: input.labelSingular ?? null,
+							hierarchical: input.hierarchical ? 1 : 0,
+							collections: JSON.stringify(input.collections),
+						}),
+					)
+					.execute();
+				return { id, name: input.name };
+			},
+			async redirect(input) {
+				assertActive();
+				const redirect = await new RedirectRepository(runtime.db).create({
+					source: input.source,
+					destination: input.destination ?? "",
+					type: input.type,
+					enabled: input.enabled,
+					groupName: input.groupName,
+					auto: input.auto,
+				});
+				return { ...redirect, type: redirectStatus(redirect.type) };
+			},
+			byline: (input) => new BylineRepository(runtime.db).create(input),
+			taxonomy: (input) => new TaxonomyRepository(runtime.db).create(input),
+			async revision(collection, entryId, data, revisionOptions) {
+				assertActive();
+				return new RevisionRepository(runtime.db).create({
+					collection,
+					entryId,
+					data,
+					...(revisionOptions?.authorId ? { authorId: revisionOptions.authorId } : {}),
+				});
 			},
 			plugin: {
 				setting: (key, value) => optionRepo.set(`plugin:${manifest.id}:settings:${key}`, value),
@@ -517,6 +655,8 @@ export async function createPluginRuntimeTestHost(
 						id: moderator.id,
 						name: moderator.name,
 					}),
+				moderateAsPlugin: (id, status, expectedStatus) =>
+					runtime.handlePluginCommentModerate(manifest.id, id, status, expectedStatus),
 			},
 			routes: {
 				request(name, request = {}) {
@@ -556,7 +696,21 @@ export async function createPluginRuntimeTestHost(
 					} while (cursor);
 					return items;
 				},
+				publicUrl: (collection, id) =>
+					createContentAccess(runtime.db, {
+						site: {
+							name: siteInfo.name ?? "EmDash plugin test site",
+							url: siteInfo.url ?? "https://plugin.test",
+							locale: siteInfo.locale ?? "en",
+							trailingSlash: siteInfo.trailingSlash,
+						},
+					}).getPublicUrl!(collection, id),
+				bylines: (collection, id, bylineOptions) =>
+					new BylineRepository(runtime.db).getContentBylines(collection, id, bylineOptions),
+				terms: (collection, id, taxonomy, locale) =>
+					new TaxonomyRepository(runtime.db).getTermsForEntry(collection, id, taxonomy, locale),
 			},
+			schema: () => new SchemaRegistry(runtime.db).listCollectionsWithFields(),
 			storage: {
 				async get<T>(collection: string, id: string) {
 					return (await readStorage<T>(collection, id))[0]?.data ?? null;
@@ -604,6 +758,30 @@ export async function createPluginRuntimeTestHost(
 					"SELECT id, collection, content_id AS contentId, body, status FROM _emdash_comments ORDER BY created_at ASC",
 				).all();
 				return rows.results ?? [];
+			},
+			async redirects() {
+				const rows = await runtime.db
+					.selectFrom("_emdash_redirects")
+					.selectAll()
+					.orderBy("created_at", "asc")
+					.orderBy("id", "asc")
+					.execute();
+				return rows.map(
+					(row): RedirectInfo => ({
+						id: row.id,
+						source: row.source,
+						destination: row.destination,
+						type: redirectStatus(row.type),
+						isPattern: row.is_pattern === 1,
+						enabled: row.enabled === 1,
+						hits: row.hits,
+						lastHitAt: row.last_hit_at,
+						groupName: row.group_name,
+						auto: row.auto === 1,
+						createdAt: row.created_at,
+						updatedAt: row.updated_at,
+					}),
+				);
 			},
 			email: async () => capturedEmail.map((message) => ({ ...message })),
 		},

@@ -565,7 +565,7 @@ hooks: {
 
 ## Comment hooks
 
-Comment hooks run in order: `comment:beforeCreate`, then `comment:moderate`, then `comment:afterCreate`. The `comment:afterModerate` hook fires separately when an admin changes a comment's status.
+Comment hooks run in order: `comment:beforeCreate`, then `comment:moderate`, then `comment:afterCreate`. The `comment:afterModerate` hook runs separately when an administrator or an authorized plugin changes a comment's status.
 
 After a comment is stored, hooks receive this record shape:
 
@@ -709,7 +709,7 @@ The hook has no return value.
 
 **Capability:** `users:read`
 
-Fire-and-forget hook when an admin manually changes a comment's status.
+Runs after an administrator or a plugin changes a comment's status. A successful transition runs the hook once. Hook errors are logged and do not undo the status change.
 
 #### Event
 
@@ -719,6 +719,9 @@ interface CommentAfterModerateEvent {
 	previousStatus: string;
 	newStatus: string;
 	moderator: { id: string; name: string | null };
+	origin?:
+		| { source: "admin"; userId: string }
+		| { source: "plugin"; pluginId: string };
 }
 ```
 

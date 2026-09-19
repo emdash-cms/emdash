@@ -21,6 +21,7 @@ import {
 } from "./api/handlers/media-upload.js";
 import { assertMediaUsageActivationWriteAllowed } from "./api/media-usage-write-fence.js";
 import { validateRev } from "./api/rev.js";
+import { getSiteBaseUrl } from "./api/site-url.js";
 import type {
 	EmDashConfig,
 	PluginAdminPage,
@@ -29,6 +30,7 @@ import type {
 import type { EmDashManifest } from "./astro/types.js";
 import { getAuthMode } from "./auth/mode.js";
 import { getTrustedProxyHeaders } from "./auth/trusted-proxy.js";
+import { lookupContentAuthor, sendCommentNotification } from "./comments/notifications.js";
 import type { ContentFieldFilters } from "./content-list-query.js";
 import { isSqlite } from "./database/dialect-helpers.js";
 import { kyselyLogOption } from "./database/instrumentation.js";
@@ -42,6 +44,8 @@ import {
 	MIGRATION_RACE_WAIT_MS,
 } from "./database/migrations/runner.js";
 import { AuditRepository } from "./database/repositories/audit.js";
+import { CommentRepository } from "./database/repositories/comment.js";
+import type { CommentStatus } from "./database/repositories/comment.js";
 import { ContentRepository } from "./database/repositories/content.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import { ContentMutationConflictError } from "./database/repositories/types.js";
@@ -50,7 +54,7 @@ import type {
 	ContentDateField,
 } from "./database/repositories/types.js";
 import type { ImageValue } from "./fields/types.js";
-import { getI18nConfig } from "./i18n/config.js";
+import { getI18nConfig, resolveContentCreateLocale } from "./i18n/config.js";
 import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { normalizeMediaValue } from "./media/normalize.js";
@@ -63,6 +67,7 @@ import {
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
+import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
 import {
 	createSandboxedPluginProxy,
 	getSandboxSaveRejectionDetails,
@@ -92,6 +97,10 @@ import type {
 	UserInfo,
 	CollectionCommentSettings,
 	ModerationDecision,
+	PluginComment,
+	PluginCommentStatus,
+	ContentWriteInput,
+	PluginContentCreateCallback,
 } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
@@ -103,6 +112,19 @@ import { COMMIT, VERSION } from "./version.js";
 
 const LEADING_SLASH_PATTERN = /^\//;
 const LOCALE_CASING_REPAIR_OPTION = "emdash:repair_locale_casing";
+
+const PLUGIN_COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
+
+function assertPluginCommentStatus(
+	value: string,
+	name: "status" | "expectedStatus",
+): asserts value is PluginCommentStatus {
+	if (!PLUGIN_COMMENT_STATUSES.has(value)) {
+		throw Object.assign(new Error(`${name} must be one of: approved, pending, spam`), {
+			code: "COMMENT_STATUS_INVALID",
+		});
+	}
+}
 
 function getLocaleCasingRepairVersion(locales: readonly string[]): string | null {
 	if (locales.length === 0) return null;
@@ -147,6 +169,7 @@ import {
 } from "./comments/moderator.js";
 import { submitPublicComment } from "./comments/public-submission.js";
 import {
+	CommentStatusConflictError,
 	createComment,
 	moderateComment,
 	type CommentCreateInput,
@@ -154,7 +177,6 @@ import {
 	type CommentHookRunner,
 } from "./comments/service.js";
 import { validateEncryptionKeyAtStartup } from "./config/secrets.js";
-import type { Comment, CommentStatus } from "./database/repositories/comment.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import {
 	handleContentList,
@@ -198,6 +220,7 @@ import { DEV_CONSOLE_EMAIL_PLUGIN_ID, devConsoleEmailDeliver } from "./plugins/e
 import { EmailPipeline } from "./plugins/email.js";
 import {
 	createHookPipeline,
+	getActiveContentSaveHookName,
 	resolveExclusiveHooks as resolveExclusiveHooksShared,
 	type HookPipeline,
 } from "./plugins/hooks.js";
@@ -390,8 +413,15 @@ export interface EmDashRuntimeParts {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
+		contentCreate?: PluginContentCreateCallback;
 		now?: () => Date;
 		storage?: Storage;
+		commentModerate?: (
+			pluginId: string,
+			id: string,
+			status: PluginCommentStatus,
+			expectedStatus: PluginCommentStatus,
+		) => Promise<PluginComment>;
 		siteInfo?: {
 			siteName?: string;
 			siteUrl?: string;
@@ -618,8 +648,15 @@ export class EmDashRuntime {
 		db: Kysely<Database>;
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
+		contentCreate?: PluginContentCreateCallback;
 		now?: () => Date;
 		storage?: Storage;
+		commentModerate?: (
+			pluginId: string,
+			id: string,
+			status: PluginCommentStatus,
+			expectedStatus: PluginCommentStatus,
+		) => Promise<PluginComment>;
 		siteInfo?: {
 			siteName?: string;
 			siteUrl?: string;
@@ -631,6 +668,7 @@ export class EmDashRuntime {
 	private runtimeDeps: RuntimeDependencies;
 	/** Mutable ref for the cron invokeCronHook closure to read the current pipeline */
 	private pipelineRef!: { current: HookPipeline };
+	private readonly commentModerationInProgress = new Set<string>();
 
 	/**
 	 * Get the database instance for the current request.
@@ -805,6 +843,7 @@ export class EmDashRuntime {
 	/** Stop background work and discard loaded sandbox isolates. */
 	async shutdown(): Promise<void> {
 		await this.stopCron();
+		sandboxRunner?.setCommentModerate?.(null);
 		await sandboxRunner?.terminateAll();
 		sandboxRunner = null;
 		sandboxedPluginCache.clear();
@@ -1698,6 +1737,7 @@ export class EmDashRuntime {
 		// toggling a plugin on an email-less deployment would silently revert
 		// plugin contexts to the singleton db — re-breaking connection-backed
 		// adapters. See #1622.
+		const runtimeRef: { current: EmDashRuntime | null } = { current: null };
 		const pipelineFactoryOptions = {
 			db,
 			getDb: resolveDb,
@@ -1705,6 +1745,16 @@ export class EmDashRuntime {
 			now: deps.now,
 			storage: storage ?? undefined,
 			siteInfo,
+			commentModerate: (
+				pluginId: string,
+				id: string,
+				status: PluginCommentStatus,
+				expectedStatus: PluginCommentStatus,
+			) => {
+				const current = runtimeRef.current;
+				if (!current) throw new Error("Comment moderation is unavailable during runtime startup");
+				return current.handlePluginCommentModerate(pluginId, id, status, expectedStatus);
+			},
 		};
 		const enabledPluginList = allPipelinePlugins.filter((p) => enabledPlugins.has(p.id));
 		const pipeline = createHookPipeline(enabledPluginList, pipelineFactoryOptions);
@@ -1764,8 +1814,6 @@ export class EmDashRuntime {
 		// so the timer scheduler's cleanup can route scheduled publishing through
 		// the runtime wrapper (firing content:afterPublish hooks). The first tick
 		// is ≥1s out, well after the synchronous assignment below.
-		const runtimeRef: { current: EmDashRuntime | null } = { current: null };
-
 		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
 			try {
 				cronExecutor = new CronExecutor(resolveDb, invokeCronHook, deps.now);
@@ -1872,9 +1920,45 @@ export class EmDashRuntime {
 			runtimeDeps: deps,
 			pipelineRef,
 		});
+		const contentCreate: PluginContentCreateCallback = async (
+			_pluginId,
+			collection,
+			input,
+			options,
+		) => {
+			const { seo, ...data } = input;
+			const result = await runtime.handleContentCreate(
+				collection,
+				{
+					data,
+					seo,
+					locale: resolveContentCreateLocale(options?.locale),
+					translationOf: options?.translationOf,
+				},
+				{
+					skipSaveHooks: options?.sandboxOrigin
+						? options.originHook !== undefined
+						: getActiveContentSaveHookName() != null,
+					excludeAfterSavePluginId: _pluginId,
+				},
+			);
+			if (!result.success) {
+				throw Object.assign(new Error(result.error.message), {
+					name: result.error.code,
+					code: result.error.code,
+				});
+			}
+			return result.data.item;
+		};
+		runtime.pipelineFactoryOptions.contentCreate = contentCreate;
+		pipeline.setContextFactory({ contentCreate });
+		sandboxRunner?.setContentCreate?.(contentCreate);
 		// Hand the constructed instance to the scheduler-cleanup closure so the
 		// timer-driven sweep can fire publish hooks (see runtimeRef above).
 		runtimeRef.current = runtime;
+		sandboxRunner?.setCommentModerate?.((pluginId, id, status, expectedStatus) =>
+			runtime.handlePluginCommentModerate(pluginId, id, status, expectedStatus),
+		);
 		return runtime;
 	}
 
@@ -2140,6 +2224,7 @@ export class EmDashRuntime {
 					{
 						db,
 						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
 						mediaStorage: mediaStorage
 							? {
@@ -2294,6 +2379,7 @@ export class EmDashRuntime {
 					{
 						db,
 						beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(db),
+						taxonomyWrite: createTaxonomyAccessWithWrite(db),
 						now: deps.now,
 						mediaStorage: {
 							upload: (opts) =>
@@ -2937,6 +3023,7 @@ export class EmDashRuntime {
 		collection: string,
 		body: {
 			data: Record<string, unknown>;
+			seo?: ContentWriteInput["seo"];
 			slug?: string | null;
 			status?: string;
 			authorId?: string;
@@ -2946,12 +3033,61 @@ export class EmDashRuntime {
 			taxonomies?: Record<string, string[]>;
 			actor?: ActorInfo;
 		},
+		options: { skipSaveHooks?: boolean; excludeAfterSavePluginId?: string } = {},
 	) {
 		const actor = body.actor ? { ...body.actor } : undefined;
+		let locale: string;
+		try {
+			locale = resolveContentCreateLocale(body.locale);
+		} catch (error) {
+			return {
+				success: false as const,
+				error: {
+					code: "VALIDATION_ERROR",
+					message: error instanceof Error ? error.message : "Invalid locale",
+				},
+			};
+		}
+
+		let translationSource: ContentItemInternal | null = null;
+		let sharedFieldSlugs: string[] = [];
+		if (body.translationOf) {
+			const repo = new ContentRepository(this.db);
+			const source = await repo.findById(collection, body.translationOf);
+			if (!source) {
+				return {
+					success: false as const,
+					error: { code: "NOT_FOUND", message: "Translation source content not found" },
+				};
+			}
+			translationSource = source;
+			sharedFieldSlugs = (
+				await this.db
+					.selectFrom("_emdash_fields as field")
+					.innerJoin("_emdash_collections as collection", "collection.id", "field.collection_id")
+					.select("field.slug")
+					.where("collection.slug", "=", collection)
+					.where("field.translatable", "=", 0)
+					.execute()
+			).map((field) => field.slug);
+			const siblings = await repo.findTranslations(
+				collection,
+				source.translationGroup ?? source.id,
+			);
+			if (siblings.some((sibling) => sibling.locale?.toLowerCase() === locale.toLowerCase())) {
+				return {
+					success: false as const,
+					error: {
+						code: "CONFLICT",
+						message: `Translation already exists in locale "${locale}" for this content item`,
+					},
+				};
+			}
+		}
 
 		// Run beforeSave hooks (trusted plugins)
 		let processedData = body.data;
-		if (this.hooks.hasHooks("content:beforeSave")) {
+		if (!options.skipSaveHooks && this.hooks.hasHooks("content:beforeSave")) {
 			try {
 				const hookResult = await this.hooks.runContentBeforeSave(
 					body.data,
@@ -2963,6 +3099,17 @@ export class EmDashRuntime {
 				processedData = hookResult.content;
 			} catch (error) {
 				return beforeSaveFailure(error);
+			}
+		}
+
+		if (translationSource) {
+			processedData = { ...processedData };
+			for (const slug of sharedFieldSlugs) {
+				if (Object.hasOwn(translationSource.data, slug)) {
+					processedData[slug] = translationSource.data[slug];
+				} else {
+					delete processedData[slug];
+				}
 			}
 		}
 
@@ -2987,6 +3134,7 @@ export class EmDashRuntime {
 		const result = await handleContentCreate(this.db, collection, {
 			...body,
 			data: processedData,
+			locale,
 			authorId: body.authorId,
 			bylines: body.bylines,
 		});
@@ -2995,8 +3143,14 @@ export class EmDashRuntime {
 		}
 
 		// Run afterSave hooks (fire-and-forget)
-		if (result.success && result.data) {
-			this.runAfterSaveHooks(contentItemToRecord(result.data.item), collection, true, actor);
+		if (!options.skipSaveHooks && result.success && result.data) {
+			this.runAfterSaveHooks(
+				contentItemToRecord(result.data.item),
+				collection,
+				true,
+				actor,
+				options.excludeAfterSavePluginId,
+			);
 		}
 
 		return result;
@@ -3614,7 +3768,7 @@ export class EmDashRuntime {
 					);
 			},
 			fireAfterModerate: (event) => {
-				void this.hooks
+				return this.hooks
 					.runCommentAfterModerate(event)
 					.catch((error) =>
 						console.error(
@@ -3643,12 +3797,106 @@ export class EmDashRuntime {
 		return submitPublicComment(this, collection, contentId, request, user);
 	}
 
+	private async sendCommentApproval(
+		comment: Awaited<ReturnType<CommentRepository["findById"]>>,
+		request?: Request,
+	) {
+		if (!comment || !this.email) return;
+		try {
+			const adminBaseUrl = await getSiteBaseUrl(
+				this.db,
+				request ?? new Request("https://plugin.invalid/"),
+				this.config,
+			);
+			const content = await lookupContentAuthor(this.db, comment.collection, comment.contentId);
+			if (content?.author) {
+				await sendCommentNotification({
+					email: this.email,
+					comment,
+					contentAuthor: content.author,
+					adminBaseUrl,
+				});
+			}
+		} catch (error) {
+			console.error(
+				"[comments] notification error:",
+				error instanceof Error ? error.message : error,
+			);
+		}
+	}
+
+	private async moderateCommentWithOrigin(
+		id: string,
+		status: CommentStatus,
+		expectedStatus: CommentStatus,
+		origin:
+			| { source: "admin"; userId: string; name: string | null }
+			| { source: "plugin"; pluginId: string },
+		request?: Request,
+	) {
+		if (this.commentModerationInProgress.has(id)) {
+			const current = await new CommentRepository(this.db).findById(id);
+			if (current && current.status !== expectedStatus) {
+				throw new CommentStatusConflictError(current.status);
+			}
+			throw Object.assign(new Error("Comment moderation is already in progress"), {
+				code: "COMMENT_MODERATION_IN_PROGRESS",
+			});
+		}
+		this.commentModerationInProgress.add(id);
+		try {
+			return await moderateComment(
+				this.db,
+				id,
+				status,
+				expectedStatus,
+				origin,
+				this.commentHooks(),
+				(comment) => this.sendCommentApproval(comment, request),
+			);
+		} finally {
+			this.commentModerationInProgress.delete(id);
+		}
+	}
+
 	async handleCommentModerate(
 		id: string,
 		status: CommentStatus,
 		moderator: { id: string; name: string | null },
-	): Promise<Comment | null> {
-		return moderateComment(this.db, id, status, moderator, this.commentHooks());
+		expectedStatus?: CommentStatus,
+		request?: Request,
+	) {
+		let expected = expectedStatus;
+		if (!expected) {
+			const current = await new CommentRepository(this.db).findById(id);
+			if (!current || current.status === "trash") return null;
+			expected = current.status;
+		}
+		return this.moderateCommentWithOrigin(
+			id,
+			status,
+			expected,
+			{ source: "admin", userId: moderator.id, name: moderator.name },
+			request,
+		);
+	}
+
+	async handlePluginCommentModerate(
+		pluginId: string,
+		id: string,
+		status: PluginCommentStatus,
+		expectedStatus: PluginCommentStatus,
+	): Promise<PluginComment> {
+		assertPluginCommentStatus(status, "status");
+		assertPluginCommentStatus(expectedStatus, "expectedStatus");
+		const updated = await this.moderateCommentWithOrigin(id, status, expectedStatus, {
+			source: "plugin",
+			pluginId,
+		});
+		if (!updated) throw new Error(`Comment not found: ${id}`);
+		const result = await createCommentAccess(this.db).get(id);
+		if (!result) throw new Error(`Comment not found: ${id}`);
+		return result;
 	}
 
 	// =========================================================================
@@ -4247,12 +4495,13 @@ export class EmDashRuntime {
 		collection: string,
 		isNew: boolean,
 		actor?: ActorInfo,
+		excludePluginId?: string,
 	): void {
 		after(async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks("content:afterSave")) {
 				try {
-					await this.hooks.runContentAfterSave(content, collection, isNew, actor);
+					await this.hooks.runContentAfterSave(content, collection, isNew, actor, excludePluginId);
 				} catch (err) {
 					console.error("EmDash afterSave hook error:", err);
 				}

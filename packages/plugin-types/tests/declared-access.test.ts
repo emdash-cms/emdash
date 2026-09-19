@@ -48,6 +48,18 @@ describe("declared access escalation decision table", () => {
 			escalation: false,
 		},
 		{
+			name: "redirect read to write requires renewed consent",
+			previous: { redirects: { read: {} } },
+			next: { redirects: { write: {} } },
+			escalation: true,
+		},
+		{
+			name: "redirect write downgrade does not require renewed consent",
+			previous: { redirects: { write: {} } },
+			next: { redirects: { read: {} } },
+			escalation: false,
+		},
+		{
 			name: "restricted to unrestricted",
 			previous: access(["api.example.com"]),
 			next: access(),
@@ -124,15 +136,84 @@ describe("declared access escalation decision table", () => {
 
 describe("canonicalizeDeclaredAccess", () => {
 	it("materializes write implications without mutating input and is idempotent", () => {
-		const input: DeclaredAccess = { media: { write: {} }, content: { write: {} } };
+		const input: DeclaredAccess = {
+			media: { write: {} },
+			content: { write: {} },
+			comments: { moderate: {} },
+			redirects: { write: {} },
+			taxonomies: { write: {} },
+		};
 		const canonical = canonicalizeDeclaredAccess(input);
-		expect(canonical).toEqual({ content: { read: {}, write: {} }, media: { read: {}, write: {} } });
-		expect(input).toEqual({ media: { write: {} }, content: { write: {} } });
+		expect(canonical).toEqual({
+			comments: { moderate: {}, read: {} },
+			content: { read: {}, write: {} },
+			media: { read: {}, write: {} },
+			redirects: { read: {}, write: {} },
+			taxonomies: { read: {}, write: {} },
+		});
+		expect(input).toEqual({
+			media: { write: {} },
+			content: { write: {} },
+			comments: { moderate: {} },
+			redirects: { write: {} },
+			taxonomies: { write: {} },
+		});
 		expect(canonicalizeDeclaredAccess(canonical)).toEqual(canonical);
 		expect(Object.isFrozen(canonical)).toBe(true);
 		expect(
 			declaredAccessEqual({ content: { write: {} } }, { content: { read: {}, write: {} } }),
 		).toBe(true);
+		expect(
+			declaredAccessEqual({ comments: { moderate: {} } }, { comments: { read: {}, moderate: {} } }),
+		).toBe(true);
+		expect(
+			declaredAccessEqual({ taxonomies: { write: {} } }, { taxonomies: { read: {}, write: {} } }),
+		).toBe(true);
+		expect(
+			diffDeclaredAccess({ comments: { moderate: {} } }, { comments: { read: {}, moderate: {} } }),
+		).toEqual({ changes: [], escalation: false });
+	});
+
+	it("materializes revision-read content access and preserves schema access", () => {
+		expect(
+			canonicalizeDeclaredAccess({
+				content: { revisionsRead: {} },
+				schema: { read: {} },
+			}),
+		).toEqual({
+			content: { read: {}, revisionsRead: {} },
+			schema: { read: {} },
+		});
+		expect(
+			declaredAccessEqual(
+				{ content: { revisionsRead: {} } },
+				{ content: { read: {}, revisionsRead: {} } },
+			),
+		).toBe(true);
+	});
+
+	it("preserves independent media byte and metadata-write access", () => {
+		const canonical = canonicalizeDeclaredAccess({
+			media: { bytesRead: {}, metadataWrite: {} },
+		});
+
+		expect(canonical.media?.bytesRead).toEqual({});
+		expect(canonical.media?.metadataWrite).toEqual({});
+		expect(
+			diffDeclaredAccess(
+				{ media: { bytesRead: {} } },
+				{ media: { bytesRead: {}, metadataWrite: {} } },
+			),
+		).toMatchObject({
+			escalation: true,
+			changes: [
+				{
+					category: "media",
+					operation: "metadataWrite",
+					kind: "operation-added",
+				},
+			],
+		});
 	});
 
 	it("sorts keys recursively and host sets while preserving other array order", () => {
@@ -306,5 +387,14 @@ describe("declaredAccessDigestInput", () => {
 		expect(implied).toContain('"domain":"@emdash-cms/plugin-types/declared-access"');
 		expect(implied).toContain('"version":1');
 		expect(implied).not.toBe(declaredAccessDigestInput({ content: { read: {} } }));
+		expect(declaredAccessDigestInput({ comments: { moderate: {} } })).toBe(
+			declaredAccessDigestInput({ comments: { read: {}, moderate: {} } }),
+		);
+	});
+
+	it("treats redirect write and explicit read plus write as the same authority", () => {
+		expect(declaredAccessDigestInput({ redirects: { write: {} } })).toBe(
+			declaredAccessDigestInput({ redirects: { read: {}, write: {} } }),
+		);
 	});
 });

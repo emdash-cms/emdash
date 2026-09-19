@@ -149,6 +149,22 @@ EmDashApiError: Content has been modified since last read (version conflict)
 
 Resolution: re-read with `get`, inspect the new state, then `update` with the fresh `_rev`.
 
+### Locked Entries
+
+A 409 does not always mean the item changed. If someone has the entry open in the admin, the write is refused with a different code:
+
+```
+EmDashApiError: Ada is holding this entry
+  status: 409
+  code: ENTRY_LOCKED
+```
+
+Re-reading does not clear this one. The item has not changed, so a fresh `_rev` produces the same refusal. Check `code` before you retry. Either wait, or pass `--override-lock` to write anyway. An editor releases the lock when they close the entry, and a lock left behind by a crashed tab lapses seven minutes after their last heartbeat.
+
+Overriding does not take the lock. The editor keeps it and their next save is rejected as a version conflict, so wait unless you know they have gone.
+
+`--override-lock` is accepted by `content update`, `content delete`, `content publish`, `content unpublish` and `content schedule`. Collections with edit locking switched off never return `ENTRY_LOCKED`.
+
 ### Which Operations Need `_rev`?
 
 Only `update`. All other operations are either idempotent or non-destructive:

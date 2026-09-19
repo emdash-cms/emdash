@@ -6,7 +6,6 @@ import {
 } from "../database/repositories/media.js";
 import type { Database } from "../database/types.js";
 import { isValidFocalPointUpdate } from "../media/focal-point.js";
-import { invalidateSiteSettingsCache } from "../settings/index.js";
 import type { Storage } from "../storage/types.js";
 import type { MediaBytes, MediaItem, MediaMetadataPatch } from "./types.js";
 
@@ -121,7 +120,6 @@ export async function updatePluginMediaMetadata(
 	const parsed = parsePluginMediaMetadataPatch(patch);
 	const item = await new MediaRepository(db).updateReadyMetadata(id, parsed);
 	if (!item) throw new Error("Media item is not ready or does not exist");
-	invalidateSiteSettingsCache();
 	return toPluginMediaItem(item);
 }
 

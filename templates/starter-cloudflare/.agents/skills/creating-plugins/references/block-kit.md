@@ -4,7 +4,7 @@ Declarative JSON UI for sandboxed plugin admin pages. The host renders blocks â€
 
 Trusted plugins (declared in `astro.config.ts`) can ship custom React components instead. Block Kit is for runtime-installed sandboxed plugins.
 
-Block Kit elements are also used for [Portable Text block editing fields](./portable-text-blocks.md). When a plugin declares `fields` on a block type, the editor renders a Block Kit form.
+Native plugins also use Block Kit elements for [Portable Text block editing fields](./portable-text-blocks.md). Plugin CLI and registry packages cannot register Portable Text block types.
 
 ## How It Works
 
@@ -58,23 +58,25 @@ routes: {
 
 ## Block Types
 
-| Type      | Description                                         |
-| --------- | --------------------------------------------------- |
-| `header`  | Large bold heading                                  |
-| `section` | Text with optional accessory element                |
-| `divider` | Horizontal rule                                     |
-| `fields`  | Two-column label/value grid                         |
-| `table`   | Data table with formatting, sorting, pagination     |
-| `actions` | Horizontal row of buttons and controls              |
-| `stats`   | Dashboard metric cards with trend indicators        |
-| `form`    | Input fields with conditional visibility and submit |
-| `image`   | Block-level image with caption                      |
-| `context` | Small muted help text                               |
-| `columns` | 2-3 column layout with nested blocks                |
-| `chart`   | Charts (timeseries line/bar, pie, custom ECharts)   |
-| `code`    | Syntax-highlighted code block                       |
-| `meter`   | Progress/quota meter bar                            |
-| `banner`  | Info, warning, or error inline messages             |
+| Type        | Description                                         |
+| ----------- | --------------------------------------------------- |
+| `header`    | Large bold heading                                  |
+| `section`   | Text with optional accessory element                |
+| `divider`   | Horizontal rule                                     |
+| `fields`    | Two-column label/value grid                         |
+| `table`     | Data table with formatting, sorting, pagination     |
+| `actions`   | Horizontal row of buttons and controls              |
+| `stats`     | Dashboard metric cards with trend indicators        |
+| `form`      | Input fields with conditional visibility and submit |
+| `image`     | Block-level image with alt text and optional title  |
+| `context`   | Small muted help text                               |
+| `columns`   | 2-3 column layout with nested blocks                |
+| `chart`     | Charts (timeseries line/bar, pie, custom ECharts)   |
+| `code`      | Syntax-highlighted code block                       |
+| `meter`     | Progress/quota meter bar                            |
+| `banner`    | Info, warning, or error inline messages             |
+| `empty`     | Empty state with optional command and actions       |
+| `accordion` | Collapsible section containing nested blocks        |
 
 ## Element Types
 
@@ -90,6 +92,8 @@ routes: {
 | `radio`        | Single-select radio buttons                     |
 | `date_input`   | Date picker                                     |
 | `combobox`     | Searchable dropdown select                      |
+| `repeater`     | Array of records with scalar sub-fields         |
+| `media_picker` | Media-library picker that stores the asset URL  |
 
 ## Block Syntax
 
@@ -330,6 +334,80 @@ For pie charts, gauges, or any ECharts visualization:
 - `variant` â€” `"default"` (info, default), `"alert"` (warning), or `"error"`
 - At least one of `title` or `description` is required
 
+### Empty
+
+```json
+{
+	"type": "empty",
+	"title": "No submissions",
+	"description": "New submissions appear here.",
+	"command_line": "pnpm run seed",
+	"size": "base",
+	"actions": [{ "type": "button", "action_id": "refresh", "label": "Refresh" }]
+}
+```
+
+### Unsupported `tab` block
+
+The package exports a `TabBlock` type and `blocks.tab()` builder, and the React renderer has a tab component. The production `validateBlocks()` allowlist does not include `tab`, so an admin response containing one is rejected. Do not emit `tab` until the validator accepts it.
+
+### Accordion
+
+```json
+{
+	"type": "accordion",
+	"label": "Advanced settings",
+	"default_open": false,
+	"blocks": [{ "type": "context", "text": "Settings visible when expanded" }]
+}
+```
+
+## Repeater and media picker elements
+
+`repeater` and `media_picker` are admin-authoring elements, not ordinary fields in a sandboxed admin-page `form`.
+
+`repeater` captures an array of objects. Its nested fields are limited to `text_input`, `number_input`, `select`, and `toggle`:
+
+```typescript
+{
+	"type": "repeater",
+	"action_id": "items",
+	"label": "Questions",
+	"item_label": "Question",
+	"fields": [
+		{ "type": "text_input", "action_id": "question", "label": "Question" },
+		{ "type": "text_input", "action_id": "answer", "label": "Answer", "multiline": true }
+	]
+}
+```
+
+`media_picker` opens the media library and stores the selected asset's URL string:
+
+```typescript
+{
+	"type": "media_picker",
+	"action_id": "hero",
+	"label": "Hero image",
+	"mime_type_filter": "image/"
+}
+```
+
+## Declarative field widgets
+
+The admin field editor can render a plugin field widget from Block Kit elements. A schema field refers to `pluginId:widgetName`; a config-declared standard descriptor supplies `name`, `label`, compatible `fieldTypes`, and `elements`.
+
+The field-widget renderer currently supports only these elements:
+
+- `text_input`
+- `number_input`
+- `toggle`
+- `select`
+- `media_picker`
+
+It stores an object keyed by each element's `action_id`. Use a `json` field for this composed value; other field types are accepted by the manifest schema but are not covered by an end-to-end save test. Other element types render an unsupported-element message.
+
+`emdash-plugin.jsonc` accepts this field-widget definition, and the plugin CLI preserves it in the registry manifest and generated descriptor. The artifact transport is tested; the repository's browser E2E test still covers a native React field widget rather than a registry declarative widget. Verify the rendered editor and saved value for the selected elements.
+
 ## Conditional Fields
 
 Show/hide fields based on other field values. Evaluated client-side, no round-trip.
@@ -358,8 +436,18 @@ Show/hide fields based on other field values. Evaluated client-side, no round-tr
 ```typescript
 import { blocks, elements } from "@emdash-cms/blocks";
 
-const { header, form, section, stats, timeseriesChart, customChart, banner: bannerBlock } = blocks;
-const { textInput, toggle, select, button } = elements;
+const {
+	header,
+	form,
+	section,
+	stats,
+	timeseriesChart,
+	customChart,
+	banner: bannerBlock,
+	empty,
+	accordion,
+} = blocks;
+const { textInput, toggle, select, button, repeater, mediaPicker } = elements;
 
 return {
 	blocks: [

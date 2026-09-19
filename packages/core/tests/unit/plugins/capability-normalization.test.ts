@@ -66,6 +66,8 @@ describe("isDeprecatedCapability", () => {
 			"hooks.email-transport:register",
 			"hooks.email-events:register",
 			"hooks.page-fragments:register",
+			"redirects:read",
+			"redirects:write",
 		];
 		for (const cap of current) {
 			expect(isDeprecatedCapability(cap)).toBe(false);

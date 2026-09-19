@@ -19,7 +19,10 @@ import { Buffer } from "node:buffer";
 import {
 	ContentRepository,
 	CronAccessImpl,
+	createCommentAccess,
 	createContentAccess,
+	createRedirectAccess,
+	createSchemaAccess,
 	createHttpAccess,
 	createMediaAccess,
 	createSandboxRouteErrorEnvelope,
@@ -29,6 +32,7 @@ import {
 	parsePluginMediaMetadataPatch,
 	PluginStorageRepository,
 	readPluginMediaBytes,
+	RedirectAccessError,
 	StorageSerializationError,
 	resolveContentCreateLocale,
 	updatePluginMediaMetadata,
@@ -38,9 +42,33 @@ import type {
 	ContentListOptions,
 	Database,
 	I18nConfig,
+	CommentListOptions,
+	PluginCommentStatus,
+	SandboxCommentModerateCallback,
+	RedirectCreateInput,
+	RedirectListOptions,
+	RedirectUpdateInput,
 	SandboxEmailSendCallback,
+	SandboxContentCreateCallback,
+	SiteInfo,
+	TaxonomyAccessWithWrite,
 } from "emdash";
 import type { Kysely } from "kysely";
+
+const CONTENT_CREATE_ERROR_CODES = new Set([
+	"CONFLICT",
+	"NOT_FOUND",
+	"SAVE_REJECTED",
+	"VALIDATION_ERROR",
+]);
+
+function contentCreateErrorDetails(error: unknown): { code: string; message: string } | null {
+	if (!(error instanceof Error) || !isRecord(error)) return null;
+	const code = error.code;
+	return typeof code === "string" && CONTENT_CREATE_ERROR_CODES.has(code)
+		? { code, message: error.message }
+		: null;
+}
 
 /**
  * Schema view of a content table (ec_${collection}) for kysely. The standard
@@ -130,13 +158,33 @@ export interface BridgeHandlerOptions {
 	/** Full storage config (with indexes) for proper query/count delegation */
 	storageConfig?: Record<string, BridgeStorageCollectionConfig>;
 	i18nConfig?: I18nConfig | null;
+	siteInfo?: SiteInfo;
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
+	contentCreate?: SandboxContentCreateCallback;
+	contentCreateProvider?: () => SandboxContentCreateCallback | null;
+	taxonomyWrite?: TaxonomyAccessWithWrite;
 	emailSend: () => SandboxEmailSendCallback | null;
+	commentModerate?: () => SandboxCommentModerateCallback | null;
 	cronReschedule?: () => void;
 	now?: () => Date;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
+}
+
+type RedirectBridgeResult<T> =
+	| { ok: true; value: T }
+	| { ok: false; error: { code: string; message: string } };
+
+async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<RedirectBridgeResult<T>> {
+	try {
+		return { ok: true, value: await action() };
+	} catch (error) {
+		if (error instanceof RedirectAccessError) {
+			return { ok: false, error: { code: error.code, message: error.message } };
+		}
+		throw error;
+	}
 }
 
 /**
@@ -146,7 +194,11 @@ export interface BridgeHandlerOptions {
 export function createBridgeHandler(
 	opts: BridgeHandlerOptions,
 ): (request: Request) => Promise<Response> {
-	const normalizedOpts = { ...opts, capabilities: normalizeCapabilities(opts.capabilities) };
+	const capabilities = normalizeCapabilities(opts.capabilities);
+	if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
+		capabilities.push("comments:read");
+	}
+	const normalizedOpts = { ...opts, capabilities };
 	return async (request: Request): Promise<Response> => {
 		try {
 			const url = new URL(request.url);
@@ -167,6 +219,26 @@ export function createBridgeHandler(
 			const result = await dispatch(normalizedOpts, method, body);
 			return Response.json({ result });
 		} catch (error) {
+			if (typeof error === "object" && error !== null && "code" in error) {
+				const code = error.code;
+				const currentStatus = "currentStatus" in error ? error.currentStatus : undefined;
+				if (
+					(code === "COMMENT_STATUS_CONFLICT" && typeof currentStatus === "string") ||
+					code === "COMMENT_MODERATION_IN_PROGRESS" ||
+					code === "COMMENT_STATUS_INVALID"
+				) {
+					return Response.json(
+						{
+							error: {
+								code,
+								message: error instanceof Error ? error.message : "Comment moderation failed",
+								...(typeof currentStatus === "string" ? { currentStatus } : {}),
+							},
+						},
+						{ status: 409 },
+					);
+				}
+			}
 			const sandboxRouteError = createSandboxRouteErrorEnvelope(error);
 			if (sandboxRouteError) {
 				return Response.json(
@@ -189,6 +261,19 @@ export function createBridgeHandler(
 						},
 					},
 					{ status: 503 },
+				);
+			}
+			const contentCreateError = contentCreateErrorDetails(error);
+			if (contentCreateError) {
+				const status =
+					contentCreateError.code === "NOT_FOUND"
+						? 404
+						: contentCreateError.code === "CONFLICT"
+							? 409
+							: 400;
+				return Response.json(
+					{ error: { name: contentCreateError.code, ...contentCreateError } },
+					{ status },
 				);
 			}
 			const message = error instanceof Error ? error.message : "Internal error";
@@ -242,18 +327,80 @@ async function dispatch(
 		// ── Content ─────────────────────────────────────────────────────
 		case "content/get":
 			requireCapability(opts, "content:read");
-			return contentGet(db, requireString(body, "collection"), requireString(body, "id"));
+			return contentGet(db, requireString(body, "collection"), requireString(body, "id"), opts);
 		case "content/list":
 			requireCapability(opts, "content:read");
-			return contentList(db, requireString(body, "collection"), body);
+			return contentList(db, requireString(body, "collection"), body, opts);
+		case "content/translations":
+			requireCapability(opts, "content:read");
+			return contentAccess(opts).getTranslations!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/publicUrl":
+			requireCapability(opts, "content:read");
+			return contentAccess(opts).getPublicUrl!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/listRevisions":
+			requireCapability(opts, "content:revisions:read");
+			return contentAccess(opts).listRevisions!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				optionalRecord(body, "options") ?? undefined,
+			);
+		case "content/getRevision":
+			requireCapability(opts, "content:revisions:read");
+			return contentAccess(opts).getRevision!(
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				requireString(body, "revisionId"),
+			);
+		case "schema/listCollections":
+			requireCapability(opts, "schema:read");
+			return createSchemaAccess(db).listCollections();
+		case "schema/getCollection":
+			requireCapability(opts, "schema:read");
+			return createSchemaAccess(db).getCollection(requireString(body, "slug"));
 		case "content/create":
 			requireCapability(opts, "content:write");
 			const createOptions = optionalRecord(body, "options");
-			const locale = resolveContentCreateLocale(
-				createOptions ? optionalString(createOptions, "locale") : undefined,
-				opts.i18nConfig ?? null,
-			);
+			let locale: string;
+			try {
+				locale = resolveContentCreateLocale(
+					createOptions ? optionalString(createOptions, "locale") : undefined,
+					opts.i18nConfig ?? null,
+				);
+			} catch (error) {
+				const message = error instanceof Error ? error.message : "Invalid locale";
+				throw Object.assign(new Error(message), {
+					name: "VALIDATION_ERROR",
+					code: "VALIDATION_ERROR",
+				});
+			}
 			await opts.beforeContentWrite?.();
+			const runtimeContentCreate = opts.contentCreateProvider?.() ?? opts.contentCreate;
+			if (runtimeContentCreate) {
+				const originHookValue = optionalString(body, "originHook");
+				const originHook =
+					originHookValue === "content:beforeSave" || originHookValue === "content:afterSave"
+						? originHookValue
+						: undefined;
+				return runtimeContentCreate(
+					pluginId,
+					requireString(body, "collection"),
+					requireRecord(body, "data"),
+					{
+						locale,
+						translationOf: createOptions
+							? optionalString(createOptions, "translationOf")
+							: undefined,
+						originHook,
+						sandboxOrigin: true,
+					},
+				);
+			}
 			return contentCreate(
 				db,
 				requireString(body, "collection"),
@@ -300,7 +447,29 @@ async function dispatch(
 				requireStringArray(body, "ids"),
 			);
 
-		// ── Taxonomies (read-only) ──────────────────────────────────────
+		// ── Comments ────────────────────────────────────────────────────
+		case "comments/get":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).get(requireString(body, "id"));
+		case "comments/list":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).list(commentListOptions(body));
+		case "comments/count":
+			requireCapability(opts, "comments:read");
+			return createCommentAccess(db).count(commentCountOptions(body));
+		case "comments/setStatus": {
+			requireCapability(opts, "comments:moderate");
+			const moderate = opts.commentModerate?.();
+			if (!moderate) throw new Error("Comment moderation is unavailable");
+			return moderate(
+				pluginId,
+				requireString(body, "id"),
+				requireCommentStatus(body, "status"),
+				requireCommentStatus(body, "expectedStatus"),
+			);
+		}
+
+		// ── Taxonomies ──────────────────────────────────────────────────
 		// `taxonomies:read` is a post-rename capability: it has no legacy
 		// alias, so the canonical name is checked directly.
 		case "taxonomy/list":
@@ -317,6 +486,61 @@ async function dispatch(
 				requireString(body, "entryId"),
 				optionalString(body, "taxonomy"),
 				optionalString(body, "locale"),
+			);
+		case "taxonomy/createTerm":
+			requireCapability(opts, "taxonomies:write");
+			if (!opts.taxonomyWrite) throw new Error("Taxonomy mutations are not available");
+			return opts.taxonomyWrite.createTerm(
+				requireString(body, "taxonomy"),
+				requireTaxonomyTermCreateInput(body, "input"),
+			);
+		case "taxonomy/addEntryTerms":
+			requireCapability(opts, "taxonomies:write");
+			if (!opts.taxonomyWrite) throw new Error("Taxonomy mutations are not available");
+			return opts.taxonomyWrite.addEntryTerms(
+				requireString(body, "collection"),
+				requireString(body, "entryId"),
+				requireString(body, "taxonomy"),
+				requireStringArray(body, "termIds"),
+			);
+		case "taxonomy/removeEntryTerms":
+			requireCapability(opts, "taxonomies:write");
+			if (!opts.taxonomyWrite) throw new Error("Taxonomy mutations are not available");
+			return opts.taxonomyWrite.removeEntryTerms(
+				requireString(body, "collection"),
+				requireString(body, "entryId"),
+				requireString(body, "taxonomy"),
+				requireStringArray(body, "termIds"),
+			);
+
+		// ── Redirects ─────────────────────────────────────────────────────
+		case "redirect/list":
+			requireCapability(opts, "redirects:read");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db).list(requireRedirectListOptions(body)),
+			);
+		case "redirect/get":
+			requireCapability(opts, "redirects:read");
+			return redirectBridgeResult(() => createRedirectAccess(db).get(requireString(body, "id")));
+		case "redirect/create":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).create(requireRedirectCreateInput(body)),
+			);
+		case "redirect/update":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).update(
+					requireString(body, "id"),
+					requireRedirectUpdateInput(body),
+				),
+			);
+		case "redirect/delete":
+			requireCapability(opts, "redirects:write");
+			return redirectBridgeResult(() =>
+				createRedirectAccess(db, true).delete(requireString(body, "id"), {
+					_rev: requireString(body, "revision"),
+				}),
 			);
 
 		// ── Media ───────────────────────────────────────────────────────
@@ -514,6 +738,7 @@ type UpdateManyItem = { id: string; data: Record<string, unknown> };
 type StorageItem = { id: string; data: unknown };
 
 const LOG_LEVELS = new Set<string>(["debug", "info", "warn", "error"]);
+const COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
 
 function requireExpectedRevision(body: Record<string, unknown>): string | null {
 	const value = body.expectedRevision;
@@ -582,11 +807,143 @@ function requireString(body: Record<string, unknown>, key: string): string {
 	return value;
 }
 
+const REDIRECT_STATUSES = new Set([301, 302, 307, 308, 410, 451]);
+
+function hasOptionalString(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || typeof value[key] === "string";
+}
+
+function hasOptionalNullableString(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || value[key] === null || typeof value[key] === "string";
+}
+
+function hasOptionalBoolean(value: Record<string, unknown>, key: string): boolean {
+	return value[key] === undefined || typeof value[key] === "boolean";
+}
+
+function hasOptionalRedirectStatus(value: Record<string, unknown>): boolean {
+	return (
+		value.type === undefined ||
+		(typeof value.type === "number" && REDIRECT_STATUSES.has(value.type))
+	);
+}
+
+function isRedirectCreateInput(value: unknown): value is RedirectCreateInput {
+	return (
+		isRecord(value) &&
+		typeof value.source === "string" &&
+		hasOptionalString(value, "destination") &&
+		hasOptionalRedirectStatus(value) &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalNullableString(value, "groupName")
+	);
+}
+
+function isRedirectUpdateInput(value: unknown): value is RedirectUpdateInput & { _rev: string } {
+	return (
+		isRecord(value) &&
+		typeof value._rev === "string" &&
+		hasOptionalString(value, "source") &&
+		hasOptionalString(value, "destination") &&
+		hasOptionalRedirectStatus(value) &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalNullableString(value, "groupName")
+	);
+}
+
+function isRedirectListOptions(value: unknown): value is RedirectListOptions {
+	return (
+		isRecord(value) &&
+		(value.limit === undefined || typeof value.limit === "number") &&
+		hasOptionalString(value, "cursor") &&
+		hasOptionalString(value, "search") &&
+		hasOptionalString(value, "group") &&
+		hasOptionalBoolean(value, "enabled") &&
+		hasOptionalBoolean(value, "auto")
+	);
+}
+
+function requireRedirectListOptions(body: Record<string, unknown>): RedirectListOptions {
+	if (!isRedirectListOptions(body)) throw new Error("Invalid redirect list options");
+	return body;
+}
+
+function requireRedirectCreateInput(body: Record<string, unknown>): RedirectCreateInput {
+	const value = body.input;
+	if (!isRedirectCreateInput(value)) throw new Error("Invalid redirect create input");
+	return value;
+}
+
+function requireRedirectUpdateInput(
+	body: Record<string, unknown>,
+): RedirectUpdateInput & { _rev: string } {
+	const value = body.input;
+	if (!isRedirectUpdateInput(value)) throw new Error("Invalid redirect update input");
+	return value;
+}
+
 function optionalString(body: Record<string, unknown>, key: string): string | undefined {
 	const value = body[key];
 	if (value === undefined) return undefined;
 	if (typeof value !== "string") throw new Error(`Parameter ${key} must be a string when provided`);
 	return value;
+}
+
+function isCommentStatus(value: string): value is PluginCommentStatus {
+	return COMMENT_STATUSES.has(value);
+}
+
+function requireCommentStatus(body: Record<string, unknown>, key: string): PluginCommentStatus {
+	const value = requireString(body, key);
+	if (!isCommentStatus(value)) {
+		throw Object.assign(new Error(`${key} must be one of: approved, pending, spam`), {
+			code: "COMMENT_STATUS_INVALID",
+		});
+	}
+	return value;
+}
+
+function optionalCommentStatus(
+	body: Record<string, unknown>,
+	key: string,
+): PluginCommentStatus | undefined {
+	const value = optionalString(body, key);
+	if (value === undefined) return undefined;
+	if (!isCommentStatus(value)) {
+		throw Object.assign(new Error(`${key} must be one of: approved, pending, spam`), {
+			code: "COMMENT_STATUS_INVALID",
+		});
+	}
+	return value;
+}
+
+function optionalLimit(body: Record<string, unknown>): number | undefined {
+	const value = body.limit;
+	if (value === undefined) return undefined;
+	if (!Number.isInteger(value) || typeof value !== "number" || value < 1 || value > 100) {
+		throw new Error("Parameter limit must be an integer between 1 and 100");
+	}
+	return value;
+}
+
+function commentListOptions(body: Record<string, unknown>): CommentListOptions {
+	return {
+		status: optionalCommentStatus(body, "status"),
+		collection: optionalString(body, "collection"),
+		contentId: optionalString(body, "contentId"),
+		limit: optionalLimit(body),
+		cursor: optionalString(body, "cursor"),
+	};
+}
+
+function commentCountOptions(
+	body: Record<string, unknown>,
+): Omit<CommentListOptions, "limit" | "cursor"> {
+	return {
+		status: optionalCommentStatus(body, "status"),
+		collection: optionalString(body, "collection"),
+		contentId: optionalString(body, "contentId"),
+	};
 }
 
 function requireRecord(body: Record<string, unknown>, key: string): Record<string, unknown> {
@@ -649,6 +1006,29 @@ function requireEmailMessage(body: Record<string, unknown>, key: string): EmailM
 		throw new Error("email/send requires message with to, subject, and text");
 	}
 	return value;
+}
+
+function requireTaxonomyTermCreateInput(
+	body: Record<string, unknown>,
+	key: string,
+): Parameters<TaxonomyAccessWithWrite["createTerm"]>[1] {
+	const input = requireRecord(body, key);
+	const parentId = input.parentId;
+	if (parentId !== undefined && parentId !== null && typeof parentId !== "string") {
+		throw new Error("Parameter input.parentId must be a string or null");
+	}
+	const slug = optionalString(input, "slug");
+	const description = optionalString(input, "description");
+	const locale = optionalString(input, "locale");
+	const translationOf = optionalString(input, "translationOf");
+	return {
+		label: requireString(input, "label"),
+		...(slug !== undefined ? { slug } : {}),
+		...(parentId !== undefined ? { parentId } : {}),
+		...(description !== undefined ? { description } : {}),
+		...(locale !== undefined ? { locale } : {}),
+		...(translationOf !== undefined ? { translationOf } : {}),
+	};
 }
 
 function requireLogLevel(body: Record<string, unknown>, key: string): LogLevel {
@@ -724,6 +1104,11 @@ function rowToContentItem(
 	locale: string;
 	publishedAt: string | null;
 	scheduledAt: string | null;
+	authorId: string | null;
+	translationGroup: string | null;
+	liveRevisionId: string | null;
+	draftRevisionId: string | null;
+	version: number;
 } {
 	const data: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(row)) {
@@ -751,6 +1136,11 @@ function rowToContentItem(
 		locale: typeof row.locale === "string" ? row.locale : "en",
 		publishedAt: typeof row.published_at === "string" ? row.published_at : null,
 		scheduledAt: typeof row.scheduled_at === "string" ? row.scheduled_at : null,
+		authorId: typeof row.author_id === "string" ? row.author_id : null,
+		translationGroup: typeof row.translation_group === "string" ? row.translation_group : null,
+		liveRevisionId: typeof row.live_revision_id === "string" ? row.live_revision_id : null,
+		draftRevisionId: typeof row.draft_revision_id === "string" ? row.draft_revision_id : null,
+		version: typeof row.version === "number" ? row.version : Number(row.version) || 1,
 	};
 }
 
@@ -911,10 +1301,11 @@ async function contentGet(
 	db: Kysely<Database>,
 	collection: string,
 	id: string,
+	opts: BridgeHandlerOptions,
 ): ReturnType<ReturnType<typeof createContentAccess>["get"]> {
 	validateCollectionName(collection);
 	try {
-		return await createContentAccess(db).get(collection, id);
+		return await contentAccess(opts).get(collection, id);
 	} catch {
 		const row = await asContentDb(db)
 			.selectFrom(`ec_${collection}`)
@@ -930,6 +1321,7 @@ async function contentList(
 	db: Kysely<Database>,
 	collection: string,
 	opts: Record<string, unknown>,
+	handlerOptions: BridgeHandlerOptions,
 ): ReturnType<ReturnType<typeof createContentAccess>["list"]> {
 	validateCollectionName(collection);
 	const limit = Math.max(1, Math.min(Number(opts.limit) || 50, 100));
@@ -952,7 +1344,7 @@ async function contentList(
 					}
 				: undefined,
 		};
-		return await createContentAccess(db).list(collection, options);
+		return await contentAccess(handlerOptions).list(collection, options);
 	} catch (error) {
 		if (opts.where !== undefined || opts.orderBy !== undefined) throw error;
 		let query = asContentDb(db)
@@ -969,6 +1361,13 @@ async function contentList(
 			hasMore: rows.length > limit,
 		};
 	}
+}
+
+function contentAccess(opts: BridgeHandlerOptions) {
+	return createContentAccess(opts.db, {
+		site: opts.siteInfo,
+		revisions: opts.capabilities.includes("content:revisions:read"),
+	});
 }
 
 async function contentCreate(
@@ -1147,7 +1546,7 @@ async function contentDeleteMany(
 	});
 }
 
-// ── Taxonomy Operations (read-only) ──────────────────────────────────────
+// ── Taxonomy Operations ──
 
 /** Type guard for plain JSON objects. */
 function isJsonObject(value: unknown): value is Record<string, unknown> {

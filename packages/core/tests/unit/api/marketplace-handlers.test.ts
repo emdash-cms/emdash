@@ -22,6 +22,7 @@ import {
 	handleMarketplaceUpdateCheck,
 	handleMarketplaceSearch,
 	handleMarketplaceGetPlugin,
+	diffCapabilities,
 } from "../../../src/api/handlers/marketplace.js";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import type { Database as DbSchema } from "../../../src/database/types.js";
@@ -281,6 +282,16 @@ function mockPluginDetail(
 }
 
 describe("Marketplace handlers", () => {
+	it("requires consent when taxonomy write is added and reports its removal on downgrade", () => {
+		expect(diffCapabilities(["taxonomies:read"], ["taxonomies:read", "taxonomies:write"])).toEqual({
+			added: ["taxonomies:write"],
+			removed: [],
+		});
+		expect(diffCapabilities(["taxonomies:read", "taxonomies:write"], ["taxonomies:read"])).toEqual({
+			added: [],
+			removed: ["taxonomies:write"],
+		});
+	});
 	let db: Kysely<DbSchema>;
 	let sqliteDb: BetterSqlite3.Database;
 	let storage: Storage;

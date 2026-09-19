@@ -224,6 +224,28 @@ describe("definePlugin", () => {
 			expect(plugin.capabilities).toContain("content:read");
 		});
 
+		it("normalizes content:revisions:read to include content:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["content:revisions:read"],
+			});
+
+			expect(plugin.capabilities).toContain("content:revisions:read");
+			expect(plugin.capabilities).toContain("content:read");
+		});
+
+		it("normalizes taxonomies:write to include taxonomies:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["taxonomies:write"],
+			});
+
+			expect(plugin.capabilities).toContain("taxonomies:write");
+			expect(plugin.capabilities).toContain("taxonomies:read");
+		});
+
 		it("normalizes media:write to include media:read", () => {
 			const plugin = definePlugin({
 				id: "test",
@@ -233,6 +255,26 @@ describe("definePlugin", () => {
 
 			expect(plugin.capabilities).toContain("media:write");
 			expect(plugin.capabilities).toContain("media:read");
+		});
+
+		it("normalizes comments:moderate to include comments:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["comments:moderate"],
+			});
+			expect(plugin.capabilities).toEqual(["comments:moderate", "comments:read"]);
+		});
+
+		it("normalizes redirects:write to include redirects:read", () => {
+			const plugin = definePlugin({
+				id: "test",
+				version: "1.0.0",
+				capabilities: ["redirects:write"],
+			});
+
+			expect(plugin.capabilities).toContain("redirects:write");
+			expect(plugin.capabilities).toContain("redirects:read");
 		});
 
 		it("normalizes network:request:unrestricted to include network:request", () => {

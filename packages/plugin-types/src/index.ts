@@ -47,9 +47,19 @@ export type PluginCapability =
 	| "network:request:unrestricted" // ctx.http (unrestricted)
 	// Content
 	| "content:read"
+	| "content:revisions:read"
 	| "content:write"
-	// Taxonomies (read-only; there is no plugin-facing taxonomy write API)
+	// Comments
+	| "comments:read"
+	| "comments:moderate"
+	// Schema
+	| "schema:read"
+	// Taxonomies
 	| "taxonomies:read"
+	| "taxonomies:write"
+	// Redirects
+	| "redirects:read"
+	| "redirects:write"
 	// Media
 	| "media:read"
 	| "media:bytes:read"
@@ -184,8 +194,15 @@ export type AccessConstraints = Record<string, unknown>;
  * {@link capabilitiesToDeclaredAccess} / {@link declaredAccessToCapabilities}.
  */
 export interface DeclaredAccess {
-	content?: { read?: AccessConstraints; write?: AccessConstraints };
-	taxonomies?: { read?: AccessConstraints };
+	content?: {
+		read?: AccessConstraints;
+		revisionsRead?: AccessConstraints;
+		write?: AccessConstraints;
+	};
+	comments?: { read?: AccessConstraints; moderate?: AccessConstraints };
+	schema?: { read?: AccessConstraints };
+	taxonomies?: { read?: AccessConstraints; write?: AccessConstraints };
+	redirects?: { read?: AccessConstraints; write?: AccessConstraints };
 	media?: {
 		read?: AccessConstraints;
 		bytesRead?: AccessConstraints;
@@ -219,11 +236,24 @@ export function capabilitiesToDeclaredAccess(
 	const caps = new Set(capabilities.map((c) => normalizeCapability(c)));
 	const out: DeclaredAccess = {};
 
-	if (caps.has("content:read") || caps.has("content:write")) {
+	if (caps.has("content:read") || caps.has("content:revisions:read") || caps.has("content:write")) {
 		out.content = { read: {} };
 		if (caps.has("content:write")) out.content.write = {};
 	}
-	if (caps.has("taxonomies:read")) out.taxonomies = { read: {} };
+	if (caps.has("comments:read") || caps.has("comments:moderate")) {
+		out.comments = { read: {} };
+		if (caps.has("comments:moderate")) out.comments.moderate = {};
+	}
+	if (caps.has("content:revisions:read")) (out.content ??= {}).revisionsRead = {};
+	if (caps.has("schema:read")) out.schema = { read: {} };
+	if (caps.has("taxonomies:read") || caps.has("taxonomies:write")) {
+		out.taxonomies = { read: {} };
+		if (caps.has("taxonomies:write")) out.taxonomies.write = {};
+	}
+	if (caps.has("redirects:read") || caps.has("redirects:write")) {
+		out.redirects = { read: {} };
+		if (caps.has("redirects:write")) out.redirects.write = {};
+	}
 	if (caps.has("media:read") || caps.has("media:write")) {
 		out.media = { read: {} };
 		if (caps.has("media:write")) out.media.write = {};
@@ -264,11 +294,30 @@ export function declaredAccessToCapabilities(declaredAccess: DeclaredAccess): {
 	let allowedHosts: string[] = [];
 
 	if (declaredAccess.content?.read) caps.add("content:read");
+	if (declaredAccess.content?.revisionsRead) {
+		caps.add("content:revisions:read");
+		caps.add("content:read");
+	}
 	if (declaredAccess.content?.write) {
 		caps.add("content:write");
 		caps.add("content:read");
 	}
+	if (declaredAccess.comments?.read) caps.add("comments:read");
+	if (declaredAccess.comments?.moderate) {
+		caps.add("comments:moderate");
+		caps.add("comments:read");
+	}
+	if (declaredAccess.schema?.read) caps.add("schema:read");
 	if (declaredAccess.taxonomies?.read) caps.add("taxonomies:read");
+	if (declaredAccess.taxonomies?.write) {
+		caps.add("taxonomies:write");
+		caps.add("taxonomies:read");
+	}
+	if (declaredAccess.redirects?.read) caps.add("redirects:read");
+	if (declaredAccess.redirects?.write) {
+		caps.add("redirects:write");
+		caps.add("redirects:read");
+	}
 	if (declaredAccess.media?.read) caps.add("media:read");
 	if (declaredAccess.media?.bytesRead) caps.add("media:bytes:read");
 	if (declaredAccess.media?.metadataWrite) caps.add("media:metadata:write");

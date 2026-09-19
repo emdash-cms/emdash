@@ -8,6 +8,7 @@ import {
 	normalizeCapabilities,
 	normalizeCapability,
 	pluginManifestSchema,
+	reconcileManifestAccess,
 } from "../src/index.js";
 
 describe("isDeprecatedCapability", () => {
@@ -95,6 +96,51 @@ describe("declaredAccess facet mapping", () => {
 				admin: {},
 			}).success,
 		).toBe(true);
+		const writer = pluginManifestSchema.safeParse({
+			id: "taxonomy-writer",
+			version: "1.0.0",
+			declaredAccess: { taxonomies: { read: {}, write: {} } },
+			capabilities: ["taxonomies:read", "taxonomies:write"],
+			allowedHosts: [],
+			storage: {},
+			hooks: [],
+			routes: [],
+			admin: {},
+		});
+		expect(writer.success).toBe(true);
+		if (!writer.success) return;
+		expect(writer.data.declaredAccess?.taxonomies?.write).toEqual({});
+		expect(reconcileManifestAccess(writer.data).capabilities).toEqual([
+			"taxonomies:read",
+			"taxonomies:write",
+		]);
+	});
+
+	it("validates redirect write access and derives its read implication", () => {
+		const parsed = reconcileManifestAccess(
+			pluginManifestSchema.parse({
+				id: "redirect-manager",
+				version: "1.0.0",
+				declaredAccess: { redirects: { write: {} } },
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+				hooks: [],
+				routes: [],
+				admin: {},
+			}),
+		);
+		expect(new Set(parsed.capabilities)).toEqual(new Set(["redirects:read", "redirects:write"]));
+	});
+
+	it("keeps media metadata, bytes, and metadata mutation as independent authority", () => {
+		expect(capabilitiesToDeclaredAccess(["media:bytes:read", "media:metadata:write"], [])).toEqual({
+			media: { bytesRead: {}, metadataWrite: {} },
+		});
+		expect(declaredAccessToCapabilities({ media: { bytesRead: {}, metadataWrite: {} } })).toEqual({
+			capabilities: ["media:bytes:read", "media:metadata:write"],
+			allowedHosts: [],
+		});
 	});
 
 	it("maps each hook-registration capability to its participation facet", () => {
@@ -111,14 +157,39 @@ describe("declaredAccess facet mapping", () => {
 		expect(capabilitiesToDeclaredAccess(["taxonomies:read"], [])).toEqual({
 			taxonomies: { read: {} },
 		});
+		expect(capabilitiesToDeclaredAccess(["taxonomies:write"], [])).toEqual({
+			taxonomies: { read: {}, write: {} },
+		});
+		expect(declaredAccessToCapabilities({ taxonomies: { write: {} } }).capabilities).toEqual([
+			"taxonomies:write",
+			"taxonomies:read",
+		]);
+		expect(capabilitiesToDeclaredAccess(["redirects:write"], [])).toEqual({
+			redirects: { read: {}, write: {} },
+		});
 	});
 
-	it("keeps media metadata, bytes, and metadata mutation as independent authority", () => {
-		expect(capabilitiesToDeclaredAccess(["media:bytes:read", "media:metadata:write"], [])).toEqual({
-			media: { bytesRead: {}, metadataWrite: {} },
+	it("maps schema and revision reads without granting revision history to content read", () => {
+		expect(capabilitiesToDeclaredAccess(["schema:read"], [])).toEqual({
+			schema: { read: {} },
 		});
-		expect(declaredAccessToCapabilities({ media: { bytesRead: {}, metadataWrite: {} } })).toEqual({
-			capabilities: ["media:bytes:read", "media:metadata:write"],
+		expect(capabilitiesToDeclaredAccess(["content:read"], [])).toEqual({
+			content: { read: {} },
+		});
+		expect(capabilitiesToDeclaredAccess(["content:revisions:read"], [])).toEqual({
+			content: { read: {}, revisionsRead: {} },
+		});
+		expect(
+			new Set(declaredAccessToCapabilities({ content: { revisionsRead: {} } }).capabilities),
+		).toEqual(new Set(["content:read", "content:revisions:read"]));
+	});
+
+	it("maps comment moderation to personal-data read consent", () => {
+		expect(capabilitiesToDeclaredAccess(["comments:moderate"], [])).toEqual({
+			comments: { read: {}, moderate: {} },
+		});
+		expect(declaredAccessToCapabilities({ comments: { moderate: {} } })).toEqual({
+			capabilities: ["comments:moderate", "comments:read"],
 			allowedHosts: [],
 		});
 	});
@@ -168,7 +239,13 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 	// can reach a published manifest. Every one must round-trip to identity --
 	// the guard that the two representations are isomorphic, so the consent list
 	// always equals the capability set the runtime enforces.
-	const contentChoices = [[], ["content:read"], ["content:read", "content:write"]];
+	const contentChoices = [
+		[],
+		["content:read"],
+		["content:read", "content:write"],
+		["content:read", "content:revisions:read"],
+		["content:read", "content:write", "content:revisions:read"],
+	];
 	const mediaChoices = [
 		[],
 		["media:read"],
@@ -183,6 +260,9 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		["media:read", "media:bytes:read", "media:metadata:write"],
 		["media:read", "media:write", "media:bytes:read", "media:metadata:write"],
 	];
+	const commentChoices = [[], ["comments:read"], ["comments:read", "comments:moderate"]];
+	const taxonomyChoices = [[], ["taxonomies:read"], ["taxonomies:read", "taxonomies:write"]];
+	const redirectChoices = [[], ["redirects:read"], ["redirects:read", "redirects:write"]];
 	const networkChoices: { caps: string[]; hosts: string[] }[] = [
 		{ caps: [], hosts: [] },
 		{ caps: ["network:request", "network:request:unrestricted"], hosts: [] },
@@ -198,19 +278,33 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		"hooks.email-transport:register",
 		"hooks.page-fragments:register",
 		"users:read",
-		"taxonomies:read",
+		"schema:read",
 	];
 
 	function* states() {
 		for (const content of contentChoices) {
-			for (const media of mediaChoices) {
-				for (const network of networkChoices) {
-					for (let mask = 0; mask < 1 << singletonFacets.length; mask++) {
-						const extra = singletonFacets.filter((_, i) => mask & (1 << i));
-						yield {
-							capabilities: [...content, ...media, ...network.caps, ...extra],
-							allowedHosts: network.hosts,
-						};
+			for (const comments of commentChoices) {
+				for (const media of mediaChoices) {
+					for (const taxonomies of taxonomyChoices) {
+						for (const redirects of redirectChoices) {
+							for (const network of networkChoices) {
+								for (let mask = 0; mask < 1 << singletonFacets.length; mask++) {
+									const extra = singletonFacets.filter((_, i) => mask & (1 << i));
+									yield {
+										capabilities: [
+											...content,
+											...comments,
+											...media,
+											...taxonomies,
+											...redirects,
+											...network.caps,
+											...extra,
+										],
+										allowedHosts: network.hosts,
+									};
+								}
+							}
+						}
 					}
 				}
 			}
@@ -227,7 +321,7 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 			expect(new Set(back.allowedHosts)).toEqual(new Set(input.allowedHosts));
 			count++;
 		}
-		// 3 content x 12 media x 5 network x 2^6 singleton subsets.
-		expect(count).toBe(11_520);
+		// 5 content x 3 comments x 3 media x 3 taxonomy x 3 redirects x 5 network x 2^6 singleton subsets.
+		expect(count).toBe(518_400);
 	});
 });

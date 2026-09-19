@@ -305,7 +305,16 @@ export type {
 };
 
 export type {
+	PaginatedResult,
 	VersionedValue,
 	ConditionalWriteResult,
 	ConditionalDeleteResult,
+	RedirectAccess,
+	RedirectAccessWithWrite,
+	RedirectCreateInput,
+	RedirectInfo,
+	RedirectListOptions,
+	RedirectStatus,
+	RedirectUpdateInput,
+	VersionedRedirect,
 } from "./plugins/types.js";

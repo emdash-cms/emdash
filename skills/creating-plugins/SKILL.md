@@ -81,26 +81,37 @@ Declare host access in `emdash-plugin.jsonc`. Capabilities, allowed hosts, and s
 
 Use only canonical capability names:
 
-| Capability                       | API or hook registration                                                |
-| -------------------------------- | ----------------------------------------------------------------------- |
-| `content:read`                   | `ctx.content.get()`, `ctx.content.list()`                               |
-| `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read            |
-| `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`              |
-| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                   |
-| `media:bytes:read`               | `ctx.media.readBytes()` for bounded bytes from ready media              |
-| `media:metadata:write`           | `ctx.media.updateMetadata()` for alt, caption, and focal point          |
-| `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read                |
-| `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                         |
-| `network:request:unrestricted`   | `ctx.http.fetch()` without a manifest host list                         |
-| `users:read`                     | `ctx.users.get()`, `getByEmail()`, `list()`; required by comment hooks  |
-| `email:send`                     | `ctx.email.send()` when a transport is configured                       |
-| `hooks.email-transport:register` | Exclusive `email:deliver` hook                                          |
-| `hooks.email-events:register`    | `email:beforeSend` and `email:afterSend` hooks                          |
-| `hooks.page-fragments:register`  | Declares `page:fragments`; sandbox builds warn and the host excludes it |
+| Capability                       | API or hook registration                                                 |
+| -------------------------------- | ------------------------------------------------------------------------ |
+| `content:read`                   | `ctx.content.get()`, `list()`, `getTranslations()`, `getPublicUrl()`     |
+| `content:revisions:read`         | `ctx.content.listRevisions()`, `getRevision()`; implies content read     |
+| `content:write`                  | `ctx.content.create()`, `update()`, `delete()`; implies read             |
+| `comments:read`                  | `ctx.comments.get()`, `list()`, `count()`; exposes comment personal data |
+| `comments:moderate`              | `ctx.comments.setStatus()` with expected status; implies read            |
+| `schema:read`                    | `ctx.schema.listCollections()`, `getCollection()`                        |
+| `taxonomies:read`                | `ctx.taxonomies.getAll()`, `getTerms()`, `getEntryTerms()`               |
+| `taxonomies:write`               | `createTerm()`, `addEntryTerms()`, `removeEntryTerms()`; implies read    |
+| `redirects:read`                 | `ctx.redirects.list()`, `get()`                                          |
+| `redirects:write`                | `ctx.redirects.create()`, `update()`, `delete()`; implies read           |
+| `media:read`                     | `ctx.media.get()`, `ctx.media.list()`                                    |
+| `media:bytes:read`               | `ctx.media.readBytes()` for bounded bytes from ready media               |
+| `media:metadata:write`           | `ctx.media.updateMetadata()` for alt, caption, and focal point           |
+| `media:write`                    | `ctx.media.upload()`, `ctx.media.delete()`; implies read                 |
+| `network:request`                | `ctx.http.fetch()` restricted to `allowedHosts`                          |
+| `network:request:unrestricted`   | `ctx.http.fetch()` without a manifest host list                          |
+| `users:read`                     | `ctx.users.get()`, `getByEmail()`, `list()`; required by comment hooks   |
+| `email:send`                     | `ctx.email.send()` when a transport is configured                        |
+| `hooks.email-transport:register` | Exclusive `email:deliver` hook                                           |
+| `hooks.email-events:register`    | `email:beforeSend` and `email:afterSend` hooks                           |
+| `hooks.page-fragments:register`  | Declares `page:fragments`; sandbox builds warn and the host excludes it  |
 
 The old `read:*`, `write:*`, `network:fetch*`, `email:provide`, `email:intercept`, and `page:inject` names are deprecated. Validation warns about them and publishing rejects them.
 
 KV and declared storage need no capability. They are always scoped to the plugin. Installation shows capability consent; updates require renewed approval when declared access grows. MCP tools and routes becoming public have separate consent checks.
+
+Content reads include the entry's author ID, translation group, live and draft revision pointers, and row version. `getPublicUrl()` returns only published, routable URLs and never returns a preview URL. Revision snapshots require `content:revisions:read`; their retained field data can include values that an administrator removed later, but revision author identity is not exposed.
+
+Create a content translation with `ctx.content.create(collection, data, { locale, translationOf })`. `translationOf` is an active entry ID in the same collection. The new row joins its translation group, inherits byline credits and taxonomy assignments, and takes non-translatable field values from the source. Runtime content validation and save hooks still run, except the creating plugin's own `content:afterSave` hook is not re-entered and content created inside a save hook does not run save hooks again. A translation group permits one active row per locale; duplicate locale creates return `CONFLICT`, missing sources return `NOT_FOUND`, invalid locales return `VALIDATION_ERROR`, and hooks can return `SAVE_REJECTED`.
 
 ## Portable plugin context
 
@@ -116,7 +127,9 @@ interface PluginContext {
 	url(path: string): string;
 	cron?: CronAccess;
 	content?: ContentAccess;
+	schema?: SchemaAccess;
 	taxonomies?: TaxonomyAccess;
+	redirects?: RedirectAccess;
 	media?: MediaAccess;
 	http?: HttpAccess;
 	users?: UserAccess;
@@ -125,6 +138,8 @@ interface PluginContext {
 ```
 
 Optional properties appear only when the matching capability and host configuration are present.
+
+Taxonomy assignment writes accept term row IDs or translation-group IDs, not term slugs. `addEntryTerms()` and `removeEntryTerms()` apply idempotent deltas, so concurrent additions do not replace one another. The host validates taxonomy attachment, entry existence, term ownership, locale, translations, and hierarchy. `createTerm()` rejects `parentId` for a non-hierarchical taxonomy instead of ignoring it. Taxonomy-definition management, assignment replacement, term updates, and term deletion are not exposed.
 
 ## Routes and MCP tools
 
@@ -151,7 +166,7 @@ const uploaded = await ctx.media!.upload("report.pdf", "application/pdf", bytes)
 
 Both sandbox runners write the bytes through the configured media storage adapter and create a ready media record. `getUploadUrl()` is not available inside either sandbox runner. Accepted content types are images, video, audio, and PDF.
 
-Use `media:read` for ready-media metadata. It includes dimensions, alt text, caption, focal point, blurhash, dominant color, folder ID, and an authenticated ID-based asset URL. An administrator session or API token with `media:read` can follow the URL; logged-out requests stop before the route reads the media record. Metadata excludes storage keys, author identity, content hashes, and bytes. Content hashes are visible only with `media:bytes:read` because they can reveal whether the site stores a known file.
+Use `media:read` for ready-media metadata. It includes dimensions, alt text, caption, focal point, blurhash, dominant color, folder ID, and an authenticated ID-based asset URL. Authenticated callers with the `media:read` permission can follow the URL; logged-out requests stop before the route reads the media record. Metadata excludes storage keys, author identity, content hashes, and bytes. Content hashes are visible only with `media:bytes:read` because they can reveal whether the site stores a known file.
 
 `ctx.media!.readBytes!(id, { maxBytes })` buffers bytes from the configured storage adapter. The default is 10 MiB and the host maximum is 16 MiB. The host enforces the requested limit while reading the stream, even when stored size metadata is wrong.
 
@@ -168,7 +183,7 @@ The comment lifecycle is:
 3. `comment:afterCreate` runs after storage.
 4. `comment:afterModerate` runs after an administrator changes the status.
 
-All four comment hooks require `users:read` because their events contain author and request information. Lifecycle, media, email, comment, cron, content, and `page:metadata` hooks are dispatched to sandboxed plugins. `page:fragments` is the exception: the CLI accepts it with a trusted-only warning, and the sandbox proxy excludes it from host registration.
+All four comment hooks require `users:read` because their events contain author and request information. `comments:read` separately exposes stored non-trashed comments through `ctx.comments`, including author email, body, pseudonymous IP hash, user agent, and moderation metadata, but not the linked user-account ID. `comments:moderate` implies read and adds expected-status `setStatus()`; conflicts require a fresh read, successful transitions run `comment:afterModerate` once with plugin origin, and approvals preserve core author notifications. Lifecycle, media, email, comment, cron, content, and `page:metadata` hooks are dispatched to sandboxed plugins. `page:fragments` is the exception: the CLI accepts it with a trusted-only warning, and the sandbox proxy excludes it from host registration.
 
 Read [Hooks](./references/hooks.md) for event and return types.
 
@@ -214,7 +229,9 @@ await host.dispose();
 
 The direct host builds the plugin and invokes it through Cloudflare Worker Loader, the production wrapper, and `PluginBridge`. It preserves hook, route, MCP, settings, and field-widget manifest metadata, supports content fixtures, and exposes KV and declared storage for assertions. Its `invokeHook()` and `invokeRoute()` methods test the transport. They do not prove that a host action emits the hook or applies route authentication, permissions, CSRF, and response caching.
 
-Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks. Actions call production runtime and handler boundaries. Inspectors read observable state without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
+Use `createPluginRuntimeTestHost()` when the test must exercise content, plugin activation, media, comments, scheduled tasks, restart, authorization, CSRF, or cache behavior. Its API separates `transport`, `fixtures`, `actions`, `inspect`, `scheduled`, `restart()`, and `dispose()`. Fixtures write initial state without firing hooks, including bylines and taxonomy terms. Actions call production runtime and handler boundaries. Content inspectors can read byline credits and taxonomy assignments without invoking plugin code. Restart preserves D1, plugin storage, media storage, and plugin state while discarding runtime and isolate memory.
+
+Redirect capability tests can establish host state with `host.fixtures.redirect()` and inspect persisted rules with `host.inspect.redirects()`. Trigger the plugin route through `host.actions.routes.request()` when the test must prove authorization and the real host-to-isolate redirect bridge.
 
 The generated project keeps Worker Loader as its default fast test path. Add an opt-in Node/workerd job only for runner-sensitive behavior. Neither host reproduces deployed CPU, memory, and subrequest limits or renders the admin application.
 

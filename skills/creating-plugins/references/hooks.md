@@ -406,7 +406,7 @@ Runs after the comment is stored. The event contains the stored comment, moderat
 
 ### `comment:afterModerate`
 
-Runs after an administrator changes a comment's status. The event contains the stored comment, `previousStatus`, `newStatus`, and the moderator's `{ id, name }`. Returns `void`.
+Runs after an administrator or a plugin changes a comment's status. The event contains the stored comment, `previousStatus`, `newStatus`, the moderator's `{ id, name }`, and `origin`. Administrator changes use `{ source: "admin", userId }`; `ctx.comments.setStatus()` uses `{ source: "plugin", pluginId }`. A transition runs the hook once. Returns `void`.
 
 ## Cron Hook
 

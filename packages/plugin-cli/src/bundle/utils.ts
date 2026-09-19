@@ -16,7 +16,7 @@ import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
 
-import { capabilitiesToDeclaredAccess } from "./types.js";
+import { capabilitiesToDeclaredAccess, declaredAccessToCapabilities } from "./types.js";
 import type {
 	ManifestHookEntry,
 	ManifestMcpTool,
@@ -131,6 +131,8 @@ export function readImageDimensions(buf: Uint8Array): [number, number] | null {
  * publish-relevant fields.
  */
 export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
+	const declaredAccess = capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts);
+	const enforcedAccess = declaredAccessToCapabilities(declaredAccess);
 	const hooks: Array<ManifestHookEntry | string> = [];
 	for (const [name, resolved] of Object.entries(plugin.hooks)) {
 		if (!resolved) continue;
@@ -198,8 +200,8 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 	return {
 		id: plugin.id,
 		version: plugin.version,
-		declaredAccess: capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts),
-		capabilities: plugin.capabilities,
+		declaredAccess,
+		capabilities: enforcedAccess.capabilities,
 		allowedHosts: plugin.allowedHosts,
 		storage: plugin.storage,
 		hooks,
