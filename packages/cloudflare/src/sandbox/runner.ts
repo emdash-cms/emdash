@@ -19,6 +19,7 @@ import {
 	normalizeCapabilities,
 	type SandboxRunner,
 	type SandboxedPluginInstance,
+	type SandboxInvocationOptions,
 	type SandboxEmailSendCallback,
 	type SandboxContentCreateCallback,
 	type SandboxOptions,
@@ -417,9 +418,10 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 		routeName: string,
 		input: unknown,
 		request: SerializedRequest,
+		options?: SandboxInvocationOptions,
 	): Promise<unknown> {
 		const invocationId = crypto.randomUUID();
-		beginContentActionCallbacks(this.manifest.id, invocationId);
+		beginContentActionCallbacks(this.manifest.id, invocationId, options?.invalidateContentCache);
 		const worker = this.createWorker();
 		const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
 		const invocation = (async () => {

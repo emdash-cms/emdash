@@ -98,6 +98,7 @@ describe("Miniflare sandbox route errors", () => {
 			},
 			CONTENT_PUBLISH_PLUGIN,
 		);
+		const invalidateContentCache = vi.fn().mockResolvedValue(undefined);
 
 		await expect(
 			plugin.invokeRoute(
@@ -109,10 +110,15 @@ describe("Miniflare sandbox route errors", () => {
 					headers: {},
 					meta: { ip: null, userAgent: null, referer: null, geo: null },
 				},
+				{ invalidateContentCache },
 			),
 		).resolves.toMatchObject({ item: { id: "post-1", status: "published" } });
 
-		expect(contentActions.begin).toHaveBeenCalledOnce();
+		expect(contentActions.begin).toHaveBeenCalledWith(
+			"content-publisher",
+			expect.any(String),
+			invalidateContentCache,
+		);
 		const invocationId = contentActions.begin.mock.calls[0]?.[1];
 		expect(contentActions.publish).toHaveBeenCalledWith(
 			"content-publisher",

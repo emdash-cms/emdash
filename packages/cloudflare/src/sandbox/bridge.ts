@@ -113,8 +113,12 @@ export function setContentActionsCallback(callback: ContentActionCallbacks | nul
 	contentActionsCallback = callback;
 }
 
-export function beginContentActionCallbacks(pluginId: string, invocationId: string): void {
-	contentActionsCallback?.begin?.(pluginId, invocationId);
+export function beginContentActionCallbacks(
+	pluginId: string,
+	invocationId: string,
+	invalidateContentCache?: (tags: string[]) => Promise<void>,
+): void {
+	contentActionsCallback?.begin?.(pluginId, invocationId, invalidateContentCache);
 }
 
 export function flushContentActionCallbacks(

@@ -19,6 +19,7 @@ import { createRequire } from "node:module";
 import type {
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxInvocationOptions,
 	ContentActionCallbacks,
 	SandboxEmailSendCallback,
 	SandboxContentCreateCallback,
@@ -313,44 +314,58 @@ class MiniflareDevPlugin implements SandboxedPluginInstance {
 		routeName: string,
 		input: unknown,
 		request: SerializedRequest,
+		options?: SandboxInvocationOptions,
 	): Promise<unknown> {
 		if (!this.runner.isHealthy()) {
 			throw new Error(`Dev sandbox unavailable for ${this.id}`);
 		}
-		return this.withWallTimeLimit(`route:${routeName}`, async (invocationId) => {
-			const res = await this.runner.dispatchToPlugin(this.id, `http://plugin/route/${routeName}`, {
-				method: "POST",
-				headers: {
-					"Content-Type": "application/json",
-					Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-				},
-				body: JSON.stringify({ input, request, invocationId }),
-			});
-			if (!res.ok) {
-				const text = await res.text();
-				let envelope = null;
-				try {
-					envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
-				} catch {
-					// The generic route error below preserves non-protocol failures.
+		return this.withWallTimeLimit(
+			`route:${routeName}`,
+			async (invocationId) => {
+				const res = await this.runner.dispatchToPlugin(
+					this.id,
+					`http://plugin/route/${routeName}`,
+					{
+						method: "POST",
+						headers: {
+							"Content-Type": "application/json",
+							Authorization: `Bearer ${this.runner.invokeAuthToken}`,
+						},
+						body: JSON.stringify({ input, request, invocationId }),
+					},
+				);
+				if (!res.ok) {
+					const text = await res.text();
+					let envelope = null;
+					try {
+						envelope = getSandboxRouteErrorEnvelope(JSON.parse(text));
+					} catch {
+						// The generic route error below preserves non-protocol failures.
+					}
+					if (envelope) {
+						throw createSandboxRouteError(envelope.error.code);
+					}
+					throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
 				}
-				if (envelope) {
-					throw createSandboxRouteError(envelope.error.code);
-				}
-				throw new Error(`Plugin ${this.id} route ${routeName} failed: ${text}`);
-			}
-			return res.json();
-		});
+				return res.json();
+			},
+			options,
+		);
 	}
 
 	private async withWallTimeLimit<T>(
 		operation: string,
 		fn: (invocationId: string) => Promise<T>,
+		options?: SandboxInvocationOptions,
 	): Promise<T> {
 		const wallTimeMs = this.runner.wallTimeMs;
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const invocationId = randomUUID();
-		this.runner.contentActions?.begin?.(this.manifest.id, invocationId);
+		this.runner.contentActions?.begin?.(
+			this.manifest.id,
+			invocationId,
+			options?.invalidateContentCache,
+		);
 
 		const timeout = new Promise<never>((_, reject) => {
 			timer = setTimeout(() => {

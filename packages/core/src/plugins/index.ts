@@ -97,6 +97,7 @@ export {
 export type {
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxInvocationOptions,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,

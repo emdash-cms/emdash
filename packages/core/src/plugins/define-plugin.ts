@@ -188,12 +188,9 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		}
 	}
 
-	// Silent normalization: rewrite deprecated names to current names. Done
-	// before the implication pass so implications work on canonical names.
-	// `as PluginCapability[]` is safe because `normalizeCapabilities` only
-	// returns strings from the validated input plus current names from the
-	// rename map, all of which are in the union.
-	const canonical = normalizeCapabilities(capabilities) as PluginCapability[];
+	// Silent normalization: rewrite deprecated names to current names before
+	// the implication pass so implications work on canonical names.
+	const canonical = normalizeCapabilities(capabilities);
 
 	// Capability implications: broader capabilities imply narrower ones.
 	// Operates on canonical names only.
