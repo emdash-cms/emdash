@@ -7,8 +7,8 @@
  */
 
 import type { CompoundSelectLimitedAdapter } from "emdash";
-import type { DatabaseIntrospector, Kysely } from "kysely";
-import { SqliteAdapter } from "kysely";
+import { LockingSqliteAdapter } from "emdash/database/migration-lock";
+import type { DatabaseIntrospector, Kysely, SqliteAdapter } from "kysely";
 import { D1Dialect } from "kysely-d1";
 
 import { D1Introspector } from "./d1-introspector.js";
@@ -24,10 +24,12 @@ export const D1_COMPOUND_SELECT_LIMIT = 5;
 /**
  * Base adapter for every D1-backed dialect. Declares the compound-SELECT
  * ceiling, which core reads off the adapter to split statements that would
- * exceed it; a dialect that overrides `createAdapter()` without extending this
- * silently sends D1 compound SELECTs it rejects.
+ * exceed it, and takes the migration lock in a database row, since D1 has no
+ * lock that separate Workers and CLI processes share. A dialect that overrides
+ * `createAdapter()` without extending this silently sends D1 compound SELECTs
+ * it rejects and lets concurrent migrations run into each other.
  */
-export class D1Adapter extends SqliteAdapter implements CompoundSelectLimitedAdapter {
+export class D1Adapter extends LockingSqliteAdapter implements CompoundSelectLimitedAdapter {
 	readonly compoundSelectLimit = D1_COMPOUND_SELECT_LIMIT;
 }
 

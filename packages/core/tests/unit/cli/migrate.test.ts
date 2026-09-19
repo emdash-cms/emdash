@@ -13,9 +13,10 @@ import {
 	runMigrateCommand,
 	type MigrateCommandDependencies,
 } from "../../../src/cli/commands/migrate.js";
+import { MigrationLockHeldError } from "../../../src/database/migrations/runner.js";
 import { createCoreMigrationIdentity } from "../../../src/migrations/identity.js";
 import type { MigrationManifestV1 } from "../../../src/migrations/manifest.js";
-import type { MigrationExecutor } from "../../../src/migrations/protocol.js";
+import type { MigrationExecutor, MigrationReport } from "../../../src/migrations/protocol.js";
 
 async function fixture(
 	options: {
@@ -23,7 +24,6 @@ async function fixture(
 		unknownApplied?: string[];
 		executed?: string[];
 		interactive?: boolean;
-		targetKind?: string;
 	} = {},
 ) {
 	const identity = await createCoreMigrationIdentity("1.2.3", ["001_initial"]);
@@ -39,12 +39,12 @@ async function fixture(
 		},
 	};
 	const target = Object.freeze({
-		kind: options.targetKind ?? "sqlite",
+		kind: "sqlite",
 		label: "/project/data.db",
 		fingerprint: "a".repeat(64),
 	});
 	const calls: string[] = [];
-	const execute = vi.fn(async () => {
+	const execute = vi.fn(async (): Promise<MigrationReport> => {
 		calls.push("execute");
 		return {
 			target,
@@ -286,34 +286,118 @@ describe("runMigrateCommand", () => {
 		expect(context.dispose).toHaveBeenCalledOnce();
 	});
 
-	it("warns before D1 applies without warning for read-only or non-D1 operations", async () => {
-		const apply = await fixture({ pending: ["001_initial"], targetKind: "d1" });
-		const check = await fixture({ pending: ["001_initial"], targetKind: "d1" });
-		const status = await fixture({ pending: ["001_initial"], targetKind: "d1" });
-		const sqlite = await fixture({ pending: ["001_initial"] });
+	it("reports a held migration lock in human and JSON status output", async () => {
+		const lock = { id: "1788264000000", heldSince: "2026-09-01T12:00:00.000Z" };
+		const human = await fixture({ pending: ["001_initial"] });
+		const json = await fixture({ pending: ["001_initial"] });
+		for (const context of [human, json]) {
+			context.execute.mockResolvedValueOnce({
+				target: context.target,
+				knownApplied: [],
+				pending: ["001_initial"],
+				unknownApplied: [],
+				executed: [],
+				lock,
+			});
+		}
 
-		await runMigrateCommand(
-			{
-				expectedTargetFingerprint: apply.target.fingerprint,
-				json: true,
-			},
-			apply.dependencies,
+		await runMigrateCommand({ status: true }, human.dependencies);
+		await runMigrateCommand({ status: true, json: true }, json.dependencies);
+
+		expect(human.stdout[0]).toBe(
+			"Migration lock: held since 2026-09-01T12:00:00.000Z (id 1788264000000)",
 		);
-		await runMigrateCommand({ check: true }, check.dependencies);
-		await runMigrateCommand({ status: true }, status.dependencies);
-		await runMigrateCommand(
-			{ expectedTargetFingerprint: sqlite.target.fingerprint },
-			sqlite.dependencies,
+		expect(JSON.parse(json.stdout[0]!)).toMatchObject({ lock });
+	});
+
+	it("rejects an executor lock report that is not a lock id and timestamp", async () => {
+		const context = await fixture();
+		context.execute.mockResolvedValueOnce({
+			target: context.target,
+			knownApplied: [],
+			pending: [],
+			unknownApplied: [],
+			executed: [],
+			lock: { id: "1; DROP TABLE", heldSince: "yesterday" },
+		});
+
+		const exitCode = await runMigrateCommand({ status: true }, context.dependencies);
+
+		expect(exitCode).toBe(MIGRATE_EXIT_CODES.error);
+		expect(context.stdout).toEqual([]);
+		expect(context.stderr.join("\n")).toContain("invalid lock report");
+	});
+
+	it("prints a held-lock error with its docs link and lock id intact", async () => {
+		const context = await fixture();
+		context.dependencies.env = {
+			PORT: "4000",
+			DATABASE_URL: "postgres://user:very-secret@example.com/db",
+		};
+		context.execute.mockRejectedValueOnce(new MigrationLockHeldError(1788264000000));
+
+		const exitCode = await runMigrateCommand(
+			{ expectedTargetFingerprint: context.target.fingerprint },
+			context.dependencies,
 		);
 
-		const warning = apply.stderr.find((line) => line.includes("serialized externally"));
-		expect(warning).toContain("Cloudflare account and database UUID");
-		expect(apply.calls.lastIndexOf("stderr")).toBeLessThan(apply.calls.indexOf("execute"));
-		expect(apply.stdout).toHaveLength(1);
-		expect(() => JSON.parse(apply.stdout[0]!)).not.toThrow();
-		expect(check.stderr.join("\n")).not.toContain("serialized externally");
-		expect(status.stderr.join("\n")).not.toContain("serialized externally");
-		expect(sqlite.stderr.join("\n")).not.toContain("serialized externally");
+		expect(exitCode).toBe(MIGRATE_EXIT_CODES.error);
+		expect(context.stderr.at(-1)).toBe(
+			"The migration lock has been held since 2026-09-01T12:00:00.000Z (lock 1788264000000). " +
+				"A migration may still be running; if none is, check the database and release the lock: " +
+				"https://docs.emdashcms.com/deployment/core-migrations/#release-a-stuck-migration-lock",
+		);
+	});
+
+	it("confirms a lock release and sends only the confirmed lock id", async () => {
+		const context = await fixture({ interactive: true, pending: ["001_initial"] });
+
+		const exitCode = await runMigrateCommand(
+			{ releaseLock: "1788264000000" },
+			context.dependencies,
+		);
+
+		expect(exitCode).toBe(MIGRATE_EXIT_CODES.success);
+		expect(context.dependencies.confirm).toHaveBeenCalledWith(
+			expect.stringContaining(`Release migration lock 1788264000000 on ${context.target.label}?`),
+		);
+		expect(context.execute).toHaveBeenCalledWith(
+			expect.objectContaining({ action: "release-lock", lockId: "1788264000000" }),
+		);
+		expect(context.stdout[0]).toBe("Released migration lock 1788264000000.");
+	});
+
+	it("requires confirmation or the target fingerprint before releasing a lock", async () => {
+		const declined = await fixture({ interactive: true });
+		declined.dependencies.confirm = vi.fn(async () => false);
+		const noninteractive = await fixture();
+
+		await expect(
+			runMigrateCommand({ releaseLock: "1788264000000" }, declined.dependencies),
+		).resolves.toBe(MIGRATE_EXIT_CODES.confirmation);
+		await expect(
+			runMigrateCommand({ releaseLock: "1788264000000" }, noninteractive.dependencies),
+		).resolves.toBe(MIGRATE_EXIT_CODES.confirmation);
+
+		expect(declined.execute).not.toHaveBeenCalled();
+		expect(noninteractive.execute).not.toHaveBeenCalled();
+		expect(noninteractive.stderr.join("\n")).toContain(
+			"Noninteractive lock release requires --expected-target-fingerprint",
+		);
+	});
+
+	it.each([
+		[{ releaseLock: "" }],
+		[{ releaseLock: "abc" }],
+		[{ releaseLock: "1788264000000", status: true }],
+		[{ releaseLock: "1788264000000", check: true }],
+	])("rejects %o before reading a manifest", async (options) => {
+		const context = await fixture();
+
+		const exitCode = await runMigrateCommand(options, context.dependencies);
+
+		expect(exitCode).toBe(MIGRATE_EXIT_CODES.error);
+		expect(context.dependencies.readManifest).not.toHaveBeenCalled();
 	});
 
 	it("disposes once on failure without leaking executor errors or environment secrets", async () => {

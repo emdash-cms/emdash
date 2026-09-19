@@ -95,6 +95,8 @@ export default defineConfig({
 		"src/database/instrumentation.ts",
 		// Fail-fast Postgres migration lock (used by @emdash-cms/cloudflare's Hyperdrive adapter)
 		"src/database/pg-migration-lock.ts",
+		// Row-based migration lock (used by @emdash-cms/cloudflare's D1 adapters)
+		"src/database/migration-lock.ts",
 		// Storage adapters (runtime - loaded via virtual:emdash/storage)
 		"src/storage/local.ts",
 		"src/storage/s3.ts",

@@ -1,6 +1,6 @@
 import type { I18nConfig } from "../i18n/config.js";
 
-export type MigrationAction = "check" | "apply";
+export type MigrationAction = "check" | "apply" | "release-lock";
 
 export interface MigrationRequest {
 	action: MigrationAction;
@@ -9,6 +9,14 @@ export interface MigrationRequest {
 		emdashVersion: string;
 		migrationSetFingerprint: string;
 	};
+	/** For `release-lock`: the lock id a `check` reported. Another lock is left alone. */
+	lockId?: string;
+}
+
+export interface MigrationLockReport {
+	id: string;
+	/** ISO 8601 time the lock was taken. */
+	heldSince: string;
 }
 
 export interface MigrationTarget {
@@ -26,6 +34,8 @@ export interface MigrationReport {
 	pending: string[];
 	unknownApplied: string[];
 	executed: string[];
+	/** Present on `check` while a migration lock is held. */
+	lock?: MigrationLockReport;
 }
 
 export interface MigrationExecutor {
