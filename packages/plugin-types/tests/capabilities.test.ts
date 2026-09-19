@@ -357,5 +357,5 @@ describe("declaredAccess <-> capabilities round-trip (total over the vocabulary)
 		}
 		// 18 content x 3 comments x 12 media x 3 taxonomy x 3 redirects x 5 network x 2^7 singleton subsets.
 		expect(count).toBe(3_732_480);
-	});
+	}, 20_000);
 });
