@@ -175,9 +175,16 @@ describe("Cloudflare generated plugin context", () => {
 			hooks: {
 				"plugin:activate": async (_event: unknown, ctx: Record<string, any>) => {
 					await ctx.cron.schedule("daily", { schedule: "@daily" });
+					const abortController = new AbortController();
 					await ctx.http.fetch("https://api.example.com/status", {
 						method: "POST",
 						body: pluginHttpFormBody(),
+						signal: abortController.signal,
+						mode: "cors",
+						credentials: "include",
+						integrity: "sha256-test",
+						referrer: "https://admin.example.com/",
+						keepalive: true,
 					});
 					const response = await ctx.http.fetch("https://api.example.com/upload", {
 						method: "POST",
@@ -250,6 +257,12 @@ describe("Cloudflare generated plugin context", () => {
 			PLUGIN_HTTP_FORM_CONTENT_TYPE,
 		);
 		expect(capturedInits[0]?.body).toEqual(PLUGIN_HTTP_FORM_BYTES);
+		expect(capturedInits[0]).not.toHaveProperty("signal");
+		expect(capturedInits[0]).not.toHaveProperty("mode");
+		expect(capturedInits[0]).not.toHaveProperty("credentials");
+		expect(capturedInits[0]).not.toHaveProperty("integrity");
+		expect(capturedInits[0]).not.toHaveProperty("referrer");
+		expect(capturedInits[0]).not.toHaveProperty("keepalive");
 		expect(capturedInits[1]).not.toHaveProperty("duplex");
 		expect(capturedInits[1]?.body).toEqual(new Uint8Array([0, 255, 128, 10]));
 	});

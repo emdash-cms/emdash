@@ -303,7 +303,8 @@ function createContext(env, originHook, invocationId) {
 		fetch: async (url, init) => {
 			const buffered = await bufferPluginHttpRequest(init);
 			const bridgeInit = buffered ? {
-				...buffered,
+				...(buffered.method ? { method: buffered.method } : {}),
+				...(buffered.redirect ? { redirect: buffered.redirect } : {}),
 				headers: buffered.headers ? Array.from(new Headers(buffered.headers).entries()) : undefined,
 				body: buffered.body ? new Uint8Array(buffered.body) : undefined,
 			} : undefined;

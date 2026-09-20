@@ -640,7 +640,6 @@ export class RedirectRepository {
 		const referrer = truncateOrNull(entry.referrer, REFERRER_MAX_LENGTH);
 		const userAgent = truncateOrNull(entry.userAgent, USER_AGENT_MAX_LENGTH);
 		const ip = entry.ip ?? null;
-		const id = ulid();
 
 		// Atomic upsert by path. The UNIQUE index on `path` makes this safe
 		// under concurrency: two requests for the same new path can't both
@@ -649,7 +648,7 @@ export class RedirectRepository {
 		const result = await this.db
 			.insertInto("_emdash_404_log")
 			.values({
-				id,
+				id: ulid(),
 				path: entry.path,
 				referrer,
 				user_agent: userAgent,
@@ -667,13 +666,13 @@ export class RedirectRepository {
 					ip,
 				}),
 			)
-			.returning("id")
+			.returning("created_at")
 			.executeTakeFirst();
 
 		// The conflict branch only updates existing rows, so repeat hits
 		// cannot grow the table. Only enforce the row cap when we actually
 		// inserted a new path.
-		if (result?.id !== id) return;
+		if (result?.created_at !== now) return;
 		await this.enforce404Cap();
 	}
 
