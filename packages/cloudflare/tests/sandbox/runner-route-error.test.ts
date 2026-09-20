@@ -103,6 +103,54 @@ describe("Cloudflare sandbox route errors", () => {
 		await expect(plugin.invokeHook("content:beforeSave", {})).resolves.toEqual(rejection);
 	});
 
+	it.each(["hook", "route"] as const)(
+		"releases queued action work when %s setup throws",
+		async (kind) => {
+			mocks.loader.get.mockImplementationOnce(() => {
+				throw new Error("loader setup failed");
+			});
+			const contentActions = {
+				begin: vi.fn(),
+				flush: vi.fn().mockResolvedValue(undefined),
+			};
+			const runner = new CloudflareSandboxRunner({
+				db: null as never,
+				contentActions: contentActions as never,
+			});
+			const plugin = await runner.load(
+				{
+					id: "setup-error",
+					version: "1.0.0",
+					capabilities: ["content:publish"],
+					allowedHosts: [],
+					storage: {},
+					hooks: ["content:beforeSave"],
+					routes: [],
+					admin: {},
+				},
+				"export default {}",
+			);
+
+			const invocation =
+				kind === "hook"
+					? plugin.invokeHook("content:beforeSave", {})
+					: plugin.invokeRoute("publish", {}, {
+							url: "https://example.com/_emdash/api/plugins/setup-error/publish",
+							method: "POST",
+							headers: {},
+							meta: { ip: null, userAgent: null, referer: null, geo: null },
+						});
+
+			await expect(invocation).rejects.toThrow("loader setup failed");
+			expect(contentActions.begin).toHaveBeenCalledOnce();
+			expect(contentActions.flush).toHaveBeenCalledWith(
+				"setup-error",
+				expect.any(String),
+				true,
+			);
+		},
+	);
+
 	it("releases queued action work when a plugin never settles", async () => {
 		vi.useFakeTimers();
 		mocks.invokeRoute.mockImplementation(() => new Promise(() => undefined));

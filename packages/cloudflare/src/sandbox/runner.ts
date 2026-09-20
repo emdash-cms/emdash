@@ -465,9 +465,11 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 	async invokeHook(hookName: string, event: unknown): Promise<unknown> {
 		const invocationId = crypto.randomUUID();
 		beginContentActionCallbacks(this.contentActionsRuntimeId ?? "", this.manifest.id, invocationId);
-		const worker = this.createWorker();
-		const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
-		const invocation = entrypoint.invokeHook(hookName, event, invocationId);
+		const invocation = Promise.resolve().then(() => {
+			const worker = this.createWorker();
+			const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
+			return entrypoint.invokeHook(hookName, event, invocationId);
+		});
 		return this.withWallTimeLimit(`hook:${hookName}`, invocationId, invocation);
 	}
 
@@ -490,9 +492,9 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 			invocationId,
 			options?.invalidateContentCache,
 		);
-		const worker = this.createWorker();
-		const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
 		const invocation = (async () => {
+			const worker = this.createWorker();
+			const entrypoint = worker.getEntrypoint<PluginEntrypoint>("default");
 			const routeResult = await entrypoint.invokeRoute(routeName, input, request, invocationId);
 			const envelope = getSandboxRouteErrorEnvelope(routeResult);
 			if (envelope) throw createSandboxRouteError(envelope.error.code);
