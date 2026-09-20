@@ -22,13 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Download bundle
-        id: download
+      - name: Find bundle artifact
+        id: artifact
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
-            const fs = require('node:fs');
-            const path = require('node:path');
             const { data } = await github.rest.actions.listWorkflowRunArtifacts({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -40,23 +38,32 @@ jobs:
               core.info('No bundle artifact — nothing to apply.');
               return;
             }
-            const download = await github.rest.actions.downloadArtifact({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              artifact_id: artifact.id,
-              archive_format: 'zip',
-            });
-            const outDir = path.join(process.env.RUNNER_TEMP, 'release-action-bundle');
-            fs.mkdirSync(outDir, { recursive: true });
-            fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(download.data));
             core.setOutput('found', 'true');
+            core.setOutput('id', String(artifact.id));
+
+      - name: Download bundle without extracting it
+        if: steps.artifact.outputs.found == 'true'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          artifact-ids: ${{ steps.artifact.outputs.id }}
+          path: ${{ runner.temp }}/release-action-bundle
+          github-token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id }}
+          skip-decompress: true
 
       - name: Sanitize bundle artifact
-        if: steps.download.outputs.found == 'true'
+        if: steps.artifact.outputs.found == 'true'
         run: |
           set -euo pipefail
-          archive="$RUNNER_TEMP/release-action-bundle/artifact.zip"
+          download_dir="$RUNNER_TEMP/release-action-bundle"
           safe_dir="$RUNNER_TEMP/release-action-safe"
+          mapfile -d '' archives < <(find "$download_dir" -mindepth 1 -maxdepth 1 -type f -print0)
+          if [[ "${#archives[@]}" -ne 1 ]]; then
+            echo "::error::Expected exactly one downloaded artifact archive" >&2
+            exit 1
+          fi
+          archive="${archives[0]}"
           mkdir -m 700 "$safe_dir"
 
           unzip -p "$archive" index.js | head -c 10485761 > "$safe_dir/index.js"
@@ -74,7 +81,7 @@ jobs:
           fi
 
       - name: Resolve Dependabot PR
-        if: steps.download.outputs.found == 'true'
+        if: steps.artifact.outputs.found == 'true'
         id: pr
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
@@ -121,7 +128,7 @@ jobs:
             core.setOutput('sha', headSha);
 
       - name: Generate app token
-        if: steps.download.outputs.found == 'true'
+        if: steps.artifact.outputs.found == 'true'
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
@@ -130,7 +137,7 @@ jobs:
           permission-contents: write
 
       - name: Commit and push bundle
-        if: steps.download.outputs.found == 'true'
+        if: steps.artifact.outputs.found == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           HEAD_REF: ${{ steps.pr.outputs.ref }}
