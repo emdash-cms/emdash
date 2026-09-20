@@ -29,7 +29,7 @@ import {
 	createMediaAccess,
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
-	normalizeCapabilities,
+	normalizePluginCapabilities,
 	OptionsRepository,
 	parsePluginMediaMetadataPatch,
 	PluginStorageRepository,
@@ -229,10 +229,7 @@ function bridgeJsonReplacer(_key: string, value: unknown): unknown {
 export function createBridgeHandler(
 	opts: BridgeHandlerOptions,
 ): (request: Request) => Promise<Response> {
-	const capabilities = normalizeCapabilities(opts.capabilities);
-	if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
-		capabilities.push("comments:read");
-	}
+	const capabilities = normalizePluginCapabilities(opts.capabilities);
 	const normalizedOpts = {
 		...opts,
 		capabilities,

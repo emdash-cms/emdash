@@ -450,6 +450,7 @@ export {
 	isDeprecatedCapability,
 	normalizeCapability,
 	normalizeCapabilities,
+	normalizePluginCapabilities,
 } from "./plugins/index.js";
 export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./plugins/index.js";
 

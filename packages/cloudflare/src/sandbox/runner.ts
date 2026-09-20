@@ -16,7 +16,7 @@ import {
 	createSandboxRouteError,
 	getSandboxRouteErrorEnvelope,
 	getI18nConfig,
-	normalizeCapabilities,
+	normalizePluginCapabilities,
 	type SandboxRunner,
 	type SandboxedPluginInstance,
 	type SandboxInvocationOptions,
@@ -345,15 +345,7 @@ class CloudflareSandboxedPlugin implements SandboxedPluginInstance {
 
 		// Create fresh bridge binding for THIS request.
 		//
-		// Capabilities are normalized to canonical names here so the bridge
-		// only ever sees the current vocabulary. Manifests installed before
-		// the rename (or sites still using the legacy alias layer) keep
-		// working — `normalizeCapabilities` rewrites legacy names like
-		// `read:content` → `content:read` and `network:fetch` → `network:request`.
-		const capabilities = normalizeCapabilities(this.manifest.capabilities || []);
-		if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
-			capabilities.push("comments:read");
-		}
+		const capabilities = normalizePluginCapabilities(this.manifest.capabilities || []);
 		const bridgeBinding = this.createBridge({
 			props: {
 				pluginId: this.manifest.id,

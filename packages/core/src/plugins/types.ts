@@ -72,6 +72,31 @@ export {
 	type StorageCollectionConfig,
 };
 
+export const PLUGIN_CAPABILITY_IMPLICATIONS: ReadonlyArray<
+	readonly [PluginCapability, PluginCapability]
+> = [
+	["content:write", "content:read"],
+	["content:revisions:read", "content:read"],
+	["taxonomies:write", "taxonomies:read"],
+	["content:publish", "content:read"],
+	["media:write", "media:read"],
+	["comments:moderate", "comments:read"],
+	["redirects:write", "redirects:read"],
+	["network:request:unrestricted", "network:request"],
+];
+
+export function normalizePluginCapabilities(
+	capabilities: readonly PluginCapability[],
+): PluginCapability[];
+export function normalizePluginCapabilities(capabilities: readonly string[]): string[];
+export function normalizePluginCapabilities(capabilities: readonly string[]): string[] {
+	const normalized = new Set(normalizeCapabilities(capabilities));
+	for (const [granted, implied] of PLUGIN_CAPABILITY_IMPLICATIONS) {
+		if (normalized.has(granted)) normalized.add(implied);
+	}
+	return [...normalized];
+}
+
 // =============================================================================
 // Storage Types
 // =============================================================================

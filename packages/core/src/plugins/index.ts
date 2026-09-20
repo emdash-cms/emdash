@@ -315,5 +315,6 @@ export {
 	isDeprecatedCapability,
 	normalizeCapability,
 	normalizeCapabilities,
+	normalizePluginCapabilities,
 } from "./types.js";
 export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./types.js";

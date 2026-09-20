@@ -880,11 +880,7 @@ describe("Bridge Handler Conformance", () => {
 			});
 		});
 
-		it("content:write does not imply content:read at the bridge boundary", async () => {
-			// The bridge enforces capabilities strictly: a plugin that declares
-			// only write:content cannot call ctx.content.get/list. This matches
-			// the Cloudflare PluginBridge behavior. The plugin must declare
-			// read:content explicitly to read.
+		it("allows content reads through the content:write implication", async () => {
 			await db.schema
 				.createTable("ec_posts")
 				.addColumn("id", "text", (col) => col.primaryKey())
@@ -897,7 +893,7 @@ describe("Bridge Handler Conformance", () => {
 				collection: "posts",
 				id: "123",
 			});
-			expect(result.error).toContain("Missing capability: content:read");
+			expect(result.error).toBeUndefined();
 		});
 
 		it("rejects taxonomy read without taxonomies:read capability", async () => {
@@ -946,7 +942,7 @@ describe("Bridge Handler Conformance", () => {
 			expect(createTerm).toHaveBeenCalledWith("genre", { label: "Reviews" });
 		});
 
-		it("allows taxonomy read with taxonomies:read", async () => {
+		it("allows taxonomy read with implied access from taxonomies:write", async () => {
 			await db.schema
 				.createTable("_emdash_taxonomy_defs")
 				.addColumn("id", "text", (col) => col.primaryKey())
@@ -972,7 +968,7 @@ describe("Bridge Handler Conformance", () => {
 				})
 				.execute();
 
-			const handler = makeHandler({ capabilities: ["taxonomies:read"] });
+			const handler = makeHandler({ capabilities: ["taxonomies:write"] });
 			const result = await call(handler, "taxonomy/list", {});
 			expect(result.error).toBeUndefined();
 			const defs = result.result as Array<{ name: string; hierarchical: boolean }>;
