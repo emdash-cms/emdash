@@ -6,7 +6,7 @@ import { RouterProvider } from "@tanstack/react-router";
 import { fireEvent } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { ThemeProvider } from "../src/components/ThemeProvider";
 import type { AdminManifest, ContentItem } from "../src/lib/api";
@@ -948,6 +948,34 @@ describe("ContentEditPage actions during a save conflict", () => {
 			.toBeVisible();
 	}
 
+	function serveOneOtherUser() {
+		const inner = globalThis.fetch;
+		globalThis.fetch = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.includes("/users")) {
+				return jsonResponse({
+					data: {
+						items: [
+							{
+								id: "user_2",
+								email: "other@example.com",
+								name: "Other Writer",
+								avatarUrl: null,
+								role: 40,
+								emailVerified: true,
+								disabled: false,
+								createdAt: "2026-01-01T00:00:00Z",
+								updatedAt: "2026-01-01T00:00:00Z",
+								lastLogin: null,
+							},
+						],
+					},
+				});
+			}
+			return inner(input, init);
+		}) as typeof fetch;
+	}
+
 	function publishRequests() {
 		return server!.requests.filter(
 			(request) => request.method === "POST" && request.url.includes("/publish"),
@@ -1041,6 +1069,27 @@ describe("ContentEditPage actions during a save conflict", () => {
 			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
 			.toBeVisible();
 		expect(server.requests.filter((request) => request.method === "PUT")).toHaveLength(1);
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("keeps the conflict when the author changes, so a later edit cannot overwrite", async () => {
+		server = createSharedEntryServer();
+		serveOneOtherUser();
+		const screen = await renderEditPage();
+		await enterConflict(screen);
+
+		await screen.getByRole("combobox", { name: "Author" }).click();
+		await vi.advanceTimersByTimeAsync(150);
+		await page.getByRole("option", { name: /Other Writer/ }).click();
+		await vi.advanceTimersByTimeAsync(5000);
+
+		await expect
+			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+			.toBeVisible();
+
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy 2");
+		await vi.advanceTimersByTimeAsync(5000);
+
 		expect(server.entry.data).toMatchObject({ title: "Other writer" });
 	});
 

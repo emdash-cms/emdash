@@ -1117,7 +1117,12 @@ function ContentEditPage() {
 			}
 		},
 		onSuccess: (_, variables) => {
-			setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
+			// Only a save the writer started resolves the conflict. An author or SEO
+			// write carries the recovered token too, and clearing the notice for one
+			// would hand the editor's stale copy a token the server accepts.
+			if (variables.source === "editor") {
+				setConflictedEntryId((current) => (current === variables.targetId ? "" : current));
+			}
 			handleContentUpdateSuccess(variables.targetId);
 		},
 		onError: async (error, variables) => {
