@@ -939,16 +939,13 @@ export function ContentEditor({
 				}
 			>
 				<div className={cn(isDistractionFree ? "w-full" : "flex-1 min-w-0 overflow-y-auto p-6")}>
-					{/* In distraction-free mode the header is an always-visible overlay
+					{/* In distraction-free mode the header stays visible while the editor scrolls
 					    so readers can discover the exit affordance without hovering. */}
 					<div
 						className={cn(
 							"flex flex-wrap items-center justify-between gap-y-2",
 							isDistractionFree
-								? cn(
-										"top-0 mx-auto max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur z-10",
-										isBelowLg ? "sticky w-full" : "fixed start-0 end-0 w-[calc(100%-4rem)]",
-									)
+								? "sticky top-0 z-10 mx-auto w-full max-w-3xl bg-kumo-elevated/95 py-4 backdrop-blur"
 								: cn(
 										"mx-auto mb-6 max-w-3xl",
 										isBelowLg && "bg-kumo-elevated/95 py-3 backdrop-blur",
@@ -982,7 +979,10 @@ export function ContentEditor({
 						<div
 							className={cn(
 								"flex items-center gap-2",
-								isDistractionFree && isBelowLg && "w-full flex-wrap justify-end",
+								isDistractionFree &&
+									(isBelowLg
+										? "w-full flex-wrap justify-end"
+										: "min-w-0 max-w-full flex-wrap justify-end"),
 							)}
 						>
 							{!isDistractionFree ? (
@@ -1120,11 +1120,7 @@ export function ContentEditor({
 					</div>
 
 					<div
-						className={cn(
-							isDistractionFree
-								? cn("mx-auto max-w-3xl", !isBelowLg && "pt-16")
-								: "mx-auto max-w-3xl space-y-6",
-						)}
+						className={cn(isDistractionFree ? "mx-auto max-w-3xl" : "mx-auto max-w-3xl space-y-6")}
 					>
 						{notice}
 						<fieldset disabled={readOnly} className="contents">

@@ -425,6 +425,49 @@ test.describe("Schedule content", () => {
 			}),
 		).toBeVisible();
 		await expect(page.getByText("Draft changes", { exact: true })).toBeVisible();
+
+		await page.setViewportSize({ width: 1024, height: 768 });
+		await page
+			.context()
+			.addCookies([
+				{ name: "emdash-locale", value: "pt-BR", domain: "localhost", path: "/_emdash" },
+			]);
+		await page.reload();
+		await admin.waitForLoading();
+		await page.getByRole("button", { name: "Entrar no modo sem distrações" }).click();
+
+		const distractionFreeHeader = page
+			.getByRole("heading", { name: "Editar Post" })
+			.locator("..")
+			.locator("..");
+		const headerBox = await distractionFreeHeader.boundingBox();
+		expect(headerBox).not.toBeNull();
+		const headerActions = distractionFreeHeader.locator("button, a");
+		const actionCount = await headerActions.count();
+		expect(actionCount).toBeGreaterThanOrEqual(7);
+		for (let index = 0; index < actionCount; index++) {
+			const actionBox = await headerActions.nth(index).boundingBox();
+			expect(actionBox).not.toBeNull();
+			expect(actionBox!.x).toBeGreaterThanOrEqual(headerBox!.x);
+			expect(actionBox!.x + actionBox!.width).toBeLessThanOrEqual(headerBox!.x + headerBox!.width);
+		}
+		const titleBox = await page.locator("#field-title").boundingBox();
+		expect(titleBox).not.toBeNull();
+		expect(titleBox!.y).toBeGreaterThanOrEqual(headerBox!.y + headerBox!.height);
+		await page.locator("form").evaluate((form) => {
+			form.scrollTop = form.scrollHeight;
+		});
+		const scrolledHeaderBox = await distractionFreeHeader.boundingBox();
+		expect(scrolledHeaderBox).not.toBeNull();
+		expect(scrolledHeaderBox!.y).toBeGreaterThanOrEqual(0);
+		expect(scrolledHeaderBox!.y + scrolledHeaderBox!.height).toBeLessThanOrEqual(768);
+
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "en", domain: "localhost", path: "/_emdash" }]);
+		await page.reload();
+		await admin.waitForLoading();
+
 		publicResponse = await fetch(`${baseUrl}/posts/${postSlug}`);
 		publicHtml = await publicResponse.text();
 		expect(publicHtml).toContain("Schedule Test Post");

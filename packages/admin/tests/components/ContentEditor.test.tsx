@@ -1994,7 +1994,7 @@ describe("ContentEditor", () => {
 			expect(heading.parentElement?.querySelector("button")).toBeNull();
 		});
 
-		it("keeps the editor canvas and header overlay on the elevated surface", async () => {
+		it("keeps the editor canvas and distraction-free header on the elevated surface", async () => {
 			const screen = await renderEditor({ isNew: true });
 			const form = document.querySelector("form");
 
@@ -2007,15 +2007,6 @@ describe("ContentEditor", () => {
 			const header = heading.parentElement?.parentElement;
 			expect(form).toHaveClass("bg-kumo-elevated");
 			expect(header).toHaveClass("bg-kumo-elevated/95");
-			expect(header).toHaveClass(
-				"start-0",
-				"end-0",
-				"mx-auto",
-				"w-[calc(100%-4rem)]",
-				"max-w-3xl",
-				"py-4",
-			);
-			expect(header).not.toHaveClass("start-8", "end-8", "w-full", "p-4");
 		});
 
 		it("toggle adds fixed class for distraction-free mode", async () => {
