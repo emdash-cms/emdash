@@ -1,0 +1,148 @@
+name: Release Action Bundle — Apply
+
+# The producer runs dependency code without credentials. This privileged stage
+# only accepts its artifact for a same-repository Dependabot npm PR, pins the
+# measured head commit, and never executes code from the pull request.
+on:
+  workflow_run:
+    workflows: ["Release Action Bundle"]
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  pull-requests: read
+
+jobs:
+  apply:
+    name: Apply
+    if: |
+      github.event.workflow_run.conclusion == 'success'
+      && github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Download bundle
+        id: download
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const { data } = await github.rest.actions.listWorkflowRunArtifacts({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id: context.payload.workflow_run.id,
+            });
+            const artifact = data.artifacts.find((item) => item.name === 'release-action-bundle');
+            if (!artifact) {
+              core.setOutput('found', 'false');
+              core.info('No bundle artifact — nothing to apply.');
+              return;
+            }
+            const download = await github.rest.actions.downloadArtifact({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              artifact_id: artifact.id,
+              archive_format: 'zip',
+            });
+            const outDir = path.join(process.env.RUNNER_TEMP, 'release-action-bundle');
+            fs.mkdirSync(outDir, { recursive: true });
+            fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(download.data));
+            core.setOutput('found', 'true');
+
+      - name: Unpack bundle
+        if: steps.download.outputs.found == 'true'
+        run: unzip -o "$RUNNER_TEMP/release-action-bundle/artifact.zip" -d "$RUNNER_TEMP/release-action-bundle"
+
+      - name: Resolve Dependabot PR
+        if: steps.download.outputs.found == 'true'
+        id: pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const artifactDir = path.join(process.env.RUNNER_TEMP, 'release-action-bundle');
+            const prNumber = Number(
+              fs.readFileSync(path.join(artifactDir, 'pr-number'), 'utf8').trim(),
+            );
+            if (!Number.isInteger(prNumber) || prNumber <= 0) {
+              core.setFailed(`Invalid PR number in artifact: ${prNumber}`);
+              return;
+            }
+            const { data: pr } = await github.rest.pulls.get({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: prNumber,
+            });
+            const expectedRepo = `${context.repo.owner}/${context.repo.repo}`;
+            const headSha = context.payload.workflow_run.head_sha;
+            if (pr.state !== 'open' || pr.base.ref !== 'main') {
+              core.setFailed(`PR #${prNumber} is not an open pull request targeting main.`);
+              return;
+            }
+            if (pr.user.login !== 'dependabot[bot]') {
+              core.setFailed(`PR #${prNumber} was not opened by Dependabot.`);
+              return;
+            }
+            if (
+              pr.head.repo.full_name !== expectedRepo
+              || !pr.head.ref.startsWith('dependabot/npm_and_yarn/')
+            ) {
+              core.setFailed(`PR #${prNumber} is not a same-repository Dependabot npm update.`);
+              return;
+            }
+            if (pr.head.sha !== headSha) {
+              core.setFailed(
+                `PR #${prNumber} head SHA (${pr.head.sha}) does not match the built SHA (${headSha}).`,
+              );
+              return;
+            }
+            core.setOutput('ref', pr.head.ref);
+            core.setOutput('sha', headSha);
+
+      - name: Generate app token
+        if: steps.download.outputs.found == 'true'
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ secrets.APP_ID }}
+          private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+
+      - name: Checkout built head
+        if: steps.download.outputs.found == 'true'
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          token: ${{ steps.app-token.outputs.token }}
+          persist-credentials: true
+
+      - name: Apply bundle
+        if: steps.download.outputs.found == 'true'
+        id: apply
+        run: |
+          expected="apps/release-action/dist/index.js"
+          cp "$RUNNER_TEMP/release-action-bundle/index.js" "$expected"
+          git add "$expected"
+          if git diff --staged --quiet; then
+            echo "no_diff=true" >> "$GITHUB_OUTPUT"
+            echo "The bundle is already present at the PR head."
+          else
+            echo "no_diff=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Commit and push bundle
+        if: steps.download.outputs.found == 'true' && steps.apply.outputs.no_diff == 'false'
+        env:
+          HEAD_REF: ${{ steps.pr.outputs.ref }}
+          HEAD_SHA: ${{ steps.pr.outputs.sha }}
+        run: |
+          git config user.name "emdashbot[bot]"
+          git config user.email "emdashbot[bot]@users.noreply.github.com"
+          git commit -m "chore: update release action bundle"
+          if ! git push origin "HEAD:$HEAD_REF"; then
+            echo "::error::Non-fast-forward push — the PR branch moved past $HEAD_SHA. Its next update will rebuild the bundle." >&2
+            exit 1
+          fi
