@@ -14,7 +14,7 @@
  */
 
 import { Kysely, SqliteDialect } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import {
@@ -224,17 +224,23 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 		});
 		await runMigrations(loggedDb);
 		const loggedRepo = new RedirectRepository(loggedDb);
+		const toISOString = vi
+			.spyOn(Date.prototype, "toISOString")
+			.mockReturnValue("2030-01-01T00:00:00.000Z");
 
-		captured.length = 0;
-		await loggedRepo.log404({ path: "/new-path" });
-		const countAfterInsert = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
-		expect(countAfterInsert).toBe(1);
+		try {
+			captured.length = 0;
+			await loggedRepo.log404({ path: "/new-path" });
+			const countAfterInsert = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
+			expect(countAfterInsert).toBe(1);
 
-		captured.length = 0;
-		await loggedRepo.log404({ path: "/new-path" });
-		const countAfterUpdate = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
-		expect(countAfterUpdate).toBe(0);
-
-		await loggedDb.destroy();
+			captured.length = 0;
+			await loggedRepo.log404({ path: "/new-path" });
+			const countAfterUpdate = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
+			expect(countAfterUpdate).toBe(0);
+		} finally {
+			toISOString.mockRestore();
+			await loggedDb.destroy();
+		}
 	});
 });
