@@ -4,6 +4,8 @@ import {
 	completeReviewCheck,
 	createReviewCheck,
 	findReviewCheck,
+	classifyPullRequestHeadMove,
+	fetchPullRequestRevision,
 	fetchUnifiedDiff,
 	githubRateLimitGate,
 	GitHubRateLimitError,
@@ -233,6 +235,91 @@ describe("GitHub review checks", () => {
 		);
 	});
 
+	it("fetches the current base and head revision together", async () => {
+		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+			Response.json({
+				head: { sha: "head-sha" },
+				base: { sha: "base-sha" },
+			}),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+
+		await expect(fetchPullRequestRevision(TOKEN, "emdash-cms", "emdash", 42)).resolves.toEqual({
+			headSha: "head-sha",
+			baseSha: "base-sha",
+		});
+	});
+
+	it("classifies exact EmDash formatter bot commits as formatting-only", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				Response.json({
+					status: "ahead",
+					total_commits: 1,
+					commits: [
+						{
+							author: { login: "emdashbot[bot]", type: "Bot" },
+							commit: {
+								author: {
+									name: "emdashbot[bot]",
+									email: "emdashbot[bot]@users.noreply.github.com",
+								},
+								message: "style: format",
+							},
+						},
+					],
+				}),
+			),
+		);
+
+		await expect(
+			classifyPullRequestHeadMove(TOKEN, "emdash-cms", "emdash", "old-head", "new-head"),
+		).resolves.toBe("format_only");
+	});
+
+	it("treats any non-formatter commit in the head move as substantive", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				Response.json({
+					status: "ahead",
+					total_commits: 1,
+					commits: [
+						{
+							author: { login: "contributor", type: "User" },
+							commit: {
+								author: { name: "Contributor", email: "contributor@example.com" },
+								message: "fix: update implementation",
+							},
+						},
+					],
+				}),
+			),
+		);
+
+		await expect(
+			classifyPullRequestHeadMove(TOKEN, "emdash-cms", "emdash", "old-head", "new-head"),
+		).resolves.toBe("substantive");
+	});
+
+	it("fails closed when GitHub truncates the compared commit list", async () => {
+		vi.stubGlobal(
+			"fetch",
+			vi.fn<typeof fetch>().mockResolvedValue(
+				Response.json({
+					status: "ahead",
+					total_commits: 2,
+					commits: [],
+				}),
+			),
+		);
+
+		await expect(
+			classifyPullRequestHeadMove(TOKEN, "emdash-cms", "emdash", "old-head", "new-head"),
+		).resolves.toBe("substantive");
+	});
+
 	it("posts a review against the captured head commit", async () => {
 		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 200 }));
 		vi.stubGlobal("fetch", fetchMock);
@@ -251,6 +338,29 @@ describe("GitHub review checks", () => {
 			commit_id: "head-sha",
 		});
 	});
+
+	it.each(["approve", "request_changes"] as const)(
+		"posts an emdashbot self-review verdict of %s as a comment",
+		async (verdict) => {
+			const fetchMock = vi
+				.fn<typeof fetch>()
+				.mockResolvedValue(new Response(null, { status: 200 }));
+			vi.stubGlobal("fetch", fetchMock);
+
+			await postReview(
+				TOKEN,
+				"emdash-cms",
+				"emdash",
+				42,
+				{ verdict, summary: "Self-review", findings: [] },
+				"head-sha",
+				undefined,
+				{ pullRequestAuthorLogin: "emdashbot[bot]" },
+			);
+
+			expect(requestBody(fetchMock)).toMatchObject({ event: "COMMENT" });
+		},
+	);
 
 	it("recovers an existing check by deterministic external id", async () => {
 		const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(

@@ -9,6 +9,7 @@
 // review. The app needs `pull_requests: write`, `checks: write`, and
 // `contents: read`.
 
+import type { PullRequestRevision, ReviewHeadMove } from "./review-head.js";
 import type { ReviewResult } from "./review-schema.js";
 
 const GITHUB_API = "https://api.github.com";
@@ -19,6 +20,10 @@ const REVIEW_RATE_LIMIT_FALLBACK_MS = 60_000;
 const REVIEW_RATE_LIMIT_MAX_DELAY_MS = 60 * 60_000;
 const REVIEW_RATE_LIMIT_RESET_BUFFER_MS = 1_000;
 const RATE_LIMIT_ERROR = /\brate limit\b/i;
+const AUTO_FORMAT_MESSAGE = "style: format";
+const EMDASH_BOT_LOGIN = "emdashbot[bot]";
+const AUTO_FORMAT_NAME = "emdashbot[bot]";
+const AUTO_FORMAT_EMAIL = "emdashbot[bot]@users.noreply.github.com";
 const GITHUB_HEADERS = {
 	accept: "application/vnd.github+json",
 	"content-type": "application/json",
@@ -202,6 +207,7 @@ export class GitHubRateLimitError extends Error {
 }
 
 interface ReviewRetryOptions {
+	pullRequestAuthorLogin?: string;
 	beforeRetry?: (input: {
 		retry: number;
 		maxRetries: number;
@@ -597,12 +603,12 @@ export async function fetchUnifiedDiff(
 	return res.text();
 }
 
-export async function fetchPullRequestHeadSha(
+export async function fetchPullRequestRevision(
 	token: GitHubToken,
 	owner: string,
 	repo: string,
 	prNumber: number,
-): Promise<string> {
+): Promise<PullRequestRevision> {
 	const res = await coordinatedFetch(
 		token,
 		`${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}`,
@@ -610,10 +616,59 @@ export async function fetchPullRequestHeadSha(
 			headers: installationHeaders(token),
 		},
 	);
-	await requireGitHubResponse(res, "fetch pull request head");
-	const pull = await res.json<{ head?: { sha?: string } }>();
-	if (!pull.head?.sha) throw new Error("Pull request response did not include a head SHA");
-	return pull.head.sha;
+	await requireGitHubResponse(res, "fetch pull request revision");
+	const pull = await res.json<{ head?: { sha?: string }; base?: { sha?: string } }>();
+	if (!pull.head?.sha || !pull.base?.sha) {
+		throw new Error("Pull request response did not include base and head SHAs");
+	}
+	return { headSha: pull.head.sha, baseSha: pull.base.sha };
+}
+
+interface ComparisonCommit {
+	author?: { login?: string; type?: string } | null;
+	commit?: {
+		author?: { name?: string; email?: string } | null;
+		message?: string;
+	};
+}
+
+function isAutoFormatCommit(commit: ComparisonCommit): boolean {
+	return (
+		commit.commit?.message?.split("\n", 1)[0] === AUTO_FORMAT_MESSAGE &&
+		commit.author?.login === EMDASH_BOT_LOGIN &&
+		commit.author.type === "Bot" &&
+		commit.commit.author?.name === AUTO_FORMAT_NAME &&
+		commit.commit.author.email === AUTO_FORMAT_EMAIL
+	);
+}
+
+export async function classifyPullRequestHeadMove(
+	token: GitHubToken,
+	owner: string,
+	repo: string,
+	fromHeadSha: string,
+	toHeadSha: string,
+): Promise<ReviewHeadMove> {
+	const res = await coordinatedFetch(
+		token,
+		`${GITHUB_API}/repos/${owner}/${repo}/compare/${encodeURIComponent(fromHeadSha)}...${encodeURIComponent(toHeadSha)}`,
+		{ headers: installationHeaders(token) },
+	);
+	await requireGitHubResponse(res, "compare pull request heads");
+	const comparison = await res.json<{
+		status?: string;
+		total_commits?: number;
+		commits?: ComparisonCommit[];
+	}>();
+	if (
+		comparison.status !== "ahead" ||
+		!Number.isInteger(comparison.total_commits) ||
+		!comparison.total_commits ||
+		comparison.commits?.length !== comparison.total_commits
+	) {
+		return "substantive";
+	}
+	return comparison.commits.every(isAutoFormatCommit) ? "format_only" : "substantive";
 }
 
 /**
@@ -836,7 +891,10 @@ export async function postReview(
 	retryOptions?: ReviewRetryOptions,
 ): Promise<void> {
 	const url = `${GITHUB_API}/repos/${owner}/${repo}/pulls/${prNumber}/reviews`;
-	const event = verdictToEvent(result.verdict);
+	const event =
+		retryOptions?.pullRequestAuthorLogin === EMDASH_BOT_LOGIN
+			? "COMMENT"
+			: verdictToEvent(result.verdict);
 	const marker = attemptId ? `<!-- emdash-review-attempt:${attemptId} -->` : undefined;
 	const summary = `${result.summary.trim() || FALLBACK_SUMMARY}${marker ? `\n\n${marker}` : ""}`;
 	if (commitId && marker) {
