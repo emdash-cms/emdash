@@ -125,7 +125,7 @@ describe("Workerd generated plugin context", () => {
 			{
 				id: "context-wrapper",
 				version: "1.0.0",
-				capabilities: ["users:read", "network:request", "redirects:read", "content:publish"],
+				capabilities: ["users:read", "network:request", "redirects:write", "content:publish"],
 				allowedHosts: ["api.example.com"],
 				storage: {},
 				hooks: [],
@@ -213,7 +213,7 @@ describe("Workerd generated plugin context", () => {
 			items: [{ source: "/old" }],
 			hasMore: false,
 		});
-		expect(context.redirects.create).toBeUndefined();
+		expect(context.redirects.create).toBeTypeOf("function");
 		const response = await context.http.fetch("https://api.example.com/status");
 		expect(response).toBeInstanceOf(Response);
 		expect(response.status).toBe(206);

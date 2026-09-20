@@ -151,7 +151,7 @@ describe("Cloudflare generated plugin context", () => {
 		const source = generatePluginWrapper({
 			id: "context-wrapper",
 			version: "1.0.0",
-			capabilities: ["network:request", "redirects:write", "redirects:read", "content:publish"],
+			capabilities: ["network:request", "redirects:write", "content:publish"],
 			allowedHosts: ["api.example.com"],
 			storage: {},
 			hooks: ["plugin:activate"],
