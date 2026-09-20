@@ -71,12 +71,12 @@ msgstr "{0, plural, one {(# Element)} other {(# Elemente)}}"
 #. placeholder {0}: bounds.max
 #: packages/admin/src/components/ContentEditor.tsx:2004
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
-msgstr ""
+msgstr "{0, plural, one {{counted} von # Zeichen, mindestens {min}} other {{counted} von # Zeichen, mindestens {min}}}"
 
 #. placeholder {0}: bounds.max
 #: packages/admin/src/components/ContentEditor.tsx:2009
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
-msgstr ""
+msgstr "{0, plural, one {{counted} von # Zeichen} other {{counted} von # Zeichen}}"
 
 #. placeholder {0}: 1
 #. placeholder {0}: value.bylineIds.length
@@ -226,7 +226,7 @@ msgstr "{0, plural, one {# Bild hinzufügen} other {# Bilder hinzufügen}}"
 #. placeholder {0}: bounds.min
 #: packages/admin/src/components/ContentEditor.tsx:2014
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
-msgstr ""
+msgstr "{0, plural, one {Mindestens # Zeichen} other {Mindestens # Zeichen}}"
 
 #. placeholder {0}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:250
@@ -246,7 +246,7 @@ msgstr "{0, plural, one {Mediendatei} other {Mediendateien}}"
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:198
 msgid "{0, plural, one {One more blocked entry is not shown.} other {# more blocked entries are not shown.}}"
-msgstr ""
+msgstr "{0, plural, one {Ein weiterer blockierter Eintrag wird nicht angezeigt.} other {# weitere blockierte Einträge werden nicht angezeigt.}}"
 
 #. placeholder {0}: state.rows
 #: packages/admin/src/components/editor/TableControls.tsx:248
@@ -509,7 +509,7 @@ msgstr "{pluginName}-Einstellungen"
 
 #: packages/admin/src/components/Dashboard.tsx:152
 msgid "{policyRejected, plural, one {Open the affected entry, resolve the policy reason, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, resolve the policy reasons, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr ""
+msgstr "{policyRejected, plural, one {Öffne den betroffenen Eintrag, behebe den angegebenen Grund und plane ihn erneut. Eine erfolgreiche Planung oder Publizierung entfernt diesen Hinweis.} other {Öffne die betroffenen Einträge, behebe die angegebenen Gründe und plane sie erneut. Eine erfolgreiche Planung oder Publizierung entfernt den jeweiligen Hinweis.}}"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:304
 msgid "{position} of {total}"
@@ -1300,7 +1300,7 @@ msgstr "Freigeben"
 
 #: packages/admin/src/lib/api/marketplace.ts:423
 msgid "Approve comments and mark them as pending or spam"
-msgstr ""
+msgstr "Kommentare freigeben und als ausstehend oder Spam markieren"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:646
 msgid "Approve with that device's face, fingerprint, PIN, or passcode."
@@ -1369,11 +1369,11 @@ msgstr "Astro"
 
 #: packages/admin/src/components/ContentEditor.tsx:2037
 msgid "At least {min}"
-msgstr ""
+msgstr "Mindestens {min}"
 
 #: packages/admin/src/components/ContentEditor.tsx:2034
 msgid "At most {max}"
-msgstr ""
+msgstr "Höchstens {max}"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:69
 #: packages/admin/src/components/MediaLibrary.tsx:987
@@ -1597,7 +1597,7 @@ msgstr "Bevor du fortfährst:"
 
 #: packages/admin/src/components/ContentEditor.tsx:2031
 msgid "Between {min} and {max}"
-msgstr ""
+msgstr "Zwischen {min} und {max}"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:233
 #: packages/admin/src/components/settings/SeoSettings.tsx:247
@@ -1650,7 +1650,7 @@ msgstr "Dateien zum Hochladen durchsuchen"
 
 #: packages/admin/src/components/PluginManager.tsx:67
 msgid "Browse the <0>registry</0> to install plugins, or add them to your astro.config.mjs."
-msgstr ""
+msgstr "Durchsuche das <0>Verzeichnis</0>, um Erweiterungen zu installieren, oder trage sie in deiner astro.config.mjs ein."
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:79
 msgid "Browse themes and preview them with your own content."
@@ -1877,7 +1877,7 @@ msgstr "Planung ändern"
 
 #: packages/admin/src/lib/api/marketplace.ts:429
 msgid "Change where visitors are sent"
-msgstr ""
+msgstr "Ändern, wohin Besucher weitergeleitet werden"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:881
 msgid "Changelog"
@@ -1917,19 +1917,19 @@ msgstr "Nach Aktualisierungen suchen"
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:34
 msgid "Check registry in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "Prüfe registry in deiner astro.config.mjs und starte EmDash anschließend neu."
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:14
 msgid "Check registry.aggregatorUrl in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "Prüfe registry.aggregatorUrl in deiner astro.config.mjs und starte EmDash anschließend neu."
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:17
 msgid "Check registry.policy.minimumReleaseAge in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "Prüfe registry.policy.minimumReleaseAge in deiner astro.config.mjs und starte EmDash anschließend neu."
 
 #: packages/admin/src/components/RegistryConfigurationBanner.tsx:20
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
-msgstr ""
+msgstr "Prüfe registry.policy.minimumReleaseAgeExclude in deiner astro.config.mjs und starte EmDash anschließend neu."
 
 #: packages/admin/src/components/WordPressImport.tsx:1113
 msgid "Check Site"
@@ -2297,12 +2297,12 @@ msgstr "Mit {0} verbinden"
 #: packages/admin/src/lib/api/marketplace.ts:436
 #: packages/admin/src/lib/api/marketplace.ts:444
 msgid "Connect to any network host and load external plugin admin images (unrestricted)"
-msgstr ""
+msgstr "Verbindung zu einem beliebigen Host herstellen und externe Bilder der Erweiterung im Adminbereich laden (unbeschränkt)"
 
 #: packages/admin/src/lib/api/marketplace.ts:435
 #: packages/admin/src/lib/api/marketplace.ts:443
 msgid "Connect to network hosts and load external plugin admin images"
-msgstr ""
+msgstr "Verbindung zu Hosts herstellen und externe Bilder der Erweiterung im Adminbereich laden"
 
 #: packages/admin/src/components/WordPressImport.tsx:1389
 msgid "Connect with WordPress"
@@ -2687,7 +2687,7 @@ msgstr "Taxonomie erstellen"
 
 #: packages/admin/src/lib/api/marketplace.ts:427
 msgid "Create taxonomy terms and change content classifications"
-msgstr ""
+msgstr "Taxonomie-Begriffe erstellen und die Klassifizierung von Inhalten ändern"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:238
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:540
@@ -3645,7 +3645,7 @@ msgstr "Bearbeitungssperre"
 
 #: packages/admin/src/lib/api/marketplace.ts:432
 msgid "Edit media alt text, captions, and focal points"
-msgstr ""
+msgstr "Alt-Text, Bildunterschriften und Fokuspunkte von Medien bearbeiten"
 
 #: packages/admin/src/components/MenuEditor.tsx:573
 msgid "Edit Menu Item"
@@ -3658,7 +3658,7 @@ msgstr "Menüeintrag bearbeiten"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:30
 msgid "visualEditing.editMode"
-msgstr ""
+msgstr "Bearbeitungsmodus"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:872
 #: packages/admin/src/components/BylineCreditsEditor.tsx:966
@@ -3690,7 +3690,7 @@ msgstr "URL bearbeiten"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:21
 msgid "visualEditing.sessionExpired"
-msgstr ""
+msgstr "Die Bearbeitungssitzung ist abgelaufen. Lade die Seite neu, um fortzufahren."
 
 #: packages/admin/src/components/users/roleDefinitions.ts:36
 #: packages/admin/src/components/WelcomeModal.tsx:26
@@ -3963,7 +3963,7 @@ msgstr "Ablenkungsfreien Modus verlassen"
 
 #: packages/admin/src/components/ContentEditor.tsx:1126
 msgid "Exit distraction-free mode (⌘⇧\\)"
-msgstr ""
+msgstr "Ablenkungsfreien Modus verlassen (⌘⇧\\)"
 
 #: packages/admin/src/components/PluginManager.tsx:546
 #: packages/admin/src/components/PluginManager.tsx:551
@@ -4162,7 +4162,7 @@ msgstr "Verwerfen der Änderungen fehlgeschlagen"
 #: packages/admin/src/components/Dashboard.tsx:207
 #: packages/admin/src/lib/api/dashboard.ts:71
 msgid "Failed to dismiss scheduled publication rejection"
-msgstr ""
+msgstr "Schließen des Hinweises zur abgelehnten Planung fehlgeschlagen"
 
 #: packages/admin/src/components/WelcomeModal.tsx:76
 msgid "Failed to dismiss welcome"
@@ -5059,11 +5059,11 @@ msgstr "Token ausblenden"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:32
 msgid "visualEditing.hideToolbar"
-msgstr ""
+msgstr "Symbolleiste ausblenden"
 
 #: packages/admin/src/components/Shell.tsx:86
 msgid "Hide toolbar"
-msgstr ""
+msgstr "Symbolleiste ausblenden"
 
 #: packages/admin/src/components/TaxonomyManager.tsx:839
 msgid "Hierarchical (like categories, with parent/child relationships)"
@@ -5877,7 +5877,7 @@ msgstr "Lade Menüs..."
 
 #: packages/admin/src/components/SandboxedContentEditorPanel.tsx:160
 msgid "Loading plugin panel"
-msgstr ""
+msgstr "Erweiterungsbereich wird geladen"
 
 #: packages/admin/src/components/PluginManager.tsx:158
 msgid "Loading plugins..."
@@ -6102,15 +6102,15 @@ msgstr "Marktplatz"
 
 #: packages/admin/src/router.tsx:2334
 msgid "Marketplace browsing is no longer available."
-msgstr ""
+msgstr "Der Marktplatz kann nicht mehr durchsucht werden."
 
 #: packages/admin/src/router.tsx:2309
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
-msgstr ""
+msgstr "Der Marktplatz kann nicht mehr durchsucht werden. Verwalte installierte Erweiterungen unter „Erweiterungen“."
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:14
 msgid "Marketplace configuration is deprecated"
-msgstr ""
+msgstr "Die Marktplatz-Konfiguration ist veraltet"
 
 #: packages/admin/src/components/FieldEditor.tsx:666
 msgid "Max Items"
@@ -6302,7 +6302,7 @@ msgstr "Meta-Titel, Beschreibungen und Bilder für soziale Medien"
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:18
 msgid "Migration guide"
-msgstr ""
+msgstr "Migrationsleitfaden"
 
 #: packages/admin/src/components/WordPressImport.tsx:1069
 msgid "Migration key"
@@ -6598,7 +6598,7 @@ msgstr "Neuer Ordner"
 
 #: packages/admin/src/components/MarketplaceMigrationBanner.tsx:15
 msgid "New plugin discovery uses the registry. Existing marketplace plugins can still be updated or uninstalled while you switch over."
-msgstr ""
+msgstr "Neue Erweiterungen werden über das Verzeichnis gefunden. Bestehende Marktplatz-Erweiterungen lassen sich während der Umstellung weiterhin aktualisieren oder deinstallieren."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:196
 msgid "New public routes"
@@ -7088,7 +7088,7 @@ msgstr "Ordner {0} öffnen"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:31
 msgid "visualEditing.openInAdmin"
-msgstr ""
+msgstr "Im Adminbereich öffnen"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:510
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:511
@@ -7455,11 +7455,11 @@ msgstr "Erweiterung {pluginId} hat das Speichern abgelehnt: {reason}"
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:101
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:129
 msgid "Plugin action failed"
-msgstr ""
+msgstr "Erweiterungsaktion fehlgeschlagen"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:209
 msgid "Plugin actions"
-msgstr ""
+msgstr "Erweiterungsaktionen"
 
 #: packages/admin/src/lib/content-list-columns.tsx:236
 msgid "Plugin column unavailable"
@@ -7488,7 +7488,7 @@ msgstr "Fehler mit der Erweiterung ({0})"
 
 #: packages/admin/src/lib/api/marketplace.ts:120
 msgid "Plugin installation requires explicit consent"
-msgstr ""
+msgstr "Die Installation der Erweiterung erfordert eine ausdrückliche Zustimmung"
 
 #: packages/admin/src/components/PluginManager.tsx:383
 msgid "Plugin MCP access updated"
@@ -7684,7 +7684,7 @@ msgstr "Anbieter:"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:196
 msgid "Public routes"
-msgstr ""
+msgstr "Öffentliche Routen"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:964
 #: packages/admin/src/components/ContentSettingsPanel.tsx:969
@@ -7695,12 +7695,12 @@ msgstr "Publikationsdatum"
 
 #: packages/admin/src/components/Dashboard.tsx:151
 msgid "Publication policy blocked scheduled content"
-msgstr ""
+msgstr "Publikationsrichtlinie hat geplante Inhalte blockiert"
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:19
 msgid "visualEditing.publish"
-msgstr ""
+msgstr "Publizieren"
 
 #: packages/admin/src/components/ContentList.tsx:505
 #: packages/admin/src/components/ContentSettingsPanel.tsx:528
@@ -7721,7 +7721,7 @@ msgstr "Änderungen jetzt publizieren"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:26
 msgid "visualEditing.publishFailed"
-msgstr ""
+msgstr "Publizieren fehlgeschlagen. Prüfe deine Berechtigungen und versuche es erneut."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:481
 msgid "Publish now"
@@ -7729,7 +7729,7 @@ msgstr "Jetzt publizieren"
 
 #: packages/admin/src/lib/api/marketplace.ts:420
 msgid "Publish, unpublish, schedule, and unschedule content"
-msgstr ""
+msgstr "Inhalte publizieren, depublizieren, planen und die Planung aufheben"
 
 #: packages/admin/src/components/ContentList.tsx:859
 #: packages/admin/src/components/ContentList.tsx:870
@@ -7779,7 +7779,7 @@ msgstr "Übersicht zur Publizierung"
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:20
 msgid "visualEditing.publishing"
-msgstr ""
+msgstr "Wird publiziert…"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:47
 msgid "Python"
@@ -7806,11 +7806,11 @@ msgstr "Rohe Metadaten"
 
 #: packages/admin/src/lib/api/marketplace.ts:421
 msgid "Read and restore trashed content"
-msgstr ""
+msgstr "Inhalte im Papierkorb lesen und wiederherstellen"
 
 #: packages/admin/src/lib/api/marketplace.ts:424
 msgid "Read collection and field definitions"
-msgstr ""
+msgstr "Kollektions- und Felddefinitionen lesen"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:68
 msgid "Read collection schemas"
@@ -7818,7 +7818,7 @@ msgstr "Kollektionsschemata lesen"
 
 #: packages/admin/src/lib/api/marketplace.ts:422
 msgid "Read comment bodies, author email addresses, pseudonymous IP hashes, user agents, and moderation metadata"
-msgstr ""
+msgstr "Kommentartexte, E-Mail-Adressen der Verfasser, pseudonymisierte IP-Hashes, User-Agents und Moderationsmetadaten lesen"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:48
 msgid "Read content entries"
@@ -7826,7 +7826,7 @@ msgstr "Inhaltseinträge lesen"
 
 #: packages/admin/src/lib/api/marketplace.ts:431
 msgid "Read media file contents"
-msgstr ""
+msgstr "Inhalte von Mediendateien lesen"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:58
 msgid "Read media files"
@@ -7834,11 +7834,11 @@ msgstr "Mediendateien lesen"
 
 #: packages/admin/src/lib/api/marketplace.ts:428
 msgid "Read redirect rules"
-msgstr ""
+msgstr "Weiterleitungsregeln lesen"
 
 #: packages/admin/src/lib/api/marketplace.ts:418
 msgid "Read retained content revision history"
-msgstr ""
+msgstr "Aufbewahrte Revisionen von Inhalten lesen"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
@@ -7927,7 +7927,7 @@ msgstr "Das angegebene Favicon ist nicht verfügbar."
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:25
 msgid "visualEditing.refreshPage"
-msgstr ""
+msgstr "Seite neu laden"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:337
 msgid "Refresh status"
@@ -8393,7 +8393,7 @@ msgstr "Überprüfen"
 
 #: packages/admin/src/lib/api/marketplace.ts:425
 msgid "Review and block publishing, scheduling, and unpublishing content"
-msgstr ""
+msgstr "Das Publizieren, Planen und Depublizieren von Inhalten prüfen und blockieren"
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:93
 msgid "Review New Permissions"
@@ -8563,7 +8563,7 @@ msgstr "Änderungen speichern"
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:194
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:211
 msgid "Save changes before running plugin actions"
-msgstr ""
+msgstr "Speichere die Änderungen, bevor du Erweiterungsaktionen ausführst"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:72
 msgid "Save content as draft before publishing"
@@ -9916,11 +9916,11 @@ msgstr "Dieser Eintrag ist an anderer Stelle geöffnet"
 
 #: packages/admin/src/components/ContentEditor.tsx:1146
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
-msgstr ""
+msgstr "Dieser Eintrag ist schreibgeschützt, weil das Schema Feldtypen verwendet, die diese EmDash-Version nicht unterstützt."
 
 #: packages/admin/src/components/ContentEditor.tsx:1584
 msgid "This field cannot be edited by this version of EmDash."
-msgstr ""
+msgstr "Dieses Feld kann von dieser EmDash-Version nicht bearbeitet werden."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3623
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
@@ -10000,7 +10000,7 @@ msgstr "Dies löscht {0} dauerhaft aus dem Storage."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:201
 msgid "This plugin exposes the following routes without authentication:"
-msgstr ""
+msgstr "Diese Erweiterung macht die folgenden Routen ohne Authentifizierung zugänglich:"
 
 #: packages/admin/src/components/PluginSettings.tsx:177
 msgid "This plugin has no configurable settings."
@@ -10429,7 +10429,7 @@ msgstr "Planung aufgehoben"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:788
 msgid "Unsupported"
-msgstr ""
+msgstr "Nicht unterstützt"
 
 #. placeholder {0}: (element as { type: string }).type
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:128
@@ -11091,7 +11091,7 @@ msgstr "Bearbeite {selectedCount} Elemente…"
 
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:247
 msgid "Working…"
-msgstr ""
+msgstr "Wird ausgeführt…"
 
 #: packages/admin/src/components/Widgets.tsx:904
 msgid "Write widget content..."
