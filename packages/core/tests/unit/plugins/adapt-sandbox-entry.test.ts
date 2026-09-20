@@ -628,6 +628,14 @@ describe("adaptSandboxEntry", () => {
 			expect(readCount).toBe(1);
 		});
 
+		it.each([
+			["taxonomies:write", "taxonomies:read"],
+			["redirects:write", "redirects:read"],
+		] as const)("implies %s -> %s", (declared, implied) => {
+			const result = adaptSandboxEntry({}, createDescriptor({ capabilities: [declared] }));
+			expect(result.capabilities).toEqual(expect.arrayContaining([declared, implied]));
+		});
+
 		it("throws on invalid capability", () => {
 			const def: SandboxedPlugin = {};
 			const descriptor = createDescriptor({

@@ -14,7 +14,7 @@ import type { PluginDescriptor } from "../astro/integration/runtime.js";
 import type { RouteEntry, RouteHandler, SandboxedPlugin } from "../plugin-types.js";
 import { PLUGIN_CAPABILITIES, HOOK_NAMES } from "./manifest-schema.js";
 import { sanitizeHeadersForSandbox } from "./request-meta.js";
-import { normalizeCapabilities } from "./types.js";
+import { normalizePluginCapabilities } from "./types.js";
 import type {
 	ResolvedPlugin,
 	ResolvedPluginHooks,
@@ -295,33 +295,8 @@ export function adaptSandboxEntry(
 
 	// Silent normalization: rewrite deprecated names to current names.
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- validated above; normalization only returns capabilities from the union
-	const capabilities = normalizeCapabilities(rawCapabilities) as PluginCapability[];
+	const capabilities = normalizePluginCapabilities(rawCapabilities as PluginCapability[]);
 	const allowedHosts = descriptor.allowedHosts ?? [];
-
-	// Capability implications: broader capabilities imply narrower ones
-	// (mirrors the normalization in define-plugin.ts for native format).
-	// Operates on canonical names only.
-	if (capabilities.includes("content:write") && !capabilities.includes("content:read")) {
-		capabilities.push("content:read");
-	}
-	if (capabilities.includes("content:revisions:read") && !capabilities.includes("content:read")) {
-		capabilities.push("content:read");
-	}
-	if (capabilities.includes("content:publish") && !capabilities.includes("content:read")) {
-		capabilities.push("content:read");
-	}
-	if (capabilities.includes("media:write") && !capabilities.includes("media:read")) {
-		capabilities.push("media:read");
-	}
-	if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
-		capabilities.push("comments:read");
-	}
-	if (
-		capabilities.includes("network:request:unrestricted") &&
-		!capabilities.includes("network:request")
-	) {
-		capabilities.push("network:request");
-	}
 
 	// Build storage config from descriptor.
 	// StorageCollectionDeclaration uses optional indexes, but PluginStorageConfig

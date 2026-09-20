@@ -16,7 +16,7 @@ import {
 	type PluginRouteBodyMode,
 } from "@emdash-cms/plugin-types";
 
-import { normalizeCapabilities } from "./types.js";
+import { normalizePluginCapabilities } from "./types.js";
 import type {
 	PluginDefinition,
 	ResolvedPlugin,
@@ -24,7 +24,6 @@ import type {
 	ResolvedPluginHooks,
 	ResolvedHook,
 	HookConfig,
-	PluginCapability,
 	PluginRouteDefinition,
 	PluginStorageConfig,
 } from "./types.js";
@@ -206,40 +205,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		}
 	}
 
-	// Silent normalization: rewrite deprecated names to current names before
-	// the implication pass so implications work on canonical names.
-	const canonical = normalizeCapabilities(capabilities);
-
-	// Capability implications: broader capabilities imply narrower ones.
-	// Operates on canonical names only.
-	const normalizedCapabilities: PluginCapability[] = [...canonical];
-	if (canonical.includes("content:write") && !canonical.includes("content:read")) {
-		normalizedCapabilities.push("content:read");
-	}
-	if (canonical.includes("content:revisions:read") && !canonical.includes("content:read")) {
-		normalizedCapabilities.push("content:read");
-	}
-	if (canonical.includes("taxonomies:write") && !canonical.includes("taxonomies:read")) {
-		normalizedCapabilities.push("taxonomies:read");
-	}
-	if (canonical.includes("content:publish") && !canonical.includes("content:read")) {
-		normalizedCapabilities.push("content:read");
-	}
-	if (canonical.includes("media:write") && !canonical.includes("media:read")) {
-		normalizedCapabilities.push("media:read");
-	}
-	if (canonical.includes("comments:moderate") && !canonical.includes("comments:read")) {
-		normalizedCapabilities.push("comments:read");
-	}
-	if (canonical.includes("redirects:write") && !canonical.includes("redirects:read")) {
-		normalizedCapabilities.push("redirects:read");
-	}
-	if (
-		canonical.includes("network:request:unrestricted") &&
-		!canonical.includes("network:request")
-	) {
-		normalizedCapabilities.push("network:request");
-	}
+	const normalizedCapabilities = normalizePluginCapabilities(capabilities);
 
 	// Normalize hooks
 	const resolvedHooks = resolveHooks(hooks, id);
