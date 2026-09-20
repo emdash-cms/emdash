@@ -9,6 +9,7 @@
  * - Default value handling
  */
 
+import { PLUGIN_CAPABILITIES } from "@emdash-cms/plugin-types";
 import { describe, it, expect, vi } from "vitest";
 import { z } from "zod";
 
@@ -181,6 +182,16 @@ describe("definePlugin", () => {
 	});
 
 	describe("capability validation", () => {
+		it.each(PLUGIN_CAPABILITIES)("accepts manifest capability %s", (capability) => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					capabilities: [capability],
+				}),
+			).not.toThrow();
+		});
+
 		it("accepts valid capabilities", () => {
 			const plugin = definePlugin({
 				id: "test",

@@ -10,7 +10,11 @@
  * authoring shape.
  */
 
-import { isJsonPostRouteContract, type PluginRouteBodyMode } from "@emdash-cms/plugin-types";
+import {
+	isJsonPostRouteContract,
+	PLUGIN_CAPABILITIES,
+	type PluginRouteBodyMode,
+} from "@emdash-cms/plugin-types";
 
 import { normalizeCapabilities } from "./types.js";
 import type {
@@ -195,42 +199,7 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	// accepted; aliases are silently rewritten to current names below so the
 	// runtime only ever sees the canonical form. Authors are warned at
 	// bundle/validate and hard-failed at publish.
-	const validCapabilities = new Set<string>([
-		// Current names
-		"network:request",
-		"network:request:unrestricted",
-		"content:read",
-		"content:revisions:read",
-		"content:write",
-		"content:publish",
-		"content:restore",
-		"comments:read",
-		"comments:moderate",
-		"schema:read",
-		"hooks.content-policy:register",
-		"taxonomies:read",
-		"taxonomies:write",
-		"redirects:read",
-		"redirects:write",
-		"media:read",
-		"media:write",
-		"users:read",
-		"email:send",
-		"hooks.email-transport:register",
-		"hooks.email-events:register",
-		"hooks.page-fragments:register",
-		// Deprecated aliases
-		"network:fetch",
-		"network:fetch:any",
-		"read:content",
-		"write:content",
-		"read:media",
-		"write:media",
-		"read:users",
-		"email:provide",
-		"email:intercept",
-		"page:inject",
-	]);
+	const validCapabilities = new Set<string>(PLUGIN_CAPABILITIES);
 	for (const cap of capabilities) {
 		if (!validCapabilities.has(cap)) {
 			throw new Error(`Invalid capability "${cap}" in plugin "${id}".`);
