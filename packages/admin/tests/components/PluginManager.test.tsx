@@ -433,7 +433,10 @@ describe("PluginManager", () => {
 			new MarketplaceUpdateEscalationError(
 				"ROUTE_VISIBILITY_ESCALATION",
 				"Review the update",
-				{ added: ["media:bytes:read", "media:metadata:write"], removed: [] },
+				{
+					added: ["media:bytes:read", "media:metadata:write", "network:request"],
+					removed: [],
+				},
 				{ newlyPublic: ["webhook"] },
 				[
 					{

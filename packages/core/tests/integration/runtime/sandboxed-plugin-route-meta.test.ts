@@ -108,6 +108,7 @@ describe("EmDashRuntime — config-declared sandboxed plugin route metadata", ()
 				expect.objectContaining({
 					ui: { surface: "admin-page", locale: "ar", direction: "rtl" },
 				}),
+				expect.objectContaining({ invalidateContentCache: undefined }),
 			);
 
 			await runtime.handlePluginApiRoute(
@@ -126,6 +127,7 @@ describe("EmDashRuntime — config-declared sandboxed plugin route metadata", ()
 				expect.objectContaining({
 					ui: { surface: "admin-page", locale: "en", direction: "ltr" },
 				}),
+				expect.objectContaining({ invalidateContentCache: undefined }),
 			);
 		} finally {
 			await runtime.stopCron();
@@ -153,6 +155,7 @@ describe("EmDashRuntime — config-declared sandboxed plugin route metadata", ()
 				expect.objectContaining({
 					ui: { surface: "admin-page", locale: "en", direction: "ltr" },
 				}),
+				expect.objectContaining({ invalidateContentCache: undefined }),
 			);
 		} finally {
 			await runtime.stopCron();
