@@ -520,6 +520,11 @@ function toPluginContentItem(item: ContentItemInternal): PluginContentItem {
 		updatedAt: item.updatedAt,
 		publishedAt: item.publishedAt,
 		scheduledAt: item.scheduledAt,
+		authorId: item.authorId,
+		translationGroup: item.translationGroup,
+		liveRevisionId: item.liveRevisionId,
+		draftRevisionId: item.draftRevisionId,
+		version: item.version,
 		...(item.seo === undefined ? {} : { seo: item.seo }),
 	};
 }

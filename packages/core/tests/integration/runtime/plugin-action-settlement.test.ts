@@ -185,6 +185,25 @@ describe("sandboxed plugin action settlement", () => {
 		);
 	});
 
+	it("preserves the complete plugin content item contract for versioned reads", async () => {
+		const item = await new ContentRepository(runtime.db).create({
+			type: "post",
+			slug: `entry-${randomUUID()}`,
+			status: "draft",
+			authorId: "author-1",
+			data: {},
+		});
+		const current = await contentActions.getVersioned(pluginId, "post", item.id);
+
+		expect(current?.item).toMatchObject({
+			authorId: item.authorId,
+			translationGroup: item.translationGroup,
+			liveRevisionId: item.liveRevisionId,
+			draftRevisionId: item.draftRevisionId,
+			version: item.version,
+		});
+	});
+
 	it("blocks plugin publication while media usage activation is in progress", async () => {
 		const item = await draft();
 		const current = await contentActions.getVersioned(pluginId, "post", item.id);

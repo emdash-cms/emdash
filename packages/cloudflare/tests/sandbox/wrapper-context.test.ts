@@ -218,4 +218,64 @@ describe("Cloudflare generated plugin context", () => {
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });
 	});
+
+	it("uses the explicit content-create error marker", async () => {
+		const source = generatePluginWrapper({
+			id: "content-create-wrapper",
+			version: "1.0.0",
+			capabilities: ["content:write"],
+			allowedHosts: [],
+			storage: {},
+			hooks: ["plugin:activate"],
+			routes: [],
+			admin: {},
+		})
+			.replace('import { WorkerEntrypoint } from "cloudflare:workers";', "")
+			.replace('import pluginModule from "sandbox-plugin.js";', "")
+			.replace("export default class PluginEntrypoint", "return class PluginEntrypoint");
+		class WorkerEntrypoint {
+			constructor(readonly env: Record<string, unknown>) {}
+		}
+		const pluginModule = {
+			hooks: {
+				"plugin:activate": (_event: unknown, ctx: Record<string, any>) =>
+					ctx.content.create("posts", { error: "field value" }),
+			},
+		};
+		const contentCreate = vi
+			.fn()
+			.mockResolvedValueOnce({
+				id: "post-1",
+				type: "posts",
+				data: { error: "field value" },
+				error: "field value",
+			})
+			.mockResolvedValueOnce({
+				__emdashContentCreateError: true,
+				error: { code: "VALIDATION_ERROR", message: "Invalid content" },
+			});
+		const bridge = new Proxy(
+			{ contentCreate },
+			{ get: (target, key) => Reflect.get(target, key) ?? vi.fn() },
+		);
+		// eslint-disable-next-line no-implied-eval -- generated worker module is exercised in an isolated function scope
+		const factory = new Function("WorkerEntrypoint", "pluginModule", source);
+		const Entrypoint = factory(WorkerEntrypoint, pluginModule) as new (env: unknown) => {
+			invokeHook(name: string, event: unknown): Promise<unknown>;
+		};
+		const worker = new Entrypoint({
+			PLUGIN_ID: "content-create-wrapper",
+			PLUGIN_VERSION: "1.0.0",
+			BRIDGE: bridge,
+		});
+
+		await expect(worker.invokeHook("plugin:activate", {})).resolves.toMatchObject({
+			id: "post-1",
+			data: { error: "field value" },
+		});
+		await expect(worker.invokeHook("plugin:activate", {})).rejects.toMatchObject({
+			name: "VALIDATION_ERROR",
+			message: "Invalid content",
+		});
+	});
 });
