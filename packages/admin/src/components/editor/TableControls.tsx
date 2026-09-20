@@ -386,6 +386,42 @@ function TableMenu({
 		else if (intent === "restore") restore();
 	};
 	const title = more ? t`More table actions` : t`Table`;
+	const triggerButton = more ? (
+		<Button
+			ref={triggerRef}
+			type="button"
+			variant="ghost"
+			shape="square"
+			className="h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11"
+			onBlur={() => {
+				shortcutReturnRef.current = false;
+			}}
+			aria-label={title}
+			aria-expanded={menuOpen}
+			title={title}
+		>
+			<Icons.DotsThree className="h-4 w-4" aria-hidden="true" />
+		</Button>
+	) : (
+		<Button
+			ref={triggerRef}
+			type="button"
+			variant="ghost"
+			className="h-8 min-w-11 flex-none gap-0.5 px-2 hover:bg-kumo-interact/50 pointer-coarse:min-h-11"
+			onMouseDown={(event) => event.preventDefault()}
+			onBlur={() => {
+				shortcutReturnRef.current = false;
+			}}
+			aria-label={title}
+			aria-expanded={menuOpen}
+			aria-keyshortcuts="Alt+F10"
+			title={title}
+			data-emdash-table-trigger=""
+		>
+			<Icons.Table className="h-4 w-4" aria-hidden="true" />
+			<Icons.CaretDown className="h-3 w-3" aria-hidden="true" />
+		</Button>
+	);
 	return (
 		<>
 			<DropdownMenu
@@ -405,8 +441,7 @@ function TableMenu({
 				}}
 				onOpenChangeComplete={(open) => !open && finishMenu()}
 			>
-				{/* prettier-ignore */}
-				<DropdownMenu.Trigger render={<Button ref={triggerRef} type="button" variant="ghost" shape={more ? "square" : undefined} className={more ? "h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11" : "h-8 min-w-11 flex-none gap-0.5 px-2 hover:bg-kumo-interact/50 pointer-coarse:min-h-11"} onMouseDown={more ? undefined : (event) => event.preventDefault()} onBlur={() => { shortcutReturnRef.current = false; }} aria-label={title} aria-expanded={menuOpen} aria-keyshortcuts={more ? undefined : "Alt+F10"} title={title} data-emdash-table-trigger={more ? undefined : ""}>{more ? <Icons.DotsThree className="h-4 w-4" aria-hidden="true" /> : <><Icons.Table className="h-4 w-4" aria-hidden="true" /><Icons.CaretDown className="h-3 w-3" aria-hidden="true" /></>}</Button>} />
+				<DropdownMenu.Trigger render={triggerButton} />
 				<DropdownMenu.Content
 					align="start"
 					positionMethod="fixed"
