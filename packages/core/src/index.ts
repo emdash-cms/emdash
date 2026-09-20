@@ -469,6 +469,7 @@ export type {
 	CollectionSource,
 	FieldValidation,
 	FieldWidgetOptions,
+	UnsupportedFieldType,
 	Collection,
 	Field,
 	CreateCollectionInput,

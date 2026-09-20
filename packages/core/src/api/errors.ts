@@ -10,6 +10,7 @@ export const ErrorCode = {
 	// Shared (used across domains)
 	NOT_FOUND: "NOT_FOUND",
 	VALIDATION_ERROR: "VALIDATION_ERROR",
+	UNSUPPORTED_FIELD_TYPE: "UNSUPPORTED_FIELD_TYPE",
 	INVALID_INPUT: "INVALID_INPUT",
 	INVALID_JSON: "INVALID_JSON",
 	INVALID_CURSOR: "INVALID_CURSOR",
@@ -443,6 +444,10 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.AMBIGUOUS_LOCALE:
 		case ErrorCode.REORDER_MISMATCH:
 			return 400;
+
+		// 409 Conflict
+		case ErrorCode.UNSUPPORTED_FIELD_TYPE:
+			return 409;
 
 		// 401 Unauthorized
 		case ErrorCode.UNAUTHORIZED:

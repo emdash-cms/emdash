@@ -232,7 +232,7 @@ describe("generateManifest()", () => {
 		expect(manifest.collections.posts?.fields.title?.kind).toBe("string");
 	});
 
-	it("falls back to a text descriptor for unknown database field types", async () => {
+	it("marks unknown database field types as unsupported", async () => {
 		const registry = new SchemaRegistry(db);
 		const collection = await registry.createCollection({
 			slug: "imports",
@@ -262,8 +262,12 @@ describe("generateManifest()", () => {
 		const manifest = await generateManifest({}, {}, { db });
 
 		expect(manifest.collections.imports?.fields.payload).toMatchObject({
-			kind: "string",
+			kind: "unsupported",
 			label: "Payload",
+			unsupportedType: {
+				type: "unknown_plugin_type",
+				path: "type",
+			},
 		});
 	});
 });

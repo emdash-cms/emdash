@@ -40,6 +40,7 @@ import {
 	type CollectionSupport,
 	type ColumnType,
 	type Field,
+	type UnsupportedFieldType,
 	type CreateCollectionInput,
 	type UpdateCollectionInput,
 	type CreateFieldInput,
@@ -47,6 +48,7 @@ import {
 	type CollectionWithFields,
 	type FieldType,
 	FIELD_TYPE_TO_COLUMN,
+	REPEATER_SUB_FIELD_TYPES,
 	isIndexableFieldType,
 	RESERVED_FIELD_SLUGS,
 	RESERVED_COLLECTION_SLUGS,
@@ -86,6 +88,26 @@ function isFieldType(value: string): value is FieldType {
 
 function isColumnType(value: string): value is ColumnType {
 	return COLUMN_TYPES.has(value);
+}
+
+const REPEATER_SUB_FIELD_TYPE_SET: ReadonlySet<string> = new Set(REPEATER_SUB_FIELD_TYPES);
+
+function findUnsupportedRepeaterSubFieldType(
+	validation: unknown,
+): UnsupportedFieldType | undefined {
+	if (!validation || typeof validation !== "object") return undefined;
+	const subFields = "subFields" in validation ? validation.subFields : undefined;
+	if (!Array.isArray(subFields)) return undefined;
+
+	for (const [index, subField] of subFields.entries()) {
+		if (!subField || typeof subField !== "object") continue;
+		const type = "type" in subField ? subField.type : undefined;
+		if (typeof type === "string" && !REPEATER_SUB_FIELD_TYPE_SET.has(type)) {
+			return { type, path: `validation.subFields[${index}].type` };
+		}
+	}
+
+	return undefined;
 }
 
 const VALID_COLLECTION_SUPPORTS: ReadonlySet<string> = new Set<CollectionSupport>([
@@ -1085,6 +1107,12 @@ export class SchemaRegistry {
 					);
 				}
 				const field = this.mapFieldRow(fieldRow);
+				if (field.unsupportedType) {
+					throw new SchemaError(
+						`Field "${fieldSlug}" in collection "${collectionSlug}" uses unsupported field type "${field.unsupportedType.type}" at "${field.unsupportedType.path}"`,
+						"UNSUPPORTED_FIELD_TYPE",
+					);
+				}
 				const updates: Updateable<FieldTable> = {};
 				let nextType = field.type;
 
@@ -1872,17 +1900,24 @@ export class SchemaRegistry {
 	 * Map a field row to a Field object
 	 */
 	private mapFieldRow = (row: Selectable<FieldTable>): Field => {
+		const validation = row.validation ? JSON.parse(row.validation) : undefined;
+		const unsupportedType = isFieldType(row.type)
+			? row.type === "repeater"
+				? findUnsupportedRepeaterSubFieldType(validation)
+				: undefined
+			: { type: row.type, path: "type" };
 		return {
 			id: row.id,
 			collectionId: row.collection_id,
 			slug: row.slug,
 			label: row.label,
 			type: isFieldType(row.type) ? row.type : "string",
+			unsupportedType,
 			columnType: isColumnType(row.column_type) ? row.column_type : "TEXT",
 			required: row.required === 1,
 			unique: row.unique === 1,
 			defaultValue: row.default_value ? JSON.parse(row.default_value) : undefined,
-			validation: row.validation ? JSON.parse(row.validation) : undefined,
+			validation,
 			widget: row.widget ?? undefined,
 			options: row.options ? JSON.parse(row.options) : undefined,
 			sortOrder: row.sort_order,

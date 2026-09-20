@@ -167,6 +167,7 @@ export interface AdminManifest {
 					 */
 					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
+					unsupportedType?: { type: string; path: string };
 				}
 			>;
 		}

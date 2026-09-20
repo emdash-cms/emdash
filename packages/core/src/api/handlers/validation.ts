@@ -25,7 +25,13 @@ import { isMissingTableError } from "../../utils/db-errors.js";
 
 type ValidationResult =
 	| { ok: true }
-	| { ok: false; error: { code: "VALIDATION_ERROR" | "COLLECTION_NOT_FOUND"; message: string } };
+	| {
+			ok: false;
+			error: {
+				code: "VALIDATION_ERROR" | "COLLECTION_NOT_FOUND" | "UNSUPPORTED_FIELD_TYPE";
+				message: string;
+			};
+	  };
 
 /** Treat `undefined`, `null`, and `""` as "not set". */
 function isMissing(value: unknown): boolean {
@@ -82,6 +88,18 @@ export async function validateContentData(
 			error: {
 				code: "COLLECTION_NOT_FOUND",
 				message: `Collection '${collection}' not found`,
+			},
+		};
+	}
+
+	const unsupportedField = collectionWithFields.fields.find((field) => field.unsupportedType);
+	if (unsupportedField?.unsupportedType) {
+		const { type, path } = unsupportedField.unsupportedType;
+		return {
+			ok: false,
+			error: {
+				code: "UNSUPPORTED_FIELD_TYPE",
+				message: `Collection '${collection}' field '${unsupportedField.slug}' uses unsupported field type '${type}' at '${path}'`,
 			},
 		};
 	}

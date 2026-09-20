@@ -122,6 +122,7 @@ export interface FieldDescriptor {
 	options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 	widget?: string;
 	validation?: Record<string, unknown>;
+	unsupportedType?: { type: string; path: string };
 }
 
 /** Simplified user info for current user context */
@@ -322,12 +323,14 @@ export function ContentEditor({
 	onSeoChange,
 	manifest,
 	onEntryRefresh,
-	readOnly = false,
+	readOnly: readOnlyProp = false,
 	notice,
 	timezone = "UTC",
 }: ContentEditorProps) {
 	const { t } = useLingui();
 	const { locale: uiLocale } = useLocale();
+	const unsupportedFields = Object.entries(fields).filter(([, field]) => field.unsupportedType);
+	const readOnly = readOnlyProp || unsupportedFields.length > 0;
 	const itemLabel = collectionLabel;
 	const settingsPanelId = React.useId();
 	// Kumo Sidebar's `side` is physical, not logical.
@@ -1136,6 +1139,19 @@ export function ContentEditor({
 					>
 						{notice}
 						<fieldset disabled={readOnly} className="contents">
+							{unsupportedFields.length > 0 && (
+								<Banner
+									variant="error"
+									role="alert"
+									title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
+									description={unsupportedFields
+										.map(
+											([name, field]) =>
+												`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
+										)
+										.join(", ")}
+								/>
+							)}
 							{hasSaveConflict && (
 								<Banner
 									variant="error"
@@ -1560,6 +1576,16 @@ function FieldRenderer({
 	const labelClass = minimal ? "text-kumo-subtle/50 text-xs font-normal" : undefined;
 
 	const handleChange = React.useCallback((v: unknown) => onChange(name, v), [onChange, name]);
+	if (field.kind === "unsupported") {
+		return (
+			<div className="grid gap-2">
+				<p className="text-base font-medium">{label}</p>
+				<p className="text-kumo-subtle text-sm">
+					{t`This field cannot be edited by this version of EmDash.`}
+				</p>
+			</div>
+		);
+	}
 
 	// Check for plugin field widget override
 	if (field.widget) {
