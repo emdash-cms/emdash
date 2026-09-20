@@ -177,6 +177,8 @@ describe("Cloudflare generated plugin context", () => {
 						body: await response.json(),
 						redirects: await ctx.redirects.list({ limit: 1 }),
 						canWriteRedirects: typeof ctx.redirects.create === "function",
+						canReadTranslations: typeof ctx.content.getTranslations === "function",
+						canResolvePublicUrl: typeof ctx.content.getPublicUrl === "function",
 						versioned,
 					};
 				},
@@ -214,6 +216,8 @@ describe("Cloudflare generated plugin context", () => {
 			body: { ok: true },
 			redirects: { items: [{ source: "/old" }], hasMore: false },
 			canWriteRedirects: true,
+			canReadTranslations: true,
+			canResolvePublicUrl: true,
 			versioned: { item: { id: "post-1" }, _rev: "rev-1" },
 		});
 		expect(schedule).toHaveBeenCalledWith("daily", { schedule: "@daily" });

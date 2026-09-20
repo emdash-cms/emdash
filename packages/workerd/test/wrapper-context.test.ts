@@ -160,7 +160,11 @@ describe("Workerd generated plugin context", () => {
 		// eslint-disable-next-line no-implied-eval -- generated worker context is exercised with a local bridge
 		const factory = new Function("fetch", "pluginModule", `${source}\nreturn createContext();`);
 		const context = factory(fetch, {}) as {
-			content: { getVersioned(collection: string, id: string): Promise<unknown> };
+			content: {
+				getVersioned(collection: string, id: string): Promise<unknown>;
+				getTranslations?: unknown;
+				getPublicUrl?: unknown;
+			};
 			users: { get(id: string): Promise<{ id: string }> };
 			cron: { list(): Promise<unknown[]> };
 			redirects: { list(): Promise<{ items: Array<{ source: string }> }>; create?: unknown };
@@ -171,6 +175,8 @@ describe("Workerd generated plugin context", () => {
 			item: { id: "post-1" },
 			_rev: "rev-1",
 		});
+		expect(context.content.getTranslations).toBeTypeOf("function");
+		expect(context.content.getPublicUrl).toBeTypeOf("function");
 		await expect(context.users.get("user-1")).resolves.toEqual({ id: "user-1" });
 		await expect(context.cron.list()).resolves.toEqual([]);
 		await expect(context.redirects.list()).resolves.toEqual({

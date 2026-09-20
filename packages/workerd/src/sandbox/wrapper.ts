@@ -55,7 +55,9 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const hasRedirectRead = capabilities.includes("redirects:read");
 	const hasRedirectWrite = capabilities.includes("redirects:write");
 	const hasContentRead = capabilities.some((capability) =>
-		["content:read", "content:write", "content:revisions:read"].includes(capability),
+		["content:read", "content:write", "content:publish", "content:revisions:read"].includes(
+			capability,
+		),
 	);
 	const hasContentWrite = capabilities.includes("content:write");
 	const hasContentPublish = capabilities.includes("content:publish");
