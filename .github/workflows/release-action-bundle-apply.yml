@@ -1,7 +1,7 @@
 name: Release Action Bundle — Apply
 
 # The producer runs dependency code without credentials. This privileged stage
-# only accepts its artifact for a same-repository Dependabot npm PR, pins the
+# sanitizes its artifact, pins it to a same-repository Dependabot npm PR at the
 # measured head commit, and never executes code from the pull request.
 on:
   workflow_run:
@@ -51,9 +51,27 @@ jobs:
             fs.writeFileSync(path.join(outDir, 'artifact.zip'), Buffer.from(download.data));
             core.setOutput('found', 'true');
 
-      - name: Unpack bundle
+      - name: Sanitize bundle artifact
         if: steps.download.outputs.found == 'true'
-        run: unzip -o "$RUNNER_TEMP/release-action-bundle/artifact.zip" -d "$RUNNER_TEMP/release-action-bundle"
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/release-action-bundle/artifact.zip"
+          safe_dir="$RUNNER_TEMP/release-action-safe"
+          mkdir -m 700 "$safe_dir"
+
+          unzip -p "$archive" index.js | head -c 10485761 > "$safe_dir/index.js"
+          bundle_size=$(wc -c < "$safe_dir/index.js")
+          if (( bundle_size == 0 || bundle_size > 10485760 )); then
+            echo "::error::Bundle must be between 1 byte and 10 MiB" >&2
+            exit 1
+          fi
+
+          unzip -p "$archive" pr-number | head -c 33 > "$safe_dir/pr-number"
+          pr_number_size=$(wc -c < "$safe_dir/pr-number")
+          if (( pr_number_size == 0 || pr_number_size > 32 )); then
+            echo "::error::PR number artifact is invalid" >&2
+            exit 1
+          fi
 
       - name: Resolve Dependabot PR
         if: steps.download.outputs.found == 'true'
@@ -63,7 +81,7 @@ jobs:
           script: |
             const fs = require('node:fs');
             const path = require('node:path');
-            const artifactDir = path.join(process.env.RUNNER_TEMP, 'release-action-bundle');
+            const artifactDir = path.join(process.env.RUNNER_TEMP, 'release-action-safe');
             const prNumber = Number(
               fs.readFileSync(path.join(artifactDir, 'pr-number'), 'utf8').trim(),
             );
@@ -137,7 +155,7 @@ jobs:
               return;
             }
             const bundle = fs.readFileSync(
-              path.join(process.env.RUNNER_TEMP, 'release-action-bundle', 'index.js'),
+              path.join(process.env.RUNNER_TEMP, 'release-action-safe', 'index.js'),
             );
             const { data: parent } = await github.rest.git.getCommit({
               owner: context.repo.owner,
