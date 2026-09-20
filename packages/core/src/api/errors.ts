@@ -10,6 +10,7 @@ export const ErrorCode = {
 	// Shared (used across domains)
 	NOT_FOUND: "NOT_FOUND",
 	VALIDATION_ERROR: "VALIDATION_ERROR",
+	UNSUPPORTED_FIELD_TYPE: "UNSUPPORTED_FIELD_TYPE",
 	INVALID_INPUT: "INVALID_INPUT",
 	INVALID_JSON: "INVALID_JSON",
 	INVALID_CURSOR: "INVALID_CURSOR",
@@ -31,6 +32,9 @@ export const ErrorCode = {
 	CONTENT_CREATE_ERROR: "CONTENT_CREATE_ERROR",
 	CONTENT_UPDATE_ERROR: "CONTENT_UPDATE_ERROR",
 	SAVE_REJECTED: "SAVE_REJECTED",
+	PUBLISH_REJECTED: "PUBLISH_REJECTED",
+	SCHEDULE_REJECTED: "SCHEDULE_REJECTED",
+	UNPUBLISH_REJECTED: "UNPUBLISH_REJECTED",
 	CONTENT_HOOK_ERROR: "CONTENT_HOOK_ERROR",
 	CONTENT_DELETE_ERROR: "CONTENT_DELETE_ERROR",
 	CONTENT_LIST_ERROR: "CONTENT_LIST_ERROR",
@@ -441,6 +445,10 @@ export function mapErrorStatus(code: string | undefined): number {
 		case ErrorCode.REORDER_MISMATCH:
 			return 400;
 
+		// 409 Conflict
+		case ErrorCode.UNSUPPORTED_FIELD_TYPE:
+			return 409;
+
 		// 401 Unauthorized
 		case ErrorCode.UNAUTHORIZED:
 		case ErrorCode.NOT_AUTHENTICATED:
@@ -500,6 +508,9 @@ export function mapErrorStatus(code: string | undefined): number {
 
 		// 422 Unprocessable Entity
 		case ErrorCode.SAVE_REJECTED:
+		case ErrorCode.PUBLISH_REJECTED:
+		case ErrorCode.SCHEDULE_REJECTED:
+		case ErrorCode.UNPUBLISH_REJECTED:
 		case ErrorCode.CHECKSUM_MISMATCH:
 		case ErrorCode.INVALID_BUNDLE:
 		case ErrorCode.BUNDLE_EXTRACT_FAILED:

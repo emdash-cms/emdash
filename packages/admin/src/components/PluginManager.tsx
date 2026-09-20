@@ -346,17 +346,14 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 				acknowledgedProfileCid: registryVerification?.profileCid,
 				acknowledgedReleaseCid: registryVerification?.releaseCid,
 			};
-			if (registryEscalation?.code === "ROUTE_VISIBILITY_ESCALATION") {
-				opts.confirmRouteVisibilityChanges = true;
-			}
+			opts.acknowledgedPublicRoutes = registryEscalation?.routeVisibilityChanges?.newlyPublic ?? [];
 			updateMutation.mutate(opts);
 		} else {
 			if (!marketplaceReviewedVersion) return;
 			updateMutation.mutate({
 				version: marketplaceReviewedVersion,
 				confirmCapabilityChanges: (marketplaceEscalation?.capabilityChanges.added.length ?? 0) > 0,
-				confirmRouteVisibilityChanges:
-					(marketplaceEscalation?.routeVisibilityChanges?.newlyPublic.length ?? 0) > 0,
+				acknowledgedPublicRoutes: marketplaceEscalation?.routeVisibilityChanges?.newlyPublic ?? [],
 				confirmMcpTools: mcpUpdateTools.length > 0,
 			});
 		}

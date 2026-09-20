@@ -7,8 +7,17 @@
  * Created once per worker lifetime, cached and reused across requests.
  */
 
+import { getLocaleDir, resolveLocale } from "@emdash-cms/admin/locales";
 import { Permissions } from "@emdash-cms/auth";
 import type { Element } from "@emdash-cms/blocks";
+import {
+	normalizePluginPagePath,
+	validateBlockResponse,
+	validateContentEditorActionResponse,
+	type BlockValidationPolicy,
+	type PluginUiContext,
+} from "@emdash-cms/blocks/server";
+import { isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
@@ -67,7 +76,13 @@ import {
 	refreshContentMediaUsageAfterWrite,
 } from "./media/usage/content-refresh.js";
 import { processMediaUsageWorkAfterWrite } from "./media/usage/work-processor.js";
+import {
+	scheduledPolicyRejectionKey,
+	type ScheduledPolicyRejection,
+} from "./plugins/content-policy.js";
 import { createCommentAccess, createTaxonomyAccessWithWrite } from "./plugins/context.js";
+import type { ContentActionCallbacks } from "./plugins/context.js";
+import type { PluginContentCacheInvalidator } from "./plugins/routes.js";
 import {
 	createSandboxedPluginProxy,
 	getSandboxSaveRejectionDetails,
@@ -81,6 +96,8 @@ import type {
 } from "./plugins/sandbox/types.js";
 import type {
 	ActorInfo,
+	ContentActionOrigin,
+	ContentItem as PluginContentItem,
 	ResolvedPlugin,
 	MediaItem,
 	MediaMetadataPatch,
@@ -88,6 +105,8 @@ import type {
 	PluginCapability,
 	PluginStorageConfig,
 	PluginMcpManifestConfig,
+	PluginEditorAction,
+	PluginEditorPanel,
 	PublicPageContext,
 	PageMetadataContribution,
 	PageFragmentContribution,
@@ -101,7 +120,9 @@ import type {
 	PluginCommentStatus,
 	ContentWriteInput,
 	PluginContentCreateCallback,
+	VersionedContentItem,
 } from "./plugins/types.js";
+import { normalizePluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -195,6 +216,7 @@ import {
 	handleContentUnpublish,
 	handleContentSchedule,
 	handleContentUnschedule,
+	handleScheduledPolicyRejection,
 	handleContentCountScheduled,
 	handleContentDiscardDraft,
 	handleContentCompare,
@@ -228,6 +250,7 @@ import { disableRuntimePlugin, enableRuntimePlugin } from "./plugins/lifecycle.j
 import { HOOK_NAMES, normalizeManifestRoute } from "./plugins/manifest-schema.js";
 import { updatePluginMediaMetadata } from "./plugins/media.js";
 import { extractRequestMeta, sanitizeHeadersForSandbox } from "./plugins/request-meta.js";
+import { PluginRouteRequestError } from "./plugins/route-wire.js";
 import {
 	buildRouteMeta,
 	parseRouteInput,
@@ -253,6 +276,28 @@ import { invalidateSiteSettingsCache } from "./settings/index.js";
 
 const DRAFT_ONLY_UPDATE_KEYS = new Set(["data", "slug", "locale", "skipRevision", "actor"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
+const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
+
+type ContentPolicyHookName =
+	| "content:beforePublish"
+	| "content:beforeSchedule"
+	| "content:beforeUnpublish";
+
+interface ContentPolicyMutationOptions {
+	_rev?: string;
+	actor?: ActorInfo;
+	origin?: ContentActionOrigin;
+	pluginInvocationId?: string;
+}
+
+type ContentPolicyCheck =
+	| { allowed: true; revision: string }
+	| {
+			allowed: false;
+			revision: string;
+			error: { code: string; message: string };
+			cancellation?: { pluginId: string; reason: string };
+	  };
 
 /**
  * Sandboxed plugin entry from virtual module
@@ -278,6 +323,10 @@ export interface SandboxedPluginEntry {
 	adminPages?: Array<{ path: string; label?: string; icon?: string }>;
 	/** Dashboard widgets */
 	adminWidgets?: Array<{ id: string; title?: string; size?: string }>;
+	/** Saved-entry Block Kit panels. */
+	editorPanels?: PluginManifest["admin"]["editorPanels"];
+	/** Saved-entry host-rendered actions. */
+	editorActions?: PluginManifest["admin"]["editorActions"];
 	/** Settings schema for the auto-generated admin settings form */
 	settingsSchema?: Record<string, SettingField>;
 	/** Portable Text block types contributed to the editor (declarative Block Kit) */
@@ -291,6 +340,24 @@ export interface SandboxedPluginEntry {
 	 * Weaker than an existing admin DB selection — config order wins when no selection exists.
 	 */
 	preferred?: string[];
+}
+
+export type ResolvedPluginEditorExtension =
+	| {
+			kind: "panel";
+			extension: PluginEditorPanel;
+			policy: BlockValidationPolicy;
+	  }
+	| {
+			kind: "action";
+			extension: PluginEditorAction;
+			policy: BlockValidationPolicy;
+	  };
+
+export interface PluginEditorExtensionDispatch {
+	ui: PluginUiContext;
+	kind: "panel" | "action";
+	policy: BlockValidationPolicy;
 }
 
 /**
@@ -414,6 +481,7 @@ export interface EmDashRuntimeParts {
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
 		contentCreate?: PluginContentCreateCallback;
+		contentActions?: ContentActionCallbacks;
 		now?: () => Date;
 		storage?: Storage;
 		commentModerate?: (
@@ -472,6 +540,27 @@ function beforeSaveFailure(error: unknown) {
  */
 function contentItemToRecord(item: ContentItemInternal): Record<string, unknown> {
 	return { ...item };
+}
+
+function toPluginContentItem(item: ContentItemInternal): PluginContentItem {
+	return {
+		id: item.id,
+		type: item.type,
+		slug: item.slug,
+		status: item.status,
+		locale: item.locale,
+		data: item.data,
+		createdAt: item.createdAt,
+		updatedAt: item.updatedAt,
+		publishedAt: item.publishedAt,
+		scheduledAt: item.scheduledAt,
+		authorId: item.authorId,
+		translationGroup: item.translationGroup,
+		liveRevisionId: item.liveRevisionId,
+		draftRevisionId: item.draftRevisionId,
+		version: item.version,
+		...(item.seo === undefined ? {} : { seo: item.seo }),
+	};
 }
 
 /**
@@ -577,14 +666,34 @@ const marketplaceManifestCache = new Map<
 			pages?: PluginAdminPage[];
 			widgets?: PluginDashboardWidget[];
 			settingsSchema?: Record<string, SettingField>;
+			editorPanels?: PluginManifest["admin"]["editorPanels"];
+			editorActions?: PluginManifest["admin"]["editorActions"];
 		};
 		mcp?: PluginMcpManifestConfig;
 		storage?: PluginManifest["storage"];
+		allowedHosts?: string[];
+		capabilities?: PluginCapability[];
 	}
 >();
 /** Route metadata for sandboxed plugins: pluginId -> routeName -> RouteMeta */
 const sandboxedRouteMetaCache = new Map<string, Map<string, RouteMeta>>();
 let sandboxRunner: SandboxRunner | null = null;
+
+function allowedBrowserImageHosts(
+	capabilities: readonly PluginCapability[],
+	allowedHosts: readonly string[],
+): readonly string[] {
+	if (
+		capabilities.includes("network:request:unrestricted") ||
+		capabilities.includes("network:fetch:any")
+	) {
+		return ["*"];
+	}
+	if (capabilities.includes("network:request") || capabilities.includes("network:fetch")) {
+		return allowedHosts;
+	}
+	return [];
+}
 
 /**
  * EmDashRuntime - singleton per worker
@@ -624,6 +733,16 @@ export class EmDashRuntime {
 	private cronScheduler: CronScheduler | null;
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
+	private readonly activePluginContentActions = new Map<string, number>();
+	private readonly pendingPluginAfterHooks = new Map<string, Array<() => Promise<void>>>();
+	private readonly activePluginInvocations = new Set<string>();
+	/** Timed-out sandbox invocations whose later actions must schedule hooks without another flush. */
+	private readonly releasedPluginInvocations = new Set<string>();
+	private readonly pluginInvocationCacheInvalidators = new Map<
+		string,
+		PluginContentCacheInvalidator
+	>();
+	private pluginContentCacheInvalidator?: PluginContentCacheInvalidator;
 
 	/**
 	 * Isolate-lifetime guard so FTS indexes are verified at most once per
@@ -649,6 +768,7 @@ export class EmDashRuntime {
 		getDb?: () => Kysely<Database>;
 		beforeContentWrite?: () => Promise<void>;
 		contentCreate?: PluginContentCreateCallback;
+		contentActions?: ContentActionCallbacks;
 		now?: () => Date;
 		storage?: Storage;
 		commentModerate?: (
@@ -684,6 +804,13 @@ export class EmDashRuntime {
 			return ctx.db as Kysely<Database>;
 		}
 		return this._db;
+	}
+
+	/** Bind the platform cache provider used by plugin actions, including request-less cron hooks. */
+	setPluginContentCacheInvalidator(
+		invalidateContentCache: PluginContentCacheInvalidator | undefined,
+	): void {
+		this.pluginContentCacheInvalidator = invalidateContentCache;
 	}
 
 	constructor(parts: EmDashRuntimeParts) {
@@ -738,7 +865,11 @@ export class EmDashRuntime {
 		await assertMediaUsageActivationWriteAllowed(this.db);
 		const currentTime = this.runtimeDeps.now?.() ?? new Date();
 		return publishDueContent(this.db, {
-			publish: (collection, id, options) => this.handleContentPublish(collection, id, options),
+			publish: (collection, id, options) =>
+				this.handleContentPublish(collection, id, {
+					...options,
+					origin: { source: "scheduler" },
+				}),
 			onPublished,
 			currentTime,
 		});
@@ -761,6 +892,7 @@ export class EmDashRuntime {
 	async runScheduledTasks(
 		options: {
 			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+			invalidateContentCache?: PluginContentCacheInvalidator;
 		} = {},
 	): Promise<{ published: PublishedRef[] }> {
 		const { published } = await this.runScheduledTasksWithStats(options);
@@ -770,8 +902,12 @@ export class EmDashRuntime {
 	async runScheduledTasksWithStats(
 		options: {
 			onPublished?: (refs: PublishedRef[]) => Promise<void>;
+			invalidateContentCache?: PluginContentCacheInvalidator;
 		} = {},
 	): Promise<{ processed: number; published: PublishedRef[] }> {
+		if (options.invalidateContentCache) {
+			this.pluginContentCacheInvalidator = options.invalidateContentCache;
+		}
 		let processed = 0;
 		if (this.cronExecutor) {
 			try {
@@ -1096,6 +1232,8 @@ export class EmDashRuntime {
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
 					storage: bundle.manifest.storage,
+					allowedHosts: bundle.manifest.allowedHosts,
+					capabilities: bundle.manifest.capabilities,
 				});
 
 				// Cache route metadata from manifest for auth decisions
@@ -1216,6 +1354,8 @@ export class EmDashRuntime {
 					admin: bundle.manifest.admin,
 					mcp: bundle.manifest.mcp,
 					storage: bundle.manifest.storage,
+					allowedHosts: bundle.manifest.allowedHosts,
+					capabilities: bundle.manifest.capabilities,
 				});
 				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
@@ -1266,6 +1406,8 @@ export class EmDashRuntime {
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
+						editorPanels: bundle.manifest.admin?.editorPanels,
+						editorActions: bundle.manifest.admin?.editorActions,
 					});
 					newPlugins.push(adapted);
 					this.allPipelinePlugins.push(adapted);
@@ -1737,10 +1879,70 @@ export class EmDashRuntime {
 		// plugin contexts to the singleton db — re-breaking connection-backed
 		// adapters. See #1622.
 		const runtimeRef: { current: EmDashRuntime | null } = { current: null };
+		const requireRuntime = (): EmDashRuntime => {
+			if (!runtimeRef.current) throw new Error("EmDash runtime is not ready");
+			return runtimeRef.current;
+		};
+		const contentActions: ContentActionCallbacks = {
+			begin: (pluginId, invocationId, invalidateContentCache) =>
+				requireRuntime().beginPluginInvocation(pluginId, invocationId, invalidateContentCache),
+			flush: (pluginId, invocationId, final) =>
+				requireRuntime().flushPluginAfterHooks(pluginId, invocationId, final),
+			getVersioned: (pluginId, collection, id) =>
+				requireRuntime().pluginGetVersioned(pluginId, collection, id),
+			publish: (pluginId, collection, id, options, invocationId, invalidateContentCache) =>
+				requireRuntime().pluginPublish(
+					pluginId,
+					collection,
+					id,
+					options,
+					invocationId,
+					invalidateContentCache,
+				),
+			unpublish: (pluginId, collection, id, options, invocationId, invalidateContentCache) =>
+				requireRuntime().pluginUnpublish(
+					pluginId,
+					collection,
+					id,
+					options,
+					invocationId,
+					invalidateContentCache,
+				),
+			schedule: (pluginId, collection, id, options, invocationId, invalidateContentCache) =>
+				requireRuntime().pluginSchedule(
+					pluginId,
+					collection,
+					id,
+					options,
+					invocationId,
+					invalidateContentCache,
+				),
+			unschedule: (pluginId, collection, id, options, invocationId, invalidateContentCache) =>
+				requireRuntime().pluginUnschedule(
+					pluginId,
+					collection,
+					id,
+					options,
+					invocationId,
+					invalidateContentCache,
+				),
+			getTrashedVersioned: (pluginId, collection, id) =>
+				requireRuntime().pluginGetTrashedVersioned(pluginId, collection, id),
+			restore: (pluginId, collection, id, options, invocationId, invalidateContentCache) =>
+				requireRuntime().pluginRestore(
+					pluginId,
+					collection,
+					id,
+					options,
+					invocationId,
+					invalidateContentCache,
+				),
+		};
 		const pipelineFactoryOptions = {
 			db,
 			getDb: resolveDb,
 			beforeContentWrite: () => assertMediaUsageActivationWriteAllowed(resolveDb()),
+			contentActions,
 			now: deps.now,
 			storage: storage ?? undefined,
 			siteInfo,
@@ -1958,6 +2160,7 @@ export class EmDashRuntime {
 		sandboxRunner?.setCommentModerate?.((pluginId, id, status, expectedStatus) =>
 			runtime.handlePluginCommentModerate(pluginId, id, status, expectedStatus),
 		);
+		sandboxRunner?.setContentActions?.(contentActions);
 		return runtime;
 	}
 
@@ -2185,6 +2388,8 @@ export class EmDashRuntime {
 					settingsSchema: entry.settingsSchema,
 					portableTextBlocks: entry.portableTextBlocks,
 					fieldWidgets: entry.fieldWidgets,
+					editorPanels: entry.editorPanels,
+					editorActions: entry.editorActions,
 				});
 				plugins.push(resolved);
 				console.log(
@@ -2297,11 +2502,13 @@ export class EmDashRuntime {
 								: undefined,
 					}),
 				);
+				const capabilities = normalizePluginCapabilities(entry.capabilities ?? []);
+
 				// Build manifest from entry's declared config
 				const manifest: PluginManifest = {
 					id: entry.id,
 					version: entry.version,
-					capabilities: entry.capabilities ?? [],
+					capabilities,
 					allowedHosts: entry.allowedHosts ?? [],
 					storage: entry.storage ?? {},
 					// Descriptors built before hook metadata was emitted must keep
@@ -2314,6 +2521,8 @@ export class EmDashRuntime {
 						settingsSchema: entry.settingsSchema,
 						portableTextBlocks: entry.portableTextBlocks,
 						fieldWidgets: entry.fieldWidgets,
+						editorPanels: entry.editorPanels,
+						editorActions: entry.editorActions,
 					},
 					mcp: entry.mcp,
 				};
@@ -2443,6 +2652,8 @@ export class EmDashRuntime {
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
 						storage: bundle.manifest.storage,
+						allowedHosts: bundle.manifest.allowedHosts,
+						capabilities: bundle.manifest.capabilities,
 					});
 
 					// Cache route metadata from manifest for auth decisions
@@ -2516,6 +2727,8 @@ export class EmDashRuntime {
 						admin: bundle.manifest.admin,
 						mcp: bundle.manifest.mcp,
 						storage: bundle.manifest.storage,
+						allowedHosts: bundle.manifest.allowedHosts,
+						capabilities: bundle.manifest.capabilities,
 					});
 					if (bundle.manifest.routes.length > 0) {
 						const routeMeta = new Map<string, RouteMeta>();
@@ -2552,6 +2765,8 @@ export class EmDashRuntime {
 								w.size === "full" || w.size === "half" || w.size === "third" ? w.size : undefined,
 						})),
 						settingsSchema: bundle.manifest.admin?.settingsSchema,
+						editorPanels: bundle.manifest.admin?.editorPanels,
+						editorActions: bundle.manifest.admin?.editorActions,
 					});
 					resolved.push(adapted);
 					console.log(
@@ -2685,6 +2900,8 @@ export class EmDashRuntime {
 					fieldTypes: string[];
 					elements?: Element[];
 				}>;
+				editorPanels?: PluginManifest["admin"]["editorPanels"];
+				editorActions?: PluginManifest["admin"]["editorActions"];
 			}
 		> = {};
 
@@ -2696,10 +2913,13 @@ export class EmDashRuntime {
 			const hasAdminEntry = !!plugin.admin?.entry;
 			const hasAdminPages = (plugin.admin?.pages?.length ?? 0) > 0;
 			const hasWidgets = (plugin.admin?.widgets?.length ?? 0) > 0;
+			const hasEditorExtensions =
+				(plugin.admin?.editorPanels?.length ?? 0) > 0 ||
+				(plugin.admin?.editorActions?.length ?? 0) > 0;
 			let adminMode: "react" | "blocks" | "none" = "none";
 			if (hasAdminEntry) {
 				adminMode = "react";
-			} else if (hasAdminPages || hasWidgets) {
+			} else if (hasAdminPages || hasWidgets || hasEditorExtensions) {
 				adminMode = "blocks";
 			}
 
@@ -2711,6 +2931,8 @@ export class EmDashRuntime {
 				dashboardWidgets: plugin.admin?.widgets ?? [],
 				portableTextBlocks: plugin.admin?.portableTextBlocks,
 				fieldWidgets: plugin.admin?.fieldWidgets,
+				editorPanels: plugin.admin?.editorPanels,
+				editorActions: plugin.admin?.editorActions,
 			};
 		}
 
@@ -2721,6 +2943,8 @@ export class EmDashRuntime {
 
 			const hasAdminPages = (entry.adminPages?.length ?? 0) > 0;
 			const hasWidgets = (entry.adminWidgets?.length ?? 0) > 0;
+			const hasEditorExtensions =
+				(entry.editorPanels?.length ?? 0) > 0 || (entry.editorActions?.length ?? 0) > 0;
 
 			manifestPlugins[entry.id] = {
 				version: entry.version,
@@ -2730,11 +2954,13 @@ export class EmDashRuntime {
 				// contribute portableTextBlocks/fieldWidgets with adminMode "none" —
 				// the admin reads those from the manifest regardless, so don't gate
 				// admin contributions on `adminMode`.
-				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
+				adminMode: hasAdminPages || hasWidgets || hasEditorExtensions ? "blocks" : "none",
 				adminPages: entry.adminPages ?? [],
 				dashboardWidgets: entry.adminWidgets ?? [],
 				portableTextBlocks: entry.portableTextBlocks,
 				fieldWidgets: entry.fieldWidgets,
+				editorPanels: entry.editorPanels,
+				editorActions: entry.editorActions,
 			};
 		}
 
@@ -2750,14 +2976,18 @@ export class EmDashRuntime {
 			const widgets = meta.admin?.widgets;
 			const hasAdminPages = (pages?.length ?? 0) > 0;
 			const hasWidgets = (widgets?.length ?? 0) > 0;
+			const hasEditorExtensions =
+				(meta.admin?.editorPanels?.length ?? 0) > 0 || (meta.admin?.editorActions?.length ?? 0) > 0;
 
 			manifestPlugins[pluginId] = {
 				version: meta.version,
 				enabled,
 				sandboxed: true,
-				adminMode: hasAdminPages || hasWidgets ? "blocks" : "none",
+				adminMode: hasAdminPages || hasWidgets || hasEditorExtensions ? "blocks" : "none",
 				adminPages: pages ?? [],
 				dashboardWidgets: widgets ?? [],
+				editorPanels: meta.admin?.editorPanels,
+				editorActions: meta.admin?.editorActions,
 			};
 		}
 
@@ -2966,7 +3196,10 @@ export class EmDashRuntime {
 	 *
 	 * No-op when no draft exists or the response is an error.
 	 */
-	private async hydrateDraftData<T>(result: T): Promise<T> {
+	private async hydrateDraftData<T>(
+		result: T,
+		options: { includeStagedSlug?: boolean; strict?: boolean } = {},
+	): Promise<T> {
 		if (!result || typeof result !== "object") return result;
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape probed below
 		const r = result as {
@@ -2979,7 +3212,10 @@ export class EmDashRuntime {
 		if (!draftRevisionId) return result;
 		try {
 			const revision = await new RevisionRepository(this.db).findById(draftRevisionId);
-			if (!revision) return result;
+			if (!revision) {
+				if (options.strict) throw new Error(`Draft revision not found: ${draftRevisionId}`);
+				return result;
+			}
 			const liveData =
 				item.data && typeof item.data === "object"
 					? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to object above
@@ -3006,10 +3242,18 @@ export class EmDashRuntime {
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape preserved; result has been narrowed to the {success,data:{item}} envelope
 				data: {
 					...r.data,
-					item: { ...item, data: mergedData, liveData },
+					item: {
+						...item,
+						...(options.includeStagedSlug && typeof revision.data._slug === "string"
+							? { slug: revision.data._slug }
+							: {}),
+						data: mergedData,
+						liveData,
+					},
 				},
 			};
 		} catch (error) {
+			if (options.strict) throw error;
 			// Non-fatal — fall back to the unhydrated response. Log so the
 			// failure isn't completely silent (the response will look stale
 			// to the caller but no error is raised).
@@ -3421,9 +3665,12 @@ export class EmDashRuntime {
 			}
 		}
 
+		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
+
 		// Delete the content
 		const result = await handleContentDelete(this.db, collection, id);
 		if (result.success) {
+			await this.clearScheduledPolicyRejection(collection, result.data.id, policyRejectionRevision);
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.id]);
 		}
 
@@ -3446,23 +3693,38 @@ export class EmDashRuntime {
 		return handleContentListTrashed(this.db, collection, params);
 	}
 
-	async handleContentRestore(collection: string, id: string) {
-		const result = await handleContentRestore(this.db, collection, id);
+	async handleContentRestore(
+		collection: string,
+		id: string,
+		options: {
+			_rev?: string;
+			origin?: ContentActionOrigin;
+			pluginInvocationId?: string;
+		} = {},
+	) {
+		const result = await handleContentRestore(this.db, collection, id, { _rev: options._rev });
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
 
 		// Run afterRestore hooks (fire-and-forget)
 		if (result.success) {
-			this.runAfterRestoreHooks(contentItemToRecord(result.data.item), collection);
+			this.runAfterRestoreHooks(
+				contentItemToRecord(result.data.item),
+				collection,
+				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
+			);
 		}
 
 		return result;
 	}
 
 	async handleContentPermanentDelete(collection: string, id: string) {
+		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
 		const result = await handleContentPermanentDelete(this.db, collection, id);
 		if (result.success) {
+			await this.clearScheduledPolicyRejection(collection, result.data.id, policyRejectionRevision);
 			await this.deleteContentUsageAfterSuccessfulPermanentDelete(collection, result.data.id);
 		}
 
@@ -3490,6 +3752,385 @@ export class EmDashRuntime {
 	// Publishing & Scheduling Handlers
 	// =========================================================================
 
+	private pluginVersionedResult(
+		result:
+			| { success: true; data: { item: ContentItemInternal; _rev?: string } }
+			| { success: false; error: { code: string; message: string } },
+	): VersionedContentItem {
+		if (!result.success) {
+			throw Object.assign(new Error(result.error.message), { code: result.error.code });
+		}
+		if (!result.data._rev) throw new Error("Content action returned no revision");
+		return { item: toPluginContentItem(result.data.item), _rev: result.data._rev };
+	}
+
+	private async runPluginContentAction<T>(
+		pluginId: string,
+		action: string,
+		collection: string,
+		id: string,
+		fn: (resolvedId: string) => Promise<T>,
+		invocationId?: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<T> {
+		let invocationInvalidator: PluginContentCacheInvalidator | undefined;
+		if (invocationId) {
+			const invocationKey = this.pluginInvocationKey(pluginId, invocationId);
+			if (
+				!this.activePluginInvocations.has(invocationKey) &&
+				!this.releasedPluginInvocations.has(invocationKey)
+			) {
+				throw Object.assign(new Error("Plugin content action invocation has expired"), {
+					code: "CONTENT_ACTION_INVOCATION_EXPIRED",
+				});
+			}
+			invocationInvalidator = this.pluginInvocationCacheInvalidators.get(invocationKey);
+		}
+		await assertMediaUsageActivationWriteAllowed(this.db);
+		const repo = new ContentRepository(this.db);
+		const item =
+			action === "restore"
+				? await repo.findByIdOrSlugIncludingTrashed(collection, id)
+				: await repo.findByIdOrSlug(collection, id);
+		const resolvedId = item?.id ?? id;
+		const key = this.pluginContentActionKey(collection, resolvedId);
+		if ((this.activePluginContentActions.get(key) ?? 0) > 0) {
+			throw Object.assign(new Error("Plugin content action re-entered itself"), {
+				code: "CONTENT_ACTION_REENTRANT",
+			});
+		}
+		this.retainPluginContentAction(key);
+		try {
+			const result = await fn(resolvedId);
+			const invalidator =
+				invalidateContentCache ?? invocationInvalidator ?? this.pluginContentCacheInvalidator;
+			if (invalidator) {
+				try {
+					await invalidator([collection, resolvedId]);
+				} catch (error) {
+					console.error(
+						`[plugin-content-action] Cache invalidation failed for ${collection}/${resolvedId}:`,
+						error,
+					);
+				}
+			}
+			return result;
+		} finally {
+			this.releasePluginContentAction(key);
+		}
+	}
+
+	private pluginContentActionKey(collection: string, id: string): string {
+		return JSON.stringify([collection, id]);
+	}
+
+	private retainPluginContentAction(key: string): void {
+		this.activePluginContentActions.set(key, (this.activePluginContentActions.get(key) ?? 0) + 1);
+	}
+
+	private releasePluginContentAction(key: string): void {
+		const remaining = (this.activePluginContentActions.get(key) ?? 1) - 1;
+		if (remaining > 0) this.activePluginContentActions.set(key, remaining);
+		else this.activePluginContentActions.delete(key);
+	}
+
+	private async pluginGetVersioned(
+		_pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null> {
+		const result = await this.handleContentGet(collection, id);
+		if (!result.success) {
+			if (result.error.code === "NOT_FOUND") return null;
+			throw Object.assign(new Error(result.error.message), { code: result.error.code });
+		}
+		if (!result.data._rev) throw new Error("Content read returned no revision");
+		return { item: toPluginContentItem(result.data.item), _rev: result.data._rev };
+	}
+
+	private async pluginGetTrashedVersioned(
+		_pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null> {
+		const result = await this.handleContentGetIncludingTrashed(collection, id);
+		if (!result.success) {
+			if (result.error.code === "NOT_FOUND") return null;
+			throw Object.assign(new Error(result.error.message), { code: result.error.code });
+		}
+		if (!(await new ContentRepository(this.db).isTrashed(collection, result.data.item.id))) {
+			return null;
+		}
+		if (!result.data._rev) throw new Error("Trashed content read returned no revision");
+		return { item: toPluginContentItem(result.data.item), _rev: result.data._rev };
+	}
+
+	private pluginPublish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(
+			pluginId,
+			"publish",
+			collection,
+			id,
+			async (resolvedId) =>
+				this.pluginVersionedResult(
+					await this.handleContentPublish(collection, resolvedId, {
+						_rev: options._rev,
+						origin: { source: "plugin", pluginId },
+						pluginInvocationId: invocationId,
+					}),
+				),
+			invocationId,
+			invalidateContentCache,
+		);
+	}
+
+	private pluginUnpublish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(
+			pluginId,
+			"unpublish",
+			collection,
+			id,
+			async (resolvedId) =>
+				this.pluginVersionedResult(
+					await this.handleContentUnpublish(collection, resolvedId, {
+						_rev: options._rev,
+						origin: { source: "plugin", pluginId },
+						pluginInvocationId: invocationId,
+					}),
+				),
+			invocationId,
+			invalidateContentCache,
+		);
+	}
+
+	private pluginSchedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(
+			pluginId,
+			"schedule",
+			collection,
+			id,
+			async (resolvedId) =>
+				this.pluginVersionedResult(
+					await this.handleContentSchedule(collection, resolvedId, options.scheduledAt, {
+						_rev: options._rev,
+						origin: { source: "plugin", pluginId },
+						pluginInvocationId: invocationId,
+					}),
+				),
+			invocationId,
+			invalidateContentCache,
+		);
+	}
+
+	private pluginUnschedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(
+			pluginId,
+			"unschedule",
+			collection,
+			id,
+			async (resolvedId) =>
+				this.pluginVersionedResult(
+					await this.handleContentUnschedule(collection, resolvedId, {
+						...options,
+						origin: { source: "plugin", pluginId },
+						pluginInvocationId: invocationId,
+					}),
+				),
+			invocationId,
+			invalidateContentCache,
+		);
+	}
+
+	private pluginRestore(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<VersionedContentItem> {
+		return this.runPluginContentAction(
+			pluginId,
+			"restore",
+			collection,
+			id,
+			async (resolvedId) =>
+				this.pluginVersionedResult(
+					await this.handleContentRestore(collection, resolvedId, {
+						...options,
+						origin: { source: "plugin", pluginId },
+						pluginInvocationId: invocationId,
+					}),
+				),
+			invocationId,
+			invalidateContentCache,
+		);
+	}
+
+	private async checkContentPolicy(
+		name: ContentPolicyHookName,
+		collection: string,
+		id: string,
+		options: ContentPolicyMutationOptions,
+		rejectionCode: "PUBLISH_REJECTED" | "SCHEDULE_REJECTED" | "UNPUBLISH_REJECTED",
+		failureCode: "CONTENT_PUBLISH_ERROR" | "CONTENT_SCHEDULE_ERROR" | "CONTENT_UNPUBLISH_ERROR",
+		scheduledAt?: string,
+	): Promise<ContentPolicyCheck> {
+		let current = await handleContentGet(this.db, collection, id);
+		if (!current.success) {
+			return {
+				allowed: false,
+				revision: options._rev ?? "",
+				error: current.error,
+			};
+		}
+
+		const revision = current.data._rev;
+		if (!revision) {
+			return {
+				allowed: false,
+				revision: options._rev ?? "",
+				error: { code: failureCode, message: "Failed to read content revision" },
+			};
+		}
+		if (options._rev !== undefined && options._rev !== revision) {
+			return {
+				allowed: false,
+				revision,
+				error: { code: "CONFLICT", message: "Revision precondition did not match" },
+			};
+		}
+
+		if (!this.hooks.hasHooks(name)) return { allowed: true, revision };
+		if (name !== "content:beforeUnpublish") {
+			try {
+				current = await this.hydrateDraftData(current, {
+					includeStagedSlug: true,
+					strict: true,
+				});
+			} catch (error) {
+				console.error(`[content-policy] ${name} draft hydration failed:`, error);
+				return {
+					allowed: false,
+					revision,
+					error: { code: failureCode, message: `Failed to read content for ${name} policy` },
+				};
+			}
+		}
+
+		const origin = options.origin ?? { source: "system" };
+		const actor =
+			options.actor &&
+			(origin.source === "api" || origin.source === "mcp" || origin.source === "visual-editor")
+				? { ...options.actor, source: origin.source }
+				: undefined;
+		try {
+			const decision = await this.hooks.runContentPolicy(name, {
+				content: contentItemToRecord(current.data.item),
+				collection,
+				origin,
+				actor,
+				...(scheduledAt === undefined ? {} : { scheduledAt }),
+			});
+			if (decision.cancellation) {
+				return {
+					allowed: false,
+					revision,
+					error: { code: rejectionCode, message: decision.cancellation.reason },
+					cancellation: decision.cancellation,
+				};
+			}
+			return { allowed: true, revision };
+		} catch (error) {
+			console.error(`[content-policy] ${name} failed:`, error);
+			return {
+				allowed: false,
+				revision,
+				error: { code: failureCode, message: `Failed to run ${name} policy` },
+			};
+		}
+	}
+
+	private async getScheduledPolicyRejectionRevision(
+		collection: string,
+		id: string,
+	): Promise<string | undefined> {
+		try {
+			return (
+				await new OptionsRepository(this.db).getVersioned(
+					scheduledPolicyRejectionKey(collection, id),
+				)
+			)?.revision;
+		} catch (error) {
+			console.error(
+				`[content-policy] Failed to read scheduled rejection for ${collection}/${id}:`,
+				error,
+			);
+			return undefined;
+		}
+	}
+
+	private async clearScheduledPolicyRejection(
+		collection: string,
+		id: string,
+		expectedRevision: string | undefined,
+	): Promise<void> {
+		if (expectedRevision === undefined) return;
+		try {
+			await new OptionsRepository(this.db).compareAndDelete(
+				scheduledPolicyRejectionKey(collection, id),
+				expectedRevision,
+			);
+		} catch (error) {
+			console.error(
+				`[content-policy] Failed to clear scheduled rejection for ${collection}/${id}:`,
+				error,
+			);
+		}
+	}
+
+	private createScheduledPolicyRejection(
+		collection: string,
+		id: string,
+		cancellation: { pluginId: string; reason: string },
+	): ScheduledPolicyRejection {
+		return {
+			collection,
+			id,
+			pluginId: cancellation.pluginId,
+			reason: cancellation.reason,
+			rejectedAt: (this.runtimeDeps.now?.() ?? new Date()).toISOString(),
+		};
+	}
+
 	async handleContentPublish(
 		collection: string,
 		id: string,
@@ -3498,10 +4139,49 @@ export class EmDashRuntime {
 			requireScheduledDue?: boolean;
 			expectedScheduledAt?: string;
 			_rev?: string;
+			currentTime?: Date;
+			actor?: ActorInfo;
+			origin?: ContentActionOrigin;
+			pluginInvocationId?: string;
 		} = {},
 	) {
-		const result = await handleContentPublish(this.db, collection, id, options);
+		const policy = await this.checkContentPolicy(
+			"content:beforePublish",
+			collection,
+			id,
+			options,
+			"PUBLISH_REJECTED",
+			"CONTENT_PUBLISH_ERROR",
+		);
+		if (!policy.allowed) {
+			if (policy.cancellation && options.origin?.source === "scheduler") {
+				const unscheduled = await handleScheduledPolicyRejection(this.db, collection, id, {
+					_rev: policy.revision,
+					rejection: this.createScheduledPolicyRejection(collection, id, policy.cancellation),
+				});
+				if (!unscheduled.success) return unscheduled;
+				await this.refreshContentUsageAfterSuccessfulWrite(collection, [unscheduled.data.item.id]);
+				this.runAfterUnscheduleHooks(contentItemToRecord(unscheduled.data.item), collection);
+			}
+			return { success: false as const, error: policy.error };
+		}
+		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
+		const {
+			actor: _actor,
+			origin: _origin,
+			pluginInvocationId: _pluginInvocationId,
+			...handlerOptions
+		} = options;
+		const result = await handleContentPublish(this.db, collection, id, {
+			...handlerOptions,
+			_rev: policy.revision,
+		});
 		if (result.success && result.data) {
+			await this.clearScheduledPolicyRejection(
+				collection,
+				result.data.item.id,
+				policyRejectionRevision,
+			);
 			const { item } = result.data;
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [
 				item.id,
@@ -3517,55 +4197,120 @@ export class EmDashRuntime {
 
 		// Run afterPublish hooks (fire-and-forget)
 		if (result.success && result.data) {
-			this.runAfterPublishHooks(contentItemToRecord(result.data.item), collection);
+			this.runAfterPublishHooks(
+				contentItemToRecord(result.data.item),
+				collection,
+				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
+			);
 		}
 
 		return result;
 	}
 
-	async handleContentUnpublish(collection: string, id: string, options: { _rev?: string } = {}) {
-		const result = await handleContentUnpublish(this.db, collection, id, options);
+	async handleContentUnpublish(
+		collection: string,
+		id: string,
+		options: ContentPolicyMutationOptions = {},
+	) {
+		const policy = await this.checkContentPolicy(
+			"content:beforeUnpublish",
+			collection,
+			id,
+			options,
+			"UNPUBLISH_REJECTED",
+			"CONTENT_UNPUBLISH_ERROR",
+		);
+		if (!policy.allowed) return { success: false as const, error: policy.error };
+		const result = await handleContentUnpublish(this.db, collection, id, {
+			_rev: policy.revision,
+		});
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
 
 		// Run afterUnpublish hooks (deferred past the response via after())
 		if (result.success && result.data) {
-			this.runAfterUnpublishHooks(contentItemToRecord(result.data.item), collection);
+			this.runAfterUnpublishHooks(
+				contentItemToRecord(result.data.item),
+				collection,
+				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
+			);
 		}
 
 		return result;
 	}
 
-	async handleContentSchedule(collection: string, id: string, scheduledAt: string) {
+	async handleContentSchedule(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		options: ContentPolicyMutationOptions = {},
+	) {
+		const policy = await this.checkContentPolicy(
+			"content:beforeSchedule",
+			collection,
+			id,
+			options,
+			"SCHEDULE_REJECTED",
+			"CONTENT_SCHEDULE_ERROR",
+			scheduledAt,
+		);
+		if (!policy.allowed) return { success: false as const, error: policy.error };
+		const policyRejectionRevision = await this.getScheduledPolicyRejectionRevision(collection, id);
 		const result = await handleContentSchedule(
 			this.db,
 			collection,
 			id,
 			scheduledAt,
 			this.runtimeDeps.now?.() ?? new Date(),
+			policy.revision,
 		);
 		if (result.success && result.data) {
+			await this.clearScheduledPolicyRejection(
+				collection,
+				result.data.item.id,
+				policyRejectionRevision,
+			);
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
 
 		// Run afterSchedule hooks (fire-and-forget)
 		if (result.success && result.data) {
-			this.runAfterScheduleHooks(contentItemToRecord(result.data.item), collection);
+			this.runAfterScheduleHooks(
+				contentItemToRecord(result.data.item),
+				collection,
+				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
+			);
 		}
 
 		return result;
 	}
 
-	async handleContentUnschedule(collection: string, id: string) {
-		const result = await handleContentUnschedule(this.db, collection, id);
+	async handleContentUnschedule(
+		collection: string,
+		id: string,
+		options: {
+			_rev?: string;
+			origin?: ContentActionOrigin;
+			pluginInvocationId?: string;
+		} = {},
+	) {
+		const result = await handleContentUnschedule(this.db, collection, id, { _rev: options._rev });
 		if (result.success && result.data) {
 			await this.refreshContentUsageAfterSuccessfulWrite(collection, [result.data.item.id]);
 		}
 
 		// Run afterUnschedule hooks (fire-and-forget)
 		if (result.success && result.data) {
-			this.runAfterUnscheduleHooks(contentItemToRecord(result.data.item), collection);
+			this.runAfterUnscheduleHooks(
+				contentItemToRecord(result.data.item),
+				collection,
+				options.origin?.source === "plugin" ? options.origin.pluginId : undefined,
+				options.pluginInvocationId,
+			);
 		}
 
 		return result;
@@ -4113,6 +4858,206 @@ export class EmDashRuntime {
 	// Plugin Routes
 	// =========================================================================
 
+	private getSandboxedAdminDefinition(pluginId: string): {
+		pages: string[];
+		widgets: string[];
+		policy: BlockValidationPolicy;
+	} | null {
+		const entry = this.sandboxedPluginEntries.find((candidate) => candidate.id === pluginId);
+		if (entry) {
+			const pages = (entry.adminPages ?? []).map((page) => normalizePluginPagePath(page.path));
+			const imageHosts = allowedBrowserImageHosts(entry.capabilities, entry.allowedHosts);
+			return {
+				pages,
+				widgets: (entry.adminWidgets ?? []).map((widget) => widget.id),
+				policy: { pluginPagePaths: pages, allowedImageHosts: imageHosts },
+			};
+		}
+
+		const manifest = marketplaceManifestCache.get(pluginId);
+		if (!manifest) return null;
+		const pages = (manifest.admin?.pages ?? []).map((page) => normalizePluginPagePath(page.path));
+		const imageHosts = allowedBrowserImageHosts(
+			manifest.capabilities ?? [],
+			manifest.allowedHosts ?? [],
+		);
+		return {
+			pages,
+			widgets: (manifest.admin?.widgets ?? []).map((widget) => widget.id),
+			policy: { pluginPagePaths: pages, allowedImageHosts: imageHosts },
+		};
+	}
+
+	private resolvePluginUiContext(
+		definition: { pages: string[]; widgets: string[] },
+		body: unknown,
+		request: Request,
+	): { context?: PluginUiContext; error?: { code: string; message: string } } {
+		if (typeof body !== "object" || body === null || !("page" in body)) return {};
+		const page = body.page;
+		if (typeof page !== "string") {
+			return {
+				error: { code: "INVALID_PLUGIN_UI_CONTEXT", message: "Plugin UI page must be a string" },
+			};
+		}
+
+		let surface: PluginUiContext["surface"];
+		if (page.startsWith("widget:")) {
+			if (!definition.widgets.includes(page.slice("widget:".length))) {
+				return {
+					error: {
+						code: "INVALID_PLUGIN_UI_CONTEXT",
+						message: "Plugin dashboard widget is not declared",
+					},
+				};
+			}
+			surface = "dashboard-widget";
+		} else {
+			if (!definition.pages.includes(normalizePluginPagePath(page))) {
+				return {
+					error: {
+						code: "INVALID_PLUGIN_UI_CONTEXT",
+						message: "Plugin admin page is not declared",
+					},
+				};
+			}
+			surface = "admin-page";
+		}
+
+		const locale = resolveLocale(request);
+		return { context: { surface, locale, direction: getLocaleDir(locale) } };
+	}
+
+	private validateSandboxedAdminResponse(
+		pluginId: string,
+		definition: { policy: BlockValidationPolicy },
+		result: {
+			success: boolean;
+			data?: unknown;
+			error?: { code: string; message: string };
+			status?: number;
+		},
+	) {
+		if (!result.success) return result;
+		const validation = validateBlockResponse(result.data, definition.policy);
+		if (validation.valid) return result;
+
+		console.error(
+			`EmDash: Sandboxed plugin ${pluginId} returned invalid Block Kit content:`,
+			validation.errors,
+		);
+		return {
+			success: false,
+			status: 502,
+			error: {
+				code: "INVALID_BLOCK_RESPONSE",
+				message: "Plugin returned invalid Block Kit content",
+			},
+		};
+	}
+
+	getPluginEditorExtension(
+		pluginId: string,
+		kind: "panel" | "action",
+		extensionId: string,
+		collection: string,
+	): ResolvedPluginEditorExtension | null {
+		if (!this.isPluginEnabled(pluginId)) return null;
+
+		let panels: PluginEditorPanel[] | undefined;
+		let actions: PluginEditorAction[] | undefined;
+		let pages: string[] = [];
+		let capabilities: readonly PluginCapability[] = [];
+		let allowedHosts: readonly string[] = [];
+
+		const configured = this.configuredPlugins.find((plugin) => plugin.id === pluginId);
+		if (configured) {
+			if (configured.admin.entry) return null;
+			panels = configured.admin.editorPanels;
+			actions = configured.admin.editorActions;
+			pages = (configured.admin.pages ?? []).map((page) => page.path);
+			capabilities = configured.capabilities;
+			allowedHosts = configured.allowedHosts;
+		} else {
+			const entry = this.sandboxedPluginEntries.find((candidate) => candidate.id === pluginId);
+			if (entry) {
+				panels = entry.editorPanels;
+				actions = entry.editorActions;
+				pages = (entry.adminPages ?? []).map((page) => page.path);
+				capabilities = entry.capabilities;
+				allowedHosts = entry.allowedHosts;
+			} else {
+				const manifest = marketplaceManifestCache.get(pluginId);
+				if (!manifest) return null;
+				panels = manifest.admin?.editorPanels;
+				actions = manifest.admin?.editorActions;
+				pages = (manifest.admin?.pages ?? []).map((page) => page.path);
+				capabilities = manifest.capabilities ?? [];
+				allowedHosts = manifest.allowedHosts ?? [];
+			}
+		}
+
+		const policy = {
+			pluginPagePaths: pages,
+			allowedImageHosts: allowedBrowserImageHosts(capabilities, allowedHosts),
+		};
+		if (kind === "panel") {
+			const matches = panels?.filter((panel) => panel.id === extensionId) ?? [];
+			const extension = matches[0];
+			if (
+				matches.length !== 1 ||
+				!extension ||
+				(extension.collections && !extension.collections.includes(collection))
+			) {
+				return null;
+			}
+			return { kind, extension, policy };
+		}
+		const matches = actions?.filter((action) => action.id === extensionId) ?? [];
+		const extension = matches[0];
+		if (
+			matches.length !== 1 ||
+			!extension ||
+			(extension.collections && !extension.collections.includes(collection)) ||
+			(extension.style === "danger" && !extension.confirm)
+		) {
+			return null;
+		}
+		return { kind, extension, policy };
+	}
+
+	private validatePluginEditorExtensionResponse(
+		pluginId: string,
+		dispatch: PluginEditorExtensionDispatch,
+		result: {
+			success: boolean;
+			data?: unknown;
+			error?: { code: string; message: string };
+			status?: number;
+		},
+	) {
+		if (!result.success) return result;
+		const validation =
+			dispatch.kind === "panel"
+				? validateBlockResponse(result.data, dispatch.policy)
+				: validateContentEditorActionResponse(result.data, dispatch.policy);
+		if (validation.valid) return result;
+
+		console.error(
+			`EmDash: Plugin ${pluginId} returned an invalid content editor ${dispatch.kind} response:`,
+			validation.errors,
+		);
+		return {
+			success: false,
+			status: 502,
+			error: {
+				code:
+					dispatch.kind === "panel" ? "INVALID_BLOCK_RESPONSE" : "INVALID_EDITOR_ACTION_RESPONSE",
+				message: "Plugin returned an invalid editor extension response",
+			},
+		};
+	}
+
 	/**
 	 * Get route metadata for a plugin route without invoking the handler.
 	 * Used by the catch-all route to decide auth before dispatch.
@@ -4176,10 +5121,12 @@ export class EmDashRuntime {
 
 	async handlePluginApiRoute(
 		pluginId: string,
-		_method: string,
+		method: string,
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+		editorDispatch?: PluginEditorExtensionDispatch,
 	) {
 		if (!this.isPluginEnabled(pluginId)) {
 			return {
@@ -4187,11 +5134,40 @@ export class EmDashRuntime {
 				error: { code: "NOT_FOUND", message: `Plugin not enabled: ${pluginId}` },
 			};
 		}
+		const normalizedMethod = method.toUpperCase();
+		const routeMeta = this.getPluginRouteMeta(pluginId, path);
+		if (routeMeta?.methods && !routeMeta.methods.some((allowed) => allowed === normalizedMethod)) {
+			return {
+				success: false,
+				status: 405,
+				error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" },
+			};
+		}
 
 		// Authenticated caller for `ctx.user`. Undefined for public routes
 		// (the catch-all only forwards the caller after private-route auth)
 		// and for machine tokens with no bound user.
 		const caller = user ? toRouteCallerInfo(user) : undefined;
+		let body: unknown;
+		try {
+			body = await parseRouteInput(request, routeMeta?.request);
+		} catch (error) {
+			if (error instanceof PluginRouteRequestError) {
+				return {
+					success: false,
+					status: error.status,
+					error: { code: "INVALID_PLUGIN_REQUEST", message: error.message },
+				};
+			}
+			throw error;
+		}
+		const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
+		const adminDefinition =
+			!editorDispatch && routeKey === "admin" ? this.getSandboxedAdminDefinition(pluginId) : null;
+		const uiResult = adminDefinition
+			? this.resolvePluginUiContext(adminDefinition, body, request)
+			: {};
+		if (uiResult.error) return { success: false, status: 400, error: uiResult.error };
 
 		// Check trusted (configured) plugins first — this must match the
 		// resolution order in getPluginRouteMeta to avoid auth/execution mismatches.
@@ -4199,29 +5175,71 @@ export class EmDashRuntime {
 		if (trustedPlugin && this.enabledPlugins.has(trustedPlugin.id)) {
 			const routeRegistry = new PluginRouteRegistry({
 				...this.pipelineFactoryOptions,
+				contentActions: this.contentActionsWithInvalidator(invalidateContentCache),
 				emailPipeline: this.email ?? undefined,
 				cronReschedule: () => this.cronScheduler?.reschedule(),
 				trustedProxyHeaders: getTrustedProxyHeaders(this.config),
 			});
 			routeRegistry.register(trustedPlugin);
 
-			const routeKey = path.replace(LEADING_SLASH_PATTERN, "");
-
-			// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-			const body = await parseRouteInput(request);
-
-			return routeRegistry.invoke(pluginId, routeKey, { request, body, user: caller });
+			const result = await routeRegistry.invoke(pluginId, routeKey, {
+				request,
+				body,
+				user: caller,
+				ui: editorDispatch?.ui ?? uiResult.context,
+			});
+			return editorDispatch
+				? this.validatePluginEditorExtensionResponse(pluginId, editorDispatch, result)
+				: adminDefinition
+					? this.validateSandboxedAdminResponse(pluginId, adminDefinition, result)
+					: result;
 		}
 
 		// Check sandboxed (marketplace) plugins second
 		const sandboxedPlugin = this.findSandboxedPlugin(pluginId);
 		if (sandboxedPlugin) {
-			return this.handleSandboxedRoute(sandboxedPlugin, path, request, caller);
+			const result = await this.handleSandboxedRoute(
+				sandboxedPlugin,
+				path,
+				request,
+				body,
+				routeMeta ?? { public: false },
+				caller,
+				editorDispatch?.ui ?? uiResult.context,
+				invalidateContentCache,
+			);
+			return editorDispatch
+				? this.validatePluginEditorExtensionResponse(pluginId, editorDispatch, result)
+				: adminDefinition
+					? this.validateSandboxedAdminResponse(pluginId, adminDefinition, result)
+					: result;
 		}
 
 		return {
 			success: false,
 			error: { code: "NOT_FOUND", message: `Plugin not found: ${pluginId}` },
+		};
+	}
+
+	private contentActionsWithInvalidator(
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): ContentActionCallbacks | undefined {
+		const actions = this.pipelineFactoryOptions.contentActions;
+		if (!actions || !invalidateContentCache) return actions;
+		return {
+			...actions,
+			begin: (pluginId, invocationId, invocationInvalidator) =>
+				actions.begin?.(pluginId, invocationId, invocationInvalidator ?? invalidateContentCache),
+			publish: (pluginId, collection, id, options, invocationId) =>
+				actions.publish(pluginId, collection, id, options, invocationId, invalidateContentCache),
+			unpublish: (pluginId, collection, id, options, invocationId) =>
+				actions.unpublish(pluginId, collection, id, options, invocationId, invalidateContentCache),
+			schedule: (pluginId, collection, id, options, invocationId) =>
+				actions.schedule(pluginId, collection, id, options, invocationId, invalidateContentCache),
+			unschedule: (pluginId, collection, id, options, invocationId) =>
+				actions.unschedule(pluginId, collection, id, options, invocationId, invalidateContentCache),
+			restore: (pluginId, collection, id, options, invocationId) =>
+				actions.restore(pluginId, collection, id, options, invocationId, invalidateContentCache),
 		};
 	}
 
@@ -4242,7 +5260,14 @@ export class EmDashRuntime {
 			if (pluginId && plugin.id !== pluginId) continue;
 			for (const [name, tool] of Object.entries(plugin.mcp?.tools ?? {})) {
 				const route = plugin.routes[tool.route];
-				if (!route || route.public || !route.permission || !(route.permission in Permissions))
+				if (
+					!route ||
+					route.public ||
+					route.response === "raw" ||
+					!isJsonPostRouteContract(route) ||
+					!route.permission ||
+					!Object.hasOwn(Permissions, route.permission)
+				)
 					continue;
 				const key = `${plugin.id}__${name}`;
 				if (seen.has(key)) continue;
@@ -4269,8 +5294,10 @@ export class EmDashRuntime {
 					seen.has(key) ||
 					!routeMeta ||
 					routeMeta.public ||
+					routeMeta.response === "raw" ||
+					!isJsonPostRouteContract(routeMeta) ||
 					routeMeta.permission !== tool.permission ||
-					!(tool.permission in Permissions)
+					!Object.hasOwn(Permissions, tool.permission)
 				) {
 					continue;
 				}
@@ -4344,6 +5371,7 @@ export class EmDashRuntime {
 		actorId: string,
 		request: Request,
 		caller?: RouteCallerInput | null,
+		invalidateContentCache?: PluginContentCacheInvalidator,
 	) {
 		const requestMeta = extractRequestMeta(request, getTrustedProxyHeaders(this.config));
 		const audit = new AuditRepository(this.db);
@@ -4361,6 +5389,7 @@ export class EmDashRuntime {
 			route,
 			internalRequest,
 			caller,
+			invalidateContentCache,
 		);
 		await audit.log({
 			actorId,
@@ -4530,10 +5559,12 @@ export class EmDashRuntime {
 			| "content:afterUnschedule",
 		content: Record<string, unknown>,
 		collection: string,
+		afterPluginId?: string,
+		pluginInvocationId?: string,
 	): void {
 		const label = name.slice("content:".length);
 
-		after(async () => {
+		const invoke = async () => {
 			// Trusted plugins
 			if (this.hooks.hasHooks(name)) {
 				try {
@@ -4558,34 +5589,160 @@ export class EmDashRuntime {
 					console.error(`EmDash ${label} hook error:`, err);
 				}
 			}
-		});
+		};
+		const contentId = typeof content.id === "string" ? content.id : undefined;
+		const guardKey =
+			afterPluginId && contentId ? this.pluginContentActionKey(collection, contentId) : undefined;
+		const invokeWithGuard = async () => {
+			if (guardKey) this.retainPluginContentAction(guardKey);
+			try {
+				await invoke();
+			} finally {
+				if (guardKey) this.releasePluginContentAction(guardKey);
+			}
+		};
+		if (afterPluginId && pluginInvocationId && this.findSandboxedPlugin(afterPluginId)) {
+			const key = this.pluginInvocationKey(afterPluginId, pluginInvocationId);
+			if (!this.activePluginInvocations.has(key) || this.releasedPluginInvocations.has(key)) {
+				after(invokeWithGuard);
+				return;
+			}
+			const pending = this.pendingPluginAfterHooks.get(key) ?? [];
+			pending.push(invokeWithGuard);
+			this.pendingPluginAfterHooks.set(key, pending);
+			return;
+		}
+		after(invokeWithGuard);
 	}
 
-	private runAfterPublishHooks(content: Record<string, unknown>, collection: string): void {
-		this.runDeferredContentHook("content:afterPublish", content, collection);
+	private pluginInvocationKey(pluginId: string, invocationId: string): string {
+		return JSON.stringify([pluginId, invocationId]);
 	}
 
-	private runAfterUnpublishHooks(content: Record<string, unknown>, collection: string): void {
-		this.runDeferredContentHook("content:afterUnpublish", content, collection);
+	private beginPluginInvocation(
+		pluginId: string,
+		invocationId: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): void {
+		const key = this.pluginInvocationKey(pluginId, invocationId);
+		this.pendingPluginAfterHooks.delete(key);
+		this.releasedPluginInvocations.delete(key);
+		if (invalidateContentCache)
+			this.pluginInvocationCacheInvalidators.set(key, invalidateContentCache);
+		else this.pluginInvocationCacheInvalidators.delete(key);
+		this.activePluginInvocations.add(key);
 	}
 
-	private runAfterRestoreHooks(content: Record<string, unknown>, collection: string): void {
-		this.runDeferredContentHook("content:afterRestore", content, collection);
+	private flushPluginAfterHooks(
+		pluginId: string,
+		invocationId?: string,
+		final = true,
+	): Promise<void> {
+		if (!invocationId) return Promise.resolve();
+		const key = this.pluginInvocationKey(pluginId, invocationId);
+		this.releasedPluginInvocations.add(key);
+		const pending = this.pendingPluginAfterHooks.get(key) ?? [];
+		this.pendingPluginAfterHooks.delete(key);
+		for (const invoke of pending) after(invoke);
+		if (final) {
+			this.releasedPluginInvocations.delete(key);
+			this.activePluginInvocations.delete(key);
+			this.pluginInvocationCacheInvalidators.delete(key);
+		} else {
+			const timer = setTimeout(() => {
+				this.releasedPluginInvocations.delete(key);
+				this.activePluginInvocations.delete(key);
+				this.pluginInvocationCacheInvalidators.delete(key);
+			}, PLUGIN_INVOCATION_RELEASE_GRACE_MS);
+			if (typeof timer === "object") timer.unref();
+		}
+		return Promise.resolve();
 	}
 
-	private runAfterScheduleHooks(content: Record<string, unknown>, collection: string): void {
-		this.runDeferredContentHook("content:afterSchedule", content, collection);
+	private runAfterPublishHooks(
+		content: Record<string, unknown>,
+		collection: string,
+		afterPluginId?: string,
+		pluginInvocationId?: string,
+	): void {
+		this.runDeferredContentHook(
+			"content:afterPublish",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
 	}
 
-	private runAfterUnscheduleHooks(content: Record<string, unknown>, collection: string): void {
-		this.runDeferredContentHook("content:afterUnschedule", content, collection);
+	private runAfterUnpublishHooks(
+		content: Record<string, unknown>,
+		collection: string,
+		afterPluginId?: string,
+		pluginInvocationId?: string,
+	): void {
+		this.runDeferredContentHook(
+			"content:afterUnpublish",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
+	}
+
+	private runAfterRestoreHooks(
+		content: Record<string, unknown>,
+		collection: string,
+		afterPluginId?: string,
+		pluginInvocationId?: string,
+	): void {
+		this.runDeferredContentHook(
+			"content:afterRestore",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
+	}
+
+	private runAfterScheduleHooks(
+		content: Record<string, unknown>,
+		collection: string,
+		afterPluginId?: string,
+		pluginInvocationId?: string,
+	): void {
+		this.runDeferredContentHook(
+			"content:afterSchedule",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
+	}
+
+	private runAfterUnscheduleHooks(
+		content: Record<string, unknown>,
+		collection: string,
+		afterPluginId?: string,
+		pluginInvocationId?: string,
+	): void {
+		this.runDeferredContentHook(
+			"content:afterUnschedule",
+			content,
+			collection,
+			afterPluginId,
+			pluginInvocationId,
+		);
 	}
 
 	private async handleSandboxedRoute(
 		plugin: SandboxedPluginInstance,
 		path: string,
 		request: Request,
+		body: unknown,
+		routeMeta: RouteMeta,
 		user?: UserInfo,
+		ui?: PluginUiContext,
+		invalidateContentCache?: PluginContentCacheInvalidator,
 	): Promise<{
 		success: boolean;
 		data?: unknown;
@@ -4594,21 +5751,32 @@ export class EmDashRuntime {
 	}> {
 		const routeName = path.replace(LEADING_SLASH_PATTERN, "");
 
-		// Body methods parse JSON; GET/HEAD/DELETE parse the query string (#2146).
-		const body = await parseRouteInput(request);
-
 		try {
-			const headers = sanitizeHeadersForSandbox(request.headers);
+			const declaredHeaders = routeMeta.request ? (routeMeta.request.headers ?? []) : undefined;
+			const headers = sanitizeHeadersForSandbox(request.headers, declaredHeaders);
 			const meta = extractRequestMeta(request, this.config);
-			const result = await plugin.invokeRoute(routeName, body, {
-				url: request.url,
-				method: request.method,
-				headers,
-				meta,
-				user,
-			});
+			const result = await plugin.invokeRoute(
+				routeName,
+				body,
+				{
+					url: request.url,
+					method: request.method,
+					headers,
+					meta,
+					user,
+					ui,
+				},
+				{ invalidateContentCache },
+			);
 			return { success: true, data: result };
 		} catch (error) {
+			if (error instanceof PluginRouteRequestError) {
+				return {
+					success: false,
+					status: error.status,
+					error: { code: "INVALID_PLUGIN_REQUEST", message: error.message },
+				};
+			}
 			console.error(`EmDash: Sandboxed plugin route error:`, error);
 			const sandboxRouteError = getSandboxRouteErrorDetails(error);
 			if (sandboxRouteError) {

@@ -25,6 +25,8 @@ export interface ConfirmDialogProps {
 	descriptionClassName?: string;
 	/** Label for the confirm button (e.g. "Delete", "Disable User") */
 	confirmLabel: string;
+	/** Optional cancel label; defaults to the localized host label. */
+	cancelLabel?: string;
 	/** Label shown while the action is pending (e.g. "Deleting...") */
 	pendingLabel: string;
 	/** Button variant — defaults to "destructive" */
@@ -52,6 +54,7 @@ export function ConfirmDialog({
 	description,
 	descriptionClassName,
 	confirmLabel,
+	cancelLabel,
 	pendingLabel,
 	variant = "destructive",
 	compact = false,
@@ -96,7 +99,7 @@ export function ConfirmDialog({
 				<DialogError message={getMutationError(error)} className="mt-3" />
 				<div className={`${compact ? "mt-5" : "mt-6"} flex justify-end gap-2`}>
 					<Button variant="secondary" disabled={closeLocked} onClick={onClose}>
-						{t`Cancel`}
+						{cancelLabel ?? t`Cancel`}
 					</Button>
 					<Button variant={variant} disabled={isPending || confirmDisabled} onClick={onConfirm}>
 						{isPending ? pendingLabel : confirmLabel}

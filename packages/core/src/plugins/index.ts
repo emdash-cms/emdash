@@ -9,7 +9,7 @@
  */
 
 // definePlugin
-export { definePlugin } from "./define-plugin.js";
+export { definePlugin, definePluginRoute } from "./define-plugin.js";
 
 // Standard plugin adapter
 export { adaptSandboxEntry } from "./adapt-sandbox-entry.js";
@@ -43,7 +43,19 @@ export {
 	createSiteInfo,
 } from "./context.js";
 export { createContentAccess } from "./content-access.js";
-export type { PluginContextFactoryOptions } from "./context.js";
+export type { ContentActionCallbacks, PluginContextFactoryOptions } from "./context.js";
+export {
+	PLUGIN_HTTP_MAX_REQUEST_BYTES,
+	PLUGIN_HTTP_MAX_RESPONSE_BYTES,
+	bufferPluginHttpRequest,
+	pluginHttpRedirectAction,
+	pluginHttpResponseFromWire,
+	pluginHttpResponseToWire,
+	readPluginHttpBytes,
+	rewritePluginHttpRedirect,
+} from "./http-wire.js";
+export type { PluginHttpResponseWire } from "./http-wire.js";
+export type { PluginHttpRedirectAction } from "./http-wire.js";
 export { CronAccessImpl } from "./cron.js";
 export {
 	DEFAULT_PLUGIN_MEDIA_READ_BYTES,
@@ -58,6 +70,15 @@ export {
 export { HookPipeline, createHookPipeline } from "./hooks.js";
 export type { HookResult } from "./hooks.js";
 export { ContentSaveRejectedError, isContentSaveRejection } from "./save-rejection.js";
+export {
+	SCHEDULED_POLICY_REJECTION_PREFIX,
+	isScheduledPolicyRejection,
+	scheduledPolicyRejectionKey,
+} from "./content-policy.js";
+export type {
+	ScheduledPolicyRejection,
+	VersionedScheduledPolicyRejection,
+} from "./content-policy.js";
 
 // Email pipeline
 export { EmailPipeline, EmailNotConfiguredError, EmailRecursionError } from "./email.js";
@@ -99,12 +120,14 @@ export {
 export type {
 	SandboxRunner,
 	SandboxedPluginInstance,
+	SandboxInvocationOptions,
 	SandboxRunnerFactory,
 	SandboxOptions,
 	SandboxEmailMessage,
 	SandboxEmailSendCallback,
 	SandboxCommentModerateCallback,
 	SandboxContentCreateCallback,
+	SandboxHttpFetchCallback,
 	ResourceLimits,
 	PluginCodeStorage,
 	SerializedRequest,
@@ -154,6 +177,9 @@ export type {
 	SettingsAccess,
 	ContentAccess,
 	ContentAccessWithWrite,
+	ContentPublicationAccess,
+	ContentRestoreAccess,
+	VersionedContentItem,
 	MediaAccess,
 	MediaAccessWithWrite,
 	MediaBytes,
@@ -197,7 +223,11 @@ export type {
 	ResolvedHook,
 	ResolvedPluginHooks,
 	ActorInfo,
+	ContentActionOrigin,
 	ContentHookEvent,
+	ContentPolicyDecision,
+	ContentPolicyEvent,
+	ContentSchedulePolicyEvent,
 	ContentDeleteEvent,
 	ContentPublishStateChangeEvent,
 	ContentRestoreStateChangeEvent,
@@ -223,6 +253,9 @@ export type {
 	ContentAfterSaveHandler,
 	ContentBeforeDeleteHandler,
 	ContentAfterDeleteHandler,
+	ContentBeforePublishHandler,
+	ContentBeforeScheduleHandler,
+	ContentBeforeUnpublishHandler,
 	ContentAfterRestoreHandler,
 	ContentAfterScheduleHandler,
 	ContentAfterUnscheduleHandler,
@@ -255,12 +288,15 @@ export type {
 
 	// Route types
 	PluginRoute,
+	PluginRouteDefinition,
 	RouteContext,
 
 	// Admin types
 	PluginAdminConfig,
 	PluginAdminPage,
 	PluginDashboardWidget,
+	PluginEditorPanel,
+	PluginEditorAction,
 	PluginAdminExports,
 	FieldWidgetConfig,
 	PortableTextBlockConfig,
@@ -280,5 +316,6 @@ export {
 	isDeprecatedCapability,
 	normalizeCapability,
 	normalizeCapabilities,
+	normalizePluginCapabilities,
 } from "./types.js";
 export type { CurrentPluginCapability, DeprecatedPluginCapability } from "./types.js";

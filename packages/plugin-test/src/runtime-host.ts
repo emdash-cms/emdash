@@ -1,3 +1,9 @@
+import type {
+	BlockInteraction,
+	BlockResponse,
+	ContentEditorActionResponse,
+	ContentEditorPanelInteraction,
+} from "@emdash-cms/blocks/server";
 import { createDialect } from "@emdash-cms/cloudflare/db/d1";
 import { CloudflareSandboxRunner } from "@emdash-cms/cloudflare/sandbox";
 import { pluginManifestSchema, reconcileManifestAccess } from "@emdash-cms/plugin-types";
@@ -8,7 +14,10 @@ import {
 	ContentRepository,
 	MediaRepository,
 	OptionsRepository,
+	SCHEDULED_POLICY_REJECTION_PREFIX,
 	RevisionRepository,
+	pluginHttpResponseFromWire,
+	pluginHttpResponseToWire,
 	SchemaRegistry,
 	UserRepository,
 	definePlugin,
@@ -19,7 +28,9 @@ import {
 	type PluginManifest,
 	type RedirectInfo,
 	type RedirectStatus,
+	type PluginHttpResponseWire,
 	type SandboxOptions,
+	type ScheduledPolicyRejection,
 	type Storage,
 	createContentAccess,
 } from "emdash";
@@ -27,6 +38,7 @@ import { runMigrations } from "emdash/db";
 import {
 	BylineRepository,
 	dispatchPluginApiRequest,
+	dispatchPluginEditorExtensionApiRequest,
 	EmDashRuntime,
 	getI18nConfig,
 	handlePluginSettingsUpdate,
@@ -55,8 +67,16 @@ export interface PluginRuntimeTestHostOptions {
 	i18n?: I18nConfig;
 }
 
+export interface PluginHttpTestRequest {
+	url: string;
+	method: string;
+	headers: Record<string, string>;
+	body: Uint8Array;
+}
+
 export interface PluginRuntimeRouteRequest extends PluginTestRequest {
 	body?: unknown;
+	rawBody?: BodyInit;
 	tokenScopes?: string[];
 }
 
@@ -77,11 +97,59 @@ export interface PluginRuntimeMediaFixture {
 	folderId?: string | null;
 }
 
+export interface PluginRuntimeAdminRequestOptions {
+	locale?: string;
+	contentLocale?: string;
+	user?: UserInfo;
+}
+
 export interface PluginRuntimeTestHost {
 	readonly manifest: PluginManifest;
 	transport: {
 		invokeHook(name: string, event: unknown): Promise<unknown>;
 		invokeRoute(name: string, input?: unknown, request?: PluginTestRequest): Promise<unknown>;
+	};
+	admin: {
+		loadPage(path: string, options?: PluginRuntimeAdminRequestOptions): Promise<BlockResponse>;
+		loadWidget(id: string, options?: PluginRuntimeAdminRequestOptions): Promise<BlockResponse>;
+		act(
+			page: string,
+			actionId: string,
+			options?: PluginRuntimeAdminRequestOptions & { blockId?: string; value?: unknown },
+		): Promise<BlockResponse>;
+		submit(
+			page: string,
+			actionId: string,
+			values: Record<string, unknown>,
+			options?: PluginRuntimeAdminRequestOptions & { blockId?: string },
+		): Promise<BlockResponse>;
+		loadEditorPanel(
+			panelId: string,
+			collection: string,
+			entryId: string,
+			options?: PluginRuntimeAdminRequestOptions,
+		): Promise<BlockResponse>;
+		actEditorPanel(
+			panelId: string,
+			collection: string,
+			entryId: string,
+			actionId: string,
+			options?: PluginRuntimeAdminRequestOptions & { blockId?: string; value?: unknown },
+		): Promise<BlockResponse>;
+		submitEditorPanel(
+			panelId: string,
+			collection: string,
+			entryId: string,
+			actionId: string,
+			values: Record<string, unknown>,
+			options?: PluginRuntimeAdminRequestOptions & { blockId?: string },
+		): Promise<BlockResponse>;
+		invokeEditorAction(
+			actionId: string,
+			collection: string,
+			entryId: string,
+			options?: PluginRuntimeAdminRequestOptions,
+		): Promise<ContentEditorActionResponse>;
 	};
 	fixtures: {
 		site(input: {
@@ -210,6 +278,7 @@ export interface PluginRuntimeTestHost {
 		};
 		pluginState(): Promise<Record<string, unknown> | null>;
 		scheduledTasks(): Promise<Array<Record<string, unknown>>>;
+		scheduledPolicyRejections(): Promise<ScheduledPolicyRejection[]>;
 		media(id: string): ReturnType<EmDashRuntime["handleMediaGet"]>;
 		mediaBytes(id: string): Promise<Uint8Array | null>;
 		comments(): Promise<Array<Record<string, unknown>>>;
@@ -219,6 +288,11 @@ export interface PluginRuntimeTestHost {
 	scheduled: {
 		setTime(value: string | Date): void;
 		run(): Promise<{ processed: number; published: Array<{ collection: string; id: string }> }>;
+	};
+	http: {
+		respond(url: string, response: Response): Promise<void>;
+		requests(): PluginHttpTestRequest[];
+		clear(): void;
 	};
 	restart(): Promise<void>;
 	dispose(): Promise<void>;
@@ -343,6 +417,26 @@ export async function createPluginRuntimeTestHost(
 	await optionRepo.set("emdash:exclusive_hook:email:deliver", "plugin-test-email-transport");
 
 	const capturedEmail: Array<Record<string, unknown>> = [];
+	const capturedHttpRequests: PluginHttpTestRequest[] = [];
+	const httpResponses = new Map<string, PluginHttpResponseWire[]>();
+	const httpFetch: typeof fetch = async (input, init) => {
+		const request = new Request(input, init);
+		const headers: Record<string, string> = {};
+		request.headers.forEach((value, key) => {
+			headers[key] = value;
+		});
+		capturedHttpRequests.push({
+			url: request.url,
+			method: request.method,
+			headers,
+			body: new Uint8Array(await request.arrayBuffer()),
+		});
+		const responses = httpResponses.get(request.url);
+		const response = responses?.shift();
+		if (!response) throw new Error(`No plugin HTTP test response for ${request.url}`);
+		if (responses?.length === 0) httpResponses.delete(request.url);
+		return pluginHttpResponseFromWire(response);
+	};
 	const storage = new MemoryStorage();
 	const siteInfo = { ...options.site };
 	const previousI18n = getI18nConfig();
@@ -363,6 +457,10 @@ export async function createPluginRuntimeTestHost(
 		routes: manifest.routes,
 		settingsSchema: manifest.admin.settingsSchema,
 		fieldWidgets: manifest.admin.fieldWidgets,
+		adminPages: manifest.admin.pages,
+		adminWidgets: manifest.admin.widgets,
+		editorPanels: manifest.admin.editorPanels,
+		editorActions: manifest.admin.editorActions,
 	};
 	const sandboxedPluginEntries = [entry];
 	const emailTransport = definePlugin({
@@ -392,6 +490,7 @@ export async function createPluginRuntimeTestHost(
 		createSandboxRunner: (runnerOptions: SandboxOptions) =>
 			new CloudflareSandboxRunner({
 				...runnerOptions,
+				httpFetch,
 				isolateKey: `${entrypoint}-${isolateGeneration++}`,
 			}),
 		now: () => new Date(currentTime),
@@ -399,6 +498,21 @@ export async function createPluginRuntimeTestHost(
 	} satisfies Parameters<typeof EmDashRuntime.create>[0];
 
 	let runtime = await EmDashRuntime.create(deps);
+	let adminUserPromise: Promise<UserInfo> | undefined;
+	const getAdminUser = () =>
+		(adminUserPromise ??= new UserRepository(runtime.db)
+			.create({
+				email: `plugin-admin-${crypto.randomUUID()}@example.test`,
+				name: "Plugin test admin",
+				role: "admin",
+			})
+			.then((user) => ({
+				id: user.id,
+				email: user.email,
+				name: user.name,
+				role: user.role,
+				createdAt: user.createdAt,
+			})));
 	const createRuntime = async (): Promise<void> => {
 		runtime = await EmDashRuntime.create(deps);
 	};
@@ -425,6 +539,85 @@ export async function createPluginRuntimeTestHost(
 			data: JSON.parse(row.data) as T,
 		}));
 	};
+	const invokeAdmin = async (
+		interaction: BlockInteraction,
+		adminOptions: PluginRuntimeAdminRequestOptions = {},
+	): Promise<BlockResponse> => {
+		assertActive();
+		const headers = new Headers({
+			"Content-Type": "application/json",
+			"X-EmDash-Request": "1",
+		});
+		if (adminOptions.locale) headers.set("Cookie", `emdash-locale=${adminOptions.locale}`);
+		const response = await dispatchPluginApiRequest({
+			runtime,
+			pluginId: manifest.id,
+			path: "/admin",
+			request: new Request(`https://plugin.test/_emdash/api/plugins/${manifest.id}/admin`, {
+				method: "POST",
+				headers,
+				body: JSON.stringify(interaction),
+			}),
+			user: adminOptions.user ?? (await getAdminUser()),
+		});
+		if (!response.ok) {
+			throw new Error(`Plugin admin request failed (${response.status}): ${await response.text()}`);
+		}
+		const body: unknown = await response.json();
+		if (
+			typeof body !== "object" ||
+			body === null ||
+			!("data" in body) ||
+			typeof body.data !== "object" ||
+			body.data === null
+		) {
+			throw new Error("Plugin admin response did not contain Block Kit data");
+		}
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- the production route validates BlockResponse before returning a successful envelope
+		return body.data as BlockResponse;
+	};
+	const invokeEditorExtension = async <T>(
+		kind: "panel" | "action",
+		extensionId: string,
+		collection: string,
+		entryId: string,
+		input: ContentEditorPanelInteraction | Record<string, never>,
+		adminOptions: PluginRuntimeAdminRequestOptions = {},
+	): Promise<T> => {
+		assertActive();
+		const headers = new Headers({
+			"Content-Type": "application/json",
+			"X-EmDash-Request": "1",
+		});
+		if (adminOptions.locale) headers.set("Cookie", `emdash-locale=${adminOptions.locale}`);
+		const localeSearch = adminOptions.contentLocale
+			? `?locale=${encodeURIComponent(adminOptions.contentLocale)}`
+			: "";
+		const response = await dispatchPluginEditorExtensionApiRequest({
+			runtime,
+			pluginId: manifest.id,
+			kind,
+			extensionId,
+			collection,
+			entryId,
+			request: new Request(
+				`https://plugin.test/_emdash/api/content/${collection}/${entryId}/plugin-extensions/${manifest.id}/${kind}/${extensionId}${localeSearch}`,
+				{ method: "POST", headers, body: JSON.stringify(input) },
+			),
+			user: adminOptions.user ?? (await getAdminUser()),
+		});
+		if (!response.ok) {
+			throw new Error(
+				`Plugin editor ${kind} request failed (${response.status}): ${await response.text()}`,
+			);
+		}
+		const body: unknown = await response.json();
+		if (typeof body !== "object" || body === null || !("data" in body)) {
+			throw new Error("Plugin editor extension response did not contain data");
+		}
+		// eslint-disable-next-line typescript-eslint/no-unsafe-type-assertion -- production dispatch validates the response before returning success
+		return body.data as T;
+	};
 	const host: PluginRuntimeTestHost = {
 		get manifest() {
 			return manifest;
@@ -446,8 +639,83 @@ export async function createPluginRuntimeTestHost(
 					headers: request.headers ?? {},
 					meta: request.meta ?? { ip: null, userAgent: null, referer: null, geo: null },
 					user: request.user,
+					ui: request.ui,
 				});
 			},
+		},
+		admin: {
+			loadPage: (path, adminOptions) =>
+				invokeAdmin({ type: "page_load", page: path }, adminOptions),
+			loadWidget: (id, adminOptions) =>
+				invokeAdmin({ type: "page_load", page: `widget:${id}` }, adminOptions),
+			act: (page, actionId, adminOptions = {}) =>
+				invokeAdmin(
+					{
+						type: "block_action",
+						action_id: actionId,
+						page,
+						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
+						...(adminOptions.value !== undefined && { value: adminOptions.value }),
+					},
+					adminOptions,
+				),
+			submit: (page, actionId, values, adminOptions = {}) =>
+				invokeAdmin(
+					{
+						type: "form_submit",
+						action_id: actionId,
+						values,
+						page,
+						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
+					},
+					adminOptions,
+				),
+			loadEditorPanel: (panelId, collection, entryId, adminOptions) =>
+				invokeEditorExtension<BlockResponse>(
+					"panel",
+					panelId,
+					collection,
+					entryId,
+					{ type: "panel_load" },
+					adminOptions,
+				),
+			actEditorPanel: (panelId, collection, entryId, actionId, adminOptions = {}) =>
+				invokeEditorExtension<BlockResponse>(
+					"panel",
+					panelId,
+					collection,
+					entryId,
+					{
+						type: "block_action",
+						action_id: actionId,
+						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
+						...(adminOptions.value !== undefined && { value: adminOptions.value }),
+					},
+					adminOptions,
+				),
+			submitEditorPanel: (panelId, collection, entryId, actionId, values, adminOptions = {}) =>
+				invokeEditorExtension<BlockResponse>(
+					"panel",
+					panelId,
+					collection,
+					entryId,
+					{
+						type: "form_submit",
+						action_id: actionId,
+						values,
+						...(adminOptions.blockId !== undefined && { block_id: adminOptions.blockId }),
+					},
+					adminOptions,
+				),
+			invokeEditorAction: (actionId, collection, entryId, adminOptions) =>
+				invokeEditorExtension<ContentEditorActionResponse>(
+					"action",
+					actionId,
+					collection,
+					entryId,
+					{},
+					adminOptions,
+				),
 		},
 		fixtures: {
 			async site(input) {
@@ -676,8 +944,8 @@ export async function createPluginRuntimeTestHost(
 				request(name, request = {}) {
 					assertActive();
 					const headers = new Headers(request.headers);
-					let body: BodyInit | undefined;
-					if (request.body !== undefined) {
+					let body: BodyInit | undefined = request.rawBody;
+					if (request.rawBody === undefined && request.body !== undefined) {
 						headers.set("Content-Type", "application/json");
 						body = JSON.stringify(request.body);
 					}
@@ -763,6 +1031,15 @@ export async function createPluginRuntimeTestHost(
 					.orderBy("next_run_at", "asc")
 					.execute();
 			},
+			async scheduledPolicyRejections() {
+				return [
+					...(
+						await optionRepo.getByPrefix<ScheduledPolicyRejection>(
+							SCHEDULED_POLICY_REJECTION_PREFIX,
+						)
+					).values(),
+				];
+			},
 			media: (id) => runtime.handleMediaGet(id),
 			async mediaBytes(id) {
 				const item = await new MediaRepository(runtime.db).findById(id);
@@ -810,6 +1087,27 @@ export async function createPluginRuntimeTestHost(
 			},
 			async run() {
 				return runtime.runScheduledTasksWithStats();
+			},
+		},
+		http: {
+			async respond(url, response) {
+				assertActive();
+				const responses = httpResponses.get(url) ?? [];
+				responses.push(await pluginHttpResponseToWire(response, url, false));
+				httpResponses.set(url, responses);
+			},
+			requests() {
+				assertActive();
+				return capturedHttpRequests.map((request) => ({
+					...request,
+					headers: { ...request.headers },
+					body: request.body.slice(),
+				}));
+			},
+			clear() {
+				assertActive();
+				capturedHttpRequests.length = 0;
+				httpResponses.clear();
 			},
 		},
 		async restart() {

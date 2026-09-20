@@ -1,5 +1,7 @@
 export const WORKSPACE_SANDBOX_ATTEMPT_LIMIT = 3;
 
+const SANDBOX_ID_LIMIT = 63;
+
 const TRANSIENT_FAILURE_PATTERNS = [
 	/^HTTP error! status: 5\d\d\b/i,
 	/\bHTTP 429\b|requested URL returned error: 429/i,
@@ -43,7 +45,7 @@ export function attachPublisherWorkspaceWithRetry<T>(
 	const { agentId, ...callbacks } = options;
 	return attachWorkspaceWithRetry({
 		...callbacks,
-		agentId: `${agentId}-publisher`,
+		agentId: `${agentId}-pub`,
 		startAttempt: 0,
 	});
 }
@@ -124,7 +126,22 @@ export function isTransientWorkspaceFailure(error: unknown): boolean {
 }
 
 function workspaceSandboxId(agentId: string, attempt: number): string {
-	return attempt === 0 ? agentId : `${agentId}-r${attempt}`;
+	const attemptSuffix = attempt === 0 ? "" : `-r${attempt}`;
+	const sandboxId = `${agentId}${attemptSuffix}`;
+	if (sandboxId.length <= SANDBOX_ID_LIMIT) return sandboxId;
+
+	const hash = stableHash(agentId);
+	const prefixLength = SANDBOX_ID_LIMIT - attemptSuffix.length - hash.length - 1;
+	return `${agentId.slice(0, prefixLength)}-${hash}${attemptSuffix}`;
+}
+
+function stableHash(value: string): string {
+	let hash = 2_166_136_261;
+	for (let index = 0; index < value.length; index++) {
+		hash ^= value.charCodeAt(index);
+		hash = Math.imul(hash, 16_777_619);
+	}
+	return (hash >>> 0).toString(36).padStart(7, "0");
 }
 
 function* errorChain(error: unknown): Generator {

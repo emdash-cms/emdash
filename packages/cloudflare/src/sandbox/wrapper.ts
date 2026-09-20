@@ -11,7 +11,8 @@
  *
  */
 
-import { normalizeCapabilities, type PluginManifest } from "emdash";
+import { normalizePluginCapabilities, type PluginManifest } from "emdash";
+import { generatePluginHttpWireRuntimeSource } from "emdash/plugins/http-wire";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
@@ -40,10 +41,13 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const site = options?.site ?? { name: "", url: "", locale: "en" };
 	// Normalize so manifests that still declare legacy names (`read:users`)
 	// expose the same APIs as canonical names (`users:read`).
-	const capabilities = normalizeCapabilities(manifest.capabilities ?? []);
-	if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
-		capabilities.push("comments:read");
-	}
+	const capabilities = normalizePluginCapabilities(manifest.capabilities ?? []);
+	const hasContentAccess =
+		capabilities.includes("content:read") ||
+		capabilities.includes("content:write") ||
+		capabilities.includes("content:revisions:read") ||
+		capabilities.includes("content:publish") ||
+		capabilities.includes("content:restore");
 	const hasReadUsers = capabilities.includes("users:read");
 	const hasEmailSend = capabilities.includes("email:send");
 	const hasReadComments = capabilities.includes("comments:read");
@@ -51,11 +55,16 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const hasRedirectRead = capabilities.includes("redirects:read");
 	const hasRedirectWrite = capabilities.includes("redirects:write");
 	const hasContentRead = capabilities.some((capability) =>
-		["content:read", "content:write", "content:revisions:read"].includes(capability),
+		["content:read", "content:write", "content:publish", "content:revisions:read"].includes(
+			capability,
+		),
 	);
 	const hasContentWrite = capabilities.includes("content:write");
+	const hasContentPublish = capabilities.includes("content:publish");
+	const hasContentRestore = capabilities.includes("content:restore");
 	const hasSchemaRead = capabilities.includes("schema:read");
 	const hasRevisionRead = capabilities.includes("content:revisions:read");
+	const httpWireRuntimeSource = generatePluginHttpWireRuntimeSource();
 
 	return `
 // =============================================================================
@@ -68,6 +77,8 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 
 // Plugin code lives in a separate module for scope isolation
 import pluginModule from "sandbox-plugin.js";
+
+${httpWireRuntimeSource}
 
 // Extract hooks and routes from the plugin module
 const hooks = pluginModule?.hooks || pluginModule?.default?.hooks || {};
@@ -137,7 +148,7 @@ async function unwrapRedirectResult(promise) {
 // Context Factory - creates ctx that proxies to BRIDGE
 // -----------------------------------------------------------------------------
 
-function createContext(env, originHook) {
+function createContext(env, originHook, invocationId) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
 	
@@ -197,34 +208,51 @@ function createContext(env, originHook) {
 		}
 	});
 	
+	async function contentAction(promise) {
+		const result = await promise;
+		if (result && result.__emdashContentActionError === true && result.error) {
+			throw Object.assign(new Error(result.error.message), result.error, { name: result.error.code });
+		}
+		return result;
+	}
+
 	// Content access - proxies to bridge (capability enforced by bridge)
-	const content = ${hasContentRead} ? {
+	const content = ${hasContentAccess} ? {
 		get: (collection, id) => bridge.contentGet(collection, id),
 		list: (collection, opts) => bridge.contentList(collection, opts),
-		getTranslations: (collection, id) => bridge.contentTranslations(collection, id),
-		getPublicUrl: (collection, id) => bridge.contentPublicUrl(collection, id),
-		...(${hasRevisionRead} ? {
-			listRevisions: (collection, id, opts) => bridge.contentListRevisions(collection, id, opts),
-			getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
+		...(${hasContentRead} ? {
+			getTranslations: (collection, id) => bridge.contentTranslations(collection, id),
+			getPublicUrl: (collection, id) => bridge.contentPublicUrl(collection, id),
+			...(${hasRevisionRead} ? {
+				listRevisions: (collection, id, opts) => bridge.contentListRevisions(collection, id, opts),
+				getRevision: (collection, id, revisionId) => bridge.contentGetRevision(collection, id, revisionId)
+			} : {})
 		} : {}),
 		...(${hasContentWrite} ? {
 			create: async (collection, data, options) => {
-				const result = await bridge.contentCreate(
-					collection,
-					data,
-					options,
-					originHook
-				);
-				if (result && result.__emdashContentCreateError === true) {
-					throw Object.assign(new Error(result.error.message), {
-						name: result.error.code,
-						code: result.error.code
-					});
+				const result = await bridge.contentCreate(collection, data, options, originHook);
+				if (result && result.__emdashContentCreateError === true && result.error) {
+					const error = new Error(result.error.message);
+					error.name = result.error.code;
+					error.code = result.error.code;
+					error.details = result.error.details;
+					throw error;
 				}
 				return result;
 			},
 			update: (collection, id, data) => bridge.contentUpdate(collection, id, data),
 			delete: (collection, id) => bridge.contentDelete(collection, id)
+		} : {}),
+		...(${hasContentPublish} ? {
+			getVersioned: (collection, id) => contentAction(bridge.contentGetVersioned(collection, id)),
+			publish: (collection, id, options) => contentAction(bridge.contentPublish(collection, id, options._rev, invocationId)),
+			unpublish: (collection, id, options) => contentAction(bridge.contentUnpublish(collection, id, options._rev, invocationId)),
+			schedule: (collection, id, options) => contentAction(bridge.contentSchedule(collection, id, options.scheduledAt, options._rev, invocationId)),
+			unschedule: (collection, id, options) => contentAction(bridge.contentUnschedule(collection, id, options._rev, invocationId))
+		} : {}),
+		...(${hasContentRestore} ? {
+			getTrashedVersioned: (collection, id) => contentAction(bridge.contentGetTrashedVersioned(collection, id)),
+			restore: (collection, id, options) => contentAction(bridge.contentRestore(collection, id, options._rev, invocationId))
 		} : {})
 	} : undefined;
 
@@ -270,11 +298,15 @@ function createContext(env, originHook) {
 	// HTTP access - proxies to bridge (capability + host enforced by bridge)
 	const http = {
 		fetch: async (url, init) => {
-			const result = await bridge.httpFetch(url, init);
-			return new Response(result.text, {
-				status: result.status,
-				headers: result.headers,
-			});
+			const buffered = await bufferPluginHttpRequest(init);
+			const bridgeInit = buffered ? {
+				...(buffered.method ? { method: buffered.method } : {}),
+				...(buffered.redirect ? { redirect: buffered.redirect } : {}),
+				headers: buffered.headers ? Array.from(new Headers(buffered.headers).entries()) : undefined,
+				body: buffered.body ? new Uint8Array(buffered.body) : undefined,
+			} : undefined;
+			const result = await bridge.httpFetch(url, bridgeInit);
+			return pluginHttpResponseFromWire(result);
 		}
 	};
 	
@@ -337,7 +369,7 @@ function createContext(env, originHook) {
 		storage,
 		kv,
 		settings,
-		content,
+		content: ${hasContentAccess} ? content : undefined,
 		schema,
 		taxonomies,
 		redirects,
@@ -358,8 +390,8 @@ function createContext(env, originHook) {
 // -----------------------------------------------------------------------------
 
 export default class PluginEntrypoint extends WorkerEntrypoint {
-	async invokeHook(hookName, event) {
-		const ctx = createContext(this.env, hookName);
+	async invokeHook(hookName, event, invocationId) {
+		const ctx = createContext(this.env, hookName, invocationId);
 		
 		// Find the hook handler
 		const hookDef = hooks[hookName];
@@ -380,8 +412,8 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 		return handler(event, ctx);
 	}
 	
-	async invokeRoute(routeName, input, serializedRequest) {
-		const ctx = createContext(this.env);
+	async invokeRoute(routeName, input, serializedRequest, invocationId) {
+		const ctx = createContext(this.env, undefined, invocationId);
 		
 		// Find the route handler
 		const route = routes[routeName];
@@ -406,6 +438,7 @@ export default class PluginEntrypoint extends WorkerEntrypoint {
 					request: serializedRequest,
 					requestMeta: serializedRequest.meta,
 					user: serializedRequest.user,
+					ui: serializedRequest.ui,
 				},
 				ctx,
 			);

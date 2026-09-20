@@ -29,6 +29,62 @@ describe("runtime plugin test host", () => {
 		runtimeHost = undefined;
 	});
 
+	it("exercises declared raw routes through core and Worker Loader", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		const bytes = new Uint8Array([0xef, 0xbb, 0xbf, 0xff, 0, 13, 10, 128]);
+		const response = await runtimeHost.actions.routes.request("raw-download", {
+			method: "POST",
+			rawBody: bytes,
+		});
+		expect(response.status).toBe(202);
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(bytes);
+
+		const headers = await runtimeHost.actions.routes.request("declared-headers", {
+			method: "POST",
+			headers: {
+				"x-signature": "sha256=test",
+				"x-hidden": "secret",
+				cookie: "session=secret",
+			},
+		});
+		expect(await headers.json()).toEqual({
+			success: true,
+			data: { signature: "sha256=test", hidden: "missing" },
+		});
+
+		const disallowed = await runtimeHost.actions.routes.request("raw-download", {
+			method: "GET",
+		});
+		expect(disallowed.status).toBe(405);
+		expect(disallowed.headers.get("allow")).toBe("POST");
+	});
+
+	it("parses multipart fields and files through the runtime host", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		const form = new FormData();
+		form.append("title", "Report");
+		form.append("attachment", new File([new Uint8Array([0, 255])], "report.bin"));
+		const response = await runtimeHost.actions.routes.request("raw-form", {
+			method: "POST",
+			rawBody: form,
+		});
+		expect(await response.json()).toEqual({
+			success: true,
+			data: {
+				entries: [
+					{ name: "title", kind: "text", value: "Report" },
+					{
+						name: "attachment",
+						kind: "file",
+						filename: "report.bin",
+						contentType: "application/octet-stream",
+						bytes: [0, 255],
+					},
+				],
+			},
+		});
+	});
+
 	it("runs content actions through EmDashRuntime and preserves state across a cold restart", async () => {
 		runtimeHost = await createPluginRuntimeTestHost({
 			site: { url: "https://example.test", locale: "en", trailingSlash: "never" },
@@ -530,6 +586,70 @@ describe("runtime plugin test host", () => {
 		);
 	});
 
+	it("intercepts binary HTTP through the runtime and Worker Loader boundary", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		const admin = await runtimeHost.fixtures.user({
+			email: "http-admin@example.com",
+			role: "admin",
+		});
+		const firstUrl = "https://api.example.com/first";
+		const secondUrl = "https://api.example.com/second";
+		const firstBytes = new Uint8Array([0, 255, 195, 40]);
+		const secondBytes = new Uint8Array([137, 80, 78, 71]);
+		await runtimeHost.http.respond(
+			firstUrl,
+			new Response(firstBytes, {
+				status: 206,
+				statusText: "Partial Content",
+				headers: { "content-type": "application/octet-stream" },
+			}),
+		);
+		await runtimeHost.http.respond(
+			secondUrl,
+			new Response(secondBytes, {
+				status: 200,
+				headers: { "content-type": "image/png" },
+			}),
+		);
+
+		const results = await Promise.all(
+			[firstUrl, secondUrl].map(async (url) => {
+				const response = await runtimeHost!.actions.routes.request("http-roundtrip", {
+					user: admin,
+					headers: { "X-EmDash-Request": "1" },
+					body: { url },
+				});
+				expect(response.status).toBe(200);
+				return response.json() as Promise<{ data: Record<string, unknown> }>;
+			}),
+		);
+		const first = results[0];
+		const second = results[1];
+		if (!first || !second) throw new Error("Expected both HTTP route results");
+		expect(first.data).toMatchObject({
+			status: 206,
+			statusText: "Partial Content",
+			url: firstUrl,
+			redirected: false,
+			contentType: "application/octet-stream",
+			bytes: [...firstBytes],
+			cloneBytes: [...firstBytes],
+		});
+		expect(second.data).toMatchObject({
+			status: 200,
+			url: secondUrl,
+			contentType: "image/png",
+			bytes: [...secondBytes],
+			cloneBytes: [...secondBytes],
+		});
+		expect(runtimeHost.http.requests()).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ url: firstUrl, method: "POST", body: firstBytes }),
+				expect.objectContaining({ url: secondUrl, method: "POST", body: firstBytes }),
+			]),
+		);
+	});
+
 	it("runs lifecycle, media, comment, scheduler, and email journeys through the isolate", async () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		await runtimeHost.fixtures.collection({
@@ -906,6 +1026,274 @@ describe("runtime plugin test host", () => {
 		await expect(runtimeHost.inspect.scheduledTasks()).resolves.toHaveLength(1);
 	});
 
+	it("enforces publication policy through Worker Loader for every action origin", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			routable: true,
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const editor = await runtimeHost.fixtures.user({
+			email: "policy-editor@example.com",
+			role: "editor",
+		});
+		const content = await runtimeHost.fixtures.content("posts", {
+			slug: "policy-post",
+			data: { title: "Policy post" },
+		});
+
+		const origins = [
+			{ origin: { source: "api" as const }, actor: { id: editor.id, role: editor.role } },
+			{ origin: { source: "mcp" as const }, actor: { id: editor.id, role: editor.role } },
+			{
+				origin: { source: "visual-editor" as const },
+				actor: { id: editor.id, role: editor.role },
+			},
+			{ origin: { source: "plugin" as const, pluginId: "review-cycle" } },
+			{ origin: { source: "system" as const } },
+		];
+		let revision: string | undefined;
+		for (const action of origins) {
+			const result = await runtimeHost.actions.content.publish("posts", content.id, {
+				_rev: revision,
+				...action,
+			});
+			if (!result.success) throw new Error(result.error.message);
+			revision = result.data._rev;
+		}
+
+		const beforeStale = await runtimeHost.inspect.storage.list("events");
+		await expect(
+			runtimeHost.actions.content.publish("posts", content.id, {
+				_rev: "stale-revision",
+				origin: { source: "api" },
+				actor: { id: editor.id, role: editor.role },
+			}),
+		).resolves.toMatchObject({ success: false, error: { code: "CONFLICT" } });
+		expect(await runtimeHost.inspect.storage.list("events")).toHaveLength(beforeStale.length);
+
+		await runtimeHost.fixtures.plugin.kv(
+			"policy:content:beforeUnpublish",
+			"Legal approval is required.",
+		);
+		await expect(
+			runtimeHost.actions.content.unpublish("posts", content.id, {
+				_rev: revision,
+				origin: { source: "mcp" },
+				actor: { id: editor.id, role: editor.role },
+			}),
+		).resolves.toMatchObject({
+			success: false,
+			error: { code: "UNPUBLISH_REJECTED", message: "Legal approval is required." },
+		});
+		await expect(runtimeHost.inspect.content.get("posts", content.id)).resolves.toMatchObject({
+			status: "published",
+		});
+
+		const scheduledContent = await runtimeHost.fixtures.content("posts", {
+			slug: "scheduled-policy-post",
+			data: { title: "Scheduled policy post" },
+		});
+		const due = "2030-01-02T03:04:05.000Z";
+		const scheduled = await runtimeHost.actions.content.schedule(
+			"posts",
+			scheduledContent.id,
+			due,
+			{ origin: { source: "system" } },
+		);
+		if (!scheduled.success) throw new Error(scheduled.error.message);
+		await runtimeHost.fixtures.plugin.kv(
+			"policy:content:beforePublish",
+			"A reviewer must approve this entry.",
+		);
+		runtimeHost.scheduled.setTime("2030-01-02T03:04:06.000Z");
+		await expect(runtimeHost.scheduled.run()).resolves.toMatchObject({ published: [] });
+		await expect(
+			runtimeHost.inspect.content.get("posts", scheduledContent.id),
+		).resolves.toMatchObject({ status: "draft", scheduledAt: null });
+		await expect(runtimeHost.inspect.scheduledPolicyRejections()).resolves.toContainEqual(
+			expect.objectContaining({
+				collection: "posts",
+				id: scheduledContent.id,
+				pluginId: runtimeHost.manifest.id,
+				reason: "A reviewer must approve this entry.",
+			}),
+		);
+		await runtimeHost.fixtures.plugin.kv("policy:content:beforePublish", null);
+		const rescheduled = await runtimeHost.actions.content.schedule(
+			"posts",
+			scheduledContent.id,
+			"2031-01-01T00:00:00.000Z",
+			{ origin: { source: "api" }, actor: { id: editor.id, role: editor.role } },
+		);
+		if (!rescheduled.success) throw new Error(rescheduled.error.message);
+		await expect(runtimeHost.inspect.scheduledPolicyRejections()).resolves.toEqual([]);
+
+		const retryableContent = await runtimeHost.fixtures.content("posts", {
+			slug: "retryable-policy-post",
+			data: { title: "Retryable policy post" },
+		});
+		const retryable = await runtimeHost.actions.content.schedule(
+			"posts",
+			retryableContent.id,
+			"2030-01-03T03:04:05.000Z",
+			{ origin: { source: "system" } },
+		);
+		if (!retryable.success) throw new Error(retryable.error.message);
+		await runtimeHost.fixtures.plugin.kv("policy:content:beforePublish", "__invalid__");
+		runtimeHost.scheduled.setTime("2030-01-03T03:04:06.000Z");
+		await expect(runtimeHost.scheduled.run()).resolves.toMatchObject({ published: [] });
+		await expect(
+			runtimeHost.inspect.content.get("posts", retryableContent.id),
+		).resolves.toMatchObject({
+			status: "scheduled",
+			scheduledAt: "2030-01-03T03:04:05.000Z",
+		});
+
+		const policyEvents = (await runtimeHost.inspect.storage.list("events"))
+			.map(
+				(entry) =>
+					entry.data as {
+						type: string;
+						hook?: string;
+						origin?: { source: string };
+						actor?: { source?: string };
+					},
+			)
+			.filter((entry) => entry.type === "content-policy");
+		expect(policyEvents.map((event) => event.origin?.source)).toEqual(
+			expect.arrayContaining(["api", "mcp", "visual-editor", "plugin", "scheduler", "system"]),
+		);
+		expect(
+			policyEvents.find((event) => event.origin?.source === "visual-editor")?.actor,
+		).toMatchObject({ source: "visual-editor" });
+		expect(policyEvents.find((event) => event.origin?.source === "plugin")?.actor).toBeUndefined();
+	});
+
+	it("runs versioned publication and restore actions through Worker Loader", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			routable: true,
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const admin = await runtimeHost.fixtures.user({
+			email: "publication-actions@example.com",
+			role: "admin",
+		});
+		const content = await runtimeHost.fixtures.content("posts", {
+			slug: "publication-actions",
+			data: { title: "Publication actions" },
+		});
+		const invoke = async (body: Record<string, unknown>) => {
+			const response = await runtimeHost!.actions.routes.request("content-action", {
+				user: admin,
+				headers: { "X-EmDash-Request": "1" },
+				body,
+			});
+			expect(response.status).toBe(200);
+			const json: unknown = await response.json();
+			if (
+				typeof json !== "object" ||
+				json === null ||
+				!("data" in json) ||
+				typeof json.data !== "object" ||
+				json.data === null
+			) {
+				throw new Error("Expected versioned action response");
+			}
+			return json.data as {
+				item: { id: string; status: string; scheduledAt?: string | null };
+				_rev: string;
+			};
+		};
+
+		let current = await invoke({
+			action: "getVersioned",
+			collection: "posts",
+			id: content.id,
+		});
+		await runtimeHost.fixtures.plugin.kv("policy:reenter-publish", true);
+		const reentrant = await runtimeHost.actions.routes.request("content-action", {
+			user: admin,
+			headers: { "X-EmDash-Request": "1" },
+			body: {
+				action: "publish",
+				collection: "posts",
+				id: "publication-actions",
+				_rev: current._rev,
+			},
+		});
+		expect(reentrant.status).toBe(200);
+		await expect(reentrant.json()).resolves.toMatchObject({
+			data: { actionError: { code: "PUBLISH_REJECTED" } },
+		});
+		await expect(runtimeHost.inspect.content.get("posts", content.id)).resolves.toMatchObject({
+			status: "draft",
+		});
+		await expect(runtimeHost.inspect.storage.list("events")).resolves.toContainEqual(
+			expect.objectContaining({
+				data: expect.objectContaining({
+					type: "content-action-rejected",
+					code: "CONTENT_ACTION_REENTRANT",
+				}),
+			}),
+		);
+		await runtimeHost.fixtures.plugin.kv("policy:reenter-publish", false);
+		current = await invoke({
+			action: "publish",
+			collection: "posts",
+			id: content.id,
+			_rev: current._rev,
+		});
+		expect(current.item.status).toBe("published");
+		current = await invoke({
+			action: "unpublish",
+			collection: "posts",
+			id: content.id,
+			_rev: current._rev,
+		});
+		expect(current.item.status).toBe("draft");
+		current = await invoke({
+			action: "schedule",
+			collection: "posts",
+			id: content.id,
+			scheduledAt: "2031-01-01T00:00:00.000Z",
+			_rev: current._rev,
+		});
+		expect(current.item.scheduledAt).toBe("2031-01-01T00:00:00.000Z");
+		current = await invoke({
+			action: "unschedule",
+			collection: "posts",
+			id: content.id,
+			_rev: current._rev,
+		});
+		expect(current.item.scheduledAt).toBeNull();
+
+		await runtimeHost.actions.content.trash("posts", content.id);
+		const trashed = await invoke({
+			action: "getTrashedVersioned",
+			collection: "posts",
+			id: content.id,
+		});
+		const restored = await invoke({
+			action: "restore",
+			collection: "posts",
+			id: content.id,
+			_rev: trashed._rev,
+		});
+		expect(restored.item.id).toBe(content.id);
+		await vi.waitFor(async () => {
+			for (const action of ["publish", "unpublish", "schedule", "unschedule", "restore"]) {
+				await expect(
+					runtimeHost!.inspect.storage.get("events", `action:${action}:${content.id}`),
+				).resolves.toMatchObject({ type: "content-action", action, contentId: content.id });
+			}
+		});
+	});
+
 	it("runs public comment policy and follows every content-list cursor", async () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		await runtimeHost.fixtures.collection({
@@ -993,6 +1381,139 @@ describe("runtime plugin test host", () => {
 		runtimeHost = await createPluginRuntimeTestHost();
 		await expect(runtimeHost.inspect.content.list("temporary")).rejects.toThrow();
 	});
+
+	it("loads validated Block Kit pages and widgets with host-attested locale context", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+
+		const [pageResponse, widgetResponse] = await Promise.all([
+			runtimeHost.admin.loadPage("/overview", { locale: "ar" }),
+			runtimeHost.admin.loadWidget("status", { locale: "en" }),
+		]);
+
+		expect(pageResponse.blocks[0]).toMatchObject({
+			type: "fields",
+			fields: [
+				{ label: "Surface", value: "admin-page" },
+				{ label: "Locale", value: "ar" },
+				{ label: "Direction", value: "rtl" },
+			],
+		});
+		expect(widgetResponse.blocks[0]).toMatchObject({
+			type: "fields",
+			fields: [
+				{ label: "Surface", value: "dashboard-widget" },
+				{ label: "Locale", value: "en" },
+				{ label: "Direction", value: "ltr" },
+			],
+		});
+	});
+
+	it("rejects undeclared UI surfaces and unsafe browser resources before rendering", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+
+		await expect(runtimeHost.admin.loadPage("/undeclared")).rejects.toThrow(
+			"Plugin admin page is not declared",
+		);
+		await expect(runtimeHost.admin.act("/overview", "unsafe-image")).rejects.toThrow(
+			"INVALID_BLOCK_RESPONSE",
+		);
+		await expect(runtimeHost.admin.act("/overview", "oversized-response")).rejects.toThrow(
+			"INVALID_BLOCK_RESPONSE",
+		);
+	});
+
+	it("invokes saved-entry panels and actions with host-attested identity", async () => {
+		runtimeHost = await createPluginRuntimeTestHost({
+			i18n: { defaultLocale: "en", locales: ["en", "ar"] },
+		});
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const entry = await runtimeHost.fixtures.content("posts", {
+			data: { title: "Saved entry" },
+			locale: "en",
+		});
+
+		const panel = await runtimeHost.admin.loadEditorPanel("entry-context", "posts", entry.id, {
+			locale: "ar",
+			contentLocale: "en",
+		});
+		expect(panel.blocks[0]).toMatchObject({
+			type: "fields",
+			fields: [
+				{ label: "Surface", value: "content-editor-panel" },
+				{ label: "Extension", value: "entry-context" },
+				{ label: "Collection", value: "posts" },
+				{ label: "Entry", value: entry.id },
+				{ label: "Content locale", value: "en" },
+				{ label: "Version", value: expect.any(String) },
+			],
+		});
+		await runtimeHost.actions.content.update("posts", entry.id, {
+			data: { title: "Updated entry" },
+			locale: "en",
+		});
+		const refreshedPanel = await runtimeHost.admin.loadEditorPanel(
+			"entry-context",
+			"posts",
+			entry.id,
+			{ locale: "ar", contentLocale: "en" },
+		);
+		expect(refreshedPanel.blocks[0]).toMatchObject({
+			type: "fields",
+			fields: expect.arrayContaining([{ label: "Version", value: "2" }]),
+		});
+
+		await expect(
+			runtimeHost.admin.invokeEditorAction("refresh-entry", "posts", entry.id, {
+				locale: "ar",
+				contentLocale: "en",
+			}),
+		).resolves.toEqual({
+			refresh: true,
+			toast: { type: "success", message: `posts/${entry.id} refreshed` },
+		});
+		await expect(
+			runtimeHost.admin.actEditorPanel("entry-context", "posts", entry.id, "invalid"),
+		).rejects.toThrow("INVALID_BLOCK_RESPONSE");
+		await expect(
+			runtimeHost.admin.invokeEditorAction("invalid-action", "posts", entry.id),
+		).rejects.toThrow("INVALID_EDITOR_ACTION_RESPONSE");
+	});
+
+	it("authorizes editor extensions against the saved entry owner", async () => {
+		runtimeHost = await createPluginRuntimeTestHost();
+		await runtimeHost.fixtures.collection({
+			slug: "posts",
+			label: "Posts",
+			fields: [{ slug: "title", label: "Title", type: "string" }],
+		});
+		const [owner, otherAuthor] = await Promise.all([
+			runtimeHost.fixtures.user({ email: "owner@example.test", role: "author" }),
+			runtimeHost.fixtures.user({ email: "other@example.test", role: "author" }),
+		]);
+		const entry = await runtimeHost.fixtures.content("posts", {
+			data: { title: "Owned entry" },
+			authorId: owner.id,
+		});
+
+		await expect(
+			runtimeHost.admin.loadEditorPanel("entry-context", "posts", entry.id, { user: owner }),
+		).resolves.toHaveProperty("blocks");
+		await expect(
+			runtimeHost.admin.loadEditorPanel("entry-context", "posts", entry.id, {
+				user: otherAuthor,
+			}),
+		).rejects.toThrow("(403)");
+		await expect(
+			runtimeHost.admin.loadEditorPanel("missing", "posts", entry.id, { user: owner }),
+		).rejects.toThrow("(404)");
+		await expect(
+			runtimeHost.admin.loadEditorPanel("entry-context", "pages", entry.id, { user: owner }),
+		).rejects.toThrow("(404)");
+	});
 });
 
 describe("plugin test host", () => {
@@ -1009,6 +1530,14 @@ describe("plugin test host", () => {
 		});
 		expect(host.manifest.admin.settingsSchema).toHaveProperty("enabled");
 		expect(host.manifest.admin.fieldWidgets?.[0]).toMatchObject({ name: "event-picker" });
+		expect(host.manifest.admin.editorPanels?.[0]).toMatchObject({
+			id: "entry-context",
+			route: "entry-context",
+		});
+		expect(host.manifest.admin.editorActions?.[0]).toMatchObject({
+			id: "refresh-entry",
+			route: "refresh-entry",
+		});
 
 		await expect(host.invokeRoute("hello")).resolves.toEqual({
 			pluginId: "plugin-test-fixture",

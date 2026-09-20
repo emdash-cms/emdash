@@ -91,6 +91,46 @@ The plugin CLI preserves `admin.settingsSchema` in the registry manifest and gen
 
 The `secret` settings field is write-only in the admin response and encrypted before persistence. The site must provide `EMDASH_ENCRYPTION_KEY`; missing, wrong, or tampered key material fails closed. Keep the encryption-key list with database backups. Existing `ctx.kv.get("settings:<key>")` reads remain compatible through EmDash 0.x.
 
+## Sandboxed saved-entry extensions
+
+Declare saved-entry panels and actions in `emdash-plugin.jsonc`:
+
+```jsonc title="emdash-plugin.jsonc"
+{
+	"admin": {
+		"editorPanels": [
+			{
+				"id": "health",
+				"title": "Content health",
+				"route": "editor/health",
+				"collections": ["posts"],
+			},
+		],
+		"editorActions": [
+			{
+				"id": "repair",
+				"label": "Repair metadata",
+				"route": "editor/repair",
+				"placement": "overflow",
+				"style": "danger",
+				"confirm": {
+					"title": "Repair?",
+					"text": "This changes the saved entry.",
+					"confirm": "Repair",
+					"deny": "Cancel",
+				},
+			},
+		],
+	},
+}
+```
+
+Every referenced route must be private. EmDash reloads the saved entry and checks ownership plus the route permission before invoking it. `routeCtx.ui.entry` contains only the canonical collection, ID, locale, and version. The host does not send field values or unsaved editor state.
+
+Panels start collapsed. They receive `panel_load`, then ordinary `block_action` and `form_submit` interactions, and return `BlockResponse`. Actions are disabled while the editor has unsaved changes. They receive `editor_action` and return an optional toast plus either `refresh: true` or a structured `navigate` target. Action responses cannot request refresh and navigation together.
+
+Use `createPluginRuntimeTestHost().admin` to exercise this boundary with `loadEditorPanel()`, `actEditorPanel()`, `submitEditorPanel()`, and `invokeEditorAction()`.
+
 ## Sandboxed declarative field widgets
 
 Core and the admin contain a declarative field-widget path. Declare the widget in the registry manifest:
@@ -127,7 +167,7 @@ Other Block Kit element types display an unsupported-element message in this sur
 
 `emdash-plugin.jsonc` accepts `admin.fieldWidgets`, and the plugin CLI carries the definitions through the bundle manifest and generated descriptor for registry installation. The artifact round-trip is covered by plugin CLI, shared manifest, and plugin-test tests. The browser E2E fixture still tests a native React color picker rather than a registry-installed declarative widget, so verify the real editor render and value persistence for the chosen elements.
 
-The sandbox admin context does not expose the administrator's active locale. Labels in manifest metadata and Block Kit responses are static strings from the plugin; there is no locale-aware callback or translation catalog handoff for registry plugins.
+The sandbox admin route receives `routeCtx.ui` with the host-attested admin locale, text direction, and surface. Use it to select localized text in a runtime Block Kit response. Labels in manifest metadata remain static strings; registry plugins do not hand translation catalogs to the host.
 
 ## Native React pages, widgets, and fields
 

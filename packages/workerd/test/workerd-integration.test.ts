@@ -133,7 +133,7 @@ export default {
 		"echo": {
 			handler: async (routeCtx, ctx) => {
 				const kvValue = await ctx.kv.get("last-hook");
-				return { input: routeCtx.input, kvValue };
+				return { input: routeCtx.input, kvValue, ui: routeCtx.ui };
 			}
 		},
 		"kv-test": {
@@ -213,6 +213,20 @@ export default {
 };
 `;
 
+const CONTENT_ACTION_HANG_PLUGIN = `
+export default {
+	hooks: {},
+	routes: {
+		"publish-hang": {
+			handler: async (_route, ctx) => {
+				await ctx.content.publish("posts", "post-1", { _rev: "revision-1" });
+				await new Promise((resolve) => setTimeout(resolve, 60000));
+			}
+		}
+	}
+};
+`;
+
 const CONTENT_WRITE_PLUGIN = `
 export default {
 	hooks: {},
@@ -240,6 +254,62 @@ export default {
 };
 `;
 
+const BINARY_HTTP_PLUGIN = `
+export default {
+	hooks: {},
+	routes: {
+		"roundtrip": {
+			handler: async (route, ctx) => {
+				const response = await ctx.http.fetch(route.input.url, {
+					method: "POST",
+					headers: { "content-type": "application/octet-stream" },
+					body: new Uint8Array([0, 255, 195, 40])
+				});
+				const clone = response.clone();
+				return {
+					status: response.status,
+					statusText: response.statusText,
+					url: response.url,
+					redirected: response.redirected,
+					bytes: [...new Uint8Array(await response.arrayBuffer())],
+					cloneBytes: [...new Uint8Array(await clone.arrayBuffer())]
+				};
+			}
+		}
+	}
+};
+`;
+
+const RAW_ROUTE_PLUGIN = `
+export default {
+	routes: {
+		bytes: {
+			handler: async ({ input }) => ({
+				__emdashPluginResponse: true,
+				status: 206,
+				headers: [["content-type", "application/octet-stream"]],
+				body: { kind: "bytes", value: input }
+			})
+		},
+		multipart: {
+			handler: async ({ input }) => ({
+				__emdashPluginResponse: true,
+				status: 200,
+				headers: [],
+				body: { kind: "bytes", value: input.entries[1].bytes }
+			})
+		},
+		ordinary: {
+			handler: async () => ({
+				status: 201,
+				headers: [["x-test", "ordinary"]],
+				body: { kind: "text", value: "not raw" }
+			})
+		}
+	}
+};
+`;
+
 const SAVE_REJECTION_PLUGIN = `
 export default {
 	hooks: {
@@ -247,6 +317,19 @@ export default {
 			__emdashSandboxHookResult: true,
 			version: 1,
 			error: { code: "SAVE_REJECTED", reason: "Add a summary" }
+		})
+	}
+};
+`;
+
+const CONTENT_POLICY_PLUGIN = `
+export default {
+	hooks: {
+		"content:beforePublish": async (event, ctx) => ({
+			cancel: true,
+			reason: ctx.content === undefined
+				? event.origin.source + ": " + event.content.title
+				: "content access leaked"
 		})
 	}
 };
@@ -300,6 +383,12 @@ export default {
 				} catch (error) {
 					return { name: error.name, code: error.code, message: error.message };
 				}
+			}
+		},
+		"publish": {
+			handler: async (route, ctx) => {
+				const current = await ctx.content.getVersioned("posts", route.input.id);
+				return ctx.content.publish("posts", route.input.id, { _rev: current._rev });
 			}
 		}
 	}
@@ -403,11 +492,13 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				method: "POST",
 				url: "/api/test",
 				headers: {},
+				ui: { surface: "dashboard-widget", locale: "ar", direction: "rtl" },
 			},
 		)) as any;
 
 		expect(result).toBeDefined();
 		expect(result.input).toEqual({ hello: "world" });
+		expect(result.ui).toEqual({ surface: "dashboard-widget", locale: "ar", direction: "rtl" });
 	}, 30_000);
 
 	it("preserves bounded media bytes and metadata through a real workerd process", async () => {
@@ -506,6 +597,171 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		});
 	}, 30_000);
 
+	it("preserves concurrent binary HTTP through the real workerd bridge", async () => {
+		await runner.terminateAll();
+		const requests: Array<{ url: string; body: Uint8Array }> = [];
+		runner = new WorkerdSandboxRunner({
+			db,
+			httpFetch: async (input, init) => {
+				const request = new Request(input, init);
+				requests.push({
+					url: request.url,
+					body: new Uint8Array(await request.arrayBuffer()),
+				});
+				const second = request.url.endsWith("/second");
+				return new Response(
+					second ? new Uint8Array([137, 80, 78, 71]) : new Uint8Array([0, 255, 195, 40]),
+					{
+						status: second ? 200 : 206,
+						statusText: second ? "OK" : "Partial Content",
+						headers: { "content-type": "application/octet-stream" },
+					},
+				);
+			},
+		});
+		const plugin = await runner.load(
+			{
+				id: "binary-http",
+				version: "1.0.0",
+				capabilities: ["network:request"],
+				allowedHosts: ["93.184.216.34"],
+				storage: {},
+			},
+			BINARY_HTTP_PLUGIN,
+		);
+		const urls = ["https://93.184.216.34/first", "https://93.184.216.34/second"];
+		const results = await Promise.all(
+			urls.map((url) =>
+				plugin.invokeRoute(
+					"roundtrip",
+					{ url },
+					{ method: "POST", url: "/api/roundtrip", headers: {} },
+				),
+			),
+		);
+
+		expect(results).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					status: 206,
+					statusText: "Partial Content",
+					url: urls[0],
+					bytes: [0, 255, 195, 40],
+					cloneBytes: [0, 255, 195, 40],
+				}),
+				expect.objectContaining({
+					status: 200,
+					url: urls[1],
+					bytes: [137, 80, 78, 71],
+					cloneBytes: [137, 80, 78, 71],
+				}),
+			]),
+		);
+		expect(requests).toEqual(
+			expect.arrayContaining(urls.map((url) => ({ url, body: new Uint8Array([0, 255, 195, 40]) }))),
+		);
+	}, 30_000);
+
+	it("preserves raw route and multipart bytes through the real workerd wrapper", async () => {
+		const bytes = new Uint8Array([0, 255, 195, 40]);
+		const plugin = await runner.load(
+			{
+				id: "raw-route-transport",
+				version: "1.0.0",
+				capabilities: [],
+				allowedHosts: [],
+				storage: {},
+			},
+			RAW_ROUTE_PLUGIN,
+		);
+		const request = { method: "POST", url: "/api/raw", headers: {} };
+
+		const concurrentBodies = [bytes, new Uint8Array([1, 2, 3]), new Uint8Array([254, 253])];
+		const concurrentResults = await Promise.all(
+			concurrentBodies.map((body) => plugin.invokeRoute("bytes", body, request)),
+		);
+		expect(concurrentResults).toEqual(
+			concurrentBodies.map((body) => ({
+				__emdashPluginResponse: true,
+				status: 206,
+				headers: [["content-type", "application/octet-stream"]],
+				body: { kind: "bytes", value: body },
+			})),
+		);
+
+		const multipart = {
+			entries: [
+				{ name: "caption", kind: "text", value: "binary" },
+				{
+					name: "upload",
+					kind: "file",
+					filename: "invalid.bin",
+					contentType: "application/octet-stream",
+					bytes,
+				},
+			],
+		};
+		await expect(plugin.invokeRoute("multipart", multipart, request)).resolves.toMatchObject({
+			__emdashPluginResponse: true,
+			body: { kind: "bytes", value: bytes },
+		});
+
+		await expect(plugin.invokeRoute("ordinary", {}, request)).resolves.toEqual({
+			status: 201,
+			headers: [["x-test", "ordinary"]],
+			body: { kind: "text", value: "not raw" },
+		});
+	}, 30_000);
+
+	it("drops cached network authority when a plugin version is replaced", async () => {
+		await runner.terminateAll();
+		const httpFetch = vi.fn<typeof fetch>().mockResolvedValue(
+			new Response(new Uint8Array([0, 255]), {
+				status: 206,
+				statusText: "Partial Content",
+				headers: { "content-type": "application/octet-stream" },
+			}),
+		);
+		runner = new WorkerdSandboxRunner({ db, httpFetch });
+		const unrestricted = await runner.load(
+			{
+				id: "authority-update",
+				version: "1.0.0",
+				capabilities: ["network:request:unrestricted"],
+				allowedHosts: [],
+				storage: {},
+			},
+			BINARY_HTTP_PLUGIN,
+		);
+		await expect(
+			unrestricted.invokeRoute(
+				"roundtrip",
+				{ url: "https://93.184.216.34/first" },
+				{ method: "POST", url: "/api/roundtrip", headers: {} },
+			),
+		).resolves.toMatchObject({ status: 206 });
+		await unrestricted.terminate();
+
+		const restricted = await runner.load(
+			{
+				id: "authority-update",
+				version: "2.0.0",
+				capabilities: ["network:request"],
+				allowedHosts: ["api.example.com"],
+				storage: {},
+			},
+			BINARY_HTTP_PLUGIN,
+		);
+		await expect(
+			restricted.invokeRoute(
+				"roundtrip",
+				{ url: "https://93.184.216.34/second" },
+				{ method: "POST", url: "/api/roundtrip", headers: {} },
+			),
+		).rejects.toThrow(/not allowed to fetch from host/i);
+		expect(httpFetch).toHaveBeenCalledOnce();
+	}, 30_000);
+
 	it("runs an equivalent runtime content and cold-restart journey through workerd", async () => {
 		const { EmDashRuntime } = await import("emdash/plugin-test-runtime");
 		const runtimeSqlite = new Database(":memory:");
@@ -528,7 +784,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 					version: "1.0.0",
 					options: {},
 					code: RUNTIME_HOST_PLUGIN,
-					capabilities: ["content:write"],
+					capabilities: ["content:write", "content:publish"],
 					allowedHosts: [],
 					storage: {},
 					hooks: ["content:beforeSave"],
@@ -536,6 +792,7 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 						{ name: "state", public: true },
 						{ name: "translate", public: true },
 						{ name: "translate-error", public: true },
+						{ name: "publish", public: true },
 					],
 				},
 			],
@@ -612,6 +869,20 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 				);
 				expect(failed).toMatchObject({ success: true, data: { name: code, code } });
 			}
+			const published = await runtime.handlePluginApiRoute(
+				"runtime-workerd",
+				"POST",
+				"/publish",
+				new Request("https://test.local/publish", {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({ id: created.data.item.id }),
+				}),
+			);
+			expect(published).toMatchObject({
+				success: true,
+				data: { item: { id: created.data.item.id, status: "published" } },
+			});
 			const first = await runtime.handlePluginApiRoute(
 				"runtime-workerd",
 				"GET",
@@ -905,6 +1176,27 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		});
 	}, 30_000);
 
+	it("preserves publication policy events and decisions over the workerd transport", async () => {
+		const plugin = await runner.load(
+			{
+				id: "test-content-policy",
+				version: "1.0.0",
+				capabilities: ["hooks.content-policy:register"],
+				allowedHosts: [],
+				storage: {},
+			},
+			CONTENT_POLICY_PLUGIN,
+		);
+
+		await expect(
+			plugin.invokeHook("content:beforePublish", {
+				collection: "posts",
+				content: { id: "post-1", title: "Needs approval" },
+				origin: { source: "plugin", pluginId: "review-cycle" },
+			}),
+		).resolves.toEqual({ cancel: true, reason: "plugin: Needs approval" });
+	}, 30_000);
+
 	it("enforces KV isolation between plugins via routes", async () => {
 		const plugin = await runner.load(
 			{
@@ -1194,6 +1486,71 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 			).rejects.toThrow(/exceeded wall-time limit/);
 		} finally {
 			await slowRunner.terminateAll();
+		}
+	}, 30_000);
+
+	it("releases a publication invocation that mutates and outlives the wall limit", async () => {
+		const contentActions = {
+			begin: vi.fn(),
+			flush: vi.fn().mockResolvedValue(undefined),
+			publish: vi.fn().mockResolvedValue({
+				item: {
+					id: "post-1",
+					type: "posts",
+					slug: "post-1",
+					status: "published",
+					locale: "en",
+					data: {},
+					createdAt: "2026-01-01T00:00:00.000Z",
+					updatedAt: "2026-01-01T00:00:00.000Z",
+					publishedAt: "2026-01-01T00:00:00.000Z",
+				},
+				_rev: "revision-2",
+			}),
+		};
+		const hangingRunner = new WorkerdSandboxRunner({
+			db,
+			limits: { wallTimeMs: 200 },
+			contentActions: contentActions as never,
+		});
+
+		try {
+			const plugin = await hangingRunner.load(
+				{
+					id: "test-publication-hang",
+					version: "1.0.0",
+					capabilities: ["content:publish"],
+					allowedHosts: [],
+					storage: {},
+				},
+				CONTENT_ACTION_HANG_PLUGIN,
+			);
+			const invalidateContentCache = vi.fn().mockResolvedValue(undefined);
+
+			await expect(
+				plugin.invokeRoute(
+					"publish-hang",
+					{},
+					{ method: "POST", url: "/api/test", headers: {} },
+					{ invalidateContentCache },
+				),
+			).rejects.toThrow(/exceeded wall-time limit/);
+
+			expect(contentActions.publish).toHaveBeenCalledOnce();
+			const invocationId = contentActions.begin.mock.calls[0]?.[1];
+			expect(contentActions.begin).toHaveBeenCalledWith(
+				"test-publication-hang",
+				invocationId,
+				invalidateContentCache,
+			);
+			expect(contentActions.publish.mock.calls[0]?.[4]).toBe(invocationId);
+			expect(contentActions.flush).toHaveBeenCalledWith(
+				"test-publication-hang",
+				invocationId,
+				false,
+			);
+		} finally {
+			await hangingRunner.terminateAll();
 		}
 	}, 30_000);
 

@@ -80,20 +80,21 @@ routes: {
 
 ## Element Types
 
-| Type           | Description                                     |
-| -------------- | ----------------------------------------------- |
-| `button`       | Action button with optional confirmation dialog |
-| `text_input`   | Single-line or multiline text input             |
-| `number_input` | Numeric input with min/max                      |
-| `select`       | Dropdown select                                 |
-| `toggle`       | On/off switch                                   |
-| `secret_input` | Masked input for API keys and tokens            |
-| `checkbox`     | Multi-select checkboxes                         |
-| `radio`        | Single-select radio buttons                     |
-| `date_input`   | Date picker                                     |
-| `combobox`     | Searchable dropdown select                      |
-| `repeater`     | Array of records with scalar sub-fields         |
-| `media_picker` | Media-library picker that stores the asset URL  |
+| Type           | Description                                               |
+| -------------- | --------------------------------------------------------- |
+| `button`       | Action button with optional confirmation dialog           |
+| `link`         | Host-resolved navigation that does not dispatch an action |
+| `text_input`   | Single-line or multiline text input                       |
+| `number_input` | Numeric input with min/max                                |
+| `select`       | Dropdown select                                           |
+| `toggle`       | On/off switch                                             |
+| `secret_input` | Masked input for API keys and tokens                      |
+| `checkbox`     | Multi-select checkboxes                                   |
+| `radio`        | Single-select radio buttons                               |
+| `date_input`   | Date picker                                               |
+| `combobox`     | Searchable dropdown select                                |
+| `repeater`     | Array of records with scalar sub-fields                   |
+| `media_picker` | Media-library picker that stores the asset URL            |
 
 ## Block Syntax
 
@@ -512,6 +513,51 @@ return {
 	}
 }
 ```
+
+## Saved-entry panels and actions
+
+`admin.editorPanels` and `admin.editorActions` point to private plugin routes. Panel routes return Block Kit and receive `panel_load`, `block_action`, or `form_submit`. Action routes receive `editor_action` and return only these bounded fields:
+
+```typescript
+{
+	toast?: { message: string; type: "success" | "error" | "info" };
+	refresh?: true;
+	navigate?: LinkTarget;
+}
+```
+
+Use either `refresh` or `navigate`, not both. Navigation uses the same structured target validator as `link` elements. A danger action declaration must include a confirmation dialog.
+
+For both surfaces, `routeCtx.ui.entry` contains the host-reloaded collection, saved entry ID, content locale, and version. `routeCtx.ui.extensionId` identifies the manifest declaration. Saved field values and unsaved editor state are not included.
+
+## Links and admin locale
+
+Use a structured link target instead of returning an admin URL:
+
+```json
+{
+	"type": "link",
+	"label": "Edit article",
+	"target": { "kind": "content", "collection": "posts", "id": "post-1", "locale": "ar" },
+	"appearance": "primary"
+}
+```
+
+Targets can identify saved content, a page declared by the same plugin, the plugin's generated settings page, or an absolute external HTTP, HTTPS, or `mailto:` URL. External links open in a new tab with `noopener noreferrer`. A link has no `action_id`; use a button when the interaction must call the plugin.
+
+Every page and widget response is validated before rendering. Responses are limited to 256 KiB, 20 nested levels, 2,000 nodes, 1,000 items per array, and 64 KiB per string. Root-relative image URLs are accepted. External images require HTTPS and either `network:request` with the hostname in the plugin manifest's `allowedHosts`, or `network:request:unrestricted`.
+
+The admin route receives host-attested UI context separately from the interaction:
+
+```typescript
+const { locale, direction, surface } = routeCtx.ui ?? {
+	locale: "en",
+	direction: "ltr",
+	surface: "admin-page",
+};
+```
+
+The UI locale is the administrator's active locale. It is separate from the site's default content locale in `ctx.site.locale`. Runtime page labels can use it to select localized Block Kit text; manifest navigation labels remain static.
 
 ## Toast Responses
 

@@ -17,6 +17,9 @@ The following table lists every hook, what triggers it, what it can modify, and 
 | `content:afterSave`     | After content is saved                | Nothing           | No        |
 | `content:beforeDelete`  | Before content is deleted             | Can cancel        | No        |
 | `content:afterDelete`   | After content is deleted              | Nothing           | No        |
+| `content:beforePublish` | Before content is published            | Can cancel        | No        |
+| `content:beforeSchedule` | Before content is scheduled           | Can cancel        | No        |
+| `content:beforeUnpublish` | Before content is unpublished         | Can cancel        | No        |
 | `content:afterPublish`  | After content is published            | Nothing           | No        |
 | `content:afterUnpublish` | After content is unpublished         | Nothing           | No        |
 | `content:afterRestore`  | After content is restored             | Nothing           | No        |
@@ -201,6 +204,30 @@ hooks: {
 ```
 
 The event contains `id`, `collection`, and `permanent`. `permanent` is `false` when the entry moves to trash and `true` when it is permanently deleted. Check it before removing data that a restored trashed entry would still need. This hook has no return value.
+
+### `content:beforePublish`
+
+**Capability:** `hooks.content-policy:register`
+
+Runs before content is published. Return `void` to allow publication or `{ cancel: true, reason }` to reject it. EmDash accepts 1–500 plain-text characters in `reason` and returns `PUBLISH_REJECTED` for an explicit cancellation.
+
+The event contains the current `content`, `collection`, and `origin`. Authenticated API, MCP, and visual-editor actions also contain `actor` with its matching `source`. The `visual-editor` origin requires the signed, short-lived action token from an authenticated toolbar render. Scheduled entries run this hook again when they become due. A scheduler rejection unschedules the entry and lists the affected entry and reason on the dashboard. A successful schedule, publish, or delete clears the record; an administrator can dismiss a stale record.
+
+### `content:beforeSchedule`
+
+**Capability:** `hooks.content-policy:register`
+
+Runs before an entry receives a publication time. It uses the same decision envelope and origin fields as `content:beforePublish`, adds `scheduledAt` to the event, and returns `SCHEDULE_REJECTED` for an explicit cancellation.
+
+There is no `content:beforeUnschedule` hook. An administrator can always cancel a future publication.
+
+### `content:beforeUnpublish`
+
+**Capability:** `hooks.content-policy:register`
+
+Runs before live content is removed. It uses the same decision envelope and origin fields as `content:beforePublish` and returns `UNPUBLISH_REJECTED` for an explicit cancellation.
+
+`hooks.content-policy:register` does not imply `content:read`, `content:write`, or publication actions. Invalid decisions and unexpected abort-policy errors fail closed without exposing exception messages.
 
 ### `content:afterPublish`
 

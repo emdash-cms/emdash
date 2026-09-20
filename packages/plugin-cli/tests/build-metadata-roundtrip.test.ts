@@ -32,6 +32,17 @@ describe("plugin build metadata round trip", () => {
 				security: { email: "security@example.com" },
 				capabilities: ["content:read", "redirects:write"],
 				admin: {
+					editorPanels: [
+						{ id: "health", title: "Health", route: "entry-health", collections: ["events"] },
+					],
+					editorActions: [
+						{
+							id: "repair",
+							label: "Repair",
+							route: "entry-repair",
+							placement: "overflow",
+						},
+					],
 					settingsSchema: {
 						enabled: { type: "boolean", label: "Enabled", default: true },
 						apiKey: { type: "secret", label: "API key" },
@@ -52,8 +63,18 @@ describe("plugin build metadata round trip", () => {
 			`export default {
 				hooks: { "content:afterSave": async () => undefined },
 				routes: {
-					feed: { public: true, cacheControl: "public, max-age=60", handler: async () => [] },
-					manage: { permission: "content:edit_any", handler: async () => ({ ok: true }) }
+					feed: {
+						methods: ["POST"],
+						request: { body: "form-data", maxBytes: 4096, headers: ["content-type", "x-signature"] },
+						response: "raw",
+						public: true,
+						cacheControl: "public, max-age=60",
+						handler: async () => []
+					},
+					legacy: async () => ({ ok: true }),
+					manage: { permission: "content:edit_any", handler: async () => ({ ok: true }) },
+					"entry-health": { permission: "content:edit_own", handler: async () => ({ blocks: [] }) },
+					"entry-repair": { permission: "content:edit_own", handler: async () => ({ refresh: true }) }
 				},
 				mcp: { tools: { manageCalendar: {
 					description: "Manage the calendar.", route: "manage",
@@ -73,9 +94,17 @@ describe("plugin build metadata round trip", () => {
 
 		expect(persistedManifest.routes).toContainEqual({
 			name: "feed",
+			methods: ["POST"],
+			request: {
+				body: "form-data",
+				maxBytes: 4096,
+				headers: ["content-type", "x-signature"],
+			},
+			response: "raw",
 			public: true,
 			cacheControl: "public, max-age=60",
 		});
+		expect(persistedManifest.routes).toContain("legacy");
 		expect(persistedManifest.mcp.tools[0]).toMatchObject({
 			name: "manageCalendar",
 			permission: "content:edit_any",
@@ -90,6 +119,14 @@ describe("plugin build metadata round trip", () => {
 			"redirects:read",
 			"redirects:write",
 		]);
+		expect(persistedManifest.admin.editorPanels[0]).toMatchObject({
+			id: "health",
+			route: "entry-health",
+		});
+		expect(persistedManifest.admin.editorActions[0]).toMatchObject({
+			id: "repair",
+			route: "entry-repair",
+		});
 		expect(descriptor).toMatchObject({
 			capabilities: persistedManifest.capabilities,
 			hooks: ["content:afterSave"],
@@ -97,6 +134,8 @@ describe("plugin build metadata round trip", () => {
 			mcp: persistedManifest.mcp,
 			settingsSchema: persistedManifest.admin.settingsSchema,
 			fieldWidgets: persistedManifest.admin.fieldWidgets,
+			editorPanels: persistedManifest.admin.editorPanels,
+			editorActions: persistedManifest.admin.editorActions,
 		});
 	});
 });

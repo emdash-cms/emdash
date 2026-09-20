@@ -16,6 +16,7 @@ import { Kysely, SqliteDialect } from "kysely";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
+	diffRouteVisibility,
 	handleMarketplaceInstall,
 	handleMarketplaceUpdate,
 	handleMarketplaceUninstall,
@@ -39,6 +40,28 @@ import type {
 } from "../../../src/storage/types.js";
 
 // ── Mock factories ────────────────────────────────────────────────
+
+describe("route visibility consent", () => {
+	it("treats a newly public raw route as a consent escalation", () => {
+		const oldManifest = mockManifest("webhooks", "1.0.0");
+		const nextManifest: PluginManifest = {
+			...mockManifest("webhooks", "1.1.0"),
+			routes: [
+				{
+					name: "incoming",
+					public: true,
+					methods: ["POST"],
+					request: { body: "bytes", headers: ["x-signature"] },
+					response: "raw",
+				},
+			],
+		};
+
+		expect(diffRouteVisibility(oldManifest, nextManifest)).toEqual({
+			newlyPublic: ["incoming"],
+		});
+	});
+});
 
 function createMockStorage(): Storage {
 	const store = new Map<string, { body: Uint8Array; contentType: string }>();
@@ -431,10 +454,19 @@ describe("Marketplace handlers", () => {
 			).toEqual([]);
 		});
 
-		it("requires explicit consent before installing plugin MCP tools", async () => {
+		it("requires explicit consent for public routes and MCP tools on install", async () => {
 			const manifest: PluginManifest = {
 				...mockManifest("test-seo", "1.0.0"),
-				routes: [{ name: "events/create", permission: "content:create" }],
+				routes: [
+					{ name: "events/create", permission: "content:create" },
+					{
+						name: "webhook",
+						public: true,
+						methods: ["POST"],
+						request: { body: "bytes", headers: ["x-signature"] },
+						response: "raw",
+					},
+				],
 				mcp: {
 					tools: [
 						{
@@ -454,7 +486,7 @@ describe("Marketplace handlers", () => {
 			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
 			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
 
-			const result = await handleMarketplaceInstall(
+			const routeConsent = await handleMarketplaceInstall(
 				db,
 				storage,
 				sandboxRunner,
@@ -462,11 +494,53 @@ describe("Marketplace handlers", () => {
 				"test-seo",
 			);
 
-			expect(result).toMatchObject({
+			expect(routeConsent).toMatchObject({
+				success: false,
+				error: {
+					code: "ROUTE_VISIBILITY_ESCALATION",
+					details: {
+						routeVisibilityChanges: { newlyPublic: ["webhook"] },
+						mcpTools: [expect.objectContaining({ name: "createEvent" })],
+					},
+				},
+			});
+
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+			const mismatchedRouteConsent = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{ acknowledgedPublicRoutes: ["admin-export"] },
+			);
+			expect(mismatchedRouteConsent).toMatchObject({
+				success: false,
+				error: {
+					code: "ROUTE_VISIBILITY_ESCALATION",
+					details: { routeVisibilityChanges: { newlyPublic: ["webhook"] } },
+				},
+			});
+
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+			const mcpConsent = await handleMarketplaceInstall(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{ acknowledgedPublicRoutes: ["webhook"] },
+			);
+			expect(mcpConsent).toMatchObject({
 				success: false,
 				error: {
 					code: "MCP_TOOL_CONSENT_REQUIRED",
-					details: { mcpTools: [expect.objectContaining({ name: "createEvent" })] },
+					details: {
+						routeVisibilityChanges: { newlyPublic: ["webhook"] },
+						mcpTools: [expect.objectContaining({ name: "createEvent" })],
+					},
 				},
 			});
 			expect(await new PluginStateRepository(db).get("test-seo")).toBeNull();
@@ -805,7 +879,16 @@ describe("Marketplace handlers", () => {
 			const newManifest: PluginManifest = {
 				...mockManifest("test-seo", "2.0.0"),
 				capabilities: ["content:read", "network:request"],
-				routes: [{ name: "events/create", permission: "content:create", public: true }],
+				routes: [
+					{ name: "events/create", permission: "content:create" },
+					{
+						name: "webhook",
+						public: true,
+						methods: ["POST"],
+						request: { body: "bytes", headers: ["x-signature"] },
+						response: "raw",
+					},
+				],
 				mcp: {
 					tools: [
 						{
@@ -839,9 +922,46 @@ describe("Marketplace handlers", () => {
 					code: "CAPABILITY_ESCALATION",
 					details: {
 						capabilityChanges: { added: ["network:request"], removed: [] },
-						routeVisibilityChanges: { newlyPublic: ["events/create"] },
+						routeVisibilityChanges: { newlyPublic: ["webhook"] },
 						mcpTools: [expect.objectContaining({ name: "createEvent" })],
 					},
+				},
+			});
+
+			const swappedManifest: PluginManifest = {
+				...newManifest,
+				routes: [
+					{ name: "events/create", permission: "content:create" },
+					{
+						name: "admin-export",
+						public: true,
+						methods: ["GET"],
+						response: "raw",
+					},
+				],
+			};
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(
+				new Response(await createMockBundle(swappedManifest), { status: 200 }),
+			);
+			const changedAfterReview = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+				{
+					version: "2.0.0",
+					confirmCapabilityChanges: true,
+					acknowledgedPublicRoutes: ["webhook"],
+					confirmMcpTools: true,
+				},
+			);
+			expect(changedAfterReview).toMatchObject({
+				success: false,
+				error: {
+					code: "ROUTE_VISIBILITY_ESCALATION",
+					details: { routeVisibilityChanges: { newlyPublic: ["admin-export"] } },
 				},
 			});
 		});

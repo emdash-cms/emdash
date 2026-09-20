@@ -306,6 +306,15 @@ describe("PackageReleaseExtension", () => {
 		expect(safeParse(PackageReleaseExtension.mainSchema, extension)).toMatchObject({ ok: true });
 	});
 
+	it("validates publication policy authority as a separate content operation", () => {
+		const extension: PackageReleaseExtension.Main = {
+			$type: NSID.packageReleaseExtension,
+			declaredAccess: { content: { policy: {} } },
+		};
+
+		expect(is(PackageReleaseExtension.mainSchema, extension)).toBe(true);
+	});
+
 	it("intentionally leaves unknown provenance predicates for consumer verification", () => {
 		const extension: PackageReleaseExtension.Main = {
 			$type: NSID.packageReleaseExtension,

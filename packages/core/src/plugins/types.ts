@@ -10,7 +10,7 @@
  */
 
 import type { Permission } from "@emdash-cms/auth";
-import type { Element } from "@emdash-cms/blocks";
+import type { ConfirmDialog, Element, PluginUiContext } from "@emdash-cms/blocks";
 // The plugin capability vocabulary, the legacy-rename map, and the manifest
 // shape are authored once in @emdash-cms/plugin-types and shared between core
 // (the manifest reader at install/runtime) and @emdash-cms/plugin-cli (the
@@ -33,7 +33,12 @@ import {
 	type ManifestRouteEntry,
 	type PluginMcpManifestConfig,
 	type PluginCapability,
+	type PluginFormData,
+	type PluginRouteBodyMode,
+	type PluginRouteQuery,
+	type PluginRouteRequest,
 	type PluginStorageConfig,
+	type RouteOptions,
 	type StorageCollectionConfig,
 } from "@emdash-cms/plugin-types";
 import type { JSX } from "astro/jsx-runtime";
@@ -71,6 +76,31 @@ export {
 	type PluginStorageConfig,
 	type StorageCollectionConfig,
 };
+
+export const PLUGIN_CAPABILITY_IMPLICATIONS: ReadonlyArray<
+	readonly [PluginCapability, PluginCapability]
+> = [
+	["content:write", "content:read"],
+	["content:revisions:read", "content:read"],
+	["taxonomies:write", "taxonomies:read"],
+	["content:publish", "content:read"],
+	["media:write", "media:read"],
+	["comments:moderate", "comments:read"],
+	["redirects:write", "redirects:read"],
+	["network:request:unrestricted", "network:request"],
+];
+
+export function normalizePluginCapabilities(
+	capabilities: readonly PluginCapability[],
+): PluginCapability[];
+export function normalizePluginCapabilities(capabilities: readonly string[]): string[];
+export function normalizePluginCapabilities(capabilities: readonly string[]): string[] {
+	const normalized = new Set(normalizeCapabilities(capabilities));
+	for (const [granted, implied] of PLUGIN_CAPABILITY_IMPLICATIONS) {
+		if (normalized.has(granted)) normalized.add(implied);
+	}
+	return [...normalized];
+}
 
 // =============================================================================
 // Storage Types
@@ -534,6 +564,63 @@ export interface ContentAccess {
 	): Promise<ContentItem>;
 	update?(collection: string, id: string, data: ContentWriteInput): Promise<ContentItem>;
 	delete?(collection: string, id: string): Promise<boolean>;
+	getVersioned?(collection: string, id: string): Promise<VersionedContentItem | null>;
+	publish?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	unpublish?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	schedule?(
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem>;
+	unschedule?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	getTrashedVersioned?(collection: string, id: string): Promise<VersionedContentItem | null>;
+	restore?(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+}
+
+export interface VersionedContentItem {
+	item: ContentItem;
+	_rev: string;
+}
+
+export interface ContentPublicationAccess extends ContentAccess {
+	getVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	publish(collection: string, id: string, options: { _rev: string }): Promise<VersionedContentItem>;
+	unpublish(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+	schedule(
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+	): Promise<VersionedContentItem>;
+	unschedule(
+		collection: string,
+		id: string,
+		options: { _rev: string },
+	): Promise<VersionedContentItem>;
+}
+
+export interface ContentRestoreAccess {
+	getTrashedVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	restore(collection: string, id: string, options: { _rev: string }): Promise<VersionedContentItem>;
 }
 
 /**
@@ -750,9 +837,13 @@ export interface MediaAccessWithWrite extends MediaAccess {
 }
 
 /**
- * HTTP client interface - requires network:fetch capability
+ * HTTP client interface - requires network:request capability
  */
 export interface HttpAccess {
+	/**
+	 * Fetch an allowed external URL and return a buffered response.
+	 * Decoded request and response bodies are each limited to 8 MiB.
+	 */
 	fetch(url: string, init?: RequestInit): Promise<Response>;
 }
 
@@ -898,7 +989,7 @@ export interface PluginContext<TStorage extends PluginStorageConfig = PluginStor
 	/** Media access - only if read:media or write:media capability */
 	media?: MediaAccess | MediaAccessWithWrite;
 
-	/** HTTP client - only if network:fetch capability */
+	/** HTTP client - only if network:request capability */
 	http?: HttpAccess;
 
 	/** Logger - always available */
@@ -1199,7 +1290,16 @@ export interface HookConfig<THandler> {
 export interface ActorInfo {
 	readonly id: string;
 	readonly role: number;
+	readonly source?: "api" | "mcp" | "visual-editor";
 }
+
+export type ContentActionOrigin =
+	| { source: "api" | "mcp" | "visual-editor" }
+	| { source: "plugin"; pluginId: string }
+	| { source: "scheduler" }
+	| { source: "system" };
+
+export type ContentPolicyDecision = void | { cancel: true; reason: string };
 
 /**
  * Content hook event
@@ -1256,6 +1356,15 @@ export type ContentRestoreStateChangeEvent = ContentStateChangeEvent;
  */
 export type ContentScheduleStateChangeEvent = ContentStateChangeEvent;
 
+export interface ContentPolicyEvent extends ContentStateChangeEvent {
+	origin: ContentActionOrigin;
+	actor?: ActorInfo;
+}
+
+export interface ContentSchedulePolicyEvent extends ContentPolicyEvent {
+	scheduledAt: string;
+}
+
 /**
  * Media hook event
  */
@@ -1304,6 +1413,21 @@ export type ContentAfterDeleteHandler = (
 	event: ContentDeleteEvent,
 	ctx: PluginContext,
 ) => Promise<void>;
+
+export type ContentBeforePublishHandler = (
+	event: ContentPolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
+
+export type ContentBeforeScheduleHandler = (
+	event: ContentSchedulePolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
+
+export type ContentBeforeUnpublishHandler = (
+	event: ContentPolicyEvent,
+	ctx: PluginContext,
+) => Promise<ContentPolicyDecision>;
 
 export type ContentAfterPublishHandler = (
 	event: ContentPublishStateChangeEvent,
@@ -1511,6 +1635,13 @@ export interface PluginHooks {
 	"content:afterSave"?: HookConfig<ContentAfterSaveHandler> | ContentAfterSaveHandler;
 	"content:beforeDelete"?: HookConfig<ContentBeforeDeleteHandler> | ContentBeforeDeleteHandler;
 	"content:afterDelete"?: HookConfig<ContentAfterDeleteHandler> | ContentAfterDeleteHandler;
+	"content:beforePublish"?: HookConfig<ContentBeforePublishHandler> | ContentBeforePublishHandler;
+	"content:beforeSchedule"?:
+		| HookConfig<ContentBeforeScheduleHandler>
+		| ContentBeforeScheduleHandler;
+	"content:beforeUnpublish"?:
+		| HookConfig<ContentBeforeUnpublishHandler>
+		| ContentBeforeUnpublishHandler;
 	"content:afterPublish"?: HookConfig<ContentAfterPublishHandler> | ContentAfterPublishHandler;
 	"content:afterUnpublish"?:
 		| HookConfig<ContentAfterUnpublishHandler>
@@ -1609,6 +1740,8 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 	request: Request;
 	/** Normalized request metadata (IP, user agent, geo) */
 	requestMeta: RequestMeta;
+	/** Host-attested context for a validated Block Kit request. */
+	ui?: PluginUiContext;
 	/**
 	 * Authenticated caller, if the route is private. The host has already
 	 * authenticated and authorized this user before dispatch, so the value
@@ -1626,7 +1759,7 @@ export interface RouteContext<TInput = unknown> extends PluginContext {
 /**
  * Route definition
  */
-export interface PluginRoute<TInput = unknown> {
+export interface PluginRoute<TInput = unknown> extends Omit<RouteOptions, "request"> {
 	/** Zod schema for input validation */
 	input?: z.ZodType<TInput>;
 	/**
@@ -1643,9 +1776,28 @@ export interface PluginRoute<TInput = unknown> {
 	 * keep the default `private, no-store`. Errors are never cached.
 	 */
 	cacheControl?: string;
+	/** Bounded request parsing and incoming-header declaration. */
+	request?: PluginRouteRequest;
 	/** Route handler */
-	handler: (ctx: RouteContext<TInput>) => Promise<unknown>;
+	handler: { bivarianceHack(ctx: RouteContext<TInput>): Promise<unknown> }["bivarianceHack"];
 }
+
+export type PluginRouteInput<TMode extends PluginRouteBodyMode> = TMode extends "none"
+	? PluginRouteQuery
+	: TMode extends "text"
+		? string
+		: TMode extends "bytes"
+			? Uint8Array
+			: TMode extends "form-data"
+				? PluginFormData
+				: unknown;
+
+export type PluginRouteDefinition<TMode extends PluginRouteBodyMode = PluginRouteBodyMode> = Omit<
+	PluginRoute<PluginRouteInput<TMode>>,
+	"request"
+> & {
+	request: PluginRouteRequest & { body: TMode };
+};
 
 export interface PluginMcpToolDefinition {
 	description: string;
@@ -1679,6 +1831,24 @@ export interface PluginDashboardWidget {
 	id: string;
 	size?: "full" | "half" | "third";
 	title?: string;
+}
+
+export interface PluginEditorPanel {
+	id: string;
+	title: string;
+	route: string;
+	collections?: string[];
+	order?: number;
+}
+
+export interface PluginEditorAction {
+	id: string;
+	label: string;
+	route: string;
+	placement: "toolbar" | "overflow";
+	collections?: string[];
+	style?: "default" | "danger";
+	confirm?: ConfirmDialog;
 }
 
 /**
@@ -1810,6 +1980,10 @@ export interface PluginAdminConfig {
 	pages?: PluginAdminPage[];
 	/** Dashboard widgets */
 	widgets?: PluginDashboardWidget[];
+	/** Saved-entry Block Kit panels. */
+	editorPanels?: PluginEditorPanel[];
+	/** Saved-entry host-rendered actions. */
+	editorActions?: PluginEditorAction[];
 	/** Portable Text block types this plugin provides */
 	portableTextBlocks?: PortableTextBlockConfig[];
 	/** Field widget types this plugin provides */
@@ -1828,7 +2002,7 @@ export interface PluginDefinition<TStorage extends PluginStorageConfig = PluginS
 	/** Declared capabilities */
 	capabilities?: PluginCapability[];
 
-	/** Allowed hosts for network:fetch (wildcards supported: *.example.com) */
+	/** Allowed hosts for network:request (wildcards supported: *.example.com) */
 	allowedHosts?: string[];
 
 	/** Storage collections with indexes */
@@ -1874,6 +2048,9 @@ export interface ResolvedPluginHooks {
 	"content:afterSave"?: ResolvedHook<ContentAfterSaveHandler>;
 	"content:beforeDelete"?: ResolvedHook<ContentBeforeDeleteHandler>;
 	"content:afterDelete"?: ResolvedHook<ContentAfterDeleteHandler>;
+	"content:beforePublish"?: ResolvedHook<ContentBeforePublishHandler>;
+	"content:beforeSchedule"?: ResolvedHook<ContentBeforeScheduleHandler>;
+	"content:beforeUnpublish"?: ResolvedHook<ContentBeforeUnpublishHandler>;
 	"content:afterPublish"?: ResolvedHook<ContentAfterPublishHandler>;
 	"content:afterUnpublish"?: ResolvedHook<ContentAfterUnpublishHandler>;
 	"content:afterRestore"?: ResolvedHook<ContentAfterRestoreHandler>;

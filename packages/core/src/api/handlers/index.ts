@@ -21,6 +21,7 @@ export {
 	handleContentCountTrashed,
 	handleContentSchedule,
 	handleContentUnschedule,
+	handleScheduledPolicyRejection,
 	handleContentPublish,
 	handleContentUnpublish,
 	handleContentCountScheduled,

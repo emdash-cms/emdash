@@ -72,6 +72,8 @@ export {
 	type ManifestHookEntry,
 	type ManifestRouteEntry,
 	type PluginAdminConfig,
+	type PluginEditorPanel,
+	type PluginEditorAction,
 	type PluginCapability,
 	type PluginManifest,
 	type PluginStorageConfig,

@@ -167,6 +167,7 @@ export interface AdminManifest {
 					 */
 					options?: Array<{ value: string; label: string }> | Record<string, unknown>;
 					validation?: Record<string, unknown>;
+					unsupportedType?: { type: string; path: string };
 				}
 			>;
 		}
@@ -196,6 +197,22 @@ export interface AdminManifest {
 				id: string;
 				title?: string;
 				size?: "full" | "half" | "third";
+			}>;
+			editorPanels?: Array<{
+				id: string;
+				title: string;
+				route: string;
+				collections?: string[];
+				order?: number;
+			}>;
+			editorActions?: Array<{
+				id: string;
+				label: string;
+				route: string;
+				placement: "toolbar" | "overflow";
+				collections?: string[];
+				style?: "default" | "danger";
+				confirm?: import("@emdash-cms/blocks").ConfirmDialog;
 			}>;
 			fieldWidgets?: Array<{
 				name: string;

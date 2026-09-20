@@ -29,10 +29,11 @@ import {
 	createMediaAccess,
 	createSandboxRouteErrorEnvelope,
 	createUnrestrictedHttpAccess,
-	normalizeCapabilities,
+	normalizePluginCapabilities,
 	OptionsRepository,
 	parsePluginMediaMetadataPatch,
 	PluginStorageRepository,
+	PLUGIN_HTTP_MAX_REQUEST_BYTES,
 	readPluginMediaBytes,
 	RedirectAccessError,
 	StorageSerializationError,
@@ -40,6 +41,7 @@ import {
 	updatePluginMediaMetadata,
 } from "emdash";
 import type {
+	ContentActionCallbacks,
 	ContentFieldFilters,
 	ContentListOptions,
 	Database,
@@ -50,6 +52,7 @@ import type {
 	RedirectCreateInput,
 	RedirectListOptions,
 	RedirectUpdateInput,
+	PluginHttpResponseWire,
 	SandboxEmailSendCallback,
 	PluginSecretRedactor,
 	SettingField,
@@ -73,6 +76,17 @@ function contentCreateErrorDetails(error: unknown): { code: string; message: str
 		? { code, message: error.message }
 		: null;
 }
+
+const CONTENT_ACTION_ERROR_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
+const CONTENT_ACTION_METHODS = new Set([
+	"content/getVersioned",
+	"content/publish",
+	"content/unpublish",
+	"content/schedule",
+	"content/unschedule",
+	"content/getTrashedVersioned",
+	"content/restore",
+]);
 
 /**
  * Schema view of a content table (ec_${collection}) for kysely. The standard
@@ -170,10 +184,12 @@ export interface BridgeHandlerOptions {
 	contentCreate?: SandboxContentCreateCallback;
 	contentCreateProvider?: () => SandboxContentCreateCallback | null;
 	taxonomyWrite?: TaxonomyAccessWithWrite;
+	contentActions?: () => ContentActionCallbacks | null;
 	emailSend: () => SandboxEmailSendCallback | null;
 	commentModerate?: () => SandboxCommentModerateCallback | null;
 	cronReschedule?: () => void;
 	now?: () => Date;
+	httpFetch?: typeof fetch;
 	/** Storage for media uploads. Optional; media/upload throws if not provided. */
 	storage?: BridgeStorage | null;
 }
@@ -193,6 +209,19 @@ async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<Redire
 	}
 }
 
+function bridgeJsonReplacer(_key: string, value: unknown): unknown {
+	if (value instanceof Uint8Array) {
+		return { __emdashBytes: Buffer.from(value).toString("base64") };
+	}
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		const keys = Object.keys(value);
+		if (keys.length === 1 && (keys[0] === "__emdashBytes" || keys[0] === "__emdashEscapedObject")) {
+			return { __emdashEscapedObject: Object.entries(value) };
+		}
+	}
+	return value;
+}
+
 /**
  * Create a bridge handler function scoped to a specific plugin.
  * Returns an async function that takes a Request and returns a Response.
@@ -200,19 +229,17 @@ async function redirectBridgeResult<T>(action: () => Promise<T>): Promise<Redire
 export function createBridgeHandler(
 	opts: BridgeHandlerOptions,
 ): (request: Request) => Promise<Response> {
-	const capabilities = normalizeCapabilities(opts.capabilities);
-	if (capabilities.includes("comments:moderate") && !capabilities.includes("comments:read")) {
-		capabilities.push("comments:read");
-	}
+	const capabilities = normalizePluginCapabilities(opts.capabilities);
 	const normalizedOpts = {
 		...opts,
 		capabilities,
 		secretRedactor: opts.secretRedactor ?? createPluginSecretRedactor(),
 	};
 	return async (request: Request): Promise<Response> => {
+		let method = "";
 		try {
 			const url = new URL(request.url);
-			const method = url.pathname.slice(1);
+			method = url.pathname.slice(1);
 
 			let body: Record<string, unknown> = {};
 			if (request.method === "POST") {
@@ -227,7 +254,9 @@ export function createBridgeHandler(
 			}
 
 			const result = await dispatch(normalizedOpts, method, body);
-			return Response.json({ result });
+			return new Response(JSON.stringify({ result }, bridgeJsonReplacer), {
+				headers: { "Content-Type": "application/json" },
+			});
 		} catch (error) {
 			if (typeof error === "object" && error !== null && "code" in error) {
 				const code = error.code;
@@ -273,7 +302,9 @@ export function createBridgeHandler(
 					{ status: 503 },
 				);
 			}
-			const contentCreateError = contentCreateErrorDetails(error);
+			const contentCreateError = CONTENT_ACTION_METHODS.has(method)
+				? null
+				: contentCreateErrorDetails(error);
 			if (contentCreateError) {
 				const status =
 					contentCreateError.code === "NOT_FOUND"
@@ -285,6 +316,20 @@ export function createBridgeHandler(
 					{ error: { name: contentCreateError.code, ...contentCreateError } },
 					{ status },
 				);
+			}
+			if (
+				CONTENT_ACTION_METHODS.has(method) &&
+				error instanceof Error &&
+				"code" in error &&
+				typeof error.code === "string" &&
+				CONTENT_ACTION_ERROR_CODE_REGEX.test(error.code)
+			) {
+				return Response.json({
+					result: {
+						__emdashContentActionError: true,
+						error: { code: error.code, message: error.message },
+					},
+				});
 			}
 			const message = error instanceof Error ? error.message : "Internal error";
 			return new Response(JSON.stringify({ error: message }), {
@@ -517,6 +562,68 @@ async function dispatch(
 			requireCapability(opts, "content:write");
 			await opts.beforeContentWrite?.();
 			return contentDelete(db, requireString(body, "collection"), requireString(body, "id"));
+		case "content/getVersioned":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).getVersioned(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/publish":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).publish(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
+			);
+		case "content/unpublish":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).unpublish(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
+			);
+		case "content/schedule":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).schedule(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{
+					scheduledAt: requireString(body, "scheduledAt"),
+					_rev: requireString(body, "revision"),
+				},
+				optionalString(body, "invocationId"),
+			);
+		case "content/unschedule":
+			requireCapability(opts, "content:publish");
+			return requireContentActions(opts).unschedule(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
+			);
+		case "content/getTrashedVersioned":
+			requireCapability(opts, "content:restore");
+			return requireContentActions(opts).getTrashedVersioned(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+			);
+		case "content/restore":
+			requireCapability(opts, "content:restore");
+			return requireContentActions(opts).restore(
+				pluginId,
+				requireString(body, "collection"),
+				requireString(body, "id"),
+				{ _rev: requireString(body, "revision") },
+				optionalString(body, "invocationId"),
+			);
 		case "content/createMany":
 			requireCapability(opts, "content:write");
 			const createManyLocale = resolveContentCreateLocale(undefined, opts.i18nConfig ?? null);
@@ -1163,6 +1270,12 @@ function requireCapability(opts: BridgeHandlerOptions, capability: string): void
 		// Error message matches Cloudflare PluginBridge format
 		throw new Error(`Missing capability: ${capability}`);
 	}
+}
+
+function requireContentActions(opts: BridgeHandlerOptions): ContentActionCallbacks {
+	const actions = opts.contentActions?.();
+	if (!actions) throw new Error("Content actions are not configured");
+	return actions;
 }
 
 function validateStorageCollection(opts: BridgeHandlerOptions, collection: string): void {
@@ -1947,14 +2060,7 @@ async function mediaDelete(
 
 // ── HTTP Operations ──────────────────────────────────────────────────────
 
-/** A multipart form part as marshaled by the wrapper. */
-interface MarshaledFormDataPart {
-	name: string;
-	value: string;
-	filename?: string;
-	type?: string;
-	isBlob?: boolean;
-}
+const BASE64_BODY_PATTERN = /^[A-Za-z0-9+/]*={0,2}$/;
 
 /** Marshaled RequestInit shape sent over the bridge from the wrapper. */
 interface MarshaledRequestInit {
@@ -1962,28 +2068,8 @@ interface MarshaledRequestInit {
 	redirect?: RequestRedirect;
 	/** List of [name, value] pairs to preserve multi-value headers */
 	headers?: Array<[string, string]>;
-	/**
-	 * Body is discriminated by bodyType. The wrapper (see wrapper.ts:
-	 * marshalRequestInit) guarantees the shape, but we validate defensively
-	 * at unmarshal time so a misbehaving plugin can't smuggle unexpected
-	 * data into the host fetch.
-	 */
-	bodyType?: "string" | "base64" | "formdata";
-	body?: string | MarshaledFormDataPart[];
-}
-
-function isFormDataPart(value: unknown): value is MarshaledFormDataPart {
-	if (!isRecord(value)) return false;
-	if (typeof value.name !== "string") return false;
-	if (typeof value.value !== "string") return false;
-	if (value.filename !== undefined && typeof value.filename !== "string") return false;
-	if (value.type !== undefined && typeof value.type !== "string") return false;
-	if (value.isBlob !== undefined && typeof value.isBlob !== "boolean") return false;
-	return true;
-}
-
-function isFormDataPartArray(value: unknown): value is MarshaledFormDataPart[] {
-	return Array.isArray(value) && value.every(isFormDataPart);
+	bodyType?: "base64";
+	body?: string;
 }
 
 function isMarshaledHeaders(value: unknown): value is Array<[string, string]> {
@@ -2024,34 +2110,26 @@ function parseMarshaledRequestInit(value: unknown): MarshaledRequestInit | undef
 		out.headers = value.headers;
 	}
 	if (value.bodyType !== undefined) {
-		if (
-			value.bodyType !== "string" &&
-			value.bodyType !== "base64" &&
-			value.bodyType !== "formdata"
-		) {
-			throw new Error('http/fetch: init.bodyType must be "string", "base64", or "formdata"');
+		if (value.bodyType !== "base64") {
+			throw new Error('http/fetch: init.bodyType must be "base64"');
 		}
 		out.bodyType = value.bodyType;
 	}
 	if (value.body !== undefined) {
-		if (out.bodyType === "formdata") {
-			if (!isFormDataPartArray(value.body)) {
-				throw new Error("http/fetch: formdata body must be an array of form parts");
-			}
-			out.body = value.body;
-		} else {
-			if (typeof value.body !== "string") {
-				throw new Error("http/fetch: string/base64 body must be a string");
-			}
-			out.body = value.body;
+		if (typeof value.body !== "string") {
+			throw new Error("http/fetch: base64 body must be a string");
 		}
+		out.body = value.body;
+	}
+	if ((out.bodyType === undefined) !== (out.body === undefined)) {
+		throw new Error("http/fetch: init.bodyType and init.body must be present together");
 	}
 	return out;
 }
 
 /**
  * Reverse the wrapper's marshalRequestInit() to reconstruct a real RequestInit
- * with proper Headers, binary bodies, and FormData.
+ * with proper Headers and a buffered binary body.
  */
 function unmarshalRequestInit(
 	marshaled: MarshaledRequestInit | undefined,
@@ -2069,32 +2147,18 @@ function unmarshalRequestInit(
 		}
 		init.headers = headers;
 	}
-	if (marshaled.bodyType && marshaled.body !== undefined) {
-		switch (marshaled.bodyType) {
-			case "string":
-				if (typeof marshaled.body !== "string") break;
-				init.body = marshaled.body;
-				break;
-			case "base64":
-				if (typeof marshaled.body !== "string") break;
-				init.body = Buffer.from(marshaled.body, "base64");
-				break;
-			case "formdata": {
-				if (!Array.isArray(marshaled.body)) break;
-				const fd = new FormData();
-				for (const part of marshaled.body) {
-					if (part.isBlob) {
-						const bytes = Buffer.from(part.value, "base64");
-						const blob = new Blob([bytes], { type: part.type || "application/octet-stream" });
-						fd.append(part.name, blob, part.filename);
-					} else {
-						fd.append(part.name, part.value);
-					}
-				}
-				init.body = fd;
-				break;
-			}
+	if (marshaled.bodyType === "base64" && marshaled.body !== undefined) {
+		if (marshaled.body.length % 4 !== 0 || !BASE64_BODY_PATTERN.test(marshaled.body)) {
+			throw new Error("http/fetch: body is not valid base64");
 		}
+		const padding = marshaled.body.endsWith("==") ? 2 : marshaled.body.endsWith("=") ? 1 : 0;
+		const decodedLength = (marshaled.body.length / 4) * 3 - padding;
+		if (decodedLength > PLUGIN_HTTP_MAX_REQUEST_BYTES) {
+			throw new Error(
+				`Plugin HTTP request body exceeds the ${PLUGIN_HTTP_MAX_REQUEST_BYTES} byte limit`,
+			);
+		}
+		init.body = Buffer.from(marshaled.body, "base64");
 	}
 	return init;
 }
@@ -2103,30 +2167,25 @@ async function httpFetch(
 	url: string,
 	marshaledInit: unknown,
 	opts: BridgeHandlerOptions,
-): Promise<{
-	status: number;
-	statusText: string;
-	headers: Record<string, string>;
-	bodyBase64: string;
-}> {
+): Promise<PluginHttpResponseWire> {
 	const hasAnyFetch = opts.capabilities.includes("network:request:unrestricted");
 	const httpAccess = hasAnyFetch
-		? createUnrestrictedHttpAccess(opts.pluginId)
-		: createHttpAccess(opts.pluginId, opts.allowedHosts || []);
+		? createUnrestrictedHttpAccess(opts.pluginId, opts.httpFetch)
+		: createHttpAccess(opts.pluginId, opts.allowedHosts || [], opts.httpFetch);
 
 	const init = unmarshalRequestInit(parseMarshaledRequestInit(marshaledInit));
 	const res = await httpAccess.fetch(url, init);
 	// Read as bytes to preserve binary content (images, audio, etc.)
 	const bytes = new Uint8Array(await res.arrayBuffer());
-	const headers: Record<string, string> = {};
-	res.headers.forEach((v, k) => {
-		headers[k] = v;
-	});
+	const headers: Array<[string, string]> = [];
+	res.headers.forEach((value, key) => headers.push([key, value]));
 	return {
 		status: res.status,
 		statusText: res.statusText,
 		headers,
-		bodyBase64: Buffer.from(bytes).toString("base64"),
+		finalUrl: res.url || url,
+		redirected: res.redirected,
+		body: bytes,
 	};
 }
 

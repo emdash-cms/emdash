@@ -739,7 +739,7 @@ export function createMcpServer(
 	}) as typeof server.registerTool;
 
 	for (const tool of pluginTools) {
-		if (!(tool.permission in Permissions)) continue;
+		if (!Object.hasOwn(Permissions, tool.permission)) continue;
 		server.registerTool(
 			`${tool.pluginId}__${tool.name}`,
 			{
@@ -784,6 +784,7 @@ export function createMcpServer(
 					);
 				}
 				if (!request) return respondError("INTERNAL_ERROR", "Missing MCP request context");
+				const routeCache = payload.cache;
 				const result = await payload.emdash.handlePluginMcpTool(
 					tool.pluginId,
 					tool.name,
@@ -792,6 +793,7 @@ export function createMcpServer(
 					payload.userId,
 					request,
 					payload.user,
+					routeCache?.enabled ? (tags) => routeCache.invalidate({ tags }) : undefined,
 				);
 				if (!result.success) return unwrap(result);
 				if (tool.outputSchema) {
@@ -1041,7 +1043,10 @@ export function createMcpServer(
 				if (itemId) {
 					return unwrapAndInvalidate(
 						extra,
-						await emdash.handleContentPublish(args.collection, itemId),
+						await emdash.handleContentPublish(args.collection, itemId, {
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
 						[args.collection, itemId],
 						true,
 					);
@@ -1197,7 +1202,11 @@ export function createMcpServer(
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentPublish(args.collection, resolvedId, { _rev: rev }),
+					await emdash.handleContentPublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1232,7 +1241,11 @@ export function createMcpServer(
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentUnpublish(args.collection, resolvedId, { _rev: rev }),
+					await emdash.handleContentUnpublish(args.collection, resolvedId, {
+						_rev: rev,
+						actor: { ...actor, source: "mcp" },
+						origin: { source: "mcp" },
+					}),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1408,6 +1421,8 @@ export function createMcpServer(
 				await emdash.handleContentPublish(args.collection, resolvedId, {
 					publishedAt: args.publishedAt,
 					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
 				}),
 				[args.collection, resolvedId],
 			);
@@ -1430,7 +1445,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1447,7 +1462,11 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentUnpublish(args.collection, resolvedId, { _rev: args._rev }),
+				await ec.handleContentUnpublish(args.collection, resolvedId, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -1464,6 +1483,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
 				),
@@ -1472,7 +1492,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1489,7 +1509,11 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt),
+				await ec.handleContentSchedule(args.collection, resolvedId, args.scheduledAt, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+					origin: { source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},

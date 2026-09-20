@@ -6,7 +6,7 @@
  * update route's escalation gates: `CAPABILITY_ESCALATION` if the new
  * version declares new capabilities and `confirmCapabilityChanges` is
  * absent, and `ROUTE_VISIBILITY_ESCALATION` if it newly exposes public
- * routes and `confirmRouteVisibilityChanges` is absent.
+ * routes and `acknowledgedPublicRoutes` does not exactly match them.
  */
 
 import { hostEnvFromVersions } from "@emdash-cms/registry-client/env";
@@ -18,6 +18,7 @@ import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleRegistryUpdate } from "#api/index.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { pluginPublicRouteAcknowledgementSchema } from "#plugins/routes.js";
 
 import { getRegistryConfigInput } from "../../../../../../../registry/config.js";
 import { VERSION } from "../../../../../../../version.js";
@@ -33,11 +34,8 @@ const updateBodySchema = z.object({
 	 * the handler returns `CAPABILITY_ESCALATION` carrying the diff.
 	 */
 	confirmCapabilityChanges: z.boolean().optional(),
-	/**
-	 * Set by the admin's route-visibility re-consent dialog when the new
-	 * version newly exposes a public (unauthenticated) route.
-	 */
-	confirmRouteVisibilityChanges: z.boolean().optional(),
+	/** Exact newly public route names reviewed by the admin. */
+	acknowledgedPublicRoutes: pluginPublicRouteAcknowledgementSchema.optional(),
 	confirmMcpTools: z.boolean().optional(),
 	acknowledgedProfileCid: z.string().min(1).max(256).optional(),
 	acknowledgedReleaseCid: z.string().min(1).max(256).optional(),
@@ -74,7 +72,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			{
 				version: body.version,
 				confirmCapabilityChanges: body.confirmCapabilityChanges,
-				confirmRouteVisibilityChanges: body.confirmRouteVisibilityChanges,
+				acknowledgedPublicRoutes: body.acknowledgedPublicRoutes,
 				confirmMcpTools: body.confirmMcpTools,
 				acknowledgedProfileCid: body.acknowledgedProfileCid,
 				acknowledgedReleaseCid: body.acknowledgedReleaseCid,

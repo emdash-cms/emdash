@@ -47,6 +47,13 @@ import { assertStorageKey } from "./conditional-storage.js";
 import { createContentAccess } from "./content-access.js";
 import { CronAccessImpl } from "./cron.js";
 import type { EmailPipeline } from "./email.js";
+import {
+	bufferPluginHttpRequest,
+	pluginHttpRedirectAction,
+	pluginHttpResponseFromWire,
+	pluginHttpResponseToWire,
+	rewritePluginHttpRedirect,
+} from "./http-wire.js";
 import { readPluginMediaBytes, toPluginMediaItem, updatePluginMediaMetadata } from "./media.js";
 import {
 	createPluginSecretRedactor,
@@ -64,6 +71,7 @@ import type {
 	EmailAccess,
 	ContentAccess,
 	ContentAccessWithWrite,
+	VersionedContentItem,
 	MediaAccess,
 	MediaAccessWithWrite,
 	HttpAccess,
@@ -1077,20 +1085,28 @@ export function createMediaAccessWithWrite(
 /** Maximum number of redirects to follow in plugin HTTP access */
 const MAX_PLUGIN_REDIRECTS = 5;
 
+function stripTrailingDots(value: string): string {
+	let end = value.length;
+	while (end > 0 && value.charCodeAt(end - 1) === 46) end--;
+	return end === value.length ? value : value.slice(0, end);
+}
+
 /**
  * Check if a hostname matches any pattern in the allowed list.
  * Patterns: "*" matches all, "*.example.com" matches subdomains AND bare "example.com",
  * "api.example.com" matches exactly.
  */
 function isHostAllowed(host: string, allowedHosts: string[]): boolean {
+	const normalizedHost = stripTrailingDots(host.toLowerCase());
 	return allowedHosts.some((pattern) => {
-		if (pattern === "*") return true;
-		if (pattern.startsWith("*.")) {
-			const suffix = pattern.slice(1); // ".example.com"
+		const normalizedPattern = stripTrailingDots(pattern.toLowerCase());
+		if (normalizedPattern === "*") return true;
+		if (normalizedPattern.startsWith("*.")) {
+			const suffix = normalizedPattern.slice(1); // ".example.com"
 			// Match subdomains (foo.example.com) and bare domain (example.com)
-			return host.endsWith(suffix) || host === pattern.slice(2);
+			return normalizedHost.endsWith(suffix) || normalizedHost === normalizedPattern.slice(2);
 		}
-		return host === pattern;
+		return normalizedHost === normalizedPattern;
 	});
 }
 
@@ -1120,7 +1136,11 @@ async function validatePluginHttpTarget(pluginId: string, url: string): Promise<
  *
  * Uses redirect: "manual" to re-validate each redirect target before dispatch.
  */
-export function createHttpAccess(pluginId: string, allowedHosts: string[]): HttpAccess {
+export function createHttpAccess(
+	pluginId: string,
+	allowedHosts: string[],
+	fetchImpl: typeof fetch = globalThis.fetch,
+): HttpAccess {
 	return {
 		async fetch(url: string, init?: RequestInit): Promise<Response> {
 			// Deny by default — plugins must declare allowed hosts
@@ -1133,6 +1153,8 @@ export function createHttpAccess(pluginId: string, allowedHosts: string[]): Http
 
 			let currentUrl = url;
 			let currentInit = init;
+			let requestBuffered = false;
+			let redirected = false;
 
 			for (let i = 0; i <= MAX_PLUGIN_REDIRECTS; i++) {
 				const target = tryParsePluginHttpTarget(currentUrl);
@@ -1143,27 +1165,39 @@ export function createHttpAccess(pluginId: string, allowedHosts: string[]): Http
 					);
 				}
 				await validatePluginHttpTarget(pluginId, currentUrl);
+				if (!requestBuffered) {
+					currentInit = await bufferPluginHttpRequest(currentInit);
+					requestBuffered = true;
+				}
 
-				const response = await globalThis.fetch(currentUrl, {
+				const response = await fetchImpl(currentUrl, {
 					...currentInit,
 					redirect: "manual",
 				});
 
-				// Not a redirect -- return directly
-				if (response.status < 300 || response.status >= 400) {
-					return response;
-				}
-
-				// Extract redirect target
 				const location = response.headers.get("Location");
-				if (!location) {
-					return response;
+				if (location === null) {
+					return pluginHttpResponseFromWire(
+						await pluginHttpResponseToWire(response, currentUrl, redirected),
+					);
+				}
+				const redirectAction = pluginHttpRedirectAction(response.status, true, currentInit);
+				if (redirectAction === "return") {
+					return pluginHttpResponseFromWire(
+						await pluginHttpResponseToWire(response, currentUrl, redirected),
+					);
+				}
+				await response.body?.cancel();
+				if (redirectAction === "error") {
+					throw new Error(`Plugin "${pluginId}": redirect mode is "error"`);
 				}
 
 				// Resolve relative redirects; strip credentials on cross-origin hops
 				const previousOrigin = new URL(currentUrl).origin;
 				currentUrl = new URL(location, currentUrl).href;
+				redirected = true;
 				const nextOrigin = new URL(currentUrl).origin;
+				currentInit = rewritePluginHttpRedirect(response.status, currentInit);
 
 				if (previousOrigin !== nextOrigin && currentInit) {
 					currentInit = stripCredentialHeaders(currentInit);
@@ -1176,39 +1210,56 @@ export function createHttpAccess(pluginId: string, allowedHosts: string[]): Http
 }
 
 /**
- * Create unrestricted HTTP access (for plugins with network:fetch:any capability).
+ * Create unrestricted HTTP access (for plugins with network:request:unrestricted capability).
  * No host validation, but applies SSRF protection on redirect targets to
  * prevent plugins from being tricked into reaching internal services.
  */
-export function createUnrestrictedHttpAccess(pluginId: string): HttpAccess {
+export function createUnrestrictedHttpAccess(
+	pluginId: string,
+	fetchImpl: typeof fetch = globalThis.fetch,
+): HttpAccess {
 	return {
 		async fetch(url: string, init?: RequestInit): Promise<Response> {
 			let currentUrl = url;
 			let currentInit = init;
+			let requestBuffered = false;
+			let redirected = false;
 
 			for (let i = 0; i <= MAX_PLUGIN_REDIRECTS; i++) {
 				await validatePluginHttpTarget(pluginId, currentUrl);
+				if (!requestBuffered) {
+					currentInit = await bufferPluginHttpRequest(currentInit);
+					requestBuffered = true;
+				}
 
-				const response = await globalThis.fetch(currentUrl, {
+				const response = await fetchImpl(currentUrl, {
 					...currentInit,
 					redirect: "manual",
 				});
 
-				// Not a redirect -- return directly
-				if (response.status < 300 || response.status >= 400) {
-					return response;
-				}
-
-				// Extract redirect target
 				const location = response.headers.get("Location");
-				if (!location) {
-					return response;
+				if (location === null) {
+					return pluginHttpResponseFromWire(
+						await pluginHttpResponseToWire(response, currentUrl, redirected),
+					);
+				}
+				const redirectAction = pluginHttpRedirectAction(response.status, true, currentInit);
+				if (redirectAction === "return") {
+					return pluginHttpResponseFromWire(
+						await pluginHttpResponseToWire(response, currentUrl, redirected),
+					);
+				}
+				await response.body?.cancel();
+				if (redirectAction === "error") {
+					throw new Error(`Plugin "${pluginId}": redirect mode is "error"`);
 				}
 
 				// Resolve relative redirects; strip credentials on cross-origin hops
 				const previousOrigin = new URL(currentUrl).origin;
 				currentUrl = new URL(location, currentUrl).href;
+				redirected = true;
 				const nextOrigin = new URL(currentUrl).origin;
+				currentInit = rewritePluginHttpRedirect(response.status, currentInit);
 
 				if (previousOrigin !== nextOrigin && currentInit) {
 					currentInit = stripCredentialHeaders(currentInit);
@@ -1406,6 +1457,7 @@ export interface PluginContextFactoryOptions {
 	db: Kysely<Database>;
 	beforeContentWrite?: () => Promise<void>;
 	contentCreate?: PluginContentCreateCallback;
+	contentActions?: ContentActionCallbacks;
 	/**
 	 * Resolver for the database connection, preferred over `db` when present.
 	 * Called per `createContext()` so connection-backed adapters (e.g. Postgres
@@ -1463,6 +1515,67 @@ export interface PluginContextFactoryOptions {
 	) => Promise<PluginComment>;
 }
 
+export interface ContentActionCallbacks {
+	/** Register a sandbox invocation before it can call a content action. */
+	begin?(
+		pluginId: string,
+		invocationId: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): void;
+	/** Release queued after-hooks; `final: false` keeps late actions self-scheduling after timeout. */
+	flush(pluginId: string, invocationId?: string, final?: boolean): Promise<void>;
+	getVersioned(
+		pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null>;
+	publish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+	unpublish(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+	schedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { scheduledAt: string; _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+	unschedule(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+	getTrashedVersioned(
+		pluginId: string,
+		collection: string,
+		id: string,
+	): Promise<VersionedContentItem | null>;
+	restore(
+		pluginId: string,
+		collection: string,
+		id: string,
+		options: { _rev: string },
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<VersionedContentItem>;
+}
+
 /**
  * Factory for creating plugin contexts
  */
@@ -1470,6 +1583,7 @@ export class PluginContextFactory {
 	private resolveDb: () => Kysely<Database>;
 	private beforeContentWrite?: () => Promise<void>;
 	private contentCreate?: PluginContentCreateCallback;
+	private contentActions?: ContentActionCallbacks;
 	private storage?: Storage;
 	private getUploadUrl?: (
 		filename: string,
@@ -1493,6 +1607,7 @@ export class PluginContextFactory {
 		this.resolveDb = options.getDb ?? (() => fixedDb);
 		this.beforeContentWrite = options.beforeContentWrite;
 		this.contentCreate = options.contentCreate;
+		this.contentActions = options.contentActions;
 		this.storage = options.storage;
 		this.getUploadUrl = options.getUploadUrl;
 		this.site = createSiteInfo(options.siteInfo ?? {});
@@ -1551,6 +1666,41 @@ export class PluginContextFactory {
 				site: this.site,
 				revisions: capabilities.has("content:revisions:read"),
 			});
+		}
+		if (capabilities.has("content:publish") && this.contentActions) {
+			content = Object.assign(content ?? createContentAccess(db), {
+				getVersioned: (collection: string, id: string) =>
+					this.contentActions!.getVersioned(plugin.id, collection, id),
+				publish: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.publish(plugin.id, collection, id, options),
+				unpublish: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.unpublish(plugin.id, collection, id, options),
+				schedule: (
+					collection: string,
+					id: string,
+					options: { scheduledAt: string; _rev: string },
+				) => this.contentActions!.schedule(plugin.id, collection, id, options),
+				unschedule: (collection: string, id: string, options: { _rev: string }) =>
+					this.contentActions!.unschedule(plugin.id, collection, id, options),
+			});
+		}
+		if (capabilities.has("content:restore") && this.contentActions) {
+			content = Object.assign(
+				content ?? {
+					get: async () => {
+						throw new Error("Missing capability: content:read");
+					},
+					list: async () => {
+						throw new Error("Missing capability: content:read");
+					},
+				},
+				{
+					getTrashedVersioned: (collection: string, id: string) =>
+						this.contentActions!.getTrashedVersioned(plugin.id, collection, id),
+					restore: (collection: string, id: string, options: { _rev: string }) =>
+						this.contentActions!.restore(plugin.id, collection, id, options),
+				},
+			);
 		}
 
 		const schema = capabilities.has("schema:read") ? createSchemaAccess(db) : undefined;

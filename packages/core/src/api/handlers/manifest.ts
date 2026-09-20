@@ -270,11 +270,12 @@ function extractFieldType(name: string, schema: unknown): FieldDescriptor {
 
 function dbFieldDescriptor(field: Field): ManifestFieldDescriptor {
 	const entry: ManifestFieldDescriptor = {
-		kind: FIELD_TYPE_TO_KIND[field.type] ?? "string",
+		kind: field.unsupportedType ? "unsupported" : FIELD_TYPE_TO_KIND[field.type],
 		label: field.label,
 		required: field.required,
 		id: field.id,
 	};
+	if (field.unsupportedType) entry.unsupportedType = field.unsupportedType;
 
 	if (field.widget) entry.widget = field.widget;
 	if (field.options) entry.options = field.options;

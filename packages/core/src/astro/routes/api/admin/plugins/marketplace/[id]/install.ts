@@ -12,12 +12,14 @@ import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleMarketplaceInstall } from "#api/index.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { pluginPublicRouteAcknowledgementSchema } from "#plugins/routes.js";
 
 export const prerender = false;
 
 const installBodySchema = z.object({
 	version: z.string().min(1).optional(),
 	confirmMcpTools: z.boolean().optional(),
+	acknowledgedPublicRoutes: pluginPublicRouteAcknowledgementSchema.optional(),
 });
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
@@ -60,6 +62,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				siteOrigin,
 				sandboxBypassed: emdash.isSandboxBypassed(),
 				confirmMcpTools: body.confirmMcpTools,
+				acknowledgedPublicRoutes: body.acknowledgedPublicRoutes,
 			},
 		);
 

@@ -16,8 +16,11 @@ export interface CanonicalDeclaredAccess {
 		read?: CanonicalAccessConstraints;
 	}>;
 	readonly content?: Readonly<{
+		policy?: CanonicalAccessConstraints;
+		publish?: CanonicalAccessConstraints;
 		read?: CanonicalAccessConstraints;
 		revisionsRead?: CanonicalAccessConstraints;
+		restore?: CanonicalAccessConstraints;
 		write?: CanonicalAccessConstraints;
 	}>;
 	readonly schema?: Readonly<{ read?: CanonicalAccessConstraints }>;
@@ -192,13 +195,15 @@ function normalizeDeclaredAccess(value: DeclaredAccess): CanonicalObject {
 			normalizedOperations.read ??= Object.freeze({});
 		}
 		if (
-			(category === "content" ||
+			(((category === "content" ||
 				category === "media" ||
 				category === "redirects" ||
 				category === "taxonomies") &&
-			Object.hasOwn(normalizedOperations, "write")
+				Object.hasOwn(normalizedOperations, "write")) ||
+				(category === "content" && Object.hasOwn(normalizedOperations, "publish"))) &&
+			!Object.hasOwn(normalizedOperations, "read")
 		) {
-			normalizedOperations.read ??= Object.freeze({});
+			normalizedOperations.read = Object.freeze({});
 		}
 		if (category === "content" && Object.hasOwn(normalizedOperations, "revisionsRead")) {
 			normalizedOperations.read ??= Object.freeze({});

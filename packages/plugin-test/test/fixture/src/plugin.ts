@@ -1,10 +1,13 @@
-import type {
-	PluginContext,
-	RedirectCreateInput,
-	RedirectListOptions,
-	RedirectStatus,
-	RedirectUpdateInput,
-	SandboxedPlugin,
+import {
+	pluginResponse,
+	pluginRoute,
+	type ContentPolicyEvent,
+	type PluginContext,
+	type RedirectCreateInput,
+	type RedirectListOptions,
+	type RedirectStatus,
+	type RedirectUpdateInput,
+	type SandboxedPlugin,
 } from "emdash/plugin";
 
 let isolateId: string | undefined;
@@ -108,6 +111,18 @@ async function record(
 	await ctx.storage[collection]!.put(String(++recordSequence).padStart(8, "0"), { type, ...data });
 }
 
+function policyActor(event: ContentPolicyEvent) {
+	return { origin: event.origin, actor: event.actor };
+}
+
+async function recordContentAction(ctx: PluginContext, action: string, contentId: string) {
+	await ctx.storage.events!.put(`action:${action}:${contentId}`, {
+		type: "content-action",
+		action,
+		contentId,
+	});
+}
+
 const plugin: SandboxedPlugin = {
 	hooks: {
 		"plugin:install": async (_event, ctx) => record(ctx, "lifecycle", "install"),
@@ -139,6 +154,64 @@ const plugin: SandboxedPlugin = {
 				});
 			},
 		},
+		"content:beforePublish": async (event, ctx) => {
+			await record(ctx, "events", "content-policy", {
+				hook: "content:beforePublish",
+				...policyActor(event),
+			});
+			const reason = await ctx.kv.get("policy:content:beforePublish");
+			if (await ctx.kv.get("policy:reenter-publish")) {
+				const current = await ctx.content!.getVersioned!(
+					event.collection,
+					String(event.content.id),
+				);
+				try {
+					await ctx.content!.publish!(event.collection, String(event.content.id), {
+						_rev: current!._rev,
+					});
+				} catch (error) {
+					await record(ctx, "events", "content-action-rejected", {
+						code:
+							typeof error === "object" &&
+							error !== null &&
+							"code" in error &&
+							typeof error.code === "string"
+								? error.code
+								: "UNKNOWN",
+					});
+					return { cancel: true, reason: "Nested publication was blocked." };
+				}
+			}
+			if (reason === "__invalid__") return { cancel: true, reason: "" };
+			return typeof reason === "string" ? { cancel: true, reason } : undefined;
+		},
+		"content:beforeSchedule": async (event, ctx) => {
+			await record(ctx, "events", "content-policy", {
+				hook: "content:beforeSchedule",
+				...policyActor(event),
+				scheduledAt: event.scheduledAt,
+			});
+			const reason = await ctx.kv.get("policy:content:beforeSchedule");
+			return typeof reason === "string" ? { cancel: true, reason } : undefined;
+		},
+		"content:beforeUnpublish": async (event, ctx) => {
+			await record(ctx, "events", "content-policy", {
+				hook: "content:beforeUnpublish",
+				...policyActor(event),
+			});
+			const reason = await ctx.kv.get("policy:content:beforeUnpublish");
+			return typeof reason === "string" ? { cancel: true, reason } : undefined;
+		},
+		"content:afterPublish": (event, ctx) =>
+			recordContentAction(ctx, "publish", String(event.content.id)),
+		"content:afterUnpublish": (event, ctx) =>
+			recordContentAction(ctx, "unpublish", String(event.content.id)),
+		"content:afterSchedule": (event, ctx) =>
+			recordContentAction(ctx, "schedule", String(event.content.id)),
+		"content:afterUnschedule": (event, ctx) =>
+			recordContentAction(ctx, "unschedule", String(event.content.id)),
+		"content:afterRestore": (event, ctx) =>
+			recordContentAction(ctx, "restore", String(event.content.id)),
 		"media:beforeUpload": async (event) => ({
 			...event.file,
 			name: `checked-${event.file.name}`,
@@ -180,6 +253,138 @@ const plugin: SandboxedPlugin = {
 			record(ctx, "events", "cron", { name: event.name, scheduledAt: event.scheduledAt }),
 	},
 	routes: {
+		admin: {
+			permission: "plugins:manage",
+			handler: async (route) => {
+				if (
+					typeof route.input === "object" &&
+					route.input !== null &&
+					"action_id" in route.input &&
+					route.input.action_id === "oversized-response"
+				) {
+					return { blocks: Array.from({ length: 1_001 }, () => ({ type: "divider" })) };
+				}
+				if (
+					typeof route.input === "object" &&
+					route.input !== null &&
+					"action_id" in route.input &&
+					route.input.action_id === "unsafe-image"
+				) {
+					return {
+						blocks: [{ type: "image", url: "https://tracker.example/pixel.gif", alt: "" }],
+					};
+				}
+				return {
+					blocks: [
+						{
+							type: "fields",
+							fields: [
+								{ label: "Surface", value: route.ui?.surface ?? "missing" },
+								{ label: "Locale", value: route.ui?.locale ?? "missing" },
+								{ label: "Direction", value: route.ui?.direction ?? "missing" },
+							],
+						},
+						{
+							type: "actions",
+							elements: [
+								{
+									type: "link",
+									label: "Plugin overview",
+									target: { kind: "plugin-page", path: "/overview" },
+								},
+								{
+									type: "link",
+									label: "Documentation",
+									target: { kind: "external", url: "https://docs.example.test/plugin" },
+								},
+							],
+						},
+						{ type: "image", url: "/plugin-assets/status.png", alt: "Plugin status" },
+					],
+				};
+			},
+		},
+		"entry-context": {
+			permission: "content:edit_own",
+			handler: async (route) => {
+				if (route.ui?.surface !== "content-editor-panel") {
+					throw new Error("Expected editor panel context");
+				}
+				if (
+					typeof route.input === "object" &&
+					route.input !== null &&
+					"action_id" in route.input &&
+					route.input.action_id === "invalid"
+				) {
+					return { blocks: [{ type: "unknown" }] };
+				}
+				return {
+					blocks: [
+						{
+							type: "fields",
+							fields: [
+								{ label: "Surface", value: route.ui.surface },
+								{ label: "Extension", value: route.ui.extensionId },
+								{ label: "Collection", value: route.ui.entry.collection },
+								{ label: "Entry", value: route.ui.entry.id },
+								{ label: "Content locale", value: route.ui.entry.locale ?? "missing" },
+								{ label: "Version", value: String(route.ui.entry.version) },
+							],
+						},
+					],
+				};
+			},
+		},
+		"refresh-entry": {
+			permission: "content:edit_own",
+			handler: async (route) => {
+				if (route.ui?.surface !== "content-editor-action") {
+					throw new Error("Expected editor action context");
+				}
+				return {
+					refresh: true,
+					toast: {
+						type: "success",
+						message: `${route.ui.entry.collection}/${route.ui.entry.id} refreshed`,
+					},
+				};
+			},
+		},
+		"invalid-action": {
+			permission: "content:edit_own",
+			handler: async () => ({ refresh: true, navigate: { kind: "plugin-settings" } }),
+		},
+		"raw-download": pluginRoute({
+			public: true,
+			methods: ["POST"],
+			request: { body: "bytes", maxBytes: 1024 },
+			response: "raw",
+			handler: async (route) =>
+				pluginResponse({
+					status: 202,
+					headers: { "content-type": "application/octet-stream" },
+					body: { kind: "bytes", value: route.input },
+				}),
+		}),
+		"declared-headers": pluginRoute({
+			public: true,
+			methods: ["POST"],
+			request: { body: "none", headers: ["x-signature"] },
+			handler: async (route) => ({
+				signature: route.request.headers["x-signature"] ?? "missing",
+				hidden: route.request.headers["x-hidden"] ?? "missing",
+			}),
+		}),
+		"raw-form": pluginRoute({
+			public: true,
+			methods: ["POST"],
+			request: { body: "form-data", maxBytes: 4096 },
+			handler: async (route) => ({
+				entries: route.input.entries.map((entry) =>
+					entry.kind === "file" ? { ...entry, bytes: [...entry.bytes] } : entry,
+				),
+			}),
+		}),
 		"isolate-id": {
 			public: true,
 			cacheControl: "public, max-age=60",
@@ -472,7 +677,7 @@ const plugin: SandboxedPlugin = {
 				};
 				return ctx.content.create(
 					"posts",
-					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to a non-null record above
+					// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed to a non-null record above
 					route.input.data as Record<string, unknown>,
 					options,
 				);
@@ -556,6 +761,69 @@ const plugin: SandboxedPlugin = {
 				};
 			},
 		},
+		"content-action": {
+			handler: async (route, ctx) => {
+				if (typeof route.input !== "object" || route.input === null) {
+					throw new Error("Expected content action input");
+				}
+				const input = route.input;
+				if (!("action" in input) || !("collection" in input) || !("id" in input)) {
+					throw new Error("Expected action, collection, and id");
+				}
+				const action = input.action;
+				const collection = input.collection;
+				const id = input.id;
+				if (
+					typeof action !== "string" ||
+					typeof collection !== "string" ||
+					typeof id !== "string"
+				) {
+					throw new Error("Expected action, collection, and id");
+				}
+				if (action === "getTrashedVersioned") {
+					return ctx.content!.getTrashedVersioned!(collection, id);
+				}
+				if (action === "getVersioned") return ctx.content!.getVersioned!(collection, id);
+				if (!("_rev" in input) || typeof input._rev !== "string") {
+					throw new Error("Expected _rev");
+				}
+				if (action === "publish") {
+					try {
+						return await ctx.content!.publish!(collection, id, { _rev: input._rev });
+					} catch (error) {
+						return {
+							actionError: {
+								code:
+									typeof error === "object" &&
+									error !== null &&
+									"code" in error &&
+									typeof error.code === "string"
+										? error.code
+										: "UNKNOWN",
+							},
+						};
+					}
+				}
+				if (action === "unpublish") {
+					return ctx.content!.unpublish!(collection, id, { _rev: input._rev });
+				}
+				if (action === "schedule") {
+					if (!("scheduledAt" in input) || typeof input.scheduledAt !== "string") {
+						throw new Error("Expected scheduledAt");
+					}
+					return ctx.content!.schedule!(collection, id, {
+						scheduledAt: input.scheduledAt,
+						_rev: input._rev,
+					});
+				}
+				if (action === "unschedule") {
+					return ctx.content!.unschedule!(collection, id, { _rev: input._rev });
+				}
+				if (action === "restore")
+					return ctx.content!.restore!(collection, id, { _rev: input._rev });
+				throw new Error(`Unknown content action: ${action}`);
+			},
+		},
 		"settings-value": {
 			handler: async (_route, ctx) => ({
 				enabled: await ctx.settings.get("enabled"),
@@ -623,6 +891,34 @@ const plugin: SandboxedPlugin = {
 					text: "Captured by the test host",
 				});
 				return { sent: true };
+			},
+		},
+		"http-roundtrip": {
+			handler: async (route, ctx) => {
+				if (
+					typeof route.input !== "object" ||
+					route.input === null ||
+					!("url" in route.input) ||
+					typeof route.input.url !== "string"
+				) {
+					throw new Error("Expected an HTTP URL");
+				}
+				const requestBytes = new Uint8Array([0, 255, 195, 40]);
+				const response = await ctx.http!.fetch(route.input.url, {
+					method: "POST",
+					headers: { "content-type": "application/octet-stream" },
+					body: requestBytes,
+				});
+				const clone = response.clone();
+				return {
+					status: response.status,
+					statusText: response.statusText,
+					url: response.url,
+					redirected: response.redirected,
+					contentType: response.headers.get("content-type"),
+					bytes: [...new Uint8Array(await response.arrayBuffer())],
+					cloneBytes: [...new Uint8Array(await clone.arrayBuffer())],
+				};
 			},
 		},
 	},

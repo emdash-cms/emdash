@@ -14,6 +14,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { z } from "zod";
 
 import {
 	extractManifest,
@@ -119,6 +120,66 @@ describe("extractManifest", () => {
 		]);
 	});
 
+	it("emits raw request and response route metadata", () => {
+		const plugin = mockPlugin({
+			routes: {
+				upload: {
+					handler: vi.fn(),
+					methods: ["POST"],
+					request: {
+						body: "bytes",
+						maxBytes: 4096,
+						headers: ["content-type", "x-upload-token"],
+					},
+					response: "raw",
+				},
+			},
+		});
+
+		const manifest = extractManifest(plugin);
+		expect(manifest.routes).toEqual([
+			{
+				name: "upload",
+				methods: ["POST"],
+				request: {
+					body: "bytes",
+					maxBytes: 4096,
+					headers: ["content-type", "x-upload-token"],
+				},
+				response: "raw",
+			},
+		]);
+	});
+
+	it.each([
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects MCP tools with an incompatible route %#", (routeOptions) => {
+		expect(() =>
+			extractManifest(
+				mockPlugin({
+					routes: {
+						tool: {
+							handler: vi.fn(),
+							permission: "plugins:manage",
+							...routeOptions,
+						},
+					},
+					mcp: {
+						tools: {
+							tool: {
+								description: "Manage a resource.",
+								route: "tool",
+								input: z.object({}),
+							},
+						},
+					},
+				}),
+			),
+		).toThrow("POST-compatible JSON route");
+	});
+
 	it("strips admin.entry (host-only concern, not in bundles)", () => {
 		const plugin = mockPlugin({
 			admin: {
@@ -133,6 +194,22 @@ describe("extractManifest", () => {
 		expect((manifest.admin as any).entry).toBeUndefined();
 		expect(manifest.admin.settingsSchema).toBeDefined();
 		expect(manifest.admin.pages).toHaveLength(1);
+	});
+
+	it.each([
+		{ response: "raw" as const },
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (routeOptions) => {
+		expect(() =>
+			extractManifest(
+				mockPlugin({
+					routes: { admin: { ...routeOptions, handler: vi.fn() } },
+					admin: { pages: [{ id: "overview", title: "Overview" }], widgets: [] },
+				}),
+			),
+		).toThrow("Block Kit admin route must accept POST JSON requests and return JSON");
 	});
 
 	it("result is JSON-serializable (no functions survive)", () => {

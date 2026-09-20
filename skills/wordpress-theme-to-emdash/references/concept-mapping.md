@@ -86,7 +86,8 @@ Content queries return a `cacheHint`. Pass it to `Astro.cache.set(cacheHint)` so
 | Social links or site-wide editorial values   | Existing site setting when available; otherwise an explicit schema or project decision |
 | Layout width, breakpoints, and visual tokens | Site CSS derived from theme source or reference evidence                               |
 | Build-time implementation choice             | Astro configuration, not an invented CMS setting                                       |
-| Plugin-owned option                          | Plugin-scoped KV or declared storage                                                   |
+| Plugin-owned user setting                    | `ctx.settings`; secret fields are encrypted by the host                                |
+| Plugin-owned internal state                  | Plugin-scoped KV or declared storage                                                   |
 
 Do not move every Customizer value into the CMS. Expose a setting only when an editor needs to change it independently of a deployment.
 
@@ -109,18 +110,20 @@ Prefer route-specific components over repeated pathname checks when the router a
 
 Theme presentation stays in Astro. Behavior that reacts to CMS events or requires runtime authority belongs in a plugin.
 
-| WordPress hook or behavior          | EmDash destination                                                                   |
-| ----------------------------------- | ------------------------------------------------------------------------------------ |
-| `wp_head` for static theme markup   | Astro layout `<head>`                                                                |
-| `wp_footer` for static theme markup | Astro layout near the end of `<body>`                                                |
-| Dynamic validated metadata          | Plugin `page:metadata` hook                                                          |
-| Raw injected markup or scripts      | Trusted native `page:fragments`; unavailable to registry-installed sandboxed plugins |
-| `the_content` presentation          | Portable Text components or ordinary Astro rendering                                 |
-| `pre_get_posts`                     | Explicit content-query filters in the owning route                                   |
-| `save_post`                         | Plugin content lifecycle hook                                                        |
-| REST endpoint                       | Plugin route, private by default with an explicit permission                         |
-| Scheduled event                     | Plugin `cron` hook and `ctx.cron` scheduling                                         |
-| Remote service call                 | Plugin `ctx.http.fetch()` with declared network access                               |
+| WordPress hook or behavior           | EmDash destination                                                                   |
+| ------------------------------------ | ------------------------------------------------------------------------------------ |
+| `wp_head` for static theme markup    | Astro layout `<head>`                                                                |
+| `wp_footer` for static theme markup  | Astro layout near the end of `<body>`                                                |
+| Dynamic validated metadata           | Plugin `page:metadata` hook                                                          |
+| Raw injected markup or scripts       | Trusted native `page:fragments`; unavailable to registry-installed sandboxed plugins |
+| `the_content` presentation           | Portable Text components or ordinary Astro rendering                                 |
+| `pre_get_posts`                      | Explicit content-query filters in the owning route                                   |
+| `save_post`                          | Plugin content lifecycle hook                                                        |
+| REST endpoint                        | Plugin route, private by default with an explicit permission                         |
+| Scheduled event                      | Plugin `cron` hook and `ctx.cron` scheduling                                         |
+| Remote service call                  | Plugin `ctx.http.fetch()` with declared network access                               |
+| Publication filter or status change  | Publication policy hook or revision-fenced content action                            |
+| Editor metabox or saved-entry action | Sandboxed editor panel/action or trusted React extension                             |
 
 Use a sandboxed plugin by default. A trusted native plugin is warranted only for host-process access, React admin code, Astro render components, raw page fragments, or custom Portable Text block definitions.
 

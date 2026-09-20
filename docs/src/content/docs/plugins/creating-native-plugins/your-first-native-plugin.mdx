@@ -161,6 +161,11 @@ routes: {
 
 The equivalent sandboxed handler receives `(routeCtx, ctx)` as two arguments. Authentication, permissions, input schemas, and route URLs otherwise follow the shared [API routes](/plugins/creating-plugins/api-routes/) contract.
 
+Wrap a native route in `definePluginRoute()` when it declares `request.body`; the helper infers
+`ctx.input` from the body mode. A native route with `response: "raw"` returns `pluginResponse()`.
+Import both helpers from `emdash`. The shared API route guide lists the body modes, limits, response
+policy, and compatibility defaults.
+
 <Aside type="caution">
 	Capabilities gate the APIs exposed through `ctx`, but a native plugin has no isolation boundary. It can import host packages, access environment variables, call `fetch()` directly, and affect the host process. Install native packages only from publishers you trust.
 </Aside>

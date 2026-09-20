@@ -7,8 +7,6 @@
  * diff). These tests pin the rename map and the normalization helpers so
  * that the alias layer keeps working until the deprecated names are
  * removed in the next minor.
- *
- * @see Issue: "Plugin capability names are inconsistent"
  */
 
 import { describe, it, expect } from "vitest";
@@ -18,12 +16,14 @@ import {
 	isDeprecatedCapability,
 	normalizeCapabilities,
 	normalizeCapability,
+	normalizePluginCapabilities,
+	PLUGIN_CAPABILITY_IMPLICATIONS,
 } from "../../../src/plugins/types.js";
-import type { DeprecatedPluginCapability } from "../../../src/plugins/types.js";
+import type { DeprecatedPluginCapability, PluginCapability } from "../../../src/plugins/types.js";
 
 describe("CAPABILITY_RENAMES", () => {
 	it("maps every deprecated name to its current replacement", () => {
-		// Pin the rename table — if the issue's table changes, this test
+		// Pin the rename table — if the deprecation table changes, this test
 		// catches the drift. Anyone adding a deprecation should update
 		// this case explicitly.
 		expect(CAPABILITY_RENAMES).toEqual({
@@ -181,6 +181,36 @@ describe("normalizeCapabilities", () => {
 		const once = normalizeCapabilities(input);
 		const twice = normalizeCapabilities(once);
 
+		expect(twice).toEqual(once);
+	});
+});
+
+describe("normalizePluginCapabilities", () => {
+	it.each(PLUGIN_CAPABILITY_IMPLICATIONS)("implies %s -> %s", (granted, implied) => {
+		expect(normalizePluginCapabilities([granted])).toEqual([granted, implied]);
+	});
+
+	it.each([
+		["write:content", "content:write", "content:read"],
+		["write:media", "media:write", "media:read"],
+		["network:fetch:any", "network:request:unrestricted", "network:request"],
+	] as const)("normalizes alias %s before applying implications", (alias, canonical, implied) => {
+		expect(normalizePluginCapabilities([alias])).toEqual([canonical, implied]);
+	});
+
+	it("deduplicates explicit implied capabilities in stable order", () => {
+		expect(
+			normalizePluginCapabilities(["redirects:read", "redirects:write", "redirects:read"]),
+		).toEqual(["redirects:read", "redirects:write"]);
+	});
+
+	it("is idempotent and does not mutate its input", () => {
+		const input: PluginCapability[] = ["write:content", "redirects:write", "network:fetch:any"];
+		const snapshot = [...input];
+		const once = normalizePluginCapabilities(input);
+		const twice = normalizePluginCapabilities(once);
+
+		expect(input).toEqual(snapshot);
 		expect(twice).toEqual(once);
 	});
 });

@@ -14,6 +14,7 @@ import type {
 	CommentListOptions,
 	ConditionalDeleteResult,
 	ConditionalWriteResult,
+	ContentActionCallbacks,
 	ContentCreateOptions,
 	CronTaskInfo,
 	Database,
@@ -27,6 +28,7 @@ import type {
 	RedirectUpdateInput,
 	PluginContentItem,
 	SandboxContentCreateCallback,
+	PluginHttpResponseWire,
 	SandboxEmailSendCallback,
 	Storage,
 	TaxonomyAccessWithWrite,
@@ -82,6 +84,7 @@ const SYSTEM_COLUMNS = new Set([
 /** Regex to validate file extensions (simple alphanumeric, 1-10 chars) */
 const FILE_EXT_REGEX = /^\.[a-z0-9]{1,10}$/i;
 const COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
+const CONTENT_ACTION_ERROR_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
 
 function invalidCommentStatus(value: string, name: string): string | null {
 	return COMMENT_STATUSES.has(value) ? null : `${name} must be one of: approved, pending, spam`;
@@ -99,10 +102,12 @@ function invalidCommentStatus(value: string, name: string): string | null {
 let emailSendCallback: SandboxEmailSendCallback | null = null;
 const CONTENT_CREATE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-create-callbacks");
 const TAXONOMY_WRITE_CALLBACKS_KEY = Symbol.for("emdash:sandbox-taxonomy-write-callbacks");
+const CONTENT_ACTION_CALLBACKS_KEY = Symbol.for("emdash:sandbox-content-action-callbacks");
 let cronRescheduleCallback: (() => void) | null = null;
 let cronNowCallback: (() => Date) | null = null;
 let commentModerateCallback: SandboxCommentModerateCallback | null = null;
 let mediaStorageCallback: Pick<Storage, "download"> | null = null;
+const httpFetchCallbacks = new Map<string, typeof fetch>();
 
 function contentCreateCallbacks(): Map<string, SandboxContentCreateCallback> {
 	const store = globalThis as Record<symbol, unknown>;
@@ -128,6 +133,18 @@ function taxonomyWriteCallbacks(): Map<string, TaxonomyAccessWithWrite> {
 	return callbacks;
 }
 
+function contentActionCallbacks(): Map<string, ContentActionCallbacks> {
+	const store = globalThis as Record<symbol, unknown>;
+	const existing = store[CONTENT_ACTION_CALLBACKS_KEY];
+	if (existing instanceof Map) {
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- this private Symbol stores only callback maps created below
+		return existing as Map<string, ContentActionCallbacks>;
+	}
+	const callbacks = new Map<string, ContentActionCallbacks>();
+	store[CONTENT_ACTION_CALLBACKS_KEY] = callbacks;
+	return callbacks;
+}
+
 /**
  * Set the email send callback for all bridge instances.
  * Called by the runner when the EmailPipeline is available.
@@ -142,6 +159,35 @@ export function setContentCreateCallback(
 ): void {
 	if (callback) contentCreateCallbacks().set(runtimeId, callback);
 	else contentCreateCallbacks().delete(runtimeId);
+}
+
+export function setContentActionsCallback(
+	runtimeId: string,
+	callback: ContentActionCallbacks | null,
+): void {
+	if (callback) contentActionCallbacks().set(runtimeId, callback);
+	else contentActionCallbacks().delete(runtimeId);
+}
+
+export function beginContentActionCallbacks(
+	runtimeId: string,
+	pluginId: string,
+	invocationId: string,
+	invalidateContentCache?: (tags: string[]) => Promise<void>,
+): void {
+	contentActionCallbacks().get(runtimeId)?.begin?.(pluginId, invocationId, invalidateContentCache);
+}
+
+export function flushContentActionCallbacks(
+	runtimeId: string,
+	pluginId: string,
+	invocationId: string,
+	final: boolean,
+): Promise<void> {
+	return (
+		contentActionCallbacks().get(runtimeId)?.flush(pluginId, invocationId, final) ??
+		Promise.resolve()
+	);
 }
 
 export function setCronRescheduleCallback(callback: (() => void) | null): void {
@@ -168,11 +214,35 @@ export function setTaxonomyWriteCallback(
 	else taxonomyWriteCallbacks().delete(runtimeId);
 }
 
+export function setHttpFetchCallback(key: string, callback: typeof fetch | null): void {
+	if (callback) httpFetchCallbacks.set(key, callback);
+	else httpFetchCallbacks.delete(key);
+}
+
 function serializeValue(value: unknown): unknown {
 	if (value === null || value === undefined) return null;
 	if (typeof value === "boolean") return value ? 1 : 0;
 	if (typeof value === "object") return JSON.stringify(value);
 	return value;
+}
+
+async function forwardContentAction<T>(fn: () => Promise<T>): Promise<T | Record<string, unknown>> {
+	try {
+		return await fn();
+	} catch (error) {
+		if (
+			error instanceof Error &&
+			"code" in error &&
+			typeof error.code === "string" &&
+			CONTENT_ACTION_ERROR_CODE_REGEX.test(error.code)
+		) {
+			return {
+				__emdashContentActionError: true,
+				error: { code: error.code, message: error.message },
+			};
+		}
+		throw error;
+	}
 }
 
 function rowToContentItem(collection: string, row: Record<string, unknown>) {
@@ -304,6 +374,7 @@ export interface PluginBridgeProps {
 	allowedHosts: string[];
 	storageCollections: string[];
 	contentCreateRuntimeId?: string;
+	contentActionsRuntimeId?: string;
 	taxonomyWriteRuntimeId?: string;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: {
@@ -312,6 +383,7 @@ export interface PluginBridgeProps {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	httpFetchKey?: string;
 	/** Per-collection storage config (matches manifest.storage entries) */
 	storageConfig?: Record<
 		string,
@@ -1159,6 +1231,102 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		}
 	}
 
+	private requireContentActions(capability: "content:publish" | "content:restore") {
+		if (!this.ctx.props.capabilities.includes(capability)) {
+			throw new Error(`Missing capability: ${capability}`);
+		}
+		const runtimeId = this.ctx.props.contentActionsRuntimeId;
+		const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
+		if (!callbacks) throw new Error("Content actions are not configured");
+		return callbacks;
+	}
+
+	contentGetVersioned(collection: string, id: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").getVersioned(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+			),
+		);
+	}
+
+	contentPublish(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").publish(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentUnpublish(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").unpublish(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentSchedule(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		revision: string,
+		invocationId?: string,
+	) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").schedule(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ scheduledAt, _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentUnschedule(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:publish").unschedule(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
+	contentGetTrashedVersioned(collection: string, id: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:restore").getTrashedVersioned(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+			),
+		);
+	}
+
+	contentRestore(collection: string, id: string, revision: string, invocationId?: string) {
+		return forwardContentAction(() =>
+			this.requireContentActions("content:restore").restore(
+				this.ctx.props.pluginId,
+				collection,
+				id,
+				{ _rev: revision },
+				invocationId,
+			),
+		);
+	}
+
 	// =========================================================================
 	// Taxonomy Operations - capability-gated
 	// =========================================================================
@@ -1530,16 +1698,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 	// Network Operations - capability-gated + host validation
 	// =========================================================================
 
-	async httpFetch(
-		url: string,
-		init?: RequestInit,
-	): Promise<{
-		status: number;
-		headers: Record<string, string>;
-		text: string;
-	}> {
-		const { capabilities, allowedHosts } = this.ctx.props;
-		return sandboxHttpFetch(url, init, { capabilities, allowedHosts });
+	async httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire> {
+		const { capabilities, allowedHosts, httpFetchKey } = this.ctx.props;
+		const fetchImpl = httpFetchKey ? httpFetchCallbacks.get(httpFetchKey) : undefined;
+		if (httpFetchKey && !fetchImpl) {
+			throw new Error("Plugin HTTP transport is unavailable");
+		}
+		return sandboxHttpFetch(url, init, { capabilities, allowedHosts, fetchImpl });
 	}
 
 	// =========================================================================

@@ -41,10 +41,28 @@ const _contentAccessSchema = /*#__PURE__*/ v.object({
 		),
 	),
 	/**
+	 * Plugin may inspect and reject publication, scheduling, and unpublication. Does not imply content read or write access.
+	 */
+	get policy() {
+		return /*#__PURE__*/ v.optional(contentPolicyConstraintsSchema);
+	},
+	/**
+	 * Plugin may publish, unpublish, schedule, and unschedule content. Implies `read`.
+	 */
+	get publish() {
+		return /*#__PURE__*/ v.optional(contentPublishConstraintsSchema);
+	},
+	/**
 	 * Plugin may read content records.
 	 */
 	get read() {
 		return /*#__PURE__*/ v.optional(contentReadConstraintsSchema);
+	},
+	/**
+	 * Plugin may read and restore trashed content.
+	 */
+	get restore() {
+		return /*#__PURE__*/ v.optional(contentRestoreConstraintsSchema);
 	},
 	/**
 	 * Plugin may read retained content revision history. Implies `read`.
@@ -59,10 +77,31 @@ const _contentAccessSchema = /*#__PURE__*/ v.object({
 		return /*#__PURE__*/ v.optional(contentWriteConstraintsSchema);
 	},
 });
+const _contentPolicyConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#contentPolicyConstraints",
+		),
+	),
+});
+const _contentPublishConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#contentPublishConstraints",
+		),
+	),
+});
 const _contentReadConstraintsSchema = /*#__PURE__*/ v.object({
 	$type: /*#__PURE__*/ v.optional(
 		/*#__PURE__*/ v.literal(
 			"com.emdashcms.experimental.package.releaseExtension#contentReadConstraints",
+		),
+	),
+});
+const _contentRestoreConstraintsSchema = /*#__PURE__*/ v.object({
+	$type: /*#__PURE__*/ v.optional(
+		/*#__PURE__*/ v.literal(
+			"com.emdashcms.experimental.package.releaseExtension#contentRestoreConstraints",
 		),
 	),
 });
@@ -477,7 +516,13 @@ type commentsModerateConstraints$schematype =
 	typeof _commentsModerateConstraintsSchema;
 type commentsReadConstraints$schematype = typeof _commentsReadConstraintsSchema;
 type contentAccess$schematype = typeof _contentAccessSchema;
+type contentPolicyConstraints$schematype =
+	typeof _contentPolicyConstraintsSchema;
+type contentPublishConstraints$schematype =
+	typeof _contentPublishConstraintsSchema;
 type contentReadConstraints$schematype = typeof _contentReadConstraintsSchema;
+type contentRestoreConstraints$schematype =
+	typeof _contentRestoreConstraintsSchema;
 type contentRevisionsReadConstraints$schematype =
 	typeof _contentRevisionsReadConstraintsSchema;
 type contentWriteConstraints$schematype = typeof _contentWriteConstraintsSchema;
@@ -521,7 +566,10 @@ export interface commentsAccessSchema extends commentsAccess$schematype {}
 export interface commentsModerateConstraintsSchema extends commentsModerateConstraints$schematype {}
 export interface commentsReadConstraintsSchema extends commentsReadConstraints$schematype {}
 export interface contentAccessSchema extends contentAccess$schematype {}
+export interface contentPolicyConstraintsSchema extends contentPolicyConstraints$schematype {}
+export interface contentPublishConstraintsSchema extends contentPublishConstraints$schematype {}
 export interface contentReadConstraintsSchema extends contentReadConstraints$schematype {}
+export interface contentRestoreConstraintsSchema extends contentRestoreConstraints$schematype {}
 export interface contentRevisionsReadConstraintsSchema extends contentRevisionsReadConstraints$schematype {}
 export interface contentWriteConstraintsSchema extends contentWriteConstraints$schematype {}
 export interface declaredAccessSchema extends declaredAccess$schematype {}
@@ -558,8 +606,14 @@ export const commentsModerateConstraintsSchema =
 export const commentsReadConstraintsSchema =
 	_commentsReadConstraintsSchema as commentsReadConstraintsSchema;
 export const contentAccessSchema = _contentAccessSchema as contentAccessSchema;
+export const contentPolicyConstraintsSchema =
+	_contentPolicyConstraintsSchema as contentPolicyConstraintsSchema;
+export const contentPublishConstraintsSchema =
+	_contentPublishConstraintsSchema as contentPublishConstraintsSchema;
 export const contentReadConstraintsSchema =
 	_contentReadConstraintsSchema as contentReadConstraintsSchema;
+export const contentRestoreConstraintsSchema =
+	_contentRestoreConstraintsSchema as contentRestoreConstraintsSchema;
 export const contentRevisionsReadConstraintsSchema =
 	_contentRevisionsReadConstraintsSchema as contentRevisionsReadConstraintsSchema;
 export const contentWriteConstraintsSchema =
@@ -621,8 +675,17 @@ export interface CommentsReadConstraints extends v.InferInput<
 export interface ContentAccess extends v.InferInput<
 	typeof contentAccessSchema
 > {}
+export interface ContentPolicyConstraints extends v.InferInput<
+	typeof contentPolicyConstraintsSchema
+> {}
+export interface ContentPublishConstraints extends v.InferInput<
+	typeof contentPublishConstraintsSchema
+> {}
 export interface ContentReadConstraints extends v.InferInput<
 	typeof contentReadConstraintsSchema
+> {}
+export interface ContentRestoreConstraints extends v.InferInput<
+	typeof contentRestoreConstraintsSchema
 > {}
 export interface ContentRevisionsReadConstraints extends v.InferInput<
 	typeof contentRevisionsReadConstraintsSchema

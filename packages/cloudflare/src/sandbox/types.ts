@@ -21,10 +21,12 @@ import type {
 	RedirectInfo,
 	RedirectListOptions,
 	RedirectUpdateInput,
+	PluginHttpResponseWire,
 	UpdateIfArgs,
 	UpdateIfResult,
 	VersionedRedirect,
 	VersionedValue,
+	VersionedContentItem,
 } from "emdash";
 
 /**
@@ -337,6 +339,39 @@ export interface PluginBridgeBinding {
 	): Promise<ContentRevisionInfo | null>;
 	schemaListCollections(): Promise<CollectionSchemaInfo[]>;
 	schemaGetCollection(slug: string): Promise<CollectionSchemaInfo | null>;
+	contentGetVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	contentPublish(
+		collection: string,
+		id: string,
+		revision: string,
+		invocationId?: string,
+	): Promise<VersionedContentItem>;
+	contentUnpublish(
+		collection: string,
+		id: string,
+		revision: string,
+		invocationId?: string,
+	): Promise<VersionedContentItem>;
+	contentSchedule(
+		collection: string,
+		id: string,
+		scheduledAt: string,
+		revision: string,
+		invocationId?: string,
+	): Promise<VersionedContentItem>;
+	contentUnschedule(
+		collection: string,
+		id: string,
+		revision: string,
+		invocationId?: string,
+	): Promise<VersionedContentItem>;
+	contentGetTrashedVersioned(collection: string, id: string): Promise<VersionedContentItem | null>;
+	contentRestore(
+		collection: string,
+		id: string,
+		revision: string,
+		invocationId?: string,
+	): Promise<VersionedContentItem>;
 	// Taxonomies
 	taxonomyList(opts?: { locale?: string }): Promise<BridgeTaxonomyDef[]>;
 	taxonomyTerms(taxonomy: string, opts?: { locale?: string }): Promise<BridgeTaxonomyTerm[]>;
@@ -404,10 +439,7 @@ export interface PluginBridgeBinding {
 	): Promise<{ mediaId: string; storageKey: string; url: string }>;
 	mediaDelete(id: string): Promise<boolean>;
 	// Network
-	httpFetch(
-		url: string,
-		init?: RequestInit,
-	): Promise<{ status: number; headers: Record<string, string>; text: string }>;
+	httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire>;
 	// Email
 	emailSend(message: { to: string; subject: string; text: string; html?: string }): Promise<void>;
 	// Cron

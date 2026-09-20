@@ -216,6 +216,22 @@ describe("canonicalizeDeclaredAccess", () => {
 		});
 	});
 
+	it("materializes publication read access without widening restore authority", () => {
+		const publication = canonicalizeDeclaredAccess({
+			content: { publish: {}, restore: {}, policy: {} },
+		});
+		expect(publication).toEqual({
+			content: { policy: {}, publish: {}, read: {}, restore: {} },
+		});
+
+		expect(canonicalizeDeclaredAccess({ content: { publish: {} } })).toEqual({
+			content: { publish: {}, read: {} },
+		});
+		expect(canonicalizeDeclaredAccess({ content: { restore: {} } })).toEqual({
+			content: { restore: {} },
+		});
+	});
+
 	it("sorts keys recursively and host sets while preserving other array order", () => {
 		const first = {
 			network: {
@@ -360,6 +376,35 @@ describe("unknown constraints", () => {
 });
 
 describe("structured diff", () => {
+	it("treats publication and restore authority as separate consent escalations", () => {
+		const diff = diffDeclaredAccess(
+			{ content: { read: {} } },
+			{ content: { read: {}, publish: {}, restore: {} } },
+		);
+
+		expect(diff.escalation).toBe(true);
+		expect(diff.changes.map((change) => change.path)).toEqual([
+			["content", "publish"],
+			["content", "restore"],
+		]);
+	});
+
+	it("treats publication policy as a separate consent escalation", () => {
+		const diff = diffDeclaredAccess(
+			{ content: { read: {} } },
+			{ content: { read: {}, policy: {} } },
+		);
+
+		expect(diff.escalation).toBe(true);
+		expect(diff.changes).toContainEqual(
+			expect.objectContaining({
+				kind: "operation-added",
+				path: ["content", "policy"],
+				escalation: true,
+			}),
+		);
+	});
+
 	it("has deterministic ordering, machine-readable paths, and no display strings", () => {
 		const diff = diffDeclaredAccess(
 			{ users: { read: { z: 1 } }, email: { send: {} } },

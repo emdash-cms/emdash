@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@emdash-cms/auth": "workspace:*",
     "@emdash-cms/plugin-types": "workspace:*",
     "hono": "catalog:",
     "jose": "^6.1.3",

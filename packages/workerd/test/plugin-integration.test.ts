@@ -665,11 +665,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		expect(result.error).toContain("Missing capability: content:write");
 	});
 
-	it("write-only plugin cannot read content (no implicit upgrade)", async () => {
-		// Plugins with only write:content cannot call ctx.content.get/list.
-		// This matches the Cloudflare PluginBridge: capabilities are enforced
-		// strictly as declared in the manifest. A plugin that needs both
-		// reads and writes must declare both capabilities.
+	it("content writes include the implied content read authority", async () => {
 		await db.schema
 			.createTable("ec_pages")
 			.addColumn("id", "text", (col) => col.primaryKey())
@@ -695,20 +691,17 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 			emailSend: () => null,
 		});
 
-		// content/get should fail
 		const getResult = await call(writeOnlyHandler, "content/get", {
 			collection: "pages",
 			id: "any",
 		});
-		expect(getResult.error).toContain("Missing capability: content:read");
+		expect(getResult.error).toBeUndefined();
 
-		// content/list should also fail
 		const listResult = await call(writeOnlyHandler, "content/list", {
 			collection: "pages",
 		});
-		expect(listResult.error).toContain("Missing capability: content:read");
+		expect(listResult.error).toBeUndefined();
 
-		// content/create should still succeed (has write:content)
 		const createResult = await call(writeOnlyHandler, "content/create", {
 			collection: "pages",
 			data: { title: "Allowed" },
@@ -716,8 +709,7 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		expect(createResult.error).toBeUndefined();
 	});
 
-	it("write-only media plugin cannot read media", async () => {
-		// Same enforcement for media: write:media does NOT imply read:media.
+	it("media writes include the implied media read authority", async () => {
 		const writeOnlyHandler = createBridgeHandler({
 			pluginId: "write-only-media",
 			version: "1.0.0",
@@ -729,10 +721,10 @@ describe("Plugin integration: sandboxed-test plugin operations", () => {
 		});
 
 		const getResult = await call(writeOnlyHandler, "media/get", { id: "any" });
-		expect(getResult.error).toContain("Missing capability: media:read");
+		expect(getResult.error).toBeUndefined();
 
 		const listResult = await call(writeOnlyHandler, "media/list", {});
-		expect(listResult.error).toContain("Missing capability: media:read");
+		expect(listResult.error).toBeUndefined();
 	});
 
 	it("keeps media metadata, bytes, and metadata mutation independently gated", async () => {
