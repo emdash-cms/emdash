@@ -236,11 +236,7 @@ const editorCollectionsSchema = z
 const editorPanelSchema = z.object({
 	id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
 	title: z.string().min(1).max(128),
-	route: z
-		.string()
-		.min(1)
-		.max(128)
-		.regex(routeNamePattern, "Route name must be a safe path segment"),
+	route: routeNameSchema.max(128),
 	collections: editorCollectionsSchema.optional(),
 	order: z.number().int().min(-1_000).max(1_000).optional(),
 });
@@ -255,11 +251,7 @@ const editorActionSchema = z
 	.object({
 		id: z.string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor action id"),
 		label: z.string().min(1).max(128),
-		route: z
-			.string()
-			.min(1)
-			.max(128)
-			.regex(routeNamePattern, "Route name must be a safe path segment"),
+		route: routeNameSchema.max(128),
 		placement: z.enum(["toolbar", "overflow"]),
 		collections: editorCollectionsSchema.optional(),
 		style: z.enum(["default", "danger"]).optional(),

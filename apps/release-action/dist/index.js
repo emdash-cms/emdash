@@ -8152,7 +8152,7 @@ const editorCollectionsSchema = array(string().max(63).regex(/^[a-z][a-z0-9_]*$/
 const editorPanelSchema = object({
 	id: string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor panel id"),
 	title: string().min(1).max(128),
-	route: string().min(1).max(128).regex(routeNamePattern, "Route name must be a safe path segment"),
+	route: routeNameSchema.max(128),
 	collections: editorCollectionsSchema.optional(),
 	order: number().int().min(-1e3).max(1e3).optional()
 });
@@ -8166,7 +8166,7 @@ const editorActionConfirmSchema = object({
 const editorActionSchema = object({
 	id: string().min(1).max(64).regex(editorExtensionIdPattern, "Invalid editor action id"),
 	label: string().min(1).max(128),
-	route: string().min(1).max(128).regex(routeNamePattern, "Route name must be a safe path segment"),
+	route: routeNameSchema.max(128),
 	placement: _enum(["toolbar", "overflow"]),
 	collections: editorCollectionsSchema.optional(),
 	style: _enum(["default", "danger"]).optional(),

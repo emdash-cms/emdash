@@ -280,7 +280,12 @@ describe("Cloudflare sandbox route errors", () => {
 				meta: { ip: null, userAgent: null, referer: null, geo: null },
 			}),
 		).resolves.toEqual(raw);
-		expect(mocks.invokeRoute).toHaveBeenCalledWith("upload", input, expect.any(Object));
+		expect(mocks.invokeRoute).toHaveBeenCalledWith(
+			"upload",
+			input,
+			expect.any(Object),
+			expect.any(String),
+		);
 	});
 
 	it("does not interpret response-shaped JSON as a raw response", async () => {

@@ -1092,11 +1092,11 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 			async (invocationId) => {
 				const res = await fetch(`http://127.0.0.1:${this.port}/route/${routeName}`, {
 					method: "POST",
-						headers: {
+					headers: {
 						"Content-Type": "application/json",
 						Authorization: `Bearer ${this.runner.invokeAuthToken}`,
-						},
-						body: stringifyRouteTransport({ input, request, invocationId }),
+					},
+					body: stringifyRouteTransport({ input, request, invocationId }),
 				});
 				if (!res.ok) {
 					const text = await res.text();
