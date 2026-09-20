@@ -7938,6 +7938,9 @@ const routeOptionsSchema = object({
 });
 const routeNameSchema = string().min(1).regex(/^[a-zA-Z0-9][a-zA-Z0-9_\-/]*$/, "Route name must be a safe path segment");
 const manifestRouteEntrySchema = routeOptionsSchema.extend({ name: routeNameSchema });
+function isJsonPostRouteContract(route) {
+	return route.response !== "raw" && (route.methods === void 0 || route.methods.includes("POST")) && (route.request === void 0 || route.request.body === "json");
+}
 /**
 * Zod schema for PluginManifest validation
 *
@@ -8309,9 +8312,63 @@ function validateEditorExtensionRoutes(manifest, ctx) {
 				"route"
 			]
 		});
+		if (typeof route !== "string" && !isJsonPostRouteContract(route)) ctx.addIssue({
+			code: "custom",
+			message: "Editor extension routes must accept POST JSON requests and return JSON",
+			path: [
+				"admin",
+				kind,
+				index,
+				"route"
+			]
+		});
 	}
 }
-const pluginManifestSchema = pluginManifestBaseSchema.superRefine(validateEditorExtensionRoutes);
+function validateUniqueRoutes(manifest, ctx) {
+	const seen = /* @__PURE__ */ new Set();
+	for (const [index, route] of manifest.routes.entries()) {
+		const name = typeof route === "string" ? route : route.name;
+		if (seen.has(name)) ctx.addIssue({
+			code: "custom",
+			message: `Route "${name}" must be declared exactly once`,
+			path: ["routes", index]
+		});
+		seen.add(name);
+	}
+}
+function validateMcpToolRoutes(manifest, ctx) {
+	for (const [index, tool] of (manifest.mcp?.tools ?? []).entries()) {
+		const route = manifest.routes.find((candidate) => (typeof candidate === "string" ? candidate : candidate.name) === tool.route);
+		if (typeof route === "string" || route === void 0 || route.public === true || route.permission !== tool.permission || !isJsonPostRouteContract(route)) ctx.addIssue({
+			code: "custom",
+			message: "MCP tools must reference a private POST-compatible JSON route",
+			path: [
+				"mcp",
+				"tools",
+				index,
+				"route"
+			]
+		});
+	}
+}
+function validateBlockKitAdminRoute(manifest, ctx) {
+	if ((manifest.admin.pages?.length ?? 0) === 0 && (manifest.admin.widgets?.length ?? 0) === 0) return;
+	const routeIndex = manifest.routes.findIndex((route) => (typeof route === "string" ? route : route.name) === "admin");
+	if (routeIndex < 0) return;
+	const route = manifest.routes[routeIndex];
+	if (!route) return;
+	if (typeof route !== "string" && (route.public === true || !isJsonPostRouteContract(route))) ctx.addIssue({
+		code: "custom",
+		message: "Block Kit admin routes must be private POST-compatible JSON routes",
+		path: ["routes", routeIndex]
+	});
+}
+const pluginManifestSchema = pluginManifestBaseSchema.superRefine((manifest, ctx) => {
+	validateUniqueRoutes(manifest, ctx);
+	validateEditorExtensionRoutes(manifest, ctx);
+	validateMcpToolRoutes(manifest, ctx);
+	validateBlockKitAdminRoute(manifest, ctx);
+});
 /**
 * Reconcile a parsed manifest's trust contract with its enforcement currency.
 * `declaredAccess` is authoritative: when present, `capabilities`/`allowedHosts`

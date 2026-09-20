@@ -397,7 +397,22 @@ describe("validateEditorExtensionRoutes", () => {
 	it.each([
 		["missing", undefined],
 		["public", { public: true, handler: () => undefined }],
+		["raw response", { response: "raw", handler: () => undefined }],
+		["GET-only", { methods: ["GET"], handler: () => undefined }],
+		["form-data", { request: { body: "form-data" }, handler: () => undefined }],
 	])("rejects a %s extension route", (_label, route) => {
 		expect(() => validateEditorExtensionRoutes(pluginWithRoute(route))).toThrow(BuildPipelineError);
+	});
+
+	it.each([
+		{ response: "raw" as const },
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (route) => {
+		const plugin = pluginWithRoute(undefined);
+		plugin.routes.admin = { ...route, handler: () => undefined };
+		plugin.admin.pages = [{ path: "/overview", label: "Overview" }];
+		expect(() => validateEditorExtensionRoutes(plugin)).toThrow(BuildPipelineError);
 	});
 });

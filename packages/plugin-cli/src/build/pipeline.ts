@@ -38,7 +38,7 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { extractRouteOptions } from "@emdash-cms/plugin-types";
+import { extractRouteOptions, isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 
 import type { ResolvedPlugin } from "../bundle/types.js";
 import { fileExists } from "../bundle/utils.js";
@@ -371,6 +371,22 @@ export function validateEditorExtensionRoutes(plugin: ResolvedPlugin): void {
 					`Plugin ${kind} "${extension.id}" must reference a private route.`,
 				);
 			}
+			if (!isJsonPostRouteContract(route)) {
+				throw new BuildPipelineError(
+					"MANIFEST_INVALID",
+					`Plugin ${kind} "${extension.id}" must reference a route that accepts POST JSON requests and returns JSON.`,
+				);
+			}
+		}
+	}
+
+	if ((plugin.admin.pages?.length ?? 0) > 0 || (plugin.admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = plugin.routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new BuildPipelineError(
+				"MANIFEST_INVALID",
+				"Block Kit admin route must accept POST JSON requests and return JSON.",
+			);
 		}
 	}
 }

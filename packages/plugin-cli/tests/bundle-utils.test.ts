@@ -204,6 +204,35 @@ describe("extractManifest", () => {
 		).toThrow("cannot reference raw response route");
 	});
 
+	it.each([
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects MCP tools with an incompatible route %#", (routeOptions) => {
+		expect(() =>
+			extractManifest(
+				minimalResolved({
+					routes: {
+						tool: {
+							handler: () => {},
+							permission: "plugins:manage",
+							...routeOptions,
+						},
+					},
+					mcp: {
+						tools: {
+							tool: {
+								description: "Manage a resource.",
+								route: "tool",
+								input: { type: "object" },
+							},
+						},
+					},
+				}),
+			),
+		).toThrow("POST-compatible JSON route");
+	});
+
 	it("strips the runtime entry pointer from admin", () => {
 		const manifest = extractManifest(
 			minimalResolved({
@@ -212,6 +241,22 @@ describe("extractManifest", () => {
 		);
 		expect(manifest.admin).not.toHaveProperty("entry");
 		expect(manifest.admin.pages).toEqual([{ path: "/x" }]);
+	});
+
+	it.each([
+		{ response: "raw" as const },
+		{ methods: ["GET"] as const },
+		{ request: { body: "none" as const } },
+		{ request: { body: "form-data" as const } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (routeOptions) => {
+		expect(() =>
+			extractManifest(
+				minimalResolved({
+					routes: { admin: { ...routeOptions, handler: () => ({ blocks: [] }) } },
+					admin: { pages: [{ path: "/overview" }] },
+				}),
+			),
+		).toThrow("Block Kit admin route must accept POST JSON requests and return JSON");
 	});
 
 	it("preserves settings and field widgets in the wire manifest", () => {

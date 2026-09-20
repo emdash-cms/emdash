@@ -12,6 +12,7 @@ import { Permissions } from "@emdash-cms/auth";
 import {
 	capabilitiesToDeclaredAccess,
 	declaredAccessToCapabilities,
+	isJsonPostRouteContract,
 	manifestRouteEntrySchema as sharedManifestRouteEntrySchema,
 	normalizeManifestRoute as normalizeSharedManifestRoute,
 	routeNameSchema,
@@ -450,13 +451,87 @@ function validateEditorExtensionRoutes(
 					path: ["admin", kind, index, "route"],
 				});
 			}
+			if (typeof route !== "string" && !isJsonPostRouteContract(route)) {
+				ctx.addIssue({
+					code: "custom",
+					message: "Editor extension routes must accept POST JSON requests and return JSON",
+					path: ["admin", kind, index, "route"],
+				});
+			}
 		}
 	}
 }
 
-export const pluginManifestSchema = pluginManifestBaseSchema.superRefine(
-	validateEditorExtensionRoutes,
-);
+function validateUniqueRoutes(
+	manifest: z.infer<typeof pluginManifestBaseSchema>,
+	ctx: z.RefinementCtx,
+): void {
+	const seen = new Set<string>();
+	for (const [index, route] of manifest.routes.entries()) {
+		const name = typeof route === "string" ? route : route.name;
+		if (seen.has(name)) {
+			ctx.addIssue({
+				code: "custom",
+				message: `Route "${name}" must be declared exactly once`,
+				path: ["routes", index],
+			});
+		}
+		seen.add(name);
+	}
+}
+
+function validateMcpToolRoutes(
+	manifest: z.infer<typeof pluginManifestBaseSchema>,
+	ctx: z.RefinementCtx,
+): void {
+	for (const [index, tool] of (manifest.mcp?.tools ?? []).entries()) {
+		const route = manifest.routes.find(
+			(candidate) => (typeof candidate === "string" ? candidate : candidate.name) === tool.route,
+		);
+		if (
+			typeof route === "string" ||
+			route === undefined ||
+			route.public === true ||
+			route.permission !== tool.permission ||
+			!isJsonPostRouteContract(route)
+		) {
+			ctx.addIssue({
+				code: "custom",
+				message: "MCP tools must reference a private POST-compatible JSON route",
+				path: ["mcp", "tools", index, "route"],
+			});
+		}
+	}
+}
+
+function validateBlockKitAdminRoute(
+	manifest: z.infer<typeof pluginManifestBaseSchema>,
+	ctx: z.RefinementCtx,
+): void {
+	if ((manifest.admin.pages?.length ?? 0) === 0 && (manifest.admin.widgets?.length ?? 0) === 0) {
+		return;
+	}
+	const routeIndex = manifest.routes.findIndex(
+		(route) => (typeof route === "string" ? route : route.name) === "admin",
+	);
+	if (routeIndex < 0) return;
+	const route = manifest.routes[routeIndex];
+	if (!route) return;
+	if (typeof route !== "string" && (route.public === true || !isJsonPostRouteContract(route))) {
+		ctx.addIssue({
+			code: "custom",
+			message: "Block Kit admin routes must be private POST-compatible JSON routes",
+			path: ["routes", routeIndex],
+		});
+	}
+}
+
+export const pluginManifestSchema = pluginManifestBaseSchema.superRefine((manifest, ctx) => {
+	validateUniqueRoutes(manifest, ctx);
+	validateEditorExtensionRoutes(manifest, ctx);
+	validateMcpToolRoutes(manifest, ctx);
+	validateBlockKitAdminRoute(manifest, ctx);
+});
 
 export type ValidatedPluginManifest = z.infer<typeof pluginManifestSchema>;
 

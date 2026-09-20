@@ -52,4 +52,108 @@ describe("marketplace plugin manifest parity", () => {
 		value.admin.editorActions[0]!.collections = ["posts", "posts"];
 		expect(manifestSchema.safeParse(value).success).toBe(false);
 	});
+
+	it("preserves raw route contracts and MCP declarations", () => {
+		const value = manifest({
+			routes: [
+				{
+					name: "download",
+					methods: ["GET"],
+					request: { body: "none", headers: ["accept"] },
+					response: "raw",
+					permission: "content:read",
+				},
+				{
+					name: "repair",
+					methods: ["POST"],
+					request: { body: "json", maxBytes: 1024 },
+					response: "json",
+					permission: "content:edit_own",
+				},
+			],
+			mcp: {
+				tools: [
+					{
+						name: "repair",
+						description: "Repair content",
+						route: "repair",
+						permission: "content:edit_own",
+						destructive: true,
+						inputSchema: { type: "object" },
+						outputSchema: { type: "object" },
+					},
+				],
+			},
+		});
+
+		const result = manifestSchema.parse(value);
+		expect(result.routes).toEqual(value.routes);
+		expect(result.mcp).toEqual(value.mcp);
+	});
+
+	it("rejects duplicate route names across legacy and structured declarations", () => {
+		expect(
+			manifestSchema.safeParse(
+				manifest({
+					routes: ["admin", { name: "admin", public: true }],
+					admin: {},
+				}),
+			).success,
+		).toBe(false);
+	});
+
+	it.each([
+		{ label: "GET-only", route: { methods: ["GET"] } },
+		{ label: "form-data request", route: { request: { body: "form-data" } } },
+		{ label: "raw response", route: { response: "raw" } },
+	])("rejects an incompatible editor route contract: $label", ({ route }) => {
+		expect(
+			manifestSchema.safeParse(
+				manifest({
+					routes: [{ name: "repair", permission: "content:edit_own", ...route }],
+				}),
+			).success,
+		).toBe(false);
+	});
+
+	it.each([
+		{ label: "GET-only", route: { methods: ["GET"] } },
+		{ label: "form-data request", route: { request: { body: "form-data" } } },
+		{ label: "raw response", route: { response: "raw" } },
+	])("rejects an incompatible Block Kit admin route contract: $label", ({ route }) => {
+		expect(
+			manifestSchema.safeParse(
+				manifest({
+					routes: [{ name: "admin", ...route }],
+					admin: { pages: [{ path: "/settings", label: "Settings" }] },
+				}),
+			).success,
+		).toBe(false);
+	});
+
+	it.each([
+		{ label: "GET-only", route: { methods: ["GET"] } },
+		{ label: "form-data request", route: { request: { body: "form-data" } } },
+		{ label: "raw response", route: { response: "raw" } },
+	])("rejects an incompatible MCP route contract: $label", ({ route }) => {
+		expect(
+			manifestSchema.safeParse(
+				manifest({
+					routes: [{ name: "repair", permission: "content:edit_own", ...route }],
+					mcp: {
+						tools: [
+							{
+								name: "repair",
+								description: "Repair content",
+								route: "repair",
+								permission: "content:edit_own",
+								destructive: true,
+								inputSchema: { type: "object" },
+							},
+						],
+					},
+				}),
+			).success,
+		).toBe(false);
+	});
 });

@@ -130,3 +130,13 @@ export function extractManifestRoute(name: string, route: unknown): ManifestRout
 export function normalizeManifestRoute(entry: string | ManifestRouteEntry): ManifestRouteEntry {
 	return typeof entry === "string" ? { name: entry } : entry;
 }
+
+export function isJsonPostRouteContract(
+	route: Pick<RouteOptions, "methods" | "request" | "response">,
+): boolean {
+	return (
+		route.response !== "raw" &&
+		(route.methods === undefined || route.methods.includes("POST")) &&
+		(route.request === undefined || route.request.body === "json")
+	);
+}

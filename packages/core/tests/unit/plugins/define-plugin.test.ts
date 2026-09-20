@@ -591,9 +591,75 @@ describe("definePlugin", () => {
 				}),
 			).toThrow("cannot reference a raw response route");
 		});
+
+		it.each([
+			{ methods: ["GET"] as const },
+			{ request: { body: "none" as const } },
+			{ request: { body: "form-data" as const } },
+		])("rejects MCP tools with an incompatible route %#", (routeOptions) => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						tool: {
+							permission: "plugins:manage",
+							...routeOptions,
+							handler: async () => null,
+						},
+					},
+					mcp: {
+						tools: {
+							tool: {
+								description: "Manage a resource.",
+								route: "tool",
+								input: z.object({}),
+							},
+						},
+					},
+				}),
+			).toThrow("POST-compatible JSON route");
+		});
 	});
 
 	describe("admin passthrough", () => {
+		it.each([
+			{ response: "raw" as const },
+			{ methods: ["GET"] as const },
+			{ request: { body: "form-data" as const } },
+		])("rejects an editor panel with an incompatible route %#", (routeOptions) => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						health: { ...routeOptions, handler: async () => ({ blocks: [] }) },
+					},
+					admin: {
+						editorPanels: [{ id: "health", title: "Health", route: "health" }],
+					},
+				}),
+			).toThrow("accepts POST JSON requests and returns JSON");
+		});
+
+		it.each([
+			{ response: "raw" as const },
+			{ methods: ["GET"] as const },
+			{ request: { body: "none" as const } },
+			{ request: { body: "form-data" as const } },
+		])("rejects an incompatible explicit Block Kit admin route %#", (routeOptions) => {
+			expect(() =>
+				definePlugin({
+					id: "test",
+					version: "1.0.0",
+					routes: {
+						admin: { ...routeOptions, handler: async () => ({ blocks: [] }) },
+					},
+					admin: { pages: [{ id: "overview", title: "Overview" }] },
+				}),
+			).toThrow("Block Kit admin route must accept POST JSON requests and return JSON");
+		});
+
 		it("preserves admin config", () => {
 			const plugin = definePlugin({
 				id: "test",

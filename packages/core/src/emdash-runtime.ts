@@ -17,6 +17,7 @@ import {
 	type BlockValidationPolicy,
 	type PluginUiContext,
 } from "@emdash-cms/blocks/server";
+import { isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 import { Kysely, type Dialect } from "kysely";
 import virtualConfig from "virtual:emdash/config";
 import { z } from "zod";
@@ -5263,6 +5264,7 @@ export class EmDashRuntime {
 					!route ||
 					route.public ||
 					route.response === "raw" ||
+					!isJsonPostRouteContract(route) ||
 					!route.permission ||
 					!Object.hasOwn(Permissions, route.permission)
 				)
@@ -5293,6 +5295,7 @@ export class EmDashRuntime {
 					!routeMeta ||
 					routeMeta.public ||
 					routeMeta.response === "raw" ||
+					!isJsonPostRouteContract(routeMeta) ||
 					routeMeta.permission !== tool.permission ||
 					!Object.hasOwn(Permissions, tool.permission)
 				) {

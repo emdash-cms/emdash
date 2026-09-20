@@ -12,7 +12,7 @@ import { access, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 
-import { extractManifestRoute } from "@emdash-cms/plugin-types";
+import { extractManifestRoute, isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
@@ -132,6 +132,12 @@ export function readImageDimensions(buf: Uint8Array): [number, number] | null {
  * publish-relevant fields.
  */
 export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
+	if ((plugin.admin.pages?.length ?? 0) > 0 || (plugin.admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = plugin.routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new Error("Block Kit admin route must accept POST JSON requests and return JSON");
+		}
+	}
 	const declaredAccess = capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts);
 	const enforcedAccess = declaredAccessToCapabilities(declaredAccess);
 	const hooks: Array<ManifestHookEntry | string> = [];
@@ -176,6 +182,9 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		}
 		if (route.response === "raw") {
 			throw new Error(`MCP tool "${name}" cannot reference raw response route "${tool.route}"`);
+		}
+		if (!isJsonPostRouteContract(route)) {
+			throw new Error(`MCP tool "${name}" must reference a POST-compatible JSON route`);
 		}
 		if (!route.permission) {
 			throw new Error(`MCP route "${tool.route}" must declare a permission`);

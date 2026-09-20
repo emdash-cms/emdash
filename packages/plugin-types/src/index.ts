@@ -410,6 +410,7 @@ export type {
 export {
 	extractManifestRoute,
 	extractRouteOptions,
+	isJsonPostRouteContract,
 	manifestRouteEntrySchema,
 	normalizeManifestRoute,
 	PLUGIN_ROUTE_BODY_MODES,

@@ -34,6 +34,15 @@ describe("pluginManifestSchema — content policy", () => {
 });
 
 describe("pluginManifestSchema — route entries", () => {
+	it("rejects duplicate route names before runtime last-write-wins normalization", () => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: ["admin", { name: "admin", public: true }],
+			admin: { pages: [{ path: "/overview", label: "Overview" }] },
+		});
+		expect(result.success).toBe(false);
+	});
+
 	it("preserves taxonomy write authority during reconciliation", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
@@ -101,6 +110,20 @@ describe("pluginManifestSchema — route entries", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
 			routes: [{ name: "webhook", ...route }],
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it.each([
+		{ response: "raw" },
+		{ methods: ["GET"] },
+		{ request: { body: "none" } },
+		{ request: { body: "form-data" } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "admin", ...route }],
+			admin: { pages: [{ path: "/overview", label: "Overview" }] },
 		});
 		expect(result.success).toBe(false);
 	});
@@ -215,6 +238,9 @@ describe("pluginManifestSchema — editor extensions", () => {
 		["missing", ["entry-panel"], "missing"],
 		["public", [{ name: "entry-panel", public: true }], "entry-panel"],
 		["ambiguous", ["entry-panel", { name: "entry-panel" }], "entry-panel"],
+		["raw response", [{ name: "entry-panel", response: "raw" }], "entry-panel"],
+		["GET-only", [{ name: "entry-panel", methods: ["GET"] }], "entry-panel"],
+		["form-data", [{ name: "entry-panel", request: { body: "form-data" } }], "entry-panel"],
 	])("rejects a %s editor extension route", (_label, routes, route) => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
@@ -252,6 +278,7 @@ describe("pluginManifestSchema — MCP tools", () => {
 	it("accepts a plugin-scoped MCP tool declaration", () => {
 		const result = pluginManifestSchema.safeParse({
 			...makeManifest({}),
+			routes: [{ name: "events/create", permission: "content:create" }],
 			mcp: {
 				tools: [
 					{
@@ -268,6 +295,32 @@ describe("pluginManifestSchema — MCP tools", () => {
 		});
 
 		expect(result.success).toBe(true);
+	});
+
+	it.each([
+		{ methods: ["GET"] },
+		{ request: { body: "none" } },
+		{ request: { body: "form-data" } },
+		{ response: "raw" },
+	])("rejects a tool with an incompatible route %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			...makeManifest({}),
+			routes: [{ name: "events/create", permission: "content:create", ...route }],
+			mcp: {
+				tools: [
+					{
+						name: "createEvent",
+						description: "Create a calendar event.",
+						route: "events/create",
+						permission: "content:create",
+						destructive: false,
+						inputSchema: { type: "object" },
+					},
+				],
+			},
+		});
+
+		expect(result.success).toBe(false);
 	});
 
 	it("rejects unsafe local tool names", () => {

@@ -70,7 +70,7 @@ describe("pluginManifestSchema", () => {
 			storage: {},
 			hooks: [],
 			routes: [
-				"events/json",
+				{ name: "events/json", permission: "content:read" },
 				{
 					name: "events/list",
 					public: true,
@@ -129,7 +129,7 @@ describe("pluginManifestSchema", () => {
 		});
 
 		expect(result.routes).toEqual([
-			"events/json",
+			{ name: "events/json", permission: "content:read" },
 			{
 				name: "events/list",
 				public: true,
@@ -160,6 +160,9 @@ describe("pluginManifestSchema", () => {
 		["missing route", ["entry-panel"], "missing"],
 		["public route", [{ name: "entry-panel", public: true }], "entry-panel"],
 		["duplicate route", ["entry-panel", { name: "entry-panel" }], "entry-panel"],
+		["raw response route", [{ name: "entry-panel", response: "raw" }], "entry-panel"],
+		["GET-only route", [{ name: "entry-panel", methods: ["GET"] }], "entry-panel"],
+		["form-data route", [{ name: "entry-panel", request: { body: "form-data" } }], "entry-panel"],
 	])("rejects an editor extension with a %s", (_label, routes, route) => {
 		const result = pluginManifestSchema.safeParse({
 			id: "calendar",
@@ -170,6 +173,70 @@ describe("pluginManifestSchema", () => {
 			hooks: [],
 			routes,
 			admin: { editorPanels: [{ id: "health", title: "Health", route }] },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it("rejects duplicate route names before Block Kit admin validation", () => {
+		const result = pluginManifestSchema.safeParse({
+			id: "calendar",
+			version: "1.0.0",
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			hooks: [],
+			routes: ["admin", { name: "admin", public: true }],
+			admin: { pages: [{ path: "/overview", label: "Overview" }] },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it.each([
+		{ response: "raw" },
+		{ methods: ["GET"] },
+		{ request: { body: "none" } },
+		{ request: { body: "form-data" } },
+	])("rejects an incompatible explicit Block Kit admin route %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			id: "calendar",
+			version: "1.0.0",
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			hooks: [],
+			routes: [{ name: "admin", ...route }],
+			admin: { pages: [{ path: "/overview", label: "Overview" }] },
+		});
+		expect(result.success).toBe(false);
+	});
+
+	it.each([
+		{ methods: ["GET"] },
+		{ request: { body: "none" } },
+		{ request: { body: "form-data" } },
+		{ response: "raw" },
+	])("rejects an MCP tool with an incompatible route %#", (route) => {
+		const result = pluginManifestSchema.safeParse({
+			id: "calendar",
+			version: "1.0.0",
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			hooks: [],
+			routes: [{ name: "tool", permission: "plugins:manage", ...route }],
+			mcp: {
+				tools: [
+					{
+						name: "calendarTool",
+						description: "Manage the calendar.",
+						route: "tool",
+						permission: "plugins:manage",
+						destructive: false,
+						inputSchema: { type: "object" },
+					},
+				],
+			},
+			admin: {},
 		});
 		expect(result.success).toBe(false);
 	});

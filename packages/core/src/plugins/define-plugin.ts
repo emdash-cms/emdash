@@ -10,7 +10,7 @@
  * authoring shape.
  */
 
-import type { PluginRouteBodyMode } from "@emdash-cms/plugin-types";
+import { isJsonPostRouteContract, type PluginRouteBodyMode } from "@emdash-cms/plugin-types";
 
 import { normalizeCapabilities } from "./types.js";
 import type {
@@ -154,8 +154,40 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 		if (route.response === "raw") {
 			throw new Error(`MCP tool "${name}" cannot reference a raw response route.`);
 		}
+		if (!isJsonPostRouteContract(route)) {
+			throw new Error(`MCP tool "${name}" must reference a POST-compatible JSON route.`);
+		}
 		if (!route.permission) {
 			throw new Error(`MCP route "${tool.route}" must declare a permission.`);
+		}
+	}
+
+	for (const [kind, extensions] of [
+		["editor panel", admin.editorPanels],
+		["editor action", admin.editorActions],
+	] as const) {
+		for (const extension of extensions ?? []) {
+			const route = routes[extension.route];
+			if (!route) {
+				throw new Error(
+					`Plugin ${kind} "${extension.id}" references unknown route "${extension.route}".`,
+				);
+			}
+			if (route.public) {
+				throw new Error(`Plugin ${kind} "${extension.id}" must reference a private route.`);
+			}
+			if (!isJsonPostRouteContract(route)) {
+				throw new Error(
+					`Plugin ${kind} "${extension.id}" must reference a route that accepts POST JSON requests and returns JSON.`,
+				);
+			}
+		}
+	}
+
+	if ((admin.pages?.length ?? 0) > 0 || (admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new Error("Block Kit admin route must accept POST JSON requests and return JSON.");
 		}
 	}
 

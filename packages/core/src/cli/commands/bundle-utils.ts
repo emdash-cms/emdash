@@ -11,7 +11,7 @@ import { resolve, join } from "node:path";
 import { pipeline } from "node:stream/promises";
 import { pathToFileURL } from "node:url";
 
-import { extractManifestRoute } from "@emdash-cms/plugin-types";
+import { extractManifestRoute, isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
@@ -141,6 +141,12 @@ export function readImageDimensions(buf: Uint8Array): [number, number] | null {
  * Strips functions (hooks, route handlers) and keeps only serializable metadata.
  */
 export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
+	if ((plugin.admin.pages?.length ?? 0) > 0 || (plugin.admin.widgets?.length ?? 0) > 0) {
+		const adminRoute = plugin.routes.admin;
+		if (adminRoute && (adminRoute.public === true || !isJsonPostRouteContract(adminRoute))) {
+			throw new Error("Block Kit admin route must accept POST JSON requests and return JSON");
+		}
+	}
 	const declaredAccess = capabilitiesToDeclaredAccess(plugin.capabilities, plugin.allowedHosts);
 	const enforcedAccess = declaredAccessToCapabilities(declaredAccess);
 	// Build hook entries preserving exclusive/priority/timeout metadata.
@@ -170,6 +176,9 @@ export function extractManifest(plugin: ResolvedPlugin): PluginManifest {
 		const route = plugin.routes[tool.route];
 		if (!route?.permission || route.public || route.response === "raw") {
 			throw new Error(`MCP tool "${name}" must reference a private route with a permission`);
+		}
+		if (!isJsonPostRouteContract(route)) {
+			throw new Error(`MCP tool "${name}" must reference a POST-compatible JSON route`);
 		}
 		return {
 			name,
