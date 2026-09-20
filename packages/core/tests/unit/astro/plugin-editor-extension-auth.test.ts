@@ -17,6 +17,7 @@ function createLocals(
 			item: { id: "entry-1", authorId: "owner", locale: "en", version: 7 },
 		},
 	}));
+	const cacheInvalidate = vi.fn(async () => undefined);
 	return {
 		user: { id: userId, role },
 		emdash: {
@@ -31,6 +32,7 @@ function createLocals(
 		},
 		handleContentGet,
 		handlePluginApiRoute,
+		cacheInvalidate,
 	};
 }
 
@@ -54,6 +56,7 @@ function invoke(
 			{ method: "POST", headers, body: JSON.stringify(body) },
 		),
 		locals,
+		cache: { enabled: true, invalidate: locals.cacheInvalidate },
 	} as never);
 }
 
@@ -69,7 +72,7 @@ describe("saved-entry plugin extension authorization", () => {
 			"entry-health",
 			expect.any(Request),
 			expect.objectContaining({ id: "owner" }),
-			undefined,
+			expect.any(Function),
 			expect.objectContaining({
 				kind: "panel",
 				ui: expect.objectContaining({
@@ -79,6 +82,9 @@ describe("saved-entry plugin extension authorization", () => {
 				}),
 			}),
 		);
+		const invalidateContentCache = locals.handlePluginApiRoute.mock.calls[0]?.[5];
+		await invalidateContentCache?.(["content:posts:entry-1"]);
+		expect(locals.cacheInvalidate).toHaveBeenCalledWith({ tags: ["content:posts:entry-1"] });
 		const pluginRequest = locals.handlePluginApiRoute.mock.calls[0]?.[3];
 		await expect(pluginRequest?.json()).resolves.toEqual({ type: "panel_load" });
 	});

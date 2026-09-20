@@ -5,7 +5,7 @@ import { dispatchPluginEditorExtensionApiRequest } from "#plugins/http-route-dis
 
 export const prerender = false;
 
-export const POST: APIRoute = async ({ params, request, locals }) => {
+export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	if (!emdash) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 
@@ -24,5 +24,6 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		request,
 		user,
 		tokenScopes: locals.tokenScopes,
+		invalidateContentCache: cache?.enabled ? (tags) => cache.invalidate({ tags }) : undefined,
 	});
 };

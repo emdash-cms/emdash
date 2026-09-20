@@ -107,6 +107,7 @@ export interface PluginEditorExtensionApiRequestContext {
 	request: Request;
 	user?: UserInfo | null;
 	tokenScopes?: string[];
+	invalidateContentCache?: PluginContentCacheInvalidator;
 }
 
 /** Dispatch a saved-entry extension through ownership, route, and isolate policy. */
@@ -120,6 +121,7 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	request,
 	user,
 	tokenScopes,
+	invalidateContentCache,
 }: PluginEditorExtensionApiRequestContext): Promise<Response> {
 	const definition = runtime.getPluginEditorExtension(pluginId, kind, extensionId, collection);
 	if (!definition) return apiError("NOT_FOUND", "Plugin editor extension not found", 404);
@@ -203,6 +205,7 @@ export async function dispatchPluginEditorExtensionApiRequest({
 		request: pluginRequest,
 		user,
 		tokenScopes,
+		invalidateContentCache,
 		editorDispatch: {
 			kind,
 			policy: definition.policy,
