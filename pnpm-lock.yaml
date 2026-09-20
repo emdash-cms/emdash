@@ -2318,6 +2318,9 @@ importers:
 
   packages/marketplace:
     dependencies:
+      '@emdash-cms/auth':
+        specifier: workspace:*
+        version: link:../auth
       '@emdash-cms/plugin-types':
         specifier: workspace:*
         version: link:../plugin-types

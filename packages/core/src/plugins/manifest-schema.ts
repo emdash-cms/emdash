@@ -157,7 +157,7 @@ const manifestRouteEntrySchema = z.object({
 	public: z.boolean().optional(),
 	permission: z
 		.string()
-		.refine((permission) => permission in Permissions)
+		.refine((permission) => Object.hasOwn(Permissions, permission))
 		.optional(),
 	cacheControl: z.string().min(1).optional(),
 });
@@ -170,7 +170,7 @@ const pluginMcpConfigSchema = z.object({
 			name: z.string().min(1).max(64).regex(mcpToolNamePattern, "Invalid MCP tool name"),
 			description: z.string().min(1),
 			route: z.string().min(1).regex(routeNamePattern, "Route name must be a safe path segment"),
-			permission: z.string().refine((permission) => permission in Permissions),
+			permission: z.string().refine((permission) => Object.hasOwn(Permissions, permission)),
 			destructive: z.boolean(),
 			inputSchema: pluginJsonSchema,
 			outputSchema: pluginJsonSchema.optional(),

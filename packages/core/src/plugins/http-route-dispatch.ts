@@ -6,7 +6,7 @@ import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
 import { requireScope } from "../auth/scopes.js";
 import type { EmDashRuntime, PluginEditorExtensionDispatch } from "../emdash-runtime.js";
-import type { PluginContentCacheInvalidator } from "./routes.js";
+import type { PluginContentCacheInvalidator, RouteMeta } from "./routes.js";
 import type { UserInfo } from "./types.js";
 
 function toRoleLevel(value: number): RoleLevel | null {
@@ -17,7 +17,39 @@ function toRoleLevel(value: number): RoleLevel | null {
 }
 
 function isPermission(value: string): value is Permission {
-	return value in Permissions;
+	return Object.hasOwn(Permissions, value);
+}
+
+function authorizePrivatePluginRouteRequest(
+	routeMeta: RouteMeta,
+	request: Request,
+	user?: UserInfo | null,
+	tokenScopes?: string[],
+): Response | null {
+	const permission = routeMeta.permission ?? "plugins:manage";
+	if (!isPermission(permission)) {
+		return apiError("INVALID_PLUGIN_ROUTE", "Plugin route declares an invalid permission", 500);
+	}
+
+	let permissionUser: { id: string; role: RoleLevel } | null | undefined;
+	if (user) {
+		const role = toRoleLevel(user.role);
+		if (role === null) {
+			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
+		}
+		permissionUser = { id: user.id, role };
+	} else {
+		permissionUser = user;
+	}
+
+	const denied = requirePerm(permissionUser, permission);
+	if (denied) return denied;
+	const scopeError = requireScope({ tokenScopes }, "admin");
+	if (scopeError) return scopeError;
+	if (!tokenScopes && request.headers.get("X-EmDash-Request") !== "1") {
+		return apiError("CSRF_REJECTED", "Missing required header", 403);
+	}
+	return null;
 }
 
 export interface PluginApiRequestContext {
@@ -47,27 +79,8 @@ export async function dispatchPluginApiRequest({
 	if (!routeMeta) return apiError("NOT_FOUND", "Plugin route not found", 404);
 
 	if (!routeMeta.public) {
-		const permission = routeMeta.permission ?? "plugins:manage";
-		if (!isPermission(permission)) {
-			return apiError("INVALID_PLUGIN_ROUTE", "Plugin route declares an invalid permission", 500);
-		}
-		let permissionUser: { id: string; role: RoleLevel } | null | undefined;
-		if (user) {
-			const role = toRoleLevel(user.role);
-			if (role === null) {
-				return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
-			}
-			permissionUser = { id: user.id, role };
-		} else {
-			permissionUser = user;
-		}
-		const denied = requirePerm(permissionUser, permission);
+		const denied = authorizePrivatePluginRouteRequest(routeMeta, request, user, tokenScopes);
 		if (denied) return denied;
-		const scopeError = requireScope({ tokenScopes }, "admin");
-		if (scopeError) return scopeError;
-		if (!tokenScopes && request.headers.get("X-EmDash-Request") !== "1") {
-			return apiError("CSRF_REJECTED", "Missing required header", 403);
-		}
 	}
 
 	const caller = routeMeta.public ? undefined : (user ?? undefined);
@@ -134,6 +147,8 @@ export async function dispatchPluginEditorExtensionApiRequest({
 			500,
 		);
 	}
+	const denied = authorizePrivatePluginRouteRequest(routeMeta, request, user, tokenScopes);
+	if (denied) return denied;
 
 	const requestedLocale = new URL(request.url).searchParams.get("locale") || undefined;
 	const contentResult = await runtime.handleContentGet(collection, entryId, requestedLocale);
@@ -191,6 +206,8 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	}
 
 	const headers = new Headers(request.headers);
+	headers.delete("content-length");
+	headers.delete("content-encoding");
 	headers.set("Content-Type", "application/json");
 	const pluginRequest = new Request(request.url, {
 		method: "POST",

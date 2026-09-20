@@ -38,6 +38,15 @@ describe("marketplace plugin manifest parity", () => {
 		).toBe(false);
 	});
 
+	it.each(["toString", "constructor", "__proto__"])(
+		"rejects inherited object key %s as a route permission",
+		(permission) => {
+			expect(
+				manifestSchema.safeParse(manifest({ routes: [{ name: "repair", permission }] })).success,
+			).toBe(false);
+		},
+	);
+
 	it("rejects duplicate collection filters that core cannot install", () => {
 		const value = manifest();
 		value.admin.editorActions[0]!.collections = ["posts", "posts"];

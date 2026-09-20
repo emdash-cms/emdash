@@ -739,7 +739,7 @@ export function createMcpServer(
 	}) as typeof server.registerTool;
 
 	for (const tool of pluginTools) {
-		if (!(tool.permission in Permissions)) continue;
+		if (!Object.hasOwn(Permissions, tool.permission)) continue;
 		server.registerTool(
 			`${tool.pluginId}__${tool.name}`,
 			{

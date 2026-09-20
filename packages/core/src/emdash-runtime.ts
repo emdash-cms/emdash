@@ -5251,7 +5251,12 @@ export class EmDashRuntime {
 			if (pluginId && plugin.id !== pluginId) continue;
 			for (const [name, tool] of Object.entries(plugin.mcp?.tools ?? {})) {
 				const route = plugin.routes[tool.route];
-				if (!route || route.public || !route.permission || !(route.permission in Permissions))
+				if (
+					!route ||
+					route.public ||
+					!route.permission ||
+					!Object.hasOwn(Permissions, route.permission)
+				)
 					continue;
 				const key = `${plugin.id}__${name}`;
 				if (seen.has(key)) continue;
@@ -5279,7 +5284,7 @@ export class EmDashRuntime {
 					!routeMeta ||
 					routeMeta.public ||
 					routeMeta.permission !== tool.permission ||
-					!(tool.permission in Permissions)
+					!Object.hasOwn(Permissions, tool.permission)
 				) {
 					continue;
 				}
