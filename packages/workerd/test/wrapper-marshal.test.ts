@@ -10,6 +10,7 @@
 
 import { describe, it, expect } from "vitest";
 
+import { bufferPluginHttpRequest } from "../../core/src/plugins/http-wire.js";
 import {
 	bytesOverLimit,
 	PLUGIN_HTTP_FORM_BYTES,
@@ -63,8 +64,8 @@ function extractMarshalRequestInit(): (init: unknown) => Promise<any> {
 	// produces the wrapper module. To exercise it directly we evaluate the
 	// extracted function definition in an isolated scope.
 	// eslint-disable-next-line no-implied-eval
-	const factory = new Function(`${body}\nreturn marshalRequestInit;`);
-	return factory();
+	const factory = new Function("bufferPluginHttpRequest", `${body}\nreturn marshalRequestInit;`);
+	return factory(bufferPluginHttpRequest);
 }
 
 describe("marshalRequestInit: URLSearchParams body", () => {

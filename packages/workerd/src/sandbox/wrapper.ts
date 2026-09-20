@@ -12,6 +12,7 @@
  */
 
 import { normalizeCapabilities, type PluginManifest } from "emdash";
+import { generatePluginHttpWireRuntimeSource } from "emdash/plugins/http-wire";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
@@ -64,6 +65,7 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 	const hasContentRestore = capabilities.includes("content:restore");
 	const hasSchemaRead = capabilities.includes("schema:read");
 	const hasRevisionRead = capabilities.includes("content:revisions:read");
+	const httpWireRuntimeSource = generatePluginHttpWireRuntimeSource();
 
 	return `
 // =============================================================================
@@ -73,6 +75,8 @@ export function generatePluginWrapper(manifest: PluginManifest, options: Wrapper
 // =============================================================================
 
 import pluginModule from "sandbox-plugin.js";
+
+${httpWireRuntimeSource}
 
 const hooks = pluginModule?.hooks || pluginModule?.default?.hooks || {};
 const routes = pluginModule?.routes || pluginModule?.default?.routes || {};
@@ -481,9 +485,6 @@ function createContext(originHook, invocationId) {
 	// standard BodyInit encoding before the decoded bytes are measured.
 	async function marshalRequestInit(init) {
 		if (!init) return undefined;
-		const out = {};
-		if (init.method) out.method = init.method;
-		if (init.redirect) out.redirect = init.redirect;
 		let body = init.body;
 		const isBodyInit =
 			typeof body === "string" ||
@@ -494,38 +495,14 @@ function createContext(originHook, invocationId) {
 			(typeof FormData !== "undefined" && body instanceof FormData) ||
 			(typeof ReadableStream !== "undefined" && body instanceof ReadableStream);
 		if (body !== undefined && body !== null && !isBodyInit) body = JSON.stringify(body);
-		const request = new Request("https://plugin-http.invalid/", {
-			...init,
-			body,
-			method: init.method || "POST",
-			duplex: "half",
-		});
-		const headers = Array.from(request.headers.entries());
+		const buffered = await bufferPluginHttpRequest({ ...init, body });
+		const out = {};
+		if (buffered?.method) out.method = buffered.method;
+		if (buffered?.redirect) out.redirect = buffered.redirect;
+		const headers = Array.from(new Headers(buffered?.headers).entries());
 		if (headers.length > 0) out.headers = headers;
-		if (request.body) {
-			const reader = request.body.getReader();
-			const chunks = [];
-			let total = 0;
-			try {
-				while (true) {
-					const { done, value } = await reader.read();
-					if (done) break;
-					total += value.byteLength;
-					if (total > 8 * 1024 * 1024) {
-						try { await reader.cancel(); } catch {}
-						throw new Error("Plugin HTTP request body exceeds the 8388608 byte limit");
-					}
-					chunks.push(value);
-				}
-			} finally {
-				reader.releaseLock();
-			}
-			const bytes = new Uint8Array(total);
-			let offset = 0;
-			for (const chunk of chunks) {
-				bytes.set(chunk, offset);
-				offset += chunk.byteLength;
-			}
+		if (buffered?.body !== undefined && buffered.body !== null) {
+			const bytes = new Uint8Array(buffered.body);
 			let binary = "";
 			for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
 			out.bodyType = "base64";
@@ -534,34 +511,11 @@ function createContext(originHook, invocationId) {
 		return out;
 	}
 
-	function decorateHttpResponse(response, finalUrl, redirected) {
-		const clone = response.clone.bind(response);
-		Object.defineProperties(response, {
-			url: { configurable: true, value: finalUrl },
-			redirected: { configurable: true, value: redirected },
-			clone: {
-				configurable: true,
-				value: () => decorateHttpResponse(clone(), finalUrl, redirected),
-			},
-		});
-		return response;
-	}
-
-	function responseFromHttpWire(result) {
-		const nullBodyStatus = result.status === 101 || result.status === 204 || result.status === 205 || result.status === 304;
-		const response = new Response(nullBodyStatus ? null : result.body, {
-			status: result.status,
-			statusText: result.statusText,
-			headers: result.headers,
-		});
-		return decorateHttpResponse(response, result.finalUrl, result.redirected);
-	}
-
 	const http = {
 		fetch: async (url, init) => {
 			const marshaledInit = await marshalRequestInit(init);
 			const result = await bridgeCall("http/fetch", { url, init: marshaledInit });
-			return responseFromHttpWire(result);
+			return pluginHttpResponseFromWire(result);
 		}
 	};
 

@@ -12,6 +12,7 @@
  */
 
 import { normalizeCapabilities, type PluginManifest } from "emdash";
+import { generatePluginHttpWireRuntimeSource } from "emdash/plugins/http-wire";
 
 const TRAILING_SLASH_RE = /\/$/;
 const NEWLINE_RE = /[\n\r]/g;
@@ -66,6 +67,7 @@ export function generatePluginWrapper(manifest: PluginManifest, options?: Wrappe
 	const hasContentRestore = capabilities.includes("content:restore");
 	const hasSchemaRead = capabilities.includes("schema:read");
 	const hasRevisionRead = capabilities.includes("content:revisions:read");
+	const httpWireRuntimeSource = generatePluginHttpWireRuntimeSource();
 
 	return `
 // =============================================================================
@@ -78,6 +80,8 @@ import { WorkerEntrypoint } from "cloudflare:workers";
 
 // Plugin code lives in a separate module for scope isolation
 import pluginModule from "sandbox-plugin.js";
+
+${httpWireRuntimeSource}
 
 // Extract hooks and routes from the plugin module
 const hooks = pluginModule?.hooks || pluginModule?.default?.hooks || {};
@@ -150,72 +154,6 @@ async function unwrapRedirectResult(promise) {
 function createContext(env, originHook, invocationId) {
 	const bridge = env.BRIDGE;
 	const storageCollections = ${JSON.stringify(storageCollections)};
-	const httpBodyLimit = 8 * 1024 * 1024;
-
-	async function readHttpBody(stream, label) {
-		if (!stream) return new Uint8Array();
-		const reader = stream.getReader();
-		const chunks = [];
-		let total = 0;
-		try {
-			while (true) {
-				const { done, value } = await reader.read();
-				if (done) break;
-				total += value.byteLength;
-				if (total > httpBodyLimit) {
-					try { await reader.cancel(); } catch {}
-					throw new Error("Plugin HTTP " + label + " body exceeds the " + httpBodyLimit + " byte limit");
-				}
-				chunks.push(value);
-			}
-		} finally {
-			reader.releaseLock();
-		}
-		const bytes = new Uint8Array(total);
-		let offset = 0;
-		for (const chunk of chunks) {
-			bytes.set(chunk, offset);
-			offset += chunk.byteLength;
-		}
-		return bytes;
-	}
-
-	async function bufferHttpInit(init) {
-		if (!init?.body) return init;
-		const encoded = new Response(init.body);
-		const body = await readHttpBody(encoded.body, "request");
-		const headers = new Headers(init.headers);
-		if (!headers.has("content-type")) {
-			const contentType = encoded.headers.get("content-type");
-			if (contentType) headers.set("content-type", contentType);
-		}
-		const bufferedInit = { ...init };
-		delete bufferedInit.duplex;
-		return { ...bufferedInit, headers: Array.from(headers.entries()), body };
-	}
-
-	function decorateHttpResponse(response, finalUrl, redirected) {
-		const clone = response.clone.bind(response);
-		Object.defineProperties(response, {
-			url: { configurable: true, value: finalUrl },
-			redirected: { configurable: true, value: redirected },
-			clone: {
-				configurable: true,
-				value: () => decorateHttpResponse(clone(), finalUrl, redirected),
-			},
-		});
-		return response;
-	}
-
-	function responseFromHttpWire(result) {
-		const nullBodyStatus = result.status === 101 || result.status === 204 || result.status === 205 || result.status === 304;
-		const response = new Response(nullBodyStatus ? null : result.body, {
-			status: result.status,
-			statusText: result.statusText,
-			headers: result.headers,
-		});
-		return decorateHttpResponse(response, result.finalUrl, result.redirected);
-	}
 	
 	// KV - proxies to bridge.kvGet/Set/Delete/List
 	const kv = {
@@ -363,8 +301,14 @@ function createContext(env, originHook, invocationId) {
 	// HTTP access - proxies to bridge (capability + host enforced by bridge)
 	const http = {
 		fetch: async (url, init) => {
-			const result = await bridge.httpFetch(url, await bufferHttpInit(init));
-			return responseFromHttpWire(result);
+			const buffered = await bufferPluginHttpRequest(init);
+			const bridgeInit = buffered ? {
+				...buffered,
+				headers: buffered.headers ? Array.from(new Headers(buffered.headers).entries()) : undefined,
+				body: buffered.body ? new Uint8Array(buffered.body) : undefined,
+			} : undefined;
+			const result = await bridge.httpFetch(url, bridgeInit);
+			return pluginHttpResponseFromWire(result);
 		}
 	};
 	

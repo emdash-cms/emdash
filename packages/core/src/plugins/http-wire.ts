@@ -21,58 +21,104 @@ export interface PluginHttpResponseWire {
 	body: Uint8Array;
 }
 
-export async function readPluginHttpBytes(
-	stream: ReadableStream<Uint8Array> | null,
-	limit: number,
-	label: "request" | "response",
-): Promise<Uint8Array> {
-	if (!stream) return new Uint8Array();
-	const reader = stream.getReader();
-	const chunks: Uint8Array[] = [];
-	let total = 0;
-	try {
-		while (true) {
-			const { done, value } = await reader.read();
-			if (done) break;
-			total += value.byteLength;
-			if (total > limit) {
-				try {
-					await reader.cancel();
-				} catch {
-					// The byte limit remains the caller-visible failure.
+function createPluginHttpWireRuntime(maxRequestBytes: number) {
+	// oxlint-disable-next-line unicorn/consistent-function-scoping -- local declaration keeps the generated factory dependency-free
+	async function readPluginHttpBytes(
+		stream: ReadableStream<Uint8Array> | null,
+		limit: number,
+		label: "request" | "response",
+	): Promise<Uint8Array> {
+		if (!stream) return new Uint8Array();
+		const reader = stream.getReader();
+		const chunks: Uint8Array[] = [];
+		let total = 0;
+		try {
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) break;
+				total += value.byteLength;
+				if (total > limit) {
+					try {
+						await reader.cancel();
+					} catch {
+						// The byte limit remains the caller-visible failure.
+					}
+					throw new Error(`Plugin HTTP ${label} body exceeds the ${limit} byte limit`);
 				}
-				throw new Error(`Plugin HTTP ${label} body exceeds the ${limit} byte limit`);
+				chunks.push(value);
 			}
-			chunks.push(value);
+		} finally {
+			reader.releaseLock();
 		}
-	} finally {
-		reader.releaseLock();
+
+		const bytes = new Uint8Array(total);
+		let offset = 0;
+		for (const chunk of chunks) {
+			bytes.set(chunk, offset);
+			offset += chunk.byteLength;
+		}
+		return bytes;
 	}
 
-	const bytes = new Uint8Array(total);
-	let offset = 0;
-	for (const chunk of chunks) {
-		bytes.set(chunk, offset);
-		offset += chunk.byteLength;
+	async function bufferPluginHttpRequest(
+		init: RequestInit | undefined,
+	): Promise<RequestInit | undefined> {
+		if (init?.body === undefined || init.body === null) return init;
+		const encoded = new Response(init.body);
+		const body = await readPluginHttpBytes(encoded.body, maxRequestBytes, "request");
+		const headers = new Headers(init.headers);
+		if (!headers.has("content-type")) {
+			const contentType = encoded.headers.get("content-type");
+			if (contentType) headers.set("content-type", contentType);
+		}
+		const bufferedInit = { ...init };
+		Reflect.deleteProperty(bufferedInit, "duplex");
+		return { ...bufferedInit, headers, body: new Uint8Array(body).buffer };
 	}
-	return bytes;
+
+	// oxlint-disable-next-line unicorn/consistent-function-scoping -- local declaration keeps the generated factory dependency-free
+	function decoratePluginHttpResponse(
+		response: Response,
+		finalUrl: string,
+		redirected: boolean,
+	): Response {
+		const clone = response.clone.bind(response);
+		Object.defineProperties(response, {
+			url: { configurable: true, value: finalUrl },
+			redirected: { configurable: true, value: redirected },
+			clone: {
+				configurable: true,
+				value: () => decoratePluginHttpResponse(clone(), finalUrl, redirected),
+			},
+		});
+		return response;
+	}
+
+	function pluginHttpResponseFromWire(wire: PluginHttpResponseWire): Response {
+		const nullBodyStatus =
+			wire.status === 101 || wire.status === 204 || wire.status === 205 || wire.status === 304;
+		const response = new Response(nullBodyStatus ? null : new Uint8Array(wire.body).buffer, {
+			status: wire.status,
+			statusText: wire.statusText,
+			headers: wire.headers,
+		});
+		return decoratePluginHttpResponse(response, wire.finalUrl, wire.redirected);
+	}
+
+	return [
+		readPluginHttpBytes,
+		bufferPluginHttpRequest,
+		decoratePluginHttpResponse,
+		pluginHttpResponseFromWire,
+	] as const;
 }
 
-export async function bufferPluginHttpRequest(
-	init: RequestInit | undefined,
-): Promise<RequestInit | undefined> {
-	if (!init?.body) return init;
-	const encoded = new Response(init.body);
-	const body = await readPluginHttpBytes(encoded.body, PLUGIN_HTTP_MAX_REQUEST_BYTES, "request");
-	const headers = new Headers(init.headers);
-	if (!headers.has("content-type")) {
-		const contentType = encoded.headers.get("content-type");
-		if (contentType) headers.set("content-type", contentType);
-	}
-	const bufferedInit = { ...init };
-	Reflect.deleteProperty(bufferedInit, "duplex");
-	return { ...bufferedInit, headers, body: new Uint8Array(body).buffer };
-}
+export const [
+	readPluginHttpBytes,
+	bufferPluginHttpRequest,
+	decoratePluginHttpResponse,
+	pluginHttpResponseFromWire,
+] = createPluginHttpWireRuntime(PLUGIN_HTTP_MAX_REQUEST_BYTES);
 
 export function rewritePluginHttpRedirect(
 	status: number,
@@ -119,30 +165,16 @@ export async function pluginHttpResponseToWire(
 	};
 }
 
-function decoratePluginHttpResponse(
-	response: Response,
-	finalUrl: string,
-	redirected: boolean,
-): Response {
-	const clone = response.clone.bind(response);
-	Object.defineProperties(response, {
-		url: { configurable: true, value: finalUrl },
-		redirected: { configurable: true, value: redirected },
-		clone: {
-			configurable: true,
-			value: () => decoratePluginHttpResponse(clone(), finalUrl, redirected),
-		},
-	});
-	return response;
-}
-
-export function pluginHttpResponseFromWire(wire: PluginHttpResponseWire): Response {
-	const nullBodyStatus =
-		wire.status === 101 || wire.status === 204 || wire.status === 205 || wire.status === 304;
-	const response = new Response(nullBodyStatus ? null : new Uint8Array(wire.body).buffer, {
-		status: wire.status,
-		statusText: wire.statusText,
-		headers: wire.headers,
-	});
-	return decoratePluginHttpResponse(response, wire.finalUrl, wire.redirected);
+/**
+ * Generate the dependency-free helper module injected into sandbox wrappers.
+ * Generated isolates cannot resolve host package imports, so both runners embed
+ * the runtime forms of these canonical functions instead.
+ */
+export function generatePluginHttpWireRuntimeSource(): string {
+	return `const [
+	readPluginHttpBytes,
+	bufferPluginHttpRequest,
+	decoratePluginHttpResponse,
+	pluginHttpResponseFromWire,
+] = (${createPluginHttpWireRuntime.toString()})(${PLUGIN_HTTP_MAX_REQUEST_BYTES});`;
 }
