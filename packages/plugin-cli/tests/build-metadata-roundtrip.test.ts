@@ -107,7 +107,7 @@ describe("plugin build metadata round trip", () => {
 			id: "health",
 			route: "entry-health",
 		});
-			expect(persistedManifest.admin.editorActions[0]).toMatchObject({
+		expect(persistedManifest.admin.editorActions[0]).toMatchObject({
 			id: "repair",
 			route: "entry-repair",
 		});
