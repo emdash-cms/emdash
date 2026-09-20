@@ -445,7 +445,10 @@ export function ContentEditor({
 			// moment the request was sent. Writing it back into formData would
 			// clobber edits made while the request was in flight, including nested
 			// repeater sub-fields. The pending autosave effect handles lastSavedData.
-			if (!isPublishingRef.current && !autosaveJustCompleted) {
+			// While the notice is up the writer still has to choose between their copy
+			// and the newer version, so a refetch must not put the newer one into the
+			// form under them.
+			if (!isPublishingRef.current && !autosaveJustCompleted && !hasSaveConflictRef.current) {
 				setFormData(item.data);
 				setSlug(item.slug || "");
 				setSlugTouched(!!item.slug);

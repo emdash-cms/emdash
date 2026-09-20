@@ -1087,9 +1087,37 @@ describe("ContentEditPage actions during a save conflict", () => {
 			.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
 			.toBeVisible();
 
+		await expect
+			.element(screen.getByRole("textbox", { name: "Title", exact: true }))
+			.toHaveValue("Writer copy");
+
 		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy 2");
 		await vi.advanceTimersByTimeAsync(5000);
 
+		expect(server.entry.data).toMatchObject({ title: "Other writer" });
+	});
+
+	it("refuses a schedule from a dialog that was open when the conflict arrived", async () => {
+		server = createSharedEntryServer();
+		const screen = await renderEditPage();
+		server.otherWriterSaves({ title: "Other writer", website: "" });
+		await screen.getByRole("textbox", { name: "Title", exact: true }).fill("Writer copy");
+		await (await getPublishAction(screen, /Schedule changes/)).click();
+		await vi.advanceTimersByTimeAsync(150);
+		const dialog = screen.getByRole("dialog", { name: "Schedule changes" });
+		await fillScheduleFields(screen);
+		await vi.advanceTimersByTimeAsync(2500);
+
+		fireEvent.click(
+			dialog.getByRole("button", { name: "Schedule changes", exact: true }).element(),
+		);
+
+		await expect.element(dialog.getByText(conflictRefusal)).toBeVisible();
+		expect(
+			server.requests.filter(
+				(request) => request.method === "POST" && request.url.includes("/schedule"),
+			),
+		).toHaveLength(0);
 		expect(server.entry.data).toMatchObject({ title: "Other writer" });
 	});
 
