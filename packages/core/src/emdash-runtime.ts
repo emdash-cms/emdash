@@ -121,7 +121,7 @@ import type {
 	PluginContentCreateCallback,
 	VersionedContentItem,
 } from "./plugins/types.js";
-import { normalizeCapabilities } from "./plugins/types.js";
+import { normalizePluginCapabilities } from "./plugins/types.js";
 import { recordSchedulerHeartbeatSafely } from "./scheduler-health.js";
 import { primeRegisteredCollections } from "./schema/collection-slugs-cache.js";
 import { isMissingTableError } from "./utils/db-errors.js";
@@ -2500,22 +2500,7 @@ export class EmDashRuntime {
 								: undefined,
 					}),
 				);
-				const capabilities = normalizeCapabilities(entry.capabilities ?? []);
-				if (capabilities.includes("content:write") && !capabilities.includes("content:read")) {
-					capabilities.push("content:read");
-				}
-				if (capabilities.includes("content:publish") && !capabilities.includes("content:read")) {
-					capabilities.push("content:read");
-				}
-				if (capabilities.includes("media:write") && !capabilities.includes("media:read")) {
-					capabilities.push("media:read");
-				}
-				if (
-					capabilities.includes("network:request:unrestricted") &&
-					!capabilities.includes("network:request")
-				) {
-					capabilities.push("network:request");
-				}
+				const capabilities = normalizePluginCapabilities(entry.capabilities ?? []);
 
 				// Build manifest from entry's declared config
 				const manifest: PluginManifest = {
