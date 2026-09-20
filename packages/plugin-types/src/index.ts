@@ -32,8 +32,6 @@
 
 import type { ManifestRouteEntry } from "./routes.js";
 
-export const PLUGIN_BUNDLE_MAX_SCREENSHOTS = 5;
-
 // ── Plugin capability vocabulary ─────────────────────────────────────────────
 
 /**

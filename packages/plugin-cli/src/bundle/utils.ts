@@ -12,11 +12,7 @@ import { access, readdir, stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { pipeline } from "node:stream/promises";
 
-import {
-	extractManifestRoute,
-	isJsonPostRouteContract,
-	PLUGIN_BUNDLE_MAX_SCREENSHOTS,
-} from "@emdash-cms/plugin-types";
+import { extractManifestRoute, isJsonPostRouteContract } from "@emdash-cms/plugin-types";
 import { imageSize } from "image-size";
 import { packTar } from "modern-tar/fs";
 import { z } from "zod";
@@ -38,7 +34,7 @@ export const MAX_BUNDLE_SIZE = 256 * 1024;
 export const MAX_FILE_SIZE = 128 * 1024;
 export const MAX_FILE_COUNT = 20;
 
-export const MAX_SCREENSHOTS = PLUGIN_BUNDLE_MAX_SCREENSHOTS;
+export const MAX_SCREENSHOTS = 8;
 export const MAX_SCREENSHOT_WIDTH = 1920;
 export const MAX_SCREENSHOT_HEIGHT = 1080;
 export const ICON_SIZE = 256;
