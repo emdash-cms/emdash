@@ -179,11 +179,11 @@ export function MediaUsedIn({ mediaId, open, navigationBlocked, onEntryClick }: 
 					) : canRenderEmpty ? (
 						<LayerCard className="grid justify-items-center gap-1.5 px-6 py-14 text-center">
 							<p className="text-sm font-medium text-kumo-default">
-								{coverageComplete ? t`No usage` : t`No usage to show yet`}
+								{coverageComplete ? t`No tracked references found` : t`No usage to show yet`}
 							</p>
 							<p className="text-sm text-kumo-subtle">
 								{coverageComplete
-									? t`This file isn’t used in any content.`
+									? t`Only typed image and file fields and Portable Text images are tracked. Other references, such as custom blocks, are not shown here.`
 									: t`Some content may not appear here yet.`}
 							</p>
 						</LayerCard>
