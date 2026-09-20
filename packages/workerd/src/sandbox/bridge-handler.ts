@@ -33,6 +33,7 @@ import {
 	OptionsRepository,
 	parsePluginMediaMetadataPatch,
 	PluginStorageRepository,
+	PLUGIN_HTTP_MAX_REQUEST_BYTES,
 	readPluginMediaBytes,
 	RedirectAccessError,
 	StorageSerializationError,
@@ -2155,8 +2156,10 @@ function unmarshalRequestInit(
 		}
 		const padding = marshaled.body.endsWith("==") ? 2 : marshaled.body.endsWith("=") ? 1 : 0;
 		const decodedLength = (marshaled.body.length / 4) * 3 - padding;
-		if (decodedLength > 8 * 1024 * 1024) {
-			throw new Error("Plugin HTTP request body exceeds the 8388608 byte limit");
+		if (decodedLength > PLUGIN_HTTP_MAX_REQUEST_BYTES) {
+			throw new Error(
+				`Plugin HTTP request body exceeds the ${PLUGIN_HTTP_MAX_REQUEST_BYTES} byte limit`,
+			);
 		}
 		init.body = Buffer.from(marshaled.body, "base64");
 	}
