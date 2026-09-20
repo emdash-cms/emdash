@@ -1,0 +1,29 @@
+e2e/tests/content-actions.spec.ts
+  s_2737083220aeab::t_59fe43afd92298 428-470
+packages/admin/tests/components/ContentEditor.test.tsx
+  s_0df06e584efdf4::t_b3da2829208f4d 1997
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "cce47054f49600a688102a724b4aa7b0751b2bb8",
+  "prompts": {},
+  "sessions": {
+    "s_0df06e584efdf4": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0bd9e-f3f6-7e31-be97-b2eb60a9124c",
+        "model": "unknown"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    },
+    "s_2737083220aeab": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c00f-0eff-7f02-900f-8419ee6098f2",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "khoinguyenpham04 <137921741+khoinguyenpham04@users.noreply.github.com>"
+    }
+  }
+}
