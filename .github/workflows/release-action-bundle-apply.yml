@@ -111,38 +111,67 @@ jobs:
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
           permission-contents: write
 
-      - name: Checkout built head
-        if: steps.download.outputs.found == 'true'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ steps.pr.outputs.sha }}
-          token: ${{ steps.app-token.outputs.token }}
-          persist-credentials: true
-
-      - name: Apply bundle
-        if: steps.download.outputs.found == 'true'
-        id: apply
-        run: |
-          expected="apps/release-action/dist/index.js"
-          cp "$RUNNER_TEMP/release-action-bundle/index.js" "$expected"
-          git add "$expected"
-          if git diff --staged --quiet; then
-            echo "no_diff=true" >> "$GITHUB_OUTPUT"
-            echo "The bundle is already present at the PR head."
-          else
-            echo "no_diff=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Commit and push bundle
-        if: steps.download.outputs.found == 'true' && steps.apply.outputs.no_diff == 'false'
+        if: steps.download.outputs.found == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           HEAD_REF: ${{ steps.pr.outputs.ref }}
           HEAD_SHA: ${{ steps.pr.outputs.sha }}
-        run: |
-          git config user.name "emdashbot[bot]"
-          git config user.email "emdashbot[bot]@users.noreply.github.com"
-          git commit -m "chore: update release action bundle"
-          if ! git push origin "HEAD:$HEAD_REF"; then
-            echo "::error::Non-fast-forward push — the PR branch moved past $HEAD_SHA. Its next update will rebuild the bundle." >&2
-            exit 1
-          fi
+        with:
+          github-token: ${{ steps.app-token.outputs.token }}
+          script: |
+            const fs = require('node:fs');
+            const path = require('node:path');
+            const headRef = process.env.HEAD_REF;
+            const headSha = process.env.HEAD_SHA;
+            const ref = `heads/${headRef}`;
+            const { data: currentRef } = await github.rest.git.getRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref,
+            });
+            if (currentRef.object.sha !== headSha) {
+              core.setFailed(
+                `Dependabot branch moved from ${headSha} to ${currentRef.object.sha}; its next update will rebuild the bundle.`,
+              );
+              return;
+            }
+            const bundle = fs.readFileSync(
+              path.join(process.env.RUNNER_TEMP, 'release-action-bundle', 'index.js'),
+            );
+            const { data: parent } = await github.rest.git.getCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              commit_sha: headSha,
+            });
+            const { data: blob } = await github.rest.git.createBlob({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              content: bundle.toString('base64'),
+              encoding: 'base64',
+            });
+            const { data: tree } = await github.rest.git.createTree({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base_tree: parent.tree.sha,
+              tree: [{
+                path: 'apps/release-action/dist/index.js',
+                mode: '100644',
+                type: 'blob',
+                sha: blob.sha,
+              }],
+            });
+            const { data: commit } = await github.rest.git.createCommit({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              message: 'chore: update release action bundle',
+              tree: tree.sha,
+              parents: [headSha],
+            });
+            await github.rest.git.updateRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref,
+              sha: commit.sha,
+              force: false,
+            });
