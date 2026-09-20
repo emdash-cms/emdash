@@ -13,9 +13,10 @@
  *     can't blow up storage by sending huge headers.
  */
 
-import type { Kysely } from "kysely";
+import { Kysely, SqliteDialect } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { runMigrations } from "../../../src/database/migrations/runner.js";
 import {
 	MAX_404_LOG_ROWS,
 	REFERRER_MAX_LENGTH,
@@ -23,6 +24,7 @@ import {
 	USER_AGENT_MAX_LENGTH,
 } from "../../../src/database/repositories/redirect.js";
 import type { Database } from "../../../src/database/types.js";
+import { openNodeSqliteDatabase } from "../../../src/db/node-sqlite-compat.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 /**
@@ -206,5 +208,33 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 
 		expect(rows).toHaveLength(1);
 		expect(rows[0]!.hits).toBe(concurrency);
+	});
+
+	it("only enforces the row cap on a new unique path, not on repeat hits", async () => {
+		// Regression: enforce404Cap unconditionally ran `COUNT(*)` after every
+		// upsert. Repeat hits are updates, so the count was wasted work.
+		const captured: string[] = [];
+		const loggedDb = new Kysely<Database>({
+			dialect: new SqliteDialect({ database: openNodeSqliteDatabase(":memory:") }),
+			log(event) {
+				if (event.level === "query") {
+					captured.push(event.query.sql);
+				}
+			},
+		});
+		await runMigrations(loggedDb);
+		const loggedRepo = new RedirectRepository(loggedDb);
+
+		captured.length = 0;
+		await loggedRepo.log404({ path: "/new-path" });
+		const countAfterInsert = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
+		expect(countAfterInsert).toBe(1);
+
+		captured.length = 0;
+		await loggedRepo.log404({ path: "/new-path" });
+		const countAfterUpdate = captured.filter((sql) => /count\s*\(\s*\*\s*\)/i.test(sql)).length;
+		expect(countAfterUpdate).toBe(0);
+
+		await loggedDb.destroy();
 	});
 });
