@@ -104,7 +104,7 @@ describe("createHttpAccess host allowlist matching", () => {
 		},
 		{
 			caseName: "trailing-dot request hosts",
-			url: "https://api.example.com./v1",
+			url: "https://api.example.com.../v1",
 			allowedHosts: ["api.example.com"],
 		},
 		{

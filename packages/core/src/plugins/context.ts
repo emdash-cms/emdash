@@ -1084,7 +1084,12 @@ export function createMediaAccessWithWrite(
 
 /** Maximum number of redirects to follow in plugin HTTP access */
 const MAX_PLUGIN_REDIRECTS = 5;
-const TRAILING_DOT_PATTERN = /\.+$/;
+
+function stripTrailingDots(value: string): string {
+	let end = value.length;
+	while (end > 0 && value.charCodeAt(end - 1) === 46) end--;
+	return end === value.length ? value : value.slice(0, end);
+}
 
 /**
  * Check if a hostname matches any pattern in the allowed list.
@@ -1092,9 +1097,9 @@ const TRAILING_DOT_PATTERN = /\.+$/;
  * "api.example.com" matches exactly.
  */
 function isHostAllowed(host: string, allowedHosts: string[]): boolean {
-	const normalizedHost = host.toLowerCase().replace(TRAILING_DOT_PATTERN, "");
+	const normalizedHost = stripTrailingDots(host.toLowerCase());
 	return allowedHosts.some((pattern) => {
-		const normalizedPattern = pattern.toLowerCase().replace(TRAILING_DOT_PATTERN, "");
+		const normalizedPattern = stripTrailingDots(pattern.toLowerCase());
 		if (normalizedPattern === "*") return true;
 		if (normalizedPattern.startsWith("*.")) {
 			const suffix = normalizedPattern.slice(1); // ".example.com"
