@@ -103,6 +103,13 @@ describe("core media route injection", () => {
 		expect(patterns).toContain("/_emdash/api/visual-editing/content/[collection]/[id]/publish");
 	});
 
+	it("registers the scheduled policy rejection dismissal route", () => {
+		const patterns = collectRoutePatterns();
+		expect(patterns).toContain(
+			"/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]",
+		);
+	});
+
 	it("registers the media replacement route with PUT only", () => {
 		const routes: Array<{ pattern: string; entrypoint: string }> = [];
 		injectCoreRoutes((route) => routes.push(route));

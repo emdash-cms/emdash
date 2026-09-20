@@ -122,6 +122,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]",
+		entrypoint: resolveRoute("api/admin/scheduled-policy-rejections/[collection]/[id].ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]",
 		entrypoint: resolveRoute("api/content/[collection]/index.ts"),
 	});
