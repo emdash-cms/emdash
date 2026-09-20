@@ -77,8 +77,8 @@ export async function dispatchPluginApiRequest({
 		path,
 		request,
 		caller,
-		editorDispatch,
 		invalidateContentCache,
+		editorDispatch,
 	);
 	if (!result.success) {
 		const code = result.error?.code ?? "PLUGIN_ERROR";

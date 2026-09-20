@@ -120,6 +120,7 @@ describe("plugin API catch-all caller forwarding", () => {
 			expect.any(Request),
 			expect.objectContaining({ id: "u1", role: Role.ADMIN }),
 			undefined,
+			undefined,
 		);
 	});
 
@@ -134,6 +135,7 @@ describe("plugin API catch-all caller forwarding", () => {
 			"GET",
 			"/updateHomeConfig",
 			expect.any(Request),
+			undefined,
 			undefined,
 			undefined,
 		);

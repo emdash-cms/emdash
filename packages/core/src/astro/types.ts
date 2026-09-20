@@ -510,8 +510,8 @@ export interface EmDashHandlers {
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
-		editorDispatch?: PluginEditorExtensionDispatch,
 		invalidateContentCache?: PluginContentCacheInvalidator,
+		editorDispatch?: PluginEditorExtensionDispatch,
 	) => Promise<HandlerResponse>;
 	getPluginEditorExtension: (
 		pluginId: string,

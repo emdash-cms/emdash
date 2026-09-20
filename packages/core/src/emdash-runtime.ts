@@ -5138,8 +5138,8 @@ export class EmDashRuntime {
 		path: string,
 		request: Request,
 		user?: RouteCallerInput | null,
-		editorDispatch?: PluginEditorExtensionDispatch,
 		invalidateContentCache?: PluginContentCacheInvalidator,
+		editorDispatch?: PluginEditorExtensionDispatch,
 	) {
 		if (!this.isPluginEnabled(pluginId)) {
 			return {
@@ -5371,7 +5371,6 @@ export class EmDashRuntime {
 			route,
 			internalRequest,
 			caller,
-			undefined,
 			invalidateContentCache,
 		);
 		await audit.log({

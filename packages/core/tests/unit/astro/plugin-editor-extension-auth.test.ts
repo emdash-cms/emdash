@@ -69,6 +69,7 @@ describe("saved-entry plugin extension authorization", () => {
 			"entry-health",
 			expect.any(Request),
 			expect.objectContaining({ id: "owner" }),
+			undefined,
 			expect.objectContaining({
 				kind: "panel",
 				ui: expect.objectContaining({
