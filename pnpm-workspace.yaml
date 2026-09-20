@@ -114,7 +114,10 @@ catalog:
   "@oslojs/crypto": ^1.0.1
   "@oslojs/encoding": ^1.1.0
   "@oslojs/webauthn": ^1.0.0
-  "@phosphor-icons/react": ^2.1.10
+  # Pinned exactly because admin lazy buckets bake this package's per-icon
+  # export surface while root imports remain consumer-resolved. Keep both
+  # paths identical: bump deliberately and regenerate the icon buckets.
+  "@phosphor-icons/react": 2.1.10
   "@tanstack/react-query": 5.90.21
   "@tanstack/react-router": 1.163.2
   "@tiptap/core": ^3.20.0
