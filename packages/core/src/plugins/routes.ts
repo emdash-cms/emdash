@@ -29,7 +29,7 @@ import type { ResolvedPlugin, RouteContext, PluginRoute, UserInfo } from "./type
  * stream consumed. Calling any of these on `ctx.request` would re-read a spent
  * stream and throw an opaque platform error ("Body is unusable: Body has already
  * been read") with no hint about `ctx.input` — so the guard replaces them with an
- * actionable message instead (#1293).
+ * actionable message instead.
  */
 const CONSUMED_BODY_METHODS = new Set(["json", "text", "arrayBuffer", "blob", "formData", "bytes"]);
 
@@ -122,7 +122,7 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
  *
  * Body methods (POST/PUT/PATCH) parse the JSON body as before. Bodyless
  * methods (GET/HEAD/DELETE) have no body, so `request.json()` resolves to
- * undefined and fails schema validation (#2146) — parse the query string into
+ * undefined and fails schema validation, so parse the query string into
  * an object instead. Repeated keys (`?tag=a&tag=b`) become an array so array
  * schemas work; a single key stays a scalar.
  */
@@ -265,8 +265,8 @@ export class PluginRouteHandler {
 			...baseContext,
 			input: validatedInput,
 			// The body is already parsed into `input`; guard `ctx.request`'s
-			// body-reading methods so a re-read fails with an actionable message
-			// (#1293). Metadata extraction uses the original request (headers only).
+			// body-reading methods so a re-read fails with an actionable message.
+			// Metadata extraction uses the original request (headers only).
 			request: guardConsumedRequestBody(options.request),
 			requestMeta: extractRequestMeta(options.request, this.trustedProxyHeaders),
 			user: options.user,

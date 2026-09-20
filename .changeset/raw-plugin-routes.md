@@ -4,6 +4,7 @@
 "@emdash-cms/plugin-types": minor
 "@emdash-cms/plugin-cli": minor
 "@emdash-cms/plugin-test": minor
+"@emdash-cms/cloudflare": minor
 "@emdash-cms/sandbox-workerd": minor
 ---
 

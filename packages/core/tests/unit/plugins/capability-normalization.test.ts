@@ -7,8 +7,6 @@
  * diff). These tests pin the rename map and the normalization helpers so
  * that the alias layer keeps working until the deprecated names are
  * removed in the next minor.
- *
- * @see Issue: "Plugin capability names are inconsistent"
  */
 
 import { describe, it, expect } from "vitest";
@@ -25,7 +23,7 @@ import type { DeprecatedPluginCapability, PluginCapability } from "../../../src/
 
 describe("CAPABILITY_RENAMES", () => {
 	it("maps every deprecated name to its current replacement", () => {
-		// Pin the rename table — if the issue's table changes, this test
+		// Pin the rename table — if the deprecation table changes, this test
 		// catches the drift. Anyone adding a deprecation should update
 		// this case explicitly.
 		expect(CAPABILITY_RENAMES).toEqual({

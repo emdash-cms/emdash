@@ -109,12 +109,12 @@ function defineNativePlugin<TStorage extends PluginStorageConfig>(
 	// initialize -> "Cannot access 'SIMPLE_ID' before initialization" -> every
 	// route 500s on Cloudflare Workers. Call-time consts evaluate after the
 	// literals are parsed, so the temporal dead zone cannot occur regardless of
-	// bundle ordering. See #1370.
-	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	// bundle ordering.
+	// oxlint-disable-next-line e18e/prefer-static-regex -- avoids circular-init TDZ
 	const SIMPLE_ID = /^[a-z0-9-]+$/;
-	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	// oxlint-disable-next-line e18e/prefer-static-regex -- avoids circular-init TDZ
 	const SCOPED_ID = /^@[a-z0-9-]+\/[a-z0-9-]+$/;
-	// oxlint-disable-next-line e18e/prefer-static-regex -- call-time on purpose (see #1370)
+	// oxlint-disable-next-line e18e/prefer-static-regex -- avoids circular-init TDZ
 	const SEMVER_PATTERN = /^\d+\.\d+\.\d+/;
 
 	const {

@@ -209,7 +209,7 @@ export function adaptSandboxEntry(
 	// documents. Calling a single-arg standard handler with the two-arg
 	// convention silently hands it the bare route context (JS drops the
 	// extra argument), so `ctx.storage` / `ctx.email` / etc. are all
-	// undefined at runtime (#2079).
+	// undefined at runtime.
 	//
 	// Route entries can be bare functions or `{ handler, public?, input? }`
 	// config objects; normalise to the config shape inside the loop.
