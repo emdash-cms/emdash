@@ -26,6 +26,8 @@ describe("backing service handler cache", () => {
 				storageCollections: [],
 			}),
 			getPluginStorageConfig: () => ({}),
+			getPluginSettingsSchema: () => ({}),
+			getSiteInfo: () => undefined,
 			db: {},
 			emailSend: null,
 			httpFetch: async () => new Response("first"),

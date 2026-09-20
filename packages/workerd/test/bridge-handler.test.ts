@@ -306,6 +306,19 @@ describe("Bridge Handler Conformance", () => {
 			expect(result.result).toBe("hello");
 		});
 
+		it("escapes reserved byte marker objects in bridge responses", async () => {
+			const handler = makeHandler({});
+			await call(handler, "kv/set", {
+				key: "marker",
+				value: { __emdashBytes: "ordinary" },
+			});
+
+			const result = await call(handler, "kv/get", { key: "marker" });
+			expect(result.result).toEqual({
+				__emdashEscapedObject: [["__emdashBytes", "ordinary"]],
+			});
+		});
+
 		it("get returns null for non-existent key", async () => {
 			const handler = makeHandler({});
 			const result = await call(handler, "kv/get", { key: "missing" });

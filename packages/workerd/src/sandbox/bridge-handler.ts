@@ -212,6 +212,12 @@ function bridgeJsonReplacer(_key: string, value: unknown): unknown {
 	if (value instanceof Uint8Array) {
 		return { __emdashBytes: Buffer.from(value).toString("base64") };
 	}
+	if (value && typeof value === "object" && !Array.isArray(value)) {
+		const keys = Object.keys(value);
+		if (keys.length === 1 && (keys[0] === "__emdashBytes" || keys[0] === "__emdashEscapedObject")) {
+			return { __emdashEscapedObject: Object.entries(value) };
+		}
+	}
 	return value;
 }
 

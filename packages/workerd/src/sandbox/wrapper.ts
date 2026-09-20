@@ -81,6 +81,20 @@ const BACKING_URL = ${JSON.stringify(options.backingServiceUrl)};
 const AUTH_TOKEN = ${JSON.stringify(options.authToken)};
 const INVOKE_TOKEN = ${JSON.stringify(options.invokeToken)};
 
+function bridgeJsonReviver(_key, value) {
+	if (!value || typeof value !== "object" || Array.isArray(value) || Object.keys(value).length !== 1) return value;
+	if (typeof value.__emdashBytes === "string") {
+		const binary = atob(value.__emdashBytes);
+		const bytes = new Uint8Array(binary.length);
+		for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index);
+		return bytes;
+	}
+	if (Array.isArray(value.__emdashEscapedObject)) {
+		return Object.fromEntries(value.__emdashEscapedObject);
+	}
+	return value;
+}
+
 function storageObjectEntries(value) {
 	if (!value || typeof value !== "object" || Array.isArray(value) ||
 		(Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) ||
@@ -291,18 +305,7 @@ async function bridgeCall(method, body) {
 		}
 		throw new Error("Bridge call " + method + " failed: " + text);
 	}
-	const data = await res.json();
-	if (
-		method === "http/fetch" &&
-		data.result?.body &&
-		typeof data.result.body === "object" &&
-		typeof data.result.body.__emdashBytes === "string"
-	) {
-		const binary = atob(data.result.body.__emdashBytes);
-		const bytes = new Uint8Array(binary.length);
-		for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-		data.result.body = bytes;
-	}
+	const data = JSON.parse(await res.text(), bridgeJsonReviver);
 	return data.result;
 }
 
