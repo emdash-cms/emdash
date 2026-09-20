@@ -14,6 +14,7 @@ import type {
 	PluginRouteRequest,
 	PluginRouteResponseMode,
 } from "@emdash-cms/plugin-types";
+import { routeNameSchema } from "@emdash-cms/plugin-types";
 import { z } from "zod";
 
 import { MediaUsageActivationWriteBlockedError } from "../api/media-usage-write-fence.js";
@@ -74,6 +75,8 @@ export interface RouteMeta {
 	request?: PluginRouteRequest;
 	response?: PluginRouteResponseMode;
 }
+
+export const pluginPublicRouteAcknowledgementSchema = z.array(routeNameSchema);
 
 export type PluginContentCacheInvalidator = (tags: string[]) => Promise<void>;
 

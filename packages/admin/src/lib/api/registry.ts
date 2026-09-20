@@ -804,7 +804,7 @@ export async function installRegistryPlugin(
 export interface RegistryUpdateOpts {
 	version?: string;
 	confirmCapabilityChanges?: boolean;
-	confirmRouteVisibilityChanges?: boolean;
+	acknowledgedPublicRoutes?: string[];
 	confirmMcpTools?: boolean;
 	acknowledgedProfileCid?: string;
 	acknowledgedReleaseCid?: string;

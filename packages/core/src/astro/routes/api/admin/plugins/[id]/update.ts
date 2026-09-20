@@ -12,13 +12,14 @@ import { apiError, unwrapResult } from "#api/error.js";
 import { handleMarketplaceUpdate } from "#api/index.js";
 import { checkMediaUsageActivationWriteFence } from "#api/media-usage-write-fence.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
+import { pluginPublicRouteAcknowledgementSchema } from "#plugins/routes.js";
 
 export const prerender = false;
 
 const updateBodySchema = z.object({
 	version: z.string().min(1).optional(),
 	confirmCapabilityChanges: z.boolean().optional(),
-	acknowledgedPublicRoutes: z.array(z.string().min(1).max(256)).max(100).optional(),
+	acknowledgedPublicRoutes: pluginPublicRouteAcknowledgementSchema.optional(),
 	confirmMcpTools: z.boolean().optional(),
 });
 

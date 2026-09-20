@@ -112,7 +112,13 @@ export async function dispatchPluginApiRequest({
 	let response: Response;
 	if (routeMeta.response === "raw") {
 		try {
-			response = pluginRouteResponseFromWire(await pluginRouteResponseToWire(result.data), method);
+			response = pluginRouteResponseFromWire(
+				await pluginRouteResponseToWire(
+					result.data,
+					routeMeta.public ? { publicRequestUrl: request.url } : { allowExternalLocation: true },
+				),
+				method,
+			);
 		} catch (error) {
 			console.error(`[plugin:${pluginId}] Invalid raw route response:`, error);
 			return apiError("INVALID_PLUGIN_RESPONSE", "Plugin returned an invalid response", 500);

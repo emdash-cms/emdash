@@ -472,6 +472,7 @@ describe("registry delegated-release conformance", () => {
 		const next = await createDelegatedReleaseConformanceFixture({
 			version: "1.2.4",
 			declaredAccess: { content: { read: {} }, comments: { moderate: {} } },
+			routes: [{ name: "webhook", public: true }],
 		});
 		await context.publisher.repo.putRecord(
 			"com.emdashcms.experimental.package.release",
@@ -515,6 +516,49 @@ describe("registry delegated-release conformance", () => {
 			throw new Error("invalid update verification");
 		}
 
+		const routePreflight = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{
+				authoritativeRecords: nextOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedProfileCid: profileCid,
+				acknowledgedReleaseCid: releaseCid,
+			},
+		);
+		expect(routePreflight).toMatchObject({
+			success: false,
+			error: {
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				details: { routeVisibilityChanges: { newlyPublic: ["webhook"] } },
+			},
+		});
+
+		const staleConsent = await handleRegistryUpdate(
+			db,
+			storage,
+			sandbox,
+			registryConfig,
+			installed.data.pluginId,
+			{
+				authoritativeRecords: nextOptions,
+				confirmCapabilityChanges: true,
+				acknowledgedPublicRoutes: ["different-route"],
+				acknowledgedProfileCid: profileCid,
+				acknowledgedReleaseCid: releaseCid,
+			},
+		);
+		expect(staleConsent).toMatchObject({
+			success: false,
+			error: {
+				code: "ROUTE_VISIBILITY_ESCALATION",
+				details: { routeVisibilityChanges: { newlyPublic: ["webhook"] } },
+			},
+		});
+
 		const updated = await handleRegistryUpdate(
 			db,
 			storage,
@@ -524,6 +568,7 @@ describe("registry delegated-release conformance", () => {
 			{
 				authoritativeRecords: nextOptions,
 				confirmCapabilityChanges: true,
+				acknowledgedPublicRoutes: ["webhook"],
 				acknowledgedProfileCid: profileCid,
 				acknowledgedReleaseCid: releaseCid,
 			},

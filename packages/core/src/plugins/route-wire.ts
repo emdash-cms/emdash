@@ -22,7 +22,6 @@ const ALLOWED_RESPONSE_HEADERS = new Set([
 	"content-type",
 	"etag",
 	"last-modified",
-	"location",
 	"retry-after",
 ]);
 const ACTIVE_RESPONSE_TYPES = new Set([
@@ -47,6 +46,11 @@ export interface PluginRouteResponseWire {
 	status: number;
 	headers: Array<[string, string]>;
 	body: Uint8Array;
+}
+
+export interface PluginRouteResponseWireOptions {
+	allowExternalLocation?: boolean;
+	publicRequestUrl?: string;
 }
 
 export class PluginRouteRequestError extends Error {
@@ -206,7 +210,10 @@ export function isPluginResponse(value: unknown): value is PluginResponse {
 	);
 }
 
-export async function pluginRouteResponseToWire(value: unknown): Promise<PluginRouteResponseWire> {
+export async function pluginRouteResponseToWire(
+	value: unknown,
+	options: PluginRouteResponseWireOptions = {},
+): Promise<PluginRouteResponseWire> {
 	if (!isPluginResponse(value)) {
 		throw new TypeError("Raw plugin routes must return pluginResponse()");
 	}
@@ -232,7 +239,25 @@ export async function pluginRouteResponseToWire(value: unknown): Promise<PluginR
 
 	const headers = new Headers();
 	sourceHeaders.forEach((headerValue, name) => {
-		if (ALLOWED_RESPONSE_HEADERS.has(name)) headers.set(name, headerValue);
+		if (ALLOWED_RESPONSE_HEADERS.has(name)) {
+			headers.set(name, headerValue);
+			return;
+		}
+		if (name !== "location") return;
+		if (options.allowExternalLocation) {
+			headers.set(name, headerValue);
+			return;
+		}
+		if (options.publicRequestUrl) {
+			try {
+				const requestUrl = new URL(options.publicRequestUrl);
+				if (new URL(headerValue, requestUrl).origin === requestUrl.origin) {
+					headers.set(name, headerValue);
+					return;
+				}
+			} catch {}
+		}
+		throw new TypeError("Public raw plugin route redirects must stay on the site origin");
 	});
 	if (!headers.has("content-type")) headers.set("content-type", "application/octet-stream");
 	const mediaType = (headers.get("content-type") ?? "application/octet-stream")

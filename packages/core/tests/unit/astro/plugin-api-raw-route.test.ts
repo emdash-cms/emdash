@@ -115,6 +115,44 @@ describe("raw plugin route responses", () => {
 		expect(response.headers.get("cache-control")).toBe("private, no-store");
 	});
 
+	it("rejects external redirects from public raw routes", async () => {
+		const { locals } = createLocals(
+			{ public: true, response: "raw" },
+			pluginResponse({
+				status: 302,
+				headers: { location: "https://attacker.example/phish" },
+			}),
+		);
+		const response = await invoke(GET, "GET", locals);
+		expect(response.status).toBe(500);
+		expect(response.headers.get("location")).toBeNull();
+	});
+
+	it.each(["/_emdash/admin", "https://example.com/download/complete"])(
+		"allows a safe public raw redirect to %s",
+		async (location) => {
+			const { locals } = createLocals(
+				{ public: true, response: "raw" },
+				pluginResponse({ status: 302, headers: { location } }),
+			);
+			const response = await invoke(GET, "GET", locals);
+			expect(response.status).toBe(302);
+			expect(response.headers.get("location")).toBe(location);
+		},
+	);
+
+	it("allows external redirects from authenticated private raw routes", async () => {
+		const location = "https://docs.example/download";
+		const { locals } = createLocals(
+			{ public: false, response: "raw" },
+			pluginResponse({ status: 302, headers: { location } }),
+			{ id: "admin", role: Role.ADMIN },
+		);
+		const response = await invoke(GET, "GET", locals);
+		expect(response.status).toBe(302);
+		expect(response.headers.get("location")).toBe(location);
+	});
+
 	it("rejects active content but keeps undeclared marker-shaped values as JSON", async () => {
 		const active = createLocals(
 			{ public: true, response: "raw" },

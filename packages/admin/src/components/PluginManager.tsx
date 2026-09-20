@@ -346,9 +346,7 @@ function PluginCard({ plugin, updateInfo, onEnable, onDisable, isToggling }: Plu
 				acknowledgedProfileCid: registryVerification?.profileCid,
 				acknowledgedReleaseCid: registryVerification?.releaseCid,
 			};
-			if (registryEscalation?.code === "ROUTE_VISIBILITY_ESCALATION") {
-				opts.confirmRouteVisibilityChanges = true;
-			}
+			opts.acknowledgedPublicRoutes = registryEscalation?.routeVisibilityChanges?.newlyPublic ?? [];
 			updateMutation.mutate(opts);
 		} else {
 			if (!marketplaceReviewedVersion) return;
