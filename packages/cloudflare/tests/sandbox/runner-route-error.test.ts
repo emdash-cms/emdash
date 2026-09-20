@@ -134,20 +134,20 @@ describe("Cloudflare sandbox route errors", () => {
 			const invocation =
 				kind === "hook"
 					? plugin.invokeHook("content:beforeSave", {})
-					: plugin.invokeRoute("publish", {}, {
-							url: "https://example.com/_emdash/api/plugins/setup-error/publish",
-							method: "POST",
-							headers: {},
-							meta: { ip: null, userAgent: null, referer: null, geo: null },
-						});
+					: plugin.invokeRoute(
+							"publish",
+							{},
+							{
+								url: "https://example.com/_emdash/api/plugins/setup-error/publish",
+								method: "POST",
+								headers: {},
+								meta: { ip: null, userAgent: null, referer: null, geo: null },
+							},
+						);
 
 			await expect(invocation).rejects.toThrow("loader setup failed");
 			expect(contentActions.begin).toHaveBeenCalledOnce();
-			expect(contentActions.flush).toHaveBeenCalledWith(
-				"setup-error",
-				expect.any(String),
-				true,
-			);
+			expect(contentActions.flush).toHaveBeenCalledWith("setup-error", expect.any(String), true);
 		},
 	);
 
