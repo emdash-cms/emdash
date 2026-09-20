@@ -95,6 +95,28 @@ describe("createHttpAccess host allowlist matching", () => {
 			'is not allowed to fetch from host "evil.com"',
 		);
 	});
+
+	it.each([
+		{
+			caseName: "mixed-case manifest hosts",
+			url: "https://api.example.com/v1",
+			allowedHosts: ["API.Example.COM"],
+		},
+		{
+			caseName: "trailing-dot request hosts",
+			url: "https://api.example.com./v1",
+			allowedHosts: ["api.example.com"],
+		},
+		{
+			caseName: "mixed-case wildcard hosts",
+			url: "https://cdn.example.com/v1",
+			allowedHosts: ["*.Example.COM"],
+		},
+	])("normalizes $caseName", async ({ url, allowedHosts }) => {
+		mockFetch.mockResolvedValue(okResponse());
+		const http = createHttpAccess(pluginId, allowedHosts);
+		await expect(http.fetch(url)).resolves.toBeInstanceOf(Response);
+	});
 });
 
 describe("createHttpAccess external target validation", () => {
