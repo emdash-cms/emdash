@@ -152,7 +152,8 @@ export type WhereClause = Record<string, WhereValue>;
 export interface QueryOptions {
 	where?: WhereClause;
 	orderBy?: Record<string, "asc" | "desc">;
-	limit?: number; // Default 50, max 1000
+	/** Default 50, max 100 */
+	limit?: number;
 	cursor?: string;
 }
 
