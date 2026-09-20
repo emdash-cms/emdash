@@ -22,6 +22,7 @@ describe("visual-editing toolbar labels route", () => {
 		expect(loadLabels).toHaveBeenCalledWith(request);
 		expect(response.headers.get("Cache-Control")).toBe("private, no-store");
 		expect(await response.json()).toEqual({
+			success: true,
 			data: { editMode: "Editar", hideToolbar: "Ocultar barra" },
 		});
 	});
